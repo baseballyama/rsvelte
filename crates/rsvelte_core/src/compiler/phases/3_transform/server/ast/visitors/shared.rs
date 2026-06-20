@@ -52,6 +52,16 @@ pub enum TemplateEntry<'a> {
     },
     /// An opaque statement that breaks the coalescing run.
     Stmt(Statement<'a>),
+    /// A hoistable declaration — a `{@const}` const or a non-hoistable
+    /// `{#snippet}` `function` declaration. Like [`Stmt`](Self::Stmt) it breaks
+    /// the coalescing run, but [`build_template`] lifts every `HoistableDecl` to
+    /// the FRONT of the fragment body (preserving relative source order) and
+    /// strips whitespace-only [`Literal`](Self::Literal) runs adjacent to the
+    /// hoisted region. Mirrors the text oracle's
+    /// `hoist_const_and_snippet_declarations` (upstream `state.init` ordering —
+    /// declarations sit at the top of the enclosing block before any rendered
+    /// HTML).
+    HoistableDecl(Statement<'a>),
 }
 
 /// Port of upstream `process_children`: walk a slice of sibling template nodes,
@@ -572,12 +582,58 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
 /// whenever a `Stmt` entry is hit.
 ///
 /// Returns the assembled body statements (in order).
+/// Lift every [`TemplateEntry::HoistableDecl`] to the front of the entry list,
+/// preserving relative order, and drop whitespace-only [`TemplateEntry::Literal`]
+/// runs that sit in the "hoisted region". 写经 the text oracle's
+/// `hoist_const_and_snippet_declarations` (mirrors upstream's `state.init`
+/// ordering: `{@const}` consts and non-hoistable `{#snippet}` functions sit at
+/// the top of the enclosing fragment block ahead of any rendered HTML).
+fn hoist_declarations<'a>(template: Vec<TemplateEntry<'a>>) -> Vec<TemplateEntry<'a>> {
+    let has_decls = template
+        .iter()
+        .any(|e| matches!(e, TemplateEntry::HoistableDecl(_)));
+    if !has_decls {
+        return template;
+    }
+    let mut hoisted: Vec<TemplateEntry<'a>> = Vec::new();
+    let mut rest: Vec<TemplateEntry<'a>> = Vec::new();
+    // Like the oracle: start "in region" so leading whitespace before the first
+    // declaration is stripped; a real (non-whitespace, non-decl) entry flips it
+    // off and subsequent whitespace is kept in `rest`.
+    let mut in_hoisted_region = true;
+    for entry in template {
+        match entry {
+            TemplateEntry::HoistableDecl(_) => {
+                in_hoisted_region = true;
+                hoisted.push(entry);
+            }
+            TemplateEntry::Literal(ref s) if in_hoisted_region && s.trim().is_empty() => {
+                // Whitespace-only literal in the hoisted region → dropped.
+            }
+            _ => {
+                in_hoisted_region = false;
+                rest.push(entry);
+            }
+        }
+    }
+    hoisted.extend(rest);
+    hoisted
+}
+
 pub fn build_template<'a>(
     template: Vec<TemplateEntry<'a>>,
     state: &ServerTransformState<'a>,
 ) -> Vec<Statement<'a>> {
     let b = state.b;
     let mut statements: Vec<Statement<'a>> = Vec::new();
+
+    // 写经 the text oracle's `hoist_const_and_snippet_declarations`: lift every
+    // `HoistableDecl` (a `{@const}` const / non-hoistable `{#snippet}` function)
+    // to the FRONT of the fragment body, preserving relative source order, and
+    // strip whitespace-only `Literal` runs that sit in the hoisted region (so a
+    // newline between a `{@const}` and a `{#snippet}` does not become a spurious
+    // `$$renderer.push(' ')`). Everything else keeps its order in `rest`.
+    let template = hoist_declarations(template);
 
     // The coalescing run: `strings.len() == exprs.len() + 1` always holds while
     // a run is open (we seed `strings` lazily with a leading "").
@@ -595,7 +651,7 @@ pub fn build_template<'a>(
 
     for entry in template {
         match entry {
-            TemplateEntry::Stmt(stmt) => {
+            TemplateEntry::Stmt(stmt) | TemplateEntry::HoistableDecl(stmt) => {
                 if !strings.is_empty() {
                     flush(&mut strings, &mut exprs, &mut statements);
                 }

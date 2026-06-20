@@ -107,7 +107,10 @@ fn visit_const_tag_sync<'a>(node: &ConstTag, state: &mut ServerTransformState<'a
     };
 
     let stmt = state.b.const_decl(pattern, init);
-    state.template.push(TemplateEntry::Stmt(stmt));
+    // A `{@const}` is a hoistable declaration: the text oracle lifts it to the top
+    // of the enclosing fragment block (upstream `state.init`), preserving its
+    // source order relative to sibling `{@const}` / `{#snippet}` declarations.
+    state.template.push(TemplateEntry::HoistableDecl(stmt));
 }
 
 /// Try the async `{@const}` path. Returns `true` when the const was handled as

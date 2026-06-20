@@ -512,6 +512,23 @@ pub(super) fn lower_effect_value_runes_expr<'a>(expr: &mut OxcExpression<'a>, b:
     v.visit_expression(expr);
 }
 
+/// Drop statement-position `$effect(…)` / `$effect.pre(…)` / `$inspect(…)` calls
+/// that appear inside a nested function / arrow body of a TEMPLATE expression —
+/// e.g. `{(() => { $effect(() => …); })()}`. Mirrors upstream's server
+/// `ExpressionStatement` visitor returning `b.empty` for an effect / inspect rune
+/// call, applied tree-wide below the template-expression root. Uses
+/// [`NestedRuneLower`] in nested-body mode so it only touches arrow / function
+/// bodies (a bare top-level template `$effect.tracking()` value-position rune is
+/// handled by [`lower_effect_value_runes_expr`] instead).
+pub(super) fn lower_nested_runes_in_expr<'a>(expr: &mut OxcExpression<'a>, b: B<'a>) {
+    let mut v = NestedRuneLower {
+        b,
+        derived: vec![rustc_hash::FxHashSet::default()],
+        in_nested_body: false,
+    };
+    v.visit_expression(expr);
+}
+
 struct EffectValueLower<'a> {
     b: B<'a>,
 }

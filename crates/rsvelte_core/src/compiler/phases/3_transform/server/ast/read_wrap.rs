@@ -890,11 +890,30 @@ pub fn wrap_reads<'a>(
     analysis: &ComponentAnalysis,
     scope_idx: usize,
 ) {
+    wrap_reads_with_shadows(expr, b, analysis, scope_idx, FxHashSet::default());
+}
+
+/// Like [`wrap_reads`], but with an initial frame of `shadowed` names — bindings
+/// declared by enclosing snippet / scoped-slot parameters that shadow a same-named
+/// component-level `$derived` / `$store` binding. A name in `shadowed` is read as
+/// itself (never call-/store-wrapped), mirroring upstream's `context.state.scope`
+/// resolving to the nearest enclosing parameter declaration.
+pub fn wrap_reads_with_shadows<'a>(
+    expr: &mut Expression<'a>,
+    b: B<'a>,
+    analysis: &ComponentAnalysis,
+    scope_idx: usize,
+    shadowed: FxHashSet<String>,
+) {
+    let mut frames = Vec::new();
+    if !shadowed.is_empty() {
+        frames.push(shadowed);
+    }
     let mut visitor = ReadWrap {
         b,
         analysis,
         scope_idx,
-        shadowed: Vec::new(),
+        shadowed: frames,
         private_derived: Vec::new(),
     };
     visitor.visit_expression(expr);

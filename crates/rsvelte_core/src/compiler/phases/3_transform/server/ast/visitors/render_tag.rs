@@ -72,10 +72,17 @@ pub fn visit_render_tag<'a>(node: &RenderTag, state: &mut ServerTransformState<'
         (Some(s), Some(e)) => (s as usize, e as usize),
         _ => return,
     };
-    let callee_expr = state.reparse_slice(c_start, c_end);
+    // 写经 `context.visit(callee)`: the snippet-function expression is read-wrapped,
+    // so a `$derived` snippet (`let snippet = $derived(...)`) becomes `snippet()`
+    // and a store-sub snippet (`$snippet`) becomes
+    // `$.store_get($$store_subs ??= {}, "$snippet", snippet)`.
+    let mut callee_expr = state.reparse_slice(c_start, c_end);
+    state.wrap_reads_in_place(&mut callee_expr);
 
     // -- arguments ----------------------------------------------------------
     // `[$$renderer, ...args]` — `$$renderer` is always the first argument.
+    // 写经 `raw_args.map(arg => optimiser.transform(context.visit(arg), …))`:
+    // each argument is also read-wrapped (a `$derived` arg becomes `arg()`).
     let mut args = vec![state.b.id("$$renderer")];
     if let Some(arg_list) = call_json.get("arguments").and_then(Value::as_array) {
         for arg in arg_list {
@@ -83,7 +90,9 @@ pub fn visit_render_tag<'a>(node: &RenderTag, state: &mut ServerTransformState<'
                 arg.get("start").and_then(Value::as_u64),
                 arg.get("end").and_then(Value::as_u64),
             ) {
-                args.push(state.reparse_slice(a_start as usize, a_end as usize));
+                let mut arg_expr = state.reparse_slice(a_start as usize, a_end as usize);
+                state.wrap_reads_in_place(&mut arg_expr);
+                args.push(arg_expr);
             }
         }
     }

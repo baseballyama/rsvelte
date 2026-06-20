@@ -63,21 +63,101 @@ pub fn visit_snippet_block<'a>(node: &SnippetBlock, state: &mut ServerTransformS
         // Fallback (unreachable for valid input): `($$renderer)` only.
         .unwrap_or_else(|| b.params(vec![b.id_pat("$$renderer")], None));
 
+    // The snippet PARAMETERS shadow any same-named component-level `$derived` /
+    // `$store` binding inside the body (upstream `context.state.scope` resolves a
+    // body identifier to the snippet parameter, a normal binding, not the
+    // component derived). Push the param names as a shadow frame around the body
+    // build so e.g. `{#snippet foo(doubled)} {doubled} {/snippet}` does not
+    // read-wrap `doubled` to `doubled()`.
+    let mut shadow = rustc_hash::FxHashSet::default();
+    for param in &node.parameters {
+        collect_param_pattern_names(param, &mut shadow);
+    }
+    state.shadowed_names.push(shadow);
+
     // Body: render the fragment as a `{ ... }` block, then reuse its statements
     // as the function body.
     // SnippetBlock body IS an `is_text_first` parent (upstream `clean_nodes`).
     let body_block = super::shared::build_fragment_body(&node.body, true, state);
     let fn_body = b.body(body_block);
 
+    state.shadowed_names.pop();
+
     let fn_decl = b.function_declaration(&name, params, fn_body, false);
 
     // 写经 `node.metadata.can_hoist ? state.hoisted : state.init`: a hoistable
     // snippet (no instance-state reference) goes to module scope; otherwise it
-    // is collected into the shared component-level `init` slot.
+    // is emitted INLINE at its source position in the enclosing fragment's
+    // template stream. The text-based oracle this pipeline matches does not keep a
+    // separate `init` buffer — it prints a non-hoistable snippet function exactly
+    // where it appears in the child run, so a `{@const}` declared before the
+    // `{#snippet}` precedes it (`function` hoisting makes the order irrelevant at
+    // runtime, but byte-parity requires source order). `function` declarations
+    // flush the joinable text run (like a `{@const}`), so the rendered `push`
+    // calls that surround them stay in place.
     if node.metadata.can_hoist {
         state.hoisted.push(fn_decl);
     } else {
-        state.snippet_inits.push(fn_decl);
+        state
+            .template
+            .push(super::shared::TemplateEntry::HoistableDecl(fn_decl));
+    }
+}
+
+/// Collect every binding identifier name introduced by a snippet / slot
+/// parameter pattern (`id`, `{ a, b: c }`, `[x, ...y]`, `id = default`). Walks the
+/// JSON pattern shape since parameters are stored as `crate::ast::js::Expression`.
+/// Used to populate the shadow frame so a parameter shadows a component-level
+/// `$derived` / `$store` binding of the same name within the snippet body.
+pub(super) fn collect_param_pattern_names(
+    expr: &crate::ast::js::Expression,
+    out: &mut rustc_hash::FxHashSet<String>,
+) {
+    collect_pattern_names_json(&expr.as_json(), out);
+}
+
+fn collect_pattern_names_json(json: &Value, out: &mut rustc_hash::FxHashSet<String>) {
+    let ty = json.get("type").and_then(Value::as_str).unwrap_or("");
+    match ty {
+        "Identifier" => {
+            if let Some(name) = json.get("name").and_then(Value::as_str) {
+                out.insert(name.to_string());
+            }
+        }
+        "AssignmentPattern" => {
+            if let Some(left) = json.get("left") {
+                collect_pattern_names_json(left, out);
+            }
+        }
+        "RestElement" => {
+            if let Some(arg) = json.get("argument") {
+                collect_pattern_names_json(arg, out);
+            }
+        }
+        "ArrayPattern" => {
+            if let Some(elems) = json.get("elements").and_then(Value::as_array) {
+                for el in elems {
+                    if !el.is_null() {
+                        collect_pattern_names_json(el, out);
+                    }
+                }
+            }
+        }
+        "ObjectPattern" => {
+            if let Some(props) = json.get("properties").and_then(Value::as_array) {
+                for prop in props {
+                    let pty = prop.get("type").and_then(Value::as_str).unwrap_or("");
+                    if pty == "RestElement" {
+                        if let Some(arg) = prop.get("argument") {
+                            collect_pattern_names_json(arg, out);
+                        }
+                    } else if let Some(value) = prop.get("value") {
+                        collect_pattern_names_json(value, out);
+                    }
+                }
+            }
+        }
+        _ => {}
     }
 }
 

@@ -147,6 +147,14 @@ pub struct ServerTransformState<'a> {
     /// `$$renderer.child`/`async`. `None` for sync elements (the fast path),
     /// keeping non-async output byte-identical.
     pub attr_optimiser: Option<visitors::shared::PromiseOptimiser<'a>>,
+    /// Names bound by the ENCLOSING snippet / scoped-slot parameters that shadow a
+    /// same-named component-level `$derived` / `$store` binding. Mirrors upstream's
+    /// `context.state.scope` resolving a snippet body's identifier to the snippet
+    /// parameter (a normal binding) rather than the component derived. Seeded into
+    /// each `wrap_reads` call so e.g. `{#snippet foo(doubled)} {doubled} {/snippet}`
+    /// keeps `doubled` bare instead of read-wrapping it to `doubled()`. Pushed by
+    /// the SnippetBlock visitor around its body, popped after.
+    pub shadowed_names: Vec<rustc_hash::FxHashSet<String>>,
 }
 
 /// One per-fragment async `{@const}` group — the AST mirror of upstream's
@@ -211,7 +219,18 @@ impl<'a> ServerTransformState<'a> {
             derived_array_counter: 0,
             in_element_children: false,
             attr_optimiser: None,
+            shadowed_names: Vec::new(),
         }
+    }
+
+    /// Collect all the names currently shadowed by enclosing snippet / slot
+    /// parameters (flattened from [`Self::shadowed_names`]).
+    fn collect_shadowed(&self) -> rustc_hash::FxHashSet<String> {
+        let mut out = rustc_hash::FxHashSet::default();
+        for frame in &self.shadowed_names {
+            out.extend(frame.iter().cloned());
+        }
+        out
     }
 
     /// Route a built attribute / prop value through the CURRENT element's
@@ -356,17 +375,36 @@ impl<'a> ServerTransformState<'a> {
 
     pub fn visit_expr(&self, expr: &Expression) -> OxcExpression<'a> {
         let mut out = self.visit_expr_raw(expr);
-        read_wrap::wrap_reads(
+        read_wrap::wrap_reads_with_shadows(
             &mut out,
             self.b,
             self.analysis,
             self.analysis.root.instance_scope_index,
+            self.collect_shadowed(),
         );
         // Lower value-position `$effect.tracking()` → `false`,
         // `$effect.root(…)` → `() => {}`, `$effect.pending()` → `0` inside the
         // template expression (写经 server `CallExpression` visitor).
         script::lower_effect_value_runes_expr(&mut out, self.b);
+        // Drop statement-position `$effect(…)` / `$effect.pre(…)` / `$inspect(…)`
+        // calls nested in a template-expression IIFE arrow / function body (写经
+        // server `ExpressionStatement` visitor → `b.empty`).
+        script::lower_nested_runes_in_expr(&mut out, self.b);
         out
+    }
+
+    /// Run the read-wrapping pass over an already-built oxc expression in place,
+    /// resolving names against the instance scope. Mirrors `context.visit(...)`'s
+    /// read-rewriting for callers (e.g. `RenderTag`) that decompose a template
+    /// expression by source-slice + re-parse rather than `visit_expr`.
+    pub fn wrap_reads_in_place(&self, expr: &mut OxcExpression<'a>) {
+        read_wrap::wrap_reads_with_shadows(
+            expr,
+            self.b,
+            self.analysis,
+            self.analysis.root.instance_scope_index,
+            self.collect_shadowed(),
+        );
     }
 
     /// Convert a parsed template [`Expression`] to an oxc [`OxcExpression`]
@@ -636,12 +674,16 @@ pub fn server_component_ast<'a>(
     use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
     // -- module-script body (module scope) ----------------------------------
-    // Upstream emits `[...hoisted, ...module.body]` at module scope. We append
-    // the lowered module statements onto `hoisted` (after the namespace import).
+    // Upstream emits `[...hoisted, ...module.body]` at module scope. The module
+    // body is kept SEPARATE here (rather than appended to `state.hoisted` up
+    // front) so that hoistable snippet `function` declarations — which are pushed
+    // onto `state.hoisted` later, during `build_fragment_body` — land BEFORE the
+    // module body. This matches upstream's `[...hoisted, ...module.body]` order
+    // (e.g. a hoisted `{#snippet foo}` function precedes a `<script module>`'s
+    // `export { foo }`).
     // (NON-DELICATE slice — only the localized rune lowerings; KNOWN GAPS:
     // derived-read wrapping / store-get / snapshot / $$sanitized_props.)
     let module_body = script::transform_module(ast, &mut state);
-    state.hoisted.extend(module_body);
 
     // -- store_subs detection -----------------------------------------------
     // Upstream (lines 213-222): if any instance binding is `store_sub`,
@@ -910,9 +952,13 @@ pub fn server_component_ast<'a>(
     let component_fn = b.function_declaration(component_name, params, fn_body, false);
 
     // -- program assembly ---------------------------------------------------
-    // body = [...hoisted, ...module.body] (state.hoisted already carries the
-    // module body), then the `$$css` module const (if any), then the export.
+    // body = [...hoisted, ...module.body] — `state.hoisted` carries the namespace
+    // import + instance imports + any hoisted snippet `function` declarations;
+    // `module_body` (the `<script module>` lowering) follows so a hoisted snippet
+    // function precedes a module-level `export { name }`. Then the `$$css` module
+    // const (if any), then the export.
     let mut program_body = std::mem::take(&mut state.hoisted);
+    program_body.extend(module_body);
     if let Some(css_const) = css_const {
         program_body.push(css_const);
     }
@@ -1354,6 +1400,86 @@ mod tests {
             .filter(|l| !l.is_empty())
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    /// SSR snippet / dynamic-component / let-directive cluster parity with the
+    /// (correct) text-based `transform_server` oracle. Each fixture below is a
+    /// runtime-runes fixture the oracle passes; matching it under [`canon_js`]
+    /// (the runtime harness's canonicalizer) means the runtime suite passes.
+    ///
+    /// Root causes fixed (写经 upstream `RenderTag` / `Component` /
+    /// `SvelteComponent` / `SnippetBlock` / `shared/component.js`):
+    /// - **dynamic-component derived-read** (`dynamic-component-member` /
+    ///   `dynamic-component-nested`): `Component(node, context)` runs
+    ///   `context.visit(b.member_id(node.name))`, so a `$derived`-rooted component
+    ///   name (`B` / `platformIcons`) read-wraps to `B()` / `platformIcons()....`.
+    ///   `visit_component` now read-wraps the member-id on both the guard test and
+    ///   the call.
+    /// - **render-tag derived-read / store-get** (`snippet-reactive*` /
+    ///   `snippet-argument*` / `snippet-store`): `RenderTag` visits the callee +
+    ///   each argument, so a `$derived` snippet / arg becomes `snippet()` /
+    ///   `doubled()` and a `$store` snippet `$.store_get(...)`. `visit_render_tag`
+    ///   now read-wraps the re-parsed callee + arg slices.
+    /// - **snippet-param shadowing** (`snippet-argument*`): a snippet parameter
+    ///   shadows a same-named component derived inside the body (`{doubled}` stays
+    ///   bare). A per-snippet shadow frame is pushed around the body build.
+    /// - **module-export ordering** (`snippet-hoisting-3`): the module body is now
+    ///   appended AFTER hoisted snippet functions, so `function foo` precedes
+    ///   `export { foo }`.
+    /// - **const / snippet hoist ordering** (`snippet-const-same-block`,
+    ///   `snippet-hoisting`): `{@const}` consts + non-hoistable `{#snippet}`
+    ///   functions are lifted to the front of their fragment block, preserving
+    ///   source order (写经 `state.init` / `hoist_const_and_snippet_declarations`).
+    /// - **`$.css_props` wrap** (`dynamic-component-css-props`): `--foo` props wrap
+    ///   the whole component statement in `$.css_props($$renderer, …, () => {…},
+    ///   dynamic && true)`.
+    /// - **effect-statement elision** (`transition-each-4`): `$effect(…)` /
+    ///   `$effect.pre(…)` statements inside a template IIFE arrow body are dropped.
+    ///
+    /// `component-let-directive` is NOT yet matched: it needs per-slot
+    /// `scope.evaluate` scope tracking (the AST `eval_ctx` `current_scope_index` is
+    /// `None`) so a `<Counter let:count>` named slot folds the component-level
+    /// `count` const while the default slot keeps the `let:count` param read — an
+    /// orthogonal evaluate-machinery gap.
+    #[test]
+    fn ast_matches_oracle_snippet_dynamic_component_cluster() {
+        let fixtures: &[(&str, &str)] = &[
+            ("runtime-runes", "snippet-hoisting-3"),
+            ("runtime-runes", "snippet-const-same-block"),
+            ("runtime-runes", "snippet-argument-destructured-multiple"),
+            ("runtime-runes", "snippet-argument-multiple"),
+            ("runtime-runes", "snippet-reactive"),
+            ("runtime-runes", "snippet-reactive-args"),
+            ("runtime-runes", "snippet-store"),
+            ("runtime-runes", "dynamic-component-nested"),
+            ("runtime-runes", "dynamic-component-member"),
+            ("runtime-runes", "dynamic-component-falsy-hydrate"),
+            ("runtime-runes", "dynamic-component-css-props"),
+            ("runtime-runes", "transition-each-4"),
+        ];
+        let mut mismatches: Vec<String> = Vec::new();
+        for (suite, dir) in fixtures {
+            let path = format!(
+                "{}/../../submodules/svelte/packages/svelte/tests/{}/samples/{}/main.svelte",
+                env!("CARGO_MANIFEST_DIR"),
+                suite,
+                dir
+            );
+            let Ok(src) = std::fs::read_to_string(&path) else {
+                eprintln!("SKIP {dir} (submodule not checked out)");
+                return;
+            };
+            let ours = run(&src);
+            let oracle = oracle_dump(&src);
+            if canon_js(&ours) != canon_js(&oracle) {
+                eprintln!("=== {dir} DIFFER ===\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}\n");
+                mismatches.push((*dir).to_string());
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "snippet/dynamic-component cluster output differs from oracle for: {mismatches:?}"
+        );
     }
 
     /// Async SSR `IfBlock` (Stage 2a): the shared `$.save` await-wrap + the

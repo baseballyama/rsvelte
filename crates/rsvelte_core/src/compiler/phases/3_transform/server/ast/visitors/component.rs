@@ -89,13 +89,25 @@ pub fn visit_component<'a>(
     state: &mut ServerTransformState<'a>,
 ) {
     // Upstream: `context.visit(b.member_id(node.name))` — a dotted name like
-    // `ns.Comp` becomes the member chain; a bare name an identifier.
+    // `ns.Comp` becomes the member chain; a bare name an identifier. The
+    // `context.visit(...)` runs the read-wrapping pass, so a derived-rooted name
+    // (`B` / `platformIcons.currency.Icon` where `B` / `platformIcons` is a
+    // `$derived`) becomes `B()` / `platformIcons().currency.Icon`.
     let name = node.name.to_string();
     let dynamic = node.metadata.dynamic;
     build_inline_component(
         &node.attributes,
         &node.fragment,
-        |s| s.b.member_id(&name),
+        |s| {
+            let mut expr = s.b.member_id(&name);
+            super::super::read_wrap::wrap_reads(
+                &mut expr,
+                s.b,
+                s.analysis,
+                s.analysis.root.instance_scope_index,
+            );
+            expr
+        },
         dynamic,
         state,
     );
@@ -175,14 +187,22 @@ fn build_inline_component<'a, 'b>(
         .any(|a| matches!(a, Attribute::Attribute(at) if at.name.as_str() == "slot"));
     let mut default_lets: Vec<&'b crate::ast::template::LetDirective> = Vec::new();
 
+    // Custom-CSS props (`--foo="red"`): collected here and used to wrap the whole
+    // component statement in `$.css_props($$renderer, …, { '--foo': value }, () =>
+    // { <statement> }, dynamic && true)` after the dynamic guard / snippet block
+    // (写经 `shared/component.js` lines 101-102 + 331-340).
+    let mut custom_css_props: Vec<ObjectPropertyKind<'a>> = Vec::new();
+
     for attr in attributes {
         match attr {
             Attribute::LetDirective(let_dir) if !slot_scope_applies_to_itself => {
                 default_lets.push(let_dir);
             }
             Attribute::Attribute(a) => {
-                // Custom-CSS props (`--foo`) → `$.css_props` — KNOWN GAP, skip.
+                // Custom-CSS props (`--foo`) → collected for the `$.css_props` wrap.
                 if a.name.starts_with("--") {
+                    let value = component_attribute_value(&a.value, &mut optimiser, state);
+                    custom_css_props.push(state.b.init(a.name.as_str(), value));
                     continue;
                 }
                 if a.name.as_str() == "children" {
@@ -264,6 +284,28 @@ fn build_inline_component<'a, 'b>(
         statement = state.b.block(block_body);
     }
 
+    // Custom-CSS props wrap (写经 `shared/component.js` lines 331-340):
+    //   $.css_props($$renderer, namespace==='svg'?false:true, { '--foo': value },
+    //               () => { <statement> }, dynamic && true);
+    // The SVG-namespace flag is a 写经 simplification — every current fixture is
+    // `html`, so emit `true`; the dynamic flag is the 5th arg only when dynamic.
+    let has_css_props = !custom_css_props.is_empty();
+    if has_css_props {
+        let b = state.b;
+        let css_obj = b.object(custom_css_props);
+        let thunk = b.arrow(
+            b.params(vec![], None),
+            b.body(vec![statement]),
+            false,
+            false,
+        );
+        let mut args = vec![b.id("$$renderer"), b.bool(true), css_obj, thunk];
+        if dynamic {
+            args.push(b.bool(true));
+        }
+        statement = b.stmt(b.call("$.css_props", args));
+    }
+
     // 写经: the component name itself could read a blocked binding. The AST
     // callee is a freshly-built expression with no source span (the name is a
     // static import in every current fixture), so this name-blocker check is a
@@ -282,7 +324,7 @@ fn build_inline_component<'a, 'b>(
     // A dynamic component already pushed its own `<!--]-->` close marker inside
     // the guard, so the trailing empty comment is suppressed (upstream's
     // `!dynamic && !is_async()` condition on the `empty_comment` push).
-    if !dynamic && !is_async && !state.is_standalone {
+    if !dynamic && !is_async && !state.is_standalone && !has_css_props {
         state
             .template
             .push(TemplateEntry::Literal(EMPTY_COMMENT.to_string()));
@@ -516,8 +558,16 @@ fn build_snippet_declaration<'a>(
     let params = state
         .reparse_params(&param_srcs)
         .unwrap_or_else(|| b.params(vec![b.id_pat("$$renderer")], None));
+    // Snippet parameters shadow same-named component derived/store bindings inside
+    // the body (see `visit_snippet_block`).
+    let mut shadow = rustc_hash::FxHashSet::default();
+    for param in &snippet.parameters {
+        super::snippet_block::collect_param_pattern_names(param, &mut shadow);
+    }
+    state.shadowed_names.push(shadow);
     // SnippetBlock body IS an `is_text_first` parent.
     let body_block = super::shared::build_fragment_body(&snippet.body, true, state);
+    state.shadowed_names.pop();
     let fn_body = state.b.body(body_block);
     state.b.function_declaration(name, params, fn_body, false)
 }
