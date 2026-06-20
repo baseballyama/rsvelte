@@ -326,6 +326,10 @@ pub struct JsCatchClause {
 pub enum JsExpr {
     /// Identifier
     Identifier(CompactString),
+    /// An identifier in already-final form: skipped by the transform passes
+    /// (like `Raw`) but treated as a plain identifier by codegen / to_oxc.
+    /// Used for prop setter callees that must not be re-read-transformed.
+    OpaqueIdentifier(CompactString),
     /// Literal value
     Literal(JsLiteral),
     /// Template literal
@@ -364,6 +368,21 @@ pub enum JsExpr {
     Spread(ExprId),
     /// This expression
     This,
+    /// `super` keyword (as a member/call base, e.g. `super.foo()` / `super()`).
+    Super,
+    /// Meta property `meta.property` (e.g. `import.meta`, `new.target`). Both
+    /// parts are keyword/identifier tokens, so it is a terminal leaf.
+    MetaProperty(CompactString, CompactString),
+    /// Dynamic import call `import(source[, options])`. The source/options are
+    /// held as already-converted sub-expressions and emitted lazily by codegen
+    /// (replacing the old eager `generate_expr` + `Raw` stringification). Treated
+    /// as a terminal in the analysis passes (await / transform / reactive-ref
+    /// collection), mirroring the opaque `Raw` it replaced, so the sub-expressions
+    /// are not re-transformed after conversion.
+    ImportExpression {
+        source: ExprId,
+        options: Option<ExprId>,
+    },
     /// Await expression
     Await(ExprId),
     /// Yield expression
@@ -387,6 +406,23 @@ pub enum JsExpr {
 pub enum JsLiteral {
     String(CompactString),
     Number(f64),
+    /// String literal that preserves the exact source spelling (`raw`, e.g.
+    /// double-quoted `"foo"`) so canonical single-quote formatting does not
+    /// rewrite it. `value` holds the cooked string content.
+    RawString {
+        value: CompactString,
+        raw: CompactString,
+    },
+    /// Number literal that preserves the exact source spelling (`raw`, e.g.
+    /// `1_000_000`, `0.5`) instead of normalizing it. `value` holds the
+    /// numeric value.
+    RawNumber {
+        value: f64,
+        raw: CompactString,
+    },
+    /// BigInt literal, stored as its raw source text including the trailing `n`
+    /// (e.g. `123n`, `0x1fn`) so the exact representation is preserved.
+    BigInt(CompactString),
     Boolean(bool),
     Null,
     Undefined,

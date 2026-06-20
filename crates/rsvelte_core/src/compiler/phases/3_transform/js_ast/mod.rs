@@ -9,6 +9,7 @@ pub mod arena;
 pub mod builders;
 pub mod codegen;
 pub mod nodes;
+pub(crate) mod to_oxc;
 
 pub use arena::*;
 pub use builders::*;

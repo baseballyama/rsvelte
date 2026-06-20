@@ -2145,13 +2145,40 @@ fn transform_client_with_visitors(
         super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
         r
     } else {
-        let code = generate(&program, &context.arena).map_err(TransformError::CodeGen)?;
+        // Experimental "Phase-3 Step 1+3 direct-AST" path (gated OFF by
+        // default). When `RSVELTE_CLIENT_TO_OXC` is set, try converting the
+        // `js_ast` IR program into an oxc `Program` and printing it with the
+        // esrap port. Any unhandled node makes the converter return `None`, in
+        // which case we transparently fall through to the existing string-based
+        // codegen, so behavior is identical to the unset case on any failure.
+        let code = if std::env::var("RSVELTE_CLIENT_TO_OXC").is_ok() {
+            CLIENT_TO_OXC_ALLOCATOR
+                .with(|cell| {
+                    let mut alloc = cell.borrow_mut();
+                    alloc.reset();
+                    super::js_ast::to_oxc::program_to_oxc(&program, &context.arena, &alloc)
+                        .map(|oxc_prog| rsvelte_esrap::print(&oxc_prog, ""))
+                })
+                .map(Ok)
+        } else {
+            None
+        }
+        .unwrap_or_else(|| generate(&program, &context.arena).map_err(TransformError::CodeGen))?;
         super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
         Ok(CodegenResult {
             code: hoist_rest_excludes(&code),
             mappings: vec![],
         })
     }
+}
+
+// Thread-local OXC allocator for the experimental client `to_oxc` direct-AST
+// print path (gated behind `RSVELTE_CLIENT_TO_OXC`). Mirrors the SSR script
+// allocator pattern in `server/build.rs`: reset-and-reuse per compile so the
+// buffer is retained across calls without per-call allocation.
+thread_local! {
+    static CLIENT_TO_OXC_ALLOCATOR: std::cell::RefCell<oxc_allocator::Allocator> =
+        std::cell::RefCell::new(oxc_allocator::Allocator::default());
 }
 
 /// Hoist `$.rest_props($$props, [...])` inline exclude arrays to module-scope

@@ -214,7 +214,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
         } => match value {
             LiteralValue::String(s) => {
                 if raw.starts_with('"') {
-                    JsExpr::Raw(raw.to_string().into())
+                    JsExpr::Literal(JsLiteral::RawString {
+                        value: s.to_string().into(),
+                        raw: raw.to_string().into(),
+                    })
                 } else {
                     JsExpr::Literal(JsLiteral::String(s.to_string().into()))
                 }
@@ -234,7 +237,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 if raw_str == codegen_str {
                     JsExpr::Literal(JsLiteral::Number(*n))
                 } else {
-                    JsExpr::Raw(raw.to_string().into())
+                    JsExpr::Literal(JsLiteral::RawNumber {
+                        value: *n,
+                        raw: raw.to_string().into(),
+                    })
                 }
             }
             LiteralValue::Bool(b) => JsExpr::Literal(JsLiteral::Boolean(*b)),
@@ -248,7 +254,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 }
                 // Check for BigInt (raw ends with 'n')
                 if raw.ends_with('n') {
-                    return JsExpr::Raw(raw.to_string().into());
+                    return JsExpr::Literal(JsLiteral::BigInt(raw.to_string().into()));
                 }
                 JsExpr::Literal(JsLiteral::Null)
             }
@@ -1796,7 +1802,7 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                 "UpdateExpression" => convert_update_expression(obj, context),
                 "SequenceExpression" => convert_sequence_expression(obj, context),
                 "ThisExpression" => JsExpr::This,
-                "Super" => JsExpr::Raw("super".into()),
+                "Super" => JsExpr::Super,
                 "ClassExpression" => convert_class_expression(obj, context),
                 "NewExpression" => convert_new_expression(obj, context),
                 "AwaitExpression" => convert_await_expression(obj, context),
@@ -1806,23 +1812,19 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                 "TaggedTemplateExpression" => convert_tagged_template_expression(obj, context),
                 "ChainExpression" => convert_chain_expression(obj, context),
                 "ImportExpression" => {
-                    // Dynamic import: import('./module')
-                    // Convert the source argument and render as `import(source)`.
-                    use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
-                    let source_str = if let Some(source) = obj.get("source") {
-                        let source_expr = convert_json_value(source, context);
-                        generate_expr(&source_expr, &context.arena)
-                    } else {
-                        String::new()
-                    };
-                    // Handle optional options argument (second argument)
-                    if let Some(options) = obj.get("options").filter(|v| !v.is_null()) {
+                    // Dynamic import: import('./module'[, options]). Hold the
+                    // converted source/options as sub-expressions emitted lazily
+                    // by codegen (was: eager generate_expr + Raw stringification).
+                    let source_expr = obj
+                        .get("source")
+                        .map(|source| convert_json_value(source, context))
+                        .unwrap_or(JsExpr::Raw("".into()));
+                    let source = context.arena.alloc_expr(source_expr);
+                    let options = obj.get("options").filter(|v| !v.is_null()).map(|options| {
                         let options_expr = convert_json_value(options, context);
-                        let options_str = generate_expr(&options_expr, &context.arena);
-                        JsExpr::Raw(format!("import({}, {})", source_str, options_str).into())
-                    } else {
-                        JsExpr::Raw(format!("import({})", source_str).into())
-                    }
+                        context.arena.alloc_expr(options_expr)
+                    });
+                    JsExpr::ImportExpression { source, options }
                 }
                 "MetaProperty" => {
                     // ESTree MetaProperty: meta.property (e.g., import.meta, new.target)
@@ -1838,7 +1840,7 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                         .and_then(|p| p.get("name"))
                         .and_then(|n| n.as_str())
                         .unwrap_or("meta");
-                    JsExpr::Raw(format!("{}.{}", meta, property).into())
+                    JsExpr::MetaProperty(meta.into(), property.into())
                 }
                 "ObjectPattern" | "ArrayPattern" => {
                     // Destructuring patterns used as LHS in assignment expressions.
@@ -1956,7 +1958,10 @@ fn convert_literal(
             if let Some(Value::String(raw)) = obj.get("raw")
                 && raw.starts_with('"')
             {
-                return JsExpr::Raw(raw.clone().into());
+                return JsExpr::Literal(JsLiteral::RawString {
+                    value: s.clone().into(),
+                    raw: raw.clone().into(),
+                });
             }
             JsExpr::Literal(JsLiteral::String(s.clone().into()))
         }

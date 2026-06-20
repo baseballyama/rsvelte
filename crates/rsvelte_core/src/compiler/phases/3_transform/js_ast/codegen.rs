@@ -817,6 +817,7 @@ impl<'a> JsCodegen<'a> {
     fn emit_expression(&mut self, expr: &JsExpr) {
         match expr {
             JsExpr::Identifier(name) => self.output.push_str(name),
+            JsExpr::OpaqueIdentifier(name) => self.output.push_str(name),
             JsExpr::Literal(lit) => self.emit_literal(lit),
             JsExpr::TemplateLiteral(template) => self.emit_template_literal(template),
             JsExpr::TaggedTemplate(tagged) => self.emit_tagged_template(tagged),
@@ -839,6 +840,21 @@ impl<'a> JsCodegen<'a> {
                 self.emit_expression(self.arena.get_expr(*inner_id));
             }
             JsExpr::This => self.output.push_str("this"),
+            JsExpr::Super => self.output.push_str("super"),
+            JsExpr::MetaProperty(meta, property) => {
+                self.output.push_str(meta);
+                self.output.push('.');
+                self.output.push_str(property);
+            }
+            JsExpr::ImportExpression { source, options } => {
+                self.output.push_str("import(");
+                self.emit_expression(self.arena.get_expr(*source));
+                if let Some(options_id) = options {
+                    self.output.push_str(", ");
+                    self.emit_expression(self.arena.get_expr(*options_id));
+                }
+                self.output.push(')');
+            }
             JsExpr::Await(inner_id) => {
                 self.output.push_str("await ");
                 let arg = self.arena.get_expr(*inner_id);
@@ -915,6 +931,9 @@ impl<'a> JsCodegen<'a> {
             JsLiteral::Boolean(b) => {
                 self.output.push_str(if *b { "true" } else { "false" });
             }
+            JsLiteral::RawString { raw, .. } => self.output.push_str(raw),
+            JsLiteral::RawNumber { raw, .. } => self.output.push_str(raw),
+            JsLiteral::BigInt(s) => self.output.push_str(s),
             JsLiteral::Null => self.output.push_str("null"),
             JsLiteral::Undefined => self.output.push_str("undefined"),
             JsLiteral::Regex { pattern, flags } => {

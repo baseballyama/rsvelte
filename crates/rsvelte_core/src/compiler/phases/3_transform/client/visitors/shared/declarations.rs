@@ -229,7 +229,7 @@ fn prop_source_read(arena: &JsArena, node: JsExpr) -> JsExpr {
 /// the setter `x(value)` into `x()(value)`.
 fn prop_source_assign(arena: &JsArena, node: JsExpr, value: JsExpr, _needs_proxy: bool) -> JsExpr {
     let callee = match node {
-        JsExpr::Identifier(ref name) => JsExpr::Raw(name.clone()),
+        JsExpr::Identifier(ref name) => JsExpr::OpaqueIdentifier(name.clone()),
         _ => node,
     };
     b::call(arena, callee, vec![value])
@@ -249,7 +249,7 @@ fn prop_mutate(_arena: &JsArena, _node: JsExpr, mutation: JsExpr) -> JsExpr {
 /// The callee uses `JsExpr::Raw` to prevent double-transformation.
 fn prop_bindable_mutate(arena: &JsArena, node: JsExpr, mutation: JsExpr) -> JsExpr {
     let callee = match node {
-        JsExpr::Identifier(ref name) => JsExpr::Raw(name.clone()),
+        JsExpr::Identifier(ref name) => JsExpr::OpaqueIdentifier(name.clone()),
         _ => node,
     };
     b::call(arena, callee, vec![mutation, b::boolean(true)])

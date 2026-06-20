@@ -186,20 +186,23 @@ fn transform_script_content_inner(
     // Svelte 5.52+: derived bindings now stay callable on the server, so any
     // bare read of a derived name must be rewritten to `name()`. Collect names
     // from the `$.derived(...)` declarators we just emitted, then wrap reads.
+    //
+    // This pass also lowers derived *update expressions* (`name++` / `--name`
+    // → `$.update_derived(name)` / `$.update_derived_pre(name)`, Svelte 5.53.2
+    // upstream `6aa7b9c64`) in the same AST walk over the original valid script
+    // — see `derived_reads_ast::visit_update_expression`. The old downstream
+    // `rewrite_derived_update_expressions` text scan ran on the invalid post-wrap
+    // intermediate `name()++`; it now survives only inside the byte-scanner
+    // fallback in `wrap_derived_reads_in_script`.
+    //
+    // It likewise lowers derived *assignments* (`likes = x` → `likes(x)`,
+    // compound/logical operators expanding via `build_assignment_value` —
+    // `likes += 1` → `likes(likes() + 1)`, `flag &&= x` → `flag(flag() && x)`;
+    // upstream `AssignmentExpression.js`) in the same AST walk — see
+    // `derived_reads_ast::visit_assignment_expression`. The old downstream
+    // `rewrite_derived_assignments` text scan ran on the invalid post-wrap
+    // intermediate `likes() = x`; it now survives only inside that fallback.
     let script = wrap_derived_reads_in_script(&script, extra_derived);
-    // Svelte 5.53.2 (upstream `6aa7b9c64` "fix: update expressions on server
-    // deriveds"): `name++` / `--name` etc. on a derived must use
-    // `$.update_derived(name)` / `$.update_derived_pre(name)` helpers. After
-    // `wrap_derived_reads_in_script` the source looks like `name()++`; this
-    // pass rewrites those wrappers to the proper helpers.
-    let script = rewrite_derived_update_expressions(&script);
-    // Assignments to deriveds become setter calls on the server (upstream
-    // `AssignmentExpression.js` server visitor): `likes = x` → `likes(x)`,
-    // and compound operators expand via `build_assignment_value` —
-    // `likes += 1` → `likes(likes() + 1)`, `flag &&= x` → `flag(flag() && x)`.
-    // After `wrap_derived_reads_in_script` the LHS read is already `likes()`,
-    // so we rewrite the `likes() <op>= rhs` shape here.
-    let script = rewrite_derived_assignments(&script);
     // Svelte 5.55.5 (upstream `b771df3`): `$derived(<bare_derived>)` should
     // emit `$.derived(<bare_derived>)` directly (no thunk), because the
     // server runtime treats a derived passed in this slot as a re-callable
@@ -1869,7 +1872,13 @@ fn wrap_derived_reads_in_script(script: &str, extra_derived: &FxHashSet<String>)
         out.push_str(&script[i..next]);
         i = next;
     }
-    out
+    // The AST path (above, `wrap_derived_reads_ast`) lowers derived update
+    // expressions and assignments in-pass; this byte-scanner fallback only wraps
+    // reads, so apply the textual `name()++` → `$.update_derived(name)` and
+    // `name() = rhs` → `name(rhs)` rewrites here (in pipeline order) to keep the
+    // two paths byte-identical.
+    let out = rewrite_derived_update_expressions(&out);
+    rewrite_derived_assignments(&out)
 }
 
 /// True when an identifier at byte range `[start, end)` is in object-literal
@@ -2038,6 +2047,13 @@ pub(crate) fn wrap_derived_reads_for_template(
 
 /// Rewrite postfix/prefix update expressions on derived bindings.
 ///
+/// **Fallback only.** The primary path lowers derived updates structurally in
+/// `derived_reads_ast::wrap_derived_reads_ast` (over the original valid AST);
+/// this textual scan now runs solely on the byte-scanner fallback in
+/// `wrap_derived_reads_in_script`, which is taken only when the intermediate
+/// script fails to parse as a standalone module. It is slated for removal once
+/// that fallback is retired (Step 5).
+///
 /// Svelte 5.53.2 (upstream commit `6aa7b9c64` "fix: update expressions on
 /// server deriveds") routes `name++`/`name--`/`++name`/`--name` through new
 /// `$.update_derived(name)` / `$.update_derived_pre(name)` helpers when
@@ -2185,6 +2201,13 @@ fn rewrite_derived_update_expressions(script: &str) -> String {
 }
 
 /// Rewrite assignments to derived bindings into setter calls.
+///
+/// **Fallback only.** The primary path lowers derived assignments structurally
+/// in `derived_reads_ast::wrap_derived_reads_ast` (over the original valid AST);
+/// this textual scan now runs solely on the byte-scanner fallback in
+/// `wrap_derived_reads_in_script`, taken only when the intermediate script fails
+/// to parse as a standalone module. Slated for removal with that fallback
+/// (Step 5).
 ///
 /// Mirrors the upstream server `AssignmentExpression.js` visitor: when the
 /// assignment target is a bare identifier whose binding is a derived
@@ -2523,6 +2546,13 @@ pub(crate) fn unthunk_bare_derived_arg(script: &str) -> String {
     let (derived_names, _, _) = collect_derived_names_from_script(script);
     if derived_names.is_empty() {
         return script.to_string();
+    }
+    // Prefer the AST pass (resolves the `$.derived(() => NAME())` shape
+    // structurally); fall back to the byte scanner below on a parse failure.
+    if let Some(out) =
+        super::unthunk_derived_ast::unthunk_bare_derived_arg_ast(script, &derived_names)
+    {
+        return out;
     }
     let bytes = script.as_bytes();
     let needle = b"$.derived(() => ";
@@ -6638,6 +6668,14 @@ fn is_statement_start(preceding: &str) -> bool {
 
 /// Strip `export` keyword from function/const/class declarations.
 fn strip_export_from_declarations(script: &str) -> String {
+    // Prefer the AST-based pass: it matches the exported declaration kinds
+    // structurally (function / async function / class / `const`) instead of via
+    // line-prefix heuristics, removing the same 7-byte `export ` prefix. Falls
+    // back to the byte scanner below when the script doesn't parse as a
+    // standalone module (mirrors `wrap_derived_reads_in_script`).
+    if let Some(out) = super::strip_export_ast::strip_export_from_declarations_ast(script) {
+        return out;
+    }
     let mut result = String::new();
     for line in script.lines() {
         let trimmed = line.trim();
