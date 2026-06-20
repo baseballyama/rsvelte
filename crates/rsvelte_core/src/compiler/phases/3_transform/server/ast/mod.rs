@@ -362,6 +362,10 @@ impl<'a> ServerTransformState<'a> {
             self.analysis,
             self.analysis.root.instance_scope_index,
         );
+        // Lower value-position `$effect.tracking()` → `false`,
+        // `$effect.root(…)` → `() => {}`, `$effect.pending()` → `0` inside the
+        // template expression (写经 server `CallExpression` visitor).
+        script::lower_effect_value_runes_expr(&mut out, self.b);
         out
     }
 
@@ -5209,6 +5213,64 @@ mod tests {
         assert!(
             mismatches.is_empty(),
             "async template-shape SSR differs from oracle for: {mismatches:?}"
+        );
+    }
+
+    /// $effect-rune SSR cluster parity with the (correct) text-based oracle.
+    /// Covers `$effect.tracking()` → `false` and `$effect.root(...)` → noop arrow
+    /// as expression VALUES (the ExpressionStatement removal path is already
+    /// handled; these are the cases where the rune appears in a script/template
+    /// expression rather than as a bare top-level effect statement).
+    #[test]
+    fn ast_matches_oracle_effect_rune_cluster() {
+        let names = [
+            "effect-active-derived",
+            "effect-tracking",
+            "effect-tracking-binding-set",
+            "effect-tracking-transition",
+            "effect-root",
+            "effect-root-2",
+            "effect-root-4",
+            "effect-root-5",
+            "effect-root-6",
+            // `effect-cleanup` is covered by the inline `ast_matches_oracle_
+            // inspect_effect_cluster` test; the on-disk fixture additionally has
+            // a `// @ts-expect-error` comment INSIDE the removed `$effect`
+            // callback body, which the text-oracle leaves dangling but the AST
+            // pipeline cleanly drops (a runtime no-op — the comment can never
+            // execute). Asserting it here would compare oracle comment cruft.
+            "effect-order",
+            "store-subscribe-effect-init",
+            "pre-effect",
+            "array-sort-in-effect",
+            "guard-else-effect",
+        ];
+        let base = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../submodules/svelte/packages/svelte/tests/runtime-runes/samples"
+        );
+        let mut mismatches = Vec::new();
+        for n in names {
+            let path = format!("{base}/{n}/main.svelte");
+            let Ok(src) = std::fs::read_to_string(&path) else {
+                continue;
+            };
+            let ours = run(&src);
+            let oracle = oracle_dump(&src);
+            let (Some(co), Some(cr)) = (canon(&ours), canon(&oracle)) else {
+                mismatches.push(n);
+                continue;
+            };
+            if co != cr {
+                eprintln!(
+                    "\n######### DIFFER: {n} #########\n=== OURS ===\n{ours}\n=== ORACLE ===\n{oracle}\n"
+                );
+                mismatches.push(n);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "effect-rune SSR differs from oracle for: {mismatches:?}"
         );
     }
 }

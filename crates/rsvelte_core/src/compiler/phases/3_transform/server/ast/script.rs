@@ -302,7 +302,78 @@ fn transform_script<'a>(
     for stmt in out.iter_mut() {
         lower_nested_runes(stmt, state);
     }
+    // Lower `$effect.tracking()` → `false`, `$effect.root(…)` → `() => {}`,
+    // `$effect.pending()` → `0` as expression VALUES anywhere they appear in the
+    // emitted instance statements (script-level `const foo = $effect.tracking()`
+    // / `const cleanup = $effect.root(…)`, getters/setters, nested function
+    // bodies, derived initializers — 写经 the tree-wide server `CallExpression`
+    // visitor). The bare top-level `$effect(…)` / `$effect.pre(…)` STATEMENTS are
+    // already removed above; this only handles the value-position runes that the
+    // statement-removal path does not reach.
+    for stmt in out.iter_mut() {
+        lower_effect_value_runes(stmt, state);
+    }
     out
+}
+
+/// Rewrite the always-noop server forms of `$effect.*` runes when they appear as
+/// expression VALUES (not removed statements). Tree-wide, mirroring upstream's
+/// server `CallExpression` visitor:
+/// - `$effect.tracking()` → `false`
+/// - `$effect.root(…)` → `() => {}` (a no-op cleanup function)
+/// - `$effect.pending()` → `0`
+pub(super) fn lower_effect_value_runes<'a>(
+    stmt: &mut Statement<'a>,
+    state: &ServerTransformState<'a>,
+) {
+    let mut v = EffectValueLower { b: state.b };
+    v.visit_statement(stmt);
+}
+
+/// Expression-position variant of [`lower_effect_value_runes`] used by the
+/// template expression path (`visit_expr`).
+pub(super) fn lower_effect_value_runes_expr<'a>(expr: &mut OxcExpression<'a>, b: B<'a>) {
+    let mut v = EffectValueLower { b };
+    v.visit_expression(expr);
+}
+
+struct EffectValueLower<'a> {
+    b: B<'a>,
+}
+
+impl<'a> EffectValueLower<'a> {
+    /// If `expr` is a `$effect.{tracking,root,pending}(…)` call, return its
+    /// server-lowered replacement expression.
+    fn lowered(&self, expr: &OxcExpression<'a>) -> Option<OxcExpression<'a>> {
+        let OxcExpression::CallExpression(call) = expr else {
+            return None;
+        };
+        let OxcExpression::StaticMemberExpression(m) = &call.callee else {
+            return None;
+        };
+        let OxcExpression::Identifier(obj) = &m.object else {
+            return None;
+        };
+        if obj.name.as_str() != "$effect" {
+            return None;
+        }
+        match m.property.name.as_str() {
+            "tracking" => Some(self.b.bool(false)),
+            "root" => Some(self.b.thunk_block(vec![], false)),
+            "pending" => Some(self.b.number(0.0)),
+            _ => None,
+        }
+    }
+}
+
+impl<'a> VisitMut<'a> for EffectValueLower<'a> {
+    fn visit_expression(&mut self, expr: &mut OxcExpression<'a>) {
+        if let Some(replacement) = self.lowered(expr) {
+            *expr = replacement;
+            return;
+        }
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+    }
 }
 
 /// Tree-wide nested-rune lowering for the bodies of NESTED functions / blocks
