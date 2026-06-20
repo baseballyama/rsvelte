@@ -220,7 +220,29 @@ pub fn process_children_inner<'a>(
                 } else if inline_await {
                     flush_sequence(&sequence, state);
                     sequence.clear();
-                    let visited = state.visit_expr(&tag.expression);
+                    // 写经 upstream server `AwaitExpression.js` parent-walk
+                    // (`has_save = !in_block_body`): an inline `{await …}` whose
+                    // IMMEDIATE template parent is a RegularElement / TitleElement
+                    // (`parent.is_some()` — `process_children` runs inline on
+                    // element children, leaving a non-Fragment metadata ancestor
+                    // on top of the path) gets `$.save`-wrapped —
+                    // `(await $.save(<arg>))()`. A Fragment / block body parent
+                    // (`parent == None`: root component fragment, `{#if}` / `{#each}`
+                    // / `{#key}` / snippet / await body, snippet) leaves the bare
+                    // `await …`; the enclosing `child_block(async …)` (or the
+                    // `$$renderer.push(async …)` thunk) already wraps the await.
+                    // NOTE: `is_block_parent` is the `is_text_first` ANCHOR flag,
+                    // which is a DIFFERENT axis (an `{#if}` body is a block parent
+                    // but NOT text-first), so the save decision keys off `parent`.
+                    let visited = if parent.is_some() {
+                        let src = state
+                            .expr_source(&tag.expression)
+                            .map(|s| s.to_string())
+                            .unwrap_or_default();
+                        save_wrap_expr_text(state, &src)
+                    } else {
+                        state.visit_expr(&tag.expression)
+                    };
                     let stmt = build_async_expression_push(state, visited, &[], true);
                     state.template.push(TemplateEntry::Stmt(stmt));
                 } else {

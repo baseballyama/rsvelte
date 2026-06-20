@@ -1123,6 +1123,64 @@ mod tests {
         );
     }
 
+    /// Async SSR `{#each}` block shapes (runtime-runes burn-down). Each fixture
+    /// below drives the async each-block / `<svelte:boundary pending>` server
+    /// codegen path that the new AST pipeline must reproduce byte-for-byte
+    /// against the (correct) `transform_server` oracle (post `norm_blocks`):
+    ///
+    /// - `async-each-preserve-pending` / `async-overlapping-array` (the keyed +
+    ///   unkeyed bodies) — an inline `{await fn(item)}` that is a DIRECT child of
+    ///   an element inside the each body is `$.save`-wrapped
+    ///   (`(await $.save(fn(item)))()`), 写经 the server `AwaitExpression.js`
+    ///   parent-walk (`has_save = parent is a RegularElement`).
+    /// - `async-each` / `async-each-await-item` / `async-each-keyed` /
+    ///   `async-each-await-store-update` / `async-each-await-stale-rows` /
+    ///   `async-each-const-await-error-boundary` — the each block sits inside a
+    ///   `<svelte:boundary>` with a `{#snippet pending()}`; the SERVER renders
+    ///   the pending snippet (`<!--[!-->` + pending body + `<!--]-->`) and
+    ///   discards the each body, 写经 `SvelteBoundary.js`
+    ///   `build_pending_snippet_block`.
+    ///
+    /// (`async-each-derived`, `async-eager-each-block`, `async-overlapping-array`
+    /// have ORTHOGONAL remaining diffs — `<input>` attribute async-wrap,
+    /// `$state.eager(x)` if-test unwrap, `$effect.pending()` → `0` const-fold —
+    /// none of which are each-block codegen, so they are not gated here.)
+    #[test]
+    fn ast_matches_oracle_async_each() {
+        let fixtures = [
+            "async-each",
+            "async-each-await-item",
+            "async-each-keyed",
+            "async-each-await-store-update",
+            "async-each-preserve-pending",
+            "async-each-await-stale-rows",
+            "async-each-const-await-error-boundary",
+        ];
+        let mut mismatches = Vec::new();
+        for dir in fixtures {
+            let path = format!(
+                "{}/../../submodules/svelte/packages/svelte/tests/runtime-runes/samples/{}/main.svelte",
+                env!("CARGO_MANIFEST_DIR"),
+                dir
+            );
+            let Ok(src) = std::fs::read_to_string(&path) else {
+                eprintln!("SKIP {dir} (submodule not checked out)");
+                return;
+            };
+            let (ours, oracle) = run_async_both(&src);
+            if norm_blocks(&ours) != norm_blocks(&oracle) {
+                eprintln!(
+                    "===== {dir} DIFFER =====\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}\n"
+                );
+                mismatches.push(dir);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "async each-block output differs from oracle for: {mismatches:?}"
+        );
+    }
+
     /// Normalize for comparison: trim trailing whitespace on every line and
     /// drop blank lines, so the two pipelines' blank-line conventions don't
     /// cause spurious diffs (mirrors the corpus comparison-side normalization).

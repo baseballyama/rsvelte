@@ -45,10 +45,15 @@
 //! });
 //! ```
 //!
+//! The `pending` SNIPPET branch IS ported: a `{#snippet pending()}` child makes
+//! the server render the pending state — `children_body` becomes
+//! `[push('<!--[!-->'), <pending body>, push('<!--]-->')]` (写经
+//! `build_pending_snippet_block`), discarding the real children for SSR.
+//!
 //! 写经 GAPs (not ported — see [`visit_svelte_boundary`]):
-//! - `pending` snippet / `pending` attribute branches (the `is_pending_attr_nullish`
-//!   if/else and the `block_open_else` pending body). Boundaries with a `pending`
-//!   branch fall through to the no-pending path here.
+//! - The `pending` ATTRIBUTE branch (`build_pending_attribute_block` +
+//!   `is_pending_attr_nullish` if/else). A boundary with only a `pending`
+//!   attribute falls through to the children-body path.
 //! - The `failed` *attribute* value uses [`ServerTransformState::visit_expr`] (the
 //!   read-wrapped expression) rather than upstream's
 //!   `build_attribute_value(..., is_component=true)`; correct for the common
@@ -63,14 +68,25 @@ use crate::ast::template::{Attribute, Fragment, SnippetBlock, SvelteElement, Tem
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 use oxc_ast::ast::{ObjectPropertyKind, Statement};
 
-use super::shared::{BLOCK_CLOSE, BLOCK_OPEN, TemplateEntry, build_fragment_block};
+use super::shared::{
+    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, TemplateEntry, build_fragment_block,
+};
 
-/// Visit a `<svelte:boundary>...</svelte:boundary>` element (sync, no-pending
-/// path). See the module docs for the targeted shape and KNOWN GAPs.
+/// Visit a `<svelte:boundary>...</svelte:boundary>` element. See the module docs
+/// for the targeted shapes and KNOWN GAPs.
 pub fn visit_svelte_boundary<'a>(node: &SvelteElement, state: &mut ServerTransformState<'a>) {
     // `failed` snippet (a `{#snippet failed(e)}` child) / `failed` attribute.
     let failed_snippet = find_snippet(&node.fragment, "failed");
     let failed_attribute = find_attribute(&node.attributes, "failed");
+
+    // `pending` snippet (a `{#snippet pending()}` child). When present, the
+    // SERVER renders the pending state — upstream `SvelteBoundary.js` sets
+    // `children_body = build_pending_snippet_block(pending_snippet)`, i.e.
+    // `[push('<!--[!-->'), <pending body>, push('<!--]-->')]` — and DISCARDS the
+    // real children for SSR (they only render client-side once the boundary
+    // resolves). The `pending` *attribute* branch is still a GAP (defensive
+    // fallback to the children body).
+    let pending_snippet = find_snippet(&node.fragment, "pending");
 
     // The children fragment with the `failed`/`pending` snippets filtered out
     // (upstream `children_nodes`). Snippets are rendered as their own hoisted
@@ -87,19 +103,29 @@ pub fn visit_svelte_boundary<'a>(node: &SvelteElement, state: &mut ServerTransfo
         ..node.fragment.clone()
     };
 
-    // children_body = b.block([block_open, children_block, block_close]).
-    // children_block = context.visit(children_fragment) → a `{ ... }` block.
-    // SvelteBoundary slot IS an `is_text_first` parent (upstream `clean_nodes`).
-    // The `block_open` / `block_close` markers are template literals
-    // (`$$renderer.push(`<!--[-->`)`), matching `build_template`'s `b.literal`
-    // → coalesced-template emission and the text oracle.
-    let b = state.b;
-    let children_block = build_fragment_block(&children_fragment, true, state);
-    let children_body: Vec<Statement<'a>> = vec![
-        b.stmt(b.call("$$renderer.push", vec![marker(state, BLOCK_OPEN)])),
-        children_block,
-        b.stmt(b.call("$$renderer.push", vec![marker(state, BLOCK_CLOSE)])),
-    ];
+    // children_body:
+    // - with a `pending` snippet → `[push('<!--[!-->'), <pending body>, push('<!--]-->')]`
+    //   (写经 `build_pending_snippet_block` → `build_template([block_open_else,
+    //   visit(snippet.body), block_close])`). The real children are skipped.
+    // - otherwise → `[push('<!--[-->'), <children block>, push('<!--]-->')]`.
+    // SvelteBoundary slot / snippet body IS an `is_text_first` parent.
+    let children_body: Vec<Statement<'a>> = if let Some(pending) = pending_snippet {
+        let pending_block = build_fragment_block(&pending.body, true, state);
+        let b = state.b;
+        vec![
+            b.stmt(b.call("$$renderer.push", vec![marker(state, BLOCK_OPEN_ELSE)])),
+            pending_block,
+            b.stmt(b.call("$$renderer.push", vec![marker(state, BLOCK_CLOSE)])),
+        ]
+    } else {
+        let children_block = build_fragment_block(&children_fragment, true, state);
+        let b = state.b;
+        vec![
+            b.stmt(b.call("$$renderer.push", vec![marker(state, BLOCK_OPEN)])),
+            children_block,
+            b.stmt(b.call("$$renderer.push", vec![marker(state, BLOCK_CLOSE)])),
+        ]
+    };
 
     // No `failed` branch → skip the boundary wrapper, push children_body inline.
     if failed_snippet.is_none() && failed_attribute.is_none() {
