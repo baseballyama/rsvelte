@@ -17,12 +17,15 @@
 
 pub mod visitors;
 
+use crate::ast::js::Expression;
 use crate::ast::template::Root;
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::builders::B;
+use crate::compiler::phases::phase3_transform::jsnode_to_oxc::jsnode_to_oxc_expr;
 use oxc_allocator::Allocator;
-use oxc_ast::ast::Statement;
+use oxc_ast::ast::{Expression as OxcExpression, Statement};
+use visitors::shared::TemplateEntry;
 
 /// Mutable state threaded through the AST-based server transform.
 ///
@@ -43,6 +46,20 @@ pub struct ServerTransformState<'a> {
     /// The component-function body statements (sanitized-props prologue +
     /// instance + template). Built up by the prologue assembly and visitors.
     pub body: Vec<Statement<'a>>,
+    /// The accumulating SSR template entries (element openers/closers, text
+    /// runs, `$.escape(...)` interpolations). Coalesced into `$$renderer.push`
+    /// calls by [`visitors::shared::build_template`]. Mirrors upstream
+    /// `state.template`.
+    pub template: Vec<TemplateEntry<'a>>,
+    /// The component source text — used as the re-parse fallback when a template
+    /// expression's `JsNode` cannot be converted directly by
+    /// [`jsnode_to_oxc_expr`].
+    pub source: &'a str,
+    /// The arena backing this component's parsed expressions (for `JsNode`
+    /// resolution in [`Self::visit_expr`]).
+    pub arena: &'a crate::ast::arena::ParseArena,
+    /// The oxc allocator (for the re-parse fallback).
+    pub allocator: &'a Allocator,
 }
 
 impl<'a> ServerTransformState<'a> {
@@ -51,6 +68,8 @@ impl<'a> ServerTransformState<'a> {
     pub fn new(
         analysis: &'a ComponentAnalysis,
         options: &'a CompileOptions,
+        source: &'a str,
+        arena: &'a crate::ast::arena::ParseArena,
         allocator: &'a Allocator,
     ) -> Self {
         let b = B::new(allocator);
@@ -61,8 +80,57 @@ impl<'a> ServerTransformState<'a> {
             options,
             hoisted,
             body: Vec::new(),
+            template: Vec::new(),
+            source,
+            arena,
+            allocator,
         }
     }
+
+    /// Convert a parsed template `Expression` to an oxc [`OxcExpression`].
+    ///
+    /// First attempts the faithful structural conversion via
+    /// [`jsnode_to_oxc_expr`]; on bail (`None`), falls back to re-parsing the
+    /// expression's source span with oxc (the validated mechanism from
+    /// `builders.rs::tests::spike_inplace_oxc_mutation`).
+    ///
+    /// NOTE (写経 gap): this performs NO rune / prop / store rewriting yet —
+    /// it reproduces the parsed expression shape verbatim. That is correct for
+    /// the simple cases (bare identifiers / member chains) but the store-sub /
+    /// derived-call / props rewrites are still TODO.
+    pub fn visit_expr(&self, expr: &Expression) -> OxcExpression<'a> {
+        let node = expr.as_node();
+        if let Some(converted) = jsnode_to_oxc_expr(&node, self.arena, self.allocator) {
+            return converted;
+        }
+        // Fallback: re-parse the source span.
+        if let (Some(start), Some(end)) = (expr.start(), expr.end()) {
+            let slice = &self.source[start as usize..end as usize];
+            if let Some(reparsed) = reparse_expression(slice, self.allocator) {
+                return reparsed;
+            }
+        }
+        // Last resort: an identifier placeholder (keeps the build correct-ish;
+        // only reachable for shapes neither converter handles).
+        self.b.id("undefined")
+    }
+}
+
+/// Re-parse a JS expression source slice with oxc and return its first
+/// expression-statement expression. Returns `None` on parse error or if the
+/// program isn't a single expression statement.
+fn reparse_expression<'a>(src: &str, allocator: &'a Allocator) -> Option<OxcExpression<'a>> {
+    let owned = allocator.alloc_str(src);
+    let ret = oxc_parser::Parser::new(allocator, owned, oxc_span::SourceType::mjs()).parse();
+    if !ret.diagnostics.is_empty() {
+        return None;
+    }
+    for stmt in ret.program.body {
+        if let Statement::ExpressionStatement(es) = stmt {
+            return Some(es.unbox().expression);
+        }
+    }
+    None
 }
 
 /// Whether the component function takes `($$renderer, $$props)` rather than
@@ -95,12 +163,12 @@ fn should_inject_props(analysis: &ComponentAnalysis, options: &CompileOptions) -
 /// (currently never — kept as `Option` to match the seam's future fallibility).
 pub fn server_component_ast<'a>(
     analysis: &'a ComponentAnalysis,
-    _ast: &Root,
-    _source: &str,
+    ast: &'a Root,
+    source: &'a str,
     options: &'a CompileOptions,
     allocator: &'a Allocator,
 ) -> Option<String> {
-    let mut state = ServerTransformState::new(analysis, options, allocator);
+    let mut state = ServerTransformState::new(analysis, options, source, &ast.arena, allocator);
     let b = state.b;
 
     // -- component-function body: sanitized-props prologue ------------------
@@ -151,9 +219,13 @@ pub fn server_component_ast<'a>(
         ));
     }
 
-    // TODO(visitors): instance-body statements, template body, bind_props,
-    // store-subs cleanup, props_id, $$renderer.component wrapper, etc.
-    // Empty for the skeleton.
+    // -- template body ------------------------------------------------------
+    // Walk the root fragment through process_children + build_template, then
+    // append the coalesced `$$renderer.push(...)` statements. (Instance-body
+    // statements, bind_props, store-subs cleanup, props_id, $$renderer.component
+    // wrapper, etc. are still TODO.)
+    let template_body = visitors::shared::build_fragment_body(&ast.fragment, &mut state);
+    state.body.extend(template_body);
 
     // -- component function declaration -------------------------------------
     let component_name = analysis.name.as_str();
@@ -229,6 +301,81 @@ mod tests {
 
         let allocator = Allocator::default();
         server_component_ast(&analysis, &ast, source, &options, &allocator).expect("ast output")
+    }
+
+    /// Normalize for comparison: trim trailing whitespace on every line and
+    /// drop blank lines, so the two pipelines' blank-line conventions don't
+    /// cause spurious diffs (mirrors the corpus comparison-side normalization).
+    fn norm(s: &str) -> String {
+        s.lines()
+            .map(|l| l.trim_end())
+            .filter(|l| !l.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// Compare the AST pipeline output against the `transform_server` oracle for
+    /// every sample, printing both and which match exactly.
+    #[test]
+    fn ast_matches_oracle_simple_samples() {
+        let samples = [
+            "<p>hello</p>",
+            "<div><span>hi</span></div>",
+            "<p>{name}</p>",
+            "<p>a {x} b</p>",
+            "<p class=\"foo\">x</p>",
+            "<br>",
+            "<p>{@html raw}</p>",
+            "<p>x{a}y{b}z</p>",
+            "<input type=\"text\" disabled>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm(&ours) == norm(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "AST output differs from oracle for: {mismatches:?}"
+        );
+    }
+
+    fn oracle_dump(source: &str) -> String {
+        let parse_options = ParseOptions {
+            modern: true,
+            loose: false,
+            skip_expression_loc: true,
+            defer_script_parse: true,
+            force_typescript: false,
+            lenient_script: false,
+        };
+        let mut ast = phase1_parse::parse(source, parse_options).expect("parse");
+        let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
+        phase1_parse::resolve_lazy::resolve_lazy_expressions(&mut ast, source);
+        let line_offsets = phase1_parse::compute_line_offsets(source, false);
+        if let Some(instance) = ast.instance.as_mut() {
+            phase1_parse::read::script::ensure_script_parsed(
+                &ast.arena,
+                instance,
+                source,
+                &line_offsets,
+            );
+        }
+        let options = CompileOptions {
+            filename: Some("App.svelte".to_string()),
+            ..CompileOptions::default()
+        };
+        let analysis =
+            phase2_analyze::analyze_component(&mut ast, source, &options).expect("analyze");
+        super::super::transform_server(&analysis, &ast, source, &options).expect("server")
     }
 
     #[test]
