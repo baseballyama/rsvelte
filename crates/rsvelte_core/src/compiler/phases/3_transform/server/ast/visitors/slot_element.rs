@@ -42,12 +42,17 @@
 //! }
 //! ```
 //!
+//! `let:` directives on a `<slot>` itself receive NO server handling — upstream
+//! `SlotElement.js` only iterates `SpreadAttribute` / `Attribute`, so a
+//! `<slot let:x>` directive is silently ignored and the fallback fragment thunk
+//! stays a zero-parameter `() => { … }` (verified byte-identical to the
+//! `transform_server` oracle). The `let:`-scoping that DOES matter happens on
+//! *components* and *slotted elements* and is handled in `component.rs`.
+//!
 //! 写经 gaps (KNOWN GAP):
-//! - `let:` directives / scoped slots: upstream `<slot let:x={...}>` is a Svelte-4
-//!   feature with no special server handling beyond the `slot` props passed here,
-//!   so it round-trips for the common case. The `optimiser.render_block` async
-//!   blocker wrapping is the identity transform in the sync path (no top-level
-//!   `await` inside the slot props), matching the other server visitors.
+//! - The `optimiser.render_block` async blocker wrapping is the identity
+//!   transform in the sync path (no top-level `await` inside the slot props),
+//!   matching the other server visitors.
 //! - `scope.evaluate` constant-folding of mixed text+expr slot prop values is not
 //!   applied (same gap as `component_attribute_value`).
 

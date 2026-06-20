@@ -781,6 +781,53 @@ mod tests {
             .join("\n")
     }
 
+    /// `let:` directives on components / slotted elements lower to a second
+    /// destructured slot-fn parameter (upstream `shared/component.js`
+    /// lines 232-259). Asserts the emitted parameter shape against the
+    /// `transform_server` oracle. Compared with `norm_oxfmt`, which collapses the
+    /// purely cosmetic diffs the corpus pipeline normalizes via oxfmt (trailing
+    /// commas + object-pattern brace spacing).
+    #[test]
+    fn ast_matches_oracle_let_directives() {
+        // Strip trailing commas + inner brace/bracket padding so a structural
+        // comparison ignores the oracle's trailing-comma and `{a, b}` spacing.
+        fn norm_oxfmt(s: &str) -> String {
+            norm_blocks(s)
+                .replace(", ", ",")
+                .replace(",\n", "\n")
+                .replace("{ ", "{")
+                .replace(" }", "}")
+                .replace("[ ", "[")
+                .replace(" ]", "]")
+        }
+        let samples = [
+            "<script>import Comp from './Comp.svelte';</script><Comp let:x>{x}</Comp>",
+            "<script>import Comp from './Comp.svelte';</script><Comp let:x={value}>{value}</Comp>",
+            "<script>import Comp from './Comp.svelte';</script><Comp let:x={{a, b}}>{a}{b}</Comp>",
+            "<script>import Comp from './Comp.svelte';</script><Comp let:x={[a, b]}>{a}{b}</Comp>",
+            "<script>import Comp from './Comp.svelte';</script><Comp><div slot=\"s\" let:item>{item}</div></Comp>",
+            "<slot let:item />",
+            "<slot let:item>{item}</slot>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm_oxfmt(&ours) == norm_oxfmt(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "let-directive output differs from oracle for: {mismatches:?}"
+        );
+    }
+
     /// Compare the AST pipeline output against the `transform_server` oracle for
     /// every sample, printing both and which match exactly.
     #[test]

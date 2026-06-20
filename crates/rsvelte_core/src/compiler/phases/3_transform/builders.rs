@@ -416,6 +416,95 @@ impl<'a> B<'a> {
             .binding_pattern_binding_identifier(SPAN, self.str(name))
     }
 
+    /// `{ name: value }` — a single-property object **binding pattern**
+    /// (`b.object_pattern` / `b.init` for patterns). Used to lower `let:`
+    /// directives into a destructured slot-function parameter.
+    pub fn object_pattern(
+        self,
+        properties: Vec<(String, BindingPattern<'a>)>,
+    ) -> BindingPattern<'a> {
+        let mut props = self.ab.vec_with_capacity(properties.len());
+        for (name, value) in properties {
+            let key = self
+                .ab
+                .property_key_static_identifier(SPAN, self.str(&name));
+            // `shorthand` is purely cosmetic for esrap output; mark it true when
+            // the value is the same identifier as the key so `{ x }` prints
+            // shorthand rather than `{ x: x }`.
+            let shorthand = matches!(
+                &value,
+                BindingPattern::BindingIdentifier(id) if id.name.as_str() == name
+            );
+            props.push(self.ab.binding_property(SPAN, key, value, shorthand, false));
+        }
+        self.ab
+            .binding_pattern_object_pattern(SPAN, props, oxc_ast::NONE)
+    }
+
+    /// Reinterpret an `Expression` as a `BindingPattern`, mirroring upstream's
+    /// `@ts-expect-error` casts of an `ObjectExpression`/`ArrayExpression` parsed
+    /// from a `let:`-directive value back into a destructuring pattern.
+    ///
+    /// - `ObjectExpression` → object pattern (recursing into property values),
+    /// - `ArrayExpression` → array pattern (with holes / rest),
+    /// - `Identifier` → binding identifier,
+    /// - anything else → falls back to a binding identifier over its printed text
+    ///   only when it is an identifier; otherwise the caller's `default_name`.
+    pub fn expr_to_pattern(self, expr: Expression<'a>, default_name: &str) -> BindingPattern<'a> {
+        use oxc_ast::ast::{ArrayExpressionElement, ObjectPropertyKind as OPK};
+        match expr {
+            Expression::Identifier(id) => self.id_pat(id.name.as_str()),
+            Expression::ObjectExpression(obj) => {
+                let props_vec = obj.unbox().properties;
+                let mut props = self.ab.vec_with_capacity(props_vec.len());
+                let mut rest = None;
+                for member in props_vec {
+                    match member {
+                        OPK::ObjectProperty(p) => {
+                            let p = p.unbox();
+                            // The property key from an `ObjectExpression` is
+                            // already a valid `PropertyKey` — reuse it as-is.
+                            let key = p.key;
+                            let value = self.expr_to_pattern(p.value, "undefined");
+                            let shorthand = p.shorthand;
+                            props.push(
+                                self.ab
+                                    .binding_property(SPAN, key, value, shorthand, p.computed),
+                            );
+                        }
+                        OPK::SpreadProperty(s) => {
+                            let inner = self.expr_to_pattern(s.unbox().argument, "undefined");
+                            rest = Some(self.ab.alloc_binding_rest_element(SPAN, inner));
+                        }
+                    }
+                }
+                self.ab.binding_pattern_object_pattern(SPAN, props, rest)
+            }
+            Expression::ArrayExpression(arr) => {
+                let elements = arr.unbox().elements;
+                let mut out = self.ab.vec_with_capacity(elements.len());
+                let mut rest = None;
+                for el in elements {
+                    match el {
+                        ArrayExpressionElement::Elision(_) => out.push(None),
+                        ArrayExpressionElement::SpreadElement(s) => {
+                            let inner = self.expr_to_pattern(s.unbox().argument, "undefined");
+                            rest = Some(self.ab.alloc_binding_rest_element(SPAN, inner));
+                        }
+                        other => {
+                            let e = Expression::try_from(other)
+                                .unwrap_or_else(|_| self.id(default_name));
+                            out.push(Some(self.expr_to_pattern(e, "undefined")));
+                        }
+                    }
+                }
+                self.ab.binding_pattern_array_pattern(SPAN, out, rest)
+            }
+            Expression::AssignmentExpression(_) => self.id_pat(default_name),
+            _ => self.id_pat(default_name),
+        }
+    }
+
     /// Empty formal parameter list.
     #[inline]
     pub fn empty_params(self) -> FormalParameters<'a> {

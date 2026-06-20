@@ -39,8 +39,12 @@
 //!   SET assignment LHS uses the *un-read-wrapped* visit (correct for the common
 //!   identifier / member case, a gap for derived-rooted targets). `bind:` whose
 //!   expression is a `SequenceExpression` (`bind:x={get, set}`) is NOT handled.
-//! - LetDirective / slots / children: the `children` / `$$slots` props and the
-//!   slot snippet functions are NOT emitted (child fragments not serialized).
+//! - LetDirective / scoped slots ARE emitted: a slot whose tag (or, for the
+//!   default slot, the component / a `<svelte:fragment>` child) carries
+//!   `let:x={pattern}` gets a second destructured `{ x: <pattern>, … }` slot-fn
+//!   parameter (`build_component_children` / `lets_to_pattern`). Per-slot scope
+//!   binding (`node.metadata.scopes`) for read-rewriting the slot body is the
+//!   remaining gap — the body renders in the surrounding `state` scope.
 //! - AttachTag (`@attach`) blocker bookkeeping is skipped.
 //! - custom-CSS `--*` props (`$.css_props`) are skipped.
 //! - the `dynamic` branch (`SvelteComponent` / dynamic `<Foo>`) — no
@@ -94,9 +98,9 @@ pub fn visit_svelte_self<'a>(
 }
 
 /// The shared inline-component lowering (props-object path).
-fn build_inline_component<'a>(
-    attributes: &[Attribute],
-    fragment: &Fragment,
+fn build_inline_component<'a, 'b>(
+    attributes: &'b [Attribute],
+    fragment: &'b Fragment,
     expression: OxcExpression<'a>,
     state: &mut ServerTransformState<'a>,
 ) {
@@ -114,8 +118,21 @@ fn build_inline_component<'a>(
     // path, but we do track the flag to suppress the generated `children` prop.
     let mut has_children_prop = false;
 
+    // `let:` directives on the component itself feed the **default** slot's
+    // destructured parameter — UNLESS this component is itself slotted into an
+    // outer component (`slot="x"`), in which case the let scope applies to the
+    // component itself and not to its children (upstream
+    // `slot_scope_applies_to_itself`).
+    let slot_scope_applies_to_itself = attributes
+        .iter()
+        .any(|a| matches!(a, Attribute::Attribute(at) if at.name.as_str() == "slot"));
+    let mut default_lets: Vec<&'b crate::ast::template::LetDirective> = Vec::new();
+
     for attr in attributes {
         match attr {
+            Attribute::LetDirective(let_dir) if !slot_scope_applies_to_itself => {
+                default_lets.push(let_dir);
+            }
             Attribute::Attribute(a) => {
                 // Custom-CSS props (`--foo`) → `$.css_props` — KNOWN GAP, skip.
                 if a.name.starts_with("--") {
@@ -138,8 +155,8 @@ fn build_inline_component<'a>(
                 }
                 build_bind_accessors(bind, &mut delayed, state);
             }
-            // LetDirective / AttachTag / On / Class / Style / Transition /
-            // Animate / Use directives: KNOWN GAP (no server props).
+            // AttachTag / On / Class / Style / Transition / Animate / Use
+            // directives: KNOWN GAP (no server props).
             _ => {}
         }
     }
@@ -153,8 +170,13 @@ fn build_inline_component<'a>(
     // Children / slots / snippet props (upstream `shared/component.js` lines
     // 162-295). Returns any hoisted snippet-function declarations that must wrap
     // the component call in a `{ ... }` block.
-    let snippet_declarations =
-        build_component_children(fragment, has_children_prop, &mut groups, state);
+    let snippet_declarations = build_component_children(
+        fragment,
+        has_children_prop,
+        default_lets,
+        &mut groups,
+        state,
+    );
 
     let props_expression = build_props_expression(groups, state);
 
@@ -189,18 +211,21 @@ fn build_inline_component<'a>(
 /// 写经 gaps (KNOWN GAP):
 /// - Per-slot `node.metadata.scopes` are not tracked on the AST pipeline, so the
 ///   default-slot body is rendered in the surrounding `state` rather than the
-///   component scope. This only matters for `let:` directives, which are not
-///   ported anyway.
-/// - `let:` directives / scoped-slot params are not emitted — a named slot still
-///   gets its `$$slots.name: fn`, just with a bare `($$renderer)` parameter list.
+///   component scope. This only matters for read-rewriting of slot bodies.
 /// - The `$.invalid_default_snippet` error path (a `children` attribute *and* a
 ///   default-slot body) is not emitted; the default body is simply dropped when
 ///   `has_children_prop` is set, matching the common "render tag already used"
 ///   intent without the dev-time error.
 /// - `$.prevent_snippet_stringification` (dev-only) wrapper is not emitted.
-fn build_component_children<'a>(
-    fragment: &Fragment,
+///
+/// `let:` directives ARE handled: a slot whose tag (or, for the default slot, the
+/// component itself / a `<svelte:fragment>` child) carries `let:x={pattern}`
+/// directives gets a second destructured parameter `{ x: <pattern>, … }` on its
+/// slot function (upstream `shared/component.js` lines 232-257).
+fn build_component_children<'a, 'b>(
+    fragment: &'b Fragment,
     has_children_prop: bool,
+    mut default_lets: Vec<&'b crate::ast::template::LetDirective>,
     groups: &mut Vec<PropGroup<'a>>,
     state: &mut ServerTransformState<'a>,
 ) -> Vec<Statement<'a>> {
@@ -209,9 +234,13 @@ fn build_component_children<'a>(
 
     // Group non-snippet children by slot name (default vs `slot="name"`).
     // Snippet blocks are handled inline (they become named props + `$$slots`).
-    let mut default_children: Vec<&TemplateNode> = Vec::new();
-    // Named slots: insertion-ordered (name, nodes).
-    let mut named_slots: Vec<(String, Vec<&TemplateNode>)> = Vec::new();
+    let mut default_children: Vec<&'b TemplateNode> = Vec::new();
+    // Named slots: insertion-ordered (name, nodes, lets).
+    let mut named_slots: Vec<(
+        String,
+        Vec<&'b TemplateNode>,
+        Vec<&'b crate::ast::template::LetDirective>,
+    )> = Vec::new();
 
     for child in &fragment.nodes {
         if let TemplateNode::SnippetBlock(snippet) = child {
@@ -243,11 +272,27 @@ fn build_component_children<'a>(
         }
 
         match slot_name_of(child) {
-            Some(name) => match named_slots.iter_mut().find(|(n, _)| *n == name) {
-                Some((_, nodes)) => nodes.push(child),
-                None => named_slots.push((name, vec![child])),
-            },
-            None => default_children.push(child),
+            // A `slot="name"` child: its OWN `let:` directives scope the named
+            // slot (upstream `lets[slot_name] = child.attributes.filter(...)`).
+            Some(name) => {
+                let child_lets = let_directives_of(child);
+                match named_slots.iter_mut().find(|(n, _, _)| *n == name) {
+                    Some((_, nodes, lets)) => {
+                        nodes.push(child);
+                        *lets = child_lets;
+                    }
+                    None => named_slots.push((name, vec![child], child_lets)),
+                }
+            }
+            None => {
+                // A `<svelte:fragment>` (no `slot=`) in the default slot
+                // contributes its `let:` directives to the default scope
+                // (upstream `lets.default.push(...child SvelteFragment lets)`).
+                if let TemplateNode::SvelteFragment(_) = child {
+                    default_lets.extend(let_directives_of(child));
+                }
+                default_children.push(child);
+            }
         }
     }
 
@@ -255,26 +300,38 @@ fn build_component_children<'a>(
     if !default_children.is_empty() {
         let body = render_slot_body(&default_children, true, state);
         if !body.is_empty() {
-            let slot_fn = make_slot_fn(body, state);
+            let slot_fn = make_slot_fn(body, &default_lets, state);
             if has_children_prop {
                 // A `children` attribute is already present (render-tag usage):
                 // expose membership only, don't overwrite the prop. (写经 gap:
                 // upstream emits `$.invalid_default_snippet` here.)
                 serialized_slots.push(state.b.init("default", state.b.bool(true)));
-            } else {
+            } else if default_lets.is_empty() {
+                // No `let:` directives → the usual `children` prop path.
                 push_prop(groups, state.b.init("children", slot_fn));
                 serialized_slots.push(state.b.init("default", state.b.bool(true)));
+            } else {
+                // Scoped default slot (`let:`): expose `$$slots.default` as the
+                // slot function and point `children` at the invalid-snippet guard
+                // (upstream's `else` branch, lines 281-287).
+                serialized_slots.push(state.b.init("default", slot_fn));
+                push_prop(
+                    groups,
+                    state
+                        .b
+                        .init("children", state.b.id("$.invalid_default_snippet")),
+                );
             }
         }
     }
 
-    // Named slots → `$$slots.name: ($$renderer) => { ... }`.
-    for (name, nodes) in &named_slots {
+    // Named slots → `$$slots.name: ($$renderer, { lets… }) => { ... }`.
+    for (name, nodes, lets) in &named_slots {
         let body = render_slot_body(nodes, true, state);
         if body.is_empty() {
             continue;
         }
-        let slot_fn = make_slot_fn(body, state);
+        let slot_fn = make_slot_fn(body, lets, state);
         serialized_slots.push(state.b.init(name, slot_fn));
     }
 
@@ -303,14 +360,50 @@ fn render_slot_body<'a>(
     super::shared::build_fragment_body(&synthetic, is_text_first_parent, state)
 }
 
-/// `($$renderer) => { <body> }` — the slot snippet function.
+/// `($$renderer[, { lets… }]) => { <body> }` — the slot snippet function. When
+/// the slot has `let:` directives, a second destructured object-pattern
+/// parameter is appended carrying the scope variables (upstream
+/// `shared/component.js` lines 232-259).
 fn make_slot_fn<'a>(
     body: Vec<Statement<'a>>,
+    lets: &[&crate::ast::template::LetDirective],
     state: &mut ServerTransformState<'a>,
 ) -> OxcExpression<'a> {
-    let b = state.b;
-    let params = b.params(vec![b.id_pat("$$renderer")], None);
-    b.arrow(params, b.body(body), false, false)
+    let mut patterns = vec![state.b.id_pat("$$renderer")];
+    if !lets.is_empty() {
+        patterns.push(lets_to_pattern(lets, state));
+    }
+    let params = state.b.params(patterns, None);
+    state.b.arrow(params, state.b.body(body), false, false)
+}
+
+/// Build the destructured `{ x, y: pat, … }` object **binding pattern** for a
+/// slot's `let:` directives. Mirrors upstream's per-directive lowering:
+///   - `let:x`              → `{ x }`           (shorthand identifier)
+///   - `let:x={ident}`      → `{ x: ident }`
+///   - `let:x={{a, b}}`     → `{ x: { a, b } }` (object pattern)
+///   - `let:x={[a, b]}`     → `{ x: [a, b] }`   (array pattern)
+fn lets_to_pattern<'a>(
+    lets: &[&crate::ast::template::LetDirective],
+    state: &mut ServerTransformState<'a>,
+) -> oxc_ast::ast::BindingPattern<'a> {
+    let mut props: Vec<(String, oxc_ast::ast::BindingPattern<'a>)> = Vec::with_capacity(lets.len());
+    for d in lets {
+        let name = d.name.to_string();
+        let value = match &d.expression {
+            // `let:x` with no value → shorthand `{ x }` (binds to `x`).
+            None => state.b.id_pat(&name),
+            // `let:x={pattern}` → reinterpret the parsed expression as a pattern.
+            // The let-bound names are NOT component-scope reads, so visit raw
+            // (no read-wrapping).
+            Some(expr) => {
+                let visited = state.visit_expr_raw(expr);
+                state.b.expr_to_pattern(visited, &name)
+            }
+        };
+        props.push((name, value));
+    }
+    state.b.object_pattern(props)
 }
 
 /// Build a `function name($$renderer, ...params) { <body> }` declaration for a
@@ -343,15 +436,7 @@ fn build_snippet_declaration<'a>(
 /// `RegularElement` / `SvelteElement` / `SvelteFragment` / nested `Component`
 /// children can carry a `slot=` attribute.
 fn slot_name_of(node: &TemplateNode) -> Option<String> {
-    let attributes: &[Attribute] = match node {
-        TemplateNode::RegularElement(el) => &el.attributes,
-        TemplateNode::SvelteElement(el) => &el.attributes,
-        TemplateNode::SvelteFragment(el) => &el.attributes,
-        TemplateNode::Component(el) => &el.attributes,
-        TemplateNode::SvelteComponent(el) => &el.attributes,
-        TemplateNode::SvelteSelf(el) => &el.attributes,
-        _ => return None,
-    };
+    let attributes = element_attributes(node)?;
     for attr in attributes {
         if let Attribute::Attribute(a) = attr {
             if a.name.as_str() == "slot" {
@@ -365,6 +450,33 @@ fn slot_name_of(node: &TemplateNode) -> Option<String> {
         }
     }
     None
+}
+
+/// Return the attribute list of an element-like template node (the nodes that
+/// can carry `slot=` / `let:` directives), or `None` for non-element children.
+fn element_attributes(node: &TemplateNode) -> Option<&[Attribute]> {
+    Some(match node {
+        TemplateNode::RegularElement(el) => &el.attributes,
+        TemplateNode::SvelteElement(el) => &el.attributes,
+        TemplateNode::SvelteFragment(el) => &el.attributes,
+        TemplateNode::Component(el) => &el.attributes,
+        TemplateNode::SvelteComponent(el) => &el.attributes,
+        TemplateNode::SvelteSelf(el) => &el.attributes,
+        _ => return None,
+    })
+}
+
+/// Collect the `let:` directives declared on an element-like child node, in
+/// source order (upstream `child.attributes.filter(LetDirective)`).
+fn let_directives_of(node: &TemplateNode) -> Vec<&crate::ast::template::LetDirective> {
+    element_attributes(node)
+        .into_iter()
+        .flatten()
+        .filter_map(|attr| match attr {
+            Attribute::LetDirective(d) => Some(d),
+            _ => None,
+        })
+        .collect()
 }
 
 /// Emit the `get`/`set` accessor props for a `bind:name={expr}` component
