@@ -27,6 +27,7 @@ use crate::compiler::phases::phase3_transform::builders::B;
 use crate::compiler::phases::phase3_transform::jsnode_to_oxc::jsnode_to_oxc_expr;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Expression as OxcExpression, Statement};
+use oxc_span::SPAN;
 use visitors::shared::TemplateEntry;
 
 /// Mutable state threaded through the AST-based server transform.
@@ -502,6 +503,22 @@ pub fn server_component_ast<'a>(
     let should_inject_context = options.dev || analysis.needs_context;
     let mut block_body = std::mem::take(&mut state.body);
 
+    // -- props_id (upstream lines 253-258) ----------------------------------
+    // When `analysis.props_id` is set (a top-level `const <name> = $props.id()`
+    // declaration, which the VariableDeclaration visitor DROPS from the body),
+    // re-emit it as `const <name> = $.props_id($$renderer);` and unshift it onto
+    // the component block. It must be the FIRST line of the component for
+    // hydration, so this happens BEFORE the needs_context wrapper.
+    if let Some(props_id_name) = analysis.props_id.as_deref() {
+        block_body.insert(
+            0,
+            b.const_id(
+                props_id_name,
+                b.call("$.props_id", vec![b.id("$$renderer")]),
+            ),
+        );
+    }
+
     if should_inject_context {
         // ($$renderer) => { <block_body> }
         let inner_params = b.params(vec![b.id_pat("$$renderer")], None);
@@ -566,6 +583,48 @@ pub fn server_component_ast<'a>(
         ));
     }
 
+    // -- $$css injection (upstream lines 305-311) ---------------------------
+    // When the component has scoped CSS AND `inject_styles` is on AND it is not
+    // a custom element, upstream pushes `const $$css = { hash, code }` at module
+    // scope and unshifts `$$renderer.global.css.add($$css)` as the FIRST line of
+    // the component block (before the sanitized-props prologue).
+    //
+    // rsvelte has no `css.ast`; the oracle (server/mod.rs) gates the same
+    // injection on `options.css == Injected && css.has_css && !hash.is_empty() &&
+    // custom_element.is_none() && !options.custom_element`, rendering the code
+    // via `render_stylesheet_minified` and requiring it to be non-empty. We
+    // mirror that decision exactly so the AST path matches the oracle byte-for-byte.
+    let mut css_const: Option<Statement<'a>> = None;
+    if options.css == crate::compiler::CssMode::Injected
+        && analysis.css.has_css
+        && !analysis.css.hash.is_empty()
+        && analysis.custom_element.is_none()
+        && !options.custom_element
+        && let Ok(css_output) =
+            crate::compiler::phases::phase3_transform::css::render_stylesheet_minified(
+                analysis,
+                ast.css.as_deref(),
+                source,
+                options,
+            )
+        && !css_output.code.is_empty()
+    {
+        // const $$css = { hash: '<hash>', code: '<code>' };
+        css_const = Some(b.const_id(
+            "$$css",
+            b.object(vec![
+                b.init("hash", b.string(&analysis.css.hash)),
+                b.init("code", b.string(&css_output.code)),
+            ]),
+        ));
+        // unshift `$$renderer.global.css.add($$css)` onto the component block —
+        // this lands ahead of the sanitized-props prologue, so prepend it here.
+        prologue.insert(
+            0,
+            b.stmt(b.call("$$renderer.global.css.add", vec![b.id("$$css")])),
+        );
+    }
+
     prologue.extend(block_body);
     let final_body = prologue;
 
@@ -579,9 +638,58 @@ pub fn server_component_ast<'a>(
     let component_fn = b.function_declaration(component_name, params, fn_body, false);
 
     // -- program assembly ---------------------------------------------------
-    // body = [...hoisted, export default function <Name> { ... }]
+    // body = [...hoisted, ...module.body] (state.hoisted already carries the
+    // module body), then the `$$css` module const (if any), then the export.
     let mut program_body = std::mem::take(&mut state.hoisted);
-    program_body.push(b.export_default_fn(component_fn));
+    if let Some(css_const) = css_const {
+        program_body.push(css_const);
+    }
+
+    // -- componentApi v4 export (upstream lines 313-355) --------------------
+    // When `options.compatibility.componentApi === 4`, upstream emits the legacy
+    // Svelte-4 `Component.render(...)` wrapper instead of `export default <fn>`:
+    //   import { render as $$_render } from 'svelte/server';
+    //   function <Name>(...) { ... }
+    //   <Name>.render = function ($$props, $$opts) {
+    //     return $$_render(<Name>, { props: $$props, context: $$opts?.context });
+    //   };
+    //   export default <Name>;
+    if matches!(
+        options.compatibility.component_api,
+        crate::compiler::ComponentApi::V4
+    ) {
+        // import { render as $$_render } from 'svelte/server'; (unshifted)
+        program_body.insert(0, b.imports(vec![("render", "$$_render")], "svelte/server"));
+        program_body.push(component_fn);
+
+        // <Name>.render = function ($$props, $$opts) { return ...; };
+        let render_target = b.member(b.id(component_name), "render");
+        let render_params = b.params(vec![b.id_pat("$$props"), b.id_pat("$$opts")], None);
+        // $$opts?.context — optional member chaining.
+        let opts_context = oxc_ast::ast::Expression::from(b.ab.member_expression_static(
+            SPAN,
+            b.id("$$opts"),
+            b.id_name("context"),
+            true,
+        ));
+        let render_obj = b.object(vec![
+            b.init("props", b.id("$$props")),
+            b.init("context", opts_context),
+        ]);
+        let render_call = b.call("$$_render", vec![b.id(component_name), render_obj]);
+        let render_body = b.body(vec![b.return_stmt(Some(render_call))]);
+        let render_fn = b.function_expr(None, render_params, render_body, false);
+        program_body.push(b.stmt(b.assignment(
+            oxc_ast::ast::AssignmentOperator::Assign,
+            render_target,
+            render_fn,
+        )));
+
+        // export default <Name>;
+        program_body.push(b.export_default_expr(b.id(component_name)));
+    } else {
+        program_body.push(b.export_default_fn(component_fn));
+    }
 
     let program = b.program(program_body);
     Some(rsvelte_esrap::print(&program, ""))
@@ -1383,6 +1491,142 @@ mod tests {
         super::super::transform_server(&analysis, &ast, source, &options).expect("server")
     }
 
+    /// Parse + analyze + lower the `source` through BOTH pipelines under a
+    /// caller-customized [`CompileOptions`], returning `(ast_output, oracle_output)`.
+    /// Used by the entry-assembly tests (`props_id` / `$$css` inject / componentApi
+    /// v4) that need non-default options (`css: Injected`, `componentApi: V4`).
+    fn run_both_opts(source: &str, customize: impl Fn(&mut CompileOptions)) -> (String, String) {
+        let parse_options = ParseOptions {
+            modern: true,
+            loose: false,
+            skip_expression_loc: true,
+            defer_script_parse: true,
+            force_typescript: false,
+            lenient_script: false,
+        };
+        let mut ast = phase1_parse::parse(source, parse_options).expect("parse");
+        let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
+        phase1_parse::resolve_lazy::resolve_lazy_expressions(&mut ast, source);
+        let line_offsets = phase1_parse::compute_line_offsets(source, false);
+        if let Some(instance) = ast.instance.as_mut() {
+            phase1_parse::read::script::ensure_script_parsed(
+                &ast.arena,
+                instance,
+                source,
+                &line_offsets,
+            );
+        }
+        if let Some(module) = ast.module.as_mut() {
+            phase1_parse::read::script::ensure_script_parsed(
+                &ast.arena,
+                module,
+                source,
+                &line_offsets,
+            );
+        }
+        let mut options = CompileOptions {
+            filename: Some("App.svelte".to_string()),
+            ..CompileOptions::default()
+        };
+        customize(&mut options);
+        let analysis =
+            phase2_analyze::analyze_component(&mut ast, source, &options).expect("analyze");
+        let allocator = Allocator::default();
+        let ours = server_component_ast(&analysis, &ast, source, &options, &allocator)
+            .expect("ast output");
+        let oracle =
+            super::super::transform_server(&analysis, &ast, source, &options).expect("server");
+        (ours, oracle)
+    }
+
+    /// `props_id` entry assembly (upstream lines 253-258): a top-level
+    /// `const id = $props.id()` is dropped from the body and re-emitted as the
+    /// FIRST line of the component as `const id = $.props_id($$renderer);`.
+    /// Asserts the AST pipeline emits that exact form AND matches the oracle.
+    #[test]
+    fn ast_matches_oracle_props_id() {
+        let (ours, oracle) = run_both_opts(
+            "<script>const id = $props.id();</script><p>{id}</p>",
+            |_| {},
+        );
+        assert!(
+            ours.contains("const id = $.props_id($$renderer);"),
+            "props_id re-emission missing:\n{ours}"
+        );
+        assert!(
+            !ours.contains("$props.id"),
+            "original $props.id() must be dropped:\n{ours}"
+        );
+        assert_eq!(
+            norm(&ours),
+            norm(&oracle),
+            "props_id output differs from oracle:\nOURS:\n{ours}\nORACLE:\n{oracle}"
+        );
+    }
+
+    /// `$$css` injection (upstream lines 305-311): with `css: Injected`, a scoped
+    /// `<style>` produces a module-scope `const $$css = { hash, code }` plus a
+    /// `$$renderer.global.css.add($$css)` first line in the component. Asserts the
+    /// AST pipeline matches the oracle byte-for-byte (after blank-line norm).
+    #[test]
+    fn ast_matches_oracle_css_inject() {
+        let (ours, oracle) = run_both_opts(
+            "<p class=\"x\">hi</p><style>.x { color: red; }</style>",
+            |o| o.css = crate::compiler::CssMode::Injected,
+        );
+        assert!(
+            ours.contains("const $$css = {"),
+            "module-scope $$css const missing:\n{ours}"
+        );
+        assert!(
+            ours.contains("$$renderer.global.css.add($$css)"),
+            "css.add call missing:\n{ours}"
+        );
+        // Collapse ALL whitespace before comparison: esrap prints the synthetic
+        // `$$css` object inline (dummy spans give no multi-line signal), while the
+        // oracle multi-lines it. That is pure formatting — the corpus
+        // output-equality pipeline reconciles exactly this via oxfmt — so compare
+        // structurally (same convention as `corpus_new_vs_oracle`).
+        let collapse = |s: &str| s.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert_eq!(
+            collapse(&ours),
+            collapse(&oracle),
+            "css-inject output differs from oracle:\nOURS:\n{ours}\nORACLE:\n{oracle}"
+        );
+    }
+
+    /// componentApi v4 export (upstream lines 313-355): with
+    /// `compatibility.componentApi === 4`, the legacy `Component.render(...)`
+    /// wrapper + `import { render as $$_render } from 'svelte/server'` +
+    /// `export default <Name>` is emitted instead of `export default function`.
+    #[test]
+    fn ast_matches_oracle_component_api_v4() {
+        let (ours, oracle) = run_both_opts("<p>hi</p>", |o| {
+            o.compatibility.component_api = crate::compiler::ComponentApi::V4;
+        });
+        assert!(
+            ours.contains("import { render as $$_render } from 'svelte/server';"),
+            "v4 import missing:\n{ours}"
+        );
+        assert!(
+            ours.contains("App.render = function ($$props, $$opts)"),
+            "v4 render wrapper missing:\n{ours}"
+        );
+        assert!(
+            ours.contains("context: $$opts?.context"),
+            "v4 optional-context member missing:\n{ours}"
+        );
+        assert!(
+            ours.contains("export default App;"),
+            "v4 export default identifier missing:\n{ours}"
+        );
+        assert_eq!(
+            norm(&ours),
+            norm(&oracle),
+            "componentApi v4 output differs from oracle:\nOURS:\n{ours}\nORACLE:\n{oracle}"
+        );
+    }
+
     /// Whitespace normalization parity with the `transform_server` oracle.
     /// Each sample exercises a distinct `clean_nodes` rule: inter-element
     /// whitespace collapse, internal-run handling, nested-list trimming, and
@@ -1821,16 +2065,20 @@ mod tests {
     }
 
     /// `$props.id()` declarators are DROPPED from the instance body (mirrors the
-    /// VariableDeclaration visitor's `skip`). NOTE: the oracle re-emits it as
-    /// `const uid = $.props_id($$renderer);` via the separate `analysis.props_id`
-    /// assembly path — that re-emission is a KNOWN GAP in this slice, so the AST
-    /// output simply omits the declarator entirely.
+    /// VariableDeclaration visitor's `skip`), then re-emitted by the entry
+    /// assembly via `analysis.props_id` as `const uid = $.props_id($$renderer);`
+    /// (see `ast_matches_oracle_props_id`). The original `$props.id()` text must
+    /// be gone, and the re-emitted helper call present.
     #[test]
     fn props_id_dropped() {
         let out = run("<script>const uid = $props.id();</script><p>x</p>");
         assert!(
             !out.contains("$props.id"),
             "$props.id declarator should be dropped:\n{out}"
+        );
+        assert!(
+            out.contains("const uid = $.props_id($$renderer);"),
+            "props_id should be re-emitted via entry assembly:\n{out}"
         );
     }
 
