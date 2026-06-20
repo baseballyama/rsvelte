@@ -1710,6 +1710,68 @@ mod tests {
         );
     }
 
+    /// Block close-anchor placement parity with the `transform_server` oracle.
+    ///
+    /// 写经 upstream `Fragment.js` / `clean_nodes`: a fragment whose single
+    /// surviving (non-hoisted) child is a non-dynamic Component / RenderTag is
+    /// "standalone" (`is_standalone`), so the enclosing block's anchor suffices
+    /// and the child's own trailing `<!---->` empty-comment anchor is suppressed.
+    /// `is_standalone` is per-fragment, so this must hold inside EVERY block arm
+    /// (if / else / each body / each fallback / key body / await arms /
+    /// `<svelte:head>` callback / snippet body / slot body), not just the root.
+    ///
+    /// Previously the AST pipeline set `is_standalone` only for the root
+    /// fragment, so these arms emitted a spurious `$$renderer.push(\`<!---->\`)`
+    /// after the standalone child. Each sample is compared STRUCTURALLY
+    /// (indentation-insensitive) against the oracle.
+    #[test]
+    fn ast_matches_oracle_block_close_anchor() {
+        let import_foo = "<script>import Foo from './Foo.svelte';</script>";
+        let import_foo_bar =
+            "<script>import Foo from './Foo.svelte';import Bar from './Bar.svelte';</script>";
+        let samples = [
+            // {#if}: single standalone child in the consequent → no `<!---->`.
+            format!("{import_foo}{{#if true}}<Foo/>{{/if}}"),
+            // {#if}/{:else}: BOTH arms standalone.
+            format!("{import_foo_bar}{{#if x}}<Foo/>{{:else}}<Bar/>{{/if}}"),
+            // {#if}/{:else if}/{:else}: all three arms standalone.
+            format!(
+                "<script>import A from './A.svelte';import B from './B.svelte';import C from './C.svelte';</script>{{#if x}}<A/>{{:else if y}}<B/>{{:else}}<C/>{{/if}}"
+            ),
+            // {#each} body standalone child.
+            format!("{import_foo}{{#each [1] as n}}<Foo/>{{/each}}"),
+            // {#each} with standalone child AND a standalone {:else} fallback.
+            format!(
+                "<script>import Foo from './Foo.svelte';import Bar from './Bar.svelte';let items = [];</script>{{#each items as n}}<Foo/>{{:else}}<Bar/>{{/each}}"
+            ),
+            // {#key} body standalone child.
+            format!("{import_foo}{{#key 1}}<Foo/>{{/key}}"),
+            // <svelte:head> callback standalone child → no leading/trailing anchor.
+            format!("{import_foo}<svelte:head><Foo/></svelte:head>"),
+            // A NON-standalone arm (two children) MUST keep the anchor after Foo.
+            format!("{import_foo}{{#if true}}<Foo/><span>x</span>{{/if}}"),
+            // RenderTag standalone child in an if arm.
+            "{#snippet foo()}<p>x</p>{/snippet}{#if true}{@render foo()}{/if}".to_string(),
+        ];
+        let mut mismatches = Vec::new();
+        for src in &samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm_blocks(&ours) == norm_blocks(&oracle);
+            eprintln!(
+                "\n===== SRC: {src} ===== {}\n--- NEW ---\n{ours}\n--- ORACLE ---\n{oracle}",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src.clone());
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "block close-anchor placement differs from oracle for: {mismatches:?}"
+        );
+    }
+
     fn oracle_dump(source: &str) -> String {
         let parse_options = ParseOptions {
             modern: true,

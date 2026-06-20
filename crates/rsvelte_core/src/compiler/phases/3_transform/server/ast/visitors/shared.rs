@@ -475,10 +475,27 @@ pub fn build_fragment_body<'a>(
     // the `<pre>` / `<select>` / table special-cases don't apply and the
     // namespace is the default `html`. Element children route through
     // [`process_children`] directly with their real parent/namespace.
+    //
+    // 写经 upstream `Fragment.js`: EACH fragment recomputes `is_standalone` from
+    // its own `clean_nodes` and stores it on the fresh per-fragment `state`
+    // (`{ ...context.state, is_standalone }`). A fragment whose single surviving
+    // (non-hoisted) child is a non-dynamic Component / RenderTag is "standalone"
+    // — the enclosing block's anchor (`<!--[-->`/`<!--]-->`, or the if-branch
+    // markers) suffices, so the child's own trailing `<!---->` empty-comment
+    // anchor is suppressed (see Component / RenderTag `!state.is_standalone`
+    // guard). The previous code only set `is_standalone` for the ROOT fragment,
+    // so a `{#if}…<Foo/>…{/if}` / `{#each}…<Foo/>…{/each}` / `<svelte:head><Foo/>`
+    // arm wrongly emitted a spurious `$$renderer.push(\`<!---->\`)` after the
+    // child. Recompute it here (save/restore) so every fragment block matches
+    // upstream.
+    let saved_standalone = state.is_standalone;
+    state.is_standalone = ServerTransformState::is_standalone_fragment(&fragment.nodes);
     let saved = std::mem::take(&mut state.template);
     process_children_inner(&fragment.nodes, None, "html", is_text_first_parent, state);
     let template = std::mem::replace(&mut state.template, saved);
-    build_template(template, state)
+    let body = build_template(template, state);
+    state.is_standalone = saved_standalone;
+    body
 }
 
 /// Render a fragment as a `{ ... }` block statement — the Rust port of upstream's
