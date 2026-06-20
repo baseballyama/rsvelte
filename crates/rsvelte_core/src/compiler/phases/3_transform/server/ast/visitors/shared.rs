@@ -178,13 +178,28 @@ pub fn process_children_inner<'a>(
                 // `top_level_blocker_map`, which is ONLY populated under
                 // `experimental.async`, so this branch never fires for ordinary
                 // sync components).
-                if let Some(blockers) = expression_tag_blockers(&tag.expression, state) {
+                // 写经 `is_async()` = `has_await || has_blockers()`. An inline
+                // `{await …}` (no top-level blocker) flushes too and emits
+                // `$$renderer.push(async () => $.escape(await …))` — the
+                // `has_await=true, blockers=[]` shape. A top-level-await blocker
+                // reference emits `$$renderer.async([$$promises[N]…], …)` with
+                // `has_await=false` (the await lives in the instance thunk).
+                let blockers = expression_tag_blockers(&tag.expression, state);
+                let inline_await = blockers.is_none()
+                    && state
+                        .expr_source(&tag.expression)
+                        .is_some_and(text_has_await);
+                if let Some(blockers) = blockers {
                     flush_sequence(&sequence, state);
                     sequence.clear();
                     let visited = state.visit_expr(&tag.expression);
-                    // has_await=false for top-level await: the await lives in the
-                    // instance `$$renderer.run([...])` thunk, not in the read.
                     let stmt = build_async_expression_push(state, visited, &blockers, false);
+                    state.template.push(TemplateEntry::Stmt(stmt));
+                } else if inline_await {
+                    flush_sequence(&sequence, state);
+                    sequence.clear();
+                    let visited = state.visit_expr(&tag.expression);
+                    let stmt = build_async_expression_push(state, visited, &[], true);
                     state.template.push(TemplateEntry::Stmt(stmt));
                 } else {
                     sequence.push(SeqNode::Expr(&tag.expression));
@@ -675,6 +690,71 @@ pub fn create_child_block<'a>(
     } else {
         vec![b.stmt(b.call("$$renderer.child_block", vec![arrow]))]
     }
+}
+
+/// The shared `$.save` / await-wrap helper — the reusable seam for block-level
+/// async test/iterable expressions (IfBlock, and later EachBlock / AwaitBlock /
+/// KeyBlock). Given the SOURCE TEXT of a block's controlling expression, it
+/// returns the oxc expression that should drive the emitted `if (...)` / `for`
+/// header:
+///
+/// - When the expression contains a top-level `await` (an inline await, NOT a
+///   nested function/arrow), every such await's argument is wrapped via
+///   upstream's `save(argument)` → `(await $.save(<arg>))()`
+///   (`utils/ast.js::save`), the textual rewrite from
+///   [`super::super::super::await_save_ast::transform_await_to_save_ast`], and
+///   the result is re-parsed into an oxc expression. This is the `$.save`
+///   await-wrap. The accompanying [`text_has_await`] returns `true` so the
+///   caller makes its wrapping arrow `async`.
+/// - Otherwise (no inline await) the expression is read-wrapped via
+///   [`ServerTransformState::visit_expr`] (so a derived `blocking` becomes
+///   `blocking()`), matching the non-await branch of the oracle.
+///
+/// 写经 upstream server `AwaitExpression` visitor + `IfBlock.js`: the test of an
+/// await-bearing `{#if}` is `context.visit(node.test)`, where the nested
+/// `AwaitExpression` visitor rewrites each `await x` into `save(x)`. Doing the
+/// rewrite textually here mirrors the proven text-oracle path
+/// (`convert_if_block` → `transform_await_to_save`) and re-parses the result so
+/// the AST printer emits it.
+pub fn save_wrap_expr_text<'a>(
+    state: &ServerTransformState<'a>,
+    expr_text: &str,
+) -> OxcExpression<'a> {
+    if text_has_await(expr_text)
+        && let Some(saved) =
+            crate::compiler::phases::phase3_transform::server::await_save_ast::transform_await_to_save_ast(
+                expr_text,
+            )
+        && let Some(reparsed) = state.reparse_slice_owned(&saved)
+    {
+        return reparsed;
+    }
+    // No await (or the save rewrite/reparse failed): fall back to the plain
+    // read-wrapped expression. `reparse_slice_owned` already trims, so a bare
+    // text reparse keeps the non-await spelling intact.
+    if let Some(reparsed) = state.reparse_slice_owned(expr_text) {
+        return reparsed;
+    }
+    state.b.id("undefined")
+}
+
+/// Whether `expr_text` contains an inline (top-level, not nested in a
+/// function/arrow body) `await`. Thin re-export of the server helper so the
+/// async block visitors share ONE await-detection predicate
+/// (`metadata.expression.has_await`). Cheap `memmem("await")` pre-check inside.
+pub fn text_has_await(expr_text: &str) -> bool {
+    crate::compiler::phases::phase3_transform::server::helpers::expr_contains_await(expr_text)
+}
+
+/// Find the top-level-await blocker indices (`$$promises[N]`) referenced by
+/// `expr_text` against the precomputed instance blocker map. Empty when async is
+/// off (the map is only populated under `experimental.async`) or the expression
+/// references no blocked binding. Mirrors `metadata.expression.blockers()`.
+pub fn expr_text_blockers(state: &ServerTransformState, expr_text: &str) -> Vec<usize> {
+    crate::compiler::phases::phase3_transform::server::helpers::find_expression_blockers(
+        expr_text,
+        &state.eval_inputs.top_level_blocker_map,
+    )
 }
 
 /// Build the top-level async-wrapped expression-tag push statement — the Rust

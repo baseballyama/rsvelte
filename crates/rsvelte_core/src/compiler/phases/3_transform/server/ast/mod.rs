@@ -198,6 +198,20 @@ impl<'a> ServerTransformState<'a> {
     /// it reproduces the parsed expression shape verbatim. That is correct for
     /// the simple cases (bare identifiers / member chains) but the store-sub /
     /// derived-call / props rewrites are still TODO.
+    /// Return the source-text slice for an expression node (`expr.start()..end()`
+    /// against `self.source`), or `None` when the span is missing / out of range.
+    /// Used by async block visitors to drive the textual `$.save` await-wrap and
+    /// blocker scan (`metadata.expression.has_await` / `.blockers()`), mirroring
+    /// the text-oracle which slices the same source span.
+    pub fn expr_source(&self, expr: &Expression) -> Option<&str> {
+        let start = expr.start()? as usize;
+        let end = expr.end()? as usize;
+        if end <= start || end > self.source.len() {
+            return None;
+        }
+        Some(&self.source[start..end])
+    }
+
     pub fn visit_expr(&self, expr: &Expression) -> OxcExpression<'a> {
         let mut out = self.visit_expr_raw(expr);
         read_wrap::wrap_reads(
@@ -946,6 +960,76 @@ mod tests {
         s.lines()
             .map(|l| l.trim())
             .filter(|l| !l.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// Async SSR `IfBlock` (Stage 2a): the shared `$.save` await-wrap + the
+    /// block-level `create_child_block` aggregate-blocker wrapping. Asserts the
+    /// AST pipeline matches the text-based oracle byte-for-byte (post `norm_blocks`,
+    /// which collapses the oracle's block-body leading-indent quirk).
+    ///
+    /// - `async-if-hoisting` / `async-if-alternate-hoisting`: a `{#if await …}`
+    ///   with await-bearing branch interpolations. Each becomes
+    ///   `$$renderer.child_block(async …)` (no top-level blocker), the test
+    ///   `$.save`-wrapped to `(await $.save(…))()`, and the branch `{await …}`
+    ///   tags emitted as `$$renderer.push(async () => $.escape(await …))`.
+    ///   These match the oracle FULLY (no instance script).
+    /// - `async-if-chain`: the full chain — sync if (blocker-only →
+    ///   `async_block([$$promises[0]], (…) => …)`), nested non-flattened await
+    ///   else-ifs (own `child_block`/`async_block`), and a flatten-only chain.
+    ///   The IfBlock output matches the oracle; the only divergence is the
+    ///   instance `let blocking = $derived(await foo)` lowering (a separate
+    ///   `$derived(await …)` → `$.async_derived` axis, out of Stage 2a scope), so
+    ///   that one instance line is normalized away before comparison.
+    #[test]
+    fn ast_matches_oracle_async_if_block() {
+        let hoisting = "{#if await Promise.resolve(true)}\n  {await Promise.resolve('yes yes yes')}\n{:else}\n  {await Promise.reject('no no no')}\n{/if}\n";
+        let alternate_hoisting = "{#if await Promise.resolve(false)}\n  {await Promise.reject('no no no')}\n{:else}\n  {await Promise.resolve('yes yes yes')}\n{/if}\n";
+        // FULL-match fixtures (no instance script).
+        for (name, src) in &[
+            ("async-if-hoisting", hoisting),
+            ("async-if-alternate-hoisting", alternate_hoisting),
+        ] {
+            let (ours, oracle) = run_async_both(src);
+            let matched = norm_blocks(&ours) == norm_blocks(&oracle);
+            assert!(
+                matched,
+                "IfBlock async output differs from oracle for {name}:\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}"
+            );
+        }
+
+        // `async-if-chain`: compare with the instance `$derived(await …)` line
+        // normalized out (a separate lowering axis). The IfBlock structure (the
+        // five blocks) must still match byte-for-byte.
+        let chain = "<script>\n  function complex1() {\n    return 1;\n  }\n\n  let foo = $state(true);\n  let blocking = $derived(await foo);\n</script>\n\n{#if foo}\n  foo\n{:else if bar}\n  bar\n{:else}\n  else\n{/if}\n\n{#if await foo}\n  foo\n{:else if bar}\n  bar\n{:else if await baz}\n  baz\n{:else}\n  else\n{/if}\n\n{#if await foo > 10}\n  foo\n{:else if bar}\n  bar\n{:else if await foo > 5}\n  baz\n{:else}\n  else\n{/if}\n\n{#if simple1}\n  foo\n{:else if simple2 > 10}\n  bar\n{:else if complex1() * complex2 > 100}\n  baz\n{:else}\n  else\n{/if}\n\n{#if blocking > 10}\n  foo\n{:else if blocking > 5}\n  bar\n{:else}\n  else\n{/if}\n";
+        let (ours, oracle) = run_async_both(chain);
+        // Drop ONLY the instance-script declaration lines that lower the
+        // `$derived(await foo)` (the orthogonal axis), keeping every `blocking()`
+        // reference inside the 5th block's tests intact.
+        let ours_n = strip_instance_decls(&ours);
+        let oracle_n = strip_instance_decls(&oracle);
+        assert_eq!(
+            ours_n, oracle_n,
+            "async-if-chain IfBlock structure differs from oracle (instance \
+             `$derived(await)` line excluded):\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}"
+        );
+    }
+
+    /// Strip ONLY the instance-script declaration lines that lower a
+    /// `$derived(await …)` (the orthogonal axis not covered by Stage 2a):
+    /// `let blocking = $.derived(…)`, `var blocking;`, and the
+    /// `var $$promises = $$renderer.run([…])` prelude. Everything after (the
+    /// IfBlock template body) is compared verbatim.
+    fn strip_instance_decls(s: &str) -> String {
+        norm_blocks(s)
+            .lines()
+            .filter(|l| {
+                let t = l.trim_start();
+                !(t.starts_with("let blocking")
+                    || t.starts_with("var blocking")
+                    || t.starts_with("var $$promises"))
+            })
             .collect::<Vec<_>>()
             .join("\n")
     }
