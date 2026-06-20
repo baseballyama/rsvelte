@@ -1528,11 +1528,23 @@ mod tests {
 
     /// Outcome of compiling one component with both pipelines.
     enum Outcome {
-        /// Both pipelines produced output; bool = normalized-equal.
+        /// Both pipelines produced output.
+        ///
+        /// `matched_text` is the legacy whitespace-collapsed text comparison.
+        /// `matched_struct` reprints BOTH sides through oxc → esrap so
+        /// formatting (line breaking / indentation / quote style / object
+        /// layout) is canonical, leaving only structural differences — exactly
+        /// what the real corpus pipeline absorbs via oxfmt. `used_fallback` is
+        /// true when EITHER side failed to reparse, so `matched_struct` fell
+        /// back to the text comparison for that component.
         Compared {
-            matched: bool,
-            new_out: String,
-            oracle: String,
+            matched_text: bool,
+            matched_struct: bool,
+            used_fallback: bool,
+            /// Canonical (reprinted) forms used for the structural compare;
+            /// fall back to `norm`-ed text when a side failed to reparse.
+            new_canon: String,
+            oracle_canon: String,
         },
         /// New pipeline returned `None` (feature not yet handled by AST path).
         NewNone,
@@ -1632,12 +1644,47 @@ mod tests {
             Err(_) => return Outcome::Panic("new"),
         };
 
-        let matched = norm(&new_out) == norm(&oracle);
+        let matched_text = norm(&new_out) == norm(&oracle);
+
+        // Structural (formatting-insensitive) comparison: reprint BOTH outputs
+        // through oxc → esrap so whitespace / indentation / line-breaking /
+        // quote style / object layout are canonical on both sides. Only real
+        // structural differences survive. If EITHER side fails to reparse, fall
+        // back to the legacy text `norm` comparison for that component.
+        let new_canon = canon(&new_out);
+        let oracle_canon = canon(&oracle);
+        let (matched_struct, used_fallback, new_canon, oracle_canon) =
+            match (new_canon, oracle_canon) {
+                (Some(a), Some(b)) => (a == b, false, a, b),
+                _ => {
+                    // Fall back to the text comparison; carry the norm-ed text
+                    // as the "canonical" forms so first-diff reporting still works.
+                    (matched_text, true, norm(&new_out), norm(&oracle))
+                }
+            };
+
         Outcome::Compared {
-            matched,
-            new_out,
-            oracle,
+            matched_text,
+            matched_struct,
+            used_fallback,
+            new_canon,
+            oracle_canon,
         }
+    }
+
+    /// Reprint a JS source string through oxc (parse) → esrap (print) so its
+    /// formatting is canonical. Returns `None` if the string fails to parse
+    /// cleanly (panicked or any diagnostics), signalling the caller to fall
+    /// back to text comparison.
+    fn canon(code: &str) -> Option<String> {
+        use oxc_parser::Parser;
+        use oxc_span::SourceType;
+        let alloc = Allocator::default();
+        let ret = Parser::new(&alloc, code, SourceType::mjs()).parse();
+        if ret.panicked || !ret.diagnostics.is_empty() {
+            return None;
+        }
+        Some(rsvelte_esrap::print(&ret.program, code))
     }
 
     /// Feature keywords to detect in source for mismatch clustering.
@@ -1690,11 +1737,10 @@ mod tests {
         hits
     }
 
-    /// First differing trimmed line between two normalized outputs (signature
-    /// for fine-grained clustering of the actual codegen divergence).
-    fn first_diff_line(new_out: &str, oracle: &str) -> String {
-        let a = norm(new_out);
-        let b = norm(oracle);
+    /// First differing trimmed line between two ALREADY-canonical strings
+    /// (the reprinted forms from `compile_both`, or norm-ed text on fallback)
+    /// — a signature for fine-grained clustering of the real codegen divergence.
+    fn first_diff_line(a: &str, b: &str) -> String {
         let mut al = a.lines();
         let mut bl = b.lines();
         loop {
@@ -1774,7 +1820,9 @@ mod tests {
 
         let mut total = 0usize;
         let mut compared = 0usize;
-        let mut matched = 0usize;
+        let mut matched = 0usize; // structural match (headline)
+        let mut matched_text_only = 0usize; // legacy text-norm match
+        let mut struct_fallback = 0usize; // structural compare hit parse-fallback
         let mut new_none = 0usize;
         let mut panicked = 0usize;
         let mut skipped = 0usize;
@@ -1811,12 +1859,20 @@ mod tests {
 
             match compile_both(&source) {
                 Outcome::Compared {
-                    matched: m,
-                    new_out,
-                    oracle,
+                    matched_text,
+                    matched_struct,
+                    used_fallback,
+                    new_canon,
+                    oracle_canon,
                 } => {
                     compared += 1;
-                    if m {
+                    if matched_text {
+                        matched_text_only += 1;
+                    }
+                    if used_fallback {
+                        struct_fallback += 1;
+                    }
+                    if matched_struct {
                         matched += 1;
                     } else {
                         // Cluster by features present.
@@ -1832,12 +1888,15 @@ mod tests {
                             if e.1.len() < 3 {
                                 e.1.push(name.clone());
                             }
-                            feature_repr
-                                .entry(f)
-                                .or_insert_with(|| (name.clone(), new_out.clone(), oracle.clone()));
+                            // Store the CANONICAL (reprinted) forms so the
+                            // representative diffs show the real structural gap,
+                            // not formatting noise.
+                            feature_repr.entry(f).or_insert_with(|| {
+                                (name.clone(), new_canon.clone(), oracle_canon.clone())
+                            });
                         }
-                        // Cluster by first differing line.
-                        let dl = first_diff_line(&new_out, &oracle);
+                        // Cluster by first differing line of the canonical forms.
+                        let dl = first_diff_line(&new_canon, &oracle_canon);
                         let e = line_clusters.entry(dl).or_insert((0, Vec::new()));
                         e.0 += 1;
                         if e.1.len() < 3 {
@@ -1888,13 +1947,26 @@ mod tests {
             "  COMPARED (both produced output).. {compared} ({:.1}%)",
             pct(compared, total)
         );
+        eprintln!("    comparison is STRUCTURAL: both sides reprinted via oxc -> esrap");
         eprintln!(
-            "    MATCH ......................... {matched} / {compared}  = {:.1}% of compared",
+            "      parse-fallback (text compare) {struct_fallback} / {compared}  = {:.1}% of compared",
+            pct(struct_fallback, compared)
+        );
+        eprintln!(
+            "    MATCH (structural) ............ {matched} / {compared}  = {:.1}% of compared",
             pct(matched, compared)
         );
         eprintln!(
-            "    MATCH (of all components) ..... {matched} / {total}  = {:.1}% HEADLINE",
+            "    MATCH (structural, all) ....... {matched} / {total}  = {:.1}% HEADLINE",
             pct(matched, total)
+        );
+        eprintln!(
+            "    MATCH (legacy text-norm) ...... {matched_text_only} / {compared}  = {:.1}% of compared",
+            pct(matched_text_only, compared)
+        );
+        eprintln!(
+            "    DELTA structural - text ....... {:+}  ({matched} struct vs {matched_text_only} text)",
+            matched as i64 - matched_text_only as i64
         );
 
         if !new_none_examples.is_empty() {
@@ -1931,19 +2003,30 @@ mod tests {
             );
         }
 
-        // Representative full diffs for the biggest feature clusters.
-        eprintln!("\n-- REPRESENTATIVE DIFFS (top 5 feature clusters) --");
+        // Representative STRUCTURAL diffs (canonical reprinted forms) for the
+        // biggest feature clusters — show only the region around the first diff.
+        eprintln!("\n-- REPRESENTATIVE STRUCTURAL DIFFS (top 5 feature clusters) --");
         for (label, _) in feats.iter().take(5) {
-            if let Some((fname, new_out, oracle)) = feature_repr.get(*label) {
+            if let Some((fname, new_canon, oracle_canon)) = feature_repr.get(*label) {
                 eprintln!("\n##### cluster `{label}` — {fname}");
-                let nn = norm(new_out);
-                let on = norm(oracle);
-                eprintln!("----- NEW (first 30 lines) -----");
-                for l in nn.lines().take(30) {
+                eprintln!(
+                    "   first-diff: {}",
+                    first_diff_line(new_canon, oracle_canon)
+                );
+                // Print the window of canonical lines around the first divergence.
+                let nl: Vec<&str> = new_canon.lines().collect();
+                let ol: Vec<&str> = oracle_canon.lines().collect();
+                let mut at = 0usize;
+                while at < nl.len() && at < ol.len() && nl[at].trim() == ol[at].trim() {
+                    at += 1;
+                }
+                let start = at.saturating_sub(3);
+                eprintln!("----- NEW (lines {start}..) -----");
+                for l in nl.iter().skip(start).take(18) {
                     eprintln!("{l}");
                 }
-                eprintln!("----- ORACLE (first 30 lines) -----");
-                for l in on.lines().take(30) {
+                eprintln!("----- ORACLE (lines {start}..) -----");
+                for l in ol.iter().skip(start).take(18) {
                     eprintln!("{l}");
                 }
             }
