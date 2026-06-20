@@ -112,6 +112,25 @@ fn detect_decl_rune(init: &OxcExpression) -> Option<DeclRune> {
     }
 }
 
+/// Build the `$$async_hole` placeholder statement that stands in for a removed
+/// `$inspect(...)` / `$effect(...)` expression statement under
+/// `experimental.async`. The async-body transform (`transform_async_body`)
+/// recognises any statement whose printed text contains `$$async_hole` and
+/// turns it into a `() => void 0` thunk in the `$$renderer.run([...])` array,
+/// keeping the `$$promises` indices of every later expression stable (写经 the
+/// `/* $$async_hole */` marker in the text-based server `transform_script.rs`).
+///
+/// We emit a bare identifier-reference expression statement (`$$async_hole;`)
+/// because it round-trips losslessly through the esrap printer — a string
+/// literal would be parsed as a directive prologue (dropped from `program.body`)
+/// and a bare comment marker would risk being stripped — and the printed text
+/// carries the marker that `transform_async_body` matches on. The placeholder
+/// never reaches the final output: it is consumed (and replaced by
+/// `() => void 0`) by the async transform.
+fn async_hole_placeholder<'a>(state: &ServerTransformState<'a>) -> Option<Statement<'a>> {
+    state.reparse_statement("($$async_hole);")
+}
+
 /// Whether an expression-statement expression is a top-level effect/inspect rune
 /// call that upstream's server `ExpressionStatement` visitor removes.
 fn is_removed_effect_stmt(expr: &OxcExpression) -> bool {
@@ -199,6 +218,19 @@ fn transform_script<'a>(
             }
             Statement::ExpressionStatement(es) => {
                 if is_removed_effect_stmt(&es.expression) {
+                    // Under `experimental.async`, a removed `$inspect(...)` /
+                    // `$effect(...)` statement must leave a PLACEHOLDER behind so
+                    // the async-body transform keeps its `$$promises` slot (the
+                    // text-based `transform_async_body` turns the placeholder into
+                    // a `() => void 0` thunk, preserving every later expression's
+                    // blocker index). Mirrors upstream's `/* $$async_hole */`
+                    // marker (server `transform_script.rs`). In sync mode the
+                    // statement is simply dropped, as before.
+                    if state.eval_inputs.use_async
+                        && let Some(marker) = async_hole_placeholder(state)
+                    {
+                        out.push(marker);
+                    }
                     continue;
                 }
                 let slice = &src[es.span.start as usize..es.span.end as usize];
@@ -1449,7 +1481,59 @@ pub fn transform_instance<'a>(
     for imp in imports {
         state.hoisted.push(imp);
     }
+
+    // Async instance-body splitting (Stage 1). When `experimental.async` is on
+    // (`state.eval_inputs.use_async`) AND the transformed instance body contains
+    // a top-level `await`, upstream rewrites the body into a sync prelude +
+    // `var $$promises = $$renderer.run([…thunks])` (写经
+    // `transform-server.js` async branch → `shared/transform-async.js`).
+    //
+    // We REUSE the proven text-based `transform_async_body` (which does all the
+    // statement classification, consecutive-sync-statement grouping, `$inspect`
+    // → `() => void 0` thunking, and `$$promises[N]` indexing): print the
+    // already-lowered oxc body to text, run the transform, then re-parse its
+    // output back into oxc statements. The transform is a no-op (returns `None`)
+    // when there is no top-level await, so a plain async-flagged component with
+    // only sync instance statements falls through unchanged. `use_async` is
+    // false for every ordinary component, so this never touches sync output.
+    if state.eval_inputs.use_async && !body.is_empty() {
+        let body_text = state.b.program(body_clone(state, &body)).pipe_print();
+        if let Some(result) =
+            crate::compiler::phases::phase3_transform::shared::async_body::transform_async_body_dev(
+                body_text.trim(),
+                "$$renderer.run",
+                state.options.dev,
+            )
+        {
+            let reparsed = state.reparse_program(result.output.trim());
+            if !reparsed.is_empty() {
+                return reparsed;
+            }
+        }
+    }
+
     body
+}
+
+/// Print a slice of oxc statements to JS source text via the esrap printer
+/// (used to round-trip the lowered instance body through the text-based
+/// `transform_async_body`). Consumes a freshly-cloned copy so the original
+/// statements stay usable.
+trait PipePrint {
+    fn pipe_print(self) -> String;
+}
+impl<'a> PipePrint for oxc_ast::ast::Program<'a> {
+    fn pipe_print(self) -> String {
+        rsvelte_esrap::print(&self, "")
+    }
+}
+
+/// Deep-clone a slice of statements into the state allocator. `transform_async_body`
+/// needs the body as TEXT; cloning lets us print a throwaway copy while keeping
+/// the originals available for the non-async fall-through path.
+fn body_clone<'a>(state: &ServerTransformState<'a>, body: &[Statement<'a>]) -> Vec<Statement<'a>> {
+    use oxc_allocator::CloneIn;
+    body.iter().map(|s| s.clone_in(state.allocator)).collect()
 }
 
 /// Public entry: transform the module script into module-scope statements.

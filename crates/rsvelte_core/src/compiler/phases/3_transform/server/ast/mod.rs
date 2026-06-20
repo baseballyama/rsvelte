@@ -267,6 +267,21 @@ impl<'a> ServerTransformState<'a> {
         ret.program.body.into_iter().next()
     }
 
+    /// Re-parse a whole program `src` into the state allocator, returning ALL
+    /// its top-level statements. Used by the async instance-body transform to
+    /// rehome the sync/async-split TEXT (`var …; var $$promises = …`) emitted by
+    /// `transform_async_body` back into oxc statements. Returns an empty vec on
+    /// a parse failure.
+    pub fn reparse_program(&self, src: &str) -> Vec<Statement<'a>> {
+        let owned = self.allocator.alloc_str(src.trim());
+        let ret =
+            oxc_parser::Parser::new(self.allocator, owned, oxc_span::SourceType::mjs()).parse();
+        if !ret.diagnostics.is_empty() {
+            return Vec::new();
+        }
+        ret.program.body.into_iter().collect()
+    }
+
     /// Re-parse a single declarator slice (`x = init` / `{ a } = init`) by
     /// wrapping it as `let <slice>;`, returning the `(pattern, init)` pair. Used
     /// for the non-rune declarator passthrough.
@@ -412,6 +427,17 @@ pub fn server_component_ast<'a>(
             top_level_blocker_map: legacy.top_level_blocker_map,
             template_scopes_cache: std::cell::OnceCell::new(),
         };
+    }
+
+    // -- async flag import (upstream `transform-server.js`) -----------------
+    // When `experimental.async` is on, the program opens with a side-effect
+    // import `import 'svelte/internal/flags/async';` BEFORE the namespace
+    // import. The namespace import was seeded as `hoisted[0]` in
+    // `ServerTransformState::new`, so unshift the flags import ahead of it.
+    if state.eval_inputs.use_async {
+        state
+            .hoisted
+            .insert(0, state.b.imports(vec![], "svelte/internal/flags/async"));
     }
 
     let b = state.b;
@@ -798,6 +824,101 @@ mod tests {
 
         let allocator = Allocator::default();
         server_component_ast(&analysis, &ast, source, &options, &allocator).expect("ast output")
+    }
+
+    /// Like [`run`], but with `experimental.async` enabled — exercises the
+    /// async SSR foundation (top-level await instance split + async expression
+    /// tags). Returns `(ast_output, oracle_output)` so the async fixtures can
+    /// gate on byte-for-byte parity with the text-based oracle.
+    fn run_async_both(source: &str) -> (String, String) {
+        let parse_options = ParseOptions {
+            modern: true,
+            loose: false,
+            skip_expression_loc: true,
+            defer_script_parse: true,
+            force_typescript: false,
+            lenient_script: false,
+        };
+        let mut ast = phase1_parse::parse(source, parse_options).expect("parse");
+        let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
+        phase1_parse::resolve_lazy::resolve_lazy_expressions(&mut ast, source);
+        let line_offsets = phase1_parse::compute_line_offsets(source, false);
+        if let Some(instance) = ast.instance.as_mut() {
+            phase1_parse::read::script::ensure_script_parsed(
+                &ast.arena,
+                instance,
+                source,
+                &line_offsets,
+            );
+        }
+        if let Some(module) = ast.module.as_mut() {
+            phase1_parse::read::script::ensure_script_parsed(
+                &ast.arena,
+                module,
+                source,
+                &line_offsets,
+            );
+        }
+        let mut options = CompileOptions {
+            filename: Some("App.svelte".to_string()),
+            ..CompileOptions::default()
+        };
+        options.experimental.r#async = true;
+        let analysis =
+            phase2_analyze::analyze_component(&mut ast, source, &options).expect("analyze");
+        let allocator = Allocator::default();
+        let ours = server_component_ast(&analysis, &ast, source, &options, &allocator)
+            .expect("ast output");
+        let oracle =
+            super::super::transform_server(&analysis, &ast, source, &options).expect("server");
+        (ours, oracle)
+    }
+
+    /// Async SSR foundation (Stage 0+1): the two simplest top-level-await
+    /// snapshot fixtures. Each splits the instance body into a sync prelude +
+    /// `var $$promises = $$renderer.run([…])` and wraps the blocked `{expr}`
+    /// interpolation in `$$renderer.async([$$promises[N]], …)`. Asserts the AST
+    /// pipeline matches the text-based oracle byte-for-byte (post-norm).
+    ///
+    /// - `async-top-level-group-sync-run`: consecutive sync statements after the
+    ///   first await are GROUPED into one thunk (one `$$promises` index).
+    /// - `async-top-level-inspect-server`: `$inspect(data)` becomes a
+    ///   `() => void 0` thunk whose index is preserved.
+    #[test]
+    fn ast_matches_oracle_async_top_level() {
+        let samples: &[(&str, &str)] = &[
+            (
+                "group-sync-run",
+                "<script>\n\tlet a = await Promise.resolve(1);\n\t// these should be grouped into one, having an async tick inbetween\n\t// would change how the code runs and could introduce subtle timing bugs\n\tlet b = a + 1;\n\tlet c = b + 1;\n</script>\n\n{c}\n",
+            ),
+            (
+                "inspect-server",
+                "<script>\n\tlet data = await Promise.resolve(42);\n\t$inspect(data);\n</script>\n\n<p>{data}</p>",
+            ),
+        ];
+        // The text-based oracle prints the top-level `$$renderer.async(...)`
+        // expression statement at column 0 (one tab shy of the esrap-correct
+        // depth — the same leading-indent quirk the block-visitor tests collapse
+        // via `norm_blocks`). The AST pipeline indents it correctly, matching the
+        // official snapshot fixture. Compare leading-whitespace-insensitively so
+        // the gate asserts STRUCTURAL parity (the corpus oxfmt pass collapses the
+        // same diff).
+        let mut mismatches = Vec::new();
+        for (name, src) in samples {
+            let (ours, oracle) = run_async_both(src);
+            let matched = norm_blocks(&ours) == norm_blocks(&oracle);
+            eprintln!(
+                "=== ASYNC: {name} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(*name);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "async top-level output differs from oracle for: {mismatches:?}"
+        );
     }
 
     /// Normalize for comparison: trim trailing whitespace on every line and

@@ -167,7 +167,28 @@ pub fn process_children_inner<'a>(
                 // nodes never carry an expression). So `&tag.expression`'s
                 // lifetime is tied to `nodes`, which outlives this call. We
                 // re-borrow from the original node to make that explicit.
-                sequence.push(SeqNode::Expr(&tag.expression));
+                //
+                // 写经 `process_children` (utils.js:79-95): an ASYNC expression
+                // tag (`node.metadata.expression.is_async()`) does NOT join the
+                // coalescing run — it FLUSHES the current sequence, then pushes
+                // its own `$$renderer.async([$$promises[N]…], …)` push statement
+                // as an opaque `Stmt`. An async tag here is one whose source
+                // references an instance-level top-level-await blocker (a
+                // non-empty `find_expression_blockers` against the precomputed
+                // `top_level_blocker_map`, which is ONLY populated under
+                // `experimental.async`, so this branch never fires for ordinary
+                // sync components).
+                if let Some(blockers) = expression_tag_blockers(&tag.expression, state) {
+                    flush_sequence(&sequence, state);
+                    sequence.clear();
+                    let visited = state.visit_expr(&tag.expression);
+                    // has_await=false for top-level await: the await lives in the
+                    // instance `$$renderer.run([...])` thunk, not in the read.
+                    let stmt = build_async_expression_push(state, visited, &blockers, false);
+                    state.template.push(TemplateEntry::Stmt(stmt));
+                } else {
+                    sequence.push(SeqNode::Expr(&tag.expression));
+                }
             }
             other => {
                 flush_sequence(&sequence, state);
@@ -354,6 +375,38 @@ fn is_hoisted_node(node: &TemplateNode) -> bool {
             | TemplateNode::SvelteWindow(_)
             | TemplateNode::SvelteDocument(_)
     )
+}
+
+/// Determine whether an ExpressionTag's interpolation is "async" — i.e. it
+/// references an instance-level top-level-await blocker — and, if so, return the
+/// blocker indices for its `$$renderer.async([$$promises[N]…], …)` wrap.
+///
+/// Mirrors upstream `node.metadata.expression.is_async()` (true when the
+/// expression has `await` OR carries blockers) restricted to the top-level
+/// blocker case: the indices come from `find_expression_blockers` over the
+/// precomputed `top_level_blocker_map`. That map is ONLY populated under
+/// `experimental.async`, so a `None` is returned for every ordinary component
+/// and this whole async path is inert for sync output.
+fn expression_tag_blockers(expr: &Expression, state: &ServerTransformState) -> Option<Vec<usize>> {
+    if state.eval_inputs.top_level_blocker_map.is_empty() {
+        return None;
+    }
+    let (start, end) = (expr.start()?, expr.end()?);
+    let (start, end) = (start as usize, end as usize);
+    if end <= start || end > state.source.len() {
+        return None;
+    }
+    let expr_text = &state.source[start..end];
+    let blockers =
+        crate::compiler::phases::phase3_transform::server::helpers::find_expression_blockers(
+            expr_text,
+            &state.eval_inputs.top_level_blocker_map,
+        );
+    if blockers.is_empty() {
+        None
+    } else {
+        Some(blockers)
+    }
 }
 
 /// A joinable sibling captured during [`process_children`].
@@ -557,4 +610,104 @@ pub fn build_fragment_block<'a>(
 ) -> Statement<'a> {
     let body = build_fragment_body(fragment, is_text_first_parent, state);
     state.b.block(body)
+}
+
+// ===========================================================================
+// Async SSR foundation (Stage 0).
+//
+// Faithful port of upstream `shared/utils.js` `create_child_block` and the
+// top-level `render` / `async` expression-tag wrap. These two helpers are the
+// reusable seam every async slice (top-level await, then block-level if/each/
+// await wrapping) builds on, so they take the blocker indices + `has_await`
+// flag explicitly and stay independent of any particular visitor.
+// ===========================================================================
+
+/// Build a `$$promises[i]` computed-member access — the canonical blocker
+/// reference shape (`b.member_computed(b.id("$$promises"), b.number(i))`).
+pub fn promise_ref<'a>(state: &ServerTransformState<'a>, i: usize) -> OxcExpression<'a> {
+    let b = state.b;
+    b.member_computed(b.id("$$promises"), b.number(i as f64))
+}
+
+/// Build the `[$$promises[i], …]` blockers array expression from a list of
+/// blocker indices (empty list → `[]`).
+pub fn blockers_array<'a>(
+    state: &ServerTransformState<'a>,
+    indices: &[usize],
+) -> OxcExpression<'a> {
+    let b = state.b;
+    let elems: Vec<Option<OxcExpression<'a>>> = indices
+        .iter()
+        .map(|&i| Some(promise_ref(state, i)))
+        .collect();
+    b.array(elems)
+}
+
+/// Port of upstream `shared/utils.js::create_child_block` (lines 298-308).
+///
+/// Wraps a block of `statements` in the appropriate child renderer call:
+/// - no blockers AND no await → the statements are returned verbatim (no wrap);
+/// - blockers present → `[$$renderer.async_block([$$promises[i]…], fn)]`;
+/// - else (await only) → `[$$renderer.child_block(fn)]`.
+///
+/// `fn` is `($$renderer) => { <statements> }`, made `async` iff `has_await`.
+/// This is the reusable seam for the block-level (if/each/await) async wrapping
+/// in Stage 2 — it does NOT touch non-async output (empty blockers + no await
+/// returns the input unchanged).
+pub fn create_child_block<'a>(
+    state: &ServerTransformState<'a>,
+    statements: Vec<Statement<'a>>,
+    blocker_indices: &[usize],
+    has_await: bool,
+) -> Vec<Statement<'a>> {
+    if blocker_indices.is_empty() && !has_await {
+        return statements;
+    }
+    let b = state.b;
+    // ($$renderer) => { <statements> }, async iff has_await.
+    let params = b.params(vec![b.id_pat("$$renderer")], None);
+    let fn_body = b.body(statements);
+    let arrow = b.arrow(params, fn_body, false, has_await);
+
+    if !blocker_indices.is_empty() {
+        let blockers = blockers_array(state, blocker_indices);
+        vec![b.stmt(b.call("$$renderer.async_block", vec![blockers, arrow]))]
+    } else {
+        vec![b.stmt(b.call("$$renderer.child_block", vec![arrow]))]
+    }
+}
+
+/// Build the top-level async-wrapped expression-tag push statement — the Rust
+/// mirror of the ExpressionTag async branch in upstream `process_children`
+/// (`shared/utils.js` lines 79-95):
+///
+/// ```text
+/// $$renderer.push(() => $.escape(expr))                      // inner push
+/// $$renderer.async([$$promises[N]…], ($$renderer) => <push>) // when blockers
+/// ```
+///
+/// `expr` is the already-visited (read-wrapped) interpolation expression;
+/// `has_await` marks whether the read itself contains an `await` (true → the
+/// inner `b.thunk` becomes `async () => …`). For the top-level-await fixtures
+/// the await lives in the instance thunk, so `has_await` is false and the
+/// blockers (from the instance `$$promises`) drive the `$$renderer.async(...)`
+/// wrap. With no blockers and no await the bare inner push is returned (so a
+/// non-async expression tag is untouched).
+pub fn build_async_expression_push<'a>(
+    state: &ServerTransformState<'a>,
+    expr: OxcExpression<'a>,
+    blocker_indices: &[usize],
+    has_await: bool,
+) -> Statement<'a> {
+    let b = state.b;
+    let escaped = b.call("$.escape", vec![expr]);
+    let thunk = b.thunk(escaped, has_await);
+    let mut call = b.call("$$renderer.push", vec![thunk]);
+    if !blocker_indices.is_empty() {
+        let blockers = blockers_array(state, blocker_indices);
+        let params = b.params(vec![b.id_pat("$$renderer")], None);
+        let arrow = b.arrow_expr(params, call, false);
+        call = b.call("$$renderer.async", vec![blockers, arrow]);
+    }
+    b.stmt(call)
 }
