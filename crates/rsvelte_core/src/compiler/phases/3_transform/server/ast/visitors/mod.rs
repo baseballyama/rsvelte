@@ -86,7 +86,8 @@ pub fn visit_node<'a>(node: &TemplateNode, state: &mut ServerTransformState<'a>)
         TemplateNode::SvelteFragment(node) => {
             // Port of upstream server `SvelteFragment` — push the visited child
             // fragment as a `{ ... }` block statement.
-            let block = shared::build_fragment_block(&node.fragment, state);
+            // SvelteFragment is NOT an `is_text_first` parent.
+            let block = shared::build_fragment_block(&node.fragment, false, state);
             state.template.push(TemplateEntry::Stmt(block));
         }
         // TODO: ConstTag, SlotElement, SvelteBoundary, SvelteWindow/Document/Body,

@@ -74,7 +74,8 @@ pub fn visit_svelte_element<'a>(node: &SvelteDynamicElement, state: &mut ServerT
     // -- children -----------------------------------------------------------
     // KNOWN GAP: attributes are not ported, so the attributes argument is always
     // absent (`void 0` when children follow, dropped otherwise).
-    let children_body = build_fragment_body(&node.fragment, state);
+    // SvelteElement children are NOT an `is_text_first` parent.
+    let children_body = build_fragment_body(&node.fragment, false, state);
 
     let call = if children_body.is_empty() {
         // `$.element($$renderer, tag)` — trailing args dropped.

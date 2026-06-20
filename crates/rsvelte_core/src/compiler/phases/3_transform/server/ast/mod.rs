@@ -383,7 +383,9 @@ pub fn server_component_ast<'a>(
     // Walk the root fragment through process_children + build_template, then
     // append the coalesced `$$renderer.push(...)` statements.
     state.is_standalone = ServerTransformState::is_standalone_fragment(&ast.fragment.nodes);
-    let template_body = visitors::shared::build_fragment_body(&ast.fragment, &mut state);
+    // Root fragment: parent is the Fragment node itself, so it IS an
+    // `is_text_first` parent (upstream `clean_nodes`/`Fragment`).
+    let template_body = visitors::shared::build_fragment_body(&ast.fragment, true, &mut state);
     state.body.extend(template_body);
 
     // `template.body.push(b.if($$store_subs, $.unsubscribe_stores($$store_subs)))`.
@@ -652,6 +654,10 @@ mod tests {
             // EachBlock
             "{#each [1, 2, 3] as n}<li>{n}</li>{/each}",
             "{#each [1, 2, 3] as n, i}<li>{i}</li>{/each}",
+            // EachBlock body starting with text → is_text_first anchor inside.
+            "{#each [1] as n}text<li>{n}</li>{/each}",
+            // SnippetBlock body starting with text → is_text_first anchor inside.
+            "{#snippet foo()}text<span>x</span>{/snippet}{@render foo()}",
         ];
         let mut mismatches = Vec::new();
         for src in samples {
@@ -669,6 +675,52 @@ mod tests {
         assert!(
             mismatches.is_empty(),
             "AST block output differs from oracle (structurally) for: {mismatches:?}"
+        );
+    }
+
+    /// IfBlock structural parity with the `transform_server` oracle, exercising
+    /// the shapes that the `is_text_first` anchor fix unblocked. Covers:
+    ///   - bare `{#if}`, `{:else}`, `{:else if}` chains, empty body,
+    ///   - state / derived test conditions (read-wrapping),
+    ///   - if nested in an each block,
+    ///   - a fragment-level text-first sibling around the if (the `<!---->`
+    ///     anchor at FRAGMENT scope), and
+    ///   - a text-first / element-first IfBlock BODY (the consequent is NOT an
+    ///     `is_text_first` parent, so NO anchor inside the branch).
+    /// All compared STRUCTURALLY (indentation-insensitive) like the block samples.
+    #[test]
+    fn ast_matches_oracle_if_block_text_first() {
+        let samples = [
+            "{#if x}a{/if}",
+            "{#if x}a{:else}b{/if}",
+            "{#if x}a{:else if y}b{:else}c{/if}",
+            "{#if x}{/if}",
+            "<script>let x = $state(true);</script>{#if x}a{/if}",
+            "<script>let d = $derived(true);</script>{#if d}a{/if}",
+            "{#each [1] as n}{#if n}a{/if}{/each}",
+            // fragment-level text-first siblings: a leading `<!---->` anchor is
+            // emitted at FRAGMENT scope (the regression this commit fixes).
+            "text{#if x}a{/if}text",
+            // text-first IfBlock body: the consequent fragment is NOT an
+            // `is_text_first` parent, so it gets NO leading `<!---->`.
+            "{#if x}text<span>y</span>{/if}",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm_blocks(&ours) == norm_blocks(&oracle);
+            eprintln!(
+                "\n===== SRC: {src} ===== {}\n--- NEW ---\n{ours}\n--- ORACLE ---\n{oracle}",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "IfBlock output differs from oracle (structurally) for: {mismatches:?}"
         );
     }
 

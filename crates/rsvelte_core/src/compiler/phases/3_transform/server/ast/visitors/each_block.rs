@@ -91,7 +91,8 @@ pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'
     if let Some(alias) = &index_alias {
         each_body.push(b.let_id(alias, Some(b.id(&index_var))));
     }
-    each_body.extend(build_fragment_body(&node.body, state));
+    // EachBlock body IS an `is_text_first` parent (upstream `clean_nodes`).
+    each_body.extend(build_fragment_body(&node.body, true, state));
 
     let for_loop = build_for_loop(b, &array_var, &index_var, b.block(each_body));
 

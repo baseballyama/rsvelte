@@ -47,7 +47,7 @@ pub fn visit_await_block<'a>(node: &AwaitBlock, state: &mut ServerTransformState
 
     // Pending callback: `() => { <pending body> }` (thunk of a block).
     let pending_block = match &node.pending {
-        Some(frag) => build_fragment_block(frag, state),
+        Some(frag) => build_fragment_block(frag, false, state),
         None => state.b.block(vec![]),
     };
     let pending_thunk = state
@@ -56,7 +56,7 @@ pub fn visit_await_block<'a>(node: &AwaitBlock, state: &mut ServerTransformState
 
     // Then callback: `(value) => { <then body> }`.
     let then_block = match &node.then {
-        Some(frag) => build_fragment_block(frag, state),
+        Some(frag) => build_fragment_block(frag, false, state),
         None => state.b.block(vec![]),
     };
     let then_params = match &node.value {

@@ -76,9 +76,42 @@ pub fn process_children<'a>(
     namespace: &str,
     state: &mut ServerTransformState<'a>,
 ) {
+    process_children_inner(nodes, parent, namespace, false, state);
+}
+
+/// Like [`process_children`], but with `is_block_parent` controlling the
+/// upstream `clean_nodes` → Fragment-visitor `is_text_first` anchor: when the
+/// parent is a Fragment / block body (root component fragment, `{#if}` /
+/// `{#each}` / `{#key}` / `{#snippet}` / `{#await}` body, Component / SvelteSelf
+/// / SvelteComponent / SvelteBoundary slot) AND the first surviving (cleaned)
+/// child is a `Text` / `ExpressionTag`, a leading `<!---->` (`EMPTY_COMMENT`) is
+/// pushed so the text node isn't fused with the surrounding fragment during
+/// hydration. RegularElement / TitleElement parents pass `false` (they are not
+/// in upstream's `is_text_first` parent list).
+pub fn process_children_inner<'a>(
+    nodes: &[TemplateNode],
+    parent: Option<&RegularElement>,
+    namespace: &str,
+    is_block_parent: bool,
+    state: &mut ServerTransformState<'a>,
+) {
     let preserve_whitespace = state.options.preserve_whitespace
         || parent.is_some_and(|el| matches!(el.name.as_str(), "pre" | "textarea"));
     let cleaned = clean_whitespace(nodes, parent, namespace, preserve_whitespace);
+
+    // 写经 `clean_nodes` → `Fragment` visitor: when the parent is a fragment /
+    // block body and the first surviving child is Text / ExpressionTag, prepend
+    // `<!---->` so the leading text isn't glued to the previous fragment.
+    if is_block_parent
+        && matches!(
+            cleaned.first().map(|c| c.as_ref()),
+            Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
+        )
+    {
+        state
+            .template
+            .push(TemplateEntry::Literal(EMPTY_COMMENT.to_string()));
+    }
 
     let mut sequence: Vec<SeqNode<'_>> = Vec::new();
 
@@ -356,8 +389,16 @@ pub fn build_template<'a>(
 
 /// Walk a fragment's children through [`process_children`] and emit the coalesced
 /// `$$renderer.push(...)` body. Used for the root component fragment.
+///
+/// `is_text_first_parent` gates the upstream `clean_nodes`/`Fragment` visitor
+/// `is_text_first` leading `<!---->` anchor. It must be `true` ONLY when this
+/// fragment's parent is one of upstream's `is_text_first` parents — Fragment
+/// (root), SnippetBlock, EachBlock, Component / SvelteSelf / SvelteComponent,
+/// SvelteBoundary — and `false` for IfBlock / KeyBlock / AwaitBlock / SvelteHead
+/// / SvelteElement / SvelteFragment / TitleElement bodies.
 pub fn build_fragment_body<'a>(
     fragment: &Fragment,
+    is_text_first_parent: bool,
     state: &mut ServerTransformState<'a>,
 ) -> Vec<Statement<'a>> {
     // Fragment-level bodies (root component, block bodies, `<svelte:head>` /
@@ -366,7 +407,7 @@ pub fn build_fragment_body<'a>(
     // namespace is the default `html`. Element children route through
     // [`process_children`] directly with their real parent/namespace.
     let saved = std::mem::take(&mut state.template);
-    process_children(&fragment.nodes, None, "html", state);
+    process_children_inner(&fragment.nodes, None, "html", is_text_first_parent, state);
     let template = std::mem::replace(&mut state.template, saved);
     build_template(template, state)
 }
@@ -378,13 +419,15 @@ pub fn build_fragment_body<'a>(
 /// fragments through this so the nested template content renders inside a real
 /// `BlockStatement` (which [`build_template`] then flushes as an opaque `Stmt`).
 ///
-/// 写経 gap: the `clean_nodes` whitespace/hoist pass and the `is_text_first`
-/// leading `<!---->` insertion are not ported here — the simple-sample block
-/// bodies exercised so far don't require them.
+/// The `is_text_first` leading `<!---->` insertion IS ported (via
+/// [`process_children_inner`] with `is_block_parent = true`). 写经 gap: the
+/// `clean_nodes` hoist pass is still handled by the per-visitor pipeline rather
+/// than centrally here.
 pub fn build_fragment_block<'a>(
     fragment: &Fragment,
+    is_text_first_parent: bool,
     state: &mut ServerTransformState<'a>,
 ) -> Statement<'a> {
-    let body = build_fragment_body(fragment, state);
+    let body = build_fragment_body(fragment, is_text_first_parent, state);
     state.b.block(body)
 }

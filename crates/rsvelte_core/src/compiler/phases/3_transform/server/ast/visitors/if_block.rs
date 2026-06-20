@@ -129,7 +129,8 @@ fn build_branch_block<'a>(
     marker_index: i32,
     state: &mut ServerTransformState<'a>,
 ) -> Statement<'a> {
-    let mut body = build_fragment_body(frag, state);
+    // IfBlock consequent/alternate is NOT an `is_text_first` parent.
+    let mut body = build_fragment_body(frag, false, state);
     let marker = marker_push(state.b, marker_index);
     body.insert(0, marker);
     state.b.block(body)
