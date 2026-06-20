@@ -295,6 +295,24 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                 let _ = write!(last, "<!--{data}-->");
             }
             SeqNode::Expr(expr) => {
+                // SSR constant-folding (`scope.evaluate`): upstream's
+                // `process_children` evaluates every ExpressionTag and, when the
+                // result is "known" (exactly one primitive value), inlines the
+                // escaped value into the surrounding quasi instead of emitting
+                // `$.escape(...)`. Known nullish values render as nothing.
+                let evaluation = state.eval_ctx().evaluate_template_expression(expr);
+                if let Some(value) = evaluation.known_value() {
+                    use crate::compiler::phases::phase3_transform::server::evaluate::{
+                        EvalValue, js_display_string,
+                    };
+                    if !matches!(value, EvalValue::Null | EvalValue::Undefined) {
+                        let content = js_display_string(value);
+                        let last = quasis.last_mut().unwrap();
+                        last.push_str(&escape_html(&content));
+                    }
+                    continue;
+                }
+
                 let visited = state.visit_expr(expr);
                 let escaped = state.b.call("$.escape", vec![visited]);
                 exprs.push(escaped);

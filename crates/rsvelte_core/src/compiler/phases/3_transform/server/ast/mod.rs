@@ -73,6 +73,24 @@ pub struct ServerTransformState<'a> {
     /// each block uses bare `each_array` / `$$index`; subsequent ones append
     /// `_1`, `_2`, … (matching the text-based oracle's `each_counter`).
     pub each_index: usize,
+    /// Inputs to the `scope.evaluate` (SSR constant-folding) port. Computed
+    /// once (via the proven legacy `ServerCodeGenerator::new` path) and reused
+    /// by [`Self::eval_ctx`] when folding `{expr}` template chunks / dynamic
+    /// attribute values. See [`server::evaluate::EvalCtx`].
+    pub eval_inputs: EvalInputs,
+}
+
+/// The precomputed inputs to the SSR constant-folding evaluator
+/// ([`server::evaluate::EvalCtx`]). Mirrors exactly the fields the legacy
+/// `ServerCodeGenerator` carries for `scope.evaluate`, so the two pipelines
+/// fold identically.
+#[derive(Default)]
+pub struct EvalInputs {
+    pub constant_vars: rustc_hash::FxHashMap<String, String>,
+    pub use_async: bool,
+    pub top_level_blocker_map: rustc_hash::FxHashMap<String, usize>,
+    /// Lazily-built template-scope index set (see `evaluate_identifier`).
+    pub template_scopes_cache: std::cell::OnceCell<rustc_hash::FxHashSet<usize>>,
 }
 
 impl<'a> ServerTransformState<'a> {
@@ -99,6 +117,27 @@ impl<'a> ServerTransformState<'a> {
             allocator,
             is_standalone: false,
             each_index: 0,
+            eval_inputs: EvalInputs::default(),
+        }
+    }
+
+    /// Build the [`EvalCtx`](server::evaluate::EvalCtx) for the SSR
+    /// constant-folding port, borrowing this state's analysis / source and the
+    /// precomputed [`EvalInputs`]. The `current_scope_index` is left `None` here
+    /// (snippet-scope tracking is not yet threaded through the AST visitors); a
+    /// `None` simply keeps the historical non-tracked behaviour in
+    /// `template_binding_is_reachable`.
+    pub(crate) fn eval_ctx(
+        &self,
+    ) -> crate::compiler::phases::phase3_transform::server::evaluate::EvalCtx<'_> {
+        crate::compiler::phases::phase3_transform::server::evaluate::EvalCtx {
+            analysis: Some(self.analysis),
+            constant_vars: &self.eval_inputs.constant_vars,
+            source: self.source,
+            use_async: self.eval_inputs.use_async,
+            top_level_blocker_map: &self.eval_inputs.top_level_blocker_map,
+            current_scope_index: None,
+            template_scopes_cache: &self.eval_inputs.template_scopes_cache,
         }
     }
 
@@ -343,6 +382,30 @@ pub fn server_component_ast<'a>(
     allocator: &'a Allocator,
 ) -> Option<String> {
     let mut state = ServerTransformState::new(analysis, options, source, &ast.arena, allocator);
+
+    // Precompute the SSR constant-folding inputs (`constant_vars` /
+    // `use_async` / `top_level_blocker_map`) via the proven legacy
+    // `ServerCodeGenerator::new` path, so the AST pipeline folds template
+    // chunks byte-identically to the oracle. Cheap: only harvests the maps.
+    {
+        let instance_script = ast.instance.as_ref().map(|s| s.as_ref());
+        let module_script = ast.module.as_ref().map(|s| s.as_ref());
+        let legacy = super::ServerCodeGenerator::new(
+            analysis.name.clone(),
+            source.to_string(),
+            instance_script,
+            module_script,
+            Some(analysis),
+            options.experimental.r#async,
+        );
+        state.eval_inputs = EvalInputs {
+            constant_vars: legacy.constant_vars,
+            use_async: legacy.use_async,
+            top_level_blocker_map: legacy.top_level_blocker_map,
+            template_scopes_cache: std::cell::OnceCell::new(),
+        };
+    }
+
     let b = state.b;
 
     use crate::compiler::phases::phase2_analyze::scope::BindingKind;
@@ -634,6 +697,86 @@ mod tests {
         assert!(
             mismatches.is_empty(),
             "AST output differs from oracle for: {mismatches:?}"
+        );
+    }
+
+    /// SSR constant-folding (`scope.evaluate`) parity with the
+    /// `transform_server` oracle. Each `{expr}` template chunk whose value is
+    /// statically "known" must inline as escaped text in BOTH pipelines (and a
+    /// known-nullish value renders as nothing). The non-foldable case (a `$state`
+    /// reassigned by a function) must stay a runtime `$.escape(...)` — proving we
+    /// don't OVER-fold (folding where the oracle wouldn't would REGRESS matches).
+    #[test]
+    fn ast_matches_oracle_constant_fold() {
+        let samples: &[&str] = &[
+            // literal arithmetic / string concat / ternary / global calls
+            "<p>{1 + 1}</p>",
+            "<p>{'a' + 'b'}</p>",
+            "<p>{true ? 'x' : 'y'}</p>",
+            "<p>{Math.max(1, 2)}</p>",
+            // const binding folds to its known value
+            "<script>const c = 5;</script><p>{c}</p>",
+            // unreassigned `$state` unwraps to a known const
+            "<script>let x = $state(0);</script><p>{x}</p>",
+            // known nullish renders as nothing
+            "<script>const n = null;</script><p>{n}</p>",
+            // NON-foldable: `$state` reassigned by a function stays runtime.
+            "<script>let x = $state(0); function f(){x++}</script><p>{x}</p>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm(&ours) == norm(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(*src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "constant-fold output differs from oracle for: {mismatches:?}"
+        );
+    }
+
+    /// SSR constant-folding parity for dynamic ATTRIBUTE values vs the
+    /// `transform_server` oracle. A single string-literal expression inlines as a
+    /// static attribute; a mixed text+expression value whose expressions all fold
+    /// to known values inlines wholesale; non-foldable expressions stay
+    /// `$.attr(...)`. (The `Math.max(1,2)` whitespace-reprint case is excluded —
+    /// that is an expression-printing artefact, folded away by the corpus's
+    /// structural comparison, not a constant-fold concern.)
+    #[test]
+    fn ast_matches_oracle_attribute_fold() {
+        let samples: &[&str] = &[
+            "<a href={\"hi\"}>x</a>",
+            "<a href={1 + 1}>x</a>",
+            "<a href={5}>x</a>",
+            "<script>const c = 'foo';</script><a href={c}>x</a>",
+            "<script>const c = null;</script><a href={c}>x</a>",
+            "<a href=\"/{5}\">x</a>",
+            "<script>const c = 'p';</script><a href=\"/{c}/q\">x</a>",
+            "<a title={true ? 'x' : 'y'}>x</a>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm(&ours) == norm(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(*src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "attribute-fold output differs from oracle for: {mismatches:?}"
         );
     }
 
@@ -1444,16 +1587,21 @@ mod tests {
     #[test]
     fn ast_matches_oracle_read_wrapping() {
         // (src, must_contain[], must_not_contain[]).
+        //
+        // NOTE: each read-wrapping case must use a NON-foldable dependency
+        // (a `$props()` value), otherwise `scope.evaluate` folds the read away
+        // on BOTH pipelines (`$derived(0 * 2)` → `<p>0</p>`) and there is no
+        // read to wrap. Deriving from a prop (`count`) keeps the value dynamic.
         let cases: &[(&str, &[&str], &[&str])] = &[
-            // double is derived → double(); count is state inside thunk → NOT wrapped.
+            // double is derived → double(); count is a prop inside thunk → NOT wrapped.
             (
-                "<script>let count = $state(0); let double = $derived(count * 2);</script><p>{double}</p>",
+                "<script>let { count } = $props(); let double = $derived(count * 2);</script><p>{double}</p>",
                 &["$.escape(double())", "$.derived(() => count * 2)"],
                 &["$.escape(double)", "count()"],
             ),
-            // count is state → NOT wrapped; double → double().
+            // count is a prop → NOT wrapped; double → double().
             (
-                "<script>let count = $state(0); let double = $derived(count * 2);</script><p>{double} {count}</p>",
+                "<script>let { count } = $props(); let double = $derived(count * 2);</script><p>{double} {count}</p>",
                 &["$.escape(double())", "$.escape(count)"],
                 &["count()", "$.escape(double)"],
             ),
@@ -1463,9 +1611,10 @@ mod tests {
                 &["$.escape(name)", "let { name } = $$props;"],
                 &["name()"],
             ),
-            // chained derived: b → b(); inside b's thunk a → a().
+            // chained derived: b → b(); inside b's thunk a → a(). `a` derives
+            // from a prop so neither read folds to a constant.
             (
-                "<script>let a = $derived(1); let b = $derived(a + 1);</script><p>{b}</p>",
+                "<script>let { x } = $props(); let a = $derived(x); let b = $derived(a + 1);</script><p>{b}</p>",
                 &["$.derived(() => a() + 1)", "$.escape(b())"],
                 &["$.escape(b)"],
             ),
@@ -1487,9 +1636,10 @@ mod tests {
                 &["$.escape(d()(1))"],
                 &[],
             ),
-            // multiple derived reads in one expression: both wrapped.
+            // multiple derived reads in one expression: both wrapped. Derive
+            // from props so the sum doesn't constant-fold to a literal.
             (
-                "<script>let a = $derived(1); let b = $derived(2);</script><p>{a + b}</p>",
+                "<script>let { p, q } = $props(); let a = $derived(p); let b = $derived(q);</script><p>{a + b}</p>",
                 &["a() + b()"],
                 &[],
             ),

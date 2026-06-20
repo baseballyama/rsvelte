@@ -372,10 +372,45 @@ fn build_element_attributes<'a>(
                     }
                     continue;
                 }
+                // Mixed text+expression where EVERY expression part folds to a
+                // known value (`scope.evaluate`): inline all parts and emit a
+                // static attribute (mirrors the oracle's all-inline branch in
+                // `build_attribute_value`). Restricted to non-whitespace-
+                // insensitive attrs so the simple concat matches the oracle.
+                if !trim_ws && let Some(folded) = fold_sequence_static(parts, state) {
+                    let mut literal_value = folded;
+                    if is_class && let Some(hash) = css_hash {
+                        literal_value = format!("{literal_value} {hash}").trim().to_string();
+                    }
+                    if !is_class || !literal_value.is_empty() {
+                        state.template.push(TemplateEntry::Literal(format!(
+                            " {name}=\"{}\"",
+                            escape_attr(&literal_value)
+                        )));
+                    }
+                    continue;
+                }
                 // Mixed text+expression: fall through to the dynamic value build.
             }
-            AttributeValue::Expression(_) => {
-                // Single expression: fall through to dynamic value build.
+            AttributeValue::Expression(tag) => {
+                // A single STRING-LITERAL expression inlines as a static
+                // attribute (mirrors the oracle's `extract_literal_value`, which
+                // inlines string literals only — numeric / boolean literals keep
+                // `$.attr(...)`). Non-literal expressions fall through.
+                if let Some(s) = string_literal_of(&tag.expression) {
+                    let mut literal_value = s;
+                    if is_class && let Some(hash) = css_hash {
+                        literal_value = format!("{literal_value} {hash}").trim().to_string();
+                    }
+                    if !is_class || !literal_value.is_empty() {
+                        state.template.push(TemplateEntry::Literal(format!(
+                            " {name}=\"{}\"",
+                            escape_attr(&literal_value)
+                        )));
+                    }
+                    continue;
+                }
+                // Other single expressions: fall through to dynamic value build.
             }
         }
 
@@ -561,6 +596,65 @@ fn collapse_ws_no_trim(s: &str) -> String {
         }
     }
     out
+}
+
+/// Attempt to fold a mixed text+expression attribute `Sequence` into a single
+/// static string: every `ExpressionTag` part must evaluate (`scope.evaluate`)
+/// to a known value (a known-nullish part contributes nothing). Returns the
+/// concatenated value (text parts verbatim, expr parts as their display string),
+/// or `None` if any expression is not statically known. Mirrors the oracle's
+/// `build_attribute_value` all-inline branch (no per-part HTML escape — the
+/// caller escapes the whole value with `escape_attr`).
+fn fold_sequence_static<'a>(
+    parts: &[AttributeValuePart],
+    state: &ServerTransformState<'a>,
+) -> Option<String> {
+    use crate::compiler::phases::phase3_transform::server::evaluate::{
+        EvalValue, js_display_string,
+    };
+    let mut out = String::new();
+    for part in parts {
+        match part {
+            AttributeValuePart::Text(t) => out.push_str(t.data.as_str()),
+            AttributeValuePart::ExpressionTag(tag) => {
+                let ev = state
+                    .eval_ctx()
+                    .evaluate_template_expression(&tag.expression);
+                let value = ev.known_value()?;
+                if !matches!(value, EvalValue::Null | EvalValue::Undefined) {
+                    out.push_str(&js_display_string(value));
+                }
+            }
+        }
+    }
+    Some(out)
+}
+
+/// Extract a string-literal expression's value (mirrors the oracle's
+/// `extract_literal_value` — string literals ONLY; numeric / boolean literals
+/// return `None` so they keep `$.attr(...)`).
+fn string_literal_of(expr: &crate::ast::js::Expression) -> Option<String> {
+    if expr.node_type()? != "Literal" {
+        return None;
+    }
+    let node = expr.as_node();
+    match &*node {
+        crate::ast::typed_expr::JsNode::Literal { value, .. } => {
+            if let crate::ast::typed_expr::LiteralValue::String(s) = value {
+                Some(s.to_string())
+            } else {
+                None
+            }
+        }
+        crate::ast::typed_expr::JsNode::Raw(val) => {
+            if let Some(serde_json::Value::String(s)) = val.get("value") {
+                Some(s.clone())
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
 }
 
 /// If every part of an attribute value sequence is static `Text`, return the
