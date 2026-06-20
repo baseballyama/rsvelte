@@ -487,7 +487,11 @@ fn get_bind_attribute_name(element: &RegularElement, name: &str) -> String {
 
 /// Port of `build_element_attributes` (no-spread branch). Pushes one or more
 /// [`TemplateEntry`] items onto `state.template` for the element's attributes.
-fn build_element_attributes<'a>(
+///
+/// `pub(super)` so the `<svelte:element>` visitor can reuse the exact attribute
+/// machinery (static / dynamic / `class:` / `style:` / spread / css-scope-hash),
+/// mirroring upstream `SvelteElement.js` calling the same `build_element_attributes`.
+pub(super) fn build_element_attributes<'a>(
     node: &RegularElement,
     css_hash: Option<&str>,
     state: &mut ServerTransformState<'a>,

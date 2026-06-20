@@ -1081,6 +1081,60 @@ mod tests {
         );
     }
 
+    /// `<svelte:element>` (SvelteDynamicElement) SSR attribute / directive parity
+    /// with the `transform_server` oracle. Covers the bare tag, a static + dynamic
+    /// attribute, a `class:` directive with a CSS scope hash, a `style:` directive,
+    /// a spread, and a no-children tag — the attribute argument (3rd arg of
+    /// `$.element(...)`) must build the same `() => { $$renderer.push(...) }` thunk
+    /// as a regular element. Compared structurally (the thunk bodies are
+    /// block-bodied, which the text oracle prints at column 0).
+    #[test]
+    fn ast_matches_oracle_svelte_element_attributes() {
+        // The AST printer (esrap) wraps a long `$.element(...)` call onto one arg
+        // per line (and pads `(` / `)`), while the text oracle inlines it; both
+        // are normalized to the same shape by the corpus pipeline's oxfmt pass.
+        // Strip ALL whitespace so the gate asserts TOKEN equality (call args /
+        // thunk bodies / expressions) free of pure layout noise. The only
+        // whitespace inside a template literal here (`} data-k`) is identical on
+        // both sides, so equality is preserved.
+        fn norm_ws(s: &str) -> String {
+            s.chars().filter(|c| !c.is_whitespace()).collect()
+        }
+        let samples = [
+            // bare dynamic element, children only → interior `void 0` attrs
+            "<svelte:element this={tag}>c</svelte:element>",
+            // static + dynamic attribute
+            "<svelte:element this={tag} id={x} data-k=\"v\">c</svelte:element>",
+            // class: directive + CSS scope hash
+            "<svelte:element this={\"div\"} class:foo={a}>c</svelte:element><style>div{color:red}</style>",
+            // style: directive
+            "<svelte:element this={tag} style:color={c}>c</svelte:element>",
+            // spread → `$.attributes(...)`
+            "<svelte:element this={tag} {...rest}>c</svelte:element>",
+            // no children, no attrs → `$.element($$renderer, tag)`
+            "<svelte:element this={tag} />",
+            // attrs but no children
+            "<svelte:element this={tag} id={x} />",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm_ws(&ours) == norm_ws(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "AST <svelte:element> output differs from oracle for: {mismatches:?}"
+        );
+    }
+
     /// `<slot>` (SlotElement) SSR structural parity with the `transform_server`
     /// oracle. Covers the default slot, a named slot with fallback content, a slot
     /// with a slot-prop (`{x}`), an empty default slot (no fallback → `null`), and
