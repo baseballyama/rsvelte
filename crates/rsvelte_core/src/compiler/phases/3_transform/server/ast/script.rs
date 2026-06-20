@@ -67,6 +67,7 @@ static REGEX_INVALID_IDENTIFIER_CHARS: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(^[^a-zA-Z_$]|[^a-zA-Z0-9_$])").unwrap());
 
 /// The rune shapes this slice recognises on a declarator init.
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum DeclRune {
     /// `$state(e)` / `$state.raw(e)` — keep just the argument.
     State,
@@ -332,6 +333,272 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
         }
         Some(rune)
     }
+
+    /// Lower a `$state` / `$state.raw` / `$derived` / `$derived.by` call that
+    /// appears as the RHS of a constructor `this.x = …` assignment. Unlike
+    /// [`Self::lower_property_init`] (which drops the value of an arg-less
+    /// `$state()`), this matches upstream's `CallExpression` server visitor in
+    /// assignment context: an arg-less `$state()` lowers to `void 0` (写经
+    /// `CallExpression.js`: `node.arguments[0] ? visit(...) : b.void0`).
+    ///
+    /// Returns the lowered RHS expression to substitute, or `None` if the
+    /// expression is not a recognised class-field rune (left unchanged).
+    fn lower_assign_rhs(
+        &mut self,
+        rhs: &mut OxcExpression<'a>,
+    ) -> Option<(DeclRune, OxcExpression<'a>)> {
+        let rune = detect_decl_rune(rhs)?;
+        let b = self.b;
+        let taken = std::mem::replace(rhs, b.void0());
+        let OxcExpression::CallExpression(call) = taken else {
+            return None;
+        };
+        let mut call = call.unbox();
+        let mut arg: Option<OxcExpression<'a>> = call
+            .arguments
+            .drain(..)
+            .next()
+            .and_then(|a| OxcExpression::try_from(a).ok());
+        if let Some(e) = arg.as_mut() {
+            super::read_wrap::wrap_reads(
+                e,
+                b,
+                self.analysis,
+                self.analysis.root.instance_scope_index,
+            );
+        }
+        let lowered = match rune {
+            // `$state(x)` → `x`; arg-less `$state()` → `void 0`.
+            DeclRune::State => arg.unwrap_or_else(|| b.void0()),
+            DeclRune::Derived => arg
+                .map(|e| b.call("$.derived", vec![b.thunk(e, false)]))
+                .unwrap_or_else(|| b.void0()),
+            DeclRune::DerivedBy => arg
+                .map(|e| b.call("$.derived", vec![e]))
+                .unwrap_or_else(|| b.void0()),
+            // `$props` / `$props.id` are not valid class-field runes.
+            DeclRune::Props | DeclRune::PropsId => return None,
+        };
+        Some((rune, lowered))
+    }
+
+    /// Find the constructor of `class` and collect its top-level
+    /// `this.<name> = $rune(…)` field declarations in statement order (写经
+    /// analyze `ClassBody.js` constructor scan + server `ClassBody.js`).
+    fn collect_ctor_fields(&self, class: &oxc_ast::ast::Class<'a>) -> Vec<CtorField> {
+        use oxc_ast::ast::{ClassElement, Expression as E, MethodDefinitionKind, Statement};
+        let mut fields = Vec::new();
+        for el in class.body.body.iter() {
+            let ClassElement::MethodDefinition(m) = el else {
+                continue;
+            };
+            if m.kind != MethodDefinitionKind::Constructor {
+                continue;
+            }
+            let Some(body) = m.value.body.as_ref() else {
+                continue;
+            };
+            for stmt in body.statements.iter() {
+                let Statement::ExpressionStatement(es) = stmt else {
+                    continue;
+                };
+                let E::AssignmentExpression(assign) = &es.expression else {
+                    continue;
+                };
+                let Some((name, is_private)) = ctor_target_name(&assign.left) else {
+                    continue;
+                };
+                let Some(rune) = detect_decl_rune(&assign.right) else {
+                    continue;
+                };
+                fields.push(CtorField {
+                    name,
+                    is_private,
+                    rune,
+                });
+            }
+        }
+        fields
+    }
+
+    /// Rewrite the constructor's `this.<name> = $rune(…)` assignments in place:
+    /// lower the RHS and (for public `$derived` / `$derived.by`) retarget the LHS
+    /// to the private backing field (写经 server `AssignmentExpression.js`).
+    fn rewrite_constructor_assignments(
+        &mut self,
+        class: &mut oxc_ast::ast::Class<'a>,
+        backing: &std::collections::HashMap<String, String>,
+    ) {
+        use oxc_ast::ast::{
+            AssignmentTarget as AT, ClassElement, Expression as E, MethodDefinitionKind, Statement,
+        };
+        let b = self.b;
+        for el in class.body.body.iter_mut() {
+            let ClassElement::MethodDefinition(m) = el else {
+                continue;
+            };
+            if m.kind != MethodDefinitionKind::Constructor {
+                continue;
+            }
+            let Some(body) = m.value.body.as_mut() else {
+                continue;
+            };
+            for stmt in body.statements.iter_mut() {
+                let Statement::ExpressionStatement(es) = stmt else {
+                    continue;
+                };
+                let E::AssignmentExpression(assign) = &mut es.expression else {
+                    continue;
+                };
+                let Some((name, is_private)) = ctor_target_name(&assign.left) else {
+                    continue;
+                };
+                let Some((rune, lowered)) = self.lower_assign_rhs(&mut assign.right) else {
+                    continue;
+                };
+                assign.right = lowered;
+
+                // Retarget public `$derived` / `$derived.by` to the private backing
+                // field; `$state` / `$state.raw` and private fields keep their key
+                // (写经 `AssignmentExpression.js`: key stays unless public derived).
+                let retarget =
+                    !is_private && matches!(rune, DeclRune::Derived | DeclRune::DerivedBy);
+                if retarget && let Some(backing_name) = backing.get(&name) {
+                    assign.left = AT::from(b.ab.member_expression_private_field_expression(
+                        oxc_span::SPAN,
+                        b.this(),
+                        b.ab.private_identifier(oxc_span::SPAN, b.str(backing_name)),
+                        false,
+                    ));
+                }
+            }
+        }
+    }
+
+    /// Push a `get <name>() { return this.#<backing>(); }` +
+    /// `set <name>($$value) { return this.#<backing>($$value); }` accessor pair
+    /// onto `new_body` (写经 server `ClassBody.js`).
+    fn push_accessors(
+        &self,
+        new_body: &mut oxc_allocator::Vec<'a, oxc_ast::ast::ClassElement<'a>>,
+        public_name: &str,
+        backing: &str,
+    ) {
+        use oxc_ast::ast::MethodDefinitionKind;
+        let b = self.b;
+
+        let getter_body = {
+            let member = b.member(b.this(), &format!("#{backing}"));
+            let call = b.call(member, vec![]);
+            b.body(vec![b.return_stmt(Some(call))])
+        };
+        let getter_fn = b.ab.alloc_function(
+            oxc_span::SPAN,
+            oxc_ast::ast::FunctionType::FunctionExpression,
+            None,
+            false,
+            false,
+            false,
+            oxc_ast::NONE,
+            oxc_ast::NONE,
+            b.empty_params(),
+            oxc_ast::NONE,
+            Some(getter_body),
+        );
+        new_body.push(b.ab.class_element_method_definition(
+            oxc_span::SPAN,
+            oxc_ast::ast::MethodDefinitionType::MethodDefinition,
+            b.ab.vec(),
+            b.key(public_name),
+            getter_fn,
+            MethodDefinitionKind::Get,
+            false,
+            false,
+            false,
+            false,
+            None,
+        ));
+
+        let setter_body = {
+            let member = b.member(b.this(), &format!("#{backing}"));
+            let call = b.call(member, vec![b.id("$$value")]);
+            b.body(vec![b.return_stmt(Some(call))])
+        };
+        let setter_params = b.params(vec![b.id_pat("$$value")], None);
+        let setter_fn = b.ab.alloc_function(
+            oxc_span::SPAN,
+            oxc_ast::ast::FunctionType::FunctionExpression,
+            None,
+            false,
+            false,
+            false,
+            oxc_ast::NONE,
+            oxc_ast::NONE,
+            setter_params,
+            oxc_ast::NONE,
+            Some(setter_body),
+        );
+        new_body.push(b.ab.class_element_method_definition(
+            oxc_span::SPAN,
+            oxc_ast::ast::MethodDefinitionType::MethodDefinition,
+            b.ab.vec(),
+            b.key(public_name),
+            setter_fn,
+            MethodDefinitionKind::Set,
+            false,
+            false,
+            false,
+            false,
+            None,
+        ));
+    }
+}
+
+/// A class-field rune declared inside a constructor via `this.<name> = $rune(…)`.
+/// Mirrors an `AssignmentExpression`-kind entry of upstream's analyze
+/// `state_fields` map (写经 `2-analyze/visitors/ClassBody.js`).
+struct CtorField {
+    /// Field name as `get_name` would return it: public `"foo"`, private
+    /// `"#foo"`, or a computed-literal key like `"1"`.
+    name: String,
+    /// Whether the assignment target is a `PrivateFieldExpression` (`this.#x`).
+    is_private: bool,
+    /// The detected rune kind on the RHS.
+    rune: DeclRune,
+}
+
+/// Extract the `get_name`-style field name from a constructor `this.<…>`
+/// assignment target, plus whether it is a private field. Returns `None` for
+/// non-`this` targets and for computed keys whose expression is not a literal
+/// (写经 analyze `ClassBody.js`: computed non-`Literal` keys are skipped).
+fn ctor_target_name(target: &oxc_ast::ast::AssignmentTarget) -> Option<(String, bool)> {
+    use oxc_ast::ast::{AssignmentTarget as AT, Expression as E};
+    match target {
+        AT::StaticMemberExpression(m) => {
+            if !matches!(m.object, E::ThisExpression(_)) {
+                return None;
+            }
+            Some((m.property.name.as_str().to_string(), false))
+        }
+        AT::PrivateFieldExpression(m) => {
+            if !matches!(m.object, E::ThisExpression(_)) {
+                return None;
+            }
+            Some((format!("#{}", m.field.name.as_str()), true))
+        }
+        AT::ComputedMemberExpression(m) => {
+            if !matches!(m.object, E::ThisExpression(_)) {
+                return None;
+            }
+            // Only literal computed keys are state fields (写经 analyze skip).
+            match &m.expression {
+                E::StringLiteral(s) => Some((s.value.as_str().to_string(), false)),
+                E::NumericLiteral(n) => Some((n.value.to_string(), false)),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
 }
 
 impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
@@ -352,13 +619,30 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
     /// public private-key (`#foo`) is deconflicted against the class's existing
     /// private identifiers in source order, mirroring the analyze-phase
     /// `ClassBody` deconfliction.
+    /// Drop `$effect` / `$effect.pre` / `$effect.root` / `$inspect.trace`
+    /// expression statements anywhere in the class subtree (e.g. inside a
+    /// constructor or method body), mirroring upstream's global server
+    /// `ExpressionStatement` visitor (`return b.empty`). `ClassFieldRuneLower`
+    /// only runs over class statements, so this scope is the class subtree.
+    fn visit_statements(&mut self, stmts: &mut oxc_allocator::Vec<'a, Statement<'a>>) {
+        stmts.retain(|stmt| {
+            let Statement::ExpressionStatement(es) = stmt else {
+                return true;
+            };
+            !is_removed_effect_stmt(&es.expression)
+        });
+        oxc_ast_visit::walk_mut::walk_statements(self, stmts);
+    }
+
     fn visit_class(&mut self, class: &mut oxc_ast::ast::Class<'a>) {
-        use oxc_ast::ast::{ClassElement, MethodDefinitionKind};
+        use oxc_ast::ast::ClassElement;
 
         let b = self.b;
 
         // Collect existing private identifiers in this class so the synthesized
-        // `#foo` backing fields can be deconflicted against them.
+        // `#foo` backing fields can be deconflicted against them. Mirrors analyze
+        // `ClassBody.js`, which only collects PropertyDefinition / MethodDefinition
+        // private keys (NOT constructor-declared private fields).
         let mut private_ids: Vec<String> = Vec::new();
         for el in class.body.body.iter() {
             let key = match el {
@@ -371,9 +655,65 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
             }
         }
 
+        // Scan the constructor for `this.<name> = $rune(…)` field declarations,
+        // in statement order (写经 analyze `ClassBody.js` constructor pass). For
+        // each PUBLIC field, deconflict a private backing-field name. PropertyDefinition
+        // fields are deconflicted first (in the body loop below) in upstream, but
+        // for the constructor cases the body has no rune PropertyDefinitions to
+        // collide with, so a constructor-first pass here is equivalent for the
+        // target fixtures. We record the public-name → backing-name map so the
+        // constructor assignments and the inserted accessors agree.
+        let ctor_fields = self.collect_ctor_fields(class);
+        let mut backing: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        for cf in ctor_fields.iter() {
+            if cf.is_private {
+                continue;
+            }
+            let mut deconflicted = REGEX_INVALID_IDENTIFIER_CHARS
+                .replace_all(&cf.name, "_")
+                .to_string();
+            while private_ids.contains(&deconflicted) {
+                deconflicted = format!("_{deconflicted}");
+            }
+            private_ids.push(deconflicted.clone());
+            backing.insert(cf.name.clone(), deconflicted);
+        }
+
         // Take ownership of the existing body and rebuild it element-by-element.
         let old_body = std::mem::replace(&mut class.body.body, b.ab.vec());
         let mut new_body: oxc_allocator::Vec<'a, ClassElement<'a>> = b.ab.vec();
+
+        // Insert backing fields + get/set accessors for constructor-declared PUBLIC
+        // `$derived` / `$derived.by` fields, at the TOP of the body (写经 server
+        // `ClassBody.js`: the constructor-AssignmentExpression loop runs before the
+        // body-replacement loop).
+        for cf in ctor_fields.iter() {
+            if cf.is_private || !matches!(cf.rune, DeclRune::Derived | DeclRune::DerivedBy) {
+                continue;
+            }
+            let backing_name = backing.get(&cf.name).cloned().unwrap_or_default();
+            // `#<backing>;` (bare backing field — value set in the constructor)
+            let private_key =
+                b.ab.property_key_private_identifier(oxc_span::SPAN, b.str(&backing_name));
+            new_body.push(b.ab.class_element_property_definition(
+                oxc_span::SPAN,
+                oxc_ast::ast::PropertyDefinitionType::PropertyDefinition,
+                b.ab.vec(),
+                private_key,
+                oxc_ast::NONE,
+                None,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                None,
+            ));
+            self.push_accessors(&mut new_body, &cf.name, &backing_name);
+        }
 
         for el in old_body {
             let ClassElement::PropertyDefinition(mut prop_box) = el else {
@@ -418,75 +758,16 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
             prop_box.key = private_key;
             new_body.push(ClassElement::PropertyDefinition(prop_box));
 
-            // `get <name>() { return this.#<key>(); }`
-            let getter_body = {
-                let member = b.member(b.this(), &format!("#{deconflicted}"));
-                let call = b.call(member, vec![]);
-                b.body(vec![b.return_stmt(Some(call))])
-            };
-            let getter_fn = b.ab.alloc_function(
-                oxc_span::SPAN,
-                oxc_ast::ast::FunctionType::FunctionExpression,
-                None,
-                false,
-                false,
-                false,
-                oxc_ast::NONE,
-                oxc_ast::NONE,
-                b.empty_params(),
-                oxc_ast::NONE,
-                Some(getter_body),
-            );
-            new_body.push(b.ab.class_element_method_definition(
-                oxc_span::SPAN,
-                oxc_ast::ast::MethodDefinitionType::MethodDefinition,
-                b.ab.vec(),
-                b.key(&public_name),
-                getter_fn,
-                MethodDefinitionKind::Get,
-                false,
-                false,
-                false,
-                false,
-                None,
-            ));
-
-            // `set <name>($$value) { return this.#<key>($$value); }`
-            let setter_body = {
-                let member = b.member(b.this(), &format!("#{deconflicted}"));
-                let call = b.call(member, vec![b.id("$$value")]);
-                b.body(vec![b.return_stmt(Some(call))])
-            };
-            let setter_params = b.params(vec![b.id_pat("$$value")], None);
-            let setter_fn = b.ab.alloc_function(
-                oxc_span::SPAN,
-                oxc_ast::ast::FunctionType::FunctionExpression,
-                None,
-                false,
-                false,
-                false,
-                oxc_ast::NONE,
-                oxc_ast::NONE,
-                setter_params,
-                oxc_ast::NONE,
-                Some(setter_body),
-            );
-            new_body.push(b.ab.class_element_method_definition(
-                oxc_span::SPAN,
-                oxc_ast::ast::MethodDefinitionType::MethodDefinition,
-                b.ab.vec(),
-                b.key(&public_name),
-                setter_fn,
-                MethodDefinitionKind::Set,
-                false,
-                false,
-                false,
-                false,
-                None,
-            ));
+            self.push_accessors(&mut new_body, &public_name, &deconflicted);
         }
 
         class.body.body = new_body;
+
+        // Rewrite the constructor's `this.<name> = $rune(…)` assignments now that
+        // the backing-field names are known (写经 server `AssignmentExpression.js`).
+        if !ctor_fields.is_empty() {
+            self.rewrite_constructor_assignments(class, &backing);
+        }
 
         // Recurse so nested classes inside method bodies / `$derived(...)` thunks
         // are still lowered.

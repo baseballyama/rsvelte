@@ -4495,4 +4495,56 @@ mod tests {
             mismatches.len()
         );
     }
+
+    /// Class-state CONSTRUCTOR codegen: `constructor() { this.x = $state(0) }`
+    /// (and `$derived` / `$state.raw` / computed-literal / subclass / predeclared
+    /// / module-scope variants) must lower to the same server output as the
+    /// `transform_server` oracle (写经 server `ClassBody.js` +
+    /// `AssignmentExpression.js`). Sources mirror the runtime-runes
+    /// `class-state-constructor*` / `class-state-derived*` fixtures.
+    #[test]
+    fn ast_matches_oracle_class_state_constructor() {
+        let cases = [
+            // class-state-constructor: private $state + public $derived in ctor
+            "<script>\nclass Counter {\n#count;\nconstructor(initial) {\nthis.#count = $state(initial);\nthis.doubled = $derived(this.#count * 2);\n}\nincrement = () => { this.#count++; }\n}\nconst counter = new Counter(10);\n</script>\n<button onclick={counter.increment}>{counter.doubled}</button>",
+            // class-state-constructor-subclass: derived in subclass ctor
+            "<script>\nclass Counter {\nconstructor(initial) {\nthis.count = $state(initial);\n}\nincrement = () => { this.count++; }\n}\nclass PluggableCounter extends Counter {\nconstructor(initial, plugin) {\nsuper(initial)\nthis.custom = $derived(plugin(this.count));\n}\n}\nconst counter = new PluggableCounter(10, (count) => count * 2);\n</script>\n<button onclick={counter.increment}>{counter.count}: {counter.custom}</button>",
+            // class-state-constructor-predeclared-field: predeclared `count;` + ctor $state
+            "<script>\nclass Counter {\ncount;\nconstructor(count) {\nthis.count = $state(count);\n}\n}\nconst counter = new Counter(0);\n</script>\n<button onclick={() => counter.count++}>{counter.count}</button>",
+            // class-state-constructor-conflicting-get-name: literal + computed-literal keys
+            "<script>\nclass Test {\n0 = $state();\nconstructor() {\nthis[1] = $state();\n}\n}\n</script>",
+            // class-state-constructor-derived-unowned: module-scope ctor $state + $derived
+            "<script module>\nclass SomeLogic {\ntrigger() { this.someValue++; }\nconstructor() {\nthis.someValue = $state(0);\nthis.isAboveThree = $derived(this.someValue > 3);\n}\n}\nconst someLogic = new SomeLogic();\n</script>",
+            // class-state-constructor-closure-private-2: ctor $state + $effect closure (effect kept)
+            "<script>\nclass Counter {\nconstructor() {\nthis.count = $state(0);\n$effect(() => { this.count = 10; });\n}\n}\nconst counter = new Counter();\n</script>\n<button onclick={() => counter.count++}>{counter.count}</button>",
+            // class-state-constructor-closure-private-3: ctor $state in a class EXPRESSION
+            "<script>\nconst counter = new class Counter {\nconstructor() {\nthis.count = $state(0);\n$effect(() => { this.count = 10; });\n}\n}\n</script>\n<button onclick={() => counter.count++}>{counter.count}</button>",
+            // class-state-derived-2: propdef $state + propdef $derived + ctor plain assign.
+            // (Source de-`export`ed to isolate the class codegen; `export class`
+            // keyword stripping is a separate, pre-existing pipeline gap.)
+            "<script>\nclass Counter {\ncount = $state(0);\ndoubled = $derived(this.count * 2);\nconstructor(initialCount = 0) {\nthis.count = initialCount;\n}\n}\nconst counter = new Counter(1);\n</script>\n{counter.doubled}",
+            // class-state-effect: propdef $state, ctor $effect.pre + plain assign
+            "<script>\nclass Counter {\ncount = $state(0);\nconstructor(initial) {\n$effect.pre(() => { console.log(this.count); });\nthis.count = initial;\n}\n}\nconst counter = new Counter(10);\n</script>\n<button onclick={() => counter.count++}>{counter.count}</button>",
+            // class-state-extended-effect-derived: base propdef $state, subclass ctor effect.
+            // (`counter` kept a plain `new` here — the fixture's `$derived(new …)`
+            // + bare `counter;` read exercises orthogonal derived-read wrapping.)
+            "<script>\nclass Base {\ncount = $state(0);\n}\nclass Counter extends Base {\nconstructor(initial) {\nsuper();\n$effect.pre(() => { console.log(this.count); });\nthis.count = initial;\n}\n}\nconst counter = new Counter(10);\n</script>\n<button onclick={() => counter.count++}>{counter.count}</button>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in cases {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            if norm(&ours) != norm(&oracle) {
+                eprintln!(
+                    "\n########## class-state-ctor (DIFFER) ##########\nSRC:\n{src}\n=== OURS ===\n{ours}\n=== ORACLE ===\n{oracle}\n"
+                );
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "class-state constructor codegen differs from oracle for {} case(s)",
+            mismatches.len()
+        );
+    }
 }
