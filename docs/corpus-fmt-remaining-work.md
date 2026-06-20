@@ -2,27 +2,30 @@
 
 > **Status 2026-06-20 (branch `feat/fmt-corpus-100`, unified corpus incl.
 > bits-ui/flowbite/melt/shadcn, ~9,715 components, oxfmt 0.54.0):
-> 295 → 9 known failures, 0 regressions, 21 documented exclusions**
+> 295 → 2 known failures, 0 regressions, 22 documented exclusions**
 > (`compat/corpus/fmt-oracle-excluded.json` + `docs/fmt-oracle-bugs.md`).
 >
-> The 9 remaining are all genuine rsvelte **HTML child-layout** limitations that
-> need the faithful prettier `printChildren` port (`docs/fmt-layout-port-plan.md`
-> Increment 7) — a larger Doc-IR change carrying real regression risk to the
-> ~9,685 passing files, so it is deferred to a dedicated effort rather than
-> rushed. They are:
+> Burned the original 9 residual down to 2 (faithful inverted-fill prose wrap,
+> attribute-embedded width accounting, self-closing/inline component hug, a
+> hugged-first-line `<pre>` `hugEnd` pass) and excluded the genuine oxc-vs-prettier
+> engine divergences (`Tags`, etc.). The **2 remaining** are both
+> deeply-nested-inline layout inside `<pre><code>` and need prettier's full
+> `isPreTagContent`/`printPre` implementation:
 >
 > | id | missing mechanism |
 > |---|---|
-> | `flowbite-svelte/.../forms/tags/Tags.svelte` | break a method chain inside a `{#if … .some((t) => … .trim().toLowerCase())}` block-header arrow body |
-> | `flowbite-svelte/.../mega-menu/MegaMenu.svelte` | inline `{#if}` followed by an overflowing `<div>` open tag must break |
-> | `flowbite-svelte/.../drawer/Top.svelte`, `.../popover/Description.svelte` | prose `fill` word-boundary / last-word-overflow tolerance |
-> | `flowbite-svelte/.../text/TextDecoration.svelte`, `.../text/Underline.svelte` | prose `fill` around a trailing inline `</Span>` |
-> | `flowbite-svelte/.../utils/ExampleWrapper.svelte` | inline `{#if}` + `<code>` content break inside `<pre>` context |
-> | `shadcn-svelte/.../theme-customizer-code.svelte`, `.../code-viewer.svelte` | nested inline `<span>` collapse/break inside `<code>` inside `<pre>` |
+> | `shadcn-svelte/.../theme-customizer-code.svelte` | component WITH attributes (`<ColorIndicator color={…} />`) + trailing text inside `<pre><code>` must attribute-wrap + `hugEnd`-merge |
+> | `shadcn-svelte/.../code-viewer.svelte` | deeply-nested `<span><span>…</span><span>…` highlighted code inside `<pre><code>` must cascade-break each inline open tag |
 >
-> A prior faithful prose-`fill` attempt regressed 16 other files, confirming
-> these need the unified `printChildren` port (separator-first fill + the 4-case
-> assembly), not point patches. The historical narrative below is retained.
+> **Why deferred (not rushed):** the correct fix is to thread prettier's
+> `isPreTagContent` flag through the MAIN format pass so `<pre>` element children
+> are NOT collapsed, then re-break them with `hugEnd` using space-based indent —
+> a Doc-IR/`markup.rs` printing-layer change, not a `collapse` post-pass. Every
+> bounded post-pass attempt regressed some of the 44 currently-passing `<pre>`
+> files (reverted). The oracle's breaks here are *within* open tags (not between
+> siblings), so they don't corrupt `<pre>` rendering → these are genuine rsvelte
+> limitations, not excludable. Do this as a dedicated, benchmark-gated effort.
+> The historical narrative below is retained.
 
 ---
 
