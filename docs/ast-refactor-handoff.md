@@ -175,6 +175,75 @@ git fetch origin && git checkout feat/phase3-ast-refactor && git rebase origin/m
 
 ---
 
+## 0b. 現在の状態（2026-06-20: big-bang リライト方針へ転換）
+
+**ユーザー指示の更新（重要）:** 「一時的な大規模リグレッション/大量のコンパイルエラーは許容。既存のテキストベース処理は
+即座に全削除し、"あるべき理想の AST ベース処理"（upstream visitor 構造の写経 + oxc AST 構築 + esrap 印字）に置換せよ。
+まずコンパイルを通し、その後コーパスで1個ずつ正す。既存テストは移植困難なら破棄可。可能な限り並列（エージェント10〜20）。」
+→ 漸進的 flag-gate 戦略から **big-bang リライト** に転換。
+
+- **新ワークツリー**: `/Users/baseballyama/git/rsvelte-ast-full`、**ブランチ `feat/phase3-ast-full`**（main `a93f50c0` から作成）。
+  以後の作業はここ。`rsvelte-ssr-esrap`/`feat/phase3-ast-refactor` は旧・漸進戦略のもので、本方針では使わない。
+- **環境セットアップ済み**: pnpm install / svelte submodule + deps / `node scripts/fixtures/generate-fixtures.mjs` 完了。
+  コーパスの重いサブモジュール（svelte.dev/bits-ui 等）は未取得（コーパス検証する段階で `§1` の手順を実行すること）。
+- **シードの目標 seam（不変）**: `transform_component(analysis:&ComponentAnalysis, ast:&Root, source:&str, options:&CompileOptions)
+  -> TransformResult` と `transform_module(...)`（`3_transform/mod.rs`）。client は `transform_client`、server は `transform_server`。
+
+### ✅ 着地（PR 未・ローカルコミット `6dc5819a`、build/test green）
+- **基盤①: `b.*` ビルダー層** `crates/rsvelte_core/src/compiler/phases/3_transform/builders.rs`（`phase3_transform::builders`）。
+  upstream `utils/builders.js` の Rust ポート。`B<'a>`（`AstBuilder<'a>` の Copy ラッパ）。`id/member/member_id/call/call_opt/
+  new/literal群/operator群/array/object(+init/get/set/spread)/arrow/thunk(0引数 unthunk 畳み込み)/function_declaration/
+  const|let|var/制御フロー文/template/program`。**全構築パターンは `js_ast/to_oxc.rs`（variant-complete・oxc 0.136）から逐語移植**
+  ＝esrap でバイト一致が保証される。**検証**: `cargo test -p rsvelte_core --lib phase3_transform::builders::tests` 7/7 green
+  （各テストが `B` で式/文を組んで `rsvelte_esrap::print` し出力文字列を assert）。
+
+### ★ 完成した地形マップ（8 エージェント調査・本リライトの設計入力）★
+- **upstream の移植先**:
+  - server `3-transform/server/`: entry `transform-server.js`(430行・`server_component`/`server_module`) + visitors 38ファイル
+    (~3.6k行)。global_visitors(script: VariableDeclaration/CallExpression/AssignmentExpression/Identifier/UpdateExpression/
+    LabeledStatement/Program/ClassBody/…) + template_visitors(Fragment/RegularElement/EachBlock/IfBlock/AwaitBlock/Component/
+    SvelteElement/…) + shared(element.js 561/component.js 359/utils.js 417=process_children/build_template/PromiseOptimiser)。
+  - client `3-transform/client/`: entry `transform-client.js`(709) + visitors ~60ファイル(~7.6k行)。RegularElement 747・
+    EachBlock 362・VariableDeclaration 429・shared/component 536・shared/utils 517 が大物。
+- **印字ターゲット = `rsvelte_esrap`（完成済み, oxc 0.136）**: `print(&Program, source:&str)->String` /
+  `print_with(.., &PrintOptions)` / `print_with_hooks(.., &CommentHooks)`（`get_leading`/`get_trailing` で synthetic comment 注入）。
+  Program 構築は `AstBuilder::new(&Allocator)` → `b.*` 経由。`source:&str` はコメント補間に使う（構築 AST なら `""` で可）。
+- **rsvelte 側の入力（移植元データ）**:
+  - **script は oxc ではなく rsvelte 独自 `JsNode`**（`ast/typed_expr.rs`, 60+ variant）が `Root.arena: ParseArena` に格納。
+    `Root.instance`/`module: Option<Box<Script>>`、`Script.content: Expression`（`Expression::Typed(TypedExpr{node:JsNode})`
+    か `Value(serde_json)` か `Lazy{start,end,ts}`）。**現 Phase-3 はこの AST を使わず source テキストを再パースしている**。
+    → **基盤②が必要: `JsNode -> oxc Expression/Statement` 変換器**（`js_ast/to_oxc.rs` の JsExpr->oxc と同型・逐語パターン流用）。
+    あるいは既存 `client/visitors/expression_converter.rs`(JsNode->JsExpr) + `to_oxc`(JsExpr->oxc) の2段を server でも再利用。
+  - **template は `TemplateNode` enum**(~28 variant, `ast/template.rs`)。`Fragment.nodes: Vec<TemplateNode>`。
+    埋め込み式は `Expression`(=JsNode)。属性/ディレクティブは `Attribute` enum（Bind/On/Class/Style/Transition/Animate/Use/Let/Spread/Attach）。
+  - **Phase-2 `ComponentAnalysis`**(`2_analyze/types.rs:1671`): `root: ScopeRoot`(`bindings:Vec<Binding>` flat + `all_scopes`),
+    `Binding.kind: BindingKind`(State/RawState/Derived/Prop/BindableProp/RestProp/StoreSub/LegacyReactive/EachItem/Snippet…),
+    `root.get_binding(name, scope_idx)`. `reactive_statements`, `exports:Vec<Export{name,alias}>`, flags
+    (`uses_props/uses_rest_props/uses_slots/needs_props/needs_context/uses_component_bindings/props_id/custom_element/
+    inject_styles/css.hash`). **gap: `css.ast` は未保持**（必要なら別途）。`instance_body.hoisted` は JSON(現状未活用)。
+  - **既存 client framework は table-driven ではなく手書き再帰下降**: `ComponentContext::visit_node`(types.rs:85) の巨大 match +
+    `ComponentClientTransformState`(init/update/template/hoisted/consts/let_directives バッファ + memoizer + transform map)。
+    visitor は戻り値ではなくバッファに `JsStatement`/`JsExpr` を push。→ **server リライトも同型の手書き再帰下降にし、
+    出力を `b.*`(oxc) にする**のが最善（zimmerframe 汎用 walker を新規構築する必要はない、というのが調査の結論）。
+
+### 次の作業順（big-bang・常時コンパイル可能を維持しつつ）
+1. **基盤②: `JsNode -> oxc` 変換器**（`3_transform/jsnode_to_oxc.rs` 仮）。`to_oxc.rs` を雛形に、`JsNode` の式/文/パターンを
+   oxc に変換。`Option` 返し（未対応は `None`→呼び出し側で扱い）。esrap round-trip ユニットテストで検証。**サブエージェント並列可**
+   （構造マッピングで mechanical、ただしメインが diff レビュー + 中央でテスト）。これが server/client 両方の式変換土台。
+2. **server スケルトン**: `ServerTransformState`(oxc allocator/B + hoisted/init/template バッファ) + `server_component`/`server_module`
+   を upstream `transform-server.js` 写経で構築。visitor は最初 stub（`b.empty()` 等）でコンパイルを通す。`transform_server` を接続。
+3. **旧 server テキストモジュール削除**: transform_script.rs(8.4k)/build.rs テキストパス/helpers.rs バイトスキャナ/transform_store.rs/
+   bridge.rs/esrap_layout.rs。削除でコンパイルエラー大量 → スケルトン + stub で通す。
+4. **server visitor 並列ポート**: upstream 38ファイルを `b.*` で1つずつ写経（10〜20 並列、メインが diff レビュー + コーパス検証）。
+5. **client**: js_ast `Raw` 全廃 → `to_oxc` 経由に一本化 → `codegen.rs`(3.3k) 削除。
+6. **shared**: `async_body.rs::compute_blocker_map(raw_script)` を AST 化。
+7. **仕上げ**: `grep` で Raw/バイトスキャナ 0 を CI ガード化。コーパス green。`pnpm run test-and-update`。
+
+**検証ゲート**: byte-exact は `cargo test --release --test runtime --test compiler_fixtures`（`ssr`/`snapshot` 単一ターゲットは無い、
+`ssr_*` 個別）。コーパスは `§2` 手順（重いサブモジュール取得後）。**ビルドは必ず1本ずつ**（`§2 教訓1`）。
+
+---
+
 ## 1. 環境セットアップ（ワークツリーは未セットアップなことがある）
 
 一度きりの重いセットアップ。`RAYON_NUM_THREADS=2` + `nice` でローカル負荷を抑える。
