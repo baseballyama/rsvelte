@@ -1326,6 +1326,69 @@ mod tests {
         );
     }
 
+    /// `{#await expr then VALUE}` where `VALUE` is a **destructuring** pattern —
+    /// `{ a, b }`, `[a, b]`, `{ a = 3 }` (defaults), `{ a, ...rest }`,
+    /// `{ [computed]: v }`, nested patterns. Upstream's server `AwaitBlock.js`
+    /// emits the `then` arrow with `context.visit(node.value)` as its single
+    /// parameter (the full `Pattern`). The AST visitor's `value_pattern` must
+    /// re-parse the destructuring slice (not collapse it to `$$value`), otherwise
+    /// every binding the `then` body reads goes undefined. Mirrors the
+    /// runtime-legacy `await-then-destruct-*` cluster. (The `{:catch}` clause is
+    /// never rendered server-side — `$.await` has only pending + then callbacks —
+    /// so catch destructuring is irrelevant here.)
+    #[test]
+    fn ast_matches_oracle_await_then_destructuring() {
+        let samples = [
+            // object
+            "{#await p then { result, error }}<p>{error}{result}</p>{/await}",
+            // array
+            "{#await p then [a, b, c]}<p>{a}{b}{c}</p>{/await}",
+            // string props / renamed
+            "{#await p then { value: theValue }}<p>{theValue}</p>{/await}",
+            // number-ish / renamed nested
+            "{#await p then { error: { message, code } }}<p>{message}{code}</p>{/await}",
+            // rest (object)
+            "{#await p then { a, ...rest }}<p>{a}{JSON.stringify(rest)}</p>{/await}",
+            // rest (array)
+            "{#await p then [a, b, ...rest]}<p>{a}{b}{JSON.stringify(rest)}</p>{/await}",
+            // defaults
+            "{#await p then { a = 3, b = 4, c }}<p>{a}{b}{c}</p>{/await}",
+            "{#await p then [a, b, c = 3]}<p>{a}{b}{c}</p>{/await}",
+            // nested array rest
+            "{#await p then [ a, b, ...[,, c, ...{ length } ]]}<p>{a}{b}{c}{length}</p>{/await}",
+            // computed props
+            "{#await p then { [`prop${1}`]: { x }, ...rest }}<p>{x}{JSON.stringify(rest)}</p>{/await}",
+            // {#await … then dest} with a {@const} reading the destructured binding
+            "{#await p then { width, height }}{@const {area} = calc(width, height)}<div>{area}</div>{/await}",
+            // bare identifier (regression guard — must still work)
+            "{#await p then value}<p>{value}</p>{/await}",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            // Compare via the esrap canonical reprint (the corpus
+            // output-equality measure): both sides are reprinted so that the
+            // oracle's per-line arg wrapping vs. the AST printer's layout is
+            // not noise. Fall back to `norm_blocks` (leading-ws-insensitive)
+            // when either side fails to reparse.
+            let matched = match (canon(&ours), canon(&oracle)) {
+                (Some(a), Some(b)) => a == b,
+                _ => norm_blocks(&ours) == norm_blocks(&oracle),
+            };
+            if !matched {
+                eprintln!(
+                    "=== SRC: {src} === DIFFER\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n"
+                );
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "await-then destructuring AST output differs from oracle for: {mismatches:?}"
+        );
+    }
+
     /// Author HTML comments (`<!-- ... -->`) are stripped from the SSR template
     /// when `preserveComments` is false (the default), matching upstream
     /// `clean_nodes` (`utils.js:148-151`: `node.type === 'Comment' &&

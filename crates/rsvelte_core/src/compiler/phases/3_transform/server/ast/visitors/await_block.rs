@@ -32,7 +32,10 @@
 //!   `$$renderer.async_block` / `$$renderer.child_block` blocker wrapping — needs
 //!   the PromiseOptimiser. The sync, blocker-free path is emitted as a bare
 //!   `$.await(...)` statement.
-//! - destructuring `node.value` patterns (only identifier handled; else re-parse).
+//!
+//! Destructuring `node.value` patterns (`{#await … then { a, b }}`, `[a, b]`,
+//! defaults, rests, computed/nested patterns) ARE handled: [`value_pattern`]
+//! re-parses the destructuring slice via `reparse_pattern`.
 
 use crate::ast::template::AwaitBlock;
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
@@ -91,14 +94,28 @@ fn unwrap_block<'a>(
     }
 }
 
-/// Build the `then` value binding pattern (identifier → `id_pat`; else reuse the
-/// each-block re-parse fallback).
+/// Build the `then` value binding pattern. An identifier maps to `b.id_pat`; a
+/// destructuring pattern (`{ a, b }`, `[a, b]`, `{ a = 3 }`, `{ a, ...rest }`,
+/// `{ [computed]: v }`, nested rests, …) is re-parsed verbatim from its source
+/// span — mirroring upstream's `context.visit(node.value)` which preserves the
+/// full `Pattern`. The previous identifier-only path silently dropped the
+/// destructuring (emitting `$$value`), so every binding in the `then` body went
+/// undefined; this re-parse keeps the column-faithful pattern.
 fn value_pattern<'a>(
     v: &crate::ast::js::Expression,
     state: &ServerTransformState<'a>,
 ) -> BindingPattern<'a> {
     if let Some(name) = v.identifier_name() {
         return state.b.id_pat(name);
+    }
+    // Destructuring `then` value — re-parse the source slice (`{ a }` / `[a, b]`
+    // / `{ a = 3 }` / `{ a, ...rest }` / nested) as the binding pattern of a
+    // throwaway `let <slice> = 0;` declaration via `reparse_pattern`.
+    if let (Some(start), Some(end)) = (v.start(), v.end()) {
+        let slice = state.source[start as usize..end as usize].trim();
+        if let Some(pat) = state.reparse_pattern(slice) {
+            return pat;
+        }
     }
     state.b.id_pat("$$value")
 }
