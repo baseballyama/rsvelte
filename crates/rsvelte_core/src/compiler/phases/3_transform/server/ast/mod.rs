@@ -814,6 +814,58 @@ mod tests {
         );
     }
 
+    /// Dynamic ATTRIBUTE codegen parity with the `transform_server` oracle.
+    /// Each sample carries an instance `<script>` declaring the referenced
+    /// binding so the value expression resolves (and so the read-wrapping pass
+    /// behaves the same in both pipelines). Covers:
+    ///   - plain dynamic attr `id={x}` → `${$.attr('id', x)}`,
+    ///   - mixed text+expr `href="/{slug}"` → `${$.attr('href', `/${$.stringify(slug)}`)}`,
+    ///   - boolean attr `disabled={d}` → `${$.attr('disabled', d, true)}`,
+    ///   - `class={cls}` (no/with scope hash) → `${$.attr_class(cls[, 'svelte-…'])}`,
+    ///   - `style={s}` → `${$.attr_style(s)}`.
+    /// Each declared binding is a plain `let` (NOT a rune) so the instance-script
+    /// transform emits it identically in both pipelines and the full output is
+    /// byte-comparable.
+    #[test]
+    fn ast_matches_oracle_dynamic_attributes() {
+        // Runes-mode `$state` bindings (lowered identically in both pipelines as
+        // `let x = …;`) so the instance body matches and only the ATTRIBUTE
+        // codegen is under test. (Plain-legacy `let` instance bodies are a
+        // separate KNOWN GAP that drops the declaration in the AST path.)
+        let samples = [
+            // plain dynamic attr
+            "<script>let x = $state(1);</script><div id={x}>x</div>",
+            // mixed text + expr value (a prop binding is NOT constant-foldable
+            // by the oracle's `scope.evaluate`, so it stays a runtime template).
+            "<script>let { slug } = $props();</script><a href=\"/{slug}\">x</a>",
+            // boolean dynamic attr
+            "<script>let d = $state(true);</script><input disabled={d}>",
+            // class={cls} with NO style block (no scope hash)
+            "<script>let cls = $state('a');</script><p class={cls}>x</p>",
+            // class={cls} WITH a style block (scope hash composes via attr_class)
+            "<script>let cls = $state('a');</script><p class={cls}>x</p><style>p{color:red}</style>",
+            // style={s}
+            "<script>let s = $state('color:red');</script><div style={s}>x</div>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm(&ours) == norm(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "dynamic-attribute codegen differs from oracle for: {mismatches:?}"
+        );
+    }
+
     #[test]
     fn trivial_component_skeleton() {
         let out = run("<p>hello</p>");
