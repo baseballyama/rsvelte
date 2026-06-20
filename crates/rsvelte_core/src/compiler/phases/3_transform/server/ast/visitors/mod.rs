@@ -43,6 +43,7 @@ pub mod key_block;
 pub mod render_tag;
 pub mod shared;
 pub mod snippet_block;
+pub mod svelte_boundary;
 pub mod svelte_element;
 pub mod svelte_head;
 pub mod title_element;
@@ -81,6 +82,7 @@ pub fn visit_node<'a>(node: &TemplateNode, state: &mut ServerTransformState<'a>)
         TemplateNode::SvelteComponent(node) => component::visit_svelte_component(node, state),
         TemplateNode::SvelteSelf(node) => component::visit_svelte_self(node, state),
         TemplateNode::SvelteElement(node) => svelte_element::visit_svelte_element(node, state),
+        TemplateNode::SvelteBoundary(node) => svelte_boundary::visit_svelte_boundary(node, state),
         TemplateNode::SvelteHead(node) => svelte_head::visit_svelte_head(node, state),
         TemplateNode::TitleElement(node) => title_element::visit_title_element(node, state),
         TemplateNode::SvelteFragment(node) => {
@@ -90,7 +92,7 @@ pub fn visit_node<'a>(node: &TemplateNode, state: &mut ServerTransformState<'a>)
             let block = shared::build_fragment_block(&node.fragment, false, state);
             state.template.push(TemplateEntry::Stmt(block));
         }
-        // TODO: ConstTag, SlotElement, SvelteBoundary, SvelteWindow/Document/Body,
+        // TODO: ConstTag, SlotElement, SvelteWindow/Document/Body,
         // DeclarationTag, DebugTag, AttachTag — emit nothing for now.
         _ => {}
     }

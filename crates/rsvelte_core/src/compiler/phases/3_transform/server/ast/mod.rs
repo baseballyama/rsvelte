@@ -883,6 +883,39 @@ mod tests {
         assert!(out.contains("<p>hi</p>"), "missing snippet body:\n{out}");
     }
 
+    /// `<svelte:boundary>` structural parity with the `transform_server` oracle.
+    /// The no-pending + `failed`-snippet case wraps the children in
+    /// `$$renderer.boundary({ failed }, ($$renderer) => { <!--[--> { ... } <!--]--> })`
+    /// and hoists the `failed` snippet function. The no-failed case skips the
+    /// wrapper and renders the children between `<!--[-->` / `<!--]-->` directly.
+    /// Compared STRUCTURALLY (indentation-insensitive) like the block samples.
+    #[test]
+    fn ast_matches_oracle_svelte_boundary() {
+        let samples = [
+            // failed snippet → boundary wrapper + hoisted `failed` fn.
+            "<svelte:boundary>{#snippet failed(e)}err{/snippet}<p>main</p></svelte:boundary>",
+            // no failed branch → no wrapper, children rendered inline.
+            "<svelte:boundary><p>main</p></svelte:boundary>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm_blocks(&ours) == norm_blocks(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "svelte:boundary output differs from oracle (structurally) for: {mismatches:?}"
+        );
+    }
+
     /// Compare the AST pipeline against the `transform_server` oracle for the
     /// newly-ported structural visitors (RenderTag, SvelteHead/TitleElement,
     /// SvelteElement). These samples have an EMPTY instance script so the
