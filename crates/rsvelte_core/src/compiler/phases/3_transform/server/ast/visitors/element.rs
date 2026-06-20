@@ -25,12 +25,13 @@
 //! `PromiseOptimiser` wrapping. Any of those attribute kinds is currently skipped.
 
 use crate::ast::template::{
-    Attribute, AttributeNode, AttributeValue, AttributeValuePart, RegularElement,
+    Attribute, AttributeNode, AttributeValue, AttributeValuePart, BindDirective, RegularElement,
 };
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 use crate::compiler::phases::phase3_transform::shared::template::{
     escape_attr, is_boolean_attribute, is_void_element,
 };
+use oxc_ast::ast::BinaryOperator;
 use oxc_ast::ast::Expression as OxcExpression;
 
 use super::shared::{TemplateEntry, process_children};
@@ -97,6 +98,174 @@ fn has_class_directive_or_spread(node: &RegularElement) -> bool {
     })
 }
 
+/// Whether the element has a sibling text `type="<expected>"` attribute (used to
+/// detect `<input type="file">` / `<input type="checkbox">`). Mirrors upstream's
+/// `attr.value[0].data === '<expected>'` check on the static `type` attribute.
+fn has_input_type(node: &RegularElement, expected: &str) -> bool {
+    node.attributes.iter().any(|a| {
+        let Attribute::Attribute(attr) = a else {
+            return false;
+        };
+        attr.name.as_str() == "type" && attr_static_text(&attr.value).as_deref() == Some(expected)
+    })
+}
+
+/// If an attribute value is a single static text part, return it (the
+/// `is_text_attribute` + `value[0].data` shape upstream reads).
+fn attr_static_text(value: &AttributeValue) -> Option<String> {
+    if let AttributeValue::Sequence(parts) = value
+        && parts.len() == 1
+        && let AttributeValuePart::Text(t) = &parts[0]
+    {
+        return Some(t.data.to_string());
+    }
+    None
+}
+
+/// Find the sibling `value` plain-attribute node (for `bind:group`'s membership
+/// test). Mirrors upstream's `node.attributes.find(attr.name === 'value')`.
+fn find_value_attribute<'n>(node: &'n RegularElement) -> Option<&'n AttributeNode> {
+    node.attributes.iter().find_map(|a| match a {
+        Attribute::Attribute(attr) if attr.name.as_str() == "value" => Some(attr),
+        _ => None,
+    })
+}
+
+/// Server-omitted bindings (no corresponding SSR attribute). Mirrors the
+/// `binding_properties[name].omit_in_ssr` table in
+/// `phases/bindings.js` for the entries that can appear on a `RegularElement`.
+fn bind_omit_in_ssr(name: &str) -> bool {
+    matches!(
+        name,
+        // media (audio/video)
+        "currentTime"
+            | "duration"
+            | "paused"
+            | "buffered"
+            | "seekable"
+            | "played"
+            | "volume"
+            | "muted"
+            | "playbackRate"
+            | "seeking"
+            | "ended"
+            | "readyState"
+            // video
+            | "videoHeight"
+            | "videoWidth"
+            // img
+            | "naturalWidth"
+            | "naturalHeight"
+            // dimensions (read-only)
+            | "clientWidth"
+            | "clientHeight"
+            | "offsetWidth"
+            | "offsetHeight"
+            | "contentRect"
+            | "contentBoxSize"
+            | "borderBoxSize"
+            | "devicePixelContentBoxSize"
+            // checkbox/radio: indeterminate has no attribute
+            | "indeterminate"
+            // file list
+            | "files"
+    )
+}
+
+/// Whether `name` is a content-editable binding (`innerHTML` / `innerText` /
+/// `textContent`). Upstream renders these as escaped element CONTENT — a path
+/// the AST pipeline does not have yet, so they are a KNOWN GAP here.
+fn is_content_editable_binding(name: &str) -> bool {
+    matches!(name, "innerHTML" | "innerText" | "textContent")
+}
+
+/// Whether the parsed bind expression is a `SequenceExpression` (the
+/// `bind:value={get, set}` / `bind:group={get, set}` get/set form). Upstream
+/// calls the first expression (`b.call(expression.expressions[0])`) for the
+/// server-rendered value; here that get/set form is a KNOWN GAP (skipped).
+fn bind_expr_is_sequence(bind: &BindDirective) -> bool {
+    bind.expression.node_type() == Some("SequenceExpression")
+}
+
+/// Port of the `BindDirective` arm of `build_element_attributes`. Returns the
+/// synthetic `(attribute_name, value_expression)` an element bind renders as an
+/// SSR attribute, or `None` when the bind produces no attribute (skipped:
+/// `bind:this`, server-omitted readback binds, the get/set sequence form, the
+/// `<select>`/`<textarea>`/content-editable CONTENT binds — KNOWN GAP — and
+/// `bind:group` without a sibling `value` attribute).
+fn build_bind_directive<'a>(
+    node: &RegularElement,
+    bind: &BindDirective,
+    state: &mut ServerTransformState<'a>,
+) -> Option<(String, OxcExpression<'a>)> {
+    let name = bind.name.as_str();
+
+    // `bind:value` on `<select>` is omitted (the attribute has no effect on the
+    // initially-selected value).
+    if name == "value" && node.name.as_str() == "select" {
+        return None;
+    }
+    // `bind:value` on a file input is omitted (file inputs can't be pre-filled).
+    if name == "value" && has_input_type(node, "file") {
+        return None;
+    }
+    // `bind:this` has no SSR output.
+    if name == "this" {
+        return None;
+    }
+    // Server-omitted readback bindings (dimensions, media, files, …).
+    if bind_omit_in_ssr(name) {
+        return None;
+    }
+    // The get/set `{get, set}` sequence form: KNOWN GAP (skipped).
+    if bind_expr_is_sequence(bind) {
+        return None;
+    }
+
+    // KNOWN GAP: content-producing binds need an element-CONTENT mechanism the
+    // AST pipeline does not have yet.
+    //   - `bind:innerHTML` / `bind:innerText` / `bind:textContent` → escaped content
+    //   - `bind:value` on `<textarea>` → escaped content
+    if is_content_editable_binding(name) || (name == "value" && node.name.as_str() == "textarea") {
+        return None;
+    }
+
+    // `bind:group` (non-sequence) → a synthetic `checked` attribute whose value
+    // is a membership test against the sibling `value` attribute.
+    if name == "group" {
+        let value_attr = find_value_attribute(node)?;
+        let value_expr = build_attribute_value(&value_attr.value, false, state);
+        let group_expr = state.visit_expr(&bind.expression);
+        let checked = if has_input_type(node, "checkbox") {
+            // `group.includes(value)`
+            let callee = state.b.member(group_expr, "includes");
+            state.b.call(callee, vec![value_expr])
+        } else {
+            // `group === value`
+            state
+                .b
+                .binary(BinaryOperator::StrictEquality, group_expr, value_expr)
+        };
+        return Some(("checked".to_string(), checked));
+    }
+
+    // General case (`bind:value` on input, `bind:checked`, `bind:open`, …): the
+    // bound expression renders as the attribute of the same name.
+    let attr_name = get_bind_attribute_name(node, name);
+    let value = state.visit_expr(&bind.expression);
+    Some((attr_name, value))
+}
+
+/// Lowercase the bind name for non-svg/mathml elements (the `get_attribute_name`
+/// rule, applied to a bind directive's name).
+fn get_bind_attribute_name(element: &RegularElement, name: &str) -> String {
+    if !element.metadata.svg && !element.metadata.mathml {
+        name.to_lowercase()
+    } else {
+        name.to_string()
+    }
+}
+
 /// Port of `build_element_attributes` (no-spread branch). Pushes one or more
 /// [`TemplateEntry`] items onto `state.template` for the element's attributes.
 fn build_element_attributes<'a>(
@@ -112,8 +281,37 @@ fn build_element_attributes<'a>(
     let mut emitted_class = false;
 
     for attr in &node.attributes {
+        // -- bind: directives ------------------------------------------------
+        //
+        // Port of the `BindDirective` arm of upstream `build_element_attributes`
+        // (`shared/element.js`). Element binds mostly synthesize a regular
+        // attribute (`value` / `checked` / `<prop>`) that renders through the
+        // same `$.attr(...)` path. The `content`-producing binds (textarea
+        // `value`, content-editable `innerHTML` / `innerText` / `textContent`)
+        // require an element-content mechanism the AST pipeline does not have
+        // yet, so they are a KNOWN GAP (skipped here).
+        if let Attribute::BindDirective(bind) = attr {
+            if let Some((bind_name, value)) = build_bind_directive(node, bind, state) {
+                let is_bool = is_boolean_attribute(&bind_name);
+                let call = state.b.call_opt(
+                    "$.attr",
+                    vec![
+                        Some(state.b.string(&bind_name)),
+                        Some(value),
+                        if is_bool {
+                            Some(state.b.bool(true))
+                        } else {
+                            None
+                        },
+                    ],
+                );
+                push_interp(state, call);
+            }
+            continue;
+        }
+
         let Attribute::Attribute(a) = attr else {
-            // Spread / directives / bind / use / attach: KNOWN GAP (skipped).
+            // Spread / class:/style:/use:/attach directives: KNOWN GAP (skipped).
             continue;
         };
 

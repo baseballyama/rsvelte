@@ -1006,6 +1006,51 @@ mod tests {
         );
     }
 
+    /// Element `bind:` directive codegen parity with the `transform_server`
+    /// oracle. Each sample declares the bound binding in an instance `<script>`
+    /// (a `$state` rune so the instance body matches in both pipelines) so only
+    /// the element-bind ATTRIBUTE codegen is under test. Covers:
+    ///   - `bind:value` on `<input>`         → `${$.attr('value', x)}`
+    ///   - `bind:checked` (boolean)          → `${$.attr('checked', c, true)}`
+    ///   - `bind:value` + `type="text"`      → still a `value` attribute
+    ///   - `bind:this`                       → NO output (skipped)
+    ///   - `bind:group` radio                → `${$.attr('checked', g === 'a')}`
+    ///   - `bind:group` checkbox             → `${$.attr('checked', g.includes('a'))}`
+    #[test]
+    fn ast_matches_oracle_element_binds() {
+        let samples = [
+            // bind:value on a plain input
+            "<script>let x = $state('');</script><input bind:value={x}>",
+            // bind:checked (boolean attribute)
+            "<script>let c = $state(false);</script><input type=\"checkbox\" bind:checked={c}>",
+            // bind:value with explicit text type
+            "<script>let x = $state('');</script><input type=\"text\" bind:value={x}>",
+            // bind:this -> no output
+            "<script>let el = $state();</script><input bind:this={el}>",
+            // bind:group radio -> checked = (g === value)
+            "<script>let g = $state('a');</script><input type=\"radio\" value=\"a\" bind:group={g}>",
+            // bind:group checkbox -> checked = g.includes(value)
+            "<script>let g = $state([]);</script><input type=\"checkbox\" value=\"a\" bind:group={g}>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm(&ours) == norm(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "element-bind codegen differs from oracle for: {mismatches:?}"
+        );
+    }
+
     #[test]
     fn trivial_component_skeleton() {
         let out = run("<p>hello</p>");
