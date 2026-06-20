@@ -47,9 +47,12 @@
 //!   `if (Foo) { … }` guard; emitted as the plain static call.
 //! - async blocker wrapping (`optimiser.render_block`).
 
-use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SpreadAttribute};
+use crate::ast::template::{
+    Attribute, AttributeValue, AttributeValuePart, Fragment, FragmentType, SnippetBlock,
+    SpreadAttribute, TemplateNode,
+};
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
-use oxc_ast::ast::{Expression as OxcExpression, ObjectPropertyKind};
+use oxc_ast::ast::{Expression as OxcExpression, ObjectPropertyKind, Statement};
 
 use super::shared::{EMPTY_COMMENT, TemplateEntry};
 
@@ -68,7 +71,7 @@ pub fn visit_component<'a>(
     // Upstream: `context.visit(b.member_id(node.name))` — a dotted name like
     // `ns.Comp` becomes the member chain; a bare name an identifier.
     let expr = state.b.member_id(node.name.as_str());
-    build_inline_component(&node.attributes, expr, state);
+    build_inline_component(&node.attributes, &node.fragment, expr, state);
 }
 
 /// Visit a `<svelte:component this={expr}/>` element (static path).
@@ -77,7 +80,7 @@ pub fn visit_svelte_component<'a>(
     state: &mut ServerTransformState<'a>,
 ) {
     let expr = state.visit_expr(&node.expression);
-    build_inline_component(&node.attributes, expr, state);
+    build_inline_component(&node.attributes, &node.fragment, expr, state);
 }
 
 /// Visit a `<svelte:self .../>` element (static path).
@@ -87,12 +90,13 @@ pub fn visit_svelte_self<'a>(
 ) {
     let name = state.analysis.name.clone();
     let expr = state.b.id(&name);
-    build_inline_component(&node.attributes, expr, state);
+    build_inline_component(&node.attributes, &node.fragment, expr, state);
 }
 
 /// The shared inline-component lowering (props-object path).
 fn build_inline_component<'a>(
     attributes: &[Attribute],
+    fragment: &Fragment,
     expression: OxcExpression<'a>,
     state: &mut ServerTransformState<'a>,
 ) {
@@ -103,12 +107,22 @@ fn build_inline_component<'a>(
     // spread can't overwrite them.
     let mut delayed: Vec<ObjectPropertyKind<'a>> = Vec::new();
 
+    // Upstream `has_children_prop`: a `children` *attribute* means the user is
+    // already passing a render snippet, so the default-slot body must not be
+    // overwritten with a generated `children` prop (it becomes `$$slots.default`
+    // pointing at `$.invalid_default_snippet`). We don't replicate the invalid
+    // path, but we do track the flag to suppress the generated `children` prop.
+    let mut has_children_prop = false;
+
     for attr in attributes {
         match attr {
             Attribute::Attribute(a) => {
                 // Custom-CSS props (`--foo`) → `$.css_props` — KNOWN GAP, skip.
                 if a.name.starts_with("--") {
                     continue;
+                }
+                if a.name.as_str() == "children" {
+                    has_children_prop = true;
                 }
                 let value = component_attribute_value(&a.value, state);
                 push_prop(&mut groups, state.b.init(a.name.as_str(), value));
@@ -136,13 +150,27 @@ fn build_inline_component<'a>(
         push_prop(&mut groups, prop);
     }
 
+    // Children / slots / snippet props (upstream `shared/component.js` lines
+    // 162-295). Returns any hoisted snippet-function declarations that must wrap
+    // the component call in a `{ ... }` block.
+    let snippet_declarations =
+        build_component_children(fragment, has_children_prop, &mut groups, state);
+
     let props_expression = build_props_expression(groups, state);
 
     // `expression($$renderer, props_expression)`
     let call = state
         .b
         .call(expression, vec![state.b.id("$$renderer"), props_expression]);
-    state.template.push(TemplateEntry::Stmt(state.b.stmt(call)));
+    let mut statement = state.b.stmt(call);
+
+    // Upstream: `if (snippet_declarations.length > 0) statement = b.block([...])`.
+    if !snippet_declarations.is_empty() {
+        let mut block_body = snippet_declarations;
+        block_body.push(statement);
+        statement = state.b.block(block_body);
+    }
+    state.template.push(TemplateEntry::Stmt(statement));
 
     // Non-dynamic, non-async, non-standalone, no custom-CSS props → `<!---->`.
     if !state.is_standalone {
@@ -150,6 +178,193 @@ fn build_inline_component<'a>(
             .template
             .push(TemplateEntry::Literal(EMPTY_COMMENT.to_string()));
     }
+}
+
+/// Build the `children` / named-slot / snippet props from a component's child
+/// fragment (upstream `shared/component.js` lines 162-295). Pushes the slot
+/// props onto `groups` (including the trailing `$$slots: { ... }` object) and
+/// returns any snippet **function declarations** that must wrap the component
+/// call in a hoisting block.
+///
+/// 写经 gaps (KNOWN GAP):
+/// - Per-slot `node.metadata.scopes` are not tracked on the AST pipeline, so the
+///   default-slot body is rendered in the surrounding `state` rather than the
+///   component scope. This only matters for `let:` directives, which are not
+///   ported anyway.
+/// - `let:` directives / scoped-slot params are not emitted — a named slot still
+///   gets its `$$slots.name: fn`, just with a bare `($$renderer)` parameter list.
+/// - The `$.invalid_default_snippet` error path (a `children` attribute *and* a
+///   default-slot body) is not emitted; the default body is simply dropped when
+///   `has_children_prop` is set, matching the common "render tag already used"
+///   intent without the dev-time error.
+/// - `$.prevent_snippet_stringification` (dev-only) wrapper is not emitted.
+fn build_component_children<'a>(
+    fragment: &Fragment,
+    has_children_prop: bool,
+    groups: &mut Vec<PropGroup<'a>>,
+    state: &mut ServerTransformState<'a>,
+) -> Vec<Statement<'a>> {
+    let mut snippet_declarations: Vec<Statement<'a>> = Vec::new();
+    let mut serialized_slots: Vec<ObjectPropertyKind<'a>> = Vec::new();
+
+    // Group non-snippet children by slot name (default vs `slot="name"`).
+    // Snippet blocks are handled inline (they become named props + `$$slots`).
+    let mut default_children: Vec<&TemplateNode> = Vec::new();
+    // Named slots: insertion-ordered (name, nodes).
+    let mut named_slots: Vec<(String, Vec<&TemplateNode>)> = Vec::new();
+
+    for child in &fragment.nodes {
+        if let TemplateNode::SnippetBlock(snippet) = child {
+            // Inline the snippet as a `function name($$renderer, ...) {...}`
+            // declaration hoisted into the component-call block, plus a
+            // `name: name` prop and a `$$slots` membership entry. (Upstream
+            // visits the SnippetBlock with `init: snippet_declarations`.)
+            let snippet_name = snippet
+                .expression
+                .identifier_name()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "snippet".to_string());
+            snippet_declarations.push(build_snippet_declaration(snippet, &snippet_name, state));
+
+            // `name: name` prop (the function reference).
+            push_prop(
+                groups,
+                state.b.init(&snippet_name, state.b.id(&snippet_name)),
+            );
+
+            // Interop: `$$slots` membership — `children` maps to `default`.
+            let slot_key = if snippet_name == "children" {
+                "default"
+            } else {
+                &snippet_name
+            };
+            serialized_slots.push(state.b.init(slot_key, state.b.bool(true)));
+            continue;
+        }
+
+        match slot_name_of(child) {
+            Some(name) => match named_slots.iter_mut().find(|(n, _)| *n == name) {
+                Some((_, nodes)) => nodes.push(child),
+                None => named_slots.push((name, vec![child])),
+            },
+            None => default_children.push(child),
+        }
+    }
+
+    // Default slot → `children` prop + `$$slots.default: true`.
+    if !default_children.is_empty() {
+        let body = render_slot_body(&default_children, true, state);
+        if !body.is_empty() {
+            let slot_fn = make_slot_fn(body, state);
+            if has_children_prop {
+                // A `children` attribute is already present (render-tag usage):
+                // expose membership only, don't overwrite the prop. (写经 gap:
+                // upstream emits `$.invalid_default_snippet` here.)
+                serialized_slots.push(state.b.init("default", state.b.bool(true)));
+            } else {
+                push_prop(groups, state.b.init("children", slot_fn));
+                serialized_slots.push(state.b.init("default", state.b.bool(true)));
+            }
+        }
+    }
+
+    // Named slots → `$$slots.name: ($$renderer) => { ... }`.
+    for (name, nodes) in &named_slots {
+        let body = render_slot_body(nodes, true, state);
+        if body.is_empty() {
+            continue;
+        }
+        let slot_fn = make_slot_fn(body, state);
+        serialized_slots.push(state.b.init(name, slot_fn));
+    }
+
+    if !serialized_slots.is_empty() {
+        let slots_obj = state.b.object(serialized_slots);
+        push_prop(groups, state.b.init("$$slots", slots_obj));
+    }
+
+    snippet_declarations
+}
+
+/// Render a slot body (a slice of sibling template nodes) into the statements of
+/// a fragment block. Wraps the nodes in a synthetic [`Fragment`] and routes them
+/// through the shared fragment machinery — a Component slot IS an `is_text_first`
+/// parent, so leading text gets the `<!---->` anchor.
+fn render_slot_body<'a>(
+    nodes: &[&TemplateNode],
+    is_text_first_parent: bool,
+    state: &mut ServerTransformState<'a>,
+) -> Vec<Statement<'a>> {
+    let synthetic = Fragment {
+        node_type: FragmentType::Fragment,
+        nodes: nodes.iter().map(|n| (*n).clone()).collect(),
+        metadata: Default::default(),
+    };
+    super::shared::build_fragment_body(&synthetic, is_text_first_parent, state)
+}
+
+/// `($$renderer) => { <body> }` — the slot snippet function.
+fn make_slot_fn<'a>(
+    body: Vec<Statement<'a>>,
+    state: &mut ServerTransformState<'a>,
+) -> OxcExpression<'a> {
+    let b = state.b;
+    let params = b.params(vec![b.id_pat("$$renderer")], None);
+    b.arrow(params, b.body(body), false, false)
+}
+
+/// Build a `function name($$renderer, ...params) { <body> }` declaration for a
+/// component-child snippet (the same shape as the `SnippetBlock` visitor, but
+/// returned for inline hoisting into the component-call block rather than pushed
+/// to module scope).
+fn build_snippet_declaration<'a>(
+    snippet: &SnippetBlock,
+    name: &str,
+    state: &mut ServerTransformState<'a>,
+) -> Statement<'a> {
+    let b = state.b;
+    let mut patterns = vec![b.id_pat("$$renderer")];
+    for param in &snippet.parameters {
+        let pat_name = param
+            .identifier_name()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "undefined".to_string());
+        patterns.push(b.id_pat(&pat_name));
+    }
+    let params = b.params(patterns, None);
+    // SnippetBlock body IS an `is_text_first` parent.
+    let body_block = super::shared::build_fragment_body(&snippet.body, true, state);
+    let fn_body = state.b.body(body_block);
+    state.b.function_declaration(name, params, fn_body, false)
+}
+
+/// Return the `slot="name"` value of an element-like child node, if present.
+/// Mirrors upstream's `is_element_node(child)` + `slot` attribute lookup. Only
+/// `RegularElement` / `SvelteElement` / `SvelteFragment` / nested `Component`
+/// children can carry a `slot=` attribute.
+fn slot_name_of(node: &TemplateNode) -> Option<String> {
+    let attributes: &[Attribute] = match node {
+        TemplateNode::RegularElement(el) => &el.attributes,
+        TemplateNode::SvelteElement(el) => &el.attributes,
+        TemplateNode::SvelteFragment(el) => &el.attributes,
+        TemplateNode::Component(el) => &el.attributes,
+        TemplateNode::SvelteComponent(el) => &el.attributes,
+        TemplateNode::SvelteSelf(el) => &el.attributes,
+        _ => return None,
+    };
+    for attr in attributes {
+        if let Attribute::Attribute(a) = attr {
+            if a.name.as_str() == "slot" {
+                // The slot name is a static text value (`slot="header"`).
+                if let AttributeValue::Sequence(parts) = &a.value {
+                    if let Some(AttributeValuePart::Text(t)) = parts.first() {
+                        return Some(t.data.to_string());
+                    }
+                }
+            }
+        }
+    }
+    None
 }
 
 /// Emit the `get`/`set` accessor props for a `bind:name={expr}` component

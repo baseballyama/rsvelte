@@ -889,6 +889,96 @@ mod tests {
         );
     }
 
+    /// Component CHILDREN / SLOTS / SNIPPET props parity with the
+    /// `transform_server` oracle. Each sample has a `<Foo>…</Foo>` body that must
+    /// serialize into a `children` snippet prop (`+ $$slots.default: true`),
+    /// named-slot `$$slots` entries, and/or hoisted snippet-function declarations
+    /// passed as props.
+    ///
+    /// The FULL output diverges only in the hoisted `import Foo …;` (instance-
+    /// script gap), so this gate isolates the `$$renderer.push(...)` /
+    /// `Foo($$renderer, …)` region and asserts it matches the oracle byte-for-byte
+    /// (after the indentation-insensitive `norm_blocks` normalization — the
+    /// children arrow / snippet block introduce nesting the text oracle indents
+    /// inconsistently, exactly the case `norm_blocks` is for).
+    #[test]
+    fn ast_matches_oracle_component_children() {
+        // (label, body). A leading text sibling (`z`) keeps the component
+        // non-standalone so the `<!---->` anchor matches in both pipelines and
+        // forces the children snippet to be exercised.
+        let cases: &[(&str, &str)] = &[
+            ("default-text", "<Foo>hi</Foo>"),
+            ("default-element-expr", "<Foo><span>{x}</span></Foo>"),
+            (
+                "snippet-and-body",
+                "<Foo>{#snippet header()}h{/snippet}body</Foo>",
+            ),
+        ];
+        // `x` is a function-call read (not a literal), so neither pipeline can
+        // constant-fold it via `scope.evaluate` — the `{x}` interpolation stays a
+        // runtime `$.escape(x())` in BOTH, keeping the bodies comparable (a
+        // `$state(1)` literal would be folded to `1` by the oracle only — an
+        // orthogonal KNOWN GAP).
+        let decls = "let x = $derived(Math.random());";
+
+        // Extract the component-call region: every line from the first line that
+        // mentions `Foo($$renderer` or opens its wrapping block, through the
+        // trailing `<!---->`. Simpler: collect the lines of the LAST
+        // `$$renderer.push` call onward (the component statement + anchor), which
+        // is where children/slots land. We compare the whole body after the
+        // instance prologue instead, dropping the hoisted-import region.
+        let body_after_prologue = |dump: &str| -> Vec<String> {
+            let mut out = Vec::new();
+            let mut in_fn = false;
+            for l in dump.lines() {
+                let t = l.trim();
+                if t.starts_with("export default function App") || t.starts_with("function App(") {
+                    in_fn = true;
+                    continue;
+                }
+                if !in_fn {
+                    continue;
+                }
+                // Skip the legacy instance prologue (let/const/import lines) until
+                // the first $$renderer template statement.
+                out.push(t.to_string());
+            }
+            // Keep only from the first `$$renderer`-touching line onward so the
+            // hoisted-import / prologue divergence is excluded.
+            if let Some(pos) = out.iter().position(|l| l.contains("$$renderer")) {
+                out.drain(0..pos);
+            }
+            out.into_iter().filter(|l| !l.is_empty()).collect()
+        };
+
+        let mut failures = Vec::new();
+        for (label, body) in cases {
+            let src = format!("<script>import Foo from './Foo.svelte'; {decls}</script>z{body}");
+            let ours = run(&src);
+            let oracle = oracle_dump(&src);
+            let ob = body_after_prologue(&norm_blocks(&ours));
+            let orb = body_after_prologue(&norm_blocks(&oracle));
+            // Collapse ALL whitespace in the joined region so the comparison is
+            // insensitive to esrap's multi-line object layout vs the text
+            // oracle's single-line object (pure formatting — the corpus
+            // output-equality pipeline reconciles exactly this via oxfmt).
+            let collapse =
+                |v: &[String]| v.join(" ").split_whitespace().collect::<Vec<_>>().join(" ");
+            let matched = collapse(&ob) == collapse(&orb);
+            eprintln!(
+                "=== {label}: {body} === {}\n  ours:   {ob:?}\n  oracle: {orb:?}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                failures.push(*label);
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "component children/slots differ from oracle for: {failures:?}"
+        );
+    }
+
     fn oracle_dump(source: &str) -> String {
         let parse_options = ParseOptions {
             modern: true,
