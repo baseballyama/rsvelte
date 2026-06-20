@@ -35,12 +35,17 @@
 //!   ExportNamedDeclaration (instance unwrap), LabeledStatement (legacy `$:`)
 
 pub mod await_block;
+pub mod component;
 pub mod each_block;
 pub mod element;
 pub mod if_block;
 pub mod key_block;
+pub mod render_tag;
 pub mod shared;
 pub mod snippet_block;
+pub mod svelte_element;
+pub mod svelte_head;
+pub mod title_element;
 
 use super::ServerTransformState;
 use crate::ast::template::TemplateNode;
@@ -71,8 +76,21 @@ pub fn visit_node<'a>(node: &TemplateNode, state: &mut ServerTransformState<'a>)
         TemplateNode::KeyBlock(node) => key_block::visit_key_block(node, state),
         TemplateNode::SnippetBlock(node) => snippet_block::visit_snippet_block(node, state),
         TemplateNode::AwaitBlock(node) => await_block::visit_await_block(node, state),
-        // TODO: Component, SvelteElement, RenderTag, ConstTag, TitleElement,
-        // SlotElement, Svelte* special elements, etc. — emit nothing for now.
+        TemplateNode::RenderTag(node) => render_tag::visit_render_tag(node, state),
+        TemplateNode::Component(node) => component::visit_component(node, state),
+        TemplateNode::SvelteComponent(node) => component::visit_svelte_component(node, state),
+        TemplateNode::SvelteSelf(node) => component::visit_svelte_self(node, state),
+        TemplateNode::SvelteElement(node) => svelte_element::visit_svelte_element(node, state),
+        TemplateNode::SvelteHead(node) => svelte_head::visit_svelte_head(node, state),
+        TemplateNode::TitleElement(node) => title_element::visit_title_element(node, state),
+        TemplateNode::SvelteFragment(node) => {
+            // Port of upstream server `SvelteFragment` — push the visited child
+            // fragment as a `{ ... }` block statement.
+            let block = shared::build_fragment_block(&node.fragment, state);
+            state.template.push(TemplateEntry::Stmt(block));
+        }
+        // TODO: ConstTag, SlotElement, SvelteBoundary, SvelteWindow/Document/Body,
+        // DeclarationTag, DebugTag, AttachTag — emit nothing for now.
         _ => {}
     }
 }

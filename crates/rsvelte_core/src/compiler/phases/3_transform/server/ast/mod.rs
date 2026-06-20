@@ -18,7 +18,7 @@
 pub mod visitors;
 
 use crate::ast::js::Expression;
-use crate::ast::template::Root;
+use crate::ast::template::{Root, TemplateNode};
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::builders::B;
@@ -60,6 +60,12 @@ pub struct ServerTransformState<'a> {
     pub arena: &'a crate::ast::arena::ParseArena,
     /// The oxc allocator (for the re-parse fallback).
     pub allocator: &'a Allocator,
+    /// Whether the current fragment is "standalone" — it contains a single
+    /// meaningful node that is a non-dynamic RenderTag / Component, so the
+    /// trailing `<!---->` hydration anchor is elided (mirrors upstream's
+    /// `state.is_standalone`). Set for the root fragment in
+    /// [`server_component_ast`]; block visitors leave it as-is for now.
+    pub is_standalone: bool,
     /// Monotonic counter for `each_array` / `$$index` unique-name suffixes,
     /// mirroring upstream's `state.scope.root.unique('each_array')`. The first
     /// each block uses bare `each_array` / `$$index`; subsequent ones append
@@ -89,7 +95,46 @@ impl<'a> ServerTransformState<'a> {
             source,
             arena,
             allocator,
+            is_standalone: false,
             each_index: 0,
+        }
+    }
+
+    /// Port of the text-based oracle's `is_standalone_fragment`: a fragment is
+    /// standalone when, after filtering hoisted / whitespace / comment nodes, it
+    /// contains exactly one node that is a non-dynamic RenderTag or non-dynamic
+    /// Component (so the parent anchors suffice and the trailing `<!---->` is
+    /// elided). Snippet defs / const tags / head-like nodes are hoisted out.
+    pub fn is_standalone_fragment(nodes: &[TemplateNode]) -> bool {
+        use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
+        let meaningful: Vec<&TemplateNode> = nodes
+            .iter()
+            .filter(|n| match n {
+                TemplateNode::Text(t) => !is_svelte_whitespace_only(&t.data),
+                TemplateNode::Comment(_)
+                | TemplateNode::SnippetBlock(_)
+                | TemplateNode::ConstTag(_)
+                | TemplateNode::DeclarationTag(_)
+                | TemplateNode::SvelteBody(_)
+                | TemplateNode::SvelteWindow(_)
+                | TemplateNode::SvelteDocument(_)
+                | TemplateNode::SvelteHead(_)
+                | TemplateNode::TitleElement(_) => false,
+                _ => true,
+            })
+            .collect();
+        if meaningful.len() != 1 {
+            return false;
+        }
+        match meaningful[0] {
+            TemplateNode::RenderTag(tag) => !tag.metadata.dynamic,
+            TemplateNode::Component(comp) => {
+                !comp.metadata.dynamic
+                    && !comp.attributes.iter().any(|attr| {
+                        matches!(attr, crate::ast::template::Attribute::Attribute(a) if a.name.starts_with("--"))
+                    })
+            }
+            _ => false,
         }
     }
 
@@ -119,6 +164,29 @@ impl<'a> ServerTransformState<'a> {
         // Last resort: an identifier placeholder (keeps the build correct-ish;
         // only reachable for shapes neither converter handles).
         self.b.id("undefined")
+    }
+
+    /// Re-parse a JS expression *source slice* into an oxc expression. Used by
+    /// visitors (e.g. RenderTag) that decompose a template expression by its
+    /// child spans — mirroring the text-based oracle's `self.source[start..end]`
+    /// slicing — rather than by structural `JsNode` traversal. Falls back to an
+    /// `undefined` identifier on a parse failure (unreachable for valid input).
+    pub fn reparse_slice(&self, start: usize, end: usize) -> OxcExpression<'a> {
+        if end > start && end <= self.source.len() {
+            let slice = self.source[start..end].trim();
+            if let Some(reparsed) = reparse_expression(slice, self.allocator) {
+                return reparsed;
+            }
+        }
+        self.b.id("undefined")
+    }
+
+    /// Re-parse an arbitrary expression `src` (already arena-allocated or
+    /// borrowed) into an oxc expression, returning `None` on a parse failure.
+    /// Used for synthetic spellings (e.g. a `Literal`'s `raw` field) that don't
+    /// correspond to a clean source span.
+    pub fn reparse_slice_owned(&self, src: &str) -> Option<OxcExpression<'a>> {
+        reparse_expression(src.trim(), self.allocator)
     }
 }
 
@@ -230,6 +298,7 @@ pub fn server_component_ast<'a>(
     // append the coalesced `$$renderer.push(...)` statements. (Instance-body
     // statements, bind_props, store-subs cleanup, props_id, $$renderer.component
     // wrapper, etc. are still TODO.)
+    state.is_standalone = ServerTransformState::is_standalone_fragment(&ast.fragment.nodes);
     let template_body = visitors::shared::build_fragment_body(&ast.fragment, &mut state);
     state.body.extend(template_body);
 
@@ -419,6 +488,100 @@ mod tests {
             "missing hoisted snippet function:\n{out}"
         );
         assert!(out.contains("<p>hi</p>"), "missing snippet body:\n{out}");
+    }
+
+    /// Compare the AST pipeline against the `transform_server` oracle for the
+    /// newly-ported structural visitors (RenderTag, SvelteHead/TitleElement,
+    /// SvelteElement). These samples have an EMPTY instance script so the
+    /// not-yet-ported instance-script transform doesn't interfere.
+    #[test]
+    fn ast_matches_oracle_structural_samples() {
+        let samples = [
+            // RenderTag: `{@render foo()}` after a hoisted snippet def.
+            "{#snippet foo()}<p>hi</p>{/snippet}{@render foo()}",
+            // SvelteHead + TitleElement.
+            "<svelte:head><title>Hi</title></svelte:head>",
+            // SvelteElement with a literal tag.
+            "<svelte:element this={\"div\"}>x</svelte:element>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm_blocks(&ours) == norm_blocks(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "AST structural output differs from oracle for: {mismatches:?}"
+        );
+    }
+
+    /// Component visitor: `<Foo />` / `<Foo a="x" b={y} />`. The component import
+    /// makes the instance non-empty (a hoisted `import Foo from './Foo.svelte';`
+    /// that the not-yet-ported instance-script transform omits), so the FULL
+    /// output diverges in the hoisted-import section. We therefore assert on the
+    /// COMPONENT-CALL push portion only (the `Foo($$renderer, {...});` statement
+    /// + trailing `<!---->`), which is what `build_inline_component` produces.
+    /// This diff is EXPECTED until the instance-script transform lands.
+    #[test]
+    fn component_call_portion_matches_shape() {
+        // `(src, expected_call, standalone)`. A sole `<Foo/>` child is a
+        // STANDALONE fragment (the parent anchors suffice), so the trailing
+        // `<!---->` is correctly elided — only the non-standalone case (a text
+        // sibling forces it) emits the anchor.
+        let cases = [
+            (
+                "<script>import Foo from './Foo.svelte'</script><Foo />",
+                "Foo($$renderer, {});",
+                true,
+            ),
+            (
+                "<script>import Foo from './Foo.svelte'</script>a<Foo a=\"x\" />",
+                "Foo($$renderer, { a: 'x' });",
+                false,
+            ),
+        ];
+        // Helper: extract the `Foo($$renderer, …)` call line from a dump.
+        let call_line = |dump: &str| -> Option<String> {
+            dump.lines()
+                .map(str::trim)
+                .find(|l| l.starts_with("Foo($$renderer"))
+                .map(str::to_string)
+        };
+
+        for (src, expected_call, standalone) in cases {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let normd = norm_blocks(&ours);
+            eprintln!("=== SRC: {src} ===\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n");
+            assert!(
+                normd.contains(&norm_blocks(expected_call)),
+                "missing component-call `{expected_call}` in:\n{ours}"
+            );
+            // The component-CALL line itself must match the oracle byte-for-byte
+            // (the FULL dump diverges only in the hoisted `import Foo …;` the
+            // not-yet-ported instance-script transform omits — EXPECTED).
+            assert_eq!(
+                call_line(&ours),
+                call_line(&oracle),
+                "component-call line differs from oracle for `{src}`"
+            );
+            // The component-call portion matches the oracle's; assert anchor
+            // presence/absence tracks the standalone flag (写経 of
+            // `is_standalone_fragment`).
+            assert_eq!(
+                ours.contains("<!---->"),
+                !standalone,
+                "trailing `<!---->` anchor presence wrong (standalone={standalone}) in:\n{ours}"
+            );
+        }
     }
 
     fn oracle_dump(source: &str) -> String {

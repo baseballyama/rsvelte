@@ -226,6 +226,24 @@ impl<'a> B<'a> {
         self.call(callee, args)
     }
 
+    /// `callee?.(args…)` — an optional call expression (upstream `b.maybe_call`'s
+    /// `?.()` form). Used by the RenderTag optional-chain path.
+    pub fn optional_call(
+        self,
+        callee: impl IntoExpr<'a>,
+        args: Vec<Expression<'a>>,
+    ) -> Expression<'a> {
+        use oxc_ast::ast::ChainElement;
+        let callee = callee.into_expr(self);
+        let args = self.args(args);
+        let call = self
+            .ab
+            .alloc_call_expression(SPAN, callee, oxc_ast::NONE, args, true);
+        // Wrap in a ChainExpression so esrap prints the `?.()` chain form.
+        self.ab
+            .expression_chain(SPAN, ChainElement::CallExpression(call))
+    }
+
     /// `new callee(args…)`.
     pub fn new_expr(self, callee: impl IntoExpr<'a>, args: Vec<Expression<'a>>) -> Expression<'a> {
         let callee = callee.into_expr(self);
@@ -923,6 +941,14 @@ mod tests {
         // const count = $.state(0);
         let out = print(|b| vec![b.const_id("count", b.call("$.state", vec![b.number(0.0)]))]);
         assert_eq!(out.trim(), "const count = $.state(0);");
+    }
+
+    #[test]
+    fn optional_call_chain() {
+        // foo?.($$renderer, a);
+        let out =
+            print(|b| vec![b.stmt(b.optional_call("foo", vec![b.id("$$renderer"), b.id("a")]))]);
+        assert_eq!(out.trim(), "foo?.($$renderer, a);");
     }
 
     #[test]
