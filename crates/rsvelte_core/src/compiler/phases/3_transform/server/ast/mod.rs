@@ -269,21 +269,39 @@ impl<'a> ServerTransformState<'a> {
     }
 }
 
-/// Re-parse a JS expression source slice with oxc and return its first
-/// expression-statement expression. Returns `None` on parse error or if the
-/// program isn't a single expression statement.
+/// Re-parse a JS expression source slice with oxc and return the parsed
+/// expression. Returns `None` on parse error or if the program isn't a single
+/// expression statement.
+///
+/// The slice is wrapped in parentheses (`(<src>)`) before parsing so that a
+/// leading-`{` slice (object literal, e.g. `{ a: 1 }`) is parsed as an
+/// **expression** and not as a `BlockStatement` — otherwise the program body
+/// holds no `ExpressionStatement` and the init silently degraded to `void 0`.
+/// The resulting `ParenthesizedExpression` wrapper is unwrapped before return so
+/// the caller gets the bare `ObjectExpression` / `CallExpression` / literal.
 fn reparse_expression<'a>(src: &str, allocator: &'a Allocator) -> Option<OxcExpression<'a>> {
-    let owned = allocator.alloc_str(src);
+    let wrapped = format!("({})", src.trim());
+    let owned = allocator.alloc_str(&wrapped);
     let ret = oxc_parser::Parser::new(allocator, owned, oxc_span::SourceType::mjs()).parse();
     if !ret.diagnostics.is_empty() {
         return None;
     }
     for stmt in ret.program.body {
         if let Statement::ExpressionStatement(es) = stmt {
-            return Some(es.unbox().expression);
+            return Some(unwrap_parenthesized(es.unbox().expression));
         }
     }
     None
+}
+
+/// Strip any (possibly nested) `ParenthesizedExpression` wrappers introduced by
+/// the `(<src>)` reparse wrapping in [`reparse_expression`], so the synthetic
+/// outer parens don't leak into the printed output.
+fn unwrap_parenthesized(expr: OxcExpression<'_>) -> OxcExpression<'_> {
+    match expr {
+        OxcExpression::ParenthesizedExpression(p) => unwrap_parenthesized(p.unbox().expression),
+        other => other,
+    }
 }
 
 /// Whether the component function takes `($$renderer, $$props)` rather than
@@ -790,6 +808,84 @@ mod tests {
         );
     }
 
+    /// Declarator INITIALIZERS round-trip through the reparse without degrading
+    /// to `void 0`. Regression gate for the "block-vs-object" reparse gap: an
+    /// object-literal init (`{ a: 1 }`) used to reparse to a `BlockStatement` and
+    /// silently become `void 0`; plain non-rune string / array / call inits and
+    /// object-valued `$state` / `$derived` inits are exercised too. Each case's
+    /// instance line must appear identically in BOTH the AST output and the
+    /// `transform_server` oracle.
+    #[test]
+    fn declarator_init_reparse_roundtrip() {
+        // A leading `$state` declarator forces the component into RUNES mode, so
+        // the non-rune sibling declarators below exercise the real non-rune
+        // passthrough path (a pure-legacy component's instance transform is a
+        // separate KNOWN GAP and would emit nothing).
+        let cases: &[(&str, &str)] = &[
+            // plain non-rune string init
+            (
+                "<script>let r = $state(0); let foo = 'bar';</script><p>x</p>",
+                "let foo = 'bar';",
+            ),
+            // plain non-rune object literal init (the block-vs-object gap)
+            (
+                "<script>let r = $state(0); let o = { a: 1 };</script><p>x</p>",
+                "let o = { a: 1 };",
+            ),
+            // plain non-rune array init
+            (
+                "<script>let r = $state(0); let arr = [1, 2];</script><p>x</p>",
+                "let arr = [1, 2];",
+            ),
+            // non-rune spread-shaped object init
+            (
+                "<script>let r = $state(0); let spread = { class: 'bar' };</script><p>x</p>",
+                "let spread = { class: 'bar' };",
+            ),
+            // non-rune call init
+            (
+                "<script>let r = $state(0); let n = foo();</script><p>x</p>",
+                "let n = foo();",
+            ),
+            // $state with an object literal init
+            (
+                "<script>let n = $state({ x: 1 });</script><p>x</p>",
+                "let n = { x: 1 };",
+            ),
+            // $derived with an object literal body
+            (
+                "<script>let d = $derived({ y: 2 });</script><p>x</p>",
+                "let d = $.derived(() => ({ y: 2 }));",
+            ),
+            // $state with an array init
+            (
+                "<script>let s = $state([1, 2]);</script><p>x</p>",
+                "let s = [1, 2];",
+            ),
+        ];
+        let mut failures = Vec::new();
+        for (src, must_have) in cases {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let on = norm(&ours);
+            let want = norm(must_have);
+            let ours_ok = on.contains(&want);
+            let oracle_ok = norm(&oracle).contains(&want);
+            eprintln!(
+                "=== SRC: {src} === ours={} oracle={}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if ours_ok { "OK" } else { "MISSING" },
+                if oracle_ok { "OK" } else { "MISSING" },
+            );
+            if !ours_ok || !oracle_ok {
+                failures.push(*src);
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "declarator init reparse differs from oracle for: {failures:?}"
+        );
+    }
+
     /// `$props.id()` declarators are DROPPED from the instance body (mirrors the
     /// VariableDeclaration visitor's `skip`). NOTE: the oracle re-emits it as
     /// `const uid = $.props_id($$renderer);` via the separate `analysis.props_id`
@@ -839,8 +935,7 @@ mod tests {
     /// READ-WRAPPING single pass — the crux gate. Asserts the wrapped reads
     /// produced by the AST pipeline are exactly what upstream's
     /// `Identifier.js`/`build_getter` produce. Several oracle outputs ALSO
-    /// constant-fold (`scope.evaluate` → `<p>0</p>`), object-literal `$derived`
-    /// args reparse to `void 0` (a pre-existing arg-reparse skeleton gap), and
+    /// constant-fold (`scope.evaluate` → `<p>0</p>`) and
     /// `$$props` routes through the `$$renderer.component(...)` wrapper — all
     /// ORTHOGONAL to read-wrapping. So this gate asserts the read-wrapping
     /// SUBSTRINGS (must appear) and the anti-substrings (must NOT appear,
