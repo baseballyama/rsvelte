@@ -305,13 +305,16 @@ fn unwrap_parenthesized(expr: OxcExpression<'_>) -> OxcExpression<'_> {
 }
 
 /// Whether the component function takes `($$renderer, $$props)` rather than
-/// just `($$renderer)` — mirrors upstream's `should_inject_props`.
-fn should_inject_props(analysis: &ComponentAnalysis, options: &CompileOptions) -> bool {
-    // `should_inject_context` in upstream is `dev || needs_context`; we conflate
-    // it into the props decision here (the skeleton always injects when any
-    // prop-related signal is set).
+/// just `($$renderer)` — mirrors upstream's `should_inject_props` (line 313),
+/// including the `props.length > 0` (bind_props) term via `has_bind_props`.
+fn should_inject_props_full(
+    analysis: &ComponentAnalysis,
+    options: &CompileOptions,
+    has_bind_props: bool,
+) -> bool {
     let should_inject_context = options.dev || analysis.needs_context;
     should_inject_context
+        || has_bind_props
         || analysis.needs_props
         || analysis.uses_props
         || analysis.uses_rest_props
@@ -342,53 +345,7 @@ pub fn server_component_ast<'a>(
     let mut state = ServerTransformState::new(analysis, options, source, &ast.arena, allocator);
     let b = state.b;
 
-    // -- component-function body: sanitized-props prologue ------------------
-    //
-    // Upstream `unshift`es these in this order (so the printed order is the
-    // reverse of the unshift sequence): `$$slots`, then `$$sanitized_props`,
-    // then `$$restProps`. We build the body top-down to the same final order:
-    //   1. $$slots          (if uses_slots)
-    //   2. $$sanitized_props (if uses_props || uses_rest_props)
-    //   3. $$restProps       (if uses_rest_props)
-    // Then the (currently empty) instance + template bodies.
-
-    if analysis.uses_slots {
-        // const $$slots = $.sanitize_slots($$props);
-        state
-            .body
-            .push(b.const_id("$$slots", b.call("$.sanitize_slots", vec![b.id("$$props")])));
-    }
-
-    if analysis.uses_props || analysis.uses_rest_props {
-        // const $$sanitized_props = $.sanitize_props($$props);
-        state.body.push(b.const_id(
-            "$$sanitized_props",
-            b.call("$.sanitize_props", vec![b.id("$$props")]),
-        ));
-    }
-
-    if analysis.uses_rest_props {
-        // const $$restProps = $.rest_props($$sanitized_props, [<named props>]);
-        let mut named: Vec<String> = analysis
-            .exports
-            .iter()
-            .map(|e| e.alias.clone().unwrap_or_else(|| e.name.clone()))
-            .collect();
-        // bindable-prop names (prop_alias ?? name) are also excluded from rest;
-        // the skeleton uses the export list as the conservative source. (The
-        // bindable-prop walk is added when the scope-binding visitor lands.)
-        named.sort();
-        named.dedup();
-        let elems: Vec<Option<oxc_ast::ast::Expression<'a>>> =
-            named.iter().map(|n| Some(b.string(n))).collect();
-        state.body.push(b.const_id(
-            "$$restProps",
-            b.call(
-                "$.rest_props",
-                vec![b.id("$$sanitized_props"), b.array(elems)],
-            ),
-        ));
-    }
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
     // -- module-script body (module scope) ----------------------------------
     // Upstream emits `[...hoisted, ...module.body]` at module scope. We append
@@ -398,31 +355,155 @@ pub fn server_component_ast<'a>(
     let module_body = script::transform_module(ast, &mut state);
     state.hoisted.extend(module_body);
 
+    // -- store_subs detection -----------------------------------------------
+    // Upstream (lines 213-222): if any instance binding is `store_sub`,
+    // `instance.body.unshift(b.var('$$store_subs'))` and the template gets an
+    // `if ($$store_subs) $.unsubscribe_stores($$store_subs);` cleanup.
+    let uses_store_subs = analysis
+        .root
+        .bindings
+        .iter()
+        .any(|binding| matches!(binding.kind, BindingKind::StoreSub));
+
     // -- instance-script body -----------------------------------------------
-    // Upstream's component block is `[...instance.body, ...template.body]` (with
-    // the props prologue prepended). The instance statements therefore go BEFORE
-    // the template pushes, right after the prologue we just built. Instance
-    // imports are hoisted onto `state.hoisted` inside `transform_instance`.
+    // Upstream's component block is `[...instance.body, ...template.body]`. The
+    // instance statements go FIRST. Instance imports are hoisted onto
+    // `state.hoisted` inside `transform_instance`.
     let instance_body = script::transform_instance(ast, &mut state);
+
+    // `instance.body.unshift(b.var('$$store_subs'))` — prepend the undeclared
+    // `var $$store_subs;` to the instance body.
+    if uses_store_subs {
+        let var_decl = b.var_decl(b.id_pat("$$store_subs"), None);
+        state.body.push(var_decl);
+    }
     state.body.extend(instance_body);
 
     // -- template body ------------------------------------------------------
     // Walk the root fragment through process_children + build_template, then
-    // append the coalesced `$$renderer.push(...)` statements. (bind_props,
-    // store-subs cleanup, props_id, $$renderer.component wrapper, etc. are still
-    // TODO.)
+    // append the coalesced `$$renderer.push(...)` statements.
     state.is_standalone = ServerTransformState::is_standalone_fragment(&ast.fragment.nodes);
     let template_body = visitors::shared::build_fragment_body(&ast.fragment, &mut state);
     state.body.extend(template_body);
 
-    // -- component function declaration -------------------------------------
+    // `template.body.push(b.if($$store_subs, $.unsubscribe_stores($$store_subs)))`.
+    if uses_store_subs {
+        let cleanup = b.if_stmt(
+            b.id("$$store_subs"),
+            b.stmt(b.call("$.unsubscribe_stores", vec![b.id("$$store_subs")])),
+            None,
+        );
+        state.body.push(cleanup);
+    }
+
+    // -- $.bind_props trailer (upstream lines 224-243) ----------------------
+    // Collect `props` from bindable_prop bindings (`prop_alias ?? name`, excluding
+    // `$$`-prefixed names) then `analysis.exports` (`alias ?? name`). If any,
+    // push `$.bind_props($$props, { <init>... })` onto the template body. The
+    // object property uses `b.init(prop_alias ?? name, b.id(name))`, so esrap
+    // collapses it to shorthand `{ name }` when alias == name.
+    let mut bind_props: Vec<oxc_ast::ast::ObjectPropertyKind<'a>> = Vec::new();
+    for binding in &analysis.root.bindings {
+        if matches!(binding.kind, BindingKind::BindableProp) && !binding.name.starts_with("$$") {
+            let key = binding.prop_alias.as_deref().unwrap_or(&binding.name);
+            bind_props.push(b.init(key, b.id(&binding.name)));
+        }
+    }
+    for export in &analysis.exports {
+        let key = export.alias.as_deref().unwrap_or(&export.name);
+        bind_props.push(b.init(key, b.id(&export.name)));
+    }
+    let has_bind_props = !bind_props.is_empty();
+    if has_bind_props {
+        state
+            .body
+            .push(b.stmt(b.call("$.bind_props", vec![b.id("$$props"), b.object(bind_props)])));
+    }
+
+    // -- component_block assembly + needs_context wrapper -------------------
+    // Upstream wraps `[...instance.body, ...template.body]` in a block, then —
+    // when `dev || analysis.needs_context` — wraps the WHOLE block in
+    // `$$renderer.component(($$renderer) => { <block> }, dev && component_name)`.
+    // The sanitized/rest/slots prologue is unshifted AFTER the wrapper, so it
+    // lives OUTSIDE the `$$renderer.component(...)` callback.
     let component_name = analysis.name.as_str();
-    let params = if should_inject_props(analysis, options) {
+    let should_inject_context = options.dev || analysis.needs_context;
+    let mut block_body = std::mem::take(&mut state.body);
+
+    if should_inject_context {
+        // ($$renderer) => { <block_body> }
+        let inner_params = b.params(vec![b.id_pat("$$renderer")], None);
+        let inner_body = b.body(block_body);
+        let arrow = b.arrow(inner_params, inner_body, false, false);
+        // 2nd arg: `dev && component_name` → the bare identifier in dev, omitted
+        // (no 2nd arg) otherwise.
+        let mut args = vec![arrow];
+        if options.dev {
+            args.push(b.id(component_name));
+        }
+        block_body = vec![b.stmt(b.call("$$renderer.component", args))];
+    }
+
+    // -- sanitized-props prologue (unshifted, OUTSIDE the wrapper) ----------
+    //
+    // Upstream `unshift`es these in this order (so the printed order is the
+    // reverse of the unshift sequence): `$$restProps`, `$$sanitized_props`,
+    // `$$slots` — i.e. final printed order is `$$slots`, `$$sanitized_props`,
+    // `$$restProps`. We build a prologue vec top-down to that final order, then
+    // prepend it.
+    let mut prologue: Vec<Statement<'a>> = Vec::new();
+
+    if analysis.uses_slots {
+        // const $$slots = $.sanitize_slots($$props);
+        prologue.push(b.const_id("$$slots", b.call("$.sanitize_slots", vec![b.id("$$props")])));
+    }
+
+    if analysis.uses_props || analysis.uses_rest_props {
+        // const $$sanitized_props = $.sanitize_props($$props);
+        prologue.push(b.const_id(
+            "$$sanitized_props",
+            b.call("$.sanitize_props", vec![b.id("$$props")]),
+        ));
+    }
+
+    if analysis.uses_rest_props {
+        // const $$restProps = $.rest_props($$sanitized_props, [<named props>]);
+        // Named props = analysis.exports (alias ?? name) ++ bindable_prop bindings
+        // (prop_alias ?? name), in source order (upstream pushes exports first).
+        let mut named: Vec<String> = analysis
+            .exports
+            .iter()
+            .map(|e| e.alias.clone().unwrap_or_else(|| e.name.clone()))
+            .collect();
+        for binding in &analysis.root.bindings {
+            if matches!(binding.kind, BindingKind::BindableProp) {
+                let name = binding.prop_alias.as_ref().unwrap_or(&binding.name);
+                if !named.contains(name) {
+                    named.push(name.clone());
+                }
+            }
+        }
+        let elems: Vec<Option<oxc_ast::ast::Expression<'a>>> =
+            named.iter().map(|n| Some(b.string(n))).collect();
+        prologue.push(b.const_id(
+            "$$restProps",
+            b.call(
+                "$.rest_props",
+                vec![b.id("$$sanitized_props"), b.array(elems)],
+            ),
+        ));
+    }
+
+    prologue.extend(block_body);
+    let final_body = prologue;
+
+    // -- component function declaration -------------------------------------
+    let params = if should_inject_props_full(analysis, options, has_bind_props) {
         b.params(vec![b.id_pat("$$renderer"), b.id_pat("$$props")], None)
     } else {
         b.params(vec![b.id_pat("$$renderer")], None)
     };
-    let fn_body = b.body(std::mem::take(&mut state.body));
+    let fn_body = b.body(final_body);
     let component_fn = b.function_declaration(component_name, params, fn_body, false);
 
     // -- program assembly ---------------------------------------------------
@@ -1179,6 +1260,106 @@ mod tests {
             ours.contains("$.store_get($$store_subs ??= {}, '$c', c)")
                 || ours.contains("$.store_get($$store_subs ??= {}, \"$c\", c)"),
             "store read not wrapped as $.store_get(...):\n{ours}"
+        );
+    }
+
+    /// `$.bind_props($$props, { ... })` trailer (upstream lines 224-243). A
+    /// legacy `export let value` is a bindable prop / export, so the component
+    /// body must end with `$.bind_props($$props, { value });`. Asserts BOTH the
+    /// AST output and the oracle emit the same `$.bind_props(...)` call.
+    #[test]
+    fn ast_matches_oracle_bind_props_trailer() {
+        let cases: &[(&str, &str)] = &[
+            // export let value → bind_props({ value })
+            (
+                "<script>export let value = 0;</script><p>{value}</p>",
+                "$.bind_props($$props, { value });",
+            ),
+            // export let with alias-less plain prop
+            (
+                "<script>export let name;</script><p>{name}</p>",
+                "$.bind_props($$props, { name });",
+            ),
+        ];
+        let mut failures = Vec::new();
+        for (src, must_have) in cases {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let on = norm(&ours);
+            let want = norm(must_have);
+            let ours_ok = on.contains(&want);
+            let oracle_ok = norm(&oracle).contains(&want);
+            eprintln!(
+                "=== SRC: {src} === ours={} oracle={}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if ours_ok { "OK" } else { "MISSING" },
+                if oracle_ok { "OK" } else { "MISSING" },
+            );
+            if !ours_ok || !oracle_ok {
+                failures.push(*src);
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "bind_props trailer differs from oracle for: {failures:?}"
+        );
+    }
+
+    /// `$$store_subs` entry assembly (upstream lines 213-222): a store
+    /// subscription forces a `var $$store_subs;` at the head of the instance
+    /// body and an `if ($$store_subs) $.unsubscribe_stores($$store_subs);`
+    /// cleanup at the end of the template body. Both must appear in the AST
+    /// output AND the oracle.
+    #[test]
+    fn ast_matches_oracle_store_subs_entry() {
+        let src = "<script>import { writable } from 'svelte/store'; const c = writable(0);</script><p>{$c}</p>";
+        let ours = run(src);
+        let oracle = oracle_dump(src);
+        let on = norm(&ours);
+        let orn = norm(&oracle);
+        eprintln!("--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n");
+        for must in [
+            "var $$store_subs;",
+            "if ($$store_subs) $.unsubscribe_stores($$store_subs);",
+        ] {
+            let want = norm(must);
+            assert!(on.contains(&want), "AST output missing `{must}`:\n{ours}");
+            assert!(
+                orn.contains(&want),
+                "ORACLE missing `{must}` (sanity):\n{oracle}"
+            );
+        }
+        // The var decl must precede the cleanup.
+        assert!(
+            on.find("var $$store_subs;").unwrap() < on.find("$.unsubscribe_stores").unwrap(),
+            "var decl must precede cleanup:\n{ours}"
+        );
+    }
+
+    /// `$$renderer.component(...)` wrapper (upstream lines 260-272): a lifecycle
+    /// import (`onMount`) sets `analysis.needs_context`, so the whole component
+    /// block is wrapped in `$$renderer.component(($$renderer) => { ... })`. In
+    /// non-dev there is no 2nd argument. Asserts the wrapper appears in BOTH the
+    /// AST output and the oracle.
+    #[test]
+    fn ast_matches_oracle_needs_context_wrapper() {
+        let src = "<script>import { onMount } from 'svelte'; onMount(() => {});</script><p>hi</p>";
+        let ours = run(src);
+        let oracle = oracle_dump(src);
+        eprintln!("--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n");
+        // needs_context must be set for this to be a meaningful test.
+        assert!(
+            ours.contains("$$renderer.component(($$renderer) =>"),
+            "AST output missing $$renderer.component wrapper:\n{ours}"
+        );
+        assert!(
+            oracle.contains("$$renderer.component(($$renderer) =>"),
+            "ORACLE missing $$renderer.component wrapper (sanity):\n{oracle}"
+        );
+        // Non-dev (default options): no bare component-name 2nd arg — the call
+        // closes with `})` not `}, App)`.
+        assert!(
+            !ours.contains(", App)"),
+            "non-dev wrapper must not emit a 2nd `component_name` arg:\n{ours}"
         );
     }
 
