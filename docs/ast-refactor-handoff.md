@@ -226,10 +226,25 @@ git fetch origin && git checkout feat/phase3-ast-refactor && git rebase origin/m
     visitor は戻り値ではなくバッファに `JsStatement`/`JsExpr` を push。→ **server リライトも同型の手書き再帰下降にし、
     出力を `b.*`(oxc) にする**のが最善（zimmerframe 汎用 walker を新規構築する必要はない、というのが調査の結論）。
 
+### ★★ 決定的アーキ知見（2026-06-20, 基盤②着地で判明）★★
+**rsvelte の parse-phase `JsNode` 表現は LOSSY**＝完全な AST ではない。`1_parse/read/expression.rs` の `_for_program`
+lowering が以下を **opaque `JsNode::Raw`(serde_json) に退化**させて格納する: **ブロック本体アロー** `() => { … }`
+(8159)、**関数式** `function(){}`(8179)、**分割代入ターゲット** `[a]=x`/`{a}=x`(9309)、**`export` 宣言**(6580)、
+**bigint** は variant 無しで `identifier("unknown")` に退化(8828)。
+→ **含意（重要）**: スクリプト/テンプレ式の変換に parse-phase `JsNode` を使うと、これらの一般形（特にイベントハンドラの
+ブロックアロー `onclick={() => {…}}`）で **fidelity を失う**。したがって本リライトの **第一級の JS 取得戦略は
+「ソーススパンを oxc Parser で再パースして faithful な oxc AST を得る」**こと（＝現 Phase-3 が script で既にやっていること、
+`server/build.rs:62` の `Parser::new(&alloc, &stripped, mjs).parse()`）。**これは「テキスト処理」ではない**＝入力をパースして
+AST 化するのは正当（ゴールが禁じるのは OUTPUT JS を文字列操作すること: byte-scanner / 文字列連結 / Raw 密輸）。
+`jsnode_to_oxc`（基盤②, 18/18 green）は **lossy でないケース専用の補助**として残す（テンプレ単純式の高速路 / 参照実装）。
+**変換の本体は oxc AST 上で行う**（upstream が ESTree を直接 transform するのと同型）。oxc AST の変換機構は
+`oxc_ast_visit`(Visit/VisitMut) または手書き再構築（`b.*`）。`derived_reads_ast.rs` の既存 AST 編集パスも参照。
+
 ### 次の作業順（big-bang・常時コンパイル可能を維持しつつ）
-1. **基盤②: `JsNode -> oxc` 変換器**（`3_transform/jsnode_to_oxc.rs` 仮）。`to_oxc.rs` を雛形に、`JsNode` の式/文/パターンを
-   oxc に変換。`Option` 返し（未対応は `None`→呼び出し側で扱い）。esrap round-trip ユニットテストで検証。**サブエージェント並列可**
-   （構造マッピングで mechanical、ただしメインが diff レビュー + 中央でテスト）。これが server/client 両方の式変換土台。
+1. ✅ **基盤②: `JsNode -> oxc` 変換器** `3_transform/jsnode_to_oxc.rs`（`jsnode_to_oxc_expr`/`_program`/`jsnode_stmts_to_oxc_program`、
+   `Cx{ab,arena}`、`Option` 返し）。`to_oxc.rs` 逐語移植。**18/18 esrap round-trip green**（rsvelte 自身の `parse_program_with_error`
+   でパース→変換→`rsvelte_esrap::print`→byte 比較）。bail: Raw/Class*/StaticBlock/Decorator/TS-only/bodyless-fn/re-export。
+   ※テストは `with_serialize_arena(&arena, …)` 内で実行要（さもないと arena が空に見える, `1_parse/mod.rs:194` 参照）。
 2. **server スケルトン**: `ServerTransformState`(oxc allocator/B + hoisted/init/template バッファ) + `server_component`/`server_module`
    を upstream `transform-server.js` 写経で構築。visitor は最初 stub（`b.empty()` 等）でコンパイルを通す。`transform_server` を接続。
 3. **旧 server テキストモジュール削除**: transform_script.rs(8.4k)/build.rs テキストパス/helpers.rs バイトスキャナ/transform_store.rs/
