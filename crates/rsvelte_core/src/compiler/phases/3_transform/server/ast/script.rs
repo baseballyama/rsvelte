@@ -143,6 +143,17 @@ fn is_removed_effect_stmt(expr: &OxcExpression) -> bool {
     match &call.callee {
         OxcExpression::Identifier(id) => matches!(id.name.as_str(), "$effect" | "$inspect"),
         OxcExpression::StaticMemberExpression(m) => {
+            // Direct `$effect.pre(…)` / `$effect.root(…)` / `$inspect.trace(…)`,
+            // OR the `$inspect(<args>).with(<fn>)` rune whose callee is the static
+            // member `<$inspect-call>.with` (写经 `get_rune`: a `.with` member of a
+            // `$inspect(...)` call resolves to the `$inspect().with` rune, which the
+            // non-dev server `CallExpression` visitor removes → `b.empty`).
+            if m.property.name.as_str() == "with"
+                && let OxcExpression::CallExpression(inner) = &m.object
+                && matches!(&inner.callee, OxcExpression::Identifier(id) if id.name.as_str() == "$inspect")
+            {
+                return true;
+            }
             let OxcExpression::Identifier(obj) = &m.object else {
                 return false;
             };
@@ -256,7 +267,188 @@ fn transform_script<'a>(
     for stmt in out.iter_mut() {
         lower_class_field_runes(stmt, state);
     }
+    // Lower `$state` / `$derived` / `$derived.by` runes and remove `$effect` /
+    // `$inspect` statements that appear NESTED inside function / block bodies
+    // (e.g. a `<script module>` factory function `createCounter()` whose body
+    // declares `let count = $state(0); let double = $derived(count * 2)`). The
+    // top-level loop above only handles SCRIPT-LEVEL statements; upstream's
+    // `VariableDeclaration` / `CallExpression` / `ExpressionStatement` /
+    // `Identifier` server visitors are tree-wide zimmerframe visitors, so they
+    // fire at every nesting depth. This pass descends into nested function /
+    // block bodies and applies the same lowerings, tracking the set of names
+    // that became `$.derived(...)` so their reads turn into `name()` calls.
+    for stmt in out.iter_mut() {
+        lower_nested_runes(stmt, state);
+    }
     out
+}
+
+/// Tree-wide nested-rune lowering for the bodies of NESTED functions / blocks
+/// (NOT the script top level, which `transform_script` already handles). Mirrors
+/// upstream's tree-wide `VariableDeclaration` / `CallExpression` /
+/// `ExpressionStatement` / `Identifier` server visitors operating below the
+/// script root.
+///
+/// For every nested statement body it visits:
+/// - `let x = $state(e)` → `let x = e` (no-arg → `void 0`).
+/// - `let d = $derived(e)` → `let d = $.derived(() => e)`; `$derived.by(f)` →
+///   `$.derived(f)`. The name `d` is recorded as derived so later reads become
+///   `d()`.
+/// - `$effect(…)` / `$effect.pre(…)` / `$effect.root(…)` / `$inspect(…)` /
+///   `$inspect.trace(…)` / `$inspect(…).with(…)` expression statements → removed.
+/// - a read of a recorded derived name `d` → `d()`.
+fn lower_nested_runes<'a>(stmt: &mut Statement<'a>, state: &ServerTransformState<'a>) {
+    let mut v = NestedRuneLower {
+        b: state.b,
+        derived: vec![rustc_hash::FxHashSet::default()],
+        in_nested_body: false,
+    };
+    v.visit_statement(stmt);
+}
+
+/// `VisitMut` that lowers nested-scope runes and rewrites derived reads. A scope
+/// stack (`derived`) tracks the names that lowered to `$.derived(...)` so a later
+/// identifier read of such a name is rewritten to a call. A `shadow`-style frame
+/// is pushed per function / block so a derived name does not leak across scopes
+/// it is not visible in (a nested re-declaration of the same name as a plain
+/// `let` removes it from the derived set for that frame).
+struct NestedRuneLower<'a> {
+    b: B<'a>,
+    /// Stack of frames; each frame is the set of derived binding names declared
+    /// in that lexical scope.
+    derived: Vec<rustc_hash::FxHashSet<String>>,
+    /// Whether we are inside a nested function / block body (i.e. below the
+    /// script top level). Lowering only fires when this is `true`, so the
+    /// script-level statements already handled by `transform_script` are not
+    /// double-processed.
+    in_nested_body: bool,
+}
+
+impl<'a> NestedRuneLower<'a> {
+    /// Whether `name` resolves to a derived binding in any enclosing frame.
+    fn is_derived(&self, name: &str) -> bool {
+        self.derived.iter().any(|f| f.contains(name))
+    }
+
+    /// Lower the declarators of a `let/const/var` in place when nested. Records
+    /// derived names; expands `$state`/`$derived` identifier declarators.
+    fn lower_var_decl(&mut self, vd: &mut oxc_ast::ast::VariableDeclaration<'a>) {
+        let b = self.b;
+        for d in vd.declarations.iter_mut() {
+            let Some(rune) = d.init.as_ref().and_then(detect_decl_rune) else {
+                // A plain re-declaration of a name shadows any outer derived
+                // binding for this frame.
+                if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &d.id
+                    && let Some(frame) = self.derived.last_mut()
+                {
+                    frame.remove(id.name.as_str());
+                }
+                continue;
+            };
+            // Only handle the identifier-pattern forms here (the destructured
+            // expansions are an orthogonal axis handled at the script top level).
+            let bind_name = match &d.id {
+                oxc_ast::ast::BindingPattern::BindingIdentifier(id) => Some(id.name.to_string()),
+                _ => None,
+            };
+            // Pull the first call argument expression out of the init call.
+            let arg: Option<OxcExpression<'a>> = match d.init.take() {
+                Some(OxcExpression::CallExpression(call)) => {
+                    let mut call = call.unbox();
+                    call.arguments
+                        .drain(..)
+                        .next()
+                        .and_then(|a| OxcExpression::try_from(a).ok())
+                }
+                _ => None,
+            };
+            match rune {
+                DeclRune::State => {
+                    d.init = Some(arg.unwrap_or_else(|| b.void0()));
+                }
+                DeclRune::Derived => {
+                    d.init = arg.map(|e| b.call("$.derived", vec![b.thunk(e, false)]));
+                    if let Some(n) = bind_name
+                        && let Some(frame) = self.derived.last_mut()
+                    {
+                        frame.insert(n);
+                    }
+                }
+                DeclRune::DerivedBy => {
+                    d.init = arg.map(|e| b.call("$.derived", vec![e]));
+                    if let Some(n) = bind_name
+                        && let Some(frame) = self.derived.last_mut()
+                    {
+                        frame.insert(n);
+                    }
+                }
+                // `$props` / `$props.id` are not valid in a nested factory body in
+                // any in-scope fixture; leave them untouched (init already taken,
+                // restore is unnecessary because this never matches here).
+                DeclRune::Props | DeclRune::PropsId => {}
+            }
+        }
+    }
+}
+
+impl<'a> VisitMut<'a> for NestedRuneLower<'a> {
+    fn visit_statement(&mut self, stmt: &mut Statement<'a>) {
+        // Remove nested effect / inspect expression statements.
+        if self.in_nested_body
+            && let Statement::ExpressionStatement(es) = stmt
+            && is_removed_effect_stmt(&es.expression)
+        {
+            *stmt = self.b.empty();
+            return;
+        }
+        if self.in_nested_body
+            && let Statement::VariableDeclaration(vd) = stmt
+        {
+            self.lower_var_decl(vd);
+            // Still recurse into initializers (they may read derived names).
+            oxc_ast_visit::walk_mut::walk_statement(self, stmt);
+            return;
+        }
+        oxc_ast_visit::walk_mut::walk_statement(self, stmt);
+    }
+
+    fn visit_expression(&mut self, expr: &mut OxcExpression<'a>) {
+        if self.in_nested_body
+            && let OxcExpression::Identifier(id) = expr
+        {
+            let name = id.name.to_string();
+            if self.is_derived(&name) {
+                *expr = self.b.call(self.b.id(&name), vec![]);
+                return;
+            }
+        }
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+    }
+
+    fn visit_function(
+        &mut self,
+        it: &mut oxc_ast::ast::Function<'a>,
+        flags: oxc_syntax::scope::ScopeFlags,
+    ) {
+        let prev = self.in_nested_body;
+        self.in_nested_body = true;
+        self.derived.push(rustc_hash::FxHashSet::default());
+        oxc_ast_visit::walk_mut::walk_function(self, it, flags);
+        self.derived.pop();
+        self.in_nested_body = prev;
+    }
+
+    fn visit_arrow_function_expression(
+        &mut self,
+        it: &mut oxc_ast::ast::ArrowFunctionExpression<'a>,
+    ) {
+        let prev = self.in_nested_body;
+        self.in_nested_body = true;
+        self.derived.push(rustc_hash::FxHashSet::default());
+        oxc_ast_visit::walk_mut::walk_arrow_function_expression(self, it);
+        self.derived.pop();
+        self.in_nested_body = prev;
+    }
 }
 
 /// Lower `$state` / `$state.raw` / `$derived` / `$derived.by` class-field

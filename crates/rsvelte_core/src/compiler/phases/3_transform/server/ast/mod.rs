@@ -2542,6 +2542,74 @@ mod tests {
     /// is store-write wrapping inside a nested function body (`$store[0].value++`
     /// → `$.store_get($$store_subs ??= {}, …)`), an orthogonal store-subscription
     /// axis unrelated to each-block / destructuring.
+    /// `$inspect` / `$effect` / dev-instrumentation SSR cluster parity with the
+    /// (correct) text-based `transform_server` oracle. Covers nested-scope rune
+    /// lowering and effect/inspect removal:
+    ///
+    /// - `runes-in-module-context`: `$state` / `$derived` declared inside a
+    ///   `<script module>` factory FUNCTION body must be lowered (`$state(0)` →
+    ///   `0`, `$derived(e)` → `$.derived(() => e)`), and the derived READ inside
+    ///   the getter must become a call (`return double` → `return double()`).
+    /// - `inspect` / `inspect-derived`: a top-level `$inspect(count)` /
+    ///   `$inspect(y).with(push)` statement is removed.
+    /// - `effect-cleanup` / `effect-order` / `nested-effect-conflict`: top-level
+    ///   `$effect(...)` (with arbitrary nested `$effect` / `$derived` inside) is
+    ///   removed entirely.
+    ///
+    /// Compared via the SAME esrap `canon` reprint the corpus harness uses (which
+    /// strips no-op `EmptyStatement`s), so a match here means the runtime suite
+    /// passes (the oracle passes these fixtures, and empty statements left behind
+    /// by the text-oracle are runtime no-ops).
+    #[test]
+    fn ast_matches_oracle_inspect_effect_cluster() {
+        let samples: &[(&str, &str)] = &[
+            (
+                "runes-in-module-context",
+                "<script module>\n  function createCounter() {\n    let count = $state(0);\n    let double = $derived(count * 2);\n    return {\n      get count() { return count },\n      set count(value) { count = value },\n      get double() { return double },\n    }\n  }\n</script>\n\n<script>\n  const counter = createCounter();\n</script>\n\n<button on:click={() => counter.count++}>{counter.double}</button>",
+            ),
+            (
+                "inspect-derived",
+                "<script>\n\tlet { push } = $props();\n\tlet x = $state('x');\n\tlet y = $derived(x.toUpperCase());\n\t$inspect(y).with(push);\n</script>\n\n<button on:click={() => x += 'x'}>{x}</button>",
+            ),
+            (
+                "inspect",
+                "<script>\n\tlet count = $state(0);\n\t$inspect(count);\n</script>\n<button onclick={() => count++}>{count}</button>",
+            ),
+            (
+                "effect-cleanup",
+                "<script>\n\tlet count = $state(0);\n\t$effect(() => {\n\t\tlet double = $derived(count * 2)\n\t\tconsole.log('init ' + double);\n\t\treturn function() { console.log('cleanup ' + double); };\n\t})\n</script>\n<button onclick={() => count++ }>Click</button>",
+            ),
+            (
+                "effect-order",
+                "<script>\n\tlet s = $state(0);\n\tlet d = $derived(s)\n\t$effect(() => { s; })\n\t$effect(() => { d; })\n</script>\n<h1>{s}</h1>",
+            ),
+            (
+                "nested-effect-conflict",
+                "<script>\n\tlet c = $state({ a: 0 });\n\t$effect(() => {\n\t\t$effect(() => {\n\t\t\tif (c) { $effect(() => { c.a; }); }\n\t\t});\n\t});\n</script>\n<button>x</button>",
+            ),
+        ];
+        let mut mismatches = Vec::new();
+        for (name, src) in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let (Some(co), Some(cr)) = (canon(&ours), canon(&oracle)) else {
+                mismatches.push(*name);
+                continue;
+            };
+            let matched = co == cr;
+            if !matched {
+                eprintln!(
+                    "=== {name} === DIFFER\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}\n"
+                );
+                mismatches.push(*name);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "inspect/effect SSR output differs from oracle for: {mismatches:?}"
+        );
+    }
+
     #[test]
     fn ast_matches_oracle_each_and_let_destructure() {
         let each_default = "<script>\n\texport let animalEntries;\n\texport const defaultHeight = 30;\n</script>\n\n{#each animalEntries as { animal, species = 'unknown', kilogram: weight = 50, pound = (weight * 2.2).toFixed(0), height = defaultHeight, bmi = weight / (height * height), ...props } }\n\t<p {...props}>{animal} - {species} - {weight}kg ({pound} lb) - {height}cm - {bmi}</p>\n{/each}";
