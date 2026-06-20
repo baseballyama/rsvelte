@@ -106,6 +106,14 @@ pub struct ServerTransformState<'a> {
     /// `promises`, `promises_1`, `promises_2`, … (mirrors the text oracle's
     /// `const_promises_counter`).
     pub const_promises_counter: usize,
+    /// Component-body `init` slot for NON-hoistable snippet function declarations
+    /// (写经 upstream `SnippetBlock.js`: `node.metadata.can_hoist ? state.hoisted
+    /// : state.init`). A snippet that references instance-level state cannot be
+    /// lifted to module scope, so its `function name($$renderer, …) { … }`
+    /// declaration is collected here — regardless of how deeply it nests in the
+    /// template — and prepended to the component-function body (ahead of the
+    /// rendered template), matching upstream's shared component-level `state.init`.
+    pub snippet_inits: Vec<Statement<'a>>,
 }
 
 /// One per-fragment async `{@const}` group — the AST mirror of upstream's
@@ -164,6 +172,7 @@ impl<'a> ServerTransformState<'a> {
             async_consts: None,
             const_blocker_map: rustc_hash::FxHashMap::default(),
             const_promises_counter: 0,
+            snippet_inits: Vec::new(),
         }
     }
 
@@ -372,6 +381,37 @@ impl<'a> ServerTransformState<'a> {
         None
     }
 
+    /// Re-parse a list of FORMAL-PARAMETER source strings (e.g.
+    /// `["$$renderer", "{ count }", "id = default_arg()"]`) into an oxc
+    /// [`FormalParameters`], by wrapping them as a throwaway arrow
+    /// `(<p0>, <p1>, …) => {}` and stealing its parameter list. Used by the
+    /// snippet visitor to emit destructuring / default-valued parameters
+    /// verbatim — an `AssignmentPattern` default (`id = default_arg()`) and an
+    /// `ObjectPattern` / `ArrayPattern` are only representable in
+    /// FORMAL-PARAMETER position, so they cannot go through [`Self::reparse_pattern`]
+    /// (which wraps `let <slice> = 0;`). Returns `None` on a parse failure.
+    pub fn reparse_params(
+        &self,
+        param_srcs: &[String],
+    ) -> Option<oxc_ast::ast::FormalParameters<'a>> {
+        let joined = param_srcs.join(", ");
+        let wrapped = format!("({joined}) => {{}}");
+        let owned = self.allocator.alloc_str(&wrapped);
+        let ret =
+            oxc_parser::Parser::new(self.allocator, owned, oxc_span::SourceType::mjs()).parse();
+        if !ret.diagnostics.is_empty() {
+            return None;
+        }
+        for stmt in ret.program.body {
+            if let Statement::ExpressionStatement(es) = stmt
+                && let OxcExpression::ArrowFunctionExpression(arrow) = es.unbox().expression
+            {
+                return Some(arrow.unbox().params.unbox());
+            }
+        }
+        None
+    }
+
     /// Re-parse a binding pattern slice (`x` / `{ a, b }` / `[a, b]`) into the
     /// state allocator by wrapping it as `let <slice> = 0;` and extracting the
     /// pattern. Used to keep a rune declarator's LHS pattern verbatim.
@@ -547,6 +587,18 @@ pub fn server_component_ast<'a>(
     // Root fragment: parent is the Fragment node itself, so it IS an
     // `is_text_first` parent (upstream `clean_nodes`/`Fragment`).
     let template_body = visitors::shared::build_fragment_body(&ast.fragment, true, &mut state);
+
+    // -- non-hoistable snippet `init` declarations --------------------------
+    // 写经 upstream `SnippetBlock.js`: a snippet whose `metadata.can_hoist` is
+    // false is emitted into the SHARED component-level `state.init` (not module
+    // scope, and not the per-fragment template) — regardless of nesting depth.
+    // They are appended to `state.init` DURING the template walk, so in the final
+    // component block they sit AFTER the instance body but BEFORE the rendered
+    // template (and, when present, ahead of the `$$render_inner` settle loop).
+    // `build_fragment_body` collected them into `state.snippet_inits`; splice them
+    // in here.
+    let snippet_inits = std::mem::take(&mut state.snippet_inits);
+    state.body.extend(snippet_inits);
 
     // -- component-bindings settle-loop (upstream lines 178-211) ------------
     // If the component binds to a child (`<Child bind:value={v} />`), legacy
@@ -3913,6 +3965,49 @@ mod tests {
         assert!(
             mismatches.is_empty(),
             "destructure-state / store-init output differs from oracle for: {mismatches:?}"
+        );
+    }
+
+    /// Snippet codegen parity with the `transform_server` oracle for the
+    /// runtime-runes snippet cluster — exercising the two server-codegen axes the
+    /// AST visitor was missing: VERBATIM parameter emission (destructuring
+    /// `{ count }` / `[x]`, defaults `id = default_arg()` / `param = "default"` /
+    /// `b = (1, 2)` with the SequenceExpression-default parenthesization) and the
+    /// `metadata.can_hoist` placement decision (a snippet referencing instance
+    /// state stays in the component-body `init`, NOT module scope). Compared
+    /// STRUCTURALLY (indentation-insensitive) like the other block samples.
+    #[test]
+    fn ast_matches_oracle_snippet_params_and_hoist() {
+        let samples: &[&str] = &[
+            // destructured object param + hoistable snippet (module scope).
+            "<script>\n\tlet count = $state(0);\n</script>\n\n{#snippet foo({ count })}\n\t<p>clicks: {count}</p>\n{/snippet}\n\n{@render foo({ count })}\n",
+            // two destructured object params (snippet fn shape; the render-tag
+            // argument derived-read wrap is a separate axis, so use plain state).
+            "<script>\n\tlet count = $state(0);\n\tlet other = $state(0);\n</script>\n\n{#snippet foo({ count }, { other })}\n\t<p>{count} {other}</p>\n{/snippet}\n\n{@render foo({ count }, { other })}\n",
+            // default arg calling an instance function → NON-hoistable (init slot).
+            "<script>\n\tlet count = $state(0);\n\tfunction default_arg() { return 1; }\n</script>\n\n{#snippet item(id = default_arg())}\n\t<div>{id}</div>\n{/snippet}\n\n{@render item()}\n",
+            // mixed defaults incl. SequenceExpression defaults `(2, 3)` / `(1, 2)`.
+            "{#snippet one(a, b = 1, c = (2, 3))}\n  {a}{b}{c}\n{/snippet}\n\n{#snippet two(a, b = (1, 2), c = 3)}\n  {a}{b}{c}\n{/snippet}\n\n{@render one(0)}/{@render two(0)}\n",
+            // array-destructure param.
+            "<script>\n\tlet array = $state(['a', 'b', 'c'])\n</script>\n\n{#snippet content([x])}\n\t{x}\n{/snippet}\n\n{@render content(array)}\n",
+            // string-literal default.
+            "{#snippet test(param = \"default\")}\n    <p>{param}</p>\n{/snippet}\n\n{@render test()}\n",
+            // non-hoistable snippet nested inside elements → component-body init.
+            "<script>\n\tlet numbers = $state([1, 2, 3]);\n</script>\n\n<div>\n\t<div>\n\t\t{#snippet x(n)}\n\t\t\t<p>{n}</p>\n\t\t{/snippet}\n\t\t{#each numbers as n}\n\t\t\t{@render x(n)}\n\t\t{/each}\n\t</div>\n</div>\n",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm_blocks(&ours) == norm_blocks(&oracle);
+            if !matched {
+                eprintln!("===== DIFFER =====\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}\n");
+                mismatches.push(*src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "snippet param/hoist output differs from oracle for: {mismatches:?}"
         );
     }
 
