@@ -292,6 +292,19 @@ derived → `$.get(name)`? 要確認、store_sub `$x` → `$.store_get($x, "$nam
 §5 地雷（snapshot 意味論・each_array 連番・should_proxy）は単独で触らない。検証は oracle（{count} 等の定数畳み込み含む全体一致）。
 **これが通れば** `transform_server` を新 pipeline に接続 → 旧テキスト全削除。
 
+### ★★★ マイルストーン（2026-06-20, サーバーSSR実質完成）★★★
+`feat/phase3-ast-full`（~49コミット）。サーバーSSRをゼロから純AST(oxc+esrap)で再構築（`server/ast/`、旧版と別に追加）。
+全テンプレ/ブロック visitor + script変換(runes/legacy/destructure/reactive/class-field/$props/$bindable) + read-wrapping
++ 空白(clean_nodes) + CSS + 動的属性/bind/spread/class:/style: + entry-assembly + svelte:head/element/window/body/
+boundary/slot + const/debug-tag + select/option + content-bind + dynamic-component + is_standalone + TS + 定数畳み込み。
+**ワークフロー**: 並列隔離worktreeバッチ(専用 target-dir, disjoint files, 自己検証+commit → main が cherry-pick統合+
+結合ビルド1回) + オラクルharness(`corpus_new_vs_oracle`) + 診断read-onlyエージェント。
+**真のゲート(env `RSVELTE_SERVER_AST=1`)**: `--test ssr`(ランタイム実行) **96/97**(残1=attr定数畳み込み); `--test
+compiler_fixtures`(byte-exact vs公式) **19/29**(失敗10=**async 7**+nullish+class-field-ctor); oracle harness compared比84.9%。
+**→ サーバー最後の大物=async**(`$$renderer.async([blockers],fn)`/top-level await/async derived/compute_blocker_map)。
+async+残2+97番目 → byte-exactゲート緑 → フラグdefault化/除去 → 旧6モジュール削除 → クライアント側(js_ast Raw全廃→
+to_oxc→codegen.rs削除)。**注**: release fixtureは専用 target-dir(debug/release混在は E0308 stale-artifact誤検知)。
+
 ### ★ （旧）本丸: instance/module script transform（最delicate・最大のテキスト削除＝transform_script.rs 8.4k 行）★
 現状 `server_component_ast` は **instance body 空**＝`<script>` ロジックを持つコンポーネントは oracle 不一致。これを埋めるのが
 最大の勝ち。**やり方（§核心メカニズム + §4 厳守）**: スクリプトを oxc 再パース → **in-place `&mut` mutate** で rune lowering
