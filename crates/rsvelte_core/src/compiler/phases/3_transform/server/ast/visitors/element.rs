@@ -23,12 +23,22 @@
 //!     attribute + spread into a single object and replaces per-attribute
 //!     emission for the element.
 //!
-//! 写经 gaps (TODO): `class:` / `style:` / `bind:` / `use:` directives on the
-//! non-spread path, `<select>` / `<option>` / `<textarea>` / `<script>` /
-//! `<style>` special branches, the `value` / `group` binding synthesis, `$.clsx`
-//! clsx object form, event-handler capture, dev `push_element` markers, and the
-//! async `PromiseOptimiser` wrapping. Within the spread path, `bind:` / `use:` /
-//! `@attach` and the `style:` `|important` split remain gaps (see
+//! Element CONTENT binds (写经 of the `content !== null` return of
+//! `build_element_attributes` + the `body !== null` branch of `RegularElement`):
+//!   - `<textarea value="…">` (static) / `<textarea bind:value={x}>` → the
+//!     escaped value renders as the textarea's only child content,
+//!   - contenteditable `bind:innerHTML` / `bind:innerText` / `bind:textContent`
+//!     → the bound value renders as the element's content (innerHTML unescaped).
+//!   See [`build_element_content`] + [`emit_content_body`].
+//!
+//! 写经 gaps (TODO): `class:` / `style:` / `use:` directives on the non-spread
+//! path, `<select bind:value>` / `<option>` special branches (the select
+//! `$$renderer.select(...)` selected-option threading is NOT ported — but the
+//! visitor already omits the `value` attribute so no WRONG `value` is emitted),
+//! `<script>` / `<style>` raw-text branches, the get/set `{get, set}` bind form,
+//! `$.clsx` clsx object form, event-handler capture, dev `push_element` markers,
+//! and the async `PromiseOptimiser` wrapping. Within the spread path, `bind:` /
+//! `use:` / `@attach` and the `style:` `|important` split remain gaps (see
 //! [`build_element_spread_attributes`]).
 
 use crate::ast::template::{
@@ -70,6 +80,12 @@ pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransf
     };
     build_element_attributes(node, css_hash.as_deref(), state);
 
+    // The `content` expression a content-producing attribute / bind renders as
+    // the element's CHILD CONTENT — mirrors upstream `build_element_attributes`
+    // returning a non-null `content`. Covers `<textarea>` static / bound value
+    // and the contenteditable `innerHTML`/`innerText`/`textContent` binds.
+    let content = build_element_content(node, state);
+
     // -- `>` / `/>` ---------------------------------------------------------
     state.template.push(TemplateEntry::Literal(
         if is_void { "/>" } else { ">" }.to_string(),
@@ -84,11 +100,161 @@ pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransf
         } else {
             "html"
         };
-        process_children(&node.fragment.nodes, Some(node), namespace, state);
+        if let Some(content) = content {
+            // Content bind: render the bound value as the body when truthy,
+            // otherwise fall back to the element's own (trimmed) children.
+            // Mirrors upstream RegularElement.js lines 178-198 + the text
+            // oracle's `TextareaBody` / `ContentEditableBody` split: a
+            // `<textarea>` suppresses the fallback children (its content IS the
+            // value), while a contenteditable element renders them in the else.
+            let is_textarea = name == "textarea";
+            emit_content_body(node, content, namespace, is_textarea, state);
+        } else {
+            process_children(&node.fragment.nodes, Some(node), namespace, state);
+        }
         state
             .template
             .push(TemplateEntry::Literal(format!("</{name}>")));
     }
+}
+
+/// Emit the `<textarea>` / contenteditable CONTENT body — the Rust port of the
+/// `body !== null` branch of upstream `RegularElement.js` (lines 178-198):
+///
+/// ```js
+/// const $$body = <content>;          // only when content isn't an Identifier
+/// if ($$body) {
+///     $$renderer.push(`${$$body}`);  // the bound value as content
+/// } else {
+///     <inner children template>
+/// }
+/// ```
+///
+/// The whole `if` is pushed as one opaque [`TemplateEntry::Stmt`] so it breaks
+/// the surrounding literal-coalescing run (the `<textarea>`/`>` opener and the
+/// `</textarea>` closer stay outside it).
+fn emit_content_body<'a>(
+    node: &RegularElement,
+    content: OxcExpression<'a>,
+    namespace: &str,
+    suppress_children: bool,
+    state: &mut ServerTransformState<'a>,
+) {
+    use super::shared::build_template;
+
+    // Build the inner-children template into a SEPARATE buffer (the `else`
+    // branch body). Upstream uses a fresh `inner_state.template`. For
+    // `<textarea>` the children are SUPPRESSED (the value is the content), so
+    // the else branch is empty — matching the text oracle's `TextareaBody`.
+    let else_body = if suppress_children {
+        Vec::new()
+    } else {
+        let saved = std::mem::take(&mut state.template);
+        process_children(&node.fragment.nodes, Some(node), namespace, state);
+        let inner_entries = std::mem::replace(&mut state.template, saved);
+        build_template(inner_entries, state)
+    };
+
+    // `id` is the truthiness test / push target. Upstream keeps a bare
+    // Identifier as-is, but hoists any other expression into a
+    // `const $$body[_N] = <content>;` so it isn't evaluated twice.
+    let id: OxcExpression<'a> = if matches!(content, OxcExpression::Identifier(_)) {
+        content
+    } else {
+        let var_name = if state.body_counter == 0 {
+            "$$body".to_string()
+        } else {
+            format!("$$body_{}", state.body_counter)
+        };
+        state.body_counter += 1;
+        state
+            .template
+            .push(TemplateEntry::Stmt(state.b.const_id(&var_name, content)));
+        state.b.id(&var_name)
+    };
+
+    // consequent: `$$renderer.push(`${id}`);`
+    let consequent = {
+        let tmpl = state.b.template(vec!["", ""], vec![id_clone(state, &id)]);
+        state.b.block(vec![
+            state.b.stmt(state.b.call("$$renderer.push", vec![tmpl])),
+        ])
+    };
+
+    let if_stmt = state
+        .b
+        .if_stmt(id, consequent, Some(state.b.block(else_body)));
+    state.template.push(TemplateEntry::Stmt(if_stmt));
+}
+
+/// Re-spell an `id` expression (the `$$body` temp or a bare bound identifier)
+/// for re-use as the `push` argument — `id` is moved into the `if` test, so the
+/// consequent needs its own copy. For an Identifier we rebuild it by name; the
+/// only callers pass an Identifier (the const-hoist path) or a bound-expression
+/// identifier, so this is total in practice.
+fn id_clone<'a>(state: &ServerTransformState<'a>, id: &OxcExpression<'a>) -> OxcExpression<'a> {
+    match id {
+        OxcExpression::Identifier(ident) => state.b.id(ident.name.as_str()),
+        // Unreachable for the current callers (id is always an Identifier by the
+        // time it reaches here); fall back to `undefined` to stay total.
+        _ => state.b.id("undefined"),
+    }
+}
+
+/// Compute the element CONTENT expression — upstream `build_element_attributes`'s
+/// returned `content`. Scans the element's attributes for the content-producing
+/// forms and returns the (already `$.escape`-wrapped where applicable) value:
+///
+/// - `<textarea value="…">` (static)        → `$.escape(<value>)`
+/// - `<textarea bind:value={x}>`            → `$.escape(<x>)`
+/// - `bind:innerHTML={x}` (contenteditable) → `<x>` (innerHTML is NOT escaped)
+/// - `bind:innerText`/`bind:textContent`    → `$.escape(<x>)`
+///
+/// Returns `None` for every other element (the normal children path applies).
+/// The get/set `{get, set}` sequence bind form is a KNOWN GAP (skipped).
+fn build_element_content<'a>(
+    node: &RegularElement,
+    state: &mut ServerTransformState<'a>,
+) -> Option<OxcExpression<'a>> {
+    let is_textarea = node.name.as_str() == "textarea";
+    let mut content: Option<OxcExpression<'a>> = None;
+
+    for attr in &node.attributes {
+        match attr {
+            // Static `value="…"` on `<textarea>` → escaped content.
+            //
+            // KNOWN GAP: upstream prepends an extra `\n` when the first text part
+            // begins with a newline (two leading newlines restore the one the
+            // HTML parser would strip after `<textarea>`; spec § element
+            // restrictions). That AST mutation isn't reproduced here — it only
+            // affects the rare `<textarea value="\n…">` literal.
+            Attribute::Attribute(a) if is_textarea && a.name.as_str() == "value" => {
+                let value = build_attribute_value(&a.value, false, state);
+                content = Some(state.b.call("$.escape", vec![value]));
+            }
+            Attribute::BindDirective(bind) => {
+                let bind_name = bind.name.as_str();
+                let is_textarea_value = bind_name == "value" && is_textarea;
+                if !is_content_editable_binding(bind_name) && !is_textarea_value {
+                    continue;
+                }
+                // The get/set `{get, set}` sequence form is a KNOWN GAP.
+                if bind_expr_is_sequence(bind) {
+                    continue;
+                }
+                let expr = state.visit_expr(&bind.expression);
+                content = Some(if bind_name == "innerHTML" {
+                    // innerHTML is the only content bind we don't escape.
+                    expr
+                } else {
+                    state.b.call("$.escape", vec![expr])
+                });
+            }
+            _ => {}
+        }
+    }
+
+    content
 }
 
 /// Whether the element carries a class signal the static/literal path cannot
@@ -180,8 +346,8 @@ fn bind_omit_in_ssr(name: &str) -> bool {
 }
 
 /// Whether `name` is a content-editable binding (`innerHTML` / `innerText` /
-/// `textContent`). Upstream renders these as escaped element CONTENT — a path
-/// the AST pipeline does not have yet, so they are a KNOWN GAP here.
+/// `textContent`). Upstream renders these as element CONTENT (escaped except
+/// `innerHTML`); handled by [`build_element_content`] / [`emit_content_body`].
 fn is_content_editable_binding(name: &str) -> bool {
     matches!(name, "innerHTML" | "innerText" | "textContent")
 }
@@ -229,9 +395,10 @@ fn build_bind_directive<'a>(
         return None;
     }
 
-    // KNOWN GAP: content-producing binds need an element-CONTENT mechanism the
-    // AST pipeline does not have yet.
-    //   - `bind:innerHTML` / `bind:innerText` / `bind:textContent` → escaped content
+    // Content-producing binds emit NO attribute — they render as element CONTENT
+    // instead, handled separately by [`build_element_content`] /
+    // [`emit_content_body`] in `visit_regular_element`. So return `None` here.
+    //   - `bind:innerHTML` / `bind:innerText` / `bind:textContent` → content
     //   - `bind:value` on `<textarea>` → escaped content
     if is_content_editable_binding(name) || (name == "value" && node.name.as_str() == "textarea") {
         return None;

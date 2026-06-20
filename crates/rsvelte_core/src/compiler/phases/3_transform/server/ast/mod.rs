@@ -78,6 +78,12 @@ pub struct ServerTransformState<'a> {
     /// by [`Self::eval_ctx`] when folding `{expr}` template chunks / dynamic
     /// attribute values. See [`server::evaluate::EvalCtx`].
     pub eval_inputs: EvalInputs,
+    /// Monotonic counter for the `$$body` temporary used by element CONTENT
+    /// binds (`<textarea>` value, contenteditable `innerHTML`/`innerText`/
+    /// `textContent`). The first one is bare `$$body`, subsequent ones append
+    /// `_1`, `_2`, … — mirroring the text oracle's `$$body` / `$$body_N` naming
+    /// (upstream uses `state.scope.generate('$$body')`).
+    pub body_counter: usize,
 }
 
 /// The precomputed inputs to the SSR constant-folding evaluator
@@ -118,6 +124,7 @@ impl<'a> ServerTransformState<'a> {
             is_standalone: false,
             each_index: 0,
             eval_inputs: EvalInputs::default(),
+            body_counter: 0,
         }
     }
 
@@ -1477,6 +1484,52 @@ mod tests {
         assert!(
             mismatches.is_empty(),
             "element-bind codegen differs from oracle for: {mismatches:?}"
+        );
+    }
+
+    /// Element CONTENT-bind codegen parity with the `transform_server` oracle.
+    /// These binds render the bound value as the element's CHILD CONTENT (not an
+    /// attribute), via the `if ($$body) push else children` body. Each sample
+    /// declares the bound binding in an instance `<script>` ($state rune) so the
+    /// instance body matches in both pipelines and only the content body is under
+    /// test. Covers:
+    ///   - `<textarea value="hi">`              → `$.escape('hi')` content
+    ///   - `<textarea bind:value={x}>`          → `$.escape(x)` content
+    ///   - contenteditable `bind:innerHTML={x}` → unescaped `x` content
+    ///   - contenteditable `bind:textContent`   → `$.escape(x)` content
+    ///   - contenteditable `bind:innerText`     → `$.escape(x)` content
+    #[test]
+    fn ast_matches_oracle_content_binds() {
+        let samples = [
+            // static textarea value -> escaped content
+            "<textarea value=\"hi\"></textarea>",
+            // bind:value on textarea -> escaped content
+            "<script>let x = $state('');</script><textarea bind:value={x}></textarea>",
+            // contenteditable bind:innerHTML -> unescaped content
+            "<script>let x = $state('');</script><div contenteditable=\"true\" bind:innerHTML={x}></div>",
+            // contenteditable bind:textContent -> escaped content
+            "<script>let x = $state('');</script><div contenteditable=\"true\" bind:textContent={x}></div>",
+            // contenteditable bind:innerText -> escaped content
+            "<script>let x = $state('');</script><div contenteditable=\"true\" bind:innerText={x}></div>",
+            // textarea bind:value with non-empty fallback children (else branch)
+            "<script>let x = $state('');</script><textarea bind:value={x}>fallback</textarea>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm_blocks(&ours) == norm_blocks(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "content-bind codegen differs from oracle (structurally) for: {mismatches:?}"
         );
     }
 
