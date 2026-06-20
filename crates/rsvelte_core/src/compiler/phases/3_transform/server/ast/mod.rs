@@ -2486,6 +2486,90 @@ mod tests {
         );
     }
 
+    /// `$bindable(<d>)` defaults inside a `$props()` destructure lower to the
+    /// argument (`$bindable(5)` → `5`) or `void 0` (`$bindable()` → `void 0`),
+    /// mirroring upstream's `VariableDeclaration.js` AssignmentPattern walk. Each
+    /// expected instance line must appear in BOTH outputs.
+    #[test]
+    fn ast_matches_oracle_props_bindable_default() {
+        let cases: &[(&str, &str)] = &[
+            (
+                "<script>let { value = $bindable() } = $props();</script>{value}",
+                "let { value = void 0 } = $$props;",
+            ),
+            (
+                "<script>let { v = $bindable(5) } = $props();</script>{v}",
+                "let { v = 5 } = $$props;",
+            ),
+            (
+                "<script>let { a = $bindable(), b = $bindable(2), c = 3 } = $props();</script>{a}{b}{c}",
+                "let { a = void 0, b = 2, c = 3 } = $$props;",
+            ),
+        ];
+        let mut failures = Vec::new();
+        for (src, must_have) in cases {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let want = norm(must_have);
+            eprintln!("=== SRC: {src} ===\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n");
+            if !norm(&ours).contains(&want) || !norm(&oracle).contains(&want) {
+                failures.push(*src);
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "$bindable default lowering differs from oracle for: {failures:?}"
+        );
+    }
+
+    /// `$state` / `$derived` class-field runes are lowered everywhere a
+    /// `PropertyDefinition` can appear — class DECLARATION and class EXPRESSION
+    /// (`const C = class {…}`) — matching upstream's tree-wide
+    /// `PropertyDefinition.js` visitor. Both cases compared against the oracle.
+    #[test]
+    fn ast_matches_oracle_class_field_runes_everywhere() {
+        let cases: &[(&str, &str)] = &[
+            ("<script>class C { foo = $state(0); }</script>", "foo = 0;"),
+            (
+                "<script>const C = class { foo = $state(0); };</script>",
+                "foo = 0;",
+            ),
+        ];
+        let mut failures = Vec::new();
+        for (src, must_have) in cases {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let want = norm(must_have);
+            eprintln!("=== SRC: {src} ===\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n");
+            if !norm(&ours).contains(&want) || !norm(&oracle).contains(&want) {
+                failures.push(*src);
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "class-field rune lowering differs from oracle for: {failures:?}"
+        );
+    }
+
+    /// A NESTED class (declared inside a method body) gets its `$state(...)`
+    /// fields lowered too. The text-based `transform_server` oracle drops the
+    /// whole method body for this exotic shape (a known oracle bug), so this is
+    /// a NEW-correctness gate only: the nested field must lower to `y = 2`.
+    #[test]
+    fn nested_class_field_rune_lowered() {
+        let ours = run(
+            "<script>class A { x = $state(1); m() { class B { y = $state(2); } return B; } }</script>",
+        );
+        assert!(
+            norm(&ours).contains("y = 2;"),
+            "nested class field not lowered:\n{ours}"
+        );
+        assert!(
+            !norm(&ours).contains("$state"),
+            "residual $state in nested class output:\n{ours}"
+        );
+    }
+
     /// Declarator INITIALIZERS round-trip through the reparse without degrading
     /// to `void 0`. Regression gate for the "block-vs-object" reparse gap: an
     /// object-literal init (`{ a: 1 }`) used to reparse to a `BlockStatement` and

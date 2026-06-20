@@ -43,15 +43,13 @@
 //!   `extract_paths` expansion) — the binding pattern is kept verbatim and the
 //!   init lowered, which is correct for object/identifier patterns but NOT for
 //!   the leaf-rename cases.
-//! - `$bindable()` stripping inside a `$props()` destructure default
-//!   (`let { x = $bindable(1) } = $props()`) — the nested `$bindable(...)` call
-//!   is kept verbatim rather than unwrapped to its argument (upstream's
-//!   `AssignmentPattern` walk; KNOWN GAP).
 
 use super::ServerTransformState;
 use crate::ast::template::Script;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+use crate::compiler::phases::phase3_transform::builders::B;
 use oxc_ast::ast::{Expression as OxcExpression, Statement, VariableDeclarationKind};
+use oxc_ast_visit::VisitMut;
 use oxc_span::GetSpan;
 
 /// The rune shapes this slice recognises on a declarator init.
@@ -196,16 +194,6 @@ fn transform_script<'a>(
                     out.push(rehomed);
                 }
             }
-            Statement::ClassDeclaration(_) => {
-                // Re-parse the class verbatim, then lower any `$state` / `$derived`
-                // class-field initializers in place (写经 `PropertyDefinition.js`).
-                let span = stmt.span();
-                let slice = &src[span.start as usize..span.end as usize];
-                if let Some(mut rehomed) = state.reparse_statement(slice) {
-                    lower_class_field_runes(&mut rehomed, state);
-                    out.push(rehomed);
-                }
-            }
             other => {
                 let span = other.span();
                 let slice = &src[span.start as usize..span.end as usize];
@@ -214,6 +202,14 @@ fn transform_script<'a>(
                 }
             }
         }
+    }
+
+    // Lower `$state` / `$derived` class-field initializers in every emitted
+    // statement — class DECLARATIONS, class EXPRESSIONS (`const C = class {…}`)
+    // and NESTED classes alike (写经 `PropertyDefinition.js`, a tree-wide
+    // visitor). Cheap: the walk only descends, firing on `PropertyDefinition`s.
+    for stmt in out.iter_mut() {
+        lower_class_field_runes(stmt, state);
     }
     out
 }
@@ -231,46 +227,60 @@ fn transform_script<'a>(
 /// nested classes pass through unchanged (the `value` of a method is a
 /// `Function`, not a `PropertyDefinition`, so it is untouched).
 fn lower_class_field_runes<'a>(stmt: &mut Statement<'a>, state: &ServerTransformState<'a>) {
-    let Statement::ClassDeclaration(class) = stmt else {
-        return;
+    let mut v = ClassFieldRuneLower {
+        b: state.b,
+        analysis: state.analysis,
     };
-    let b = state.b;
-    for element in class.body.body.iter_mut() {
-        let oxc_ast::ast::ClassElement::PropertyDefinition(prop) = element else {
-            continue;
-        };
-        let Some(rune) = prop.value.as_ref().and_then(detect_decl_rune) else {
-            continue;
-        };
-        // Take the `$state(...)` / `$derived(...)` call out and move its first
-        // argument expression (the rehomed call already lives in the state
-        // allocator, so we can move sub-nodes out of it directly — no re-parse).
-        let Some(OxcExpression::CallExpression(call)) = prop.value.take() else {
-            continue;
-        };
-        let mut call = call.unbox();
-        let mut arg: Option<OxcExpression<'a>> = call
-            .arguments
-            .drain(..)
-            .next()
-            .and_then(|a| OxcExpression::try_from(a).ok());
-        if let Some(e) = arg.as_mut() {
-            super::read_wrap::wrap_reads(
-                e,
-                b,
-                state.analysis,
-                state.analysis.root.instance_scope_index,
-            );
-        }
+    v.visit_statement(stmt);
+}
 
-        prop.value = match rune {
-            // `$state(x)` → `x`; no-arg `$state()` → bare field (`None`).
-            DeclRune::State => arg,
-            DeclRune::Derived => arg.map(|e| b.call("$.derived", vec![b.thunk(e, false)])),
-            DeclRune::DerivedBy => arg.map(|e| b.call("$.derived", vec![e])),
-            // `$props` / `$props.id` are not valid class-field runes — drop value.
-            DeclRune::Props | DeclRune::PropsId => None,
-        };
+/// `VisitMut` that lowers every `PropertyDefinition` rune initializer it
+/// encounters, recursing through the whole statement subtree. Unlike a single
+/// top-level loop this reaches class fields inside a class EXPRESSION
+/// (`const C = class { x = $state(0) }`), inside a NESTED class (a class
+/// declared in a method body), and inside any other expression position —
+/// matching upstream's `PropertyDefinition.js` zimmerframe visitor, which fires
+/// on every `PropertyDefinition` in the tree.
+struct ClassFieldRuneLower<'a, 'b> {
+    b: B<'a>,
+    analysis: &'b crate::compiler::phases::phase2_analyze::ComponentAnalysis,
+}
+
+impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
+    fn visit_property_definition(&mut self, prop: &mut oxc_ast::ast::PropertyDefinition<'a>) {
+        if let Some(rune) = prop.value.as_ref().and_then(detect_decl_rune) {
+            let b = self.b;
+            // Take the `$state(...)` / `$derived(...)` call out and move its
+            // first argument expression out directly (the rehomed call already
+            // lives in the state allocator — no re-parse).
+            if let Some(OxcExpression::CallExpression(call)) = prop.value.take() {
+                let mut call = call.unbox();
+                let mut arg: Option<OxcExpression<'a>> = call
+                    .arguments
+                    .drain(..)
+                    .next()
+                    .and_then(|a| OxcExpression::try_from(a).ok());
+                if let Some(e) = arg.as_mut() {
+                    super::read_wrap::wrap_reads(
+                        e,
+                        b,
+                        self.analysis,
+                        self.analysis.root.instance_scope_index,
+                    );
+                }
+                prop.value = match rune {
+                    // `$state(x)` → `x`; no-arg `$state()` → bare field (`None`).
+                    DeclRune::State => arg,
+                    DeclRune::Derived => arg.map(|e| b.call("$.derived", vec![b.thunk(e, false)])),
+                    DeclRune::DerivedBy => arg.map(|e| b.call("$.derived", vec![e])),
+                    // `$props` / `$props.id` are not valid class-field runes.
+                    DeclRune::Props | DeclRune::PropsId => None,
+                };
+            }
+        }
+        // Continue into the (possibly replaced) value so nested classes inside a
+        // `$derived(...)` thunk / arrow body are still visited.
+        oxc_ast_visit::walk_mut::walk_property_definition(self, prop);
     }
 }
 
@@ -309,9 +319,13 @@ fn lower_variable_declaration<'a>(
                 // (写经 `VariableDeclaration.js:33-82`).
                 let pat_span = d.id.span();
                 let pat_slice = &src[pat_span.start as usize..pat_span.end as usize];
-                let Some(pat) = state.reparse_pattern(pat_slice) else {
+                let Some(mut pat) = state.reparse_pattern(pat_slice) else {
                     continue;
                 };
+                // Strip `$bindable(<d>)` defaults: `{ x = $bindable() }` →
+                // `{ x = void 0 }`, `{ x = $bindable(5) }` → `{ x = 5 }`
+                // (写经 `VariableDeclaration.js:42-52` AssignmentPattern walk).
+                strip_bindable_defaults(&mut pat, state);
                 let pat = expand_props_pattern(pat, state);
                 decls.push((pat, Some(b.id("$$props"))));
             }
@@ -387,6 +401,65 @@ fn lower_decl_init<'a>(
         DeclRune::Derived => Some(b.call("$.derived", vec![b.thunk(arg_expr(state), false)])),
         DeclRune::DerivedBy => Some(b.call("$.derived", vec![arg_expr(state)])),
         DeclRune::Props | DeclRune::PropsId => None,
+    }
+}
+
+/// Walk a `$props()` LHS pattern and rewrite every `$bindable(...)` default in
+/// an `AssignmentPattern` to its first argument (or `void 0` for the no-arg
+/// form), mirroring upstream's `VariableDeclaration.js:42-52` `AssignmentPattern`
+/// walk: `node.right` is a `$bindable(...)` CallExpression → replace with
+/// `node.right.arguments[0]` (visited) or `b.void0`. Any other default is left
+/// untouched. The replacement argument is read-wrapped (upstream `context.visit`).
+fn strip_bindable_defaults<'a>(
+    pat: &mut oxc_ast::ast::BindingPattern<'a>,
+    state: &ServerTransformState<'a>,
+) {
+    let mut v = BindableStrip {
+        b: state.b,
+        analysis: state.analysis,
+    };
+    v.visit_binding_pattern(pat);
+}
+
+/// Returns the `$bindable` replacement expression if `expr` is a `$bindable(...)`
+/// call: its first argument, or `void 0` when called with no arguments.
+fn bindable_default<'a>(expr: &mut OxcExpression<'a>, b: B<'a>) -> Option<OxcExpression<'a>> {
+    let OxcExpression::CallExpression(call) = expr else {
+        return None;
+    };
+    let OxcExpression::Identifier(id) = &call.callee else {
+        return None;
+    };
+    if id.name.as_str() != "$bindable" {
+        return None;
+    }
+    let arg = call
+        .arguments
+        .drain(..)
+        .next()
+        .and_then(|a| OxcExpression::try_from(a).ok());
+    Some(arg.unwrap_or_else(|| b.void0()))
+}
+
+struct BindableStrip<'a, 'b> {
+    b: B<'a>,
+    analysis: &'b crate::compiler::phases::phase2_analyze::ComponentAnalysis,
+}
+
+impl<'a, 'b> VisitMut<'a> for BindableStrip<'a, 'b> {
+    fn visit_assignment_pattern(&mut self, it: &mut oxc_ast::ast::AssignmentPattern<'a>) {
+        if let Some(mut replacement) = bindable_default(&mut it.right, self.b) {
+            super::read_wrap::wrap_reads(
+                &mut replacement,
+                self.b,
+                self.analysis,
+                self.analysis.root.instance_scope_index,
+            );
+            it.right = replacement;
+        }
+        // Recurse into the (left) sub-pattern so nested destructure defaults
+        // (`{ a: { b = $bindable() } }`) are also handled.
+        oxc_ast_visit::walk_mut::walk_assignment_pattern(self, it);
     }
 }
 
