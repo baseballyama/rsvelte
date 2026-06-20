@@ -645,9 +645,11 @@ pub(super) fn build_element_attributes<'a>(
                     // Mixed text+expression where EVERY expression part folds to a
                     // known value (`scope.evaluate`): inline all parts and emit a
                     // static attribute (mirrors the oracle's all-inline branch in
-                    // `build_attribute_value`). Restricted to non-whitespace-
-                    // insensitive attrs so the simple concat matches the oracle.
-                    if !trim_ws && let Some(folded) = fold_sequence_static(parts, state) {
+                    // `build_attribute_value`, which returns a `Literal` when no
+                    // expression survives, then inlines it at element.js line 257).
+                    // For `class`/`style` (`trim_ws`) text chunks are whitespace-
+                    // collapsed per-part; the css-hash join below applies the trim.
+                    if let Some(folded) = fold_sequence_static(parts, trim_ws, state) {
                         let mut literal_value = folded;
                         if is_class && let Some(hash) = css_hash {
                             literal_value = format!("{literal_value} {hash}").trim().to_string();
@@ -1592,6 +1594,7 @@ fn collapse_ws_no_trim(s: &str) -> String {
 /// caller escapes the whole value with `escape_attr`).
 fn fold_sequence_static<'a>(
     parts: &[AttributeValuePart],
+    trim_ws: bool,
     state: &ServerTransformState<'a>,
 ) -> Option<String> {
     use crate::compiler::phases::phase3_transform::server::evaluate::{
@@ -1600,6 +1603,13 @@ fn fold_sequence_static<'a>(
     let mut out = String::new();
     for part in parts {
         match part {
+            // For whitespace-insensitive attrs (`class`/`style`) each text chunk
+            // is whitespace-collapsed (but NOT trimmed) per-part, mirroring
+            // upstream `build_attribute_value`'s `replace(regex_whitespaces_strict, ' ')`.
+            // The trailing trim only happens at the css-hash join in the caller.
+            AttributeValuePart::Text(t) if trim_ws => {
+                out.push_str(&collapse_ws_no_trim(t.data.as_str()))
+            }
             AttributeValuePart::Text(t) => out.push_str(t.data.as_str()),
             AttributeValuePart::ExpressionTag(tag) => {
                 let ev = state

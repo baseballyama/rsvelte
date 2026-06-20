@@ -3992,6 +3992,11 @@ mod tests {
             "boundary-error-failed-prop",
             "select-value-implicit-value-complex",
             "spread-attributes-event-handler-xss",
+            // Despite the name, this fixture has NO `<svelte:head>`. It exercises
+            // class-attribute constant folding: `class="{const} baz"` should fold
+            // the static `{const}` into the literal (`class="bar baz svelte-…"`)
+            // instead of emitting `$.attr_class(\`${$.stringify(...)} baz\`)`.
+            "head-raw-elements-content",
         ];
         let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
@@ -4021,6 +4026,45 @@ mod tests {
         assert!(
             mismatches.is_empty(),
             "SSR output differs from oracle for: {mismatches:?}"
+        );
+    }
+
+    /// SSR class-attribute constant folding: a `class="{const} baz"` whose
+    /// expression `scope.evaluate`s to a known string folds into a static
+    /// literal (`class="bar baz"`), matching upstream `build_attribute_value`'s
+    /// all-known → `b.literal(...)` branch (then inlined at element.js:257).
+    #[test]
+    fn ast_matches_oracle_class_attr_constant_folding() {
+        let cases = [
+            // Fully-foldable mixed class → static `class="bar baz"`.
+            "<script>const x = 'bar';</script><div class=\"{x} baz\"></div>",
+            // Leading + trailing static text around the folded expression.
+            "<script>const x = 'bar';</script><div class=\"foo {x} baz\"></div>",
+            // The fixture's exact shape, with a scoped `.baz` so a css hash joins.
+            "<script>const dynamic_value = 'bar';</script>\
+             <div class=\"{dynamic_value} baz\">bar</div>\
+             <div class=\"foo {dynamic_value} baz\">bar</div>\
+             <style>.baz { color: red; }</style>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in cases {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = match (canon(&ours), canon(&oracle)) {
+                (Some(a), Some(b)) => a == b,
+                _ => norm(&ours) == norm(&oracle),
+            };
+            if !matched {
+                eprintln!(
+                    "########## class-fold (DIFFER) ##########\nSRC: {src}\n=== NEW ===\n{ours}\n=== ORACLE ===\n{oracle}\n"
+                );
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "class-attr fold differs from oracle for {} case(s)",
+            mismatches.len()
         );
     }
 }
