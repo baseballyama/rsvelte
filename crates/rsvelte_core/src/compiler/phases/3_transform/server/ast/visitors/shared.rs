@@ -107,28 +107,42 @@ pub fn process_children_inner<'a>(
     // `<!---->`, `<!--]-->`) are NOT affected: those are emitted by block
     // visitors as `TemplateEntry::Literal`, never as `TemplateNode::Comment`.
     let preserve_comments = state.options.preserve_comments;
-    let filtered: Vec<&TemplateNode> = nodes
-        .iter()
-        .filter(|n| preserve_comments || !matches!(n, TemplateNode::Comment(_)))
-        .collect();
+
+    // 写经 `clean_nodes` (utils.js:142-167): split the children into `hoisted`
+    // (SSR-invisible / position-independent nodes — `{@const}` / `{@debug}` /
+    // `{#snippet}` / `<svelte:head>` / `<title>` / `<svelte:body>` / `<svelte:window>`
+    // / `<svelte:document>`) and `regular` (everything else). Author HTML comments
+    // are dropped here too (unless `preserveComments`). Whitespace trimming and the
+    // `is_text_first` computation then run on `regular` ONLY, so whitespace that sat
+    // adjacent to a hoisted node becomes leading/trailing of `regular` and is
+    // trimmed away — and a leading hoisted node never consumes the text-first slot.
+    let mut hoisted: Vec<&TemplateNode> = Vec::new();
+    let mut filtered: Vec<&TemplateNode> = Vec::new();
+    for n in nodes {
+        if matches!(n, TemplateNode::Comment(_)) && !preserve_comments {
+            continue;
+        }
+        if is_hoisted_node(n) {
+            hoisted.push(n);
+        } else {
+            filtered.push(n);
+        }
+    }
+
+    // Visit hoisted nodes first (upstream's `for (const node of hoisted)
+    // context.visit(node, state)`), BEFORE the `is_text_first` anchor and the
+    // regular children, so e.g. `$.head(...)` is emitted ahead of the leading
+    // `<!---->` and the sibling component calls.
+    for node in &hoisted {
+        super::visit_node(node, state);
+    }
 
     let cleaned = clean_whitespace(&filtered, parent, namespace, preserve_whitespace);
 
     // 写经 `clean_nodes` → `Fragment` visitor: when the parent is a fragment /
     // block body and the first surviving child is Text / ExpressionTag, prepend
     // `<!---->` so the leading text isn't glued to the previous fragment.
-    //
-    // Upstream computes `is_text_first` from the first node of `trimmed`, which
-    // has already had the hoisted / SSR-invisible nodes pulled out of `regular`
-    // (`{@const}` / `{#snippet}` / `<svelte:head>` / `<title>` / and the
-    // window/document/body/options special elements). So a leading
-    // `<svelte:window …/>` does NOT consume the text-first slot — the following
-    // text is still text-first and gets the `<!---->` anchor. Mirror that by
-    // skipping those node kinds when locating the first surviving child.
-    let first_visible = cleaned
-        .iter()
-        .map(|c| c.as_ref())
-        .find(|n| !is_text_first_hoisted(n));
+    let first_visible = cleaned.first().map(|c| c.as_ref());
     if is_block_parent
         && matches!(
             first_visible,
@@ -293,13 +307,17 @@ fn clean_whitespace<'n>(
     out
 }
 
-/// Whether `node` is one of the hoisted / SSR-invisible node kinds that
-/// upstream's `clean_nodes` pulls out of `regular` BEFORE computing the Fragment
-/// visitor's `is_text_first` flag — so it does NOT consume the text-first slot.
-/// Mirrors the text oracle's `first_visible_idx` filter (`SvelteOptions`,
-/// `ConstTag`, `DeclarationTag`, `DebugTag`, `SnippetBlock`, `SvelteHead`,
-/// `TitleElement`, `SvelteBody`, `SvelteWindow`, `SvelteDocument`).
-fn is_text_first_hoisted(node: &TemplateNode) -> bool {
+/// Whether `node` is one of the hoisted / SSR-invisible / position-independent
+/// node kinds that upstream's `clean_nodes` (utils.js:142-167) pulls out of
+/// `regular` into `hoisted` BEFORE whitespace trimming and the `is_text_first`
+/// computation. Hoisted nodes are visited first (in document order) and never
+/// influence the trim / text-first slot, so adjacent whitespace collapses as if
+/// they were absent. Mirrors upstream's hoist list: `ConstTag`, `DeclarationTag`,
+/// `DebugTag`, `SvelteBody`, `SvelteWindow`, `SvelteDocument`, `SvelteHead`,
+/// `TitleElement`, `SnippetBlock`. (`SvelteOptions` is removed during parsing
+/// upstream; rsvelte may retain it as a node, so it is hoisted here too — its
+/// visitor is a no-op for SSR output.)
+fn is_hoisted_node(node: &TemplateNode) -> bool {
     matches!(
         node,
         TemplateNode::SvelteOptions(_)

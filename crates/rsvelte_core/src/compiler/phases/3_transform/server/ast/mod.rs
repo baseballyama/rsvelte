@@ -3433,6 +3433,57 @@ mod tests {
         out
     }
 
+    /// The 5 official `server-side-rendering/samples/head-*` fixtures (essential
+    /// shape inlined) must lower IDENTICALLY through the new AST pipeline and the
+    /// `transform_server` oracle (which is correct for them). Asserts the
+    /// `<svelte:head>` / `<title>` hoist + dedup-hash + whitespace handling
+    /// matches structurally (oxc -> esrap canonical reprint, so layout-agnostic).
+    #[test]
+    fn head_fixtures_match_oracle() {
+        std::thread::Builder::new()
+            .stack_size(256 * 1024 * 1024)
+            .spawn(|| {
+                let cases = [
+                    (
+                        "head-html-and-component",
+                        "<script>\nimport HeadNested from './HeadNested.svelte';\nimport Nested from './Nested.svelte';\n</script>\n\n<svelte:head>\n\t{@html '<meta name=\"main_html\" content=\"main_html\">'}\n\t<meta name=\"main\" content=\"main\">\n\t<HeadNested />\n</svelte:head>\n\n<Nested/>",
+                    ),
+                    (
+                        "head-multiple-title",
+                        "<svelte:head>\n\t<title>Main</title>\n</svelte:head>\n<A />\n<B />",
+                    ),
+                    (
+                        "head-meta-hydrate-duplicate",
+                        "<svelte:head>\n  <title>Some Title</title>\n  <link rel=\"canonical\" href=\"/\">\n  <meta name=\"description\" content=\"some description\">\n  <meta name=\"keywords\" content=\"some keywords\">\n</svelte:head>\n\n<div>Just a dummy page.</div>",
+                    ),
+                    (
+                        "head-no-duplicates-with-binding",
+                        "<script>\nimport Foo from './Foo.svelte';\nlet bar;\n</script>\n\n<svelte:head>\n\t<link rel=\"canonical\" href=\"/test\" />\n\t<meta name=\"description\" content=\"test\" />\n</svelte:head>\n\n<Foo bind:bar />",
+                    ),
+                    // NOTE: `head-raw-elements-content` is intentionally NOT asserted
+                    // here. Despite its name it contains NO `<svelte:head>` — it
+                    // exercises the class-attribute constant-fold (`class="{const} baz"`
+                    // -> static `class="bar baz"`). That `$.stringify`/`attr_class`
+                    // elide is an orthogonal feature gap in the new AST pipeline
+                    // (the old `transform_server` oracle still folds it), unrelated
+                    // to the `<svelte:head>` hoist/dedup work this test guards.
+                ];
+                for (name, src) in cases {
+                    let new = canon(&run(src));
+                    let oracle = canon(&oracle_dump(src));
+                    assert!(
+                        new.is_some() && new == oracle,
+                        "{name}: new pipeline diverges from oracle\n--- NEW ---\n{}\n--- ORACLE ---\n{}",
+                        new.unwrap_or_default(),
+                        oracle.unwrap_or_default(),
+                    );
+                }
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
     #[test]
     #[ignore = "corpus measurement harness; run with --ignored --nocapture"]
     fn corpus_new_vs_oracle() {
