@@ -55,6 +55,14 @@ use crate::compiler::phases::phase3_transform::builders::B;
 use oxc_ast::ast::{Expression as OxcExpression, Statement, VariableDeclarationKind};
 use oxc_ast_visit::VisitMut;
 use oxc_span::GetSpan;
+use regex::Regex;
+use std::sync::LazyLock;
+
+/// Sanitizes a public class-field name into a valid private-identifier name
+/// (写经 analyze `ClassBody` `regex_invalid_identifier_chars`): the leading char
+/// must be `[a-zA-Z_$]`, every other char `[a-zA-Z0-9_$]`; anything else → `_`.
+static REGEX_INVALID_IDENTIFIER_CHARS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(^[^a-zA-Z_$]|[^a-zA-Z0-9_$])").unwrap());
 
 /// The rune shapes this slice recognises on a declarator init.
 enum DeclRune {
@@ -250,41 +258,205 @@ struct ClassFieldRuneLower<'a, 'b> {
     analysis: &'b crate::compiler::phases::phase2_analyze::ComponentAnalysis,
 }
 
+impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
+    /// Lower a `$state` / `$state.raw` / `$derived` / `$derived.by` property
+    /// initializer in place: `count = $state(0)` → `count = 0`, etc. Returns the
+    /// detected rune (so the caller can decide whether public-`$derived` needs
+    /// the private-backing-field + getter/setter rewrite).
+    fn lower_property_init(
+        &mut self,
+        prop: &mut oxc_ast::ast::PropertyDefinition<'a>,
+    ) -> Option<DeclRune> {
+        let rune = prop.value.as_ref().and_then(detect_decl_rune)?;
+        let b = self.b;
+        // Take the `$state(...)` / `$derived(...)` call out and move its first
+        // argument expression out directly (the rehomed call already lives in the
+        // state allocator — no re-parse).
+        if let Some(OxcExpression::CallExpression(call)) = prop.value.take() {
+            let mut call = call.unbox();
+            let mut arg: Option<OxcExpression<'a>> = call
+                .arguments
+                .drain(..)
+                .next()
+                .and_then(|a| OxcExpression::try_from(a).ok());
+            if let Some(e) = arg.as_mut() {
+                super::read_wrap::wrap_reads(
+                    e,
+                    b,
+                    self.analysis,
+                    self.analysis.root.instance_scope_index,
+                );
+            }
+            prop.value = match rune {
+                // `$state(x)` → `x`; no-arg `$state()` → bare field (`None`).
+                DeclRune::State => arg,
+                DeclRune::Derived => arg.map(|e| b.call("$.derived", vec![b.thunk(e, false)])),
+                DeclRune::DerivedBy => arg.map(|e| b.call("$.derived", vec![e])),
+                // `$props` / `$props.id` are not valid class-field runes.
+                DeclRune::Props | DeclRune::PropsId => None,
+            };
+        }
+        Some(rune)
+    }
+}
+
 impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
-    fn visit_property_definition(&mut self, prop: &mut oxc_ast::ast::PropertyDefinition<'a>) {
-        if let Some(rune) = prop.value.as_ref().and_then(detect_decl_rune) {
-            let b = self.b;
-            // Take the `$state(...)` / `$derived(...)` call out and move its
-            // first argument expression out directly (the rehomed call already
-            // lives in the state allocator — no re-parse).
-            if let Some(OxcExpression::CallExpression(call)) = prop.value.take() {
-                let mut call = call.unbox();
-                let mut arg: Option<OxcExpression<'a>> = call
-                    .arguments
-                    .drain(..)
-                    .next()
-                    .and_then(|a| OxcExpression::try_from(a).ok());
-                if let Some(e) = arg.as_mut() {
-                    super::read_wrap::wrap_reads(
-                        e,
-                        b,
-                        self.analysis,
-                        self.analysis.root.instance_scope_index,
-                    );
-                }
-                prop.value = match rune {
-                    // `$state(x)` → `x`; no-arg `$state()` → bare field (`None`).
-                    DeclRune::State => arg,
-                    DeclRune::Derived => arg.map(|e| b.call("$.derived", vec![b.thunk(e, false)])),
-                    DeclRune::DerivedBy => arg.map(|e| b.call("$.derived", vec![e])),
-                    // `$props` / `$props.id` are not valid class-field runes.
-                    DeclRune::Props | DeclRune::PropsId => None,
-                };
+    /// Rebuild a runes-mode class body so public `$derived` / `$derived.by`
+    /// fields become a private backing field + `get`/`set` accessor pair (写经
+    /// `3-transform/server/visitors/ClassBody.js`):
+    ///
+    /// ```js
+    /// foo = $derived(e);
+    /// // ↓
+    /// #foo = $.derived(() => e);
+    /// get foo() { return this.#foo(); }
+    /// set foo($$value) { return this.#foo($$value); }
+    /// ```
+    ///
+    /// `$state` / `$state.raw` fields and PRIVATE `$derived` fields keep their
+    /// key and are only value-lowered (via [`Self::lower_property_init`]). The
+    /// public private-key (`#foo`) is deconflicted against the class's existing
+    /// private identifiers in source order, mirroring the analyze-phase
+    /// `ClassBody` deconfliction.
+    fn visit_class(&mut self, class: &mut oxc_ast::ast::Class<'a>) {
+        use oxc_ast::ast::{ClassElement, MethodDefinitionKind};
+
+        let b = self.b;
+
+        // Collect existing private identifiers in this class so the synthesized
+        // `#foo` backing fields can be deconflicted against them.
+        let mut private_ids: Vec<String> = Vec::new();
+        for el in class.body.body.iter() {
+            let key = match el {
+                ClassElement::PropertyDefinition(p) => Some(&p.key),
+                ClassElement::MethodDefinition(m) => Some(&m.key),
+                _ => None,
+            };
+            if let Some(name) = key.and_then(|k| k.private_name()) {
+                private_ids.push(name.as_str().to_string());
             }
         }
-        // Continue into the (possibly replaced) value so nested classes inside a
-        // `$derived(...)` thunk / arrow body are still visited.
-        oxc_ast_visit::walk_mut::walk_property_definition(self, prop);
+
+        // Take ownership of the existing body and rebuild it element-by-element.
+        let old_body = std::mem::replace(&mut class.body.body, b.ab.vec());
+        let mut new_body: oxc_allocator::Vec<'a, ClassElement<'a>> = b.ab.vec();
+
+        for el in old_body {
+            let ClassElement::PropertyDefinition(mut prop_box) = el else {
+                new_body.push(el);
+                continue;
+            };
+            // Only plain (non-computed, non-static) fields carry class-field runes.
+            let is_plain_field = !prop_box.computed && !prop_box.r#static;
+            let is_private = prop_box.key.is_private_identifier();
+            let prop = prop_box.as_mut();
+            let rune = self.lower_property_init(prop);
+
+            let needs_accessor = is_plain_field
+                && !is_private
+                && matches!(rune, Some(DeclRune::Derived) | Some(DeclRune::DerivedBy));
+
+            if !needs_accessor {
+                new_body.push(ClassElement::PropertyDefinition(prop_box));
+                continue;
+            }
+
+            // Public `$derived` / `$derived.by`: derive a deconflicted private
+            // backing-field name from the public name (写经 analyze `ClassBody`).
+            let public_name = prop_box
+                .key
+                .name()
+                .map(|c| c.to_string())
+                .unwrap_or_default();
+            let mut deconflicted = REGEX_INVALID_IDENTIFIER_CHARS
+                .replace_all(&public_name, "_")
+                .to_string();
+            while private_ids.contains(&deconflicted) {
+                deconflicted = format!("_{deconflicted}");
+            }
+            private_ids.push(deconflicted.clone());
+
+            // Move the lowered `$.derived(...)` value onto the private backing
+            // field, keeping the original `PropertyDefinition` node (and its now
+            // private key).
+            let private_key =
+                b.ab.property_key_private_identifier(oxc_span::SPAN, b.str(&deconflicted));
+            prop_box.key = private_key;
+            new_body.push(ClassElement::PropertyDefinition(prop_box));
+
+            // `get <name>() { return this.#<key>(); }`
+            let getter_body = {
+                let member = b.member(b.this(), &format!("#{deconflicted}"));
+                let call = b.call(member, vec![]);
+                b.body(vec![b.return_stmt(Some(call))])
+            };
+            let getter_fn = b.ab.alloc_function(
+                oxc_span::SPAN,
+                oxc_ast::ast::FunctionType::FunctionExpression,
+                None,
+                false,
+                false,
+                false,
+                oxc_ast::NONE,
+                oxc_ast::NONE,
+                b.empty_params(),
+                oxc_ast::NONE,
+                Some(getter_body),
+            );
+            new_body.push(b.ab.class_element_method_definition(
+                oxc_span::SPAN,
+                oxc_ast::ast::MethodDefinitionType::MethodDefinition,
+                b.ab.vec(),
+                b.key(&public_name),
+                getter_fn,
+                MethodDefinitionKind::Get,
+                false,
+                false,
+                false,
+                false,
+                None,
+            ));
+
+            // `set <name>($$value) { return this.#<key>($$value); }`
+            let setter_body = {
+                let member = b.member(b.this(), &format!("#{deconflicted}"));
+                let call = b.call(member, vec![b.id("$$value")]);
+                b.body(vec![b.return_stmt(Some(call))])
+            };
+            let setter_params = b.params(vec![b.id_pat("$$value")], None);
+            let setter_fn = b.ab.alloc_function(
+                oxc_span::SPAN,
+                oxc_ast::ast::FunctionType::FunctionExpression,
+                None,
+                false,
+                false,
+                false,
+                oxc_ast::NONE,
+                oxc_ast::NONE,
+                setter_params,
+                oxc_ast::NONE,
+                Some(setter_body),
+            );
+            new_body.push(b.ab.class_element_method_definition(
+                oxc_span::SPAN,
+                oxc_ast::ast::MethodDefinitionType::MethodDefinition,
+                b.ab.vec(),
+                b.key(&public_name),
+                setter_fn,
+                MethodDefinitionKind::Set,
+                false,
+                false,
+                false,
+                false,
+                None,
+            ));
+        }
+
+        class.body.body = new_body;
+
+        // Recurse so nested classes inside method bodies / `$derived(...)` thunks
+        // are still lowered.
+        oxc_ast_visit::walk_mut::walk_class(self, class);
     }
 }
 

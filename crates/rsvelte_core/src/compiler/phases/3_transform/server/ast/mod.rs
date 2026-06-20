@@ -876,6 +876,39 @@ mod tests {
         );
     }
 
+    /// Snapshot fixture `class-state-field-constructor-assignment`: a runes class
+    /// with `$state` + private `$state` + public `$derived` fields plus a
+    /// constructor that assigns `this.<field>`. The public `$derived` fields must
+    /// lower to a private backing field + `get`/`set` accessor pair (写经 server
+    /// `ClassBody.js`); the constructor assignments pass through unchanged. The
+    /// AST pipeline output must match the `transform_server` oracle.
+    #[test]
+    fn ast_matches_oracle_class_state_field_ctor() {
+        let src = concat!(
+            "<script>\n",
+            "\tclass Foo {\n",
+            "\t\ta = $state(0);\n",
+            "\t\t#b = $state();\n",
+            "\t\tfoo = $derived({ bar: this.a * 2 });\n",
+            "\t\tbar = $derived({ baz: this.foo });\n",
+            "\t\tconstructor() {\n",
+            "\t\t\tthis.a = 1;\n",
+            "\t\t\tthis.#b = 2;\n",
+            "\t\t\tthis.foo.bar = 3;\n",
+            "\t\t\tthis.bar = 4;\n",
+            "\t\t}\n",
+            "\t}\n",
+            "</script>",
+        );
+        let ours = run(src);
+        let oracle = oracle_dump(src);
+        assert_eq!(
+            norm(&ours),
+            norm(&oracle),
+            "\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}\n"
+        );
+    }
+
     /// Compare the AST pipeline output against the `transform_server` oracle for
     /// every sample, printing both and which match exactly.
     #[test]
