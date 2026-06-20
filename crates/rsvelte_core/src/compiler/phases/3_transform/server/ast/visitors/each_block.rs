@@ -28,11 +28,14 @@
 //! }
 //! ```
 //!
+//! The `{:else}` fallback branch IS ported: when `node.fallback` is present, the
+//! loop is wrapped in `if (each_array.length !== 0) { push('<!--[-->'); <loop> }
+//! else { push('<!--[!-->'); <fallback> }` followed by `push('<!--]-->')`.
+//!
 //! KNOWN GAPs:
 //! - keyed each (`node.key`) and the animation path — not handled (the unkeyed
 //!   SSR shape is identical, so this is only a correctness concern for keyed
 //!   hydration markers upstream doesn't actually special-case on the server).
-//! - the `{:else}` fallback branch (`if (arr.length !== 0) {...} else {...}`).
 //! - destructuring `node.context` patterns (only identifier `as item` handled);
 //!   a destructure falls back to a re-parsed source-slice pattern.
 //! - async each (`node.metadata.expression.is_async()` → `create_child_block`).
@@ -43,7 +46,7 @@ use crate::compiler::phases::phase3_transform::builders::{BinaryOperator, Update
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 use oxc_ast::ast::{BindingPattern, Statement, VariableDeclarationKind};
 
-use super::shared::{BLOCK_CLOSE, BLOCK_OPEN, TemplateEntry, build_fragment_body};
+use super::shared::{BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, TemplateEntry, build_fragment_body};
 
 /// Visit a `{#each expr as ctx, i}...{/each}` block (sync, unkeyed, no fallback).
 pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'a>) {
@@ -96,19 +99,64 @@ pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'
 
     let for_loop = build_for_loop(b, &array_var, &index_var, b.block(each_body));
 
-    // KNOWN GAP: fallback (`{:else}`) and async wrapping. Sync, no-fallback path:
-    //   template.push(block_open); statements.push(for_loop);
-    //   template.push(...statements, block_close)
-    state
-        .template
-        .push(TemplateEntry::Literal(BLOCK_OPEN.to_string()));
-    statements.push(for_loop);
-    for stmt in statements {
-        state.template.push(TemplateEntry::Stmt(stmt));
+    if node.fallback.is_some() {
+        // `{:else}` fallback path (写经 upstream):
+        //   statements.push(b.if(
+        //     b.binary('!==', b.member(array_id, 'length'), b.literal(0)),
+        //     b.block([push('<!--[-->'), for_loop]),
+        //     fallback_block_with_unshifted_push('<!--[!-->')))
+        //   state.template.push(...statements, block_close)
+        //
+        // Re-borrow `b` after `state` is used again below; build the consequent
+        // (open-marker push + the loop) and the alternate (fallback body with a
+        // leading `<!--[!-->` push) first.
+        let fallback = node.fallback.as_ref().unwrap();
+
+        // Consequent: `{ $$renderer.push('<!--[-->'); <for_loop> }`.
+        let b = state.b;
+        let open_push = b.stmt(b.call("$$renderer.push", vec![b.string(BLOCK_OPEN)]));
+        let consequent = b.block(vec![open_push, for_loop]);
+
+        // Alternate: the fallback fragment body with a leading
+        // `$$renderer.push('<!--[!-->')`. The fallback fragment's parent is the
+        // EachBlock node, so it IS an `is_text_first` parent (upstream
+        // `clean_nodes`: `parent.type === 'EachBlock'`) — a text-first fallback
+        // gets a leading `<!---->` anchor, same as the loop body.
+        let mut fallback_body = build_fragment_body(fallback, true, state);
+        let b = state.b;
+        let open_else_push = b.stmt(b.call("$$renderer.push", vec![b.string(BLOCK_OPEN_ELSE)]));
+        fallback_body.insert(0, open_else_push);
+        let alternate = b.block(fallback_body);
+
+        let test = b.binary(
+            BinaryOperator::StrictInequality,
+            b.member(b.id(&array_var), "length"),
+            b.number(0.0),
+        );
+        let if_stmt = b.if_stmt(test, consequent, Some(alternate));
+        statements.push(if_stmt);
+
+        for stmt in statements {
+            state.template.push(TemplateEntry::Stmt(stmt));
+        }
+        state
+            .template
+            .push(TemplateEntry::Literal(BLOCK_CLOSE.to_string()));
+    } else {
+        // Sync, no-fallback path (写经):
+        //   template.push(block_open); statements.push(for_loop);
+        //   template.push(...statements, block_close)
+        state
+            .template
+            .push(TemplateEntry::Literal(BLOCK_OPEN.to_string()));
+        statements.push(for_loop);
+        for stmt in statements {
+            state.template.push(TemplateEntry::Stmt(stmt));
+        }
+        state
+            .template
+            .push(TemplateEntry::Literal(BLOCK_CLOSE.to_string()));
     }
-    state
-        .template
-        .push(TemplateEntry::Literal(BLOCK_CLOSE.to_string()));
 }
 
 /// `for (let index = 0, $$length = array.length; index < $$length; index++) body`.

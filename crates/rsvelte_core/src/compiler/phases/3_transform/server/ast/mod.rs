@@ -799,6 +799,10 @@ mod tests {
             "{#each [1, 2, 3] as n, i}<li>{i}</li>{/each}",
             // EachBlock body starting with text → is_text_first anchor inside.
             "{#each [1] as n}text<li>{n}</li>{/each}",
+            // EachBlock with `{:else}` fallback (empty-list guard).
+            "{#each [1, 2, 3] as n}<li>{n}</li>{:else}<p>empty</p>{/each}",
+            // EachBlock fallback over a state-bound empty list.
+            "<script>let items = [];</script>{#each items as n}{n}{:else}none{/each}",
             // SnippetBlock body starting with text → is_text_first anchor inside.
             "{#snippet foo()}text<span>x</span>{/snippet}{@render foo()}",
         ];
