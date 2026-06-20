@@ -765,6 +765,55 @@ mod tests {
         );
     }
 
+    /// CSS scope-class injection on the STATIC-attribute path. Each sample has a
+    /// `<style>` block so Phase 2 marks the matched element `scoped` and the
+    /// component gets a non-empty `css.hash`. The AST pipeline must inject the
+    /// scope class byte-for-byte like the `transform_server` oracle:
+    ///   - no class attr  -> a fresh `class="svelte-…"`,
+    ///   - static class attr -> `class="foo svelte-…"` (space-joined, trimmed),
+    ///   - nested scoped elements both get the class.
+    /// The hash is NEVER hardcoded — equality with the oracle is the gate, and
+    /// the test additionally asserts the literal `class="svelte-` appears so a
+    /// silent "both emit no class" can't pass it.
+    #[test]
+    fn ast_matches_oracle_css_scope_class() {
+        let samples = [
+            // no class attribute -> fresh scope class
+            "<p>hi</p><style>p{color:red}</style>",
+            // existing static class -> merged (space-joined)
+            "<p class=\"foo\">hi</p><style>p{color:red}</style>",
+            // nested scoped elements: both <div> and <span> get the class
+            "<div><span>hi</span></div><style>div{color:red}span{color:blue}</style>",
+            // multiple static attributes + no class -> class appended at end
+            "<input type=\"text\" disabled><style>input{color:red}</style>",
+            // existing multi-token class merged
+            "<p class=\"a b\">hi</p><style>p{color:red}</style>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm(&ours) == norm(&oracle);
+            // Sanity: the oracle itself must actually emit a scope class for
+            // these samples (guards against a vacuous "both emit nothing" pass).
+            // The hash may be bare (`class="svelte-…"`) or appended to an
+            // existing value (`class="foo svelte-…"`), so just look for the
+            // `svelte-` scope token anywhere.
+            let oracle_has_class = oracle.contains("svelte-");
+            eprintln!(
+                "=== SRC: {src} === {} (oracle_scoped={oracle_has_class})\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched || !oracle_has_class {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "CSS scope-class injection differs from oracle for: {mismatches:?}"
+        );
+    }
+
     #[test]
     fn trivial_component_skeleton() {
         let out = run("<p>hello</p>");

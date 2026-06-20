@@ -26,8 +26,22 @@ pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransf
     let is_void = is_void_element(name);
 
     // -- open tag + static attributes --------------------------------------
+    //
+    // CSS scoping: when Phase 2 marked this element `scoped` AND the component
+    // has a non-empty CSS hash, the scope class (`analysis.css.hash`, already
+    // prefixed `svelte-…`) is injected — either merged into a static
+    // `class="..."` value or, when there is no class attribute (and no dynamic
+    // class), appended as a fresh `class="svelte-…"`. Mirrors upstream's
+    // `build_element_attributes` (`css_hash = node.metadata.scoped ?
+    // analysis.css.hash : null`).
+    let css_hash: Option<&str> = if node.metadata.scoped && !state.analysis.css.hash.is_empty() {
+        Some(state.analysis.css.hash.as_str())
+    } else {
+        None
+    };
+
     let mut open = format!("<{name}");
-    if let Some(attrs) = build_static_attributes(node) {
+    if let Some(attrs) = build_static_attributes(node, css_hash) {
         open.push_str(&attrs);
     }
     open.push_str(if is_void { "/>" } else { ">" });
@@ -54,11 +68,48 @@ pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransf
 }
 
 /// Build the static portion of an element's attribute string (`r#" class="foo""#`
-/// etc.). Returns `None` only when there are no attributes. Any non-static
-/// attribute (expression value, directive, spread) is skipped with a TODO —
-/// the simple visitor set only handles fully-static attributes.
-fn build_static_attributes(node: &RegularElement) -> Option<String> {
-    if node.attributes.is_empty() {
+/// etc.). Returns `None` only when there are no attributes AND no scope class is
+/// injected. Any non-static attribute (expression value, directive, spread) is
+/// skipped with a TODO — the simple visitor set only handles fully-static
+/// attributes.
+///
+/// `css_hash` is `Some(hash)` when the element is CSS-scoped (`metadata.scoped`
+/// + a non-empty component hash). The hash already carries the `svelte-…`
+/// prefix (`generate_css_hash`). When set, the scope class is applied per
+/// upstream `build_element_attributes`:
+///   - merged into a static `class="..."` value (`(value + ' ' + hash).trim()`),
+///     or
+///   - appended as a fresh `class="svelte-…"` at the END of the attribute list
+///     when there is no class attribute and no class directive (matching the
+///     text oracle's trailing no-class injection).
+///
+/// KNOWN GAP: a *dynamic* class attribute (expression value) or `class:`
+/// directive routes through `$.attr_class`/`$.clsx` upstream — not handled
+/// here. In that case the fresh-class injection is skipped (the element will
+/// diverge from the oracle, but we never emit a wrong static class).
+fn build_static_attributes(node: &RegularElement, css_hash: Option<&str>) -> Option<String> {
+    // Does the element carry a class signal the static path can't fold the hash
+    // into (a dynamic class attr, a `class:` directive, or a spread)? If so we
+    // must NOT inject a fresh `class="svelte-<hash>"` (the dynamic path owns it).
+    let has_dynamic_class = node.attributes.iter().any(|attr| match attr {
+        Attribute::ClassDirective(_) | Attribute::SpreadAttribute(_) => true,
+        Attribute::Attribute(a) if a.name.as_str() == "class" => {
+            // A class attribute that is NOT pure static text is dynamic.
+            match &a.value {
+                AttributeValue::True(_) => false,
+                AttributeValue::Sequence(parts) => static_text_of(parts).is_none(),
+                AttributeValue::Expression(_) => true,
+            }
+        }
+        _ => false,
+    });
+    let has_static_class = node
+        .attributes
+        .iter()
+        .any(|attr| matches!(attr, Attribute::Attribute(a) if a.name.as_str() == "class"))
+        && !has_dynamic_class;
+
+    if node.attributes.is_empty() && css_hash.is_none() {
         return None;
     }
     let mut out = String::new();
@@ -74,7 +125,15 @@ fn build_static_attributes(node: &RegularElement) -> Option<String> {
                 }
                 // Pure-text value: ` name="value"`.
                 AttributeValue::Sequence(parts) => {
-                    if let Some(text) = static_text_of(parts) {
+                    if let Some(mut text) = static_text_of(parts) {
+                        // Merge the scope class into a static `class="..."` value
+                        // (`(value + ' ' + hash).trim()`, upstream element.js
+                        // line 237).
+                        if a.name.as_str() == "class"
+                            && let Some(hash) = css_hash
+                        {
+                            text = format!("{text} {hash}").trim().to_string();
+                        }
                         out.push(' ');
                         out.push_str(a.name.as_str());
                         out.push_str("=\"");
@@ -90,6 +149,17 @@ fn build_static_attributes(node: &RegularElement) -> Option<String> {
             _ => {}
         }
     }
+
+    // No class attribute and no dynamic class → append the fresh scope class at
+    // the end (mirrors the text oracle's trailing `class="svelte-…"`). `hash`
+    // is already `svelte-…`.
+    if let Some(hash) = css_hash
+        && !has_static_class
+        && !has_dynamic_class
+    {
+        out.push_str(&format!(" class=\"{hash}\""));
+    }
+
     if out.is_empty() { None } else { Some(out) }
 }
 
