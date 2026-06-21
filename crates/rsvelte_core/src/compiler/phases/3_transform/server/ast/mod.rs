@@ -2781,6 +2781,59 @@ mod tests {
         super::super::transform_server(&analysis, &ast, source, &options).expect("server")
     }
 
+    /// `{@const}` inside `{#each}` (SSR, legacy / non-runes) — the each-body
+    /// const cluster from runtime-legacy. The AST pipeline must emit each const
+    /// as a `const <pat> = <init>;` inside the for-loop body, in SOURCE order,
+    /// matching the (correct) `transform_server` oracle.
+    ///
+    /// Two facts pinned by these samples (verified against the oracle):
+    /// - The each-body `{@const}` declarations are NOT topologically reordered:
+    ///   upstream's `sort_const_tags` (utils.js) runs in `clean_nodes` per
+    ///   fragment, but the each-body keeps source order in the oracle, so the AST
+    ///   pipeline must too (`{@const foo = bar}{@const bar = 'world'}` stays
+    ///   `const foo = bar; const bar = 'world';` — no reorder).
+    /// - A function-valued / nested-arrow / inner-const RHS round-trips through
+    ///   the reparse+read-wrap path with the same structure as the oracle.
+    ///
+    /// Compared under [`canon`] (oxc → esrap reprint), the runtime gate's
+    /// formatting-insensitive canonicalizer, so cosmetic arrow-body line breaks
+    /// and trailing-semicolon differences collapse and only STRUCTURE is asserted.
+    #[test]
+    fn ast_matches_oracle_const_in_each() {
+        let samples = [
+            // simple const reading the loop context
+            "<svelte:options runes={false} />\n<script>export let items = [];</script>\n{#each items as x}\n\t{@const y = x * 2}\n\t<p>{y}</p>\n{/each}",
+            // const reading a later-declared sibling const + a loop var (no reorder)
+            "<svelte:options runes={false} />\n<script>export let items = [];</script>\n{#each items as x}\n\t{@const a = b}\n\t{@const b = x}\n\t<p>{a}{b}</p>\n{/each}",
+            // three chained consts whose deps are local consts — oracle keeps source order
+            "<svelte:options runes={false} />\n<script>export let items = [];</script>\n{#each items as x}\n\t{@const foo = bar}\n\t{@const yoo = foo}\n\t{@const bar = 'world'}\n\t<p>{bar}{yoo}{x}</p>\n{/each}",
+            // const with a duplicated-variable nested-arrow RHS (const-tag-each-duplicated-variable3 shape)
+            "<svelte:options runes={false} />\n<script>export let nums = [1, 2];\n\tlet foos = [{ nums: [1, 2, 3] }];</script>\n{#each nums as num, index}\n\t{@const bar = nums.map((num) => {\n\t\treturn (function (foos, num) {\n\t\t\treturn [...foos.map((foo) => foo), num];\n\t\t})(foos[index].nums, num);\n\t})}\n\t<p>bar: {bar}, num: {num}</p>\n{/each}",
+            // const with an inner-function-declaration RHS (const-tag-each-function shape)
+            "<svelte:options runes={false} />\n<script>export let nums = [1, 2];\n\tlet foos = [{ nums: [1, 2, 3] }];</script>\n{#each nums as num, index}\n\t{@const bar = nums.map((num) => {\n\t\tfunction func(foos, num) {\n\t\t\treturn [...foos.map((foo) => foo), num];\n\t\t}\n\t\treturn func(foos[index].nums, num);\n\t})}\n\t<p>bar: {bar}, num: {num}</p>\n{/each}",
+            // const with an inner-arrow-const RHS (const-tag-each-const shape)
+            "<svelte:options runes={false} />\n<script>export let nums = [1, 2];\n\tlet foos = [{ nums: [1, 2, 3] }];</script>\n{#each nums as num, index}\n\t{@const bar = nums.map((num) => {\n\t\tconst func = (foos, num) => {\n\t\t\treturn [...foos.map((foo) => foo), num];\n\t\t}\n\t\treturn func(foos[index].nums, num);\n\t})}\n\t<p>bar: {bar}, num: {num}</p>\n{/each}",
+        ];
+        let mut mismatches: Vec<&str> = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = match (canon(&ours), canon(&oracle)) {
+                (Some(a), Some(b)) => a == b,
+                _ => norm_blocks(&ours) == norm_blocks(&oracle),
+            };
+            if !matched {
+                eprintln!("=== DIFFER ===\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}\n");
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "{{@const}}-in-{{#each}} SSR output differs from oracle for {} sample(s)",
+            mismatches.len()
+        );
+    }
+
     /// Canonicalize `code` via oxc parse → codegen. This is the SAME comparison
     /// the runtime harness uses (`tests/common::canonicalize_js`): it normalizes
     /// formatting (whitespace, trailing commas, semicolons) but preserves
