@@ -44,7 +44,7 @@
 //! When the iterable expression carries top-level-await blockers or an inline
 //! `await` (`node.metadata.expression.is_async()`), the assembled each statements
 //! (`const each_array = …; <for-loop>` — or the fallback `if/else`) are wrapped
-//! via [`create_child_block`]: blockers → `$$renderer.async_block([…], …)`,
+//! via `create_child_block`: blockers → `$$renderer.async_block([…], …)`,
 //! `has_await` → a `child_block(async ($$renderer) => { … })` arrow. The
 //! surrounding `<!--[-->` / `<!--]-->` (and `<!--[!-->` for the fallback) markers
 //! stay OUTSIDE the wrap — exactly as in the sync path — because upstream's

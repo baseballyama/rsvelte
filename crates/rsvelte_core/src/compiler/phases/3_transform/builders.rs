@@ -511,7 +511,7 @@ impl<'a> B<'a> {
         self.params(vec![], None)
     }
 
-    /// Build a [`FormalParameters`] from binding patterns + optional rest.
+    /// Build a `FormalParameters` from binding patterns + optional rest.
     pub fn params(
         self,
         patterns: Vec<BindingPattern<'a>>,
@@ -604,7 +604,7 @@ impl<'a> B<'a> {
         self.arrow(self.empty_params(), body, false, is_async)
     }
 
-    /// A [`FunctionExpression`] (used as object get/set value and elsewhere).
+    /// A `FunctionExpression` (used as object get/set value and elsewhere).
     pub fn function_expr(
         self,
         id: Option<&str>,
@@ -720,11 +720,11 @@ impl<'a> B<'a> {
         Statement::VariableDeclaration(decl)
     }
 
-    /// Like [`var_decl_from_pairs`] but emits ONE `VariableDeclaration`
+    /// Like `var_decl_from_pairs` but emits ONE `VariableDeclaration`
     /// statement per declarator pair (写经 the server text-oracle's
     /// `split_comma_separated_declarations`: the official compiler prints each
     /// top-level declarator as its own statement). A single pair yields one
-    /// statement, identical to [`var_decl_from_pairs`] with one element.
+    /// statement, identical to `var_decl_from_pairs` with one element.
     pub fn var_decls_split(
         self,
         kind: VariableDeclarationKind,

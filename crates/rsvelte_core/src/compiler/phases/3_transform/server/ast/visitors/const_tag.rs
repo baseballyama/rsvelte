@@ -52,7 +52,7 @@ use crate::compiler::phases::phase3_transform::server::ast::{
 };
 
 /// Visit a `{@const <pattern> = <init>}` tag — async path
-/// ([`add_async_const`]) when blocked, else the sync `const … = …;` statement.
+/// (`add_async_const`) when blocked, else the sync `const … = …;` statement.
 pub fn visit_const_tag<'a>(node: &ConstTag, state: &mut ServerTransformState<'a>) {
     if try_async_const(node, state) {
         return;

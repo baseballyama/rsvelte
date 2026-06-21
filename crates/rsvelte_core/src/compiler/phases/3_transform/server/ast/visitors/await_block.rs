@@ -34,7 +34,7 @@
 //!   `$.await(...)` statement.
 //!
 //! Destructuring `node.value` patterns (`{#await … then { a, b }}`, `[a, b]`,
-//! defaults, rests, computed/nested patterns) ARE handled: [`value_pattern`]
+//! defaults, rests, computed/nested patterns) ARE handled: `value_pattern`
 //! re-parses the destructuring slice via `reparse_pattern`.
 
 use crate::ast::template::AwaitBlock;
@@ -56,7 +56,7 @@ use super::shared::{
 ///   `(async () => <expr>)()` so the `$.await` driver still receives a promise
 ///   (`{#await await ...}` should NOT eagerly wait on the inner await).
 /// - the whole `$.await(...)` statement is then routed through
-///   [`create_child_block`] with the expression's top-level-await blockers +
+///   `create_child_block` with the expression's top-level-await blockers +
 ///   `has_await`, so a blocker reference becomes
 ///   `$$renderer.async_block([$$promises[N]…], …)` and an inline await becomes
 ///   `$$renderer.child_block(async …)`.

@@ -1,6 +1,6 @@
 //! Server READ-WRAPPING single pass (Phase-3 rewrite).
 //!
-//! After [`ServerTransformState::visit_expr`] produces an oxc [`Expression`],
+//! After `ServerTransformState::visit_expr` produces an oxc [`Expression`],
 //! this module performs ONE in-place structural walk that wraps every
 //! identifier READ according to its Phase-2 binding kind, AND lowers every
 //! store/derived WRITE (`$store = x`, `$store.foo = x`, `$store++`, `derived =
@@ -604,7 +604,7 @@ impl<'a, 'b> ReadWrap<'a, 'b> {
         }
     }
 
-    /// Collect parameter binding names from a [`FormalParameters`] (or arrow
+    /// Collect parameter binding names from a `FormalParameters` (or arrow
     /// params) into a shadow frame.
     fn collect_param_names(
         params: &oxc_ast::ast::FormalParameters<'a>,
@@ -1133,7 +1133,7 @@ pub fn wrap_reads_with_shadows<'a>(
 
 /// Like [`wrap_reads_with_shadows`], but also threads the set of in-scope LOCAL
 /// async-`$derived` const names so an ambiguous read resolves to a CALL `name()`
-/// (see [`ReadWrap::local_derived`]).
+/// (see `ReadWrap::local_derived`).
 pub fn wrap_reads_with_shadows_and_local_derived<'a>(
     expr: &mut Expression<'a>,
     b: B<'a>,

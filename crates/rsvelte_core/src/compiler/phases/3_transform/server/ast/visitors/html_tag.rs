@@ -25,7 +25,7 @@
 //! - Async: the expression is `$.save`-wrapped (when it has an inline `await`
 //!   AND the html-tag is a direct child of an element — `context.visit` →
 //!   `AwaitExpression` visitor), then `$$renderer.push($.html(<expr>))` is routed
-//!   through [`create_child_block`] (blockers → `async_block`, inline await →
+//!   through `create_child_block` (blockers → `async_block`, inline await →
 //!   `child_block(async …)`).
 
 use crate::ast::template::HtmlTag;

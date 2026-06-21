@@ -12,7 +12,7 @@
 //! function shell) is emitted. The per-node visitors live in [`visitors`] and
 //! are ported incrementally.
 //!
-//! This module is NOT yet wired into [`super::transform_server`]; it exists so
+//! This module is NOT yet wired into `super::transform_server`; it exists so
 //! the crate keeps compiling while the AST pipeline is built out.
 
 pub mod read_wrap;
@@ -92,8 +92,8 @@ pub struct ServerTransformState<'a> {
     pub each_index: usize,
     /// Inputs to the `scope.evaluate` (SSR constant-folding) port. Computed
     /// once (via the proven legacy `ServerCodeGenerator::new` path) and reused
-    /// by [`Self::eval_ctx`] when folding `{expr}` template chunks / dynamic
-    /// attribute values. See [`server::evaluate::EvalCtx`].
+    /// by `Self::eval_ctx` when folding `{expr}` template chunks / dynamic
+    /// attribute values. See `server::evaluate::EvalCtx`.
     pub eval_inputs: EvalInputs,
     /// Monotonic counter for the `$$body` temporary used by element CONTENT
     /// binds (`<textarea>` value, contenteditable `innerHTML`/`innerText`/
@@ -209,7 +209,7 @@ pub struct AsyncConstsGroup<'a> {
 }
 
 /// The precomputed inputs to the SSR constant-folding evaluator
-/// ([`server::evaluate::EvalCtx`]). Mirrors exactly the fields the legacy
+/// (`server::evaluate::EvalCtx`). Mirrors exactly the fields the legacy
 /// `ServerCodeGenerator` carries for `scope.evaluate`, so the two pipelines
 /// fold identically.
 #[derive(Default)]
@@ -605,7 +605,7 @@ impl<'a> ServerTransformState<'a> {
 
     /// Re-parse a list of FORMAL-PARAMETER source strings (e.g.
     /// `["$$renderer", "{ count }", "id = default_arg()"]`) into an oxc
-    /// [`FormalParameters`], by wrapping them as a throwaway arrow
+    /// `FormalParameters`, by wrapping them as a throwaway arrow
     /// `(<p0>, <p1>, …) => {}` and stealing its parameter list. Used by the
     /// snippet visitor to emit destructuring / default-valued parameters
     /// verbatim — an `AssignmentPattern` default (`id = default_arg()`) and an

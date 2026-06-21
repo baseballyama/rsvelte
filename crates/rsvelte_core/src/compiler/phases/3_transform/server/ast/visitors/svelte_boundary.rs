@@ -54,11 +54,11 @@
 //! - The `pending` ATTRIBUTE branch (`build_pending_attribute_block` +
 //!   `is_pending_attr_nullish` if/else). A boundary with only a `pending`
 //!   attribute falls through to the children-body path.
-//! - The `failed` *attribute* value uses [`ServerTransformState::visit_expr`] (the
+//! - The `failed` *attribute* value uses `ServerTransformState::visit_expr` (the
 //!   read-wrapped expression) rather than upstream's
 //!   `build_attribute_value(..., is_component=true)`; correct for the common
 //!   identifier / single-expression value, a gap for mixed text+expr values.
-//! - The `failed` snippet is emitted via [`build_boundary_snippet`], with its
+//! - The `failed` snippet is emitted via `build_boundary_snippet`, with its
 //!   placement decided by the snippet's hoistability AND the boundary's nesting
 //!   depth (写经 upstream `SnippetBlock.js` `can_hoist ? state.hoisted :
 //!   state.init`): a TOP-LEVEL boundary whose `failed` body references only its

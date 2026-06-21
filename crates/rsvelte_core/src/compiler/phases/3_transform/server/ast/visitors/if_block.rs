@@ -27,7 +27,7 @@
 //! Each branch's BlockStatement gets a marker push **un­shifted** to its front
 //! (`<!--[0-->` consequent, `<!--[1-->`, `<!--[2-->`, … for else-ifs, `<!--[-1-->`
 //! for the final else). The whole `if/else-if/else` chain is one `Stmt`, possibly
-//! wrapped by [`create_child_block`], followed by a `<!--]-->` close literal.
+//! wrapped by `create_child_block`, followed by a `<!--]-->` close literal.
 //!
 //! rsvelte models `{:else if}` not via `metadata.flattened` but as the
 //! `alternate` Fragment whose single meaningful child is an `IfBlock` with

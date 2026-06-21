@@ -76,7 +76,7 @@ pub enum TemplateEntry<'a> {
 /// `$.escape(...)` interpolation. Async expression tags
 /// (`node.metadata.expression.is_async()`) are also not handled (TODO).
 ///
-/// `parent` / `namespace` are passed through to [`clean_whitespace`] so the
+/// `parent` / `namespace` are passed through to `clean_whitespace` so the
 /// leading/trailing fragment trim, internal whitespace collapse, and the
 /// `<pre>` / `<select>` / `<table>` / SVG special-cases match upstream's
 /// `clean_nodes` + `trim_whitespace` exactly.
@@ -1263,7 +1263,7 @@ pub fn blockers_array_combined<'a>(
     b.array(elems)
 }
 
-/// Like [`create_child_block`] but accepts BOTH instance blocker indices and
+/// Like `create_child_block` but accepts BOTH instance blocker indices and
 /// local const blocker source strings. 写经 `create_child_block` with a
 /// `blockers()` set that mixes instance `$$promises[N]` and per-block
 /// `promises[N]` members: a non-empty combined set →
@@ -1302,12 +1302,12 @@ pub fn create_child_block_combined<'a>(
 ///   nested function/arrow), every such await's argument is wrapped via
 ///   upstream's `save(argument)` → `(await $.save(<arg>))()`
 ///   (`utils/ast.js::save`), the textual rewrite from
-///   [`super::super::super::await_save_ast::transform_await_to_save_ast`], and
+///   `super::super::super::await_save_ast::transform_await_to_save_ast`, and
 ///   the result is re-parsed into an oxc expression. This is the `$.save`
 ///   await-wrap. The accompanying [`text_has_await`] returns `true` so the
 ///   caller makes its wrapping arrow `async`.
 /// - Otherwise (no inline await) the expression is read-wrapped via
-///   [`ServerTransformState::visit_expr`] (so a derived `blocking` becomes
+///   `ServerTransformState::visit_expr` (so a derived `blocking` becomes
 ///   `blocking()`), matching the non-await branch of the oracle.
 ///
 /// 写经 upstream server `AwaitExpression` visitor + `IfBlock.js`: the test of an
@@ -1553,7 +1553,7 @@ impl<'a> PromiseOptimiser<'a> {
 
     /// 写经 `render_block(statements)` — the COMPONENT/BLOCK wrapper:
     /// `$$renderer.child_block(async …)` / `$$renderer.async_block([…], …)` via
-    /// [`create_child_block`]. Sync returns the statements unchanged.
+    /// `create_child_block`. Sync returns the statements unchanged.
     pub fn render_block(
         &mut self,
         state: &ServerTransformState<'a>,

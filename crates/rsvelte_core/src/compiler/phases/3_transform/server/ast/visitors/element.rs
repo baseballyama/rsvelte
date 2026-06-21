@@ -22,7 +22,7 @@
 //!   - the CSS scope-class injection,
 //!   - spread (`{...obj}`) → the whole-element `$.attributes({ ...merged },
 //!     css_hash?, classes?, styles?, flags?)` form (see
-//!     [`build_element_spread_attributes`]), which merges every static / dynamic
+//!     `build_element_spread_attributes`), which merges every static / dynamic
 //!     attribute + spread into a single object and replaces per-attribute
 //!     emission for the element.
 //!
@@ -33,7 +33,7 @@
 //!   - contenteditable `bind:innerHTML` / `bind:innerText` / `bind:textContent`
 //!     → the bound value renders as the element's content (innerHTML unescaped).
 //!
-//! See [`build_element_content`] + [`emit_content_body`].
+//! See `build_element_content` + `emit_content_body`.
 //!
 //! Special `<select>` / `<option>` / `<optgroup>` (写经 of the `is_select_special`
 //! / `is_option_special` branches of `RegularElement.js`):
@@ -50,8 +50,8 @@
 //! The rich-content predicate mirrors the `transform_server` ORACLE
 //! (`has_component_or_render_tag` for select, `is_rich_option_content` for
 //! option), which is narrower than upstream's `is_customizable_select_element`.
-//! See [`emit_select_special`] / [`emit_option_special`] /
-//! [`prepare_element_spread_object`].
+//! See `emit_select_special` / `emit_option_special` /
+//! `prepare_element_spread_object`.
 //!
 //! 写经 gaps (TODO): `use:` directives on the non-spread
 //! path, the get/set `{get, set}` select bind form (the option's synthetic value
@@ -60,7 +60,7 @@
 //! `$.clsx` clsx object form, event-handler capture, dev `push_element` markers,
 //! and the async `PromiseOptimiser` wrapping. Within the spread path, `bind:` /
 //! `use:` / `@attach` and the `style:` `|important` split remain gaps (see
-//! [`build_element_spread_attributes`]).
+//! `build_element_spread_attributes`).
 
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, BindDirective, RegularElement,
@@ -689,7 +689,7 @@ fn bind_omit_in_ssr(name: &str) -> bool {
 
 /// Whether `name` is a content-editable binding (`innerHTML` / `innerText` /
 /// `textContent`). Upstream renders these as element CONTENT (escaped except
-/// `innerHTML`); handled by [`build_element_content`] / [`emit_content_body`].
+/// `innerHTML`); handled by `build_element_content` / `emit_content_body`.
 fn is_content_editable_binding(name: &str) -> bool {
     matches!(name, "innerHTML" | "innerText" | "textContent")
 }
@@ -752,8 +752,8 @@ fn build_bind_directive<'a>(
         return None;
     }
     // Content-producing binds emit NO attribute — they render as element CONTENT
-    // instead, handled separately by [`build_element_content`] /
-    // [`emit_content_body`] in `visit_regular_element`. So return `None` here.
+    // instead, handled separately by `build_element_content` /
+    // `emit_content_body` in `visit_regular_element`. So return `None` here.
     //   - `bind:innerHTML` / `bind:innerText` / `bind:textContent` → content
     //   - `bind:value` on `<textarea>` → escaped content
     //
