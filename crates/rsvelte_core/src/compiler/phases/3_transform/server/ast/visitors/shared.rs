@@ -522,11 +522,30 @@ fn expression_tag_blockers(expr: &Expression, state: &ServerTransformState) -> O
         return None;
     }
     let expr_text = &state.source[start..end];
-    let blockers =
+    // A read of a name SHADOWED by an enclosing snippet / scoped-slot parameter
+    // resolves to that local param, NOT the same-named instance binding, so it is
+    // NOT an async blocker (e.g. `{#snippet child(n)}<div>{n}</div>{/snippet}` with
+    // a component `const n = $derived(await …)` — the `{n}` is the snippet param).
+    // The read-wrap pass already honours `shadowed_names`; mirror it here by
+    // dropping shadowed names from the blocker map before the scan.
+    let shadowed = state.collect_shadowed();
+    let blockers = if shadowed.is_empty() {
         crate::compiler::phases::phase3_transform::server::helpers::find_expression_blockers(
             expr_text,
             &state.eval_inputs.top_level_blocker_map,
-        );
+        )
+    } else {
+        let filtered: rustc_hash::FxHashMap<String, usize> = state
+            .eval_inputs
+            .top_level_blocker_map
+            .iter()
+            .filter(|(k, _)| !shadowed.contains(k.as_str()))
+            .map(|(k, v)| (k.clone(), *v))
+            .collect();
+        crate::compiler::phases::phase3_transform::server::helpers::find_expression_blockers(
+            expr_text, &filtered,
+        )
+    };
     if blockers.is_empty() {
         None
     } else {

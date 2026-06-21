@@ -262,7 +262,7 @@ impl<'a> ServerTransformState<'a> {
 
     /// Collect all the names currently shadowed by enclosing snippet / slot
     /// parameters (flattened from [`Self::shadowed_names`]).
-    fn collect_shadowed(&self) -> rustc_hash::FxHashSet<String> {
+    pub(super) fn collect_shadowed(&self) -> rustc_hash::FxHashSet<String> {
         let mut out = rustc_hash::FxHashSet::default();
         for frame in &self.shadowed_names {
             out.extend(frame.iter().cloned());
