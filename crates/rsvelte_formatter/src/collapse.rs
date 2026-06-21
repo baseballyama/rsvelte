@@ -589,9 +589,316 @@ fn reformat_pre_inner(
     //   TABS<span ATTRS>TEXT</span>
     let result = collapse_text_only_spans(&result, narrowed);
 
+    // Post-pass: re-wrap self-closing components that were attribute-wrapped
+    // (multi-line) in the source but collapsed by the sub-formatter. The
+    // Linux oracle (prettier/oxfmt) preserves the source's wrapped form
+    // inside `<pre>` — we replicate that here as a string-based post-pass
+    // so the narrowed-width collapse doesn't permanently discard the layout.
+    let result = fix_pre_collapsed_components(&result, raw_inner, iw);
+
     let replacement = result;
     let current = out.get(inner_start..inner_end)?;
     (replacement != current).then_some((inner_start as u32, inner_end as u32, replacement))
+}
+
+/// Re-wrap self-closing attribute-bearing components that the sub-formatter
+/// collapsed to one line when their source form (`raw_inner`) had them spanning
+/// multiple lines.
+///
+/// The sub-format's markup pass normalises `<Name\n  attr\n/>` → `<Name attr />`
+/// when the tag fits within the narrowed print width — which is correct in
+/// isolation but misses the case where the component is **inline prose** inside a
+/// `<span>` or similar element. When the collapse pass subsequently hugs the
+/// surrounding element, the collapsed component ends up mid-line preceded by
+/// other prose text, and the formatter must split the following content off to
+/// the next line instead of attribute-wrapping the component.
+///
+/// The Linux oracle (prettier/oxfmt) preserves the source's attribute-wrapped
+/// form for self-closing components that were multi-line in the source. We
+/// replicate this by:
+///   1. Collecting the names of components that appeared attribute-wrapped
+///      (multi-line: `<Name\n`) in `raw_inner`.
+///   2. For each line in `result` that contains a single-line `<Name attrs />`
+///      for a name in that set, re-wrapping it:
+///        - `<Name` stays at the end of its prefix on the current line
+///        - each attribute goes on its own line at `leading_ws + iw` indent
+///        - `/>` goes on its own line at `leading_ws` indent
+///        - trailing content (` {value};</span>`) follows `/>` on the same line
+///
+/// This is string-based (no re-parse) to avoid disturbing whitespace-sensitive
+/// `<pre>` content and to keep the post-pass fast.
+fn fix_pre_collapsed_components(result: &str, raw_inner: &str, iw: usize) -> String {
+    // Step 1: collect component names that were attribute-wrapped in the source.
+    // A multi-line open tag has `<Name\n` immediately after the name.
+    let mut wrapped_names: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    let raw_bytes = raw_inner.as_bytes();
+    let mut ri = 0;
+    while ri < raw_bytes.len() {
+        if raw_bytes[ri] != b'<' {
+            ri += 1;
+            continue;
+        }
+        if ri + 1 >= raw_bytes.len() || !raw_bytes[ri + 1].is_ascii_alphabetic() {
+            ri += 1;
+            continue;
+        }
+        // Scan tag name.
+        let name_start = ri + 1;
+        let mut name_end = name_start;
+        while name_end < raw_bytes.len()
+            && (raw_bytes[name_end].is_ascii_alphanumeric()
+                || raw_bytes[name_end] == b'-'
+                || raw_bytes[name_end] == b'.'
+                || raw_bytes[name_end] == b':'
+                || raw_bytes[name_end] == b'_')
+        {
+            name_end += 1;
+        }
+        if name_end == name_start {
+            ri += 1;
+            continue;
+        }
+        // After the name there must be a newline (multi-line open tag).
+        if raw_bytes.get(name_end) == Some(&b'\n') {
+            let name = &raw_inner[name_start..name_end];
+            wrapped_names.insert(name);
+        }
+        ri += 1;
+    }
+
+    if wrapped_names.is_empty() {
+        return result.to_string();
+    }
+
+    // Step 2: scan `result` line by line. For each line that contains a
+    // single-line self-closing component `<Name attrs />` where `Name` is in
+    // `wrapped_names`, re-wrap it.
+    let mut out = String::with_capacity(result.len() + 64);
+    let trailing_nl = result.ends_with('\n');
+    let lines: Vec<&str> = result.split('\n').collect();
+    let n = lines.len();
+    for (li, &line) in lines.iter().enumerate() {
+        // Skip the trailing empty element from the split (restored below).
+        if li == n - 1 && trailing_nl && line.is_empty() {
+            break;
+        }
+        if let Some(fixed) = try_rewrap_source_matched_component(line, &wrapped_names, iw) {
+            out.push_str(&fixed);
+        } else {
+            out.push_str(line);
+        }
+        out.push('\n');
+    }
+    if !trailing_nl && out.ends_with('\n') {
+        out.pop(); // restore no-trailing-newline
+    }
+    out
+}
+
+/// Attempt to re-wrap a self-closing component whose name is in `wrapped_names`.
+/// Returns the multi-line form, or `None` if the line has no such component.
+///
+/// The re-wrap form:
+///   before `<Name attr1 attr2 />` after
+///   ─────────────────────────────────
+///   before <Name
+///   <leading_ws + iw>attr1
+///   <leading_ws + iw>attr2
+///   <leading_ws>/> after
+fn try_rewrap_source_matched_component(
+    line: &str,
+    wrapped_names: &std::collections::HashSet<&str>,
+    iw: usize,
+) -> Option<String> {
+    // Only space-indented lines (prose / block-body content in a `<pre>`).
+    if line.starts_with('\t') {
+        return None;
+    }
+    let leading_ws_count = line.len() - line.trim_start_matches(' ').len();
+    let attr_indent = " ".repeat(leading_ws_count + iw);
+    let close_indent = " ".repeat(leading_ws_count);
+
+    let bytes = line.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] != b'<' {
+            i += 1;
+            continue;
+        }
+        if i + 1 >= bytes.len() || !bytes[i + 1].is_ascii_alphabetic() {
+            i += 1;
+            continue;
+        }
+        // Extract the tag name.
+        let name_start = i + 1;
+        let mut name_end = name_start;
+        while name_end < bytes.len()
+            && (bytes[name_end].is_ascii_alphanumeric()
+                || bytes[name_end] == b'-'
+                || bytes[name_end] == b'.'
+                || bytes[name_end] == b':'
+                || bytes[name_end] == b'_')
+        {
+            name_end += 1;
+        }
+        if name_end == name_start {
+            i += 1;
+            continue;
+        }
+        let tag_name = &line[name_start..name_end];
+        if !wrapped_names.contains(tag_name) {
+            i += 1;
+            continue;
+        }
+        // There must be a space after the tag name (otherwise no attributes).
+        if bytes.get(name_end) != Some(&b' ') {
+            i += 1;
+            continue;
+        }
+        // Find the self-closing `/>` end of this tag (single-line only).
+        let Some(tag_end) = find_self_close_end(line, i) else {
+            i += 1;
+            continue;
+        };
+        let tag_span = &line[i..tag_end];
+        // Split attributes (returns [`<Name`, attr1, attr2, …]).
+        let attrs = split_tag_attrs(tag_span);
+        if attrs.len() < 2 {
+            // Self-closing with no attributes — nothing to wrap.
+            i += 1;
+            continue;
+        }
+        // Build the re-wrapped form.
+        let prefix = &line[..i]; // text before `<Name`
+        let trailing = &line[tag_end..]; // text after `/>`
+        let mut rewrapped = format!("{prefix}<{tag_name}");
+        for attr in &attrs[1..] {
+            rewrapped.push('\n');
+            rewrapped.push_str(&attr_indent);
+            rewrapped.push_str(attr.trim());
+        }
+        rewrapped.push('\n');
+        rewrapped.push_str(&close_indent);
+        rewrapped.push_str("/>");
+        rewrapped.push_str(trailing);
+        return Some(rewrapped);
+    }
+    None
+}
+
+/// Scan `s` starting at `start` (which points at `<`) for the matching `/>`.
+/// Returns the byte position AFTER `/>` (exclusive end), or `None` if not found
+/// or if the tag spans multiple lines. Respects double-quoted strings `"…"`,
+/// template expressions `{…}`, and skips `<` that are not self-closing.
+fn find_self_close_end(s: &str, start: usize) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let mut i = start + 1; // past `<`
+    let mut depth = 0i32; // brace depth `{…}`
+    let mut in_dq = false; // inside `"…"`
+    let mut in_sq = false; // inside `'…'`
+
+    while i < bytes.len() {
+        let b = bytes[i];
+        if in_dq {
+            if b == b'"' && (i == 0 || bytes[i - 1] != b'\\') {
+                in_dq = false;
+            }
+            i += 1;
+            continue;
+        }
+        if in_sq {
+            if b == b'\'' && (i == 0 || bytes[i - 1] != b'\\') {
+                in_sq = false;
+            }
+            i += 1;
+            continue;
+        }
+        if depth > 0 {
+            match b {
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth < 0 {
+                        return None; // malformed
+                    }
+                }
+                b'\n' => return None, // multi-line tag — not a candidate
+                _ => {}
+            }
+            i += 1;
+            continue;
+        }
+        match b {
+            b'"' => in_dq = true,
+            b'\'' => in_sq = true,
+            b'{' => depth += 1,
+            b'\n' => return None, // multi-line — bail
+            b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'>' => {
+                return Some(i + 2);
+            }
+            b'>' => {
+                // Non-self-closing `>` — not a self-closing tag.
+                return None;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Split the attributes from an open-tag span (`<Name attr1 attr2 />`).
+/// Returns a `Vec` where the first element is `<Name` and the rest are
+/// individual attribute strings. The `/>` is **not** included.
+fn split_tag_attrs(tag_span: &str) -> Vec<&str> {
+    // Strip the trailing `/>` and any trailing whitespace.
+    let body = tag_span.strip_suffix("/>").unwrap_or(tag_span).trim_end();
+    let bytes = body.as_bytes();
+    let mut parts: Vec<&str> = Vec::new();
+    let mut start = 0usize;
+    let mut i = 0usize;
+    let mut depth = 0i32;
+    let mut in_dq = false;
+    let mut in_sq = false;
+
+    while i < bytes.len() {
+        let b = bytes[i];
+        if in_dq {
+            if b == b'"' && (i == 0 || bytes[i - 1] != b'\\') {
+                in_dq = false;
+            }
+        } else if in_sq {
+            if b == b'\'' && (i == 0 || bytes[i - 1] != b'\\') {
+                in_sq = false;
+            }
+        } else if depth > 0 {
+            if b == b'{' {
+                depth += 1;
+            } else if b == b'}' {
+                depth -= 1;
+            }
+        } else {
+            match b {
+                b'"' => in_dq = true,
+                b'\'' => in_sq = true,
+                b'{' => depth += 1,
+                b' ' => {
+                    let tok = body[start..i].trim();
+                    if !tok.is_empty() {
+                        parts.push(tok);
+                    }
+                    start = i + 1;
+                }
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    let tok = body[start..].trim();
+    if !tok.is_empty() {
+        parts.push(tok);
+    }
+    parts
 }
 
 /// Collect the line-start byte offsets in `formatted` whose indentation is
