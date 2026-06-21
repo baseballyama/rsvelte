@@ -15,7 +15,7 @@ crate-type = ["rlib"]
 [dependencies]
 oxc_allocator = "0.136"
 oxc_ast = "0.136"
-oxc_span = "0.136"
+oxc_span = "0.137"
 oxc_syntax = "0.136"
 
 [dev-dependencies]
