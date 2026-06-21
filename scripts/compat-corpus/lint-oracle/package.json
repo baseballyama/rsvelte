@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Isolated environment running the real eslint-plugin-svelte as the lint-compat oracle. Pinned to the same version as submodules/eslint-plugin-svelte.",
   "dependencies": {
-    "eslint": "^9.39.0",
+    "eslint": "^10.0.0",
     "eslint-plugin-svelte": "3.19.0",
     "svelte": "^5.56.0",
     "svelte-eslint-parser": "^1.7.0",
