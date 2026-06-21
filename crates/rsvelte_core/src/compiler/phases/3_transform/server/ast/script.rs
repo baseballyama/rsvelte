@@ -145,6 +145,21 @@ fn async_hole_placeholder<'a>(state: &ServerTransformState<'a>) -> Option<Statem
     state.reparse_statement("($$async_hole);")
 }
 
+/// Like [`async_hole_placeholder`], but for a removed `$inspect(...)` /
+/// `$inspect(...).with(...)` (NOT `$effect`-family). The two differ in their
+/// no-await SYNC-prelude fall-through: a `$effect` hole collapses to a bare
+/// `b.empty()` (elided → nothing printed), whereas an `$inspect` hole collapses
+/// to a `;;` pair (upstream's `ExpressionStatement` keeps its now-`EmptyStatement`
+/// expression — see the removal arm). We mark it with a distinct
+/// `$$inspect_hole` identifier so the no-await fall-through in `transform_instance`
+/// can tell the two apart; when an actual top-level await DOES split the body,
+/// `transform_async_body` treats `$$inspect_hole` exactly like `$$async_hole`
+/// (both become `() => void 0` thunks — correct, per upstream's after-await
+/// `$inspect` shape).
+fn inspect_hole_placeholder<'a>(state: &ServerTransformState<'a>) -> Option<Statement<'a>> {
+    state.reparse_statement("($$inspect_hole);")
+}
+
 /// Whether an expression-statement expression is a top-level effect/inspect rune
 /// call that upstream's server `ExpressionStatement` visitor removes.
 fn is_removed_effect_stmt(expr: &OxcExpression) -> bool {
@@ -422,12 +437,41 @@ fn transform_script<'a>(
                     // text-based `transform_async_body` turns the placeholder into
                     // a `() => void 0` thunk, preserving every later expression's
                     // blocker index). Mirrors upstream's `/* $$async_hole */`
-                    // marker (server `transform_script.rs`). In sync mode the
-                    // statement is simply dropped, as before.
-                    if state.eval_inputs.use_async
-                        && let Some(marker) = async_hole_placeholder(state)
-                    {
-                        out.push(marker);
+                    // marker (server `transform_script.rs`). A removed `$inspect`
+                    // uses a DISTINCT `$$inspect_hole` marker so that, if no
+                    // top-level await actually splits the body, the fall-through
+                    // can rehydrate it as `;;` (see below) instead of dropping it.
+                    if state.eval_inputs.use_async {
+                        let marker = if inspect_kind(&es.expression).is_some() {
+                            inspect_hole_placeholder(state)
+                        } else {
+                            async_hole_placeholder(state)
+                        };
+                        if let Some(marker) = marker {
+                            out.push(marker);
+                        }
+                        continue;
+                    }
+                    // Sync mode: a removed `$inspect(...)` / `$inspect(...).with(...)`
+                    // is NOT simply dropped. Upstream's server `ExpressionStatement`
+                    // visitor calls `context.next()`, and the inner `CallExpression`
+                    // visitor returns `b.empty` (an `EmptyStatement`) as the *new
+                    // expression* of the still-present `ExpressionStatement`. esrap
+                    // prints that empty-as-expression as `;` plus the statement's own
+                    // `;` → a literal `;;` per inspect (verified against every
+                    // `inspect-*` server fixture). We can't model an
+                    // `ExpressionStatement` wrapping an `EmptyStatement` in oxc's
+                    // typed AST, so emit two *kept* sentinel empties whose printed
+                    // `;\n;` canonicalizes to the same `;;`. Distinct `start`s keep
+                    // the body-sequence comment-resync treating them as separate.
+                    //
+                    // `$effect` / `$effect.pre` / `$effect.root` / `$inspect.trace`
+                    // are removed by the `ExpressionStatement` visitor itself
+                    // returning `b.empty` — a *bare* `EmptyStatement` that esrap
+                    // elides (prints nothing), so those keep being dropped.
+                    if inspect_kind(&es.expression).is_some() {
+                        out.push(state.b.empty_kept(es.span.start));
+                        out.push(state.b.empty_kept(es.span.start + 1));
                     }
                     continue;
                 }
@@ -2847,7 +2891,7 @@ pub fn transform_instance<'a>(
         return Vec::new();
     };
     let mut imports: Vec<Statement<'a>> = Vec::new();
-    let mut body = if state.analysis.runes {
+    let body = if state.analysis.runes {
         transform_script(script, state, Some(&mut imports), true)
     } else {
         transform_script_legacy(script, state, Some(&mut imports), true)
@@ -2886,19 +2930,49 @@ pub fn transform_instance<'a>(
         }
     }
 
-    // No top-level await ⇒ `transform_async_body` did not run. Any `$$async_hole`
-    // placeholder left behind for a removed `$inspect(...)` / `$effect(...)`
-    // statement must collapse to an empty statement (`;`) — upstream emits
-    // `b.empty()` here (the async-body transform would have rewritten the marker
-    // when an await actually split the body). Without this, `$$async_hole;` leaks
-    // into the SSR output of every async-flagged-but-await-free component.
-    for stmt in body.iter_mut() {
-        if is_async_hole_stmt(stmt) {
-            *stmt = state.b.empty();
+    // No top-level await ⇒ `transform_async_body` did not run. Any placeholder
+    // left behind for a removed `$inspect(...)` / `$effect(...)` statement must
+    // collapse here (the async-body transform would have rewritten the marker
+    // when an await actually split the body). Without this, `$$async_hole;` /
+    // `$$inspect_hole;` would leak into the SSR output of an
+    // async-flagged-but-await-free component.
+    //
+    //   * `$$async_hole`  ($effect-family)  → `b.empty()` (a bare `EmptyStatement`,
+    //     elided by esrap → prints nothing — matches upstream's `ExpressionStatement`
+    //     visitor returning `b.empty`).
+    //   * `$$inspect_hole` ($inspect / $inspect().with) → a `;;` pair, mirroring the
+    //     sync-prelude path (upstream keeps the `ExpressionStatement`, its
+    //     expression replaced by the `CallExpression` visitor's `b.empty`).
+    //
+    // A `$$inspect_hole` expands to TWO statements, so rebuild the body rather
+    // than edit in place.
+    let mut rebuilt: Vec<Statement<'a>> = Vec::with_capacity(body.len());
+    for stmt in body.into_iter() {
+        if is_inspect_hole_stmt(&stmt) {
+            let start = stmt.span().start;
+            rebuilt.push(state.b.empty_kept(start));
+            rebuilt.push(state.b.empty_kept(start + 1));
+        } else if is_async_hole_stmt(&stmt) {
+            rebuilt.push(state.b.empty());
+        } else {
+            rebuilt.push(stmt);
         }
     }
 
-    body
+    rebuilt
+}
+
+/// True when `stmt` is the `($$inspect_hole);` placeholder expression statement.
+fn is_inspect_hole_stmt(stmt: &Statement) -> bool {
+    use oxc_ast::ast::Expression;
+    let Statement::ExpressionStatement(es) = stmt else {
+        return false;
+    };
+    let mut expr = &es.expression;
+    while let Expression::ParenthesizedExpression(p) = expr {
+        expr = &p.expression;
+    }
+    matches!(expr, Expression::Identifier(id) if id.name == "$$inspect_hole")
 }
 
 /// True when `stmt` is the `($$async_hole);` placeholder expression statement

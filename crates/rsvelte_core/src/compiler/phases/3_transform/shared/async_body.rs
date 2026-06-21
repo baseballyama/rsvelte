@@ -491,10 +491,17 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                 continue;
             }
 
-            // Handle async hole placeholder (from $inspect() removed in non-dev mode)
-            // Format: /* $$async_hole */ or /* $$async_hole:args */
+            // Handle async hole placeholder (from a removed $effect / $inspect).
+            // Format: /* $$async_hole */ or /* $$async_hole:args */ (the
+            // `$$inspect_hole` variant — a removed `$inspect(...)` — splits the
+            // same way once a top-level await is present: after the await,
+            // upstream emits a `() => void 0` thunk for it, exactly like the
+            // `$effect` hole; only the no-await sync-prelude case differs, and
+            // that never reaches this transform).
             // Produces an array hole (empty slot) in the thunk array.
-            if memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole").is_some() {
+            if memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole").is_some()
+                || memmem::find(trimmed_stmt.as_bytes(), b"$$inspect_hole").is_some()
+            {
                 // Extract args if present (for blocker_map tracking)
                 let args = if let Some(colon_pos) =
                     memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole:")

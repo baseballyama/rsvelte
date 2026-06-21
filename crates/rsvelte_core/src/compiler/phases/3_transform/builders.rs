@@ -23,7 +23,7 @@ use oxc_ast::ast::{
     ImportOrExportKind, MemberExpression, ObjectPropertyKind, PropertyKey, PropertyKind, Statement,
     TemplateElementValue, VariableDeclarationKind,
 };
-use oxc_span::SPAN;
+use oxc_span::{SPAN, Span};
 pub use oxc_syntax::number::NumberBase;
 pub use oxc_syntax::operator::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
@@ -796,6 +796,26 @@ impl<'a> B<'a> {
     #[inline]
     pub fn empty(self) -> Statement<'a> {
         self.ab.statement_empty(SPAN)
+    }
+
+    /// A *kept* `;` empty statement — one the esrap printer must NOT elide.
+    ///
+    /// esrap (faithful to upstream) drops bare `EmptyStatement`s from a body
+    /// sequence, so a plain [`empty`](Self::empty) prints nothing. Some server
+    /// outputs, however, must preserve a literal `;` per removed node — e.g. a
+    /// non-dev top-level `$inspect(...)` / `$inspect(...).with(...)` whose
+    /// CallExpression visitor returns `b.empty` as the *expression* of an
+    /// `ExpressionStatement`, printing `;;` (the empty-as-expression `;` plus the
+    /// statement's own `;`). We can't build an `ExpressionStatement` wrapping an
+    /// `EmptyStatement` in oxc's typed AST, so we emit two of these sentinel
+    /// empties instead; together they canonicalize to the same `;;`.
+    ///
+    /// The sentinel is `span.end == u32::MAX`; the printer keys on that to keep
+    /// the statement. `start` must be distinct per emitted sentinel so the
+    /// body-sequence comment-resync logic treats them as separate nodes.
+    #[inline]
+    pub fn empty_kept(self, start: u32) -> Statement<'a> {
+        self.ab.statement_empty(Span::new(start, u32::MAX))
     }
 
     /// `debugger;` statement (upstream `b.debugger`).
