@@ -39,7 +39,16 @@ use crate::ast::template::RenderTag;
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 use serde_json::Value;
 
-use super::shared::{EMPTY_COMMENT, TemplateEntry};
+use super::shared::{EMPTY_COMMENT, PromiseOptimiser, TemplateEntry};
+
+/// Slice the component source `[start, end)` (the optimiser blocker / await
+/// predicate operates on raw source text). `None` for an out-of-range span.
+fn source_slice(state: &ServerTransformState<'_>, start: usize, end: usize) -> Option<String> {
+    if end <= start || end > state.source.len() {
+        return None;
+    }
+    Some(state.source[start..end].to_string())
+}
 
 /// Visit a `{@render expr(args)}` tag (sync path).
 pub fn visit_render_tag<'a>(node: &RenderTag, state: &mut ServerTransformState<'a>) {
@@ -79,10 +88,20 @@ pub fn visit_render_tag<'a>(node: &RenderTag, state: &mut ServerTransformState<'
     let mut callee_expr = state.reparse_slice(c_start, c_end);
     state.wrap_reads_in_place(&mut callee_expr);
 
+    // 写经 `optimiser.transform(context.visit(callee), …)`: feed the callee through
+    // a fresh `PromiseOptimiser` so a callee reading a top-level-await blocker
+    // (`{@render snippet(double)}` where `double` is a `$derived(await …)`) wraps
+    // the render statement in `$$renderer.async_block([$$promises[N]…], …)`.
+    let mut optimiser = PromiseOptimiser::new();
+    if let Some(t) = source_slice(state, c_start, c_end) {
+        callee_expr = optimiser.transform(state, &t, callee_expr);
+    }
+
     // -- arguments ----------------------------------------------------------
     // `[$$renderer, ...args]` — `$$renderer` is always the first argument.
     // 写经 `raw_args.map(arg => optimiser.transform(context.visit(arg), …))`:
-    // each argument is also read-wrapped (a `$derived` arg becomes `arg()`).
+    // each argument is also read-wrapped (a `$derived` arg becomes `arg()`) and
+    // routed through the optimiser so a blocked argument makes the tag async.
     let mut args = vec![state.b.id("$$renderer")];
     if let Some(arg_list) = call_json.get("arguments").and_then(Value::as_array) {
         for arg in arg_list {
@@ -90,8 +109,12 @@ pub fn visit_render_tag<'a>(node: &RenderTag, state: &mut ServerTransformState<'
                 arg.get("start").and_then(Value::as_u64),
                 arg.get("end").and_then(Value::as_u64),
             ) {
-                let mut arg_expr = state.reparse_slice(a_start as usize, a_end as usize);
+                let (a_start, a_end) = (a_start as usize, a_end as usize);
+                let mut arg_expr = state.reparse_slice(a_start, a_end);
                 state.wrap_reads_in_place(&mut arg_expr);
+                if let Some(t) = source_slice(state, a_start, a_end) {
+                    arg_expr = optimiser.transform(state, &t, arg_expr);
+                }
                 args.push(arg_expr);
             }
         }
@@ -105,13 +128,18 @@ pub fn visit_render_tag<'a>(node: &RenderTag, state: &mut ServerTransformState<'
     };
     let stmt = state.b.stmt(call);
 
-    // KNOWN GAP: `optimiser.render_block` async wrapping is not ported; emit the
-    // statement directly (sync path).
-    state.template.push(TemplateEntry::Stmt(stmt));
+    // 写经 `context.state.template.push(...optimiser.render_block([statement]))`:
+    // async (blocker / inline-await) → `$$renderer.async_block([$$promises[N]…],
+    // ($$renderer) => { <statement> })`; sync → the statement unchanged.
+    let is_async = optimiser.is_async();
+    for s in optimiser.render_block(state, vec![stmt]) {
+        state.template.push(TemplateEntry::Stmt(s));
+    }
 
     // Non-async, non-standalone → trailing `<!---->` anchor. A standalone
-    // fragment (single non-dynamic render tag) elides it.
-    if !state.is_standalone {
+    // fragment (single non-dynamic render tag) elides it; an ASYNC tag also
+    // elides it (写经 `if (!optimiser.is_async() && !is_standalone)`).
+    if !is_async && !state.is_standalone {
         state
             .template
             .push(TemplateEntry::Literal(EMPTY_COMMENT.to_string()));

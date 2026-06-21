@@ -5798,4 +5798,69 @@ mod tests {
             "effect-rune SSR differs from oracle for: {mismatches:?}"
         );
     }
+
+    /// SSR async element / `<svelte:component>` / `{@render}` blocker-wrap parity
+    /// with the (correct) text-based `transform_server` oracle, compared via
+    /// [`canon_js`] (the runtime harness canonicalizer). An element / component /
+    /// render-tag that reads a top-level-await blocker must be wrapped in
+    /// `$$renderer.async([$$promises[N]…], …)` (element) /
+    /// `$$renderer.async_block([$$promises[N]…], …)` (component / render-tag).
+    ///
+    /// Root causes fixed (写经 upstream `shared/element.js` line 124,
+    /// `shared/component.js` line 346, `RenderTag.js`):
+    /// - **bind-attribute blocker** (`async-each-derived`,
+    ///   `async-resolve-stale`): `bind:checked={asyncDerived}` /
+    ///   `bind:value={blocked}` route the bind expression through the element's
+    ///   `PromiseOptimiser` (`optimise_attr_value`) — `element_has_async_attribute`
+    ///   now also inspects `BindDirective`, so the element wraps in
+    ///   `$$renderer.async([$$promises[N]…], …)`.
+    /// - **`<svelte:component this={X}>` / `<X/>` name blocker**
+    ///   (`async-dynamic-component`): the component callee expression source is
+    ///   threaded into `build_inline_component` and fed to
+    ///   `optimiser.check_blockers`, so a `$derived(await …)`-rooted component wraps
+    ///   the dynamic guard in `$$renderer.async_block([$$promises[N]…], …)`.
+    /// - **`{@render snippet(double)}` arg/callee blocker**
+    ///   (`async-render-hydration`): `RenderTag` now builds a `PromiseOptimiser`,
+    ///   routes the callee + each argument through `transform` (recording
+    ///   blockers), and emits `optimiser.render_block([statement])` —
+    ///   `$$renderer.async_block([$$promises[N]…], …)` — eliding the trailing
+    ///   `<!---->` on the async path.
+    ///
+    /// `async-resolve-stale` and `async-overlap-multiple-6` reach byte-identical
+    /// ASYNC structure but still differ on orthogonal, pre-existing AST-pipeline
+    /// gaps unrelated to async wrapping: a dropped `//` comment inside a user
+    /// function body (script comment preservation), and consecutive static
+    /// template literals not coalescing into one `$$renderer.push(...)` (literal-run
+    /// merging). They are excluded here and tracked as separate burndown items.
+    #[test]
+    fn ast_matches_oracle_async_blocker_wrap() {
+        let fixtures = [
+            "async-each-derived",
+            "async-dynamic-component",
+            "async-render-hydration",
+        ];
+        let mut mismatches = Vec::new();
+        for dir in fixtures {
+            let path = format!(
+                "{}/../../submodules/svelte/packages/svelte/tests/runtime-runes/samples/{}/main.svelte",
+                env!("CARGO_MANIFEST_DIR"),
+                dir
+            );
+            let Ok(src) = std::fs::read_to_string(&path) else {
+                eprintln!("SKIP {dir} (submodule not checked out)");
+                return;
+            };
+            let (ours, oracle) = run_async_both(&src);
+            if canon_js(&ours) != canon_js(&oracle) {
+                eprintln!(
+                    "\n######### {dir} DIFFER #########\n=== OURS ===\n{ours}\n=== ORACLE ===\n{oracle}\n"
+                );
+                mismatches.push(dir);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "async blocker-wrap output differs from oracle for: {mismatches:?}"
+        );
+    }
 }

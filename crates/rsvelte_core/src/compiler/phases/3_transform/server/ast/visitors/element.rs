@@ -265,10 +265,42 @@ fn element_has_async_attribute(node: &RegularElement, state: &ServerTransformSta
                     return true;
                 }
             }
+            Attribute::BindDirective(bind) => {
+                // 写经 `shared/element.js`: every bind whose expression survives
+                // the early `continue`s (NOT `bind:this`, NOT select/file `value`,
+                // NOT a server-omitted readback bind) routes through `transform`,
+                // so a blocked / awaited bind expression makes the element async.
+                if !bind_skipped_in_ssr(node, bind)
+                    && let Some(t) = bind_value_source(bind, state)
+                    && is_async_text(&t)
+                {
+                    return true;
+                }
+            }
             _ => {}
         }
     }
     false
+}
+
+/// Whether a bind directive is entirely omitted from SSR before reaching the
+/// optimiser `transform` (the early `continue`s of upstream `shared/element.js`):
+/// `bind:this`, `bind:value` on `<select>`, `bind:value` on a file input, and the
+/// server-omitted readback binds (dimensions / media / files / …). Content binds
+/// (`bind:innerHTML`, contenteditable, `<textarea>` value) are NOT skipped — they
+/// still route through `transform`, so they can make an element async.
+fn bind_skipped_in_ssr(node: &RegularElement, bind: &BindDirective) -> bool {
+    let name = bind.name.as_str();
+    if name == "this" {
+        return true;
+    }
+    if name == "value" && node.name.as_str() == "select" {
+        return true;
+    }
+    if name == "value" && has_input_type(node, "file") {
+        return true;
+    }
+    bind_omit_in_ssr(name)
 }
 
 /// Build an async element into a fresh template buffer with an active
@@ -655,6 +687,14 @@ fn build_bind_directive<'a>(
     Some((attr_name, value))
 }
 
+/// Source text of a bind directive's bound expression (for the async optimiser
+/// blocker / await predicate). `None` for the content-producing / select / file
+/// / `this` / server-omitted binds that emit no SSR attribute — those are
+/// filtered identically by [`build_bind_directive`] returning `None`.
+fn bind_value_source(bind: &BindDirective, state: &ServerTransformState<'_>) -> Option<String> {
+    state.expr_source(&bind.expression).map(|s| s.to_string())
+}
+
 /// Lowercase the bind name for non-svg/mathml elements (the `get_attribute_name`
 /// rule, applied to a bind directive's name).
 fn get_bind_attribute_name(element: &RegularElement, name: &str) -> String {
@@ -734,7 +774,17 @@ pub(super) fn build_element_attributes<'a>(
         // require an element-content mechanism the AST pipeline does not have
         // yet, so they are a KNOWN GAP (skipped here).
         if let Attribute::BindDirective(bind) = attr {
-            if let Some((bind_name, value)) = build_bind_directive(node, bind, state) {
+            if let Some((bind_name, mut value)) = build_bind_directive(node, bind, state) {
+                // 写经 `shared/element.js` line 124: the bind value is routed
+                // through `transform(expression, attribute.metadata.expression)`,
+                // which (a) records the value's top-level-await blockers on the
+                // active optimiser so a blocked bind (`bind:checked={asyncDerived}`)
+                // wraps the element in `$$renderer.async([$$promises[N]…], …)`, and
+                // (b) hoists an inline-await value into a `$$N` const. Feed the bind
+                // source through the same optimiser path the regular attributes use.
+                if let Some(t) = bind_value_source(bind, state) {
+                    value = state.optimise_attr_value(&t, value);
+                }
                 let is_bool = is_boolean_attribute(&bind_name);
                 let call = state.b.call_opt(
                     "$.attr",

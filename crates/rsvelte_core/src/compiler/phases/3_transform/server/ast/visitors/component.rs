@@ -95,6 +95,9 @@ pub fn visit_component<'a>(
     // `$derived`) becomes `B()` / `platformIcons().currency.Icon`.
     let name = node.name.to_string();
     let dynamic = node.metadata.dynamic;
+    // The component name (`X` / `ns.Comp`) is the blocker-check source — a
+    // derived-rooted name reading a top-level await makes the component async.
+    let name_src = Some(name.clone());
     build_inline_component(
         &node.attributes,
         &node.fragment,
@@ -109,6 +112,7 @@ pub fn visit_component<'a>(
             expr
         },
         dynamic,
+        name_src,
         state,
     );
 }
@@ -120,11 +124,13 @@ pub fn visit_svelte_component<'a>(
     node: &crate::ast::template::SvelteComponentElement,
     state: &mut ServerTransformState<'a>,
 ) {
+    let this_src = state.expr_source(&node.expression).map(|s| s.to_string());
     build_inline_component(
         &node.attributes,
         &node.fragment,
         |s| s.visit_expr(&node.expression),
         true,
+        this_src,
         state,
     );
 }
@@ -141,6 +147,8 @@ pub fn visit_svelte_self<'a>(
         &node.fragment,
         |s| s.b.id(&name),
         false,
+        // `<svelte:self>` is excluded from the name-blocker check upstream.
+        None,
         state,
     );
 }
@@ -156,6 +164,11 @@ fn build_inline_component<'a, 'b>(
     fragment: &'b Fragment,
     mut make_expression: impl FnMut(&mut ServerTransformState<'a>) -> OxcExpression<'a>,
     dynamic: bool,
+    // Source text of the component-name / `this={…}` expression (写经
+    // `node.metadata.expression`), used to detect a top-level-await blocker the
+    // component name itself reads (`<X/>` / `<svelte:component this={X}/>` where
+    // `X` is `$derived(await …)`). `None` for `<svelte:self>` (never blocked).
+    name_expr_source: Option<String>,
     state: &mut ServerTransformState<'a>,
 ) {
     let expression = make_expression(state);
@@ -306,10 +319,14 @@ fn build_inline_component<'a, 'b>(
         statement = b.stmt(b.call("$.css_props", args));
     }
 
-    // 写经: the component name itself could read a blocked binding. The AST
-    // callee is a freshly-built expression with no source span (the name is a
-    // static import in every current fixture), so this name-blocker check is a
-    // KNOWN GAP — a future port can thread the original `node.name` text through.
+    // 写经 `shared/component.js` line 344-347: the component name itself could
+    // read a blocked binding (`<X/>` / `<svelte:component this={X}/>` where `X`
+    // is a `$derived(await …)`). Feed the name expression source through the
+    // optimiser's blocker check so a blocked component wraps in `async_block`.
+    // `<svelte:self>` is excluded upstream (`node.type !== 'SvelteSelf'`).
+    if let Some(t) = &name_expr_source {
+        optimiser.check_blockers(state, t);
+    }
 
     // 写经 `optimiser.render_block([statement])`: a sync component returns the
     // bare statement; an async one wraps it in `$$renderer.child_block(async …)` /
