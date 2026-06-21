@@ -1044,6 +1044,59 @@ pub fn build_fragment_body<'a>(
 /// `{@const}` group (写经 `Fragment.js` lines 46-50 +
 /// `add_async_declaration`). Each thunk's source text is reparsed into an oxc
 /// expression so the printed output matches the text oracle byte-for-byte.
+/// Saved parent async-const scope (group + blocker map) returned by
+/// [`open_async_consts_scope`] and consumed by [`flush_element_async_consts`].
+pub(super) type SavedAsyncConstsScope<'a> = (
+    Option<crate::compiler::phases::phase3_transform::server::ast::AsyncConstsGroup<'a>>,
+    rustc_hash::FxHashMap<String, String>,
+);
+
+/// Open a FRESH async-const scope (写经 each Fragment / `has_declarations`
+/// element getting its own `async_consts: undefined`). The current group is taken
+/// (so a child element's async `{const}`s form their OWN `$$renderer.run` group,
+/// not the parent's), and the `const_blocker_map` is cloned so a parent-scope
+/// blocked binding stays visible while local additions are discarded on close.
+pub(super) fn open_async_consts_scope<'a>(
+    state: &mut ServerTransformState<'a>,
+) -> SavedAsyncConstsScope<'a> {
+    (state.async_consts.take(), state.const_blocker_map.clone())
+}
+
+/// Flush a `has_declarations` element's OWN async-const group into `body`: emit
+/// the `let …; var promisesN = $$renderer.run([…]);` prelude AFTER the element's
+/// leading sync hoisted-const declarations (mirroring upstream's `state.init`
+/// ordering — a sync `{const nested = 'nested'}` precedes the async run that
+/// depends on a parent-group binding), then restore the parent async-const scope.
+/// No-op when the element opened no async group.
+pub(super) fn flush_element_async_consts<'a>(
+    state: &mut ServerTransformState<'a>,
+    saved: SavedAsyncConstsScope<'a>,
+    body: &mut Vec<Statement<'a>>,
+) {
+    let (saved_group, saved_map) = saved;
+    if let Some(group) = state.async_consts.take()
+        && !group.thunks.is_empty()
+    {
+        let run_decl = build_async_consts_run(state, &group);
+        // Insert after the run of leading VariableDeclarations (the sync hoisted
+        // `{const}`s that `build_template` lifted to the front) so the async
+        // `let`s + run land between them and the rendered template pushes.
+        let split = body
+            .iter()
+            .position(|s| !matches!(s, Statement::VariableDeclaration(_)))
+            .unwrap_or(body.len());
+        let mut new_body: Vec<Statement<'a>> =
+            Vec::with_capacity(body.len() + group.let_decls.len() + 1);
+        new_body.extend(body.drain(..split));
+        new_body.extend(group.let_decls);
+        new_body.push(run_decl);
+        new_body.append(body);
+        *body = new_body;
+    }
+    state.async_consts = saved_group;
+    state.const_blocker_map = saved_map;
+}
+
 fn build_async_consts_run<'a>(
     state: &ServerTransformState<'a>,
     group: &crate::compiler::phases::phase3_transform::server::ast::AsyncConstsGroup<'a>,

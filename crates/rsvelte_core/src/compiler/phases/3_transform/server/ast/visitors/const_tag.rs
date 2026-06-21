@@ -313,8 +313,8 @@ pub(super) fn extract_identifiers_from_expr(expr: &str) -> Vec<String> {
     let mut prev_dot = false;
     while i < len {
         let c = chars[i];
-        // Skip string / template literals wholesale.
-        if c == '\'' || c == '"' || c == '`' {
+        // Skip plain string literals wholesale.
+        if c == '\'' || c == '"' {
             let q = c;
             i += 1;
             while i < len {
@@ -325,6 +325,55 @@ pub(super) fn extract_identifiers_from_expr(expr: &str) -> Vec<String> {
                 if chars[i] == q {
                     i += 1;
                     break;
+                }
+                i += 1;
+            }
+            prev_dot = false;
+            continue;
+        }
+        // Template literal: skip the cooked text, but DESCEND into every
+        // `${ … }` interpolation and collect its identifier references (so a
+        // `$derived(await `Hi ${name}`)` cross-group dependency on `name` is
+        // seen). Without this a binding referenced ONLY inside a template
+        // interpolation would be missed, dropping its blocker / dependency edge.
+        if c == '`' {
+            i += 1;
+            while i < len {
+                if chars[i] == '\\' {
+                    i += 2;
+                    continue;
+                }
+                if chars[i] == '`' {
+                    i += 1;
+                    break;
+                }
+                if chars[i] == '$' && i + 1 < len && chars[i + 1] == '{' {
+                    i += 2;
+                    let inner_start = i;
+                    let mut depth = 1usize;
+                    while i < len {
+                        match chars[i] {
+                            '{' => depth += 1,
+                            '}' => {
+                                depth -= 1;
+                                if depth == 0 {
+                                    break;
+                                }
+                            }
+                            _ => {}
+                        }
+                        i += 1;
+                    }
+                    let inner: String = chars[inner_start..i].iter().collect();
+                    for id in extract_identifiers_from_expr(&inner) {
+                        if !idents.contains(&id) {
+                            idents.push(id);
+                        }
+                    }
+                    if i < len {
+                        i += 1; // step past the closing `}`
+                    }
+                    continue;
                 }
                 i += 1;
             }

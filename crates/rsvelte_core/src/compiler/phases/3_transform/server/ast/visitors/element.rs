@@ -181,10 +181,16 @@ pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransf
         // outer same-named binding once the block closes (写经 the text oracle's
         // `saved_constants` save/restore in `generate_element`).
         let saved_constants = state.eval_inputs.constant_vars.clone();
+        // A `has_declarations` element opens its OWN async-const scope (like a
+        // Fragment): an async `{const … = $derived(await …)}` inside it forms a
+        // SEPARATE `$$renderer.run` group (`promises_N`) that waits on the parent
+        // group's bindings, rather than leaking into the parent's group.
+        let saved_consts_scope = super::shared::open_async_consts_scope(state);
         emit_element_body(node, name, is_void, state);
         state.eval_inputs.constant_vars = saved_constants;
         let captured = std::mem::replace(&mut state.template, saved);
-        let body = super::shared::build_template(captured, state);
+        let mut body = super::shared::build_template(captured, state);
+        super::shared::flush_element_async_consts(state, saved_consts_scope, &mut body);
         let block = state.b.block(body);
         state.template.push(TemplateEntry::Stmt(block));
         return;
