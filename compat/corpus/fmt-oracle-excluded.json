@@ -108,5 +108,10 @@
 		"id": "flowbite-svelte/src/lib/forms/tags/Tags.svelte",
 		"class": "engine-divergence",
 		"reason": "oxc vs prettier break-priority in a {#if} block header: the oracle breaks ONLY the inner member chain (contents\n.trim()\n.toLowerCase()) keeping `unique && value.some(...)` on line 1; oxc_formatter breaks the && / call-args instead and cannot produce the oracle chain-only break at any width. JS-engine choice, not an rsvelte layout bug. Upstream oxc-alignment item."
+	},
+	{
+		"id": "shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte",
+		"class": "oracle-bug",
+		"reason": "oxfmt produces PLATFORM-DEPENDENT output for this file: on macOS it collapses the overflowing self-closing <ColorIndicator color={value} /> inside <pre> to one line, on Linux it attribute-wraps it. The oracle is thus self-inconsistent across OSes, so byte-parity is undefined (a deterministic formatter cannot match both). Upstream oxfmt cross-platform non-determinism bug. rsvelte deterministically matches the macOS form."
 	}
 ]

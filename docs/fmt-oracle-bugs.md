@@ -301,6 +301,24 @@ expressions, IIFE/arrow parameter lists, and template-literal substitutions).
 
 ---
 
+## oxfmt cross-platform non-determinism (upstream oxfmt bug)
+
+| Id | Defect |
+|---|---|
+| `shadcn-svelte/.../components/theme-customizer-code.svelte` | oxfmt produces **different output on macOS vs Linux** for the same input: the overflowing self-closing `<ColorIndicator color={value} />` inside `<pre>` is **collapsed to one line on macOS** but **attribute-wrapped on Linux**. A formatter's oracle must be deterministic across platforms; here it is not, so byte-parity is undefined (a deterministic tool like rsvelte can match at most one platform's output). |
+
+**Diagnosis (empirical):** rsvelte's output for this file is stable (5/5 identical
+runs on macOS). The macOS oxfmt oracle and the Linux oxfmt oracle differ in
+opposite directions, so there is no single platform on which rsvelte and the
+oracle agree. Excluded as `oracle-bug` (cross-platform non-determinism). A
+bespoke rsvelte string post-pass to force the Linux form was itself
+platform-dependent and was reverted.
+
+Filing target: **oxfmt** (deterministic output across OSes for `<pre>`-embedded
+self-closing components).
+
+---
+
 ## Exclusion mechanism
 
 The exclusion list is loaded by `scripts/compat-corpus/fmt-verify.mjs` from
