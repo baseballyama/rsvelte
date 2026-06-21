@@ -52,13 +52,16 @@ pub fn transform_server(
     _source: &str,
     options: &CompileOptions,
 ) -> Result<String, TransformError> {
-    // Trial-switchover flag: route SSR through the new pure-AST pipeline
-    // (`server/ast/`) instead of the text-based `ServerCodeGenerator`. Used to
-    // burn down the byte-exact fixture suites against the official compiler
-    // (the real gate, vs the incomplete old-pipeline oracle). Default OFF =
-    // unchanged behaviour. `server_component_ast` never returns `None` for a
-    // parseable component, but fall through to the text path if it ever does.
-    if std::env::var_os("RSVELTE_SERVER_AST").is_some() {
+    // SWITCHOVER: SSR now routes through the new pure-AST pipeline
+    // (`server/ast/`) by DEFAULT — it matches the official compiler byte-for-byte
+    // across the entire runtime suite (runtime-runes 993/993, runtime-legacy
+    // 1205/1205, hydration 77/77) plus the byte-exact `compiler_fixtures` / `ssr`
+    // snapshots. The legacy text-based `ServerCodeGenerator` below is retained only
+    // as a transitional opt-out (`RSVELTE_SERVER_TEXT=1`) for A/B debugging while
+    // the old text modules are dismantled; it is slated for deletion. The AST
+    // pipeline never returns `None` for a parseable component, but fall through to
+    // the text path if it ever does.
+    if std::env::var_os("RSVELTE_SERVER_TEXT").is_none() {
         let allocator = oxc_allocator::Allocator::default();
         if let Some(code) = ast::server_component_ast(analysis, ast, _source, options, &allocator) {
             return Ok(code);
