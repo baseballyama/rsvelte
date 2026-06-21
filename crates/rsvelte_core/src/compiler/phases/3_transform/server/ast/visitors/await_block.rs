@@ -94,10 +94,24 @@ pub fn visit_await_block<'a>(node: &AwaitBlock, state: &mut ServerTransformState
         .thunk_block(unwrap_block(pending_block, state), false);
 
     // Then callback: `(value) => { <then body> }`.
+    //
+    // The `then` value pattern (`{#await … then result}`) introduces a binding
+    // that SHADOWS any same-named component-level `$derived` / `$store` inside the
+    // then body (upstream `context.state.scope` resolves a body identifier to the
+    // await-value parameter, a normal binding — NOT the component derived). Push
+    // the pattern names as a shadow frame around the then-body build so `{result}`
+    // stays bare `result` rather than read-wrapping to `result()`. (Mirrors the
+    // snippet-parameter shadow frame in `SnippetBlock.js`.)
+    let mut shadow = rustc_hash::FxHashSet::default();
+    if let Some(v) = &node.value {
+        super::snippet_block::collect_param_pattern_names(v, &mut shadow);
+    }
+    state.shadowed_names.push(shadow);
     let then_block = match &node.then {
         Some(frag) => build_fragment_block(frag, false, state),
         None => state.b.block(vec![]),
     };
+    state.shadowed_names.pop();
     let then_params = match &node.value {
         Some(v) => vec![value_pattern(v, state)],
         None => vec![],

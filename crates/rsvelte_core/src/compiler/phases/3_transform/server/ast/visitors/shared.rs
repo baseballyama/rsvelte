@@ -785,6 +785,10 @@ pub fn build_fragment_body<'a>(
     // upstream.
     let saved_standalone = state.is_standalone;
     state.is_standalone = ServerTransformState::is_standalone_fragment(&fragment.nodes);
+    // Track fragment nesting depth: the root component fragment is depth 1; any
+    // nested block / boundary / snippet body is depth ≥ 2. The boundary visitor
+    // reads this to decide `failed`-snippet hoist-vs-inline placement.
+    state.fragment_depth += 1;
     let saved = std::mem::take(&mut state.template);
 
     // 写经 upstream `Fragment.js`: each fragment gets a FRESH
@@ -851,6 +855,7 @@ pub fn build_fragment_body<'a>(
     state.async_consts = saved_async_consts;
     state.const_blocker_map = saved_blocker_map;
     state.is_standalone = saved_standalone;
+    state.fragment_depth -= 1;
     body
 }
 

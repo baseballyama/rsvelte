@@ -69,6 +69,16 @@ pub struct ServerTransformState<'a> {
     /// `state.is_standalone`). Set for the root fragment in
     /// [`server_component_ast`]; block visitors leave it as-is for now.
     pub is_standalone: bool,
+    /// Nesting depth of the CURRENT fragment body. Incremented (save/restore) by
+    /// [`visitors::shared::build_fragment_body`] around each fragment it builds.
+    /// The root component fragment is depth 1 (built via the same helper); any
+    /// nested block / boundary / snippet body is depth ≥ 2. Used by the
+    /// `<svelte:boundary>` visitor to decide whether a `failed` snippet hoists to
+    /// the component-body top (TOP-LEVEL boundary, depth 1) or is emitted inline in
+    /// the surrounding block (NESTED boundary, depth ≥ 2) — a server-side stand-in
+    /// for upstream's analyze-time `path.length > 1` hoist gate, which our analyze
+    /// does not bump for `<svelte:boundary>`.
+    pub fragment_depth: usize,
     /// Sticky whitespace-preservation flag (写经 upstream `state.preserve_whitespace`).
     /// Seeded from `options.preserve_whitespace` and turned ON (and never off
     /// again for the subtree) by an ancestor `<pre>` / `<textarea>`, so a nested
@@ -130,6 +140,16 @@ pub struct ServerTransformState<'a> {
     /// `scope.generate('$$derived_array')`). The first is bare `$$derived_array`,
     /// subsequent ones append `_1`, `_2`, …
     pub derived_array_counter: usize,
+    /// Monotonic counter for the `tmp` temp generated when expanding a
+    /// DESTRUCTURED `$state(...)` / `$state.raw(...)` declarator (mirrors upstream
+    /// `scope.generate('tmp')`). The first is bare `tmp`, subsequent ones append
+    /// `_1`, `_2`, … — so two destructured `$state(...)` declarations deconflict
+    /// (`tmp` / `tmp_1`).
+    pub state_tmp_counter: usize,
+    /// Monotonic counter for the `$$array` temp generated per `ArrayPattern` in a
+    /// destructured `$state(...)` (mirrors upstream `scope.generate('$$array')`).
+    /// The first is bare `$$array`, subsequent ones append `_1`, `_2`, …
+    pub state_array_counter: usize,
     /// Whether the CURRENT children run is the direct children of a
     /// RegularElement / TitleElement (`process_children` `parent.is_some()`).
     /// Mirrors upstream's `AwaitExpression` server visitor parent-walk: an inline
@@ -213,6 +233,7 @@ impl<'a> ServerTransformState<'a> {
             arena,
             allocator,
             is_standalone: false,
+            fragment_depth: 0,
             preserve_whitespace: options.preserve_whitespace,
             each_index: 0,
             eval_inputs: EvalInputs::default(),
@@ -223,6 +244,8 @@ impl<'a> ServerTransformState<'a> {
             snippet_inits: Vec::new(),
             derived_d_counter: 0,
             derived_array_counter: 0,
+            state_tmp_counter: 0,
+            state_array_counter: 0,
             in_element_children: false,
             attr_optimiser: None,
             shadowed_names: Vec::new(),
@@ -282,6 +305,30 @@ impl<'a> ServerTransformState<'a> {
             "$$derived_array".to_string()
         } else {
             format!("$$derived_array_{counter}")
+        }
+    }
+
+    /// Generate the next `tmp` temp name — `tmp`, `tmp_1`, `tmp_2`, …
+    /// (mirrors upstream `scope.generate('tmp')`).
+    pub fn next_state_tmp_name(&mut self) -> String {
+        let counter = self.state_tmp_counter;
+        self.state_tmp_counter = counter + 1;
+        if counter == 0 {
+            "tmp".to_string()
+        } else {
+            format!("tmp_{counter}")
+        }
+    }
+
+    /// Generate the next `$$array` temp name — `$$array`, `$$array_1`, …
+    /// (mirrors upstream `scope.generate('$$array')`).
+    pub fn next_state_array_name(&mut self) -> String {
+        let counter = self.state_array_counter;
+        self.state_array_counter = counter + 1;
+        if counter == 0 {
+            "$$array".to_string()
+        } else {
+            format!("$$array_{counter}")
         }
     }
 
@@ -2277,6 +2324,76 @@ mod tests {
         assert!(
             mismatches.is_empty(),
             "svelte:boundary output differs from oracle (structurally) for: {mismatches:?}"
+        );
+    }
+
+    /// Runtime-runes burn-down cluster: SSR error-boundary `failed`-snippet
+    /// placement, async `$derived(await …)` lowering, nested `$state.snapshot`,
+    /// and destructured-`$state` temp deconfliction. Each fixture below was a
+    /// PROD `server=MISMATCH` in the AST pipeline; this gates byte-equivalence
+    /// (under [`canon_js`], the real runtime canonicalizer) with the correct
+    /// `transform_server` oracle. Root causes / fixes:
+    ///
+    /// - **error-boundary-15 / -17 / -reset-premature** — a nested
+    ///   `<svelte:boundary>` whose inner boundary carries a `{#snippet failed}`.
+    ///   The `failed` fn declaration must land in the CURRENT block (the outer
+    ///   boundary's `($$renderer) => { … }` callback), immediately ahead of the
+    ///   `$$renderer.boundary(...)` call — 写经 upstream's `statements.push(fn)`
+    ///   onto the surrounding `state.init`. The visitor previously hoisted it to
+    ///   the component-body top (`state.body`), mis-placing it OUT of the nested
+    ///   block. Now pushed onto `state.template` inline (`svelte_boundary.rs`).
+    /// - **async-await-block-2** — `const result = $derived(await push(v))` INSIDE
+    ///   an `async function request(v)`. The NESTED-rune lowerer emitted the sync
+    ///   `$.derived(() => await …)` (invalid); under `experimental.async` it now
+    ///   mirrors `VariableDeclaration.js:87-96` → `await $.async_derived(() =>
+    ///   push(v))`. The `{#await … then result}` then-binding also shadows any
+    ///   component-level derived (so `{result}` stays bare, not `result()`) via a
+    ///   shadow frame in `await_block.rs`.
+    /// - **state-snapshot / -date** — `let start = $state.snapshot(items)` as a
+    ///   declaration INIT extracts arg0 (`let start = items`), NOT `$.snapshot(…)`
+    ///   (that's the TEMPLATE-level rewrite); `$state.raw` / `$state.eager` join
+    ///   `$state.snapshot` in `detect_decl_rune` → `DeclRune::State`.
+    /// - **ambiguous-source** — two destructured `let { … } = $state(setup())`
+    ///   declarations must deconflict their `tmp` temp (`tmp` / `tmp_1`) via a
+    ///   component-scoped counter (`scope.generate('tmp')`), not re-declare `tmp`.
+    #[test]
+    fn ast_matches_oracle_runtime_burndown_cluster() {
+        let fixtures: &[(&str, bool)] = &[
+            ("error-boundary-15", false),
+            ("error-boundary-17", false),
+            ("error-boundary-reset-premature", false),
+            ("async-await-block-2", true),
+            ("state-snapshot", false),
+            ("state-snapshot-date", false),
+            ("ambiguous-source", false),
+        ];
+        let mut mismatches: Vec<String> = Vec::new();
+        for (dir, is_async) in fixtures {
+            let path = format!(
+                "{}/../../submodules/svelte/packages/svelte/tests/runtime-runes/samples/{}/main.svelte",
+                env!("CARGO_MANIFEST_DIR"),
+                dir
+            );
+            let Ok(src) = std::fs::read_to_string(&path) else {
+                eprintln!("SKIP {dir} (submodule not checked out)");
+                return;
+            };
+            let (ours, oracle) = if *is_async {
+                run_async_both(&src)
+            } else {
+                (run(&src), oracle_dump(&src))
+            };
+            // The runtime gate is `canon_js` (oxc parse → codegen): it normalizes
+            // formatting (line-wrapping / blank lines) while preserving structure,
+            // so a match here means the runtime SSR suite passes for the fixture.
+            if canon_js(&ours) != canon_js(&oracle) {
+                eprintln!("=== {dir} DIFFER ===\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}\n");
+                mismatches.push((*dir).to_string());
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "runtime burn-down cluster differs from oracle for: {mismatches:?}"
         );
     }
 

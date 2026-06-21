@@ -44,9 +44,11 @@
 //! - destructured-`$state` / `$state.raw` patterns ARE expanded via
 //!   `create_state_declarators` + `extract_paths` (`tmp` temp + `$$array =
 //!   $.to_array(tmp, N)` for array/iterable destructures + per-leaf
-//!   declarators). KNOWN GAPS: no `tmp`/`$$array` deconfliction against
-//!   user-declared bindings; rest elements, computed `[expr]` keys, and
-//!   `build_fallback` default wrapping are not handled. Destructured
+//!   declarators). The `tmp` temp is deconflicted across the component (a second
+//!   destructured `$state(...)` uses `tmp_1`, 写经 `scope.generate('tmp')`).
+//!   KNOWN GAPS: `$$array` is not yet deconflicted; rest elements, computed
+//!   `[expr]` keys, and `build_fallback` default wrapping are not handled.
+//!   Destructured
 //!   `$derived` / `$derived.by` (the `$$d` / `$$derived_array` / `$.derived`
 //!   form) is still kept verbatim (NOT expanded).
 
@@ -101,7 +103,16 @@ pub(super) fn detect_decl_rune(init: &OxcExpression) -> Option<DeclRune> {
                 return None;
             };
             match (obj.name.as_str(), m.property.name.as_str()) {
-                ("$state", "raw") => Some(DeclRune::State),
+                // `$state.raw` / `$state.snapshot` / `$state.eager` as a
+                // declaration INIT all fall through upstream's
+                // `VariableDeclaration.js` to the generic `value = visit(args[0])`
+                // path — i.e. the rune wrapper is stripped and just the first
+                // argument survives (`let start = $state.snapshot(items)` → `let
+                // start = items`). Only the TEMPLATE-level `CallExpression` visitor
+                // rewrites `$state.snapshot(x)` → `$.snapshot(x)`; the declaration
+                // init does NOT. (`$state.eager(x)` → `x` matches upstream's
+                // `CallExpression` `return node.arguments[0]` too.)
+                ("$state", "raw" | "snapshot" | "eager") => Some(DeclRune::State),
                 ("$derived", "by") => Some(DeclRune::DerivedBy),
                 // `$props.id()` — upstream skips this declarator (it is
                 // re-emitted as `const <id> = $.props_id($$renderer);` via the
@@ -525,6 +536,9 @@ pub(super) fn lower_nested_runes_in_expr<'a>(expr: &mut OxcExpression<'a>, b: B<
         b,
         derived: vec![rustc_hash::FxHashSet::default()],
         in_nested_body: false,
+        // Template-expression nested bodies (effect-drop pass) never carry a
+        // top-level instance `$derived(await …)`; async-derived lowering is N/A.
+        use_async: false,
     };
     v.visit_expression(expr);
 }
@@ -636,6 +650,7 @@ fn lower_nested_runes<'a>(stmt: &mut Statement<'a>, state: &ServerTransformState
         b: state.b,
         derived: vec![rustc_hash::FxHashSet::default()],
         in_nested_body: false,
+        use_async: state.eval_inputs.use_async,
     };
     v.visit_statement(stmt);
 }
@@ -656,6 +671,11 @@ struct NestedRuneLower<'a> {
     /// script-level statements already handled by `transform_script` are not
     /// double-processed.
     in_nested_body: bool,
+    /// `experimental.async`: enables the `$derived(await X)` →
+    /// `await $.async_derived(() => X)` lowering (写经
+    /// `VariableDeclaration.js:87-96`). Without it (or without an `await` arg),
+    /// `$derived(e)` stays the plain `$.derived(() => e)`.
+    use_async: bool,
 }
 
 impl<'a> NestedRuneLower<'a> {
@@ -701,7 +721,26 @@ impl<'a> NestedRuneLower<'a> {
                     d.init = Some(arg.unwrap_or_else(|| b.void0()));
                 }
                 DeclRune::Derived => {
-                    d.init = arg.map(|e| b.call("$.derived", vec![b.thunk(e, false)]));
+                    d.init = arg.map(|e| {
+                        // Async `$derived(await EXPR)` (写经
+                        // `VariableDeclaration.js:87-96`): under `experimental.async`,
+                        // a top-level `await` in the derived argument lowers the whole
+                        // declarator to `await $.async_derived(() => EXPR)` (the leading
+                        // `await` is stripped by the server `AwaitExpression` visitor
+                        // before the thunk). A surviving NESTED await keeps the thunk
+                        // `async`. Otherwise it stays the sync `$.derived(() => e)`.
+                        if self.use_async
+                            && let OxcExpression::AwaitExpression(await_box) = e
+                        {
+                            let inner = await_box.unbox().argument;
+                            let nested_await = expr_has_await(&inner);
+                            b.await_expr(
+                                b.call("$.async_derived", vec![b.thunk(inner, nested_await)]),
+                            )
+                        } else {
+                            b.call("$.derived", vec![b.thunk(e, false)])
+                        }
+                    });
                     if let Some(n) = bind_name
                         && let Some(frame) = self.derived.last_mut()
                     {
@@ -1439,22 +1478,25 @@ fn lower_variable_declaration<'a>(
 fn create_state_declarators<'a>(
     pat: oxc_ast::ast::BindingPattern<'a>,
     value: Option<OxcExpression<'a>>,
-    state: &ServerTransformState<'a>,
+    state: &mut ServerTransformState<'a>,
     decls: &mut Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)>,
 ) {
+    // `let tmp = <value>` — deconflict the temp name across the component (mirrors
+    // upstream `scope.generate('tmp')`), so a SECOND destructured `$state(...)`
+    // declaration uses `tmp_1` rather than re-declaring `tmp` (a redeclaration
+    // error). The `$$array` temps deconflict the same way.
+    let tmp_name = state.next_state_tmp_name();
     let b = state.b;
-    let tmp_name = "tmp";
-
-    // `let tmp = <value>`
-    decls.push((b.id_pat(tmp_name), value));
+    decls.push((b.id_pat(&tmp_name), value));
 
     let mut paths: Vec<(oxc_ast::ast::BindingPattern<'a>, OxcExpression<'a>)> = Vec::new();
     let mut inserts: Vec<OxcExpression<'a>> = Vec::new();
-    extract_paths(pat, b.id(tmp_name), state, &mut paths, &mut inserts);
+    let tmp_id = b.id(&tmp_name);
+    extract_paths(pat, tmp_id, state, &mut paths, &mut inserts);
 
     // `$$array = $.to_array(tmp, N)` inserts (one per array sub-pattern).
     for value in inserts {
-        decls.push((b.id_pat("$$array"), Some(value)));
+        decls.push((state.b.id_pat("$$array"), Some(value)));
     }
 
     // Leaf declarators: `x = $$array[0]`, `a = tmp.a`, …

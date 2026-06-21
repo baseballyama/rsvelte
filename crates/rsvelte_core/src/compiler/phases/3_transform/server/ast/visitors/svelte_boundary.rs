@@ -58,11 +58,19 @@
 //!   read-wrapped expression) rather than upstream's
 //!   `build_attribute_value(..., is_component=true)`; correct for the common
 //!   identifier / single-expression value, a gap for mixed text+expr values.
-//! - The `failed` snippet is emitted COMPONENT-LOCALLY (pushed onto `state.body`,
-//!   before the template content) via [`build_boundary_snippet`], mirroring
-//!   upstream's `path.length > 1` → `can_hoist = false` placement and the text
-//!   oracle. (The generic [`super::snippet_block::visit_snippet_block`] always
-//!   hoists to module scope, which would mis-place a boundary-nested snippet.)
+//! - The `failed` snippet is emitted via [`build_boundary_snippet`], with its
+//!   placement decided by the snippet's hoistability AND the boundary's nesting
+//!   depth (写经 upstream `SnippetBlock.js` `can_hoist ? state.hoisted :
+//!   state.init`): a TOP-LEVEL boundary whose `failed` body references only its
+//!   own params hoists to the component-body top (`state.body`); a NESTED
+//!   boundary's `failed` (or one referencing instance state) is emitted INLINE
+//!   into the surrounding block, right before the `$$renderer.boundary(...)` call
+//!   — so it lands inside the enclosing boundary's `($$renderer) => { … }`
+//!   callback. The top-level gate uses the server-side `state.fragment_depth`
+//!   because our analyze does not bump its depth counters for `<svelte:boundary>`
+//!   (so `metadata.can_hoist` alone would wrongly hoist a boundary-nested
+//!   snippet). The generic [`super::snippet_block::visit_snippet_block`] always
+//!   hoists to module scope, which would mis-place a boundary-nested snippet.
 
 use crate::ast::template::{Attribute, Fragment, SnippetBlock, SvelteElement, TemplateNode};
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
@@ -137,21 +145,48 @@ pub fn visit_svelte_boundary<'a>(node: &SvelteElement, state: &mut ServerTransfo
 
     // props = { failed[: <attr value>] }.
     let mut props: Vec<ObjectPropertyKind<'a>> = Vec::new();
+    // The `failed` fn, plus where it should land: HOISTABLE (`can_hoist`)
+    // snippets go onto `state.body` (the component-body top, ahead of ALL
+    // template content); non-hoistable ones are emitted INLINE into the CURRENT
+    // block, immediately ahead of the `$$renderer.boundary(...)` call.
+    let mut failed_fn: Option<Statement<'a>> = None;
+    let mut failed_fn_hoist = false;
     if let Some(snippet) = failed_snippet {
-        // Emit the `failed` snippet as a COMPONENT-LOCAL function declaration
-        // (upstream `context.visit(failed_snippet, context.state)` with
-        // `path.length > 1` forcing `can_hoist = false`, so it lands in
-        // `state.init` / the component body — NOT module scope). Pushing it onto
-        // `state.body` places it before the template content, matching the text
-        // oracle. Then reference it by name → `{ failed }` shorthand.
-        let fn_decl = build_boundary_snippet(snippet, "failed", state);
-        state.body.push(fn_decl);
+        // 写经 upstream `context.visit(failed_snippet, context.state)` →
+        // `SnippetBlock.js`: `statements = can_hoist ? state.hoisted : state.init`.
+        // For a TOP-LEVEL boundary a `failed` snippet whose body references only
+        // its own params hoists to the component-body top (ahead of the template
+        // `push(...)` calls); otherwise it stays in the surrounding block, right
+        // before the call — so a NESTED boundary's `failed` lands inside the outer
+        // boundary's `($$renderer) => { … }` callback.
+        //
+        // Upstream's `can_hoist` is `is_root_level && body_refs_only_own_params`.
+        // Our analyze computes the body-reference part on `metadata.can_hoist`, but
+        // does NOT bump its depth counters for `<svelte:boundary>`, so a
+        // boundary-NESTED snippet wrongly reports `can_hoist == true`. Re-impose the
+        // root-level gate here with the server-side `fragment_depth` (root fragment
+        // = 1; any nested block / boundary body ≥ 2): hoist only when the snippet
+        // body is hoistable AND the boundary is at the top level.
+        failed_fn = Some(build_boundary_snippet(snippet, "failed", state));
+        failed_fn_hoist = snippet.metadata.can_hoist && state.fragment_depth <= 1;
         props.push(state.b.init("failed", state.b.id("failed")));
     } else if let Some(Attribute::Attribute(attr)) = failed_attribute {
         // `failed={expr}` (no snippet): `{ failed: <expr> }` (shorthand when the
         // expression is the bare identifier `failed`).
         let value = failed_attribute_value(&attr.value, state);
         props.push(state.b.init("failed", value));
+    }
+
+    // Emit the `failed` fn declaration: hoistable → component-body top
+    // (`state.body`); otherwise inline into the CURRENT block, immediately ahead
+    // of the boundary call (写经 `statements.push(fn)` onto `state.hoisted` /
+    // `state.init` respectively).
+    if let Some(fn_decl) = failed_fn {
+        if failed_fn_hoist {
+            state.body.push(fn_decl);
+        } else {
+            state.template.push(TemplateEntry::Stmt(fn_decl));
+        }
     }
 
     // $$renderer.boundary(props, ($$renderer) => { <children_body> })
