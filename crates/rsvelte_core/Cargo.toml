@@ -62,7 +62,7 @@ oxc_diagnostics = "0.136"
 oxc_codegen = "0.136"
 rsvelte_esrap = { path = "../rsvelte_esrap" }
 oxc_syntax = "0.136"
-oxc_semantic = "0.136"
+oxc_semantic = "0.137"
 
 # SPIKE: oxc_formatter is publish=false in oxc; pull via git from main HEAD
 oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "aa79b5be9915068f60bc361febf2e7496b92fc24" }
