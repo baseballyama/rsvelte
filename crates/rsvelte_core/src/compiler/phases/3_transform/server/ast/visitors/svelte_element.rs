@@ -103,7 +103,7 @@ pub fn visit_svelte_element<'a>(node: &SvelteDynamicElement, state: &mut ServerT
         start: node.start,
         end: node.end,
         name: node.name.clone(),
-        name_loc: node.name_loc.clone(),
+        name_loc: node.name_loc,
         attributes: node.attributes.clone(),
         fragment: Fragment::default(),
         metadata: RegularElementMetadata {

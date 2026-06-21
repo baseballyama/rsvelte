@@ -586,15 +586,14 @@ impl<'a> B<'a> {
     /// `() => expr`, collapsing `() => f()` to `f` (upstream `b.thunk` +
     /// `unthunk` for the zero-parameter case).
     pub fn thunk(self, expr: Expression<'a>, is_async: bool) -> Expression<'a> {
-        if !is_async {
-            if let Expression::CallExpression(call) = &expr {
-                if !call.optional && call.arguments.is_empty() {
-                    if let Expression::Identifier(idref) = &call.callee {
-                        // `() => f()` collapses to `f`.
-                        return self.id(idref.name.as_str());
-                    }
-                }
-            }
+        if !is_async
+            && let Expression::CallExpression(call) = &expr
+            && !call.optional
+            && call.arguments.is_empty()
+            && let Expression::Identifier(idref) = &call.callee
+        {
+            // `() => f()` collapses to `f`.
+            return self.id(idref.name.as_str());
         }
         self.arrow_expr(self.empty_params(), expr, is_async)
     }

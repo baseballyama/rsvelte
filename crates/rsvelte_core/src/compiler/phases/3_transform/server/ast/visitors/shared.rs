@@ -790,10 +790,10 @@ fn sort_const_tags<'n>(
         }
         on_stack[i] = true;
         for dep in &deps_of[i] {
-            if let Some(&j) = name_to_idx.get(dep.as_str()) {
-                if j != i {
-                    add(j, deps_of, name_to_idx, done, on_stack, sorted);
-                }
+            if let Some(&j) = name_to_idx.get(dep.as_str())
+                && j != i
+            {
+                add(j, deps_of, name_to_idx, done, on_stack, sorted);
             }
         }
         on_stack[i] = false;

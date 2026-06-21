@@ -2525,10 +2525,9 @@ fn names_to_instance_binding_indices(names: &[String], state: &ServerTransformSt
             .analysis
             .root
             .get_binding(name, state.analysis.root.instance_scope_index)
+            && !out.contains(&idx)
         {
-            if !out.contains(&idx) {
-                out.push(idx);
-            }
+            out.push(idx);
         }
     }
     out
@@ -2907,12 +2906,10 @@ fn collect_legacy_reactive_decls(
             .analysis
             .root
             .get_binding(&name, state.analysis.root.instance_scope_index)
+            && state.analysis.root.bindings[idx].kind == BindingKind::LegacyReactive
+            && !out.contains(&name)
         {
-            if state.analysis.root.bindings[idx].kind == BindingKind::LegacyReactive
-                && !out.contains(&name)
-            {
-                out.push(name);
-            }
+            out.push(name);
         }
     }
 }

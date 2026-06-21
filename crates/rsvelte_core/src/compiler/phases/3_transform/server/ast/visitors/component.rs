@@ -696,14 +696,14 @@ fn build_snippet_declaration<'a>(
 fn slot_name_of(node: &TemplateNode) -> Option<String> {
     let attributes = element_attributes(node)?;
     for attr in attributes {
-        if let Attribute::Attribute(a) = attr {
-            if a.name.as_str() == "slot" {
-                // The slot name is a static text value (`slot="header"`).
-                if let AttributeValue::Sequence(parts) = &a.value {
-                    if let Some(AttributeValuePart::Text(t)) = parts.first() {
-                        return Some(t.data.to_string());
-                    }
-                }
+        if let Attribute::Attribute(a) = attr
+            && a.name.as_str() == "slot"
+        {
+            // The slot name is a static text value (`slot="header"`).
+            if let AttributeValue::Sequence(parts) = &a.value
+                && let Some(AttributeValuePart::Text(t)) = parts.first()
+            {
+                return Some(t.data.to_string());
             }
         }
     }

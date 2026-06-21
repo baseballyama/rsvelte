@@ -32,7 +32,8 @@
 //!     escaped value renders as the textarea's only child content,
 //!   - contenteditable `bind:innerHTML` / `bind:innerText` / `bind:textContent`
 //!     → the bound value renders as the element's content (innerHTML unescaped).
-//!   See [`build_element_content`] + [`emit_content_body`].
+//!
+//! See [`build_element_content`] + [`emit_content_body`].
 //!
 //! Special `<select>` / `<option>` / `<optgroup>` (写经 of the `is_select_special`
 //! / `is_option_special` branches of `RegularElement.js`):
@@ -45,11 +46,12 @@
 //!     `($$renderer) => { <children> }` callback,
 //!   - a non-special `<optgroup>` / `<select>` with rich content appends a `<!>`
 //!     hydration marker before its close tag.
-//!   The rich-content predicate mirrors the `transform_server` ORACLE
-//!   (`has_component_or_render_tag` for select, `is_rich_option_content` for
-//!   option), which is narrower than upstream's `is_customizable_select_element`.
-//!   See [`emit_select_special`] / [`emit_option_special`] /
-//!   [`prepare_element_spread_object`].
+//!
+//! The rich-content predicate mirrors the `transform_server` ORACLE
+//! (`has_component_or_render_tag` for select, `is_rich_option_content` for
+//! option), which is narrower than upstream's `is_customizable_select_element`.
+//! See [`emit_select_special`] / [`emit_option_special`] /
+//! [`prepare_element_spread_object`].
 //!
 //! 写经 gaps (TODO): `use:` directives on the non-spread
 //! path, the get/set `{get, set}` select bind form (the option's synthetic value
@@ -637,7 +639,7 @@ fn attr_static_text(value: &AttributeValue) -> Option<String> {
 
 /// Find the sibling `value` plain-attribute node (for `bind:group`'s membership
 /// test). Mirrors upstream's `node.attributes.find(attr.name === 'value')`.
-fn find_value_attribute<'n>(node: &'n RegularElement) -> Option<&'n AttributeNode> {
+fn find_value_attribute(node: &RegularElement) -> Option<&AttributeNode> {
     node.attributes.iter().find_map(|a| match a {
         Attribute::Attribute(attr) if attr.name.as_str() == "value" => Some(attr),
         _ => None,

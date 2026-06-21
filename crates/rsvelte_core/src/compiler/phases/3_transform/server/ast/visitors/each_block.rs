@@ -92,8 +92,9 @@ pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'
     //   index = (contains_group_binding || !node.index) ? meta.index : node.index
     //   alias emitted as `let node.index = index` when index.name !== node.index
     let user_index = node.index.as_ref().map(|s| s.to_string());
-    let (index_var, index_alias): (String, Option<String>) =
-        if node.metadata.contains_group_binding || user_index.is_none() {
+    let (index_var, index_alias): (String, Option<String>) = match user_index {
+        Some(idx) if !node.metadata.contains_group_binding => (idx, None),
+        other => {
             let meta_index = node.metadata.index.clone().unwrap_or_else(|| {
                 if counter == 0 {
                     "$$index".to_string()
@@ -101,10 +102,9 @@ pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'
                     format!("$$index_{counter}")
                 }
             });
-            (meta_index, user_index)
-        } else {
-            (user_index.unwrap(), None)
-        };
+            (meta_index, other)
+        }
+    };
 
     // Async detection on the iterable (写经 `node.metadata.expression`):
     // blockers drive `$$renderer.async_block([…], …)`, an inline `await` drives a
@@ -175,7 +175,7 @@ pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'
 
     let for_loop = build_for_loop(b, &array_var, &index_var, b.block(each_body));
 
-    if node.fallback.is_some() {
+    if let Some(fallback) = node.fallback.as_ref() {
         // `{:else}` fallback path (写经 upstream):
         //   statements.push(b.if(
         //     b.binary('!==', b.member(array_id, 'length'), b.literal(0)),
@@ -186,7 +186,6 @@ pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'
         // Re-borrow `b` after `state` is used again below; build the consequent
         // (open-marker push + the loop) and the alternate (fallback body with a
         // leading `<!--[!-->` push) first.
-        let fallback = node.fallback.as_ref().unwrap();
 
         // Consequent: `{ $$renderer.push('<!--[-->'); <for_loop> }`.
         let b = state.b;
@@ -364,10 +363,10 @@ fn reparse_binding_pattern<'a>(
         return None;
     }
     for stmt in ret.program.body {
-        if let Statement::VariableDeclaration(mut vd) = stmt {
-            if let Some(decl) = vd.declarations.pop() {
-                return Some(decl.id);
-            }
+        if let Statement::VariableDeclaration(mut vd) = stmt
+            && let Some(decl) = vd.declarations.pop()
+        {
+            return Some(decl.id);
         }
     }
     None

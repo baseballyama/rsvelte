@@ -113,7 +113,7 @@ pub(super) fn collect_param_pattern_names(
     expr: &crate::ast::js::Expression,
     out: &mut rustc_hash::FxHashSet<String>,
 ) {
-    collect_pattern_names_json(&expr.as_json(), out);
+    collect_pattern_names_json(expr.as_json(), out);
 }
 
 fn collect_pattern_names_json(json: &Value, out: &mut rustc_hash::FxHashSet<String>) {
