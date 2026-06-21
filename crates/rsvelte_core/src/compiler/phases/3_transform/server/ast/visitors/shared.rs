@@ -549,6 +549,29 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                 let _ = write!(last, "<!--{data}-->");
             }
             SeqNode::Expr(expr) => {
+                // A `let:`-scoped SLOT variable read (`<Nested let:count>{count}
+                // </Nested>`) must NOT constant-fold to the same-named COMPONENT
+                // binding's value (`let count = 42`). Upstream resolves `count` to
+                // the slot scope parameter (an opaque runtime value), so it stays
+                // `$.escape(count)`. This wins over the `constant_vars` /
+                // `scope.evaluate` folds. (A SNIPPET parameter is NOT in this set —
+                // upstream DOES fold a snippet-param read whose component argument
+                // is statically known, so `slot_let_shadows` is kept distinct from
+                // the snippet-param `shadowed_names`.)
+                if !state.slot_let_shadows.is_empty()
+                    && let Some(src) = state.expr_source(expr)
+                    && is_plain_identifier(src.trim())
+                    && state
+                        .slot_let_shadows
+                        .iter()
+                        .any(|f| f.contains(src.trim()))
+                {
+                    let visited = state.visit_expr(expr);
+                    let escaped = state.b.call("$.escape", vec![visited]);
+                    exprs.push(escaped);
+                    quasis.push(String::new());
+                    continue;
+                }
                 // Block-local DeclarationTag constant fold (写经 the text oracle's
                 // `try_fold_with_constants`, which checks `constant_vars` BEFORE
                 // any binding resolution): a `{const x = <literal>}` declaration

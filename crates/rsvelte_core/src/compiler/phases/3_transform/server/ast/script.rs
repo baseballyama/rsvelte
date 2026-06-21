@@ -2021,6 +2021,12 @@ fn transform_script_legacy<'a>(
     // topologically (写経 `order_reactive_statements`) before being flushed.
     let mut reactive: Vec<ReactiveEntry<'a>> = Vec::new();
 
+    // Component-wide `$$array` temp counter for destructuring-assignment lowering,
+    // shared across every top-level statement (and the function bodies visited
+    // within) so the second array destructure is named `$$array_1`, not `$$array`
+    // (写经 the per-component `scope.generate('$$array')`).
+    let mut array_counter: u32 = 0;
+
     for stmt in ret.program.body.iter() {
         match stmt {
             Statement::ImportDeclaration(imp) => {
@@ -2070,11 +2076,12 @@ fn transform_script_legacy<'a>(
                         let slice = &src[span.start as usize..span.end as usize];
                         if let Some(mut rehomed) = state.reparse_statement(slice) {
                             if is_instance && is_fn {
-                                super::read_wrap::wrap_reads_in_statement(
+                                super::read_wrap::wrap_reads_in_statement_counted(
                                     &mut rehomed,
                                     state.b,
                                     state.analysis,
                                     state.analysis.root.instance_scope_index,
+                                    &mut array_counter,
                                 );
                             }
                             out.push(rehomed);
@@ -2104,11 +2111,12 @@ fn transform_script_legacy<'a>(
                     // reactive body is visited by the global `Identifier` visitor,
                     // so every READ inside it (store `$x`, derived call, `$$props`)
                     // is wrapped exactly like any other instance statement.
-                    super::read_wrap::wrap_reads_in_statement(
+                    super::read_wrap::wrap_reads_in_statement_counted(
                         &mut rehomed,
                         state.b,
                         state.analysis,
                         state.analysis.root.instance_scope_index,
+                        &mut array_counter,
                     );
                     reactive.push(ReactiveEntry {
                         stmt: rehomed,
@@ -2129,11 +2137,12 @@ fn transform_script_legacy<'a>(
                     // top-level `$a.foo = 3` → `$.store_mutate(...)`,
                     // `({$a} = obj)` → store-set sequence).
                     if is_instance {
-                        super::read_wrap::wrap_reads_in_statement(
+                        super::read_wrap::wrap_reads_in_statement_counted(
                             &mut rehomed,
                             state.b,
                             state.analysis,
                             state.analysis.root.instance_scope_index,
+                            &mut array_counter,
                         );
                     }
                     out.push(rehomed);
@@ -2146,11 +2155,12 @@ fn transform_script_legacy<'a>(
                     // A function BODY is visited too (`function f() { return
                     // $count; }` → `$.store_get(...)`, `$foo++` → `$.update_store`).
                     if is_instance {
-                        super::read_wrap::wrap_reads_in_statement(
+                        super::read_wrap::wrap_reads_in_statement_counted(
                             &mut rehomed,
                             state.b,
                             state.analysis,
                             state.analysis.root.instance_scope_index,
+                            &mut array_counter,
                         );
                     }
                     out.push(rehomed);
@@ -2283,20 +2293,36 @@ fn topo_sort_reactive(entries: Vec<ReactiveEntry>) -> Vec<ReactiveEntry> {
         .collect()
 }
 
-/// Instance-scope binding indices assigned to by a reactive `$:` body
-/// (`$: a = …`, `$: ({ a } = …)`, `$: [a] = …`). Member-expression targets
-/// (`obj.x = …`) declare no binding. 写経 `ReactiveStatement.assignments`.
+/// Instance-scope binding indices assigned to by a reactive `$:` body — every
+/// `AssignmentExpression` target AND every `UpdateExpression` (`x++` / `--x`)
+/// target ANYWHERE inside the body, not just a top-level `$: a = …`. So a
+/// nested `$: if (cond) { x++ }` correctly records `x` as assigned (写经 the
+/// analyze `AssignmentExpression` / `UpdateExpression` visitors adding the
+/// target binding to `reactive_statement.assignments` while walking the whole
+/// body). Member-expression targets (`obj.x = …`) declare no binding.
 fn reactive_assignment_indices(body: &Statement, state: &ServerTransformState) -> Vec<usize> {
-    let mut names: Vec<String> = Vec::new();
-    if let Statement::ExpressionStatement(es) = body {
-        let mut inner = &es.expression;
-        while let OxcExpression::ParenthesizedExpression(p) = inner {
-            inner = &p.expression;
+    use oxc_ast_visit::Visit;
+    struct AssignCollector<'o> {
+        out: &'o mut Vec<String>,
+    }
+    impl<'a, 'o> oxc_ast_visit::Visit<'a> for AssignCollector<'o> {
+        fn visit_assignment_expression(&mut self, it: &oxc_ast::ast::AssignmentExpression<'a>) {
+            collect_assignment_target_idents(&it.left, self.out);
+            // Recurse so a nested assignment in the RHS is also captured.
+            oxc_ast_visit::walk::walk_assignment_expression(self, it);
         }
-        if let OxcExpression::AssignmentExpression(assign) = inner {
-            collect_assignment_target_idents(&assign.left, &mut names);
+        fn visit_update_expression(&mut self, it: &oxc_ast::ast::UpdateExpression<'a>) {
+            if let oxc_ast::ast::SimpleAssignmentTarget::AssignmentTargetIdentifier(id) =
+                &it.argument
+            {
+                self.out.push(id.name.to_string());
+            }
+            oxc_ast_visit::walk::walk_update_expression(self, it);
         }
     }
+    let mut names: Vec<String> = Vec::new();
+    let mut c = AssignCollector { out: &mut names };
+    c.visit_statement(body);
     names_to_instance_binding_indices(&names, state)
 }
 
@@ -2369,69 +2395,112 @@ fn lower_legacy_var_decl<'a>(
         _ => VariableDeclarationKind::Let,
     };
 
-    let mut decls: Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)> = Vec::new();
+    let _ = is_export;
+    // Each source declarator contributes ONE output statement (写経 the server
+    // text-oracle's `split_comma_separated_declarations`, which splits TOP-LEVEL
+    // declarators apart). A destructure that expands via `create_state_declarators`
+    // / `create_props_destructure_declarators` into a `tmp = …, leaf = …` group
+    // stays COMBINED inside that one statement.
+    let mut out: Vec<Statement<'a>> = Vec::new();
 
     for d in vd.declarations.iter() {
-        // An `export let <id>` declarator with a simple identifier binding that
-        // resolves to a PROP → lower to `$$props['<alias>']`.
+        let mut decls: Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)> =
+            Vec::new();
+        // 写经 upstream `VariableDeclaration.js` legacy (non-runes) branch
+        // (lines 142-210): the prop / state lowering is keyed on the BINDING
+        // KIND of each declarator's leaves, NOT on whether the declaration
+        // itself carries `export`. A binding becomes a `bindable_prop` whenever
+        // it is exported — whether via `export let x` (declaration export) or a
+        // separate `export { x }` specifier referring to a previously-declared
+        // `let x`. Both must prop-lower identically.
         //
-        // 写经 upstream `VariableDeclaration.js:144-145`: the legacy branch only
-        // prop-lowers a declarator whose binding kind is `bindable_prop` (i.e.
-        // `export let`). `export const` / `export function` / `export class`
-        // bindings are NOT props (a `const` cannot be bound), so they are kept
-        // verbatim — the `export` keyword is stripped (by the surrounding
-        // ExportNamedDeclaration handling) but the value stays as written
-        // (`const defaultHeight = 30`, not `$.fallback($$props['…'], 30)`).
-        let prop_name: Option<String> =
-            if is_export && matches!(vd.kind, VariableDeclarationKind::Let) {
-                if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &d.id {
-                    if legacy_binding_is_prop(state, id.name.as_str()) {
-                        Some(legacy_prop_alias(state, id.name.as_str()))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
+        //   has_props → `let x = $$props['alias']` / `$.fallback(prop, default)`
+        //               (identifier) or a `tmp = init` + per-leaf-fallback
+        //               expansion (destructure).
+        //   has_state (and not props) → identifier kept verbatim; destructure
+        //               expanded via `create_state_declarators` (`tmp = init,
+        //               leaf = tmp.path, …`).
+        //   neither → plain re-parse + read-wrap (unchanged).
+        //
+        // A `const` binding can never be a prop or reactive state, so an
+        // `export const` keeps its declarator verbatim (handled by the `neither`
+        // branch — its leaves are `Normal`/`Static`).
+        let mut leaf_names: Vec<String> = Vec::new();
+        collect_binding_pattern_idents(&d.id, &mut leaf_names);
+        let has_props = leaf_names.iter().any(|n| legacy_binding_is_prop(state, n));
+        let has_state = leaf_names.iter().any(|n| legacy_binding_is_state(state, n));
 
-        if let Some(alias) = prop_name {
-            // `let x = $$props['alias']` or `… = $.fallback($$props['alias'], …)`.
+        if has_props {
             let pat_span = d.id.span();
             let pat_slice = &src[pat_span.start as usize..pat_span.end as usize];
             let Some(pat) = state.reparse_pattern(pat_slice) else {
                 continue;
             };
-            let prop = b.member_computed(b.id("$$props"), b.string(&alias));
-            let init = match d.init.as_ref() {
-                None => prop,
-                Some(init) => {
-                    let init_span = init.span();
-                    let dslice = &src[init_span.start as usize..init_span.end as usize];
-                    let mut default_expr = state
-                        .reparse_slice_owned(dslice)
-                        .unwrap_or_else(|| b.void0());
-                    super::read_wrap::wrap_reads(
-                        &mut default_expr,
-                        b,
-                        state.analysis,
-                        state.analysis.root.instance_scope_index,
-                    );
-                    // 写经 `build_fallback`: the "is simple" test runs on the
-                    // ALREADY-VISITED (read-wrapped) value, so `= $store`
-                    // (wrapped to a `$.store_get(...)` CALL) is NOT simple and
-                    // gets the `() => …, true` thunk form.
-                    build_legacy_fallback(state, prop, default_expr)
-                }
-            };
-            decls.push((pat, Some(init)));
+
+            if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &pat {
+                // `let x = $$props['alias']` or `… = $.fallback($$props['alias'], …)`.
+                let alias = legacy_prop_alias(state, id.name.as_str());
+                let prop = b.member_computed(b.id("$$props"), b.string(&alias));
+                let init = match d.init.as_ref() {
+                    None => prop,
+                    Some(init) => {
+                        let mut default_expr = reparse_init_read_wrapped(init, src, state);
+                        // 写经 `build_fallback`: the "is simple" test runs on the
+                        // ALREADY-VISITED (read-wrapped) value, so `= $store`
+                        // (wrapped to a `$.store_get(...)` CALL) is NOT simple and
+                        // gets the `() => …, true` thunk form.
+                        build_legacy_fallback(
+                            state,
+                            prop,
+                            std::mem::replace(&mut default_expr, b.void0()),
+                        )
+                    }
+                };
+                decls.push((pat, Some(init)));
+                // A single identifier declarator → one statement.
+                out.push(b.var_decl_from_pairs(kind, decls));
+            } else {
+                // Destructured export: `export let { x: foo, z: [bar] } = …` —
+                // the LEAVES are the prop names. Emit `tmp = init`, then one
+                // `leaf = $.fallback($$props[alias], <access>)` per path (写经
+                // `VariableDeclaration.js:155-180`). The synthetic group stays
+                // COMBINED in one statement.
+                let init_expr = d
+                    .init
+                    .as_ref()
+                    .map(|init| reparse_init_read_wrapped(init, src, state));
+                create_props_destructure_declarators(pat, init_expr, state, &mut decls);
+                out.push(b.var_decl_from_pairs(kind, decls));
+            }
             continue;
         }
 
-        // Plain (non-export, or non-identifier-export) declarator. Re-parse the
-        // whole declarator and route its init through read-wrapping.
+        if has_state {
+            let pat_span = d.id.span();
+            let pat_slice = &src[pat_span.start as usize..pat_span.end as usize];
+            let Some(pat) = state.reparse_pattern(pat_slice) else {
+                continue;
+            };
+            let init_expr = d
+                .init
+                .as_ref()
+                .map(|init| reparse_init_read_wrapped(init, src, state));
+            if matches!(pat, oxc_ast::ast::BindingPattern::BindingIdentifier(_)) {
+                // `let x = <init>` where `x` is reactive legacy state — kept
+                // verbatim (the reactivity is handled by `$:`-driven reruns).
+                decls.push((pat, init_expr));
+            } else {
+                // Destructured reactive state: `let { a, b } = obj` →
+                // `let tmp = obj, a = tmp.a, b = tmp.b;` (写经
+                // `create_state_declarators`). The synthetic group stays COMBINED.
+                create_state_declarators(pat, init_expr, state, &mut decls);
+            }
+            out.push(b.var_decl_from_pairs(kind, decls));
+            continue;
+        }
+
+        // Plain declarator (no prop / no state leaves). Re-parse the whole
+        // declarator and route its init through read-wrapping.
         let slice = &src[d.span.start as usize..d.span.end as usize];
         if let Some((pat, mut init)) = state.reparse_declarator(slice, kind) {
             if let Some(init) = init.as_mut() {
@@ -2443,13 +2512,11 @@ fn lower_legacy_var_decl<'a>(
                 );
             }
             decls.push((pat, init));
+            out.push(b.var_decl_from_pairs(kind, decls));
         }
     }
 
-    if decls.is_empty() {
-        return Vec::new();
-    }
-    b.var_decls_split(kind, decls)
+    out
 }
 
 /// Whether the legacy instance binding `name` is a component PROP
@@ -2469,6 +2536,112 @@ fn legacy_binding_is_prop(state: &ServerTransformState, name: &str) -> bool {
         )
     } else {
         false
+    }
+}
+
+/// Whether the legacy instance binding `name` is reactive STATE
+/// (`State` / `RawState` kind — 写経 upstream's `has_state` test
+/// `bindings.some(b => b.kind === 'state')`). A destructured declarator with
+/// any such leaf is expanded via `create_state_declarators`.
+fn legacy_binding_is_state(state: &ServerTransformState, name: &str) -> bool {
+    if let Some(idx) = state
+        .analysis
+        .root
+        .get_binding(name, state.analysis.root.instance_scope_index)
+    {
+        matches!(
+            state.analysis.root.bindings[idx].kind,
+            BindingKind::State | BindingKind::RawState
+        )
+    } else {
+        false
+    }
+}
+
+/// Collect every leaf identifier name from a `BindingPattern` (the destructure
+/// leaves), ignoring object-property keys and default values. Used to classify
+/// a legacy declarator's binding kinds.
+fn collect_binding_pattern_idents(pat: &oxc_ast::ast::BindingPattern, out: &mut Vec<String>) {
+    use oxc_ast::ast::BindingPattern as P;
+    match pat {
+        P::BindingIdentifier(id) => out.push(id.name.to_string()),
+        P::ObjectPattern(obj) => {
+            for prop in obj.properties.iter() {
+                collect_binding_pattern_idents(&prop.value, out);
+            }
+            if let Some(rest) = &obj.rest {
+                collect_binding_pattern_idents(&rest.argument, out);
+            }
+        }
+        P::ArrayPattern(arr) => {
+            for el in arr.elements.iter().flatten() {
+                collect_binding_pattern_idents(el, out);
+            }
+            if let Some(rest) = &arr.rest {
+                collect_binding_pattern_idents(&rest.argument, out);
+            }
+        }
+        P::AssignmentPattern(asgn) => collect_binding_pattern_idents(&asgn.left, out),
+    }
+}
+
+/// Re-parse a declarator init from its source span and route it through
+/// instance-scope read-wrapping (store `$x` → `$.store_get(...)`, etc.).
+fn reparse_init_read_wrapped<'a>(
+    init: &OxcExpression,
+    src: &str,
+    state: &mut ServerTransformState<'a>,
+) -> OxcExpression<'a> {
+    let b = state.b;
+    let init_span = init.span();
+    let dslice = &src[init_span.start as usize..init_span.end as usize];
+    let mut expr = state
+        .reparse_slice_owned(dslice)
+        .unwrap_or_else(|| b.void0());
+    super::read_wrap::wrap_reads(
+        &mut expr,
+        b,
+        state.analysis,
+        state.analysis.root.instance_scope_index,
+    );
+    expr
+}
+
+/// Port of upstream `VariableDeclaration.js:155-180` for a DESTRUCTURED export
+/// declarator whose leaves are props (`export let { x: foo, z: [bar] } = …`).
+/// The leaves — NOT the object keys — are the prop names. Emits `tmp = init`,
+/// then a `$$array = $.to_array(...)` insert per array sub-pattern, then one
+/// `leaf = $.fallback($$props[alias], <access>)` per terminal path.
+fn create_props_destructure_declarators<'a>(
+    pat: oxc_ast::ast::BindingPattern<'a>,
+    value: Option<OxcExpression<'a>>,
+    state: &ServerTransformState<'a>,
+    decls: &mut Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)>,
+) {
+    let b = state.b;
+    let tmp_name = "tmp";
+
+    // `let tmp = <init>`
+    decls.push((b.id_pat(tmp_name), value));
+
+    let mut paths: Vec<(oxc_ast::ast::BindingPattern<'a>, OxcExpression<'a>)> = Vec::new();
+    let mut inserts: Vec<OxcExpression<'a>> = Vec::new();
+    extract_paths(pat, b.id(tmp_name), state, &mut paths, &mut inserts);
+
+    for value in inserts {
+        decls.push((b.id_pat("$$array"), Some(value)));
+    }
+
+    for (node, access) in paths {
+        // The leaf is the prop name; the access expression is its default value.
+        let leaf_name = match &node {
+            oxc_ast::ast::BindingPattern::BindingIdentifier(id) => id.name.to_string(),
+            _ => String::new(),
+        };
+        let alias = legacy_prop_alias(state, &leaf_name);
+        let prop = b.member_computed(b.id("$$props"), b.string(&alias));
+        let init = build_legacy_fallback(state, prop, access);
+        decls.push((node, Some(init)));
     }
 }
 

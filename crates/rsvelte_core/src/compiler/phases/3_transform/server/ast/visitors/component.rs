@@ -444,14 +444,29 @@ fn build_component_children<'a, 'b>(
 
     // Default slot → `children` prop + `$$slots.default: true`.
     if !default_children.is_empty() {
+        // The slot's `let:` directive names shadow same-named component-level
+        // bindings inside the slot body — `<Nested let:count>{count}</Nested>`
+        // reads the SLOT parameter `count`, NOT the component `let count = 42`,
+        // so `{count}` must emit `$.escape(count)` and NOT be constant-folded to
+        // `42` (mirrors the snippet-body shadowing). Push the let names for the
+        // body build only.
+        let shadow = let_directive_names(&default_lets, state);
+        state.shadowed_names.push(shadow.clone());
+        state.slot_let_shadows.push(shadow);
         let body = render_slot_body(&default_children, true, state);
+        state.slot_let_shadows.pop();
+        state.shadowed_names.pop();
         if !body.is_empty() {
             let slot_fn = make_slot_fn(body, &default_lets, state);
             if has_children_prop {
-                // A `children` attribute is already present (render-tag usage):
-                // expose membership only, don't overwrite the prop. (写经 gap:
-                // upstream emits `$.invalid_default_snippet` here.)
-                serialized_slots.push(state.b.init("default", state.b.bool(true)));
+                // A `children` attribute is already present (`<A children="foo">
+                // bar </A>`): the default-slot CONTENT still becomes the
+                // `$$slots.default` render function (写经 upstream's final `else`
+                // branch — `slot_name === 'default' && has_children_prop` falls
+                // through to `serialized_slots.push(b.init(slot_name, slot_fn))`).
+                // The `children="foo"` attribute keeps its own `children: 'foo'`
+                // prop (emitted from the attribute loop), NOT overwritten here.
+                serialized_slots.push(state.b.init("default", slot_fn));
             } else if default_lets.is_empty() {
                 // No `let:` directives → the usual `children` prop path.
                 push_prop(groups, state.b.init("children", slot_fn));
@@ -473,7 +488,12 @@ fn build_component_children<'a, 'b>(
 
     // Named slots → `$$slots.name: ($$renderer, { lets… }) => { ... }`.
     for (name, nodes, lets) in &named_slots {
+        let shadow = let_directive_names(lets, state);
+        state.shadowed_names.push(shadow.clone());
+        state.slot_let_shadows.push(shadow);
         let body = render_slot_body(nodes, true, state);
+        state.slot_let_shadows.pop();
+        state.shadowed_names.pop();
         if body.is_empty() {
             continue;
         }
@@ -550,6 +570,66 @@ fn lets_to_pattern<'a>(
         props.push((name, value));
     }
     state.b.object_pattern(props)
+}
+
+/// Collect the binding names introduced by a slot's `let:` directives so they
+/// shadow same-named component-level bindings inside the slot body. A shorthand
+/// `let:x` binds `x`; `let:x={ident}` binds `ident`; `let:x={{a, b}}` /
+/// `let:x={[a, b]}` bind the destructure leaves. The names are resolved by
+/// walking the parsed expression for identifier references (the same expression
+/// `lets_to_pattern` reinterprets as a pattern).
+fn let_directive_names<'a>(
+    lets: &[&crate::ast::template::LetDirective],
+    state: &mut ServerTransformState<'a>,
+) -> rustc_hash::FxHashSet<String> {
+    let mut out = rustc_hash::FxHashSet::default();
+    for d in lets {
+        match &d.expression {
+            None => {
+                // Shorthand `let:x` binds `x`.
+                out.insert(d.name.to_string());
+            }
+            Some(expr) => {
+                // `let:x={ident}` / `let:x={{a, b}}` / `let:x={[a, b]}` — the
+                // value reinterpreted as a pattern (exactly as `lets_to_pattern`
+                // does) names the bound slot variables. Collect its leaves.
+                let visited = state.visit_expr_raw(expr);
+                let pat = state.b.expr_to_pattern(visited, d.name.as_str());
+                collect_binding_pattern_leaf_idents(&pat, &mut out);
+            }
+        }
+    }
+    out
+}
+
+/// Collect leaf identifier names from a binding pattern (the destructure leaves).
+fn collect_binding_pattern_leaf_idents(
+    pat: &oxc_ast::ast::BindingPattern,
+    out: &mut rustc_hash::FxHashSet<String>,
+) {
+    use oxc_ast::ast::BindingPattern as P;
+    match pat {
+        P::BindingIdentifier(id) => {
+            out.insert(id.name.to_string());
+        }
+        P::ObjectPattern(obj) => {
+            for prop in obj.properties.iter() {
+                collect_binding_pattern_leaf_idents(&prop.value, out);
+            }
+            if let Some(rest) = &obj.rest {
+                collect_binding_pattern_leaf_idents(&rest.argument, out);
+            }
+        }
+        P::ArrayPattern(arr) => {
+            for el in arr.elements.iter().flatten() {
+                collect_binding_pattern_leaf_idents(el, out);
+            }
+            if let Some(rest) = &arr.rest {
+                collect_binding_pattern_leaf_idents(&rest.argument, out);
+            }
+        }
+        P::AssignmentPattern(a) => collect_binding_pattern_leaf_idents(&a.left, out),
+    }
 }
 
 /// Build a `function name($$renderer, ...params) { <body> }` declaration for a

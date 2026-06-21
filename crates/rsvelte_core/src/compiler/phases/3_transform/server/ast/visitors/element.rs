@@ -98,6 +98,45 @@ pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransf
         return;
     }
 
+    // -- `<script>` / `<style>` raw-text element (写经 RegularElement.js l.67-78) --
+    //
+    // A `<script>` / `<style>` element with a SINGLE text child pushes its child
+    // data VERBATIM (NOT HTML-escaped — `b.literal(node.fragment.nodes[0].data)`,
+    // so `\`<>\`` stays `<>` not `&lt;>`), then immediately `build_template`s the
+    // element into its own `$$renderer.push(...)`. The trailing `return` means the
+    // element never coalesces into the surrounding template run, so a non-top-level
+    // `<style>`/`<script>` inside a `<div>` / `<svelte:head>` becomes a SEPARATE
+    // push (the `<div>` open/close + sibling whitespace flush around it).
+    if (name == "script" || name == "style")
+        && node.fragment.nodes.len() == 1
+        && let TemplateNode::Text(t) = &node.fragment.nodes[0]
+    {
+        let raw = t.data.to_string();
+        // Build the element (open tag + attributes + `>`) into a FRESH buffer so
+        // it flushes as its own push, isolated from the surrounding run.
+        let saved = std::mem::take(&mut state.template);
+        state
+            .template
+            .push(TemplateEntry::Literal(format!("<{name}")));
+        let css_hash: Option<String> =
+            if node.metadata.scoped && !state.analysis.css.hash.is_empty() {
+                Some(state.analysis.css.hash.to_string())
+            } else {
+                None
+            };
+        build_element_attributes(node, css_hash.as_deref(), state);
+        // `>` + RAW child data + `</name>` (no escaping of the child).
+        state
+            .template
+            .push(TemplateEntry::Literal(format!(">{raw}</{name}>")));
+        let element_template = std::mem::replace(&mut state.template, saved);
+        let built = super::shared::build_template(element_template, state);
+        for stmt in built {
+            state.template.push(TemplateEntry::Stmt(stmt));
+        }
+        return;
+    }
+
     // -- async-attribute wrapping (写经 RegularElement `PromiseOptimiser`) ---
     //
     // When ANY attribute / spread value carries an inline `await` (or a top-level
@@ -901,6 +940,29 @@ pub(super) fn build_element_attributes<'a>(
                     if let Some(text) = static_text_of(parts, trim_ws) {
                         // Pure-text attribute → literal.
                         let mut literal_value = text;
+                        if is_class && let Some(hash) = css_hash {
+                            literal_value = format!("{literal_value} {hash}").trim().to_string();
+                        }
+                        if !is_class || !literal_value.is_empty() {
+                            state.template.push(TemplateEntry::Literal(format!(
+                                " {name}=\"{}\"",
+                                escape_attr(&literal_value)
+                            )));
+                        }
+                        continue;
+                    }
+                    // A quoted SINGLE `{expr}` value (`title='{"foo"}'`) parses as
+                    // a one-part Sequence whose sole part is an ExpressionTag. It
+                    // is equivalent to the unquoted `title={"foo"}` single-Expression
+                    // form (`build_attribute_value` `value.length === 1` returns the
+                    // raw expression), so a string-literal expression inlines as a
+                    // static attribute exactly like the `AttributeValue::Expression`
+                    // branch below (`extract_literal_value` inlines string literals).
+                    if parts.len() == 1
+                        && let AttributeValuePart::ExpressionTag(tag) = &parts[0]
+                        && let Some(s) = string_literal_of(&tag.expression)
+                    {
+                        let mut literal_value = s;
                         if is_class && let Some(hash) = css_hash {
                             literal_value = format!("{literal_value} {hash}").trim().to_string();
                         }

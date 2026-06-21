@@ -81,6 +81,17 @@ struct ReadWrap<'a, 'b> {
     /// read-wrapped to a CALL `<obj>.#name()` (写经 server `MemberExpression.js`).
     /// Empty when not inside a runes-mode class with derived private fields.
     private_derived: Vec<FxHashSet<String>>,
+    /// Set true while visiting the DIRECT expression of an `ExpressionStatement`,
+    /// so a destructuring assignment that is the whole statement is treated as
+    /// "standalone" (写経 upstream's `context.path.at(-1).type.endsWith('Statement')`
+    /// — a standalone destructure-assignment IIFE omits the trailing `return $$value`).
+    standalone_assign: bool,
+    /// Component-wide `$$array` temp counter (写经 `scope.generate('$$array')`).
+    /// `extract_paths` array-insert names are generated for EVERY destructuring
+    /// assignment with an array sub-pattern, even one that ends up unchanged, so
+    /// the counter must persist across assignments (the first array destructure
+    /// takes `$$array`, the next `$$array_1`, …).
+    array_counter: u32,
 }
 
 /// How a given name should be rewritten as a read.
@@ -281,6 +292,11 @@ impl<'a, 'b> ReadWrap<'a, 'b> {
     /// replacement expression, or `None` to fall back to the default walk.
     fn lower_assignment(&mut self, expr: &mut Expression<'a>) -> Option<Expression<'a>> {
         let b = self.b;
+        // Consume the standalone flag: it applies ONLY to the direct expression
+        // of a statement. Any non-destructure assignment (or a nested RHS) clears
+        // it so an inner destructure-assignment is correctly NON-standalone.
+        let is_standalone = std::mem::replace(&mut self.standalone_assign, false);
+
         let Expression::AssignmentExpression(assign) = expr else {
             return None;
         };
@@ -292,7 +308,7 @@ impl<'a, 'b> ReadWrap<'a, 'b> {
             AssignmentTarget::ObjectAssignmentTarget(_)
                 | AssignmentTarget::ArrayAssignmentTarget(_)
         ) {
-            return self.lower_destructure_assignment(expr);
+            return self.lower_destructure_assignment(expr, is_standalone);
         }
 
         // Private-derived field WRITE: `this.#x = value` (a non-declaration write
@@ -379,59 +395,152 @@ impl<'a, 'b> ReadWrap<'a, 'b> {
         }
     }
 
-    /// Lower a destructuring assignment whose targets include `$store` leaves
-    /// (写经 `shared/assignments.js::visit_assignment_expression` for the
-    /// simplest case: an `Identifier` RHS so no `$$value` caching is needed).
-    /// Each leaf becomes either `$.store_set(store, <rhs>.<accessor>)` (store
-    /// leaf) or a plain `leaf = <rhs>.<accessor>` (non-store leaf), joined as a
-    /// sequence expression `( … , … )`.
+    /// Lower a destructuring assignment whose targets include `$store` /
+    /// `$derived` leaves (写经 `shared/assignments.js::visit_assignment_expression`).
+    ///
+    /// - An identifier RHS (`{$a} = obj`) needs no `$$value` cache; the result
+    ///   is a sequence expression `( …, … )`.
+    /// - A non-identifier RHS (`{$a} = {…}`) is cached in `$$value` and wrapped
+    ///   in an IIFE `(($$value) => { …; [return $$value;] })(<rhs>)` — the
+    ///   trailing `return $$value` is added only when the assignment is part of
+    ///   an expression (NOT a standalone statement).
+    /// - Array sub-patterns introduce `var $$array_N = $.to_array(<base>, <len>)`
+    ///   inserts indexed by the leaf paths (写经 `extract_paths` `inserts`).
     fn lower_destructure_assignment(
         &mut self,
         expr: &mut Expression<'a>,
+        is_standalone: bool,
     ) -> Option<Expression<'a>> {
         let b = self.b;
-        let Expression::AssignmentExpression(assign) = expr else {
-            return None;
-        };
-        // Only the simple `= obj` (identifier RHS) form is ported — the cluster
-        // fixtures use exactly this shape. Anything else falls back to the
-        // default walk (no store lowering), which at least keeps the reads.
-        let Expression::Identifier(rhs_id) = &assign.right else {
-            return None;
-        };
-        let rhs_name = rhs_id.name.to_string();
-
-        let mut leaves: Vec<(String, AccessPath)> = Vec::new();
-        let collected = collect_destructure_paths(&assign.left, AccessPath::root(), &mut leaves);
-        if !collected {
-            return None;
-        }
-        // If no leaf is a store, nothing to transform — keep the original.
-        if !leaves.iter().any(|(n, _)| {
-            matches!(
-                self.classify_write(n),
-                WriteKind::StoreSub | WriteKind::Derived
-            )
-        }) {
-            return None;
-        }
-
-        let mut assignments: Vec<Expression<'a>> = Vec::with_capacity(leaves.len());
-        for (leaf_name, path) in &leaves {
-            let value = path.build(b, &rhs_name);
-            let lowered = match self.classify_write(leaf_name) {
-                WriteKind::StoreSub => {
-                    let store = &leaf_name[1..];
-                    b.call("$.store_set", vec![b.id(store), value])
-                }
-                WriteKind::Derived => b.call(b.id(leaf_name), vec![value]),
-                WriteKind::None => b.assignment(AssignmentOperator::Assign, b.id(leaf_name), value),
+        // Bail to the default walk for any unsupported destructure shape
+        // (defaults / rest / computed keys). A probe with a throwaway counter
+        // first determines supportability + whether any leaf is a store/derived.
+        let (supported, changed) = {
+            let Expression::AssignmentExpression(assign) = expr else {
+                return None;
             };
-            assignments.push(lowered);
+            let mut probe: Vec<(String, AccessPath)> = Vec::new();
+            let mut probe_inserts: Vec<ArrayInsert> = Vec::new();
+            let mut probe_next = 0u32;
+            let ok = collect_destructure_paths(
+                &assign.left,
+                AccessPath::root_named("$$value"),
+                &mut probe,
+                &mut probe_inserts,
+                &mut probe_next,
+            );
+            let changed = ok
+                && probe.iter().any(|(n, _)| {
+                    matches!(
+                        self.classify_write(n),
+                        WriteKind::StoreSub | WriteKind::Derived
+                    )
+                });
+            (ok, changed)
+        };
+        if !supported {
+            return None;
         }
-        // Replace `expr` so the caller does not double-handle it.
-        *expr = b.void0();
-        Some(b.sequence(assignments))
+
+        // Take ownership of the assignment so the RHS can be moved out + visited
+        // (its own store reads / nested destructure-assignments are lowered).
+        // 写经 upstream: the RHS is visited BEFORE `extract_paths` runs, so any
+        // nested destructure-assignment in the RHS allocates its `$$array` temps
+        // first (the outer left's temps come after).
+        let taken = std::mem::replace(expr, b.void0()).into_assignment_expression()?;
+        let mut taken = taken.unbox();
+        let mut rhs = taken.right;
+        self.visit_expression(&mut rhs);
+
+        // `should_cache = value.type !== 'Identifier'`: a non-identifier RHS is
+        // cached in `$$value` and the whole thing wraps in an IIFE; an identifier
+        // RHS can be referenced directly and the result is a sequence expression.
+        let should_cache = !matches!(rhs, Expression::Identifier(_));
+        let rhs_name = if should_cache {
+            "$$value".to_string()
+        } else if let Expression::Identifier(id) = &rhs {
+            id.name.to_string()
+        } else {
+            unreachable!()
+        };
+
+        // `extract_paths(node.left, rhs)` — its array-insert temps are named from
+        // the persistent component-wide `$$array` counter. This runs even when the
+        // assignment is unchanged, so the counter advances either way (写经
+        // `scope.generate('$$array')` being called unconditionally).
+        let mut leaves: Vec<(String, AccessPath)> = Vec::new();
+        let mut inserts: Vec<ArrayInsert> = Vec::new();
+        let mut next_array = self.array_counter;
+        collect_destructure_paths(
+            &taken.left,
+            AccessPath::root_named(&rhs_name),
+            &mut leaves,
+            &mut inserts,
+            &mut next_array,
+        );
+        self.array_counter = next_array;
+
+        // Unchanged (no store/derived leaf) → keep the assignment with the
+        // visited RHS (the counter advance above is preserved). 写经 upstream's
+        // `if (!changed) return null`, but we must keep the already-visited node.
+        if !changed {
+            taken.right = rhs;
+            return Some(Expression::AssignmentExpression(b.ab.alloc(taken)));
+        }
+
+        let assignments: Vec<Expression<'a>> = leaves
+            .iter()
+            .map(|(leaf_name, path)| {
+                let value = path.build(b);
+                match self.classify_write(leaf_name) {
+                    WriteKind::StoreSub => {
+                        let store = &leaf_name[1..];
+                        b.call("$.store_set", vec![b.id(store), value])
+                    }
+                    WriteKind::Derived => b.call(b.id(leaf_name), vec![value]),
+                    WriteKind::None => {
+                        b.assignment(AssignmentOperator::Assign, b.id(leaf_name), value)
+                    }
+                }
+            })
+            .collect();
+
+        // `var $$array_N = $.to_array(<base>, <len>);` inserts precede the
+        // assignments inside the IIFE / sequence.
+        let insert_decls: Vec<(oxc_ast::ast::BindingPattern<'a>, Expression<'a>)> = inserts
+            .iter()
+            .map(|ins| {
+                let base = ins.base.build(b);
+                let to_array = b.call("$.to_array", vec![base, b.number(ins.len as f64)]);
+                (b.id_pat(&ins.name), to_array)
+            })
+            .collect();
+
+        if should_cache || !insert_decls.is_empty() {
+            // `(($$value) => { var $$array_N = …; <assignments>; [return $$value;] })(<rhs>)`.
+            let mut stmts: Vec<Statement<'a>> = Vec::new();
+            for (pat, init) in insert_decls {
+                stmts.push(b.var_decl_from_pairs(
+                    oxc_ast::ast::VariableDeclarationKind::Var,
+                    vec![(pat, Some(init))],
+                ));
+            }
+            stmts.extend(assignments.into_iter().map(|a| b.stmt(a)));
+            if !is_standalone {
+                stmts.push(b.return_stmt(Some(b.id(&rhs_name))));
+            }
+            let params = b.params(vec![b.id_pat(&rhs_name)], None);
+            let body = b.body(stmts);
+            let arrow = b.arrow(params, body, false, false);
+            Some(b.call(arrow, vec![rhs]))
+        } else {
+            // Identifier RHS, no array inserts → sequence `( … , … )`.
+            let mut seq = assignments;
+            if !is_standalone {
+                seq.push(b.id(&rhs_name));
+            }
+            Some(b.sequence(seq))
+        }
     }
 
     /// Lower an `UpdateExpression` (`$store++` / `derived++`). `expr` currently
@@ -541,25 +650,39 @@ enum AccessSeg {
 
 #[derive(Clone)]
 struct AccessPath {
+    /// The base identifier this access is rooted at — either the RHS root
+    /// (`$$value` / the identifier RHS) or a synthesized `$$array_N` temp
+    /// introduced by an enclosing array sub-pattern (写经 upstream's
+    /// `extract_paths` reseating array children at the `$$array` insert id).
+    root: String,
     segs: Vec<AccessSeg>,
 }
 
 impl AccessPath {
-    fn root() -> Self {
-        AccessPath { segs: Vec::new() }
+    fn root_named(name: &str) -> Self {
+        AccessPath {
+            root: name.to_string(),
+            segs: Vec::new(),
+        }
     }
     fn push_prop(&self, name: &str) -> Self {
         let mut segs = self.segs.clone();
         segs.push(AccessSeg::Prop(name.to_string()));
-        AccessPath { segs }
+        AccessPath {
+            root: self.root.clone(),
+            segs,
+        }
     }
     fn push_index(&self, i: u32) -> Self {
         let mut segs = self.segs.clone();
         segs.push(AccessSeg::Index(i));
-        AccessPath { segs }
+        AccessPath {
+            root: self.root.clone(),
+            segs,
+        }
     }
-    fn build<'a>(&self, b: B<'a>, root: &str) -> Expression<'a> {
-        let mut expr = b.id(root);
+    fn build<'a>(&self, b: B<'a>) -> Expression<'a> {
+        let mut expr = b.id(&self.root);
         for seg in &self.segs {
             expr = match seg {
                 AccessSeg::Prop(p) => b.member(expr, p),
@@ -570,13 +693,26 @@ impl AccessPath {
     }
 }
 
+/// One `var $$array_N = $.to_array(<base>, <len>)` insert produced when a
+/// destructuring assignment contains an array sub-pattern (写経 upstream
+/// `extract_paths` `inserts`).
+struct ArrayInsert {
+    name: String,
+    base: AccessPath,
+    len: u32,
+}
+
 /// Walk a destructuring `AssignmentTarget` collecting `(leaf_name, access_path)`
-/// pairs. Returns `false` if any unsupported shape is encountered (defaults,
-/// nested rest, computed keys) so the caller can fall back to the default walk.
+/// leaf pairs and `$.to_array(...)` array inserts. `next_array` names successive
+/// `$$array` temps (`$$array`, `$$array_1`, …) matching the oracle's scope
+/// generator. Returns `false` for unsupported shapes (defaults, rest, computed
+/// keys) so the caller falls back to the default walk.
 fn collect_destructure_paths(
     target: &AssignmentTarget,
     path: AccessPath,
     out: &mut Vec<(String, AccessPath)>,
+    inserts: &mut Vec<ArrayInsert>,
+    next_array: &mut u32,
 ) -> bool {
     use oxc_ast::ast::AssignmentTarget as T;
     match target {
@@ -605,7 +741,7 @@ fn collect_destructure_paths(
                             return false;
                         };
                         let sub = path.push_prop(k.name.as_str());
-                        if !collect_maybe_default(&p.binding, sub, out) {
+                        if !collect_maybe_default(&p.binding, sub, out, inserts, next_array) {
                             return false;
                         }
                     }
@@ -617,12 +753,26 @@ fn collect_destructure_paths(
             if arr.rest.is_some() {
                 return false;
             }
+            // `var $$array_N = $.to_array(<path>, <len>)`, then index children at
+            // the new temp (写经 `extract_paths` ArrayPattern branch).
+            let array_name = if *next_array == 0 {
+                "$$array".to_string()
+            } else {
+                format!("$$array_{}", *next_array)
+            };
+            *next_array += 1;
+            inserts.push(ArrayInsert {
+                name: array_name.clone(),
+                base: path,
+                len: arr.elements.len() as u32,
+            });
+            let array_root = AccessPath::root_named(&array_name);
             for (i, el) in arr.elements.iter().enumerate() {
                 let Some(el) = el else {
                     continue;
                 };
-                let sub = path.push_index(i as u32);
-                if !collect_maybe_default(el, sub, out) {
+                let sub = array_root.push_index(i as u32);
+                if !collect_maybe_default(el, sub, out, inserts, next_array) {
                     return false;
                 }
             }
@@ -636,6 +786,8 @@ fn collect_maybe_default(
     el: &oxc_ast::ast::AssignmentTargetMaybeDefault,
     path: AccessPath,
     out: &mut Vec<(String, AccessPath)>,
+    inserts: &mut Vec<ArrayInsert>,
+    next_array: &mut u32,
 ) -> bool {
     use oxc_ast::ast::AssignmentTargetMaybeDefault as M;
     match el {
@@ -643,7 +795,7 @@ fn collect_maybe_default(
         M::AssignmentTargetWithDefault(_) => false,
         other => {
             if let Some(t) = other.as_assignment_target() {
-                collect_destructure_paths(t, path, out)
+                collect_destructure_paths(t, path, out, inserts, next_array)
             } else {
                 false
             }
@@ -859,6 +1011,32 @@ impl<'a, 'b> VisitMut<'a> for ReadWrap<'a, 'b> {
         oxc_ast_visit::walk_mut::walk_class(self, it);
         self.private_derived.pop();
     }
+
+    fn visit_expression_statement(&mut self, it: &mut oxc_ast::ast::ExpressionStatement<'a>) {
+        // The direct expression of a statement is "standalone" — a destructure
+        // assignment that is the whole statement omits the trailing `return $$value`
+        // in its IIFE. The flag is consumed (cleared) by `lower_destructure_assignment`
+        // before recursing, so nested assignments don't inherit standalone-ness.
+        let prev = self.standalone_assign;
+        // `$: ({…} = obj)` parses with a `ParenthesizedExpression` wrapper in oxc;
+        // a standalone assignment may be directly under it.
+        if matches!(
+            &it.expression,
+            Expression::AssignmentExpression(_) | Expression::ParenthesizedExpression(_)
+        ) {
+            self.standalone_assign = true;
+        }
+        oxc_ast_visit::walk_mut::walk_expression_statement(self, it);
+        self.standalone_assign = prev;
+    }
+
+    fn visit_parenthesized_expression(
+        &mut self,
+        it: &mut oxc_ast::ast::ParenthesizedExpression<'a>,
+    ) {
+        // Preserve standalone-ness through a single paren wrapper (`($: (… = …))`).
+        oxc_ast_visit::walk_mut::walk_parenthesized_expression(self, it);
+    }
 }
 
 /// Helper: pull an `AssignmentExpression` out of an `Expression`.
@@ -915,6 +1093,8 @@ pub fn wrap_reads_with_shadows<'a>(
         scope_idx,
         shadowed: frames,
         private_derived: Vec::new(),
+        standalone_assign: false,
+        array_counter: 0,
     };
     visitor.visit_expression(expr);
 }
@@ -931,12 +1111,32 @@ pub fn wrap_reads_in_statement<'a>(
     analysis: &ComponentAnalysis,
     scope_idx: usize,
 ) {
+    let mut counter = 0u32;
+    wrap_reads_in_statement_counted(stmt, b, analysis, scope_idx, &mut counter);
+}
+
+/// Like [`wrap_reads_in_statement`], but threads a PERSISTENT `$$array` temp
+/// counter so destructuring-assignment array temps are uniquely named across the
+/// WHOLE instance script (写经 the component-wide `scope.generate('$$array')`).
+/// The legacy instance loop shares one counter across every top-level statement
+/// (and the function bodies it visits), so a second array destructure gets
+/// `$$array_1`, not a fresh `$$array`.
+pub fn wrap_reads_in_statement_counted<'a>(
+    stmt: &mut Statement<'a>,
+    b: B<'a>,
+    analysis: &ComponentAnalysis,
+    scope_idx: usize,
+    array_counter: &mut u32,
+) {
     let mut visitor = ReadWrap {
         b,
         analysis,
         scope_idx,
         shadowed: Vec::new(),
         private_derived: Vec::new(),
+        standalone_assign: false,
+        array_counter: *array_counter,
     };
     visitor.visit_statement(stmt);
+    *array_counter = visitor.array_counter;
 }

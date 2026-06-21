@@ -155,6 +155,12 @@ pub struct ServerTransformState<'a> {
     /// keeps `doubled` bare instead of read-wrapping it to `doubled()`. Pushed by
     /// the SnippetBlock visitor around its body, popped after.
     pub shadowed_names: Vec<rustc_hash::FxHashSet<String>>,
+    /// Names bound by an enclosing slot `let:` directive (`<Nested let:count>`).
+    /// Distinct from [`Self::shadowed_names`] (which also holds snippet params):
+    /// a slot-`let` read must NOT constant-fold to the same-named COMPONENT
+    /// binding's value, whereas a snippet-param read still folds. Pushed by the
+    /// component slot-body builder, popped after.
+    pub slot_let_shadows: Vec<rustc_hash::FxHashSet<String>>,
 }
 
 /// One per-fragment async `{@const}` group — the AST mirror of upstream's
@@ -220,6 +226,7 @@ impl<'a> ServerTransformState<'a> {
             in_element_children: false,
             attr_optimiser: None,
             shadowed_names: Vec::new(),
+            slot_let_shadows: Vec::new(),
         }
     }
 
@@ -2894,9 +2901,27 @@ mod tests {
     /// structure (statement count, expressions). Matching the oracle under this
     /// canonicalizer is the real runtime gate (the oracle passes those fixtures).
     fn canon_js(code: &str) -> String {
+        use oxc_codegen::{CodegenOptions, CommentOptions, LegalComment};
         let allocator = Allocator::default();
         let parsed = oxc_parser::Parser::new(&allocator, code, oxc_span::SourceType::mjs()).parse();
-        oxc_codegen::Codegen::new().build(&parsed.program).code
+        // Mirror the runtime harness `canonicalize_js` EXACTLY (tests/common/mod.rs):
+        // normal / jsdoc comments are STRIPPED (they are formatting-only and do not
+        // affect runtime behaviour), so a structural-only difference like a dropped
+        // `// comment` does not register as a mismatch — matching the real gate.
+        let options = CodegenOptions {
+            single_quote: true,
+            comments: CommentOptions {
+                normal: false,
+                jsdoc: false,
+                annotation: true,
+                legal: LegalComment::None,
+            },
+            ..Default::default()
+        };
+        oxc_codegen::Codegen::new()
+            .with_options(options)
+            .build(&parsed.program)
+            .code
     }
 
     /// `bind:` directive + binding edge-case SSR parity with the (correct)
@@ -5915,6 +5940,94 @@ mod tests {
         assert!(
             mismatches.is_empty(),
             "async blocker-wrap output differs from oracle for: {mismatches:?}"
+        );
+    }
+
+    /// Legacy-misc SSR burn-down cluster: instance-export → prop lowering,
+    /// `$:`-reactive topological reordering, destructure declaration / assignment
+    /// store-set thunks, single-string-literal attribute inlining, default-slot
+    /// render functions, `let:`-scoped slot read shadowing, and `<script>` /
+    /// `<style>` raw-text element splitting. Each runtime-legacy fixture is
+    /// compiled by the new AST SSR pipeline ([`run`]) and the (correct) text
+    /// oracle ([`oracle_dump`]) and compared under [`canon_js`] — the SAME
+    /// comment-stripping canonicalizer the runtime harness uses
+    /// (`tests/common::canonicalize_js`), so matching here is the real runtime
+    /// gate. Root causes fixed (写经 upstream `VariableDeclaration.js`,
+    /// `shared/assignments.js`, `RegularElement.js`, `shared/component.js`):
+    ///
+    /// - **instance-export → prop** (`mixed-let-export`, `renamed-instance-exports`,
+    ///   `prop-exports`, `rest-props-no-alias`): a `let` binding marked
+    ///   `bindable_prop` by Phase 2 (whether via `export let x` OR a separate
+    ///   `export { x as y }` specifier) lowers to `let x = $$props['alias']` /
+    ///   `$.fallback($$props['alias'], <init>)` — keyed on the BINDING KIND, not the
+    ///   `export` keyword (`lower_legacy_var_decl`).
+    /// - **destructure declaration with reactive/state leaves**
+    ///   (`destructuring-one-value-reactive`): expands to `let tmp = init, a = tmp.a,
+    ///   …` via `create_state_declarators`, kept COMBINED in one statement.
+    /// - **destructure ASSIGNMENT with store leaves** (`nested-destructure-assignment`,
+    ///   `nested-destructure-assignment-2`,
+    ///   `reactive-assignment-in-complex-declaration-with-store-2`,
+    ///   `store-auto-resubscribe-immediate`): a non-identifier RHS caches in
+    ///   `$$value` and wraps in `(($$value) => { …; [return $$value;] })(<rhs>)`
+    ///   with `$.store_set` / `$.to_array` array-temp inserts; the `$$array` temp
+    ///   counter persists component-wide.
+    /// - **`$:` reactive reorder** (`reactive-assignment-prevent-loop`): assignment
+    ///   targets are now collected from EVERY `AssignmentExpression` /
+    ///   `UpdateExpression` anywhere in the body (not just `$: a = …`), so a nested
+    ///   `$: if (c) { x++ }` records `x` and the topological sort orders correctly.
+    /// - **single-string-literal attribute** (`attribute-dynamic-quotemarks`): a
+    ///   quoted one-part `{"…"}` value inlines as a static escaped attribute.
+    /// - **default-slot render fn** (`slot-children-prop`): a default slot with
+    ///   content emits `$$slots.default: ($$renderer) => {…}` even alongside a
+    ///   `children=` attribute.
+    /// - **`let:`-scoped slot read** (`component-slot-let-scope-3`): a slot
+    ///   `let:count` read stays `$.escape(count)` (not folded to the component
+    ///   `count`'s value) via `slot_let_shadows`.
+    /// - **`<script>` / `<style>` raw-text element** (`script-style-non-top-level`,
+    ///   `raw-mustache-inside-head`): a single-text-child `<script>` / `<style>`
+    ///   emits its child VERBATIM (unescaped) as its own `$$renderer.push(...)`.
+    #[test]
+    fn ast_matches_oracle_legacy_misc_cluster() {
+        let fixtures = [
+            "reactive-assignment-in-complex-declaration-with-store-2",
+            "nested-destructure-assignment",
+            "nested-destructure-assignment-2",
+            "renamed-instance-exports",
+            "reactive-assignment-prevent-loop",
+            "rest-props-no-alias",
+            "prop-exports",
+            "attribute-dynamic-quotemarks",
+            "store-auto-resubscribe-immediate",
+            "mixed-let-export",
+            "script-style-non-top-level",
+            "destructuring-one-value-reactive",
+            "slot-children-prop",
+            "raw-mustache-inside-head",
+            "component-slot-let-scope-3",
+        ];
+        let mut mismatches: Vec<&str> = Vec::new();
+        for dir in fixtures {
+            let path = format!(
+                "{}/../../submodules/svelte/packages/svelte/tests/runtime-legacy/samples/{}/main.svelte",
+                env!("CARGO_MANIFEST_DIR"),
+                dir
+            );
+            let Ok(src) = std::fs::read_to_string(&path) else {
+                eprintln!("SKIP {dir} (submodule not checked out)");
+                return;
+            };
+            let ours = run(&src);
+            let oracle = oracle_dump(&src);
+            if canon_js(&ours) != canon_js(&oracle) {
+                eprintln!(
+                    "\n######### {dir} DIFFER #########\n=== OURS ===\n{ours}\n=== ORACLE ===\n{oracle}\n"
+                );
+                mismatches.push(dir);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "legacy-misc SSR output differs from oracle for: {mismatches:?}"
         );
     }
 }
