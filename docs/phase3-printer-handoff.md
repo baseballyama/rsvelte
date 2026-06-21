@@ -7,6 +7,7 @@ blocker is a single architectural change: replacing Phase-3's string-surgery
 code generation with an AST-construction + printer pipeline.
 
 Read this together with:
+
 - [`docs/corpus-remaining-work.md`](./corpus-remaining-work.md) — the live
   burn-down playbook and per-cluster breakdown.
 - [`docs/phase3-ast-refactor-plan.md`](./phase3-ast-refactor-plan.md) — the
@@ -16,12 +17,12 @@ Read this together with:
 
 ---
 
-## 1. The core problem (why the remaining cluster is *not* cosmetic)
+## 1. The core problem (why the remaining cluster is _not_ cosmetic)
 
 The corpus comparison parses both outputs with **acorn** and compares the AST
 with `start`/`end`/comments/line-wrapping dropped (`normalize.astEquivalent`).
 **So if a difference were purely comment placement, it would already pass.** A
-failure means the two outputs are genuinely *not* AST-equivalent.
+failure means the two outputs are genuinely _not_ AST-equivalent.
 
 rsvelte's Phase-3 (`crates/rsvelte_core/src/compiler/phases/3_transform/`)
 generates JS largely by **string manipulation** — splitting on `;`, locating
@@ -38,7 +39,7 @@ let one_line = $.prop($$props, "one_line", 8);
 let inline_commented; // this should stay a comment = $.prop($$props, 'inline_commented; // this should stay a comment', 0);
 ```
 
-The prop's *name* became `'inline_commented; // this should stay a comment'` and
+The prop's _name_ became `'inline_commented; // this should stay a comment'` and
 its `$.prop(...)` initializer was lost. That is a real semantic divergence, not
 a formatting nit. Several svelte.dev sources hit the same class of bug.
 
@@ -56,14 +57,14 @@ architecture is the durable fix.
 Run `node scripts/compat-corpus/cluster.mjs` for the live grouping. As of this
 hand-off (41 js-mismatch + 1 error-mismatch):
 
-| Cluster | Count | What it needs |
-|---|---|---|
-| **Comment-mangling** (svelte.dev `.svelte` / `.svelte.ts`) | ~15 | **Phase-3 AST → esrap printer** (this task's main body) |
-| **Constant folding** (declaration-tag-division, window-bindings, svg `$.stringify`) | ~4 | Client **Evaluation port** deeper stages (fold `{const x = 5/2}` → `2.5`; `Math.round(y)` memoization) |
-| **`$derived`-returning-function currying** (`yScale()(tick)`) | ~3 | ⚠️ Policy-blocked — see memory `feedback_has_call_semantics`; reverted twice. Do not touch without a new decision. |
-| **Slot-forwarding / nested-destructure quirks** (rest-eachblock setter `$.get`, destructured-props-3 declaration merge, shadowed-forwarded-slot, slot-usages) | ~5 | Targeted codegen fixes (independent of the printer) |
-| **store-vs-rune detection** (`$state()` on an imported store) | 1 | Regression-prone; needs `uses_runes` exclusion + legacy `$state()()` call-wrap to land *together* |
-| **Official-compiler crash edge case** (migrate/svelte-component client) | 1 | Won't-fix: the *official* compiler throws (esrap can't print a leaked `LetDirective`); rsvelte is correctly more capable. Leave documented. |
+| Cluster                                                                                                                                                       | Count | What it needs                                                                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Comment-mangling** (svelte.dev `.svelte` / `.svelte.ts`)                                                                                                    | ~15   | **Phase-3 AST → esrap printer** (this task's main body)                                                                                     |
+| **Constant folding** (declaration-tag-division, window-bindings, svg `$.stringify`)                                                                           | ~4    | Client **Evaluation port** deeper stages (fold `{const x = 5/2}` → `2.5`; `Math.round(y)` memoization)                                      |
+| **`$derived`-returning-function currying** (`yScale()(tick)`)                                                                                                 | ~3    | ⚠️ Policy-blocked — see memory `feedback_has_call_semantics`; reverted twice. Do not touch without a new decision.                          |
+| **Slot-forwarding / nested-destructure quirks** (rest-eachblock setter `$.get`, destructured-props-3 declaration merge, shadowed-forwarded-slot, slot-usages) | ~5    | Targeted codegen fixes (independent of the printer)                                                                                         |
+| **store-vs-rune detection** (`$state()` on an imported store)                                                                                                 | 1     | Regression-prone; needs `uses_runes` exclusion + legacy `$state()()` call-wrap to land _together_                                           |
+| **Official-compiler crash edge case** (migrate/svelte-component client)                                                                                       | 1     | Won't-fix: the _official_ compiler throws (esrap can't print a leaked `LetDirective`); rsvelte is correctly more capable. Leave documented. |
 
 The printer migration clears the largest cluster and very likely several of the
 "slot/destructure quirks" too (their string-surgery breakage shares the root
@@ -74,7 +75,7 @@ cause). The Evaluation-port and store/rune items are separate, smaller tracks.
 ## 3. Recommended approach (incremental, never red)
 
 The plan in `docs/phase3-ast-refactor-plan.md` is staged. The guiding principle:
-**never break the green baseline.** Build the AST/printer path *alongside* the
+**never break the green baseline.** Build the AST/printer path _alongside_ the
 existing string surgery, gated so it only takes over cases it fully handles and
 falls back otherwise. Suggested sequence:
 
@@ -127,14 +128,15 @@ CARGO_TARGET_DIR=/tmp/corpus-test-target RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2
 ```
 
 Notes learned this session:
+
 - `verify.mjs` reports counts by verdict; the **total** known-failures is
   `js-mismatch + css-mismatch + error-mismatch`. Don't read js-mismatch alone.
 - `verify.mjs --no-fmt --update-baseline` is the canonical baseline writer; it
   can differ from the fmt'd count by entries whose only residual diff is one
   acorn can't parse — keep an eye on `error-mismatch`.
 - Clean-target byte-exact runs are slow (~10–15 min); the corpus (6,409 entries)
-  is the faster and more comprehensive *output-equality* gate. Use byte-exact
-  suites to catch *runtime-semantic* regressions.
+  is the faster and more comprehensive _output-equality_ gate. Use byte-exact
+  suites to catch _runtime-semantic_ regressions.
 
 ---
 
@@ -155,7 +157,7 @@ Notes learned this session:
 ## 6. Branch / PR workflow gotcha (important)
 
 The long-running `feat/corpus-burndown` branch is **squash-merged** to `main`
-each wave, then *continued*. That leaves the branch's individual commits
+each wave, then _continued_. That leaves the branch's individual commits
 conflicting with main's squash commit on the next PR (this happened with #980 vs
 #979). After each squash-merge, **rebase or reset the branch onto `origin/main`
 before continuing**, or be ready to `git merge origin/main -X ours` (safe only

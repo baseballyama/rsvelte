@@ -1,4 +1,4 @@
-use rsvelte_formatter::{FormatOptions, format};
+use rsvelte_formatter::{FormatOptions, JsFormatOptions, LineWidth, format};
 
 #[test]
 fn formats_instance_script_body() {
@@ -87,4 +87,36 @@ fn template_literal_interior_is_not_reindented() {
     // Idempotent: a second pass is a fixed point.
     let out2 = format(&out, &FormatOptions::default()).expect("format ok");
     assert_eq!(out, out2, "formatting is not idempotent");
+}
+
+#[test]
+fn slot_span_slot_inline_run_breaks() {
+    let source = r#"<slot><slot><h1>Heading 1</h1></slot></slot><span>Span 1</span><span>Span 2</span><slot><slot><p>Paragraph 2</p></slot></slot>
+
+<style>
+  h1 ~ p {
+    color: red;
+  }
+</style>
+"#;
+    let expected = r#"<slot><slot><h1>Heading 1</h1></slot></slot><span>Span 1</span><span
+  >Span 2</span
+><slot><slot><p>Paragraph 2</p></slot></slot>
+
+<style>
+  h1 ~ p {
+    color: red;
+  }
+</style>
+"#;
+    let opts = FormatOptions {
+        js: JsFormatOptions {
+            line_width: LineWidth::try_from(80u16).unwrap(),
+            ..JsFormatOptions::new()
+        },
+        ..FormatOptions::default()
+    };
+    let out = format(source, &opts).expect("format ok");
+    println!("--- actual ---\n{out}\n--- expected ---\n{expected}");
+    assert_eq!(out, expected, "inline run not broken correctly");
 }

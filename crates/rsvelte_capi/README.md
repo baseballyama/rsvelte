@@ -6,20 +6,20 @@ shared library + one header that **any** language with a C FFI can call
 
 ## Status
 
-| Language          | Mechanism                                | Smoke verified locally | CI step |
-| ----------------- | ---------------------------------------- | :--------------------: | :-----: |
-| C                 | `rsvelte.h` + `cc`                       | ✅                     | ✅      |
-| Go                | cgo                                      | ✅                     | ✅      |
-| Python            | `ctypes`                                 | ✅                     | ✅      |
-| Ruby              | stdlib `fiddle`                          | ✅                     | ✅      |
-| Zig               | `@cImport`                               | ✅                     | ✅      |
-| PHP (7.4+)        | built-in `FFI` extension                 | code shipped           | ✅      |
-| Java (JDK 22+)    | `java.lang.foreign` (FFM API)            | code shipped           | ✅      |
-| C++               | include `rsvelte.h` (extern "C" guarded) | covered by C smoke     | —       |
-| Rust              | depend on `rsvelte_core` direct  | —                      | —       |
-| Kotlin / Scala    | same as Java (FFM)                       | code shipped           | —       |
-| .NET (C# / F#)    | `[DllImport]` / `LibraryImport`          | applicable             | —       |
-| Swift             | bridging header                          | applicable             | —       |
+| Language       | Mechanism                                | Smoke verified locally | CI step |
+| -------------- | ---------------------------------------- | :--------------------: | :-----: |
+| C              | `rsvelte.h` + `cc`                       |           ✅           |   ✅    |
+| Go             | cgo                                      |           ✅           |   ✅    |
+| Python         | `ctypes`                                 |           ✅           |   ✅    |
+| Ruby           | stdlib `fiddle`                          |           ✅           |   ✅    |
+| Zig            | `@cImport`                               |           ✅           |   ✅    |
+| PHP (7.4+)     | built-in `FFI` extension                 |      code shipped      |   ✅    |
+| Java (JDK 22+) | `java.lang.foreign` (FFM API)            |      code shipped      |   ✅    |
+| C++            | include `rsvelte.h` (extern "C" guarded) |   covered by C smoke   |    —    |
+| Rust           | depend on `rsvelte_core` direct          |           —            |    —    |
+| Kotlin / Scala | same as Java (FFM)                       |      code shipped      |    —    |
+| .NET (C# / F#) | `[DllImport]` / `LibraryImport`          |       applicable       |    —    |
+| Swift          | bridging header                          |       applicable       |    —    |
 
 The CI workflow (`.github/workflows/rsvelte-capi.yml`) runs the entire
 matrix on Linux, macOS, and Windows for every PR that touches the C ABI
@@ -142,15 +142,15 @@ defaults.
 
 ## Examples
 
-| Language | Path                              | How to run                                              |
-| -------- | --------------------------------- | ------------------------------------------------------- |
-| C        | `examples/c/smoke.c`              | `cc -I include -L ../../../target/release …`            |
-| Go       | `examples/go/smoke.go`            | `go run ./crates/rsvelte_capi/examples/go`              |
-| Python   | `examples/python/smoke.py`        | `python3 crates/rsvelte_capi/examples/python/smoke.py`  |
-| Ruby     | `examples/ruby/smoke.rb`          | `ruby crates/rsvelte_capi/examples/ruby/smoke.rb`       |
-| Zig      | `examples/zig/smoke.zig`          | `zig build-exe … -I include -L target/release …`        |
-| PHP      | `examples/php/smoke.php`          | `php -d ffi.enable=true crates/rsvelte_capi/examples/php/smoke.php` |
-| Java     | `examples/java/Smoke.java`        | `java --enable-native-access=ALL-UNNAMED crates/rsvelte_capi/examples/java/Smoke.java` (JDK 22+) |
+| Language | Path                       | How to run                                                                                       |
+| -------- | -------------------------- | ------------------------------------------------------------------------------------------------ |
+| C        | `examples/c/smoke.c`       | `cc -I include -L ../../../target/release …`                                                     |
+| Go       | `examples/go/smoke.go`     | `go run ./crates/rsvelte_capi/examples/go`                                                       |
+| Python   | `examples/python/smoke.py` | `python3 crates/rsvelte_capi/examples/python/smoke.py`                                           |
+| Ruby     | `examples/ruby/smoke.rb`   | `ruby crates/rsvelte_capi/examples/ruby/smoke.rb`                                                |
+| Zig      | `examples/zig/smoke.zig`   | `zig build-exe … -I include -L target/release …`                                                 |
+| PHP      | `examples/php/smoke.php`   | `php -d ffi.enable=true crates/rsvelte_capi/examples/php/smoke.php`                              |
+| Java     | `examples/java/Smoke.java` | `java --enable-native-access=ALL-UNNAMED crates/rsvelte_capi/examples/java/Smoke.java` (JDK 22+) |
 
 Each example exercises: default options, runes+dev, SSR generation,
 `compile_module` with a `$state` rune, and the malformed-options error

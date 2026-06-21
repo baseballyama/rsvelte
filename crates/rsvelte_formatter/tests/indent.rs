@@ -45,3 +45,13 @@ fn four_space_indent_uses_four_spaces() {
         "expected 4-space indent under <script>:\n{out:?}"
     );
 }
+
+#[test]
+fn snippet_tab_body_converts_to_spaces() {
+    let src = "{#snippet children(args)}\n\t{args}\n{/snippet}\n";
+    let out = format(src, &FormatOptions::default()).expect("format ok");
+    assert!(
+        out.contains("  {args}"),
+        "expected 2-space indent inside snippet (tabs→spaces):\n{out:?}"
+    );
+}

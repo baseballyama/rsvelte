@@ -23,14 +23,14 @@ effort: max
 
 「どのツールで測るか」を間違えると、何時間も無駄になる。**目的に応じて使い分ける**。
 
-| 目的 | 推奨ツール | 用途 |
-|------|------------|------|
-| エンドツーエンドの実時間 | `hyperfine` | バイナリ全体の比較。ノイズに対し統計処理してくれる |
-| 関数単位の統計的マイクロベンチ | `criterion`（または `divan`） | 「この関数だけ X% 速くなった」を信頼区間つきで判定 |
-| CPU サンプリングプロファイル | `samply`（推奨）／`cargo flamegraph`／`perf`（Linux）／Instruments（macOS） | ホットな関数・行を炎グラフで把握 |
-| アロケーション量 | `dhat`（`dhat-rs`） | どこで何回 alloc しているか、ピークメモリ |
-| キャッシュ・分岐ミス | `perf stat`／`cachegrind` | LLC ミス・branch miss 率の計測 |
-| 生成コード（最後の手段） | `cargo asm`／`rustc --emit=llvm-ir` | LLVM が本当に最適化したかの確認 |
+| 目的                           | 推奨ツール                                                                  | 用途                                               |
+| ------------------------------ | --------------------------------------------------------------------------- | -------------------------------------------------- |
+| エンドツーエンドの実時間       | `hyperfine`                                                                 | バイナリ全体の比較。ノイズに対し統計処理してくれる |
+| 関数単位の統計的マイクロベンチ | `criterion`（または `divan`）                                               | 「この関数だけ X% 速くなった」を信頼区間つきで判定 |
+| CPU サンプリングプロファイル   | `samply`（推奨）／`cargo flamegraph`／`perf`（Linux）／Instruments（macOS） | ホットな関数・行を炎グラフで把握                   |
+| アロケーション量               | `dhat`（`dhat-rs`）                                                         | どこで何回 alloc しているか、ピークメモリ          |
+| キャッシュ・分岐ミス           | `perf stat`／`cachegrind`                                                   | LLC ミス・branch miss 率の計測                     |
+| 生成コード（最後の手段）       | `cargo asm`／`rustc --emit=llvm-ir`                                         | LLVM が本当に最適化したかの確認                    |
 
 **デフォルトの一手目は `samply`**。`perf` よりセットアップが軽く、Firefox Profiler の UI で読みやすく、macOS / Linux 両対応。
 
@@ -346,14 +346,14 @@ impl CodeWriter {
 
 ### 7.3 OXC クレート → rsvelte の対応
 
-| OXC クレート | 役割 | rsvelte で参照すべき場面 |
-|------------|------|------------------------|
-| `oxc_allocator` | アリーナ確保 | §7.2 B の実装時 |
-| `oxc_ast` | typed AST | §7.2 A・B の AST 設計 |
-| `oxc_parser` | JS/TS パーサ | §7.2 F のパーサ最適化 |
-| `oxc_codegen` | コード生成 | §7.2 D の直書き codegen |
-| `oxc_span` | `Atom<'a>`・`Span` | §7.2 C の文字列インターン |
-| `oxc_syntax` | 演算子テーブル等 | キーワード／演算子の高速判定 |
+| OXC クレート    | 役割               | rsvelte で参照すべき場面     |
+| --------------- | ------------------ | ---------------------------- |
+| `oxc_allocator` | アリーナ確保       | §7.2 B の実装時              |
+| `oxc_ast`       | typed AST          | §7.2 A・B の AST 設計        |
+| `oxc_parser`    | JS/TS パーサ       | §7.2 F のパーサ最適化        |
+| `oxc_codegen`   | コード生成         | §7.2 D の直書き codegen      |
+| `oxc_span`      | `Atom<'a>`・`Span` | §7.2 C の文字列インターン    |
+| `oxc_syntax`    | 演算子テーブル等   | キーワード／演算子の高速判定 |
 
 ローカルキャッシュからソースを読む:
 

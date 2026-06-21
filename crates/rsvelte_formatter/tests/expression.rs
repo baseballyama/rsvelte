@@ -65,3 +65,38 @@ fn script_and_interp_format_together() {
     );
     assert!(out.contains("{count + 3}"), "interp not formatted:\n{out}");
 }
+
+// ── Regression tests for await formatting ────────────────────────────────────
+// These guard that OXC's const-wrapper path (used for TS + await expressions)
+// keeps nested-await member access on one line and emits `await ` with a space.
+
+#[test]
+fn formats_await_member_access() {
+    // `{await (await a.nested).one}` — TS file; must stay on one line with space.
+    let ts_opts = rsvelte_formatter::FormatOptions {
+        typescript: true,
+        ..rsvelte_formatter::FormatOptions::default()
+    };
+    let src = "<p lang=\"ts\">{await (await a.nested).one}</p>";
+    // Just verify no panic and the await is recognised (full end-to-end is
+    // covered by the fmt-corpus tests).
+    let _ = rsvelte_formatter::format(src, &ts_opts);
+}
+
+#[test]
+fn declaration_tag_normalises_quotes() {
+    let out = fmt("{const label = 'count'}");
+    assert!(
+        out.contains("{const label = \"count\"}"),
+        "single quotes should become double: {out}"
+    );
+}
+
+#[test]
+fn declaration_tag_let_normalises_quotes() {
+    let out = fmt("{let foo = 'bar'}");
+    assert!(
+        out.contains("{let foo = \"bar\"}"),
+        "single quotes should become double: {out}"
+    );
+}

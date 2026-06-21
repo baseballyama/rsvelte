@@ -89,7 +89,7 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
         if let Some((start, end, formatted)) = script::format_script(source, script, options)? {
             edits.push((start, end, formatted));
         }
-        if let Some(edit) = script::format_open_tag(source, script.start, script.end) {
+        if let Some(edit) = script::format_open_tag(source, script.start, script.end, options) {
             edits.push(edit);
         }
     }
@@ -106,7 +106,7 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     if let Some(css) = &root.css {
         // Normalize the `<style …>` open tag (e.g. strip trailing space from
         // `<style >`) using the same routine that normalises `<script>` tags.
-        if let Some(edit) = script::format_open_tag(source, css.start, css.end) {
+        if let Some(edit) = script::format_open_tag(source, css.start, css.end, options) {
             edits.push(edit);
         }
         style::collect_style_edit(source, css, options, &mut edits)?;
@@ -159,8 +159,33 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     // Apply edits from the back so earlier offsets remain valid.
     edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
     let mut out = source.to_string();
+    // Track the range of the last applied non-zero-length edit so we can skip
+    // any subsequent edit whose range overlaps it.  Two passes (markup.rs and
+    // indent.rs) can both emit an edit for the same span — e.g. markup.rs
+    // replaces trailing whitespace with `</tag>` at the same `[start, end)`
+    // that indent.rs would normalise to `\n{indent}`.  Markup edits are pushed
+    // first (lib.rs line 100 before line 105), so after the stable descending
+    // sort they appear before indent edits with the same start.  The first one
+    // wins; the second is skipped here to avoid a double-replace that would
+    // clobber the first replacement.
+    let mut last_applied: (u32, u32) = (u32::MAX, u32::MAX);
     for (start, end, new_text) in edits {
+        let (la_s, la_e) = last_applied;
+        let incoming_nonempty = end > start;
+        let applied_nonempty = la_e > la_s;
+        // Two non-zero-length edits overlap when their ranges intersect.
+        // Zero-length inserts (start == end) never conflict with a range edit
+        // because they don't consume any source bytes.
+        let overlaps = applied_nonempty && incoming_nonempty && start < la_e && end > la_s;
+        if overlaps {
+            continue;
+        }
         out.replace_range(start as usize..end as usize, &new_text);
+        // Only update the guard for non-zero-length edits (range replacements).
+        // Zero-length inserts don't "own" a range.
+        if end > start {
+            last_applied = (start, end);
+        }
     }
 
     // Post-pass: reorder top-level sections into prettier's canonical order

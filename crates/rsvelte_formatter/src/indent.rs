@@ -182,10 +182,27 @@ fn collect_indent_edits_inner(
                     // When either adjacent sibling is a block HTML element, the
                     // space must become a newline regardless of the inline-element
                     // guard (`next_not_regular`).
+                    // A space *after* a phrasing-content RegularElement (inline
+                    // HTML like `<strong>`, `<em>`, `<a>`, `<span>` — non-block,
+                    // non-inline-block elements with actual content children) is
+                    // prose-level glue — prettier keeps
+                    // `<strong>x</strong> {endText}` on one line just as it keeps
+                    // `<strong>x</strong> <em>y</em>` on one line.  Suppress the
+                    // space→newline conversion in this case.  Void / self-closing
+                    // elements (`<input>`, `<br>`) and inline-block form elements
+                    // (`<button>`, `<select>`) are NOT prose carriers; the space
+                    // after them does convert to a newline (oracle behaviour).
+                    let prev_is_inline_html = i > 0
+                        && matches!(&fragment.nodes[i - 1],
+                            TemplateNode::RegularElement(e)
+                            if !is_prettier_block_element(e.name.as_str())
+                                && !is_inline_block_element(e.name.as_str())
+                                && !e.fragment.nodes.is_empty());
                     let next_not_regular = next_is_block_html
                         || prev_is_block_html
                         || i >= last
-                        || !matches!(&fragment.nodes[i + 1], TemplateNode::RegularElement(_));
+                        || (!matches!(&fragment.nodes[i + 1], TemplateNode::RegularElement(_))
+                            && !prev_is_inline_html);
                     let next_provoking = i < last && is_indent_provoking(&fragment.nodes[i + 1]);
                     // For element-children contexts (not block bodies), the fragment
                     // is "broken" — meaning spaces between block-level nodes become
@@ -212,6 +229,22 @@ fn collect_indent_edits_inner(
                         } else {
                             format!("\n{child_indent}")
                         }
+                    } else if is_block_body && effectively_broken && i == 0 && next_provoking {
+                        // Leading edge whitespace in a block body that contains a
+                        // block-level child: the opening delimiter's `}` is
+                        // followed by a space (e.g. `{#each … } <div>`).  In a
+                        // broken block body this space should become a newline so
+                        // `<div>` lands on its own indented line.  The middle case
+                        // above handles inter-sibling spaces (prev_provoking &&
+                        // next_provoking), but the very first whitespace text in a
+                        // block body has no provoking predecessor — handle it here.
+                        format!("\n{child_indent}")
+                    } else if is_block_body && effectively_broken && i == last && prev_provoking {
+                        // Trailing edge whitespace in a block body that contains a
+                        // block-level child: the closing delimiter is preceded by a
+                        // space (e.g. `</div> {/each}`).  Same rationale as above,
+                        // but for the trailing edge.
+                        format!("\n{parent_indent}")
                     } else if child_depth == 0 && (i == 0 || i == last) {
                         String::new()
                     } else {
@@ -282,7 +315,42 @@ fn collect_indent_edits_inner(
                 } else {
                     t.data.as_str()
                 };
-                let reindented = reindent_text_lines(text, &child_indent, trailing_indent);
+                let mut reindented = reindent_text_lines(text, &child_indent, trailing_indent);
+                // When the text node is sandwiched between two block-display
+                // elements (both prev and next siblings are block), prettier
+                // strips any trailing spaces from the last content line so the
+                // text sits cleanly on its own line.  Example: `</p>\nlocal <p>`
+                // → the `local ` trailing space is stripped and a newline
+                // separator is added before the next `<p>` by the adjacent-block
+                // loop below.  This does NOT apply when only the next sibling is
+                // a block element (no preceding block) — prettier keeps inline
+                // text glued to the following block in that position.
+                let prev_is_block = i > 0
+                    && matches!(&fragment.nodes[i - 1],
+                        TemplateNode::RegularElement(e) if is_prettier_block_element(e.name.as_str()));
+                let next_is_block = i < last
+                    && matches!(&fragment.nodes[i + 1],
+                        TemplateNode::RegularElement(e) if is_prettier_block_element(e.name.as_str()));
+                if prev_is_block && next_is_block {
+                    let mut stripped = false;
+                    if let Some(last_nl) = reindented.rfind('\n') {
+                        let last_line = &reindented[last_nl + 1..];
+                        if !last_line.is_empty() && last_line != trailing_indent {
+                            // Content line (not purely indentation): trim trailing spaces.
+                            let trimmed_end =
+                                last_nl + 1 + last_line.trim_end_matches([' ', '\t']).len();
+                            reindented.truncate(trimmed_end);
+                            stripped = true;
+                        }
+                    }
+                    // After stripping, the text no longer ends with the
+                    // `trailing_indent` that would lead into the next block
+                    // element — insert `\n{child_indent}` at the text boundary
+                    // so the block element lands on its own indented line.
+                    if stripped {
+                        edits.push((t.end, t.end, format!("\n{child_indent}")));
+                    }
+                }
                 if reindented != text {
                     edits.push((t.start, t.end, reindented));
                 }
@@ -315,6 +383,36 @@ fn collect_indent_edits_inner(
             // broken (has whitespace-with-newline text nodes). Block-display elements
             // (`<div>`, `<p>`, etc.) are always broken regardless.
             if is_comment && !a_is_block && !b_is_block && !fragment_is_broken {
+                continue;
+            }
+            let boundary = crate::collapse::template_node_span(a).1;
+            if boundary == crate::collapse::template_node_span(b).0 {
+                edits.push((boundary, boundary, format!("\n{child_indent}")));
+            }
+        }
+
+        // When a block-display element is directly adjacent (no whitespace
+        // separator, no newline) to a non-whitespace text node, the text must
+        // be pushed onto its own line.  For example `<p>text</p>.` — the
+        // trailing `.` follows the `</p>` close tag with no separator at all;
+        // prettier puts it on a new line.
+        //
+        // Only fire when the Text node starts with a non-whitespace character
+        // (the adjacent text abuts the block element with no newline in between)
+        // because when a `\n` is already present the existing indent-pass
+        // whitespace-text rewrite handles the indentation.
+        for w in fragment.nodes.windows(2) {
+            let (a, b) = (&w[0], &w[1]);
+            let a_is_block = matches!(a, TemplateNode::RegularElement(e) if is_prettier_block_element(e.name.as_str()));
+            // Only handle block + Text adjacency with a non-whitespace, non-newline
+            // leading character in the text — the earlier loop already handles
+            // block + non-Text adjacency.
+            if !a_is_block {
+                continue;
+            }
+            let b_is_nonempty_text = matches!(b, TemplateNode::Text(t)
+                if !is_whitespace_only(t.data.as_str()) && !t.data.starts_with('\n'));
+            if !b_is_nonempty_text {
                 continue;
             }
             let boundary = crate::collapse::template_node_span(a).1;
@@ -370,7 +468,75 @@ fn collect_indent_edits_inner(
                         TemplateNode::Text(t) if is_whitespace_only(t.data.as_str()));
                 if !has_trailing_ws {
                     let last_end = crate::collapse::template_node_span(last).1;
+                    // The `\n{parent_indent}` insert and any synthetic close
+                    // tag for an empty implicitly-closed element are both
+                    // zero-length inserts at `last_end`. We push the newline
+                    // FIRST so it ends up earlier in the vec; the close tag is
+                    // pushed second. When applied in descending-start order the
+                    // close tag insert fires last and lands at the same position
+                    // as the newline (now the position of the newly-inserted
+                    // `\n`), placing `</tag>` BEFORE the `\n`:
+                    //   `<duiv>\n</duiv>\n</div>` — correct layout.
+                    // Note: non-empty implicitly-closed elements (e.g. `<li>a`)
+                    // are handled by `push_close_tag` case 4 in markup.rs
+                    // (replaces trailing whitespace span with `</tag>`), so we
+                    // only insert `</tag>` here for EMPTY elements.
                     edits.push((last_end, last_end, format!("\n{parent_indent}")));
+                    // Implicitly-closed RegularElement with EMPTY content: insert
+                    // synthetic </tag> (pushed second so it lands before the \n).
+                    if let TemplateNode::RegularElement(e) = last {
+                        let is_implicitly_closed =
+                            source.as_bytes().get(e.end as usize - 1).copied() != Some(b'>');
+                        let is_empty_content = e.fragment.nodes.iter().all(
+                            |n| matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()),
+                        );
+                        if is_implicitly_closed && is_empty_content {
+                            edits.push((last_end, last_end, format!("</{}>", e.name.as_str())));
+                        }
+                    }
+                }
+            }
+        }
+
+        // When force_break_content is NOT active (sole non-ws child case) and
+        // that sole child is a non-empty implicitly-closed RegularElement whose
+        // trailing whitespace was consumed by markup.rs case 4, the parent's
+        // close tag immediately follows with no preceding newline. Insert one
+        // here so the parent's close tag lands on its own line.
+        // Example: `<main>\n\t<div>...\n</main>` — case 4 replaces `\n` with
+        // `\n  </div>`, then `</main>` needs its own preceding `\n`.
+        if !force_break_content {
+            let last_non_ws = fragment.nodes.iter().rev().find(
+                |n| !matches!(n, TemplateNode::Text(t) if is_whitespace_only(t.data.as_str())),
+            );
+            if let Some(last_node) = last_non_ws
+                && let TemplateNode::RegularElement(e) = last_node
+            {
+                let last_idx = fragment
+                    .nodes
+                    .iter()
+                    .rposition(|n| std::ptr::eq(n, last_node))
+                    .unwrap_or(0);
+                let has_trailing_ws = last_idx + 1 < fragment.nodes.len()
+                    && matches!(&fragment.nodes[last_idx + 1],
+                        TemplateNode::Text(t) if is_whitespace_only(t.data.as_str()));
+                if !has_trailing_ws {
+                    let is_implicitly_closed =
+                        source.as_bytes().get(e.end as usize - 1).copied() != Some(b'>');
+                    let is_nonempty =
+                        !e.fragment.nodes.iter().all(
+                            |n| matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()),
+                        );
+                    let parent_close_follows = source.as_bytes().get(e.end as usize).copied()
+                        == Some(b'<')
+                        && source.as_bytes().get(e.end as usize + 1).copied() == Some(b'/');
+                    if is_implicitly_closed && is_nonempty && parent_close_follows {
+                        // Zero-length insert at `e.end` adds `\n{parent_indent}` before
+                        // the parent's close tag. This restores the newline consumed by
+                        // markup.rs case 4 when it replaced the element's trailing `\n`
+                        // with `\n{child_indent}</tag>`.
+                        edits.push((e.end, e.end, format!("\n{parent_indent}")));
+                    }
                 }
             }
         }
@@ -758,5 +924,16 @@ fn is_prettier_block_element(tag: &str) -> bool {
             | "section"
             | "table"
             | "ul"
+    )
+}
+
+/// Elements that render as `inline-block` / replaced content — they take up
+/// block space even though they are not block-display.  A space after one of
+/// these should not be treated as prose glue (it converts to a newline on its
+/// own line in a broken fragment, just like a block element).
+fn is_inline_block_element(tag: &str) -> bool {
+    matches!(
+        tag,
+        "input" | "button" | "select" | "object" | "video" | "audio"
     )
 }

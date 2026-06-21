@@ -34,7 +34,7 @@ use rsvelte_core::ast::template::{
 use unicode_width::UnicodeWidthStr;
 
 use crate::error::FormatError;
-use crate::expression::format_attribute_value_expression;
+use crate::expression::{expand_obj_arg_call, format_attribute_value_expression};
 use crate::indent::else_if_branch;
 use crate::options::FormatOptions;
 
@@ -107,6 +107,7 @@ fn collect_node_open_tag_edits(
 ) -> Result<(), FormatError> {
     match node {
         TemplateNode::RegularElement(elem) => {
+            let is_empty = is_empty_fragment(&elem.fragment);
             let wrapped = push_open_tag(
                 source,
                 elem.start,
@@ -114,7 +115,7 @@ fn collect_node_open_tag_edits(
                 &elem.attributes,
                 None,
                 depth,
-                is_empty_fragment(&elem.fragment),
+                is_empty,
                 options,
                 edits,
             )?;
@@ -124,12 +125,14 @@ fn collect_node_open_tag_edits(
                 elem.name.as_str(),
                 wrapped,
                 depth,
+                is_empty,
                 options,
                 edits,
             );
             collect_open_tag_edits(source, &elem.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::Component(c) => {
+            let is_empty = is_empty_fragment(&c.fragment);
             let wrapped = push_open_tag(
                 source,
                 c.start,
@@ -137,7 +140,7 @@ fn collect_node_open_tag_edits(
                 &c.attributes,
                 None,
                 depth,
-                is_empty_fragment(&c.fragment),
+                is_empty,
                 options,
                 edits,
             )?;
@@ -147,12 +150,14 @@ fn collect_node_open_tag_edits(
                 c.name.as_str(),
                 wrapped,
                 depth,
+                is_empty,
                 options,
                 edits,
             );
             collect_open_tag_edits(source, &c.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::TitleElement(t) => {
+            let is_empty = is_empty_fragment(&t.fragment);
             let wrapped = push_open_tag(
                 source,
                 t.start,
@@ -160,7 +165,7 @@ fn collect_node_open_tag_edits(
                 &t.attributes,
                 None,
                 depth,
-                is_empty_fragment(&t.fragment),
+                is_empty,
                 options,
                 edits,
             )?;
@@ -170,12 +175,14 @@ fn collect_node_open_tag_edits(
                 t.name.as_str(),
                 wrapped,
                 depth,
+                is_empty,
                 options,
                 edits,
             );
             collect_open_tag_edits(source, &t.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SlotElement(s) => {
+            let is_empty = is_empty_fragment(&s.fragment);
             let wrapped = push_open_tag(
                 source,
                 s.start,
@@ -183,7 +190,7 @@ fn collect_node_open_tag_edits(
                 &s.attributes,
                 None,
                 depth,
-                is_empty_fragment(&s.fragment),
+                is_empty,
                 options,
                 edits,
             )?;
@@ -193,6 +200,7 @@ fn collect_node_open_tag_edits(
                 s.name.as_str(),
                 wrapped,
                 depth,
+                is_empty,
                 options,
                 edits,
             );
@@ -205,6 +213,7 @@ fn collect_node_open_tag_edits(
         | TemplateNode::SvelteBoundary(s)
         | TemplateNode::SvelteOptions(s)
         | TemplateNode::SvelteSelf(s) => {
+            let is_empty = is_empty_fragment(&s.fragment);
             let wrapped = push_open_tag(
                 source,
                 s.start,
@@ -212,7 +221,7 @@ fn collect_node_open_tag_edits(
                 &s.attributes,
                 None,
                 depth,
-                is_empty_fragment(&s.fragment),
+                is_empty,
                 options,
                 edits,
             )?;
@@ -222,6 +231,7 @@ fn collect_node_open_tag_edits(
                 s.name.as_str(),
                 wrapped,
                 depth,
+                is_empty,
                 options,
                 edits,
             );
@@ -259,6 +269,7 @@ fn collect_node_open_tag_edits(
                     s.name.as_str(),
                     wrapped,
                     depth,
+                    empty,
                     options,
                     edits,
                 );
@@ -266,6 +277,7 @@ fn collect_node_open_tag_edits(
             collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SvelteComponent(c) => {
+            let is_empty = is_empty_fragment(&c.fragment);
             let wrapped = push_open_tag(
                 source,
                 c.start,
@@ -273,7 +285,7 @@ fn collect_node_open_tag_edits(
                 &c.attributes,
                 Some(&c.expression),
                 depth,
-                is_empty_fragment(&c.fragment),
+                is_empty,
                 options,
                 edits,
             )?;
@@ -283,12 +295,14 @@ fn collect_node_open_tag_edits(
                 c.name.as_str(),
                 wrapped,
                 depth,
+                is_empty,
                 options,
                 edits,
             );
             collect_open_tag_edits(source, &c.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SvelteElement(e) => {
+            let is_empty = is_empty_fragment(&e.fragment);
             let wrapped = push_open_tag(
                 source,
                 e.start,
@@ -296,7 +310,7 @@ fn collect_node_open_tag_edits(
                 &e.attributes,
                 Some(&e.tag),
                 depth,
-                is_empty_fragment(&e.fragment),
+                is_empty,
                 options,
                 edits,
             )?;
@@ -306,6 +320,7 @@ fn collect_node_open_tag_edits(
                 e.name.as_str(),
                 wrapped,
                 depth,
+                is_empty,
                 options,
                 edits,
             );
@@ -369,10 +384,113 @@ fn push_close_tag(
     tag_name: &str,
     open_wrapped: bool,
     depth: usize,
+    // Whether the element's fragment has no non-whitespace content.  Used to
+    // guard case 4 (implicitly-closed elements with trailing whitespace): we
+    // only replace the trailing whitespace with `</tag>` when there IS actual
+    // non-whitespace content inside the element.  Empty elements (e.g.
+    // `<duiv>\n`) have their whitespace preserved by the collapse pass.
+    is_empty: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
-    let Some((start, end)) = find_close_tag_span(source, element_end, tag_name) else {
+    // First try to find the close tag using the AST's tag name.  When the
+    // source has a mismatched close tag (e.g. `<duiv>…</div>`, a typo in a
+    // test fixture), fall back to locating ANY `</…>` that ends at the element
+    // boundary and replace it with the correct AST tag name.
+    // If neither finds a close tag (element was implicitly closed — e.g. `<duiv>`
+    // without any matching `</duiv>` in source), insert a synthetic close tag at
+    // `element_end`.  This mirrors the oracle (prettier-plugin-svelte), which
+    // always emits a close tag based on the AST element name regardless of what
+    // the source contains.
+    let span = find_close_tag_span(source, element_end, tag_name)
+        .or_else(|| find_any_close_tag_span(source, element_end));
+    let Some((start, end)) = span else {
+        // No explicit close tag at element_end.  There are three cases:
+        //
+        // 1. Self-closing element (`<tag />`): `bytes[element_end-1] == '>'`
+        //    and `bytes[element_end-2] == '/'`.  No close tag needed.
+        // 2. Void element (`<br>`, `<input>`, …): recognised by
+        //    `is_void_element`. No close tag needed.
+        // 3. An element whose open tag ends with a plain `>` but has no
+        //    matching close tag in source — e.g. `<keygen>` (treated as
+        //    non-void by the Svelte parser but no `</keygen>` follows).
+        //    The oracle (prettier-plugin-svelte) emits a close tag for
+        //    these, so we insert one.  Elements that the parser closed
+        //    implicitly with trailing content (e.g. `<duiv>\n` where
+        //    `bytes[element_end-1] != '>'`) are handled by the indent pass
+        //    (`force_break_content` trailing edge) instead.
+        let bytes = source.as_bytes();
+        let end_idx = element_end as usize;
+        let prev = bytes.get(end_idx.wrapping_sub(1)).copied();
+        let prev2 = bytes.get(end_idx.wrapping_sub(2)).copied();
+        let is_self_closing_slash = prev == Some(b'>') && prev2 == Some(b'/');
+        // `is_void_element` covers HTML void elements; also exclude HTML
+        // declarations like `<!doctype html>` (tag name starts with `!`).
+        let is_void = is_void_element(tag_name) || tag_name.starts_with('!');
+        let has_trailing_content = prev != Some(b'>');
+        if !is_self_closing_slash && !is_void && !has_trailing_content {
+            // Case 3: empty-body element with no close tag (e.g. `<keygen>`).
+            // We can't insert at `element_end` because a whitespace Text node
+            // at that position would have an indent-normalizer edit
+            // `(element_end, element_end+1, "\n")` that conflicts.  Instead,
+            // supersede the open-tag edit pushed by `push_open_tag` with a
+            // combined `<tag></ tag>` replacement that covers the entire open-
+            // tag span.  That replacement's start (`element_end - open_tag_len`)
+            // is strictly less than the Text node's start (`element_end`), so
+            // the two edits never overlap.
+            if let Some(last) = edits.last_mut()
+                && last.1 == element_end
+            {
+                // The last edit is the open-tag replacement `(start, element_end,
+                // rendered_open)` — append `</tag>` to its replacement text.
+                use std::fmt::Write as _;
+                let _ = write!(last.2, "</{tag_name}>");
+            } else {
+                // Fallback: just insert at element_end (may conflict in rare
+                // cases but safe enough for normal source).
+                edits.push((element_end, element_end, format!("</{tag_name}>")));
+            }
+        } else if !is_self_closing_slash && !is_void && has_trailing_content && !is_empty {
+            // Case 4: Implicitly-closed element with non-whitespace content
+            // whose AST `end` includes trailing whitespace (newline + indent)
+            // that belongs to the parent, not the element's content.
+            // E.g. `<li>a\n\t` where `\n\t` is the indentation leading to the
+            // next sibling `<li>`.
+            //
+            // Walk backwards from `element_end` to find the last non-whitespace
+            // byte (the actual content end), then REPLACE the trailing whitespace
+            // with `</tag>`.  The adjacent-block indent loop will re-insert the
+            // `\n{child_indent}` separator before the next sibling, so removing
+            // the raw `\n\t` is safe.
+            //
+            // The `!is_empty` guard prevents this from firing for elements that
+            // have only whitespace content (e.g. `<duiv>\n`) — those are handled
+            // by the collapse pass (whitespace-only → `<tag> </tag>`).
+            //
+            // Only apply when ALL trailing bytes are ASCII whitespace — if
+            // non-whitespace bytes are present the element has actual trailing
+            // content (e.g. `<li>text more</ul>`) that we must not remove.
+            let trailing_ws_only = bytes[..end_idx]
+                .iter()
+                .rev()
+                .take_while(|&&b| matches!(b, b' ' | b'\t' | b'\n' | b'\r'))
+                .count();
+            if trailing_ws_only > 0 {
+                let content_end = (end_idx - trailing_ws_only) as u32;
+                // Replace trailing whitespace with `\n{indent}</tag>`.
+                // The indent pass may also emit an edit on this same span
+                // (normalising `\n\t` to `\n{child_indent}`) — the overlap
+                // detection in `lib.rs` ensures markup's edit wins and the
+                // indent edit is skipped, so the newline + indent here is
+                // the only whitespace emitted before the close tag.
+                let parent_indent = indent_str(depth, &options.js);
+                edits.push((
+                    content_end,
+                    element_end,
+                    format!("\n{parent_indent}</{tag_name}>"),
+                ));
+            }
+        }
         return;
     };
     // When the open tag wrapped and the element's content is whitespace-
@@ -440,6 +558,36 @@ fn find_close_tag_span(source: &str, element_end: u32, tag_name: &str) -> Option
     Some((lt as u32, end as u32))
 }
 
+/// Fallback: locate ANY `</name>` close tag that ends at `element_end`.
+/// Used when `find_close_tag_span` fails because the source has a mismatched
+/// close tag (e.g. `<duiv>…</div>` — the parser uses the element's AST tag
+/// name but the source written the wrong name).  This finds the `<` of the
+/// actual close tag so the caller can replace it with the correct tag name.
+fn find_any_close_tag_span(source: &str, element_end: u32) -> Option<(u32, u32)> {
+    let bytes = source.as_bytes();
+    let end = element_end as usize;
+    if end == 0 || end > bytes.len() || bytes[end - 1] != b'>' {
+        return None;
+    }
+    // Walk back: `>`, optional whitespace, tag name, `/`, `<`.
+    let mut i = end - 1; // at '>'
+    i = i.checked_sub(1)?;
+    while matches!(bytes[i], b' ' | b'\t' | b'\n' | b'\r') {
+        i = i.checked_sub(1)?;
+    }
+    // Skip the tag name (alphanumeric / hyphen / colon / dot for custom elements).
+    while i > 0 && matches!(bytes[i], b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b':' | b'.')
+    {
+        i -= 1;
+    }
+    let slash = i;
+    let lt = slash.checked_sub(1)?;
+    if bytes[slash] != b'/' || bytes[lt] != b'<' {
+        return None;
+    }
+    Some((lt as u32, end as u32))
+}
+
 /// Push one edit covering the element's open tag span (from `<` to the
 /// `>` that closes the opener, inclusive). `this_expression` is the
 /// reactive `this={X}` expression carried by `<svelte:component>` and
@@ -480,7 +628,8 @@ fn push_open_tag(
     // `<svelte:window>` is also emitted as self-closing when it has no
     // children (the common case). When it does have children (a compiler error,
     // but the formatter still processes it), it keeps the non-self-closing form.
-    let self_closing = is_self_closing(source, open_tag_end)
+    let last_attr_end = attributes.last().map_or(0, |a| attribute_span(a).1);
+    let self_closing = is_self_closing_inner(source, open_tag_end, last_attr_end)
         || is_void_element(tag_name)
         || (tag_name == "svelte:window" && empty_element);
 
@@ -498,12 +647,39 @@ fn push_open_tag(
     // `>` always breaks to its own line when the open tag wraps — even with text
     // directly after it (block elements trim edge whitespace, so no significant
     // whitespace is injected).
+    // Exception: `<pre>` always hugs `>` to the last attribute — breaking `>` onto
+    // its own line would inject a newline before the content, changing how the
+    // browser renders whitespace-sensitive preformatted text.
+    // Whether `tag_name` is a Svelte Component (uppercase-initial or `svelte:*`).
+    let is_component = tag_name.starts_with("svelte:")
+        || tag_name
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_uppercase());
     let hug_open = !self_closing
-        && !is_block_element(tag_name)
-        && source
-            .as_bytes()
-            .get(open_tag_end as usize)
-            .is_some_and(|&b| !b.is_ascii_whitespace() && b != b'<');
+        && (tag_name == "pre"
+            || (!is_block_element(tag_name)
+                && source
+                    .as_bytes()
+                    .get(open_tag_end as usize)
+                    .is_some_and(|&b| {
+                        if b == b'<' {
+                            // The byte after `>` is `<`: either a child element or the
+                            // close tag (`</tag>`).
+                            // - For plain HTML inline elements, prettier never hugs a
+                            //   leading element child (the `>` breaks to its own line).
+                            // - For Svelte Components, prettier uses `shouldHugStart` for
+                            //   element children (non-whitespace-sensitive). Hug when the
+                            //   next byte is NOT `/` (child, not close tag).
+                            is_component
+                                && source
+                                    .as_bytes()
+                                    .get(open_tag_end as usize + 1)
+                                    .is_some_and(|&b2| b2 != b'/')
+                        } else {
+                            !b.is_ascii_whitespace()
+                        }
+                    })));
 
     // Build the list of fully-rendered open-tag items (attributes plus any
     // comments interleaved between them), each tagged with its source
@@ -562,7 +738,27 @@ fn push_open_tag(
 
     let one_liner = render_one_line(tag_name, &rendered_attrs, self_closing);
 
-    let leading_indent_width = indent_visual_width(depth, &options.js);
+    // Structural estimate: `depth × indent_width`.
+    let depth_indent_width = indent_visual_width(depth, &options.js);
+    // When the element appears inline immediately after a block tag closer `}`
+    // on the same source line (e.g. `{#if cond}<div …>` or `{:else}<span>`),
+    // the actual column of the element's `<` is higher than the depth estimate.
+    // Use the source column in that case so the fit check correctly detects
+    // overflow and wraps the open tag.  This is specifically limited to `}`-
+    // prefixed cases to avoid false positives when the preceding character is
+    // `>` (a close tag) or anything that changes between source and formatted.
+    let leading_indent_width =
+        if element_start > 0 && source.as_bytes().get(element_start as usize - 1) == Some(&b'}') {
+            let line_start = source[..element_start as usize]
+                .rfind('\n')
+                .map_or(0, |i| i + 1);
+            let source_col = source
+                .get(line_start..element_start as usize)
+                .map_or(0, |prefix| prefix.width());
+            std::cmp::max(depth_indent_width, source_col)
+        } else {
+            depth_indent_width
+        };
     let line_width = options.js.line_width.value() as usize;
 
     // A multi-line attribute value (e.g. a multi-line arrow handler or a
@@ -582,7 +778,12 @@ fn push_open_tag(
     // content line (`<button …attrs`\n`  >text</button`\n`>`). So the attribute
     // line that must fit is the open tag WITHOUT that trailing `>` — don't wrap
     // the attributes just because the `>` alone tips the tag one column over.
-    let open_fit_width = if hug_open && !self_closing && one_liner.ends_with('>') {
+    // For both hug-open elements (where `>` lands on the hugged-content line)
+    // and empty non-self-closing elements (where `shape_two` may break `>` to its
+    // own line), the `>` itself is NOT on the attribute line — so the fit check
+    // must exclude it. Subtract 1 when either condition applies.
+    let open_fit_width = if !self_closing && one_liner.ends_with('>') && (hug_open || empty_element)
+    {
         open_one_line_width - 1
     } else {
         open_one_line_width
@@ -622,7 +823,16 @@ fn push_open_tag(
         && element_overflows
         && is_block_element(tag_name);
 
-    let wrapped = !(rendered_attrs.is_empty() || fits_one_line) || shape_two || force_wrap_block;
+    // A no-attribute hug-open element (e.g. `<code>`) whose position overflows
+    // the line needs its `>` moved to the content's line — the same hug-break
+    // that prettier applies when there are attributes.  This fires only when
+    // the element is already at an overflowing column (detected via source_col
+    // from the `}` prefix check) so that normal in-line `<code>` stays flat.
+    let hug_overflow = rendered_attrs.is_empty() && hug_open && !self_closing && !open_fits;
+    let wrapped = !(rendered_attrs.is_empty() || fits_one_line)
+        || shape_two
+        || force_wrap_block
+        || hug_overflow;
 
     // Second pass: once we know the open tag wraps (attributes each on their own
     // line at `attr_depth`), re-render the attributes narrowing each value
@@ -782,16 +992,20 @@ fn open_tag_name_end(source: &str, element_start: u32) -> usize {
 /// elements never hug their start/end (`shouldHugStart` / `shouldHugEnd` return
 /// false), so when their open tag wraps the closing `>` always breaks onto its
 /// own line — even when text content sits directly after it.
-fn is_block_element(tag_name: &str) -> bool {
+/// Canonical list of HTML block-display elements shared with the collapse pass.
+/// Does NOT include `script` / `style` — those are whitespace-preserving in the
+/// collapse pass (handled by `is_whitespace_preserving`) but count as block
+/// elements here for open-tag layout purposes.
+pub(crate) fn is_html_block_display_element(tag_name: &str) -> bool {
     matches!(
         tag_name,
         "address"
             | "article"
             | "aside"
             | "blockquote"
+            | "dd"
             | "details"
             | "dialog"
-            | "dd"
             | "div"
             | "dl"
             | "dt"
@@ -819,6 +1033,12 @@ fn is_block_element(tag_name: &str) -> bool {
             | "table"
             | "ul"
     )
+}
+
+fn is_block_element(tag_name: &str) -> bool {
+    // `script` and `style` are block elements for open-tag layout purposes even
+    // though the collapse pass treats them as whitespace-preserving separately.
+    is_html_block_display_element(tag_name) || matches!(tag_name, "script" | "style")
 }
 
 fn is_void_element(tag_name: &str) -> bool {
@@ -887,16 +1107,33 @@ fn render_multi_line(
         // attribute column by `render_attribute_value_sequence`.)
         if is_string_value_attr(a) {
             out.push_str(a);
+        } else if a.starts_with("/*") {
+            // Block comment sourced verbatim from the open-tag region: its
+            // interior lines already carry the original source indentation
+            // (tabs/spaces from the author). Adding `inner_indent` on top would
+            // double-indent every continuation line, producing mixed
+            // spaces+tabs (#A). Emit verbatim — the leading `inner_indent` was
+            // already pushed above.
+            out.push_str(a);
         } else {
-            out.push_str(&crate::reindent::reindent(a, &inner_indent, true));
+            // For expression-led attributes that also contain raw HTML text
+            // continuation lines (tab-indented), re-indent only the JS expression
+            // part and keep the raw text verbatim.
+            out.push_str(&reindent_attr_with_raw_text(a, &inner_indent));
         }
     }
-    if hug_open && !self_closing {
+    if hug_open && !self_closing && !attrs.is_empty() {
         // Whitespace-sensitive inline content: glue the `>` to the last
         // attribute line so no significant whitespace is injected before the
         // content (#798). The collapse pass (`try_hug_mixed`) later decides
         // whether to keep it glued or move it to a new indented line, depending
         // on whether the resulting line would overflow the print width.
+        out.push('>');
+    } else if hug_open && !self_closing {
+        // No attributes but the element still needs the `>` on the
+        // content's line (overflow hug): emit `<tagname\n{inner_indent}>`.
+        out.push('\n');
+        out.push_str(&inner_indent);
         out.push('>');
     } else {
         out.push('\n');
@@ -919,6 +1156,29 @@ fn is_string_value_attr(a: &str) -> bool {
     match a.split_once('=') {
         Some((_, value)) => value.starts_with('"') && !value.starts_with("\"{"),
         None => false,
+    }
+}
+
+/// Re-indent an expression-led attribute (`class="{expr}\nraw-text…"`).
+///
+/// OXC always formats JS with spaces (never tabs). When an attribute starts with
+/// a JS expression (`"{`) but also has continuation lines that start with a tab
+/// (`\n\t`), those tab-indented lines are raw HTML attribute text — not formatted
+/// JS — and must be kept verbatim. Split the attribute at the first `\n\t` and
+/// re-indent only the expression part; append the raw text as-is.
+///
+/// Falls back to `reindent(a, prefix, true)` when no `\n\t` is found (pure JS
+/// attribute — the normal path).
+fn reindent_attr_with_raw_text(a: &str, prefix: &str) -> String {
+    // Find the first occurrence of a newline followed by a tab — this marks the
+    // boundary between formatted JS and raw source text.
+    if let Some(split_pos) = a.find("\n\t") {
+        let js_part = &a[..split_pos];
+        let raw_part = &a[split_pos..]; // starts with "\n\t…"
+        let reindented_js = crate::reindent::reindent(js_part, prefix, true);
+        format!("{reindented_js}{raw_part}")
+    } else {
+        crate::reindent::reindent(a, prefix, true)
     }
 }
 
@@ -1009,7 +1269,7 @@ fn find_open_tag_end(source: &str, element_start: u32, attributes: &[Attribute])
     None
 }
 
-fn is_self_closing(source: &str, open_tag_end: u32) -> bool {
+fn is_self_closing_inner(source: &str, open_tag_end: u32, last_attr_end: u32) -> bool {
     let bytes = source.as_bytes();
     if open_tag_end < 2 {
         return false;
@@ -1023,7 +1283,15 @@ fn is_self_closing(source: &str, open_tag_end: u32) -> bool {
                 }
                 i -= 1;
             }
-            b'/' => return true,
+            b'/' => {
+                // A `/` that is at or before the last attribute's end is part
+                // of the attribute value (e.g. `href=/` in `<a href=/>`) and
+                // does NOT indicate self-closing syntax.
+                if last_attr_end > 0 && (i as u32) < last_attr_end {
+                    return false;
+                }
+                return true;
+            }
             _ => return false,
         }
     }
@@ -1262,33 +1530,155 @@ fn render_single_expression_value(
     if inner_src.is_empty() {
         return Ok(format!("{}={{}}", node.name));
     }
-    // When the open tag wraps, a SHALLOW value (a ternary / binary / logical
-    // chain — no block body) is narrowed by the `name={` prefix so it breaks at
-    // its top level where prettier does, even when it already spans multiple
-    // lines. A value with a block body (an arrow handler / object / array) is
-    // left at the indent-only width: its continuation lines sit at the attribute
-    // indent with full width, so narrowing by the prefix would wrongly over-wrap.
+    // When the open tag wraps, attribute values are narrowed so OXC breaks them
+    // at the right column.  Two cases:
+    //
+    // SHALLOW value (a function call / ternary / binary / logical chain — anything
+    // that does NOT start with `{`/`[`/`function`/`=>`):
+    //   First format at indent-only width (no extra_lead) to get a reference result.
+    //   - If single-line: check whether the full attribute line (`indent + name={ +
+    //     value + }`) overflows; if so, re-format with `prefix` as `extra_lead` to
+    //     force a break at the right point.
+    //   - If multi-line AND the first line ends with `{` or `[` (an expanded
+    //     call-argument block): the continuation lines do NOT carry the `name={`
+    //     prefix, so return the wider-width result as-is — narrowing by `prefix`
+    //     would over-constrain inner expressions (e.g. `styles.fn({ prop: clsx(a,
+    //     b) })` would wrongly break `clsx(a, b)` even though it fits).
+    //   - If multi-line AND the first line does NOT end with `{`/`[` (a ternary,
+    //     binary, or member chain that wraps at an operator): re-format with
+    //     `prefix` as `extra_lead` so the break point matches prettier's output
+    //     (the operator-break lands at the narrower column).
+    //
+    // NOT-SHALLOW value (an arrow handler / object / array literal):
+    //   Format at indent-only width first.  If the result is still single-line but
+    //   the full line overflows:
+    //   - ARROW (`=>` present): re-format with `prefix - indent_width` as extra_lead
+    //     so the arrow body gets exactly one indent level of room.
+    //   - BLOCK-BODY (starts with `{` / `[` / `function`): re-format at
+    //     `narrowed = inline_len - 1` (one character narrower than the inline form)
+    //     to force the outer block to expand.  This is the minimal narrowing that
+    //     triggers expansion: OXC only wraps when the content exceeds the width, so
+    //     exactly `inline_len - 1` forces the outer `{…}` to split while giving the
+    //     inner content the widest possible budget (maximizing the chance that
+    //     nested calls like `styles.fn({ prop: clsx(a, b) })` stay on one line).
+    //     Using `prefix - indent_width` as extra_lead would over-narrow the budget
+    //     and wrongly break inner expressions for deep objects like
+    //     `classes={{ input: styles.fn({ prop: clsx(a, b) }) }}`.
     let prefix = visual_width(node.name.as_str()) + 2;
     let indent_width = options.js.indent_width.value() as usize;
-    let extra = if narrow_value && is_shallow_value(inner_src) {
-        prefix
-    } else {
-        0
-    };
-    let formatted = format_attribute_value_expression(inner_src, options, attr_depth, extra)?;
-    // For arrow-function values (`onclick={() => ...}`), `is_shallow_value`
-    // returns false so `extra=0` above leaves the value unnarrowed.  But when
-    // the full line (indent + `name={` + value + `}`) overflows the print
-    // width, re-format with `prefix - indent_width` as `extra_lead` so the
-    // arrow breaks and its body line gets exactly one indent level of room —
-    // mirroring the directive path in `render_directive_value_narrow`.
-    let formatted = if narrow_value && !is_shallow_value(inner_src) && !formatted.contains('\n') {
+    let formatted = format_attribute_value_expression(inner_src, options, attr_depth, 0)?;
+    let formatted = if narrow_value {
         let indent_cols = attr_depth * indent_width;
         let line_width = options.js.line_width.value() as usize;
-        // `{` and `}` each count as 1 char
-        if indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width {
-            let arrow_extra = prefix.saturating_sub(indent_width);
-            format_attribute_value_expression(inner_src, options, attr_depth, arrow_extra)?
+        if !formatted.contains('\n') {
+            // Single-line: check if the full rendered line overflows
+            // (`{` and `}` each count as 1 char around the expression)
+            if indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width {
+                if is_shallow_value(inner_src) {
+                    // For a shallow expression (call / ternary / binary / logical chain),
+                    // first try re-formatting with `extra_lead = prefix`.  If that
+                    // produces a single-line result (i.e., the expression still fits
+                    // within the narrowed width), keep it — the oracle allows the
+                    // attribute line to overflow slightly in that case.
+                    // If the `prefix`-narrowed result is MULTI-LINE (the top-level call
+                    // was forced to break), check whether widening to `single_line_len`
+                    // would keep the inner arguments on one line: using
+                    // `narrowed = single_line_len` is the minimum that forces the break
+                    // while giving arguments the widest possible budget.
+                    // Example: `cn(value !== framework && "text-transparent")` (44 chars)
+                    // at attr_depth=15 (base_width=50): `prefix=7` gives narrowed=43 and
+                    // over-breaks the `&&` argument (arg=44 > 43).  Widening to
+                    // narrowed=44 (= single_line_len) keeps the argument on one line
+                    // (arg=44 ≤ 44).
+                    let prefix_result =
+                        format_attribute_value_expression(inner_src, options, attr_depth, prefix)?;
+                    if prefix_result.contains('\n') {
+                        // The `prefix` narrowing forced a break. Try widening to
+                        // `single_line_len` to give inner content more room.
+                        let base_width = line_width.saturating_sub(indent_cols);
+                        let single_line_len = visual_width(&formatted);
+                        let extra_lead = base_width.saturating_sub(single_line_len);
+                        if extra_lead < prefix {
+                            // Widening would give more room — try the wider result.
+                            let wider = format_attribute_value_expression(
+                                inner_src, options, attr_depth, extra_lead,
+                            )?;
+                            // Only use the wider result if it is still multi-line
+                            // (ensures the break happened — single-line would mean we
+                            // accidentally collapsed and we should keep the prefix result).
+                            if wider.contains('\n') {
+                                wider
+                            } else {
+                                prefix_result
+                            }
+                        } else {
+                            prefix_result
+                        }
+                    } else {
+                        prefix_result
+                    }
+                } else if inner_src.contains("=>") {
+                    // Arrow function: narrow so the arrow body breaks when the
+                    // attribute line overflows.
+                    //
+                    // Oracle rule: a 1-char overflow (total line = line_width + 1) is
+                    // tolerated — oracle keeps the value single-line.  Only when the
+                    // overflow is >= 2 chars do we apply a tighter narrowing.
+                    //
+                    // Default narrowing: `arrow_extra = prefix - indent_width`
+                    // (one level of indented room for the arrow body).
+                    //
+                    // Tight narrowing (overflow >= 2): use `base_width - inline_len + 1`.
+                    // This is the minimum extra_lead that forces OXC to break the
+                    // top-level arrow (since narrowed = inline_len - 1 < inline_len),
+                    // while giving the continuation body the widest possible budget
+                    // (narrowed = inline_len - 1, far more room than prefix-based
+                    // narrowing).  Do NOT take max with `prefix - indent_width` because
+                    // that over-narrows the body when `prefix` is large (e.g. a
+                    // 15-char attribute name like `onValueChange`).
+                    let base_width = line_width.saturating_sub(indent_cols);
+                    let inline_len = visual_width(&formatted);
+                    let inline_total = indent_cols + prefix + 1 + inline_len + 1;
+                    let arrow_extra = if inline_total > line_width + 1 {
+                        // Overflow >= 2: use tight narrowing to force the arrow break
+                        // while giving the body maximum room.
+                        base_width.saturating_sub(inline_len) + 1
+                    } else {
+                        // Overflow == 1: oracle allows it to stay single-line.
+                        prefix.saturating_sub(indent_width)
+                    };
+                    format_attribute_value_expression(inner_src, options, attr_depth, arrow_extra)?
+                } else {
+                    // Block-body (object / array / function): force expansion by
+                    // formatting at exactly one char narrower than the inline form.
+                    // The `format_attribute_value_expression` API uses extra_lead,
+                    // so convert: narrowed = full_width − indent_cols − extra_lead,
+                    // meaning extra_lead = full_width − indent_cols − (inline_len − 1).
+                    let inline_len = visual_width(&formatted);
+                    // full_width − indent_cols is the budget without extra_lead
+                    let base_width = line_width.saturating_sub(indent_cols);
+                    // extra_lead that yields narrowed = inline_len − 1
+                    let extra_lead = base_width.saturating_sub(inline_len.saturating_sub(1));
+                    format_attribute_value_expression(inner_src, options, attr_depth, extra_lead)?
+                }
+            } else {
+                formatted
+            }
+        } else if is_shallow_value(inner_src) {
+            // Multi-line shallow: check the first line to decide whether to
+            // re-format with extra_lead.
+            let first_line = formatted.lines().next().unwrap_or("").trim_end();
+            // If the first line ends with `{` or `[`, an inner block/array is
+            // being expanded — the continuation lines are inside that block and
+            // do NOT start at the attribute column with the `name={` prefix.
+            // Keep the wider-width result to avoid over-constraining inner exprs.
+            if first_line.ends_with('{') || first_line.ends_with('[') || first_line.ends_with('(') {
+                formatted
+            } else {
+                // First line ends at an operator or similar break point — the
+                // narrower width (with extra_lead) matches prettier's break placement.
+                format_attribute_value_expression(inner_src, options, attr_depth, prefix)?
+            }
         } else {
             formatted
         }
@@ -1492,26 +1882,197 @@ fn render_attribute_value_sequence(
                     // everything before its `{` (the `name="` prefix plus value
                     // text already emitted on this line) AND after its `}` (the
                     // remaining literal text on the line plus the closing `"`).
-                    let extra = if narrow_value && is_shallow_value(inner_src) {
-                        let on_line = out.rsplit('\n').next().unwrap_or(&out);
-                        let lead = if out.contains('\n') {
-                            visual_width(on_line)
-                        } else {
-                            name_prefix + visual_width(on_line)
-                        };
-                        let trailing: usize = parts[i + 1..]
-                            .iter()
-                            .map(|p| match p {
-                                AttributeValuePart::Text(t) => visual_width(t.raw.as_str()),
-                                AttributeValuePart::ExpressionTag(_) => 0,
-                            })
-                            .sum();
-                        lead + 3 + trailing // `{` + `}` + closing `"`
+                    //
+                    // Same two-pass logic as `render_single_expression_value`:
+                    // first format at indent-only width; if multi-line and the
+                    // first line ends with `{`/`[` (expanded call-argument block),
+                    // keep the wider result to avoid over-constraining inner exprs.
+                    let on_line = out.rsplit('\n').next().unwrap_or(&out);
+                    let lead_cols = if out.contains('\n') {
+                        visual_width(on_line)
                     } else {
-                        0
+                        name_prefix + visual_width(on_line)
                     };
-                    let formatted =
-                        format_attribute_value_expression(inner_src, &opts, attr_depth, extra)?;
+                    let trailing_cols: usize = parts[i + 1..]
+                        .iter()
+                        .map(|p| match p {
+                            AttributeValuePart::Text(t) => visual_width(t.raw.as_str()),
+                            AttributeValuePart::ExpressionTag(_) => 0,
+                        })
+                        .sum();
+                    // Whether there are trailing expression tags after this one.
+                    // When true, the closing `)` of an expanded-arg form would land
+                    // on a line followed by the next interpolation, producing
+                    // `fn(\n  {...},\n)} {expr}` which the oracle does NOT emit.
+                    let has_trailing_expr = parts[i + 1..]
+                        .iter()
+                        .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
+                    let first_pass =
+                        format_attribute_value_expression(inner_src, &opts, attr_depth, 0)?;
+                    let formatted = if narrow_value && is_shallow_value(inner_src) {
+                        let indent_cols = attr_depth * opts.js.indent_width.value() as usize;
+                        let line_width_val = opts.js.line_width.value() as usize;
+                        // Two-phase narrowing strategy:
+                        //
+                        // Phase 1 (`extra_start`): narrow only by the expression's
+                        // START column (indent + prefix + `{`). When the expression
+                        // wraps to multiple lines, the trailing text after `}` lands
+                        // on the final continuation line — NOT the first — so it must
+                        // NOT influence the first-line break decision.  This fixes
+                        // over-breaking when trailing is large (e.g. a long class list
+                        // after the interpolation).
+                        //
+                        // Phase 2 (`extra_full`): if the phase-1 result is still
+                        // single-line but the full assembled line overflows, the
+                        // trailing DOES land on the same line.  Re-format including
+                        // the trailing columns so OXC places the break at the right
+                        // spot (i.e. the expression is forced to wrap before its
+                        // closing `}` lands at column > line_width).
+                        let extra_start = lead_cols + 1; // chars before `{`
+                        // `+1` for `{`, `+1` for `}`, `+1` for closing `"`
+                        let extra_full = lead_cols + 3 + trailing_cols;
+                        if indent_cols + extra_start >= line_width_val {
+                            // Expression starts at or past the print width.
+                            // OXC formatted at indent-only width. When there are no
+                            // trailing interpolations, apply the prettier-style
+                            // outer expansion for single-object-arg calls:
+                            // - Single-line `fn({ k: v })` → `fn(\n  { k: v },\n)`
+                            // - Multi-line `fn({\n  k: v,\n})` → `fn(\n  {\n    k: v,\n  },\n)`
+                            let indent_w = opts.js.indent_width.value() as usize;
+                            if !has_trailing_expr {
+                                let first_line_fp =
+                                    first_pass.lines().next().unwrap_or("").trim_end();
+                                // Try expansion for multi-line `fn({` form.
+                                let try_expand = if first_pass.contains('\n')
+                                    && (first_line_fp.ends_with('{')
+                                        || first_line_fp.ends_with('['))
+                                {
+                                    expand_obj_arg_call(&first_pass, indent_w)
+                                } else if !first_pass.contains('\n') {
+                                    // Single-line `fn({ k: v })` — try outer expansion.
+                                    expand_obj_arg_call(&first_pass, indent_w)
+                                } else {
+                                    None
+                                };
+                                if let Some(expanded) = try_expand {
+                                    expanded
+                                } else {
+                                    first_pass
+                                }
+                            } else {
+                                first_pass
+                            }
+                        } else if !first_pass.contains('\n') {
+                            // Wide first-pass produced a single-line result.
+                            // Check if it fits with trailing on the same line.
+                            let total = indent_cols
+                                + lead_cols
+                                + 1
+                                + first_pass.len()
+                                + 1
+                                + trailing_cols
+                                + 1;
+                            if total <= line_width_val {
+                                // Fits: no narrowing needed
+                                first_pass
+                            } else if indent_cols + extra_full < line_width_val {
+                                // Doesn't fit, and full-extra still leaves room:
+                                // use full narrowing (trailing collapses the width).
+                                format_attribute_value_expression(
+                                    inner_src, &opts, attr_depth, extra_full,
+                                )?
+                            } else {
+                                // Full-extra overflows too: the trailing literal is very
+                                // long and all approaches overflow.
+                                // First try start-column narrowing (the original approach).
+                                let start_result = format_attribute_value_expression(
+                                    inner_src,
+                                    &opts,
+                                    attr_depth,
+                                    extra_start,
+                                )?;
+                                if start_result.contains('\n') {
+                                    // Start-column narrowing already breaks the expression
+                                    // — use it (matches the oracle's break point for long
+                                    // ternaries where the expression itself is wider than
+                                    // the available space after the prefix).
+                                    start_result
+                                } else {
+                                    // Start-column didn't break (expression fits at extra_start).
+                                    // The expression is short relative to base_width but the
+                                    // trailing text is enormous.  Force the minimum break:
+                                    // `narrowed = expr_len - 1` so OXC breaks the expression
+                                    // itself (e.g. ternary at `?`/`:` or comparison at `===`),
+                                    // accepting that the trailing text may overflow on the last
+                                    // continuation line.
+                                    let base_width = line_width_val.saturating_sub(indent_cols);
+                                    let expr_len = visual_width(first_pass.as_str());
+                                    let force_extra = base_width.saturating_sub(expr_len) + 1;
+                                    let forced = format_attribute_value_expression(
+                                        inner_src,
+                                        &opts,
+                                        attr_depth,
+                                        force_extra,
+                                    )?;
+                                    if forced.contains('\n') {
+                                        forced
+                                    } else {
+                                        // Still can't break via width narrowing.
+                                        // For `fn({ key: val })` calls without trailing
+                                        // expressions, prettier-plugin-svelte expands to
+                                        // `fn(\n  { key: val },\n)` — apply that.
+                                        let indent_w = opts.js.indent_width.value() as usize;
+                                        if !has_trailing_expr {
+                                            if let Some(expanded) =
+                                                expand_obj_arg_call(&start_result, indent_w)
+                                            {
+                                                expanded
+                                            } else {
+                                                start_result
+                                            }
+                                        } else {
+                                            start_result
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            // Multi-line first-pass (at indent-only width).
+                            let first_line = first_pass.lines().next().unwrap_or("").trim_end();
+                            if first_line.ends_with('{') || first_line.ends_with('(') {
+                                // OXC expanded a call argument block (`fn({` / `fn(`).
+                                // prettier-plugin-svelte instead keeps the arg on its own
+                                // line: `fn(\n  {\n    ...\n  },\n)`. Apply that transform
+                                // when the expression is a single-object-arg call and
+                                // there are no trailing interpolations.
+                                let indent_w = opts.js.indent_width.value() as usize;
+                                if !has_trailing_expr {
+                                    if let Some(expanded) =
+                                        expand_obj_arg_call(&first_pass, indent_w)
+                                    {
+                                        expanded
+                                    } else {
+                                        first_pass
+                                    }
+                                } else {
+                                    first_pass
+                                }
+                            } else {
+                                // Operator-break or computed-member-access break (`?.[`)
+                                // — re-format at start-column width so the break lands
+                                // where the brace column dictates (trailing text is on a
+                                // subsequent line, not relevant here).
+                                format_attribute_value_expression(
+                                    inner_src,
+                                    &opts,
+                                    attr_depth,
+                                    extra_start,
+                                )?
+                            }
+                        }
+                    } else {
+                        first_pass
+                    };
                     // A wrapped interpolation's continuation lines come back at
                     // column 0+1level; push them out to the attribute column so
                     // they align under the attribute — but only when this value is
@@ -1538,8 +2099,24 @@ fn render_spread(
     options: &FormatOptions,
     attr_depth: usize,
 ) -> Result<String, FormatError> {
-    let inner =
-        format_expression_at(source, &spread.expression, options, attr_depth)?.unwrap_or_default();
+    // Read the raw source between `{...` and `}` so that a TypeScript cast
+    // like `{...restProps as any}` is preserved verbatim — the parser narrows
+    // the expression span down to just the identifier, silently dropping `as T`.
+    // This mirrors the `format_directive_value` approach for directive TS casts
+    // (#682).  Fall back to the AST-expression path when the source braces can't
+    // be located.
+    let raw_inner = source
+        .get(spread.start as usize..spread.end as usize)
+        .and_then(|s| {
+            // Strip leading `{...` (4 bytes) and trailing `}` (1 byte).
+            s.strip_prefix("{...").and_then(|s| s.strip_suffix('}'))
+        })
+        .map(str::trim);
+    let inner = if let Some(raw) = raw_inner.filter(|s| !s.is_empty()) {
+        crate::expression::format_attribute_value_expression(raw, options, attr_depth, 0)?
+    } else {
+        format_expression_at(source, &spread.expression, options, attr_depth)?.unwrap_or_default()
+    };
     Ok(format!("{{...{inner}}}"))
 }
 

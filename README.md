@@ -33,13 +33,13 @@ Until we get there, the drop-in replacement story — `@rsvelte/compiler`, `@rsv
 
 All packages ship under the `@rsvelte` scope on npm.
 
-| Package | Drop-in for | Status |
-|---|---|---|
-| [`@rsvelte/compiler`](apps/npm/compiler) | [`svelte/compiler`](https://svelte.dev/docs/svelte-compiler) (wasm) | ✅ 100% test compat ([details](#compatibility)) |
-| [`@rsvelte/svelte2tsx`](apps/npm/svelte2tsx) | [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx) | ✅ 245 / 245 fixtures |
-| [`@rsvelte/svelte-check`](apps/npm/svelte-check) | [`svelte-check`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) CLI | ✅ v1.0 — walker + overlay + tsgo backend + incremental + watch |
-| [`@rsvelte/vite-plugin-svelte`](https://github.com/baseballyama/rsvelte/tree/main/apps/npm/vite-plugin-svelte) | [`@sveltejs/vite-plugin-svelte`](https://github.com/sveltejs/vite-plugin-svelte) | ✅ v1.0 — fork that routes through the NAPI compiler |
-| [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native) | — | NAPI bindings the Vite plugin and other Node tools consume |
+| Package                                                                                                        | Drop-in for                                                                                        | Status                                                          |
+| -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| [`@rsvelte/compiler`](apps/npm/compiler)                                                                       | [`svelte/compiler`](https://svelte.dev/docs/svelte-compiler) (wasm)                                | ✅ 100% test compat ([details](#compatibility))                 |
+| [`@rsvelte/svelte2tsx`](apps/npm/svelte2tsx)                                                                   | [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx)         | ✅ 245 / 245 fixtures                                           |
+| [`@rsvelte/svelte-check`](apps/npm/svelte-check)                                                               | [`svelte-check`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) CLI | ✅ v1.0 — walker + overlay + tsgo backend + incremental + watch |
+| [`@rsvelte/vite-plugin-svelte`](https://github.com/baseballyama/rsvelte/tree/main/apps/npm/vite-plugin-svelte) | [`@sveltejs/vite-plugin-svelte`](https://github.com/sveltejs/vite-plugin-svelte)                   | ✅ v1.0 — fork that routes through the NAPI compiler            |
+| [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native)                                     | —                                                                                                  | NAPI bindings the Vite plugin and other Node tools consume      |
 
 See [`docs/ecosystem-implementation-plan.md`](docs/ecosystem-implementation-plan.md) for the full ecosystem port plan, including which upstream tools are intentionally **out of scope** (and where they're being routed instead — usually back to OXC).
 
@@ -52,23 +52,23 @@ npm install @rsvelte/compiler
 ```
 
 ```js
-import { compile, compileModule, parse, VERSION } from '@rsvelte/compiler';
+import { compile, compileModule, parse, VERSION } from "@rsvelte/compiler";
 
-const result = compile('<h1>Hello, {name}!</h1>', {
-  generate: 'client',     // or 'server'
-  filename: 'App.svelte',
+const result = compile("<h1>Hello, {name}!</h1>", {
+  generate: "client", // or 'server'
+  filename: "App.svelte",
 });
 
 console.log(result.js.code);
 console.log(result.css?.code);
 
 // Compile a Svelte module (.svelte.js / .svelte.ts)
-const moduleResult = compileModule('export const count = $state(0);', {
-  filename: 'counter.svelte.js',
+const moduleResult = compileModule("export const count = $state(0);", {
+  filename: "counter.svelte.js",
 });
 
 // Parse to AST
-const ast = parse('<h1>Hello</h1>', { modern: true });
+const ast = parse("<h1>Hello</h1>", { modern: true });
 
 console.log(VERSION); // upstream Svelte version this build targets
 ```
@@ -87,8 +87,8 @@ npm install -D @rsvelte/vite-plugin-svelte
 
 ```js
 // vite.config.js
-import { svelte } from '@rsvelte/vite-plugin-svelte';
-import { defineConfig } from 'vite';
+import { svelte } from "@rsvelte/vite-plugin-svelte";
+import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [svelte()],
@@ -108,9 +108,9 @@ pnpm add -D @rsvelte/vite-plugin-svelte
 {
   "pnpm": {
     "overrides": {
-      "@sveltejs/vite-plugin-svelte": "npm:@rsvelte/vite-plugin-svelte@^0.1.0"
-    }
-  }
+      "@sveltejs/vite-plugin-svelte": "npm:@rsvelte/vite-plugin-svelte@^0.1.0",
+    },
+  },
 }
 ```
 
@@ -146,16 +146,16 @@ npm install @rsvelte/svelte2tsx
 ```
 
 ```js
-import { svelte2tsx } from '@rsvelte/svelte2tsx';
+import { svelte2tsx } from "@rsvelte/svelte2tsx";
 
-const result = await svelte2tsx('<h1>Hello, {name}!</h1>', {
-  filename: 'App.svelte',
+const result = await svelte2tsx("<h1>Hello, {name}!</h1>", {
+  filename: "App.svelte",
   isTsFile: true,
-  mode: 'ts',          // or 'dts' to emit a declaration file
-  version: '5',
+  mode: "ts", // or 'dts' to emit a declaration file
+  version: "5",
 });
 
-console.log(result.code);          // the synthesised .tsx
+console.log(result.code); // the synthesised .tsx
 console.log(result.exportedNames); // { props, all }
 ```
 
@@ -226,10 +226,10 @@ The JS-facing surfaces (`@rsvelte/compiler` wasm bundle, `@rsvelte/vite-plugin-s
 
 If your build relies on any of these, the value won't take effect. Use the workarounds below.
 
-| Option | Behaviour in rsvelte (JS surface) | Workaround |
-|---|---|---|
+| Option                                             | Behaviour in rsvelte (JS surface)                                                                                                    | Workaround                                                                                                                                          |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `cssHash({ hash, name, filename, css }) => string` | Ignored. CSS scope classes fall back to the default `svelte-<base36hash>` scheme — identical to upstream Svelte's default `cssHash`. | Pre-compute the hash on the JS side and pass it as `cssHashOverride: '<hash>'` — an rsvelte-specific extension that injects a deterministic string. |
-| `warningFilter(warning) => boolean` | Ignored. All compiler warnings are returned unfiltered. | Filter `result.warnings` yourself after compilation. |
+| `warningFilter(warning) => boolean`                | Ignored. All compiler warnings are returned unfiltered.                                                                              | Filter `result.warnings` yourself after compilation.                                                                                                |
 
 Everything else (`generate`, `css`, `dev`, `hmr`, `sourcemap`, `runes`, `compatibility`, `experimental.async`, `preserveComments`, `preserveWhitespace`, `customElement`, `accessors`, `namespace`, `immutable`, `modernAst`, `discloseVersion`, `outputFilename`, `cssOutputFilename`, …) matches upstream exactly. The full list of accepted fields is mirrored in [`apps/npm/vite-plugin-svelte-native/index.d.ts`](apps/npm/vite-plugin-svelte-native/index.d.ts).
 
@@ -239,13 +239,13 @@ The Rust API (`rsvelte_core::compile`) has no such restriction — `css_hash: Op
 
 Per-task benchmark across 3,852 real `.svelte` files, 10 iterations (3 warmup). Each task is measured against its JavaScript counterpart — `svelte/compiler` for the compiler phases, `svelte2tsx`, `svelte-check`, and `prettier-plugin-svelte` for `fmt`:
 
-| Task | JS baseline | Rust (single-threaded) | Rust (multi-threaded) | Multi vs JS |
-|---|---:|---:|---:|---:|
-| **Full pipeline** — parse / analyze / codegen | 807.5 ms | 436.5 ms | 61.2 ms | **13.2×** |
-| **Parser only** — phase 1, isolated | 210.9 ms | 9.9 ms | 2.2 ms | **96.3×** |
-| **`svelte2tsx`** — `.svelte` → `.tsx` generation | 328.3 ms | 130.0 ms | 17.2 ms | **19.0×** |
-| **`fmt`** — formatter, `.svelte` sources | 3,475.9 ms | 98.2 ms | 17.0 ms | **204.2×** |
-| **`svelte-check`** — CLI, 500-file workspace | 2,086.9 ms | 50.6 ms | 14.3 ms | **145.5×** |
+| Task                                             | JS baseline | Rust (single-threaded) | Rust (multi-threaded) | Multi vs JS |
+| ------------------------------------------------ | ----------: | ---------------------: | --------------------: | ----------: |
+| **Full pipeline** — parse / analyze / codegen    |    807.5 ms |               436.5 ms |               61.2 ms |   **13.2×** |
+| **Parser only** — phase 1, isolated              |    210.9 ms |                 9.9 ms |                2.2 ms |   **96.3×** |
+| **`svelte2tsx`** — `.svelte` → `.tsx` generation |    328.3 ms |               130.0 ms |               17.2 ms |   **19.0×** |
+| **`fmt`** — formatter, `.svelte` sources         |  3,475.9 ms |                98.2 ms |               17.0 ms |  **204.2×** |
+| **`svelte-check`** — CLI, 500-file workspace     |  2,086.9 ms |                50.6 ms |               14.3 ms |  **145.5×** |
 
 > Apple M1 Pro · 10-core arm64 · 3,852 `.svelte` files · 10 iterations (3 warmup). Recorded 2026-06-06 on the latest `main`. Live numbers, charts, and reproduction steps live on the [benchmark page](https://baseballyama.github.io/rsvelte/benchmark) (or run `pnpm run generate-benchmark` locally).
 
@@ -254,30 +254,32 @@ A single-threaded **100× speedup** over the JS compiler is one of this project'
 ## Compatibility
 
 <!-- svelte-target-version -->
+
 **Targeting Svelte `v5.56.3`** ([`a9f48540e236`](https://github.com/sveltejs/svelte/commit/a9f48540e236)) — automatically maintained by `pnpm run update-docs`.
+
 <!-- /svelte-target-version -->
 
 Current compatibility with the official Svelte compiler test suite:
 
-| Test Suite | Pass | Total | Status | Notes |
-|---|---:|---:|---|---|
-| Parser Modern | 22 | 22 | 100% | |
-| Parser Legacy | 82 | 83 | 100% | 1 skipped (acorn vs OXC comment attachment) |
-| Compiler Snapshot | 28 | 28 | 100% | |
-| CSS | 179 | 179 | 100% | |
-| Validator | 324 | 325 | 100% | 1 skipped (`error-mode-warn`) |
-| Compiler Errors | 144 | 144 | 100% | |
-| Runtime Runes | 865 | 865 | 100% | |
-| Runtime Legacy | 1,202 | 1,202 | 100% | |
-| Runtime Browser | 31 | 31 | 100% | |
-| Hydration | 78 | 78 | 100% | |
-| SSR | 82 | 82 | 100% | |
-| Preprocess | 19 | 19 | 100% | |
-| Print | 40 | 40 | 100% | |
-| svelte2tsx | 245 | 245 | 100% | 2 skipped (`expected.error.json` error fixtures) |
-| **Total (in-scope)** | **3,341** | **3,341** | **100%** | |
-| Migrate | 0 | 76 | — | **Out of scope** — rsvelte is a Svelte 5 compiler port, not a 4→5 migrator |
-| Sourcemaps | 0 | 0 | — | No fixtures yet |
+| Test Suite           |      Pass |     Total | Status   | Notes                                                                      |
+| -------------------- | --------: | --------: | -------- | -------------------------------------------------------------------------- |
+| Parser Modern        |        22 |        22 | 100%     |                                                                            |
+| Parser Legacy        |        82 |        83 | 100%     | 1 skipped (acorn vs OXC comment attachment)                                |
+| Compiler Snapshot    |        28 |        28 | 100%     |                                                                            |
+| CSS                  |       179 |       179 | 100%     |                                                                            |
+| Validator            |       324 |       325 | 100%     | 1 skipped (`error-mode-warn`)                                              |
+| Compiler Errors      |       144 |       144 | 100%     |                                                                            |
+| Runtime Runes        |       865 |       865 | 100%     |                                                                            |
+| Runtime Legacy       |     1,202 |     1,202 | 100%     |                                                                            |
+| Runtime Browser      |        31 |        31 | 100%     |                                                                            |
+| Hydration            |        78 |        78 | 100%     |                                                                            |
+| SSR                  |        82 |        82 | 100%     |                                                                            |
+| Preprocess           |        19 |        19 | 100%     |                                                                            |
+| Print                |        40 |        40 | 100%     |                                                                            |
+| svelte2tsx           |       245 |       245 | 100%     | 2 skipped (`expected.error.json` error fixtures)                           |
+| **Total (in-scope)** | **3,341** | **3,341** | **100%** |                                                                            |
+| Migrate              |         0 |        76 | —        | **Out of scope** — rsvelte is a Svelte 5 compiler port, not a 4→5 migrator |
+| Sourcemaps           |         0 |         0 | —        | No fixtures yet                                                            |
 
 Re-run `pnpm run test-and-update` to refresh these numbers.
 

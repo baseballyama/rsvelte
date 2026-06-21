@@ -31,36 +31,35 @@
  * Flags: --force (regenerate even if the SHA dir exists), --verbose (log skips).
  */
 
-import { execFile } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..', '..');
-const SVELTE_DEV = path.join(ROOT, 'submodules', 'svelte.dev');
+const ROOT = path.resolve(__dirname, "..", "..");
+const SVELTE_DEV = path.join(ROOT, "submodules", "svelte.dev");
 
-const FORCE = process.argv.includes('--force');
-const VERBOSE = process.argv.includes('--verbose');
+const FORCE = process.argv.includes("--force");
+const VERBOSE = process.argv.includes("--verbose");
 
-const OXFMT_BIN = process.env.OXFMT_BIN || path.join(ROOT, 'node_modules', '.bin', 'oxfmt');
-const OXFMT_CONFIG =
-  process.env.OXFMT_CONFIG || path.join(__dirname, 'fmt-corpus.oxfmtrc.json');
+const OXFMT_BIN = process.env.OXFMT_BIN || path.join(ROOT, "node_modules", ".bin", "oxfmt");
+const OXFMT_CONFIG = process.env.OXFMT_CONFIG || path.join(__dirname, "fmt-corpus.oxfmtrc.json");
 const CONCURRENCY = Number(process.env.OXFMT_CONCURRENCY || 8);
 
 const SKIP_DIRS = new Set([
-  'node_modules',
-  '.git',
-  '.svelte-kit',
-  'build',
-  'dist',
-  '.vercel',
-  '.output',
-  'target',
+  "node_modules",
+  ".git",
+  ".svelte-kit",
+  "build",
+  "dist",
+  ".vercel",
+  ".output",
+  "target",
 ]);
 
-const MARKDOWN_EXTS = new Set(['.md', '.svx']);
+const MARKDOWN_EXTS = new Set([".md", ".svx"]);
 
 function fail(msg) {
   console.error(`[generate-fmt-corpus] ${msg}`);
@@ -75,7 +74,7 @@ function getSvelteDevSha() {
     );
   }
   return new Promise((resolve) => {
-    execFile('git', ['-C', SVELTE_DEV, 'rev-parse', 'HEAD'], (err, stdout) => {
+    execFile("git", ["-C", SVELTE_DEV, "rev-parse", "HEAD"], (err, stdout) => {
       if (err) fail(`could not resolve svelte.dev HEAD: ${err.message}`);
       resolve(stdout.trim());
     });
@@ -84,7 +83,7 @@ function getSvelteDevSha() {
 
 function oxfmtVersion() {
   return new Promise((resolve) => {
-    execFile(OXFMT_BIN, ['--version'], (err, stdout) => {
+    execFile(OXFMT_BIN, ["--version"], (err, stdout) => {
       if (err) {
         fail(
           `cannot run oxfmt at ${OXFMT_BIN}: ${err.message}\n` +
@@ -112,11 +111,11 @@ function runOxfmt(source, filename) {
   return new Promise((resolve) => {
     const child = execFile(
       OXFMT_BIN,
-      ['-c', OXFMT_CONFIG, '--stdin-filepath', filename],
+      ["-c", OXFMT_CONFIG, "--stdin-filepath", filename],
       { maxBuffer: 64 * 1024 * 1024 },
       (err, stdout, stderr) => {
-        if (err) resolve({ ok: false, err: (stderr || err.message || '').trim() });
-        else resolve({ ok: true, out: stdout, stderr: (stderr || '').trim() });
+        if (err) resolve({ ok: false, err: (stderr || err.message || "").trim() });
+        else resolve({ ok: true, out: stdout, stderr: (stderr || "").trim() });
       },
     );
     child.stdin.end(source);
@@ -141,7 +140,7 @@ async function pool(items, worker) {
  * `[{ index, raw }]` (0-based index among svelte blocks in the file).
  */
 function extractSvelteBlocks(md) {
-  const lines = md.split('\n');
+  const lines = md.split("\n");
   const blocks = [];
   let i = 0;
   let idx = 0;
@@ -150,12 +149,12 @@ function extractSvelteBlocks(md) {
     if (open) {
       const body = [];
       i++;
-      while (i < lines.length && lines[i].trim() !== '```') {
+      while (i < lines.length && lines[i].trim() !== "```") {
         body.push(lines[i]);
         i++;
       }
       i++; // skip closing fence
-      blocks.push({ index: idx++, raw: body.join('\n') });
+      blocks.push({ index: idx++, raw: body.join("\n") });
     } else {
       i++;
     }
@@ -172,15 +171,15 @@ function extractSvelteBlocks(md) {
  *  - `+++…+++` insertion markers        -> delimiters removed, content kept
  */
 function sanitizeBlock(src) {
-  const kept = src.split('\n').filter((l) => {
+  const kept = src.split("\n").filter((l) => {
     const t = l.trim();
-    if (t.startsWith('/// file:')) return false;
-    if (t.includes('---cut---')) return false;
+    if (t.startsWith("/// file:")) return false;
+    if (t.includes("---cut---")) return false;
     return true;
   });
-  let out = kept.join('\n');
-  out = out.replace(/---[\s\S]*?---/g, ''); // deletion spans
-  out = out.replace(/\+\+\+/g, ''); // insertion delimiters
+  let out = kept.join("\n");
+  out = out.replace(/---[\s\S]*?---/g, ""); // deletion spans
+  out = out.replace(/\+\+\+/g, ""); // insertion delimiters
   return dedent(out);
 }
 
@@ -189,7 +188,7 @@ function sanitizeBlock(src) {
 /// isn't part of the Svelte source — oxfmt drops it when formatting, so strip it
 /// from rsvelte's input too (the oracle is unchanged: oxfmt dedents regardless).
 function dedent(src) {
-  const lines = src.split('\n');
+  const lines = src.split("\n");
   let prefix = null;
   for (const l of lines) {
     if (!l.trim()) continue;
@@ -204,7 +203,7 @@ function dedent(src) {
     if (!prefix) return src;
   }
   if (!prefix) return src;
-  return lines.map((l) => (l.startsWith(prefix) ? l.slice(prefix.length) : l)).join('\n');
+  return lines.map((l) => (l.startsWith(prefix) ? l.slice(prefix.length) : l)).join("\n");
 }
 
 async function main() {
@@ -212,7 +211,7 @@ async function main() {
   const shortSha = sha.slice(0, 12);
   const version = await oxfmtVersion();
 
-  const outDir = path.join(ROOT, 'fixtures', 'fmt-corpus', shortSha);
+  const outDir = path.join(ROOT, "fixtures", "fmt-corpus", shortSha);
   if (fs.existsSync(outDir) && !FORCE) {
     console.log(
       `[generate-fmt-corpus] fixtures already exist at fixtures/fmt-corpus/${shortSha} ` +
@@ -221,13 +220,11 @@ async function main() {
     return;
   }
 
-  const configSrc = fs.readFileSync(OXFMT_CONFIG, 'utf8');
-  const configHash = createHash('sha256').update(configSrc).digest('hex').slice(0, 16);
+  const configSrc = fs.readFileSync(OXFMT_CONFIG, "utf8");
+  const configHash = createHash("sha256").update(configSrc).digest("hex").slice(0, 16);
 
-  const svelteFiles = [...walkFiles(SVELTE_DEV, (n) => n.endsWith('.svelte'))].sort();
-  const mdFiles = [
-    ...walkFiles(SVELTE_DEV, (n) => MARKDOWN_EXTS.has(path.extname(n))),
-  ].sort();
+  const svelteFiles = [...walkFiles(SVELTE_DEV, (n) => n.endsWith(".svelte"))].sort();
+  const mdFiles = [...walkFiles(SVELTE_DEV, (n) => MARKDOWN_EXTS.has(path.extname(n)))].sort();
 
   console.log(
     `[generate-fmt-corpus] svelte.dev@${shortSha} | oxfmt ${version} | config ${configHash}\n` +
@@ -247,23 +244,23 @@ async function main() {
 
   // ── Stage 1: .svelte files ────────────────────────────────────────────
   await pool(svelteFiles, async (absPath) => {
-    const rel = path.relative(SVELTE_DEV, absPath).split(path.sep).join('/');
+    const rel = path.relative(SVELTE_DEV, absPath).split(path.sep).join("/");
     const id = `files/${rel}`;
-    const source = fs.readFileSync(absPath, 'utf8');
+    const source = fs.readFileSync(absPath, "utf8");
     const res = await runOxfmt(source, path.basename(absPath));
     if (!res.ok) {
-      skips.push({ id, reason: oneLine(res.err) || 'oxfmt failed' });
+      skips.push({ id, reason: oneLine(res.err) || "oxfmt failed" });
       if (VERBOSE) console.log(`  skip ${id}: ${oneLine(res.err)}`);
       return;
     }
-    writeSample(path.join(tmpDir, 'files', rel), 'svelte', source, res.out);
+    writeSample(path.join(tmpDir, "files", rel), "svelte", source, res.out);
     counts.files.generated++;
   });
 
   // ── Stage 2: svelte code blocks in markdown ───────────────────────────
   const blockItems = [];
   for (const absPath of mdFiles) {
-    const rel = path.relative(SVELTE_DEV, absPath).split(path.sep).join('/');
+    const rel = path.relative(SVELTE_DEV, absPath).split(path.sep).join("/");
     // The `llms*.txt/` docs are auto-generated concatenations of the whole
     // documentation; their ```svelte blocks stitch several components together
     // with `<!-- File.svelte -->` delimiters, so they aren't single, valid
@@ -271,7 +268,7 @@ async function main() {
     if (/(^|\/)llms[^/]*\//.test(rel) || /(^|\/)llms[^/]*\.txt/.test(rel)) {
       continue;
     }
-    const md = fs.readFileSync(absPath, 'utf8');
+    const md = fs.readFileSync(absPath, "utf8");
     for (const b of extractSvelteBlocks(md)) {
       blockItems.push({ rel, index: b.index, raw: b.raw });
     }
@@ -281,17 +278,17 @@ async function main() {
     const id = `blocks/${item.rel}/${item.index}-svelte`;
     const sanitized = sanitizeBlock(item.raw);
     if (!sanitized.trim()) {
-      skips.push({ id, reason: 'empty after sanitization' });
+      skips.push({ id, reason: "empty after sanitization" });
       return;
     }
     // oxfmt round-trips on its own output; the oracle is what oxfmt produces
     // for the sanitized source, and the test feeds the SAME sanitized source
     // to rsvelte. Append a trailing newline so the stdin source is a normal
     // file shape.
-    const source = sanitized.endsWith('\n') ? sanitized : `${sanitized}\n`;
-    const res = await runOxfmt(source, 'block.svelte');
+    const source = sanitized.endsWith("\n") ? sanitized : `${sanitized}\n`;
+    const res = await runOxfmt(source, "block.svelte");
     if (!res.ok) {
-      skips.push({ id, reason: oneLine(res.err) || 'oxfmt failed' });
+      skips.push({ id, reason: oneLine(res.err) || "oxfmt failed" });
       if (VERBOSE) console.log(`  skip ${id}: ${oneLine(res.err)}`);
       return;
     }
@@ -307,8 +304,8 @@ async function main() {
       return;
     }
     writeSample(
-      path.join(tmpDir, 'blocks', item.rel, `${item.index}-svelte`),
-      'svelte',
+      path.join(tmpDir, "blocks", item.rel, `${item.index}-svelte`),
+      "svelte",
       source,
       res.out,
     );
@@ -317,21 +314,21 @@ async function main() {
 
   // ── Stage 3: whole markdown files ─────────────────────────────────────
   await pool(mdFiles, async (absPath) => {
-    const rel = path.relative(SVELTE_DEV, absPath).split(path.sep).join('/');
+    const rel = path.relative(SVELTE_DEV, absPath).split(path.sep).join("/");
     const id = `markdown/${rel}`;
-    const source = fs.readFileSync(absPath, 'utf8');
+    const source = fs.readFileSync(absPath, "utf8");
     const res = await runOxfmt(source, path.basename(absPath));
     if (!res.ok) {
-      skips.push({ id, reason: oneLine(res.err) || 'oxfmt failed' });
+      skips.push({ id, reason: oneLine(res.err) || "oxfmt failed" });
       if (VERBOSE) console.log(`  skip ${id}: ${oneLine(res.err)}`);
       return;
     }
-    writeSample(path.join(tmpDir, 'markdown', rel), 'md', source, res.out);
+    writeSample(path.join(tmpDir, "markdown", rel), "md", source, res.out);
     counts.markdown.generated++;
   });
 
   const manifest = {
-    corpus: 'svelte.dev',
+    corpus: "svelte.dev",
     sha,
     shortSha,
     oxfmtVersion: version,
@@ -341,10 +338,7 @@ async function main() {
     skipped: skips.length,
     skips: skips.sort((a, b) => a.id.localeCompare(b.id)),
   };
-  fs.writeFileSync(
-    path.join(tmpDir, 'manifest.json'),
-    JSON.stringify(manifest, null, 2) + '\n',
-  );
+  fs.writeFileSync(path.join(tmpDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
 
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(path.dirname(outDir), { recursive: true });
@@ -366,7 +360,7 @@ function writeSample(dir, ext, input, expected) {
 }
 
 function oneLine(s) {
-  return (s || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  return (s || "").replace(/\s+/g, " ").trim().slice(0, 200);
 }
 
 main().catch((e) => fail(e.stack || String(e)));

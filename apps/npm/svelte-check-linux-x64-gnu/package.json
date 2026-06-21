@@ -8,6 +8,9 @@
     "url": "git+https://github.com/baseballyama/rsvelte.git",
     "directory": "apps/npm/svelte-check-linux-x64-gnu"
   },
+  "files": [
+    "svelte-check"
+  ],
   "os": [
     "linux"
   ],
@@ -17,13 +20,10 @@
   "libc": [
     "glibc"
   ],
-  "files": [
-    "svelte-check"
-  ],
-  "scripts": {
-    "prepack": "chmod +x svelte-check"
-  },
   "publishConfig": {
     "access": "public"
+  },
+  "scripts": {
+    "prepack": "chmod +x svelte-check"
   }
 }

@@ -50,24 +50,20 @@ pub(crate) fn format_script(
     }
 
     let allocator = Allocator::default();
-    let source_type = if script.is_typescript {
-        SourceType::ts()
-    } else {
-        SourceType::default()
-    };
+    // Always parse as TypeScript: oxfmt's `.svelte` mode via `prettier-plugin-svelte`
+    // uses `babel-ts` (TypeScript parser) for ALL `<script>` blocks regardless of
+    // `lang="ts"`. TypeScript is a superset of JS so valid JS parses identically,
+    // but the TypeScript source-type flag changes two cosmetic formatting behaviors:
+    //   1. Numeric-looking string keys like `{ '1': 'one' }` are preserved as `"1"`
+    //      rather than being unquoted to `1` (see `can_remove_number_quotes_by_file_type`).
+    //   2. TypeScript class property declarations keep their quotes.
+    // Both of these match the oracle, so using `SourceType::ts()` unconditionally
+    // aligns rsvelte-fmt with oxfmt's `.svelte` behaviour (#D).
+    let source_type = SourceType::ts();
 
-    let mut parser_ret = Parser::new(&allocator, body, source_type)
+    let parser_ret = Parser::new(&allocator, body, source_type)
         .with_options(formatter_parse_options())
         .parse();
-    if !parser_ret.diagnostics.is_empty() && !script.is_typescript {
-        // oxfmt parses `<script>` content leniently — TS is a superset of JS, so
-        // TS-only syntax in a script without `lang="ts"` (common in docs) still
-        // formats. Fall back to the TS parser when the JS parse fails. Valid JS
-        // never reaches here, so its output is unchanged.
-        parser_ret = Parser::new(&allocator, body, SourceType::ts())
-            .with_options(formatter_parse_options())
-            .parse();
-    }
     if !parser_ret.diagnostics.is_empty() {
         return Err(FormatError::ScriptParse(format!(
             "{:?}",
@@ -134,25 +130,13 @@ pub(crate) fn format_nested_script(
     if body.trim().is_empty() {
         return Ok(None);
     }
-    let is_ts =
-        block[..open_end].contains("lang=\"ts\"") || block[..open_end].contains("lang='ts'");
-
     let allocator = Allocator::default();
-    let source_type = if is_ts {
-        SourceType::ts()
-    } else {
-        SourceType::default()
-    };
-    let mut parser_ret = Parser::new(&allocator, body, source_type)
+    // Same reasoning as format_script: always use TS source type so that
+    // numeric-looking string property keys are preserved (oracle uses babel-ts).
+    let source_type = SourceType::ts();
+    let parser_ret = Parser::new(&allocator, body, source_type)
         .with_options(formatter_parse_options())
         .parse();
-    if !parser_ret.diagnostics.is_empty() && !is_ts {
-        // Fall back to the TS parser (superset of JS) — matches oxfmt's lenient
-        // parse of a `<script>` without `lang="ts"` that uses TS-only syntax.
-        parser_ret = Parser::new(&allocator, body, SourceType::ts())
-            .with_options(formatter_parse_options())
-            .parse();
-    }
     if !parser_ret.diagnostics.is_empty() {
         // Can't parse → leave the nested script untouched.
         return Ok(None);
@@ -190,15 +174,115 @@ pub(crate) fn format_nested_script(
 ///   `<script lang='ts'>` → `<script lang="ts">`).
 ///
 /// Returns the edit only when it changes something.
-pub(crate) fn format_open_tag(source: &str, start: u32, end: u32) -> Option<(u32, u32, String)> {
+pub(crate) fn format_open_tag(
+    source: &str,
+    start: u32,
+    end: u32,
+    options: &FormatOptions,
+) -> Option<(u32, u32, String)> {
     let block = source.get(start as usize..end as usize)?;
     let tag_end_rel = find_open_tag_end(block)? + 1;
     let tag = &block[..tag_end_rel];
     let normalized = normalize_open_tag(tag);
-    if normalized == tag {
+    let line_width = options.js.line_width.value() as usize;
+    let indent_width = options.js.indent_width.value() as usize;
+    let result = if normalized.len() > line_width {
+        // The normalized flat tag overflows the print width — wrap each
+        // attribute onto its own line at one level of indent (the top-level
+        // `<script>` / `<style>` block is always at depth 0).
+        wrap_script_open_tag(&normalized, indent_width).unwrap_or(normalized)
+    } else {
+        normalized
+    };
+    if result == tag {
         return None;
     }
-    Some((start, start + tag_end_rel as u32, normalized))
+    Some((start, start + tag_end_rel as u32, result))
+}
+
+/// Reformat a flat normalized open tag (e.g. `<script lang="ts" generics="T extends ...">`)
+/// as a multi-line form with each attribute on its own line at `indent_width` spaces:
+///
+/// ```text
+/// <script
+///   lang="ts"
+///   generics="T extends ..."
+/// >
+/// ```
+///
+/// Returns `None` when the tag can't be parsed (e.g. no attributes).
+fn wrap_script_open_tag(tag: &str, indent_width: usize) -> Option<String> {
+    // Strip the leading `<` and trailing `>`.
+    let inner = tag.strip_prefix('<')?.strip_suffix('>')?;
+    // Split tag name from attributes. Tag name is everything up to the first space.
+    let (tag_name, rest) = if let Some(sp) = inner.find(' ') {
+        (&inner[..sp], inner[sp + 1..].trim())
+    } else {
+        // No attributes — nothing to wrap.
+        return None;
+    };
+    // Parse attributes from the flat string. All values are double-quoted after
+    // normalize_open_tag, so we scan respecting quoted spans.
+    let mut attrs: Vec<String> = Vec::new();
+    let bytes = rest.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    while i < len {
+        // Skip leading whitespace.
+        while i < len && bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        if i >= len {
+            break;
+        }
+        // Collect attribute name (up to `=` or whitespace).
+        let name_start = i;
+        while i < len && bytes[i] != b'=' && !bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        if i <= name_start {
+            break;
+        }
+        let name = &rest[name_start..i];
+        if i >= len || bytes[i] != b'=' {
+            // Boolean attribute.
+            attrs.push(name.to_string());
+            continue;
+        }
+        // Consume `=`.
+        i += 1;
+        if i >= len {
+            attrs.push(name.to_string());
+            break;
+        }
+        // Collect value (must be double-quoted after normalize_open_tag).
+        if bytes[i] != b'"' {
+            // Unexpected format — bail out.
+            return None;
+        }
+        i += 1; // skip opening `"`
+        let val_start = i;
+        while i < len && bytes[i] != b'"' {
+            i += 1;
+        }
+        let val = &rest[val_start..i];
+        if i < len {
+            i += 1; // skip closing `"`
+        }
+        attrs.push(format!("{}=\"{}\"", name, val));
+    }
+    if attrs.is_empty() {
+        return None;
+    }
+    let indent = " ".repeat(indent_width);
+    let mut out = format!("<{tag_name}");
+    for attr in &attrs {
+        out.push('\n');
+        out.push_str(&indent);
+        out.push_str(attr);
+    }
+    out.push_str("\n>");
+    Some(out)
 }
 
 /// Normalize whitespace and quote styles in a `<script …>` / `<style …>` open

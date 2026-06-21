@@ -55,15 +55,15 @@ gh run view <run_id> --repo "$OWNER/$REPO" --log-failed
 
 失敗の種類に応じて修正:
 
-| 失敗タイプ      | 修正方法                                                                             |
-| --------------- | ------------------------------------------------------------------------------------ |
-| fmt エラー      | `cargo fmt --all` を実行                                                             |
-| clippy エラー   | `cargo clippy --all-targets --all-features -- -D warnings` の出力を見て修正          |
-| ビルドエラー    | `cargo build --all-targets` の出力を見て修正                                         |
-| テスト失敗      | 該当する `cargo test --test <suite>` を実行し、テストコード or 実装コードを修正      |
-| fixtures ずれ   | `pnpm run generate-fixtures` を再実行してから再度テスト                              |
-| docs / report   | `pnpm run test-and-update` でドキュメントを再生成                                    |
-| Node 側エラー   | `pnpm install` で依存解決、`node scripts/...` の出力を確認                           |
+| 失敗タイプ    | 修正方法                                                                        |
+| ------------- | ------------------------------------------------------------------------------- |
+| fmt エラー    | `cargo fmt --all` を実行                                                        |
+| clippy エラー | `cargo clippy --all-targets --all-features -- -D warnings` の出力を見て修正     |
+| ビルドエラー  | `cargo build --all-targets` の出力を見て修正                                    |
+| テスト失敗    | 該当する `cargo test --test <suite>` を実行し、テストコード or 実装コードを修正 |
+| fixtures ずれ | `pnpm run generate-fixtures` を再実行してから再度テスト                         |
+| docs / report | `pnpm run test-and-update` でドキュメントを再生成                               |
+| Node 側エラー | `pnpm install` で依存解決、`node scripts/...` の出力を確認                      |
 
 ローカルでは可能な限り **CI と同じコマンド** を流して再現させる。CI ワークフローは `.github/workflows/` を参照。
 

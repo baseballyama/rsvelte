@@ -11,14 +11,14 @@ listed in [`corpus-sources.json`](./corpus-sources.json). There is no separate
 shipped source of real-world component libraries are all compiled and verified
 the same way. **To grow the corpus, [add a repository](#adding-a-repository-to-the-corpus).**
 
-| Source | Submodule | Role |
-|---|---|---|
-| [sveltejs/svelte](https://github.com/sveltejs/svelte) | `submodules/svelte` | svelte's own fixtures + the compiler/version pin rsvelte mirrors |
-| [sveltejs/svelte.dev](https://github.com/sveltejs/svelte.dev) | `submodules/svelte.dev` | curated docs (markdown code blocks) |
-| [huntabyte/bits-ui](https://github.com/huntabyte/bits-ui) | `submodules/bits-ui` | headless UI library (real-world) |
-| [themesberg/flowbite-svelte](https://github.com/themesberg/flowbite-svelte) | `submodules/flowbite-svelte` | UI library (real-world) |
-| [melt-ui/next-gen](https://github.com/melt-ui/next-gen) | `submodules/melt-ui` | headless/runes UI library (real-world) |
-| [huntabyte/shadcn-svelte](https://github.com/huntabyte/shadcn-svelte) | `submodules/shadcn-svelte` | SvelteKit component app (real-world) |
+| Source                                                                      | Submodule                    | Role                                                             |
+| --------------------------------------------------------------------------- | ---------------------------- | ---------------------------------------------------------------- |
+| [sveltejs/svelte](https://github.com/sveltejs/svelte)                       | `submodules/svelte`          | svelte's own fixtures + the compiler/version pin rsvelte mirrors |
+| [sveltejs/svelte.dev](https://github.com/sveltejs/svelte.dev)               | `submodules/svelte.dev`      | curated docs (markdown code blocks)                              |
+| [huntabyte/bits-ui](https://github.com/huntabyte/bits-ui)                   | `submodules/bits-ui`         | headless UI library (real-world)                                 |
+| [themesberg/flowbite-svelte](https://github.com/themesberg/flowbite-svelte) | `submodules/flowbite-svelte` | UI library (real-world)                                          |
+| [melt-ui/next-gen](https://github.com/melt-ui/next-gen)                     | `submodules/melt-ui`         | headless/runes UI library (real-world)                           |
+| [huntabyte/shadcn-svelte](https://github.com/huntabyte/shadcn-svelte)       | `submodules/shadcn-svelte`   | SvelteKit component app (real-world)                             |
 
 Every source is **pinned by its submodule gitlink** and bumped by
 `auto-update-submodules.yml` (weekly PR per submodule; svelte itself goes through
@@ -33,7 +33,7 @@ Both compilers run with identical default options (`dev: false`,
 before compilation, mirroring the production pipeline (Vite runs esbuild
 before vite-plugin-svelte's `compileModule`, which only parses plain JS). Outputs are normalized to absorb formatting-only
 differences; anything that survives normalization is a real divergence and
-fails verification. Files the official compiler rejects are *error-parity*
+fails verification. Files the official compiler rejects are _error-parity_
 cases: rsvelte must reject them too (same error code).
 
 Normalization is four layers, all in the comparison side — the compiler
@@ -140,7 +140,7 @@ node scripts/compat-corpus/fmt-verify.mjs --update-baseline # shrink the ratchet
 
 > **Baseline / environment note.** `oxfmt` (the oracle) decides which entries are
 > formattable, and that decision can differ slightly across platforms — Linux CI
-> currently *includes* ~13 loose-declaration-tag entries (`{const …}` / `{let …}`)
+> currently _includes_ ~13 loose-declaration-tag entries (`{const …}` / `{let …}`)
 > that macOS `oxfmt` skips. The CI Linux environment is the source of truth, so the
 > committed `fmt-known-failures.json` is the **CI** failure set. Do **not**
 > `--update-baseline` from a macOS run and commit it — that would drop the
@@ -152,7 +152,7 @@ node scripts/compat-corpus/fmt-verify.mjs --update-baseline # shrink the ratchet
 ## svelte2tsx parity (same corpus, TSX output)
 
 The same collected sources also drive a **svelte2tsx** output-equality check:
-every *component* entry (`kind === 'component'`; `.svelte.(js|ts)` modules are
+every _component_ entry (`kind === 'component'`; `.svelte.(js|ts)` modules are
 out of scope — svelte2tsx only converts components) is converted to TSX with
 **both** the official `svelte2tsx` (built from the `submodules/language-tools`
 gitlink) and rsvelte's port (the `svelte2tsx` NAPI export), and the two must be
@@ -202,7 +202,7 @@ node scripts/compat-corpus/svelte2tsx-cluster.mjs            # size the burn-dow
   source submodule (svelte, svelte.dev, and the real-world projects) is
   shallow-initialised, so the whole unified corpus runs on each PR. Expected
   outputs are regenerated from the pinned submodules on every run, so bumping a
-  pin automatically refreshes the corpus *and* its expectations; the fmt oracle
+  pin automatically refreshes the corpus _and_ its expectations; the fmt oracle
   is cached by a combined hash of all source SHAs + oxfmt + config.
 - Source bumps arrive via `auto-update-submodules.yml` (weekly PR per submodule —
   svelte.dev and each real-world project) and `auto-update-svelte.yml` (the
@@ -211,7 +211,7 @@ node scripts/compat-corpus/svelte2tsx-cluster.mjs            # size the burn-dow
   introduce new divergences, so its PR may be red until the corpus baselines are
   re-triaged (`--update-baseline`).
 
-There is no separate scheduled "ecosystem" workflow — the corpus *is* the
+There is no separate scheduled "ecosystem" workflow — the corpus _is_ the
 ecosystem coverage, and the weekly submodule bumps are what keep it current.
 
 ## Lint parity (eslint-plugin-svelte)
@@ -220,16 +220,16 @@ A third track verifies that the native `rsvelte-lint` produces the **same
 findings** as the real `eslint-plugin-svelte`, over every `.svelte` source in
 the two lint-relevant upstream repos:
 
-| Source | Pin |
-|---|---|
+| Source                                                                            | Pin                                       |
+| --------------------------------------------------------------------------------- | ----------------------------------------- |
 | [sveltejs/eslint-plugin-svelte](https://github.com/sveltejs/eslint-plugin-svelte) | `submodules/eslint-plugin-svelte` gitlink |
 | [sveltejs/svelte-eslint-parser](https://github.com/sveltejs/svelte-eslint-parser) | `submodules/svelte-eslint-parser` gitlink |
 
 Both repos' rule fixtures, parser fixtures, docs snippets and demo components
 exercise exactly the surface the linter must match. (The fixture-level oracle
-in `crates/rsvelte_lint/tests/eslint_plugin_oracle.rs` asserts *exact* parity
+in `crates/rsvelte_lint/tests/eslint_plugin_oracle.rs` asserts _exact_ parity
 against each fixture's expected `*-errors.yaml`; this corpus track is the
-*real-world* complement — every source linted by both engines, diffed.)
+_real-world_ complement — every source linted by both engines, diffed.)
 
 ### How it works
 
@@ -261,7 +261,7 @@ pnpm run lint-corpus:update            # re-baseline known-failures.json after a
   so the oracle's version detection treats every source as a Svelte 5 +
   SvelteKit 2 project — matching `rsvelte-lint`, which fires the
   SvelteKit-conditional rules unconditionally.
-- **Ratchet** — every finding present on exactly one side is a *divergence*,
+- **Ratchet** — every finding present on exactly one side is a _divergence_,
   recorded in `compat/lint-corpus/known-failures.json` (tracked). The set may
   only **shrink**: a NEW divergence fails CI; fixed ones are pruned with
   `--update`. See [docs/lint-corpus-remaining-work.md](../../docs/lint-corpus-remaining-work.md)

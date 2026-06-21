@@ -11,31 +11,31 @@
 
 /** base64url-encode the UTF-8 bytes of `code`. */
 export function encodeCode(code: string): string {
-	const bytes = new TextEncoder().encode(code);
-	let binary = '';
-	// Chunk to stay well under any arg-count limits on String.fromCharCode.
-	const CHUNK = 0x8000;
-	for (let i = 0; i < bytes.length; i += CHUNK) {
-		binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-	}
-	return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const bytes = new TextEncoder().encode(code);
+  let binary = "";
+  // Chunk to stay well under any arg-count limits on String.fromCharCode.
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 /** Inverse of {@link encodeCode}. Returns `null` if the payload is malformed. */
 export function decodeCode(encoded: string): string | null {
-	try {
-		const b64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-		const binary = atob(b64);
-		const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
-		return new TextDecoder().decode(bytes);
-	} catch {
-		return null;
-	}
+  try {
+    const b64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    const binary = atob(b64);
+    const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return null;
+  }
 }
 
 /** Read the shared source out of a URL hash like `#code=…` (or `code=…`). */
 export function readSharedCode(hash: string): string | null {
-	const params = new URLSearchParams(hash.replace(/^#/, ''));
-	const code = params.get('code');
-	return code ? decodeCode(code) : null;
+  const params = new URLSearchParams(hash.replace(/^#/, ""));
+  const code = params.get("code");
+  return code ? decodeCode(code) : null;
 }

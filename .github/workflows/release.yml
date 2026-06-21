@@ -53,7 +53,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24'
+          node-version: "24"
 
       - name: Install pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -70,8 +70,8 @@ jobs:
           # changeset version (bump versions, write CHANGELOG)
           # + sync-version.mjs (mirror the bump into Cargo.toml/Cargo.lock)
           version: pnpm run version-packages
-          commit: 'chore(release): version packages'
-          title: 'chore(release): version packages'
+          commit: "chore(release): version packages"
+          title: "chore(release): version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -90,11 +90,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, ext: '' }
-          - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, ext: '' }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, ext: '' }
-          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, ext: '', apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
-          - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, ext: '.exe' }
+          - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, ext: "" }
+          - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, ext: "" }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, ext: "" }
+          - {
+              os: ubuntu-latest,
+              target: aarch64-unknown-linux-gnu,
+              triple: linux-arm64-gnu,
+              ext: "",
+              apt: gcc-aarch64-linux-gnu,
+              linker: aarch64-linux-gnu-gcc,
+            }
+          - {
+              os: windows-latest,
+              target: x86_64-pc-windows-msvc,
+              triple: win32-x64-msvc,
+              ext: ".exe",
+            }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
@@ -151,11 +163,38 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, dylib: librsvelte_core.dylib }
-          - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, dylib: librsvelte_core.dylib }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, dylib: librsvelte_core.so }
-          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, dylib: librsvelte_core.so, apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
-          - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, dylib: rsvelte_core.dll }
+          - {
+              os: macos-latest,
+              target: aarch64-apple-darwin,
+              triple: darwin-arm64,
+              dylib: librsvelte_core.dylib,
+            }
+          - {
+              os: macos-latest,
+              target: x86_64-apple-darwin,
+              triple: darwin-x64,
+              dylib: librsvelte_core.dylib,
+            }
+          - {
+              os: ubuntu-latest,
+              target: x86_64-unknown-linux-gnu,
+              triple: linux-x64-gnu,
+              dylib: librsvelte_core.so,
+            }
+          - {
+              os: ubuntu-latest,
+              target: aarch64-unknown-linux-gnu,
+              triple: linux-arm64-gnu,
+              dylib: librsvelte_core.so,
+              apt: gcc-aarch64-linux-gnu,
+              linker: aarch64-linux-gnu-gcc,
+            }
+          - {
+              os: windows-latest,
+              target: x86_64-pc-windows-msvc,
+              triple: win32-x64-msvc,
+              dylib: rsvelte_core.dll,
+            }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
@@ -180,7 +219,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24'
+          node-version: "24"
 
       - name: Build NAPI cdylib
         shell: bash
@@ -213,11 +252,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, ext: '' }
-          - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, ext: '' }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, ext: '' }
-          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, ext: '', apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
-          - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, ext: '.exe' }
+          - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, ext: "" }
+          - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, ext: "" }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, ext: "" }
+          - {
+              os: ubuntu-latest,
+              target: aarch64-unknown-linux-gnu,
+              triple: linux-arm64-gnu,
+              ext: "",
+              apt: gcc-aarch64-linux-gnu,
+              linker: aarch64-linux-gnu-gcc,
+            }
+          - {
+              os: windows-latest,
+              target: x86_64-pc-windows-msvc,
+              triple: win32-x64-msvc,
+              ext: ".exe",
+            }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
@@ -294,8 +345,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
 
       # npm OIDC trusted publishing requires npm >= 11.5.1. Node 22 ships an
       # older bundled npm, so pin to a known-good version that supports
@@ -314,7 +365,7 @@ jobs:
         with:
           # `pattern` matches both svelte-check-* and vps-native-* uploads —
           # each artifact is unpacked into `artifacts/<name>/`.
-          pattern: '*'
+          pattern: "*"
           path: artifacts
 
       - name: Stage svelte-check binaries
@@ -345,7 +396,7 @@ jobs:
           # No `version` input here — version bumping happens in the separate
           # `version-pr` job, decoupled from the binary builds this job needs.
           publish: pnpm run release
-          commit: 'chore(release): version packages'
-          title: 'chore(release): version packages'
+          commit: "chore(release): version packages"
+          title: "chore(release): version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

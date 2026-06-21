@@ -30,32 +30,32 @@ Micro-bench it with `cargo bench -p rsvelte_formatter --bench formatter`.
 
 ## What it formats
 
-| Surface | Notes |
-|---|---|
-| `<script>` / `<script context="module">` body | Re-parsed with `oxc_parser`, formatted via `oxc_formatter::Formatter::build` |
-| `<style>` body | Delegated to the [`style_formatter`](#options) callback (lang-aware: `css` / `scss` / `less` / …). Verbatim when no callback is set |
-| Template-position `{expr}` interpolations | Formatted; whitespace inside braces collapsed |
-| Attribute values: `class={expr}`, `class="a{expr}b"` | Formatted inline |
-| Spread attribute: `{...obj.props}` | Formatted inline |
-| `{@html EXPR}`, `{@render EXPR}`, `{@debug ID, …}`, `{@attach EXPR}` | Formatted inline |
-| Directives: `bind:` / `class:` / `on:` / `transition:` / `in:` / `out:` / `animate:` / `use:` / `style:` | Expression formatted, modifiers preserved |
-| Block headers: `{#if}`, `{#each}`, `{#await}`, `{#key}`, `{#snippet}` | Test / iterable / promise / key formatted |
-| Destructuring patterns: `{#each … as PATTERN}`, `{:then PATTERN}`, `{:catch PATTERN}`, `{#snippet name(PARAM, …)}`, `let:item={PATTERN}` | Object / array / default / rest patterns normalized via oxc |
-| `<svelte:component this={X}>` / `<svelte:element this={X}>` | `this` rendered as the first attribute |
-| Open-tag attribute spacing | Single space between attributes, self-closing normalized to ` />` |
-| Close-tag whitespace | `</div >` → `</div>` |
-| Attribute shorthand | `name={name}` → `{name}`, `bind:name={name}` → `bind:name`, `class:name={name}` → `class:name` |
-| Child indentation | Re-indented per nesting depth and `indent_style` / `indent_width` |
-| Block body indentation | Body of `{#if}` etc. indented one level deeper than the block |
-| Open-tag line wrapping | When the one-liner would overflow `line_width`, attributes break one-per-line |
-| `<pre>` / `<textarea>` whitespace | Preserved verbatim |
+| Surface                                                                                                                                  | Notes                                                                                                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `<script>` / `<script context="module">` body                                                                                            | Re-parsed with `oxc_parser`, formatted via `oxc_formatter::Formatter::build`                                                        |
+| `<style>` body                                                                                                                           | Delegated to the [`style_formatter`](#options) callback (lang-aware: `css` / `scss` / `less` / …). Verbatim when no callback is set |
+| Template-position `{expr}` interpolations                                                                                                | Formatted; whitespace inside braces collapsed                                                                                       |
+| Attribute values: `class={expr}`, `class="a{expr}b"`                                                                                     | Formatted inline                                                                                                                    |
+| Spread attribute: `{...obj.props}`                                                                                                       | Formatted inline                                                                                                                    |
+| `{@html EXPR}`, `{@render EXPR}`, `{@debug ID, …}`, `{@attach EXPR}`                                                                     | Formatted inline                                                                                                                    |
+| Directives: `bind:` / `class:` / `on:` / `transition:` / `in:` / `out:` / `animate:` / `use:` / `style:`                                 | Expression formatted, modifiers preserved                                                                                           |
+| Block headers: `{#if}`, `{#each}`, `{#await}`, `{#key}`, `{#snippet}`                                                                    | Test / iterable / promise / key formatted                                                                                           |
+| Destructuring patterns: `{#each … as PATTERN}`, `{:then PATTERN}`, `{:catch PATTERN}`, `{#snippet name(PARAM, …)}`, `let:item={PATTERN}` | Object / array / default / rest patterns normalized via oxc                                                                         |
+| `<svelte:component this={X}>` / `<svelte:element this={X}>`                                                                              | `this` rendered as the first attribute                                                                                              |
+| Open-tag attribute spacing                                                                                                               | Single space between attributes, self-closing normalized to ` />`                                                                   |
+| Close-tag whitespace                                                                                                                     | `</div >` → `</div>`                                                                                                                |
+| Attribute shorthand                                                                                                                      | `name={name}` → `{name}`, `bind:name={name}` → `bind:name`, `class:name={name}` → `class:name`                                      |
+| Child indentation                                                                                                                        | Re-indented per nesting depth and `indent_style` / `indent_width`                                                                   |
+| Block body indentation                                                                                                                   | Body of `{#if}` etc. indented one level deeper than the block                                                                       |
+| Open-tag line wrapping                                                                                                                   | When the one-liner would overflow `line_width`, attributes break one-per-line                                                       |
+| `<pre>` / `<textarea>` whitespace                                                                                                        | Preserved verbatim                                                                                                                  |
 
 ## What it does NOT (yet) format
 
-| Surface | Why deferred |
-|---|---|
-| `{@const ident = expr}`, `{let …}`, `{const …}` | Statement-shaped tags (VariableDeclaration, not a bare expression) — need statement formatting |
-| Text-content whitespace collapse (`<p>hello   world</p>`) | Behaviour decision pending |
+| Surface                                                   | Why deferred                                                                                   |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `{@const ident = expr}`, `{let …}`, `{const …}`           | Statement-shaped tags (VariableDeclaration, not a bare expression) — need statement formatting |
+| Text-content whitespace collapse (`<p>hello   world</p>`) | Behaviour decision pending                                                                     |
 
 ## Usage
 
@@ -116,17 +116,17 @@ file formatting via `rayon`.
 [`oxc_formatter::JsFormatOptions`](https://docs.rs/oxc_formatter/) so JS and
 Svelte share the same configuration:
 
-| Field | Default | Effect |
-|---|---|---|
-| `js.indent_style` | `Space` | Per indent level: `Space` or `Tab` |
-| `js.indent_width` | `2` | Spaces per indent level (ignored for tabs) |
-| `js.line_width` | `80` | Open-tag wrapping threshold |
-| `js.quote_style` | `Double` | String / attribute quote |
-| `js.semicolons` | `Always` | Semicolons in `<script>` bodies |
-| `js.trailing_commas` | `All` | Trailing commas in `<script>` bodies |
-| `js.arrow_parentheses` | `Always` | `(x) => x` vs `x => x` |
-| _everything else on `JsFormatOptions`_ | — | Used for `<script>` bodies and embedded expressions |
-| `style_formatter` | `None` | Callback formatting each `<style>` body; verbatim when unset |
+| Field                                  | Default  | Effect                                                       |
+| -------------------------------------- | -------- | ------------------------------------------------------------ |
+| `js.indent_style`                      | `Space`  | Per indent level: `Space` or `Tab`                           |
+| `js.indent_width`                      | `2`      | Spaces per indent level (ignored for tabs)                   |
+| `js.line_width`                        | `80`     | Open-tag wrapping threshold                                  |
+| `js.quote_style`                       | `Double` | String / attribute quote                                     |
+| `js.semicolons`                        | `Always` | Semicolons in `<script>` bodies                              |
+| `js.trailing_commas`                   | `All`    | Trailing commas in `<script>` bodies                         |
+| `js.arrow_parentheses`                 | `Always` | `(x) => x` vs `x => x`                                       |
+| _everything else on `JsFormatOptions`_ | —        | Used for `<script>` bodies and embedded expressions          |
+| `style_formatter`                      | `None`   | Callback formatting each `<style>` body; verbatim when unset |
 
 `IndentStyle`, `IndentWidth`, `LineWidth`, `JsFormatOptions`, and
 `StyleFormatter` are all re-exported from the crate root.

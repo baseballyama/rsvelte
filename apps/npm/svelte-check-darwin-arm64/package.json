@@ -8,19 +8,19 @@
     "url": "git+https://github.com/baseballyama/rsvelte.git",
     "directory": "apps/npm/svelte-check-darwin-arm64"
   },
+  "files": [
+    "svelte-check"
+  ],
   "os": [
     "darwin"
   ],
   "cpu": [
     "arm64"
   ],
-  "files": [
-    "svelte-check"
-  ],
-  "scripts": {
-    "prepack": "chmod +x svelte-check"
-  },
   "publishConfig": {
     "access": "public"
+  },
+  "scripts": {
+    "prepack": "chmod +x svelte-check"
   }
 }

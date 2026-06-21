@@ -12,13 +12,13 @@ byte-index panics on multi-byte chars.
 
 Symptoms in today's tree (inventory 2026-06-11):
 
-| smell | where | size |
-|---|---|---|
-| lexical keyword/paren scanning over raw script text | `server/transform_script.rs` (`wrap_derived_reads*`, `remove_rune_statement`, `compute_shadow_ranges`, `mask_nested_reactive_labels`), `server/helpers.rs` (`contains_await`-style byte scans), `shared/async_body.rs` (`compute_blocker_map(raw_script)`) | ~10k lines |
-| string post-passes patching oxc_codegen output back toward esrap form | `client/formatting.rs` (`restore_original_quotes`, `restore_number_literals`, `restore_block_comment_alignment`, `add_esrap_blank_lines`), `server/build.rs` (`strip_arrow_function_parens`, `normalize_script_with_oxc`, `protect_dangling_comments`, hex-encoded comment smuggling) | ~4k lines |
-| `$`-prefix store-subscription detection by char scanning with positional heuristics (`is_dollar_ident_parameter` etc.) instead of scope analysis | `2_analyze/store_subscriptions.rs` | 1.3k lines |
-| half-structured output IR: `JsStatement`/`JsNode` with `Raw(String)` escape hatch used in 30 files | `3_transform/js_ast/` + all visitors | — |
-| comments handled per-pass (each fix re-anchors them differently) | everywhere above | — |
+| smell                                                                                                                                            | where                                                                                                                                                                                                                                                                                 | size       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| lexical keyword/paren scanning over raw script text                                                                                              | `server/transform_script.rs` (`wrap_derived_reads*`, `remove_rune_statement`, `compute_shadow_ranges`, `mask_nested_reactive_labels`), `server/helpers.rs` (`contains_await`-style byte scans), `shared/async_body.rs` (`compute_blocker_map(raw_script)`)                            | ~10k lines |
+| string post-passes patching oxc_codegen output back toward esrap form                                                                            | `client/formatting.rs` (`restore_original_quotes`, `restore_number_literals`, `restore_block_comment_alignment`, `add_esrap_blank_lines`), `server/build.rs` (`strip_arrow_function_parens`, `normalize_script_with_oxc`, `protect_dangling_comments`, hex-encoded comment smuggling) | ~4k lines  |
+| `$`-prefix store-subscription detection by char scanning with positional heuristics (`is_dollar_ident_parameter` etc.) instead of scope analysis | `2_analyze/store_subscriptions.rs`                                                                                                                                                                                                                                                    | 1.3k lines |
+| half-structured output IR: `JsStatement`/`JsNode` with `Raw(String)` escape hatch used in 30 files                                               | `3_transform/js_ast/` + all visitors                                                                                                                                                                                                                                                  | —          |
+| comments handled per-pass (each fix re-anchors them differently)                                                                                 | everywhere above                                                                                                                                                                                                                                                                      | —          |
 
 Upstream's architecture is simple by comparison: visitors build an output
 **ESTree AST** (with `b.*` builders), and **esrap** prints it once, with a
@@ -65,6 +65,7 @@ Key decisions:
    `compute_blocker_map(raw_script)`).
 
 ## Migration plan (each step is a normal PR; the corpus baseline +
+
 fixture suites are the safety net — output must stay byte-identical, so
 every step is verifiable by `verify.mjs --strict` deltas staying at zero
 regressions and the baseline only shrinking)
@@ -73,6 +74,7 @@ The steps are ordered so each is independently landable and Sonnet-class
 executable: clear inputs, an oracle, and a mechanical definition of done.
 
 ### Step 0 — printer: port esrap to `crates/rsvelte_esrap` (≈1–2 weeks)
+
 - Input: `submodules/svelte/node_modules/.pnpm/esrap@2.2.11*/…/src/`
   (`index.js` command buffer, `context.js`, `languages/ts/index.js`).
 - Port the command-buffer model (`margin/newline/indent/dedent` consts,
@@ -87,6 +89,7 @@ executable: clear inputs, an oracle, and a mechanical definition of done.
   (track exceptions in a list; they indicate unported esrap rules).
 
 ### Step 1 — comment stream end-to-end (≈3 days)
+
 - Phase 1 already forwards oxc comments into `Root.comments`; extend to a
   single sorted `Vec<Comment>` handed to the printer.
 - Wire `getLeadingComments`-equivalent for synthesized nodes (the few
@@ -96,6 +99,7 @@ executable: clear inputs, an oracle, and a mechanical definition of done.
   golden test).
 
 ### Step 2 — server script transform on AST (≈2 weeks, biggest win)
+
 - Replace `server/transform_script.rs` text passes with an
   `oxc_ast_visit::VisitMut` (or rebuild-via-AstBuilder) pipeline:
   derived/state/props lowerings, `$effect` removal, `$inspect` →
@@ -113,6 +117,7 @@ executable: clear inputs, an oracle, and a mechanical definition of done.
   artifacts of the old passes).
 
 ### Step 3 — client template body IR → oxc AST (≈2 weeks)
+
 - `js_ast::{JsStatement,JsNode}` currently mixes structured nodes with
   `Raw(String)`. Replace with oxc AST construction in the client
   visitors; expressions that today pass through as source text get parsed
@@ -125,6 +130,7 @@ executable: clear inputs, an oracle, and a mechanical definition of done.
   reduced to thin helpers over `AstBuilder`.
 
 ### Step 4 — async blocker analysis on AST (≈1 week)
+
 - `shared/async_body.rs::compute_blocker_map` re-derives blockers from raw
   script text; Phase 2 already computes await/blocker metadata. Unify:
   one analysis, stored on bindings/statements, consumed by both targets.
@@ -132,6 +138,7 @@ executable: clear inputs, an oracle, and a mechanical definition of done.
   broad "any CallExpression" notion — keep the two semantics distinct.)
 
 ### Step 5 — cleanup + hardening (≈3 days)
+
 - Delete dead text helpers (`helpers.rs` byte scans, `skip_string_literal`
   & co.) once nothing references them.
 - `grep -rn "JsStatement::Raw\|JsNode::Raw"` must return zero outside the
@@ -140,12 +147,13 @@ executable: clear inputs, an oracle, and a mechanical definition of done.
   that fails when new `Raw(` constructions are introduced in visitors.
 
 ### Non-goals
+
 - Changing public APIs (NAPI/wasm signatures stay).
 - Sourcemap redesign (the printer's location commands feed the existing
   map builder; parity with today's maps is enough).
 - Performance regressions: benchmark (`pnpm run generate-benchmark`,
   codspeed CI) before/after each step. Arena-built AST + single print
-  should be *faster* than today's parse→print→re-parse→patch chains; if a
+  should be _faster_ than today's parse→print→re-parse→patch chains; if a
   step is slower, profile before landing (see `perf-loop` skill, §7).
 
 ## Ground rules for every step

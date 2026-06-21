@@ -14,6 +14,7 @@ Corpus status: 41 → 12 known failures this session (29 fixed, 0 regressions). 
 genuine svelte2tsx bugs.
 
 ## 1. `</script   >` / `</style   >` (whitespace before `>`) not recognised
+
 Fixtures: `parser-legacy/{whitespace-after-script-tag,whitespace-after-style-tag}`
 
 ```svelte
@@ -22,6 +23,7 @@ Fixtures: `parser-legacy/{whitespace-after-script-tag,whitespace-after-style-tag
 </script     >          <!-- whitespace before > -->
 <h1>Hello {name}!</h1>
 ```
+
 svelte's own parser accepts this (it's a passing `parser-legacy` fixture), but
 svelte2tsx's htmlx extraction regex only matches `</script>` / `</style>` with no
 trailing whitespace, so it fails to extract the instance script / component style and
@@ -29,6 +31,7 @@ mis-emits the `<script>`/`<style>` as a template element (invalid TSX). rsvelte 
 them correctly.
 
 ## 2. `<script>`/`</script>` embedded in an attribute value is executed
+
 Fixtures: `runtime-legacy/escaped-attr`, `runtime-legacy/textarea-value-escape`
 
 ```svelte
@@ -36,6 +39,7 @@ Fixtures: `runtime-legacy/escaped-attr`, `runtime-legacy/textarea-value-escape`
 	<a href="</noscript><script>console.log('should not run')</script>">test</a>
 </noscript>
 ```
+
 svelte2tsx parses the **attribute string** as markup, "closes" the noscript, and extracts
 the embedded `<script>` — emitting `console.log("should not run");` as a top-level
 statement (and truncating `href` to `` `</noscript>` ``). `textarea-value-escape` is the
@@ -43,6 +47,7 @@ same via a `value={`…<script>alert('BIM')</script>`}` template literal → `al
 This is a parser bug (attribute values are not markup). rsvelte keeps the value as a string.
 
 ## 3. Crash on a valid `{#await … then x}` that shadows a top-level binding
+
 Fixture: `snapshot/await-block-scope`
 
 ```svelte
@@ -53,30 +58,36 @@ Fixture: `snapshot/await-block-scope`
 {#await promise then counter}{/await}
 {counter.count}
 ```
+
 This is a **valid** component (both svelte and rsvelte compile it; it has snapshot
 `_expected/` output). official svelte2tsx throws `Cannot overwrite across a split point`
 (a MagicString range conflict when relocating the shadowing `then` binding). rsvelte
 produces valid TSX.
 
 ## 4. Garbage element name from table auto-close
+
 Fixture: `runtime-xhtml/autoclosed-tags`
 
 ```svelte
 <table><thead><tbody><tfoot><tbody><tr><td><th></tr><tr></table>
 ```
+
 official's auto-close emits `svelteHTML.createElement("}tr", {})` — a `}` leaks into the
 tag name. rsvelte auto-closes the table elements correctly.
 
 ## 5. `{@const}` migrated to malformed `const st x = …`
+
 Fixture: `migrate/remove-blocks-whitespace`
 
 ```svelte
 {   @const x = 43   }
 ```
+
 official emits `const st x = 43   ;` (a stray `st` from a mis-aligned overwrite of
 `{   @const`). Invalid TS. rsvelte emits `const x = 43;`.
 
 ## 6. `migrate/svelte-component` raw/whitespace artifacts
+
 Fixture: `migrate/svelte-component/input`
 
 Adversarial Svelte-4 migrate input; official emits raw, oxfmt-unparseable output with
@@ -86,6 +97,7 @@ inconsistent spacing (e.g. `props: {  }` for an attribute-less `<svelte:componen
 ---
 
 ### Recommendation
+
 Fix these in sveltejs/language-tools (svelte2tsx). Until then they are tracked in
 `compat/corpus/svelte2tsx-known-failures.json` and should NOT be mirrored in rsvelte —
 doing so would regress rsvelte's (correct) output to match the oracle's bugs.

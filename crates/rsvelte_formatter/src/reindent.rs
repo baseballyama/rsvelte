@@ -36,6 +36,11 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
     let mut stack: Vec<Frame> = Vec::new();
     let mut line_comment = false;
     let mut block_comment = false;
+    // Whether the current block comment is a JSDoc comment (`/**`). JSDoc
+    // comments have their interior re-indented by `oxc_formatter` (each ` * `
+    // continuation line is aligned relative to the `/**` opener).  Regular
+    // block comments (`/*`) have their interiors preserved verbatim.
+    let mut is_jsdoc = false;
     let mut string: Option<char> = None;
     let mut at_line_start = true;
     let mut seen_newline = false;
@@ -65,21 +70,32 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
             continue;
         }
 
-        // Block comment: runs to `*/`. Interior lines are still re-indented
-        // (code context), matching `oxc_formatter`'s own re-alignment.
+        // Block comment: runs to `*/`.
+        // - JSDoc comments (`/**`): interior lines ARE re-indented because
+        //   `oxc_formatter` aligns ` * ` continuations relative to the `/**`
+        //   opener. `is_jsdoc = true` for these.
+        // - Regular block comments (`/*`): interior lines are preserved
+        //   verbatim. The comment author's formatting is intentional, and
+        //   `oxc_formatter` does not touch the interior. `is_jsdoc = false`.
         if block_comment {
             if c == '*' && chars.get(i + 1) == Some(&'/') {
                 out.push('*');
                 out.push('/');
                 i += 2;
                 block_comment = false;
+                is_jsdoc = false;
                 continue;
             }
             out.push(c);
             i += 1;
             if c == '\n' {
-                at_line_start = true;
                 seen_newline = true;
+                if is_jsdoc {
+                    // JSDoc interior: re-indent continuation lines normally.
+                    at_line_start = true;
+                }
+                // Non-JSDoc (`/*`) interior: do NOT set `at_line_start` —
+                // the next line's existing whitespace is kept verbatim.
             }
             continue;
         }
@@ -176,6 +192,31 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
                 }
                 '/' if chars.get(i + 1) == Some(&'*') => {
                     block_comment = true;
+                    // `/**` is a JSDoc comment — its interior is re-indented
+                    // by `oxc_formatter`. Star-aligned `/*` comments (where
+                    // the first interior line starts with ` *`) are also
+                    // re-indented by `oxc_formatter`. Plain `/*` comments
+                    // with prose-style interiors are preserved verbatim.
+                    // Detect by peeking at the first interior line after `/*`.
+                    let is_explicitly_jsdoc = chars.get(i + 2) == Some(&'*');
+                    let is_star_aligned = if !is_explicitly_jsdoc {
+                        // Find the first newline after `/*` and check if the
+                        // next non-space character is `*`.
+                        let mut j = i + 2;
+                        while j < n && chars[j] != '\n' {
+                            j += 1;
+                        }
+                        // j now points at '\n' (or end of string)
+                        j += 1; // skip the newline
+                        // skip spaces/tabs
+                        while j < n && (chars[j] == ' ' || chars[j] == '\t') {
+                            j += 1;
+                        }
+                        j < n && chars[j] == '*'
+                    } else {
+                        false
+                    };
+                    is_jsdoc = is_explicitly_jsdoc || is_star_aligned;
                     out.push('/');
                     out.push('*');
                     i += 2;

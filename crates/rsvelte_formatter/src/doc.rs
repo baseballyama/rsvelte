@@ -95,6 +95,7 @@ pub(crate) fn print(
                         out.push(' ');
                         pos += 1;
                     }
+                    // Softline in flat mode = nothing
                 } else {
                     trim_trailing_blanks(&mut out);
                     out.push('\n');
@@ -265,7 +266,7 @@ fn trim_trailing_blanks(out: &mut String) {
 /// is forced to break, and that break propagates up through every enclosing
 /// group. Run once on a Doc tree before [`print`] so groups that must break are
 /// converted to [`Doc::ForcedGroup`] (and never measured with `fits`).
-#[allow(dead_code)] // consumed by the child-layout port (see Doc enum note)
+#[allow(dead_code)] // only called from tests in this module
 pub(crate) fn propagate_breaks(doc: Doc) -> Doc {
     fn go(doc: Doc) -> (Doc, bool) {
         fn map_children(ps: Vec<Doc>) -> (Vec<Doc>, bool) {

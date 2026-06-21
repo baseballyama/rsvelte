@@ -25,11 +25,11 @@ cli = ["native", "eslint-import", "dep:clap", "dep:walkdir", "dep:rayon"]
 native = ["rsvelte_core/native"]
 # `--config-from-eslint` importer (OXC). Off in the wasm build.
 eslint-import = [
-    "dep:oxc_allocator",
-    "dep:oxc_parser",
-    "dep:oxc_ast",
-    "dep:oxc_ast_visit",
-    "dep:oxc_span",
+  "dep:oxc_allocator",
+  "dep:oxc_parser",
+  "dep:oxc_ast",
+  "dep:oxc_ast_visit",
+  "dep:oxc_span",
 ]
 # Browser build: the svelte_check-free rule engine compiled to wasm for the
 # playground, alongside rsvelte_core's compiler wasm exports.

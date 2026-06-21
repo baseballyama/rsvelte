@@ -22,7 +22,8 @@ Fast Svelte + JS/TS/CSS formatter — one CLI, written in Rust.
 Both pipelines run **in parallel** via `rayon::join`, so on a mixed project the
 in-process Svelte work overlaps with the `oxfmt` subprocess on every invocation.
 There are no Node calls and no Prettier doc-IR round-trip — just rsvelte parsing
-+ `oxc_formatter`.
+
+- `oxc_formatter`.
 
 ## Status
 
@@ -102,18 +103,18 @@ save hooks) can be pointed at `rsvelte-fmt` instead.
 
 ## Options
 
-| Flag | Default | Effect |
-|---|---|---|
-| `--write` | (implied for paths) | Write formatted output back |
-| `--check` | off | Exit 1 if any file would change |
-| `--stdin` | off | Read source on stdin |
-| `--stdin-filepath PATH` | — | Required with `--stdin` |
-| `--print-width N` | `.oxfmtrc` / 80 | Maximum line width |
-| `--tab-width N` | `.oxfmtrc` / 2 | Spaces per indent level |
-| `--use-tabs` | `.oxfmtrc` / off | Indent with tabs |
-| `--config PATH`, `-c` | discovered | `.oxfmtrc` applied to inline `<script>` / `<style>` |
-| `--oxfmt-bin PATH` | `oxfmt` | Subprocess binary for non-`.svelte` files |
-| `--no-style-cache` | off | Disable the on-disk inline `<style>` cache |
+| Flag                    | Default             | Effect                                              |
+| ----------------------- | ------------------- | --------------------------------------------------- |
+| `--write`               | (implied for paths) | Write formatted output back                         |
+| `--check`               | off                 | Exit 1 if any file would change                     |
+| `--stdin`               | off                 | Read source on stdin                                |
+| `--stdin-filepath PATH` | —                   | Required with `--stdin`                             |
+| `--print-width N`       | `.oxfmtrc` / 80     | Maximum line width                                  |
+| `--tab-width N`         | `.oxfmtrc` / 2      | Spaces per indent level                             |
+| `--use-tabs`            | `.oxfmtrc` / off    | Indent with tabs                                    |
+| `--config PATH`, `-c`   | discovered          | `.oxfmtrc` applied to inline `<script>` / `<style>` |
+| `--oxfmt-bin PATH`      | `oxfmt`             | Subprocess binary for non-`.svelte` files           |
+| `--no-style-cache`      | off                 | Disable the on-disk inline `<style>` cache          |
 
 Options are forwarded to both halves of the dispatch so a mixed
 project formats consistently.
@@ -126,11 +127,11 @@ format. Disable via `--no-style-cache` / `RSVELTE_FMT_NO_CACHE`; relocate via
 
 ## Exit codes
 
-| Code | Meaning |
-|---|---|
-| 0 | Success (write applied or check passed) |
-| 1 | `--check` found at least one file that would change |
-| 2 | Internal error (parse failure, `oxfmt` missing, IO error, …) |
+| Code | Meaning                                                      |
+| ---- | ------------------------------------------------------------ |
+| 0    | Success (write applied or check passed)                      |
+| 1    | `--check` found at least one file that would change          |
+| 2    | Internal error (parse failure, `oxfmt` missing, IO error, …) |
 
 ## Example
 
