@@ -558,10 +558,59 @@ impl<'a> EffectValueLower<'a> {
     }
 }
 
+/// `$state.eager` / `$state.snapshot` call detection (server `CallExpression`).
+enum StateDotRune {
+    Eager,
+    Snapshot,
+}
+
+fn state_dot_rune(expr: &OxcExpression) -> Option<StateDotRune> {
+    let OxcExpression::CallExpression(call) = expr else {
+        return None;
+    };
+    let OxcExpression::StaticMemberExpression(m) = &call.callee else {
+        return None;
+    };
+    let OxcExpression::Identifier(obj) = &m.object else {
+        return None;
+    };
+    if obj.name.as_str() != "$state" {
+        return None;
+    }
+    match m.property.name.as_str() {
+        "eager" => Some(StateDotRune::Eager),
+        "snapshot" => Some(StateDotRune::Snapshot),
+        _ => None,
+    }
+}
+
 impl<'a> VisitMut<'a> for EffectValueLower<'a> {
     fn visit_expression(&mut self, expr: &mut OxcExpression<'a>) {
         if let Some(replacement) = self.lowered(expr) {
             *expr = replacement;
+            return;
+        }
+        // `$state.eager(arg)` → `arg`; `$state.snapshot(arg)` → `$.snapshot(arg)`
+        // (写经 upstream server `CallExpression.js`). Applied tree-wide so it fires
+        // in `{#if $state.eager(x) !== x}` tests, `$.escape($state.eager(v))`
+        // template interpolations, and instance statements alike.
+        if let Some(kind) = state_dot_rune(expr) {
+            let arg = match std::mem::replace(expr, self.b.void0()) {
+                OxcExpression::CallExpression(call) => call
+                    .unbox()
+                    .arguments
+                    .drain(..)
+                    .next()
+                    .and_then(|a| OxcExpression::try_from(a).ok()),
+                _ => None,
+            };
+            let arg = arg.unwrap_or_else(|| self.b.void0());
+            *expr = match kind {
+                StateDotRune::Eager => arg,
+                StateDotRune::Snapshot => self.b.call("$.snapshot", vec![arg]),
+            };
+            // Recurse: the unwrapped/wrapped argument may itself contain runes.
+            self.visit_expression(expr);
             return;
         }
         oxc_ast_visit::walk_mut::walk_expression(self, expr);
