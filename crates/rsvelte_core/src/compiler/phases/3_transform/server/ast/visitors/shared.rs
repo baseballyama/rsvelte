@@ -513,6 +513,18 @@ enum SeqNode<'n> {
     Expr(&'n Expression),
 }
 
+/// Whether `src` is a single bare JS identifier (`foo`, `$bar`, `_x9`) — used to
+/// gate the block-local `constant_vars` fold so only a simple `{name}` read folds
+/// to its registered literal (a member access / call / operator never does).
+fn is_plain_identifier(src: &str) -> bool {
+    let mut chars = src.chars();
+    match chars.next() {
+        Some(c) if c.is_alphabetic() || c == '_' || c == '$' => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+}
+
 /// Convert the accumulated `sequence` into one [`TemplateEntry::Template`]
 /// (skipped when empty). Mirrors the inner `flush()` of upstream
 /// `process_children`: cooked text accumulates into the current quasi, and each
@@ -537,6 +549,29 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                 let _ = write!(last, "<!--{data}-->");
             }
             SeqNode::Expr(expr) => {
+                // Block-local DeclarationTag constant fold (写经 the text oracle's
+                // `try_fold_with_constants`, which checks `constant_vars` BEFORE
+                // any binding resolution): a `{const x = <literal>}` declaration
+                // tag registers `x` in `eval_inputs.constant_vars`, and a bare
+                // `{x}` read folds to that literal. This must win over the
+                // analysis-binding evaluation below, because a SHADOWED name
+                // (a nested `{const doubled = 'nested'}` shadowing an outer
+                // `$derived doubled`) resolves to two disagreeing bindings and
+                // `evaluate_template_expression` gives up (`unknown`) — leaving
+                // the read wrapped as `doubled()`, which reads the WRONG outer
+                // binding. The block-local constant_vars entry resolves it to the
+                // shadowing const's literal value, matching the oracle.
+                if !state.eval_inputs.constant_vars.is_empty()
+                    && let Some(src) = state.expr_source(expr)
+                    && is_plain_identifier(src.trim())
+                    && let Some(value) = state.eval_inputs.constant_vars.get(src.trim())
+                {
+                    if value != "null" && value != "undefined" {
+                        let last = quasis.last_mut().unwrap();
+                        last.push_str(&escape_html(value));
+                    }
+                    continue;
+                }
                 // SSR constant-folding (`scope.evaluate`): upstream's
                 // `process_children` evaluates every ExpressionTag and, when the
                 // result is "known" (exactly one primitive value), inlines the

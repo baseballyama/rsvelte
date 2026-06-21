@@ -68,7 +68,7 @@ static REGEX_INVALID_IDENTIFIER_CHARS: LazyLock<Regex> =
 
 /// The rune shapes this slice recognises on a declarator init.
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum DeclRune {
+pub(super) enum DeclRune {
     /// `$state(e)` / `$state.raw(e)` — keep just the argument.
     State,
     /// `$derived(e)` — `$.derived(() => <e>)`.
@@ -85,7 +85,7 @@ enum DeclRune {
 /// Mirrors upstream `get_rune`: the rune is the CALLEE of a call expression
 /// (`$props.id()` → `$props.id`), so every rune here is matched on a
 /// `CallExpression`.
-fn detect_decl_rune(init: &OxcExpression) -> Option<DeclRune> {
+pub(super) fn detect_decl_rune(init: &OxcExpression) -> Option<DeclRune> {
     let OxcExpression::CallExpression(call) = init else {
         return None;
     };

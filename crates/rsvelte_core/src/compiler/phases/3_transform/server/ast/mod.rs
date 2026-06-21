@@ -2834,6 +2834,60 @@ mod tests {
         );
     }
 
+    /// `{let …}` / `{const …}` DeclarationTag (Svelte 5.56.0 #18282) SSR parity
+    /// with the (correct) text-based `transform_server` oracle. Covers the three
+    /// runtime-runes fixtures the new AST pipeline previously mismatched (the
+    /// `DeclarationTag` arm was a `// TODO` no-op):
+    /// - `declaration-tags` — `{let …}` / `{const …}` at top level, inside `{#if}`
+    ///   and inside `<div>`, with nested re-declaration and `$state` / `$derived`
+    ///   runes.
+    /// - `declaration-tags-no-script` — no `<script>`; the only state is declared
+    ///   in declaration tags (golden starts
+    ///   `let count = 0; let doubled = $.derived(() => count * 2); …`).
+    /// - `declaration-tag-multiple-declarators` — a single tag with multiple
+    ///   declarators where a later declarator reads an earlier one, plus a
+    ///   leading-whitespace tag.
+    ///
+    /// Compared under [`canon`] (oxc → esrap reprint), the runtime gate's
+    /// formatting-insensitive canonicalizer, so only STRUCTURE is asserted.
+    #[test]
+    fn ast_matches_oracle_declaration_tags() {
+        let samples: &[(&str, &str)] = &[
+            (
+                "declaration-tags",
+                "<script>\n\tlet visible = $state(true);\n\tlet initial = $state(2);\n</script>\n\n{let top = $state(1)}\n{let top_doubled = $derived(top * 2)}\n\n<button onclick={() => (top += 1)}>top {top_doubled}</button>\n<button onclick={() => (visible = !visible)}>toggle</button>\n\n{#if visible}\n\t{let counter = $state({ value: initial })}\n\t{let doubled = $derived(counter.value * 2)}\n\t{const suffix = ' total'}\n\t{const format = (value) => `${value}${suffix}`}\n\n\t<button onclick={() => (counter.value += 1)}>{counter.value}</button>\n\t<p>{format(doubled)}</p>\n\t<div>\n\t\t{const doubled = 'nested'}\n\t\t<span>{doubled}</span>\n\t</div>\n{/if}\n\n<div>\n\t{const nested = 'nested'}\n\t<span>{nested}</span>\n</div>\n",
+            ),
+            (
+                "declaration-tags-no-script",
+                "{let count = $state(0)}\n{let doubled = $derived(count * 2)}\n<button onclick={() => (count += 1)}>{count} | {doubled}</button>\n",
+            ),
+            (
+                "declaration-tag-multiple-declarators",
+                "<!-- a later declarator can reference an earlier one within the same tag... -->\n{let count = $state(0), doubled = $derived(count * 2)}\n\n<!-- ...and leading whitespace is tolerated -->\n{ let quadrupled = $derived(doubled * 2) }\n\n<button onclick={() => (count += 1)}>increment</button>\n<p>count: {count}</p>\n<p>doubled: {doubled}</p>\n<p>quadrupled: {quadrupled}</p>\n",
+            ),
+        ];
+        let mut mismatches: Vec<&str> = Vec::new();
+        for (name, src) in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = match (canon(&ours), canon(&oracle)) {
+                (Some(a), Some(b)) => a == b,
+                _ => norm_blocks(&ours) == norm_blocks(&oracle),
+            };
+            if !matched {
+                eprintln!(
+                    "=== DIFFER ({name}) ===\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}\n"
+                );
+                mismatches.push(name);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "DeclarationTag SSR output differs from oracle for {:?}",
+            mismatches
+        );
+    }
+
     /// Canonicalize `code` via oxc parse → codegen. This is the SAME comparison
     /// the runtime harness uses (`tests/common::canonicalize_js`): it normalizes
     /// formatting (whitespace, trailing commas, semicolons) but preserves

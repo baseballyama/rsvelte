@@ -111,6 +111,46 @@ pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransf
         return;
     }
 
+    // -- DeclarationTag block-scoping (写经 RegularElement `has_declarations`) --
+    //
+    // An element whose DIRECT fragment contains a `{let …}` / `{const …}`
+    // DeclarationTag (Svelte 5.56.0 #18282 — NOT legacy `{@const}`) is
+    // non-transparent: its children get their own lexical scope, so a nested
+    // declaration (`<div>{const doubled = 'nested'}…</div>`) can SHADOW an
+    // outer same-named binding. Upstream wraps the whole element render in a
+    // `{ … }` block (`RegularElement.js`: `has_declarations` → child scope), and
+    // the (correct) text oracle does too. Without this, the hoistable
+    // declaration would float up to the enclosing FRAGMENT and collide with /
+    // overwrite a sibling binding of the same name.
+    //
+    // We capture the element's emitted template entries into a fresh buffer,
+    // build them (which hoists the DeclarationTag declarations to the FRONT of
+    // the block via `hoist_declarations`), wrap the result in a `BlockStatement`,
+    // and push it as a single opaque `Stmt` so the block is scoped to this
+    // element alone.
+    let has_declarations = node
+        .fragment
+        .nodes
+        .iter()
+        .any(|n| matches!(n, TemplateNode::DeclarationTag(_)));
+    if has_declarations {
+        let saved = std::mem::take(&mut state.template);
+        // Scope block-local constant folds to this element: a nested
+        // `{const doubled = 'nested'}` registers `doubled` in
+        // `eval_inputs.constant_vars` so a `{doubled}` read inside this block
+        // folds to the literal `nested`, but it must NOT leak that fold to an
+        // outer same-named binding once the block closes (写经 the text oracle's
+        // `saved_constants` save/restore in `generate_element`).
+        let saved_constants = state.eval_inputs.constant_vars.clone();
+        emit_element_body(node, name, is_void, state);
+        state.eval_inputs.constant_vars = saved_constants;
+        let captured = std::mem::replace(&mut state.template, saved);
+        let body = super::shared::build_template(captured, state);
+        let block = state.b.block(body);
+        state.template.push(TemplateEntry::Stmt(block));
+        return;
+    }
+
     emit_element_body(node, name, is_void, state);
 }
 

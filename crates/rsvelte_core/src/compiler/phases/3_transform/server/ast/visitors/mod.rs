@@ -38,6 +38,7 @@ pub mod await_block;
 pub mod component;
 pub mod const_tag;
 pub mod debug_tag;
+pub mod declaration_tag;
 pub mod each_block;
 pub mod element;
 pub mod html_tag;
@@ -104,7 +105,12 @@ pub fn visit_node<'a>(node: &TemplateNode, state: &mut ServerTransformState<'a>)
         // `{@debug a, b}` → `console.log({ a, b }); debugger;` (sync,
         // blocker-free path; async_block wrapping is a KNOWN GAP).
         TemplateNode::DebugTag(node) => debug_tag::visit_debug_tag(node, state),
-        // TODO: DeclarationTag, AttachTag — emit nothing for now.
+        // `{let x = $state(1)}` / `{const y = …}` (Svelte 5.56.0 #18282) —
+        // lower the declarators' `$state` / `$derived` runes and emit the
+        // (keyword-preserving) declaration hoisted to the top of the fragment.
+        // Async (`metadata.promises_id`) path is a KNOWN GAP.
+        TemplateNode::DeclarationTag(node) => declaration_tag::visit_declaration_tag(node, state),
+        // TODO: AttachTag — emit nothing for now.
         _ => {}
     }
 }
