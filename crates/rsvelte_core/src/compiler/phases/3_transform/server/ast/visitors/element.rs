@@ -81,7 +81,17 @@ const WHITESPACE_INSENSITIVE_ATTRIBUTES: [&str; 2] = ["class", "style"];
 
 /// Visit a `<name ...>children</name>` regular element.
 pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransformState<'a>) {
-    let name = node.name.as_str();
+    // 写经 upstream `RegularElement.js` l.18: in the HTML namespace the element
+    // tag name is lowercased (`<iNPUT>` → `<input>`, `<thisShouldWarnMe>` →
+    // `<thisshouldwarnme>`); SVG / MathML preserve case. This must precede the
+    // void-element / `<select>` / `<option>` checks so an uppercase void/special
+    // tag is recognized.
+    let name_owned: String = if node.metadata.svg || node.metadata.mathml {
+        node.name.as_str().to_string()
+    } else {
+        node.name.as_str().to_lowercase()
+    };
+    let name = name_owned.as_str();
     let is_void = is_void_element(name);
 
     // -- special `<select value>` / `<option>` branches ---------------------

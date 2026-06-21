@@ -63,9 +63,7 @@
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-2/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-4/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-5/A.svelte",
-	"svelte/packages/svelte/tests/runtime-xhtml/samples/lowercase-tags/main.svelte",
 	"svelte/packages/svelte/tests/validator/samples/bidirectional-control-characters/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/component-name-lowercase/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/module-script-reactive-declaration/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/store-rune-conflic-from-props/input.svelte"
 ]
