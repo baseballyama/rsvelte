@@ -6,11 +6,11 @@
  */
 
 const IMPORT_MAP = {
-  imports: {
-    svelte: "https://esm.sh/svelte@5.56.3",
-    "svelte/internal/disclose-version": "https://esm.sh/svelte@5.56.3/internal/disclose-version",
-    "svelte/internal/client": "https://esm.sh/svelte@5.56.3/internal/client",
-  },
+	imports: {
+		svelte: 'https://esm.sh/svelte@5.56.3',
+		'svelte/internal/disclose-version': 'https://esm.sh/svelte@5.56.3/internal/disclose-version',
+		'svelte/internal/client': 'https://esm.sh/svelte@5.56.3/internal/client'
+	}
 };
 
 const BASE_STYLES = `
@@ -23,17 +23,17 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
  * Converts `export default function` to a named const for mounting.
  */
 function transformCompiledJs(js: string): string {
-  return js.replace(/export\s+default\s+function/, "const Component = function");
+	return js.replace(/export\s+default\s+function/, 'const Component = function');
 }
 
 /**
  * Generate the complete HTML document for the preview iframe.
  */
 export function generatePreviewHtml(js: string, css: string): string {
-  const transformedJs = transformCompiledJs(js);
-  const componentCss = css || "";
+	const transformedJs = transformCompiledJs(js);
+	const componentCss = css || '';
 
-  return `<!DOCTYPE html>
+	return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">

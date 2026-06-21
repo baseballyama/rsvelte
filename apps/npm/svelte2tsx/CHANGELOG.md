@@ -7,6 +7,7 @@
 - d9eb4be: svelte2tsx output-parity (corpus): the compat-corpus now also checks svelte2tsx
   TSX output against the official tool over every component source, and several
   systematic port divergences are fixed:
+
   - `derive_component_name` matches the official `classNameFromFilename` exactly
     (scule `pascalCase`/`splitByCase` + the JS `substr(-1)` last-char quirk).
   - `__sveltets_*` component/instance variable names use the component's nesting
@@ -21,6 +22,7 @@
   type declaration was relocated out of the scope where the rest of the script
   referenced it, producing spurious "Cannot find name" errors (official
   svelte-check reports 0 errors):
+
   - #963: an instance `export type` / `export interface` referenced by a hoisted
     `Props` interface is now registered as a hoist candidate (with its `export`
     keyword preserved) so it travels with the interface and stays in scope.
@@ -32,6 +34,7 @@
     generics in scope for local aliases.
 
 - ab617b0: svelte2tsx output-parity (corpus burndown, follow-up): further port divergences fixed so rsvelte's svelte2tsx matches the official tool:
+
   - `render_tag_invalid_call_expression` (snippet via `.apply`/`.bind`/`.call`) is deferred to the analysis phase like official Svelte, instead of being rejected at parse time — svelte2tsx (parse-only) no longer errors on templates official tolerates.
   - `<script>` content is parsed as TypeScript regardless of `lang="ts"` (matching official svelte2tsx on acorn-typescript), so TS-only script syntax such as `let x: typeof C<any>` no longer fails the parse; template expressions stay lang-respecting.
   - Trailing TypeScript postfixes on `{#each}` collection expressions (`{#each x! as i}`, `{#each [...] as const as i}`) are preserved instead of being dropped.

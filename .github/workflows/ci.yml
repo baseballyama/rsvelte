@@ -175,7 +175,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: "24"
+          node-version: '24'
 
       - name: Install pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -274,7 +274,7 @@ jobs:
         env:
           # Some fixtures (notably the compatibility_report harness) walk
           # deeply nested ASTs and overflow the default 8 MB thread stack.
-          RUST_MIN_STACK: "33554432"
+          RUST_MIN_STACK: '33554432'
           # Pin svelte-check golden tests to the TS 5.x bundled with the
           # svelte submodule install above. Without this, `which("tsc")`
           # in src/svelte_check/tsgo.rs picks up whatever tsc the runner
@@ -337,7 +337,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: "24"
+          node-version: '24'
 
       - name: Install pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -385,7 +385,7 @@ jobs:
           # job only builds the `runtime` test binary, so it must not overwrite
           # the full-suite cache the `test` shards populate.
           shared-key: test
-          save-if: "false"
+          save-if: 'false'
 
       - name: Run runtime suites (legacy + runes)
         # `--test runtime` builds only crates/rsvelte_core/tests/runtime.rs, so
@@ -398,7 +398,7 @@ jobs:
           -E 'test(/test_runtime_legacy/) | test(/test_runtime_runes/)'
         timeout-minutes: 20
         env:
-          RUST_MIN_STACK: "33554432"
+          RUST_MIN_STACK: '33554432'
 
   test-thread-safety:
     name: Test thread-safety
@@ -430,14 +430,14 @@ jobs:
         with:
           # Share (read-only) the `test` job's warm dependency cache.
           shared-key: test
-          save-if: "false"
+          save-if: 'false'
 
       - name: Run compile_module thread-safety stress test
         # `--test compile_module_thread_safety` builds only that one binary.
         run: cargo nextest run --profile ci -p rsvelte_core --test compile_module_thread_safety
         timeout-minutes: 15
         env:
-          RUST_MIN_STACK: "33554432"
+          RUST_MIN_STACK: '33554432'
 
   # The `--lib` (`#[cfg(test)]`) unit tests run here, isolated from the `test`
   # shards (which now build integration-test *binaries* only — see
@@ -476,13 +476,13 @@ jobs:
         with:
           # Share (read-only) the `test` job's warm dependency cache.
           shared-key: test
-          save-if: "false"
+          save-if: 'false'
 
       - name: Run workspace unit tests
         run: cargo nextest run --profile ci --lib
         timeout-minutes: 15
         env:
-          RUST_MIN_STACK: "33554432"
+          RUST_MIN_STACK: '33554432'
 
   # The two svelte.dev formatter-parity corpus tests (~100 s each: they format
   # every .svelte file + markdown code block from svelte.dev and diff against an
@@ -515,7 +515,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: "24"
+          node-version: '24'
 
       - name: Install pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -552,7 +552,7 @@ jobs:
         with:
           # Share (read-only) the `test` job's warm dependency cache.
           shared-key: test
-          save-if: "false"
+          save-if: 'false'
 
       - name: Run svelte.dev formatter-parity corpus tests
         run: >-
@@ -561,7 +561,7 @@ jobs:
           -p rsvelte_formatter --test svelte_dev_corpus
         timeout-minutes: 15
         env:
-          RUST_MIN_STACK: "33554432"
+          RUST_MIN_STACK: '33554432'
           FMT_CORPUS_OXFMT: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
 
   # Single required status check that fans the sharded `Test` matrix and the
@@ -610,7 +610,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: "24"
+          node-version: '24'
 
       - name: Install pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -661,7 +661,7 @@ jobs:
         run: pnpm run compatibility-report
         timeout-minutes: 30
         env:
-          RUST_MIN_STACK: "33554432"
+          RUST_MIN_STACK: '33554432'
 
       - name: Upload compatibility report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

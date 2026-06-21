@@ -20,20 +20,20 @@
  * Usage: node scripts/compat-corpus/svelte2tsx-compile.mjs [--binding <path>] [--filter <substr>] [--jobs <n>]
  */
 
-import fs from "node:fs";
-import path from "node:path";
-import os from "node:os";
-import { spawn } from "node:child_process";
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, "../..");
-const CORPUS = path.join(ROOT, "compat/corpus");
-const EXPECTED = path.join(CORPUS, "expected-s2t");
-const ACTUAL = path.join(CORPUS, "actual-s2t");
-const OFFICIAL = path.join(ROOT, "submodules/language-tools/packages/svelte2tsx/index.js");
-const SVELTE_PKG = path.join(ROOT, "submodules/svelte/packages/svelte/package.json");
+const ROOT = path.resolve(__dirname, '../..');
+const CORPUS = path.join(ROOT, 'compat/corpus');
+const EXPECTED = path.join(CORPUS, 'expected-s2t');
+const ACTUAL = path.join(CORPUS, 'actual-s2t');
+const OFFICIAL = path.join(ROOT, 'submodules/language-tools/packages/svelte2tsx/index.js');
+const SVELTE_PKG = path.join(ROOT, 'submodules/svelte/packages/svelte/package.json');
 
 // svelte2tsx `require('svelte/compiler')` at runtime, and its parse behaviour
 // (and therefore which syntax it accepts) depends entirely on that svelte's
@@ -44,49 +44,49 @@ const SVELTE_PKG = path.join(ROOT, "submodules/svelte/packages/svelte/package.js
 // error-mismatch. Resolve svelte from svelte2tsx's own location and assert the
 // majors agree, failing loudly rather than silently producing a bogus oracle.
 function assertSvelteVersionMatches() {
-  const submoduleVersion = JSON.parse(fs.readFileSync(SVELTE_PKG, "utf8")).version;
-  const required = createRequire(OFFICIAL);
-  const resolvedVersion = required("svelte/compiler").VERSION;
-  const minor = (v) => String(v).split(".").slice(0, 2).join("."); // major.minor
-  // A different major OR minor changes which syntax svelte2tsx accepts and the
-  // shape of the parsed AST, so the oracle would be wrong — fail loudly. A
-  // patch-only difference rarely affects svelte2tsx output, so warn but allow.
-  if (minor(resolvedVersion) !== minor(submoduleVersion)) {
-    console.error(
-      `[s2t-compile] svelte version mismatch: official svelte2tsx resolves svelte@${resolvedVersion}, ` +
-        `but rsvelte mirrors svelte@${submoduleVersion}. The oracle would parse with the wrong svelte ` +
-        `version. Pin svelte2tsx's svelte to the submodule version:\n` +
-        `  (cd submodules/language-tools && pnpm --filter svelte2tsx add -D svelte@${submoduleVersion})`,
-    );
-    process.exit(1);
-  }
-  if (resolvedVersion !== submoduleVersion) {
-    console.warn(
-      `[s2t-compile] note: official svelte2tsx resolves svelte@${resolvedVersion}, rsvelte mirrors ` +
-        `svelte@${submoduleVersion} (patch difference; proceeding).`,
-    );
-  }
-  return { resolvedVersion, submoduleVersion };
+	const submoduleVersion = JSON.parse(fs.readFileSync(SVELTE_PKG, 'utf8')).version;
+	const required = createRequire(OFFICIAL);
+	const resolvedVersion = required('svelte/compiler').VERSION;
+	const minor = (v) => String(v).split('.').slice(0, 2).join('.'); // major.minor
+	// A different major OR minor changes which syntax svelte2tsx accepts and the
+	// shape of the parsed AST, so the oracle would be wrong — fail loudly. A
+	// patch-only difference rarely affects svelte2tsx output, so warn but allow.
+	if (minor(resolvedVersion) !== minor(submoduleVersion)) {
+		console.error(
+			`[s2t-compile] svelte version mismatch: official svelte2tsx resolves svelte@${resolvedVersion}, ` +
+				`but rsvelte mirrors svelte@${submoduleVersion}. The oracle would parse with the wrong svelte ` +
+				`version. Pin svelte2tsx's svelte to the submodule version:\n` +
+				`  (cd submodules/language-tools && pnpm --filter svelte2tsx add -D svelte@${submoduleVersion})`
+		);
+		process.exit(1);
+	}
+	if (resolvedVersion !== submoduleVersion) {
+		console.warn(
+			`[s2t-compile] note: official svelte2tsx resolves svelte@${resolvedVersion}, rsvelte mirrors ` +
+				`svelte@${submoduleVersion} (patch difference; proceeding).`
+		);
+	}
+	return { resolvedVersion, submoduleVersion };
 }
 
 const args = process.argv.slice(2);
 function argValue(name, fallback) {
-  const i = args.indexOf(name);
-  return i !== -1 && args[i + 1] ? args[i + 1] : fallback;
+	const i = args.indexOf(name);
+	return i !== -1 && args[i + 1] ? args[i + 1] : fallback;
 }
-const FILTER = argValue("--filter", null);
-const BINDING = path.resolve(ROOT, argValue("--binding", ".corpus-cache/rsvelte.node"));
+const FILTER = argValue('--filter', null);
+const BINDING = path.resolve(ROOT, argValue('--binding', '.corpus-cache/rsvelte.node'));
 
 // svelte2tsx only converts components; module entries are out of scope.
-const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, "manifest.json"), "utf8")).filter(
-  (e) => e.kind === "component" && (!FILTER || e.id.includes(FILTER)),
+const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8')).filter(
+	(e) => e.kind === 'component' && (!FILTER || e.id.includes(FILTER))
 );
 
 // Detect a TypeScript <script> so both tools receive the identical `isTsFile`
 // hint. svelte2tsx also infers this from the lang attribute, but passing it
 // explicitly keeps the two sides aligned even for preprocessed-looking input.
 function isTsFile(source) {
-  return /<script\b[^>]*\blang\s*=\s*(["'])(ts|typescript)\1/i.test(source);
+	return /<script\b[^>]*\blang\s*=\s*(["'])(ts|typescript)\1/i.test(source);
 }
 
 // ---------------------------------------------------------------------------
@@ -94,58 +94,47 @@ function isTsFile(source) {
 // entry so the parent can pinpoint a crash.
 // ---------------------------------------------------------------------------
 
-if (args.includes("--worker")) {
-  const start = Number(argValue("--start", "0"));
-  const end = Number(argValue("--end", String(manifest.length)));
+if (args.includes('--worker')) {
+	const start = Number(argValue('--start', '0'));
+	const end = Number(argValue('--end', String(manifest.length)));
 
-  const require = createRequire(import.meta.url);
-  const { svelte2tsx } = require(OFFICIAL);
-  const rsvelte = require(BINDING);
+	const require = createRequire(import.meta.url);
+	const { svelte2tsx } = require(OFFICIAL);
+	const rsvelte = require(BINDING);
 
-  const errorInfo = (e) => {
-    const message = String(e?.message ?? e);
-    return { message: message.split("\n")[0] };
-  };
+	const errorInfo = (e) => {
+		const message = String(e?.message ?? e);
+		return { message: message.split('\n')[0] };
+	};
 
-  function convertOne(impl, source, id, ts) {
-    const options = { filename: id, isTsFile: ts, mode: "ts", namespace: "html", version: "5" };
-    try {
-      return { code: impl(source, options).code ?? "" };
-    } catch (e) {
-      return { error: errorInfo(e) };
-    }
-  }
+	function convertOne(impl, source, id, ts) {
+		const options = { filename: id, isTsFile: ts, mode: 'ts', namespace: 'html', version: '5' };
+		try {
+			return { code: impl(source, options).code ?? '' };
+		} catch (e) {
+			return { error: errorInfo(e) };
+		}
+	}
 
-  function writeOutputs(baseDir, id, result) {
-    const dir = path.join(baseDir, id);
-    fs.mkdirSync(dir, { recursive: true });
-    if (result.error) {
-      fs.writeFileSync(
-        path.join(dir, "error.json"),
-        JSON.stringify(result.error, null, "\t") + "\n",
-      );
-    } else {
-      fs.writeFileSync(path.join(dir, "index.tsx"), result.code);
-    }
-  }
+	function writeOutputs(baseDir, id, result) {
+		const dir = path.join(baseDir, id);
+		fs.mkdirSync(dir, { recursive: true });
+		if (result.error) {
+			fs.writeFileSync(path.join(dir, 'error.json'), JSON.stringify(result.error, null, '\t') + '\n');
+		} else {
+			fs.writeFileSync(path.join(dir, 'index.tsx'), result.code);
+		}
+	}
 
-  for (let i = start; i < end; i++) {
-    const { id } = manifest[i];
-    console.log(`IDX ${i}`);
-    const source = fs.readFileSync(path.join(CORPUS, "sources", id), "utf8");
-    const ts = isTsFile(source);
-    writeOutputs(
-      EXPECTED,
-      id,
-      convertOne((s, o) => svelte2tsx(s, o), source, id, ts),
-    );
-    writeOutputs(
-      ACTUAL,
-      id,
-      convertOne((s, o) => rsvelte.svelte2tsx(s, o), source, id, ts),
-    );
-  }
-  process.exit(0);
+	for (let i = start; i < end; i++) {
+		const { id } = manifest[i];
+		console.log(`IDX ${i}`);
+		const source = fs.readFileSync(path.join(CORPUS, 'sources', id), 'utf8');
+		const ts = isTsFile(source);
+		writeOutputs(EXPECTED, id, convertOne((s, o) => svelte2tsx(s, o), source, id, ts));
+		writeOutputs(ACTUAL, id, convertOne((s, o) => rsvelte.svelte2tsx(s, o), source, id, ts));
+	}
+	process.exit(0);
 }
 
 // ---------------------------------------------------------------------------
@@ -153,101 +142,96 @@ if (args.includes("--worker")) {
 // ---------------------------------------------------------------------------
 
 if (!fs.existsSync(BINDING)) {
-  console.error(`[s2t-compile] rsvelte NAPI binding missing at ${BINDING}`);
-  console.error("  build: cargo build --release --features napi --lib");
-  console.error("  stage: cp target/release/librsvelte_core.{dylib,so} .corpus-cache/rsvelte.node");
-  process.exit(1);
+	console.error(`[s2t-compile] rsvelte NAPI binding missing at ${BINDING}`);
+	console.error('  build: cargo build --release --features napi --lib');
+	console.error('  stage: cp target/release/librsvelte_core.{dylib,so} .corpus-cache/rsvelte.node');
+	process.exit(1);
 }
 if (!fs.existsSync(OFFICIAL)) {
-  console.error(`[s2t-compile] official svelte2tsx missing at ${OFFICIAL}`);
-  console.error(
-    "  build: (cd submodules/language-tools && pnpm install --frozen-lockfile && pnpm --filter svelte2tsx build)",
-  );
-  process.exit(1);
+	console.error(`[s2t-compile] official svelte2tsx missing at ${OFFICIAL}`);
+	console.error('  build: (cd submodules/language-tools && pnpm install --frozen-lockfile && pnpm --filter svelte2tsx build)');
+	process.exit(1);
 }
 const { resolvedVersion, submoduleVersion } = assertSvelteVersionMatches();
-console.log(
-  `[s2t-compile] official svelte2tsx parses with svelte@${resolvedVersion} (rsvelte mirrors svelte@${submoduleVersion})`,
-);
+console.log(`[s2t-compile] official svelte2tsx parses with svelte@${resolvedVersion} (rsvelte mirrors svelte@${submoduleVersion})`);
 
 if (!FILTER) {
-  fs.rmSync(EXPECTED, { recursive: true, force: true });
-  fs.rmSync(ACTUAL, { recursive: true, force: true });
+	fs.rmSync(EXPECTED, { recursive: true, force: true });
+	fs.rmSync(ACTUAL, { recursive: true, force: true });
 }
 
-const JOBS = Number(argValue("--jobs", String(Math.max(2, Math.min(8, os.cpus().length - 2)))));
+const JOBS = Number(argValue('--jobs', String(Math.max(2, Math.min(8, os.cpus().length - 2)))));
 const startedAt = Date.now();
 const panics = [];
 
 function recordPanic(i) {
-  const { id } = manifest[i];
-  panics.push(id);
-  const dir = path.join(ACTUAL, id);
-  fs.mkdirSync(dir, { recursive: true });
-  const err = { message: "rsvelte svelte2tsx panicked (process aborted)" };
-  fs.writeFileSync(path.join(dir, "error.json"), JSON.stringify(err, null, "\t") + "\n");
+	const { id } = manifest[i];
+	panics.push(id);
+	const dir = path.join(ACTUAL, id);
+	fs.mkdirSync(dir, { recursive: true });
+	const err = { message: 'rsvelte svelte2tsx panicked (process aborted)' };
+	fs.writeFileSync(path.join(dir, 'error.json'), JSON.stringify(err, null, '\t') + '\n');
 }
 
 function runRange(start, end) {
-  return new Promise((resolve, reject) => {
-    if (start >= end) return resolve();
-    const child = spawn(
-      process.execPath,
-      [
-        fileURLToPath(import.meta.url),
-        "--worker",
-        "--start",
-        String(start),
-        "--end",
-        String(end),
-        "--binding",
-        BINDING,
-        ...(FILTER ? ["--filter", FILTER] : []),
-      ],
-      { stdio: ["ignore", "pipe", "inherit"] },
-    );
-    let last = start - 1;
-    let buf = "";
-    child.stdout.on("data", (d) => {
-      buf += d;
-      let nl;
-      while ((nl = buf.indexOf("\n")) !== -1) {
-        const line = buf.slice(0, nl);
-        buf = buf.slice(nl + 1);
-        if (line.startsWith("IDX ")) last = Number(line.slice(4));
-      }
-    });
-    child.on("exit", (code, signal) => {
-      if (code === 0) return resolve();
-      if (last < start) {
-        // Worker exited before processing any entry — a fatal setup error
-        // (e.g. the official svelte2tsx or one of its deps failed to load),
-        // NOT a per-entry rsvelte panic. Fail loudly instead of recording a
-        // bogus panic for manifest[-1].
-        return reject(
-          new Error(
-            `[s2t-compile] worker for [${start},${end}) exited (${signal ?? code}) before processing any entry — likely a setup/module-resolution failure (see stderr above).`,
-          ),
-        );
-      }
-      console.error(`[s2t-compile] worker crashed (${signal ?? code}) on ${manifest[last]?.id}`);
-      recordPanic(last);
-      runRange(last + 1, end).then(resolve, reject);
-    });
-    child.on("error", reject);
-  });
+	return new Promise((resolve, reject) => {
+		if (start >= end) return resolve();
+		const child = spawn(
+			process.execPath,
+			[
+				fileURLToPath(import.meta.url),
+				'--worker',
+				'--start',
+				String(start),
+				'--end',
+				String(end),
+				'--binding',
+				BINDING,
+				...(FILTER ? ['--filter', FILTER] : []),
+			],
+			{ stdio: ['ignore', 'pipe', 'inherit'] }
+		);
+		let last = start - 1;
+		let buf = '';
+		child.stdout.on('data', (d) => {
+			buf += d;
+			let nl;
+			while ((nl = buf.indexOf('\n')) !== -1) {
+				const line = buf.slice(0, nl);
+				buf = buf.slice(nl + 1);
+				if (line.startsWith('IDX ')) last = Number(line.slice(4));
+			}
+		});
+		child.on('exit', (code, signal) => {
+			if (code === 0) return resolve();
+			if (last < start) {
+				// Worker exited before processing any entry — a fatal setup error
+				// (e.g. the official svelte2tsx or one of its deps failed to load),
+				// NOT a per-entry rsvelte panic. Fail loudly instead of recording a
+				// bogus panic for manifest[-1].
+				return reject(
+					new Error(
+						`[s2t-compile] worker for [${start},${end}) exited (${signal ?? code}) before processing any entry — likely a setup/module-resolution failure (see stderr above).`
+					)
+				);
+			}
+			console.error(`[s2t-compile] worker crashed (${signal ?? code}) on ${manifest[last]?.id}`);
+			recordPanic(last);
+			runRange(last + 1, end).then(resolve, reject);
+		});
+		child.on('error', reject);
+	});
 }
 
 const shard = Math.ceil(manifest.length / JOBS);
 const ranges = [];
-for (let s = 0; s < manifest.length; s += shard)
-  ranges.push([s, Math.min(s + shard, manifest.length)]);
+for (let s = 0; s < manifest.length; s += shard) ranges.push([s, Math.min(s + shard, manifest.length)]);
 
 console.log(`[s2t-compile] ${manifest.length} component entries across ${ranges.length} workers…`);
 await Promise.all(ranges.map(([s, e]) => runRange(s, e)));
 
 if (panics.length) {
-  console.error(`[s2t-compile] ${panics.length} entries PANICKED in rsvelte:`);
-  for (const id of panics.slice(0, 20)) console.error(`  - ${id}`);
+	console.error(`[s2t-compile] ${panics.length} entries PANICKED in rsvelte:`);
+	for (const id of panics.slice(0, 20)) console.error(`  - ${id}`);
 }
 console.log(`[s2t-compile] done in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);

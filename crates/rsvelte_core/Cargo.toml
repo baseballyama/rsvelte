@@ -23,12 +23,7 @@ trace-fastpath = []
 # Pull in the `disable_initial_exec_tls` feature transitively so the
 # NAPI build is always dlopen-safe. The `?` makes it a no-op when
 # jemalloc is disabled (e.g. `--no-default-features --features napi`).
-napi = [
-  "dep:napi",
-  "dep:napi-derive",
-  "dep:napi-build",
-  "tikv-jemallocator?/disable_initial_exec_tls",
-]
+napi = ["dep:napi", "dep:napi-derive", "dep:napi-build", "tikv-jemallocator?/disable_initial_exec_tls"]
 jemalloc = ["dep:tikv-jemallocator"]
 pprof = ["dep:pprof"]
 # `wasm` exports this crate's own `#[wasm_bindgen]` surface (the `wasm`
@@ -109,13 +104,7 @@ clap = { version = "4.5", features = ["derive"] }
 chrono = "0.4"
 
 # N-API support (optional)
-napi = { version = "3", default-features = false, features = [
-  "napi9",
-  "serde-json",
-  "async",
-  "tokio_rt",
-  "compat-mode",
-], optional = true }
+napi = { version = "3", default-features = false, features = ["napi9", "serde-json", "async", "tokio_rt", "compat-mode"], optional = true }
 napi-derive = { version = "3", optional = true }
 
 # WASM support (optional)
@@ -138,9 +127,7 @@ napi-build = { version = "2", optional = true }
 # Testing
 insta = { version = "1.42", features = ["json", "glob"] }
 pretty_assertions = "1.4"
-criterion = { version = "4.7.0", features = [
-  "html_reports",
-], package = "codspeed-criterion-compat" }
+criterion = { version = "4.7.0", features = ["html_reports"], package = "codspeed-criterion-compat" }
 test-generator = "0.3"
 glob = "0.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

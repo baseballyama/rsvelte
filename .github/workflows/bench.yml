@@ -4,10 +4,10 @@ on:
   push:
     branches: [main]
     paths:
-      - "crates/rsvelte_core/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - ".github/workflows/bench.yml"
+      - 'crates/rsvelte_core/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/bench.yml'
   pull_request:
     branches: [main]
     # Default + `labeled` so adding the `bench` label triggers a run; the
@@ -47,7 +47,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: "24"
+          node-version: '24'
 
       - name: Install pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9

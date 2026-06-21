@@ -8,9 +8,6 @@
     "url": "git+https://github.com/baseballyama/rsvelte.git",
     "directory": "apps/npm/vite-plugin-svelte-native-win32-x64-msvc"
   },
-  "files": [
-    "rsvelte.node"
-  ],
   "os": [
     "win32"
   ],
@@ -18,6 +15,9 @@
     "x64"
   ],
   "main": "./rsvelte.node",
+  "files": [
+    "rsvelte.node"
+  ],
   "publishConfig": {
     "access": "public"
   }

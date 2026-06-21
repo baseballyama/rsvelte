@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import { execFileSync } from "node:child_process";
+import { execFileSync } from 'node:child_process';
 
 const args = process.argv.slice(2);
-const explicitBaseBranch = args.find((a) => !a.startsWith("--")) ?? process.env.BASE_BRANCH ?? null;
-const format = args.includes("--format=md") ? "md" : "json";
+const explicitBaseBranch = args.find((a) => !a.startsWith('--')) ?? process.env.BASE_BRANCH ?? null;
+const format = args.includes('--format=md') ? 'md' : 'json';
 
 const MAX_LINES_PER_CHUNK = 500;
 const MAX_FILES_PER_CHUNK = 10;
@@ -14,34 +14,34 @@ const SOFT_BREAK_MIN_FILES = 5;
 // shell 経由の execSync ではなく execFileSync (引数配列) でコマンドインジェクションを防ぐ。
 function tryGit(gitArgs) {
   try {
-    return execFileSync("git", gitArgs, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    return execFileSync('git', gitArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
   } catch {
     return null;
   }
 }
 
 function branchExists(ref) {
-  return tryGit(["rev-parse", "--verify", "--quiet", ref]) !== null;
+  return tryGit(['rev-parse', '--verify', '--quiet', ref]) !== null;
 }
 
 function diffLines(ref) {
-  const out = tryGit(["diff", "--numstat", `${ref}...HEAD`]);
+  const out = tryGit(['diff', '--numstat', `${ref}...HEAD`]);
   if (out === null) return null;
   let total = 0;
-  for (const line of out.trim().split("\n").filter(Boolean)) {
-    const parts = line.split("\t");
-    const adds = parts[0] === "-" ? 0 : Number(parts[0]) || 0;
-    const dels = parts[1] === "-" ? 0 : Number(parts[1]) || 0;
+  for (const line of out.trim().split('\n').filter(Boolean)) {
+    const parts = line.split('\t');
+    const adds = parts[0] === '-' ? 0 : Number(parts[0]) || 0;
+    const dels = parts[1] === '-' ? 0 : Number(parts[1]) || 0;
     total += adds + dels;
   }
   return total;
 }
 
 function selectBaseBranch() {
-  const candidates = ["origin/main", "origin/master", "origin/develop"].filter(branchExists);
+  const candidates = ['origin/main', 'origin/master', 'origin/develop'].filter(branchExists);
   if (candidates.length === 0) {
     throw new Error(
-      "No base branch found (origin/main, origin/master, origin/develop). Run `git fetch origin` or pass a base branch explicitly.",
+      'No base branch found (origin/main, origin/master, origin/develop). Run `git fetch origin` or pass a base branch explicitly.',
     );
   }
   if (candidates.length === 1) return candidates[0];
@@ -60,19 +60,19 @@ function selectBaseBranch() {
 
 const baseBranch = explicitBaseBranch ?? selectBaseBranch();
 
-const raw = execFileSync("git", ["diff", "--numstat", `${baseBranch}...HEAD`], {
-  encoding: "utf8",
+const raw = execFileSync('git', ['diff', '--numstat', `${baseBranch}...HEAD`], {
+  encoding: 'utf8',
 });
 
 const files = raw
   .trim()
-  .split("\n")
+  .split('\n')
   .filter(Boolean)
   .map((line) => {
-    const parts = line.split("\t");
-    const adds = parts[0] === "-" ? 0 : Number(parts[0]);
-    const dels = parts[1] === "-" ? 0 : Number(parts[1]);
-    const path = parts.slice(2).join("\t");
+    const parts = line.split('\t');
+    const adds = parts[0] === '-' ? 0 : Number(parts[0]);
+    const dels = parts[1] === '-' ? 0 : Number(parts[1]);
+    const path = parts.slice(2).join('\t');
     return { path, lines: adds + dels };
   })
   .filter((f) => f.path && f.lines >= 0);
@@ -90,56 +90,56 @@ const files = raw
 // - docs       : *.md, docs/ 配下
 // - other      : 上記いずれにも該当しないもの
 function categoryOf(path) {
-  if (path.startsWith("src/ast/")) return "ast";
+  if (path.startsWith('src/ast/')) return 'ast';
   if (
-    path.startsWith("svelte/") ||
-    path.startsWith("vite-plugin-svelte/") ||
-    path.startsWith("language-tools/") ||
-    path.startsWith("fixtures/")
+    path.startsWith('svelte/') ||
+    path.startsWith('vite-plugin-svelte/') ||
+    path.startsWith('language-tools/') ||
+    path.startsWith('fixtures/')
   )
-    return "submodule";
-  if (path.startsWith("src/compiler/phases/1_parse/")) return "parse";
-  if (path.startsWith("src/compiler/phases/2_analyze/")) return "analyze";
-  if (path.startsWith("src/compiler/phases/3_transform/")) return "transform";
-  if (path.startsWith("src/error/")) return "error";
+    return 'submodule';
+  if (path.startsWith('src/compiler/phases/1_parse/')) return 'parse';
+  if (path.startsWith('src/compiler/phases/2_analyze/')) return 'analyze';
+  if (path.startsWith('src/compiler/phases/3_transform/')) return 'transform';
+  if (path.startsWith('src/error/')) return 'error';
   if (
-    path === "src/lib.rs" ||
-    path.startsWith("src/napi") ||
-    path.startsWith("src/bin/") ||
-    path.startsWith("npm/")
+    path === 'src/lib.rs' ||
+    path.startsWith('src/napi') ||
+    path.startsWith('src/bin/') ||
+    path.startsWith('npm/')
   )
-    return "napi";
-  if (path.startsWith("tests/") || path.startsWith("benches/") || path.startsWith("examples/"))
-    return "tests";
+    return 'napi';
+  if (path.startsWith('tests/') || path.startsWith('benches/') || path.startsWith('examples/'))
+    return 'tests';
   if (
-    path.startsWith(".github/") ||
-    path.startsWith("scripts/") ||
-    path === "build.rs" ||
-    path === "Cargo.toml" ||
-    path === "Cargo.lock" ||
-    path === "package.json" ||
-    path === "pnpm-lock.yaml" ||
-    path === "Dockerfile" ||
-    path.startsWith("docker") ||
-    path === ".devcontainer" ||
-    path.startsWith(".devcontainer/") ||
-    path.startsWith(".githooks/")
+    path.startsWith('.github/') ||
+    path.startsWith('scripts/') ||
+    path === 'build.rs' ||
+    path === 'Cargo.toml' ||
+    path === 'Cargo.lock' ||
+    path === 'package.json' ||
+    path === 'pnpm-lock.yaml' ||
+    path === 'Dockerfile' ||
+    path.startsWith('docker') ||
+    path === '.devcontainer' ||
+    path.startsWith('.devcontainer/') ||
+    path.startsWith('.githooks/')
   )
-    return "infra";
-  if (path.endsWith(".md") || path.startsWith("docs/")) return "docs";
-  if (path.startsWith("src/")) return "other_src";
-  return "other";
+    return 'infra';
+  if (path.endsWith('.md') || path.startsWith('docs/')) return 'docs';
+  if (path.startsWith('src/')) return 'other_src';
+  return 'other';
 }
 
 function dirKey(path) {
-  const segs = path.split("/");
-  return segs.slice(0, Math.min(segs.length - 1, 6)).join("/");
+  const segs = path.split('/');
+  return segs.slice(0, Math.min(segs.length - 1, 6)).join('/');
 }
 
 function commonDir(paths) {
-  if (paths.length === 0) return "";
+  if (paths.length === 0) return '';
   if (paths.length === 1) return paths[0];
-  const splits = paths.map((p) => p.split("/"));
+  const splits = paths.map((p) => p.split('/'));
   const minLen = Math.min(...splits.map((s) => s.length));
   const out = [];
   for (let i = 0; i < minLen - 1; i++) {
@@ -147,7 +147,7 @@ function commonDir(paths) {
     if (splits.every((s) => s[i] === seg)) out.push(seg);
     else break;
   }
-  return out.length > 0 ? out.join("/") + "/" : "<mixed>";
+  return out.length > 0 ? out.join('/') + '/' : '<mixed>';
 }
 
 function chunkFiles(category, list) {
@@ -209,11 +209,11 @@ const buckets = {
 const skipped = { ast: 0, submodule: 0 };
 for (const f of files) {
   const cat = categoryOf(f.path);
-  if (cat === "ast") {
+  if (cat === 'ast') {
     skipped.ast += 1;
     continue;
   }
-  if (cat === "submodule") {
+  if (cat === 'submodule') {
     skipped.submodule += 1;
     continue;
   }
@@ -222,16 +222,16 @@ for (const f of files) {
 
 // レビュー順序: パイプライン順（parse → analyze → transform）→ error → napi → tests → infra → docs → other
 const merged = [
-  ...chunkFiles("parse", buckets.parse),
-  ...chunkFiles("analyze", buckets.analyze),
-  ...chunkFiles("transform", buckets.transform),
-  ...chunkFiles("error", buckets.error),
-  ...chunkFiles("napi", buckets.napi),
-  ...chunkFiles("tests", buckets.tests),
-  ...chunkFiles("other_src", buckets.other_src),
-  ...chunkFiles("infra", buckets.infra),
-  ...chunkFiles("docs", buckets.docs),
-  ...chunkFiles("other", buckets.other),
+  ...chunkFiles('parse', buckets.parse),
+  ...chunkFiles('analyze', buckets.analyze),
+  ...chunkFiles('transform', buckets.transform),
+  ...chunkFiles('error', buckets.error),
+  ...chunkFiles('napi', buckets.napi),
+  ...chunkFiles('tests', buckets.tests),
+  ...chunkFiles('other_src', buckets.other_src),
+  ...chunkFiles('infra', buckets.infra),
+  ...chunkFiles('docs', buckets.docs),
+  ...chunkFiles('other', buckets.other),
 ];
 
 const totalChunks = merged.length;
@@ -261,7 +261,7 @@ const result = {
   chunks,
 };
 
-if (format === "md") {
+if (format === 'md') {
   const lines = [
     `# Phase 4 Review Chunks`,
     ``,
@@ -281,7 +281,7 @@ if (format === "md") {
       ``,
     ]),
   ];
-  console.log(lines.join("\n"));
+  console.log(lines.join('\n'));
 } else {
   console.log(JSON.stringify(result, null, 2));
 }

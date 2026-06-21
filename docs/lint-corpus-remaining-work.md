@@ -128,7 +128,7 @@ exact-fixture oracle) after a rule change — it must stay 100%.
 **Layer: compiler/parser. Effort: high. Risk: high (codegen).**
 
 The dominant FN source. Several fixtures format a block-open tag with a newline
-between _every_ token:
+between *every* token:
 
 ```svelte
 {
@@ -186,9 +186,9 @@ Affected (mostly FP): `no-immutable-reactive-statements` (22),
 `require-event-prefix` (7 FP), `no-reactive-reassign` (5).
 
 **Caveat / why it's a judgment call:** the oracle treats the whole corpus as a
-Svelte-5 _project_ (so a `$:`-only file is "runes by default" → legacy rules
+Svelte-5 *project* (so a `$:`-only file is "runes by default" → legacy rules
 skipped), whereas rsvelte's per-file detection sees `$:` → legacy → fires —
-arguably _more_ correct for real per-file usage. Matching the oracle means
+arguably *more* correct for real per-file usage. Matching the oracle means
 porting the project-level `getSvelteVersion()` + `svelteParseContext.runes`
 detection and wiring a `shouldRun(conditions)` check into the rule dispatcher,
 then tagging each native rule with its upstream conditions. Decide the desired
@@ -217,7 +217,7 @@ treat `resolve()` as already-resolved.
 **Layer: harness / config. Effort: low–medium. Risk: low.**
 
 The docs rule-example snippets carry `/* eslint svelte/<rule>: ["error", {…}] */`
-to demonstrate a rule under _custom_ options. The oracle honours the inline
+to demonstrate a rule under *custom* options. The oracle honours the inline
 options; rsvelte doesn't parse them and uses defaults → divergence. These are
 **not real rsvelte bugs**.
 

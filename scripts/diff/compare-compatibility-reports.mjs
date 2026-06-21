@@ -16,39 +16,41 @@
  * current numbers so the PR comment is useful.
  */
 
-import { execSync } from "child_process";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, "../..");
+const ROOT = path.resolve(__dirname, '../..');
 
 function findCurrentReport() {
-  const fixturesDir = path.join(ROOT, "fixtures");
+  const fixturesDir = path.join(ROOT, 'fixtures');
   if (!fs.existsSync(fixturesDir)) return null;
 
   const candidates = fs
     .readdirSync(fixturesDir)
-    .map((name) => path.join(fixturesDir, name, "compatibility-report.json"))
+    .map((name) => path.join(fixturesDir, name, 'compatibility-report.json'))
     .filter((p) => fs.existsSync(p));
 
   if (candidates.length === 0) return null;
   // Most recently modified wins (handles multiple commit dirs).
-  return candidates.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0];
+  return candidates.sort(
+    (a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs,
+  )[0];
 }
 
 function readJson(file) {
-  return JSON.parse(fs.readFileSync(file, "utf8"));
+  return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
 function tryReadBaseReport(currentReportRelative) {
-  const refs = ["origin/main", "main"];
+  const refs = ['origin/main', 'main'];
   for (const ref of refs) {
     try {
       const out = execSync(`git show ${ref}:${currentReportRelative}`, {
         cwd: ROOT,
-        stdio: ["ignore", "pipe", "ignore"],
+        stdio: ['ignore', 'pipe', 'ignore'],
       }).toString();
       return JSON.parse(out);
     } catch {
@@ -77,27 +79,31 @@ function summarizeReport(report) {
 }
 
 function getCommitHash(report) {
-  return report?.svelte_commit ?? report?.commitHash ?? null;
+  return (
+    report?.svelte_commit ??
+    report?.commitHash ??
+    null
+  );
 }
 
 function fmtCell(passed, total) {
-  if (total === 0) return "—";
+  if (total === 0) return '—';
   const pct = ((passed / total) * 100).toFixed(1);
   return `${passed}/${total} (${pct}%)`;
 }
 
 function diffSign(n) {
-  if (n === 0) return "0";
+  if (n === 0) return '0';
   return n > 0 ? `+${n}` : `${n}`;
 }
 
 function main() {
   const args = new Set(process.argv.slice(2));
-  const isSummary = args.has("--pr-summary");
+  const isSummary = args.has('--pr-summary');
 
   const currentPath = findCurrentReport();
   if (!currentPath) {
-    process.stdout.write("_No compatibility report found in `fixtures/`._\n");
+    process.stdout.write('_No compatibility report found in `fixtures/`._\n');
     process.exit(0);
   }
 
@@ -115,15 +121,15 @@ function main() {
   const lines = [];
   const currentHash = getCommitHash(current);
   const baseHash = getCommitHash(base);
-  lines.push(`Current commit: \`${currentHash?.slice(0, 12) ?? "unknown"}\``);
+  lines.push(`Current commit: \`${currentHash?.slice(0, 12) ?? 'unknown'}\``);
   if (baseHash) {
     lines.push(`Base commit:    \`${baseHash.slice(0, 12)}\``);
   } else {
-    lines.push("_(Base branch report not available — showing current numbers only.)_");
+    lines.push('_(Base branch report not available — showing current numbers only.)_');
   }
-  lines.push("");
-  lines.push("| Category | Base | Current | Δ passed | Δ failed |");
-  lines.push("|----------|------|---------|----------|----------|");
+  lines.push('');
+  lines.push('| Category | Base | Current | Δ passed | Δ failed |');
+  lines.push('|----------|------|---------|----------|----------|');
 
   let totalDeltaPassed = 0;
   let totalDeltaFailed = 0;
@@ -136,29 +142,29 @@ function main() {
     totalDeltaPassed += dp;
     totalDeltaFailed += df;
 
-    let flag = "";
-    if (dp < 0 || df > 0) flag = " ⚠️";
-    else if (dp > 0 || df < 0) flag = " ✅";
+    let flag = '';
+    if (dp < 0 || df > 0) flag = ' ⚠️';
+    else if (dp > 0 || df < 0) flag = ' ✅';
 
     lines.push(
       `| ${cat} | ${fmtCell(bas.passed, bas.total)} | ${fmtCell(cur.passed, cur.total)} | ${diffSign(dp)} | ${diffSign(df)}${flag} |`,
     );
   }
 
-  lines.push("");
+  lines.push('');
   if (totalDeltaPassed === 0 && totalDeltaFailed === 0) {
-    lines.push("No change in pass/fail counts versus base.");
+    lines.push('No change in pass/fail counts versus base.');
   } else {
     lines.push(
       `**Net change**: ${diffSign(totalDeltaPassed)} passed, ${diffSign(totalDeltaFailed)} failed.`,
     );
   }
 
-  process.stdout.write(lines.join("\n") + "\n");
+  process.stdout.write(lines.join('\n') + '\n');
 
   if (!isSummary) {
-    process.stdout.write("\n--- raw current ---\n");
-    process.stdout.write(JSON.stringify(currentSummary, null, 2) + "\n");
+    process.stdout.write('\n--- raw current ---\n');
+    process.stdout.write(JSON.stringify(currentSummary, null, 2) + '\n');
   }
 }
 

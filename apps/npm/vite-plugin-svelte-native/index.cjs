@@ -2,53 +2,53 @@
 // Mirrors the loader pattern napi-rs generates: resolve a platform-specific
 // dependency that ships a single `rsvelte.node` artifact.
 
-const { decodeEnvelope, decodeBatch } = require("./envelope.js");
-const { decodeParseEnvelope } = require("./parse-envelope.js");
+const { decodeEnvelope, decodeBatch } = require('./envelope.js');
+const { decodeParseEnvelope } = require('./parse-envelope.js');
 
 const { platform, arch } = process;
 
 function resolveTriple() {
-  if (platform === "darwin") {
-    if (arch === "arm64") return "darwin-arm64";
-    if (arch === "x64") return "darwin-x64";
-  } else if (platform === "linux") {
-    // Node 18+ exposes the runtime glibc version in the report header. An
-    // empty value means we're on musl (Alpine, distroless, etc.).
-    let isMusl = false;
-    try {
-      const header = process.report.getReport().header;
-      isMusl = !header.glibcVersionRuntime;
-    } catch {
-      isMusl = false;
-    }
-    const libc = isMusl ? "musl" : "gnu";
-    if (arch === "x64") return `linux-x64-${libc}`;
-    if (arch === "arm64") return `linux-arm64-${libc}`;
-  } else if (platform === "win32") {
-    if (arch === "x64") return "win32-x64-msvc";
-  }
-  return null;
+	if (platform === 'darwin') {
+		if (arch === 'arm64') return 'darwin-arm64';
+		if (arch === 'x64') return 'darwin-x64';
+	} else if (platform === 'linux') {
+		// Node 18+ exposes the runtime glibc version in the report header. An
+		// empty value means we're on musl (Alpine, distroless, etc.).
+		let isMusl = false;
+		try {
+			const header = process.report.getReport().header;
+			isMusl = !header.glibcVersionRuntime;
+		} catch {
+			isMusl = false;
+		}
+		const libc = isMusl ? 'musl' : 'gnu';
+		if (arch === 'x64') return `linux-x64-${libc}`;
+		if (arch === 'arm64') return `linux-arm64-${libc}`;
+	} else if (platform === 'win32') {
+		if (arch === 'x64') return 'win32-x64-msvc';
+	}
+	return null;
 }
 
 const triple = resolveTriple();
 if (!triple) {
-  throw new Error(
-    `[@rsvelte/vite-plugin-svelte-native] Unsupported platform: ${platform}-${arch}. ` +
-      `Open an issue at https://github.com/baseballyama/rsvelte/issues if you'd like it supported.`,
-  );
+	throw new Error(
+		`[@rsvelte/vite-plugin-svelte-native] Unsupported platform: ${platform}-${arch}. ` +
+			`Open an issue at https://github.com/baseballyama/rsvelte/issues if you'd like it supported.`,
+	);
 }
 
 const pkgName = `@rsvelte/vite-plugin-svelte-native-${triple}`;
 let binding;
 try {
-  binding = require(`${pkgName}/rsvelte.node`);
+	binding = require(`${pkgName}/rsvelte.node`);
 } catch (err) {
-  throw new Error(
-    `[@rsvelte/vite-plugin-svelte-native] Couldn't load the native binding "${pkgName}".\n` +
-      `This usually means npm/pnpm skipped the optional dependency for your platform.\n` +
-      `Try reinstalling: npm install --include=optional ${pkgName}\n\n` +
-      `Original error: ${err.message}`,
-  );
+	throw new Error(
+		`[@rsvelte/vite-plugin-svelte-native] Couldn't load the native binding "${pkgName}".\n` +
+			`This usually means npm/pnpm skipped the optional dependency for your platform.\n` +
+			`Try reinstalling: npm install --include=optional ${pkgName}\n\n` +
+			`Original error: ${err.message}`,
+	);
 }
 
 // `compile` / `compileModule` are wrapped to route through the
@@ -62,11 +62,11 @@ try {
 // directly. The legacy JSON path is preserved as `compileLegacy` for
 // parity testing and as an escape hatch.
 function compile(source, options) {
-  return decodeEnvelope(binding.compileEnvelope(source, options));
+	return decodeEnvelope(binding.compileEnvelope(source, options));
 }
 
 function compileModule(source, options) {
-  return decodeEnvelope(binding.compileModuleEnvelope(source, options));
+	return decodeEnvelope(binding.compileModuleEnvelope(source, options));
 }
 
 // `compileBatch([{source, options}, …])` compiles N files in
@@ -75,7 +75,7 @@ function compileModule(source, options) {
 // each slot is either a `CompileResult` or an `Error` (parse
 // failures don't abort the whole batch).
 function compileBatch(inputs) {
-  return decodeBatch(binding.compileBatch(inputs));
+	return decodeBatch(binding.compileBatch(inputs));
 }
 
 // `compileAsync` / `compileBatchAsync` release the JS event loop
@@ -84,11 +84,11 @@ function compileBatch(inputs) {
 // (Vite middleware, SSR pre-render) — the await yields control
 // instead of blocking V8.
 async function compileAsync(source, options) {
-  return decodeEnvelope(await binding.compileEnvelopeAsync(source, options));
+	return decodeEnvelope(await binding.compileEnvelopeAsync(source, options));
 }
 
 async function compileBatchAsync(inputs) {
-  return decodeBatch(await binding.compileBatchAsync(inputs));
+	return decodeBatch(await binding.compileBatchAsync(inputs));
 }
 
 // Re-export every NAPI function as its own named binding so node's
@@ -139,4 +139,4 @@ module.exports.decodeParseEnvelope = decodeParseEnvelope;
 // downstream consumers (the `@rsvelte/vite-plugin-svelte` fork, etc.)
 // for `gte(VERSION, '5.36.0')`-style feature detection. Synced
 // manually against `submodules/svelte/packages/svelte/package.json`.
-module.exports.VERSION = "5.51.3";
+module.exports.VERSION = '5.51.3';

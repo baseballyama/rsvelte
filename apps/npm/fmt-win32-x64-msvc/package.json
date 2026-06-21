@@ -8,14 +8,14 @@
     "url": "git+https://github.com/baseballyama/rsvelte.git",
     "directory": "apps/npm/fmt-win32-x64-msvc"
   },
-  "files": [
-    "rsvelte-fmt.exe"
-  ],
   "os": [
     "win32"
   ],
   "cpu": [
     "x64"
+  ],
+  "files": [
+    "rsvelte-fmt.exe"
   ],
   "publishConfig": {
     "access": "public"

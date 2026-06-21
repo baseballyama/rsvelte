@@ -8,27 +8,25 @@
  * Usage: node scripts/ecosystem/test-real-world.mjs
  */
 
-import { execSync } from "child_process";
-import { createRequire } from "module";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { execSync } from 'child_process';
+import { createRequire } from 'module';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const require = createRequire(import.meta.url);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, "../..");
-const REPOS_DIR = path.join(ROOT, ".real-world-tests");
+const ROOT = path.resolve(__dirname, '../..');
+const REPOS_DIR = path.join(ROOT, '.real-world-tests');
 
 // Load compilers
-const svelte = await import(
-  path.join(ROOT, "submodules/svelte/packages/svelte/src/compiler/index.js")
-);
+const svelte = await import(path.join(ROOT, 'submodules/svelte/packages/svelte/src/compiler/index.js'));
 
 let rsvelte;
 const bindingPaths = [
-  path.join(ROOT, "svelte/rsvelte.linux-x64-gnu.node"),
-  path.join(ROOT, "svelte/rsvelte.darwin-arm64.node"),
+  path.join(ROOT, 'svelte/rsvelte.linux-x64-gnu.node'),
+  path.join(ROOT, 'svelte/rsvelte.darwin-arm64.node'),
 ];
 for (const p of bindingPaths) {
   try {
@@ -39,24 +37,24 @@ for (const p of bindingPaths) {
   }
 }
 if (!rsvelte) {
-  console.error("Could not load rsvelte NAPI binding. Build it first:");
-  console.error("  cargo build --release --features napi --lib");
-  console.error("On Linux, use: LD_PRELOAD=<path> node scripts/ecosystem/test-real-world.mjs");
+  console.error('Could not load rsvelte NAPI binding. Build it first:');
+  console.error('  cargo build --release --features napi --lib');
+  console.error('On Linux, use: LD_PRELOAD=<path> node scripts/ecosystem/test-real-world.mjs');
   process.exit(1);
 }
 
 const PROJECTS = [
   {
-    name: "immich",
-    repo: "https://github.com/immich-app/immich.git",
-    sparse: ["web/src"],
-    svelteDir: "web/src",
+    name: 'immich',
+    repo: 'https://github.com/immich-app/immich.git',
+    sparse: ['web/src'],
+    svelteDir: 'web/src',
   },
   {
-    name: "gradio",
-    repo: "https://github.com/gradio-app/gradio.git",
-    sparse: ["js"],
-    svelteDir: "js",
+    name: 'gradio',
+    repo: 'https://github.com/gradio-app/gradio.git',
+    sparse: ['js'],
+    svelteDir: 'js',
   },
 ];
 
@@ -66,9 +64,9 @@ function findSvelteFiles(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
-    if (entry.isDirectory() && entry.name !== "node_modules" && entry.name !== ".git") {
+    if (entry.isDirectory() && entry.name !== 'node_modules' && entry.name !== '.git') {
       files.push(...findSvelteFiles(full));
-    } else if (entry.isFile() && entry.name.endsWith(".svelte")) {
+    } else if (entry.isFile() && entry.name.endsWith('.svelte')) {
       files.push(full);
     }
   }
@@ -78,7 +76,7 @@ function findSvelteFiles(dir) {
 function sanitizeOptions(options) {
   const result = {};
   for (const [key, value] of Object.entries(options)) {
-    if (typeof value !== "function") {
+    if (typeof value !== 'function') {
       result[key] = value;
     }
   }
@@ -88,14 +86,13 @@ function sanitizeOptions(options) {
 function compileSvelte(source, filename) {
   const options = {
     filename,
-    generate: "client",
-    css: "external",
+    generate: 'client',
+    css: 'external',
     dev: false,
   };
 
   let jsResult, rsResult;
-  let jsError = null,
-    rsError = null;
+  let jsError = null, rsError = null;
 
   // Official Svelte compiler
   try {
@@ -129,11 +126,11 @@ function cloneProject(project) {
   delete cleanEnv.LD_PRELOAD;
 
   execSync(`git clone --filter=blob:none --sparse --depth=1 ${project.repo} ${dir}`, {
-    stdio: "pipe",
+    stdio: 'pipe',
     env: cleanEnv,
   });
-  execSync(`git -C ${dir} sparse-checkout set ${project.sparse.join(" ")}`, {
-    stdio: "pipe",
+  execSync(`git -C ${dir} sparse-checkout set ${project.sparse.join(' ')}`, {
+    stdio: 'pipe',
     env: cleanEnv,
   });
 
@@ -141,7 +138,7 @@ function cloneProject(project) {
 }
 
 // Main
-console.log("=== Real-World Svelte Project Test ===\n");
+console.log('=== Real-World Svelte Project Test ===\n');
 
 fs.mkdirSync(REPOS_DIR, { recursive: true });
 
@@ -161,14 +158,10 @@ for (const project of PROJECTS) {
   const files = findSvelteFiles(svelteDir);
   console.log(`  Found ${files.length} .svelte files`);
 
-  let pass = 0,
-    jsErr = 0,
-    rsErr = 0,
-    bothErr = 0,
-    mismatch = 0;
+  let pass = 0, jsErr = 0, rsErr = 0, bothErr = 0, mismatch = 0;
 
   for (const file of files) {
-    const source = fs.readFileSync(file, "utf-8");
+    const source = fs.readFileSync(file, 'utf-8');
     const relPath = path.relative(dir, file);
 
     const { jsResult, rsResult, jsError, rsError } = compileSvelte(source, relPath);
@@ -197,8 +190,8 @@ for (const project of PROJECTS) {
       } else {
         // Check if they're semantically similar (just formatting differences)
         // Normalize by removing whitespace
-        const jsNorm = jsCode.replace(/\s+/g, " ").trim();
-        const rsNorm = rsCode.replace(/\s+/g, " ").trim();
+        const jsNorm = jsCode.replace(/\s+/g, ' ').trim();
+        const rsNorm = rsCode.replace(/\s+/g, ' ').trim();
         if (jsNorm === rsNorm) {
           pass++;
         } else {
@@ -206,19 +199,16 @@ for (const project of PROJECTS) {
           mismatch++;
           if (mismatch <= 3) {
             // Find first differing line
-            const jsLines = jsCode.split("\n");
-            const rsLines = rsCode.split("\n");
+            const jsLines = jsCode.split('\n');
+            const rsLines = rsCode.split('\n');
             let diffLine = -1;
             for (let i = 0; i < Math.max(jsLines.length, rsLines.length); i++) {
-              if (jsLines[i] !== rsLines[i]) {
-                diffLine = i;
-                break;
-              }
+              if (jsLines[i] !== rsLines[i]) { diffLine = i; break; }
             }
             failures.push({
               project: project.name,
               file: relPath,
-              error: `Output mismatch at line ${diffLine + 1}: JS="${(jsLines[diffLine] || "").trim().substring(0, 80)}" RS="${(rsLines[diffLine] || "").trim().substring(0, 80)}"`,
+              error: `Output mismatch at line ${diffLine + 1}: JS="${(jsLines[diffLine] || '').trim().substring(0, 80)}" RS="${(rsLines[diffLine] || '').trim().substring(0, 80)}"`,
             });
           }
         }
@@ -261,8 +251,7 @@ if (failures.length > 0) {
   }
 }
 
-const successRate =
-  totalFiles > 0
-    ? (((totalPass + totalMismatch + totalBothError + totalJsError) / totalFiles) * 100).toFixed(1)
-    : "0";
+const successRate = totalFiles > 0
+  ? ((totalPass + totalMismatch + totalBothError + totalJsError) / totalFiles * 100).toFixed(1)
+  : '0';
 console.log(`\nCompile success rate (non-crash): ${successRate}%`);

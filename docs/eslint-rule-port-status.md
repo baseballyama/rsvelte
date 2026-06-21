@@ -67,10 +67,9 @@ These are intentionally not yet ported; each needs work outside "add a rule".
 > path for imported Props types (its local-type fixtures already pass).
 
 Three of the six rules upstream files under "type-aware" need **no** type checker
-— they only check for the _presence_ of TS syntax — and are ported as
+— they only check for the *presence* of TS syntax — and are ported as
 cross-cutting (template + script) source-scan meta-paths in
 `runner::lint_source`, sharing `crate::svelte_scan`:
-
 - ✅ `experimental-require-slot-types` (`rules/experimental_require_slot_types.rs`)
   — oracle-verified.
 - ✅ `experimental-require-strict-events` (`rules/experimental_require_strict_events.rs`).
@@ -95,7 +94,7 @@ reports identically) pass.
 ✅ `require-event-prefix` (`rules/require_event_prefix.rs`) ports the
 **local-type** cases via a source scan. Upstream uses the TS checker
 (`getTypeAtLocation` on the `$props()` binding → `getProperties()`), and rsvelte's
-lint ESTree _erases_ TS interface/type-alias bodies (only annotations survive) —
+lint ESTree *erases* TS interface/type-alias bodies (only annotations survive) —
 so this scans the `<script>` source to resolve the `$props()` type annotation to
 its local `interface`/`type`/inline-literal body, classifies each member as
 function-typed (method sig / arrow-type property) and async (`Promise<…>` return),
@@ -135,15 +134,14 @@ svelte-ignore scoping) are parity-verified by the oracle plus
 
 The following `valid-compile` fixtures remain skipped in the oracle, each
 blocked on something outside the rule port:
-
 - `svelte-config-onwarn` / `-custom-warn` / `-warning-filter` /
   `-experimental-async` — JS config callbacks (`onwarn`/`warningFilter`) and
   `_config.cjs` execution; no JS runtime in a native linter.
-- `experimental-async-disabled`, `ts/enum01` — compile-_error_ fixtures whose
+- `experimental-async-disabled`, `ts/enum01` — compile-*error* fixtures whose
   position can't be matched: rsvelte's `AnalysisError` variants carry no source
   span (report at the default position).
 - `invalid-svelte-ignore03` — rsvelte_core doesn't emit `block_empty` for an
-  empty `{#await}` _pending_ block.
+  empty `{#await}` *pending* block.
 - `custom_element_props_identifier`, `valid-custom-element-with-props-identifier`,
   `svelte-options-custom-element` — rsvelte_core divergences (the
   `custom_element_props_identifier` warning has no precise span, and
@@ -165,13 +163,11 @@ reproduce (and `lang="scss"` needs a real SCSS preprocessor) — but rsvelte sti
 surfaces an invalid `<style>` as a hard `parse-error` via the validator wrap.
 
 ### Blocked on an `rsvelte_core` capability
-
 - `no-unused-svelte-ignore` — needs a compile mode that surfaces warnings
-  _without_ applying `<!-- svelte-ignore -->` suppression, plus which ignore
+  *without* applying `<!-- svelte-ignore -->` suppression, plus which ignore
   codes were consumed (today `emit_warning` silently drops suppressed ones).
 
 ### Large / complex
-
 - `indent` — **partially ported** (`rules/indent.rs`). The upstream engine is a
   ~3,443-line token-offset machine; rsvelte ports the **template-structural**
   half as a `check_root` rule that builds a per-line expected-indent map from the
@@ -213,8 +209,8 @@ diverges from upstream in a benign or hard-to-fix way.
   detection does not skip comments between the tag and the expression.
 
 - **max-attributes-per-line** / **html-closing-bracket-new-line**: attributes
-  are grouped by their _start_ line; upstream groups by the group-leader's
-  _end_ line, so a multi-line attribute value whose following attribute starts
+  are grouped by their *start* line; upstream groups by the group-leader's
+  *end* line, so a multi-line attribute value whose following attribute starts
   on that end-line is grouped differently (leads to under-reporting). Affects
   only rare multi-line attribute values.
 

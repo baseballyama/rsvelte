@@ -10,11 +10,11 @@ state-heavy component, ~68% of client-transform self-time is string
 search/move + the allocation churn those operations create; oxc parsing +
 semantic building together are under 3%. Eliminating the
 parse → string-rewrite → re-parse pipeline (the plan's AST-rebuild + printer
-target) is therefore a _performance_ change, not only a readability one.
+target) is therefore a *performance* change, not only a readability one.
 
 ## Method (reproducible)
 
-The `bench` profile (fat LTO) is slow to build and irrelevant to _relative_
+The `bench` profile (fat LTO) is slow to build and irrelevant to *relative*
 hotspot attribution, so profile under the faster `profiling` profile and
 sample with the OS profiler (low overhead, text output):
 
@@ -37,7 +37,7 @@ runes-mode `$state` vars. This is the path that exercises the client
 `*_ast.rs` collect-and-splice passes hardest.
 
 Caveat: local wall-clock numbers on this bench are noisy (observed ±30% across
-samples on a laptop) — the **self-time _shape_** below is stable and is what we
+samples on a laptop) — the **self-time *shape*** below is stable and is what we
 act on. For trustworthy before/after deltas use CodSpeed CI (Valgrind
 simulation, low variance), which the `phase3_transform_*` benches already feed.
 
@@ -45,12 +45,12 @@ simulation, low variance), which the `phase3_transform_*` benches already feed.
 
 Collapsed top-of-stack self-time (samples with ≥5 hits; 8,585 total):
 
-| bucket                   | samples |     share | what it is                                                                                                                                                           |
-| ------------------------ | ------: | --------: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **string search / move** |   4,274 |  **~50%** | `str::contains`/`find` (`TwoWaySearcher`), `memmove` (`String::replace_range`/insert), `memcmp`, `trim_matches`, `Iterator::partition`, `StrSearcher::new`, `memmem` |
-| **allocation churn**     |   1,559 |  **~18%** | `malloc`/`free`/`realloc`/`RawVec::finish_grow` — overwhelmingly the per-pass `source.to_string()` clones + needle `format!`s                                        |
-| parse + semantic         |     242 | **~2.8%** | `oxc_parser` lexer/statements + `SemanticBuilder`                                                                                                                    |
-| everything else          |   2,510 |      ~29% | codegen (`js_ast::codegen::emit_*`), `Memoizer::generate_id`, formatting post-passes, hashing, etc.                                                                  |
+| bucket | samples | share | what it is |
+|---|---:|---:|---|
+| **string search / move** | 4,274 | **~50%** | `str::contains`/`find` (`TwoWaySearcher`), `memmove` (`String::replace_range`/insert), `memcmp`, `trim_matches`, `Iterator::partition`, `StrSearcher::new`, `memmem` |
+| **allocation churn** | 1,559 | **~18%** | `malloc`/`free`/`realloc`/`RawVec::finish_grow` — overwhelmingly the per-pass `source.to_string()` clones + needle `format!`s |
+| parse + semantic | 242 | **~2.8%** | `oxc_parser` lexer/statements + `SemanticBuilder` |
+| everything else | 2,510 | ~29% | codegen (`js_ast::codegen::emit_*`), `Memoizer::generate_id`, formatting post-passes, hashing, etc. |
 
 Hottest single frames (self): `TwoWaySearcher::next` 1,238 · `memmove` 919 ·
 `free` 593 · `memcmp` 521 · `Iterator::partition` 403 ·
@@ -65,7 +65,7 @@ sites as `result = transform_X(&result).unwrap_or(result)`.
 ## Interpretation
 
 1. **Parsing is cheap; re-string-ifying is not.** oxc parses the instance
-   script in well under 3% of the budget. The cost is everything built _around_
+   script in well under 3% of the budget. The cost is everything built *around*
    parsing: scanning the script text with `str::contains`/`find`, splicing
    edits with `replace_range` (`memmove`), and re-allocating a fresh `String`
    at each pass that changes anything. The `*_ast.rs` passes are "AST-driven"
@@ -86,7 +86,7 @@ sites as `result = transform_X(&result).unwrap_or(result)`.
    (`phase3-ast-refactor-plan.md`, steps 2–3). That removes per-pass
    re-parsing, per-pass `String` cloning, and the `str::contains`/`replace`
    scans wholesale — i.e. it collapses the entire ~68% bucket, not a slice of
-   it. It is the same change the plan prescribes for _correctness_ (comment /
+   it. It is the same change the plan prescribes for *correctness* (comment /
    quoting / number-spelling divergences), now with a measured performance
    mandate behind it.
 

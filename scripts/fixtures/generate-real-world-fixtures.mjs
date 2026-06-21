@@ -13,18 +13,18 @@
  *   node scripts/fixtures/generate-real-world-fixtures.mjs
  */
 
-import { compile, parse } from "../../submodules/svelte/packages/svelte/src/compiler/index.js";
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
-import { join, dirname, basename } from "path";
-import { fileURLToPath } from "url";
+import { compile, parse } from '../../submodules/svelte/packages/svelte/src/compiler/index.js';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { join, dirname, basename } from 'path';
+import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = join(__dirname, "../..");
-const FIXTURES_DIR = join(PROJECT_ROOT, "tests", "real_world", "fixtures");
+const PROJECT_ROOT = join(__dirname, '../..');
+const FIXTURES_DIR = join(PROJECT_ROOT, 'tests', 'real_world', 'fixtures');
 
 // Base paths for real-world repos
-const IMMICH_BASE = "/workspace/.real-world-tests/immich/web/src/lib/components";
-const GRADIO_BASE = "/workspace/.real-world-tests/gradio/js";
+const IMMICH_BASE = '/workspace/.real-world-tests/immich/web/src/lib/components';
+const GRADIO_BASE = '/workspace/.real-world-tests/gradio/js';
 
 /**
  * Fixture definitions organized by bug category.
@@ -41,29 +41,29 @@ const FIXTURES = [
   // (tests for the double-call bug)
   // =========================================================================
   {
-    name: "immich-shared-link-expiration",
+    name: 'immich-shared-link-expiration',
     source: `${IMMICH_BASE}/SharedLinkExpiration.svelte`,
-    category: "store-subscriptions",
+    category: 'store-subscriptions',
   },
   {
-    name: "immich-shared-link-form-fields",
+    name: 'immich-shared-link-form-fields',
     source: `${IMMICH_BASE}/SharedLinkFormFields.svelte`,
-    category: "store-subscriptions",
+    category: 'store-subscriptions',
   },
   {
-    name: "immich-utilities-menu",
+    name: 'immich-utilities-menu',
     source: `${IMMICH_BASE}/utilities-page/utilities-menu.svelte`,
-    category: "store-subscriptions",
+    category: 'store-subscriptions',
   },
   {
-    name: "immich-album-map",
+    name: 'immich-album-map',
     source: `${IMMICH_BASE}/album-page/album-map.svelte`,
-    category: "store-subscriptions",
+    category: 'store-subscriptions',
   },
   {
-    name: "immich-album-shared-link",
+    name: 'immich-album-shared-link',
     source: `${IMMICH_BASE}/album-page/album-shared-link.svelte`,
-    category: "store-subscriptions",
+    category: 'store-subscriptions',
   },
 
   // =========================================================================
@@ -71,14 +71,14 @@ const FIXTURES = [
   // (tests for the comment leak bug)
   // =========================================================================
   {
-    name: "immich-duplicates-compare-control",
+    name: 'immich-duplicates-compare-control',
     source: `${IMMICH_BASE}/utilities-page/duplicates/duplicates-compare-control.svelte`,
-    category: "comments-near-props",
+    category: 'comments-near-props',
   },
   {
-    name: "immich-albums-list",
+    name: 'immich-albums-list',
     source: `${IMMICH_BASE}/album-page/albums-list.svelte`,
-    category: "comments-near-props",
+    category: 'comments-near-props',
   },
 
   // =========================================================================
@@ -86,39 +86,39 @@ const FIXTURES = [
   // (tests for $.get/$.set differences)
   // =========================================================================
   {
-    name: "immich-sidebar",
+    name: 'immich-sidebar',
     source: `${IMMICH_BASE}/sidebar/sidebar.svelte`,
-    category: "complex-props",
+    category: 'complex-props',
   },
   {
-    name: "immich-image-layer",
+    name: 'immich-image-layer',
     source: `${IMMICH_BASE}/ImageLayer.svelte`,
-    category: "complex-props",
+    category: 'complex-props',
   },
   {
-    name: "immich-admin-card",
+    name: 'immich-admin-card',
     source: `${IMMICH_BASE}/AdminCard.svelte`,
-    category: "complex-props",
+    category: 'complex-props',
   },
   {
-    name: "immich-on-events",
+    name: 'immich-on-events',
     source: `${IMMICH_BASE}/OnEvents.svelte`,
-    category: "complex-props",
+    category: 'complex-props',
   },
   {
-    name: "immich-queue-card",
+    name: 'immich-queue-card',
     source: `${IMMICH_BASE}/QueueCard.svelte`,
-    category: "complex-props",
+    category: 'complex-props',
   },
   {
-    name: "gradio-dropdown-index",
+    name: 'gradio-dropdown-index',
     source: `${GRADIO_BASE}/dropdown/Index.svelte`,
-    category: "complex-props",
+    category: 'complex-props',
   },
   {
-    name: "gradio-statustracker-toast",
+    name: 'gradio-statustracker-toast',
     source: `${GRADIO_BASE}/statustracker/static/Toast.svelte`,
-    category: "complex-props",
+    category: 'complex-props',
   },
 
   // =========================================================================
@@ -126,39 +126,39 @@ const FIXTURES = [
   // (tests for legacy reactivity handling)
   // =========================================================================
   {
-    name: "gradio-tabs",
+    name: 'gradio-tabs',
     source: `${GRADIO_BASE}/tabs/shared/Tabs.svelte`,
-    category: "legacy-mode",
+    category: 'legacy-mode',
   },
   {
-    name: "gradio-tooltip",
+    name: 'gradio-tooltip',
     source: `${GRADIO_BASE}/tooltip/src/Tooltip.svelte`,
-    category: "legacy-mode",
+    category: 'legacy-mode',
   },
   {
-    name: "gradio-block",
+    name: 'gradio-block',
     source: `${GRADIO_BASE}/atoms/src/Block.svelte`,
-    category: "legacy-mode",
+    category: 'legacy-mode',
   },
   {
-    name: "gradio-block-label",
+    name: 'gradio-block-label',
     source: `${GRADIO_BASE}/atoms/src/BlockLabel.svelte`,
-    category: "legacy-mode",
+    category: 'legacy-mode',
   },
   {
-    name: "gradio-download-link",
+    name: 'gradio-download-link',
     source: `${GRADIO_BASE}/atoms/src/DownloadLink.svelte`,
-    category: "legacy-mode",
+    category: 'legacy-mode',
   },
   {
-    name: "gradio-share-button",
+    name: 'gradio-share-button',
     source: `${GRADIO_BASE}/atoms/src/ShareButton.svelte`,
-    category: "legacy-mode",
+    category: 'legacy-mode',
   },
   {
-    name: "gradio-volume-control",
+    name: 'gradio-volume-control',
     source: `${GRADIO_BASE}/video/shared/VolumeControl.svelte`,
-    category: "legacy-mode",
+    category: 'legacy-mode',
   },
 
   // =========================================================================
@@ -166,34 +166,34 @@ const FIXTURES = [
   // (tests for HTML template generation differences)
   // =========================================================================
   {
-    name: "immich-queue-graph",
+    name: 'immich-queue-graph',
     source: `${IMMICH_BASE}/QueueGraph.svelte`,
-    category: "template-expressions",
+    category: 'template-expressions',
   },
   {
-    name: "immich-queue-panel",
+    name: 'immich-queue-panel',
     source: `${IMMICH_BASE}/QueuePanel.svelte`,
-    category: "template-expressions",
+    category: 'template-expressions',
   },
   {
-    name: "immich-photo-viewer",
+    name: 'immich-photo-viewer',
     source: `${IMMICH_BASE}/asset-viewer/photo-viewer.svelte`,
-    category: "template-expressions",
+    category: 'template-expressions',
   },
   {
-    name: "immich-album-card",
+    name: 'immich-album-card',
     source: `${IMMICH_BASE}/album-page/album-card.svelte`,
-    category: "template-expressions",
+    category: 'template-expressions',
   },
   {
-    name: "gradio-sidebar",
+    name: 'gradio-sidebar',
     source: `${GRADIO_BASE}/sidebar/shared/Sidebar.svelte`,
-    category: "template-expressions",
+    category: 'template-expressions',
   },
   {
-    name: "gradio-editable-cell",
+    name: 'gradio-editable-cell',
     source: `${GRADIO_BASE}/dataframe/shared/EditableCell.svelte`,
-    category: "template-expressions",
+    category: 'template-expressions',
   },
 
   // =========================================================================
@@ -201,34 +201,34 @@ const FIXTURES = [
   // (baseline / sanity checks)
   // =========================================================================
   {
-    name: "immich-loading-dots",
+    name: 'immich-loading-dots',
     source: `${IMMICH_BASE}/LoadingDots.svelte`,
-    category: "simple",
+    category: 'simple',
   },
   {
-    name: "immich-link-to-docs",
+    name: 'immich-link-to-docs',
     source: `${IMMICH_BASE}/LinkToDocs.svelte`,
-    category: "simple",
+    category: 'simple',
   },
   {
-    name: "immich-alpha-background",
+    name: 'immich-alpha-background',
     source: `${IMMICH_BASE}/AlphaBackground.svelte`,
-    category: "simple",
+    category: 'simple',
   },
   {
-    name: "immich-delayed-loading-spinner",
+    name: 'immich-delayed-loading-spinner',
     source: `${IMMICH_BASE}/DelayedLoadingSpinner.svelte`,
-    category: "simple",
+    category: 'simple',
   },
   {
-    name: "gradio-empty",
+    name: 'gradio-empty',
     source: `${GRADIO_BASE}/atoms/src/Empty.svelte`,
-    category: "simple",
+    category: 'simple',
   },
   {
-    name: "gradio-block-title",
+    name: 'gradio-block-title',
     source: `${GRADIO_BASE}/atoms/src/BlockTitle.svelte`,
-    category: "simple",
+    category: 'simple',
   },
 ];
 
@@ -239,7 +239,7 @@ function compileSource(source, filename, generate) {
   return compile(source, {
     filename,
     generate,
-    css: "external",
+    css: 'external',
     dev: false,
   });
 }
@@ -263,52 +263,49 @@ function generateFixture(fixture) {
     return false;
   }
 
-  const sourceCode = readFileSync(sourcePath, "utf-8");
+  const sourceCode = readFileSync(sourcePath, 'utf-8');
 
   // Create fixture directory
   const fixtureDir = join(FIXTURES_DIR, name);
   mkdirSync(fixtureDir, { recursive: true });
 
   // Write input.svelte
-  writeFileSync(join(fixtureDir, "input.svelte"), sourceCode);
+  writeFileSync(join(fixtureDir, 'input.svelte'), sourceCode);
 
   // Write options.json
   const options = {
-    filename: "input.svelte",
-    css: "external",
+    filename: 'input.svelte',
+    css: 'external',
     dev: false,
     category,
   };
-  writeFileSync(join(fixtureDir, "options.json"), JSON.stringify(options, null, 2) + "\n");
+  writeFileSync(join(fixtureDir, 'options.json'), JSON.stringify(options, null, 2) + '\n');
 
   // Generate AST
   try {
-    const ast = parseSource(sourceCode, "input.svelte");
-    writeFileSync(join(fixtureDir, "expected_ast.json"), JSON.stringify(ast, null, 2) + "\n");
+    const ast = parseSource(sourceCode, 'input.svelte');
+    writeFileSync(join(fixtureDir, 'expected_ast.json'), JSON.stringify(ast, null, 2) + '\n');
   } catch (e) {
     console.error(`  WARN: ${name} — AST parse failed: ${e.message}`);
-    writeFileSync(
-      join(fixtureDir, "expected_ast.json"),
-      JSON.stringify({ error: e.message }) + "\n",
-    );
+    writeFileSync(join(fixtureDir, 'expected_ast.json'), JSON.stringify({ error: e.message }) + '\n');
   }
 
   // Generate client JS
   try {
-    const clientResult = compileSource(sourceCode, "input.svelte", "client");
-    writeFileSync(join(fixtureDir, "expected_client.js"), clientResult.js.code);
+    const clientResult = compileSource(sourceCode, 'input.svelte', 'client');
+    writeFileSync(join(fixtureDir, 'expected_client.js'), clientResult.js.code);
   } catch (e) {
     console.error(`  WARN: ${name} — client compile failed: ${e.message}`);
-    writeFileSync(join(fixtureDir, "expected_client.js"), `// COMPILE ERROR: ${e.message}\n`);
+    writeFileSync(join(fixtureDir, 'expected_client.js'), `// COMPILE ERROR: ${e.message}\n`);
   }
 
   // Generate server JS
   try {
-    const serverResult = compileSource(sourceCode, "input.svelte", "server");
-    writeFileSync(join(fixtureDir, "expected_server.js"), serverResult.js.code);
+    const serverResult = compileSource(sourceCode, 'input.svelte', 'server');
+    writeFileSync(join(fixtureDir, 'expected_server.js'), serverResult.js.code);
   } catch (e) {
     console.error(`  WARN: ${name} — server compile failed: ${e.message}`);
-    writeFileSync(join(fixtureDir, "expected_server.js"), `// COMPILE ERROR: ${e.message}\n`);
+    writeFileSync(join(fixtureDir, 'expected_server.js'), `// COMPILE ERROR: ${e.message}\n`);
   }
 
   return true;
@@ -318,10 +315,10 @@ function generateFixture(fixture) {
 // Main
 // ============================================================================
 
-console.log("Generating real-world fixtures...");
+console.log('Generating real-world fixtures...');
 console.log(`Output directory: ${FIXTURES_DIR}`);
 console.log(`Total fixtures to generate: ${FIXTURES.length}`);
-console.log("");
+console.log('');
 
 mkdirSync(FIXTURES_DIR, { recursive: true });
 
@@ -333,24 +330,24 @@ for (const fixture of FIXTURES) {
   process.stdout.write(`  Generating: ${fixture.name}...`);
   if (generateFixture(fixture)) {
     generated++;
-    process.stdout.write(" OK\n");
+    process.stdout.write(' OK\n');
   } else {
     skipped++;
-    process.stdout.write(" SKIPPED\n");
+    process.stdout.write(' SKIPPED\n');
   }
 
   // Track by category
   byCategory[fixture.category] = (byCategory[fixture.category] || 0) + 1;
 }
 
-console.log("");
-console.log("=== Summary ===");
+console.log('');
+console.log('=== Summary ===');
 console.log(`Generated: ${generated}`);
 console.log(`Skipped:   ${skipped}`);
-console.log("");
-console.log("By category:");
+console.log('');
+console.log('By category:');
 for (const [cat, count] of Object.entries(byCategory).sort()) {
   console.log(`  ${cat}: ${count}`);
 }
-console.log("");
-console.log("Done!");
+console.log('');
+console.log('Done!');

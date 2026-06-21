@@ -1,9 +1,9 @@
-import { VERSION } from "@rsvelte/vite-plugin-svelte-native";
+import { VERSION } from '@rsvelte/vite-plugin-svelte-native';
 
 /**
  * @type {boolean}
  */
-export const isSvelteWithAsync = gte(VERSION, "5.36.0");
+export const isSvelteWithAsync = gte(VERSION, '5.36.0');
 
 /**
  * split semver string and convert to number, ignores non digits in tag
@@ -11,17 +11,17 @@ export const isSvelteWithAsync = gte(VERSION, "5.36.0");
  * @return {number[]} [major,minor,patch,tag]
  */
 function splitToNumbers(semver) {
-  const num = semver
-    .replace(/[^\d.-]/g, "")
-    .split(/[.-]+/, 4)
-    .map(Number);
-  while (num.length < 3) {
-    num.push(0);
-  }
-  if (num.length < 4) {
-    num.push(Infinity);
-  }
-  return num;
+	const num = semver
+		.replace(/[^\d.-]/g, '')
+		.split(/[.-]+/, 4)
+		.map(Number);
+	while (num.length < 3) {
+		num.push(0);
+	}
+	if (num.length < 4) {
+		num.push(Infinity);
+	}
+	return num;
 }
 
 /**
@@ -32,15 +32,15 @@ function splitToNumbers(semver) {
  * @return {boolean} true if a is greater or equal to b
  */
 export function gte(a, b) {
-  const aNum = splitToNumbers(a);
-  const bNum = splitToNumbers(b);
-  for (let i = 0; i < aNum.length; i++) {
-    if (aNum[i] < bNum[i]) {
-      return false;
-    }
-    if (aNum[i] > bNum[i]) {
-      return true;
-    }
-  }
-  return true;
+	const aNum = splitToNumbers(a);
+	const bNum = splitToNumbers(b);
+	for (let i = 0; i < aNum.length; i++) {
+		if (aNum[i] < bNum[i]) {
+			return false;
+		}
+		if (aNum[i] > bNum[i]) {
+			return true;
+		}
+	}
+	return true;
 }
