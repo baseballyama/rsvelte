@@ -2135,6 +2135,34 @@ fn transform_client_with_visitors(
     // Generate JavaScript code from the program, optionally with source map data
     super::profile::record_assembly_after_fragment(super::profile::timer_elapsed(_assembly_start));
     let _codegen_start = super::profile::timer_start();
+
+    // Experimental direct-AST CODE path (gated behind `RSVELTE_CLIENT_TO_OXC`):
+    // convert the `js_ast` IR to an oxc `Program` and print with the esrap port,
+    // bypassing the string codegen ENTIRELY (including the sourcemap branch, which
+    // by default sets `enable_sourcemap=true`). Mappings are dropped here — this
+    // gate exists to validate the to_oxc CODE output against the corpus / curated
+    // snapshots before the AST path is wired into the sourcemap pipeline.
+    if std::env::var("RSVELTE_CLIENT_TO_OXC").is_ok() {
+        let converted = CLIENT_TO_OXC_ALLOCATOR.with(|cell| {
+            let mut alloc = cell.borrow_mut();
+            alloc.reset();
+            super::js_ast::to_oxc::program_to_oxc(&program, &context.arena, &alloc)
+                .map(|oxc_prog| rsvelte_esrap::print(&oxc_prog, ""))
+        });
+        if let Some(code) = converted {
+            super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
+            return Ok(CodegenResult {
+                code: hoist_rest_excludes(&code),
+                mappings: vec![],
+            });
+        } else if std::env::var("RSVELTE_CLIENT_TO_OXC_DEBUG").is_ok() {
+            eprintln!(
+                "CLIENT_TO_OXC_FALLBACK {}",
+                options.filename.as_deref().unwrap_or("?")
+            );
+        }
+    }
+
     if options.enable_sourcemap {
         let r = generate_with_sourcemap(&program, source, &context.arena)
             .map_err(TransformError::CodeGen)
@@ -2145,25 +2173,7 @@ fn transform_client_with_visitors(
         super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
         r
     } else {
-        // Experimental "Phase-3 Step 1+3 direct-AST" path (gated OFF by
-        // default). When `RSVELTE_CLIENT_TO_OXC` is set, try converting the
-        // `js_ast` IR program into an oxc `Program` and printing it with the
-        // esrap port. Any unhandled node makes the converter return `None`, in
-        // which case we transparently fall through to the existing string-based
-        // codegen, so behavior is identical to the unset case on any failure.
-        let code = if std::env::var("RSVELTE_CLIENT_TO_OXC").is_ok() {
-            CLIENT_TO_OXC_ALLOCATOR
-                .with(|cell| {
-                    let mut alloc = cell.borrow_mut();
-                    alloc.reset();
-                    super::js_ast::to_oxc::program_to_oxc(&program, &context.arena, &alloc)
-                        .map(|oxc_prog| rsvelte_esrap::print(&oxc_prog, ""))
-                })
-                .map(Ok)
-        } else {
-            None
-        }
-        .unwrap_or_else(|| generate(&program, &context.arena).map_err(TransformError::CodeGen))?;
+        let code = generate(&program, &context.arena).map_err(TransformError::CodeGen)?;
         super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
         Ok(CodegenResult {
             code: hoist_rest_excludes(&code),
