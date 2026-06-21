@@ -2583,7 +2583,7 @@ pub fn transform_instance<'a>(
         return Vec::new();
     };
     let mut imports: Vec<Statement<'a>> = Vec::new();
-    let body = if state.analysis.runes {
+    let mut body = if state.analysis.runes {
         transform_script(script, state, Some(&mut imports), true)
     } else {
         transform_script_legacy(script, state, Some(&mut imports), true)
@@ -2622,7 +2622,33 @@ pub fn transform_instance<'a>(
         }
     }
 
+    // No top-level await ⇒ `transform_async_body` did not run. Any `$$async_hole`
+    // placeholder left behind for a removed `$inspect(...)` / `$effect(...)`
+    // statement must collapse to an empty statement (`;`) — upstream emits
+    // `b.empty()` here (the async-body transform would have rewritten the marker
+    // when an await actually split the body). Without this, `$$async_hole;` leaks
+    // into the SSR output of every async-flagged-but-await-free component.
+    for stmt in body.iter_mut() {
+        if is_async_hole_stmt(stmt) {
+            *stmt = state.b.empty();
+        }
+    }
+
     body
+}
+
+/// True when `stmt` is the `($$async_hole);` placeholder expression statement
+/// (an identifier reference to `$$async_hole`, optionally parenthesized).
+fn is_async_hole_stmt(stmt: &Statement) -> bool {
+    use oxc_ast::ast::Expression;
+    let Statement::ExpressionStatement(es) = stmt else {
+        return false;
+    };
+    let mut expr = &es.expression;
+    while let Expression::ParenthesizedExpression(p) = expr {
+        expr = &p.expression;
+    }
+    matches!(expr, Expression::Identifier(id) if id.name == "$$async_hole")
 }
 
 /// Print a slice of oxc statements to JS source text via the esrap printer
