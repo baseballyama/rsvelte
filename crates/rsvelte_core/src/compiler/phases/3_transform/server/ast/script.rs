@@ -386,6 +386,26 @@ fn transform_script<'a>(
                     }
                 }
             }
+            // MODULE-script `export <decl>` (`!is_instance`): kept VERBATIM (export
+            // retained — module exports are NOT instance props), but the inner
+            // declaration's top-level `$state` / `$derived` runes still lower (写经
+            // the tree-wide server `CallExpression` / `VariableDeclaration` visitors
+            // firing on the module body). E.g. `<script module> export let route =
+            // $state({})` → `export let route = {}`.
+            Statement::ExportNamedDeclaration(exp) if !is_instance => {
+                let span = exp.span();
+                let slice = &src[span.start as usize..span.end as usize];
+                if let Some(mut rehomed) = state.reparse_statement(slice) {
+                    lower_module_export_runes(&mut rehomed, state);
+                    super::read_wrap::wrap_reads_in_statement(
+                        &mut rehomed,
+                        state.b,
+                        state.analysis,
+                        state.analysis.root.instance_scope_index,
+                    );
+                    out.push(rehomed);
+                }
+            }
             Statement::ExpressionStatement(es) => {
                 // DEV mode: a top-level `$inspect(args)` / `$inspect(args).with(fn)`
                 // is NOT removed — upstream's server `CallExpression` visitor lowers
@@ -703,6 +723,30 @@ fn lower_nested_runes<'a>(stmt: &mut Statement<'a>, state: &ServerTransformState
         use_async: state.eval_inputs.use_async,
     };
     v.visit_statement(stmt);
+}
+
+/// Lower the top-level `$state` / `$derived` runes in a MODULE-script
+/// `export let/const/var <decl> = <rune>` declaration IN PLACE, keeping the
+/// `export` keyword. The module script keeps its exports verbatim (no instance
+/// prop-stripping), but upstream's tree-wide server `CallExpression` /
+/// `VariableDeclaration` visitors still fire on the module body, so a module
+/// `export let route = $state({})` lowers its initializer to `export let route =
+/// {}`. Reuses [`NestedRuneLower::lower_var_decl`] with the nested flag forced on
+/// so the declarator's rune init is expanded exactly like a nested one.
+fn lower_module_export_runes<'a>(stmt: &mut Statement<'a>, state: &ServerTransformState<'a>) {
+    let Statement::ExportNamedDeclaration(exp) = stmt else {
+        return;
+    };
+    let Some(oxc_ast::ast::Declaration::VariableDeclaration(vd)) = exp.declaration.as_mut() else {
+        return;
+    };
+    let mut v = NestedRuneLower {
+        b: state.b,
+        derived: vec![rustc_hash::FxHashSet::default()],
+        in_nested_body: true,
+        use_async: state.eval_inputs.use_async,
+    };
+    v.lower_var_decl(vd);
 }
 
 /// `VisitMut` that lowers nested-scope runes and rewrites derived reads. A scope
