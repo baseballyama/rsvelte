@@ -166,6 +166,20 @@ pub fn process_children_inner<'a>(
 
     let mut cleaned = clean_whitespace(&filtered, parent, namespace, preserve_whitespace);
 
+    // 写经 `clean_nodes` (utils.js:254-263): if the first surviving child of a
+    // `<pre>` is a Text node whose data is a single newline (`'\n'` / `'\r\n'`),
+    // discard it — otherwise the browser would drop it for us at parse time,
+    // breaking hydration. A `\n\n` (blank-line) first text is NOT a single
+    // newline and is preserved.
+    if parent.is_some_and(|el| el.name.as_str() == "pre") {
+        let first_is_lone_newline = cleaned.first().is_some_and(
+            |c| matches!(c.as_ref(), TemplateNode::Text(t) if t.data == "\n" || t.data == "\r\n"),
+        );
+        if first_is_lone_newline {
+            cleaned.remove(0);
+        }
+    }
+
     // 写经 `clean_nodes` (utils.js:265-275) "lone script tag" special case: when
     // the ONLY surviving child is a `<script>` RegularElement, append an empty
     // `<!---->` comment node. Upstream needs this so the client's `run_scripts`
