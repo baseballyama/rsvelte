@@ -338,6 +338,22 @@ fn element_has_async_attribute(node: &RegularElement, state: &ServerTransformSta
                 }
             }
             Attribute::Attribute(a) => {
+                // Event handlers (`onclick={…}`) and `defaultValue`/`defaultChecked`
+                // render NOTHING on the server (they are skipped in
+                // `build_element_attributes`), so their expressions never reach
+                // the optimiser `transform` upstream — they must NOT make the
+                // element async. Without this guard, an `onclick={() => a++}`
+                // whose handler reads a binding that happens to carry a blocker
+                // (e.g. `a` transitively gated by a chained `$derived(await)`)
+                // would spuriously route the element through `emit_async_element`,
+                // breaking the surrounding push coalescing.
+                let raw_name = a.name.as_str();
+                if is_event_attribute_name(raw_name)
+                    || raw_name == "defaultValue"
+                    || raw_name == "defaultChecked"
+                {
+                    continue;
+                }
                 if let Some(t) = attribute_value_source(&a.value, state)
                     && is_async_text(&t)
                 {
