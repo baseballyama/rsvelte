@@ -132,9 +132,20 @@ pub fn process_children_inner<'a>(
     // `is_text_first` computation then run on `regular` ONLY, so whitespace that sat
     // adjacent to a hoisted node becomes leading/trailing of `regular` and is
     // trimmed away — and a leading hoisted node never consumes the text-first slot.
+    // 写经 `clean_nodes` (utils.js:138-140): in LEGACY mode, topologically sort
+    // sibling `{@const}` tags by dependency before splitting, so a const that
+    // reads another sibling const is emitted after it (Svelte-4 compat). Runes
+    // mode keeps source order. `sort_const_tags` returns `None` (keep original)
+    // when there is nothing to reorder.
+    let reordered = sort_const_tags(nodes, state);
+    let iter_nodes: Vec<&TemplateNode> = match reordered {
+        Some(v) => v,
+        None => nodes.iter().collect(),
+    };
+
     let mut hoisted: Vec<&TemplateNode> = Vec::new();
     let mut filtered: Vec<&TemplateNode> = Vec::new();
-    for n in nodes {
+    for &n in &iter_nodes {
         if matches!(n, TemplateNode::Comment(_)) && !preserve_comments {
             continue;
         }
@@ -661,6 +672,122 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
 /// whenever a `Stmt` entry is hit.
 ///
 /// Returns the assembled body statements (in order).
+/// 写经 `3-transform/utils.js::sort_const_tags` (Svelte-4 compat, LEGACY ONLY):
+/// reorder a child list so `{@const}` tags appear in topological dependency order
+/// (a const whose initializer references another sibling const is emitted AFTER
+/// it), with all consts moved ahead of the other children. Runs in
+/// `process_children_inner` before the hoisted/regular split. Returns `None` when
+/// the component is in runes mode or the list has no `{@const}` (caller keeps the
+/// original order). Only inter-const edges matter for ordering — a dependency on
+/// a non-const binding (prop / global) does not create an edge — so the
+/// dependency scan only needs each const's declared names + the identifiers
+/// referenced in its initializer (reusing the same string-based extraction the
+/// const-tag visitor uses, so the two stay consistent).
+fn sort_const_tags<'n>(
+    nodes: &'n [TemplateNode],
+    state: &ServerTransformState<'_>,
+) -> Option<Vec<&'n TemplateNode>> {
+    if state.analysis.runes {
+        return None;
+    }
+
+    struct ConstInfo<'n> {
+        node: &'n TemplateNode,
+        declared: Vec<String>,
+        deps: Vec<String>,
+    }
+
+    let mut consts: Vec<ConstInfo<'n>> = Vec::new();
+    let mut others: Vec<&'n TemplateNode> = Vec::new();
+    for n in nodes {
+        if let TemplateNode::ConstTag(ct) = n {
+            let start = ct.declaration.start().unwrap_or(0) as usize;
+            let end = ct.declaration.end().unwrap_or(0) as usize;
+            let (declared, deps) = if end > start && end <= state.source.len() {
+                let src = state.source[start..end].trim();
+                match super::const_tag::find_assignment_eq(src) {
+                    Some(eq) => (
+                        super::const_tag::extract_declared_names(&src[..eq]),
+                        super::const_tag::extract_identifiers_from_expr(&src[eq + 1..]),
+                    ),
+                    None => (Vec::new(), Vec::new()),
+                }
+            } else {
+                (Vec::new(), Vec::new())
+            };
+            consts.push(ConstInfo {
+                node: n,
+                declared,
+                deps,
+            });
+        } else {
+            others.push(n);
+        }
+    }
+
+    if consts.is_empty() {
+        return None;
+    }
+
+    // Map each declared name → the index of the const that declares it (first
+    // wins, mirroring upstream's `tags.set(binding, …)` keyed by binding).
+    let mut name_to_idx: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    for (i, c) in consts.iter().enumerate() {
+        for d in &c.declared {
+            name_to_idx.entry(d.as_str()).or_insert(i);
+        }
+    }
+
+    // Depth-first topological add: visit a const's dependency consts before it.
+    // `done` is the post-order guard (upstream's `sorted.includes`); `on_stack`
+    // breaks any dependency cycle so a malformed input can't recurse forever
+    // (upstream errors on cycles via `check_graph_for_cycles`; for valid DAG
+    // inputs both produce the same order).
+    #[allow(clippy::too_many_arguments)]
+    fn add(
+        i: usize,
+        deps_of: &[Vec<String>],
+        name_to_idx: &std::collections::HashMap<&str, usize>,
+        done: &mut [bool],
+        on_stack: &mut [bool],
+        sorted: &mut Vec<usize>,
+    ) {
+        if done[i] || on_stack[i] {
+            return;
+        }
+        on_stack[i] = true;
+        for dep in &deps_of[i] {
+            if let Some(&j) = name_to_idx.get(dep.as_str()) {
+                if j != i {
+                    add(j, deps_of, name_to_idx, done, on_stack, sorted);
+                }
+            }
+        }
+        on_stack[i] = false;
+        done[i] = true;
+        sorted.push(i);
+    }
+
+    let deps_of: Vec<Vec<String>> = consts.iter().map(|c| c.deps.clone()).collect();
+    let mut done = vec![false; consts.len()];
+    let mut on_stack = vec![false; consts.len()];
+    let mut sorted_idx: Vec<usize> = Vec::new();
+    for i in 0..consts.len() {
+        add(
+            i,
+            &deps_of,
+            &name_to_idx,
+            &mut done,
+            &mut on_stack,
+            &mut sorted_idx,
+        );
+    }
+
+    let mut out: Vec<&'n TemplateNode> = sorted_idx.iter().map(|&i| consts[i].node).collect();
+    out.extend(others);
+    Some(out)
+}
+
 /// Lift every [`TemplateEntry::HoistableDecl`] to the front of the entry list,
 /// preserving relative order, and drop whitespace-only [`TemplateEntry::Literal`]
 /// runs that sit in the "hoisted region". 写经 the text oracle's
