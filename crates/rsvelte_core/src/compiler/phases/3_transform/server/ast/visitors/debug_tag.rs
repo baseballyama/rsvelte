@@ -16,12 +16,18 @@
 //! which emits `console.log({ ... }); debugger;` (and a lone `debugger;` for
 //! `{@debug}` with no identifiers).
 //!
-//! 写经 GAP — the async / blocker path (`create_child_block(..., blockers,
-//! ...)` wrapping the log in `$$renderer.async_block([...], ...)` when a debugged
-//! identifier is bound to an async-blocked value) is NOT ported here. The text
-//! oracle still handles that shape.
+//! ## Async path (写经 `DebugTag.js` blockers)
+//!
+//! When a debugged identifier is bound to an async-blocked value, upstream
+//! computes `blockers = node.identifiers.map((id) => scope.get(id.name)?.blocker)`
+//! and wraps the `console.log(...) / debugger` pair in
+//! `$$renderer.async_block([…], …)` via `create_child_block`. We mirror that by
+//! looking each debugged name up in the instance blocker map (`$$promises[N]`)
+//! and the per-block `const_blocker_map` (`promises[N]`).
 
-use super::shared::TemplateEntry;
+use super::shared::{
+    TemplateEntry, create_child_block_combined, expr_local_const_blockers, expr_text_blockers,
+};
 use crate::ast::template::DebugTag;
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 use oxc_ast::ast::ObjectPropertyKind;
@@ -31,6 +37,14 @@ use oxc_ast::ast::ObjectPropertyKind;
 /// path).
 pub fn visit_debug_tag<'a>(node: &DebugTag, state: &mut ServerTransformState<'a>) {
     let b = state.b;
+
+    // Collect the async blockers of the debugged identifiers (instance
+    // `$$promises[N]` + per-block `promises[N]`), in identifier order, deduped —
+    // 写经 `node.identifiers.map((id) => scope.get(id.name)?.blocker)`.
+    let mut blocker_set = std::collections::BTreeSet::new();
+    let mut local_blockers: Vec<String> = Vec::new();
+
+    let mut statements: Vec<oxc_ast::ast::Statement<'a>> = Vec::new();
 
     if !node.identifiers.is_empty() {
         let mut props: Vec<ObjectPropertyKind<'a>> = Vec::with_capacity(node.identifiers.len());
@@ -45,14 +59,29 @@ pub fn visit_debug_tag<'a>(node: &DebugTag, state: &mut ServerTransformState<'a>
                 }
                 _ => continue,
             };
+            for idx in expr_text_blockers(state, &name) {
+                blocker_set.insert(idx);
+            }
+            for src in expr_local_const_blockers(state, &name) {
+                if !local_blockers.contains(&src) {
+                    local_blockers.push(src);
+                }
+            }
             let value = state.visit_expr(ident);
             // `b.init(name, value)` with key == identifier prints shorthand
             // (`{ name }`) via esrap, matching upstream's `b.prop('init', id, id)`.
             props.push(b.init(&name, value));
         }
         let log = b.call("console.log", vec![b.object(props)]);
-        state.template.push(TemplateEntry::Stmt(b.stmt(log)));
+        statements.push(b.stmt(log));
     }
 
-    state.template.push(TemplateEntry::Stmt(b.debugger()));
+    statements.push(b.debugger());
+
+    let blocker_indices: Vec<usize> = blocker_set.into_iter().collect();
+    let wrapped =
+        create_child_block_combined(state, statements, &blocker_indices, &local_blockers, false);
+    for stmt in wrapped {
+        state.template.push(TemplateEntry::Stmt(stmt));
+    }
 }
