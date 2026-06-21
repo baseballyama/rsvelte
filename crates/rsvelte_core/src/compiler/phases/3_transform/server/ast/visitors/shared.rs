@@ -1130,6 +1130,72 @@ pub fn create_child_block<'a>(
     }
 }
 
+/// Local (per-block) const blocker SOURCE strings referenced by `expr_text` —
+/// bindings declared by an async `{@const}` / `{@let}` inside the current block
+/// whose `$$renderer.run([...])` group member (e.g. `"promises[1]"`) gates them.
+/// Mirrors `metadata.expression.blockers()` for the LOCAL portion (the instance
+/// `$$promises[N]` portion comes from [`expr_text_blockers`]). Empty when no
+/// async const is in scope.
+pub fn expr_local_const_blockers(state: &ServerTransformState, expr_text: &str) -> Vec<String> {
+    if state.const_blocker_map.is_empty() {
+        return Vec::new();
+    }
+    crate::compiler::phases::phase3_transform::server::helpers::find_const_expression_blockers(
+        expr_text,
+        &state.const_blocker_map,
+    )
+}
+
+/// Build a `[$$promises[i]…, <local source>…]` blockers array combining instance
+/// blockers (numeric indices → `$$promises[i]`) with local const blocker source
+/// strings (reparsed verbatim, e.g. `promises[1]` / `promises_1[0]`).
+pub fn blockers_array_combined<'a>(
+    state: &ServerTransformState<'a>,
+    indices: &[usize],
+    local_sources: &[String],
+) -> OxcExpression<'a> {
+    let b = state.b;
+    let mut elems: Vec<Option<OxcExpression<'a>>> = Vec::new();
+    for &i in indices {
+        elems.push(Some(promise_ref(state, i)));
+    }
+    for src in local_sources {
+        if let Some(e) = state.reparse_slice_owned(src) {
+            elems.push(Some(e));
+        }
+    }
+    b.array(elems)
+}
+
+/// Like [`create_child_block`] but accepts BOTH instance blocker indices and
+/// local const blocker source strings. 写经 `create_child_block` with a
+/// `blockers()` set that mixes instance `$$promises[N]` and per-block
+/// `promises[N]` members: a non-empty combined set →
+/// `$$renderer.async_block([…], fn)`, await-only → `$$renderer.child_block(fn)`,
+/// neither → the statements verbatim.
+pub fn create_child_block_combined<'a>(
+    state: &ServerTransformState<'a>,
+    statements: Vec<Statement<'a>>,
+    indices: &[usize],
+    local_sources: &[String],
+    has_await: bool,
+) -> Vec<Statement<'a>> {
+    if indices.is_empty() && local_sources.is_empty() && !has_await {
+        return statements;
+    }
+    let b = state.b;
+    let params = b.params(vec![b.id_pat("$$renderer")], None);
+    let fn_body = b.body(statements);
+    let arrow = b.arrow(params, fn_body, false, has_await);
+
+    if !indices.is_empty() || !local_sources.is_empty() {
+        let blockers = blockers_array_combined(state, indices, local_sources);
+        vec![b.stmt(b.call("$$renderer.async_block", vec![blockers, arrow]))]
+    } else {
+        vec![b.stmt(b.call("$$renderer.child_block", vec![arrow]))]
+    }
+}
+
 /// The shared `$.save` / await-wrap helper — the reusable seam for block-level
 /// async test/iterable expressions (IfBlock, and later EachBlock / AwaitBlock /
 /// KeyBlock). Given the SOURCE TEXT of a block's controlling expression, it

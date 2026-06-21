@@ -56,8 +56,8 @@ use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState
 use oxc_ast::ast::Statement;
 
 use super::shared::{
-    BLOCK_CLOSE, TemplateEntry, build_fragment_body, create_child_block, expr_text_blockers,
-    save_wrap_expr_text, text_has_await,
+    BLOCK_CLOSE, TemplateEntry, build_fragment_body, create_child_block_combined,
+    expr_local_const_blockers, expr_text_blockers, save_wrap_expr_text, text_has_await,
 };
 
 /// Visit a `{#if test}...{:else if}...{:else}...{/if}` block.
@@ -67,12 +67,25 @@ pub fn visit_if_block<'a>(node: &IfBlock, state: &mut ServerTransformState<'a>) 
     // `node.metadata.expression.blockers()` / `.has_await` — those metadata
     // fields already account for the merged flattened-chain expressions.
     let mut blocker_set = std::collections::BTreeSet::new();
+    let mut local_blockers: Vec<String> = Vec::new();
     let mut has_await = false;
-    collect_chain_async(node, state, &mut blocker_set, &mut has_await);
+    collect_chain_async(
+        node,
+        state,
+        &mut blocker_set,
+        &mut local_blockers,
+        &mut has_await,
+    );
     let blocker_indices: Vec<usize> = blocker_set.into_iter().collect();
 
     let if_stmt = build_if_chain(node, 0, state);
-    let wrapped = create_child_block(state, vec![if_stmt], &blocker_indices, has_await);
+    let wrapped = create_child_block_combined(
+        state,
+        vec![if_stmt],
+        &blocker_indices,
+        &local_blockers,
+        has_await,
+    );
     for stmt in wrapped {
         state.template.push(TemplateEntry::Stmt(stmt));
     }
@@ -90,11 +103,19 @@ fn collect_chain_async(
     node: &IfBlock,
     state: &ServerTransformState,
     blockers: &mut std::collections::BTreeSet<usize>,
+    local_blockers: &mut Vec<String>,
     has_await: &mut bool,
 ) {
     if let Some(text) = state.expr_source(&node.test) {
         for idx in expr_text_blockers(state, text) {
             blockers.insert(idx);
+        }
+        // Per-block async `{@const}` blockers (e.g. `promises[1]`): collected as
+        // ordered source strings, deduped, appended after the instance blockers.
+        for src in expr_local_const_blockers(state, text) {
+            if !local_blockers.contains(&src) {
+                local_blockers.push(src);
+            }
         }
         if text_has_await(text) {
             *has_await = true;
@@ -104,7 +125,7 @@ fn collect_chain_async(
         && let Some(nested) = single_elseif(alt)
         && flattens_into(nested, node, state)
     {
-        collect_chain_async(nested, state, blockers, has_await);
+        collect_chain_async(nested, state, blockers, local_blockers, has_await);
     }
 }
 
@@ -121,9 +142,22 @@ fn flattens_into(elseif: &IfBlock, parent: &IfBlock, state: &ServerTransformStat
     let parent_blockers: std::collections::BTreeSet<usize> =
         expr_text_blockers(state, parent_text).into_iter().collect();
     // `has_more_blockers_than`: any blocker in `elseif` not present in `parent`.
-    expr_text_blockers(state, elseif_text)
+    let instance_ok = expr_text_blockers(state, elseif_text)
         .into_iter()
-        .all(|b| parent_blockers.contains(&b))
+        .all(|b| parent_blockers.contains(&b));
+    if !instance_ok {
+        return false;
+    }
+    // Same check for per-block async-const blockers: an else-if that reads a
+    // local blocker the parent test does not already carry stays a SEPARATE
+    // IfBlock (it gets its own `async_block` wrap when re-visited).
+    let parent_local: std::collections::BTreeSet<String> =
+        expr_local_const_blockers(state, parent_text)
+            .into_iter()
+            .collect();
+    expr_local_const_blockers(state, elseif_text)
+        .into_iter()
+        .all(|b| parent_local.contains(&b))
 }
 
 /// Build the `if (...) {...} else if (...) {...} else {...}` statement for an
