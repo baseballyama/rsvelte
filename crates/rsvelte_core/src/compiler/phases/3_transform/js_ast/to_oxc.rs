@@ -781,7 +781,12 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         let owned = self.ab.allocator.alloc_str(&wrapped);
         let ret =
             oxc_parser::Parser::new(self.ab.allocator, owned, oxc_span::SourceType::mjs()).parse();
-        if !ret.diagnostics.is_empty() {
+        // Bail on any comment-bearing chunk: re-printing a parsed AST drops the
+        // comments (esrap places them by source line, which a reassembled program
+        // has no unified coordinate for). Falling back to the verbatim string
+        // codegen for these preserves the comments exactly. (KNOWN GAP: AST-side
+        // comment preservation, see docs/phase3-server-ast-remaining-work.md.)
+        if !ret.diagnostics.is_empty() || !ret.program.comments.is_empty() {
             return None;
         }
         for stmt in ret.program.body {
@@ -802,7 +807,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         let owned = self.ab.allocator.alloc_str(code.trim());
         let ret =
             oxc_parser::Parser::new(self.ab.allocator, owned, oxc_span::SourceType::mjs()).parse();
-        if !ret.diagnostics.is_empty() {
+        // Bail on comments so the verbatim string codegen preserves them (see
+        // `parse_raw_expression`).
+        if !ret.diagnostics.is_empty() || !ret.program.comments.is_empty() {
             return None;
         }
         Some(ret.program.body.into_iter().collect())
