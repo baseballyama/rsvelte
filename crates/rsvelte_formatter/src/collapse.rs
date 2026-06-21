@@ -485,6 +485,22 @@ fn reformat_pre_inner(
         }
     };
     let formatted = formatted.trim_end_matches('\n');
+    // Unpack span siblings that our fill algorithm packed together but whose
+    // next line would overflow full_width after re-indentation.  The fill
+    // algorithm may produce `</span><span\n(SPACES)>CONTENT` when both the
+    // opening `<span` and the closing `</span>` fit on one line; prettier
+    // inside `<pre>` (isPreTagContent) uses hardlines between siblings when
+    // the resulting line would overflow, so the break belongs BETWEEN the
+    // siblings (`</span\n(PARENT)><span>CONTENT`), not inside the open tag.
+    // Only applies to no-attribute spans so we don't disturb legitimate
+    // deferred-`>` open tags caused by attribute overflow.
+    let formatted = fix_pre_packed_span_siblings(formatted, iw, content_depth, full_width);
+    // For lines that still overflow after re-indent and end with `</span>SUFFIX</span`,
+    // break the `>SUFFIX</span` to the next line (removing the `>` from the inner close).
+    // This matches prettier's isPreTagContent behaviour for spans whose trailing content
+    // would push the line past full_width even with the correct narrowed budget.
+    let formatted = fix_pre_overflow_close_suffix(&formatted, iw, content_depth, full_width);
+    let formatted = formatted.trim_end_matches('\n');
 
     // Whether the original content was hugged directly after `>` (no leading
     // whitespace). When hugged, the first line stays inline (no leading `\n`)
@@ -633,6 +649,201 @@ fn collect_pre_tab_lines(
             }
         }
     }
+}
+
+/// Unpack `</span><span\n(SPACES)>CONTENT` patterns in a sub-formatted string
+/// when the (SPACES)>CONTENT line would overflow `full_width` after re-indentation.
+///
+/// Our fill algorithm may pack sibling `<span>` nodes together:
+/// `...PREV</span><span\n    >NEXT_CONTENT`
+/// Prettier inside `<pre>` (isPreTagContent) instead breaks between siblings:
+/// `...PREV</span\n  ><span>NEXT_CONTENT`
+/// when the next line would overflow after the re-indent pass adds
+/// `content_depth * iw` extra leading spaces.
+///
+/// Only no-attribute spans are candidates: `</span><span\n` (with nothing
+/// between `<span` and the newline).  Spans with attributes have legitimate
+/// deferred-`>` open tags caused by attribute overflow and must not be moved.
+fn fix_pre_packed_span_siblings(
+    s: &str,
+    iw: usize,
+    content_depth: usize,
+    full_width: usize,
+) -> String {
+    // Fast path: if the pattern can't appear, return unchanged.
+    if !s.contains("</span><span\n") {
+        return s.to_string();
+    }
+    let mut out = String::with_capacity(s.len() + 64);
+    let mut remaining = s;
+    while !remaining.is_empty() {
+        // Find the next `</span><span` on a line (not inside a string — we're
+        // operating on already-formatted HTML-like content).
+        let Some(packed_pos) = remaining.find("</span><span") else {
+            out.push_str(remaining);
+            break;
+        };
+        // Check that `</span><span` is immediately followed by `\n` (no attrs,
+        // no `>` — just the bare open tag then a newline).
+        let after_span = &remaining[packed_pos + 12..]; // after "</span><span"
+        if !after_span.starts_with('\n') {
+            // `<span` has attributes or `>` immediately — not a packing break.
+            // Advance past it and continue.
+            out.push_str(&remaining[..packed_pos + 12]);
+            remaining = after_span;
+            continue;
+        }
+        // `after_span` starts with `\n(SPACES)>CONTENT`. Extract (SPACES).
+        let rest_after_nl = &after_span[1..]; // skip the '\n'
+        let sp_len = rest_after_nl.bytes().take_while(|&b| b == b' ').count();
+        let after_spaces = &rest_after_nl[sp_len..];
+        if !after_spaces.starts_with('>') || sp_len < iw {
+            // Not a deferred-`>` line, or at top level (can't determine parent).
+            out.push_str(&remaining[..packed_pos + 12]);
+            remaining = after_span;
+            continue;
+        }
+        // Determine the depth of the deferred-`>` line in the sub-format.
+        // Its depth is sp_len / iw.  After re-indent, the line's prefix width
+        // is (sp_len / iw + content_depth) * iw.  The content starts after `>`.
+        let defer_depth = sp_len / iw;
+        let content_start = &after_spaces[1..]; // skip `>`
+        // Find end of this next line (the deferred-`>` line)
+        let next_line_end = content_start.find('\n').unwrap_or(content_start.len());
+        let next_line_content = &content_start[..next_line_end];
+        // Full width of re-indented deferred-`>` line:
+        //   (defer_depth + content_depth) * iw  +  1 (for '>')  +  next_line_content.len()
+        let next_reindented_width =
+            (defer_depth + content_depth) * iw + 1 + next_line_content.len();
+        // Also check the CURRENT line with `<span` packed onto it.  The parent
+        // indent is (sp_len - iw) spaces.  The current line's content starts after
+        // those spaces; its full content is the portion up to `</span><span` (12
+        // chars) in `remaining`.  Re-indented width of current line WITH `<span`:
+        //   (parent_depth + content_depth) * iw + (current_content_len + 5)
+        // where 5 = len("<span"), and parent_depth = (sp_len - iw) / iw = sp_len/iw - 1.
+        let parent_depth = defer_depth.saturating_sub(1);
+        let cur_line_start_in_remaining = remaining[..packed_pos].rfind('\n').map_or(0, |p| p + 1);
+        let cur_sp_len = remaining[cur_line_start_in_remaining..packed_pos]
+            .bytes()
+            .take_while(|&b| b == b' ')
+            .count();
+        // The packed current line's content = stuff before `</span><span` (the
+        // portion not yet in `out`) + `</span><span` (12 chars).
+        let cur_content_len = packed_pos - cur_line_start_in_remaining - cur_sp_len + 12; // 12 = "</span><span" appended by packing
+        let cur_reindented_width = (cur_sp_len / iw + content_depth) * iw + cur_content_len;
+        // Also check the UNPACKED form: after unpacking, the sibling span moves
+        // from the deferred `>` position (depth `defer_depth`) to the parent level
+        // (depth `parent_depth = defer_depth - 1`).  The unpacked line becomes
+        // `(parent_indent)><span>(next_line_content)` where `><span>` is 7 chars.
+        // If THIS would overflow, we must unpack so `fix_pre_overflow_close_suffix`
+        // can handle the resulting long line correctly.
+        let unpacked_rw = (parent_depth + content_depth) * iw + 7 + next_line_content.len();
+        if next_reindented_width <= full_width
+            && cur_reindented_width <= full_width
+            && unpacked_rw <= full_width
+        {
+            // All fit — keep the packing as-is.
+            out.push_str(&remaining[..packed_pos + 12]);
+            remaining = after_span;
+            continue;
+        }
+        // The next line would overflow.  Unpack: replace `</span><span\n(SPACES)>`
+        // with `</span\n(PARENT_INDENT)><span>` where PARENT_INDENT = (SPACES - iw).
+        // Note: the `>` of `</span>` is moved to the start of the next line as part
+        // of `><span>` — prettier uses the same `>` to both complete the previous
+        // close tag and start the next sibling's deferred open.  So we emit
+        // `</span` (without `>`) + `\n` + parent_indent + `><span>`.
+        let parent_indent_len = sp_len.saturating_sub(iw);
+        out.push_str(&remaining[..packed_pos]); // everything before `</span>`
+        out.push_str("</span\n"); // start of close tag (no `>`), then newline
+        for _ in 0..parent_indent_len {
+            out.push(' ');
+        }
+        out.push_str("><span>");
+        // Skip past `</span><span\n(SPACES)>` — `after_spaces` is at `>CONTENT`,
+        // so skip the `>` to land at CONTENT.
+        remaining = &after_spaces[1..]; // skip the deferred `>`
+    }
+    out
+}
+
+/// For lines in a sub-formatted string that would overflow `full_width` after
+/// re-indentation and end with `</span>SUFFIX</span` (inner close + suffix text +
+/// outer close without `>`), break before `>SUFFIX</span` so that the deferred
+/// close of the inner span moves to the next line.
+///
+/// This matches prettier's behaviour inside `<pre>` (isPreTagContent) where the
+/// narrow line budget forces the inner close + trailing content to the next line:
+///
+/// ```
+///   ><span> x=<span class="...">VAL</span>,</span     (overflows after re-indent)
+/// ```
+/// becomes:
+/// ```
+///   ><span> x=<span class="...">VAL</span            (fits)
+///     >,</span                                         (continuation at depth+1)
+/// ```
+fn fix_pre_overflow_close_suffix(
+    s: &str,
+    iw: usize,
+    content_depth: usize,
+    full_width: usize,
+) -> String {
+    // Fast path: need `</span>` (inner close with `>`) in the string at all.
+    if !s.contains("</span>") {
+        return s.to_string();
+    }
+    let mut out = String::with_capacity(s.len() + 32);
+    let mut remaining = s;
+    loop {
+        let Some(nl_pos) = remaining.find('\n') else {
+            // Last line (no trailing newline).
+            out.push_str(remaining);
+            break;
+        };
+        let line = &remaining[..nl_pos];
+        let sp_len = line.bytes().take_while(|&b| b == b' ').count();
+        let content = &line[sp_len..];
+        let mut transformed = false;
+        // Check: line ends with `</span` (outer close, no `>`) and contains
+        // a `</span>` (inner close with `>`) followed by suffix with no `<`.
+        if content.ends_with("</span") {
+            let outer_close_start = content.len() - 6; // start of outer `</span`
+            if let Some(inner_close_rel) = content[..outer_close_start].rfind("</span>") {
+                let inner_close_end = inner_close_rel + 7; // after `</span>`
+                let suffix = &content[inner_close_end..outer_close_start];
+                if !suffix.contains('<') {
+                    // Check if re-indented width overflows.
+                    let real_depth = sp_len / iw + content_depth;
+                    let reindented_width = real_depth * iw + content.len();
+                    if reindented_width > full_width {
+                        // Break: emit leading spaces + content up to `</span`
+                        // (the inner close without `>`), then newline + deeper
+                        // indent + `>` + suffix + `</span`.
+                        // Byte position of inner close end (excluding `>`).
+                        let break_at = sp_len + inner_close_rel + 6;
+                        out.push_str(&remaining[..break_at]);
+                        out.push('\n');
+                        for _ in 0..sp_len + iw {
+                            out.push(' ');
+                        }
+                        out.push('>');
+                        out.push_str(suffix);
+                        out.push_str("</span");
+                        out.push('\n');
+                        remaining = &remaining[nl_pos + 1..];
+                        transformed = true;
+                    }
+                }
+            }
+        }
+        if !transformed {
+            out.push_str(line);
+            out.push('\n');
+            remaining = &remaining[nl_pos + 1..];
+        }
+    }
+    out
 }
 
 fn apply_edits(src: &str, mut edits: Vec<(u32, u32, String)>) -> String {
