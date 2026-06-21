@@ -1,1 +1,4 @@
-[]
+[
+	"shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte",
+	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/playground/(components)/code-viewer.svelte"
+]
