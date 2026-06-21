@@ -1,30 +1,34 @@
 # Formatter-parity corpus: remaining work (burn-down playbook)
 
-> **Status 2026-06-20 (branch `feat/fmt-corpus-100`, unified corpus incl.
-> bits-ui/flowbite/melt/shadcn, ~9,715 components, oxfmt 0.54.0):
-> 295 → 2 known failures, 0 regressions, 22 documented exclusions**
+> **Status 2026-06-22 (unified corpus incl. bits-ui/flowbite/melt/shadcn,
+> ~9,715 components, oxfmt 0.54.0): 295 → 1 known failure (Linux/CI),
+> 0 regressions, 22 documented exclusions**
 > (`compat/corpus/fmt-oracle-excluded.json` + `docs/fmt-oracle-bugs.md`).
 >
-> Burned the original 9 residual down to 2 (faithful inverted-fill prose wrap,
-> attribute-embedded width accounting, self-closing/inline component hug, a
-> hugged-first-line `<pre>` `hugEnd` pass) and excluded the genuine oxc-vs-prettier
-> engine divergences (`Tags`, etc.). The **2 remaining** are both
-> deeply-nested-inline layout inside `<pre><code>` and need prettier's full
-> `isPreTagContent`/`printPre` implementation:
+> `code-viewer.svelte` (deeply-nested `<span>` highlighting inside `<pre><code>`)
+> is now FIXED (validated green on Linux CI) via the `<pre>` verbatim re-indent
+> subsystem. The **1 remaining** is:
 >
 > | id | missing mechanism |
 > |---|---|
-> | `shadcn-svelte/.../theme-customizer-code.svelte` | component WITH attributes (`<ColorIndicator color={…} />`) + trailing text inside `<pre><code>` must attribute-wrap + `hugEnd`-merge |
-> | `shadcn-svelte/.../code-viewer.svelte` | deeply-nested `<span><span>…</span><span>…` highlighted code inside `<pre><code>` must cascade-break each inline open tag |
+> | `shadcn-svelte/.../theme-customizer-code.svelte` (line 79) | a self-closing component WITH attributes (`<ColorIndicator color={value} />`) that OVERFLOWS inside `<pre>` must stay attribute-wrapped. The Linux oxfmt oracle correctly keeps it wrapped; **macOS oxfmt buggily collapses it** — so the case is observable ONLY on Linux CI (local macOS `fmt-verify` reports it green). rsvelte currently over-collapses it. |
 >
-> **Why deferred (not rushed):** the correct fix is to thread prettier's
-> `isPreTagContent` flag through the MAIN format pass so `<pre>` element children
-> are NOT collapsed, then re-break them with `hugEnd` using space-based indent —
-> a Doc-IR/`markup.rs` printing-layer change, not a `collapse` post-pass. Every
-> bounded post-pass attempt regressed some of the 44 currently-passing `<pre>`
-> files (reverted). The oracle's breaks here are *within* open tags (not between
-> siblings), so they don't corrupt `<pre>` rendering → these are genuine rsvelte
-> limitations, not excludable. Do this as a dedicated, benchmark-gated effort.
+> **Findings (read before retrying):**
+> 1. **Cross-platform oracle:** macOS and Linux oxfmt disagree on this file
+>    (macOS collapses the component, Linux wraps it). Linux is authoritative;
+>    iterate via `gh workflow run corpus-compat.yml` + the Formatter-parity job
+>    log, NOT local `fmt-verify`.
+> 2. A bespoke string post-pass (`fix_pre_collapsed_components`, re-wrapping
+>    source-wrapped components) produced the correct WRAPPED output on macOS but
+>    **inline on Linux — i.e. it was platform-non-deterministic** (hash-seed /
+>    iteration-order dependence somewhere in the `<pre>` path). REVERTED. Do not
+>    re-attempt a string post-pass here.
+> 3. The clean fix is the faithful Doc-IR `isPreTagContent`/`printPre` printer
+>    (text via `literalline`, elements via `element_doc`/`build_self_closing_component_doc`),
+>    replacing `reformat_pre_inner`'s string re-indent — a `markup.rs`/`doc.rs`
+>    printing-layer change with real regression risk to the 44+ passing `<pre>`
+>    files. Dedicated, benchmark-gated, Linux-CI-driven effort.
+>
 > The historical narrative below is retained.
 
 ---
