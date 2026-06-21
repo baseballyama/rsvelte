@@ -878,6 +878,18 @@ pub(super) fn build_element_attributes<'a>(
     // fresh-scope-class injection only happens when there is none AND no class
     // directive/spread.
     let mut emitted_class = false;
+    // Whether the fresh scope-class literal has already been emitted early (ahead
+    // of a `style:`-directive `attr_style`). Upstream synthesizes the empty
+    // `class=""` BEFORE the empty `style=""` (analyze index.js l.910 vs l.925), so
+    // for a scoped element whose only style is a `style:` directive the scope
+    // class must precede the `$.attr_style(...)`. rsvelte doesn't synthesize the
+    // class attribute (the client RegularElement injects the hash), so emit it
+    // here at the upstream position instead of trailing after `attr_style`.
+    let mut scope_class_emitted_early = false;
+    let has_style_directive = node
+        .attributes
+        .iter()
+        .any(|a| matches!(a, Attribute::StyleDirective(_)));
 
     // `events_to_capture` (upstream `shared/element.js`): an `onload`/`onerror`
     // event handler on a load/error element (`<img>`, `<link>`, …) re-captures
@@ -1108,6 +1120,20 @@ pub(super) fn build_element_attributes<'a>(
             let call = build_attr_class(value, css_hash, &class_directives, state);
             push_interp(state, call);
         } else if is_style {
+            // Emit the scope class BEFORE this style attribute's `attr_style` when
+            // the element is scoped with no real/directive class (upstream's synth
+            // `class=""` precedes synth `style=""`).
+            if let Some(hash) = css_hash
+                && has_style_directive
+                && !emitted_class
+                && !has_class_dir_or_spread
+                && !scope_class_emitted_early
+            {
+                state
+                    .template
+                    .push(TemplateEntry::Literal(format!(" class=\"{hash}\"")));
+                scope_class_emitted_early = true;
+            }
             if let Some(t) = &value_text {
                 value = state.optimise_attr_value(t, value);
             }
@@ -1143,6 +1169,7 @@ pub(super) fn build_element_attributes<'a>(
     if let Some(hash) = css_hash
         && !emitted_class
         && !has_class_dir_or_spread
+        && !scope_class_emitted_early
     {
         state
             .template
