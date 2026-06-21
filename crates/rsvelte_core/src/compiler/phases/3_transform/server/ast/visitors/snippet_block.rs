@@ -85,6 +85,12 @@ pub fn visit_snippet_block<'a>(node: &SnippetBlock, state: &mut ServerTransformS
 
     let fn_decl = b.function_declaration(&name, params, fn_body, false);
 
+    // 写经 upstream `fn.___snippet = true`: record the snippet's function name so
+    // the `uses_component_bindings` settle-loop assembly can hoist this
+    // declaration ahead of `$$render_inner` (snippet functions render OUTSIDE the
+    // re-render loop).
+    state.snippet_names.insert(name.clone());
+
     // 写经 `node.metadata.can_hoist ? state.hoisted : state.init`: a hoistable
     // snippet (no instance-state reference) goes to module scope; otherwise it
     // is emitted INLINE at its source position in the enclosing fragment's

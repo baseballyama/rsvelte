@@ -938,7 +938,18 @@ fn component_attribute_value<'a>(
                 };
             }
 
-            // Mixed run → template literal (no escape; stringify interpolations).
+            // Mixed run → template literal (no escape, no trim for components),
+            // with `scope.evaluate` constant-folding mirroring upstream's
+            // `build_attribute_value` (utils.js): a known value folds into the
+            // surrounding quasi (a known-nullish value renders as nothing), and a
+            // live interpolation is wrapped in `$.stringify` UNLESS it is provably
+            // a defined string (`is_string && is_defined`). Previously this blindly
+            // wrapped every interpolation in `$.stringify`, which over-wrapped e.g.
+            // `for="{id}-date"` (`$props.id()` → defined string) and
+            // `class="... {cond ? 'a' : 'b'}"` (conditional of strings).
+            use crate::compiler::phases::phase3_transform::server::evaluate::{
+                EvalValue, js_display_string,
+            };
             let mut quasis: Vec<String> = vec![String::new()];
             let mut exprs: Vec<OxcExpression<'a>> = Vec::new();
             for part in parts {
@@ -947,12 +958,30 @@ fn component_attribute_value<'a>(
                         quasis.last_mut().unwrap().push_str(t.data.as_str());
                     }
                     AttributeValuePart::ExpressionTag(tag) => {
+                        let evaluation = state
+                            .eval_ctx()
+                            .evaluate_template_expression(&tag.expression);
+                        if let Some(value) = evaluation.known_value() {
+                            if !matches!(value, EvalValue::Null | EvalValue::Undefined) {
+                                let content = js_display_string(value);
+                                quasis.last_mut().unwrap().push_str(&content);
+                            }
+                            continue;
+                        }
                         let visited = state.visit_expr(&tag.expression);
-                        let stringified = state.b.call("$.stringify", vec![visited]);
-                        exprs.push(stringified);
+                        let emitted = if evaluation.is_string() && evaluation.is_defined() {
+                            visited
+                        } else {
+                            state.b.call("$.stringify", vec![visited])
+                        };
+                        exprs.push(emitted);
                         quasis.push(String::new());
                     }
                 }
+            }
+            // Everything folded away → collapse to a plain string literal.
+            if exprs.is_empty() {
+                return state.b.string(&quasis[0]);
             }
             let quasi_refs: Vec<&str> = quasis.iter().map(|s| s.as_str()).collect();
             state.b.template(quasi_refs, exprs)

@@ -141,6 +141,12 @@ pub struct ServerTransformState<'a> {
     /// template — and prepended to the component-function body (ahead of the
     /// rendered template), matching upstream's shared component-level `state.init`.
     pub snippet_inits: Vec<Statement<'a>>,
+    /// Names of every `{#snippet name(...)}` lowered to a `function name(...)`
+    /// declaration (写经 upstream's `fn.___snippet = true` marker). Used by the
+    /// `uses_component_bindings` settle-loop assembly to partition top-level
+    /// snippet FunctionDeclarations ahead of the `$$render_inner` wrapper, exactly
+    /// like upstream's `template.body.filter(n => n.___snippet)` split.
+    pub snippet_names: rustc_hash::FxHashSet<String>,
     /// Monotonic counter for the `$$d` temp generated when expanding a
     /// destructured `$derived` / `$derived.by` whose base needs a single shared
     /// `$$d = <init>` binding (mirrors upstream `scope.generate('$$d')`). The
@@ -255,6 +261,7 @@ impl<'a> ServerTransformState<'a> {
             local_derived_names: rustc_hash::FxHashSet::default(),
             const_promises_counter: 0,
             snippet_inits: Vec::new(),
+            snippet_names: rustc_hash::FxHashSet::default(),
             derived_d_counter: 0,
             derived_array_counter: 0,
             state_tmp_counter: 0,
@@ -829,14 +836,31 @@ pub fn server_component_ast<'a>(
     //
     // Upstream separates top-level snippet FunctionDeclarations (`___snippet`)
     // from the `rest`, keeps the snippets ahead of the loop, and wraps only the
-    // `rest`. In the AST pipeline, top-level snippet function declarations are
-    // hoisted to `state.hoisted` (module scope) by `visit_snippet_block`, so
-    // they are NOT present in `template_body` — the whole `template_body` IS the
-    // `rest`, and the `snippets` prefix is empty here.
+    // `rest`. A HOISTABLE snippet was lifted to module scope (`state.hoisted`); a
+    // NON-hoistable one (referencing instance state, e.g. `{#snippet Fallback()}`
+    // using a prop) is emitted inline into `template_body`. Those non-hoistable
+    // top-level snippet functions must render OUTSIDE the settle loop, so split
+    // them off the front (matching upstream's `template.body.filter(___snippet)`)
+    // and keep them ahead of `$$render_inner` rather than inside it.
     let template_body = if analysis.uses_component_bindings {
+        let mut snippets: Vec<Statement<'a>> = Vec::new();
+        let mut rest: Vec<Statement<'a>> = Vec::new();
+        for stmt in template_body {
+            let is_snippet = matches!(
+                &stmt,
+                Statement::FunctionDeclaration(f)
+                    if f.id.as_ref().is_some_and(|id| state.snippet_names.contains(id.name.as_str()))
+            );
+            if is_snippet {
+                snippets.push(stmt);
+            } else {
+                rest.push(stmt);
+            }
+        }
+
         // function $$render_inner($$renderer) { <rest> }
         let inner_params = b.params(vec![b.id_pat("$$renderer")], None);
-        let inner_fn_body = b.body(template_body);
+        let inner_fn_body = b.body(rest);
         let render_inner_fn =
             b.function_declaration("$$render_inner", inner_params, inner_fn_body, false);
 
@@ -857,13 +881,15 @@ pub fn server_component_ast<'a>(
         ]);
         let do_while = b.do_while(b.unary_not(b.id("$$settled")), loop_body);
 
-        vec![
+        let mut out = snippets;
+        out.extend([
             b.let_id("$$settled", Some(b.bool(true))),
             b.let_id("$$inner_renderer", None),
             render_inner_fn,
             do_while,
             b.stmt(b.call("$$renderer.subsume", vec![b.id("$$inner_renderer")])),
-        ]
+        ]);
+        out
     } else {
         template_body
     };

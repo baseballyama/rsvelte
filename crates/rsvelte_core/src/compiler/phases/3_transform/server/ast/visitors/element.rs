@@ -879,6 +879,13 @@ pub(super) fn build_element_attributes<'a>(
     // directive/spread.
     let mut emitted_class = false;
 
+    // `events_to_capture` (upstream `shared/element.js`): an `onload`/`onerror`
+    // event handler on a load/error element (`<img>`, `<link>`, …) re-captures
+    // that event so the client can replay one fired before hydration. Tracked in
+    // `Set` insertion order (`onload` before `onerror`).
+    let mut capture_onload = false;
+    let mut capture_onerror = false;
+
     for attr in &node.attributes {
         // -- bind: directives ------------------------------------------------
         //
@@ -935,11 +942,21 @@ pub(super) fn build_element_attributes<'a>(
             continue;
         }
         // Event handlers (`on*` as Attribute form) + defaultValue/defaultChecked
-        // are omitted by upstream; skip them (gap: onload/onerror capture).
+        // are omitted by upstream as attributes. An `onload`/`onerror` handler on
+        // a load/error element is recorded for the trailing capture literal.
         if is_event_attribute_name(raw_name)
             || raw_name == "defaultValue"
             || raw_name == "defaultChecked"
         {
+            if (raw_name == "onload" || raw_name == "onerror")
+                && is_load_error_element(node.name.as_str())
+            {
+                if raw_name == "onload" {
+                    capture_onload = true;
+                } else {
+                    capture_onerror = true;
+                }
+            }
             continue;
         }
 
@@ -1130,6 +1147,19 @@ pub(super) fn build_element_attributes<'a>(
         state
             .template
             .push(TemplateEntry::Literal(format!(" class=\"{hash}\"")));
+    }
+
+    // `events_to_capture`: emit ` onload="this.__e=event"` / ` onerror="..."`
+    // literals (in Set insertion order) after all attributes.
+    if capture_onload {
+        state.template.push(TemplateEntry::Literal(
+            " onload=\"this.__e=event\"".to_string(),
+        ));
+    }
+    if capture_onerror {
+        state.template.push(TemplateEntry::Literal(
+            " onerror=\"this.__e=event\"".to_string(),
+        ));
     }
 }
 

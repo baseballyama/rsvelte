@@ -668,10 +668,27 @@ fn state_dot_rune(expr: &OxcExpression) -> Option<StateDotRune> {
     }
 }
 
+/// Whether `expr` is a bare `$host()` call (the `$host` rune). `$host` is a
+/// reserved rune identifier that cannot be shadowed, so any call to a bare
+/// `$host` identifier is the rune.
+fn is_host_rune_call(expr: &OxcExpression) -> bool {
+    let OxcExpression::CallExpression(call) = expr else {
+        return false;
+    };
+    matches!(&call.callee, OxcExpression::Identifier(id) if id.name.as_str() == "$host")
+}
+
 impl<'a> VisitMut<'a> for EffectValueLower<'a> {
     fn visit_expression(&mut self, expr: &mut OxcExpression<'a>) {
         if let Some(replacement) = self.lowered(expr) {
             *expr = replacement;
+            return;
+        }
+        // `$host()` → `void 0` (写经 upstream server `CallExpression.js`: the
+        // `$host` rune has no server meaning, so the call site collapses to
+        // `void 0` — `(void 0).dispatchEvent(...)`, `const el = void 0`).
+        if is_host_rune_call(expr) {
+            *expr = self.b.void0();
             return;
         }
         // `$state.eager(arg)` → `arg`; `$state.snapshot(arg)` → `$.snapshot(arg)`

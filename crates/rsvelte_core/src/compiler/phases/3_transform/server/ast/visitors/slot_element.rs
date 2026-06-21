@@ -173,6 +173,13 @@ fn slot_attribute_value<'a>(
                     AttributeValuePart::ExpressionTag(tag) => state.visit_expr(&tag.expression),
                 };
             }
+            // Mixed run → template literal with `scope.evaluate` constant-folding
+            // (mirrors upstream `build_attribute_value`): fold known values, and
+            // wrap a live interpolation in `$.stringify` only when it is NOT a
+            // provably-defined string.
+            use crate::compiler::phases::phase3_transform::server::evaluate::{
+                EvalValue, js_display_string,
+            };
             let mut quasis: Vec<String> = vec![String::new()];
             let mut exprs: Vec<OxcExpression<'a>> = Vec::new();
             for part in parts {
@@ -181,12 +188,28 @@ fn slot_attribute_value<'a>(
                         quasis.last_mut().unwrap().push_str(t.data.as_str());
                     }
                     AttributeValuePart::ExpressionTag(tag) => {
+                        let evaluation = state
+                            .eval_ctx()
+                            .evaluate_template_expression(&tag.expression);
+                        if let Some(value) = evaluation.known_value() {
+                            if !matches!(value, EvalValue::Null | EvalValue::Undefined) {
+                                quasis.last_mut().unwrap().push_str(&js_display_string(value));
+                            }
+                            continue;
+                        }
                         let visited = state.visit_expr(&tag.expression);
-                        let stringified = state.b.call("$.stringify", vec![visited]);
-                        exprs.push(stringified);
+                        let emitted = if evaluation.is_string() && evaluation.is_defined() {
+                            visited
+                        } else {
+                            state.b.call("$.stringify", vec![visited])
+                        };
+                        exprs.push(emitted);
                         quasis.push(String::new());
                     }
                 }
+            }
+            if exprs.is_empty() {
+                return state.b.string(&quasis[0]);
             }
             let quasi_refs: Vec<&str> = quasis.iter().map(|s| s.as_str()).collect();
             state.b.template(quasi_refs, exprs)
