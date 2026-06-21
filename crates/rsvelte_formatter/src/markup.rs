@@ -129,7 +129,43 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             );
-            collect_open_tag_edits(source, &elem.fragment, depth + 1, options, edits)?;
+            // For whitespace-preserving elements (`<pre>`, `<textarea>`) whose
+            // inner content uses deep tab indentation (6+ consecutive tabs at the
+            // start of a line), skip recursing into their children.  Such content
+            // is already correctly formatted from the source (the `reformat_pre_inner`
+            // collapse-phase pass handles those subtrees separately), and recursing
+            // here would collapse multi-line open tags inside the deep-tab zones,
+            // making the raw content diverge from the oracle.
+            //
+            // When the inner content does NOT have deep tab indentation, recurse
+            // normally — elements like `<AstNode>` inside `<pre>` still need their
+            // open tags formatted by this pass.
+            // Two patterns indicate that `<pre>` / `<textarea>` inner content
+            // must be kept verbatim by this pass (not reformatted here):
+            //
+            // 1. `\t\t\t\t\t\t<tag` — an element TAG (not just an attribute)
+            //    starts at 6+ tab depth.  This is the "V3" pattern where `<span>`
+            //    elements inside `{#each}` blocks use deep tab indentation.
+            //    Attribute lines also start with many tabs but are followed by
+            //    identifier characters (e.g. `class=…`), not `<`.
+            //
+            // 2. `\t\t\t\t\t\t>` — a hugged-continuation `>` at 6+ tab depth.
+            //    This indicates that the element at 6 tabs ends its open tag on a
+            //    new line with a tab-indented `>` (e.g., `<code …\n\t\t\t\t\t\t>`).
+            //    collapse pass's Sub-case B hug, merging all following content
+            //    onto one line — the wrong result (code-viewer pattern).
+            let skip_pre_children = matches!(elem.name.as_str(), "pre" | "textarea")
+                && source
+                    .get(elem.start as usize..elem.end as usize)
+                    .map(|s| {
+                        s.lines().any(|l| {
+                            l.starts_with("\t\t\t\t\t\t<") || l.starts_with("\t\t\t\t\t\t>")
+                        })
+                    })
+                    .unwrap_or(false);
+            if !skip_pre_children {
+                collect_open_tag_edits(source, &elem.fragment, depth + 1, options, edits)?;
+            }
         }
         TemplateNode::Component(c) => {
             let is_empty = is_empty_fragment(&c.fragment);

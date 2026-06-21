@@ -39,10 +39,80 @@ pub(crate) fn collapse_pure_text_elements(
         force_typescript: options.typescript,
         ..ParseOptions::default()
     };
-    let Ok(root) = parse(out, parse_opts) else {
+    let Ok(root0) = parse(out, parse_opts) else {
         return Ok(out.to_string());
     };
     let line_width = options.js.line_width.value() as usize;
+
+    // Pass 0: convert `\n\t+>` to `\n{n*iw}>` inside `<pre>`/`<textarea>` elements
+    // that have no block content (code-viewer pattern). prettier-plugin-svelte
+    // converts source tab-indented `>` markers to space-indented form. Running this
+    // BEFORE the collapse passes ensures subsequent passes (fill-mixed, hug, etc.)
+    // see the final space layout and can apply line-width-aware wrapping.
+    let (result0_str, tree0) =
+        if (out.contains("<pre") || out.contains("<textarea")) && out.contains('\t') {
+            let iw = options.js.indent_width.value() as usize;
+            let mut edits0: Vec<(u32, u32, String)> = Vec::new();
+            collect_pre_tab_gt_conversions(out, &root0.fragment, iw, &mut edits0);
+            if !edits0.is_empty() {
+                let s = apply_edits(out, edits0);
+                match parse(&s, parse_opts) {
+                    Ok(t) => (s, t),
+                    Err(_) => (out.to_string(), root0),
+                }
+            } else {
+                (out.to_string(), root0)
+            }
+        } else {
+            (out.to_string(), root0)
+        };
+    // Pass 0.5: wrap overflowing lines inside `<pre>`/`<textarea>` that have no
+    // block content but have space-indented `>` lines after pass 0. This handles
+    // the case where a source line like `\t\t\t\t\t\t><span>long content</span>,</span`
+    // becomes > 80 chars after tab→space conversion. We wrap at the rightmost tag
+    // `>` position that keeps the first part within `line_width`.
+    let (result05_str, tree05) =
+        if result0_str.contains("<pre") || result0_str.contains("<textarea") {
+            let mut edits05: Vec<(u32, u32, String)> = Vec::new();
+            collect_pre_space_gt_wraps(&result0_str, &tree0.fragment, line_width, &mut edits05);
+            if !edits05.is_empty() {
+                let s = apply_edits(&result0_str, edits05);
+                match parse(&s, parse_opts) {
+                    Ok(t) => (s, t),
+                    Err(_) => (result0_str, tree0),
+                }
+            } else {
+                (result0_str, tree0)
+            }
+        } else {
+            (result0_str, tree0)
+        };
+    // Pass 0.75: collapse pure-text elements inside `<pre>`/`<textarea>` with
+    // space-indented `>` lines. After pass 0.5 wraps overflowing lines, some
+    // short `<span>` elements may be split across two lines (e.g. `<span\n>)</span>`);
+    // collapse them to a single line if they fit.
+    let (result075_str, tree075) =
+        if result05_str.contains("<pre") || result05_str.contains("<textarea") {
+            let mut edits075: Vec<(u32, u32, String)> = Vec::new();
+            collect_pre_space_gt_pure_text_collapses(
+                &result05_str,
+                &tree05.fragment,
+                line_width,
+                &mut edits075,
+            );
+            if !edits075.is_empty() {
+                let s = apply_edits(&result05_str, edits075);
+                match parse(&s, parse_opts) {
+                    Ok(t) => (s, t),
+                    Err(_) => (result05_str, tree05),
+                }
+            } else {
+                (result05_str, tree05)
+            }
+        } else {
+            (result05_str, tree05)
+        };
+    let result075: &str = &result075_str;
 
     // `tree` always reflects `result`. Each pass re-parses ONLY after it actually
     // edits the text — a pass that makes no edits leaves the string (and thus its
@@ -51,9 +121,16 @@ pub(crate) fn collapse_pure_text_elements(
     // post-pass, so skipping the no-op ones keeps the common case to a single
     // extra parse (or zero, when nothing collapses).
     let mut edits: Vec<(u32, u32, String)> = Vec::new();
-    collect(out, &root.fragment, line_width, false, options, &mut edits);
-    let mut result = out.to_string();
-    let mut tree = root;
+    collect(
+        result075,
+        &tree075.fragment,
+        line_width,
+        false,
+        options,
+        &mut edits,
+    );
+    let mut result = result075_str;
+    let mut tree = tree075;
     if !edits.is_empty() {
         result = apply_edits(&result, edits);
         let Ok(t) = parse(&result, parse_opts) else {
@@ -186,6 +263,7 @@ pub(crate) fn collapse_pure_text_elements(
             result = apply_edits(&result, edits3);
         }
     }
+
     Ok(result)
 }
 
@@ -204,9 +282,132 @@ fn fragment_has_block(fragment: &Fragment) -> bool {
     })
 }
 
+/// Recursively collect collapse edits for pure-text elements within
+/// `<pre>` content that uses deep-tab mixed indentation (the "V3" case).
+/// Unlike `try_collapse`, this handles elements whose open tags are still
+/// multi-line (the source form) by computing the collapsed one-liner from
+/// scratch: `<tag attrs>text content</tag>`.
+fn collect_pre_pure_text_collapses(
+    raw_inner: &str,
+    fragment: &Fragment,
+    line_width: usize,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(e) => {
+                // Only collapse elements with pure text content.
+                let is_pure_text = !e.fragment.nodes.is_empty()
+                    && e.fragment
+                        .nodes
+                        .iter()
+                        .all(|n| matches!(n, TemplateNode::Text(_)));
+                if is_pure_text
+                    && let Some(edit) = try_collapse_pre_verbatim(
+                        raw_inner,
+                        e.name.as_str(),
+                        e.start,
+                        e.end,
+                        &e.fragment,
+                        line_width,
+                    )
+                {
+                    edits.push(edit);
+                    continue; // edit owns this element; don't recurse
+                }
+                // Recurse into children — may have collapsible descendants.
+                collect_pre_pure_text_collapses(raw_inner, &e.fragment, line_width, edits);
+            }
+            _ => {
+                for child in child_fragments(node) {
+                    collect_pre_pure_text_collapses(raw_inner, child, line_width, edits);
+                }
+            }
+        }
+    }
+}
+
+/// Like `try_collapse` but works on elements whose open tags are still in the
+/// original (potentially multi-line) source form inside a `<pre>` verbatim
+/// block.  Instead of using the open tag text from `raw_inner`, it builds a
+/// minimal single-line open tag `<tag attrs>` by scanning for the first `>`
+/// that closes the open tag, then checks whether the one-liner fits on the
+/// real column.
+fn try_collapse_pre_verbatim(
+    raw_inner: &str,
+    tag: &str,
+    start: u32,
+    end: u32,
+    fragment: &Fragment,
+    line_width: usize,
+) -> Option<(u32, u32, String)> {
+    let (s, e) = (start as usize, end as usize);
+    let whole = raw_inner.get(s..e)?;
+    // Already single-line — nothing to collapse (but return None so the
+    // caller can still recurse if needed).
+    if !whole.contains('\n') {
+        return None;
+    }
+    // Pure text only.
+    let first = fragment.nodes.first()?;
+    let last = fragment.nodes.last()?;
+    let content_start = text_start(first)? as usize;
+    let content_end = text_end(last)? as usize;
+    // The raw open tag including the closing `>` runs from `s` to `content_start`.
+    let raw_open = raw_inner.get(s..content_start)?;
+    // Find the position of the `>` that ends the open tag.
+    let gt_rel = raw_open.rfind('>')?;
+    // Everything before the `>` (trimmed) should be the open-tag markup.
+    // Build a minimal single-line open tag by: taking the source open tag up to
+    // (but not including) `>`, collapsing all whitespace runs to single spaces,
+    // then appending `>`.
+    let before_gt = raw_open[..gt_rel].trim_end_matches(|c: char| c.is_ascii_whitespace());
+    // Collapse any leading whitespace lines (multi-line open tags have \n +
+    // spaces before `>`).
+    let one_line_open: String = before_gt.split_whitespace().collect::<Vec<_>>().join(" ");
+    let one_line_open = format!("{one_line_open}>");
+    // Text content.
+    let raw_text = raw_inner.get(content_start..content_end);
+    let raw_text = raw_text?;
+    let collapsed_text: String = raw_text.split_whitespace().collect::<Vec<_>>().join(" ");
+    // Close tag: always emit `</tag>` (collapsing any `</tag\n{indent}>` form).
+    let raw_close = format!("</{tag}>");
+    // Build the candidate one-liner.
+    let one_liner = format!("{one_line_open}{collapsed_text}{raw_close}");
+    // Column of the element's start in raw_inner.
+    let col = current_column(raw_inner, start);
+    // Use html_display_width so that entities like `&nbsp;` count as 1 column
+    // rather than 6, matching prettier's measurement.
+    let display_width = html_display_width(&one_liner);
+    if col + display_width > line_width {
+        return None; // doesn't fit
+    }
+    // Additional guard: after collapsing, any content on the same line as `end`
+    // (the deferred `>` position) that follows immediately would be merged onto the
+    // same line as `one_liner`. Check that the merged literal line would not overflow.
+    // We use LITERAL lengths here (not display widths) because the oracle measures
+    // HTML source line lengths including entity text like `&quot;` as 6 chars.
+    let after_end = raw_inner.get(e..)?;
+    let after_end_on_same_line = after_end.lines().next().unwrap_or("");
+    // `after_end` starts with the deferred `>` (already included in `one_liner` via
+    // `raw_close`), so skip the first char only if it's `>`.
+    let following = after_end_on_same_line
+        .strip_prefix('>')
+        .unwrap_or(after_end_on_same_line);
+    if !following.is_empty() {
+        // Use literal lengths: `col` (literal column) + one_liner literal length + following literal length.
+        if col + one_liner.len() + following.len() > line_width {
+            return None; // merged literal line would overflow
+        }
+    }
+    (one_liner != whole).then_some((start, end, one_liner))
+}
+
 /// Walk the tree (tracking nesting depth) and, for each `<pre>`/`<textarea>` whose
-/// content contains a block, push an edit re-formatting its inner content with the
-/// pre hybrid rule (see [`reformat_pre_inner`]).
+/// content contains a block (Svelte control flow), push an edit re-formatting its
+/// inner content with the pre hybrid rule (see [`reformat_pre_inner`]).
+/// Pure-HTML `<pre>` elements (no blocks) are handled by pass-0 (tab→space) and
+/// pass-0.5 (overflow-line wrapping) instead of this sub-format path.
 fn collect_pre_block_reformats(
     out: &str,
     fragment: &Fragment,
@@ -228,6 +429,412 @@ fn collect_pre_block_reformats(
             collect_pre_block_reformats(out, child, depth + 1, options, edits);
         }
     }
+}
+
+/// Returns `true` if the `<pre>`/`<textarea>` element's inner content (in the
+/// current formatted output `out`) has deep space-indented `\n{4+ spaces}>`
+/// lines. This is the signature of pass-0 tab→space conversion having run,
+/// indicating the element needs `reformat_pre_inner` for proper line wrapping.
+fn pre_has_space_gt_content(out: &str, elem: &rsvelte_core::ast::template::RegularElement) -> bool {
+    let Some(whole) = out.get(elem.start as usize..elem.end as usize) else {
+        return false;
+    };
+    let Some(open_rel) = whole.find('>') else {
+        return false;
+    };
+    let inner_start = elem.start as usize + open_rel + 1;
+    let Some(close_rel) = whole.rfind("</") else {
+        return false;
+    };
+    let inner_end = elem.start as usize + close_rel;
+    if inner_end <= inner_start {
+        return false;
+    }
+    let Some(raw_inner) = out.get(inner_start..inner_end) else {
+        return false;
+    };
+    raw_inner.lines().any(|l| {
+        let spaces = l.bytes().take_while(|&b| b == b' ').count();
+        spaces >= 4 && l.as_bytes().get(spaces) == Some(&b'>')
+    })
+}
+
+/// Walk the tree and, for each `<pre>`/`<textarea>` that has NO block content
+/// (i.e. `fragment_has_block` is false) but whose inner content uses deep-tab
+/// `\n\t+>` indentation (code-viewer pattern), convert each leading tab sequence
+/// before `>` to spaces (`n_tabs * iw` spaces per tab). This matches the oracle
+/// behavior: prettier-plugin-svelte converts the source's tab-indented `>` markers
+/// to space-indented form but does NOT sub-format the content (there are no blocks).
+fn collect_pre_tab_gt_conversions(
+    out: &str,
+    fragment: &Fragment,
+    iw: usize,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for node in &fragment.nodes {
+        if let TemplateNode::RegularElement(e) = node
+            && matches!(e.name.as_str(), "pre" | "textarea")
+            && !fragment_has_block(&e.fragment)
+        {
+            if let Some(edit) = try_pre_tab_gt_to_spaces(out, e, iw) {
+                edits.push(edit);
+            }
+            // Do NOT recurse into the <pre> subtree — the edit owns it.
+            continue;
+        }
+        for child in child_fragments(node) {
+            collect_pre_tab_gt_conversions(out, child, iw, edits);
+        }
+    }
+}
+
+/// Convert `\n(\t+)>` patterns inside a `<pre>` element's content to
+/// `\n{n * iw spaces}>`. Returns `None` if no conversion is needed.
+fn try_pre_tab_gt_to_spaces(
+    out: &str,
+    elem: &rsvelte_core::ast::template::RegularElement,
+    iw: usize,
+) -> Option<(u32, u32, String)> {
+    let whole = out.get(elem.start as usize..elem.end as usize)?;
+    // Find the inner content: after the first `>` of the open tag, before `</`.
+    let open_rel = whole.find('>')? + 1;
+    let close_rel = whole.rfind("</")?;
+    if close_rel <= open_rel {
+        return None;
+    }
+    let inner_start = elem.start as usize + open_rel;
+    let inner_end = elem.start as usize + close_rel;
+    let raw_inner = out.get(inner_start..inner_end)?;
+
+    // Check if there are any `\n\t+>` patterns (newline then tabs then `>`).
+    // At least 4 leading tabs — avoid false-positives on shallow nesting.
+    let has_deep_tab_gt = raw_inner.lines().any(|l| {
+        let tabs = l.bytes().take_while(|&b| b == b'\t').count();
+        tabs >= 4 && l.as_bytes().get(tabs) == Some(&b'>')
+    });
+    if !has_deep_tab_gt {
+        return None;
+    }
+
+    // Convert each line that starts with tabs-then-`>` to spaces-then-`>`.
+    let mut new_inner = String::with_capacity(raw_inner.len());
+    for line in raw_inner.split('\n') {
+        let tabs = line.bytes().take_while(|&b| b == b'\t').count();
+        if tabs >= 4 && line.as_bytes().get(tabs) == Some(&b'>') {
+            // Replace leading tabs with spaces.
+            new_inner.push_str(&" ".repeat(tabs * iw));
+            new_inner.push_str(&line[tabs..]);
+        } else {
+            new_inner.push_str(line);
+        }
+        new_inner.push('\n');
+    }
+    // Remove the trailing `\n` we added after the last line (split doesn't
+    // produce a trailing element for a trailing newline).
+    if !raw_inner.ends_with('\n') && new_inner.ends_with('\n') {
+        new_inner.pop();
+    }
+
+    if new_inner == raw_inner {
+        return None;
+    }
+    Some((inner_start as u32, inner_end as u32, new_inner))
+}
+
+/// Walk the tree and, for each `<pre>`/`<textarea>` that has no block content
+/// but has space-indented `\n{spaces}>` lines (produced by pass 0), check for
+/// lines that overflow `line_width` and wrap them at tag `>` boundaries.
+fn collect_pre_space_gt_wraps(
+    out: &str,
+    fragment: &Fragment,
+    line_width: usize,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for node in &fragment.nodes {
+        if let TemplateNode::RegularElement(e) = node
+            && matches!(e.name.as_str(), "pre" | "textarea")
+            && !fragment_has_block(&e.fragment)
+            && pre_has_space_gt_content(out, e)
+        {
+            if let Some(edit) = wrap_pre_inner_overflow_lines(out, e, line_width) {
+                edits.push(edit);
+            }
+            continue;
+        }
+        for child in child_fragments(node) {
+            collect_pre_space_gt_wraps(out, child, line_width, edits);
+        }
+    }
+}
+
+/// Wrap overflowing lines inside `<pre>`/`<textarea>` inner content that has
+/// space-indented `>` lines (produced by pass 0 tab→space conversion). For each
+/// line longer than `line_width`, finds the rightmost tag-`>` position within
+/// `line_width` characters and splits there, placing `>` and the remainder on
+/// the next line with 2 extra spaces of indentation.
+fn wrap_pre_inner_overflow_lines(
+    out: &str,
+    elem: &rsvelte_core::ast::template::RegularElement,
+    line_width: usize,
+) -> Option<(u32, u32, String)> {
+    let whole = out.get(elem.start as usize..elem.end as usize)?;
+    let open_rel = whole.find('>')? + 1;
+    let close_rel = whole.rfind("</")?;
+    if close_rel <= open_rel {
+        return None;
+    }
+    let inner_start = elem.start as usize + open_rel;
+    let inner_end = elem.start as usize + close_rel;
+    let raw_inner = out.get(inner_start..inner_end)?;
+
+    let new_inner = wrap_lines_at_tag_gt(raw_inner, line_width);
+    if new_inner == raw_inner {
+        return None;
+    }
+    Some((inner_start as u32, inner_end as u32, new_inner))
+}
+
+/// Walk the tree and, for each `<pre>`/`<textarea>` that has no block content
+/// but has space-indented `>` lines (produced by pass 0), run a pure-text-element
+/// collapse pass on the inner content. This collapses `<span>` elements whose
+/// content is pure text and whose collapsed form fits on one line (e.g., the
+/// `<span>)</span>` element split across two source lines in the code-viewer pattern).
+fn collect_pre_space_gt_pure_text_collapses(
+    out: &str,
+    fragment: &Fragment,
+    line_width: usize,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for node in &fragment.nodes {
+        if let TemplateNode::RegularElement(e) = node
+            && matches!(e.name.as_str(), "pre" | "textarea")
+            && !fragment_has_block(&e.fragment)
+            && pre_has_space_gt_content(out, e)
+        {
+            if let Some(edit) = collapse_pre_inner_pure_text(out, e, line_width) {
+                edits.push(edit);
+            }
+            continue;
+        }
+        for child in child_fragments(node) {
+            collect_pre_space_gt_pure_text_collapses(out, child, line_width, edits);
+        }
+    }
+}
+
+/// Collapse pure-text elements inside a `<pre>` inner content that has
+/// space-indented `>` lines. Re-parses the inner content and applies
+/// `collect_pre_pure_text_collapses`. Returns `None` if no collapse was needed.
+fn collapse_pre_inner_pure_text(
+    out: &str,
+    elem: &rsvelte_core::ast::template::RegularElement,
+    line_width: usize,
+) -> Option<(u32, u32, String)> {
+    let whole = out.get(elem.start as usize..elem.end as usize)?;
+    let open_rel = whole.find('>')? + 1;
+    let close_rel = whole.rfind("</")?;
+    if close_rel <= open_rel {
+        return None;
+    }
+    let inner_start = elem.start as usize + open_rel;
+    let inner_end = elem.start as usize + close_rel;
+    let raw_inner = out.get(inner_start..inner_end)?;
+
+    let Ok(sub_root) = parse(raw_inner, ParseOptions::default()) else {
+        return None;
+    };
+    let mut collapse_edits: Vec<(u32, u32, String)> = Vec::new();
+    collect_pre_pure_text_collapses(
+        raw_inner,
+        &sub_root.fragment,
+        line_width,
+        &mut collapse_edits,
+    );
+    if collapse_edits.is_empty() {
+        return None;
+    }
+    let new_raw = apply_edits(raw_inner, collapse_edits);
+    (new_raw != raw_inner).then_some((inner_start as u32, inner_end as u32, new_raw))
+}
+
+/// Wrap lines that exceed `line_width` at the rightmost tag-`>` character that
+/// keeps the first part within the limit. Returns the modified string, or the
+/// original string unchanged if no wrapping was needed.
+///
+/// Special handling for "dangling partial open tags": when an overflowing line
+/// ends with `<tag` (a partial open tag with no closing `>`), splitting at the
+/// rightmost `>` before the `<tag` leaves `<tag` at the end of the second part.
+/// This is problematic because it severs the tag from its closing `>` on the next
+/// line. Instead, we strip `<tag` from the second part and inject it into the
+/// next source line immediately after the first `>` character. This preserves the
+/// HTML element integrity and, combined with the pass-0.75 collapse, produces the
+/// oracle's layout where the element is collapsed inline at the next `>` position.
+fn wrap_lines_at_tag_gt(text: &str, line_width: usize) -> String {
+    let mut result = String::with_capacity(text.len() + 64);
+    let mut changed = false;
+    // A partial open tag `<tag` stripped from the end of a wrapped second part.
+    // It will be injected into the NEXT line before its first `>` character.
+    let mut pending_tag: Option<String> = None;
+    // When the second part (after stripping pending_tag) ends with `>` (a deferred
+    // close-tag `>`), that `>` must lead the injection line. We store the base
+    // indentation to use for the injection line (the outer element's indentation),
+    // so the deferred `>` is placed at the correct column.
+    let mut pending_close_gt_indent: Option<String> = None;
+
+    for line in text.split('\n') {
+        // Apply any pending tag injection.
+        let owned_line;
+        let line: &str = if let Some(ref ptag) = pending_tag {
+            if let Some(gt_pos) = line.find('>') {
+                if let Some(ref close_indent) = pending_close_gt_indent {
+                    // We have a deferred close-tag `>` that should lead this output
+                    // line at the outer element's indentation. The `>` on this source
+                    // line closes the pending open tag `<tag`, and `<tag>` goes right
+                    // after the deferred `>`.
+                    // e.g. close_indent="            ", ptag="<span", line="              >)\span"
+                    // → "            ><span>)\span"
+                    owned_line = format!("{close_indent}>{ptag}{}", &line[gt_pos..]);
+                } else {
+                    // No deferred close `>`. Inject `<tag` immediately BEFORE the `>`
+                    // on this line, so `<tag>` is formed using this line's `>`.
+                    // e.g. ptag="<span", line="              >)\span"
+                    // → "              <span>)\span"
+                    owned_line = format!("{}{ptag}{}", &line[..gt_pos], &line[gt_pos..]);
+                }
+                changed = true;
+            } else {
+                // No `>` on this line — just prepend the tag.
+                owned_line = format!("{ptag}{line}");
+                changed = true;
+            }
+            &owned_line
+        } else {
+            line
+        };
+        pending_tag = None;
+        pending_close_gt_indent = None;
+
+        if line.len() <= line_width {
+            result.push_str(line);
+            result.push('\n');
+            continue;
+        }
+        // Line overflows: find the rightmost tag `>` at position p ≤ line_width.
+        // We exclude `>` characters inside attribute values (quoted strings).
+        let split_pos = find_tag_gt_split(line, line_width);
+        if let Some(p) = split_pos {
+            // Count leading spaces for the current line's indentation.
+            let indent = line.bytes().take_while(|&b| b == b' ').count();
+            let new_indent = " ".repeat(indent + 2);
+            // First part: everything before the `>` at position p.
+            // Second part: `{new_indent}>` + rest of line after position p.
+            let first = &line[..p];
+            let rest = &line[p + 1..]; // skip the `>` itself
+            // Check if the second part ends with a partial open tag `<tag` (no `>`).
+            // Such a tag should NOT be kept on the second part — instead, strip it
+            // and inject it into the NEXT source line after that line's first `>`.
+            let second_content = format!("{new_indent}>{rest}");
+            let (second_line_raw, stripped_tag) = strip_trailing_partial_tag(&second_content);
+            if let Some(stag) = stripped_tag {
+                pending_tag = Some(stag);
+                // If the second line (after stripping the pending open tag) ends with
+                // a `>` that would close a close-tag (e.g. `>,</span>`), that `>` is
+                // the deferred close-tag `>` for the outer element. We strip it from
+                // the second line and record the outer element's indentation so the
+                // NEXT source line's injection can produce `{indent}>{pending_tag}...`.
+                let (second_line, deferred_close_gt) = if second_line_raw.ends_with('>') {
+                    let trimmed = &second_line_raw[..second_line_raw.len() - 1];
+                    // The outer element's indentation is the current line's leading spaces.
+                    (trimmed.to_string(), true)
+                } else {
+                    (second_line_raw, false)
+                };
+                if deferred_close_gt {
+                    // Store the outer indentation (current line's leading spaces) so the
+                    // next line's injection starts with `{indent}>`.
+                    pending_close_gt_indent = Some(" ".repeat(indent));
+                }
+                // The second line no longer has the dangling tag.
+                result.push_str(first);
+                result.push('\n');
+                let wrapped_second = wrap_lines_at_tag_gt(&second_line, line_width);
+                result.push_str(&wrapped_second);
+                result.push('\n');
+            } else {
+                let second_line = second_line_raw;
+                // The second part may also overflow — wrap it recursively.
+                result.push_str(first);
+                result.push('\n');
+                let wrapped_second = wrap_lines_at_tag_gt(&second_line, line_width);
+                result.push_str(&wrapped_second);
+                // The recursive call returns WITHOUT a trailing newline (since
+                // `second_line` itself has no trailing newline). Always add one so
+                // the next outer-loop iteration starts on a fresh line.
+                result.push('\n');
+            }
+            changed = true;
+        } else {
+            // No good split point — keep as-is.
+            result.push_str(line);
+            result.push('\n');
+        }
+    }
+
+    // Remove the trailing `\n` added after the last line if the original didn't
+    // have a trailing newline (split('\n') always produces at least one element,
+    // and we push `\n` after each — the last one is excess if the input had none).
+    if !text.ends_with('\n') && result.ends_with('\n') {
+        result.pop();
+    }
+
+    if !changed { text.to_string() } else { result }
+}
+
+/// If `line` ends with a partial open tag (`<[a-zA-Z][a-zA-Z0-9-]*` with no
+/// closing `>`), strip it and return `(stripped_line, Some(tag))`.
+/// Otherwise return `(line.to_string(), None)`.
+fn strip_trailing_partial_tag(line: &str) -> (String, Option<String>) {
+    // A partial open tag at end: matches `<` followed by letters/digits/hyphen,
+    // no `>` after it on this line. Use rfind to find the last `<`.
+    if let Some(lt_pos) = line.rfind('<') {
+        let after_lt = &line[lt_pos + 1..];
+        // Must be letters/digits/hyphens only (no spaces, no `>`, no `/`).
+        if !after_lt.is_empty()
+            && after_lt
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+        {
+            let stripped = line[..lt_pos].to_string();
+            let tag = format!("<{after_lt}");
+            return (stripped, Some(tag));
+        }
+    }
+    (line.to_string(), None)
+}
+
+/// Find the rightmost `>` in `line` that is a tag delimiter (not inside an
+/// attribute value or HTML entity), at position p where p ≤ line_width.
+/// Returns the byte position of that `>`, or `None` if no such position exists.
+fn find_tag_gt_split(line: &str, line_width: usize) -> Option<usize> {
+    let bytes = line.as_bytes();
+    let mut in_quote: Option<u8> = None;
+    let mut best: Option<usize> = None;
+
+    for (i, &b) in bytes.iter().enumerate() {
+        if i > line_width {
+            break; // Only look at positions within line_width
+        }
+        if let Some(q) = in_quote {
+            if b == q {
+                in_quote = None;
+            }
+        } else if b == b'"' || b == b'\'' {
+            in_quote = Some(b);
+        } else if b == b'>' {
+            best = Some(i);
+        }
+    }
+    best
 }
 
 /// Re-format the inner content of a `<pre>`/`<textarea>` that contains a block.
@@ -255,6 +862,45 @@ fn reformat_pre_inner(
     let inner_start = elem.start as usize + open_rel;
     let inner_end = elem.start as usize + close_rel;
     let raw_inner = out.get(inner_start..inner_end)?;
+
+    // Guard: if raw_inner already uses deep tab indentation for elements inside
+    // block bodies (e.g., a `{prefix}-foreground` span at 6+ tabs inside
+    // `{#each}`), the content is already correctly formatted by the initial
+    // format passes and the oracle preserves it verbatim. Sub-formatting would
+    // re-normalise to spaces and lose the original indentation characters. In
+    // that case skip the sub-format entirely — returning None here leaves the
+    // raw_inner unchanged, which matches the oracle.
+    let has_deep_tab_indented_block_child = raw_inner.lines().any(|l| {
+        // A line starting with 6+ consecutive tab characters indicates an element
+        // inside a block body (e.g. `{#each}`) was tab-indented in the original
+        // source and must be preserved as-is.
+        l.starts_with("\t\t\t\t\t\t")
+    });
+    if has_deep_tab_indented_block_child {
+        // The content uses deep mixed tab/space indentation from the source — do
+        // NOT run the sub-format pipeline (it would normalise indentation and lose
+        // the original tab characters). Instead, apply a targeted pure-text-element
+        // collapse pass: any `<span>` whose children are all Text nodes and whose
+        // collapsed form fits on one real line should be collapsed to a single line,
+        // matching oracle behaviour (e.g. `<span>--radius: 0.5rem;</span>`).
+        let Ok(sub_root) = parse(raw_inner, ParseOptions::default()) else {
+            return None;
+        };
+        let line_width = options.js.line_width.value() as usize;
+        let mut collapse_edits: Vec<(u32, u32, String)> = Vec::new();
+        collect_pre_pure_text_collapses(
+            raw_inner,
+            &sub_root.fragment,
+            line_width,
+            &mut collapse_edits,
+        );
+        if collapse_edits.is_empty() {
+            return None;
+        }
+        let new_raw = apply_edits(raw_inner, collapse_edits);
+        let current = out.get(inner_start..inner_end)?;
+        return (new_raw != current).then_some((inner_start as u32, inner_end as u32, new_raw));
+    }
 
     let iw = options.js.indent_width.value() as usize;
     let full_width = options.js.line_width.value() as usize;
@@ -301,6 +947,23 @@ fn reformat_pre_inner(
     };
     let formatted = formatted.trim_end_matches('\n');
 
+    // Post-pass: when a self-closing Component `<Comp attrs />` appears inline
+    // at the end of a line and the NEXT line has following sibling content at
+    // the same indent level, AND merging them would overflow the real width
+    // (after re-indentation), break the component's attributes and pull the
+    // following content onto the same line as `/>`.  This reproduces prettier's
+    // behavior of breaking inside a group before breaking at the fill boundary.
+    let formatted_owned: String;
+    let formatted = {
+        let reorg = reorg_inline_component_attrs(formatted, content_depth, iw, full_width);
+        if let Some(s) = reorg {
+            formatted_owned = s;
+            formatted_owned.trim_end_matches('\n')
+        } else {
+            formatted
+        }
+    };
+
     // Whether the original content was hugged directly after `>` (no leading
     // whitespace). When hugged, the first line stays inline (no leading `\n`)
     // and subsequent lines are re-indented normally.
@@ -328,9 +991,16 @@ fn reformat_pre_inner(
 
     // Determine which line-starts in `formatted` are element-direct whitespace
     // (→ tabs). Everything else stays spaces.
+    // Exception: when the `<pre>` has no block content (pure HTML hierarchy, no
+    // Svelte `{#if}`/`{#each}` etc.), the oracle uses spaces throughout — no
+    // element-direct tabs. In that case, skip `collect_pre_tab_lines` so all
+    // lines re-indent with spaces.
+    let spaces_only = !fragment_has_block(&elem.fragment);
     let sub_root = parse(formatted, ParseOptions::default()).ok()?;
     let mut tab_lines: HashSet<usize> = HashSet::new();
-    collect_pre_tab_lines(formatted, &sub_root.fragment, true, &mut tab_lines);
+    if !spaces_only {
+        collect_pre_tab_lines(formatted, &sub_root.fragment, true, &mut tab_lines);
+    }
 
     // Re-indent every line: shift by `content_depth` levels; tab-marked lines use
     // tabs, the rest use spaces.
@@ -364,13 +1034,20 @@ fn reformat_pre_inner(
         offset += line.len() + 1; // +1 for the '\n' split removed
     }
     // The close tag's own line: pre-direct trailing whitespace → tabs at the
-    // element's depth (one less than its content). In the hugged case, the
-    // content starts inline (no leading `\n`) and the close tag immediately
-    // follows on the same line — no trailing `\n<indent>` needed.
+    // element's depth (one less than its content) when using tabs, or spaces when
+    // using spaces-only mode. In the hugged case, the content starts inline (no
+    // leading `\n`) and the close tag immediately follows on the same line — no
+    // trailing `\n<indent>` needed.
     if !hugged {
         result.push('\n');
-        for _ in 0..content_depth.saturating_sub(1) {
-            result.push('\t');
+        if spaces_only {
+            for _ in 0..(content_depth.saturating_sub(1)) * iw {
+                result.push(' ');
+            }
+        } else {
+            for _ in 0..content_depth.saturating_sub(1) {
+                result.push('\t');
+            }
         }
     }
 
@@ -2708,6 +3385,34 @@ fn current_column(out: &str, pos: u32) -> usize {
     out[line_start..pos].width()
 }
 
+/// Display width of a string that may contain HTML entities.
+///
+/// Each `&name;` or `&#N;` entity counts as 1 character (the width of its
+/// decoded code-point), not as the raw byte-length of the `&…;` sequence.
+/// This matches prettier's behaviour, which measures HTML text after entity
+/// substitution so that `&nbsp;` (6 bytes) contributes 1 column, not 6.
+fn html_display_width(s: &str) -> usize {
+    let mut width = 0usize;
+    let mut rest = s;
+    while let Some(amp) = rest.find('&') {
+        // Count the literal part before the `&`.
+        width += rest[..amp].width();
+        let after_amp = &rest[amp + 1..];
+        if let Some(semi) = after_amp.find(';') {
+            // Treat the entire `&…;` as 1 display character.
+            width += 1;
+            rest = &after_amp[semi + 1..];
+        } else {
+            // No closing `;` — count the remaining `&…` literally.
+            width += rest[amp..].width();
+            return width;
+        }
+    }
+    // No more `&` — count the tail.
+    width += rest.width();
+    width
+}
+
 /// Elements whose default CSS display is block / list-item — prettier trims the
 /// leading/trailing whitespace of their text content. Everything else keeps a
 /// single edge space. Mirrors prettier's `CSS_DISPLAY_DEFAULTS`.
@@ -3058,6 +3763,254 @@ fn try_break_pre_own_attrs(
     (result != whole).then_some((s as u32, e as u32, result))
 }
 
+/// Reorganize inline Component self-closing tags followed by sibling text.
+///
+/// prettier's fill algorithm prefers to break INSIDE a group (Component open-tag
+/// attributes) before breaking at the fill-run sibling boundary.  Our formatter
+/// does the opposite: it keeps `<Comp attrs />` on one line but breaks the
+/// following `{text}` to the next line.
+///
+/// When:
+///   - A line ends with `<ComponentName attrs... />`
+///   - The next line at the same indent has `{text}...;` content
+///   - Merging them would overflow `full_width` after real re-indentation
+///
+/// Transform:
+///   `  >&nbsp;...prefix: <Comp attr={x} />`
+///   `  {text};`
+/// →
+///   `  >&nbsp;...prefix: <Comp`
+///   `    attr={x}`
+///   `  /> {text};`
+///
+/// Returns `Some(modified)` if any transformation was made, `None` otherwise.
+fn reorg_inline_component_attrs(
+    formatted: &str,
+    content_depth: usize,
+    iw: usize,
+    full_width: usize,
+) -> Option<String> {
+    let lines: Vec<&str> = formatted.split('\n').collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len() + 4);
+    let mut changed = false;
+
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        let trimmed = line.trim_end();
+
+        // Find an inline self-closing Component `<ComponentName attrs />` in this line.
+        // The Component might:
+        //   (A) appear at the end of the line: `...prefix: <Comp attr /> `
+        //       with the following sibling content on the NEXT line.
+        //   (B) appear in the middle of the line: `...prefix: <Comp attr /> suffix;`
+        //       (e.g. `/>` followed by more text and close tags on the same line).
+        // In both cases we check if the real-width line overflows, and if so,
+        // break the component attributes and keep `/>` with the following content.
+        let leading_spaces = trimmed.len() - trimmed.trim_start_matches(' ').len();
+        let real_depth = leading_spaces / iw + content_depth;
+        let real_prefix = real_depth * iw;
+
+        // Find `<ComponentName` (uppercase) followed eventually by `/>` in this line.
+        let Some((comp_start, comp_end, suffix_on_line)) = find_inline_selfclose_component(trimmed)
+        else {
+            result.push(line.to_string());
+            i += 1;
+            continue;
+        };
+
+        // The "suffix" is content after `/>` on the SAME line.
+        // The "next_content" is content on the NEXT line (if suffix is empty).
+        let (suffix, lines_to_consume) = if !suffix_on_line.trim().is_empty() {
+            // Case B: content after `/>` on same line.
+            // Guard: if the suffix has unbalanced brackets (`[` or `{` with more
+            // opens than closes), the expression continues on the NEXT line and
+            // we cannot reorganize this case — the suffix is incomplete.
+            let (mut sq, mut cb) = (0i32, 0i32);
+            for b in suffix_on_line.bytes() {
+                match b {
+                    b'[' => sq += 1,
+                    b']' => sq -= 1,
+                    b'{' => cb += 1,
+                    b'}' => cb -= 1,
+                    _ => {}
+                }
+            }
+            if sq > 0 || cb > 0 {
+                result.push(line.to_string());
+                i += 1;
+                continue;
+            }
+            (suffix_on_line.trim(), 1usize)
+        } else {
+            // Case A: check next line for content at same indent.
+            if let Some(next_line) = lines.get(i + 1) {
+                let next_trimmed_content = next_line.trim_start_matches(' ');
+                let next_spaces = next_line.len() - next_trimmed_content.len();
+                if next_spaces == leading_spaces && !next_trimmed_content.is_empty() {
+                    (next_trimmed_content, 2usize)
+                } else {
+                    result.push(line.to_string());
+                    i += 1;
+                    continue;
+                }
+            } else {
+                result.push(line.to_string());
+                i += 1;
+                continue;
+            }
+        };
+
+        // Compute what the merged real-width line would look like.
+        let prefix_before_comp = &trimmed[..comp_start];
+        let comp_tag = &trimmed[comp_start..comp_end]; // e.g. `<ColorIndicator color={value} />`
+        let trimmed_no_leading = trimmed.trim_start_matches(' ');
+        // Content from start of line (no leading spaces) to end of `/>` + suffix.
+        let content_before_slash = trimmed_no_leading[..comp_end - leading_spaces]
+            .trim_end_matches("/>")
+            .trim_end();
+        let merged_content_len =
+            real_prefix + content_before_slash.len() + " /> ".len() + suffix.len();
+
+        if merged_content_len <= full_width {
+            // Merged form fits — no need to reorganize.
+            result.push(line.to_string());
+            i += 1;
+            continue;
+        }
+
+        // Merged overflows. Break the Component's attributes.
+        let Some((tag_name, attrs_str)) = parse_selfclose_comp_tag(comp_tag) else {
+            result.push(line.to_string());
+            i += 1;
+            continue;
+        };
+
+        let open_line = format!("{prefix_before_comp}<{tag_name}");
+        let close_line = format!("{}{}/> {suffix}", " ".repeat(leading_spaces), "");
+
+        if attrs_str.is_empty() {
+            result.push(open_line);
+            result.push(close_line);
+        } else {
+            let attr_indent = leading_spaces + iw;
+            let attrs: Vec<&str> = split_component_attrs(attrs_str);
+            result.push(open_line);
+            for attr in &attrs {
+                result.push(format!("{}{attr}", " ".repeat(attr_indent)));
+            }
+            result.push(close_line);
+        }
+        i += lines_to_consume;
+        changed = true;
+    }
+
+    changed.then(|| result.join("\n"))
+}
+
+/// Find an inline self-closing Component in the line.
+/// Returns `(comp_start, comp_end, suffix_after_close)` where:
+/// - `comp_start` = byte offset of `<` in `line`
+/// - `comp_end` = byte offset just past `/>` in `line`
+/// - `suffix_after_close` = the text after `/>` on the same line (may be empty)
+///
+/// Only matches when the Component name starts with uppercase and has attributes
+/// (a bare `<Comp />` without attributes is not reorganized — it wouldn't help).
+/// The component must appear after some non-whitespace prefix (to distinguish
+/// from element-direct children at the start of a line).
+fn find_inline_selfclose_component(line: &str) -> Option<(usize, usize, &str)> {
+    let bytes = line.as_bytes();
+    let len = bytes.len();
+    // Scan for `<[A-Z]`
+    let mut i = 0;
+    while i + 1 < len {
+        if bytes[i] == b'<' && bytes[i + 1].is_ascii_uppercase() {
+            // Found a potential Component start.
+            // Verify there's non-whitespace before it (not at start of line content).
+            let before = &line[..i].trim_start_matches(' ');
+            if before.is_empty() {
+                i += 1;
+                continue; // starts the line — skip (handled by fix_pre_child_hug_only)
+            }
+            // Find the matching `/>` close.
+            // Scan forward, tracking brace depth.
+            let mut j = i + 1;
+            let mut brace_depth = 0usize;
+            while j < len {
+                match bytes[j] {
+                    b'{' => brace_depth += 1,
+                    b'}' => {
+                        brace_depth = brace_depth.saturating_sub(1);
+                    }
+                    b'/' if brace_depth == 0 && j + 1 < len && bytes[j + 1] == b'>' => {
+                        let comp_end = j + 2;
+                        let suffix = &line[comp_end..];
+                        return Some((i, comp_end, suffix));
+                    }
+                    _ => {}
+                }
+                j += 1;
+            }
+            // No `/>` found after this `<Component` start — not a self-closing comp.
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Parse a self-closing Component tag like `<Comp attr1={x} attr2="y" />`
+/// Returns `(tag_name, attrs_str)` where `attrs_str` is the raw attribute string.
+fn parse_selfclose_comp_tag(tag: &str) -> Option<(&str, &str)> {
+    // tag starts with `<` and ends with `/>` or `/ >` after trim
+    let inner = tag
+        .strip_prefix('<')?
+        .trim_end_matches('>')
+        .trim_end_matches('/')
+        .trim();
+    // Split tag name from attrs
+    let first_space = inner.find([' ', '\t', '\n']);
+    if let Some(sp) = first_space {
+        let name = &inner[..sp];
+        let attrs = inner[sp..].trim();
+        Some((name, attrs))
+    } else {
+        // No attrs
+        Some((inner, ""))
+    }
+}
+
+/// Split a component attributes string into individual attributes.
+/// Handles `{expr}` blocks that may contain spaces.
+fn split_component_attrs(attrs: &str) -> Vec<&str> {
+    let mut result = Vec::new();
+    let mut start = 0;
+    let mut depth = 0usize;
+    let bytes = attrs.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'{' => depth += 1,
+            b'}' => {
+                depth = depth.saturating_sub(1);
+            }
+            b' ' | b'\t' if depth == 0 => {
+                let attr = attrs[start..i].trim();
+                if !attr.is_empty() {
+                    result.push(&attrs[start..i]);
+                }
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    let last = attrs[start..].trim();
+    if !last.is_empty() {
+        result.push(&attrs[start..]);
+    }
+    result
+}
+
 /// Fix the `>` placement for direct children of a `<pre>` inner-content
 /// fragment that was re-formatted via [`reformat_pre_inner`].  Only applies
 /// Sub-case B (hug `>` to last attribute line): elements whose open tags are
@@ -3079,11 +4032,17 @@ fn fix_pre_child_hug_only(out: &str, fragment: &Fragment) -> Vec<(u32, u32, Stri
             continue;
         };
         // Only act on multi-line open tags.
-        let open_end = if let Some(first_child_node) = child_fragment.nodes.first() {
-            node_start(first_child_node) as usize
-        } else {
+        // Find the first child node and the leading whitespace.
+        // The first child node may be a whitespace Text node whose content is
+        // the `\n  ` between the `>` and the first real child element.
+        // In that case `node_start(first_child) == position_after_gt` and
+        // `open[..open_tag_only.len()] == "..."` ends with `>` with no trailing
+        // whitespace in `open`.  We need to include the whitespace text in the
+        // "trailing_ws" computation.
+        let Some(first_child_node) = child_fragment.nodes.first() else {
             continue;
         };
+        let open_end = node_start(first_child_node) as usize;
         let Some(open) = out.get(cs..open_end) else {
             continue;
         };
@@ -3107,18 +4066,59 @@ fn fix_pre_child_hug_only(out: &str, fragment: &Fragment) -> Vec<(u32, u32, Stri
         if !before_gt.bytes().all(|b| b == b' ') {
             continue;
         }
-        // Move `>` to hug the last attribute line, preserving any element-direct
-        // whitespace (tabs/newline) between `>` and the first child.
-        let trailing_ws = &open[open_tag_only.len()..];
-        // If trailing_ws is empty, the content starts inline immediately after `>` —
-        // the element is already correctly hugged.  Applying the edit here would
-        // wrongly collapse the multi-line open tag (pulling `>` back to the last
-        // attribute line) and merge all child content onto one line.  Skip it.
-        if trailing_ws.is_empty() {
-            continue;
-        }
+        // Compute the trailing whitespace between `>` and the first child.
+        // If the first child is a pure-whitespace Text node, its content is
+        // the separator; otherwise `open[open_tag_only.len()..]` is the separator.
+        let trailing_ws_from_open = &open[open_tag_only.len()..];
+        let (trailing_ws, content_start) = if trailing_ws_from_open.is_empty() {
+            // The first child might be a leading-whitespace Text node.
+            // Find where the whitespace text ends and real content begins.
+            match first_child_node {
+                TemplateNode::Text(t) => {
+                    let text_start = t.start as usize;
+                    let text_end = t.end as usize;
+                    if let Some(text_content) = out.get(text_start..text_end) {
+                        if text_content
+                            .bytes()
+                            .all(|b| b == b' ' || b == b'\n' || b == b'\t' || b == b'\r')
+                        {
+                            // Pure whitespace text node — use it as trailing_ws
+                            // and start content from the NEXT node.
+                            let next_start = if let Some(second) = child_fragment.nodes.get(1) {
+                                node_start(second) as usize
+                            } else {
+                                // No second child — nothing to hug.
+                                continue;
+                            };
+                            (text_content, next_start)
+                        } else {
+                            // Inline content (the element is already hugged) — skip.
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    }
+                }
+                _ => {
+                    // The first child is an element/component — trailing_ws must
+                    // have been empty meaning content is already inline. Skip.
+                    continue;
+                }
+            }
+        } else {
+            // trailing_ws_from_open has the whitespace.
+            // If empty, the content starts inline (already hugged) — skip.
+            if trailing_ws_from_open.trim().is_empty() && trailing_ws_from_open.contains('\n') {
+                (trailing_ws_from_open, open_end)
+            } else if trailing_ws_from_open.is_empty() {
+                continue;
+            } else {
+                // Non-empty, non-whitespace: content is already inline.
+                continue;
+            }
+        };
         let new_open = format!("{}>", &open_tag_only[..last_nl]);
-        let result = format!("{new_open}{trailing_ws}{}", &out[open_end..ce]);
+        let result = format!("{new_open}{trailing_ws}{}", &out[content_start..ce]);
         if result != whole {
             edits.push((child_start, child_end, result));
         }
@@ -3227,6 +4227,10 @@ fn try_fix_pre_child_open_tags(
             }
         }
         // Sub-case B: multi-line open tag with `>` dropped to its own line.
+        // Only fires when the `>` is NOT at the oracle's expected indent for
+        // a wrapped child element (`pre_indent_col + 2 * iw` spaces). When the
+        // `>` IS at the correct position (e.g. after pass 0 converted tabs),
+        // it means markup.rs placed it correctly and hugging would be wrong.
         else if open.contains('\n') {
             // `open` runs from the child's start up to the first child's AST
             // start, so it may include whitespace / tabs that follow the `>`
@@ -3241,19 +4245,26 @@ fn try_fix_pre_child_open_tags(
                 // The line before `>` must consist entirely of spaces (the
                 // indent for the non-hug `>` placement). `open_tag_only` ends
                 // with `>` (guarded above), so strip it.
-                if after_last_nl
-                    .strip_suffix('>')
-                    .is_some_and(|s| s.bytes().all(|b| b == b' '))
+                if let Some(before_gt) = after_last_nl.strip_suffix('>')
+                    && before_gt.bytes().all(|b| b == b' ')
                 {
-                    // Move `>` to hug the last attribute line (remove the
-                    // `\n{spaces}` before `>`). Keep the whitespace between
-                    // `>` and the first child intact (it's element-direct
-                    // whitespace, e.g. tabs).
-                    let trailing_ws = &open[open_tag_only.len()..];
-                    let new_open = format!("{}>", &open_tag_only[..last_nl]);
-                    let result = format!("{new_open}{trailing_ws}{}", &out[open_end..ce]);
-                    if result != whole {
-                        edits.push((child_start, child_end, result));
+                    // If `>` is already at the oracle's correct indent position
+                    // (pre_indent_col + 2 * iw spaces), it was placed correctly
+                    // (e.g., by markup.rs or by pass 0 tab→space conversion)
+                    // and should NOT be hugged. Only hug when `>` is at a
+                    // different (wrong) indent level.
+                    let correct_indent = pre_indent_col + 2 * iw;
+                    if before_gt.len() != correct_indent {
+                        // Move `>` to hug the last attribute line (remove the
+                        // `\n{spaces}` before `>`). Keep the whitespace between
+                        // `>` and the first child intact (it's element-direct
+                        // whitespace, e.g. tabs).
+                        let trailing_ws = &open[open_tag_only.len()..];
+                        let new_open = format!("{}>", &open_tag_only[..last_nl]);
+                        let result = format!("{new_open}{trailing_ws}{}", &out[open_end..ce]);
+                        if result != whole {
+                            edits.push((child_start, child_end, result));
+                        }
                     }
                 }
             }
