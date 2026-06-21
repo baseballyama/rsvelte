@@ -14,11 +14,11 @@ npm install -D @rsvelte/svelte-check
 
 The package ships a small loader that resolves the right prebuilt native binary for your platform via `optionalDependencies`. Supported targets:
 
-| OS      | Architecture               |
-| ------- | -------------------------- |
-| macOS   | arm64, x64                 |
-| Linux   | x64 (glibc), arm64 (glibc) |
-| Windows | x64 (MSVC)                 |
+| OS | Architecture |
+|---|---|
+| macOS | arm64, x64 |
+| Linux | x64 (glibc), arm64 (glibc) |
+| Windows | x64 (MSVC) |
 
 If your platform isn't listed, please [open an issue](https://github.com/baseballyama/rsvelte/issues).
 
@@ -50,20 +50,20 @@ Add it to your `package.json`:
 
 ## CLI flags
 
-| Flag                          | Description                                                                                                                                                            |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--workspace <dir>`           | Project root to scan. Defaults to the current directory.                                                                                                               |
-| `--output <format>`           | `human`, `human-verbose` (default), `machine`, `machine-verbose`, or `github-actions`.                                                                                 |
-| `--ignore <list>`             | Comma-separated path components to skip while walking the workspace.                                                                                                   |
-| `--fail-on-warnings`          | Exit non-zero when any warning is reported (default: errors only).                                                                                                     |
-| `--tsgo`                      | Run [tsgo](https://github.com/microsoft/typescript-go) (or `tsc`) against the generated overlay and surface TypeScript diagnostics. Implies `--emit-overlay`.          |
-| `--tsconfig <path>`           | Base `tsconfig.json` for the overlay to `extends`.                                                                                                                     |
-| `--emit-overlay`              | Materialise `.tsx` shadow files + an overlay tsconfig under `<workspace>/.svelte-check/` without running a type-checker. Useful for inspecting what gets handed to TS. |
-| `--compiler-warnings <list>`  | Per-code overrides, e.g. `--compiler-warnings css-unused-selector:ignore,a11y-no-noninteractive-element-to-interactive-role:error`.                                    |
-| `--diagnostic-sources <list>` | Restrict output to any subset of `svelte`, `ts` / `js`, `css`.                                                                                                         |
-| `--incremental`               | Reuse `<workspace>/.svelte-check/manifest.json` between runs — unchanged files skip the overlay regeneration step.                                                     |
-| `--watch`                     | Stay alive and re-check on file changes. Composes with `--incremental`.                                                                                                |
-| `--preserve-watch-output`     | In watch mode, don't clear the terminal between runs.                                                                                                                  |
+| Flag | Description |
+|---|---|
+| `--workspace <dir>` | Project root to scan. Defaults to the current directory. |
+| `--output <format>` | `human`, `human-verbose` (default), `machine`, `machine-verbose`, or `github-actions`. |
+| `--ignore <list>` | Comma-separated path components to skip while walking the workspace. |
+| `--fail-on-warnings` | Exit non-zero when any warning is reported (default: errors only). |
+| `--tsgo` | Run [tsgo](https://github.com/microsoft/typescript-go) (or `tsc`) against the generated overlay and surface TypeScript diagnostics. Implies `--emit-overlay`. |
+| `--tsconfig <path>` | Base `tsconfig.json` for the overlay to `extends`. |
+| `--emit-overlay` | Materialise `.tsx` shadow files + an overlay tsconfig under `<workspace>/.svelte-check/` without running a type-checker. Useful for inspecting what gets handed to TS. |
+| `--compiler-warnings <list>` | Per-code overrides, e.g. `--compiler-warnings css-unused-selector:ignore,a11y-no-noninteractive-element-to-interactive-role:error`. |
+| `--diagnostic-sources <list>` | Restrict output to any subset of `svelte`, `ts` / `js`, `css`. |
+| `--incremental` | Reuse `<workspace>/.svelte-check/manifest.json` between runs — unchanged files skip the overlay regeneration step. |
+| `--watch` | Stay alive and re-check on file changes. Composes with `--incremental`. |
+| `--preserve-watch-output` | In watch mode, don't clear the terminal between runs. |
 
 Run `rsvelte-check --help` for the authoritative list.
 

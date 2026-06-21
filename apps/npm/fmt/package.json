@@ -2,33 +2,37 @@
   "name": "@rsvelte/fmt",
   "version": "0.3.14",
   "description": "Rust-powered Svelte + JS/TS/CSS formatter CLI — formats .svelte in-process and dispatches everything else to oxfmt",
-  "keywords": [
-    "cli",
-    "format",
-    "formatter",
-    "oxfmt",
-    "prettier",
-    "rust",
-    "svelte"
-  ],
-  "homepage": "https://github.com/baseballyama/rsvelte/tree/main/apps/npm/fmt#readme",
-  "bugs": {
-    "url": "https://github.com/baseballyama/rsvelte/issues"
-  },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/baseballyama/rsvelte.git",
     "directory": "apps/npm/fmt"
   },
+  "homepage": "https://github.com/baseballyama/rsvelte/tree/main/apps/npm/fmt#readme",
+  "bugs": {
+    "url": "https://github.com/baseballyama/rsvelte/issues"
+  },
+  "keywords": [
+    "svelte",
+    "formatter",
+    "format",
+    "prettier",
+    "oxfmt",
+    "cli",
+    "rust"
+  ],
   "bin": {
     "rsvelte-fmt": "bin/rsvelte-fmt.cjs"
   },
   "files": [
     "bin/rsvelte-fmt.cjs"
   ],
-  "publishConfig": {
-    "access": "public"
+  "optionalDependencies": {
+    "@rsvelte/fmt-darwin-arm64": "workspace:^",
+    "@rsvelte/fmt-darwin-x64": "workspace:^",
+    "@rsvelte/fmt-linux-arm64-gnu": "workspace:^",
+    "@rsvelte/fmt-linux-x64-gnu": "workspace:^",
+    "@rsvelte/fmt-win32-x64-msvc": "workspace:^"
   },
   "peerDependencies": {
     "oxfmt": "*"
@@ -38,11 +42,7 @@
       "optional": true
     }
   },
-  "optionalDependencies": {
-    "@rsvelte/fmt-darwin-arm64": "workspace:^",
-    "@rsvelte/fmt-darwin-x64": "workspace:^",
-    "@rsvelte/fmt-linux-arm64-gnu": "workspace:^",
-    "@rsvelte/fmt-linux-x64-gnu": "workspace:^",
-    "@rsvelte/fmt-win32-x64-msvc": "workspace:^"
+  "publishConfig": {
+    "access": "public"
   }
 }

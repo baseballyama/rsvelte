@@ -23,7 +23,7 @@ name: auto-update-svelte
 on:
   workflow_dispatch:
   schedule:
-    - cron: "37 5 * * 1" # Mondays 05:37 UTC
+    - cron: '37 5 * * 1' # Mondays 05:37 UTC
 
 permissions:
   contents: write

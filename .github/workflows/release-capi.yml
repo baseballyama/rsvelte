@@ -19,16 +19,16 @@ name: Release rsvelte_capi
 on:
   push:
     tags:
-      - "capi-v*.*.*"
+      - 'capi-v*.*.*'
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to use for the dry-run archive names (no Release is created)"
+        description: 'Version to use for the dry-run archive names (no Release is created)'
         required: false
-        default: "test"
+        default: 'test'
 
 permissions:
-  contents: write # gh release create / upload
+  contents: write   # gh release create / upload
 
 env:
   CARGO_TERM_COLOR: always
@@ -40,49 +40,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {
-              os: macos-latest,
-              target: aarch64-apple-darwin,
-              triple: darwin-arm64,
-              archive: tar.gz,
-              lib: librsvelte_capi.dylib,
-              staticlib: librsvelte_capi.a,
-            }
-          - {
-              os: macos-latest,
-              target: x86_64-apple-darwin,
-              triple: darwin-x64,
-              archive: tar.gz,
-              lib: librsvelte_capi.dylib,
-              staticlib: librsvelte_capi.a,
-            }
-          - {
-              os: ubuntu-latest,
-              target: x86_64-unknown-linux-gnu,
-              triple: linux-x64-gnu,
-              archive: tar.gz,
-              lib: librsvelte_capi.so,
-              staticlib: librsvelte_capi.a,
-            }
-          - {
-              os: ubuntu-latest,
-              target: aarch64-unknown-linux-gnu,
-              triple: linux-arm64-gnu,
-              archive: tar.gz,
-              lib: librsvelte_capi.so,
-              staticlib: librsvelte_capi.a,
-              apt: gcc-aarch64-linux-gnu,
-              linker: aarch64-linux-gnu-gcc,
-            }
-          - {
-              os: windows-latest,
-              target: x86_64-pc-windows-msvc,
-              triple: win32-x64-msvc,
-              archive: zip,
-              lib: rsvelte_capi.dll,
-              staticlib: rsvelte_capi.lib,
-              implib: rsvelte_capi.dll.lib,
-            }
+          - { os: macos-latest,   target: aarch64-apple-darwin,       triple: darwin-arm64,    archive: tar.gz, lib: librsvelte_capi.dylib,  staticlib: librsvelte_capi.a }
+          - { os: macos-latest,   target: x86_64-apple-darwin,        triple: darwin-x64,      archive: tar.gz, lib: librsvelte_capi.dylib,  staticlib: librsvelte_capi.a }
+          - { os: ubuntu-latest,  target: x86_64-unknown-linux-gnu,   triple: linux-x64-gnu,   archive: tar.gz, lib: librsvelte_capi.so,     staticlib: librsvelte_capi.a }
+          - { os: ubuntu-latest,  target: aarch64-unknown-linux-gnu,  triple: linux-arm64-gnu, archive: tar.gz, lib: librsvelte_capi.so,     staticlib: librsvelte_capi.a, apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc,     triple: win32-x64-msvc,  archive: zip,    lib: rsvelte_capi.dll,       staticlib: rsvelte_capi.lib, implib: rsvelte_capi.dll.lib }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
@@ -138,7 +100,7 @@ jobs:
         shell: bash
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
-          RSVELTE_CAPI_CHECK_HEADER: "1"
+          RSVELTE_CAPI_CHECK_HEADER: '1'
         run: cargo build --release -p rsvelte_capi --target ${{ matrix.target }}
 
       # On macOS, cargo defaults the dylib's LC_ID_DYLIB to the build's

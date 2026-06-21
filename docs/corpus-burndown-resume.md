@@ -59,44 +59,21 @@ parseable 一覧の再生成（前セッションの `_parseable.mjs` 相当。`
 一時ファイルを作り、実行後に削除する）:
 
 ```js
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { parse } from "acorn";
-const C = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../compat/corpus");
-const rep = JSON.parse(fs.readFileSync(path.join(C, "report.json"), "utf8"));
-const rd = (p) => (fs.existsSync(p) ? fs.readFileSync(p, "utf8") : null);
-const ok = (c) => {
-  try {
-    parse(c, {
-      ecmaVersion: "latest",
-      sourceType: "module",
-      allowAwaitOutsideFunction: true,
-      allowReturnOutsideFunction: true,
-      allowImportExportEverywhere: true,
-    });
-    return true;
-  } catch {
-    return false;
-  }
-};
+import fs from 'node:fs'; import path from 'node:path'; import {fileURLToPath} from 'node:url';
+import { parse } from 'acorn';
+const C = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../compat/corpus');
+const rep = JSON.parse(fs.readFileSync(path.join(C,'report.json'),'utf8'));
+const rd = p => fs.existsSync(p) ? fs.readFileSync(p,'utf8') : null;
+const ok = c => { try { parse(c,{ecmaVersion:'latest',sourceType:'module',allowAwaitOutsideFunction:true,allowReturnOutsideFunction:true,allowImportExportEverywhere:true}); return true; } catch { return false; } };
 const pIds = [];
 for (const f of rep.failures) {
-  if (f.verdict === "css-mismatch") continue;
-  let both = true,
-    any = false;
-  for (const t of ["client", "server"]) {
-    const e = rd(path.join(C, "expected", f.id, `${t}.js`)),
-      a = rd(path.join(C, "actual", f.id, `${t}.js`));
-    if (e && a && e !== a) {
-      any = true;
-      if (!ok(e) || !ok(a)) both = false;
-    }
-  }
+  if (f.verdict === 'css-mismatch') continue;
+  let both = true, any = false;
+  for (const t of ['client','server']) { const e = rd(path.join(C,'expected',f.id,`${t}.js`)), a = rd(path.join(C,'actual',f.id,`${t}.js`)); if (e && a && e!==a) { any = true; if (!ok(e)||!ok(a)) both = false; } }
   if (any && both) pIds.push(f.id);
 }
-fs.writeFileSync("/tmp/parseable.json", JSON.stringify(pIds, null, 1));
-console.log("parseable:", pIds.length);
+fs.writeFileSync('/tmp/parseable.json', JSON.stringify(pIds,null,1));
+console.log('parseable:', pIds.length);
 ```
 
 ## 既知クラスタ / 落とし穴

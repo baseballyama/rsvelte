@@ -12,53 +12,53 @@
  * Component compile options. Loosely follows `svelte/compiler#CompileOptions`.
  */
 export interface CompileOptions {
-  /** Enable dev mode (instrumentation, warnings, etc.). */
-  dev?: boolean;
-  /** Generate client- or server-side code, or skip codegen. */
-  generate?: "client" | "server" | false;
-  /** Source filename. Used in source maps and error frames. */
-  filename?: string;
-  /** Project root, used to compute relative source-map paths. */
-  rootDir?: string;
-  /** Component identifier hint. */
-  name?: string;
-  /** Compile as a custom element. */
-  customElement?: boolean;
-  /** Generate `accessors`. */
-  accessors?: boolean;
-  /** HTML namespace. */
-  namespace?: "html" | "svg" | "mathml";
-  /** Hint that bindings are immutable. */
-  immutable?: boolean;
-  /** Output CSS injected into the bundle or as an external asset. */
-  css?: "injected" | "external";
-  /** Custom hash function for CSS scoping — currently honored as a string-mapper. */
-  cssHash?: (args: {
-    hash: (input: string) => string;
-    css: string;
-    name: string;
-    filename: string | undefined;
-  }) => string;
-  /** Preserve HTML comments in output. */
-  preserveComments?: boolean;
-  /** Preserve whitespace in the template. */
-  preserveWhitespace?: boolean;
-  /** Force runes mode (`true`), legacy (`false`), or auto-detect (`undefined`). */
-  runes?: boolean;
-  /** Disclose the compiler version in the output banner. */
-  discloseVersion?: boolean;
-  /** Source-map options (forwarded through magic-string). */
-  sourcemap?: object | string;
-  /** Output JS filename for `file` in the JS source map. */
-  outputFilename?: string;
-  /** Output CSS filename for `file` in the CSS source map. */
-  cssOutputFilename?: string;
-  /** Enable HMR-friendly output (used by `@rsvelte/vite-plugin-svelte`). */
-  hmr?: boolean;
-  /** Emit the modern AST shape (default). */
-  modernAst?: boolean;
-  /** Filter compiler warnings. */
-  warningFilter?: (warning: Warning) => boolean;
+	/** Enable dev mode (instrumentation, warnings, etc.). */
+	dev?: boolean;
+	/** Generate client- or server-side code, or skip codegen. */
+	generate?: 'client' | 'server' | false;
+	/** Source filename. Used in source maps and error frames. */
+	filename?: string;
+	/** Project root, used to compute relative source-map paths. */
+	rootDir?: string;
+	/** Component identifier hint. */
+	name?: string;
+	/** Compile as a custom element. */
+	customElement?: boolean;
+	/** Generate `accessors`. */
+	accessors?: boolean;
+	/** HTML namespace. */
+	namespace?: 'html' | 'svg' | 'mathml';
+	/** Hint that bindings are immutable. */
+	immutable?: boolean;
+	/** Output CSS injected into the bundle or as an external asset. */
+	css?: 'injected' | 'external';
+	/** Custom hash function for CSS scoping — currently honored as a string-mapper. */
+	cssHash?: (args: {
+		hash: (input: string) => string;
+		css: string;
+		name: string;
+		filename: string | undefined;
+	}) => string;
+	/** Preserve HTML comments in output. */
+	preserveComments?: boolean;
+	/** Preserve whitespace in the template. */
+	preserveWhitespace?: boolean;
+	/** Force runes mode (`true`), legacy (`false`), or auto-detect (`undefined`). */
+	runes?: boolean;
+	/** Disclose the compiler version in the output banner. */
+	discloseVersion?: boolean;
+	/** Source-map options (forwarded through magic-string). */
+	sourcemap?: object | string;
+	/** Output JS filename for `file` in the JS source map. */
+	outputFilename?: string;
+	/** Output CSS filename for `file` in the CSS source map. */
+	cssOutputFilename?: string;
+	/** Enable HMR-friendly output (used by `@rsvelte/vite-plugin-svelte`). */
+	hmr?: boolean;
+	/** Emit the modern AST shape (default). */
+	modernAst?: boolean;
+	/** Filter compiler warnings. */
+	warningFilter?: (warning: Warning) => boolean;
 }
 
 /**
@@ -66,11 +66,11 @@ export interface CompileOptions {
  * `.svelte.js` / `.svelte.ts` modules.
  */
 export interface ModuleCompileOptions {
-  dev?: boolean;
-  generate?: "client" | "server" | false;
-  filename?: string;
-  rootDir?: string;
-  warningFilter?: (warning: Warning) => boolean;
+	dev?: boolean;
+	generate?: 'client' | 'server' | false;
+	filename?: string;
+	rootDir?: string;
+	warningFilter?: (warning: Warning) => boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -78,20 +78,20 @@ export interface ModuleCompileOptions {
 // ---------------------------------------------------------------------------
 
 export interface SourcePosition {
-  line: number;
-  column: number;
-  character: number;
+	line: number;
+	column: number;
+	character: number;
 }
 
 /** Compiler warning matching `svelte/compiler#Warning`. */
 export interface Warning {
-  code: string;
-  message: string;
-  filename?: string;
-  start?: SourcePosition;
-  end?: SourcePosition;
-  position?: [number, number];
-  frame?: string;
+	code: string;
+	message: string;
+	filename?: string;
+	start?: SourcePosition;
+	end?: SourcePosition;
+	position?: [number, number];
+	frame?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -99,41 +99,41 @@ export interface Warning {
 // ---------------------------------------------------------------------------
 
 export interface CompileResultJs {
-  code: string;
-  /**
-   * A standard SourceMap v3 JSON object. Accessing this triggers a
-   * one-time `JSON.parse` of the underlying envelope bytes. For
-   * callers that immediately re-serialize (writing to disk,
-   * sending over the wire) prefer {@link mapBytes} / {@link mapText}
-   * to skip the parse round-trip.
-   */
-  map: unknown;
-  /**
-   * Zero-copy `Buffer` / `Uint8Array` view over the raw sourcemap
-   * JSON bytes in the envelope. `null` if no map was produced. Stable
-   * for the lifetime of the parent `CompileResult` (becomes invalid
-   * once a `compileEnvelopeZeroCopy` buffer is GC'd).
-   */
-  mapBytes: Buffer | Uint8Array | null;
-  /** Raw sourcemap JSON as a string — no `JSON.parse`. `null` if no map. */
-  mapText: string | null;
+	code: string;
+	/**
+	 * A standard SourceMap v3 JSON object. Accessing this triggers a
+	 * one-time `JSON.parse` of the underlying envelope bytes. For
+	 * callers that immediately re-serialize (writing to disk,
+	 * sending over the wire) prefer {@link mapBytes} / {@link mapText}
+	 * to skip the parse round-trip.
+	 */
+	map: unknown;
+	/**
+	 * Zero-copy `Buffer` / `Uint8Array` view over the raw sourcemap
+	 * JSON bytes in the envelope. `null` if no map was produced. Stable
+	 * for the lifetime of the parent `CompileResult` (becomes invalid
+	 * once a `compileEnvelopeZeroCopy` buffer is GC'd).
+	 */
+	mapBytes: Buffer | Uint8Array | null;
+	/** Raw sourcemap JSON as a string — no `JSON.parse`. `null` if no map. */
+	mapText: string | null;
 }
 
 export interface CompileResultCss {
-  code: string;
-  /** See {@link CompileResultJs.map}. */
-  map: unknown;
-  mapBytes: Buffer | Uint8Array | null;
-  mapText: string | null;
-  hasGlobal: boolean;
+	code: string;
+	/** See {@link CompileResultJs.map}. */
+	map: unknown;
+	mapBytes: Buffer | Uint8Array | null;
+	mapText: string | null;
+	hasGlobal: boolean;
 }
 
 export interface CompileResult {
-  js: CompileResultJs;
-  css: CompileResultCss | null;
-  warnings: Warning[];
-  metadata: { runes?: boolean } & Record<string, unknown>;
-  ast: unknown;
+	js: CompileResultJs;
+	css: CompileResultCss | null;
+	warnings: Warning[];
+	metadata: { runes?: boolean } & Record<string, unknown>;
+	ast: unknown;
 }
 
 /**
@@ -144,7 +144,10 @@ export interface CompileResult {
  * matches `svelte/compiler#compile`.
  */
 export function compile(source: string, options?: CompileOptions): CompileResult;
-export function compileModule(source: string, options?: ModuleCompileOptions): CompileResult;
+export function compileModule(
+	source: string,
+	options?: ModuleCompileOptions,
+): CompileResult;
 
 /**
  * Lower-level raw-transfer entry point. Returns a single `Buffer`
@@ -154,7 +157,10 @@ export function compileModule(source: string, options?: ModuleCompileOptions): C
  * worker `postMessage` (transferable) to avoid a copy.
  */
 export function compileEnvelope(source: string, options?: CompileOptions): Buffer;
-export function compileModuleEnvelope(source: string, options?: ModuleCompileOptions): Buffer;
+export function compileModuleEnvelope(
+	source: string,
+	options?: ModuleCompileOptions,
+): Buffer;
 
 /**
  * Zero-copy variant. Returns a `Buffer` view over `bumpalo` arena
@@ -171,10 +177,13 @@ export function compileModuleEnvelope(source: string, options?: ModuleCompileOpt
  *   Buffer wrapper, so detach semantics are safe but may surprise
  *   callers used to `Buffer` semantics.
  */
-export function compileEnvelopeZeroCopy(source: string, options?: CompileOptions): Buffer;
+export function compileEnvelopeZeroCopy(
+	source: string,
+	options?: CompileOptions,
+): Buffer;
 export function compileModuleEnvelopeZeroCopy(
-  source: string,
-  options?: ModuleCompileOptions,
+	source: string,
+	options?: ModuleCompileOptions,
 ): Buffer;
 
 /** Decode a buffer produced by {@link compileEnvelope}. */
@@ -186,8 +195,8 @@ export function decodeEnvelope(buf: Buffer | Uint8Array): CompileResult;
  * `compile(source, options)`.
  */
 export interface CompileBatchInput {
-  source: string;
-  options?: CompileOptions;
+	source: string;
+	options?: CompileOptions;
 }
 
 /**
@@ -201,7 +210,9 @@ export interface CompileBatchInput {
  * (Vite dev server, SSR pre-render). For one-off compiles the
  * per-call overhead of `compile()` is already small.
  */
-export function compileBatch(inputs: CompileBatchInput[]): Array<CompileResult | Error>;
+export function compileBatch(
+	inputs: CompileBatchInput[],
+): Array<CompileResult | Error>;
 
 /**
  * Lower-level entry point: returns the raw batch envelope as a single
@@ -219,15 +230,21 @@ export function decodeBatch(buf: Buffer | Uint8Array): Array<CompileResult | Err
  * Returned `Promise<CompileResult>` resolves when the envelope has
  * been encoded and decoded.
  */
-export function compileAsync(source: string, options?: CompileOptions): Promise<CompileResult>;
+export function compileAsync(
+	source: string,
+	options?: CompileOptions,
+): Promise<CompileResult>;
 
 /** Async variant of {@link compileBatch}. */
 export function compileBatchAsync(
-  inputs: CompileBatchInput[],
+	inputs: CompileBatchInput[],
 ): Promise<Array<CompileResult | Error>>;
 
 /** Lower-level: returns `Promise<Buffer>` (the raw envelope). */
-export function compileEnvelopeAsync(source: string, options?: CompileOptions): Promise<Buffer>;
+export function compileEnvelopeAsync(
+	source: string,
+	options?: CompileOptions,
+): Promise<Buffer>;
 
 /** Lower-level: returns `Promise<Buffer>` (the raw batch envelope). */
 export function compileBatchAsyncRaw(inputs: CompileBatchInput[]): Promise<Buffer>;
@@ -240,15 +257,18 @@ export function compileBatchAsyncRaw(inputs: CompileBatchInput[]): Promise<Buffe
  * access without the envelope decode.
  */
 export interface CompileBuffersResult {
-  js: { code: Buffer; map: Buffer | null };
-  css: { code: Buffer; map: Buffer | null; hasGlobal: boolean } | null;
-  warnings: Warning[];
-  runes: boolean;
+	js: { code: Buffer; map: Buffer | null };
+	css: { code: Buffer; map: Buffer | null; hasGlobal: boolean } | null;
+	warnings: Warning[];
+	runes: boolean;
 }
-export function compileBuffers(source: string, options?: CompileOptions): CompileBuffersResult;
+export function compileBuffers(
+	source: string,
+	options?: CompileOptions,
+): CompileBuffersResult;
 export function compileModuleBuffers(
-  source: string,
-  options?: ModuleCompileOptions,
+	source: string,
+	options?: ModuleCompileOptions,
 ): CompileBuffersResult;
 
 /**
@@ -256,32 +276,35 @@ export function compileModuleBuffers(
  * and as an escape hatch — production callers should use {@link compile}.
  */
 export function compileLegacy(source: string, options?: CompileOptions): CompileResult;
-export function compileModuleLegacy(source: string, options?: ModuleCompileOptions): CompileResult;
+export function compileModuleLegacy(
+	source: string,
+	options?: ModuleCompileOptions,
+): CompileResult;
 
 // ---------------------------------------------------------------------------
 // parse
 // ---------------------------------------------------------------------------
 
 export interface ParseOptions {
-  /**
-   * Skip emitting nested `loc: { start, end }` blocks on every embedded
-   * JavaScript expression. Top-level `start` / `end` byte offsets are
-   * still emitted. Callers that re-parse expression ranges with their
-   * own parser (e.g. `svelte-eslint-parser`) get a smaller AST and a
-   * meaningfully faster `JSON.parse` (with the JSON path) or a tighter
-   * binary buffer (with `parseEnvelope`).
-   */
-  skipExpressionLoc?: boolean;
-  /**
-   * Skip emitting the full CSS `StyleSheet` AST. The decoded `css`
-   * field becomes a minimal stub
-   * (`{ type: "StyleSheet", start, end, attributes: [], children: [], content: { start, end, styles: "", comment: null } }`).
-   * Use when the downstream pipeline re-parses `<style>` blocks with
-   * its own CSS parser (e.g. `svelte-eslint-parser` uses postcss).
-   * Saves ~5–10 KB of buffer per component and skips the matching
-   * JSON-parse step.
-   */
-  skipCssAst?: boolean;
+	/**
+	 * Skip emitting nested `loc: { start, end }` blocks on every embedded
+	 * JavaScript expression. Top-level `start` / `end` byte offsets are
+	 * still emitted. Callers that re-parse expression ranges with their
+	 * own parser (e.g. `svelte-eslint-parser`) get a smaller AST and a
+	 * meaningfully faster `JSON.parse` (with the JSON path) or a tighter
+	 * binary buffer (with `parseEnvelope`).
+	 */
+	skipExpressionLoc?: boolean;
+	/**
+	 * Skip emitting the full CSS `StyleSheet` AST. The decoded `css`
+	 * field becomes a minimal stub
+	 * (`{ type: "StyleSheet", start, end, attributes: [], children: [], content: { start, end, styles: "", comment: null } }`).
+	 * Use when the downstream pipeline re-parses `<style>` blocks with
+	 * its own CSS parser (e.g. `svelte-eslint-parser` uses postcss).
+	 * Saves ~5–10 KB of buffer per component and skips the matching
+	 * JSON-parse step.
+	 */
+	skipCssAst?: boolean;
 }
 
 /**
@@ -313,28 +336,31 @@ export function parseEnvelope(source: string, options?: ParseOptions): Buffer;
 // ---------------------------------------------------------------------------
 
 export interface Svelte2TsxResult {
-  code: string;
-  map: unknown;
-  exportedNames: { props: string[]; all: string[] };
-  events: Record<string, unknown>;
+	code: string;
+	map: unknown;
+	exportedNames: { props: string[]; all: string[] };
+	events: Record<string, unknown>;
 }
-export function svelte2tsx(source: string, options?: Record<string, unknown>): Svelte2TsxResult;
+export function svelte2tsx(
+	source: string,
+	options?: Record<string, unknown>,
+): Svelte2TsxResult;
 
 // ---------------------------------------------------------------------------
 // HMR / resolver
 // ---------------------------------------------------------------------------
 
 export interface HmrDiff {
-  change: "hot-update" | "full-reload" | "unchanged";
-  instanceChanged: boolean;
-  moduleChanged: boolean;
+	change: 'hot-update' | 'full-reload' | 'unchanged';
+	instanceChanged: boolean;
+	moduleChanged: boolean;
 }
 export function hmrDiff(prev: string, curr: string): HmrDiff;
 
 export function resolveId(
-  importee: string,
-  importer: string | null | undefined,
-  options?: Record<string, unknown>,
+	importee: string,
+	importer: string | null | undefined,
+	options?: Record<string, unknown>,
 ): string | null;
 
 // ---------------------------------------------------------------------------
@@ -343,39 +369,39 @@ export function resolveId(
 
 /** Options the preprocessor pipeline forwards to each callback. */
 export interface MarkupPreprocessorOptions {
-  content: string;
-  filename?: string;
+	content: string;
+	filename?: string;
 }
 
 export interface PreprocessorOptions {
-  content: string;
-  filename?: string;
-  attributes: Record<string, string | boolean>;
-  markup?: string;
+	content: string;
+	filename?: string;
+	attributes: Record<string, string | boolean>;
+	markup?: string;
 }
 
 /** Result returned by a preprocessor callback. `undefined`/`null` is a no-op. */
 export interface Processed {
-  code: string;
-  map?: string | object;
-  dependencies?: string[];
-  attributes?: Record<string, string | boolean>;
-  toString?: () => string;
+	code: string;
+	map?: string | object;
+	dependencies?: string[];
+	attributes?: Record<string, string | boolean>;
+	toString?: () => string;
 }
 
 export type MarkupPreprocessor = (
-  options: MarkupPreprocessorOptions,
+	options: MarkupPreprocessorOptions,
 ) => Processed | void | null | undefined | Promise<Processed | void | null | undefined>;
 
 export type Preprocessor = (
-  options: PreprocessorOptions,
+	options: PreprocessorOptions,
 ) => Processed | void | null | undefined | Promise<Processed | void | null | undefined>;
 
 export interface PreprocessorGroup {
-  name?: string;
-  markup?: MarkupPreprocessor;
-  script?: Preprocessor;
-  style?: Preprocessor;
+	name?: string;
+	markup?: MarkupPreprocessor;
+	script?: Preprocessor;
+	style?: Preprocessor;
 }
 
 /**
@@ -383,9 +409,9 @@ export interface PreprocessorGroup {
  * groups, matching the upstream `svelte/compiler#preprocess` contract.
  */
 export function preprocess(
-  source: string,
-  groups: PreprocessorGroup | PreprocessorGroup[],
-  options?: { filename?: string },
+	source: string,
+	groups: PreprocessorGroup | PreprocessorGroup[],
+	options?: { filename?: string },
 ): Promise<Processed>;
 
 // ---------------------------------------------------------------------------

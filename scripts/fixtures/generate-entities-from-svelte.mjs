@@ -7,18 +7,15 @@
  * Usage: node scripts/fixtures/generate-entities-from-svelte.mjs
  */
 
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-import { readFileSync, writeFileSync } from "fs";
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { readFileSync, writeFileSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Read Svelte's entities.js
-const entitiesPath = join(
-  __dirname,
-  "../../submodules/svelte/packages/svelte/src/compiler/phases/1-parse/utils/entities.js",
-);
+const entitiesPath = join(__dirname, '../../submodules/svelte/packages/svelte/src/compiler/phases/1-parse/utils/entities.js');
 const entitiesModule = await import(entitiesPath);
 const entities = entitiesModule.default;
 
@@ -29,48 +26,42 @@ const entityMap = new Map();
 const legacyEntityMap = new Map();
 
 for (const [name, codepoint] of Object.entries(entities)) {
-  // Remove & prefix if present
-  const cleanName = name.startsWith("&") ? name.slice(1) : name;
-  // Remove ; suffix if present
-  const finalName = cleanName.endsWith(";") ? cleanName.slice(0, -1) : cleanName;
+    // Remove & prefix if present
+    const cleanName = name.startsWith('&') ? name.slice(1) : name;
+    // Remove ; suffix if present
+    const finalName = cleanName.endsWith(';') ? cleanName.slice(0, -1) : cleanName;
 
-  // Convert single codepoint to array for consistency
-  const codepoints = Array.isArray(codepoint) ? codepoint : [codepoint];
+    // Convert single codepoint to array for consistency
+    const codepoints = Array.isArray(codepoint) ? codepoint : [codepoint];
 
-  // Only add if not already present, or if this is a semicolon version
-  if (!entityMap.has(finalName) || cleanName.endsWith(";")) {
-    entityMap.set(finalName, codepoints);
-  }
+    // Only add if not already present, or if this is a semicolon version
+    if (!entityMap.has(finalName) || cleanName.endsWith(';')) {
+        entityMap.set(finalName, codepoints);
+    }
 
-  // Track entities that explicitly appear without a semicolon in the source
-  // These are the "legacy" entities that can be decoded without a trailing semicolon
-  if (!cleanName.endsWith(";")) {
-    legacyEntityMap.set(finalName, codepoints);
-  }
+    // Track entities that explicitly appear without a semicolon in the source
+    // These are the "legacy" entities that can be decoded without a trailing semicolon
+    if (!cleanName.endsWith(';')) {
+        legacyEntityMap.set(finalName, codepoints);
+    }
 }
 
 // Convert map to array
-const processed = Array.from(entityMap.entries()).map(([name, codepoints]) => ({
-  name,
-  codepoints,
-}));
+const processed = Array.from(entityMap.entries()).map(([name, codepoints]) => ({ name, codepoints }));
 
 // Sort for binary search - use byte-wise comparison (same as Rust's Ord for &str)
 processed.sort((a, b) => {
-  if (a.name < b.name) return -1;
-  if (a.name > b.name) return 1;
-  return 0;
+    if (a.name < b.name) return -1;
+    if (a.name > b.name) return 1;
+    return 0;
 });
 
 // Convert legacy (no-semicolon) entities to sorted array
-const processedLegacy = Array.from(legacyEntityMap.entries()).map(([name, codepoints]) => ({
-  name,
-  codepoints,
-}));
+const processedLegacy = Array.from(legacyEntityMap.entries()).map(([name, codepoints]) => ({ name, codepoints }));
 processedLegacy.sort((a, b) => {
-  if (a.name < b.name) return -1;
-  if (a.name > b.name) return 1;
-  return 0;
+    if (a.name < b.name) return -1;
+    if (a.name > b.name) return 1;
+    return 0;
 });
 
 // Generate Rust code
@@ -88,14 +79,12 @@ pub const ENTITY_COUNT: usize = ${processed.length};
 /// HTML entity entry: (name, codepoints)
 /// Names are sorted alphabetically for binary search
 pub static ENTITIES: &[(&str, &[u32])] = &[
-${processed
-  .map(({ name, codepoints }) => {
+${processed.map(({ name, codepoints }) => {
     // Escape the name for Rust string literal
-    const escapedName = name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    const codepointStr = codepoints.join(", ");
+    const escapedName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const codepointStr = codepoints.join(', ');
     return `    ("${escapedName}", &[${codepointStr}]),`;
-  })
-  .join("\n")}
+}).join('\n')}
 ];
 
 /// Legacy entities that can be decoded without a trailing semicolon.
@@ -105,13 +94,11 @@ ${processed
 pub const LEGACY_ENTITY_COUNT: usize = ${processedLegacy.length};
 
 pub static LEGACY_ENTITIES: &[(&str, &[u32])] = &[
-${processedLegacy
-  .map(({ name, codepoints }) => {
-    const escapedName = name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    const codepointStr = codepoints.join(", ");
+${processedLegacy.map(({ name, codepoints }) => {
+    const escapedName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const codepointStr = codepoints.join(', ');
     return `    ("${escapedName}", &[${codepointStr}]),`;
-  })
-  .join("\n")}
+}).join('\n')}
 ];
 
 /// Decode a named HTML entity (without & prefix and ; suffix)
@@ -202,7 +189,7 @@ mod tests {
 `;
 
 // Write to file
-const outputPath = join(__dirname, "../../src/compiler/phases/1_parse/utils/entities_data.rs");
+const outputPath = join(__dirname, '../../src/compiler/phases/1_parse/utils/entities_data.rs');
 writeFileSync(outputPath, rustCode);
 
 console.log(`✅ Generated ${outputPath}`);

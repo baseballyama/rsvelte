@@ -25,14 +25,14 @@
  * Usage: node scripts/compat-corpus/collect.mjs
  */
 
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, "../..");
-const CORPUS = path.join(ROOT, "compat/corpus");
-const OUT = path.join(CORPUS, "sources");
+const ROOT = path.resolve(__dirname, '../..');
+const CORPUS = path.join(ROOT, 'compat/corpus');
+const OUT = path.join(CORPUS, 'sources');
 
 // The corpus source repositories — all git submodules. Each entry: { path, id,
 // markdown, required }. `markdown` controls whether ```svelte / ```js+file
@@ -41,25 +41,24 @@ const OUT = path.join(CORPUS, "sources");
 // and pseudo-code the compiler rejects). `required` sources abort collection
 // when absent (svelte is the compiler/version pin); others just warn + skip.
 // To grow the corpus, add a submodule (see .gitmodules) and a line here.
-const SOURCES = JSON.parse(fs.readFileSync(path.join(__dirname, "corpus-sources.json"), "utf8"));
+const SOURCES = JSON.parse(fs.readFileSync(path.join(__dirname, 'corpus-sources.json'), 'utf8'));
 
 /** Recursively list files, skipping node_modules/.git and other junk. */
 function walk(dir, out = []) {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === "node_modules" || entry.name === ".git" || entry.name === ".svelte-kit")
-      continue;
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) walk(full, out);
-    else if (entry.isFile()) out.push(full);
-  }
-  return out;
+	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+		if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === '.svelte-kit') continue;
+		const full = path.join(dir, entry.name);
+		if (entry.isDirectory()) walk(full, out);
+		else if (entry.isFile()) out.push(full);
+	}
+	return out;
 }
 
 function isSvelteFile(p) {
-  return p.endsWith(".svelte");
+	return p.endsWith('.svelte');
 }
 function isSvelteModule(p) {
-  return p.endsWith(".svelte.js") || p.endsWith(".svelte.ts");
+	return p.endsWith('.svelte.js') || p.endsWith('.svelte.ts');
 }
 
 // ---- markdown extraction -------------------------------------------------
@@ -67,8 +66,7 @@ function isSvelteModule(p) {
 const FENCE_RE = /^```(\w+)[^\n]*\n([\s\S]*?)^```\s*$/gm;
 const METADATA_RE = /(?:^|\n)\/\/\/ (\w+): (.+)/g;
 // Twoslash compiler directives used across svelte / svelte.dev docs.
-const TWOSLASH_LINE_RE =
-  /^\s*\/\/ @(errors|noErrors|filename|lib|target|module|moduleResolution|allowJs|checkJs|strict|noImplicitAny|types|jsx|esModuleInterop|skipLibCheck)\b.*\n?/gm;
+const TWOSLASH_LINE_RE = /^\s*\/\/ @(errors|noErrors|filename|lib|target|module|moduleResolution|allowJs|checkJs|strict|noImplicitAny|types|jsx|esModuleInterop|skipLibCheck)\b.*\n?/gm;
 const CUT_LINE_RE = /^\s*\/\/ ---cut(?:-before|-after)?---\s*\n?/gm;
 
 // Same substitution trick as site-kit's renderer: the delimiters wrap
@@ -76,48 +74,48 @@ const CUT_LINE_RE = /^\s*\/\/ ---cut(?:-before|-after)?---\s*\n?/gm;
 // `+++` / `:::` inner text. Leading `---` frontmatter fences in .svelte
 // snippets do not exist (only in md front matter, which we never include).
 function stripDiffMarkers(source) {
-  return source
-    .replace(/---([^ ]|[^ ][^]*?[^ ])---/g, (m, inner, offset, str) => {
-      // keep a genuine frontmatter-style fence (line consisting solely of ---)
-      return "";
-    })
-    .replace(/\+\+\+([^ ]|[^ ][^]*?[^ ])\+\+\+/g, "$1")
-    .replace(/:::([^ ]|[^ ][^]*?[^ ])::::?/g, "$1");
+	return source
+		.replace(/---([^ ]|[^ ][^]*?[^ ])---/g, (m, inner, offset, str) => {
+			// keep a genuine frontmatter-style fence (line consisting solely of ---)
+			return '';
+		})
+		.replace(/\+\+\+([^ ]|[^ ][^]*?[^ ])\+\+\+/g, '$1')
+		.replace(/:::([^ ]|[^ ][^]*?[^ ])::::?/g, '$1');
 }
 
 function cleanSnippet(source) {
-  let file = null;
-  source = source.replace(METADATA_RE, (_, key, value) => {
-    if (key === "file") file = value.trim();
-    return "";
-  });
-  source = source.replace(TWOSLASH_LINE_RE, "");
-  source = source.replace(CUT_LINE_RE, "");
-  source = stripDiffMarkers(source);
-  // marked-style 4-space indentation back to tabs (matches site-kit)
-  source = source.replace(/^((?: {4})+)/gm, (m, spaces) => "\t".repeat(spaces.length / 4));
-  return { source: source.trim() + "\n", file };
+	let file = null;
+	source = source.replace(METADATA_RE, (_, key, value) => {
+		if (key === 'file') file = value.trim();
+		return '';
+	});
+	source = source.replace(TWOSLASH_LINE_RE, '');
+	source = source.replace(CUT_LINE_RE, '');
+	source = stripDiffMarkers(source);
+	// marked-style 4-space indentation back to tabs (matches site-kit)
+	source = source.replace(/^((?: {4})+)/gm, (m, spaces) => '\t'.repeat(spaces.length / 4));
+	return { source: source.trim() + '\n', file };
 }
 
 function extractFromMarkdown(mdSource) {
-  const snippets = [];
-  let match;
-  FENCE_RE.lastIndex = 0;
-  let index = 0;
-  while ((match = FENCE_RE.exec(mdSource)) !== null) {
-    const [, lang, body] = match;
-    index++;
-    if (lang === "svelte") {
-      const { source } = cleanSnippet(body);
-      if (source.trim()) snippets.push({ index, ext: ".svelte", source });
-    } else if (lang === "js" || lang === "ts") {
-      const { source, file } = cleanSnippet(body);
-      if (file && /\.svelte\.(js|ts)$/.test(file) && source.trim()) {
-        snippets.push({ index, ext: file.endsWith(".ts") ? ".svelte.ts" : ".svelte.js", source });
-      }
-    }
-  }
-  return snippets;
+	const snippets = [];
+	let match;
+	FENCE_RE.lastIndex = 0;
+	let index = 0;
+	while ((match = FENCE_RE.exec(mdSource)) !== null) {
+		const [, lang, body] = match;
+		index++;
+		if (lang === 'svelte') {
+			const { source } = cleanSnippet(body);
+			if (source.trim()) snippets.push({ index, ext: '.svelte', source });
+		} else if (lang === 'js' || lang === 'ts') {
+			const { source, file } = cleanSnippet(body);
+			if (file && /\.svelte\.(js|ts)$/.test(file) && source.trim()) {
+				snippets.push({ index, ext: file.endsWith('.ts') ? '.svelte.ts' : '.svelte.js', source });
+			}
+		}
+	}
+	return snippets;
 }
 
 // ---- main ----------------------------------------------------------------
@@ -128,12 +126,12 @@ fs.mkdirSync(OUT, { recursive: true });
 const manifest = [];
 
 function addEntry(repo, relPath, kind, source) {
-  // corpus id: <repo>/<relative path>; markdown snippets append /<n>.<ext>
-  const id = path.posix.join(repo, relPath.split(path.sep).join("/"));
-  const dest = path.join(OUT, id);
-  fs.mkdirSync(path.dirname(dest), { recursive: true });
-  fs.writeFileSync(dest, source);
-  manifest.push({ id, kind });
+	// corpus id: <repo>/<relative path>; markdown snippets append /<n>.<ext>
+	const id = path.posix.join(repo, relPath.split(path.sep).join('/'));
+	const dest = path.join(OUT, id);
+	fs.mkdirSync(path.dirname(dest), { recursive: true });
+	fs.writeFileSync(dest, source);
+	manifest.push({ id, kind });
 }
 
 // `markdown` controls whether ```svelte / ```js+file fences inside .md docs are
@@ -143,45 +141,43 @@ function addEntry(repo, relPath, kind, source) {
 // directive) and truncated pseudo-code the official compiler itself rejects, so
 // for those projects only their SHIPPED source files are collected.
 function collectRepo(repo, dir, { markdown = true } = {}) {
-  const files = walk(dir);
-  let real = 0;
-  let md = 0;
-  for (const file of files) {
-    const rel = path.relative(dir, file);
-    if (isSvelteModule(file)) {
-      addEntry(repo, rel, "module", fs.readFileSync(file, "utf8"));
-      real++;
-    } else if (isSvelteFile(file)) {
-      addEntry(repo, rel, "component", fs.readFileSync(file, "utf8"));
-      real++;
-    } else if (markdown && file.endsWith(".md")) {
-      const snippets = extractFromMarkdown(fs.readFileSync(file, "utf8"));
-      for (const s of snippets) {
-        const kind = s.ext === ".svelte" ? "component" : "module";
-        addEntry(repo, `${rel}/${s.index}${s.ext}`, kind, s.source);
-        md++;
-      }
-    }
-  }
-  console.log(`[collect] ${repo}: ${real} files + ${md} markdown snippets`);
+	const files = walk(dir);
+	let real = 0;
+	let md = 0;
+	for (const file of files) {
+		const rel = path.relative(dir, file);
+		if (isSvelteModule(file)) {
+			addEntry(repo, rel, 'module', fs.readFileSync(file, 'utf8'));
+			real++;
+		} else if (isSvelteFile(file)) {
+			addEntry(repo, rel, 'component', fs.readFileSync(file, 'utf8'));
+			real++;
+		} else if (markdown && file.endsWith('.md')) {
+			const snippets = extractFromMarkdown(fs.readFileSync(file, 'utf8'));
+			for (const s of snippets) {
+				const kind = s.ext === '.svelte' ? 'component' : 'module';
+				addEntry(repo, `${rel}/${s.index}${s.ext}`, kind, s.source);
+				md++;
+			}
+		}
+	}
+	console.log(`[collect] ${repo}: ${real} files + ${md} markdown snippets`);
 }
 
 for (const src of SOURCES) {
-  const dir = path.resolve(ROOT, src.path);
-  if (!fs.existsSync(dir) || fs.readdirSync(dir).length === 0) {
-    if (src.required) {
-      console.error(
-        `[collect] required source ${src.id} missing at ${src.path} (run: git submodule update --init --depth 1 ${src.path})`,
-      );
-      process.exit(1);
-    }
-    console.warn(`[collect] source ${src.id} missing at ${src.path} — skipping`);
-    console.warn(`  (run: git submodule update --init --depth 1 ${src.path} to include it)`);
-    continue;
-  }
-  collectRepo(src.id, dir, { markdown: src.markdown ?? false });
+	const dir = path.resolve(ROOT, src.path);
+	if (!fs.existsSync(dir) || fs.readdirSync(dir).length === 0) {
+		if (src.required) {
+			console.error(`[collect] required source ${src.id} missing at ${src.path} (run: git submodule update --init --depth 1 ${src.path})`);
+			process.exit(1);
+		}
+		console.warn(`[collect] source ${src.id} missing at ${src.path} — skipping`);
+		console.warn(`  (run: git submodule update --init --depth 1 ${src.path} to include it)`);
+		continue;
+	}
+	collectRepo(src.id, dir, { markdown: src.markdown ?? false });
 }
 
 manifest.sort((a, b) => (a.id < b.id ? -1 : 1));
-fs.writeFileSync(path.join(CORPUS, "manifest.json"), JSON.stringify(manifest, null, "\t") + "\n");
+fs.writeFileSync(path.join(CORPUS, 'manifest.json'), JSON.stringify(manifest, null, '\t') + '\n');
 console.log(`[collect] total: ${manifest.length} corpus entries -> ${path.relative(ROOT, OUT)}`);

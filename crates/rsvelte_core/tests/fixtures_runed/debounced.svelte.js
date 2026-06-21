@@ -25,54 +25,54 @@ import { noop } from "../../internal/utils/function.js";
  * </div>
  */
 export class Debounced {
-  #current = $state();
-  #debounceFn;
-  /**
-   * @param getter A function that returns the state to watch.
-   * @param wait The length of time to wait in ms, defaults to 250.
-   */
-  constructor(getter, wait = 250) {
-    this.#current = getter(); // immediately set the initial value
-    this.cancel = this.cancel.bind(this);
-    this.setImmediately = this.setImmediately.bind(this);
-    this.updateImmediately = this.updateImmediately.bind(this);
-    this.#debounceFn = useDebounce(() => {
-      this.#current = getter();
-    }, wait);
-    watch(getter, () => {
-      this.#debounceFn().catch(noop);
-    });
-  }
-  // isn't the name "current" slightly misleading? it sounds like the latest, raw value
-  /**
-   * Get the debounced value.
-   */
-  get current() {
-    return this.#current;
-  }
-  /**
-   * Whether a timer is currently pending.
-   */
-  get pending() {
-    return this.#debounceFn.pending;
-  }
-  /**
-   * Cancel the latest timer.
-   */
-  cancel() {
-    this.#debounceFn.cancel();
-  }
-  /**
-   * Run the debounced function immediately.
-   */
-  updateImmediately() {
-    return this.#debounceFn.runScheduledNow();
-  }
-  /**
-   * Set the `current` value without waiting.
-   */
-  setImmediately(v) {
-    this.cancel();
-    this.#current = v;
-  }
+    #current = $state();
+    #debounceFn;
+    /**
+     * @param getter A function that returns the state to watch.
+     * @param wait The length of time to wait in ms, defaults to 250.
+     */
+    constructor(getter, wait = 250) {
+        this.#current = getter(); // immediately set the initial value
+        this.cancel = this.cancel.bind(this);
+        this.setImmediately = this.setImmediately.bind(this);
+        this.updateImmediately = this.updateImmediately.bind(this);
+        this.#debounceFn = useDebounce(() => {
+            this.#current = getter();
+        }, wait);
+        watch(getter, () => {
+            this.#debounceFn().catch(noop);
+        });
+    }
+    // isn't the name "current" slightly misleading? it sounds like the latest, raw value
+    /**
+     * Get the debounced value.
+     */
+    get current() {
+        return this.#current;
+    }
+    /**
+     * Whether a timer is currently pending.
+     */
+    get pending() {
+        return this.#debounceFn.pending;
+    }
+    /**
+     * Cancel the latest timer.
+     */
+    cancel() {
+        this.#debounceFn.cancel();
+    }
+    /**
+     * Run the debounced function immediately.
+     */
+    updateImmediately() {
+        return this.#debounceFn.runScheduledNow();
+    }
+    /**
+     * Set the `current` value without waiting.
+     */
+    setImmediately(v) {
+        this.cancel();
+        this.#current = v;
+    }
 }

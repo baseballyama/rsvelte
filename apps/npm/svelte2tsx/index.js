@@ -9,23 +9,23 @@
 // `file://` URLs. We load the wasm bytes via fs and hand them to init so Node
 // (the primary consumer here) works without a global fetch shim.
 
-import { readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
+import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 
-import initWasm, { svelte2tsx as wasmSvelte2tsx } from "@rsvelte/compiler";
+import initWasm, { svelte2tsx as wasmSvelte2tsx } from '@rsvelte/compiler';
 
 const require = createRequire(import.meta.url);
 
 let initPromise;
 async function ensureReady() {
-  if (!initPromise) {
-    initPromise = (async () => {
-      const wasmPath = require.resolve("@rsvelte/compiler/rsvelte_core_bg.wasm");
-      const bytes = await readFile(wasmPath);
-      await initWasm({ module_or_path: bytes });
-    })();
-  }
-  await initPromise;
+	if (!initPromise) {
+		initPromise = (async () => {
+			const wasmPath = require.resolve('@rsvelte/compiler/rsvelte_core_bg.wasm');
+			const bytes = await readFile(wasmPath);
+			await initWasm({ module_or_path: bytes });
+		})();
+	}
+	await initPromise;
 }
 
 /**
@@ -48,18 +48,18 @@ async function ensureReady() {
  * }>}
  */
 export async function svelte2tsx(source, options = {}) {
-  await ensureReady();
-  const json = wasmSvelte2tsx(source, JSON.stringify(options));
-  const parsed = JSON.parse(json);
-  if (parsed.success === false) {
-    throw new Error(parsed.error || "svelte2tsx failed");
-  }
-  return {
-    code: parsed.code,
-    map: parsed.map ?? null,
-    exportedNames: parsed.exportedNames,
-    events: parsed.events ?? {},
-  };
+	await ensureReady();
+	const json = wasmSvelte2tsx(source, JSON.stringify(options));
+	const parsed = JSON.parse(json);
+	if (parsed.success === false) {
+		throw new Error(parsed.error || 'svelte2tsx failed');
+	}
+	return {
+		code: parsed.code,
+		map: parsed.map ?? null,
+		exportedNames: parsed.exportedNames,
+		events: parsed.events ?? {},
+	};
 }
 
 export default svelte2tsx;

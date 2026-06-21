@@ -1,33 +1,33 @@
 {
-  "name": "rsvelte-playground",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js dev",
-    "build": "node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js build",
-    "preview": "node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js preview",
-    "build:wasm": "cd ../.. && wasm-pack build crates/rsvelte_lint --out-dir ../../pkg --target web --no-default-features --features wasm && wasm-pack build crates/rsvelte_fmt_wasm --out-dir ../../pkg-fmt --target web",
-    "lint": "oxlint src/**/*.ts --deny-warnings",
-    "format": "oxfmt",
-    "format:check": "oxfmt --check",
-    "generate-results": "cd ../.. && cargo run --release --bin test_reporter -- --output apps/playground/static/test-results.json",
-    "generate-benchmark": "cd ../.. && node scripts/bench/run-benchmark.mjs > apps/playground/static/benchmark-results.json",
-    "dev:progress": "npm run generate-results && npm run dev",
-    "dev:benchmark": "npm run generate-benchmark && npm run dev"
-  },
-  "dependencies": {
-    "@monaco-editor/loader": "^1.7.0",
-    "monaco-editor": "^0.55.1"
-  },
-  "devDependencies": {
-    "@sveltejs/adapter-static": "^3.0.8",
-    "@sveltejs/kit": "^2.49.2",
-    "@sveltejs/vite-plugin-svelte": "^7.0.0",
-    "oxfmt": "^0.54.0",
-    "oxlint": "^1.36.0",
-    "svelte": "^5.46.1",
-    "typescript": "^6.0.0",
-    "vite": "^8.0.0-beta.5"
-  }
+	"name": "rsvelte-playground",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js dev",
+		"build": "node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js build",
+		"preview": "node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js preview",
+		"build:wasm": "cd ../.. && wasm-pack build crates/rsvelte_lint --out-dir ../../pkg --target web --no-default-features --features wasm && wasm-pack build crates/rsvelte_fmt_wasm --out-dir ../../pkg-fmt --target web",
+		"lint": "oxlint src/**/*.ts --deny-warnings",
+		"format": "oxfmt",
+		"format:check": "oxfmt --check",
+		"generate-results": "cd ../.. && cargo run --release --bin test_reporter -- --output apps/playground/static/test-results.json",
+		"generate-benchmark": "cd ../.. && node scripts/bench/run-benchmark.mjs > apps/playground/static/benchmark-results.json",
+		"dev:progress": "npm run generate-results && npm run dev",
+		"dev:benchmark": "npm run generate-benchmark && npm run dev"
+	},
+	"dependencies": {
+		"@monaco-editor/loader": "^1.7.0",
+		"monaco-editor": "^0.55.1"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-static": "^3.0.8",
+		"@sveltejs/kit": "^2.49.2",
+		"@sveltejs/vite-plugin-svelte": "^7.0.0",
+		"oxfmt": "^0.54.0",
+		"oxlint": "^1.36.0",
+		"svelte": "^5.46.1",
+		"typescript": "^6.0.0",
+		"vite": "^8.0.0-beta.5"
+	}
 }

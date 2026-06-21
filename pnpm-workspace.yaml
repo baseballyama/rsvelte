@@ -1,9 +1,9 @@
 packages:
-  - "apps/npm/*"
+  - 'apps/npm/*'
 # Build scripts allowed to run on install (pnpm 11 blocks unlisted ones).
 # Pulled in transitively by the `@rsvelte/vite-plugin-svelte` devDependency
 # on vite; allowed so vite works if invoked locally. esbuild also backs the
 # corpus pipeline's .svelte.ts TS-strip (scripts/compat-corpus/compile.mjs).
 allowBuilds:
-  "@parcel/watcher": true
+  '@parcel/watcher': true
   esbuild: true

@@ -1,24 +1,24 @@
-import type { Warning } from "@rsvelte/vite-plugin-svelte-native";
+import type { Warning } from '@rsvelte/vite-plugin-svelte-native';
 
 export interface LogFn extends SimpleLogFn {
-  (message: string, payload?: unknown, namespace?: string): void;
+	(message: string, payload?: unknown, namespace?: string): void;
 
-  enabled: boolean;
-  once: SimpleLogFn;
+	enabled: boolean;
+	once: SimpleLogFn;
 }
 
 export interface SimpleLogFn {
-  (message: string, payload?: unknown, namespace?: string): void;
+	(message: string, payload?: unknown, namespace?: string): void;
 }
 
 export type SvelteWarningsMessage = {
-  id: string;
-  filename: string;
-  normalizedFilename: string;
-  timestamp: number;
-  warnings: Warning[]; // allWarnings filtered by warnings where onwarn did not call the default handler
-  allWarnings: Warning[]; // includes warnings filtered by onwarn and our extra vite plugin svelte warnings
-  rawWarnings: Warning[]; // raw compiler output
+	id: string;
+	filename: string;
+	normalizedFilename: string;
+	timestamp: number;
+	warnings: Warning[]; // allWarnings filtered by warnings where onwarn did not call the default handler
+	allWarnings: Warning[]; // includes warnings filtered by onwarn and our extra vite plugin svelte warnings
+	rawWarnings: Warning[]; // raw compiler output
 };
 
-export type LogLevel = "debug" | "info" | "warn" | "error" | "silent";
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent';

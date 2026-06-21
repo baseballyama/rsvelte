@@ -19,17 +19,17 @@
 // `workspace:^` consumers (e.g. `@rsvelte/svelte2tsx`) read when pnpm rewrites
 // their dependency range at publish time.
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(here, "../..");
-const pkgJsonPath = resolve(repoRoot, "pkg/package.json");
-const sourceJsonPath = resolve(repoRoot, "apps/npm/compiler/package.json");
+const repoRoot = resolve(here, '../..');
+const pkgJsonPath = resolve(repoRoot, 'pkg/package.json');
+const sourceJsonPath = resolve(repoRoot, 'apps/npm/compiler/package.json');
 
-const generated = JSON.parse(readFileSync(pkgJsonPath, "utf8"));
-const source = JSON.parse(readFileSync(sourceJsonPath, "utf8"));
+const generated = JSON.parse(readFileSync(pkgJsonPath, 'utf8'));
+const source = JSON.parse(readFileSync(sourceJsonPath, 'utf8'));
 
 // Override the published identity. We don't carry the `publishConfig.directory`
 // redirect into the published package — once pnpm packs from `pkg/`, that
@@ -38,10 +38,10 @@ generated.name = source.name;
 // Surface any drift between the built crate's version and the release version
 // so a future build-crate swap that desyncs `sync-version.mjs` is debuggable.
 if (generated.version !== source.version) {
-  console.warn(
-    `finalize-pkg: overriding wasm-pack version ${generated.version} -> ${source.version} ` +
-      `(from apps/npm/compiler/package.json). If unexpected, check sync-version.mjs covers the built crate.`,
-  );
+	console.warn(
+		`finalize-pkg: overriding wasm-pack version ${generated.version} -> ${source.version} ` +
+			`(from apps/npm/compiler/package.json). If unexpected, check sync-version.mjs covers the built crate.`,
+	);
 }
 generated.version = source.version;
 if (source.repository) generated.repository = source.repository;
@@ -49,5 +49,5 @@ if (source.homepage) generated.homepage = source.homepage;
 if (source.bugs) generated.bugs = source.bugs;
 if (source.keywords) generated.keywords = source.keywords;
 
-writeFileSync(pkgJsonPath, JSON.stringify(generated, null, 2) + "\n");
+writeFileSync(pkgJsonPath, JSON.stringify(generated, null, 2) + '\n');
 console.log(`Finalized pkg/package.json as ${generated.name}@${generated.version}`);

@@ -8,19 +8,19 @@
     "url": "git+https://github.com/baseballyama/rsvelte.git",
     "directory": "apps/npm/fmt-darwin-x64"
   },
-  "files": [
-    "rsvelte-fmt"
-  ],
   "os": [
     "darwin"
   ],
   "cpu": [
     "x64"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
+  "files": [
+    "rsvelte-fmt"
+  ],
   "scripts": {
     "prepack": "chmod +x rsvelte-fmt"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

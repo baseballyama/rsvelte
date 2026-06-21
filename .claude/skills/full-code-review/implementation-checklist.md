@@ -30,15 +30,15 @@ rsvelte は公式 Svelte コンパイラ（`svelte/packages/svelte/src/compiler/
 
 ### 対応関係
 
-| Rust 側                                   | 公式 JS 側                                                       |
-| ----------------------------------------- | ---------------------------------------------------------------- |
-| `src/compiler/phases/1_parse/`            | `svelte/packages/svelte/src/compiler/phases/1-parse/`            |
-| `src/compiler/phases/2_analyze/`          | `svelte/packages/svelte/src/compiler/phases/2-analyze/`          |
-| `src/compiler/phases/3_transform/client/` | `svelte/packages/svelte/src/compiler/phases/3-transform/client/` |
-| `src/compiler/phases/3_transform/server/` | `svelte/packages/svelte/src/compiler/phases/3-transform/server/` |
-| `src/compiler/phases/3_transform/css/`    | `svelte/packages/svelte/src/compiler/phases/3-transform/css/`    |
-| `src/error/`                              | `svelte/packages/svelte/src/compiler/{errors,warnings}.js`       |
-| `src/ast/`                                | `svelte/packages/svelte/src/compiler/types/`                     |
+| Rust 側                                                    | 公式 JS 側                                                                          |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `src/compiler/phases/1_parse/`                             | `svelte/packages/svelte/src/compiler/phases/1-parse/`                              |
+| `src/compiler/phases/2_analyze/`                           | `svelte/packages/svelte/src/compiler/phases/2-analyze/`                            |
+| `src/compiler/phases/3_transform/client/`                  | `svelte/packages/svelte/src/compiler/phases/3-transform/client/`                   |
+| `src/compiler/phases/3_transform/server/`                  | `svelte/packages/svelte/src/compiler/phases/3-transform/server/`                   |
+| `src/compiler/phases/3_transform/css/`                     | `svelte/packages/svelte/src/compiler/phases/3-transform/css/`                      |
+| `src/error/`                                               | `svelte/packages/svelte/src/compiler/{errors,warnings}.js`                         |
+| `src/ast/`                                                 | `svelte/packages/svelte/src/compiler/types/`                                       |
 
 ### 整合性チェック項目
 
@@ -51,13 +51,13 @@ rsvelte は公式 Svelte コンパイラ（`svelte/packages/svelte/src/compiler/
 
 ### 公式と差分が発生しがちなパターン
 
-| パターン                                 | 検出方法                                                           | 対応                                             |
-| ---------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------ |
-| 公式が利用する JS API を Rust 標準で代替 | `String.prototype.*` を `str` メソッドで置換した箇所               | 挙動の差異（特に Unicode 境界）を確認            |
-| 正規表現の差異                           | `regex` クレート vs JS RegExp                                      | グリーディ性、後読み、Unicode フラグの違いを確認 |
-| Number 表現                              | JS の Number（IEEE 754）vs Rust の i32/f64                         | 大きな数値・小数・NaN の扱いを比較               |
-| シリアライズ順序                         | HashMap の挙動（順序非保証）                                       | `IndexMap` / `BTreeMap` で公式の順序を再現       |
-| パニックポイント                         | 公式は throw、rsvelte で `unwrap()` を使うと panic で fixture 失敗 | `Result` で伝播し公式と同じエラーを返す          |
+| パターン                                                | 検出方法                                                              | 対応                                                  |
+| ------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------- |
+| 公式が利用する JS API を Rust 標準で代替                | `String.prototype.*` を `str` メソッドで置換した箇所                 | 挙動の差異（特に Unicode 境界）を確認                |
+| 正規表現の差異                                          | `regex` クレート vs JS RegExp                                         | グリーディ性、後読み、Unicode フラグの違いを確認     |
+| Number 表現                                              | JS の Number（IEEE 754）vs Rust の i32/f64                            | 大きな数値・小数・NaN の扱いを比較                   |
+| シリアライズ順序                                        | HashMap の挙動（順序非保証）                                          | `IndexMap` / `BTreeMap` で公式の順序を再現          |
+| パニックポイント                                        | 公式は throw、rsvelte で `unwrap()` を使うと panic で fixture 失敗 | `Result` で伝播し公式と同じエラーを返す              |
 
 ```rust
 // ❌ 公式と整合しない: HashMap は順序非保証なので fixture と差分が出る
@@ -87,16 +87,16 @@ pnpm run compatibility-report
 
 production コードパスで panic を引き起こす API は、コンパイラへの入力次第で簡単に DoS につながる。レビューでは production コード（`src/` 配下、tests 以外）に以下が含まれていないか確認する:
 
-| API                  | レビュー基準                                                                   |
-| -------------------- | ------------------------------------------------------------------------------ |
-| `unwrap()`           | **原則禁止**。`Result` で伝播 or `expect("WHY")` で root-cause を documents 化 |
-| `expect("...")`      | 失敗が論理的に不可能な場合のみ許容。メッセージで invariant を明示              |
-| `panic!()`           | 内部 invariant 違反の自己診断のみ。ユーザー入力起因では使わない                |
-| `todo!()`            | コミット前に解消必須。production には残さない                                  |
-| `unimplemented!()`   | 同上                                                                           |
-| `unreachable!()`     | 列挙の網羅性で本当に unreachable な場合のみ                                    |
-| `[index]` / `arr[i]` | 範囲チェックがあるか確認。なければ `get(i)` を使う                             |
-| `slice[a..b]`        | `a <= b <= len` が保証されているか確認                                         |
+| API                  | レビュー基準                                                                              |
+| -------------------- | ----------------------------------------------------------------------------------------- |
+| `unwrap()`           | **原則禁止**。`Result` で伝播 or `expect("WHY")` で root-cause を documents 化           |
+| `expect("...")`      | 失敗が論理的に不可能な場合のみ許容。メッセージで invariant を明示                       |
+| `panic!()`           | 内部 invariant 違反の自己診断のみ。ユーザー入力起因では使わない                          |
+| `todo!()`            | コミット前に解消必須。production には残さない                                            |
+| `unimplemented!()`   | 同上                                                                                      |
+| `unreachable!()`     | 列挙の網羅性で本当に unreachable な場合のみ                                              |
+| `[index]` / `arr[i]` | 範囲チェックがあるか確認。なければ `get(i)` を使う                                       |
+| `slice[a..b]`        | `a <= b <= len` が保証されているか確認                                                   |
 
 ```rust
 // ❌ 入力起因で panic する可能性
@@ -183,16 +183,16 @@ rg "json!\(" src/ --type rust -l
 
 ### コレクション選択
 
-| 用途                         | 推奨                                       | 理由                                 |
-| ---------------------------- | ------------------------------------------ | ------------------------------------ |
-| 順序非保証 HashMap           | `FxHashMap`                                | デフォルト Hasher (SipHash) より速い |
-| 順序保持 Map                 | `IndexMap` / `BTreeMap`                    | fixture 出力の安定化                 |
-| 小さい Vec                   | `SmallVec<[T; N]>`                         | スタック割り当て                     |
-| 大きい所有 String            | `String`                                   | -                                    |
-| 短い所有 String              | `CompactString`                            | inline string                        |
-| ソース由来文字列             | `&'a str`                                  | 借用                                 |
-| 共通文字列（タグ名・属性名） | `Atom<'a>`                                 | interning                            |
-| AST ノードの子要素           | `bumpalo::collections::Vec<'a, T>`（将来） | arena allocation                     |
+| 用途                         | 推奨                              | 理由                                  |
+| ---------------------------- | --------------------------------- | ------------------------------------- |
+| 順序非保証 HashMap            | `FxHashMap`                       | デフォルト Hasher (SipHash) より速い |
+| 順序保持 Map                  | `IndexMap` / `BTreeMap`           | fixture 出力の安定化                  |
+| 小さい Vec                    | `SmallVec<[T; N]>`                | スタック割り当て                      |
+| 大きい所有 String             | `String`                          | -                                     |
+| 短い所有 String               | `CompactString`                   | inline string                         |
+| ソース由来文字列              | `&'a str`                         | 借用                                  |
+| 共通文字列（タグ名・属性名） | `Atom<'a>`                        | interning                             |
+| AST ノードの子要素             | `bumpalo::collections::Vec<'a, T>`（将来） | arena allocation                      |
 
 ### `format!()` を hot path に置かない
 
@@ -290,16 +290,16 @@ fn get_name<'a>(elem: &'a Element) -> &'a str {
 `cargo clippy --all-targets --all-features -- -D warnings` でクリーンに通ること。
 レビューでは特に以下を確認する:
 
-| パターン                                        | 推奨                                                              |
-| ----------------------------------------------- | ----------------------------------------------------------------- |
-| `match` の trivial 分岐                         | `if let` / `let else` で短く                                      |
-| `.iter().map().collect()` の連鎖                | 不要な中間 Vec を作らないか確認（`Iterator::collect` は最後のみ） |
-| 不要な `to_string()` / `to_owned()` / `clone()` | 借用で済まないか確認                                              |
-| `.unwrap_or_else(\|_\| ...)` で重い処理         | `unwrap_or_default()` / `?` の方が良い場合あり                    |
-| 小さい関数の手書きループ                        | イテレータコンビネータ（`map`, `filter`, `find`）                 |
-| 文字列比較で `==` のみ                          | ASCII / 大文字小文字の意味を確認                                  |
-| `if x { true } else { false }` 等の冗長な式     | clippy 指摘あり、素直に `x` と書く                                |
-| `Vec<T>` の `len() == 0`                        | `is_empty()` を使う                                               |
+| パターン                                          | 推奨                                                          |
+| ------------------------------------------------- | ------------------------------------------------------------- |
+| `match` の trivial 分岐                           | `if let` / `let else` で短く                                  |
+| `.iter().map().collect()` の連鎖                  | 不要な中間 Vec を作らないか確認（`Iterator::collect` は最後のみ） |
+| 不要な `to_string()` / `to_owned()` / `clone()`   | 借用で済まないか確認                                          |
+| `.unwrap_or_else(\|_\| ...)` で重い処理            | `unwrap_or_default()` / `?` の方が良い場合あり                |
+| 小さい関数の手書きループ                          | イテレータコンビネータ（`map`, `filter`, `find`）             |
+| 文字列比較で `==` のみ                            | ASCII / 大文字小文字の意味を確認                              |
+| `if x { true } else { false }` 等の冗長な式      | clippy 指摘あり、素直に `x` と書く                            |
+| `Vec<T>` の `len() == 0`                          | `is_empty()` を使う                                           |
 
 ### `match` の網羅性を活用
 
@@ -490,12 +490,12 @@ pub fn server_visit_element(...) { ... }
 
 CLAUDE.md / AGENTS.md の方針に従い、**コメントは原則書かない**。書く場合は WHY に限定する。
 
-| OK                                                              | NG                                                             |
-| --------------------------------------------------------------- | -------------------------------------------------------------- |
-| 公式 Svelte と意図的に異なる実装にしている理由                  | `// increment counter`（自明な WHAT）                          |
-| 性能上の理由で非自明な実装にしている理由                        | `// fix bug from issue #123`（PR / commit message に書くべき） |
-| Rust の借用チェッカーを通すために自然でない書き方をしている理由 | `// TODO: implement later`（todo!() を使うか issue 化）        |
-| 入力の不変条件・関数の事前条件                                  | 関数シグネチャから読み取れる情報の繰り返し                     |
+| OK                                                                                       | NG                                                              |
+| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| 公式 Svelte と意図的に異なる実装にしている理由                                            | `// increment counter`（自明な WHAT）                            |
+| 性能上の理由で非自明な実装にしている理由                                                  | `// fix bug from issue #123`（PR / commit message に書くべき） |
+| Rust の借用チェッカーを通すために自然でない書き方をしている理由                          | `// TODO: implement later`（todo!() を使うか issue 化）         |
+| 入力の不変条件・関数の事前条件                                                            | 関数シグネチャから読み取れる情報の繰り返し                      |
 
 ```rust
 // ❌ WHAT を説明（コードを読めば自明）
@@ -624,11 +624,11 @@ unsafe { *ptr }
 
 ## Performance impact (if applicable)
 
-|                  | Before | After | Delta |
-| ---------------- | -----: | ----: | ----: |
-| Parse            |   X ms |  Y ms |    Z% |
-| Compile (Client) |   X ms |  Y ms |    Z% |
-| Compile (SSR)    |   X ms |  Y ms |    Z% |
+| | Before | After | Delta |
+|---|---:|---:|---:|
+| Parse | X ms | Y ms | Z% |
+| Compile (Client) | X ms | Y ms | Z% |
+| Compile (SSR) | X ms | Y ms | Z% |
 ```
 
 ---

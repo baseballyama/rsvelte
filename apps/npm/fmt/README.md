@@ -22,11 +22,11 @@ npm install -D @rsvelte/fmt
 The package ships a small loader that resolves the right prebuilt native binary
 for your platform via `optionalDependencies`. Supported targets:
 
-| OS      | Architecture               |
-| ------- | -------------------------- |
-| macOS   | arm64, x64                 |
-| Linux   | x64 (glibc), arm64 (glibc) |
-| Windows | x64 (MSVC)                 |
+| OS | Architecture |
+|---|---|
+| macOS | arm64, x64 |
+| Linux | x64 (glibc), arm64 (glibc) |
+| Windows | x64 (MSVC) |
 
 If your platform isn't listed, please [open an issue](https://github.com/baseballyama/rsvelte/issues).
 
@@ -87,18 +87,18 @@ apply consistently across standalone files and embedded blocks. Explicit
 
 ## CLI flags
 
-| Flag                    | Default             | Effect                                                         |
-| ----------------------- | ------------------- | -------------------------------------------------------------- |
-| `--write`               | (implied for paths) | Write formatted output back to source files                    |
-| `--check`               | off                 | Exit 1 if any file would change; no writes                     |
-| `--stdin`               | off                 | Read source on stdin, write result to stdout                   |
-| `--stdin-filepath PATH` | —                   | Filename used to pick the engine (required with `--stdin`)     |
-| `--print-width N`       | `.oxfmtrc` / 80     | Maximum line width before breaking                             |
-| `--tab-width N`         | `.oxfmtrc` / 2      | Spaces per indent level                                        |
-| `--use-tabs`            | `.oxfmtrc` / off    | Indent with tabs                                               |
-| `--config PATH`, `-c`   | discovered          | `.oxfmtrc` to apply to inline `<script>` / `<style>` blocks    |
-| `--oxfmt-bin PATH`      | resolved / `oxfmt`  | Override the oxfmt binary used for non-`.svelte` files         |
-| `--no-style-cache`      | off                 | Disable the on-disk cache of formatted inline `<style>` blocks |
+| Flag | Default | Effect |
+|---|---|---|
+| `--write` | (implied for paths) | Write formatted output back to source files |
+| `--check` | off | Exit 1 if any file would change; no writes |
+| `--stdin` | off | Read source on stdin, write result to stdout |
+| `--stdin-filepath PATH` | — | Filename used to pick the engine (required with `--stdin`) |
+| `--print-width N` | `.oxfmtrc` / 80 | Maximum line width before breaking |
+| `--tab-width N` | `.oxfmtrc` / 2 | Spaces per indent level |
+| `--use-tabs` | `.oxfmtrc` / off | Indent with tabs |
+| `--config PATH`, `-c` | discovered | `.oxfmtrc` to apply to inline `<script>` / `<style>` blocks |
+| `--oxfmt-bin PATH` | resolved / `oxfmt` | Override the oxfmt binary used for non-`.svelte` files |
+| `--no-style-cache` | off | Disable the on-disk cache of formatted inline `<style>` blocks |
 
 Run `rsvelte-fmt --help` for the authoritative list.
 
@@ -116,11 +116,11 @@ byte-identical to a fresh format. Disable with `--no-style-cache` or the
 
 ## Exit codes
 
-| Code | Meaning                                                      |
-| ---- | ------------------------------------------------------------ |
-| 0    | Success (write applied or check passed)                      |
-| 1    | `--check` found at least one file that would change          |
-| 2    | Internal error (parse failure, `oxfmt` missing, IO error, …) |
+| Code | Meaning |
+|---|---|
+| 0 | Success (write applied or check passed) |
+| 1 | `--check` found at least one file that would change |
+| 2 | Internal error (parse failure, `oxfmt` missing, IO error, …) |
 
 ## Performance
 

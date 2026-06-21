@@ -2,19 +2,18 @@
 
 Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 
-| metric                                                              | count                                                |
-| ------------------------------------------------------------------- | ---------------------------------------------------- |
-| corpus entries (CSR + SSR both compiled & compared)                 | 6,409                                                |
-| match (identical after normalization)                               | 5,476                                                |
-| error parity (official rejects, rsvelte rejects with the SAME code) | 890                                                  |
-| **known failures (baseline)**                                       | **42** (was 125) — 41 js-mismatch + 1 error-mismatch |
-| error-presence / error-code mismatches                              | 1 (migrate/svelte-component client; see below)       |
+| metric | count |
+|---|---|
+| corpus entries (CSR + SSR both compiled & compared) | 6,409 |
+| match (identical after normalization) | 5,476 |
+| error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
+| **known failures (baseline)** | **42** (was 125) — 41 js-mismatch + 1 error-mismatch |
+| error-presence / error-code mismatches | 1 (migrate/svelte-component client; see below) |
 
 **Burn-down 50 → 42 (latest session, 8 ids).** All byte-exact suites stayed
 green; corpus showed no regressions at each step. Fixes:
-
 - Legacy reactive-statement ordering: `extract_simple_assignments` recorded a
-  member-assignment's _property_ (`foo.x = count` → `x`) as a declared var,
+  member-assignment's *property* (`foo.x = count` → `x`) as a declared var,
   creating a false dependency for any `$:` statement reading an identifier of
   that name (`$: { if (x) … }`), which the topological sort then hoisted out
   of source order. Member properties are no longer recorded (the base object
@@ -53,7 +52,6 @@ green; corpus showed no regressions at each step. Fixes:
 
 **Burn-down 68 → 50 (latest session, 18 ids).** All byte-exact suites
 (runtime/ssr/compiler_fixtures/css) stayed green throughout. Fixes:
-
 - `should_proxy` resolves an Identifier through its binding's initial node type
   (component `non_proxy_vars` gated on `initial_node_type`, not literal-only
   `initial`; new module `module_non_proxy_vars`) — `$state(root)` / `$state(log_a)`
@@ -77,7 +75,7 @@ green; corpus showed no regressions at each step. Fixes:
   mis-classified as an object literal — `inner_is_block_statement`).
 - hoist `<title>` to the front of a fragment on the server (clean_nodes parity).
 - elide option `?? ""` for a shadowed in-scope each-index (`<select bind:value={i}>`
-  - `{#each … as person, i}`).
+  + `{#each … as person, i}`).
 - decode `\u`/`\x` escapes when folding a known-const string to its cooked value
   (client + server) + re-escape bidi-control/format chars in server string literals
   (clears bidirectional-control-characters — the string-folding subset of the
@@ -136,7 +134,6 @@ Clears `window-bindings` (`Math.round($state)` wrongly folded static) and
 `declaration-tag-state-referenced-locally` (`{a}{b}…` should be one-shot, not
 `$.template_effect`). Faithful fix = mirror upstream's two `scope.evaluate` sites.
 All client changes in `client/visitors/shared/utils.rs`:
-
 - **A (no-op refactor):** extract `server/evaluate.rs`'s `EvalValue`/`Evaluation`/
   `evaluate_estree`/tables into `3_transform/shared/evaluate.rs` behind a trait
   `EvalCtx { evaluate_identifier(name,depth)->Evaluation; identifier_has_binding(name)->bool }`.
@@ -319,7 +316,6 @@ Counts are diff-signature groups from `cluster.mjs`; one root cause often
 spans several signatures. Re-run `cluster.mjs` for the live picture.
 
 ### 1. esrap positional-comment artifacts (~80–100 ids, biggest theme)
-
 Upstream prints through esrap, which carries a **global comment stream
 indexed by source position**: comments from REMOVED statements (`$effect`
 bodies, event handlers, module-level docs) re-attach to the next emitted
@@ -337,52 +333,44 @@ script — or wait for the Phase-3 printer refactor, which makes this free
 the gnarliest cases; they are cheap to verify afterwards.
 
 ### 2. legacy template-literal text effects (~20 ids)
-
 `E:\`oh no! ${ | A:"…",` (12) + `const-tag-if-else-if` shape (3):
-upstream emits one `$.set_text(text, \`…${expr}…\`)`template literal
+upstream emits one `$.set_text(text, \`…${expr}…\`)` template literal
 where rsvelte emits concatenation or a different memo split.
-Reference: client`Fragment`/text visitors building `b.template_literal`.
+Reference: client `Fragment`/text visitors building `b.template_literal`.
 
 ### 3. `$.template_effect` / `$.set_text` memo split (~10 ids)
-
 `E:$.template_effect(() =>` (multiline arrow with memo destructure) vs
 rsvelte single-line call. Content differs in HOW expressions are memoised
 (`$0`, `$1` derived args). Reference: upstream `build_template_chunk` /
 `Memoizer` in 3-transform/client.
 
 ### 4. `$.state($.proxy(...))` vs `$.state(...)` (~5 ids)
-
 rsvelte proxies where upstream doesn't (`let left = $.state(total)`).
 Upstream rule: `should_proxy` (3-transform/client/utils.js) — literal /
 non-reassigned-binding analysis. Port the exact predicate.
 
 ### 5. server `$.stringify(uid)` vs bare `${uid}` (~5 ids)
-
 `$props.id()` bindings interpolate bare upstream (evaluates to STRING);
 rsvelte wraps in `$.stringify`. Same `scope.evaluate` machinery as the
 client fix already landed in wave 4 (`is_expression_defined_json`) —
 mirror it in the server attribute path.
 
 ### 6. comment-only components (~4 ids)
-
 `<script>// module-level logic goes here</script>` only: upstream drops
 the script entirely (no statements), rsvelte keeps the comment, shifting
 everything. Check upstream's empty-program handling in 3-transform.
 
 ### 7. select/await/misc server push content (~25 ids)
-
 `E:$$renderer.push("…") | A:$$renderer.push("…")` with differing template
 content — sample each; several distinct small causes (await block
 placeholders, attribute interpolation differences). Treat as N micro-fixes.
 
 ### 8. css-mismatch (6 ids)
-
 `<style>` content after parse/print round-trips (`whitespace-after-style-tag`,
 `css-pseudo-classes`, `preprocess/partial-names`, `print/style`,
 ConsoleLine). Likely print/preprocess style-tag handling, not scoping.
 
 ### 9. number-literal `N,` clusters (~10 ids)
-
 `compile-warnings.md/14.svelte` etc. — numeric spelling differences that
 survived the wave-1 `restore_number_literals` (e.g. values appearing twice
 with different spellings are skipped as ambiguous). Extend the value→raw

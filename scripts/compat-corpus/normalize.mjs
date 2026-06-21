@@ -13,7 +13,7 @@
  * ${} nesting) / comment state, and only lines whose newline is outside
  * any multi-line token are eligible for removal.
  */
-import { parse } from "acorn";
+import { parse } from 'acorn';
 
 /**
  * Collapse newlines inside template-literal HOLES (`${ ... }`) into a single
@@ -33,101 +33,94 @@ import { parse } from "acorn";
  * identical files into different ones (no new failures possible).
  */
 export function flattenTemplateHoles(src) {
-  const n = src.length;
-  let state = "code"; // code | line-comment | block-comment | squote | dquote | template
-  const templateDepth = []; // ${} brace nesting per template level
-  let out = "";
-  let i = 0;
-  while (i < n) {
-    const c = src[i];
-    const c2 = src[i + 1];
-    switch (state) {
-      case "code":
-        if (c === "/" && c2 === "/") {
-          state = "line-comment";
-          out += "//";
-          i += 2;
-          continue;
-        } else if (c === "/" && c2 === "*") {
-          state = "block-comment";
-          out += "/*";
-          i += 2;
-          continue;
-        } else if (c === "'") state = "squote";
-        else if (c === '"') state = "dquote";
-        else if (c === "`") ((state = "template"), templateDepth.push(0));
-        else if (
-          c === "}" &&
-          templateDepth.length &&
-          templateDepth[templateDepth.length - 1] === 0
-        ) {
-          state = "template";
-        } else if (c === "{" && templateDepth.length) {
-          templateDepth[templateDepth.length - 1]++;
-        } else if (c === "}" && templateDepth.length) {
-          templateDepth[templateDepth.length - 1]--;
-        } else if (templateDepth.length && (c === " " || c === "\t" || c === "\n" || c === "\r")) {
-          // inside a ${} hole: collapse a whitespace run containing a
-          // newline into a single space
-          let j = i;
-          let sawNewline = false;
-          while (
-            j < n &&
-            (src[j] === " " || src[j] === "\t" || src[j] === "\n" || src[j] === "\r")
-          ) {
-            if (src[j] === "\n") sawNewline = true;
-            j++;
-          }
-          if (sawNewline) {
-            out += " ";
-            i = j;
-            continue;
-          }
-        }
-        break;
-      case "line-comment":
-        if (c === "\n") state = "code";
-        break;
-      case "block-comment":
-        if (c === "*" && c2 === "/") {
-          state = "code";
-          out += "*/";
-          i += 2;
-          continue;
-        }
-        break;
-      case "squote":
-        if (c === "\\") {
-          out += c + (src[i + 1] ?? "");
-          i += 2;
-          continue;
-        } else if (c === "'" || c === "\n") state = "code";
-        break;
-      case "dquote":
-        if (c === "\\") {
-          out += c + (src[i + 1] ?? "");
-          i += 2;
-          continue;
-        } else if (c === '"' || c === "\n") state = "code";
-        break;
-      case "template":
-        if (c === "\\") {
-          out += c + (src[i + 1] ?? "");
-          i += 2;
-          continue;
-        } else if (c === "`") ((state = "code"), templateDepth.pop());
-        else if (c === "$" && c2 === "{") {
-          state = "code";
-          out += "${";
-          i += 2;
-          continue;
-        }
-        break;
-    }
-    out += c;
-    i++;
-  }
-  return out;
+	const n = src.length;
+	let state = 'code'; // code | line-comment | block-comment | squote | dquote | template
+	const templateDepth = []; // ${} brace nesting per template level
+	let out = '';
+	let i = 0;
+	while (i < n) {
+		const c = src[i];
+		const c2 = src[i + 1];
+		switch (state) {
+			case 'code':
+				if (c === '/' && c2 === '/') {
+					state = 'line-comment';
+					out += '//';
+					i += 2;
+					continue;
+				} else if (c === '/' && c2 === '*') {
+					state = 'block-comment';
+					out += '/*';
+					i += 2;
+					continue;
+				} else if (c === "'") state = 'squote';
+				else if (c === '"') state = 'dquote';
+				else if (c === '`') (state = 'template'), templateDepth.push(0);
+				else if (c === '}' && templateDepth.length && templateDepth[templateDepth.length - 1] === 0) {
+					state = 'template';
+				} else if (c === '{' && templateDepth.length) {
+					templateDepth[templateDepth.length - 1]++;
+				} else if (c === '}' && templateDepth.length) {
+					templateDepth[templateDepth.length - 1]--;
+				} else if (templateDepth.length && (c === ' ' || c === '\t' || c === '\n' || c === '\r')) {
+					// inside a ${} hole: collapse a whitespace run containing a
+					// newline into a single space
+					let j = i;
+					let sawNewline = false;
+					while (j < n && (src[j] === ' ' || src[j] === '\t' || src[j] === '\n' || src[j] === '\r')) {
+						if (src[j] === '\n') sawNewline = true;
+						j++;
+					}
+					if (sawNewline) {
+						out += ' ';
+						i = j;
+						continue;
+					}
+				}
+				break;
+			case 'line-comment':
+				if (c === '\n') state = 'code';
+				break;
+			case 'block-comment':
+				if (c === '*' && c2 === '/') {
+					state = 'code';
+					out += '*/';
+					i += 2;
+					continue;
+				}
+				break;
+			case 'squote':
+				if (c === '\\') {
+					out += c + (src[i + 1] ?? '');
+					i += 2;
+					continue;
+				} else if (c === "'" || c === '\n') state = 'code';
+				break;
+			case 'dquote':
+				if (c === '\\') {
+					out += c + (src[i + 1] ?? '');
+					i += 2;
+					continue;
+				} else if (c === '"' || c === '\n') state = 'code';
+				break;
+			case 'template':
+				if (c === '\\') {
+					out += c + (src[i + 1] ?? '');
+					i += 2;
+					continue;
+				} else if (c === '`') (state = 'code'), templateDepth.pop();
+				else if (c === '$' && c2 === '{') {
+					state = 'code';
+					out += '${';
+					i += 2;
+					continue;
+				}
+				break;
+		}
+		out += c;
+		i++;
+	}
+	return out;
 }
 
 /**
@@ -147,63 +140,57 @@ export function flattenTemplateHoles(src) {
  * key: two structurally identical trees serialise to identical strings.
  */
 function astSignature(code) {
-  let ast;
-  try {
-    ast = parse(code, {
-      ecmaVersion: "latest",
-      sourceType: "module",
-      allowAwaitOutsideFunction: true,
-      allowReturnOutsideFunction: true,
-      allowImportExportEverywhere: true,
-      allowSuperOutsideMethod: true,
-      preserveParens: false,
-    });
-  } catch {
-    return null;
-  }
-  // Drop `raw` from STRING literals so quote style (`"x"` vs `'x'`) is absorbed
-  // — oxfmt normalizes quotes when it can parse, so this only matters for the
-  // files it can't (await-in-non-async); the cooked `value` is still compared,
-  // so a real string-content difference still fails. Numeric / bigint / regex
-  // `raw` is kept (spelling is meaningful and the corpus tracks it).
-  stripStringRaw(ast);
-  // Drop `shorthand` on object/pattern Property nodes: `{ a }` and `{ a: a }`
-  // are the same AST except for this pure-syntax flag (key and value are still
-  // compared, so `{ a: b }` still differs). esrap collapses `key: key` to the
-  // shorthand form; rsvelte's text-based instance/module transforms emit the
-  // source verbatim. Absorbed here, like quote style and source positions.
-  return JSON.stringify(ast, (key, value) => {
-    if (
-      key === "start" ||
-      key === "end" ||
-      key === "loc" ||
-      key === "range" ||
-      key === "shorthand"
-    ) {
-      return undefined;
-    }
-    // acorn parses a `123n` literal's `value` into a native BigInt, which
-    // JSON.stringify cannot serialize. Stringify it so the signature is
-    // comparable (both sides convert identically; bigint `raw` is also kept,
-    // so spelling differences still register).
-    return typeof value === "bigint" ? `${value}n` : value;
-  });
+	let ast;
+	try {
+		ast = parse(code, {
+			ecmaVersion: 'latest',
+			sourceType: 'module',
+			allowAwaitOutsideFunction: true,
+			allowReturnOutsideFunction: true,
+			allowImportExportEverywhere: true,
+			allowSuperOutsideMethod: true,
+			preserveParens: false,
+		});
+	} catch {
+		return null;
+	}
+	// Drop `raw` from STRING literals so quote style (`"x"` vs `'x'`) is absorbed
+	// — oxfmt normalizes quotes when it can parse, so this only matters for the
+	// files it can't (await-in-non-async); the cooked `value` is still compared,
+	// so a real string-content difference still fails. Numeric / bigint / regex
+	// `raw` is kept (spelling is meaningful and the corpus tracks it).
+	stripStringRaw(ast);
+	// Drop `shorthand` on object/pattern Property nodes: `{ a }` and `{ a: a }`
+	// are the same AST except for this pure-syntax flag (key and value are still
+	// compared, so `{ a: b }` still differs). esrap collapses `key: key` to the
+	// shorthand form; rsvelte's text-based instance/module transforms emit the
+	// source verbatim. Absorbed here, like quote style and source positions.
+	return JSON.stringify(ast, (key, value) => {
+		if (key === 'start' || key === 'end' || key === 'loc' || key === 'range' || key === 'shorthand') {
+			return undefined;
+		}
+		// acorn parses a `123n` literal's `value` into a native BigInt, which
+		// JSON.stringify cannot serialize. Stringify it so the signature is
+		// comparable (both sides convert identically; bigint `raw` is also kept,
+		// so spelling differences still register).
+		return typeof value === 'bigint' ? `${value}n` : value;
+	});
 }
 
 function stripStringRaw(node) {
-  if (Array.isArray(node)) {
-    for (const child of node) stripStringRaw(child);
-    return;
-  }
-  if (node === null || typeof node !== "object") return;
-  if (node.type === "Literal" && typeof node.value === "string") {
-    node.raw = undefined;
-  }
-  for (const key in node) {
-    if (key === "start" || key === "end" || key === "loc" || key === "range") continue;
-    const v = node[key];
-    if (v !== null && typeof v === "object") stripStringRaw(v);
-  }
+	if (Array.isArray(node)) {
+		for (const child of node) stripStringRaw(child);
+		return;
+	}
+	if (node === null || typeof node !== 'object') return;
+	if (node.type === 'Literal' && typeof node.value === 'string') {
+		node.raw = undefined;
+	}
+	for (const key in node) {
+		if (key === 'start' || key === 'end' || key === 'loc' || key === 'range') continue;
+		const v = node[key];
+		if (v !== null && typeof v === 'object') stripStringRaw(v);
+	}
 }
 
 /**
@@ -216,72 +203,68 @@ function stripStringRaw(node) {
  * mismatch.
  */
 export function astEquivalent(a, b) {
-  const sa = astSignature(a);
-  if (sa === null) return false;
-  const sb = astSignature(b);
-  return sb !== null && sa === sb;
+	const sa = astSignature(a);
+	if (sa === null) return false;
+	const sb = astSignature(b);
+	return sb !== null && sa === sb;
 }
 
 export function stripBlankLines(src) {
-  const keep = new Set(); // offsets of newlines inside template literals / block comments
-  let i = 0;
-  const n = src.length;
-  let state = "code"; // code | line-comment | block-comment | squote | dquote | template
-  const templateDepth = []; // ${} brace nesting per template level
-  while (i < n) {
-    const c = src[i];
-    const c2 = src[i + 1];
-    switch (state) {
-      case "code":
-        if (c === "/" && c2 === "/") ((state = "line-comment"), i++);
-        else if (c === "/" && c2 === "*") ((state = "block-comment"), i++);
-        else if (c === "'") state = "squote";
-        else if (c === '"') state = "dquote";
-        else if (c === "`") ((state = "template"), templateDepth.push(0));
-        else if (
-          c === "}" &&
-          templateDepth.length &&
-          templateDepth[templateDepth.length - 1] === 0
-        ) {
-          state = "template";
-        } else if (c === "{" && templateDepth.length) {
-          templateDepth[templateDepth.length - 1]++;
-        } else if (c === "}" && templateDepth.length) {
-          templateDepth[templateDepth.length - 1]--;
-        }
-        break;
-      case "line-comment":
-        if (c === "\n") state = "code";
-        break;
-      case "block-comment":
-        if (c === "\n") keep.add(i);
-        else if (c === "*" && c2 === "/") ((state = "code"), i++);
-        break;
-      case "squote":
-        if (c === "\\") i++;
-        else if (c === "'" || c === "\n") state = "code";
-        break;
-      case "dquote":
-        if (c === "\\") i++;
-        else if (c === '"' || c === "\n") state = "code";
-        break;
-      case "template":
-        if (c === "\\") i++;
-        else if (c === "\n") keep.add(i);
-        else if (c === "`") ((state = "code"), templateDepth.pop());
-        else if (c === "$" && c2 === "{") ((state = "code"), i++);
-        break;
-    }
-    i++;
-  }
-  const out = [];
-  let lineStart = 0;
-  for (let j = 0; j <= n; j++) {
-    if (j === n || src[j] === "\n") {
-      const line = src.slice(lineStart, j);
-      if (line.trim() !== "" || keep.has(j)) out.push(line);
-      lineStart = j + 1;
-    }
-  }
-  return out.join("\n");
+	const keep = new Set(); // offsets of newlines inside template literals / block comments
+	let i = 0;
+	const n = src.length;
+	let state = 'code'; // code | line-comment | block-comment | squote | dquote | template
+	const templateDepth = []; // ${} brace nesting per template level
+	while (i < n) {
+		const c = src[i];
+		const c2 = src[i + 1];
+		switch (state) {
+			case 'code':
+				if (c === '/' && c2 === '/') (state = 'line-comment'), i++;
+				else if (c === '/' && c2 === '*') (state = 'block-comment'), i++;
+				else if (c === "'") state = 'squote';
+				else if (c === '"') state = 'dquote';
+				else if (c === '`') (state = 'template'), templateDepth.push(0);
+				else if (c === '}' && templateDepth.length && templateDepth[templateDepth.length - 1] === 0) {
+					state = 'template';
+				} else if (c === '{' && templateDepth.length) {
+					templateDepth[templateDepth.length - 1]++;
+				} else if (c === '}' && templateDepth.length) {
+					templateDepth[templateDepth.length - 1]--;
+				}
+				break;
+			case 'line-comment':
+				if (c === '\n') state = 'code';
+				break;
+			case 'block-comment':
+				if (c === '\n') keep.add(i);
+				else if (c === '*' && c2 === '/') (state = 'code'), i++;
+				break;
+			case 'squote':
+				if (c === '\\') i++;
+				else if (c === "'" || c === '\n') state = 'code';
+				break;
+			case 'dquote':
+				if (c === '\\') i++;
+				else if (c === '"' || c === '\n') state = 'code';
+				break;
+			case 'template':
+				if (c === '\\') i++;
+				else if (c === '\n') keep.add(i);
+				else if (c === '`') (state = 'code'), templateDepth.pop();
+				else if (c === '$' && c2 === '{') (state = 'code'), i++;
+				break;
+		}
+		i++;
+	}
+	const out = [];
+	let lineStart = 0;
+	for (let j = 0; j <= n; j++) {
+		if (j === n || src[j] === '\n') {
+			const line = src.slice(lineStart, j);
+			if (line.trim() !== '' || keep.has(j)) out.push(line);
+			lineStart = j + 1;
+		}
+	}
+	return out.join('\n');
 }
