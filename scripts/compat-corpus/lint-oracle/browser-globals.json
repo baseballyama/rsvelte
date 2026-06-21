@@ -1,0 +1,43 @@
+{
+  "_comment": "The oracle's declared lint-environment globals. eslint-plugin-svelte's flat/base config declares none, but several rules locate targets via eslint-utils ReferenceTracker, which only sees names that exist in the global scope — so without these the rules silently no-op and rsvelte's correct findings look like false positives (see docs/lint-corpus-harness-findings.md). run.mjs combines globals.builtin (ES intrinsics) with the two lists below. The full globals.browser set is intentionally NOT used: it contains common identifiers (name/event/length/status/top/open/find/…) that rsvelte's name-based no-top-level-browser-globals matcher cannot distinguish from local bindings without full ESLint scope resolution.",
+  "browserOnly_comment": "Curated browser-only globals checked by svelte/no-top-level-browser-globals. MUST stay equal to BROWSER_GLOBALS in crates/rsvelte_lint/src/rules/no_top_level_browser_globals.rs so both engines flag the identical, collision-free set.",
+  "browserOnly": [
+    "window",
+    "document",
+    "location",
+    "navigator",
+    "history",
+    "localStorage",
+    "sessionStorage",
+    "screen",
+    "frames",
+    "parent",
+    "top",
+    "self",
+    "alert",
+    "confirm",
+    "prompt",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "matchMedia",
+    "getComputedStyle",
+    "scrollTo",
+    "scrollBy",
+    "open",
+    "indexedDB"
+  ],
+  "envApis_comment": "Universal Web/Node APIs available in every realistic Svelte runtime. `console` makes no-immutable-reactive-statements treat `$: console.log(x)` as a resolved reference (matching real ESLint browser/node globals); the rest are tracked by ReferenceTracker rules (URL/URLSearchParams → prefer-svelte-reactivity; the timer family → infinite-reactive-loop). All non-collision-prone (not browser-only, so no-top-level-browser-globals is unaffected).",
+  "envApis": [
+    "console",
+    "URL",
+    "URLSearchParams",
+    "fetch",
+    "setTimeout",
+    "clearTimeout",
+    "setInterval",
+    "clearInterval",
+    "queueMicrotask",
+    "setImmediate",
+    "clearImmediate"
+  ]
+}

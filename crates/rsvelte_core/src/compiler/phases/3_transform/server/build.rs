@@ -1380,6 +1380,30 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 let inner_script =
                     transform_props_spread_ex(&script_code, extra_tabs, analysis_uses_slots);
+
+                // indent_str is needed both for the BUG-2 props_id hoisting below
+                // and for store_subs_decl / store_subs_cleanup further down.
+                let indent_str = "\t".repeat(wrapper_indent);
+
+                // BUG-2 fix: `const <name> = $.props_id($$renderer)` must be the
+                // FIRST statement inside the `$$renderer.component(...)` callback —
+                // before any other instance-script statements or function declarations.
+                // Upstream places it there via `component_block.body.unshift(...)` in
+                // transform-server.js after assembling the whole component block.
+                //
+                // Strategy: scan `inner_script` for the props_id line, extract and
+                // remove it, then prepend it explicitly at the top of the wrapper body.
+                // We detect it by the pattern `$.props_id($$renderer)` (the transformed
+                // form of `$props.id()`). The `let` keyword produced by transform_script
+                // is also upgraded to `const` to match the upstream output.
+                let (props_id_preamble, inner_script) = if let Some(props_id_name) =
+                    self.analysis.and_then(|a| a.props_id.as_deref())
+                {
+                    extract_props_id_line(&inner_script, props_id_name, &indent_str)
+                } else {
+                    (String::new(), inner_script)
+                };
+
                 let mut each_counter_w: usize = 0;
                 let hoisted_parts_wrapper = Self::hoist_svelte_head(&self.output_parts);
                 let hoisted_parts_wrapper = if !blocker_map.is_empty() {
@@ -1423,7 +1447,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 };
                 let instance_snippets = self.build_instance_snippets(wrapper_indent);
                 let bind_props_code = self.build_bind_props(wrapper_indent);
-                let indent_str = "\t".repeat(wrapper_indent);
+                // indent_str was already computed above (before the props_id hoisting).
 
                 let store_subs_decl = if self.uses_store_subs {
                     format!("{}var $$store_subs;\n", indent_str)
@@ -1501,9 +1525,10 @@ impl<'a> ServerCodeGenerator<'a> {
                     format!(
                         r#"$$renderer.component(
 		($$renderer) => {{
-{store_subs_decl}{inner_script}
+{props_id_preamble}{store_subs_decl}{inner_script}
 {instance_snippets}{inner_body}{store_subs_cleanup}{bind_props_code}		}}{component_second_arg}
 	);"#,
+                        props_id_preamble = props_id_preamble,
                         store_subs_decl = store_subs_decl,
                         inner_script = inner_script,
                         instance_snippets = instance_snippets,
@@ -1515,8 +1540,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 } else {
                     format!(
                         r#"$$renderer.component(($$renderer) => {{
-{store_subs_decl}{inner_script}
+{props_id_preamble}{store_subs_decl}{inner_script}
 {instance_snippets}{inner_body}{store_subs_cleanup}{bind_props_code}	}}{component_second_arg});"#,
+                        props_id_preamble = props_id_preamble,
                         store_subs_decl = store_subs_decl,
                         inner_script = inner_script,
                         instance_snippets = instance_snippets,
@@ -2055,6 +2081,8 @@ impl<'a> ServerCodeGenerator<'a> {
                                     all_blockers.insert(idx);
                                 }
                             }
+                            // Binding items only appear in ComponentWithBindings props_and_spreads.
+                            ComponentPropItem::Binding { .. } => {}
                         }
                     }
                     // Check attach/bind:this expressions for blockers
@@ -2160,6 +2188,8 @@ impl<'a> ServerCodeGenerator<'a> {
                                     all_blockers.insert(idx);
                                 }
                             }
+                            // Binding items carry getter/setter exprs already checked via bindings loop.
+                            ComponentPropItem::Binding { .. } => {}
                         }
                     }
                     for binding in bindings {
@@ -3635,7 +3665,12 @@ impl<'a> ServerCodeGenerator<'a> {
                             indent, name, call_syntax
                         );
 
-                        // Add interleaved props and spreads in order
+                        // Add interleaved props, spreads, and inline bindings in source order.
+                        //
+                        // Upstream (component.js): SequenceExpression bindings call
+                        // `push_prop(…, delay=false)` so they land at their source position.
+                        // We mirror this via `ComponentPropItem::Binding` items already
+                        // placed in-order inside `props_and_spreads`.
                         for item in props_and_spreads {
                             match item {
                                 ComponentPropItem::Props(props) => {
@@ -3649,39 +3684,82 @@ impl<'a> ServerCodeGenerator<'a> {
                                 ComponentPropItem::Spread(expr) => {
                                     let _ = writeln!(body_code, "{}\t{},", indent, expr);
                                 }
+                                ComponentPropItem::Binding {
+                                    prop_name,
+                                    getter_expr,
+                                    setter_expr,
+                                    is_seq,
+                                } => {
+                                    // Inline getter/setter object at source position.
+                                    // Mirrors upstream `push_prop(b.get(…))` + `push_prop(b.set(…))`
+                                    // with delay=false (SequenceExpression path).
+                                    let _ = writeln!(body_code, "{}\t{{", indent);
+                                    let _ =
+                                        writeln!(body_code, "{}\t\tget {}() {{", indent, prop_name);
+                                    let _ = writeln!(
+                                        body_code,
+                                        "{}\t\t\treturn {};",
+                                        indent, getter_expr
+                                    );
+                                    let _ = writeln!(body_code, "{}\t\t}},\n", indent);
+                                    let _ = writeln!(
+                                        body_code,
+                                        "{}\t\tset {}($$value) {{",
+                                        indent, prop_name
+                                    );
+                                    let _ = writeln!(body_code, "{}\t\t\t{};", indent, setter_expr);
+                                    if !is_seq {
+                                        let _ = writeln!(
+                                            body_code,
+                                            "{}\t\t\t$$settled = false;",
+                                            indent
+                                        );
+                                    }
+                                    let _ = writeln!(body_code, "{}\t\t}}", indent);
+                                    let _ = writeln!(body_code, "{}\t}},", indent);
+                                }
                             }
                         }
 
-                        // Add bindings as a final object
-                        let _ = writeln!(body_code, "{}\t{{", indent);
+                        // Append deferred (simple/non-SequenceExpression) bindings last.
+                        // Upstream: simple bindings use `push_prop(…, delay=true)` so they
+                        // are flushed after all spreads to avoid spreads overwriting them.
+                        let simple_bindings: Vec<&ComponentBinding> = bindings
+                            .iter()
+                            .filter(|b| matches!(b, ComponentBinding::Simple { .. }))
+                            .collect();
 
-                        let binding_count = bindings.len();
-                        for (idx, binding) in bindings.iter().enumerate() {
-                            let (prop_name, getter_expr, setter_expr) =
-                                resolve_binding_exprs(binding, store_subs);
-                            let is_seq =
-                                matches!(binding, ComponentBinding::SequenceExpression { .. });
-                            let _ = writeln!(body_code, "{}\t\tget {}() {{", indent, prop_name);
-                            let _ = writeln!(body_code, "{}\t\t\treturn {};", indent, getter_expr);
-                            let _ = writeln!(body_code, "{}\t\t}},\n", indent);
-                            let _ =
-                                writeln!(body_code, "{}\t\tset {}($$value) {{", indent, prop_name);
-                            let _ = writeln!(body_code, "{}\t\t\t{};", indent, setter_expr);
-                            if !is_seq {
-                                let _ = writeln!(body_code, "{}\t\t\t$$settled = false;", indent);
-                            }
-                            if idx < binding_count - 1 {
+                        if !simple_bindings.is_empty() {
+                            let _ = writeln!(body_code, "{}\t{{", indent);
+                            let simple_count = simple_bindings.len();
+                            for (idx, binding) in simple_bindings.iter().enumerate() {
+                                let (prop_name, getter_expr, setter_expr) =
+                                    resolve_binding_exprs(binding, store_subs);
+                                let _ = writeln!(body_code, "{}\t\tget {}() {{", indent, prop_name);
+                                let _ =
+                                    writeln!(body_code, "{}\t\t\treturn {};", indent, getter_expr);
                                 let _ = writeln!(body_code, "{}\t\t}},\n", indent);
-                            } else {
-                                let _ = writeln!(body_code, "{}\t\t}}", indent);
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}\t\tset {}($$value) {{",
+                                    indent, prop_name
+                                );
+                                let _ = writeln!(body_code, "{}\t\t\t{};", indent, setter_expr);
+                                let _ = writeln!(body_code, "{}\t\t\t$$settled = false;", indent);
+                                if idx < simple_count - 1 {
+                                    let _ = writeln!(body_code, "{}\t\t}},\n", indent);
+                                } else {
+                                    let _ = writeln!(body_code, "{}\t\t}}", indent);
+                                }
                             }
+                            let _ = writeln!(body_code, "{}\t}}", indent);
                         }
 
-                        let _ = writeln!(body_code, "{}\t}}", indent);
                         let _ = writeln!(body_code, "{}]));", indent);
                     } else {
-                        // No spreads, use simple object literal
-                        let all_props = collect_all_props(props_and_spreads);
+                        // No spreads, use simple object literal.
+                        // Props and inline (SequenceExpression) bindings are emitted in source
+                        // order from `props_and_spreads`; simple bindings are appended after.
 
                         // Separate snippets into true snippets (hoisted functions) and slot children
                         #[allow(clippy::type_complexity)]
@@ -3695,6 +3773,12 @@ impl<'a> ServerCodeGenerator<'a> {
                         let has_true_snippets = !true_snippets.is_empty();
                         let has_children = children.is_some();
                         let has_any_slots = !slot_names.is_empty() || has_children;
+
+                        // Simple bindings (delay=true in upstream) are appended at the end.
+                        let simple_bindings_no_spread: Vec<&ComponentBinding> = bindings
+                            .iter()
+                            .filter(|b| matches!(b, ComponentBinding::Simple { .. }))
+                            .collect();
 
                         // Extra indent for true snippets (wrapped in block)
                         let inner_indent = if has_true_snippets {
@@ -3736,18 +3820,61 @@ impl<'a> ServerCodeGenerator<'a> {
                             inner_indent, name, call_syntax
                         );
 
-                        // Regular props first
-                        for prop in &all_props {
-                            let _ = writeln!(body_code, "{}\t{},", inner_indent, prop);
+                        // Emit props and inline bindings in source order.
+                        for item in props_and_spreads.iter() {
+                            match item {
+                                ComponentPropItem::Props(props) => {
+                                    for prop in props {
+                                        let _ = writeln!(body_code, "{}\t{},", inner_indent, prop);
+                                    }
+                                }
+                                ComponentPropItem::Spread(_) => {
+                                    // Spreads don't appear here (has_spreads was false).
+                                }
+                                ComponentPropItem::Binding {
+                                    prop_name,
+                                    getter_expr,
+                                    setter_expr,
+                                    is_seq,
+                                } => {
+                                    // Inline getter/setter at source position.
+                                    let _ = writeln!(
+                                        body_code,
+                                        "{}\tget {}() {{",
+                                        inner_indent, prop_name
+                                    );
+                                    let _ = writeln!(
+                                        body_code,
+                                        "{}\t\treturn {};",
+                                        inner_indent, getter_expr
+                                    );
+                                    let _ = writeln!(body_code, "{}\t}},\n", inner_indent);
+                                    let _ = writeln!(
+                                        body_code,
+                                        "{}\tset {}($$value) {{",
+                                        inner_indent, prop_name
+                                    );
+                                    let _ =
+                                        writeln!(body_code, "{}\t\t{};", inner_indent, setter_expr);
+                                    if !is_seq {
+                                        let _ = writeln!(
+                                            body_code,
+                                            "{}\t\t$$settled = false;",
+                                            inner_indent
+                                        );
+                                    }
+                                    // Always add trailing comma; the closing `}}` is
+                                    // handled by subsequent entries or final `}`.
+                                    let _ = writeln!(body_code, "{}\t}},\n", inner_indent);
+                                }
+                            }
                         }
 
-                        // Generate getter/setter for each binding
-                        let binding_count = bindings.len();
-                        for (idx, binding) in bindings.iter().enumerate() {
+                        // Append deferred simple bindings (delay=true upstream) at the end.
+                        let simple_count = simple_bindings_no_spread.len();
+                        for (idx, binding) in simple_bindings_no_spread.iter().enumerate() {
                             let (prop_name, getter_expr, setter_expr) =
                                 resolve_binding_exprs(binding, store_subs);
-                            let is_seq =
-                                matches!(binding, ComponentBinding::SequenceExpression { .. });
                             let _ = writeln!(body_code, "{}\tget {}() {{", inner_indent, prop_name);
                             let _ =
                                 writeln!(body_code, "{}\t\treturn {};", inner_indent, getter_expr);
@@ -3758,11 +3885,8 @@ impl<'a> ServerCodeGenerator<'a> {
                                 inner_indent, prop_name
                             );
                             let _ = writeln!(body_code, "{}\t\t{};", inner_indent, setter_expr);
-                            if !is_seq {
-                                let _ =
-                                    writeln!(body_code, "{}\t\t$$settled = false;", inner_indent);
-                            }
-                            if idx < binding_count - 1
+                            let _ = writeln!(body_code, "{}\t\t$$settled = false;", inner_indent);
+                            if idx < simple_count - 1
                                 || has_children
                                 || has_true_snippets
                                 || has_any_slots
@@ -4065,6 +4189,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                         ComponentPropItem::Spread(expr) => {
                                             let _ = writeln!(body_code, "{}\t\t{},", indent, expr);
                                         }
+                                        ComponentPropItem::Binding { .. } => {}
                                     }
                                 }
                                 let mut final_entries = props_after_spread.clone();
@@ -4211,6 +4336,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                         ComponentPropItem::Spread(expr) => {
                                             let _ = writeln!(body_code, "{}\t{},", indent, expr);
                                         }
+                                        ComponentPropItem::Binding { .. } => {}
                                     }
                                 }
 
@@ -4541,11 +4667,12 @@ impl<'a> ServerCodeGenerator<'a> {
                         // Has spread attributes - use $.spread_props with interleaved items
                         let spread_items: Vec<String> = props_and_spreads
                             .iter()
-                            .map(|item| match item {
+                            .filter_map(|item| match item {
                                 ComponentPropItem::Props(props) => {
-                                    format!("{{ {} }}", props.join(", "))
+                                    Some(format!("{{ {} }}", props.join(", ")))
                                 }
-                                ComponentPropItem::Spread(expr) => expr.clone(),
+                                ComponentPropItem::Spread(expr) => Some(expr.clone()),
+                                ComponentPropItem::Binding { .. } => None,
                             })
                             .collect();
 
@@ -4799,6 +4926,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             ComponentPropItem::Spread(expr) => {
                                 super::helpers::expr_contains_await(expr)
                             }
+                            ComponentPropItem::Binding { .. } => false,
                         });
                         has_await_in_props && !*in_async_block
                     };
@@ -7064,6 +7192,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             ComponentPropItem::Spread(expr) => {
                                 let _ = writeln!(call_code, "\t\t{},", expr);
                             }
+                            ComponentPropItem::Binding { .. } => {}
                         }
                     }
                     if !last_is_props {
@@ -7141,6 +7270,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             ComponentPropItem::Spread(expr) => {
                                 let _ = writeln!(code, "\t{},", expr);
                             }
+                            ComponentPropItem::Binding { .. } => {}
                         }
                     }
                     code.push_str("\t{\n");
@@ -7185,6 +7315,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             ComponentPropItem::Spread(expr) => {
                                 let _ = writeln!(code, "\t{},", expr);
                             }
+                            ComponentPropItem::Binding { .. } => {}
                         }
                     }
                     code.push_str("\t{\n");
@@ -7425,11 +7556,10 @@ impl<'a> ServerCodeGenerator<'a> {
         } else if component_has_spreads {
             let spread_items: Vec<String> = props_and_spreads
                 .iter()
-                .map(|item| match item {
-                    ComponentPropItem::Props(props) => {
-                        format!("{{ {} }}", props.join(", "))
-                    }
-                    ComponentPropItem::Spread(expr) => expr.clone(),
+                .filter_map(|item| match item {
+                    ComponentPropItem::Props(props) => Some(format!("{{ {} }}", props.join(", "))),
+                    ComponentPropItem::Spread(expr) => Some(expr.clone()),
+                    ComponentPropItem::Binding { .. } => None,
                 })
                 .collect();
             let has_await_spread = spread_items
@@ -7645,6 +7775,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     props.iter().any(|p| super::helpers::expr_contains_await(p))
                 }
                 ComponentPropItem::Spread(expr) => super::helpers::expr_contains_await(expr),
+                ComponentPropItem::Binding { .. } => false,
             });
             has_await_in_props && !in_async_block
         };
@@ -7757,11 +7888,18 @@ impl<'a> ServerCodeGenerator<'a> {
                 "{}{}{}($$renderer, $.spread_props([",
                 inner_indent, name, call_syntax
             );
-            // Upstream `push_prop` appends the bind getter/setter pairs into the
-            // LAST props group when it is a plain props object, so a trailing
-            // `data-x=""` attribute shares one object with the bindings. Mirror
-            // that by folding the last props group into the bindings object below
-            // (otherwise rsvelte emits a spurious separate `{ "data-x": "" }`).
+
+            // Emit props, spreads, and inline (SequenceExpression) bindings in SOURCE ORDER.
+            //
+            // Upstream (component.js lines 121-131): SequenceExpression bindings use
+            // `push_prop(…, delay=false)` → inserted at their source position.
+            // Simple bindings use `push_prop(…, delay=true)` → deferred to the end.
+            // We mirror this via `ComponentPropItem::Binding` items (delay=false) already
+            // placed in source order in `props_and_spreads`, and `ComponentPropItem::Spread`
+            // / `ComponentPropItem::Props` items for regular props/spreads.
+            //
+            // Upstream also folds the LAST consecutive Props group into the trailing bindings
+            // object when the last item is a plain Props group (not Binding/Spread).
             let last_is_props =
                 matches!(props_and_spreads.last(), Some(ComponentPropItem::Props(_)));
             let last_idx = props_and_spreads.len().saturating_sub(1);
@@ -7770,6 +7908,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 match item {
                     ComponentPropItem::Props(props) => {
                         if last_is_props && i == last_idx {
+                            // Defer: merge into the trailing simple-bindings/extras object.
                             merged_last_props = props.clone();
                         } else {
                             let _ = writeln!(code, "{}\t{{ {} }},", inner_indent, props.join(", "));
@@ -7778,35 +7917,62 @@ impl<'a> ServerCodeGenerator<'a> {
                     ComponentPropItem::Spread(expr) => {
                         let _ = writeln!(code, "{}\t{},", inner_indent, expr);
                     }
+                    ComponentPropItem::Binding {
+                        prop_name,
+                        getter_expr,
+                        setter_expr,
+                        is_seq,
+                    } => {
+                        // Inline getter/setter object at its source position (delay=false).
+                        let _ = writeln!(code, "{}\t{{", inner_indent);
+                        let _ = writeln!(code, "{}\t\tget {}() {{", inner_indent, prop_name);
+                        let _ = writeln!(code, "{}\t\t\treturn {};", inner_indent, getter_expr);
+                        let _ = writeln!(code, "{}\t\t}},\n", inner_indent);
+                        let _ = writeln!(code, "{}\t\tset {}($$value) {{", inner_indent, prop_name);
+                        let _ = writeln!(code, "{}\t\t\t{};", inner_indent, setter_expr);
+                        if !is_seq {
+                            let _ = writeln!(code, "{}\t\t\t$$settled = false;", inner_indent);
+                        }
+                        let _ = writeln!(code, "{}\t\t}}", inner_indent);
+                        let _ = writeln!(code, "{}\t}},", inner_indent);
+                    }
                 }
             }
-            let _ = writeln!(code, "{}\t{{", inner_indent);
-            for p in &merged_last_props {
-                let _ = writeln!(code, "{}\t\t{},", inner_indent, p);
-            }
 
-            let binding_count = bindings.len();
+            // Append deferred simple bindings (delay=true upstream) + extras in a trailing object.
+            let simple_bindings_cwb: Vec<&ComponentBinding> = bindings
+                .iter()
+                .filter(|b| matches!(b, ComponentBinding::Simple { .. }))
+                .collect();
+            let simple_count = simple_bindings_cwb.len();
+
             let has_extras = has_true_snippets
                 || has_children
                 || !slot_names.is_empty()
                 || has_slot_children_binding;
-            for (idx, binding) in bindings.iter().enumerate() {
-                let (prop_name, getter_expr, setter_expr) =
-                    resolve_binding_exprs(binding, store_subs);
-                let is_seq = matches!(binding, ComponentBinding::SequenceExpression { .. });
-                let _ = writeln!(code, "{}\t\tget {}() {{", inner_indent, prop_name);
-                let _ = writeln!(code, "{}\t\t\treturn {};", inner_indent, getter_expr);
-                let _ = writeln!(code, "{}\t\t}},\n", inner_indent);
-                let _ = writeln!(code, "{}\t\tset {}($$value) {{", inner_indent, prop_name);
-                let _ = writeln!(code, "{}\t\t\t{};", inner_indent, setter_expr);
-                if !is_seq {
-                    let _ = writeln!(code, "{}\t\t\t$$settled = false;", inner_indent);
+            let needs_trailing_obj =
+                !merged_last_props.is_empty() || !simple_bindings_cwb.is_empty() || has_extras;
+
+            if needs_trailing_obj {
+                let _ = writeln!(code, "{}\t{{", inner_indent);
+                for p in &merged_last_props {
+                    let _ = writeln!(code, "{}\t\t{},", inner_indent, p);
                 }
-                let is_last_binding = idx == binding_count - 1;
-                if is_last_binding && !has_extras {
-                    let _ = writeln!(code, "{}\t\t}}", inner_indent);
-                } else {
+                for (idx, binding) in simple_bindings_cwb.iter().enumerate() {
+                    let (prop_name, getter_expr, setter_expr) =
+                        resolve_binding_exprs(binding, store_subs);
+                    let _ = writeln!(code, "{}\t\tget {}() {{", inner_indent, prop_name);
+                    let _ = writeln!(code, "{}\t\t\treturn {};", inner_indent, getter_expr);
                     let _ = writeln!(code, "{}\t\t}},\n", inner_indent);
+                    let _ = writeln!(code, "{}\t\tset {}($$value) {{", inner_indent, prop_name);
+                    let _ = writeln!(code, "{}\t\t\t{};", inner_indent, setter_expr);
+                    let _ = writeln!(code, "{}\t\t\t$$settled = false;", inner_indent);
+                    let is_last_simple = idx == simple_count - 1;
+                    if is_last_simple && !has_extras {
+                        let _ = writeln!(code, "{}\t\t}}", inner_indent);
+                    } else {
+                        let _ = writeln!(code, "{}\t\t}},\n", inner_indent);
+                    }
                 }
             }
 
@@ -7896,7 +8062,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 let _ = writeln!(code, "{}\t\t}}", inner_indent);
             }
 
-            let _ = writeln!(code, "{}\t}}", inner_indent);
+            // Close the trailing object if one was opened.
+            if needs_trailing_obj {
+                let _ = writeln!(code, "{}\t}}", inner_indent);
+            }
             let _ = writeln!(code, "{}]));", inner_indent);
             if has_true_snippets {
                 if dynamic {
@@ -8314,4 +8483,97 @@ fn strip_async_placeholders(s: &str) -> String {
         }
     }
     result
+}
+
+/// Extract the `$.props_id($$renderer)` declaration line from `inner_script`,
+/// remove it in-place, and return `(props_id_line, modified_inner_script)`.
+///
+/// Upstream's server transform places this const as the FIRST statement inside
+/// the `$$renderer.component(...)` callback via `component_block.body.unshift(...)`.
+/// rsvelte emits it in source order via `transform_props_spread_ex`, so we need
+/// to extract it and re-inject it at the top.
+///
+/// The function searches for any line containing `$.props_id($$renderer)` (the
+/// form produced by `transform_script`), strips it from `inner_script`, upgrades
+/// the keyword from `let` to `const` if needed, and returns the line with the
+/// correct `indent_str` prefix and a trailing newline so the caller can prepend
+/// it directly to the wrapper body.
+///
+/// Returns `(String::new(), inner_script)` unchanged when no such line is found.
+fn extract_props_id_line(
+    inner_script: &str,
+    _props_id_name: &str,
+    indent_str: &str,
+) -> (String, String) {
+    // Search for the pattern; the line has been produced by transform_props_spread_ex
+    // so it carries `extra_tabs` leading tabs.  We strip leading whitespace before
+    // comparing so we are not sensitive to the exact indentation level.
+    let marker = "$.props_id($$renderer)";
+    let mut preamble = String::new();
+    let mut remaining = String::with_capacity(inner_script.len());
+    let mut found = false;
+    for line in inner_script.lines() {
+        let trimmed = line.trim();
+        if !found && memmem::find(trimmed.as_bytes(), marker.as_bytes()).is_some() {
+            // Upgrade `let <name> = $.props_id(...)` → `const <name> = ...`
+            let normalized = if let Some(rest) = trimmed.strip_prefix("let ") {
+                format!("const {}", rest)
+            } else {
+                trimmed.to_string()
+            };
+            preamble = format!("{}{}\n", indent_str, normalized);
+            found = true;
+        } else {
+            if !remaining.is_empty() {
+                remaining.push('\n');
+            }
+            remaining.push_str(line);
+        }
+    }
+    // Preserve a trailing newline if the original had one
+    if inner_script.ends_with('\n') && !remaining.ends_with('\n') && !remaining.is_empty() {
+        remaining.push('\n');
+    }
+    (preamble, remaining)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Test that normalize_script_with_oxc does NOT add indentation
+    /// to lines inside a template literal.
+    ///
+    /// Regression test for: template-literal interior lines getting
+    /// extra tabs prepended by the post-esrap indentation loop.
+    #[test]
+    fn test_normalize_script_template_literal_interior_not_reindented() {
+        // Simulate a script block that has a multi-line template literal
+        // whose interior spans multiple lines.
+        // Input has 1-tab indentation for the return statement (as produced
+        // by the transforms), and the template interior has 2-space source indentation.
+        let input = "let generatedCode = $.derived(() => (() => {\n\tlet props = [];\n\treturn `<Blockquote${propsString}>\n  ${text}\n</Blockquote>`;\n})())";
+
+        let result = normalize_script_with_oxc(input, 1);
+
+        // Interior lines of the template literal must NOT have extra tabs added.
+        // The line `  ${text}` should remain exactly as the source had it.
+        assert!(
+            !result.contains("\t  ${text}") && !result.contains("\t${text}"),
+            "Template literal interior line got extra indentation.\nInput:\n{}\nOutput:\n{}",
+            input,
+            result
+        );
+        assert!(
+            !result.contains("\t</Blockquote>"),
+            "Template literal closing line got extra indentation.\nOutput:\n{}",
+            result
+        );
+        // The template interior must be verbatim
+        assert!(
+            result.contains("  ${text}"),
+            "Template literal interior line missing or corrupted.\nOutput:\n{}",
+            result
+        );
+    }
 }

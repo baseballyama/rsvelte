@@ -27,6 +27,13 @@
 	path = submodules/svelte-eslint-parser
 	url = https://github.com/sveltejs/svelte-eslint-parser
 	ignore = dirty
+# esrap printer — vendored upstream (sveltejs/esrap), pinned to v2.2.11. Its test
+# suite is ported to crates/rsvelte_esrap; excluded from the auto-update rotation.
+[submodule "submodules/esrap"]
+	path = submodules/esrap
+	url = https://github.com/sveltejs/esrap.git
+	ignore = dirty
+	shallow = true
 # Real-world ecosystem projects folded into the compat corpus (scripts/compat-corpus).
 # Their shipped .svelte / .svelte.(js|ts) sources are compiled by both the official
 # compiler and rsvelte and required to match — the same three tracks as svelte/svelte.dev.

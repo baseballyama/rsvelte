@@ -14,6 +14,6 @@ pub mod phase2_analyze;
 pub mod phase3_transform;
 
 // Re-exports for convenience
-pub use phase1_parse::{parse, parse_module_to_estree};
+pub use phase1_parse::{parse, parse_module_to_estree, ts_snippet_is_valid};
 pub use phase2_analyze::{ComponentAnalysis, analyze_component};
 pub use phase3_transform::{TransformResult, transform_component};

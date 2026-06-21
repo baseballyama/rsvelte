@@ -19,6 +19,38 @@ use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
 use crate::script::{ScriptKind, ScriptRule, node_start, node_type, walk_js};
 
+/// Collect the local namespace alias for `import * as X from module` into `out`.
+fn import_ns_locals(program: &Value, module: &str, out: &mut HashSet<String>) {
+    walk_js(program, |node, _| {
+        if node_type(node) != Some("ImportDeclaration") {
+            return;
+        }
+        if node
+            .get("source")
+            .and_then(|s| s.get("value"))
+            .and_then(Value::as_str)
+            != Some(module)
+        {
+            return;
+        }
+        let Some(specs) = node.get("specifiers").and_then(Value::as_array) else {
+            return;
+        };
+        for spec in specs {
+            if node_type(spec) != Some("ImportNamespaceSpecifier") {
+                continue;
+            }
+            if let Some(local) = spec
+                .get("local")
+                .and_then(|l| l.get("name"))
+                .and_then(Value::as_str)
+            {
+                out.insert(local.to_string());
+            }
+        }
+    });
+}
+
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-goto-without-base",
     category: RuleCategory::Style,
@@ -153,7 +185,9 @@ impl ScriptRule for NoGotoWithoutBase {
     fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
         let mut goto_names: HashSet<String> = HashSet::new();
         import_locals(program, "$app/navigation", "goto", &mut goto_names);
-        if goto_names.is_empty() {
+        let mut nav_ns: HashSet<String> = HashSet::new();
+        import_ns_locals(program, "$app/navigation", &mut nav_ns);
+        if goto_names.is_empty() && nav_ns.is_empty() {
             return;
         }
         let mut base_names: HashSet<String> = HashSet::new();
@@ -164,12 +198,34 @@ impl ScriptRule for NoGotoWithoutBase {
             if node_type(node) != Some("CallExpression") {
                 return;
             }
-            let is_goto = node
-                .get("callee")
-                .filter(|c| node_type(c) == Some("Identifier"))
-                .and_then(|c| c.get("name"))
-                .and_then(Value::as_str)
-                .is_some_and(|n| goto_names.contains(n));
+            // Check: named import `goto(...)` or namespace `nav.goto(...)`.
+            let callee = match node.get("callee") {
+                Some(c) => c,
+                None => return,
+            };
+            let is_goto = match node_type(callee) {
+                Some("Identifier") => callee
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .is_some_and(|n| goto_names.contains(n)),
+                Some("MemberExpression")
+                    if callee.get("computed").and_then(Value::as_bool) != Some(true) =>
+                {
+                    let obj_is_nav = callee
+                        .get("object")
+                        .filter(|o| node_type(o) == Some("Identifier"))
+                        .and_then(|o| o.get("name"))
+                        .and_then(Value::as_str)
+                        .is_some_and(|n| nav_ns.contains(n));
+                    let prop_is_goto = callee
+                        .get("property")
+                        .and_then(|p| p.get("name"))
+                        .and_then(Value::as_str)
+                        == Some("goto");
+                    obj_is_nav && prop_is_goto
+                }
+                _ => false,
+            };
             if !is_goto {
                 return;
             }

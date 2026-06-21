@@ -62,7 +62,11 @@ impl Suppressions {
                 }
             }
             if let Some(rest) = find_after(line, "svelte-ignore") {
-                s.add_line(lineno + 1, rest);
+                // Unlike `eslint-disable`, an empty `<!-- svelte-ignore -->`
+                // (no codes) suppresses NOTHING — Svelte's svelte-ignore needs
+                // explicit codes, and the eslint oracle never lets it disable
+                // `svelte/*` rules. Only add codes when the list is non-empty.
+                s.add_line_no_wildcard(lineno + 1, rest);
             }
         }
 
@@ -81,6 +85,20 @@ impl Suppressions {
         let entry = self.by_line.entry(line).or_default();
         for id in parse_ids(rest) {
             entry.insert(id);
+        }
+    }
+
+    /// Like [`add_line`] but the `*` wildcard is never honoured. Used for
+    /// `svelte-ignore`, which (unlike `eslint-disable`) must NOT suppress every
+    /// rule: a bare `<!-- svelte-ignore -->` (empty → `parse_ids` yields `["*"]`)
+    /// suppresses nothing, and a stray `*` token alongside real codes
+    /// (`<!-- svelte-ignore * foo -->`) is dropped while `foo` is kept.
+    fn add_line_no_wildcard(&mut self, line: u32, rest: &str) {
+        let entry = self.by_line.entry(line).or_default();
+        for id in parse_ids(rest) {
+            if id != ALL {
+                entry.insert(id);
+            }
         }
     }
 
@@ -174,6 +192,31 @@ mod tests {
         let s = Suppressions::collect("<!-- eslint-disable -->\n{@html x}\nmore");
         assert!(s.is_suppressed("svelte/no-at-html-tags", 2));
         assert!(s.is_suppressed("anything", 3));
+    }
+
+    #[test]
+    fn empty_svelte_ignore_suppresses_nothing() {
+        // Unlike `eslint-disable`, a bare `<!-- svelte-ignore -->` (no codes)
+        // must NOT wildcard-suppress the next line.
+        let s =
+            Suppressions::collect("<!-- svelte-ignore -->\n<img src=\"x\" alt=\"y\" autofocus />");
+        assert!(!s.is_suppressed("svelte/sort-attributes", 2));
+        assert!(!s.is_suppressed("anything", 2));
+    }
+
+    #[test]
+    fn svelte_ignore_drops_stray_wildcard_but_keeps_codes() {
+        // A stray `*` alongside real codes is ignored; the named code still works.
+        let s = Suppressions::collect("<!-- svelte-ignore * a11y_foo -->\n<img />");
+        assert!(s.is_suppressed("a11y_foo", 2));
+        assert!(!s.is_suppressed("svelte/sort-attributes", 2)); // `*` not honoured
+    }
+
+    #[test]
+    fn named_svelte_ignore_only_suppresses_that_code() {
+        let s = Suppressions::collect("<!-- svelte-ignore a11y_foo -->\n<img />");
+        assert!(s.is_suppressed("a11y_foo", 2));
+        assert!(!s.is_suppressed("a11y_bar", 2));
     }
 
     #[test]

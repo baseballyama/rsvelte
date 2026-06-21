@@ -24,6 +24,9 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::scss_selector::{
+    ScssSelector, SelectorKind, extract_selectors, is_plain_css_lang, scss_lang,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/consistent-selector-style",
@@ -866,30 +869,139 @@ fn check_type_selector(
 }
 
 // ---------------------------------------------------------------------------
-// CSS lang check (skip for non-plain CSS)
+// SCSS best-effort check
 // ---------------------------------------------------------------------------
 
-fn has_unknown_lang(css: &StyleSheet) -> bool {
-    for attr in &css.attributes {
-        if attr.get("name").and_then(Value::as_str) == Some("lang") {
-            let val = attr.get("value");
-            if val.and_then(Value::as_bool).unwrap_or(false) {
-                return false;
+/// Check SCSS/Less/PostCSS selectors against the template selections.
+///
+/// `content_start` is the absolute byte offset of `css.content.styles` in the
+/// full source file. The `ScssSelector.offset` values are relative to the
+/// content text, so `content_start + sel.offset` gives the absolute offset.
+fn check_stylesheet_scss(
+    selectors: &[ScssSelector],
+    content_start: u32,
+    sel: &TemplateSelections,
+    style: &[&str],
+    ctx: &mut LintContext,
+) {
+    for s in selectors {
+        let abs_start = content_start + s.offset;
+        let abs_end = content_start + s.end;
+        match s.kind {
+            SelectorKind::Class => {
+                check_class_selector_scss(&s.name, abs_start, abs_end, sel, style, ctx);
             }
-            if let Some(seq) = val.and_then(Value::as_array) {
-                for part in seq {
-                    if part.get("type").and_then(Value::as_str) == Some("Text")
-                        && let Some(data) = part.get("data").and_then(Value::as_str)
-                    {
-                        let lang = data.to_lowercase();
-                        return !matches!(lang.as_str(), "" | "css");
-                    }
-                }
+            SelectorKind::Id => {
+                check_id_selector_scss(&s.name, abs_start, abs_end, sel, style, ctx);
             }
-            return true;
+            SelectorKind::Type => {
+                check_type_selector_scss(&s.name, abs_start, abs_end, sel, style, ctx);
+            }
         }
     }
-    false
+}
+
+fn check_class_selector_scss(
+    name: &str,
+    start: u32,
+    end: u32,
+    sel: &TemplateSelections,
+    style: &[&str],
+    ctx: &mut LintContext,
+) {
+    if sel.class.universal_selector {
+        return;
+    }
+    if sel.whitelisted_classes.iter().any(|w| w == name) {
+        return;
+    }
+
+    let selection = sel.class.match_key(name);
+    for style_val in style {
+        match *style_val {
+            "class" => return,
+            "id" if can_use_id_selector(&selection, sel) => {
+                ctx.report(start, end, "Selector should select by ID instead of class");
+                return;
+            }
+            "type" if can_use_type_selector(&selection, &sel.type_map, &sel.occ) => {
+                ctx.report(
+                    start,
+                    end,
+                    "Selector should select by element type instead of class",
+                );
+                return;
+            }
+            _ => {}
+        }
+    }
+}
+
+fn check_id_selector_scss(
+    name: &str,
+    start: u32,
+    end: u32,
+    sel: &TemplateSelections,
+    style: &[&str],
+    ctx: &mut LintContext,
+) {
+    if sel.id.universal_selector {
+        return;
+    }
+    let selection = sel.id.match_key(name);
+    for style_val in style {
+        match *style_val {
+            "class" => {
+                ctx.report(start, end, "Selector should select by class instead of ID");
+                return;
+            }
+            "id" => return,
+            "type" if can_use_type_selector(&selection, &sel.type_map, &sel.occ) => {
+                ctx.report(
+                    start,
+                    end,
+                    "Selector should select by element type instead of ID",
+                );
+                return;
+            }
+            _ => {}
+        }
+    }
+}
+
+fn check_type_selector_scss(
+    name: &str,
+    start: u32,
+    end: u32,
+    sel: &TemplateSelections,
+    style: &[&str],
+    ctx: &mut LintContext,
+) {
+    let selection: Vec<ElemId> = sel.type_map.get(name).cloned().unwrap_or_default();
+    let selection_with_exact: Vec<(ElemId, bool)> = selection.iter().map(|&e| (e, true)).collect();
+
+    for style_val in style {
+        match *style_val {
+            "class" => {
+                ctx.report(
+                    start,
+                    end,
+                    "Selector should select by class instead of element type",
+                );
+                return;
+            }
+            "id" if can_use_id_selector(&selection_with_exact, sel) => {
+                ctx.report(
+                    start,
+                    end,
+                    "Selector should select by ID instead of element type",
+                );
+                return;
+            }
+            "type" => return,
+            _ => {}
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -927,14 +1039,26 @@ impl Rule for ConsistentSelectorStyle {
             Some(c) => c,
             None => return,
         };
-        if has_unknown_lang(css) {
-            return;
-        }
 
         // Collect template selections.
         let sel = collect_selections(root);
 
-        // Check CSS selectors.
-        check_stylesheet(css, &sel, &style, check_global, ctx);
+        if let Some(_lang) = scss_lang(&css.attributes) {
+            // Best-effort SCSS/PostCSS: extract selectors from raw text.
+            // checkGlobal is not applicable to SCSS (no :global pseudo-class parsing).
+            let _ = check_global; // intentionally unused for SCSS path
+            let raw = &css.content.styles;
+            // The oracle's postcss-scss parse fails (reporting nothing) on
+            // malformed SCSS — mirror that so we don't over-report.
+            if !crate::rules::scss_selector::scss_is_parseable(raw) {
+                return;
+            }
+            let extracted = extract_selectors(raw);
+            check_stylesheet_scss(&extracted, css.content.start, &sel, &style, ctx);
+        } else if is_plain_css_lang(&css.attributes) {
+            // Plain CSS: use the parsed StyleSheet AST.
+            check_stylesheet(css, &sel, &style, check_global, ctx);
+        }
+        // else: unknown lang (less, etc.) — skip entirely, matching oracle behavior.
     }
 }

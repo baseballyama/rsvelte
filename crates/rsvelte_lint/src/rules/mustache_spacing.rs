@@ -20,8 +20,8 @@
 //! Upstream: `meta.fixable = 'code'`, `type: 'layout'`.
 
 use rsvelte_core::ast::template::{
-    Attribute, AttributeValue, AttributeValuePart, AwaitBlock, ConstTag, DebugTag, DeclarationTag,
-    EachBlock, ExpressionTag, HtmlTag, IfBlock, KeyBlock, RenderTag, SnippetBlock, TemplateNode,
+    Attribute, AttributeValue, AttributeValuePart, AwaitBlock, DebugTag, DeclarationTag, EachBlock,
+    ExpressionTag, HtmlTag, IfBlock, KeyBlock, RenderTag, SnippetBlock, TemplateNode,
 };
 
 use crate::context::LintContext;
@@ -162,6 +162,12 @@ impl MustacheSpacing {
         close_opt: CloseOpt,
         has_expression: bool,
     ) {
+        // Skip checks for mustaches inside pug templates — the oracle's
+        // svelte-eslint-parser does not parse pug template content as Svelte
+        // mustaches, so there are no oracle findings for those positions.
+        if is_inside_pug_template(ctx.source(), open_brace) {
+            return;
+        }
         let src = ctx.source().as_bytes();
         let after_open = open_brace + 1;
         // Stop the inner scan at the closing brace (or EOF) so we don't run past
@@ -287,10 +293,6 @@ impl Rule for MustacheSpacing {
     }
 
     fn check_debug_tag(&self, ctx: &mut LintContext, tag: &DebugTag) {
-        self.verify_tag_node(ctx, tag.start, tag.end);
-    }
-
-    fn check_const_tag(&self, ctx: &mut LintContext, tag: &ConstTag) {
         self.verify_tag_node(ctx, tag.start, tag.end);
     }
 
@@ -427,22 +429,10 @@ impl Rule for MustacheSpacing {
                 true,
             );
         }
-        if block.elseif {
-            return;
-        }
-        // Closing tag `{/if}`.
-        let close = block.end - 1;
-        if let Some(open_b) = prev_open_brace(src, block.start, close) {
-            self.verify_braces(
-                ctx,
-                open_b,
-                Some(close),
-                opts.tags_opening,
-                opts.tags_closing,
-                false,
-            );
-        }
-        // Plain `{:else}` (not `{:else if}`).
+        // Plain `{:else}` (not `{:else if}`) — check for every IfBlock
+        // (including elseif blocks) whose alternate is a plain else, not another
+        // elseif. The upstream ESLint rule uses a separate `SvelteElseBlock`
+        // visitor that fires for each else block regardless of nesting depth.
         if let Some(alt) = &block.alternate {
             let is_elseif = alt
                 .nodes
@@ -458,6 +448,21 @@ impl Rule for MustacheSpacing {
                     false,
                 );
             }
+        }
+        if block.elseif {
+            return;
+        }
+        // Closing tag `{/if}`.
+        let close = block.end - 1;
+        if let Some(open_b) = prev_open_brace(src, block.start, close) {
+            self.verify_braces(
+                ctx,
+                open_b,
+                Some(close),
+                opts.tags_opening,
+                opts.tags_closing,
+                false,
+            );
         }
     }
 
@@ -752,6 +757,51 @@ fn find_branch_tag(src: &[u8], start: u32, end: u32, keyword: &[u8]) -> u32 {
         i += 1;
     }
     u32::MAX
+}
+
+/// Return `true` when `offset` falls within a `<template lang="pug">` (or
+/// `lang='pug'`) element in `src`. Used to suppress false positives on pug
+/// template content, which the oracle's svelte-eslint-parser does not parse as
+/// Svelte mustaches.
+fn is_inside_pug_template(src: &str, offset: u32) -> bool {
+    let bytes = src.as_bytes();
+    let src_len = bytes.len();
+    let offset = offset as usize;
+
+    // Find all `<template` openers and check if any pug template wraps `offset`.
+    let mut i = 0;
+    while i + 9 < src_len {
+        if &bytes[i..i + 9] != b"<template" {
+            i += 1;
+            continue;
+        }
+        // Find the end of the opening tag (`>`).
+        let tag_start = i;
+        let mut j = i + 9;
+        while j < src_len && bytes[j] != b'>' {
+            j += 1;
+        }
+        let tag_open_end = j; // position of `>`
+        // Check if the opening tag contains lang="pug" or lang='pug'.
+        let attrs = std::str::from_utf8(&bytes[i + 9..tag_open_end]).unwrap_or("");
+        let is_pug = attrs.contains("lang=\"pug\"") || attrs.contains("lang='pug'");
+        if !is_pug {
+            i = tag_open_end + 1;
+            continue;
+        }
+        // Find the matching `</template>`.
+        let content_start = tag_open_end + 1;
+        if let Some(close_pos) = src[content_start..].find("</template>") {
+            let template_end = content_start + close_pos + "</template>".len();
+            if offset >= tag_start && offset < template_end {
+                return true;
+            }
+            i = template_end;
+        } else {
+            break;
+        }
+    }
+    false
 }
 
 /// Find the plain `{:else}` (NOT `{:else if}`) tag in `[start, end)`. Returns

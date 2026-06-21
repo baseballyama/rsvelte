@@ -9,6 +9,7 @@
 //! tracked as the next milestone in `docs/ecosystem-implementation-plan.md`
 //! Wave 2.
 
+pub mod config;
 pub mod diagnostic;
 pub mod kit_file;
 pub mod manifest;

@@ -22,6 +22,7 @@ pub mod config;
 pub mod context;
 pub mod diagnostic;
 pub mod engine;
+pub mod inline_config;
 pub mod line_index;
 // `--print-eslint-config` / `--list-rules`: builds on `registered_rule_metas`
 // (which chains the native-only source-scan meta rules), so it is native-only.

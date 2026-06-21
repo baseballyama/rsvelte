@@ -12,15 +12,30 @@
 //! Port of `eslint-plugin-svelte/src/rules/block-lang.ts`.
 //! Upstream: `meta.type = 'suggestion'`, `hasSuggestions: true`.
 
+// `Path` is only used by the native-only source-scan fallback below.
+#[cfg(feature = "native")]
+use std::path::Path;
+
 use rsvelte_core::ast::css::StyleSheet;
 use rsvelte_core::ast::template::{
     AttributeNode, AttributeValue, AttributeValuePart, Root, Script,
 };
+// `svelte_check` is native-only; only the source-scan fallback below produces
+// `Diagnostic`s, so these imports are gated with it.
+#[cfg(feature = "native")]
+use rsvelte_core::svelte_check::diagnostic::{Diagnostic, Position, Range};
 use serde_json::Value;
 
+// `LintConfig` is only referenced by the native-only source-scan fallback below.
+#[cfg(feature = "native")]
+use crate::config::LintConfig;
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
+#[cfg(feature = "native")]
+use crate::line_index::LineIndex;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+#[cfg(feature = "native")]
+use crate::validator::to_dsev;
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/block-lang",
@@ -455,4 +470,210 @@ fn build_enforce_style_suggestions(allowed: &[Option<String>], source: &str) -> 
             }
         })
         .collect()
+}
+
+// ---------------------------------------------------------------------------
+// Source-scan fallback for parse-failure files
+// ---------------------------------------------------------------------------
+
+/// Emit block-lang diagnostics via source scanning for files that the Svelte
+/// parser cannot fully parse (e.g. files with invalid CSS or TypeScript errors).
+/// When the parser succeeds, [`BlockLang::check_root`] handles the rule via the
+/// normal AST path and this function is a no-op (to avoid double-reporting).
+///
+/// Native-only: it produces `rsvelte_core::svelte_check::Diagnostic`s and is
+/// only invoked from the native `runner`, so it is excluded from the wasm build.
+#[cfg(feature = "native")]
+pub fn block_lang_source_scan_diagnostics(
+    source: &str,
+    file: &Path,
+    config: &LintConfig,
+) -> Vec<Diagnostic> {
+    let severity = config.resolve_code(META.name, META.default_severity);
+    if severity == Severity::Off {
+        return Vec::new();
+    }
+
+    // Only run when the AST path was skipped — `BlockLang::check_root` already
+    // covers every file the lint engine could parse. The engine parses in
+    // LENIENT mode (`lenient_script: true`), so this guard MUST use the same
+    // mode: a `<style lang="scss">` / `<script lang="…">` block parses leniently
+    // (so `check_root` fires) while a strict `ParseOptions::default()` parse
+    // would fail here — running the source scan on top of `check_root` would
+    // then double-report. Mirror the engine's options exactly.
+    let lenient = rsvelte_core::ParseOptions {
+        lenient_script: true,
+        ..Default::default()
+    };
+    if rsvelte_core::parse(source, lenient).is_ok() {
+        return Vec::new();
+    }
+
+    let opts = config.options_for(META.name);
+    let allowed_script = parse_lang_option(opts, "script");
+    let allowed_style = parse_lang_option(opts, "style");
+
+    let li = LineIndex::new(source);
+    let mut out = Vec::new();
+
+    // Check <script> blocks.
+    for block in crate::svelte_scan::script_blocks(source) {
+        let attrs = &block.open_tag_attrs;
+        let lang = crate::svelte_scan::attr_value(attrs, "lang");
+        let actual_opt: Option<String> = lang.map(|s| s.to_lowercase());
+        let allowed_lc: Vec<Option<String>> = allowed_script
+            .iter()
+            .map(|l| l.as_ref().map(|s| s.to_lowercase()))
+            .collect();
+        if !allowed_lc.contains(&actual_opt) {
+            let msg = format!(
+                "The lang attribute of the <script> block should be {}.",
+                pretty_print_langs(&allowed_script)
+            );
+            let (line, column) = li.position(block.tag_start as u32);
+            out.push(Diagnostic {
+                file: file.to_path_buf(),
+                severity: to_dsev(severity),
+                range: Some(Range {
+                    start: Position { line, column },
+                    end: Position { line, column },
+                }),
+                message: msg,
+                code: Some(META.name.to_string()),
+                source: "svelte",
+            });
+        }
+    }
+
+    // Check <style> block.
+    for (tag_start, lang) in style_scan(source) {
+        let actual_opt: Option<String> = if lang.is_empty() {
+            None
+        } else {
+            Some(lang.to_lowercase())
+        };
+        let allowed_lc: Vec<Option<String>> = allowed_style
+            .iter()
+            .map(|l| l.as_ref().map(|s| s.to_lowercase()))
+            .collect();
+        if !allowed_lc.contains(&actual_opt) {
+            let msg = format!(
+                "The lang attribute of the <style> block should be {}.",
+                pretty_print_langs(&allowed_style)
+            );
+            let (line, column) = li.position(tag_start);
+            out.push(Diagnostic {
+                file: file.to_path_buf(),
+                severity: to_dsev(severity),
+                range: Some(Range {
+                    start: Position { line, column },
+                    end: Position { line, column },
+                }),
+                message: msg,
+                code: Some(META.name.to_string()),
+                source: "svelte",
+            });
+        }
+    }
+
+    out
+}
+
+/// Yield `(tag_start_byte, lang)` for every `<style …>` element. `lang` is the
+/// value of a `lang` attribute, or `""` (plain CSS) when absent. Mirrors the
+/// scanner in `valid_style_parse.rs`.
+///
+/// Only used by the native-only source-scan fallback, so gated alongside it.
+#[cfg(feature = "native")]
+fn style_scan(source: &str) -> Vec<(u32, String)> {
+    let bytes = source.as_bytes();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i + 6 <= bytes.len() {
+        if &bytes[i..i + 6] != b"<style" {
+            i += 1;
+            continue;
+        }
+        let after = bytes.get(i + 6).copied();
+        if !matches!(after, Some(c) if c == b' ' || c == b'\t' || c == b'\n' || c == b'\r' || c == b'>' || c == b'/')
+        {
+            i += 6;
+            continue;
+        }
+        // Read the start tag up to `>`, tracking quotes.
+        let mut j = i + 6;
+        let mut quote: Option<u8> = None;
+        let mut tag_end = None;
+        while j < bytes.len() {
+            let c = bytes[j];
+            match quote {
+                Some(q) => {
+                    if c == q {
+                        quote = None;
+                    }
+                }
+                None => {
+                    if c == b'"' || c == b'\'' {
+                        quote = Some(c);
+                    } else if c == b'>' {
+                        tag_end = Some(j);
+                        break;
+                    }
+                }
+            }
+            j += 1;
+        }
+        let Some(tag_end) = tag_end else { break };
+        let lang =
+            crate::svelte_scan::attr_value(&source[i + 6..tag_end], "lang").unwrap_or_default();
+        out.push((i as u32, lang));
+        i = tag_end + 1;
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn parse_lang_option_forms() {
+        // Absent / explicit null → `[None]` (means "omitted is required").
+        assert_eq!(parse_lang_option(None, "style"), vec![None]);
+        assert_eq!(parse_lang_option(Some(&json!({})), "style"), vec![None]);
+        assert_eq!(
+            parse_lang_option(Some(&json!({ "style": null })), "style"),
+            vec![None]
+        );
+        // Single string.
+        assert_eq!(
+            parse_lang_option(Some(&json!({ "style": "scss" })), "style"),
+            vec![Some("scss".to_string())]
+        );
+        // Array with a mix of null + strings.
+        assert_eq!(
+            parse_lang_option(Some(&json!({ "script": [null, "ts"] })), "script"),
+            vec![None, Some("ts".to_string())]
+        );
+        // A different key is unaffected.
+        assert_eq!(
+            parse_lang_option(Some(&json!({ "style": "scss" })), "script"),
+            vec![None]
+        );
+    }
+
+    #[test]
+    fn pretty_print_langs_messages() {
+        assert_eq!(pretty_print_langs(&[None]), "omitted");
+        assert_eq!(pretty_print_langs(&[Some("ts".to_string())]), "\"ts\"");
+        assert_eq!(
+            pretty_print_langs(&[None, Some("ts".to_string())]),
+            "either omitted or \"ts\""
+        );
+        assert_eq!(
+            pretty_print_langs(&[Some("ts".to_string()), Some("js".to_string())]),
+            "one of \"ts\", \"js\""
+        );
+    }
 }

@@ -94,25 +94,33 @@ impl Parser<'_> {
     }
 
     /// Parse a `<script>` tag and store it in instance_script or module_script.
+    ///
+    /// `self_closing` is only ever `true` in lenient (lint) mode, where a
+    /// self-closed `<script />` is tolerated to mirror svelte-eslint-parser. In
+    /// that case there is no content and no closing tag to consume — the `/>`
+    /// has already been eaten by the caller.
     pub fn parse_script_tag(
         &mut self,
         start: usize,
         attributes: Vec<crate::ast::Attribute>,
+        self_closing: bool,
     ) -> ParseResult<Option<TemplateNode>> {
         let content_start = self.index;
 
         // Use SIMD-accelerated search for </script instead of byte-by-byte scanning
-        loop {
-            if let Some(offset) = memchr::memmem::find(&self.bytes[self.index..], b"</script") {
-                self.index += offset;
-                if self.is_valid_closing_tag("</script") {
+        if !self_closing {
+            loop {
+                if let Some(offset) = memchr::memmem::find(&self.bytes[self.index..], b"</script") {
+                    self.index += offset;
+                    if self.is_valid_closing_tag("</script") {
+                        break;
+                    }
+                    // Not a valid closing tag (e.g., </scripting), skip past it
+                    self.index += 8;
+                } else {
+                    self.index = self.bytes.len();
                     break;
                 }
-                // Not a valid closing tag (e.g., </scripting), skip past it
-                self.index += 8;
-            } else {
-                self.index = self.bytes.len();
-                break;
             }
         }
 
@@ -120,7 +128,9 @@ impl Parser<'_> {
         let script_content = &self.source[content_start..content_end];
 
         // Consume </script followed by optional whitespace and >
-        if self.match_str("</script") {
+        if self_closing {
+            // Nothing to consume — the self-closing `/>` was already eaten.
+        } else if self.match_str("</script") {
             self.advance_by(8); // consume '</script'
             // Skip whitespace before >
             while !self.is_eof() && self.current_char() != '>' {
@@ -184,6 +194,16 @@ impl Parser<'_> {
                     {
                         if t.data.as_str() == "module" {
                             context = ScriptContext::Module;
+                            // The compiler drops the `context` attribute from the
+                            // script's attribute list (it only needs the
+                            // `ScriptContext`), and the snapshot tests expect that.
+                            // svelte-eslint-parser keeps it, so attribute-layout
+                            // lint rules count it — preserve it only in lenient
+                            // (lint) mode to match the oracle without changing
+                            // compiler output.
+                            if self.options.lenient_script {
+                                script_attributes.push(attr_node.clone());
+                            }
                         } else {
                             // Invalid context value - only "module" is allowed
                             return Err(crate::error::ParseError::svelte(
@@ -261,7 +281,7 @@ impl Parser<'_> {
             // empty-body placeholder + raw content, so svelte2tsx applies NO body
             // transforms and the script source survives verbatim in the output.
             if let Some(err) = parse_error {
-                if !self.script_ts {
+                if !self.script_ts && !self.options.lenient_script {
                     return Err(err);
                 }
                 let placeholder = Expression::from_node(crate::ast::typed_expr::JsNode::Program {

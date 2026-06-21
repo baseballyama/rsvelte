@@ -434,6 +434,7 @@ fn profile_file(config: &Config, filename: &str, content: &str) -> FileMetrics {
         skip_expression_loc: true,
         defer_script_parse: false,
         force_typescript: false,
+        ..Default::default()
     };
 
     let compile_options = CompileOptions {
@@ -741,6 +742,7 @@ fn pprof_transform(config: &Config, files: &[(String, String)]) {
         skip_expression_loc: true,
         defer_script_parse: false,
         force_typescript: false,
+        ..Default::default()
     };
     let compile_options = CompileOptions {
         generate: config.mode,

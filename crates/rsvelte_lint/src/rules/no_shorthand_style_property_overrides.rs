@@ -4,10 +4,9 @@
 //! source order). Port of the eslint-plugin-svelte rule.
 //!
 //! The static `style="…"` value is parsed by splitting on `;` and reading the
-//! property name before each `:` (interpolation `{expr}` segments are treated as
-//! opaque values). CSS declarations written *inside* a mustache interpolation
-//! (e.g. `{cond ? `background: x` : 'background: y'}`) are not parsed — that
-//! fixture is skipped by the oracle.
+//! property name before each `:` (interpolation `{expr}` segments are handled
+//! by extracting CSS property names from string/template literals within
+//! conditional/logical expressions, mirroring upstream's `getAllInlineStyles`).
 
 use rsvelte_core::ast::template::{Attribute, AttributeValue, AttributeValuePart, RegularElement};
 
@@ -113,8 +112,15 @@ impl Rule for NoShorthandStylePropertyOverrides {
                 Attribute::Attribute(node) if node.name.eq_ignore_ascii_case("style") => {
                     if let AttributeValue::Sequence(parts) = &node.value {
                         for part in parts {
-                            if let AttributeValuePart::Text(t) = part {
-                                parse_style_decls(&t.raw, t.start, &mut decls);
+                            match part {
+                                AttributeValuePart::Text(t) => {
+                                    parse_style_decls(&t.raw, t.start, &mut decls);
+                                }
+                                AttributeValuePart::ExpressionTag(tag) => {
+                                    let src = ctx.slice(tag.start, tag.end);
+                                    let inline = extract_inline_style_decls(src, tag.start);
+                                    decls.extend(inline.into_iter().map(|(n, s, _)| (n, s)));
+                                }
                             }
                         }
                     }
@@ -160,13 +166,174 @@ fn parse_style_decls(raw: &str, base: u32, out: &mut Vec<(String, u32)>) {
             {
                 let name_raw = &raw[decl_begin..decl_begin + colon];
                 let trimmed = name_raw.trim();
-                if !trimmed.is_empty() {
+                if !trimmed.is_empty() && !trimmed.contains('{') {
                     let lead = name_raw.len() - name_raw.trim_start().len();
                     out.push((trimmed.to_string(), base + (decl_begin + lead) as u32));
                 }
             }
             decl_begin = i + 1;
         }
+    }
+}
+
+/// Extract CSS property declaration names from string/template literals
+/// inside an expression-tag source text (the whole `{...}` including braces).
+/// Returns `(name, abs_start, abs_end)` triples. Mirrors upstream's
+/// `extractExpressions` + `getInlineStyle` for ternary/logical branches.
+fn extract_inline_style_decls(src: &str, tag_start: u32) -> Vec<(String, u32, u32)> {
+    let mut out = Vec::new();
+    extract_from_expr(src.as_bytes(), tag_start, &mut out);
+    out
+}
+
+fn extract_from_expr(bytes: &[u8], base: u32, out: &mut Vec<(String, u32, u32)>) {
+    let mut i = 0usize;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\'' => {
+                let start = i;
+                i += 1;
+                while i < bytes.len() && bytes[i] != b'\'' {
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+                if i < bytes.len() {
+                    i += 1;
+                }
+                let content = &bytes[start + 1..i.saturating_sub(1)];
+                extract_css_decl_names_from_literal(content, base + start as u32 + 1, out);
+            }
+            b'"' => {
+                let start = i;
+                i += 1;
+                while i < bytes.len() && bytes[i] != b'"' {
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+                if i < bytes.len() {
+                    i += 1;
+                }
+                let content = &bytes[start + 1..i.saturating_sub(1)];
+                extract_css_decl_names_from_literal(content, base + start as u32 + 1, out);
+            }
+            b'`' => {
+                let start = i;
+                i += 1;
+                while i < bytes.len() && bytes[i] != b'`' {
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    } else if bytes[i] == b'$' && bytes.get(i + 1) == Some(&b'{') {
+                        i += 2;
+                        let mut depth = 1usize;
+                        while i < bytes.len() && depth > 0 {
+                            match bytes[i] {
+                                b'{' => depth += 1,
+                                b'}' => depth -= 1,
+                                _ => {}
+                            }
+                            i += 1;
+                        }
+                        continue;
+                    }
+                    i += 1;
+                }
+                if i < bytes.len() {
+                    i += 1;
+                }
+                let content_start = start + 1;
+                let content_end = i.saturating_sub(1);
+                extract_css_decl_names_from_template(
+                    bytes,
+                    content_start,
+                    content_end,
+                    base + content_start as u32,
+                    out,
+                );
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+}
+
+fn push_decl_name(seg: &str, seg_base: u32, out: &mut Vec<(String, u32, u32)>) {
+    let Some(colon) = seg.find(':') else {
+        return;
+    };
+    let name_raw = &seg[..colon];
+    let trimmed = name_raw.trim();
+    if trimmed.is_empty() || trimmed.contains('{') {
+        return;
+    }
+    let lead = name_raw.len() - name_raw.trim_start().len();
+    let start = seg_base + lead as u32;
+    let end = start + trimmed.len() as u32;
+    out.push((trimmed.to_string(), start, end));
+}
+
+fn extract_css_decl_names_from_literal(
+    content: &[u8],
+    base: u32,
+    out: &mut Vec<(String, u32, u32)>,
+) {
+    let mut decl_begin = 0usize;
+    for i in 0..=content.len() {
+        if i == content.len() || content[i] == b';' {
+            if decl_begin < i
+                && let Ok(seg) = std::str::from_utf8(&content[decl_begin..i])
+            {
+                push_decl_name(seg, base + decl_begin as u32, out);
+            }
+            decl_begin = i + 1;
+        }
+    }
+}
+
+fn extract_css_decl_names_from_template(
+    bytes: &[u8],
+    content_start: usize,
+    content_end: usize,
+    base: u32,
+    out: &mut Vec<(String, u32, u32)>,
+) {
+    let content = &bytes[content_start..content_end];
+    let mut decl_begin = 0usize;
+    let mut i = 0usize;
+    while i <= content.len() {
+        let at_end = i == content.len();
+        let is_sep = !at_end
+            && (content[i] == b';' || (content[i] == b'$' && content.get(i + 1) == Some(&b'{')));
+        if at_end || is_sep {
+            if decl_begin < i
+                && let Ok(seg) = std::str::from_utf8(&content[decl_begin..i])
+            {
+                push_decl_name(seg, base + decl_begin as u32, out);
+            }
+            if !at_end && content[i] == b'$' {
+                i += 2;
+                let mut depth = 1usize;
+                while i < content.len() && depth > 0 {
+                    match content[i] {
+                        b'{' => depth += 1,
+                        b'}' => depth -= 1,
+                        _ => {}
+                    }
+                    i += 1;
+                }
+                decl_begin = i;
+                continue;
+            }
+            decl_begin = i + 1;
+        }
+        if at_end {
+            break;
+        }
+        i += 1;
     }
 }
 

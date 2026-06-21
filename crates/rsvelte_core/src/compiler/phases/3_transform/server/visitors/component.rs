@@ -91,6 +91,12 @@ impl<'a> ServerCodeGenerator<'a> {
         // blockers that require async_block wrapping for hydration marker consistency.
         let mut attach_expressions: Vec<String> = Vec::new();
 
+        // Counter for SequenceExpression bindings — used to generate unique hoisted var names
+        // matching the official compiler's `scope.generate('bind_get')` behaviour:
+        //   first binding  → bind_get / bind_set
+        //   second binding → bind_get_1 / bind_set_1  (etc.)
+        let mut seq_binding_count: usize = 0;
+
         for attr in &component.attributes {
             match attr {
                 Attribute::Attribute(node) => {
@@ -225,17 +231,20 @@ impl<'a> ServerCodeGenerator<'a> {
                                         if expr_end > expr_start && expr_end <= self.source.len() {
                                             let expr_src = self.source[expr_start..expr_end].trim();
                                             let transformed = self.transform_store_refs(expr_src);
-                                            // Upstream `build_attribute_value` skips the
-                                            // `$.stringify(...)` wrap when the interpolated
-                                            // expression is statically known to be a defined
-                                            // string. The dominant real-world case is a
-                                            // `$props.id()` binding (`evaluated.is_string &&
-                                            // is_defined`), so emit it raw to match
-                                            // `for: ` + `${id}` exactly.
-                                            let is_known_string_id =
-                                                self.analysis.and_then(|a| a.props_id.as_deref())
-                                                    == Some(transformed.as_str());
-                                            if is_known_string_id {
+                                            // Upstream `build_attribute_value`
+                                            // (shared/utils.js line 243-245) elides
+                                            // `$.stringify(...)` when the interpolated
+                                            // expression is statically known to be a
+                                            // defined string: `evaluated.is_string &&
+                                            // evaluated.is_defined`. Mirror that by
+                                            // running the full evaluator on the AST
+                                            // expression node — this covers $props.id()
+                                            // bindings, ternaries with string-literal
+                                            // branches, string concatenation, typeof,
+                                            // etc., not just the props_id special case.
+                                            let evaluation = self
+                                                .evaluate_template_expression(&expr_tag.expression);
+                                            if evaluation.is_string() && evaluation.is_defined() {
                                                 value_str.push_str("${");
                                                 value_str.push_str(&transformed);
                                                 value_str.push('}');
@@ -306,7 +315,12 @@ impl<'a> ServerCodeGenerator<'a> {
 
                     if expr_type == "SequenceExpression" {
                         let expr_json = bind.expression.as_json();
-                        // Extract getter and setter from the SequenceExpression
+                        // Extract getter and setter from the SequenceExpression.
+                        // Upstream (component.js line 121-131): SequenceExpression bindings call
+                        // `push_prop(…, delay=false)`, so they are inserted INLINE into
+                        // `props_and_spreads` at their source position (not deferred to the end).
+                        // We mirror this by pushing a `ComponentPropItem::Binding` directly into
+                        // `props_and_spreads`, preserving source order relative to spreads.
                         if let Some(expressions) = expr_json
                             .get("expressions")
                             .and_then(|e| e.as_array())
@@ -346,10 +360,37 @@ impl<'a> ServerCodeGenerator<'a> {
                                     self.source[setter_start..setter_end].trim().to_string();
                                 let setter_expr = self.strip_ts_from_expr(&setter_expr);
                                 let setter_expr = self.wrap_derived_reads(&setter_expr);
+
+                                // Generate unique hoisted var names for this binding, mirroring
+                                // `scope.generate('bind_get')` in the official compiler:
+                                //   0 → "bind_get" / "bind_set"
+                                //   1 → "bind_get_1" / "bind_set_1"   (etc.)
+                                let (bind_get_name, bind_set_name) = if seq_binding_count == 0 {
+                                    ("bind_get".to_string(), "bind_set".to_string())
+                                } else {
+                                    (
+                                        format!("bind_get_{}", seq_binding_count),
+                                        format!("bind_set_{}", seq_binding_count),
+                                    )
+                                };
+                                seq_binding_count += 1;
+
+                                // Push inline at source position (delay=false upstream).
+                                // The getter/setter bodies reference the hoisted vars via
+                                // `bind_get_name()` / `bind_set_name($$value)` so they match
+                                // what the official compiler emits (not the raw expressions).
+                                props_and_spreads.push(ComponentPropItem::Binding {
+                                    prop_name: prop_name.to_string(),
+                                    getter_expr: format!("{}()", bind_get_name),
+                                    setter_expr: format!("{}($$value)", bind_set_name),
+                                    is_seq: true,
+                                });
                                 bindings.push(ComponentBinding::SequenceExpression {
                                     prop_name: prop_name.to_string(),
                                     getter_expr,
                                     setter_expr,
+                                    bind_get_name,
+                                    bind_set_name,
                                 });
                             }
                         }
@@ -418,6 +459,14 @@ impl<'a> ServerCodeGenerator<'a> {
                     ComponentPropItem::Spread(s) => {
                         *s = self.strip_ts_from_expr(s);
                     }
+                    ComponentPropItem::Binding {
+                        getter_expr,
+                        setter_expr,
+                        ..
+                    } => {
+                        *getter_expr = self.strip_ts_from_expr(getter_expr);
+                        *setter_expr = self.strip_ts_from_expr(setter_expr);
+                    }
                 }
             }
         }
@@ -435,6 +484,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     .iter()
                     .any(|p| super::super::helpers::expr_contains_await(p)),
                 ComponentPropItem::Spread(s) => super::super::helpers::expr_contains_await(s),
+                ComponentPropItem::Binding { .. } => false,
             });
 
         // Use ComponentWithBindings if there are any bind directives
@@ -490,6 +540,9 @@ impl<'a> ServerCodeGenerator<'a> {
                                 new_props_and_spreads.push(ComponentPropItem::Spread(s.clone()));
                             }
                         }
+                        // Binding items only appear in ComponentWithBindings (which takes a
+                        // different branch below) so they will not appear here.
+                        ComponentPropItem::Binding { .. } => {}
                     }
                 }
 
@@ -540,16 +593,18 @@ impl<'a> ServerCodeGenerator<'a> {
                 if let ComponentBinding::SequenceExpression {
                     getter_expr,
                     setter_expr,
+                    bind_get_name,
+                    bind_set_name,
                     ..
                 } = binding
                 {
                     self.output_parts.push(OutputPart::VarDeclaration(format!(
-                        "bind_get = {}",
-                        getter_expr
+                        "{} = {}",
+                        bind_get_name, getter_expr
                     )));
                     self.output_parts.push(OutputPart::VarDeclaration(format!(
-                        "bind_set = {}",
-                        setter_expr
+                        "{} = {}",
+                        bind_set_name, setter_expr
                     )));
                     has_seq_bindings = true;
                 }

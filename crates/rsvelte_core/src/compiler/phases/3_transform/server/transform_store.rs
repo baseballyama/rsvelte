@@ -580,7 +580,7 @@ pub(crate) fn transform_binding_setter(var_name: &str, store_subs: &[(&str, &str
 
 /// Resolve getter/setter expressions for a binding.
 /// For Simple bindings, uses transform_binding_getter/setter.
-/// For SequenceExpression bindings, uses bind_get()/bind_set($$value) variables.
+/// For SequenceExpression bindings, uses the hoisted bind_get_name/bind_set_name variables.
 pub(crate) fn resolve_binding_exprs<'a>(
     binding: &'a super::types::ComponentBinding,
     store_subs: &[(&str, &str)],
@@ -598,10 +598,12 @@ pub(crate) fn resolve_binding_exprs<'a>(
             prop_name,
             getter_expr: _,
             setter_expr: _,
+            bind_get_name,
+            bind_set_name,
         } => (
             prop_name.as_str(),
-            "bind_get()".to_string(),
-            "bind_set($$value)".to_string(),
+            format!("{}()", bind_get_name),
+            format!("{}($$value)", bind_set_name),
         ),
     }
 }

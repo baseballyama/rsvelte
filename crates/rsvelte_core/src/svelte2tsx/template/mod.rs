@@ -691,19 +691,22 @@ fn collect_info_from_node(
             }
         }
         TemplateNode::SvelteComponent(comp) => {
-            // Forwarded events on `<svelte:component on:foo>`: official emits
-            // `bubbleEventDef(__sveltets_2_instanceOf(svelte:component).$$events_def, …)`
-            // — using the literal tag name `svelte:component` as the instanceOf
-            // argument (not a valid TS identifier, so the output is emitted raw;
-            // this mirrors official svelte2tsx byte-for-byte).
+            // Forwarded events on `<svelte:component this={X} on:foo>`: emit
+            // `bubbleEventDef(__sveltets_2_instanceOf(X).$$events_def, …)` using
+            // the component's `this` expression as the instanceOf argument.
+            // (Upstream uses the literal tag name `svelte:component` here, which
+            // is not a valid TS identifier and makes the whole output
+            // unparseable; rsvelte emits the real `this` expression so the
+            // output stays valid TSX.)
+            let this_expr = get_expression_text(&comp.expression, source);
             for attr in &comp.attributes {
                 if let Attribute::OnDirective(on) = attr
                     && on.expression.is_none()
                 {
                     let event_name = on.name.to_string();
                     let event_value = format!(
-                        "__sveltets_2_bubbleEventDef(__sveltets_2_instanceOf(svelte:component).$$events_def, '{}')",
-                        event_name
+                        "__sveltets_2_bubbleEventDef(__sveltets_2_instanceOf({}).$$events_def, '{}')",
+                        this_expr, event_name
                     );
                     info.element_events.push((event_name, event_value));
                 }
@@ -2257,8 +2260,19 @@ fn handle_await_block(
             if catch_end < block.end {
                 str.overwrite(catch_end, block.end, "}}");
             }
-        } else if then_end < block.end {
-            str.overwrite(then_end, block.end, &format!("{}}}", value_close));
+        } else {
+            // Close the value block (if any) + the outer await block. This
+            // handles both the normal case (then_end < block.end: the then
+            // body ends before {/await}, so we overwrite the gap) and the
+            // empty-then-body case (then_end == block.end: the overwrite from
+            // expr_end to block.end already consumed that region, so we must
+            // append rather than overwrite a zero-length range).
+            let close = format!("{}}}", value_close);
+            if then_end < block.end {
+                str.overwrite(then_end, block.end, &close);
+            } else {
+                str.append_left(block.end, &close);
+            }
         }
     } else if has_catch {
         // Pattern: {#await promise catch error} catch {/await} (no pending, no then)
@@ -2809,6 +2823,9 @@ fn handle_regular_element(
 
     // Process children at depth+1: this element is now an ancestor.
     // Mirrors official computeDepth which counts all ancestor element/component nodes.
+    // Hoist snippet blocks to the top of the element's children first, mirroring
+    // hoistSnippetBlock in the JS reference (pendingSnippetHoistCheck walk).
+    hoist_snippet_blocks(&el.fragment, source, str);
     process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
 
     // Find and overwrite the closing tag.
@@ -4161,16 +4178,59 @@ fn handle_svelte_dynamic_element(
     // ` <var=>svelteHTML.createElement(tag<actions_arg>, {attrs});<suffix>` — no
     // leading `{`; the block brace comes from the outer ` {` (and `inner_open`
     // when directives add an extra scope).
+    // The post-`createElement` suffix statements — `class:`/`style:`, transition/animate
+    // (`directive_suffix`), and `bind:` (`bind_suffix`) — are emitted in SOURCE-ATTRIBUTE
+    // ORDER, mirroring the regular-element handler's sort logic.
+    let first_bind_pos_se = el
+        .attributes
+        .iter()
+        .filter_map(|a| match a {
+            Attribute::BindDirective(b) => Some(b.start),
+            _ => None,
+        })
+        .min();
+    let first_directive_pos_se = el
+        .attributes
+        .iter()
+        .filter_map(|a| match a {
+            Attribute::TransitionDirective(t) => Some(t.start),
+            Attribute::AnimateDirective(an) => Some(an.start),
+            _ => None,
+        })
+        .min();
+    let first_class_style_pos_se = el
+        .attributes
+        .iter()
+        .filter_map(|a| match a {
+            Attribute::ClassDirective(c) => Some(c.start),
+            Attribute::StyleDirective(s) => Some(s.start),
+            _ => None,
+        })
+        .min();
+    let sorted_suffix = {
+        let mut pieces: Vec<(u32, &str)> = Vec::new();
+        if !directive_suffix.is_empty() {
+            pieces.push((
+                first_directive_pos_se.unwrap_or(u32::MAX),
+                &directive_suffix,
+            ));
+        }
+        if !class_style_suffix.is_empty() {
+            pieces.push((
+                first_class_style_pos_se.unwrap_or(u32::MAX),
+                &class_style_suffix,
+            ));
+        }
+        if !bind_suffix.is_empty() {
+            pieces.push((first_bind_pos_se.unwrap_or(u32::MAX), &bind_suffix));
+        }
+        pieces.sort_by_key(|(pos, _)| *pos);
+        pieces.into_iter().map(|(_, s)| s).collect::<String>()
+    };
     let create = |attrs: &str| {
         format!(
-            " {}svelteHTML.createElement({}{}, {{{}}});{}{}{}",
-            element_var_decl,
-            tag_text,
-            actions_arg,
-            attrs,
-            directive_suffix,
-            class_style_suffix,
-            bind_suffix
+            " {}svelteHTML.createElement({}{}, {{{}}});{}",
+            element_var_decl, tag_text, actions_arg, attrs, sorted_suffix
         )
     };
     if is_self_closing {
@@ -4293,11 +4353,13 @@ fn handle_slot_element(
     // Official emits a leading space inside a non-empty props object
     // (`{ "message":… }`); empty stays `{}`. oxfmt normalises this for valid
     // output, but a top-level-await slot is emitted raw, where the space matters.
+    // Note: `build_slot_props_string` already prepends a space to non-empty
+    // results, so we must NOT add another space here in the format string.
     let slot_props = build_slot_props_string(&el.attributes, source);
     let slot_props_obj = if slot_props.is_empty() {
         "{}".to_string()
     } else {
-        format!("{{ {}}}", slot_props)
+        format!("{{{}}}", slot_props)
     };
 
     // Build the slot call
@@ -4944,7 +5006,16 @@ fn build_component_props_string(attributes: &[Attribute], source: &str) -> Strin
                     let (s, e) = expr_range.unwrap();
                     parts.push(format!("{},", &source[s as usize..e as usize]));
                 } else {
-                    let expr_text = get_expression_text(&bind.expression, source);
+                    // Preserve a trailing TS postfix (`bind:value={value as string}`) —
+                    // the parser narrows it out of the expression span so we must extend
+                    // manually (mirrors upstream Binding.ts using `attr.expression.end`
+                    // which includes the full TSAsExpression span).
+                    let expr_text = if let Some((s, e)) = get_expression_range(&bind.expression) {
+                        let extended = extend_expr_end_with_ts_postfix(source, e, bind.end);
+                        &source[s as usize..extended as usize]
+                    } else {
+                        get_expression_text(&bind.expression, source)
+                    };
                     parts.push(format!("{}:{},", bind.name, expr_text));
                 }
             }
@@ -5084,7 +5155,10 @@ fn build_component_props_segments(
                     segs_push_src(&mut inner, ss, se);
                     segs_push_lit(&mut inner, ")");
                 } else if let Some((s, e)) = get_expression_range(&bind.expression) {
-                    segs_push_src(&mut inner, s, e);
+                    // Preserve a trailing TS postfix (`bind:value={value as string}`)
+                    // the parser narrowed out of the expression span.
+                    let extended = extend_expr_end_with_ts_postfix(source, e, bind.end);
+                    segs_push_src(&mut inner, s, extended);
                 } else {
                     segs_push_lit(&mut inner, get_expression_text(&bind.expression, source));
                 }
@@ -5626,8 +5700,9 @@ fn format_attribute_node_segments(
                 AttributeValuePart::ExpressionTag(_) => false,
             });
             if !has_expr && text_is_empty {
-                segs_push_lit(&mut out, &format!("\"{}\":\"\",", name));
-                return Some(out);
+                let mut inner: Vec<Seg> = Vec::new();
+                segs_push_lit(&mut inner, &format!("\"{}\":\"\"", name));
+                return Some(wrap_segs(inner));
             }
 
             // Single static Text value: mirror official Attribute.ts. The quote
@@ -5703,15 +5778,30 @@ fn format_attribute_node_segments(
 }
 
 /// Structured-bake variant of [`format_spread_attribute`].
+/// When a trailing TS postfix is present the spread operand is parenthesised:
+/// `{...expr as T}` → `...(expr as T),` (mirrors upstream Spread.ts + paren rule).
 fn format_spread_attribute_segments(spread: &SpreadAttribute, source: &str) -> Option<Vec<Seg>> {
     let mut out = Vec::new();
-    segs_push_lit(&mut out, "...");
     if let Some((s, e)) = get_expression_range(&spread.expression) {
-        segs_push_src(&mut out, s, e);
+        let extended = extend_expr_end_with_ts_postfix(source, e, spread.end);
+        if extended > e {
+            // Has TS postfix — wrap in parens.
+            segs_push_lit(&mut out, "...(");
+            segs_push_src(&mut out, s, e);
+            // The postfix text (e.g. " as T") is a literal because it's outside
+            // the expression's AST span; include it then close the paren.
+            segs_push_lit(&mut out, &source[e as usize..extended as usize]);
+            segs_push_lit(&mut out, "),");
+        } else {
+            segs_push_lit(&mut out, "...");
+            segs_push_src(&mut out, s, e);
+            segs_push_lit(&mut out, ",");
+        }
     } else {
+        segs_push_lit(&mut out, "...");
         segs_push_lit(&mut out, get_expression_text(&spread.expression, source));
+        segs_push_lit(&mut out, ",");
     }
-    segs_push_lit(&mut out, ",");
     Some(out)
 }
 
@@ -6015,8 +6105,23 @@ fn format_slot_prop_node(node: &AttributeNode, source: &str) -> Option<String> {
     }
 }
 
-/// Format a spread attribute: `{...props}` → `...props,`
+/// Format a spread attribute: `{...expr}` → `...expr,`, or `{...expr as T}` → `...(expr as T),`.
+/// When a trailing TS postfix (`as T`, `satisfies T`, `!`) is present the
+/// spread operand must be parenthesised — `...expr as T` is a parse error in
+/// TSX, but `...(expr as T)` is valid (mirrors upstream Spread.ts slicing
+/// `[node.start+1, node.end-1]` and Element/InlineComponent context).
 fn format_spread_attribute(spread: &SpreadAttribute, source: &str) -> Option<String> {
+    if let Some((s, e)) = get_expression_range(&spread.expression) {
+        let extended = extend_expr_end_with_ts_postfix(source, e, spread.end);
+        if extended > e {
+            // Has TS postfix — wrap in parens so `...expr as T` becomes `...(expr as T)`.
+            let postfix = &source[e as usize..extended as usize];
+            let expr_text = &source[s as usize..e as usize];
+            return Some(format!("...({}{postfix}),", expr_text));
+        }
+        let expr_text = &source[s as usize..e as usize];
+        return Some(format!("...{},", expr_text));
+    }
     let expr_text = get_expression_text(&spread.expression, source);
     Some(format!("...{},", expr_text))
 }
@@ -6338,10 +6443,16 @@ fn build_directive_prefix_suffix(
     for attr in attributes {
         match attr {
             Attribute::UseDirective(use_dir) => {
-                let expr = use_dir
-                    .expression
-                    .as_ref()
-                    .map(|e| get_expression_text(e, source));
+                // Preserve trailing TS postfix on param expression
+                // (`use:action={params as ParamsType}` mirrors Transition.ts / Action.ts).
+                let expr = use_dir.expression.as_ref().map(|e| {
+                    if let Some((s, ex)) = get_expression_range(e) {
+                        let extended = extend_expr_end_with_ts_postfix(source, ex, use_dir.end);
+                        &source[s as usize..extended as usize]
+                    } else {
+                        get_expression_text(e, source)
+                    }
+                });
                 let id = format!("$$action_{}", action_count);
                 action_count += 1;
                 if let Some(expr_text) = expr {
@@ -6359,17 +6470,28 @@ fn build_directive_prefix_suffix(
                 }
             }
             Attribute::TransitionDirective(t) => {
-                let expr = t
-                    .expression
-                    .as_ref()
-                    .map(|e| get_expression_text(e, source));
+                // Preserve trailing TS postfix on param expression
+                // (`transition:fade={params as ParamsType}` mirrors Transition.ts).
+                let expr = t.expression.as_ref().map(|e| {
+                    if let Some((s, ex)) = get_expression_range(e) {
+                        let extended = extend_expr_end_with_ts_postfix(source, ex, t.end);
+                        &source[s as usize..extended as usize]
+                    } else {
+                        get_expression_text(e, source)
+                    }
+                });
                 suffix.push_str(&format_transition_directive_v4(&t.name, expr, tag));
             }
             Attribute::AnimateDirective(a) => {
-                let expr = a
-                    .expression
-                    .as_ref()
-                    .map(|e| get_expression_text(e, source));
+                // Preserve trailing TS postfix on param expression.
+                let expr = a.expression.as_ref().map(|e| {
+                    if let Some((s, ex)) = get_expression_range(e) {
+                        let extended = extend_expr_end_with_ts_postfix(source, ex, a.end);
+                        &source[s as usize..extended as usize]
+                    } else {
+                        get_expression_text(e, source)
+                    }
+                });
                 suffix.push_str(&format_animate_directive_v4(&a.name, expr, tag));
             }
             _ => {}
@@ -6847,6 +6969,41 @@ pub fn process_template(fragment: &Fragment, source: &str, options: &Svelte2TsxO
 mod tests {
     use super::*;
     use crate::ast::template::Fragment;
+
+    #[test]
+    fn extend_expr_end_covers_trailing_ts_postfix() {
+        // The parser narrows the expression span to `val` (`expr_end` = index 4,
+        // just after `l`); `scan_end` is the directive `}`+1. The helper scans
+        // back to the `}` and, when an `as`/`satisfies`/`!` postfix sits between
+        // `expr_end` and `}`, extends the end to just before `}`.
+
+        // `{val as T}` → end at index 9 (the `}`), covering ` as T`.
+        let src = "{val as T}";
+        assert_eq!(extend_expr_end_with_ts_postfix(src, 4, src.len() as u32), 9);
+
+        // `{val!}` → non-null `!` absorbed, end at index 5 (the `}`).
+        let src = "{val!}";
+        assert_eq!(extend_expr_end_with_ts_postfix(src, 4, src.len() as u32), 5);
+
+        // `{val satisfies T}` → `satisfies T` absorbed.
+        let src = "{val satisfies T}";
+        assert_eq!(
+            extend_expr_end_with_ts_postfix(src, 4, src.len() as u32),
+            16
+        );
+
+        // `{val}` → no postfix, end unchanged.
+        let src = "{val}";
+        assert_eq!(extend_expr_end_with_ts_postfix(src, 4, src.len() as u32), 4);
+
+        // `as { x: T }` — braces inside the cast type don't confuse the close
+        // scan (it stops at the OUTER `}` nearest `scan_end`).
+        let src = "{val as {x: T}}";
+        assert_eq!(
+            extend_expr_end_with_ts_postfix(src, 4, src.len() as u32),
+            14
+        );
+    }
 
     #[test]
     fn test_process_empty_template() {

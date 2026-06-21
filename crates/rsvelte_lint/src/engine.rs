@@ -48,7 +48,13 @@ pub fn run_native_rules(
     if enabled.is_empty() {
         return Vec::new();
     }
-    let Ok(root) = parse(source, ParseOptions::default()) else {
+    let Ok(root) = parse(
+        source,
+        ParseOptions {
+            lenient_script: true,
+            ..Default::default()
+        },
+    ) else {
         return Vec::new();
     };
     let mut ctx = LintContext::new(config, source, filename).with_path(path);
@@ -114,8 +120,9 @@ fn run_over_programs(
     filename: &str,
     config: &LintConfig,
     enabled: &[EnabledScriptRule<'_>],
+    path: Option<&Path>,
 ) -> Vec<LintDiagnostic> {
-    let mut ctx = LintContext::new(config, source, filename);
+    let mut ctx = LintContext::new(config, source, filename).with_path(path);
     for (kind, program) in programs {
         for (rule, meta, severity) in enabled {
             ctx.enter_rule(meta, *severity);
@@ -132,12 +139,29 @@ fn run_over_programs(
 /// byte offsets) inside the parse arena, then handed to each rule's
 /// `check_program`.
 pub fn run_script_rules(source: &str, filename: &str, config: &LintConfig) -> Vec<LintDiagnostic> {
+    run_script_rules_with_path(source, filename, config, None)
+}
+
+/// Like [`run_script_rules`] but also threads the file's [`Path`] into the
+/// context so path-gated rules (e.g. SvelteKit route file detection) work.
+pub fn run_script_rules_with_path(
+    source: &str,
+    filename: &str,
+    config: &LintConfig,
+    path: Option<&Path>,
+) -> Vec<LintDiagnostic> {
     let rules = all_script_rules();
     let enabled = enabled_script_rules(&rules, config);
     if enabled.is_empty() {
         return Vec::new();
     }
-    let Ok(root) = parse(source, ParseOptions::default()) else {
+    let Ok(root) = parse(
+        source,
+        ParseOptions {
+            lenient_script: true,
+            ..Default::default()
+        },
+    ) else {
         return Vec::new();
     };
 
@@ -158,7 +182,7 @@ pub fn run_script_rules(source: &str, filename: &str, config: &LintConfig) -> Ve
     if programs.is_empty() {
         return Vec::new();
     }
-    run_over_programs(&programs, source, filename, config, &enabled)
+    run_over_programs(&programs, source, filename, config, &enabled, path)
 }
 
 /// Run every enabled script-AST rule over a standalone JS/TS **module** file
@@ -179,5 +203,5 @@ pub fn run_script_rules_module(
     }
     let program = rsvelte_core::compiler::phases::parse_module_to_estree(source, is_ts);
     let programs = [(ScriptKind::Module, program)];
-    run_over_programs(&programs, source, filename, config, &enabled)
+    run_over_programs(&programs, source, filename, config, &enabled, None)
 }

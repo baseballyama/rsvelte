@@ -5,10 +5,13 @@
 //! is the verbatim `vize_patina` `visitor.rs` structure, which keeps the walk
 //! cache-friendly and the rule set trivially parallel across files.
 
-use rsvelte_core::ast::template::{Attribute, Fragment, Root, TemplateNode};
+use compact_str::CompactString;
+use rsvelte_core::ast::template::{
+    Attribute, AttributeNode, AttributeNodeMetadata, AttributeValue, Fragment, Root, TemplateNode,
+};
 
 use crate::context::LintContext;
-use crate::rule::{Rule, RuleMeta, Severity};
+use crate::rule::{Rule, RuleMeta, Severity, SpecialElement};
 
 /// A rule that resolved to a non-`Off` severity for this run, paired with that
 /// severity so the visitor doesn't re-resolve config per node.
@@ -34,6 +37,104 @@ impl<'r> LintVisitor<'r> {
             er.rule.check_root(ctx, root);
         }
         self.visit_fragment(ctx, &root.fragment);
+        self.visit_special_elements(ctx, root);
+    }
+
+    /// After the template fragment walk, dispatch `check_special_element` for
+    /// each of `<script>` (instance + module), `<style>`, and `<svelte:options>`
+    /// that are present in the component.
+    ///
+    /// `<script>` and `<svelte:options>` carry typed `Vec<AttributeNode>` which
+    /// we convert directly to `Vec<Attribute>`. `<style>` stores its attributes
+    /// as raw `serde_json::Value`; we reconstruct `AttributeNode` from the JSON
+    /// fields `name`, `start`, `end`. If any style attribute can't be faithfully
+    /// reconstructed (missing required fields), it is skipped rather than
+    /// emitting a wrong span — fail-safe.
+    fn visit_special_elements(&self, ctx: &mut LintContext, root: &Root) {
+        // Collect special elements in document order (instance/module first, then
+        // style, then svelte:options — matches what svelte-eslint-parser emits).
+        let mut elements: Vec<SpecialElement<'_>> = Vec::new();
+
+        // Instance <script> (no context attribute or context="default")
+        if let Some(script) = &root.instance {
+            elements.push(SpecialElement {
+                name: "script",
+                start: script.start,
+                end: script.end,
+                attributes: script
+                    .attributes
+                    .iter()
+                    .map(|n| Attribute::Attribute(n.clone()))
+                    .collect(),
+            });
+        }
+
+        // Module <script context="module">
+        if let Some(script) = &root.module {
+            elements.push(SpecialElement {
+                name: "script",
+                start: script.start,
+                end: script.end,
+                attributes: script
+                    .attributes
+                    .iter()
+                    .map(|n| Attribute::Attribute(n.clone()))
+                    .collect(),
+            });
+        }
+
+        // <style> block — attributes are raw JSON; reconstruct AttributeNode
+        // from `name`, `start`, `end` fields. Skip any attribute that lacks
+        // all three (fail-safe: FN is acceptable, FP is not).
+        if let Some(css) = &root.css {
+            let attrs: Vec<Attribute> = css
+                .attributes
+                .iter()
+                .filter_map(|v| {
+                    let name = v.get("name").and_then(|n| n.as_str())?;
+                    let start = v.get("start").and_then(|s| s.as_u64())? as u32;
+                    let end = v.get("end").and_then(|e| e.as_u64())? as u32;
+                    Some(Attribute::Attribute(AttributeNode {
+                        start,
+                        end,
+                        name: CompactString::from(name),
+                        name_loc: None,
+                        value: AttributeValue::True(true),
+                        metadata: AttributeNodeMetadata::default(),
+                    }))
+                })
+                .collect();
+            elements.push(SpecialElement {
+                name: "style",
+                start: css.start,
+                end: css.end,
+                attributes: attrs,
+            });
+        }
+
+        // <svelte:options>
+        if let Some(opts) = &root.options {
+            elements.push(SpecialElement {
+                name: "svelte:options",
+                start: opts.start,
+                end: opts.end,
+                attributes: opts
+                    .attributes
+                    .iter()
+                    .map(|n| Attribute::Attribute(n.clone()))
+                    .collect(),
+            });
+        }
+
+        // Sort by source position so rules see them in document order.
+        elements.sort_by_key(|e| e.start);
+
+        for el in &elements {
+            for er in &self.rules {
+                ctx.enter_rule(er.meta, er.severity);
+                er.rule.check_special_element(ctx, el);
+            }
+        }
     }
 
     fn visit_fragment(&self, ctx: &mut LintContext, fragment: &Fragment) {

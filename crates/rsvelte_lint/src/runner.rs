@@ -8,7 +8,7 @@ use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 
 use crate::config::LintConfig;
 use crate::diagnostic::{LintDiagnostic, TextEdit};
-use crate::engine::{run_native_rules, run_script_rules};
+use crate::engine::{run_native_rules, run_script_rules, run_script_rules_with_path};
 use crate::line_index::LineIndex;
 use crate::suppression::Suppressions;
 
@@ -26,6 +26,11 @@ pub fn lint_source(
         .map(|n| n.to_string_lossy())
         .unwrap_or_default()
         .into_owned();
+
+    // Layer any inline `/* eslint <rule>: … */` config in this file on top of the
+    // base config (ESLint per-file inline-config semantics). No-op when absent.
+    let effective = crate::inline_config::apply(source, config);
+    let config = &effective;
 
     let mut diagnostics = match crate::engine::classify_source(&file.to_string_lossy()) {
         // A standalone JS/TS module file (`*.svelte.js` / `*.svelte.ts` / `*.js`
@@ -48,7 +53,9 @@ pub fn lint_source(
             }
 
             // 2a. Script-AST rules — walk the `<script>` ESTree program(s).
-            for d in run_script_rules(source, &filename, config) {
+            // Thread the full path so path-gated rules (e.g. SvelteKit route
+            // file detection) can check whether the file lives under src/routes.
+            for d in run_script_rules_with_path(source, &filename, config, Some(file)) {
                 diags.push(d.to_output(file, &line_index));
             }
 
@@ -72,6 +79,14 @@ pub fn lint_source(
                 crate::rules::valid_style_parse::valid_style_parse_diagnostics(
                     source, file, config,
                 ),
+            );
+
+            // 2d2. block-lang fallback: for files the Svelte parser can't fully
+            // parse (e.g. unknown `<style lang="…">` bodies or invalid TypeScript),
+            // the normal `check_root` path is skipped. Run a source-scan instead
+            // to catch `<script lang="…">` / `<style lang="…">` violations.
+            diags.extend(
+                crate::rules::block_lang::block_lang_source_scan_diagnostics(source, file, config),
             );
 
             // 2e. Cross-cutting (template + script) source-scan meta-rules.
@@ -116,6 +131,7 @@ pub fn lint_source(
             &line_index,
             &findings,
             cd_severity,
+            &rule_is_implemented,
         )
     } else {
         Vec::new()
@@ -157,13 +173,21 @@ pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<Li
         .unwrap_or_default()
         .into_owned();
 
+    let effective = crate::inline_config::apply(source, config);
+    let config = &effective;
+
     let mut diags = match crate::engine::classify_source(&file.to_string_lossy()) {
         crate::engine::SourceKind::Module { ts } => {
             crate::engine::run_script_rules_module(source, &filename, ts, config)
         }
         crate::engine::SourceKind::Svelte => {
             let mut d = run_native_rules(source, &filename, config, Some(file));
-            d.extend(run_script_rules(source, &filename, config));
+            d.extend(run_script_rules_with_path(
+                source,
+                &filename,
+                config,
+                Some(file),
+            ));
             d.extend(crate::scope::scope_diagnostics(source, config));
             d
         }
@@ -189,6 +213,8 @@ pub struct FixResult {
 pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     let line_index = LineIndex::new(source);
     let suppressions = Suppressions::collect(source);
+    let effective = crate::inline_config::apply(source, config);
+    let config = &effective;
 
     // Gather candidate fixes from non-suppressed fixable findings — from both
     // the template-walk rules and the script-AST rules (e.g. the autofix of
@@ -253,6 +279,28 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
         }
     }
     FixResult { output, applied }
+}
+
+/// Whether `rule_id` names a rule rsvelte actually implements. Used by
+/// comment-directive's unused-report to avoid flagging a directive that targets
+/// a rule we cannot evaluate (e.g. core ESLint `no-undef`) as unused. In
+/// non-native builds there is no rule registry, so we conservatively treat every
+/// rule as implemented (preserving the prior finding-based approximation).
+#[cfg(feature = "native")]
+fn rule_is_implemented(rule_id: &str) -> bool {
+    use std::sync::LazyLock;
+    static IDS: LazyLock<std::collections::HashSet<&'static str>> = LazyLock::new(|| {
+        crate::registry::registered_rule_metas()
+            .iter()
+            .map(|m| m.name)
+            .collect()
+    });
+    IDS.contains(rule_id)
+}
+
+#[cfg(not(feature = "native"))]
+fn rule_is_implemented(_rule_id: &str) -> bool {
+    true
 }
 
 /// Lint a file on disk.
@@ -348,6 +396,76 @@ mod tests {
     fn no_at_debug_tags_fires() {
         let diags = lint("{@debug foo}", &LintConfig::recommended());
         assert!(codes(&diags).contains(&"svelte/no-at-debug-tags".to_string()));
+    }
+
+    /// Count `svelte/prefer-const` reports whose message names `var`.
+    fn prefer_const_hits(diags: &[Diagnostic], var: &str) -> usize {
+        let needle = format!("'{var}' is never reassigned");
+        diags
+            .iter()
+            .filter(|d| {
+                d.code.as_deref() == Some("svelte/prefer-const") && d.message.contains(&needle)
+            })
+            .count()
+    }
+
+    #[test]
+    fn prefer_const_destructuring_assignment_same_scope_reported() {
+        let cfg = LintConfig::recommended().with_override("svelte/prefer-const", Severity::Error);
+        // `a` declared + assigned-once via destructuring in the SAME function.
+        let src = "<script>\nfunction h() {\n  let o = { a: 1 };\n  let a;\n  ({ [\"a\"]: a } = o);\n}\n</script>";
+        assert_eq!(prefer_const_hits(&lint(src, &cfg), "a"), 1);
+    }
+
+    #[test]
+    fn prefer_const_destructuring_cross_scope_not_reported() {
+        let cfg = LintConfig::recommended().with_override("svelte/prefer-const", Severity::Error);
+        // `a` declared at the top but assigned in a NESTED function — ESLint's
+        // scope-aware rule cannot `const` it, so neither do we (no FP).
+        let src = "<script>\nlet a;\nfunction f() { ({ [\"a\"]: a } = getX()); }\n</script>";
+        assert_eq!(prefer_const_hits(&lint(src, &cfg), "a"), 0);
+    }
+
+    #[test]
+    fn prefer_const_plain_separate_assignment_not_reported() {
+        let cfg = LintConfig::recommended().with_override("svelte/prefer-const", Severity::Error);
+        // A plain (non-destructuring) `let a; a = 1;` is never reported by ESLint.
+        let src = "<script>\nfunction h() { let a; a = 1; use(a); }\n</script>";
+        assert_eq!(prefer_const_hits(&lint(src, &cfg), "a"), 0);
+    }
+
+    #[test]
+    fn prefer_svelte_reactivity_cross_script_set_mutation() {
+        // `new Set()` declared in the module script, mutated in the instance
+        // script — only visible when both scripts are analysed together.
+        let cfg = LintConfig::recommended()
+            .with_override("svelte/prefer-svelte-reactivity", Severity::Error);
+        let src = "<script context=\"module\">\n  const elements = new Set();\n</script>\n<script>\n  elements.add(1);\n</script>";
+        let hits = lint(src, &cfg)
+            .iter()
+            .filter(|d| d.code.as_deref() == Some("svelte/prefer-svelte-reactivity"))
+            .count();
+        assert_eq!(
+            hits, 1,
+            "exactly one cross-script Set report (no double, no miss)"
+        );
+    }
+
+    #[test]
+    fn block_lang_non_css_lang_reports_once() {
+        // A `<style lang="stylus">` parses leniently (so `check_root` fires) but
+        // not strictly — the source-scan fallback must NOT also fire (regression
+        // test for the double-report fixed by guarding the fallback on the
+        // lenient parse).
+        let cfg = LintConfig::recommended()
+            .with_override("svelte/block-lang", Severity::Error)
+            .with_options("svelte/block-lang", serde_json::json!([{ "style": null }]));
+        let src = "<style lang=\"stylus\">\ndiv\n  color: red\n</style>";
+        let hits = lint(src, &cfg)
+            .iter()
+            .filter(|d| d.code.as_deref() == Some("svelte/block-lang"))
+            .count();
+        assert_eq!(hits, 1, "block-lang must report once, not twice");
     }
 
     #[test]

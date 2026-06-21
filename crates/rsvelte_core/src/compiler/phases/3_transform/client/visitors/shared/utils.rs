@@ -1384,7 +1384,11 @@ pub fn apply_transforms_to_expression_with_shadowed(
         // Expressions that don't need transformation
         JsExpr::Literal(_)
         | JsExpr::This
+        | JsExpr::Super
+        | JsExpr::MetaProperty(_, _)
+        | JsExpr::ImportExpression { .. }
         | JsExpr::Raw(_)
+        | JsExpr::OpaqueIdentifier(_)
         | JsExpr::Class(_)
         | JsExpr::Chain(_)
         | JsExpr::Void(_) => expr.clone(),
@@ -2511,13 +2515,17 @@ fn collect_reactive_references_inner(
         // Terminal nodes or nodes that don't contain expressions
         JsExpr::Literal(_)
         | JsExpr::This
+        | JsExpr::Super
+        | JsExpr::MetaProperty(_, _)
         | JsExpr::Raw(_)
+        | JsExpr::OpaqueIdentifier(_)
         | JsExpr::Spread(_)
         | JsExpr::New(_)
         | JsExpr::Class(_)
         | JsExpr::Yield(_)
         | JsExpr::Await(_)
         | JsExpr::TaggedTemplate(_)
+        | JsExpr::ImportExpression { .. }
         | JsExpr::Chain(_)
         | JsExpr::Void(_) => {}
         JsExpr::Spanned(inner, _, _) => {

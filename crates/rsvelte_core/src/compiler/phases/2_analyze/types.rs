@@ -582,11 +582,27 @@ pub fn strip_typescript(source: &str) -> String {
         // `analysis.comments` and esrap re-prints them before the next
         // statement. Keep them: re-emit every comment found inside a removed
         // multi-line region in place.
+        //
+        // Exception: do NOT re-emit comments from inline TS type annotations
+        // on variable declarations (e.g. `}: SomeType & { /** JSDoc */ ... }`).
+        // Those annotations start with `:` (the TS type annotation sigil), and
+        // re-emitting their interior JSDoc comments would leave the comment
+        // floating between the destructuring `}` and `= $props()`, which breaks
+        // `collapse_multiline_destructuring` — it closes the destructure accumulation
+        // at the `}` (depth → 0) before seeing `= $$props`, so the collapsed string
+        // never matches and `$$slots`/`$$events` injection is skipped.
         let start = *remove_start as usize;
         let end = (*remove_end as usize).min(source.len());
         if pos as usize <= start && start < end {
             let removed = &source[start..end];
-            if removed.contains('\n') && (removed.contains("/*") || removed.contains("//")) {
+            // An inline TS type annotation starts with `:` (optionally preceded by
+            // whitespace already emitted). If the removed chunk starts with `:`, it
+            // is a type annotation — skip comment re-emission for it entirely.
+            let is_inline_type_annotation = removed.trim_start().starts_with(':');
+            if !is_inline_type_annotation
+                && removed.contains('\n')
+                && (removed.contains("/*") || removed.contains("//"))
+            {
                 for comment in
                     crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet(removed)
                 {
@@ -2468,4 +2484,67 @@ pub struct CustomElementConfig {
     /// Source text of the `extend` option function (TypeScript-stripped when
     /// the component uses `lang="ts"`).
     pub extend: Option<String>,
+}
+
+#[cfg(test)]
+mod strip_typescript_tests {
+    use super::strip_typescript;
+
+    /// Regression: `strip_typescript` must NOT re-emit JSDoc comments that live
+    /// inside a TS type annotation on a `$props()` destructure.
+    ///
+    /// Before the fix, the code in `strip_typescript` intentionally re-emitted
+    /// comments found inside removed regions (to preserve JSDoc from
+    /// `interface Props { … }` bodies).  This caused the JSDoc to land *between*
+    /// the destructure's closing `}` and `= $props()`, breaking
+    /// `collapse_multiline_destructuring` which expected them on the same line.
+    ///
+    /// The fix: skip comment re-emission for regions that start with `:` —
+    /// those are inline TS type annotations, not top-level declarations.
+    #[test]
+    fn jsdoc_inside_inline_ts_type_annotation_is_not_re_emitted() {
+        let source = "\
+let {
+\tvalue: valueProp = $bindable([]),
+\titems = [],
+\t...restProps
+}: SomeType & {
+\t/**
+\t * The individual items.
+\t */
+\titems?: string[];
+} = $props();
+";
+        let stripped = strip_typescript(source);
+        // The JSDoc comment must NOT appear in the stripped output.
+        assert!(
+            !stripped.contains("The individual items"),
+            "JSDoc from inline TS annotation was re-emitted: {stripped:?}"
+        );
+        // The destructure pattern itself must be preserved.
+        assert!(
+            stripped.contains("...restProps"),
+            "restProps missing after strip: {stripped:?}"
+        );
+        // The assignment RHS must be preserved.
+        assert!(
+            stripped.contains("$props()"),
+            "$props() missing after strip: {stripped:?}"
+        );
+        // The closing `}` must not have floating content between it and `= $props()`.
+        // Specifically, the stripped output should not have a `/**` on a line
+        // between `}` and `= $props()`.
+        let lines: Vec<&str> = stripped.lines().collect();
+        let closing_brace_idx = lines.iter().rposition(|l| l.trim() == "}");
+        let props_idx = lines.iter().rposition(|l| l.contains("$props()"));
+        if let (Some(brace), Some(props)) = (closing_brace_idx, props_idx) {
+            // All lines between `}` and `= $props()` should be whitespace or the `=` line itself.
+            for l in &lines[brace + 1..props] {
+                assert!(
+                    l.trim().is_empty() || l.trim().starts_with('='),
+                    "Unexpected content between `}}` and `= $props()`: {l:?}\nFull output: {stripped:?}"
+                );
+            }
+        }
+    }
 }

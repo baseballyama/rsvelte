@@ -165,3 +165,41 @@ executable: clear inputs, an oracle, and a mechanical definition of done.
 - No new string post-passes. If output is wrong, the AST or the printer
   is wrong — fix it there.
 - Each step lands as its own PR with the corpus counts in the description.
+
+## Findings (2026-06-19 — derived-read wrapping is single-pass-or-nothing)
+
+A session of corpus burndown (#1092, 248→120 known failures) probed how far the
+*current textual* pipeline can be pushed and surfaced the precise reason the
+`$derived` server lowering must be migrated holistically, not pass-by-pass:
+
+- **Instance/module script `wrap_derived_reads` is already AST** (`server/
+  derived_reads_ast.rs`) and was extended to wrap a derived used as a 0-arg
+  callee uniformly (`inactive()` → `inactive()()`) — fixing the long-standing
+  `$derived` **currying** class on the instance side **with zero regressions**.
+  This proves the AST approach is the correct, safe mechanism (the textual
+  scanner could never do this — see below).
+
+- **Template-expression derived wrapping cannot be swapped to the AST pass in
+  isolation.** `wrap_derived_reads_for_template` runs *late*, on text that has
+  already been through other textual transforms (store `$x` → `$.store_get`,
+  special-var rewrites) **and, critically, on text where some derived reads are
+  already wrapped to `name()` by an earlier stage**. The byte scanner's
+  "skip a derived in 0-arg call position" rule is therefore **load-bearing for
+  idempotency**, not just a currying quirk: it prevents `code()` (an
+  already-wrapped read) from becoming `code()()`. Routing the template path
+  through the AST pass (which wraps uniformly) double-wraps those reads and
+  regresses ~220 corpus entries. The decisive observation: a source-level
+  `derived()` (currying — must become `derived()()`) and an already-wrapped
+  read `derived()` (must stay) are **indistinguishable** to *any* pass —
+  textual or AST — once the input is partially transformed.
+
+- **Conclusion / required approach.** The derived/store/special-var lowerings
+  must run **exactly once, over the raw parsed expression AST**, before any
+  text-stage rewrites — i.e. Step 2/3 must rebuild the template-expression
+  (and script) handling as a single AST transform that emits already-correct
+  output, rather than the present multi-stage idempotent text passes. There is
+  no safe incremental "swap one text pass for an AST pass" for the template
+  path; the multi-stage text wrapping has to be replaced wholesale by the
+  single-pass AST pipeline. Treat the 84 `wrap_derived_reads`/
+  `transform_store_refs` call sites as one transform to consolidate, not as
+  independently-portable units.

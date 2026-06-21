@@ -17,9 +17,10 @@ use crate::rules::{
     no_object_in_text_mustaches::NoObjectInTextMustaches,
     no_raw_special_elements::NoRawSpecialElements,
     no_restricted_html_elements::NoRestrictedHtmlElements, no_svelte_internal::NoSvelteInternal,
-    no_target_blank::NoTargetBlank, no_useless_children_snippet::NoUselessChildrenSnippet,
-    no_useless_mustaches::NoUselessMustaches, require_each_key::RequireEachKey,
-    valid_each_key::ValidEachKey,
+    no_target_blank::NoTargetBlank, no_top_level_browser_globals::NoTopLevelBrowserGlobals,
+    no_useless_children_snippet::NoUselessChildrenSnippet,
+    no_useless_mustaches::NoUselessMustaches, prefer_const::PreferConst,
+    require_each_key::RequireEachKey, valid_each_key::ValidEachKey,
 };
 
 /// Every registered rule's `&'static RuleMeta`, across both the template-AST
@@ -31,11 +32,45 @@ use crate::rules::{
 /// surfaced everywhere (and subjected to upstream-fixture parity).
 #[cfg(feature = "native")]
 pub fn registered_rule_metas() -> Vec<&'static RuleMeta> {
+    // Deduplicate by name: a rule registered in both `all_rules()` and
+    // `all_script_rules()` (e.g. `prefer-const`, `no-top-level-browser-globals`,
+    // `prefer-svelte-reactivity`) must appear only once.
+    //
+    // Invariant: a dual-registered rule's `Rule::meta()` and `ScriptRule::meta()`
+    // MUST return the SAME `&'static RuleMeta` (share one `META` static) — the
+    // name-keyed dedup below silently keeps the first otherwise. Catch a future
+    // mismatch (e.g. divergent `default_severity`) in debug builds.
+    #[cfg(debug_assertions)]
+    {
+        let mut by_name: std::collections::HashMap<&str, *const RuleMeta> =
+            std::collections::HashMap::new();
+        for m in all_rules()
+            .iter()
+            .map(|r| r.meta())
+            .chain(all_script_rules().iter().map(|r| r.meta()))
+            .chain(meta_rule_metas())
+        {
+            let ptr = m as *const RuleMeta;
+            if let Some(&prev) = by_name.get(m.name) {
+                debug_assert!(
+                    std::ptr::eq(prev, ptr),
+                    "rule '{}' is registered with two different RuleMeta statics — \
+                     a dual-registered rule must share one META",
+                    m.name
+                );
+            } else {
+                by_name.insert(m.name, ptr);
+            }
+        }
+    }
+
+    let mut seen = std::collections::HashSet::new();
     all_rules()
         .iter()
         .map(|r| r.meta())
         .chain(all_script_rules().iter().map(|r| r.meta()))
         .chain(meta_rule_metas())
+        .filter(|m| seen.insert(m.name))
         .collect()
 }
 
@@ -117,6 +152,19 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(crate::rules::block_lang::BlockLang),
         Box::new(crate::rules::no_unused_class_name::NoUnusedClassName),
         Box::new(crate::rules::consistent_selector_style::ConsistentSelectorStyle),
+        // `PreferConst` also lives in `all_script_rules()` for the
+        // `check_program` path; the `Rule` implementation here adds
+        // `check_root` so template-only files (no `<script>`) are covered.
+        Box::new(PreferConst),
+        // `NoTopLevelBrowserGlobals` also lives in `all_script_rules()` for the
+        // `check_program` path; the `Rule` implementation here adds
+        // `check_root` so template expression tags are checked for browser globals.
+        Box::new(NoTopLevelBrowserGlobals),
+        // `PreferSvelteReactivity` also lives in `all_script_rules()` for the
+        // per-script `check_program` path; the `Rule` implementation here adds
+        // `check_root` to detect cross-script cases (declared in module script,
+        // mutated in instance script, or vice versa).
+        Box::new(crate::rules::prefer_svelte_reactivity::PreferSvelteReactivity),
     ]
 }
 

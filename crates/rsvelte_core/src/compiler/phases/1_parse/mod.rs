@@ -98,6 +98,14 @@ pub struct ParseOptions {
     /// TS by default, so a plain `<script>` containing TS (e.g. `import type`,
     /// `typeof X<any>`) must be parsed as TS to format identically.
     pub force_typescript: bool,
+    /// When true, a script-block parse error produces an empty-body placeholder
+    /// rather than aborting the whole parse.  This lets the template visitor (and
+    /// the linter) still walk the rest of the component even when the `<script>`
+    /// contains syntactically-invalid TypeScript (e.g. wrong modifier order).
+    /// Mirrors the behaviour of `parse_script_ts` / svelte2tsx mode for the
+    /// script error-recovery path only — template expressions and everything
+    /// outside `<script>` are unaffected.
+    pub lenient_script: bool,
 }
 
 /// Extended parse options with filename (separate to keep ParseOptions Copy).
@@ -195,6 +203,28 @@ pub fn parse_module_to_estree(source: &str, is_typescript: bool) -> serde_json::
             source.len(),
         );
         program.as_json().clone()
+    })
+}
+
+/// Whether `source` parses as a valid JS/TS program (no syntax error). Used by
+/// lint rules that need to validate a small TS snippet — e.g. wrapping a
+/// `<script generics="…">` value in a type alias to decide whether it is
+/// syntactically valid TypeScript.
+pub fn ts_snippet_is_valid(source: &str, is_typescript: bool) -> bool {
+    let arena = crate::ast::arena::ParseArena::new();
+    let line_offsets = compute_line_offsets(source, false);
+    crate::ast::arena::with_serialize_arena(&arena, || {
+        let (_program, parse_error) = expression::parse_program_with_error(
+            &arena,
+            source,
+            0,
+            &line_offsets,
+            is_typescript,
+            &[],
+            0,
+            source.len(),
+        );
+        parse_error.is_none()
     })
 }
 

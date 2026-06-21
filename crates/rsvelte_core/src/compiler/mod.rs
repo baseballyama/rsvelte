@@ -528,6 +528,7 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
         skip_expression_loc: true,
         defer_script_parse: true,
         force_typescript: false,
+        lenient_script: false,
     };
     let mut ast = phases::phase1_parse::parse(source, parse_options)?;
 
@@ -1675,5 +1676,58 @@ export function greet(name) {
             code.contains("greet") && code.contains("$.bind_props"),
             "Should have greet in bind_props"
         );
+    }
+
+    #[test]
+    fn test_server_module_jsdoc_not_mangled() {
+        // Regression test for JSDoc block comments being mangled in server modules:
+        // each line inside /** ... */ should NOT get a `;` appended, and the
+        // newline after `*/` should NOT be consumed.
+        //
+        // IMPORTANT: the class must contain a `$state(…)` field so that
+        // `transform_class_fields_server` actually runs (it short-circuits when
+        // there are no rune fields).  The bug was only triggered on classes that
+        // have at least one `$state`/`$derived` field alongside JSDoc comments.
+        let source = r#"export class Foo {
+  #fieldNode = $state(null);
+
+  /**
+   * Sets the field node.
+   * Keep #fieldNode private.
+   */
+  setFieldNode(node) {
+    this.#fieldNode = node;
+  }
+}"#;
+        let options = ModuleCompileOptions {
+            generate: GenerateMode::Server,
+            dev: false,
+            filename: Some("test.svelte.ts".to_string()),
+            ..Default::default()
+        };
+        let result = compile_module(source, options).unwrap();
+        let code = &result.js.code;
+        // The JSDoc lines must NOT have ';' appended
+        assert!(
+            !code.contains("/**;"),
+            "/**; found — block comment corrupted"
+        );
+        assert!(
+            !code.contains(" * Sets the field node.;"),
+            "comment line has ; appended"
+        );
+        // `*/` must be followed by a newline and then the method, not joined inline
+        let lines: Vec<&str> = code.lines().collect();
+        let star_close = lines.iter().position(|l| l.trim() == "*/");
+        let set_field = lines
+            .iter()
+            .position(|l| l.trim().starts_with("setFieldNode("));
+        assert!(
+            star_close.is_some() && set_field.is_some(),
+            "both */ and setFieldNode must appear in server output; got:\n{code}"
+        );
+        if let (Some(a), Some(b)) = (star_close, set_field) {
+            assert_eq!(b, a + 1, "*/ and setFieldNode must be on consecutive lines");
+        }
     }
 }

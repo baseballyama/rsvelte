@@ -1344,6 +1344,88 @@ pub(crate) fn detect_props_spread_pattern(script: &str) -> bool {
     false
 }
 
+/// Strip a trailing `// line comment` from a code snippet, without touching
+/// `//` inside string or template literals. Returns the code portion only
+/// (trimmed of trailing whitespace). Pure comment lines (trimmed starts with
+/// `//`) return an empty string.
+///
+/// This is used by `collapse_multiline_destructuring` so that an inline
+/// comment like `open = void 0, // some note` does not get embedded in the
+/// collapsed single-line output where it would swallow subsequent tokens.
+fn strip_inline_line_comment(s: &str) -> &str {
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    while i < len {
+        match bytes[i] {
+            // Single-quoted or double-quoted string literal.
+            b'\'' | b'"' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == quote {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+            }
+            // Template literal (skip `${...}` interpolations so their `//`
+            // is also ignored).
+            b'`' => {
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'`' {
+                        i += 1;
+                        break;
+                    }
+                    if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                        i += 2;
+                        let mut depth = 1i32;
+                        while i < len && depth > 0 {
+                            match bytes[i] {
+                                b'{' => depth += 1,
+                                b'}' => depth -= 1,
+                                b'\\' => {
+                                    i += 1;
+                                }
+                                _ => {}
+                            }
+                            i += 1;
+                        }
+                        continue;
+                    }
+                    i += 1;
+                }
+            }
+            // Block comment — advance past `*/`.
+            b'/' if i + 1 < len && bytes[i + 1] == b'*' => {
+                i += 2;
+                while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(len);
+            }
+            // Line comment found outside a string literal — strip from here.
+            b'/' if i + 1 < len && bytes[i + 1] == b'/' => {
+                return s[..i].trim_end();
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+    s
+}
+
 /// Collapse multi-line `let/const { ... } = $$props` destructurings into single lines.
 fn collapse_multiline_destructuring(script: &str) -> String {
     let mut result = String::new();
@@ -1356,6 +1438,13 @@ fn collapse_multiline_destructuring(script: &str) -> String {
     // the `}` in `inputId = `${createId(uid)}-input``, which must NOT end the
     // destructure early — a naive `contains('}')` check truncated such patterns).
     let mut depth: i32 = 0;
+    // When `depth` reaches 0 but we haven't yet seen `= $$props` / `= $props()`,
+    // the pattern closing `}` is on its own line and the `= rhs` follows on a
+    // later line (e.g. after TS type-annotation removal leaves a lone `}` line
+    // followed by ` = $props()`).  In that state, keep accumulating through
+    // blank / comment lines until we find the `=` assignment or a code line that
+    // can't be the RHS — then finalize.
+    let mut awaiting_rhs = false;
 
     for line in script.lines() {
         let trimmed = line.trim();
@@ -1367,9 +1456,12 @@ fn collapse_multiline_destructuring(script: &str) -> String {
                 let d = net_brace_depth(trimmed);
                 if d > 0 {
                     in_destructure = true;
+                    awaiting_rhs = false;
                     depth = d;
                     accum.clear();
-                    accum.push_str(trimmed);
+                    // Strip any trailing inline `//` comment from the first line too.
+                    let code_part = strip_inline_line_comment(trimmed);
+                    accum.push_str(code_part);
                     accum.push(' ');
                     orig.clear();
                     orig.push(line.to_string());
@@ -1378,35 +1470,82 @@ fn collapse_multiline_destructuring(script: &str) -> String {
             }
             result.push_str(line);
             result.push('\n');
+        } else if awaiting_rhs {
+            // We've seen the pattern's closing `}` but not the `= $$props` yet.
+            // Skip blank and comment-only lines; accept `= $$props`/`= $props()`.
+            orig.push(line.to_string());
+            if trimmed.is_empty()
+                || trimmed.starts_with("//")
+                || trimmed.starts_with("/*")
+                || trimmed.starts_with("*")
+            {
+                // Blank or comment line — keep waiting.
+                continue;
+            }
+            // Any non-comment, non-blank line: it should be the `= $$props` /
+            // `= $props()` assignment.  Append it to accum and finalize.
+            let code_part = strip_inline_line_comment(trimmed);
+            accum.push_str(code_part);
+            accum.push(' ');
+            in_destructure = false;
+            awaiting_rhs = false;
+            depth = 0;
+            let collapsed = accum.trim();
+            if memmem::find(collapsed.as_bytes(), b"= $$props").is_some()
+                || memmem::find(collapsed.as_bytes(), b"= $props()").is_some()
+            {
+                result.push_str("\t\t");
+                result.push_str(collapsed);
+                result.push('\n');
+            } else {
+                for l in &orig {
+                    result.push_str(l);
+                    result.push('\n');
+                }
+            }
         } else {
             orig.push(line.to_string());
             // Skip pure comment lines when collapsing (they can't be on one line with code after them)
             if trimmed.starts_with("//") {
                 // Don't include line comments in the collapsed output
             } else {
-                accum.push_str(trimmed);
+                // Strip any trailing inline `// line comment` before appending to
+                // the single-line accumulation. Without this, a comment like
+                //   open = void 0, // If undefined, renders inline; if defined …
+                // would be embedded in the collapsed output and swallow the following
+                // property (`badgeProps = …`) — making the output unparseable.
+                let code_part = strip_inline_line_comment(trimmed);
+                accum.push_str(code_part);
                 accum.push(' ');
-                depth += net_brace_depth(trimmed);
+                depth += net_brace_depth(code_part);
             }
             if depth <= 0 {
-                in_destructure = false;
                 depth = 0;
-                let collapsed = accum.trim();
+                let collapsed_so_far = accum.trim();
                 // Only collapse a *props* destructuring (`= $$props` / `= $props()`).
                 // Anything else (e.g. `const { a } = { …object literal… }`) is
                 // emitted verbatim so we never reformat — and risk corrupting —
                 // unrelated multi-line object-literal initializers.
-                if memmem::find(collapsed.as_bytes(), b"= $$props").is_some()
-                    || memmem::find(collapsed.as_bytes(), b"= $props()").is_some()
+                if memmem::find(collapsed_so_far.as_bytes(), b"= $$props").is_some()
+                    || memmem::find(collapsed_so_far.as_bytes(), b"= $props()").is_some()
                 {
+                    in_destructure = false;
                     result.push_str("\t\t");
-                    result.push_str(collapsed);
+                    result.push_str(collapsed_so_far);
                     result.push('\n');
                 } else {
-                    for l in &orig {
-                        result.push_str(l);
-                        result.push('\n');
-                    }
+                    // The brace pattern is closed but we haven't seen the `= rhs`
+                    // yet.  This can happen when a TS type annotation was stripped
+                    // and the closing `}` of the pattern ended up on its own line:
+                    //
+                    //   let { ...rest }          ← pattern closing `}` alone
+                    //   /**  JSDoc  */           ← stripped-annotation comment
+                    //    = $props();             ← RHS on a later line
+                    //
+                    // Stay in `in_destructure` mode (now flagged as `awaiting_rhs`)
+                    // and continue consuming lines until we see `= $$props` or
+                    // encounter an unrecognized code line.
+                    awaiting_rhs = true;
                 }
             }
         }
@@ -1539,10 +1678,21 @@ pub(crate) fn transform_props_spread_ex(
 
             // Strip a trailing TS type annotation on the destructuring pattern,
             // e.g. `{ a, ...rest }: SomeProps` → `{ a, ...rest }` (the server
-            // output is plain JS, so the annotation is dropped). Without this the
-            // `ends_with('}')` check below fails for a typed `$props()` and the
-            // `$$slots` / `$$events` exclusion is silently skipped.
-            let pattern = if pattern.starts_with('{') && !pattern.ends_with('}') {
+            // output is plain JS, so the annotation is dropped).
+            //
+            // Previously this was gated on `!pattern.ends_with('}')`, which skipped
+            // the strip when the TS type annotation is itself an object type —
+            // e.g. `{ a, ...rest }: BaseProps & { extra?: string }`. In that case
+            // the pattern ends with `}` (the annotation's closing brace), so the
+            // guard prevented stripping and `rest_name` below acquired the junk
+            // `}: BaseProps & { ... }` tail, corrupting `$$slots`/`$$events` injection.
+            //
+            // The fix: always attempt to strip. Find the FIRST `}` that brings the
+            // depth back to 0 (the destructure's own closing brace). If what follows
+            // it starts with `:`, the rest is a TS annotation — drop it.  When there
+            // is no annotation (plain `{ a, b }`) the closing `}` is the last char
+            // and nothing follows it, so the pattern is returned unchanged.
+            let pattern = if pattern.starts_with('{') {
                 let bytes = pattern.as_bytes();
                 let mut depth = 0i32;
                 let mut close = None;
@@ -2205,8 +2355,21 @@ fn extract_imports_with_options(script: &str, strip_exports: bool) -> (Vec<Strin
     let mut imports = Vec::new();
     let mut rest = String::new();
     let mut current_import: Option<Vec<String>> = None;
+    // Track whether we are inside a template literal across lines.
+    // A line that lies inside a template literal must not be treated as an
+    // import statement even if it starts with `import ` (e.g. a string that
+    // contains example code: `` `import { ${x} } from 'svelte/transition'` ``).
+    // We count unbalanced backticks (outside single/double quotes) to decide.
+    let mut in_template_literal = false;
 
     for line in script.lines() {
+        // Snapshot the template-literal state at the START of this line.  The
+        // state we need for the import-guard check is "were we already inside a
+        // template literal before this line began?".  We then advance the state
+        // for the next iteration.
+        let was_in_template_literal = in_template_literal;
+        in_template_literal = update_template_literal_state_for_indent(line, in_template_literal);
+
         if let Some(ref mut import_lines) = current_import {
             // We're inside a multi-line import. The closing line may carry
             // trailing statements after the import terminator; split them off.
@@ -2237,7 +2400,18 @@ fn extract_imports_with_options(script: &str, strip_exports: bool) -> (Vec<Strin
             }
         } else {
             let trimmed = line.trim();
-            if trimmed.starts_with("import ") || trimmed.starts_with("import{") {
+            // A line that starts with `import` but is inside a template literal
+            // (e.g. example code embedded in a template string) is NOT a real
+            // import and must be routed to `rest`.  Also skip any line whose
+            // potential import-path contains a template interpolation `${…}` —
+            // static import paths cannot have interpolations, so the line is
+            // template-literal content leaking through line-by-line scanning.
+            let is_template_content =
+                was_in_template_literal || memmem::find(trimmed.as_bytes(), b"${").is_some();
+
+            if !is_template_content
+                && (trimmed.starts_with("import ") || trimmed.starts_with("import{"))
+            {
                 if trimmed.contains(';')
                     || is_complete_side_effect_import(trimmed)
                     || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
@@ -3356,6 +3530,299 @@ mod ts_strip_tests {
         assert_eq!(
             strip_ts_type_annotation("[a, b]: number[] = []"),
             "[a, b] = []"
+        );
+    }
+}
+
+#[cfg(test)]
+mod collapse_destructuring_tests {
+    use super::{collapse_multiline_destructuring, strip_inline_line_comment};
+
+    // ── strip_inline_line_comment ───────────────────────────────────────────
+
+    #[test]
+    fn strip_comment_after_code() {
+        assert_eq!(
+            strip_inline_line_comment("open = void 0, // If undefined, renders as modal"),
+            "open = void 0,"
+        );
+    }
+
+    #[test]
+    fn no_comment_returns_unchanged() {
+        assert_eq!(
+            strip_inline_line_comment("badgeProps = { color: \"blue\" },"),
+            "badgeProps = { color: \"blue\" },"
+        );
+    }
+
+    #[test]
+    fn slash_slash_inside_string_not_stripped() {
+        // `//` inside a string literal must NOT be treated as a comment.
+        assert_eq!(
+            strip_inline_line_comment("url = \"http://example.com\","),
+            "url = \"http://example.com\","
+        );
+    }
+
+    #[test]
+    fn pure_comment_line_becomes_empty() {
+        assert_eq!(strip_inline_line_comment("// just a comment"), "");
+    }
+
+    #[test]
+    fn block_comment_followed_by_code_not_stripped() {
+        // A `/* … */` block comment before `//` does not confuse the scanner.
+        assert_eq!(
+            strip_inline_line_comment("/* note */ open = 1, // line comment"),
+            "/* note */ open = 1,"
+        );
+    }
+
+    // ── collapse_multiline_destructuring with inline comment ───────────────
+
+    /// A multi-line `$props()` destructure that contains an interior `//`
+    /// line comment (trailing on a property line) must produce a *parseable*
+    /// collapsed single line — the `//` must NOT swallow subsequent properties.
+    #[test]
+    fn inline_comment_in_props_destructure_is_parseable() {
+        let input = "\tlet {\n\
+                     \t  a = 1,\n\
+                     \t  open = void 0, // If undefined, renders inline; if defined, renders as modal\n\
+                     \t  badgeProps = { color: \"blue\" },\n\
+                     \t  b = 2\n\
+                     \t} = $$props;\n";
+        let collapsed = collapse_multiline_destructuring(input);
+        // The collapsed output must be on one line and must NOT contain `//`
+        // (which would make everything after it a comment on that line).
+        assert!(
+            collapsed.contains("= $$props"),
+            "Expected $$props in output: {collapsed:?}"
+        );
+        // The `//` comment should have been stripped — `badgeProps` must still appear.
+        assert!(
+            collapsed.contains("badgeProps"),
+            "badgeProps was swallowed by inline comment: {collapsed:?}"
+        );
+        // The line must not contain a `//` that would make subsequent tokens into a comment.
+        let single_line = collapsed
+            .lines()
+            .find(|l| l.contains("= $$props"))
+            .unwrap_or("");
+        assert!(
+            !single_line.contains("//"),
+            "Inline comment survived collapse and would swallow following tokens: {single_line:?}"
+        );
+    }
+
+    /// A `$props()` destructure that has a *pure* comment line (starts with `//`)
+    /// in the middle should also collapse correctly (the comment line is already
+    /// excluded by the existing logic).
+    #[test]
+    fn pure_comment_line_in_props_destructure_is_excluded() {
+        let input = "\tlet {\n\
+                     \t  a = 1,\n\
+                     \t  // This is a standalone comment line\n\
+                     \t  b = 2\n\
+                     \t} = $$props;\n";
+        let collapsed = collapse_multiline_destructuring(input);
+        assert!(
+            collapsed.contains("a = 1") && collapsed.contains("b = 2"),
+            "Properties missing after collapsing: {collapsed:?}"
+        );
+        let single_line = collapsed
+            .lines()
+            .find(|l| l.contains("= $$props"))
+            .unwrap_or("");
+        assert!(
+            !single_line.contains("//"),
+            "Standalone comment line survived collapse: {single_line:?}"
+        );
+    }
+
+    /// When a `let { ...restProps }: TypeAnnotation & { ... } = $$props`
+    /// destructure has a TypeScript type annotation with its own JSDoc block
+    /// comment, collapse_multiline_destructuring should still produce a single
+    /// collapsed line that contains `= $$props`.
+    #[test]
+    fn ts_type_annotation_with_jsdoc_collapses_to_single_line() {
+        let input = "\tlet {\n\
+                     \t\tvalue: valueProp = [],\n\
+                     \t\titems = [],\n\
+                     \t\t...restProps\n\
+                     \t}: Checkbox.GroupProps & {\n\
+                     \t\t/**\n\
+                     \t\t * The individual checkbox items.\n\
+                     \t\t */\n\
+                     \t\titems?: string[];\n\
+                     \t} = $$props;\n";
+        let collapsed = collapse_multiline_destructuring(input);
+        let single_line = collapsed
+            .lines()
+            .find(|l| l.contains("= $$props"))
+            .unwrap_or("");
+        assert!(
+            !single_line.is_empty(),
+            "No collapsed line with = $$props found: {collapsed:?}"
+        );
+        assert!(
+            single_line.contains("...restProps"),
+            "restProps missing from collapsed line: {single_line:?}"
+        );
+        assert!(
+            single_line.contains("value: valueProp"),
+            "value prop missing from collapsed line: {single_line:?}"
+        );
+    }
+
+    /// transform_props_spread_ex should add $$slots and $$events even when the
+    /// destructure has a TypeScript type annotation.
+    #[test]
+    fn ts_annotated_props_gets_slots_and_events() {
+        use super::transform_props_spread_ex;
+        let input = "\tlet {\n\
+                     \t\tvalue: valueProp = [],\n\
+                     \t\titems = [],\n\
+                     \t\t...restProps\n\
+                     \t}: Checkbox.GroupProps & {\n\
+                     \t\t/**\n\
+                     \t\t * The individual checkbox items.\n\
+                     \t\t */\n\
+                     \t\titems?: string[];\n\
+                     \t} = $$props;\n";
+        let result = transform_props_spread_ex(input, 0, false);
+        assert!(
+            result.contains("$$slots"),
+            "$$slots missing from output: {result:?}"
+        );
+        assert!(
+            result.contains("$$events"),
+            "$$events missing from output: {result:?}"
+        );
+        assert!(
+            result.contains("...restProps"),
+            "restProps missing from output: {result:?}"
+        );
+        // TS type annotation must not appear in the output
+        assert!(
+            !result.contains("Checkbox.GroupProps"),
+            "TS type annotation leaked into output: {result:?}"
+        );
+    }
+
+    /// Regression: when `strip_typescript` re-emits a JSDoc comment that was
+    /// inside a TS type annotation on a `$props()` destructure, the comment
+    /// lands between the closing `}` of the destructure and `= $$props`.
+    /// `collapse_multiline_destructuring` must not break on this — it should
+    /// treat the block comment lines as continuations and still produce a single
+    /// collapsed line containing `= $$props`, so `transform_props_spread_ex`
+    /// can inject `$$slots` / `$$events`.
+    ///
+    /// Input reproduces what `strip_typescript` emits for:
+    ///   let { ..., ...restProps }: SomeType & { /** JSDoc */ items?: ... } = $props()
+    /// after the TS annotation is removed but its interior comment is re-emitted.
+    #[test]
+    fn jsdoc_comment_between_brace_and_equals_does_not_drop_slots_events() {
+        use super::transform_props_spread_ex;
+        // Simulates the post-strip_typescript form: comment floats between `}` and `= $$props`.
+        let input = "\tlet {\n\
+                     \t\tvalue: valueProp = [],\n\
+                     \t\titems = [],\n\
+                     \t\t...restProps\n\
+                     \t}\n\
+                     \t/**\n\
+                     \t * The individual checkbox items.\n\
+                     \t */\n\
+                     \t= $$props;\n";
+        let result = transform_props_spread_ex(input, 0, false);
+        assert!(
+            result.contains("$$slots"),
+            "$$slots missing from output: {result:?}"
+        );
+        assert!(
+            result.contains("$$events"),
+            "$$events missing from output: {result:?}"
+        );
+        assert!(
+            result.contains("...restProps"),
+            "restProps missing from output: {result:?}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod extract_imports_template_literal_tests {
+    use super::extract_imports;
+
+    /// Bug A regression: a line inside a template literal that starts with
+    /// `import` and ends with a backtick must NOT be hoisted as an import.
+    ///
+    /// Reproducer: flowbite-svelte +page.svelte has
+    /// ```svelte
+    /// let importScript = currentTransition !== transitions[0]
+    ///   ? ` // script tag
+    ///         import { ${currentTransition} } from 'svelte/transition'`
+    ///   : "";
+    /// ```
+    /// The line `` import { ${currentTransition} } from 'svelte/transition'` ``
+    /// starts with `import `, has ` from `, and ends with `` ` ``, so it
+    /// accidentally matched the "complete import" heuristic. It must be routed
+    /// to the script body, not hoisted.
+    #[test]
+    fn template_literal_import_like_line_is_not_hoisted() {
+        let script = r#"
+import { blur } from 'svelte/transition';
+let importScript =
+    currentTransition !== transitions[0]
+        ? ` // script tag
+                import { ${currentTransition} } from 'svelte/transition'`
+        : "";
+"#;
+        let (imports, rest) = extract_imports(script);
+        // Only the real import should be hoisted
+        assert_eq!(
+            imports.len(),
+            1,
+            "expected 1 import, got {}: {:?}",
+            imports.len(),
+            imports
+        );
+        assert!(
+            imports[0].contains("svelte/transition"),
+            "hoisted import should be the real one: {:?}",
+            imports
+        );
+        // The template-literal line must appear in the rest body, not vanish
+        assert!(
+            rest.contains("import { ${currentTransition} }"),
+            "template-literal import-like line must remain in rest body: {rest:?}"
+        );
+    }
+
+    /// Lines entirely inside a multi-line template literal must not be treated
+    /// as imports even if they start with `import `.
+    #[test]
+    fn multiline_template_literal_body_not_hoisted() {
+        let script = r#"
+import { x } from './mod';
+const code = `
+import foo from 'bar';
+import baz from 'qux';
+`;
+"#;
+        let (imports, rest) = extract_imports(script);
+        // Only the single real import should be hoisted
+        assert_eq!(
+            imports.len(),
+            1,
+            "expected 1 import, got {}: {:?}",
+            imports.len(),
+            imports
+        );
+        // The template literal lines must survive in rest
+        assert!(
+            rest.contains("import foo from 'bar'"),
+            "template-literal body line must remain in rest: {rest:?}"
         );
     }
 }

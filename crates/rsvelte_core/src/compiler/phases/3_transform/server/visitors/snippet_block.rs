@@ -338,6 +338,20 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Compute standalone-ness for the trimmed fragment.
+        // A snippet body whose sole meaningful child is a non-dynamic RenderTag or
+        // Component is "standalone": the surrounding function call already supplies
+        // the hydration boundaries, so we must NOT add a trailing `<!---->` marker
+        // after the call (mirrors upstream Fragment.js → clean_nodes → `is_standalone`
+        // → RenderTag.js line 42 `!context.state.is_standalone` and component.js:354).
+        let is_standalone = self.is_standalone_fragment(
+            &body_nodes[start_idx..end_idx]
+                .iter()
+                .map(|n| (*n).clone())
+                .collect::<Vec<_>>(),
+        );
+        body_generator.skip_hydration_boundaries = is_standalone;
+
         // Check if first node is text or expression tag - if so, we need hydration marker
         // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/utils.js clean_nodes()
         // This prevents text from being fused with its surroundings during hydration
@@ -345,41 +359,45 @@ impl<'a> ServerCodeGenerator<'a> {
         // are lifted out by upstream's clean_nodes before the text-first
         // check, so skip them (and the whitespace runs between them) when
         // probing for the first content node.
-        let mut probe = start_idx;
-        let mut prev_was_hoisted = false;
-        while probe < end_idx {
-            match body_nodes[probe] {
-                TemplateNode::ConstTag(_)
-                | TemplateNode::DeclarationTag(_)
-                | TemplateNode::SnippetBlock(_)
-                | TemplateNode::DebugTag(_) => {
-                    probe += 1;
-                    prev_was_hoisted = true;
+        // Only applies when NOT standalone — a standalone body (single RenderTag/Component)
+        // never needs a leading anchor (matches upstream Fragment.js `is_text_first` guard).
+        if !is_standalone {
+            let mut probe = start_idx;
+            let mut prev_was_hoisted = false;
+            while probe < end_idx {
+                match body_nodes[probe] {
+                    TemplateNode::ConstTag(_)
+                    | TemplateNode::DeclarationTag(_)
+                    | TemplateNode::SnippetBlock(_)
+                    | TemplateNode::DebugTag(_) => {
+                        probe += 1;
+                        prev_was_hoisted = true;
+                    }
+                    TemplateNode::Text(text)
+                        if prev_was_hoisted && is_svelte_whitespace_only(&text.data) =>
+                    {
+                        probe += 1;
+                        prev_was_hoisted = false;
+                    }
+                    _ => break,
                 }
-                TemplateNode::Text(text)
-                    if prev_was_hoisted && is_svelte_whitespace_only(&text.data) =>
-                {
-                    probe += 1;
-                    prev_was_hoisted = false;
-                }
-                _ => break,
             }
-        }
-        let first_node = if probe < end_idx {
-            body_nodes.get(probe)
-        } else {
-            None
-        };
-        let is_text_first = matches!(
-            first_node,
-            Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
-        );
+            let first_node = if probe < end_idx {
+                body_nodes.get(probe)
+            } else {
+                None
+            };
+            let is_text_first = matches!(
+                first_node,
+                Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
+            );
 
-        // Add hydration marker if first content is text
-        if is_text_first {
-            body_generator
-                .output_parts
-                .push(OutputPart::Html("<!---->".to_string()));
+            // Add hydration marker if first content is text
+            if is_text_first {
+                body_generator
+                    .output_parts
+                    .push(OutputPart::Html("<!---->".to_string()));
+            }
         }
 
         // Generate body content
