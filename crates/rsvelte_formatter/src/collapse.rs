@@ -21,6 +21,20 @@ use unicode_width::UnicodeWidthStr;
 use crate::error::FormatError;
 use crate::options::FormatOptions;
 
+/// Derive the indent unit string and indent width from `FormatOptions`.
+/// Used to convert leading-whitespace column counts to indent levels and to
+/// pass the correct unit string to `crate::doc::print`.
+fn indent_config(options: &FormatOptions) -> (String, usize) {
+    let width = options.js.indent_width.value() as usize;
+    let width = if width == 0 { 1 } else { width };
+    let unit = if options.js.indent_style.is_tab() {
+        "\t".to_string()
+    } else {
+        " ".repeat(width)
+    };
+    (unit, width)
+}
+
 pub(crate) fn collapse_pure_text_elements(
     out: &str,
     options: &FormatOptions,
@@ -88,7 +102,7 @@ pub(crate) fn collapse_pure_text_elements(
     // After the `<li>` is re-broken, the `<a>` may need its multi-line open tag
     // hugged (`>text</a\n>` → `\n  >text</a\n>`).
     let mut edits1c: Vec<(u32, u32, String)> = Vec::new();
-    collect_try_collapse_only(&result, &tree.fragment, line_width, &mut edits1c);
+    collect_try_collapse_only(&result, &tree.fragment, line_width, options, &mut edits1c);
     if !edits1c.is_empty() {
         result = apply_edits(&result, edits1c);
         let Ok(t) = parse(&result, parse_opts) else {
@@ -104,7 +118,7 @@ pub(crate) fn collapse_pure_text_elements(
     // ownership in pass 1; this targeted pass applies it without re-running the
     // full layout suite (which would disturb already-correct prose wrapping).
     let mut edits1d: Vec<(u32, u32, String)> = Vec::new();
-    collect_hug_mixed_non_ws_prefix(&result, &tree.fragment, line_width, &mut edits1d);
+    collect_hug_mixed_non_ws_prefix(&result, &tree.fragment, line_width, options, &mut edits1d);
     if !edits1d.is_empty() {
         result = apply_edits(&result, edits1d);
         let Ok(t) = parse(&result, parse_opts) else {
@@ -747,6 +761,7 @@ fn fill_inline_runs(
     fragment: &Fragment,
     line_width: usize,
     is_block_body: bool,
+    options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
     consumed: &mut Vec<(u32, u32)>,
 ) {
@@ -782,7 +797,13 @@ fn fill_inline_runs(
         while j < nodes.len() && is_run_member(out, &nodes[j]) {
             j += 1;
         }
-        if let Some(edit) = try_fill_run(out, &nodes[i..j], line_width, allow_elem_expr_collapse) {
+        if let Some(edit) = try_fill_run(
+            out,
+            &nodes[i..j],
+            line_width,
+            allow_elem_expr_collapse,
+            options,
+        ) {
             consumed.push((edit.0, edit.1));
             edits.push(edit);
         }
@@ -803,7 +824,9 @@ fn try_fill_run(
     run: &[TemplateNode],
     line_width: usize,
     allow_elem_expr_collapse: bool,
+    options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
+    let (indent_unit, indent_width) = indent_config(options);
     // Trim whitespace-only edge text nodes — the surrounding layout owns them.
     let mut lo = 0;
     let mut hi = run.len();
@@ -940,9 +963,18 @@ fn try_fill_run(
             .bytes()
             .take_while(|&b| b == b' ' || b == b'\t')
             .count();
-        ws_len / 2
+        if options.js.indent_style.is_tab() {
+            ws_len
+        } else {
+            ws_len / indent_width
+        }
+    } else if options.js.indent_style.is_tab() {
+        indent
+            .bytes()
+            .take_while(|&b| b == b' ' || b == b'\t')
+            .count()
     } else {
-        indent_cols / 2
+        indent_cols / indent_width
     };
     // Use word-first fill format only when the source `whole` is already
     // multi-line (contains a newline). For single-line sources the
@@ -996,7 +1028,7 @@ fn try_fill_run(
     let flat = crate::doc::print(
         crate::doc::Doc::Group(vec![content_doc.clone()]),
         1_000_000,
-        "  ",
+        indent_unit.as_str(),
         base_level,
         0,
     );
@@ -1023,7 +1055,13 @@ fn try_fill_run(
     if run.len() == 1 && matches!(run[0], TemplateNode::Text(_)) && !whole.contains('\n') {
         return None;
     }
-    let printed_raw = crate::doc::print(content_doc, line_width, "  ", base_level, indent_cols);
+    let printed_raw = crate::doc::print(
+        content_doc,
+        line_width,
+        indent_unit.as_str(),
+        base_level,
+        indent_cols,
+    );
     // For Case B (hardline-prefixed inverted fill), the printed output begins with
     // "\n<indent>" from the Hardline. Strip this prefix so the edit replaces only
     // the word content starting at `s` (the existing "\n<indent>" before `s` in the
@@ -1032,7 +1070,7 @@ fn try_fill_run(
         && first_text_follows_close_tag
         && printed_raw.starts_with('\n')
     {
-        let indent_str = "  ".repeat(base_level);
+        let indent_str = indent_unit.repeat(base_level);
         printed_raw
             .strip_prefix('\n')
             .and_then(|r| r.strip_prefix(indent_str.as_str()))
@@ -1164,6 +1202,7 @@ fn collect_hug_mixed_non_ws_prefix(
     out: &str,
     fragment: &Fragment,
     line_width: usize,
+    options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
     for node in &fragment.nodes {
@@ -1190,6 +1229,7 @@ fn collect_hug_mixed_non_ws_prefix(
                         e.end,
                         &e.fragment,
                         line_width,
+                        options,
                     )
                 {
                     edits.push(edit);
@@ -1211,6 +1251,7 @@ fn collect_hug_mixed_non_ws_prefix(
                         c.end,
                         &c.fragment,
                         line_width,
+                        options,
                     )
                 {
                     edits.push(edit);
@@ -1232,6 +1273,7 @@ fn collect_hug_mixed_non_ws_prefix(
                         s.end,
                         &s.fragment,
                         line_width,
+                        options,
                     )
                 {
                     edits.push(edit);
@@ -1241,14 +1283,14 @@ fn collect_hug_mixed_non_ws_prefix(
             }
             _ => {
                 for child in child_fragments(node) {
-                    collect_hug_mixed_non_ws_prefix(out, child, line_width, edits);
+                    collect_hug_mixed_non_ws_prefix(out, child, line_width, options, edits);
                 }
                 continue;
             }
         };
         let _ = (start, end); // suppress unused warnings
         for child in children {
-            collect_hug_mixed_non_ws_prefix(out, child, line_width, edits);
+            collect_hug_mixed_non_ws_prefix(out, child, line_width, options, edits);
         }
     }
 }
@@ -1803,6 +1845,7 @@ fn collect_try_collapse_only(
     out: &str,
     fragment: &Fragment,
     line_width: usize,
+    options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
     for node in &fragment.nodes {
@@ -1820,13 +1863,14 @@ fn collect_try_collapse_only(
                         elem.end,
                         &elem.fragment,
                         line_width,
+                        options,
                         Some(node),
                     )
                 {
                     edits.push(edit);
                     continue; // edit owns this element, don't recurse
                 }
-                collect_try_collapse_only(out, &elem.fragment, line_width, edits);
+                collect_try_collapse_only(out, &elem.fragment, line_width, options, edits);
             }
             TemplateNode::Component(c) => {
                 if let Some(edit) = try_collapse(
@@ -1836,15 +1880,16 @@ fn collect_try_collapse_only(
                     c.end,
                     &c.fragment,
                     line_width,
+                    options,
                     None,
                 ) {
                     edits.push(edit);
                     continue;
                 }
-                collect_try_collapse_only(out, &c.fragment, line_width, edits);
+                collect_try_collapse_only(out, &c.fragment, line_width, options, edits);
             }
             TemplateNode::TitleElement(t) => {
-                collect_try_collapse_only(out, &t.fragment, line_width, edits);
+                collect_try_collapse_only(out, &t.fragment, line_width, options, edits);
             }
             TemplateNode::SvelteBody(s)
             | TemplateNode::SvelteDocument(s)
@@ -1854,45 +1899,45 @@ fn collect_try_collapse_only(
             | TemplateNode::SvelteOptions(s)
             | TemplateNode::SvelteSelf(s)
             | TemplateNode::SvelteWindow(s) => {
-                collect_try_collapse_only(out, &s.fragment, line_width, edits);
+                collect_try_collapse_only(out, &s.fragment, line_width, options, edits);
             }
             TemplateNode::SvelteComponent(c) => {
-                collect_try_collapse_only(out, &c.fragment, line_width, edits);
+                collect_try_collapse_only(out, &c.fragment, line_width, options, edits);
             }
             TemplateNode::SvelteElement(e) => {
-                collect_try_collapse_only(out, &e.fragment, line_width, edits);
+                collect_try_collapse_only(out, &e.fragment, line_width, options, edits);
             }
             TemplateNode::IfBlock(blk) => {
-                collect_try_collapse_only(out, &blk.consequent, line_width, edits);
+                collect_try_collapse_only(out, &blk.consequent, line_width, options, edits);
                 if let Some(alt) = &blk.alternate {
-                    collect_try_collapse_only(out, alt, line_width, edits);
+                    collect_try_collapse_only(out, alt, line_width, options, edits);
                 }
             }
             TemplateNode::EachBlock(blk) => {
-                collect_try_collapse_only(out, &blk.body, line_width, edits);
+                collect_try_collapse_only(out, &blk.body, line_width, options, edits);
                 if let Some(fb) = &blk.fallback {
-                    collect_try_collapse_only(out, fb, line_width, edits);
+                    collect_try_collapse_only(out, fb, line_width, options, edits);
                 }
             }
             TemplateNode::AwaitBlock(blk) => {
                 if let Some(f) = &blk.pending {
-                    collect_try_collapse_only(out, f, line_width, edits);
+                    collect_try_collapse_only(out, f, line_width, options, edits);
                 }
                 if let Some(f) = &blk.then {
-                    collect_try_collapse_only(out, f, line_width, edits);
+                    collect_try_collapse_only(out, f, line_width, options, edits);
                 }
                 if let Some(f) = &blk.catch {
-                    collect_try_collapse_only(out, f, line_width, edits);
+                    collect_try_collapse_only(out, f, line_width, options, edits);
                 }
             }
             TemplateNode::KeyBlock(blk) => {
-                collect_try_collapse_only(out, &blk.fragment, line_width, edits);
+                collect_try_collapse_only(out, &blk.fragment, line_width, options, edits);
             }
             TemplateNode::SnippetBlock(blk) => {
-                collect_try_collapse_only(out, &blk.body, line_width, edits);
+                collect_try_collapse_only(out, &blk.body, line_width, options, edits);
             }
             TemplateNode::SlotElement(s) => {
-                collect_try_collapse_only(out, &s.fragment, line_width, edits);
+                collect_try_collapse_only(out, &s.fragment, line_width, options, edits);
             }
             _ => {}
         }
@@ -1913,6 +1958,7 @@ fn collect(
         fragment,
         line_width,
         is_block_body,
+        options,
         edits,
         &mut consumed,
     );
@@ -1988,6 +2034,7 @@ fn collect(
                     elem.end,
                     &elem.fragment,
                     line_width,
+                    options,
                     Some(node),
                 ) {
                     edits.push(edit);
@@ -2008,6 +2055,7 @@ fn collect(
                     elem.end,
                     &elem.fragment,
                     line_width,
+                    options,
                 ) {
                     edits.push(edit);
                 } else if let Some(edit) = try_break_content_tag_block(
@@ -2054,6 +2102,7 @@ fn collect(
                     c.end,
                     &c.fragment,
                     line_width,
+                    options,
                     None,
                 ) {
                     edits.push(edit);
@@ -2082,6 +2131,7 @@ fn collect(
                     c.end,
                     &c.fragment,
                     line_width,
+                    options,
                 ) {
                     edits.push(edit);
                 } else {
@@ -2096,6 +2146,7 @@ fn collect(
                     t.end,
                     &t.fragment,
                     line_width,
+                    options,
                     None,
                 ) {
                     edits.push(edit);
@@ -2106,6 +2157,7 @@ fn collect(
                     t.end,
                     &t.fragment,
                     line_width,
+                    options,
                 ) {
                     edits.push(edit);
                 } else {
@@ -2125,6 +2177,7 @@ fn collect(
                     s.end,
                     &s.fragment,
                     line_width,
+                    options,
                     None,
                 ) {
                     edits.push(edit);
@@ -2135,6 +2188,7 @@ fn collect(
                     s.end,
                     &s.fragment,
                     line_width,
+                    options,
                 ) {
                     edits.push(edit);
                 } else if let Some(edit) =
@@ -2153,6 +2207,7 @@ fn collect(
                     s.end,
                     &s.fragment,
                     line_width,
+                    options,
                     None,
                 ) {
                     edits.push(edit);
@@ -2175,6 +2230,7 @@ fn collect(
                     s.end,
                     &s.fragment,
                     line_width,
+                    options,
                     None,
                 ) {
                     edits.push(edit);
@@ -2185,6 +2241,7 @@ fn collect(
                     s.end,
                     &s.fragment,
                     line_width,
+                    options,
                 ) {
                     edits.push(edit);
                 } else {
@@ -2199,6 +2256,7 @@ fn collect(
                     c.end,
                     &c.fragment,
                     line_width,
+                    options,
                     None,
                 ) {
                     edits.push(edit);
@@ -2209,6 +2267,7 @@ fn collect(
                     c.end,
                     &c.fragment,
                     line_width,
+                    options,
                 ) {
                     edits.push(edit);
                 } else {
@@ -2223,6 +2282,7 @@ fn collect(
                     e.end,
                     &e.fragment,
                     line_width,
+                    options,
                     None,
                 ) {
                     edits.push(edit);
@@ -2233,6 +2293,7 @@ fn collect(
                     e.end,
                     &e.fragment,
                     line_width,
+                    options,
                 ) {
                     edits.push(edit);
                 } else {
@@ -2298,6 +2359,7 @@ fn try_collapse(
     end: u32,
     fragment: &Fragment,
     line_width: usize,
+    options: &FormatOptions,
     node: Option<&TemplateNode>,
 ) -> Option<(u32, u32, String)> {
     let (s, e) = (start as usize, end as usize);
@@ -2449,7 +2511,8 @@ fn try_collapse(
             // than the last open-tag line because the last line could be a
             // continuation of a multi-line attribute value (e.g. the RHS of an
             // `onclick={() =>\n  expr}` attribute), not the attribute keyword.
-            let inner_indent = format!("{close_indent}  ");
+            let (indent_unit_tc, _) = indent_config(options);
+            let inner_indent = format!("{close_indent}{indent_unit_tc}");
             // When `had_trail=true` (shouldHugEnd=false), the close tag should
             // stay on its own line (`\n{element_indent}</tag>`) rather than be
             // glued to the content as `</tag\n{close_indent}>`.  Skip both the
@@ -2538,7 +2601,8 @@ fn try_collapse(
             // wrapping are handled by the outer formatter; nothing to fix here.
             return None;
         }
-        let inner_indent = format!("{indent}  ");
+        let (indent_unit_tc, _) = indent_config(options);
+        let inner_indent = format!("{indent}{indent_unit_tc}");
         // Same-line hug: `<a href="…">text</a\n>` — content stays on the open
         // tag's line. Try this first; only fall through to the inner-indent form
         // when the same-line layout overflows the print width.
@@ -2612,8 +2676,22 @@ fn try_collapse(
                         Doc::Softline,
                         Doc::Text(">".to_string()),
                     ]);
-                    let base_level = indent.width() / 2;
-                    let printed = crate::doc::print(elem_doc, line_width, "  ", base_level, column);
+                    let (indent_unit, indent_width) = indent_config(options);
+                    let base_level = if options.js.indent_style.is_tab() {
+                        indent
+                            .bytes()
+                            .take_while(|&b| b == b' ' || b == b'\t')
+                            .count()
+                    } else {
+                        indent.width() / indent_width
+                    };
+                    let printed = crate::doc::print(
+                        elem_doc,
+                        line_width,
+                        indent_unit.as_str(),
+                        base_level,
+                        column,
+                    );
                     return (printed != whole).then_some((start, end, printed));
                 }
             }
@@ -2645,7 +2723,8 @@ fn try_collapse(
     if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
         return None;
     }
-    let inner_indent = format!("{indent}  ");
+    let (indent_unit_tc, _) = indent_config(options);
+    let inner_indent = format!("{indent}{indent_unit_tc}");
     let avail = line_width.saturating_sub(inner_indent.width()).max(1);
 
     let mut broken = String::with_capacity(whole.len() + 8);
@@ -3738,7 +3817,9 @@ fn try_hug_mixed(
     end: u32,
     fragment: &Fragment,
     line_width: usize,
+    options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
+    let (indent_unit_hm, indent_width_hm) = indent_config(options);
     // Inline elements hug (prettier's `blockElements` excludes button/input/…),
     // so only true block elements and raw-text elements are ineligible.
     if is_block_display(tag) || is_whitespace_preserving(tag) {
@@ -3833,7 +3914,7 @@ fn try_hug_mixed(
         let line_start_a = out[..s].rfind('\n').map_or(0, |i| i + 1);
         let outer_ind_a = out.get(line_start_a..s).unwrap_or("");
         if outer_ind_a.bytes().all(|b| b == b' ' || b == b'\t') {
-            let inner_ind_a = format!("{outer_ind_a}  ");
+            let inner_ind_a = format!("{outer_ind_a}{indent_unit_hm}");
             let prefix_a = format!("\n{inner_ind_a}");
             if raw.starts_with(prefix_a.as_str()) && !raw[prefix_a.len()..].starts_with([' ', '\t'])
             {
@@ -3885,7 +3966,7 @@ fn try_hug_mixed(
     // Only handle single-line open tags here; multi-line open tags are
     // handled by the `open.contains('\n')` branch below.
     if raw.contains('\n') && !open.contains('\n') {
-        let inner_indent = format!("{ws_indent}  ");
+        let inner_indent = format!("{ws_indent}{indent_unit_hm}");
         let open_no_bracket = &open[..open.len() - 1];
         // When raw ends with whitespace (component with trailing newline+indent before
         // `</Tag>`), the trailing whitespace provides the correct indentation, so just
@@ -3920,7 +4001,7 @@ fn try_hug_mixed(
         // exposing the real last attribute line.
         let onb = open[..open.len() - 1].trim_end();
         let last_line = onb.rsplit('\n').next().unwrap_or(onb);
-        let inner_indent = format!("{ws_indent}  ");
+        let inner_indent = format!("{ws_indent}{indent_unit_hm}");
         // When the element is preceded by non-whitespace on the same line (e.g.
         // it follows a sibling's close-tag `>`), `last_line` is just the tag
         // name and does not reflect the true start column. Use `column` (the
@@ -3958,8 +4039,21 @@ fn try_hug_mixed(
         let body_opt = build_children_doc(out, fragment);
         if let Some(body) = body_opt {
             let inner_col = inner_indent.width() + 1; // column after the `>`
-            let base_level = inner_indent.width() / 2;
-            let printed = crate::doc::print(body, line_width, "  ", base_level, inner_col);
+            let base_level = if options.js.indent_style.is_tab() {
+                inner_indent
+                    .bytes()
+                    .take_while(|&b| b == b' ' || b == b'\t')
+                    .count()
+            } else {
+                inner_indent.width() / indent_width_hm
+            };
+            let printed = crate::doc::print(
+                body,
+                line_width,
+                indent_unit_hm.as_str(),
+                base_level,
+                inner_col,
+            );
             if printed != raw {
                 let result2 = format!("{onb}\n{inner_indent}>{printed}{close_form}");
                 if result2 != whole {
@@ -4006,7 +4100,7 @@ fn try_hug_mixed(
     // Limit this to cases where the content fits on the inner-indent line so we
     // don't produce overflowing output.
     if has_flow_block && !open.contains('\n') {
-        let inner_indent = format!("{ws_indent}  ");
+        let inner_indent = format!("{ws_indent}{indent_unit_hm}");
         let open_no_bracket = &open[..open.len() - 1];
         let result = format!("{open_no_bracket}\n{inner_indent}>{raw}</{tag}\n{ws_indent}>");
         return (result != whole).then_some((start, end, result));
@@ -4040,8 +4134,15 @@ fn try_hug_mixed(
         Doc::Softline,
         Doc::Text(">".to_string()),
     ]);
-    let level = ws_indent.width() / 2;
-    let printed = crate::doc::print(elem_doc, line_width, "  ", level, column);
+    let level = if options.js.indent_style.is_tab() {
+        ws_indent
+            .bytes()
+            .take_while(|&b| b == b' ' || b == b'\t')
+            .count()
+    } else {
+        ws_indent.width() / indent_width_hm
+    };
+    let printed = crate::doc::print(elem_doc, line_width, indent_unit_hm.as_str(), level, column);
     (printed != whole).then_some((start, end, printed))
 }
 
@@ -4100,14 +4201,22 @@ fn try_fill_mixed(
     if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
         return None;
     }
-    let inner_indent = format!("{indent}  ");
+    let (indent_unit, indent_width) = indent_config(options);
+    let inner_indent = format!("{indent}{indent_unit}");
 
     // Build the prettier content doc (a Concat of per-text-node fills with the
     // inline elements as hug groups in between — a port of prettier-plugin-svelte's
     // `printChildren`) and print it. This reproduces the prose fill + in-place
     // inline-element hug-break exactly.
     let content_doc = build_children_doc(out, fragment)?;
-    let base_level = inner_indent.width() / 2;
+    let base_level = if options.js.indent_style.is_tab() {
+        inner_indent
+            .bytes()
+            .take_while(|&b| b == b' ' || b == b'\t')
+            .count()
+    } else {
+        inner_indent.width() / indent_width
+    };
 
     // Decide flat-vs-break from the element's *flat* width, not the laid-out
     // result — the content carries bare `line` separators (between mustaches /
@@ -4118,7 +4227,7 @@ fn try_fill_mixed(
     let flat = crate::doc::print(
         crate::doc::Doc::Group(vec![content_doc.clone()]),
         1_000_000,
-        "  ",
+        indent_unit.as_str(),
         base_level,
         0,
     );
@@ -4195,7 +4304,7 @@ fn try_fill_mixed(
     let mut printed = crate::doc::print(
         content_doc,
         line_width,
-        "  ",
+        indent_unit.as_str(),
         base_level,
         inner_indent.width(),
     );
