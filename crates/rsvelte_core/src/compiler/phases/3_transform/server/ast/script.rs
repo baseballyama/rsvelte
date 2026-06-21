@@ -1941,11 +1941,17 @@ fn lower_decl_init<'a>(
             // `() => …` thunk. Without an await — or in sync mode — it stays the
             // plain synchronous `$.derived(() => <value>)` shape (UNCHANGED).
             let mut e = arg_expr(state);
-            if state.eval_inputs.use_async
-                && let OxcExpression::AwaitExpression(_) = &e
-            {
-                // Strip the top-level `await` (mirrors the server `AwaitExpression`
-                // visitor returning its inner argument in this context).
+            // Async iff the derived argument carries a TOP-LEVEL `await` ANYWHERE
+            // (not just as the direct arg) — `$derived(await foo)` AND
+            // `$derived(cond ? await foo : null)` both become async deriveds. A
+            // `await` nested inside a function/arrow within the arg is a separate
+            // async scope and does NOT count (`expr_has_await` skips those).
+            if state.eval_inputs.use_async && expr_has_await(&e) {
+                // Only a DIRECT top-level `await X` arg is stripped (mirrors the
+                // server `AwaitExpression` visitor returning its inner argument):
+                // `$derived(await foo)` → `await $.async_derived(() => foo)`. When
+                // the await lives nested inside the arg (e.g. a conditional), it is
+                // KEPT and the thunk becomes `async () => …`.
                 if let OxcExpression::AwaitExpression(await_box) = e {
                     e = await_box.unbox().argument;
                 }
