@@ -477,6 +477,19 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
             continue;
         }
 
+        // A removed `$effect(…)` (`$$async_hole`) sitting in the SYNC PRELUDE
+        // (before the first top-level await) renders nothing — upstream's server
+        // `ExpressionStatement` visitor returns `b.empty`. Drop it so it does not
+        // leak into the prelude as a literal `$$async_hole;` statement. (The
+        // post-await case is handled below as a `Hole` thunk; a `$$inspect_hole`
+        // is intentionally NOT dropped here — a removed `$inspect` keeps its `;;`.)
+        if !found_await
+            && !has_await
+            && memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole").is_some()
+        {
+            continue;
+        }
+
         if !found_await && !has_await {
             sync_stmts.push(stmt.clone());
         } else {
