@@ -1027,7 +1027,16 @@ pub fn build_fragment_body<'a>(
         && !group.thunks.is_empty()
     {
         let run_decl = build_async_consts_run(state, &group);
-        let mut prelude: Vec<Statement<'a>> = group.let_decls;
+        // Insert the async `let`s + run AFTER the leading sync hoisted-const
+        // declarations (`build_template` lifts `{const sync = 'sync'}` to the
+        // front) so a sync `{const}` precedes the `var promises = run([…])` that
+        // depends on the async group — matching upstream's `state.init` order.
+        let split = body
+            .iter()
+            .position(|s| !matches!(s, Statement::VariableDeclaration(_)))
+            .unwrap_or(body.len());
+        let mut prelude: Vec<Statement<'a>> = body.drain(..split).collect();
+        prelude.extend(group.let_decls);
         prelude.push(run_decl);
         prelude.append(&mut body);
         body = prelude;
