@@ -9,9 +9,11 @@
 //!
 //! The transformer produces the final JavaScript and CSS output.
 
+pub mod builders;
 pub mod client;
 pub mod css;
 pub mod js_ast;
+pub mod jsnode_to_oxc;
 pub mod profile;
 pub mod server;
 pub mod shared;

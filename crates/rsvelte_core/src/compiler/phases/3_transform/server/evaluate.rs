@@ -21,7 +21,10 @@
 use serde_json::Value;
 
 use super::ServerCodeGenerator;
+use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::cell::OnceCell;
 
 /// Maximum recursion depth when resolving binding initials (cycle guard).
 const MAX_DEPTH: u8 = 16;
@@ -703,7 +706,60 @@ fn parse_literal_text(text: &str) -> Option<EvalValue> {
 // Evaluator
 // ---------------------------------------------------------------------------
 
+/// Analysis-driven evaluation context — the minimal set of fields the
+/// `scope.evaluate` port reads. Decoupled from `ServerCodeGenerator` so the
+/// same proven evaluator drives BOTH the legacy (text-based) server pipeline
+/// and the new AST pipeline (`server/ast/`). The legacy generator builds one
+/// of these via [`ServerCodeGenerator::eval_ctx`] (borrowing its own fields, so
+/// behaviour is byte-identical); the AST pipeline builds one from its
+/// `ServerTransformState`.
+pub(crate) struct EvalCtx<'c> {
+    pub analysis: Option<&'c ComponentAnalysis>,
+    pub constant_vars: &'c FxHashMap<String, String>,
+    pub source: &'c str,
+    pub use_async: bool,
+    pub top_level_blocker_map: &'c FxHashMap<String, usize>,
+    pub current_scope_index: Option<usize>,
+    pub template_scopes_cache: &'c OnceCell<FxHashSet<usize>>,
+}
+
 impl<'a> ServerCodeGenerator<'a> {
+    /// Build an [`EvalCtx`] borrowing this generator's evaluation-relevant
+    /// fields. A pure delegation — every field is forwarded verbatim, so the
+    /// evaluator result is identical to the historical inline methods.
+    pub(crate) fn eval_ctx(&self) -> EvalCtx<'_> {
+        EvalCtx {
+            analysis: self.analysis,
+            constant_vars: &self.constant_vars,
+            source: &self.source,
+            use_async: self.use_async,
+            top_level_blocker_map: &self.top_level_blocker_map,
+            current_scope_index: self.current_scope_index,
+            template_scopes_cache: &self.template_scopes_cache,
+        }
+    }
+
+    /// Evaluate a template expression (typed AST wrapper). Delegates to
+    /// [`EvalCtx::evaluate_template_expression`].
+    pub(crate) fn evaluate_template_expression(
+        &self,
+        expr: &crate::ast::js::Expression,
+    ) -> Evaluation {
+        self.eval_ctx().evaluate_template_expression(expr)
+    }
+
+    /// Resolve a bare identifier (public wrapper for the attribute fast path).
+    pub(crate) fn evaluate_identifier_pub(&self, name: &str) -> Evaluation {
+        self.eval_ctx().evaluate_identifier(name, 0)
+    }
+
+    /// Core estree evaluator entry (used by the attribute folding path).
+    pub(crate) fn evaluate_estree(&self, node: &Value, depth: u8) -> Evaluation {
+        self.eval_ctx().evaluate_estree(node, depth)
+    }
+}
+
+impl<'a> EvalCtx<'a> {
     /// Evaluate a template expression (typed AST wrapper).
     pub(crate) fn evaluate_template_expression(
         &self,
@@ -768,13 +824,10 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 
     /// Resolve an identifier, mirroring upstream's `Identifier` branch.
-    /// Public wrapper for the bare-identifier fast path in attribute
-    /// evaluation (element.rs).
-    pub(crate) fn evaluate_identifier_pub(&self, name: &str) -> Evaluation {
-        self.evaluate_identifier(name, 0)
-    }
-
-    fn evaluate_identifier(&self, name: &str, depth: u8) -> Evaluation {
+    /// `pub(crate)` so the attribute fast path (element.rs, via
+    /// `ServerCodeGenerator::evaluate_identifier_pub`) and the AST pipeline can
+    /// resolve a bare identifier directly.
+    pub(crate) fn evaluate_identifier(&self, name: &str, depth: u8) -> Evaluation {
         if depth > MAX_DEPTH {
             return Evaluation::unknown();
         }

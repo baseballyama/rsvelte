@@ -3632,7 +3632,15 @@ enum BodyElem<'a, 'b> {
 
 impl<'a, 'b> BodyElem<'a, 'b> {
     fn is_empty_stmt(&self) -> bool {
-        matches!(self, BodyElem::Statement(Statement::EmptyStatement(_)))
+        match self {
+            // A *sentinel* empty (`span.end == u32::MAX`) is a deliberately-kept
+            // `;` (see `B::empty_kept`): the rsvelte server pipeline emits these
+            // for removed `$inspect(...)` statements so the printed `;;` matches
+            // upstream's empty-statement-as-expression shape. They must survive
+            // the body-sequence filter, so they are NOT treated as elidable.
+            BodyElem::Statement(Statement::EmptyStatement(s)) => s.span.end != u32::MAX,
+            _ => false,
+        }
     }
 
     fn span_start(&self) -> u32 {

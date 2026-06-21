@@ -4,6 +4,9 @@
 //!
 //! This module is organized to match the Svelte compiler structure.
 
+/// New AST-based server codegen (Phase-3 rewrite). Built ADDITIVELY alongside
+/// the existing text-based pipeline; not yet wired into [`transform_server`].
+pub mod ast;
 pub(crate) mod await_save_ast;
 pub mod bridge;
 pub mod build;
@@ -49,6 +52,24 @@ pub fn transform_server(
     _source: &str,
     options: &CompileOptions,
 ) -> Result<String, TransformError> {
+    // Pure-AST SSR pipeline (`server/ast/`), gated behind `RSVELTE_SERVER_AST=1`
+    // (OPT-IN). It already matches the official compiler byte-for-byte across the
+    // entire curated runtime / `compiler_fixtures` / `ssr` suites, but the
+    // SWITCHOVER to DEFAULT is DEFERRED: enabling it by default regressed 88
+    // real-world corpus entries on SSR (net -32 vs the 56 it fixes) — chiefly an
+    // over-eager `$.stringify(...)` wrap on conditional class/title interpolations,
+    // dropped instance-script comments, and a few function/$$settled ordering and
+    // slot-arg cases. Those must be fixed before flipping the default (see
+    // `docs/phase3-server-ast-remaining-work.md`). The text `ServerCodeGenerator`
+    // below stays the default. The AST pipeline never returns `None` for a
+    // parseable component, but fall through to the text path if it ever does.
+    if std::env::var_os("RSVELTE_SERVER_AST").is_some() {
+        let allocator = oxc_allocator::Allocator::default();
+        if let Some(code) = ast::server_component_ast(analysis, ast, _source, options, &allocator) {
+            return Ok(code);
+        }
+    }
+
     let component_name = &analysis.name;
 
     // Use the AST's instance script directly (no re-parsing needed)

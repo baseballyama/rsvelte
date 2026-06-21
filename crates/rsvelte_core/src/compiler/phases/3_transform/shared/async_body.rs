@@ -477,6 +477,19 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
             continue;
         }
 
+        // A removed `$effect(…)` (`$$async_hole`) sitting in the SYNC PRELUDE
+        // (before the first top-level await) renders nothing — upstream's server
+        // `ExpressionStatement` visitor returns `b.empty`. Drop it so it does not
+        // leak into the prelude as a literal `$$async_hole;` statement. (The
+        // post-await case is handled below as a `Hole` thunk; a `$$inspect_hole`
+        // is intentionally NOT dropped here — a removed `$inspect` keeps its `;;`.)
+        if !found_await
+            && !has_await
+            && memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole").is_some()
+        {
+            continue;
+        }
+
         if !found_await && !has_await {
             sync_stmts.push(stmt.clone());
         } else {
@@ -491,10 +504,17 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                 continue;
             }
 
-            // Handle async hole placeholder (from $inspect() removed in non-dev mode)
-            // Format: /* $$async_hole */ or /* $$async_hole:args */
+            // Handle async hole placeholder (from a removed $effect / $inspect).
+            // Format: /* $$async_hole */ or /* $$async_hole:args */ (the
+            // `$$inspect_hole` variant — a removed `$inspect(...)` — splits the
+            // same way once a top-level await is present: after the await,
+            // upstream emits a `() => void 0` thunk for it, exactly like the
+            // `$effect` hole; only the no-await sync-prelude case differs, and
+            // that never reaches this transform).
             // Produces an array hole (empty slot) in the thunk array.
-            if memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole").is_some() {
+            if memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole").is_some()
+                || memmem::find(trimmed_stmt.as_bytes(), b"$$inspect_hole").is_some()
+            {
                 // Extract args if present (for blocker_map tracking)
                 let args = if let Some(colon_pos) =
                     memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole:")
@@ -1001,7 +1021,17 @@ fn sync_block_body_lines(stmt: &AsyncStmt) -> Vec<String> {
             // lines, contribute this statement so the order is preserved.
             vec!["void void 0;".to_string()]
         }
-        AsyncStmtKind::Noop | AsyncStmtKind::Hole(_) => Vec::new(),
+        AsyncStmtKind::Hole(_) => {
+            // A removed `$effect(…)` / `$inspect(…)` whose server visitor returns
+            // `b.void0`. As a STANDALONE run-array entry it thunks to `() => void
+            // 0`; GROUPED into a sync `() => { … }` body it is void-wrapped as a
+            // statement (`void (void 0);` = `void void 0;`), preserving the
+            // statement slot so the surrounding assignments keep their order
+            // (写经 `transform_async_node`). Without this a removed effect between
+            // two sync assignments would vanish from the grouped thunk.
+            vec!["void void 0;".to_string()]
+        }
+        AsyncStmtKind::Noop => Vec::new(),
         AsyncStmtKind::SyncBlock(_) => {
             // Nested SyncBlocks shouldn't be constructed; flatten defensively.
             Vec::new()
