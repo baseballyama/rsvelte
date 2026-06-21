@@ -1154,6 +1154,10 @@ See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-c
 
 #[cfg(test)]
 mod tests {
+    // Test-only diagnostic helpers: long explanatory doc comments on the oracle
+    // tests trip `doc_lazy_continuation`, and the reverse cluster sorts trip
+    // `unnecessary_sort_by`; neither matters for test code.
+    #![allow(clippy::doc_lazy_continuation, clippy::unnecessary_sort_by)]
     use super::*;
     use crate::ParseOptions;
     use crate::compiler::phases::phase1_parse;
@@ -1176,6 +1180,8 @@ mod tests {
         let mut ast = phase1_parse::parse(source, parse_options).expect("parse");
 
         // The serialize-arena guard is required by the analyze pipeline.
+        // SAFETY: `ast` (and thus `ast.arena`) outlives `_guard` for the rest of
+        // this function, so the raw pointer the guard holds stays valid.
         let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
 
         phase1_parse::resolve_lazy::resolve_lazy_expressions(&mut ast, source);
@@ -1223,6 +1229,8 @@ mod tests {
             lenient_script: false,
         };
         let mut ast = phase1_parse::parse(source, parse_options).expect("parse");
+        // SAFETY: `ast` (and thus `ast.arena`) outlives `_guard` for the rest of
+        // this function, so the raw pointer the guard holds stays valid.
         let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
         phase1_parse::resolve_lazy::resolve_lazy_expressions(&mut ast, source);
         let line_offsets = phase1_parse::compute_line_offsets(source, false);
@@ -2881,15 +2889,11 @@ mod tests {
             // {#if}/{:else}: BOTH arms standalone.
             format!("{import_foo_bar}{{#if x}}<Foo/>{{:else}}<Bar/>{{/if}}"),
             // {#if}/{:else if}/{:else}: all three arms standalone.
-            format!(
-                "<script>import A from './A.svelte';import B from './B.svelte';import C from './C.svelte';</script>{{#if x}}<A/>{{:else if y}}<B/>{{:else}}<C/>{{/if}}"
-            ),
+            "<script>import A from './A.svelte';import B from './B.svelte';import C from './C.svelte';</script>{#if x}<A/>{:else if y}<B/>{:else}<C/>{/if}".to_string(),
             // {#each} body standalone child.
             format!("{import_foo}{{#each [1] as n}}<Foo/>{{/each}}"),
             // {#each} with standalone child AND a standalone {:else} fallback.
-            format!(
-                "<script>import Foo from './Foo.svelte';import Bar from './Bar.svelte';let items = [];</script>{{#each items as n}}<Foo/>{{:else}}<Bar/>{{/each}}"
-            ),
+            "<script>import Foo from './Foo.svelte';import Bar from './Bar.svelte';let items = [];</script>{#each items as n}<Foo/>{:else}<Bar/>{/each}".to_string(),
             // {#key} body standalone child.
             format!("{import_foo}{{#key 1}}<Foo/>{{/key}}"),
             // <svelte:head> callback standalone child → no leading/trailing anchor.
@@ -2928,6 +2932,8 @@ mod tests {
             lenient_script: false,
         };
         let mut ast = phase1_parse::parse(source, parse_options).expect("parse");
+        // SAFETY: `ast` (and thus `ast.arena`) outlives `_guard` for the rest of
+        // this function, so the raw pointer the guard holds stays valid.
         let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
         phase1_parse::resolve_lazy::resolve_lazy_expressions(&mut ast, source);
         let line_offsets = phase1_parse::compute_line_offsets(source, false);
@@ -2949,16 +2955,17 @@ mod tests {
     }
 
     /// `{@const}` inside `{#each}` (SSR, legacy / non-runes) — the each-body
-    /// const cluster from runtime-legacy. The AST pipeline must emit each const
-    /// as a `const <pat> = <init>;` inside the for-loop body, in SOURCE order,
-    /// matching the (correct) `transform_server` oracle.
+    /// const cluster from runtime-legacy. The AST pipeline emits each const as a
+    /// `const <pat> = <init>;` inside the for-loop body.
     ///
-    /// Two facts pinned by these samples (verified against the oracle):
-    /// - The each-body `{@const}` declarations are NOT topologically reordered:
-    ///   upstream's `sort_const_tags` (utils.js) runs in `clean_nodes` per
-    ///   fragment, but the each-body keeps source order in the oracle, so the AST
-    ///   pipeline must too (`{@const foo = bar}{@const bar = 'world'}` stays
-    ///   `const foo = bar; const bar = 'world';` — no reorder).
+    /// NOTE on ordering: in LEGACY mode upstream's `sort_const_tags` (utils.js,
+    /// run in `clean_nodes` per fragment) topologically reorders sibling
+    /// `{@const}`s so a const reading a later-declared sibling is emitted after
+    /// it. The AST pipeline ports this (see `sort_const_tags` in
+    /// `visitors/shared.rs`), so a reordering sample (`{@const a = b}{@const b =
+    /// x}`) is validated against the OFFICIAL compiler via the runtime-legacy
+    /// suite, NOT against the (non-reordering) text oracle here — hence the
+    /// samples below are the order-stable cases the oracle still agrees on:
     /// - A function-valued / nested-arrow / inner-const RHS round-trips through
     ///   the reparse+read-wrap path with the same structure as the oracle.
     ///
@@ -2968,12 +2975,8 @@ mod tests {
     #[test]
     fn ast_matches_oracle_const_in_each() {
         let samples = [
-            // simple const reading the loop context
+            // simple const reading the loop context (no inter-const dep → order-stable)
             "<svelte:options runes={false} />\n<script>export let items = [];</script>\n{#each items as x}\n\t{@const y = x * 2}\n\t<p>{y}</p>\n{/each}",
-            // const reading a later-declared sibling const + a loop var (no reorder)
-            "<svelte:options runes={false} />\n<script>export let items = [];</script>\n{#each items as x}\n\t{@const a = b}\n\t{@const b = x}\n\t<p>{a}{b}</p>\n{/each}",
-            // three chained consts whose deps are local consts — oracle keeps source order
-            "<svelte:options runes={false} />\n<script>export let items = [];</script>\n{#each items as x}\n\t{@const foo = bar}\n\t{@const yoo = foo}\n\t{@const bar = 'world'}\n\t<p>{bar}{yoo}{x}</p>\n{/each}",
             // const with a duplicated-variable nested-arrow RHS (const-tag-each-duplicated-variable3 shape)
             "<svelte:options runes={false} />\n<script>export let nums = [1, 2];\n\tlet foos = [{ nums: [1, 2, 3] }];</script>\n{#each nums as num, index}\n\t{@const bar = nums.map((num) => {\n\t\treturn (function (foos, num) {\n\t\t\treturn [...foos.map((foo) => foo), num];\n\t\t})(foos[index].nums, num);\n\t})}\n\t<p>bar: {bar}, num: {num}</p>\n{/each}",
             // const with an inner-function-declaration RHS (const-tag-each-function shape)
@@ -3443,6 +3446,8 @@ mod tests {
             lenient_script: false,
         };
         let mut ast = phase1_parse::parse(source, parse_options).expect("parse");
+        // SAFETY: `ast` (and thus `ast.arena`) outlives `_guard` for the rest of
+        // this function, so the raw pointer the guard holds stays valid.
         let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
         phase1_parse::resolve_lazy::resolve_lazy_expressions(&mut ast, source);
         let line_offsets = phase1_parse::compute_line_offsets(source, false);
@@ -4963,6 +4968,8 @@ mod tests {
 
         // Install the guard at this stable scope pointing at the boxed arena's
         // heap address; it stays valid through analyze + both pipelines.
+        // SAFETY: the boxed `ast.arena` outlives `_guard` for the rest of this
+        // function, so the raw pointer the guard holds stays valid.
         let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
 
         let prepared = catch_unwind(AssertUnwindSafe(|| {

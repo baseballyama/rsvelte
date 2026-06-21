@@ -1266,13 +1266,12 @@ mod tests {
         for stmt in ret.program.body.iter_mut() {
             if let Statement::VariableDeclaration(vd) = stmt {
                 for d in vd.declarations.iter_mut() {
-                    if let Some(Expression::CallExpression(call)) = &mut d.init {
-                        if let Expression::Identifier(id) = &call.callee {
-                            if id.name == "$state" {
-                                // In-place replacement of the callee node.
-                                call.callee = b.id("$.state");
-                            }
-                        }
+                    if let Some(Expression::CallExpression(call)) = &mut d.init
+                        && let Expression::Identifier(id) = &call.callee
+                        && id.name == "$state"
+                    {
+                        // In-place replacement of the callee node.
+                        call.callee = b.id("$.state");
                     }
                 }
             }

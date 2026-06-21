@@ -11,11 +11,23 @@
 
 ## 0. 現状（達成済み）
 
-### ✅ サーバ SSR の AST 化 — 完了・本番デフォルト
+### ✅ サーバ SSR の AST 化 — curated スイートで 100%・ただし**デフォルト化は保留**
 
-- `server/mod.rs::transform_server` は **デフォルトで** `server/ast/server_component_ast`（純 oxc AST + `rsvelte_esrap`）を通る。
-  旧テキスト `ServerCodeGenerator` は移行用 opt-out `RSVELTE_SERVER_TEXT=1` の裏に退避（削除予定）。
-- **検証済み（env var なし＝AST デフォルトで）:**
+- `server/ast/server_component_ast`（純 oxc AST + `rsvelte_esrap`）は **`RSVELTE_SERVER_AST=1` の opt-in**。
+  デフォルトは引き続き旧テキスト `ServerCodeGenerator`。
+- **⚠️ スイッチオーバー（デフォルト化）は保留**: 一度デフォルト化したところ、**コーパスの実コード SSR で 88 件が回帰**
+  （`verify.mjs`: net -32。直った 56 件 < 新規失敗 88 件）。デフォルト化の前にこの 88 件を潰す必要がある。
+  回帰のクラスタ（CI ログより）:
+  - **(A) class/title の条件式に `$.stringify(...)` を過剰付与**（最多）。
+    例: `` class: `... ${cond ? "a" : "b"}` `` → `` class: `... ${$.stringify(cond ? "a" : "b")}` ``。
+    `server/ast/` の class/title 属性補間で、ConditionalExpression に対し `$.stringify` を不要に巻いている
+    （公式は巻かない）。`eval_attr_expr_json` / 属性 emit パスの elide 条件を拡張する。
+  - **(B) instance script のコメント脱落**。例: `// MetaTag` / `/** … */` が消える。
+    curated ゲートは `canonicalize_js`（コメント落とし）なので未検出だが、コーパスは oxfmt 正規化＝コメント込み比較。
+  - **(C) function 宣言 vs `let $$settled = true;` の順序**（snippet/component 関数配置）。
+  - **(D) slot children 引数**（`children?.($$renderer, { … })` vs `($$renderer, undefined)`）。
+  - **再現**: ローカルで `pnpm run corpus:sync` → `corpus:collect/compile/verify`。CI=Linux が真値。
+- curated スイートでの **検証済み（`RSVELTE_SERVER_AST=1` で）:**
   - runtime スイート: runtime-runes **993/993**、runtime-legacy **1205/1205**、hydration **77/77**
   - バイト厳密スナップショット: `compiler_fixtures` + `ssr` 全グリーン
   - フル互換性レポート **全カテゴリ 100%**（SSR 97/97、snapshot 29/29、validator 333/333、css 181/181、
@@ -33,7 +45,8 @@
 
 ## 1. 残作業A — 旧サーバテキストモジュールの削除（精密な計画済み・未着手）
 
-スイッチオーバー済みなので旧モジュールは**デッドコード**だが、`server/ast/` がまだ呼ぶ関数があるため
+**前提**: 削除はスイッチオーバー（AST をデフォルト化）の **後**。現状は旧モジュールがデフォルトで使用中なので、
+まず 88 corpus 回帰を潰してデフォルト化 → その後に削除。なお `server/ast/` がまだ旧モジュールの関数を呼ぶため
 「6 ファイル一括削除」ではない。
 
 ### 1-1. 完全に削除可能（純・旧パイプライン、AST からの参照なし）
@@ -65,7 +78,8 @@
    （例: `helpers.rs` か新規 `server/eval_inputs.rs`）へ移す。`server/ast/mod.rs:742` の
    `server_component_ast` が `ServerCodeGenerator::new` を呼ぶのをやめ、新関数を呼ぶようにする。
    → これで AST パイプラインが `ServerCodeGenerator` に依存しなくなる（削除の前提）。
-2. **旧フォールバックパス削除**: `server/mod.rs` の `RSVELTE_SERVER_TEXT` 分岐以降（`ServerCodeGenerator` ベースの生成）を撤去。
+2. **デフォルト化 + 旧パス削除**: `server/mod.rs` の `RSVELTE_SERVER_AST` opt-in 分岐を恒久 ON にし、
+   以降の `ServerCodeGenerator` ベースの生成（旧フォールバック）を撤去。
 3. **削除**: build.rs / transform_store.rs / bridge.rs / esrap_layout.rs + `ServerCodeGenerator`。
 4. **トリム**: helpers.rs / transform_script.rs を「残す関数 + 依存」だけに。
 5. **再検証**: runtime + compatibility_report が **100% を維持**すること。
@@ -140,5 +154,5 @@
 
 - サーバ runtime バーンダウン: ~490 → 0（server 100% parity）。最後の難所は multi-group const flattening
   クラスタ（`async-const` / `async-declaration-tag` / `async-declaration-tag-2`）。
-- スイッチオーバー（`feat: SWITCHOVER — AST SSR pipeline is now the default`）: AST が本番デフォルトに。
+- スイッチオーバー（デフォルト化）は **保留**（corpus 88 回帰のため opt-in `RSVELTE_SERVER_AST=1` のまま）。
 - 詳細はコミットログ（`git log feat/phase3-ast-full`）と auto-memory `project_phase3_ast_rewrite.md` を参照。

@@ -52,16 +52,18 @@ pub fn transform_server(
     _source: &str,
     options: &CompileOptions,
 ) -> Result<String, TransformError> {
-    // SWITCHOVER: SSR now routes through the new pure-AST pipeline
-    // (`server/ast/`) by DEFAULT — it matches the official compiler byte-for-byte
-    // across the entire runtime suite (runtime-runes 993/993, runtime-legacy
-    // 1205/1205, hydration 77/77) plus the byte-exact `compiler_fixtures` / `ssr`
-    // snapshots. The legacy text-based `ServerCodeGenerator` below is retained only
-    // as a transitional opt-out (`RSVELTE_SERVER_TEXT=1`) for A/B debugging while
-    // the old text modules are dismantled; it is slated for deletion. The AST
-    // pipeline never returns `None` for a parseable component, but fall through to
-    // the text path if it ever does.
-    if std::env::var_os("RSVELTE_SERVER_TEXT").is_none() {
+    // Pure-AST SSR pipeline (`server/ast/`), gated behind `RSVELTE_SERVER_AST=1`
+    // (OPT-IN). It already matches the official compiler byte-for-byte across the
+    // entire curated runtime / `compiler_fixtures` / `ssr` suites, but the
+    // SWITCHOVER to DEFAULT is DEFERRED: enabling it by default regressed 88
+    // real-world corpus entries on SSR (net -32 vs the 56 it fixes) — chiefly an
+    // over-eager `$.stringify(...)` wrap on conditional class/title interpolations,
+    // dropped instance-script comments, and a few function/$$settled ordering and
+    // slot-arg cases. Those must be fixed before flipping the default (see
+    // `docs/phase3-server-ast-remaining-work.md`). The text `ServerCodeGenerator`
+    // below stays the default. The AST pipeline never returns `None` for a
+    // parseable component, but fall through to the text path if it ever does.
+    if std::env::var_os("RSVELTE_SERVER_AST").is_some() {
         let allocator = oxc_allocator::Allocator::default();
         if let Some(code) = ast::server_component_ast(analysis, ast, _source, options, &allocator) {
             return Ok(code);
