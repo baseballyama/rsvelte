@@ -758,12 +758,38 @@ fn build_bind_accessors<'a>(
         }
         let set_expr = exprs.pop().unwrap();
         let get_expr = exprs.pop().unwrap();
-        // get name() { return (<get>)(); }
-        let get_call = b.call(get_expr, vec![]);
+
+        // 写经 upstream `shared/component.js` (lines 121-131): the two thunks are
+        // HOISTED into `var bind_get = <get>; var bind_set = <set>;` in the current
+        // fragment's `state.init`, and the accessors CALL those locals — they are
+        // NOT inlined as IIFEs, and the setter does NOT emit `$$settled = false`
+        // (that statement belongs only to the simple-lvalue branch below).
+        // `scope.generate('bind_get')` → bare `bind_get` first, then `bind_get_1`…;
+        // the get / set of a single bind share the same suffix.
+        let suffix = state.bind_get_counter;
+        state.bind_get_counter += 1;
+        let (get_id, set_id) = if suffix == 0 {
+            ("bind_get".to_string(), "bind_set".to_string())
+        } else {
+            (format!("bind_get_{suffix}"), format!("bind_set_{suffix}"))
+        };
+        let b = state.b;
+        // var bind_get = <get>;  /  var bind_set = <set>;  → current fragment init.
+        // `snippet_inits` is prepended to the head of the enclosing fragment body by
+        // `build_fragment_body`, matching upstream's `state.init` placement (ahead
+        // of the rendered template / the `Child(...)` call).
+        state
+            .snippet_inits
+            .push(b.var_decl(b.id_pat(&get_id), Some(get_expr)));
+        state
+            .snippet_inits
+            .push(b.var_decl(b.id_pat(&set_id), Some(set_expr)));
+        // get name() { return bind_get(); }
+        let get_call = b.call(b.id(&get_id), vec![]);
         delayed.push(b.get(name, vec![b.return_stmt(Some(get_call))]));
-        // set name($$value) { (<set>)($$value); $$settled = false; }
-        let set_call = b.call(set_expr, vec![b.id("$$value")]);
-        delayed.push(b.set(name, vec![b.stmt(set_call), settled()]));
+        // set name($$value) { bind_set($$value); }
+        let set_call = b.call(b.id(&set_id), vec![b.id("$$value")]);
+        delayed.push(b.set(name, vec![b.stmt(set_call)]));
         return;
     }
 

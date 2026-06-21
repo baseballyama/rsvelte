@@ -101,6 +101,12 @@ pub struct ServerTransformState<'a> {
     /// `_1`, `_2`, … — mirroring the text oracle's `$$body` / `$$body_N` naming
     /// (upstream uses `state.scope.generate('$$body')`).
     pub body_counter: usize,
+    /// Monotonic counter for the `bind_get` / `bind_set` locals hoisted for a
+    /// component get/set bind (`bind:x={() => a, (v) => …}`). Mirrors upstream's
+    /// `scope.generate('bind_get')` / `'bind_set')`: the first pair is bare
+    /// `bind_get` / `bind_set`, subsequent pairs append `_1`, `_2`, … (the count
+    /// advances per bind, shared between the get/set names of that bind).
+    pub bind_get_counter: usize,
     /// The async `{@const}` accumulator for the CURRENT fragment, mirroring
     /// upstream's per-Fragment `state.async_consts` (`Fragment.js`,
     /// `DeclarationTag.js::add_async_declaration`). When a `{@const}` in a block
@@ -238,6 +244,7 @@ impl<'a> ServerTransformState<'a> {
             each_index: 0,
             eval_inputs: EvalInputs::default(),
             body_counter: 0,
+            bind_get_counter: 0,
             async_consts: None,
             const_blocker_map: rustc_hash::FxHashMap::default(),
             const_promises_counter: 0,
@@ -3432,6 +3439,86 @@ mod tests {
         let oracle =
             super::super::transform_server(&analysis, &ast, source, &options).expect("server");
         (ours, oracle)
+    }
+
+    /// SSR non-async "misc tail" runtime-runes burn-down: every `.svelte` file of
+    /// these 9 fixtures must produce SSR output byte-identical (after the runtime
+    /// gate's OXC canonicalization) to the proven text-based `transform_server`
+    /// oracle. Each fixture pins a distinct gap fixed in this slice:
+    ///
+    /// - `element-is-attribute` — `<button is="x-button">` is a custom element, so
+    ///   the spread `$.attributes({…}, …, 2)` carries `ELEMENT_PRESERVE_ATTRIBUTE_CASE`.
+    /// - `multiple-head` / `nested-script-tag` — a lone `<script>` child appends a
+    ///   trailing `<!---->` comment (`clean_nodes` "lone script tag" special case).
+    /// - `typescript` — a bare `<script>` (no `lang`) is TS-stripped because a
+    ///   sibling `<script lang="ts">` makes the WHOLE component TS.
+    /// - `derived-read-outside-reaction` — a class field redeclared by a
+    ///   constructor `$derived` assignment is dropped (`ClassBody` `field.node !==
+    ///   definition`).
+    /// - `event-attribute-delegation-6` — an `{#each … as {method}}` context binding
+    ///   shadows the instance `let method = $state(…)`, so the body `{method}` read
+    ///   is NOT constant-folded.
+    /// - `error-boundary-21` — a non-hoistable `{#snippet failed}` in a
+    ///   `<svelte:boundary>` goes to the fragment `init` (component-body top), not
+    ///   inline after the boundary's preceding siblings.
+    /// - `bind-getter-setter` / `ownership-function-bindings` — a component
+    ///   `bind:x={() => g, (v) => s}` hoists `var bind_get = …; var bind_set = …;`
+    ///   and the accessors call those locals.
+    #[test]
+    fn ast_matches_oracle_misc_tail_cluster() {
+        std::thread::Builder::new()
+            .stack_size(256 * 1024 * 1024)
+            .spawn(|| {
+                let names = [
+                    "element-is-attribute",
+                    "multiple-head",
+                    "nested-script-tag",
+                    "typescript",
+                    "bind-getter-setter",
+                    "derived-read-outside-reaction",
+                    "ownership-function-bindings",
+                    "event-attribute-delegation-6",
+                    "error-boundary-21",
+                ];
+                let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .parent()
+                    .unwrap()
+                    .parent()
+                    .unwrap()
+                    .join("submodules/svelte/packages/svelte/tests/runtime-runes/samples");
+                // The svelte submodule may not be checked out in every environment
+                // (e.g. a minimal CI shard); no-op with a notice in that case.
+                if !base.exists() {
+                    eprintln!(
+                        "ast_matches_oracle_misc_tail_cluster: svelte submodule absent, skipping"
+                    );
+                    return;
+                }
+                for name in names {
+                    let dir = base.join(name);
+                    let mut entries: Vec<_> = std::fs::read_dir(&dir)
+                        .unwrap_or_else(|_| panic!("read fixture dir {name}"))
+                        .filter_map(|e| e.ok())
+                        .map(|e| e.path())
+                        .filter(|p| p.extension().map(|x| x == "svelte").unwrap_or(false))
+                        .collect();
+                    entries.sort();
+                    for path in entries {
+                        let source = std::fs::read_to_string(&path).unwrap();
+                        let (ours, oracle) = run_both_opts(&source, |_| {});
+                        let label =
+                            format!("{name}/{}", path.file_name().unwrap().to_str().unwrap());
+                        assert_eq!(
+                            canon_js(&ours),
+                            canon_js(&oracle),
+                            "SSR AST output diverged from the text oracle for {label}",
+                        );
+                    }
+                }
+            })
+            .unwrap()
+            .join()
+            .unwrap();
     }
 
     /// DEV-mode SSR instrumentation parity with the (correct) text-based

@@ -576,6 +576,19 @@ fn has_class_directive_or_spread(node: &RegularElement) -> bool {
     })
 }
 
+/// 写经 upstream `is_custom_element_node` (`phases/nodes.js`): a RegularElement is
+/// a custom element if its name contains `-` OR it has a static `is` attribute
+/// (`<button is="x-button">`). The shared string-only `is_custom_element_node`
+/// helper only sees the name, so the `is=`-attribute case is checked here to set
+/// the `ELEMENT_PRESERVE_ATTRIBUTE_CASE` flag on the spread `$.attributes(...)`.
+fn is_custom_element(node: &RegularElement) -> bool {
+    node.name.as_str().contains('-')
+        || node
+            .attributes
+            .iter()
+            .any(|attr| matches!(attr, Attribute::Attribute(a) if a.name.as_str() == "is"))
+}
+
 /// Whether the element has a sibling text `type="<expected>"` attribute (used to
 /// detect `<input type="file">` / `<input type="checkbox">`). Mirrors upstream's
 /// `attr.value[0].data === '<expected>'` check on the static `type` attribute.
@@ -1129,7 +1142,6 @@ fn build_element_spread_attributes<'a>(
     use crate::compiler::constants::{
         ELEMENT_IS_INPUT, ELEMENT_IS_NAMESPACED, ELEMENT_PRESERVE_ATTRIBUTE_CASE,
     };
-    use crate::compiler::phases::phase3_transform::shared::template::is_custom_element_node;
     use oxc_ast::ast::ObjectPropertyKind;
 
     // -- the merged attribute object ----------------------------------------
@@ -1268,7 +1280,7 @@ fn build_element_spread_attributes<'a>(
     let mut flags = 0;
     if node.metadata.svg || node.metadata.mathml {
         flags |= ELEMENT_IS_NAMESPACED | ELEMENT_PRESERVE_ATTRIBUTE_CASE;
-    } else if is_custom_element_node(node.name.as_str()) {
+    } else if is_custom_element(node) {
         flags |= ELEMENT_PRESERVE_ATTRIBUTE_CASE;
     } else if node.name.as_str() == "input" {
         flags |= ELEMENT_IS_INPUT;
@@ -1535,7 +1547,6 @@ fn prepare_element_spread_object<'a>(
     use crate::compiler::constants::{
         ELEMENT_IS_INPUT, ELEMENT_IS_NAMESPACED, ELEMENT_PRESERVE_ATTRIBUTE_CASE,
     };
-    use crate::compiler::phases::phase3_transform::shared::template::is_custom_element_node;
     use oxc_ast::ast::ObjectPropertyKind;
 
     // -- the merged attribute object (`build_spread_object`) ----------------
@@ -1625,7 +1636,7 @@ fn prepare_element_spread_object<'a>(
     let mut flags = 0;
     if node.metadata.svg || node.metadata.mathml {
         flags |= ELEMENT_IS_NAMESPACED | ELEMENT_PRESERVE_ATTRIBUTE_CASE;
-    } else if is_custom_element_node(node.name.as_str()) {
+    } else if is_custom_element(node) {
         flags |= ELEMENT_PRESERVE_ATTRIBUTE_CASE;
     } else if node.name.as_str() == "input" {
         flags |= ELEMENT_IS_INPUT;

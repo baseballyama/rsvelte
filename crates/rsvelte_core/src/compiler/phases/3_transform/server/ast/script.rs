@@ -310,14 +310,20 @@ fn transform_script<'a>(
     // `src` to the stripped buffer keeps offsets internally consistent. Mirrors the
     // OLD oracle, which runs the same `strip_typescript` (over its final output).
     let stripped;
-    let src: &str = if super::super::helpers::script_is_typescript(script) {
-        stripped = crate::compiler::phases::phase2_analyze::types::strip_typescript(
-            &state.source[start..end],
-        );
-        &stripped
-    } else {
-        &state.source[start..end]
-    };
+    // TS is detected COMPONENT-wide, not per-script: if EITHER script carries
+    // `lang="ts"` the whole component is parsed as TS (upstream `force_typescript`),
+    // so a `<script>` with no `lang` attribute can still hold TS syntax
+    // (`import type …`, `satisfies …`) when a sibling `<script lang="ts">` exists.
+    // Strip in that case too — mirrors the OLD oracle's component-wide `is_ts`.
+    let src: &str =
+        if super::super::helpers::script_is_typescript(script) || state.analysis.is_typescript {
+            stripped = crate::compiler::phases::phase2_analyze::types::strip_typescript(
+                &state.source[start..end],
+            );
+            &stripped
+        } else {
+            &state.source[start..end]
+        };
 
     // Parse with a FRESH allocator purely for CLASSIFICATION. We never move nodes
     // out of it; every emitted statement is re-parsed from `src` into the state
@@ -1330,6 +1336,33 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
             // Only plain (non-computed, non-static) fields carry class-field runes.
             let is_plain_field = !prop_box.computed && !prop_box.r#static;
             let is_private = prop_box.key.is_private_identifier();
+
+            // 写经 server `ClassBody.js` (lines 53-77): a PropertyDefinition whose
+            // name is a state field DECLARED ELSEWHERE (`field.node !== definition`)
+            // is DROPPED. This is the bare `product;` (or `product: number;` after
+            // TS strip) whose rune `this.product = $derived(...)` lives in the
+            // constructor — the backing field + get/set accessors were already
+            // inserted at the top of `new_body` by the constructor pass, so the
+            // orphaned public field declaration must not be re-emitted. Only public
+            // (non-`#`) derived constructor fields take an accessor; `$state` /
+            // private constructor fields keep their declaration (they fall through).
+            if is_plain_field && !is_private {
+                let field_name = prop_box.key.name().map(|c| c.to_string());
+                if let Some(fname) = &field_name
+                    && ctor_fields.iter().any(|cf| {
+                        &cf.name == fname
+                            && !cf.is_private
+                            && matches!(cf.rune, DeclRune::Derived | DeclRune::DerivedBy)
+                    })
+                {
+                    // Orphaned public field redeclared by a constructor `$derived`
+                    // assignment → drop (the accessor pair already owns the name).
+                    // `$state` constructor fields keep their declaration (upstream
+                    // `ClassBody.js` keeps `$state` / `$state.raw` definitions).
+                    continue;
+                }
+            }
+
             let prop = prop_box.as_mut();
             let rune = self.lower_property_init(prop);
 
@@ -2083,14 +2116,20 @@ fn transform_script_legacy<'a>(
     // TypeScript components: strip TS from the slice before parsing (see the
     // matching note in `transform_script` for the offset-consistency rationale).
     let stripped;
-    let src: &str = if super::super::helpers::script_is_typescript(script) {
-        stripped = crate::compiler::phases::phase2_analyze::types::strip_typescript(
-            &state.source[start..end],
-        );
-        &stripped
-    } else {
-        &state.source[start..end]
-    };
+    // TS is detected COMPONENT-wide, not per-script: if EITHER script carries
+    // `lang="ts"` the whole component is parsed as TS (upstream `force_typescript`),
+    // so a `<script>` with no `lang` attribute can still hold TS syntax
+    // (`import type …`, `satisfies …`) when a sibling `<script lang="ts">` exists.
+    // Strip in that case too — mirrors the OLD oracle's component-wide `is_ts`.
+    let src: &str =
+        if super::super::helpers::script_is_typescript(script) || state.analysis.is_typescript {
+            stripped = crate::compiler::phases::phase2_analyze::types::strip_typescript(
+                &state.source[start..end],
+            );
+            &stripped
+        } else {
+            &state.source[start..end]
+        };
 
     let alloc = oxc_allocator::Allocator::default();
     let owned = alloc.alloc_str(src);

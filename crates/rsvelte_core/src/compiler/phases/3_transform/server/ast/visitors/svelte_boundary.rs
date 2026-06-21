@@ -177,15 +177,25 @@ pub fn visit_svelte_boundary<'a>(node: &SvelteElement, state: &mut ServerTransfo
         props.push(state.b.init("failed", value));
     }
 
-    // Emit the `failed` fn declaration: hoistable → component-body top
-    // (`state.body`); otherwise inline into the CURRENT block, immediately ahead
-    // of the boundary call (写经 `statements.push(fn)` onto `state.hoisted` /
-    // `state.init` respectively).
+    // Emit the `failed` fn declaration. 写经 upstream `SvelteBoundary.js` line 97
+    // (`context.visit(failed_snippet, context.state)`) → `SnippetBlock.js`
+    // (`statements = can_hoist ? state.hoisted : state.init`):
+    // - HOISTABLE (`can_hoist` AND top-level boundary) → component-body top
+    //   (`state.body`), ahead of ALL template content.
+    // - NON-hoistable → the CURRENT fragment's `state.init`. In this pipeline that
+    //   is `state.snippet_inits`, which `build_fragment_body` prepends to the head
+    //   of the enclosing fragment body — so a TOP-LEVEL boundary's instance-state-
+    //   referencing `failed` lands at the component-body top (ahead of the rendered
+    //   `push(...)` template), and a NESTED boundary's `failed` lands at the head of
+    //   the surrounding block body. Previously this was emitted INLINE
+    //   (`TemplateEntry::Stmt`) right before the boundary call, which placed it
+    //   AFTER preceding sibling template pushes — diverging from upstream, whose
+    //   `state.init` always precedes the fragment's rendered template.
     if let Some(fn_decl) = failed_fn {
         if failed_fn_hoist {
             state.body.push(fn_decl);
         } else {
-            state.template.push(TemplateEntry::Stmt(fn_decl));
+            state.snippet_inits.push(fn_decl);
         }
     }
 

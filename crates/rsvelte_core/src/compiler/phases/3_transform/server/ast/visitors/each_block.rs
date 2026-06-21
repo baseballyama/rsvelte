@@ -139,8 +139,31 @@ pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'
     if let Some(alias) = &index_alias {
         each_body.push(b.let_id(alias, Some(b.id(&index_var))));
     }
+    // The each-context binding names (`as item` / `as { method }`) SHADOW any
+    // same-named instance binding for the duration of the loop body. Push them as
+    // a shadow set so the SSR constant-fold (`flush_sequence`'s `constant_vars` /
+    // `scope.evaluate` path) does NOT fold a `{method}` body read to the instance
+    // `let method = $state('method')` literal — it is the loop variable, an
+    // unknown runtime value, so it must stay `$.escape(method)`. Reuses the same
+    // `slot_let_shadows` veto as `let:`-slot variables (each-item bindings, like
+    // slot params, are never compile-time constants). The fallback `{:else}` body
+    // is OUTSIDE this push (the context isn't bound there).
+    let mut each_shadow: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
+    if let Some(ctx) = &node.context {
+        collect_context_names(ctx, state, &mut each_shadow);
+    }
+    if let Some(alias) = &index_alias {
+        each_shadow.insert(alias.clone());
+    }
+    let pushed_shadow = !each_shadow.is_empty();
+    if pushed_shadow {
+        state.slot_let_shadows.push(each_shadow);
+    }
     // EachBlock body IS an `is_text_first` parent (upstream `clean_nodes`).
     each_body.extend(build_fragment_body(&node.body, true, state));
+    if pushed_shadow {
+        state.slot_let_shadows.pop();
+    }
 
     let for_loop = build_for_loop(b, &array_var, &index_var, b.block(each_body));
 
@@ -250,6 +273,62 @@ fn context_pattern<'a>(
         }
     }
     state.b.id_pat("$$item")
+}
+
+/// Collect every binding name introduced by the each-context (`as item` /
+/// `as { method }` / `as [a, b]`) into `out`. An identifier context contributes
+/// its name directly; a destructuring context is re-parsed (`let <pat> = 0;`) and
+/// every bound `BindingIdentifier` in the resulting pattern is collected. Used to
+/// shadow same-named instance bindings in the loop body so SSR constant-folding
+/// leaves the runtime loop variable un-folded.
+fn collect_context_names(
+    ctx: &crate::ast::js::Expression,
+    state: &ServerTransformState<'_>,
+    out: &mut rustc_hash::FxHashSet<String>,
+) {
+    if let Some(name) = ctx.identifier_name() {
+        out.insert(name.to_string());
+        return;
+    }
+    let (Some(start), Some(end)) = (ctx.start(), ctx.end()) else {
+        return;
+    };
+    let slice = state.source[start as usize..end as usize].trim();
+    let alloc = oxc_allocator::Allocator::default();
+    if let Some(pat) = reparse_binding_pattern(slice, &alloc, state.b) {
+        collect_binding_pattern_names(&pat, out);
+    }
+}
+
+/// Walk an oxc `BindingPattern` and collect every bound identifier name.
+fn collect_binding_pattern_names(
+    pat: &BindingPattern<'_>,
+    out: &mut rustc_hash::FxHashSet<String>,
+) {
+    match pat {
+        BindingPattern::BindingIdentifier(id) => {
+            out.insert(id.name.to_string());
+        }
+        BindingPattern::ObjectPattern(obj) => {
+            for prop in &obj.properties {
+                collect_binding_pattern_names(&prop.value, out);
+            }
+            if let Some(rest) = &obj.rest {
+                collect_binding_pattern_names(&rest.argument, out);
+            }
+        }
+        BindingPattern::ArrayPattern(arr) => {
+            for el in arr.elements.iter().flatten() {
+                collect_binding_pattern_names(el, out);
+            }
+            if let Some(rest) = &arr.rest {
+                collect_binding_pattern_names(&rest.argument, out);
+            }
+        }
+        BindingPattern::AssignmentPattern(assign) => {
+            collect_binding_pattern_names(&assign.left, out);
+        }
+    }
 }
 
 /// Re-parse a binding pattern from `src` (e.g. `{ a, b }`) by wrapping it in a

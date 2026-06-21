@@ -153,7 +153,28 @@ pub fn process_children_inner<'a>(
         super::visit_node(node, state);
     }
 
-    let cleaned = clean_whitespace(&filtered, parent, namespace, preserve_whitespace);
+    let mut cleaned = clean_whitespace(&filtered, parent, namespace, preserve_whitespace);
+
+    // 写经 `clean_nodes` (utils.js:265-275) "lone script tag" special case: when
+    // the ONLY surviving child is a `<script>` RegularElement, append an empty
+    // `<!---->` comment node. Upstream needs this so the client's `run_scripts`
+    // can `node.replaceWith()` the script (a parent-less script can't be replaced);
+    // on the server it surfaces as a trailing `<!---->` after the script. Applies
+    // to `<div><script>…</script></div>` and a lone `<script>` in `<svelte:head>`.
+    if cleaned.len() == 1
+        && matches!(
+            cleaned[0].as_ref(),
+            TemplateNode::RegularElement(el) if el.name.as_str() == "script"
+        )
+    {
+        cleaned.push(Cow::Owned(TemplateNode::Comment(
+            crate::ast::template::Comment {
+                start: 0,
+                end: 0,
+                data: CompactString::default(),
+            },
+        )));
+    }
 
     // 写经 `clean_nodes` → `Fragment` visitor: when the parent is a fragment /
     // block body and the first surviving child is Text / ExpressionTag, prepend
