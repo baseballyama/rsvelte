@@ -1,53 +1,66 @@
-# Phase-3 AST リファクタ — 残作業ドキュメント（サーバ 100% 達成後）
+# Phase-3 AST リファクタ — 残作業ドキュメント（**サーバ switchover 完了後**）
 
 > **ゴール（ユーザー指示・継続中）:** Phase-3 (`3_transform`) の **テキストベース処理を1箇所も残さず**、
-> oxc AST 構築 + `rsvelte_esrap` 印字に完全移行する。**サーバ SSR は完了**（本ドキュメント時点）。
-> 残るは「旧モジュール削除」「クライアント CSR の AST 化」「コーパス 100%」。
+> oxc AST 構築 + `rsvelte_esrap` 印字に完全移行する。
+> **✅ サーバ SSR コンポーネント codegen は完全に AST 化・switchover 済み**（旧テキスト ~32k 行削除）。
+> 残るは「クライアント CSR の AST 化（§2、最大）」「コーパス/互換性 100%（§3）」「`compute_blocker_map` AST 化（§4）」、
+> および `.svelte.js` モジュールパス（`transform_server_module`）が依存するテキストヘルパ群。
 
-このファイルは `feat/phase3-ast-full` ブランチの引き継ぎ。関連: `docs/ast-refactor-handoff.md`（旧・client調査）、
-`docs/phase3-ast-refactor-plan.md`、`docs/corpus-remaining-work.md`、`docs/corpus-fmt-remaining-work.md`。
+関連: `docs/ast-refactor-handoff.md`（client調査）、`docs/phase3-ast-refactor-plan.md`、
+`docs/corpus-remaining-work.md`、`docs/corpus-fmt-remaining-work.md`。
 
 ---
 
 ## 0. 現状（達成済み）
 
-### ✅ サーバ SSR の AST 化 — curated スイートで 100%・ただし**デフォルト化は保留**
+### ✅ サーバ SSR の AST 化 — **switchover 完了・旧モジュール削除済み**
 
-- `server/ast/server_component_ast`（純 oxc AST + `rsvelte_esrap`）は **`RSVELTE_SERVER_AST=1` の opt-in**。
-  デフォルトは引き続き旧テキスト `ServerCodeGenerator`。
-- **⚠️ スイッチオーバー（デフォルト化）は保留**: 一度デフォルト化したところ、**コーパスの実コード SSR で 88 件が回帰**
-  （`verify.mjs`: net -32。直った 56 件 < 新規失敗 88 件）。デフォルト化の前にこの 88 件を潰す必要がある。
-  回帰のクラスタ（CI ログより）:
-  - **(A) class/title の条件式に `$.stringify(...)` を過剰付与**（最多）。
-    例: `` class: `... ${cond ? "a" : "b"}` `` → `` class: `... ${$.stringify(cond ? "a" : "b")}` ``。
-    `server/ast/` の class/title 属性補間で、ConditionalExpression に対し `$.stringify` を不要に巻いている
-    （公式は巻かない）。`eval_attr_expr_json` / 属性 emit パスの elide 条件を拡張する。
-  - **(B) instance script のコメント脱落**。例: `// MetaTag` / `/** … */` が消える。
-    curated ゲートは `canonicalize_js`（コメント落とし）なので未検出だが、コーパスは oxfmt 正規化＝コメント込み比較。
-  - **(C) function 宣言 vs `let $$settled = true;` の順序**（snippet/component 関数配置）。
-  - **(D) slot children 引数**（`children?.($$renderer, { … })` vs `($$renderer, undefined)`）。
-  - **再現**: ローカルで `pnpm run corpus:sync` → `corpus:collect/compile/verify`。CI=Linux が真値。
-- curated スイートでの **検証済み（`RSVELTE_SERVER_AST=1` で）:**
-  - runtime スイート: runtime-runes **993/993**、runtime-legacy **1205/1205**、hydration **77/77**
-  - バイト厳密スナップショット: `compiler_fixtures` + `ssr` 全グリーン
-  - フル互換性レポート **全カテゴリ 100%**（SSR 97/97、snapshot 29/29、validator 333/333、css 181/181、
-    compiler-errors 145/145 …、3272 実行・0 失敗）
-- ゲートコマンド（dedicated `CARGO_TARGET_DIR` 必須。debug/release 混在は spurious E0308）:
-  - `cargo test --release --test runtime -- --test-threads=1`
-  - `cargo test --release --test compiler_fixtures --test ssr -- --test-threads=1`
-  - 互換性レポートは **単独** で: `RUST_MIN_STACK=33554432 CARGO_PROFILE_RELEASE_LTO=off cargo test --release --test compatibility_report generate_compatibility_report -- --ignored --nocapture`
-  - **GOTCHA**: `--test compiler_fixtures --test ssr --test compatibility_report` を**まとめて**走らせると
-    feature-unification/stale-artifact で spurious `E0308`/`Root: Serialize` が出る。compatibility_report は単独・専用 dir で。
-  - **GOTCHA（flaky）**: `svelte_check` / `test_reporter` バイナリが時々リンク失敗（`ld: symbol(s) not found`）→ EXIT=101。
-    ライブラリ自体はビルド成功しているのでリトライ。
+- `transform_server()` は **無条件で** `server/ast/server_component_ast`（純 oxc AST + `rsvelte_esrap`）を呼ぶ。
+  `RSVELTE_SERVER_AST` opt-in は撤去。`None` はフォールバックではなくエラー。
+- AST パイプラインは `ServerCodeGenerator` 非依存化（`helpers::compute_eval_inputs` に
+  `constant_vars` / `top_level_blocker_map` 収集を抽出）。
+- **削除済み**: `build.rs`(8579)・`bridge.rs`(2629)・テキスト `server/visitors/` ツリー全体・
+  `esrap_layout.rs`・`template_rune_ast.rs`・`ServerCodeGenerator` struct/impl・
+  `helpers`/`transform_script`/`transform_legacy`/`transform_store`/`types` の死関数 ~80 個。**net −31.6k 行**。
+  AST が旧 visitors から借りていた 2 関数（`locate_in_source` / `infer_namespace_from_nodes_owned`）は
+  `ast/visitors/shared.rs` へ移設。
+- **コーパス回帰潰し（88 → 18、その後 switchover）:** 直したクラスタ —
+  (A) component/slot prop の `$.stringify` 過剰付与（`scope.evaluate` 定数畳み込みを移植）、
+  (C) `uses_component_bindings` 下の top-level `{#snippet}` を `$$render_inner` の手前へ巻き上げ、
+  `$host()` → `void 0`、`onload`/`onerror` の `this.__e=event` capture、
+  scope class を style ディレクティブの `attr_style` より前に、scoped `<option>/<select>` の `{ class: "" }` 合成、
+  TS-aware reparse + TS ラッパ strip（`x as T` 等）、option/select spread の clsx 非ラップ、
+  named-slot 転送（`<slot slot="x">`）、get/set bind のソース順。
+- **コーパス baseline 再生成: 120 → 69 known failures**（net −51。69 直り・18 新規をトラック）。
+  `verify.mjs`: **no regressions**。残り 18 はすべて svelte 内部のテスト/ドキュメント fixture または
+  legacy `destructured-props` クラスタ。
+- **curated ゲート全グリーン（AST デフォルトで、env 不要）:** runtime 19/19、compiler_fixtures 17/17、ssr 16/16。
+
+### ⚠️ switchover で顕在化した AST パイプラインの既知ギャップ（§3 の一部）
+
+互換性レポート（`#[ignore]` のトラッキング専用・CI ゲートではない）で 4 件の **Server JS mismatch**:
+旧テキストパスは通っていたが AST パスが未対応のもの。
+- **(B) instance script コメント保持**（`async-style-after-await`, `hmr-each-keyed-unshift` ほか）—
+  `ast/script.rs` の statement rehome が `reparse_statement`（`SourceType::mjs`）でコメントを捨てる。
+  真の修正は再構成プログラム全体への comment span 再マッピング（esrap `print_with_comments` / `CommentHooks`）。
+  コーパスの comment-drop 群と同根。
+- **HMR マーカー構造**（`hmr-removal`）。
+- **`<svelte:boundary>` の pending スニペット SSR 構造**（`hydration/boundary-pending-attribute`）。
+- （互換性レポートの svelte2tsx 7 件は SSR と無関係・既存。本作業の回帰ではない。）
+
+### ゲートコマンド（dedicated `CARGO_TARGET_DIR` 必須。debug/release 混在は spurious E0308）
+- `cargo test --release --test runtime --test compiler_fixtures --test ssr -- --test-threads=1`
+- 互換性レポートは **単独** で: `RUST_MIN_STACK=33554432 CARGO_PROFILE_RELEASE_LTO=off cargo test --release --test compatibility_report generate_compatibility_report -- --ignored --nocapture`
+- コーパス: `pnpm run corpus:sync`（submodule + `cd submodules/svelte && pnpm i`）→
+  `cargo build --release --features napi --lib && cp target/release/librsvelte_core.dylib .corpus-cache/rsvelte.node` →
+  `pnpm run corpus:collect && corpus:compile && corpus:verify`。verify は両側 oxfmt 正規化なので
+  CSR/SSR baseline はプラットフォーム非依存（macOS で `--update-baseline` 可。fmt corpus は別＝Linux が真値）。
 
 ---
 
-## 1. 残作業A — 旧サーバテキストモジュールの削除（精密な計画済み・未着手）
+## 1. 残作業A — 旧サーバテキストモジュールの削除 — ✅ **完了**
 
-**前提**: 削除はスイッチオーバー（AST をデフォルト化）の **後**。現状は旧モジュールがデフォルトで使用中なので、
-まず 88 corpus 回帰を潰してデフォルト化 → その後に削除。なお `server/ast/` がまだ旧モジュールの関数を呼ぶため
-「6 ファイル一括削除」ではない。
+上記 §0 の通り削除済み（net −31.6k 行）。以下は当時の計画（履歴として保持）。
 
 ### 1-1. 完全に削除可能（純・旧パイプライン、AST からの参照なし）
 
@@ -112,8 +125,8 @@
 
 | ファイル | 件数 | 内容 |
 |---|---|---|
-| `compat/corpus/known-failures.json` | 120 | CSR/SSR コンパイル出力の非一致 |
-| `compat/corpus/fmt-known-failures.json` | 295 | rsvelte-fmt vs oxfmt+prettier-plugin-svelte の非一致 |
+| `compat/corpus/known-failures.json` | **69**（120→69、switchover で −51） | CSR/SSR コンパイル出力の非一致。残りの大半は **CSR 側**（§2 の client AST 化が前提）。SSR 由来の 18 はコメント保持・`destructured-props`・タグ名小文字化・unicode エスケープ等。 |
+| `compat/corpus/fmt-known-failures.json` | **0** ✅ | （PR #1111 で達成済み。本ドキュメント旧版の 295 は古い） |
 | `compat/corpus/svelte2tsx-known-failures.json` | 0 | ✅ 既に 100% |
 
 ### 100% にするために必要なこと
