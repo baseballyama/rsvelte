@@ -1027,19 +1027,32 @@ pub fn build_fragment_body<'a>(
         && !group.thunks.is_empty()
     {
         let run_decl = build_async_consts_run(state, &group);
-        // Insert the async `let`s + run AFTER the leading sync hoisted-const
-        // declarations (`build_template` lifts `{const sync = 'sync'}` to the
-        // front) so a sync `{const}` precedes the `var promises = run([…])` that
-        // depends on the async group — matching upstream's `state.init` order.
-        let split = body
+        // 写经 upstream `state.init` order. The async-const `let`s land AFTER the
+        // leading sync hoisted-const declarations (`build_template` lifts
+        // `{const sync = 'sync'}` to the front), so a sync `{const}` precedes
+        // them. The `var promises = run([…])` itself floats further, to AFTER all
+        // leading hoisted declarations INCLUDING snippet `function` declarations
+        // (`{#snippet}` bodies emitted into the init), since the run is built last
+        // at the fragment-init end: `[const sync, let …, function greet(){…}, var
+        // promises = run([…]), …pushes]`.
+        let let_split = body
             .iter()
             .position(|s| !matches!(s, Statement::VariableDeclaration(_)))
             .unwrap_or(body.len());
-        let mut prelude: Vec<Statement<'a>> = body.drain(..split).collect();
-        prelude.extend(group.let_decls);
-        prelude.push(run_decl);
-        prelude.append(&mut body);
-        body = prelude;
+        let mut new_body: Vec<Statement<'a>> = body.drain(..let_split).collect();
+        new_body.extend(group.let_decls);
+        new_body.append(&mut body);
+        let run_split = new_body
+            .iter()
+            .position(|s| {
+                !matches!(
+                    s,
+                    Statement::VariableDeclaration(_) | Statement::FunctionDeclaration(_)
+                )
+            })
+            .unwrap_or(new_body.len());
+        new_body.insert(run_split, run_decl);
+        body = new_body;
     }
 
     state.async_consts = saved_async_consts;
