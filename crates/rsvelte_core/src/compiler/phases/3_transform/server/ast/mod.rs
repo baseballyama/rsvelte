@@ -682,9 +682,12 @@ fn reparse_expression<'a>(src: &str, allocator: &'a Allocator) -> Option<OxcExpr
     // AST but the raw text retains. Parsing as plain JS rejects `x as T`, leaving an
     // `undefined` fallback; parsing as TS then stripping the type-only wrappers
     // (below) reproduces the structured-AST output.
-    let ret =
-        oxc_parser::Parser::new(allocator, owned, oxc_span::SourceType::mjs().with_typescript(true))
-            .parse();
+    let ret = oxc_parser::Parser::new(
+        allocator,
+        owned,
+        oxc_span::SourceType::mjs().with_typescript(true),
+    )
+    .parse();
     if !ret.diagnostics.is_empty() {
         return None;
     }
@@ -793,24 +796,25 @@ pub fn server_component_ast<'a>(
     let mut state = ServerTransformState::new(analysis, options, source, &ast.arena, allocator);
 
     // Precompute the SSR constant-folding inputs (`constant_vars` /
-    // `use_async` / `top_level_blocker_map`) via the proven legacy
-    // `ServerCodeGenerator::new` path, so the AST pipeline folds template
-    // chunks byte-identically to the oracle. Cheap: only harvests the maps.
+    // `use_async` / `top_level_blocker_map`) via the standalone
+    // `compute_eval_inputs` (extracted from the now-removed text
+    // `ServerCodeGenerator::new`), so the AST pipeline folds template chunks
+    // byte-identically to the oracle. Cheap: only harvests the maps.
     {
         let instance_script = ast.instance.as_ref().map(|s| s.as_ref());
         let module_script = ast.module.as_ref().map(|s| s.as_ref());
-        let legacy = super::ServerCodeGenerator::new(
-            analysis.name.clone(),
-            source.to_string(),
+        let use_async = options.experimental.r#async;
+        let raw = super::helpers::compute_eval_inputs(
+            Some(analysis),
             instance_script,
             module_script,
-            Some(analysis),
-            options.experimental.r#async,
+            source,
+            use_async,
         );
         state.eval_inputs = EvalInputs {
-            constant_vars: legacy.constant_vars,
-            use_async: legacy.use_async,
-            top_level_blocker_map: legacy.top_level_blocker_map,
+            constant_vars: raw.constant_vars,
+            use_async,
+            top_level_blocker_map: raw.top_level_blocker_map,
             template_scopes_cache: std::cell::OnceCell::new(),
         };
     }

@@ -193,7 +193,10 @@ fn slot_attribute_value<'a>(
                             .evaluate_template_expression(&tag.expression);
                         if let Some(value) = evaluation.known_value() {
                             if !matches!(value, EvalValue::Null | EvalValue::Undefined) {
-                                quasis.last_mut().unwrap().push_str(&js_display_string(value));
+                                quasis
+                                    .last_mut()
+                                    .unwrap()
+                                    .push_str(&js_display_string(value));
                             }
                             continue;
                         }

@@ -313,8 +313,7 @@ fn emit_element_body<'a>(
 /// 0-based column of `node.start`, computed via the existing (read-only)
 /// `locate_in_source` helper from the legacy server pipeline.
 fn push_element_dev<'a>(node: &RegularElement, name: &str, state: &mut ServerTransformState<'a>) {
-    let (line, col) =
-        super::super::super::visitors::element::locate_in_source(state.source, node.start as usize);
+    let (line, col) = super::shared::locate_in_source(state.source, node.start as usize);
     let b = state.b;
     let call = b.call(
         "$.push_element",
