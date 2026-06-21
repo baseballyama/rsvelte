@@ -238,10 +238,16 @@ fn add_async_const<'a>(
         } else {
             format!("async () => {lhs} = {save_wrapped}")
         }
-    } else if is_destructuring {
-        format!("() => ({lhs} = {rhs})")
     } else {
-        format!("() => {lhs} = {rhs}")
+        // Sync (non-await) RHS — read-wrap so a derived dependency becomes a
+        // getter call (`bar` → `bar()`, `d` → `d()`) and store reads become
+        // `$.store_get(...)`, matching the SYNC const path's AST read-wrap.
+        let wrapped_rhs = state.read_wrap_rhs_string(rhs);
+        if is_destructuring {
+            format!("() => ({lhs} = {wrapped_rhs})")
+        } else {
+            format!("() => {lhs} = {wrapped_rhs}")
+        }
     };
 
     let group = state.async_consts.as_mut().unwrap();
@@ -258,7 +264,7 @@ fn add_async_const<'a>(
 /// Find the top-level `=` (assignment) in a declarator string, skipping
 /// `==` / `=>` / `!=` / `<=` / `>=` and bracketed regions. Byte-indexed (all
 /// matched tokens are ASCII). 写经 the legacy `find_assignment_eq`.
-fn find_assignment_eq(decl: &str) -> Option<usize> {
+pub(super) fn find_assignment_eq(decl: &str) -> Option<usize> {
     let bytes = decl.as_bytes();
     let mut depth = 0i32;
     let mut i = 0;
@@ -283,7 +289,7 @@ fn find_assignment_eq(decl: &str) -> Option<usize> {
 }
 
 /// Declared binding names from a const LHS (simple identifier or destructuring).
-fn extract_declared_names(lhs: &str) -> Vec<String> {
+pub(super) fn extract_declared_names(lhs: &str) -> Vec<String> {
     let trimmed = lhs.trim();
     if !trimmed.is_empty()
         && trimmed
@@ -299,7 +305,7 @@ fn extract_declared_names(lhs: &str) -> Vec<String> {
 /// that skips string / template literals and property keys after `.`. Good
 /// enough for blocker / dependency detection (writes the same set the text
 /// oracle's `extract_identifiers_from_expr` does for the const-tag cases).
-fn extract_identifiers_from_expr(expr: &str) -> Vec<String> {
+pub(super) fn extract_identifiers_from_expr(expr: &str) -> Vec<String> {
     let mut idents = Vec::new();
     let chars: Vec<char> = expr.chars().collect();
     let len = chars.len();

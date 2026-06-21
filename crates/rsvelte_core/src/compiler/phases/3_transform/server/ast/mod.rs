@@ -512,6 +512,34 @@ impl<'a> ServerTransformState<'a> {
         reparse_expression(src.trim(), self.allocator)
     }
 
+    /// Codegen an oxc [`OxcExpression`] back to a JS source string. Used by the
+    /// async-const / async-declaration-tag string-thunk builders, which assemble
+    /// `() => x = <rhs>` text from a read-wrapped RHS expression.
+    pub fn expr_to_string(&self, expr: &OxcExpression<'a>) -> String {
+        use oxc_codegen::{Codegen, CodegenOptions};
+        let options = CodegenOptions {
+            single_quote: true,
+            ..Default::default()
+        };
+        let mut codegen = Codegen::new().with_options(options);
+        codegen.print_expression(expr);
+        codegen.into_source_text()
+    }
+
+    /// Read-wrap a const/declaration-tag RHS *source string* so derived reads
+    /// become getter calls (`bar` → `bar()`) and store reads become
+    /// `$.store_get(...)` — the same transform the SYNC const path applies to its
+    /// AST init, but producing a STRING for the async `$$renderer.run([...])`
+    /// thunk. Reparse failures (e.g. an `await` whose `$.save` rewrite is applied
+    /// separately) fall back to the original `rhs`.
+    pub fn read_wrap_rhs_string(&self, rhs: &str) -> String {
+        let Some(mut expr) = reparse_expression(rhs.trim(), self.allocator) else {
+            return rhs.to_string();
+        };
+        self.wrap_reads_in_place(&mut expr);
+        self.expr_to_string(&expr)
+    }
+
     /// Re-parse a complete statement `src` slice into the STATE allocator,
     /// returning its first top-level statement. Used by the script transform to
     /// rehome kept / hoisted statements (imports, functions, expression
@@ -6232,6 +6260,42 @@ mod tests {
         assert!(
             mismatches.is_empty(),
             "legacy-misc SSR output differs from oracle for: {mismatches:?}"
+        );
+    }
+
+    /// Async `{@const}` / DeclarationTag SSR parity (runtime-runes burn-down).
+    ///
+    /// `async-context-after-await-const` (`{@const foo = bar}` reading an
+    /// instance `$derived bar` after a top-level `$derived(await …)`): the async
+    /// const path now READ-WRAPS the RHS string (`bar` → `bar()`) before building
+    /// the `() => foo = bar()` `$$renderer.run([...])` thunk — matching the text
+    /// oracle byte-for-byte. Compared via [`canon_js`] (the runtime harness's
+    /// canonicalizer), so a MATCH means the runtime gate passes.
+    ///
+    /// The sibling cluster fixtures (`async-const`, `async-declaration-tag`,
+    /// `async-declaration-tag-2`, `async-derived-const-blocker`) remain blocked on
+    /// orthogonal axes OUTSIDE this file's scope: the per-Fragment `async_consts`
+    /// group reset around ELEMENT children (`element.rs`) and the `async_block`
+    /// wrap of a block / component reading a LOCAL const blocker
+    /// (`if_block.rs` / `component.rs`). The DeclarationTag async LOWERING they
+    /// need (`$.async_derived` / `$.save` / blocker thunks) is ported here and
+    /// produces the correct per-tag thunks; only the surrounding scope-reset /
+    /// block-wrap keeps them from a full byte match.
+    #[test]
+    fn ast_matches_oracle_async_const_cluster() {
+        let path = format!(
+            "{}/../../submodules/svelte/packages/svelte/tests/runtime-runes/samples/async-context-after-await-const/main.svelte",
+            env!("CARGO_MANIFEST_DIR"),
+        );
+        let Ok(src) = std::fs::read_to_string(&path) else {
+            eprintln!("SKIP async-context-after-await-const (submodule not checked out)");
+            return;
+        };
+        let (ours, oracle) = run_async_both(&src);
+        assert_eq!(
+            canon_js(&ours),
+            canon_js(&oracle),
+            "async-context-after-await-const SSR output differs from oracle:\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}",
         );
     }
 }
