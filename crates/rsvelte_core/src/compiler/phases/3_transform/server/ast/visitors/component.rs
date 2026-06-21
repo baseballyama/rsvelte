@@ -229,14 +229,34 @@ fn build_inline_component<'a, 'b>(
                 groups.push(PropGroup::Spread(expr));
             }
             Attribute::BindDirective(bind) => {
-                // `bind:this` is client-only — emit nothing on the server.
+                // 写经 `shared/component.js` (lines 112-113): a bind expression is
+                // not hoisted as a derived, but its blocker still gates the
+                // component call — feed it to the optimiser. `bind:this` is
+                // client-only (emits nothing on the server) but upstream still
+                // runs the blocker check before bailing.
+                if let Some(t) = state.expr_source(&bind.expression) {
+                    let t = t.to_string();
+                    optimiser.check_blockers(state, &t);
+                }
+                // `bind:this` is client-only — emit no accessor on the server.
                 if bind.name.as_str() == "this" {
                     continue;
                 }
                 build_bind_accessors(bind, &mut delayed, state);
             }
-            // AttachTag / On / Class / Style / Transition / Animate / Use
-            // directives: KNOWN GAP (no server props).
+            // `@attach` directives render nothing on the server, but their
+            // expression may read an async-blocked binding — feed it to the
+            // optimiser so a blocked attach wraps the component call in
+            // `$$renderer.async_block([…], …)` (写经 `shared/component.js`
+            // AttachTag branch: `optimiser.check_blockers(metadata.expression)`).
+            Attribute::AttachTag(attach) => {
+                if let Some(t) = state.expr_source(&attach.expression) {
+                    let t = t.to_string();
+                    optimiser.check_blockers(state, &t);
+                }
+            }
+            // On / Class / Style / Transition / Animate / Use directives: KNOWN
+            // GAP (no server props, no blocker contribution).
             _ => {}
         }
     }
