@@ -54,7 +54,7 @@ smallvec = { version = "1.13", features = ["serde"] }
 rustc-hash = "2.0"
 
 # JavaScript parsing and code generation
-oxc_allocator = "0.136"
+oxc_allocator = "0.137"
 oxc_parser = "0.136"
 oxc_ast = { version = "0.136", features = ["serialize"] }
 oxc_span = "0.136"
