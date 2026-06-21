@@ -71,7 +71,8 @@ use oxc_ast::ast::{BindingPattern, Statement, VariableDeclarationKind};
 
 use super::shared::{
     BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, TemplateEntry, build_fragment_body,
-    create_child_block, expr_text_blockers, save_wrap_expr_text, text_has_await,
+    create_child_block_combined, expr_local_const_blockers, expr_text_blockers,
+    save_wrap_expr_text, text_has_await,
 };
 
 /// Visit a `{#each expr as ctx, i (key)}...{/each}` block (sync; keyed or
@@ -112,6 +113,13 @@ pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'
     let blocker_indices: Vec<usize> = iterable_src
         .as_deref()
         .map(|s| expr_text_blockers(state, s))
+        .unwrap_or_default();
+    // Per-block async `{const}` blockers referenced by the iterable (e.g.
+    // `{#each { length } as …}` where `length` is a local async-const binding →
+    // `promises_N[k]`), so the each-block wraps in `$$renderer.async_block`.
+    let local_blockers: Vec<String> = iterable_src
+        .as_deref()
+        .map(|s| expr_local_const_blockers(state, s))
         .unwrap_or_default();
     let has_await = iterable_src.as_deref().is_some_and(text_has_await);
 
@@ -208,7 +216,13 @@ pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'
         // through verbatim. The `<!--]-->` close stays OUTSIDE the wrap. (No
         // `<!--[-->` open in the fallback path — the markers live inside the
         // if/else arms.)
-        let wrapped = create_child_block(state, statements, &blocker_indices, has_await);
+        let wrapped = create_child_block_combined(
+            state,
+            statements,
+            &blocker_indices,
+            &local_blockers,
+            has_await,
+        );
         for stmt in wrapped {
             state.template.push(TemplateEntry::Stmt(stmt));
         }
@@ -225,7 +239,13 @@ pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'
             .template
             .push(TemplateEntry::Literal(BLOCK_OPEN.to_string()));
         statements.push(for_loop);
-        let wrapped = create_child_block(state, statements, &blocker_indices, has_await);
+        let wrapped = create_child_block_combined(
+            state,
+            statements,
+            &blocker_indices,
+            &local_blockers,
+            has_await,
+        );
         for stmt in wrapped {
             state.template.push(TemplateEntry::Stmt(stmt));
         }
