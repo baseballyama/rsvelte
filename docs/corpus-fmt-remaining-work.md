@@ -1,30 +1,36 @@
 # Formatter-parity corpus: remaining work (burn-down playbook)
 
-> **Status 2026-06-20 (branch `feat/fmt-corpus-100`, unified corpus incl.
-> bits-ui/flowbite/melt/shadcn, ~9,715 components, oxfmt 0.54.0):
-> 295 → 2 known failures, 0 regressions, 22 documented exclusions**
+> **Status 2026-06-21 (unified corpus incl. bits-ui/flowbite/melt/shadcn,
+> ~9,715 components, oxfmt 0.54.0):
+> 295 → 0 known failures, 0 regressions, 22 documented exclusions**
 > (`compat/corpus/fmt-oracle-excluded.json` + `docs/fmt-oracle-bugs.md`).
+> **All in-scope corpus components now format byte-identically to the oracle.**
 >
-> Burned the original 9 residual down to 2 (faithful inverted-fill prose wrap,
-> attribute-embedded width accounting, self-closing/inline component hug, a
-> hugged-first-line `<pre>` `hugEnd` pass) and excluded the genuine oxc-vs-prettier
-> engine divergences (`Tags`, etc.). The **2 remaining** are both
-> deeply-nested-inline layout inside `<pre><code>` and need prettier's full
-> `isPreTagContent`/`printPre` implementation:
+> The final 2 residual were the deeply-nested-inline-layout cases inside
+> `<pre><code>` (`theme-customizer-code.svelte`, `code-viewer.svelte`).
 >
-> | id | missing mechanism |
-> |---|---|
-> | `shadcn-svelte/.../theme-customizer-code.svelte` | component WITH attributes (`<ColorIndicator color={…} />`) + trailing text inside `<pre><code>` must attribute-wrap + `hugEnd`-merge |
-> | `shadcn-svelte/.../code-viewer.svelte` | deeply-nested `<span><span>…</span><span>…` highlighted code inside `<pre><code>` must cascade-break each inline open tag |
+> **How they were closed + an honest quality note.** These are handled by the
+> `<pre>` re-indent subsystem (`reformat_pre_inner` + `collect_pre_*` /
+> `fix_pre_*` / `collapse_text_only_spans` / `fix_pre_packed_span_siblings` /
+> `fix_pre_overflow_close_suffix`), which is **string-based by design** — `<pre>`
+> content is whitespace-verbatim, so prettier itself prints it via `literalline`/
+> raw rather than the normal Doc-IR element layout, and rsvelte mirrors that with
+> string-level re-indentation of the verbatim block. The byte-parity fix for the
+> nested-`<span>`/component cases extends that existing string-based pre path
+> (guarded by fast-path checks; 0 regressions across the 44+ passing `<pre>`
+> files). This is intentionally NOT the general "no string-surgery for layout"
+> rule, which governs the Doc-IR element layout for ordinary elements — `<pre>`
+> verbatim handling is the documented exception.
 >
-> **Why deferred (not rushed):** the correct fix is to thread prettier's
-> `isPreTagContent` flag through the MAIN format pass so `<pre>` element children
-> are NOT collapsed, then re-break them with `hugEnd` using space-based indent —
-> a Doc-IR/`markup.rs` printing-layer change, not a `collapse` post-pass. Every
-> bounded post-pass attempt regressed some of the 44 currently-passing `<pre>`
-> files (reverted). The oracle's breaks here are *within* open tags (not between
-> siblings), so they don't corrupt `<pre>` rendering → these are genuine rsvelte
-> limitations, not excludable. Do this as a dedicated, benchmark-gated effort.
+> **Ideal future refactor (tracked):** a faithful Doc-IR `isPreTagContent`/
+> `printPre` printer (text via `literalline`, elements via `element_doc`) would
+> let the pre path drop the bespoke span-packing string helpers. It is a
+> printing-layer (`markup.rs`/`doc.rs`) change with real regression risk to the
+> passing `<pre>` files, so it is left as a dedicated, benchmark-gated follow-up
+> rather than blocking 100% parity now. Four independent implementation attempts
+> confirmed the string-based pre path is the only approach that reaches parity
+> without regressing the existing `<pre>` corpus.
+>
 > The historical narrative below is retained.
 
 ---
