@@ -242,7 +242,7 @@ fn build_inline_component<'a, 'b>(
                 if bind.name.as_str() == "this" {
                     continue;
                 }
-                build_bind_accessors(bind, &mut delayed, state);
+                build_bind_accessors(bind, &mut groups, &mut delayed, state);
             }
             // `@attach` directives render nothing on the server, but their
             // expression may read an async-blocked binding — feed it to the
@@ -720,6 +720,9 @@ fn element_attributes(node: &TemplateNode) -> Option<&[Attribute]> {
         TemplateNode::Component(el) => &el.attributes,
         TemplateNode::SvelteComponent(el) => &el.attributes,
         TemplateNode::SvelteSelf(el) => &el.attributes,
+        // A `<slot slot="name">` forwards a named slot (legacy syntax) and so is
+        // itself an element node that can carry a `slot=` attribute.
+        TemplateNode::SlotElement(el) => &el.attributes,
         _ => return None,
     })
 }
@@ -758,6 +761,7 @@ fn let_directives_of(node: &TemplateNode) -> Vec<&crate::ast::template::LetDirec
 ///   common identifier / member target).
 fn build_bind_accessors<'a>(
     bind: &crate::ast::template::BindDirective,
+    groups: &mut Vec<PropGroup<'a>>,
     delayed: &mut Vec<ObjectPropertyKind<'a>>,
     state: &mut ServerTransformState<'a>,
 ) {
@@ -804,12 +808,15 @@ fn build_bind_accessors<'a>(
         state
             .snippet_inits
             .push(b.var_decl(b.id_pat(&set_id), Some(set_expr)));
-        // get name() { return bind_get(); }
+        // get name() { return bind_get(); } / set name($$value) { bind_set($$value); }
+        // 写经 upstream lines 130-131: a get/set (SequenceExpression) bind is pushed
+        // WITHOUT the delay flag, so it lands in SOURCE order among the other props
+        // (e.g. `bind:checked={() => v, set}` then `{...rest}` → `[{get/set}, rest]`).
         let get_call = b.call(b.id(&get_id), vec![]);
-        delayed.push(b.get(name, vec![b.return_stmt(Some(get_call))]));
+        push_prop(groups, b.get(name, vec![b.return_stmt(Some(get_call))]));
         // set name($$value) { bind_set($$value); }
         let set_call = b.call(b.id(&set_id), vec![b.id("$$value")]);
-        delayed.push(b.set(name, vec![b.stmt(set_call)]));
+        push_prop(groups, b.set(name, vec![b.stmt(set_call)]));
         return;
     }
 
