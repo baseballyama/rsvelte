@@ -1634,15 +1634,29 @@ fn prepare_element_spread_object<'a>(
     let mut props: Vec<ObjectPropertyKind<'a>> = Vec::new();
     let mut class_directives: Vec<&ClassDirective> = Vec::new();
     let mut style_directives: Vec<&StyleDirective> = Vec::new();
+    // Track the upstream empty-class/style synthesis inputs (analyze index.js
+    // l.895-937): a scoped element (or one with a class directive) that has no
+    // real class attribute and no spread needs a synthesized `class=""` so the
+    // scope hash has somewhere to attach — here that surfaces as `{ class: "" }`
+    // in the `$$renderer.option`/`.select` attributes object.
+    let mut has_spread = false;
+    let mut has_class = false;
+    let mut has_style = false;
 
     for attr in &node.attributes {
         match attr {
             Attribute::SpreadAttribute(spread) => {
+                has_spread = true;
                 let expr = state.visit_expr(&spread.expression);
                 props.push(state.b.spread(expr));
             }
             Attribute::Attribute(a) => {
                 let name = get_attribute_name(node, a);
+                if name.eq_ignore_ascii_case("class") {
+                    has_class = true;
+                } else if name.eq_ignore_ascii_case("style") {
+                    has_style = true;
+                }
                 let trim_ws = WHITESPACE_INSENSITIVE_ATTRIBUTES.contains(&name.as_str());
                 let mut value = build_attribute_value(&a.value, trim_ws, state);
                 // 写经 upstream `build_element_attributes` `class` arm: a
@@ -1670,6 +1684,18 @@ fn prepare_element_spread_object<'a>(
             Attribute::StyleDirective(dir) => style_directives.push(dir),
             _ => {}
         }
+    }
+
+    // 写经 analyze index.js l.909-937: synthesize the empty `class=""` (then
+    // `style=""`) so a scoped element with no real class/style attribute still
+    // emits `{ class: "" }` in the merged object. rsvelte's Phase 2 omits this
+    // synthesis (the client RegularElement injects the hash directly), so do it
+    // here for the SSR option/select spread object.
+    if !has_spread && !has_class && (node.metadata.scoped || !class_directives.is_empty()) {
+        props.push(state.b.init("class", state.b.string("")));
+    }
+    if !has_spread && !has_style && !style_directives.is_empty() {
+        props.push(state.b.init("style", state.b.string("")));
     }
 
     let object = state.b.object(props);
