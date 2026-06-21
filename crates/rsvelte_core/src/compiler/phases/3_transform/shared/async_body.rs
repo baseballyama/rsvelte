@@ -1008,7 +1008,17 @@ fn sync_block_body_lines(stmt: &AsyncStmt) -> Vec<String> {
             // lines, contribute this statement so the order is preserved.
             vec!["void void 0;".to_string()]
         }
-        AsyncStmtKind::Noop | AsyncStmtKind::Hole(_) => Vec::new(),
+        AsyncStmtKind::Hole(_) => {
+            // A removed `$effect(…)` / `$inspect(…)` whose server visitor returns
+            // `b.void0`. As a STANDALONE run-array entry it thunks to `() => void
+            // 0`; GROUPED into a sync `() => { … }` body it is void-wrapped as a
+            // statement (`void (void 0);` = `void void 0;`), preserving the
+            // statement slot so the surrounding assignments keep their order
+            // (写经 `transform_async_node`). Without this a removed effect between
+            // two sync assignments would vanish from the grouped thunk.
+            vec!["void void 0;".to_string()]
+        }
+        AsyncStmtKind::Noop => Vec::new(),
         AsyncStmtKind::SyncBlock(_) => {
             // Nested SyncBlocks shouldn't be constructed; flatten defensively.
             Vec::new()
