@@ -124,6 +124,11 @@ pub struct ServerTransformState<'a> {
     /// `$$renderer.async([<blocker>], …)`. Saved/restored around each fragment
     /// body (an inner block inherits the parent map but additions are local).
     pub const_blocker_map: rustc_hash::FxHashMap<String, String>,
+    /// In-scope LOCAL async-`$derived` const binding names (`{const d =
+    /// $derived(await …)}`). A read of such a name resolves to a CALL `d()`,
+    /// winning over the ambiguous polluted-root `get_binding`. Saved/restored
+    /// around each fragment body like [`Self::const_blocker_map`].
+    pub local_derived_names: rustc_hash::FxHashSet<String>,
     /// Monotonic counter for the `$$renderer.run([...])` group variable name —
     /// `promises`, `promises_1`, `promises_2`, … (mirrors the text oracle's
     /// `const_promises_counter`).
@@ -247,6 +252,7 @@ impl<'a> ServerTransformState<'a> {
             bind_get_counter: 0,
             async_consts: None,
             const_blocker_map: rustc_hash::FxHashMap::default(),
+            local_derived_names: rustc_hash::FxHashSet::default(),
             const_promises_counter: 0,
             snippet_inits: Vec::new(),
             derived_d_counter: 0,
@@ -436,12 +442,13 @@ impl<'a> ServerTransformState<'a> {
 
     pub fn visit_expr(&self, expr: &Expression) -> OxcExpression<'a> {
         let mut out = self.visit_expr_raw(expr);
-        read_wrap::wrap_reads_with_shadows(
+        read_wrap::wrap_reads_with_shadows_and_local_derived(
             &mut out,
             self.b,
             self.analysis,
             self.analysis.root.instance_scope_index,
             self.collect_shadowed(),
+            self.local_derived_names.clone(),
         );
         // Lower value-position `$effect.tracking()` → `false`,
         // `$effect.root(…)` → `() => {}`, `$effect.pending()` → `0` inside the
@@ -459,12 +466,13 @@ impl<'a> ServerTransformState<'a> {
     /// read-rewriting for callers (e.g. `RenderTag`) that decompose a template
     /// expression by source-slice + re-parse rather than `visit_expr`.
     pub fn wrap_reads_in_place(&self, expr: &mut OxcExpression<'a>) {
-        read_wrap::wrap_reads_with_shadows(
+        read_wrap::wrap_reads_with_shadows_and_local_derived(
             expr,
             self.b,
             self.analysis,
             self.analysis.root.instance_scope_index,
             self.collect_shadowed(),
+            self.local_derived_names.clone(),
         );
     }
 

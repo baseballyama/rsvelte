@@ -443,6 +443,22 @@ fn emit_async_decl_tag<'a>(
         let blocker_expr = format!("{group_name}[{thunk_index}]");
         state.const_blocker_map.insert(name.clone(), blocker_expr);
     }
+
+    // Record a `$derived`-initialized const so later reads resolve to a CALL
+    // `name()` even when the polluted root scope would pick a same-named
+    // non-derived sibling (写经 `Identifier.js` → `build_getter` derived branch).
+    // The lowered rhs is `await $.async_derived(…)` (async) or `$.derived(…)`
+    // (sync derived joined to the group); a plain `await …` / destructure is NOT
+    // a derived and is left bare.
+    let rhs_trim = rhs.trim_start();
+    let is_derived = rhs_trim.starts_with("$.derived(")
+        || rhs_trim.starts_with("$.async_derived(")
+        || rhs_trim.starts_with("await $.async_derived(");
+    if is_derived {
+        for name in declared_names {
+            state.local_derived_names.insert(name.clone());
+        }
+    }
 }
 
 /// If `rhs` is the lowered async-derived form `await $.async_derived(<thunk>)`,

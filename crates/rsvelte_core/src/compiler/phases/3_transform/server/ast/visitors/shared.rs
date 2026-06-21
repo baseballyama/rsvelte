@@ -979,6 +979,7 @@ pub fn build_fragment_body<'a>(
     // fragment can still see a parent-scope blocked binding.
     let saved_async_consts = state.async_consts.take();
     let saved_blocker_map = state.const_blocker_map.clone();
+    let saved_local_derived = state.local_derived_names.clone();
 
     // 写经 upstream `SnippetBlock.js`: a NON-hoistable snippet pushes its function
     // declaration onto the ENCLOSING render scope's `state.init`. Each fragment
@@ -1057,6 +1058,7 @@ pub fn build_fragment_body<'a>(
 
     state.async_consts = saved_async_consts;
     state.const_blocker_map = saved_blocker_map;
+    state.local_derived_names = saved_local_derived;
     state.is_standalone = saved_standalone;
     state.fragment_depth -= 1;
     body

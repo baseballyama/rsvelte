@@ -75,6 +75,15 @@ struct ReadWrap<'a, 'b> {
     /// `context.state.scope.get(name)` returning the nearest enclosing
     /// declaration rather than the component store_sub / derived binding).
     shadowed: Vec<FxHashSet<String>>,
+    /// Names of LOCAL async `{const … = $derived(await …)}` bindings in scope.
+    /// The instance/root scope used for `get_binding` is "polluted" with every
+    /// block-scoped declaration, so a name with TWO bindings (e.g. a boundary
+    /// `{const {length} = await …}` plain async const AND a nested `{const length
+    /// = $derived(await …)}` derived) may resolve to the WRONG (non-derived) one.
+    /// A name in this set is a known local derived → read as a CALL `name()`,
+    /// winning over the ambiguous `get_binding` result. Scoped per fragment by the
+    /// caller (saved/restored in `build_fragment_body`).
+    local_derived: FxHashSet<String>,
     /// Stack of private-field-name sets (`#doubled`, …) that resolve to a
     /// `$derived` / `$derived.by` class field in the enclosing class. A member
     /// expression `<obj>.#name` whose private property is in the top frame is
@@ -129,6 +138,11 @@ impl<'a, 'b> ReadWrap<'a, 'b> {
     fn classify(&self, name: &str) -> ReadKind {
         if self.is_shadowed(name) {
             return ReadKind::Keep;
+        }
+        // A known local async-`$derived` const wins over the ambiguous polluted
+        // `get_binding` (which may resolve a same-named non-derived sibling).
+        if self.local_derived.contains(name) {
+            return ReadKind::DerivedCall;
         }
         // Identifier.js short-circuits.
         if name == "$$props" {
@@ -1107,6 +1121,27 @@ pub fn wrap_reads_with_shadows<'a>(
     scope_idx: usize,
     shadowed: FxHashSet<String>,
 ) {
+    wrap_reads_with_shadows_and_local_derived(
+        expr,
+        b,
+        analysis,
+        scope_idx,
+        shadowed,
+        FxHashSet::default(),
+    );
+}
+
+/// Like [`wrap_reads_with_shadows`], but also threads the set of in-scope LOCAL
+/// async-`$derived` const names so an ambiguous read resolves to a CALL `name()`
+/// (see [`ReadWrap::local_derived`]).
+pub fn wrap_reads_with_shadows_and_local_derived<'a>(
+    expr: &mut Expression<'a>,
+    b: B<'a>,
+    analysis: &ComponentAnalysis,
+    scope_idx: usize,
+    shadowed: FxHashSet<String>,
+    local_derived: FxHashSet<String>,
+) {
     let mut frames = Vec::new();
     if !shadowed.is_empty() {
         frames.push(shadowed);
@@ -1116,6 +1151,7 @@ pub fn wrap_reads_with_shadows<'a>(
         analysis,
         scope_idx,
         shadowed: frames,
+        local_derived,
         private_derived: Vec::new(),
         standalone_assign: false,
         array_counter: 0,
@@ -1157,6 +1193,7 @@ pub fn wrap_reads_in_statement_counted<'a>(
         analysis,
         scope_idx,
         shadowed: Vec::new(),
+        local_derived: FxHashSet::default(),
         private_derived: Vec::new(),
         standalone_assign: false,
         array_counter: *array_counter,
