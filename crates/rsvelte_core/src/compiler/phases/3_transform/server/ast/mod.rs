@@ -677,16 +677,69 @@ impl<'a> ServerTransformState<'a> {
 fn reparse_expression<'a>(src: &str, allocator: &'a Allocator) -> Option<OxcExpression<'a>> {
     let wrapped = format!("({})", src.trim());
     let owned = allocator.alloc_str(&wrapped);
-    let ret = oxc_parser::Parser::new(allocator, owned, oxc_span::SourceType::mjs()).parse();
+    // Parse TypeScript-aware: a source slice (e.g. a `{@render foo(x as T)}`
+    // argument) may still carry TS that the rsvelte parser strips on the structured
+    // AST but the raw text retains. Parsing as plain JS rejects `x as T`, leaving an
+    // `undefined` fallback; parsing as TS then stripping the type-only wrappers
+    // (below) reproduces the structured-AST output.
+    let ret =
+        oxc_parser::Parser::new(allocator, owned, oxc_span::SourceType::mjs().with_typescript(true))
+            .parse();
     if !ret.diagnostics.is_empty() {
         return None;
     }
     for stmt in ret.program.body {
         if let Statement::ExpressionStatement(es) = stmt {
-            return Some(unwrap_parenthesized(es.unbox().expression));
+            let mut expr = unwrap_parenthesized(es.unbox().expression);
+            strip_ts_expression_wrappers(&mut expr, allocator);
+            return Some(expr);
         }
     }
     None
+}
+
+/// Recursively replace TypeScript expression wrappers (`x as T`,
+/// `x satisfies T`, `x!`, `<T>x`) with their inner expression, tree-wide. The
+/// server never emits TS, so these always collapse to the underlying value (e.g.
+/// `{ value: value as T[U] }` → `{ value: value }`, which esrap then prints as the
+/// shorthand `{ value }`). Mirrors the rsvelte parser's `remove_typescript_nodes`
+/// pass, applied here because `reparse_expression` re-parses raw (un-stripped)
+/// source text.
+fn strip_ts_expression_wrappers<'a>(expr: &mut OxcExpression<'a>, allocator: &'a Allocator) {
+    use oxc_ast_visit::VisitMut;
+    struct TsStrip<'b> {
+        ab: oxc_ast::AstBuilder<'b>,
+    }
+    impl<'b> VisitMut<'b> for TsStrip<'b> {
+        fn visit_expression(&mut self, expr: &mut OxcExpression<'b>) {
+            loop {
+                let is_wrapper = matches!(
+                    expr,
+                    OxcExpression::TSAsExpression(_)
+                        | OxcExpression::TSSatisfiesExpression(_)
+                        | OxcExpression::TSNonNullExpression(_)
+                        | OxcExpression::TSTypeAssertion(_)
+                );
+                if !is_wrapper {
+                    break;
+                }
+                let placeholder = self.ab.expression_boolean_literal(SPAN, false);
+                let taken = std::mem::replace(expr, placeholder);
+                *expr = match taken {
+                    OxcExpression::TSAsExpression(e) => e.unbox().expression,
+                    OxcExpression::TSSatisfiesExpression(e) => e.unbox().expression,
+                    OxcExpression::TSNonNullExpression(e) => e.unbox().expression,
+                    OxcExpression::TSTypeAssertion(e) => e.unbox().expression,
+                    _ => unreachable!(),
+                };
+            }
+            oxc_ast_visit::walk_mut::walk_expression(self, expr);
+        }
+    }
+    let mut v = TsStrip {
+        ab: oxc_ast::AstBuilder::new(allocator),
+    };
+    v.visit_expression(expr);
 }
 
 /// Strip any (possibly nested) `ParenthesizedExpression` wrappers introduced by

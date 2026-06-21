@@ -1658,14 +1658,12 @@ fn prepare_element_spread_object<'a>(
                     has_style = true;
                 }
                 let trim_ws = WHITESPACE_INSENSITIVE_ATTRIBUTES.contains(&name.as_str());
-                let mut value = build_attribute_value(&a.value, trim_ws, state);
-                // 写经 upstream `build_element_attributes` `class` arm: a
-                // `class={...}` whose analysis marked `needs_clsx` is wrapped in
-                // `$.clsx(...)` so the runtime flattens arrays / objects of class
-                // names before they land in the merged spread object.
-                if name == "class" && a.metadata.needs_clsx {
-                    value = state.b.call("$.clsx", vec![value]);
-                }
+                let value = build_attribute_value(&a.value, trim_ws, state);
+                // NOTE: unlike `build_element_attributes` / the generic-element
+                // spread path, upstream's `build_spread_object` (the <option> /
+                // <select> special path, shared/element.js l.305-338) does NOT
+                // apply the `needs_clsx` `$.clsx(...)` wrap on the class attribute —
+                // the value is emitted verbatim (`class: cn(...)`).
                 props.push(state.b.init(&name, value));
             }
             Attribute::BindDirective(bind) => {
