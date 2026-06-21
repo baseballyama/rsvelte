@@ -114,8 +114,8 @@
 
 - `verify.mjs` のラチェット: **baseline 外の新規失敗（regression）があれば CI 失敗**。
   既知失敗が直った場合（fixedKnown）は **reminder のみ**で CI は通る。
-- `corpus-compat.yml` は **push-to-main トリガ**（PR では走らない）。→ **PR マージはブロックしない**が、
-  マージ後に main で走る。
+- `corpus-compat.yml` は **`pull_request:` + `push: main` の両トリガ**（path `crates/**` 等）。
+  → **PR でも走る**ので、SSR 切り替えによる回帰は **マージ前に CI で検出**される（regression があれば PR が赤くなる）。
 - SSR を AST に切り替えたので、コーパスの SSR 出力が変化する:
   - **改善（SSR now passes）** → baseline を縮小すべき（reminder のみ、CI は緑）。
   - **回帰（新規 SSR 失敗）** → push-to-main で **main が赤くなる**。
