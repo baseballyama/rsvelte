@@ -34,7 +34,7 @@ use oxc_ast::ast::{
     FormalParameterKind, FunctionType, ImportOrExportKind, ObjectPropertyKind, PropertyKey,
     PropertyKind, RegExp, RegExpFlags, RegExpPattern, Statement, VariableDeclarationKind,
 };
-use oxc_span::SPAN;
+use oxc_span::{GetSpanMut, SPAN, Span};
 use oxc_syntax::number::{BigintBase, NumberBase};
 use oxc_syntax::operator::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
@@ -761,10 +761,14 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 Some(self.ab.expression_yield(SPAN, y.delegate, argument))
             }
             JsExpr::Class(class) => self.class(class),
-            // `Spanned` only adds source-map offsets around a real inner
-            // expression; the non-sourcemap AST path drops the span and converts
-            // the inner expression directly.
-            JsExpr::Spanned(inner, _, _) => self.expr_id(*inner),
+            // `Spanned` wraps a real inner expression with the original-source
+            // byte span (start, end). Convert the inner expression and stamp its
+            // span so esrap's `print_with_map` maps it back to the user source.
+            JsExpr::Spanned(inner, start, end) => {
+                let mut e = self.expr_id(*inner)?;
+                *e.span_mut() = Span::new(*start, *end);
+                Some(e)
+            }
             // `Raw` carries opaque JS expression text. Parse it into a real oxc
             // expression so esrap can print it canonically (the text is
             // semantically what the official compiler emits, so the round-trip is
@@ -822,7 +826,21 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     fn expand_stmt(&self, stmt: &JsStatement) -> Option<Vec<Statement<'a>>> {
         match stmt {
             JsStatement::Raw(code) => self.parse_raw_statements(code),
-            JsStatement::RawMapped { code, .. } => self.parse_raw_statements(code),
+            JsStatement::RawMapped {
+                code,
+                source_offset,
+            } => {
+                let mut stmts = self.parse_raw_statements(code)?;
+                // Stamp each statement with the original-source offset so esrap's
+                // `print_with_map` maps the (transformed) instance-script lines
+                // back to the user source — mirroring the text codegen's
+                // per-block `source_offset` line mapping.
+                let sp = Span::new(*source_offset, *source_offset);
+                for s in &mut stmts {
+                    *s.span_mut() = sp;
+                }
+                Some(stmts)
+            }
             other => Some(vec![self.stmt(other)?]),
         }
     }

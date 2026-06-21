@@ -86,7 +86,7 @@ use regex::Regex;
 use super::TransformError;
 use super::js_ast::{
     builders::{self as b},
-    codegen::{CodegenResult, generate, generate_with_sourcemap},
+    codegen::{CodegenResult, SourceMapping, generate, generate_with_sourcemap},
     nodes::{
         JsBlockStatement, JsExportDefault, JsExportDefaultDeclaration, JsExpr,
         JsFunctionDeclaration, JsImportDeclaration, JsImportSpecifier, JsObjectMember, JsPattern,
@@ -2136,26 +2136,40 @@ fn transform_client_with_visitors(
     super::profile::record_assembly_after_fragment(super::profile::timer_elapsed(_assembly_start));
     let _codegen_start = super::profile::timer_start();
 
-    // Experimental direct-AST CODE path (gated behind `RSVELTE_CLIENT_TO_OXC`):
-    // convert the `js_ast` IR to an oxc `Program` and print with the esrap port,
-    // bypassing the string codegen ENTIRELY (including the sourcemap branch, which
-    // by default sets `enable_sourcemap=true`). Mappings are dropped here — this
-    // gate exists to validate the to_oxc CODE output against the corpus / curated
-    // snapshots before the AST path is wired into the sourcemap pipeline.
-    if std::env::var("RSVELTE_CLIENT_TO_OXC").is_ok() {
+    // Direct-AST codegen via to_oxc + esrap (gated behind `RSVELTE_CLIENT_TO_OXC`,
+    // OPT-IN). The CODE is byte-identical to the string codegen AFTER blank-line
+    // normalization (validated: 0 corpus regressions), but esrap places blank
+    // lines (and comments) by SOURCE SPAN, and the reassembled IR→oxc program has
+    // synthetic spans — so the exact blank-line placement diverges from the string
+    // codegen / official compiler (e.g. dev-mode `$.inspect` statements). Making
+    // this the default therefore needs span/loc threading that reflects the output
+    // structure (the same coordinate problem as comment preservation). Until then
+    // the string codegen stays the default; the to_oxc path is exercised by the
+    // corpus and curated snapshots for burndown. Span-stamping (`Spanned` /
+    // `RawMapped` → original-source offsets) + esrap `print_with_map` mappings are
+    // wired here so the sourcemap path is ready once blank-line parity lands.
+    if std::env::var_os("RSVELTE_CLIENT_TO_OXC").is_some() {
         let converted = CLIENT_TO_OXC_ALLOCATOR.with(|cell| {
             let mut alloc = cell.borrow_mut();
             alloc.reset();
-            super::js_ast::to_oxc::program_to_oxc(&program, &context.arena, &alloc)
-                .map(|oxc_prog| rsvelte_esrap::print(&oxc_prog, ""))
+            super::js_ast::to_oxc::program_to_oxc(&program, &context.arena, &alloc).map(
+                |oxc_prog| {
+                    if options.enable_sourcemap {
+                        let pm = rsvelte_esrap::print_with_map(&oxc_prog, source);
+                        (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
+                    } else {
+                        (rsvelte_esrap::print(&oxc_prog, ""), Vec::new())
+                    }
+                },
+            )
         });
-        if let Some(code) = converted {
+        if let Some((code, mappings)) = converted {
             super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
             return Ok(CodegenResult {
                 code: hoist_rest_excludes(&code),
-                mappings: vec![],
+                mappings,
             });
-        } else if std::env::var("RSVELTE_CLIENT_TO_OXC_DEBUG").is_ok() {
+        } else if std::env::var_os("RSVELTE_CLIENT_TO_OXC_DEBUG").is_some() {
             eprintln!(
                 "CLIENT_TO_OXC_FALLBACK {}",
                 options.filename.as_deref().unwrap_or("?")
@@ -2182,8 +2196,31 @@ fn transform_client_with_visitors(
     }
 }
 
-// Thread-local OXC allocator for the experimental client `to_oxc` direct-AST
-// print path (gated behind `RSVELTE_CLIENT_TO_OXC`). Mirrors the SSR script
+/// Convert esrap's line-indexed source-map segments
+/// (`Vec<Vec<[gen_col, src_idx, src_line, src_col]>>`) into the flat
+/// [`SourceMapping`] list the downstream VLQ encoder (`encode_vlq_mappings`)
+/// consumes. The outer index is the 0-based generated line.
+fn esrap_mappings_to_source_mappings(
+    mappings: &[Vec<rsvelte_esrap::command::Segment>],
+) -> Vec<SourceMapping> {
+    let mut out = Vec::new();
+    for (gen_line, segs) in mappings.iter().enumerate() {
+        for seg in segs {
+            out.push(SourceMapping {
+                gen_line: gen_line as u32,
+                gen_col: seg[0] as u32,
+                source: seg[1] as u32,
+                orig_line: seg[2] as u32,
+                orig_col: seg[3] as u32,
+                name: None,
+            });
+        }
+    }
+    out
+}
+
+// Thread-local OXC allocator for the client `to_oxc` direct-AST print path.
+// Mirrors the SSR script
 // allocator pattern in `server/build.rs`: reset-and-reuse per compile so the
 // buffer is retained across calls without per-call allocation.
 thread_local! {
