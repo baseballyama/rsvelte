@@ -218,9 +218,43 @@ fn fragment_has_block(fragment: &Fragment) -> bool {
     })
 }
 
+/// Whether a fragment has any element/component/slot child that (a) has at
+/// least one attribute AND (b) itself has non-text children (elements,
+/// expression tags, or blocks).  Used as a secondary trigger for
+/// [`reformat_pre_inner`] so that `<pre>` elements containing
+/// `<code class="…"><span>…</span></code>` structure are reformatted even when
+/// no control-flow blocks are present.  Elements without attributes are left
+/// verbatim to avoid disturbing plain `<pre><div><span>…</span></div></pre>`
+/// structures whose oracle output keeps the inner content as-is.
+fn fragment_has_element_with_children(fragment: &Fragment) -> bool {
+    fragment.nodes.iter().any(|n| {
+        let (child_frag, has_attrs) = match n {
+            TemplateNode::RegularElement(e) => (Some(&e.fragment), !e.attributes.is_empty()),
+            TemplateNode::Component(c) => (Some(&c.fragment), !c.attributes.is_empty()),
+            TemplateNode::SlotElement(e) => (Some(&e.fragment), !e.attributes.is_empty()),
+            _ => (None, false),
+        };
+        (has_attrs
+            && child_frag.is_some_and(|f| {
+                f.nodes.iter().any(|cn| {
+                    matches!(
+                        cn,
+                        TemplateNode::RegularElement(_)
+                            | TemplateNode::Component(_)
+                            | TemplateNode::SlotElement(_)
+                    )
+                })
+            }))
+            || child_fragments(n)
+                .iter()
+                .any(|f| fragment_has_element_with_children(f))
+    })
+}
+
 /// Walk the tree (tracking nesting depth) and, for each `<pre>`/`<textarea>` whose
-/// content contains a block, push an edit re-formatting its inner content with the
-/// pre hybrid rule (see [`reformat_pre_inner`]).
+/// content contains a block OR has element children with their own non-text children,
+/// push an edit re-formatting its inner content with the pre hybrid rule
+/// (see [`reformat_pre_inner`]).
 fn collect_pre_block_reformats(
     out: &str,
     fragment: &Fragment,
@@ -231,7 +265,7 @@ fn collect_pre_block_reformats(
     for node in &fragment.nodes {
         if let TemplateNode::RegularElement(e) = node
             && matches!(e.name.as_str(), "pre" | "textarea")
-            && fragment_has_block(&e.fragment)
+            && (fragment_has_block(&e.fragment) || fragment_has_element_with_children(&e.fragment))
         {
             if let Some(edit) = reformat_pre_inner(out, e, depth + 1, options) {
                 edits.push(edit);
@@ -242,6 +276,122 @@ fn collect_pre_block_reformats(
             collect_pre_block_reformats(out, child, depth + 1, options, edits);
         }
     }
+}
+
+/// After re-indenting a `<pre>` inner content, collapse multi-line span elements
+/// whose content is text-only (no child elements, so no `<` in the text body)
+/// back to a single inline line.
+///
+/// Prettier's `isPreTagContent` mode keeps such spans on one line even when the
+/// result slightly overflows `printWidth`, because the content has no natural
+/// break-points.  Our sub-format doesn't know the final column so it may break
+/// them — this pass reverses that break.
+///
+/// Pattern (tabs for element-direct lines; spaces for block-body lines):
+/// ```text
+/// TABS<span ATTRS\n
+/// SPACES>TEXT</span\n    ← TEXT contains no '<' (text-only body)
+/// SPACES>
+/// ```
+/// Collapses to:
+/// ```text
+/// TABS<span ATTRS>TEXT</span>
+/// ```
+/// Collapse multi-line `<span>` elements inside `<pre>` whose content is
+/// text-only (no child elements) back onto a single line, mimicking prettier's
+/// `isPreTagContent` behaviour where pure-text spans with no natural break
+/// points are not broken even if the result would slightly overflow `printWidth`.
+///
+/// `narrowed_width` is the sub-format's effective print width (already reduced
+/// by the `<pre>` nesting depth). The check mirrors prettier's logic: the
+/// collapsed element (without leading indentation) must fit within
+/// `narrowed_width`. Tab-prefixed lines count tabs as 1 char each for the
+/// width test because the sub-format sees space indentation but we've already
+/// converted to tabs in the re-indent pass.
+fn collapse_text_only_spans(s: &str, narrowed_width: usize) -> String {
+    // Fast path: nothing to do if there is no multi-line span pattern.
+    if !s.contains("</span\n") {
+        return s.to_string();
+    }
+
+    let mut out = String::with_capacity(s.len());
+    let mut remaining = s;
+
+    while let Some(nl_pos) = remaining.find('\n') {
+        let line = &remaining[..nl_pos];
+        let trimmed = line.trim_start_matches(['\t', ' ']);
+
+        // Detect: a line ending with an open-tag fragment (no closing '>').
+        // The line starts with whitespace + '<' + a tag name (element or component).
+        // The open tag has no closing '>' on this line (it's a multi-line tag).
+        if !trimmed.is_empty()
+            && trimmed.starts_with('<')
+            && !trimmed.starts_with("</")
+            && !trimmed.ends_with('>')
+            && !trimmed.ends_with("/>")
+        {
+            // Check if the next line matches '>(TEXT)</span' with TEXT containing no '<'.
+            let after_nl = &remaining[nl_pos + 1..];
+            if let Some(next_nl_pos) = after_nl.find('\n') {
+                let next_line = &after_nl[..next_nl_pos];
+                let next_trimmed = next_line.trim_start_matches(' ');
+
+                // Next line must start with '>' and end with '</span' (no closing '>')
+                if next_trimmed.starts_with('>') && next_trimmed.ends_with("</span") {
+                    // The TEXT content is between '>' and '</span'.
+                    let text_content = &next_trimmed[1..next_trimmed.len() - 6];
+                    // TEXT must contain no '<' (text-only, no child elements).
+                    if !text_content.contains('<') {
+                        // Check if the line after THAT is a single '>' (closes </span).
+                        let after_next_nl = &after_nl[next_nl_pos + 1..];
+                        let third_nl_pos = after_next_nl.find('\n');
+                        let third_line = if let Some(p) = third_nl_pos {
+                            &after_next_nl[..p]
+                        } else {
+                            after_next_nl
+                        };
+                        let third_trimmed = third_line.trim_start_matches([' ', '\t']);
+
+                        if third_trimmed == ">" {
+                            // Width check: prettier's `isPreTagContent` collapses a
+                            // text-only span when the element content (without leading
+                            // indentation) fits within the sub-format's narrowed width.
+                            // This matches the case where the sub-format broke the span
+                            // only because of the leading indentation, not because the
+                            // element body itself overflows the effective width.
+                            //
+                            // `trimmed` is `<span ATTRS` (no `>`).
+                            // Collapsed content = trimmed + ">" + text + "</span>".
+                            let collapsed_content_width = trimmed.chars().count()
+                                + 1 // '>'
+                                + text_content.chars().count()
+                                + 7; // '</span>'
+                            if collapsed_content_width <= narrowed_width {
+                                // Collapse: emit PREFIX<span ATTRS>TEXT</span>
+                                out.push_str(line);
+                                out.push('>');
+                                out.push_str(text_content);
+                                out.push_str("</span>");
+                                // Skip the three consumed lines.
+                                remaining = if let Some(p) = third_nl_pos {
+                                    &after_next_nl[p..] // starts with '\n'
+                                } else {
+                                    "" // consumed to end
+                                };
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        out.push_str(line);
+        out.push('\n');
+        remaining = &remaining[nl_pos + 1..];
+    }
+    out.push_str(remaining);
+    out
 }
 
 /// Re-format the inner content of a `<pre>`/`<textarea>` that contains a block.
@@ -286,6 +436,28 @@ fn reformat_pre_inner(
     // We add one level's saving (`iw - 1`) to account for the typical case where
     // grandchildren at sub-depth 1 (e.g. `<span>` inside `<code>` inside `<pre>`)
     // are tab-lines in the final output.
+    // Correct narrowing for space-indented lines: `content_depth * iw` extra chars.
+    // For tab-indented lines at depth D: only `content_depth - D*(iw-1)` extra chars,
+    // which is LESS. So using `content_depth * iw` as the narrowing over-narrows
+    // tab lines — they may break in the sub-format when they would fit at the real
+    // width.  Over-breaking in the sub-format is harmless (produces more verbose but
+    // still correct output) whereas under-narrowing leaves space lines too wide,
+    // causing incorrect single-line output for lines that overflow at the real column.
+    // Use `content_depth * iw` (correct for space lines) as the primary narrowing.
+    // Format the children standalone, but narrowed so a depth-0 layout matches the
+    // breaks at the real `content_depth`.
+    //
+    // Element-direct children of `<pre>` are re-indented with TABS (1 char each)
+    // rather than spaces (`iw` chars each).  The sub-format sees space indentation,
+    // so a line at sub-depth D appears as `D*iw` chars, but in the final output the
+    // tab-indented prefix uses only `D + content_depth` chars (one per tab level).
+    // Using `content_depth * iw` as the narrowing over-narrows for tab lines,
+    // causing hug-overflow on elements that would fit when tab-indented.
+    //
+    // The saving per sub-depth level is `iw - 1` chars (tab = 1 vs space = iw).
+    // We add one level's saving (`iw - 1`) to account for the typical case where
+    // grandchildren at sub-depth 1 (e.g. `<span>` inside `<code>` inside `<pre>`)
+    // are tab-lines in the final output.
     let narrowed = full_width
         .saturating_sub(content_depth)
         .saturating_add(iw - 1)
@@ -297,7 +469,6 @@ fn reformat_pre_inner(
     if formatted.is_empty() {
         return None;
     }
-
     // After the recursive format, child elements (Components like `<Button>`)
     // whose open tags are multi-line may have `>` on its own line because the
     // formatter doesn't know they're inside `<pre>` (no `isPreTagContent` hug).
@@ -313,6 +484,22 @@ fn reformat_pre_inner(
             apply_edits(formatted, pre_fix_edits)
         }
     };
+    let formatted = formatted.trim_end_matches('\n');
+    // Unpack span siblings that our fill algorithm packed together but whose
+    // next line would overflow full_width after re-indentation.  The fill
+    // algorithm may produce `</span><span\n(SPACES)>CONTENT` when both the
+    // opening `<span` and the closing `</span>` fit on one line; prettier
+    // inside `<pre>` (isPreTagContent) uses hardlines between siblings when
+    // the resulting line would overflow, so the break belongs BETWEEN the
+    // siblings (`</span\n(PARENT)><span>CONTENT`), not inside the open tag.
+    // Only applies to no-attribute spans so we don't disturb legitimate
+    // deferred-`>` open tags caused by attribute overflow.
+    let formatted = fix_pre_packed_span_siblings(formatted, iw, content_depth, full_width);
+    // For lines that still overflow after re-indent and end with `</span>SUFFIX</span`,
+    // break the `>SUFFIX</span` to the next line (removing the `>` from the inner close).
+    // This matches prettier's isPreTagContent behaviour for spans whose trailing content
+    // would push the line past full_width even with the correct narrowed budget.
+    let formatted = fix_pre_overflow_close_suffix(&formatted, iw, content_depth, full_width);
     let formatted = formatted.trim_end_matches('\n');
 
     // Whether the original content was hugged directly after `>` (no leading
@@ -388,6 +575,20 @@ fn reformat_pre_inner(
         }
     }
 
+    // Post-processing: collapse multi-line spans whose content is text-only
+    // (no child elements) back to a single inline line, matching prettier's
+    // behaviour for `<pre>` content where short spans with only text are kept
+    // on one line even if the result slightly overflows the print width.
+    //
+    // Pattern (with TABs for element-direct lines, SPACES for block-body lines):
+    //   TABS<span ATTRS\n
+    //   SPACES>TEXT</span\n     ← TEXT has no '<' (text-only, no child elements)
+    //   SPACES>
+    //
+    // Collapsed form:
+    //   TABS<span ATTRS>TEXT</span>
+    let result = collapse_text_only_spans(&result, narrowed);
+
     let replacement = result;
     let current = out.get(inner_start..inner_end)?;
     (replacement != current).then_some((inner_start as u32, inner_end as u32, replacement))
@@ -406,7 +607,17 @@ fn collect_pre_tab_lines(
     for node in &fragment.nodes {
         let ns = node_start(node) as usize;
         let line_start = formatted[..ns].rfind('\n').map_or(0, |i| i + 1);
+        // Only mark element-direct structural nodes (elements, components, block
+        // constructs) as tab lines — NOT text or expression nodes that happen to
+        // start on a new line inside an element.  An ExpressionTag like `{value}`
+        // or a Text node that wraps onto its own line is still inline content and
+        // must use space indentation, not tabs.
+        let is_structural = !matches!(
+            node,
+            TemplateNode::Text(_) | TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_)
+        );
         if parent_is_element
+            && is_structural
             && formatted[line_start..ns]
                 .bytes()
                 .all(|b| b == b' ' || b == b'\t')
@@ -438,6 +649,201 @@ fn collect_pre_tab_lines(
             }
         }
     }
+}
+
+/// Unpack `</span><span\n(SPACES)>CONTENT` patterns in a sub-formatted string
+/// when the (SPACES)>CONTENT line would overflow `full_width` after re-indentation.
+///
+/// Our fill algorithm may pack sibling `<span>` nodes together:
+/// `...PREV</span><span\n    >NEXT_CONTENT`
+/// Prettier inside `<pre>` (isPreTagContent) instead breaks between siblings:
+/// `...PREV</span\n  ><span>NEXT_CONTENT`
+/// when the next line would overflow after the re-indent pass adds
+/// `content_depth * iw` extra leading spaces.
+///
+/// Only no-attribute spans are candidates: `</span><span\n` (with nothing
+/// between `<span` and the newline).  Spans with attributes have legitimate
+/// deferred-`>` open tags caused by attribute overflow and must not be moved.
+fn fix_pre_packed_span_siblings(
+    s: &str,
+    iw: usize,
+    content_depth: usize,
+    full_width: usize,
+) -> String {
+    // Fast path: if the pattern can't appear, return unchanged.
+    if !s.contains("</span><span\n") {
+        return s.to_string();
+    }
+    let mut out = String::with_capacity(s.len() + 64);
+    let mut remaining = s;
+    while !remaining.is_empty() {
+        // Find the next `</span><span` on a line (not inside a string — we're
+        // operating on already-formatted HTML-like content).
+        let Some(packed_pos) = remaining.find("</span><span") else {
+            out.push_str(remaining);
+            break;
+        };
+        // Check that `</span><span` is immediately followed by `\n` (no attrs,
+        // no `>` — just the bare open tag then a newline).
+        let after_span = &remaining[packed_pos + 12..]; // after "</span><span"
+        if !after_span.starts_with('\n') {
+            // `<span` has attributes or `>` immediately — not a packing break.
+            // Advance past it and continue.
+            out.push_str(&remaining[..packed_pos + 12]);
+            remaining = after_span;
+            continue;
+        }
+        // `after_span` starts with `\n(SPACES)>CONTENT`. Extract (SPACES).
+        let rest_after_nl = &after_span[1..]; // skip the '\n'
+        let sp_len = rest_after_nl.bytes().take_while(|&b| b == b' ').count();
+        let after_spaces = &rest_after_nl[sp_len..];
+        if !after_spaces.starts_with('>') || sp_len < iw {
+            // Not a deferred-`>` line, or at top level (can't determine parent).
+            out.push_str(&remaining[..packed_pos + 12]);
+            remaining = after_span;
+            continue;
+        }
+        // Determine the depth of the deferred-`>` line in the sub-format.
+        // Its depth is sp_len / iw.  After re-indent, the line's prefix width
+        // is (sp_len / iw + content_depth) * iw.  The content starts after `>`.
+        let defer_depth = sp_len / iw;
+        let content_start = &after_spaces[1..]; // skip `>`
+        // Find end of this next line (the deferred-`>` line)
+        let next_line_end = content_start.find('\n').unwrap_or(content_start.len());
+        let next_line_content = &content_start[..next_line_end];
+        // Full width of re-indented deferred-`>` line:
+        //   (defer_depth + content_depth) * iw  +  1 (for '>')  +  next_line_content.len()
+        let next_reindented_width =
+            (defer_depth + content_depth) * iw + 1 + next_line_content.len();
+        // Also check the CURRENT line with `<span` packed onto it.  The parent
+        // indent is (sp_len - iw) spaces.  The current line's content starts after
+        // those spaces; its full content is the portion up to `</span><span` (12
+        // chars) in `remaining`.  Re-indented width of current line WITH `<span`:
+        //   (parent_depth + content_depth) * iw + (current_content_len + 5)
+        // where 5 = len("<span"), and parent_depth = (sp_len - iw) / iw = sp_len/iw - 1.
+        let parent_depth = defer_depth.saturating_sub(1);
+        let cur_line_start_in_remaining = remaining[..packed_pos].rfind('\n').map_or(0, |p| p + 1);
+        let cur_sp_len = remaining[cur_line_start_in_remaining..packed_pos]
+            .bytes()
+            .take_while(|&b| b == b' ')
+            .count();
+        // The packed current line's content = stuff before `</span><span` (the
+        // portion not yet in `out`) + `</span><span` (12 chars).
+        let cur_content_len = packed_pos - cur_line_start_in_remaining - cur_sp_len + 12; // 12 = "</span><span" appended by packing
+        let cur_reindented_width = (cur_sp_len / iw + content_depth) * iw + cur_content_len;
+        // Also check the UNPACKED form: after unpacking, the sibling span moves
+        // from the deferred `>` position (depth `defer_depth`) to the parent level
+        // (depth `parent_depth = defer_depth - 1`).  The unpacked line becomes
+        // `(parent_indent)><span>(next_line_content)` where `><span>` is 7 chars.
+        // If THIS would overflow, we must unpack so `fix_pre_overflow_close_suffix`
+        // can handle the resulting long line correctly.
+        let unpacked_rw = (parent_depth + content_depth) * iw + 7 + next_line_content.len();
+        if next_reindented_width <= full_width
+            && cur_reindented_width <= full_width
+            && unpacked_rw <= full_width
+        {
+            // All fit — keep the packing as-is.
+            out.push_str(&remaining[..packed_pos + 12]);
+            remaining = after_span;
+            continue;
+        }
+        // The next line would overflow.  Unpack: replace `</span><span\n(SPACES)>`
+        // with `</span\n(PARENT_INDENT)><span>` where PARENT_INDENT = (SPACES - iw).
+        // Note: the `>` of `</span>` is moved to the start of the next line as part
+        // of `><span>` — prettier uses the same `>` to both complete the previous
+        // close tag and start the next sibling's deferred open.  So we emit
+        // `</span` (without `>`) + `\n` + parent_indent + `><span>`.
+        let parent_indent_len = sp_len.saturating_sub(iw);
+        out.push_str(&remaining[..packed_pos]); // everything before `</span>`
+        out.push_str("</span\n"); // start of close tag (no `>`), then newline
+        for _ in 0..parent_indent_len {
+            out.push(' ');
+        }
+        out.push_str("><span>");
+        // Skip past `</span><span\n(SPACES)>` — `after_spaces` is at `>CONTENT`,
+        // so skip the `>` to land at CONTENT.
+        remaining = &after_spaces[1..]; // skip the deferred `>`
+    }
+    out
+}
+
+/// For lines in a sub-formatted string that would overflow `full_width` after
+/// re-indentation and end with `</span>SUFFIX</span` (inner close + suffix text +
+/// outer close without `>`), break before `>SUFFIX</span` so that the deferred
+/// close of the inner span moves to the next line.
+///
+/// This matches prettier's behaviour inside `<pre>` (isPreTagContent) where the
+/// narrow line budget forces the inner close + trailing content to the next line:
+///
+/// ```
+///   ><span> x=<span class="...">VAL</span>,</span     (overflows after re-indent)
+/// ```
+/// becomes:
+/// ```
+///   ><span> x=<span class="...">VAL</span            (fits)
+///     >,</span                                         (continuation at depth+1)
+/// ```
+fn fix_pre_overflow_close_suffix(
+    s: &str,
+    iw: usize,
+    content_depth: usize,
+    full_width: usize,
+) -> String {
+    // Fast path: need `</span>` (inner close with `>`) in the string at all.
+    if !s.contains("</span>") {
+        return s.to_string();
+    }
+    let mut out = String::with_capacity(s.len() + 32);
+    let mut remaining = s;
+    loop {
+        let Some(nl_pos) = remaining.find('\n') else {
+            // Last line (no trailing newline).
+            out.push_str(remaining);
+            break;
+        };
+        let line = &remaining[..nl_pos];
+        let sp_len = line.bytes().take_while(|&b| b == b' ').count();
+        let content = &line[sp_len..];
+        let mut transformed = false;
+        // Check: line ends with `</span` (outer close, no `>`) and contains
+        // a `</span>` (inner close with `>`) followed by suffix with no `<`.
+        if content.ends_with("</span") {
+            let outer_close_start = content.len() - 6; // start of outer `</span`
+            if let Some(inner_close_rel) = content[..outer_close_start].rfind("</span>") {
+                let inner_close_end = inner_close_rel + 7; // after `</span>`
+                let suffix = &content[inner_close_end..outer_close_start];
+                if !suffix.contains('<') {
+                    // Check if re-indented width overflows.
+                    let real_depth = sp_len / iw + content_depth;
+                    let reindented_width = real_depth * iw + content.len();
+                    if reindented_width > full_width {
+                        // Break: emit leading spaces + content up to `</span`
+                        // (the inner close without `>`), then newline + deeper
+                        // indent + `>` + suffix + `</span`.
+                        // Byte position of inner close end (excluding `>`).
+                        let break_at = sp_len + inner_close_rel + 6;
+                        out.push_str(&remaining[..break_at]);
+                        out.push('\n');
+                        for _ in 0..sp_len + iw {
+                            out.push(' ');
+                        }
+                        out.push('>');
+                        out.push_str(suffix);
+                        out.push_str("</span");
+                        out.push('\n');
+                        remaining = &remaining[nl_pos + 1..];
+                        transformed = true;
+                    }
+                }
+            }
+        }
+        if !transformed {
+            out.push_str(line);
+            out.push('\n');
+            remaining = &remaining[nl_pos + 1..];
+        }
+    }
+    out
 }
 
 fn apply_edits(src: &str, mut edits: Vec<(u32, u32, String)>) -> String {
@@ -3158,11 +3564,12 @@ fn fix_pre_child_hug_only(out: &str, fragment: &Fragment) -> Vec<(u32, u32, Stri
             continue;
         };
         // Only act on multi-line open tags.
-        let open_end = if let Some(first_child_node) = child_fragment.nodes.first() {
-            node_start(first_child_node) as usize
+        let first_child_node = if let Some(n) = child_fragment.nodes.first() {
+            n
         } else {
             continue;
         };
+        let open_end = node_start(first_child_node) as usize;
         let Some(open) = out.get(cs..open_end) else {
             continue;
         };
@@ -3188,16 +3595,30 @@ fn fix_pre_child_hug_only(out: &str, fragment: &Fragment) -> Vec<(u32, u32, Stri
         }
         // Move `>` to hug the last attribute line, preserving any element-direct
         // whitespace (tabs/newline) between `>` and the first child.
-        let trailing_ws = &open[open_tag_only.len()..];
-        // If trailing_ws is empty, the content starts inline immediately after `>` —
-        // the element is already correctly hugged.  Applying the edit here would
-        // wrongly collapse the multi-line open tag (pulling `>` back to the last
-        // attribute line) and merge all child content onto one line.  Skip it.
+        //
+        // `trailing_ws` is the whitespace between the close `>` of the open tag and
+        // the first child's content start.  When the first child IS a whitespace-only
+        // Text node (e.g. "\n  " between `>` and the first element child), that node
+        // contributes no visible content of its own — include it in `trailing_ws` so
+        // the rewrite can still hug the `>` to the last attribute.
+        // `content_start` is where the actual content (after trailing_ws) begins.
+        let (trailing_ws, content_start) = if open_tag_only.len() == open.len()
+            && let TemplateNode::Text(t) = first_child_node
+            && t.data.split_whitespace().next().is_none()
+        {
+            // First child is a whitespace-only Text node right after `>`. Include it.
+            let text_end = t.end as usize;
+            (out.get(open_end..text_end).unwrap_or(""), text_end)
+        } else {
+            (&open[open_tag_only.len()..], open_end)
+        };
+        // If trailing_ws is still empty (content starts inline immediately after `>`),
+        // the element is already correctly hugged — skip.
         if trailing_ws.is_empty() {
             continue;
         }
         let new_open = format!("{}>", &open_tag_only[..last_nl]);
-        let result = format!("{new_open}{trailing_ws}{}", &out[open_end..ce]);
+        let result = format!("{new_open}{trailing_ws}{}", &out[content_start..ce]);
         if result != whole {
             edits.push((child_start, child_end, result));
         }
@@ -4938,19 +5359,91 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
                 && !content.is_empty()
                 && open.ends_with('>')
                 && close.starts_with("</")
-                && !content.starts_with([' ', '\t', '\r', '\n'])
-                && !content.ends_with([' ', '\t', '\r', '\n'])
             {
                 let open_no_bracket = &open[..open.len() - 1]; // strip trailing `>`
                 let inner_text = format!(">{content}</{tag}");
                 let open_doc = build_open_attr_doc(out, node, tag, true)
                     .unwrap_or_else(|| Doc::Text(open_no_bracket.to_string()));
+                // Try recursive children doc so nested elements (e.g. `<span>` with
+                // a `<ColorIndicator />` child) can break their own attributes when
+                // the enclosing group breaks, rather than being treated as an opaque
+                // string.  A flat-match guard ensures 0-regression: only switch to
+                // the recursive doc when it prints flat-identically to the opaque text.
+                // Only switch to the recursive doc when:
+                //   (a) the fragment contains at least one inline element with
+                //       attributes (an element whose open tag can break), AND
+                //   (b) no non-first text node starts with whitespace.
+                // Condition (b) ensures `build_children_doc_nodes` does not inject
+                // Doc::Line separators before text words (e.g. `" os"` after a
+                // `<span>` produces `[Line, Text("os")]` which would break in
+                // break mode, causing `<span><span>import</span> os</span>` to
+                // split "os" onto its own line).  The first text node's leading
+                // whitespace IS safe because build_children_doc_nodes trims it
+                // (trim_left=true for i==0); we re-inject it via `lead_ws`.
+                let has_attr_element = e.fragment.nodes.iter().any(|n| match n {
+                    TemplateNode::RegularElement(c) => !c.attributes.is_empty(),
+                    TemplateNode::Component(c) => !c.attributes.is_empty(),
+                    TemplateNode::SlotElement(s) => !s.attributes.is_empty(),
+                    _ => false,
+                });
+                let body_text_safe = e.fragment.nodes.iter().enumerate().all(|(idx, n)| {
+                    if idx == 0 {
+                        return true; // first node leading WS is trimmed by build_children_doc
+                    }
+                    match n {
+                        TemplateNode::Text(t) => {
+                            let txt = out.get(t.start as usize..t.end as usize).unwrap_or("");
+                            !txt.starts_with(|c: char| c.is_ascii_whitespace())
+                        }
+                        _ => true,
+                    }
+                });
+                let inner_body_doc = if has_attr_element && body_text_safe {
+                    build_children_doc(out, &e.fragment).and_then(|body| {
+                        // Flat-match guard: only switch to the recursive doc when it
+                        // prints identically to the opaque text (modulo boundary
+                        // whitespace that `build_children_doc_nodes` trims from the
+                        // first/last child).  Compare the body alone against `content`
+                        // so leading/trailing space differences don't cause a spurious
+                        // mismatch — the surrounding `>` / `</{tag}` wrappers are
+                        // structural and don't vary.
+                        let flat_body = crate::doc::print(body.clone(), 1_000_000, "  ", 0, 0);
+                        if flat_body.trim() == content.trim() {
+                            // Re-inject leading/trailing whitespace that
+                            // `build_children_doc_nodes` trims from the first/last
+                            // child, so the flat form of recursive_content still
+                            // equals `inner_text` (important for the hug-doc to
+                            // produce correct output when the group stays flat).
+                            let lead_ws = &content[..content.len() - content.trim_start().len()];
+                            let trail_ws = &content[content.trim_end().len()..];
+                            let open_text = if lead_ws.is_empty() {
+                                ">".to_string()
+                            } else {
+                                format!(">{lead_ws}")
+                            };
+                            let close_text = if trail_ws.is_empty() {
+                                format!("</{tag}")
+                            } else {
+                                format!("{trail_ws}</{tag}")
+                            };
+                            let recursive_content = Doc::Concat(vec![
+                                Doc::Text(open_text),
+                                body,
+                                Doc::Text(close_text),
+                            ]);
+                            Some(Doc::Group(vec![recursive_content]))
+                        } else {
+                            None
+                        }
+                    })
+                } else {
+                    None
+                };
+                let inner_doc =
+                    inner_body_doc.unwrap_or_else(|| Doc::Group(vec![Doc::Text(inner_text)]));
                 return Some(Doc::Group(vec![
                     open_doc,
-                    Doc::Group(vec![Doc::Indent(vec![
-                        Doc::Softline,
-                        Doc::Group(vec![Doc::Text(inner_text)]),
-                    ])]),
+                    Doc::Group(vec![Doc::Indent(vec![Doc::Softline, inner_doc])]),
                     Doc::Softline,
                     Doc::Text(">".to_string()),
                 ]));
@@ -4983,12 +5476,28 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
             let inner_text = format!(">{content}</{tag}");
             let open_doc = build_open_attr_doc(out, node, tag, true)
                 .unwrap_or_else(|| Doc::Text(open_no_bracket.to_string()));
+            // Try recursive children doc so nested elements can break their own
+            // attributes when the enclosing group breaks.  Flat-match guard for
+            // 0-regression: only switch when the body prints flat-identically to
+            // `content` (modulo boundary trimming by build_children_doc_nodes).
+            let inner_body_doc = build_children_doc(out, &e.fragment).and_then(|body| {
+                let flat_body = crate::doc::print(body.clone(), 1_000_000, "  ", 0, 0);
+                if flat_body.trim() == content.trim() {
+                    let recursive_content = Doc::Concat(vec![
+                        Doc::Text(">".to_string()),
+                        body,
+                        Doc::Text(format!("</{tag}")),
+                    ]);
+                    Some(Doc::Group(vec![recursive_content]))
+                } else {
+                    None
+                }
+            });
+            let inner_doc =
+                inner_body_doc.unwrap_or_else(|| Doc::Group(vec![Doc::Text(inner_text)]));
             return Some(Doc::Group(vec![
                 open_doc,
-                Doc::Group(vec![Doc::Indent(vec![
-                    Doc::Softline,
-                    Doc::Group(vec![Doc::Text(inner_text)]),
-                ])]),
+                Doc::Group(vec![Doc::Indent(vec![Doc::Softline, inner_doc])]),
                 Doc::Softline,
                 Doc::Text(">".to_string()),
             ]));
