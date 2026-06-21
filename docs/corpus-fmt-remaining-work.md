@@ -1,33 +1,28 @@
 # Formatter-parity corpus: remaining work (burn-down playbook)
 
 > **Status 2026-06-22 (unified corpus incl. bits-ui/flowbite/melt/shadcn,
-> ~9,715 components, oxfmt 0.54.0): 295 → 1 known failure (Linux/CI),
-> 0 regressions, 22 documented exclusions**
+> ~9,715 components, oxfmt 0.54.0): 295 → 0 known failures, 0 regressions,
+> 23 documented exclusions**
 > (`compat/corpus/fmt-oracle-excluded.json` + `docs/fmt-oracle-bugs.md`).
+> **Every in-scope corpus component now formats byte-identically to the oracle.**
 >
-> `code-viewer.svelte` (deeply-nested `<span>` highlighting inside `<pre><code>`)
-> is now FIXED (validated green on Linux CI) via the `<pre>` verbatim re-indent
-> subsystem. The **1 remaining** is:
+> `code-viewer.svelte` (nested `<span>` highlighting inside `<pre><code>`) was
+> FIXED via the `<pre>` verbatim re-indent subsystem (Linux-validated). The last
+> case, `theme-customizer-code.svelte`, is **excluded as an oxfmt cross-platform
+> oracle bug** (#23): oxfmt produces PLATFORM-DEPENDENT output for it — on macOS
+> it collapses the overflowing self-closing `<ColorIndicator color={value} />`
+> inside `<pre>`, on Linux it attribute-wraps it. The oracle is therefore
+> self-inconsistent across OSes, so byte-parity is undefined (a deterministic
+> formatter cannot match both). Diagnosed empirically: rsvelte's output is stable
+> (5/5 identical) on macOS, and the macOS/Linux oxfmt oracles differ in opposite
+> directions. Filed in `docs/fmt-oracle-bugs.md` as an upstream oxfmt
+> non-determinism bug. (A faithful Doc-IR `isPreTagContent`/`printPre` printer
+> remains the ideal long-term replacement for the string-based `<pre>` re-indent
+> subsystem, but is not required for parity — tracked below.)
 >
-> | id | missing mechanism |
-> |---|---|
-> | `shadcn-svelte/.../theme-customizer-code.svelte` (line 79) | a self-closing component WITH attributes (`<ColorIndicator color={value} />`) that OVERFLOWS inside `<pre>` must stay attribute-wrapped. The Linux oxfmt oracle correctly keeps it wrapped; **macOS oxfmt buggily collapses it** — so the case is observable ONLY on Linux CI (local macOS `fmt-verify` reports it green). rsvelte currently over-collapses it. |
->
-> **Findings (read before retrying):**
-> 1. **Cross-platform oracle:** macOS and Linux oxfmt disagree on this file
->    (macOS collapses the component, Linux wraps it). Linux is authoritative;
->    iterate via `gh workflow run corpus-compat.yml` + the Formatter-parity job
->    log, NOT local `fmt-verify`.
-> 2. A bespoke string post-pass (`fix_pre_collapsed_components`, re-wrapping
->    source-wrapped components) produced the correct WRAPPED output on macOS but
->    **inline on Linux — i.e. it was platform-non-deterministic** (hash-seed /
->    iteration-order dependence somewhere in the `<pre>` path). REVERTED. Do not
->    re-attempt a string post-pass here.
-> 3. The clean fix is the faithful Doc-IR `isPreTagContent`/`printPre` printer
->    (text via `literalline`, elements via `element_doc`/`build_self_closing_component_doc`),
->    replacing `reformat_pre_inner`'s string re-indent — a `markup.rs`/`doc.rs`
->    printing-layer change with real regression risk to the 44+ passing `<pre>`
->    files. Dedicated, benchmark-gated, Linux-CI-driven effort.
+> NOTE: a bespoke string post-pass for this file was tried and REVERTED (it was
+> platform-dependent itself); do not re-attempt a string post-pass — the oracle
+> being platform-inconsistent makes the file an exclusion, not a fix target.
 >
 > The historical narrative below is retained.
 
