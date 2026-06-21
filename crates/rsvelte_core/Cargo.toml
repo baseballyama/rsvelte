@@ -61,7 +61,7 @@ oxc_span = "0.136"
 oxc_diagnostics = "0.136"
 oxc_codegen = "0.136"
 rsvelte_esrap = { path = "../rsvelte_esrap" }
-oxc_syntax = "0.136"
+oxc_syntax = "0.137"
 oxc_semantic = "0.136"
 
 # SPIKE: oxc_formatter is publish=false in oxc; pull via git from main HEAD
