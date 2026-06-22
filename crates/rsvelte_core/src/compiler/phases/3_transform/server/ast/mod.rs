@@ -9,8 +9,8 @@
 //! (`server_component` / `server_module`). For now the template and script
 //! bodies are STUBBED empty; only the program skeleton (namespace import,
 //! sanitized-props / rest-props / slots prologue, and the exported component
-//! function shell) is emitted. The per-node visitors live in [`visitors`] and
-//! are ported incrementally.
+//! function shell) is emitted. The per-node visitors live in the `visitors`
+//! submodule.
 //!
 //! This module is NOT yet wired into `super::transform_server`; it exists so
 //! the crate keeps compiling while the AST pipeline is built out.
