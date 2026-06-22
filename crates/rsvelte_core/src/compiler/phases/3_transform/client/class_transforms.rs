@@ -1102,6 +1102,27 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
         }
     }
 
+    // Wrap the ROOT of every private-`$state` member MUTATION in the constructor
+    // (`this.#x.prop = v` → `$.get(this.#x).prop = v`) BEFORE the per-line text
+    // transform runs. A mutation writes through the reactive proxy, so its base
+    // must read the proxy via `$.get`, not the raw `.v` source the text member
+    // branch would otherwise apply. This AST pass is precise (only real
+    // assignment / update targets), and once a root is `$.get(this.#x)` the text
+    // branch's `this.#x.` → `this.#x.v.` substitution no longer matches it.
+    if !constructor_content.is_empty() {
+        let state_qualified: Vec<String> = fields
+            .iter()
+            .filter(|f| f.is_private && f.rune_type == "$state")
+            .map(|f| format!("this.#{}", f.private_backing_name))
+            .collect();
+        if let Some(rewritten) = super::private_member_mutate_root_ast::transform_private_member_mutate_root_ast(
+            &constructor_content,
+            &state_qualified,
+        ) {
+            constructor_content = rewritten;
+        }
+    }
+
     // Build transformed class body preserving original member order
     let mut new_class_body = String::new();
 
