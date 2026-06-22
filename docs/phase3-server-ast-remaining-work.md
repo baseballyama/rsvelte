@@ -141,7 +141,7 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 
 | ファイル | 件数 | 内容 |
 |---|---|---|
-| `compat/corpus/known-failures.json` | **56**（67→56、本セッションで −11） | CSR/SSR コンパイル出力の非一致。下記クラスタ別 root-cause マップ参照。 |
+| `compat/corpus/known-failures.json` | **55**（67→55、本セッションで −12） | CSR/SSR コンパイル出力の非一致。下記クラスタ別 root-cause マップ参照。 |
 | `compat/corpus/fmt-known-failures.json` | **0** ✅ | （PR #1111 で達成済み） |
 | `compat/corpus/svelte2tsx-known-failures.json` | 0 | ✅ 既に 100% |
 
@@ -159,6 +159,17 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
    `variable_declarator.rs::is_expression_defined`）— `const x = Math.round(...)` を公式 `scope.evaluate` は
    defined 扱い（template `{x}` に `?? ""` を付けない）だが、phase2 は CallExpression を一律 false にしていた。
    client `is_known_defined_global_call` と同じ keypath 集合で CallExpression branch を追加。**−2**
+5. **css_props の SVG-namespace flag**（`server/ast/visitors/component.rs` + `process_children_inner`）—
+   `$.css_props($$renderer, <is_html>, …)` の 2nd arg を `true` 決め打ちにしていた。公式は
+   `namespace === 'svg' ? false : true`。`ServerTransformState::namespace` を新設し `process_children_inner`
+   で渡された namespace を save/restore（`in_element_children` と同パターン）、component visitor が参照。**−1**
+
+> **本セッションで試したが未達（root-cause 判明・defer 理由）:** ①`declaration-tag-division`（typed `{@const
+> typed: number = …}` が server で丸ごと drop。id span / declarator JSON 形状の深掘りが必要・print fixture）。
+> ②`dom-typeahead.svelte.ts`（private `$derived.by` フィールドの **callee 位置**読み `this.#x()` を
+> `this.#x()()` に＝derived getter call 追加が必要。`collect_derived_private_fields` は TS strip 後に走るので
+> 型注釈名バグは無関係、read-transform が callee 位置を未対応）。③`selection-state`/`Popover` の server
+> `$state.snapshot` strip は `compileModule` 内部ロジック依存。
 
 #### 残り 58 の root-cause マップ（次セッションの burn-down 指針。各 verify は rebuild napi→`corpus:compile`(12s)→`corpus:verify`）
 > 検証ループ: `CARGO_TARGET_DIR=target-verify cargo build --release --features napi --lib && cp
