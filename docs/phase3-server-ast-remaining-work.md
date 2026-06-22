@@ -186,6 +186,18 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 >   緩めるか、private-field 同様の scope-aware should_proxy 化が要る（name ベースなので同名 binding 衝突リスク）。
 >   (b) spread-object の `style` 値テンプレート `${cols}` に `?? ""` が付かない（spread 専用 builder が
 >   `build_template_chunk` の `?? ""` ロジックを通っていない）。
+> - **`pin-input.svelte.ts`**（CLIENT は修正済み・SERVER は dom-typeahead と同根）: nested-fn member mutation
+>   `this.#x.prop=v` の CLIENT は `private_member_mutate_root_ast`（fn_depth>0 のとき `$.get`）で修正済み
+>   （commit「nested-fn private $state member mutation reads through the proxy」）。残る SERVER 差分は
+>   `this.#regexPattern` private `$derived` read が `this.#regexPattern()`（callable）にならない＝dom-typeahead と同根。
+> - **dom-typeahead / pin-input SERVER の `$derived` read（bolt-on 不可・+55 REGRESS で確認）**:
+>   bare `this.#d` → `this.#d()` を後付け AST パスで一括 wrap しようとすると **corpus +55 REGRESS**。理由: 既存
+>   server module pipeline は **単純 `$derived` の read を既に `$.get(this.#d)`→`this.#d()` で wrap している**ので、
+>   後付けパスが二重 `this.#d()()` 化する。本当に未対応なのは **`$derived.by` の callee read**（`this.#getCurrentItem()`
+>   → `()()`）等、既存が漏らすケースのみ。テキスト/後付けでは「既存処理済み」と「未処理」が区別不能
+>   （`$.get`変換後の `this.#d()` と source callee `this.#d()` が同形）。真の修正は **module read-wrap
+>   （`transform_module_source_for_module`）を component path 同様 callee も含め全 derived read を一律 `$.get` wrap
+>   するよう直す**こと（= §6 ClassBody rewrite の server 部分）。
 > - **`dom-typeahead.svelte.ts`**（精密診断済み）: server module path で private `$derived.by` フィールドの
 >   callee 位置 read `this.#x()` が公式 `this.#x()()` にならない。`collect_derived_private_fields` は
 >   `getCurrentItem` を**正しく derived 集合に収集している**（debug 確認済み）。真因は手前: `.svelte.ts` は
