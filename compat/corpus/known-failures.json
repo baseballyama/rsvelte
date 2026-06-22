@@ -43,8 +43,6 @@
 	"svelte.dev/apps/svelte.dev/src/routes/_home/Video.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/slot-usages/input.svelte",
-	"svelte/packages/svelte/tests/print/samples/declaration-tag-division/input.svelte",
-	"svelte/packages/svelte/tests/print/samples/declaration-tag-division/output.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-1/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-2/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-4/A.svelte",
