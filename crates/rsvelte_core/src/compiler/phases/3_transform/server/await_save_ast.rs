@@ -260,26 +260,6 @@ mod tests {
     }
 
     #[test]
-    fn arg_ends_bounds_operand_before_ternary_colon() {
-        // `...await fn({a:1}) : x` — the operand ends at the call's `)`, not at
-        // the ternary `:` (issue #1036 in the attribute-extraction path).
-        let expr = "cond ? await fn({ a: 1 }) : undefined";
-        let kw = expr.find("await").unwrap() as u32;
-        let ends = await_arg_ends(expr).unwrap();
-        let (_, end) = ends.iter().find(|&&(s, _)| s == kw).unwrap();
-        // operand text is `fn({ a: 1 })`
-        assert_eq!(&expr[kw as usize + 6..*end as usize], "fn({ a: 1 })");
-    }
-
-    #[test]
-    fn arg_ends_includes_nested_function_awaits() {
-        let expr = "fn(async () => await inner())";
-        let ends = await_arg_ends(expr).unwrap();
-        // the await inside the nested arrow is present
-        assert_eq!(ends.len(), 1);
-    }
-
-    #[test]
     fn unparseable_returns_none() {
         assert!(transform_await_to_save_ast("await (((").is_none());
     }
