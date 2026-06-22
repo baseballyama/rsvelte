@@ -141,7 +141,7 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 
 | ファイル | 件数 | 内容 |
 |---|---|---|
-| `compat/corpus/known-failures.json` | **55**（67→55、本セッションで −12） | CSR/SSR コンパイル出力の非一致。下記クラスタ別 root-cause マップ参照。 |
+| `compat/corpus/known-failures.json` | **54**（67→54、本セッションで −13） | CSR/SSR コンパイル出力の非一致。下記クラスタ別 root-cause マップ参照。 |
 | `compat/corpus/fmt-known-failures.json` | **0** ✅ | （PR #1111 で達成済み） |
 | `compat/corpus/svelte2tsx-known-failures.json` | 0 | ✅ 既に 100% |
 
@@ -163,6 +163,10 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
    `$.css_props($$renderer, <is_html>, …)` の 2nd arg を `true` 決め打ちにしていた。公式は
    `namespace === 'svg' ? false : true`。`ServerTransformState::namespace` を新設し `process_children_inner`
    で渡された namespace を save/restore（`in_element_children` と同パターン）、component visitor が参照。**−1**
+6. **spread 内の store read**（`client/store_transforms.rs`）— store-sub read-wrap scanner が `.` 前置を
+   property-access (`obj.$store`) として一律 skip していたため、spread (`[...$store.items]` の `...$store`)
+   の `$store` も skip されていた。前 3 文字が `...` なら spread と判定して wrap を許可（単独 `.` の property
+   access は従来通り skip）。`$formData.items = [...$formData.items, id]` が `[...$formData().items, id]` に。**−1**
 
 > **本セッションで試したが未達（root-cause 判明・defer 理由）:** ①`declaration-tag-division`（typed `{@const
 > typed: number = …}` が server で丸ごと drop。id span / declarator JSON 形状の深掘りが必要・print fixture）。
