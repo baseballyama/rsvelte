@@ -130,3 +130,8 @@ compat/corpus/.oxfmt-ignore-nothing
 # fmt-parity stage (generated; the fmt-known-failures.json ratchet is checked in)
 compat/corpus/fmt/
 compat/corpus/fmt-report.json
+
+# Dedicated CARGO_TARGET_DIRs used during Phase-3 corpus burndown (never commit)
+/target-ast/
+/target-rt/
+/target-verify/
