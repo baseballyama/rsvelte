@@ -216,7 +216,14 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     fn for_of_statement(&self, for_of: &JsForOfStatement) -> Option<Statement<'a>> {
         let left = match &for_of.left {
             JsForOfLeft::Variable(decl) => {
-                let var_decl = self.variable_declaration_node(decl)?;
+                let mut var_decl = self.variable_declaration_node(decl)?;
+                // A `for (… in/of …)` binding cannot carry an initializer. The IR
+                // declarator may hold a spurious `null` init (which the string
+                // codegen drops in this position); strip it so we emit
+                // `for (const k in obj)`, not `for (const k = null in obj)`.
+                for d in var_decl.declarations.iter_mut() {
+                    d.init = None;
+                }
                 ForStatementLeft::VariableDeclaration(var_decl)
             }
             JsForOfLeft::Pattern(pattern) => {

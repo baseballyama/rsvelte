@@ -96,9 +96,15 @@ let rest = $state({});
         out.contains("$.spread_props(["),
         "expected spread_props, got:\n{out}"
     );
-    // The binding object (get/set checked) must appear BEFORE rest in the array.
-    let bind_pos = out.find("get checked()").expect("get checked() not found");
-    let rest_pos = out.find("rest,").expect("rest, not found");
+    // The binding object (get/set checked) must appear BEFORE the `rest` spread
+    // element in the array. Search within the `spread_props([…])` slice so the
+    // earlier `let rest = {}` declaration isn't matched; the AST codegen emits the
+    // last array element without a trailing comma (`rest`, not `rest,`).
+    let arr = &out[out
+        .find("$.spread_props([")
+        .expect("spread_props not found")..];
+    let bind_pos = arr.find("get checked()").expect("get checked() not found");
+    let rest_pos = arr.find("rest").expect("rest spread element not found");
     assert!(
         bind_pos < rest_pos,
         "binding object must precede rest in spread_props array (bind at {bind_pos}, rest at {rest_pos}):\n{out}"

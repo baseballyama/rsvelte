@@ -39,8 +39,10 @@ fn destructuring_catch_param_is_preserved() {
         "<script>let f = () => {};</script>\n<button onclick={() => { try { f(); } catch ({ message }) { console.log(message); } }}>x</button>",
     );
     assert!(!out.contains("COMPILE_ERROR"), "{out}");
+    // Official esrap emits `catch(...)` with no space after the keyword (the
+    // AST codegen matches it; the old string codegen emitted an extra space).
     assert!(
-        out.contains("catch ({ message })"),
+        out.contains("catch({ message })"),
         "destructuring catch param dropped: {out}"
     );
 }
