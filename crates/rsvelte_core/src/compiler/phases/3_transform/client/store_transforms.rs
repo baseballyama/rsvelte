@@ -373,9 +373,7 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
                     && chars[i - 1] == '.'
                     && chars[i - 2] == '.'
                     && chars[i - 3] == '.';
-                let before_ok = if i == 0 {
-                    true
-                } else if is_spread_prefix {
+                let before_ok = if i == 0 || is_spread_prefix {
                     true
                 } else {
                     let prev_char = chars[i - 1];
