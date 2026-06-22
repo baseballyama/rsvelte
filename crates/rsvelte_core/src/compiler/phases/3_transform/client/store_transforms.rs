@@ -369,10 +369,8 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
                 // EXCEPTION: a `...` spread (`[...$store]`, `f(...$store)`) ends in a `.`
                 // but is NOT a property access — the spread argument IS a read and must be
                 // wrapped. Detect the spread by the three preceding dots.
-                let is_spread_prefix = i >= 3
-                    && chars[i - 1] == '.'
-                    && chars[i - 2] == '.'
-                    && chars[i - 3] == '.';
+                let is_spread_prefix =
+                    i >= 3 && chars[i - 1] == '.' && chars[i - 2] == '.' && chars[i - 3] == '.';
                 let before_ok = if i == 0 || is_spread_prefix {
                     true
                 } else {

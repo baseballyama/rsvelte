@@ -228,7 +228,10 @@ mod tests {
     fn top_level_read_still_v_with_nested_function_present() {
         let src = "let x = this.#count;\nrAF(() => this.#count);";
         let out = transform_private_v_suffix_ast(src, &ssv(&["this.#count"])).unwrap();
-        assert_eq!(out, "let x = this.#count.v;\nrAF(() => $.get(this.#count));");
+        assert_eq!(
+            out,
+            "let x = this.#count.v;\nrAF(() => $.get(this.#count));"
+        );
     }
 
     #[test]

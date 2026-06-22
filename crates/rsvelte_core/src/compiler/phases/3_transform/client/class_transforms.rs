@@ -1115,10 +1115,12 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
             .filter(|f| f.is_private && f.rune_type == "$state")
             .map(|f| format!("this.#{}", f.private_backing_name))
             .collect();
-        if let Some(rewritten) = super::private_member_mutate_root_ast::transform_private_member_mutate_root_ast(
-            &constructor_content,
-            &state_qualified,
-        ) {
+        if let Some(rewritten) =
+            super::private_member_mutate_root_ast::transform_private_member_mutate_root_ast(
+                &constructor_content,
+                &state_qualified,
+            )
+        {
             constructor_content = rewritten;
         }
     }
@@ -1158,9 +1160,7 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                 // place (`had_class_body_decl`), which upstream leaves at its source
                 // position rather than relocating here.
                 for field in &fields {
-                    if field.constructor_declared
-                        && field.is_private
-                        && !field.had_class_body_decl
+                    if field.constructor_declared && field.is_private && !field.had_class_body_decl
                     {
                         new_class_body.push_str(&emit_class_field(field, &fields));
                     }

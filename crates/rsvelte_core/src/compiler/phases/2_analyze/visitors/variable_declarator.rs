@@ -862,7 +862,12 @@ fn is_expression_defined(node: &Value) -> bool {
 fn json_member_keypath(node: &Value) -> Option<String> {
     match node.get("type").and_then(|t| t.as_str())? {
         "Identifier" => node.get("name").and_then(|n| n.as_str()).map(String::from),
-        "MemberExpression" if !node.get("computed").and_then(|c| c.as_bool()).unwrap_or(false) => {
+        "MemberExpression"
+            if !node
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false) =>
+        {
             let object = json_member_keypath(node.get("object")?)?;
             let prop = node
                 .get("property")
