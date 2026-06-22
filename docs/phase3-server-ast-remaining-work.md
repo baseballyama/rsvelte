@@ -102,17 +102,27 @@
 
 ---
 
-## 2. 残作業B — クライアント CSR の AST 化（最大の残課題）
+## 2. 残作業B — クライアント CSR の AST 化 — ✅ **AST がデフォルト化済み**
 
-サーバは完了したが、**クライアント codegen は手書き `js_ast::codegen::generate`（`codegen.rs` 約 3305 行）のまま**。
-`js_ast` IR に `Raw(String)` エスケープが多数残る（旧調査では ~198 箇所）。
+**big-bang 不要だった。** `js_ast::to_oxc` が `Raw`/`RawMapped` を**パース**し `Spanned` を展開するように
+したことで、`to_oxc → rsvelte_esrap::print` が **クライアントのデフォルト codegen** になった（手書き
+`codegen.rs::generate` は今や ~6% のフォールバックのみ）。検証: runtime 19/19・compiler_fixtures 17/17・
+ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 
-- 戦略（`docs/ast-refactor-handoff.md` の詳細調査を参照）: `Raw(...)` を構造化 `JsExpr/JsStatement` variant へ
-  置換して surface を縮小 → 最終的に client を **oxc AST + `rsvelte_esrap` に big-bang 切替** →
-  `js_ast` の `Raw` 経由 `to_oxc` → `codegen.rs` 削除。
-- esrap 出力は公式と一致するので、切替後はフィクスチャが合うはず（ただし**全フィクスチャ + コーパス無回帰**で要検証）。
-- 着地済みスライス（leaf node 化）: `JsExpr::Super`, `JsExpr::MetaProperty`, `JsExpr::ImportExpression` 等。
-  新 variant 追加手順は handoff doc に実証済み。
+- **キー解決＝空文 (`;;`) パリティ**: esrap は body から `EmptyStatement` を除去するが（サーバ/公式 esrap と一致）、
+  公式**コンパイラ出力**は string-codegen が出す `;;` を保持し、それを `to_oxc` が実 `EmptyStatement` にパースする。
+  → `PrintOptions.keep_empty_statements`（既定 false=除去・サーバ用、client `to_oxc` は true）を追加して byte 一致。
+  （※「空行パリティ」説は誤りだった。`compare_js` は AST 比較で空行は無視。）
+- sourcemap は `Spanned`/`RawMapped` の元ソースオフセットを span に焼き込み、esrap `print_with_map` ＋
+  `esrap_mappings_to_source_mappings` で配線済み。
+- **`codegen.rs` 完全削除に残るフォールバック要因**:
+  1. **コメント保持** — コメントを含む `Raw` は `to_oxc` がバイル（パース→印字でコメント脱落するため、
+     verbatim string codegen にフォールバックして保持）。AST 側コメント保持（synthetic-source + span-offset、
+     または esrap CommentHooks）が要る。
+  2. **4 つの niche ノード** = 計算プロパティ分割代入（`{ [0]: a } = x` 等）。
+  3. **`generate_expr`** — ~10 visitor が式を文字列化して `Raw` に詰めている（`to_oxc` が再パースするので
+     出力は AST だが中間がテキスト）。真のゼロテキストには visitor が構造化 `JsExpr` を直接組む必要。
+  これらが消えれば `codegen.rs`（印字器 + `generate_expr`）を削除できる。
 
 ---
 
