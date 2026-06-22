@@ -141,7 +141,7 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 
 | ファイル | 件数 | 内容 |
 |---|---|---|
-| `compat/corpus/known-failures.json` | **58**（67→58、本セッションで −9） | CSR/SSR コンパイル出力の非一致。下記クラスタ別 root-cause マップ参照。 |
+| `compat/corpus/known-failures.json` | **56**（67→56、本セッションで −11） | CSR/SSR コンパイル出力の非一致。下記クラスタ別 root-cause マップ参照。 |
 | `compat/corpus/fmt-known-failures.json` | **0** ✅ | （PR #1111 で達成済み） |
 | `compat/corpus/svelte2tsx-known-failures.json` | 0 | ✅ 既に 100% |
 
@@ -155,6 +155,10 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 3. **boundary 直下の `{#snippet}` を inline 出力**（`server/ast/visitors/snippet_block.rs`）— analyze が
    `<svelte:boundary>` で depth を上げないため `can_hoist` が誤って true。汎用 SnippetBlock visitor の hoist 判定を
    `can_hoist && fragment_depth <= 1` に gate（boundary visitor の `failed` と同じ）。**−4**
+4. **`Math.*`/`Number`/`String`/`BigInt` call を const binding の is_defined 扱い**（phase2
+   `variable_declarator.rs::is_expression_defined`）— `const x = Math.round(...)` を公式 `scope.evaluate` は
+   defined 扱い（template `{x}` に `?? ""` を付けない）だが、phase2 は CallExpression を一律 false にしていた。
+   client `is_known_defined_global_call` と同じ keypath 集合で CallExpression branch を追加。**−2**
 
 #### 残り 58 の root-cause マップ（次セッションの burn-down 指針。各 verify は rebuild napi→`corpus:compile`(12s)→`corpus:verify`）
 > 検証ループ: `CARGO_TARGET_DIR=target-verify cargo build --release --features napi --lib && cp
