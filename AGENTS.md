@@ -53,9 +53,15 @@ one unified corpus (no separate "ecosystem" track); to grow it, add a submodule
 [scripts/compat-corpus/README.md](scripts/compat-corpus/README.md),
 [docs/corpus-remaining-work.md](docs/corpus-remaining-work.md) (burn-down
 playbook for the remaining entries), and
-[docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md)
-(staged plan to replace Phase-3 string surgery with an AST → esrap-port
-printer pipeline).
+[docs/phase3-server-ast-remaining-work.md](docs/phase3-server-ast-remaining-work.md)
+(Phase-3 AST refactor status + handoff). **Phase-3 OUTPUT codegen is now AST:**
+server SSR is pure-AST (legacy text generator, ~32k lines, deleted) and client CSR
+defaults to `js_ast::to_oxc` → `rsvelte_esrap` (the 3324-line text printer is now a
+~6% fallback for comment-bearing / unsupported-node programs). Remaining text
+processing is the INTERNAL IR construction (client visitors building `Raw` strings
+that `to_oxc` re-parses; `shared/async_body.rs` ~3100 lines of string-based async
+splitting; the `.svelte.js` module path) — output is unchanged, so it is an
+elegance/maintainability cleanup tracked in the handoff doc.
 
 **Key Design Decisions:**
 

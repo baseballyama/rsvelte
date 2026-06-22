@@ -1,10 +1,16 @@
-# Phase-3 AST リファクタ — 残作業ドキュメント（**サーバ switchover 完了後**）
+# Phase-3 AST リファクタ — 残作業ドキュメント（**出力 codegen は AST 化完了・内部テキスト除去が次の主作業**）
 
 > **ゴール（ユーザー指示・継続中）:** Phase-3 (`3_transform`) の **テキストベース処理を1箇所も残さず**、
-> oxc AST 構築 + `rsvelte_esrap` 印字に完全移行する。
-> **✅ サーバ SSR コンポーネント codegen は完全に AST 化・switchover 済み**（旧テキスト ~32k 行削除）。
-> 残るは「クライアント CSR の AST 化（§2、最大）」「コーパス/互換性 100%（§3）」「`compute_blocker_map` AST 化（§4）」、
-> および `.svelte.js` モジュールパス（`transform_server_module`）が依存するテキストヘルパ群。
+> oxc AST 構築 + `rsvelte_esrap` 印字に完全移行する。テキスト処理は今後のバグ温床なので、OSS として
+> エレガントさのためにも次セッションで完遂する。
+>
+> **✅ 出力 codegen は AST 化完了（機能的に完了・全テスト緑）:** サーバ SSR は純 AST へ switchover（旧テキスト
+> ~32k 行削除）、クライアント CSR は `to_oxc + esrap` を**デフォルト codegen 化**（手書き printer は ~6% フォールバックのみ）。
+>
+> **🔜 残り = 内部の中間表現テキストの除去（出力は1バイトも変わらない大規模 cleanup・§5 に全体像）:**
+> ①クライアント Raw 構築 61 箇所の構造化（+`generate_expr` 除去）→ ②§4 `async_body.rs`(3,100 行) AST 化 →
+> ③`.svelte.js` モジュールパスのテキストヘルパ → ④コメント保持 AST（機能不要・最後）→ ⑤ niche 4 ノード。
+> これらが全部消えて初めて `codegen.rs` / `async_body.rs` を削除でき「Phase-3 ゼロテキスト」が完成する。
 
 関連: `docs/ast-refactor-handoff.md`（client調査）、`docs/phase3-ast-refactor-plan.md`、
 `docs/corpus-remaining-work.md`、`docs/corpus-fmt-remaining-work.md`。
@@ -165,17 +171,52 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 
 ---
 
-## 4. 残作業D — `shared/compute_blocker_map` の AST 化
+## 4. 残作業D — `shared/async_body.rs`（`compute_blocker_map` / `transform_async_body`）の AST 化
 
-`server/ast/` は async ブロッカー解析を**文字列ベースの** `shared/async_body.rs::compute_blocker_map` /
-`transform_async_body` で再利用している（出力側は 100% AST だが、入力解析側がまだテキスト）。
-真の「ゼロテキスト」には、この入力解析側も AST 化が必要（`docs/ast-refactor-handoff.md §0b`）。優先度は B/C の後。
+**文字列ベースの巨大モジュール（約 3,100 行）。** `raw_script: &str` を受け取り `output: String` を返す
+async body 分割 + blocker 解析で、サーバ AST パイプラインとクライアント両方が再利用している（出力側は AST だが、
+この入力解析側がまだテキスト）。`memmem` ベースの手書きスキャン多数。真の「ゼロテキスト」にはここの AST 化が必要。
+**規模が大きく、機能的価値はゼロ（出力は不変）**なので、§2 の Raw 構築除去と並ぶ最後の big-bang。
 
 ---
 
-## 5. このブランチで完了したこと（コミット要約）
+## 5. 「ゼロテキスト」に向けた残作業の全体像（次セッションの主作業）
 
-- サーバ runtime バーンダウン: ~490 → 0（server 100% parity）。最後の難所は multi-group const flattening
-  クラスタ（`async-const` / `async-declaration-tag` / `async-declaration-tag-2`）。
-- スイッチオーバー（デフォルト化）は **保留**（corpus 88 回帰のため opt-in `RSVELTE_SERVER_AST=1` のまま）。
+> **重要（ユーザー方針）:** テキストベース処理は今後のバグ温床になり、OSS としてエレガントさも追求したいので
+> 次セッションで対応する。**出力 codegen は既に AST 化済み（機能的には完了・全テスト緑）**で、残りはすべて
+> 「内部で一旦テキストを組み立てて再パースする」中間表現レベルの除去 ＝ **出力は1バイトも変わらない大規模 cleanup**。
+
+優先順位（ユーザー合意: コメント保持は機能不要なので後回し、`generate_expr`/§4 を先に）:
+
+1. **クライアント Raw 構築の構造化（§2 の本丸）** — `js_ast::nodes::JsExpr::Raw` / `JsStatement::Raw` 生成が
+   client 全体で **61 箇所**。visitor が文字列連結で statement/expr を組み、`to_oxc` が再パースしている。
+   ファイル別: `bind_directive.rs`(24)・`shared/component.rs`(21)・`mod.rs`(12)・`expression_converter.rs`(11)・
+   `shared/utils.rs`(7)・`await_block.rs`(4)・`fragment.rs`/`each_block.rs`/`declaration_tag.rs`(各3)・`const_tag.rs`(2)。
+   - `generate_expr`（codegen.rs）呼び出しは **5 箇所のみ**（`shared/component.rs` の bind get/set アクセサ、
+     `each_block.rs` の invalidation 式）。ただし `format!("({})($$value)", ...)` のような**文字列プレフィックス除去 +
+     再フォーマット**に深く絡むため、bind/each ハンドリングの end-to-end 構造化が前提。
+   - これらを `b::*` 構造化ビルダーに置換 → `to_oxc` が Raw を一切パースしなくなる → `generate_expr` 除去。
+2. **§4 `async_body.rs` の AST 化**（3,100 行・上記参照）。
+3. **`.svelte.js` モジュールパス**（`transform_server_module`）が依存する `transform_script`/`transform_store`/
+   `transform_legacy` のテキストヘルパ群。
+4. **コメント保持 AST**（最後）— `to_oxc` がコメント付き `Raw` をバイルして string codegen にフォールバックして
+   いる（~6%）。**機能的には不要**（公式出力に `@__PURE__`/ライセンス等の機能コメントは fixtures 全数で 0 件、
+   残るユーザー散文コメントは bundler が除去）。AST 側保持には synthetic-source + span-offset、または
+   esrap CommentHooks（ただし `var // c\n x` の文中コメントは CommentHooks 不可）。
+5. **4 つの niche ノード** = 計算プロパティ分割代入（`{ [0]: a } = x`、`{ [`${a}-D`]: {..} } = ..`）。
+   `to_oxc` の object-pattern が computed key を扱えずバイル → string codegen フォールバック。
+
+これら **1〜5 がすべて消えて初めて `codegen.rs`（印字器 + `generate_expr`）と `async_body.rs` を削除でき、
+「Phase-3 テキスト処理ゼロ」が完成**する。
+
+### このブランチ（`feat/server-ast-switchover`）で完了したこと
+
+- **サーバ SSR**: 純 AST パイプラインへ switchover、旧テキスト生成器 **約 31,900 行削除**（§0/§1）。
+- **クライアント CSR**: `to_oxc` が `Raw`/`RawMapped` をパース + `Spanned` 展開 → `to_oxc + esrap` を
+  **デフォルト codegen 化**（§2 のデフォルト切替）。手書き printer は ~6% のフォールバックのみ。
+  - キー解決 = `PrintOptions.keep_empty_statements`（サーバ=除去、client=保持）で空文 `;;` パリティ達成。
+  - sourcemap は `Spanned`/`RawMapped` の元オフセットを span 焼き込み + esrap `print_with_map` で配線。
+- corpus baseline 120 → 67（net −53）。全 CI ゲート緑（runtime 19/19・compiler_fixtures 17/17・ssr 16/16・
+  sourcemaps 16/16・real_world 15/15・互換性レポート全カテゴリ 100%）。
+- 関連メモリ: `~/.claude/.../memory/project_server_ast_switchover.md`（クラスタ別の修正内容・GOTCHA 収録）。
 - 詳細はコミットログ（`git log feat/phase3-ast-full`）と auto-memory `project_phase3_ast_rewrite.md` を参照。
