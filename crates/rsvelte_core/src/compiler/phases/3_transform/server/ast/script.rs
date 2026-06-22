@@ -3121,12 +3121,17 @@ pub fn transform_module<'a>(
     let Some(script) = ast.module.as_deref() else {
         return Vec::new();
     };
-    if state.analysis.runes {
+    let mut body = if state.analysis.runes {
         transform_script(script, state, None, false)
     } else {
         // Module (non-runes): no instance-scope props / reactive `$:` (a
         // top-level `$:` in a module body is NOT a reactive statement), so
         // `is_instance = false`.
         transform_script_legacy(script, state, None, false)
-    }
+    };
+    // A top-level `$:` in a `<script module>` is an INVALID reactive declaration
+    // (module scope has no per-instance reactivity); upstream warns
+    // (`reactive_declaration_module_script_dependency`) and drops it from output.
+    body.retain(|s| !matches!(s, Statement::LabeledStatement(l) if l.label.name == "$"));
+    body
 }
