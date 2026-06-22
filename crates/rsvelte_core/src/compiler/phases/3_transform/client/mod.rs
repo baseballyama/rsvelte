@@ -2136,29 +2136,33 @@ fn transform_client_with_visitors(
     super::profile::record_assembly_after_fragment(super::profile::timer_elapsed(_assembly_start));
     let _codegen_start = super::profile::timer_start();
 
-    // Direct-AST codegen via to_oxc + esrap (gated behind `RSVELTE_CLIENT_TO_OXC`,
-    // OPT-IN). The CODE is byte-identical to the string codegen AFTER blank-line
-    // normalization (validated: 0 corpus regressions), but esrap places blank
-    // lines (and comments) by SOURCE SPAN, and the reassembled IR→oxc program has
-    // synthetic spans — so the exact blank-line placement diverges from the string
-    // codegen / official compiler (e.g. dev-mode `$.inspect` statements). Making
-    // this the default therefore needs span/loc threading that reflects the output
-    // structure (the same coordinate problem as comment preservation). Until then
-    // the string codegen stays the default; the to_oxc path is exercised by the
-    // corpus and curated snapshots for burndown. Span-stamping (`Spanned` /
-    // `RawMapped` → original-source offsets) + esrap `print_with_map` mappings are
-    // wired here so the sourcemap path is ready once blank-line parity lands.
-    if std::env::var_os("RSVELTE_CLIENT_TO_OXC").is_some() {
+    // Direct-AST codegen via to_oxc + esrap — the DEFAULT client codegen path.
+    // The string codegen (`generate` / `generate_with_sourcemap`) is the fallback
+    // for the ~6% of components where to_oxc bails (a comment-bearing chunk, which
+    // keeps the comments verbatim, or an unsupported node). `RSVELTE_CLIENT_NO_OXC`
+    // forces the legacy string path (escape hatch). Span-stamping (`Spanned` /
+    // `RawMapped` → original-source offsets) feeds esrap `print_with_map` for the
+    // sourcemap branch.
+    if std::env::var_os("RSVELTE_CLIENT_NO_OXC").is_none() {
         let converted = CLIENT_TO_OXC_ALLOCATOR.with(|cell| {
             let mut alloc = cell.borrow_mut();
             alloc.reset();
             super::js_ast::to_oxc::program_to_oxc(&program, &context.arena, &alloc).map(
                 |oxc_prog| {
+                    // Keep `;` empty statements: the parsed-`Raw` `;;` are real
+                    // EmptyStatement nodes the official compiler output preserves.
+                    let print_opts = rsvelte_esrap::PrintOptions {
+                        keep_empty_statements: true,
+                        ..Default::default()
+                    };
                     if options.enable_sourcemap {
-                        let pm = rsvelte_esrap::print_with_map(&oxc_prog, source);
+                        let pm = rsvelte_esrap::print_with_map_opts(&oxc_prog, source, &print_opts);
                         (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
                     } else {
-                        (rsvelte_esrap::print(&oxc_prog, ""), Vec::new())
+                        (
+                            rsvelte_esrap::print_with(&oxc_prog, "", &print_opts),
+                            Vec::new(),
+                        )
                     }
                 },
             )

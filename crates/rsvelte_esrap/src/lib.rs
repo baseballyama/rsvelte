@@ -46,6 +46,12 @@ pub struct PrintOptions {
     /// Preferred quote character for string literals without a preserved `raw`
     /// (default single quote).
     pub quote: QuoteStyle,
+    /// Keep `EmptyStatement` (`;`) nodes in statement-list bodies instead of
+    /// filtering them (esrap's default, matching the server AST). The rsvelte
+    /// client `to_oxc` path parses string-codegen `Raw` chunks whose `;;` become
+    /// real `EmptyStatement` nodes that the official *compiler* output keeps, so
+    /// that path sets this to byte-match. Default `false` (filter, = esrap/server).
+    pub keep_empty_statements: bool,
 }
 
 /// Quote preference for synthesized string literals.
@@ -60,6 +66,7 @@ impl Default for PrintOptions {
         Self {
             indent: String::from("\t"),
             quote: QuoteStyle::Single,
+            keep_empty_statements: false,
         }
     }
 }
