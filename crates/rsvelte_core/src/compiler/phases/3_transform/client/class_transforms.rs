@@ -279,6 +279,14 @@ pub(super) struct ClassStateField {
     pub(super) private_backing_name: String,
     /// Whether this field was declared in the constructor
     pub(super) constructor_declared: bool,
+    /// A constructor-assigned (`constructor_declared`) field that ALSO has a
+    /// plain class-body declaration (`#x;` written out as a member). Upstream
+    /// keeps that declaration at its source position; we therefore must NOT
+    /// relocate it to a synthesized backing field emitted just before the
+    /// constructor. Only meaningful for PRIVATE fields (a private backing is
+    /// just the bare `#x;` declaration — identical to the kept member — with no
+    /// accessor). Defaults to `false`.
+    pub(super) had_class_body_decl: bool,
     /// An inline trailing comment (e.g. `// TODO …`) that preceded this field
     /// on its own line in the source.  When present, it is appended after the
     /// private backing field declaration instead of being emitted as a
@@ -1010,7 +1018,7 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
             if trimmed.is_empty() {
                 continue;
             }
-            if let Some(field) = parse_constructor_state_assignment(trimmed, &fields) {
+            if let Some(mut field) = parse_constructor_state_assignment(trimmed, &fields) {
                 let field_name = field.name.clone();
                 // Remove plain field declarations from members that match this constructor field
                 let mut indices_to_remove: Vec<usize> = Vec::new();
@@ -1030,9 +1038,23 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                     }
                 }
                 // Remove matching plain declarations (replace with empty NonRune)
-                // Also remove preceding JSDoc/comment blocks
+                // Also remove preceding JSDoc/comment blocks.
+                //
+                // EXCEPTION: a PRIVATE field whose `#x;` declaration is already
+                // written in the class body keeps that declaration at its source
+                // position (upstream does not relocate it). A private backing IS
+                // just the bare `#x;`, so removing it here and re-emitting it
+                // before the constructor would both reorder and (re)synthesize it.
+                // Mark the field and leave the member in place.
                 for idx in &indices_to_remove {
                     if *idx < members.len() {
+                        if field.is_private
+                            && let ClassMember::NonRune(text) = &members[*idx]
+                            && text.trim().trim_end_matches(';').trim().starts_with('#')
+                        {
+                            field.had_class_body_decl = true;
+                            continue;
+                        }
                         members[*idx] = ClassMember::NonRune(String::new());
                         // Remove preceding comment/JSDoc member if it exists
                         if *idx > 0
@@ -1110,9 +1132,15 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                 }
             }
             ClassMember::Constructor => {
-                // Emit constructor-declared private fields just before the constructor
+                // Emit constructor-declared private fields just before the constructor —
+                // EXCEPT those that already have a class-body `#x;` declaration kept in
+                // place (`had_class_body_decl`), which upstream leaves at its source
+                // position rather than relocating here.
                 for field in &fields {
-                    if field.constructor_declared && field.is_private {
+                    if field.constructor_declared
+                        && field.is_private
+                        && !field.had_class_body_decl
+                    {
                         new_class_body.push_str(&emit_class_field(field, &fields));
                     }
                 }
@@ -1389,6 +1417,7 @@ pub(super) fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStat
         value,
         private_backing_name, // Sanitized to be a valid identifier
         constructor_declared: false,
+        had_class_body_decl: false,
         trailing_comment: None,
     })
 }
@@ -1466,6 +1495,7 @@ pub(super) fn parse_constructor_state_assignment(
         value,
         private_backing_name,
         constructor_declared: true,
+        had_class_body_decl: false,
         trailing_comment: None,
     })
 }
