@@ -179,9 +179,15 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 >   緩めるか、private-field 同様の scope-aware should_proxy 化が要る（name ベースなので同名 binding 衝突リスク）。
 >   (b) spread-object の `style` 値テンプレート `${cols}` に `?? ""` が付かない（spread 専用 builder が
 >   `build_template_chunk` の `?? ""` ロジックを通っていない）。
-> - **`dom-typeahead.svelte.ts`**: server module path で private `$derived.by` フィールドの read が `this.#x()`
->   止まり（公式 `this.#x()()`）。`collect_derived_private_fields` は TS-strip 後に走るので型注釈名バグは無関係、
->   `post_process_for_server` の `$.get(this.#x)` → derived 判定が効いていない（field が derived 集合に入っていない疑い）。
+> - **`dom-typeahead.svelte.ts`**（精密診断済み）: server module path で private `$derived.by` フィールドの
+>   callee 位置 read `this.#x()` が公式 `this.#x()()` にならない。`collect_derived_private_fields` は
+>   `getCurrentItem` を**正しく derived 集合に収集している**（debug 確認済み）。真因は手前: `.svelte.ts` は
+>   esbuild で TS-strip 済み → `transform_module_source_for_module(src, analysis, false)` が **callee 位置の
+>   private derived read を `$.get(this.#x)` でラップしない**（COMPONENT path はラップする；MODULE path の差）。
+>   そのため `post_process_for_server` に `$.get(...)` マーカーが無く、bare `this.#x()`（source 由来）のまま残る。
+>   `post_process` 側で bare `this.#<derived>` をテキスト走査して `()` 付与する案は**不可**: `$.get` 変換後の
+>   `this.#x()` と source bare-callee `this.#x()` がテキスト上区別不能で二重 `()()` になる。真の修正は MODULE
+>   read-wrap（§5.3 のテキスト機構）を component path 同様 callee もラップするよう直すこと。
 >
 > **本セッションで試したが未達（root-cause 判明・defer 理由）:** ①`declaration-tag-division`（typed `{@const
 > typed: number = …}` が server で丸ごと drop。id span / declarator JSON 形状の深掘りが必要・print fixture）。
