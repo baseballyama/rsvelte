@@ -168,6 +168,21 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
    の `$store` も skip されていた。前 3 文字が `...` なら spread と判定して wrap を許可（単独 `.` の property
    access は従来通り skip）。`$formData.items = [...$formData.items, id]` が `[...$formData().items, id]` に。**−1**
 
+> **本セッションで判明した root-cause（要・追加作業 / 高リスクのため未着手）:**
+> - **`flowbite products/+page`**: `{#each [literal] as title}{title}` の each-item テキストが公式は
+>   `$.template_effect(() => $.set_text(text, title))`（reactive）だが我々は static `text.nodeValue = title`。
+>   literal-array each-item の text-reactivity 判定が必要（全 each ブロックに影響＝広範・高リスク）。
+>   ※ const-shadow fold バグは修正済み（commit「don't constant-fold an identifier shadowed by an {#each} item」）。
+> - **`SpatialMenuNav`**: (a) component-level `$.set(highlighted, id, true)` の余分な proxy ＝ `const id = \`…\``
+>   が **ネストスコープ**（`forEach` callback）で宣言されるため `non_proxy_vars`（top-level のみ収集）から漏れる。
+>   公式は binding initial（TemplateLiteral）を辿って非 proxy 判定。`non_proxy_vars` の `is_top_level` gate を
+>   緩めるか、private-field 同様の scope-aware should_proxy 化が要る（name ベースなので同名 binding 衝突リスク）。
+>   (b) spread-object の `style` 値テンプレート `${cols}` に `?? ""` が付かない（spread 専用 builder が
+>   `build_template_chunk` の `?? ""` ロジックを通っていない）。
+> - **`dom-typeahead.svelte.ts`**: server module path で private `$derived.by` フィールドの read が `this.#x()`
+>   止まり（公式 `this.#x()()`）。`collect_derived_private_fields` は TS-strip 後に走るので型注釈名バグは無関係、
+>   `post_process_for_server` の `$.get(this.#x)` → derived 判定が効いていない（field が derived 集合に入っていない疑い）。
+>
 > **本セッションで試したが未達（root-cause 判明・defer 理由）:** ①`declaration-tag-division`（typed `{@const
 > typed: number = …}` が server で丸ごと drop。id span / declarator JSON 形状の深掘りが必要・print fixture）。
 > ②`dom-typeahead.svelte.ts`（private `$derived.by` フィールドの **callee 位置**読み `this.#x()` を
