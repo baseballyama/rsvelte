@@ -37,8 +37,6 @@
 	"shadcn-svelte/docs/src/lib/components/mobile-nav.svelte",
 	"shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte",
 	"shadcn-svelte/docs/src/lib/registry/examples/checkbox-form-multiple.svelte",
-	"shadcn-svelte/docs/src/lib/registry/examples/create/preview/cards/bar-chart-card.svelte",
-	"shadcn-svelte/docs/src/lib/registry/examples/create/preview/cards/visitors.svelte",
 	"shadcn-svelte/docs/src/lib/registry/examples/create/vercel/circular-gauge.svelte",
 	"shadcn-svelte/docs/src/lib/registry/examples/date-picker-form.svelte",
 	"shadcn-svelte/docs/src/lib/registry/ui/sidebar/sidebar-menu-skeleton.svelte",

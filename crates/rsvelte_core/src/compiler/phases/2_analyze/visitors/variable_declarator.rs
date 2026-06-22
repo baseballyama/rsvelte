@@ -841,8 +841,50 @@ fn is_expression_defined(node: &Value) -> bool {
             .and_then(|arr| arr.last())
             .map(is_expression_defined)
             .unwrap_or(false),
+        // Upstream `scope.evaluate` knows the global `Math.*` / `Number` /
+        // `Number.*` / `String` / `String.from*` / `BigInt` functions return a
+        // NUMBER or STRING — never null/undefined. A `const x = Math.round(...)`
+        // binding is therefore `is_defined`, so a template `${x}` reads bare
+        // (no `?? ''`). Mirrors `is_known_defined_global_call` in
+        // `3_transform/.../shared/utils.rs`.
+        "CallExpression" => node
+            .get("callee")
+            .and_then(json_member_keypath)
+            .map(|kp| is_known_defined_global_call(&kp))
+            .unwrap_or(false),
         _ => false,
     }
+}
+
+/// Build a dotted keypath for a non-computed identifier member chain
+/// (`Math.round` → `"Math.round"`, `Number` → `"Number"`). Returns `None` for
+/// any computed access / non-identifier link. Mirrors `js_expr_keypath`.
+fn json_member_keypath(node: &Value) -> Option<String> {
+    match node.get("type").and_then(|t| t.as_str())? {
+        "Identifier" => node.get("name").and_then(|n| n.as_str()).map(String::from),
+        "MemberExpression" if !node.get("computed").and_then(|c| c.as_bool()).unwrap_or(false) => {
+            let object = json_member_keypath(node.get("object")?)?;
+            let prop = node
+                .get("property")
+                .filter(|p| p.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
+                .and_then(|p| p.get("name"))
+                .and_then(|n| n.as_str())?;
+            Some(format!("{object}.{prop}"))
+        }
+        _ => None,
+    }
+}
+
+/// The global functions whose return value is always a defined number/string —
+/// mirrors `is_known_defined_global_call` in the client transform.
+fn is_known_defined_global_call(keypath: &str) -> bool {
+    keypath.starts_with("Math.")
+        || keypath == "Number"
+        || keypath.starts_with("Number.")
+        || keypath == "String"
+        || keypath == "String.fromCharCode"
+        || keypath == "String.fromCodePoint"
+        || keypath == "BigInt"
 }
 
 /// Extract a literal string representation from an AST node.
