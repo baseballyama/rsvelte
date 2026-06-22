@@ -141,7 +141,7 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 
 | ファイル | 件数 | 内容 |
 |---|---|---|
-| `compat/corpus/known-failures.json` | **53**（67→53、本セッションで −14） | CSR/SSR コンパイル出力の非一致。下記クラスタ別 root-cause マップ参照。 |
+| `compat/corpus/known-failures.json` | **50**（67→50、本セッションで −17） | CSR/SSR コンパイル出力の非一致。下記クラスタ別 root-cause マップ参照。 |
 | `compat/corpus/fmt-known-failures.json` | **0** ✅ | （PR #1111 で達成済み） |
 | `compat/corpus/svelte2tsx-known-failures.json` | 0 | ✅ 既に 100% |
 
