@@ -141,7 +141,7 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 
 | ファイル | 件数 | 内容 |
 |---|---|---|
-| `compat/corpus/known-failures.json` | **54**（67→54、本セッションで −13） | CSR/SSR コンパイル出力の非一致。下記クラスタ別 root-cause マップ参照。 |
+| `compat/corpus/known-failures.json` | **53**（67→53、本セッションで −14） | CSR/SSR コンパイル出力の非一致。下記クラスタ別 root-cause マップ参照。 |
 | `compat/corpus/fmt-known-failures.json` | **0** ✅ | （PR #1111 で達成済み） |
 | `compat/corpus/svelte2tsx-known-failures.json` | 0 | ✅ 既に 100% |
 
@@ -169,6 +169,13 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
    access は従来通り skip）。`$formData.items = [...$formData.items, id]` が `[...$formData().items, id]` に。**−1**
 
 > **本セッションで判明した root-cause（要・追加作業 / 高リスクのため未着手）:**
+> - **`pin-input.svelte.ts`**（精密診断済み・テキスト修正は REGRESS するので AST 必須）: コンストラクタ内の
+>   member MUTATION `this.#x.prop = value`（`#x` は private `$state`）が `this.#x.v.prop = value` になる
+>   （`class_transforms.rs::transform_constructor_assignment` 〜2180 の blanket `this.#name.`→`this.#name.v.` 置換）。
+>   公式は **proxy 経由** `$.get(this.#x).prop = value`（mutation は proxy を変更）。READ は `.v` のまま。
+>   テキストで「mutation(assignment-target) は `$.get`、read は `.v`」を判定する heuristic（leading-member +
+>   top-level `=`）を試したが **runtime-runes 1件 + corpus 1件を REGRESS**（read/method-call/compound で
+>   over-match）→ 即 revert。真の修正は AST `ClassBody`（§6）で assignment-target vs read を AST 判定すること。
 > - **`flowbite products/+page`**: `{#each [literal] as title}{title}` の each-item テキストが公式は
 >   `$.template_effect(() => $.set_text(text, title))`（reactive）だが我々は static `text.nodeValue = title`。
 >   literal-array each-item の text-reactivity 判定が必要（全 each ブロックに影響＝広範・高リスク）。
