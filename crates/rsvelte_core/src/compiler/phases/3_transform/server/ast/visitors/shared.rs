@@ -227,6 +227,19 @@ pub fn process_children_inner<'a>(
     let saved_in_element = state.in_element_children;
     state.in_element_children = parent.is_some();
 
+    // 写经 upstream `state.namespace`: the children we are about to visit render
+    // in `namespace`. Expose it on the state (save/restore) so a nested visitor —
+    // e.g. the component `$.css_props(..., namespace === 'svg' ? false : true, …)`
+    // SVG flag — can read the current namespace. `<foreignObject>` etc. switch
+    // back to `html` for their children, which the element visitor already
+    // reflects in the `namespace` it hands here.
+    let saved_namespace = state.namespace;
+    state.namespace = match namespace {
+        "svg" => "svg",
+        "mathml" => "mathml",
+        _ => "html",
+    };
+
     for node in &cleaned {
         match node.as_ref() {
             TemplateNode::Text(t) => sequence.push(SeqNode::Text(t.data.as_str())),
@@ -326,6 +339,7 @@ pub fn process_children_inner<'a>(
     }
     flush_sequence(&sequence, state);
     state.in_element_children = saved_in_element;
+    state.namespace = saved_namespace;
 }
 
 /// Normalize template-text whitespace to match upstream's `clean_nodes` +
