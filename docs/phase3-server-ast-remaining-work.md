@@ -141,9 +141,63 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 
 | ファイル | 件数 | 内容 |
 |---|---|---|
-| `compat/corpus/known-failures.json` | **69**（120→69、switchover で −51） | CSR/SSR コンパイル出力の非一致。残りの大半は **CSR 側**（§2 の client AST 化が前提）。SSR 由来の 18 はコメント保持・`destructured-props`・タグ名小文字化・unicode エスケープ等。 |
-| `compat/corpus/fmt-known-failures.json` | **0** ✅ | （PR #1111 で達成済み。本ドキュメント旧版の 295 は古い） |
+| `compat/corpus/known-failures.json` | **58**（67→58、本セッションで −9） | CSR/SSR コンパイル出力の非一致。下記クラスタ別 root-cause マップ参照。 |
+| `compat/corpus/fmt-known-failures.json` | **0** ✅ | （PR #1111 で達成済み） |
 | `compat/corpus/svelte2tsx-known-failures.json` | 0 | ✅ 既に 100% |
+
+#### 本セッションで直したクラスタ（67→58、各コミットでコーパス verify + gate 緑）
+1. **私有 `$state` フィールド代入の scope-aware should_proxy**（`private_class_assign_ast.rs`）— ①複合代入
+   (`this.#x += y`) は `is_non_coercive_operator` が false なので proxy しない。②識別子 RHS は binding の
+   initializer を辿る（`const fps = 1000/delta; this.#fps = fps` → BinaryExpression initial → 非 proxy）。
+   テキスト `expression_needs_proxy(rhs_text)` を AST ベース `should_proxy_with_bindings` に置換。**−3**
+2. **コンストラクタ内ネスト関数の私有 `$state` read**（`private_v_suffix_ast.rs`）— 直body (depth 0) は `.v`、
+   ネスト関数/arrow 内（construction 後に実行）は `$.get(...)`。`fn_depth` を追跡。**−2**
+3. **boundary 直下の `{#snippet}` を inline 出力**（`server/ast/visitors/snippet_block.rs`）— analyze が
+   `<svelte:boundary>` で depth を上げないため `can_hoist` が誤って true。汎用 SnippetBlock visitor の hoist 判定を
+   `can_hoist && fragment_depth <= 1` に gate（boundary visitor の `failed` と同じ）。**−4**
+
+#### 残り 58 の root-cause マップ（次セッションの burn-down 指針。各 verify は rebuild napi→`corpus:compile`(12s)→`corpus:verify`）
+> 検証ループ: `CARGO_TARGET_DIR=target-verify cargo build --release --features napi --lib && cp
+> target-verify/release/librsvelte_core.dylib .corpus-cache/rsvelte.node && pnpm run corpus:compile &&
+> pnpm run corpus:verify`。baseline 更新: `node scripts/compat-corpus/verify.mjs --no-fmt --update-baseline`
+> （macOS で CSR/SSR baseline 可）。gate: `RUST_MIN_STACK=33554432 CARGO_TARGET_DIR=target-ast cargo test
+> -p rsvelte_core --test runtime --test ssr --test compiler_fixtures -- --test-threads=4`（debug は要 RUST_MIN_STACK）。
+
+- **`.svelte.(ts|js)` クラス state machinery（最大群・~13ファイル）** — `class_transforms.rs` + 衛星
+  `private_*_ast.rs` 群はテキスト/span 編集ベースの不完全な再実装。残バグ: ①member-mutation
+  `this.#state.foo = x`（代入ターゲットの member chain）が `$.get(base)` でなく `.v` になる（pin-input。
+  代入ターゲット member は `visit_static_member_expression` で skip されないため `.v` が付く）。②クラスフィールド
+  **宣言順** の差異（grace-area: `#enabled;` の位置）。③クラスフィールド **コメント** 配置（tooltip `/** Props */`,
+  transition `count` vs コメント）。**真の修正は AST `ClassBody` visitor 化**（公式 `ClassBody.js` 移植）。これが
+  §5「テキスト除去」の class 部分の本丸でもある。
+- **comment-fallback（~3+）** — to_oxc がコメント付き Raw で bail→codegen.rs verbatim（単引用 import 等で乖離）。
+  公式は `/* @__PURE__ */`（tooltip.svelte.ts）等の機能コメントを **保持** するので §5.4 のコメント保持が必須。
+  esrap は `print_with_comments`/`CommentHooks` あり。再構成 program の座標統一が課題。
+- **template chunk `?? ""` の is_defined**（bar-chart-card, visitors, SpatialMenuNav）— `${desktopDelta}` で
+  `desktopDelta = Math.round(...)` を公式は defined 扱い（`?? ""` なし）だが我々は付ける（逆に spread style の
+  `${cols}` は付け損ねる）。`is_expression_defined` の identifier→const-initializer トレースが CallExpression
+  (`Math.round`) を defined と判定できない（phase2 `initial_is_defined` が CallExpression に未対応）。公式
+  `scope.evaluate().is_defined` 相当の拡張が要る。
+- **コンポーネント level proxy `, true`**（`local_assign_ast.rs`/`state_assigns_combined_ast.rs`/
+  `state_pipeline_ast.rs`）— 無条件に `, true` を付ける。should_proxy を #1 と同様 scope-aware 化すべき
+  （ただし SpatialMenuNav 等は `?? ""` 等の別 diff も併発）。
+- **server `$state.snapshot` strip（module path）**（Popover/selection-state `.svelte.ts`）— `compileModule`
+  系で公式は `$state.snapshot(x)` → `x`（bare）になる場合がある。`.svelte.ts` module の server transform を要確認。
+  併発して `/* State */` 等のコメント diff もあり。
+- **destructured-props（legacy・4ファイル svelte 本体）** — ①ネスト array destructure の `$$array` カウンタが
+  `$$array_1` にインクリメントされない。②destructure default (`g = default_g`) の `$.fallback(tmp.g, default_g)`
+  ネスト fallback が欠落。server destructure lowering の精緻化。
+- **svg/html namespace + whitespace collapse**（analytics-card, Dropzone, circular-gauge, Datepicker）—
+  `from_svg`/`from_html` の判定と、要素間 whitespace 折り畳み（`<!> <!>` vs `<!><!>`）+ `$.sibling(n, 2)` offset。
+  known-hard な whitespace 領域。
+- **store auto-sub の取りこぼし**（checkbox-form-multiple: `$formData.items` が `$formData().items` であるべき）、
+  **each index param 欠落**（team-members: `($$anchor, member, $$index_1)` の `$$index_1`）、
+  **定数畳み込み過剰**（flowbite products/+page: reactive な `title` を literal に畳む）、
+  **false-positive `store_invalid_scoped_subscription`**（date-picker-form: `const { form: formData } = form` の
+  destructured top-level store を scoped 判定）— 各 1〜2 ファイルの個別バグ。
+- **doc/error/print fixture**（compile-errors 5.svelte の nested-boundary 順序, declaration-tag-division print,
+  bidirectional-control-characters unicode escape, module-script-reactive-declaration, migrate/slot-usages）—
+  svelte 本体の特殊 fixture 群。一部は intentionally-weird。
 
 ### 100% にするために必要なこと
 
