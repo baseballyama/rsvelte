@@ -43,10 +43,15 @@ fn method_body_with_state_call_is_not_a_field() {
     );
     // The method is preserved verbatim (its function-local `$state(0)` is just
     // the legacy `$state` call lowered to `0`, which is the expected behaviour
-    // for a non-runes mode function-scope rune call).
+    // for a non-runes mode function-scope rune call). The AST codegen prints the
+    // class formatted (`class C {` / `m() {`), matching the official compiler.
     assert!(
-        out.contains("class C { m(){"),
-        "class body should survive, got:\n{out}"
+        out.contains("class C {"),
+        "class should survive, got:\n{out}"
+    );
+    assert!(
+        out.contains("m() {"),
+        "method should survive as a normal method, got:\n{out}"
     );
 }
 

@@ -996,11 +996,7 @@ pub fn build_fragment_body<'a>(
     // adopts that namespace, so whitespace-only text between them is removable
     // (`can_remove_entirely`) just like inside an `<svg>` element. The root
     // fragment defaults to `html`; refine it from the children.
-    let fragment_namespace =
-        crate::compiler::phases::phase3_transform::server::visitors::fragment::infer_namespace_from_nodes_owned(
-            &fragment.nodes,
-            "html",
-        );
+    let fragment_namespace = infer_namespace_from_nodes_owned(&fragment.nodes, "html");
     process_children_inner(
         &fragment.nodes,
         None,
@@ -1567,4 +1563,58 @@ impl<'a> PromiseOptimiser<'a> {
         }
         create_child_block(state, statements, &self.blockers, self.has_await)
     }
+}
+
+/// Compute 1-based line number and 0-based column for a byte offset in source.
+/// (Relocated from the deleted text `server/visitors/element.rs` — used by the
+/// dev-mode `$.push_element($$renderer, '<name>', <line>, <col>)` instrumentation.)
+pub(crate) fn locate_in_source(source: &str, offset: usize) -> (usize, usize) {
+    let offset = offset.min(source.len());
+    let mut line = 1usize;
+    let mut col = 0usize;
+    for (i, ch) in source.char_indices() {
+        if i >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            col = 0;
+        } else {
+            col += 1;
+        }
+    }
+    (line, col)
+}
+
+/// Infer a fragment's namespace from its children (owned-slice variant). If every
+/// direct `RegularElement` child is SVG (or every one MathML) the fragment adopts
+/// that namespace, so whitespace-only text between them is removable. (Relocated
+/// from the deleted text `server/visitors/fragment.rs`.)
+pub(crate) fn infer_namespace_from_nodes_owned(
+    nodes: &[TemplateNode],
+    parent_namespace: &str,
+) -> String {
+    let mut found_namespace: Option<&str> = None;
+    for node in nodes {
+        if let TemplateNode::RegularElement(el) = node {
+            if el.metadata.svg {
+                match found_namespace {
+                    None => found_namespace = Some("svg"),
+                    Some("svg") => {}
+                    _ => return "html".to_string(),
+                }
+            } else if el.metadata.mathml {
+                match found_namespace {
+                    None => found_namespace = Some("mathml"),
+                    Some("mathml") => {}
+                    _ => return "html".to_string(),
+                }
+            } else {
+                return "html".to_string();
+            }
+        }
+    }
+    found_namespace
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| parent_namespace.to_string())
 }

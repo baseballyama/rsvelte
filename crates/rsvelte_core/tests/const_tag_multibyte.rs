@@ -36,8 +36,10 @@ fn multibyte_const_lhs_client() {
 fn multibyte_const_lhs_server() {
     let out = go(SRC, GenerateMode::Server);
     assert!(!out.contains("COMPILE_ERROR"), "{out}");
+    // AST codegen prints the assignment spaced (`café = 'x'`), matching the
+    // official compiler; the check is that the multi-byte identifier is intact.
     assert!(
-        out.contains("café='x'"),
+        out.contains("café = 'x'"),
         "multi-byte const mis-split: {out}"
     );
 }

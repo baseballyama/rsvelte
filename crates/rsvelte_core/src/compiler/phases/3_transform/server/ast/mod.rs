@@ -9,8 +9,8 @@
 //! (`server_component` / `server_module`). For now the template and script
 //! bodies are STUBBED empty; only the program skeleton (namespace import,
 //! sanitized-props / rest-props / slots prologue, and the exported component
-//! function shell) is emitted. The per-node visitors live in [`visitors`] and
-//! are ported incrementally.
+//! function shell) is emitted. The per-node visitors live in the `visitors`
+//! submodule.
 //!
 //! This module is NOT yet wired into `super::transform_server`; it exists so
 //! the crate keeps compiling while the AST pipeline is built out.
@@ -141,6 +141,12 @@ pub struct ServerTransformState<'a> {
     /// template — and prepended to the component-function body (ahead of the
     /// rendered template), matching upstream's shared component-level `state.init`.
     pub snippet_inits: Vec<Statement<'a>>,
+    /// Names of every `{#snippet name(...)}` lowered to a `function name(...)`
+    /// declaration (写经 upstream's `fn.___snippet = true` marker). Used by the
+    /// `uses_component_bindings` settle-loop assembly to partition top-level
+    /// snippet FunctionDeclarations ahead of the `$$render_inner` wrapper, exactly
+    /// like upstream's `template.body.filter(n => n.___snippet)` split.
+    pub snippet_names: rustc_hash::FxHashSet<String>,
     /// Monotonic counter for the `$$d` temp generated when expanding a
     /// destructured `$derived` / `$derived.by` whose base needs a single shared
     /// `$$d = <init>` binding (mirrors upstream `scope.generate('$$d')`). The
@@ -255,6 +261,7 @@ impl<'a> ServerTransformState<'a> {
             local_derived_names: rustc_hash::FxHashSet::default(),
             const_promises_counter: 0,
             snippet_inits: Vec::new(),
+            snippet_names: rustc_hash::FxHashSet::default(),
             derived_d_counter: 0,
             derived_array_counter: 0,
             state_tmp_counter: 0,
@@ -670,16 +677,72 @@ impl<'a> ServerTransformState<'a> {
 fn reparse_expression<'a>(src: &str, allocator: &'a Allocator) -> Option<OxcExpression<'a>> {
     let wrapped = format!("({})", src.trim());
     let owned = allocator.alloc_str(&wrapped);
-    let ret = oxc_parser::Parser::new(allocator, owned, oxc_span::SourceType::mjs()).parse();
+    // Parse TypeScript-aware: a source slice (e.g. a `{@render foo(x as T)}`
+    // argument) may still carry TS that the rsvelte parser strips on the structured
+    // AST but the raw text retains. Parsing as plain JS rejects `x as T`, leaving an
+    // `undefined` fallback; parsing as TS then stripping the type-only wrappers
+    // (below) reproduces the structured-AST output.
+    let ret = oxc_parser::Parser::new(
+        allocator,
+        owned,
+        oxc_span::SourceType::mjs().with_typescript(true),
+    )
+    .parse();
     if !ret.diagnostics.is_empty() {
         return None;
     }
     for stmt in ret.program.body {
         if let Statement::ExpressionStatement(es) = stmt {
-            return Some(unwrap_parenthesized(es.unbox().expression));
+            let mut expr = unwrap_parenthesized(es.unbox().expression);
+            strip_ts_expression_wrappers(&mut expr, allocator);
+            return Some(expr);
         }
     }
     None
+}
+
+/// Recursively replace TypeScript expression wrappers (`x as T`,
+/// `x satisfies T`, `x!`, `<T>x`) with their inner expression, tree-wide. The
+/// server never emits TS, so these always collapse to the underlying value (e.g.
+/// `{ value: value as T[U] }` → `{ value: value }`, which esrap then prints as the
+/// shorthand `{ value }`). Mirrors the rsvelte parser's `remove_typescript_nodes`
+/// pass, applied here because `reparse_expression` re-parses raw (un-stripped)
+/// source text.
+fn strip_ts_expression_wrappers<'a>(expr: &mut OxcExpression<'a>, allocator: &'a Allocator) {
+    use oxc_ast_visit::VisitMut;
+    struct TsStrip<'b> {
+        ab: oxc_ast::AstBuilder<'b>,
+    }
+    impl<'b> VisitMut<'b> for TsStrip<'b> {
+        fn visit_expression(&mut self, expr: &mut OxcExpression<'b>) {
+            loop {
+                let is_wrapper = matches!(
+                    expr,
+                    OxcExpression::TSAsExpression(_)
+                        | OxcExpression::TSSatisfiesExpression(_)
+                        | OxcExpression::TSNonNullExpression(_)
+                        | OxcExpression::TSTypeAssertion(_)
+                );
+                if !is_wrapper {
+                    break;
+                }
+                let placeholder = self.ab.expression_boolean_literal(SPAN, false);
+                let taken = std::mem::replace(expr, placeholder);
+                *expr = match taken {
+                    OxcExpression::TSAsExpression(e) => e.unbox().expression,
+                    OxcExpression::TSSatisfiesExpression(e) => e.unbox().expression,
+                    OxcExpression::TSNonNullExpression(e) => e.unbox().expression,
+                    OxcExpression::TSTypeAssertion(e) => e.unbox().expression,
+                    _ => unreachable!(),
+                };
+            }
+            oxc_ast_visit::walk_mut::walk_expression(self, expr);
+        }
+    }
+    let mut v = TsStrip {
+        ab: oxc_ast::AstBuilder::new(allocator),
+    };
+    v.visit_expression(expr);
 }
 
 /// Strip any (possibly nested) `ParenthesizedExpression` wrappers introduced by
@@ -733,24 +796,25 @@ pub fn server_component_ast<'a>(
     let mut state = ServerTransformState::new(analysis, options, source, &ast.arena, allocator);
 
     // Precompute the SSR constant-folding inputs (`constant_vars` /
-    // `use_async` / `top_level_blocker_map`) via the proven legacy
-    // `ServerCodeGenerator::new` path, so the AST pipeline folds template
-    // chunks byte-identically to the oracle. Cheap: only harvests the maps.
+    // `use_async` / `top_level_blocker_map`) via the standalone
+    // `compute_eval_inputs` (extracted from the now-removed text
+    // `ServerCodeGenerator::new`), so the AST pipeline folds template chunks
+    // byte-identically to the oracle. Cheap: only harvests the maps.
     {
         let instance_script = ast.instance.as_ref().map(|s| s.as_ref());
         let module_script = ast.module.as_ref().map(|s| s.as_ref());
-        let legacy = super::ServerCodeGenerator::new(
-            analysis.name.clone(),
-            source.to_string(),
+        let use_async = options.experimental.r#async;
+        let raw = super::helpers::compute_eval_inputs(
+            Some(analysis),
             instance_script,
             module_script,
-            Some(analysis),
-            options.experimental.r#async,
+            source,
+            use_async,
         );
         state.eval_inputs = EvalInputs {
-            constant_vars: legacy.constant_vars,
-            use_async: legacy.use_async,
-            top_level_blocker_map: legacy.top_level_blocker_map,
+            constant_vars: raw.constant_vars,
+            use_async,
+            top_level_blocker_map: raw.top_level_blocker_map,
             template_scopes_cache: std::cell::OnceCell::new(),
         };
     }
@@ -829,14 +893,31 @@ pub fn server_component_ast<'a>(
     //
     // Upstream separates top-level snippet FunctionDeclarations (`___snippet`)
     // from the `rest`, keeps the snippets ahead of the loop, and wraps only the
-    // `rest`. In the AST pipeline, top-level snippet function declarations are
-    // hoisted to `state.hoisted` (module scope) by `visit_snippet_block`, so
-    // they are NOT present in `template_body` — the whole `template_body` IS the
-    // `rest`, and the `snippets` prefix is empty here.
+    // `rest`. A HOISTABLE snippet was lifted to module scope (`state.hoisted`); a
+    // NON-hoistable one (referencing instance state, e.g. `{#snippet Fallback()}`
+    // using a prop) is emitted inline into `template_body`. Those non-hoistable
+    // top-level snippet functions must render OUTSIDE the settle loop, so split
+    // them off the front (matching upstream's `template.body.filter(___snippet)`)
+    // and keep them ahead of `$$render_inner` rather than inside it.
     let template_body = if analysis.uses_component_bindings {
+        let mut snippets: Vec<Statement<'a>> = Vec::new();
+        let mut rest: Vec<Statement<'a>> = Vec::new();
+        for stmt in template_body {
+            let is_snippet = matches!(
+                &stmt,
+                Statement::FunctionDeclaration(f)
+                    if f.id.as_ref().is_some_and(|id| state.snippet_names.contains(id.name.as_str()))
+            );
+            if is_snippet {
+                snippets.push(stmt);
+            } else {
+                rest.push(stmt);
+            }
+        }
+
         // function $$render_inner($$renderer) { <rest> }
         let inner_params = b.params(vec![b.id_pat("$$renderer")], None);
-        let inner_fn_body = b.body(template_body);
+        let inner_fn_body = b.body(rest);
         let render_inner_fn =
             b.function_declaration("$$render_inner", inner_params, inner_fn_body, false);
 
@@ -857,13 +938,15 @@ pub fn server_component_ast<'a>(
         ]);
         let do_while = b.do_while(b.unary_not(b.id("$$settled")), loop_body);
 
-        vec![
+        let mut out = snippets;
+        out.extend([
             b.let_id("$$settled", Some(b.bool(true))),
             b.let_id("$$inner_renderer", None),
             render_inner_fn,
             do_while,
             b.stmt(b.call("$$renderer.subsume", vec![b.id("$$inner_renderer")])),
-        ]
+        ]);
+        out
     } else {
         template_body
     };

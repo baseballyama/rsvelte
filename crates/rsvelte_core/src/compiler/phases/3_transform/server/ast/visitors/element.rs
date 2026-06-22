@@ -81,7 +81,17 @@ const WHITESPACE_INSENSITIVE_ATTRIBUTES: [&str; 2] = ["class", "style"];
 
 /// Visit a `<name ...>children</name>` regular element.
 pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransformState<'a>) {
-    let name = node.name.as_str();
+    // 写经 upstream `RegularElement.js` l.18: in the HTML namespace the element
+    // tag name is lowercased (`<iNPUT>` → `<input>`, `<thisShouldWarnMe>` →
+    // `<thisshouldwarnme>`); SVG / MathML preserve case. This must precede the
+    // void-element / `<select>` / `<option>` checks so an uppercase void/special
+    // tag is recognized.
+    let name_owned: String = if node.metadata.svg || node.metadata.mathml {
+        node.name.as_str().to_string()
+    } else {
+        node.name.as_str().to_lowercase()
+    };
+    let name = name_owned.as_str();
     let is_void = is_void_element(name);
 
     // -- special `<select value>` / `<option>` branches ---------------------
@@ -313,8 +323,7 @@ fn emit_element_body<'a>(
 /// 0-based column of `node.start`, computed via the existing (read-only)
 /// `locate_in_source` helper from the legacy server pipeline.
 fn push_element_dev<'a>(node: &RegularElement, name: &str, state: &mut ServerTransformState<'a>) {
-    let (line, col) =
-        super::super::super::visitors::element::locate_in_source(state.source, node.start as usize);
+    let (line, col) = super::shared::locate_in_source(state.source, node.start as usize);
     let b = state.b;
     let call = b.call(
         "$.push_element",
@@ -878,6 +887,25 @@ pub(super) fn build_element_attributes<'a>(
     // fresh-scope-class injection only happens when there is none AND no class
     // directive/spread.
     let mut emitted_class = false;
+    // Whether the fresh scope-class literal has already been emitted early (ahead
+    // of a `style:`-directive `attr_style`). Upstream synthesizes the empty
+    // `class=""` BEFORE the empty `style=""` (analyze index.js l.910 vs l.925), so
+    // for a scoped element whose only style is a `style:` directive the scope
+    // class must precede the `$.attr_style(...)`. rsvelte doesn't synthesize the
+    // class attribute (the client RegularElement injects the hash), so emit it
+    // here at the upstream position instead of trailing after `attr_style`.
+    let mut scope_class_emitted_early = false;
+    let has_style_directive = node
+        .attributes
+        .iter()
+        .any(|a| matches!(a, Attribute::StyleDirective(_)));
+
+    // `events_to_capture` (upstream `shared/element.js`): an `onload`/`onerror`
+    // event handler on a load/error element (`<img>`, `<link>`, …) re-captures
+    // that event so the client can replay one fired before hydration. Tracked in
+    // `Set` insertion order (`onload` before `onerror`).
+    let mut capture_onload = false;
+    let mut capture_onerror = false;
 
     for attr in &node.attributes {
         // -- bind: directives ------------------------------------------------
@@ -935,11 +963,21 @@ pub(super) fn build_element_attributes<'a>(
             continue;
         }
         // Event handlers (`on*` as Attribute form) + defaultValue/defaultChecked
-        // are omitted by upstream; skip them (gap: onload/onerror capture).
+        // are omitted by upstream as attributes. An `onload`/`onerror` handler on
+        // a load/error element is recorded for the trailing capture literal.
         if is_event_attribute_name(raw_name)
             || raw_name == "defaultValue"
             || raw_name == "defaultChecked"
         {
+            if (raw_name == "onload" || raw_name == "onerror")
+                && is_load_error_element(node.name.as_str())
+            {
+                if raw_name == "onload" {
+                    capture_onload = true;
+                } else {
+                    capture_onerror = true;
+                }
+            }
             continue;
         }
 
@@ -1091,6 +1129,20 @@ pub(super) fn build_element_attributes<'a>(
             let call = build_attr_class(value, css_hash, &class_directives, state);
             push_interp(state, call);
         } else if is_style {
+            // Emit the scope class BEFORE this style attribute's `attr_style` when
+            // the element is scoped with no real/directive class (upstream's synth
+            // `class=""` precedes synth `style=""`).
+            if let Some(hash) = css_hash
+                && has_style_directive
+                && !emitted_class
+                && !has_class_dir_or_spread
+                && !scope_class_emitted_early
+            {
+                state
+                    .template
+                    .push(TemplateEntry::Literal(format!(" class=\"{hash}\"")));
+                scope_class_emitted_early = true;
+            }
             if let Some(t) = &value_text {
                 value = state.optimise_attr_value(t, value);
             }
@@ -1126,10 +1178,24 @@ pub(super) fn build_element_attributes<'a>(
     if let Some(hash) = css_hash
         && !emitted_class
         && !has_class_dir_or_spread
+        && !scope_class_emitted_early
     {
         state
             .template
             .push(TemplateEntry::Literal(format!(" class=\"{hash}\"")));
+    }
+
+    // `events_to_capture`: emit ` onload="this.__e=event"` / ` onerror="..."`
+    // literals (in Set insertion order) after all attributes.
+    if capture_onload {
+        state.template.push(TemplateEntry::Literal(
+            " onload=\"this.__e=event\"".to_string(),
+        ));
+    }
+    if capture_onerror {
+        state.template.push(TemplateEntry::Literal(
+            " onerror=\"this.__e=event\"".to_string(),
+        ));
     }
 }
 
@@ -1577,24 +1643,36 @@ fn prepare_element_spread_object<'a>(
     let mut props: Vec<ObjectPropertyKind<'a>> = Vec::new();
     let mut class_directives: Vec<&ClassDirective> = Vec::new();
     let mut style_directives: Vec<&StyleDirective> = Vec::new();
+    // Track the upstream empty-class/style synthesis inputs (analyze index.js
+    // l.895-937): a scoped element (or one with a class directive) that has no
+    // real class attribute and no spread needs a synthesized `class=""` so the
+    // scope hash has somewhere to attach — here that surfaces as `{ class: "" }`
+    // in the `$$renderer.option`/`.select` attributes object.
+    let mut has_spread = false;
+    let mut has_class = false;
+    let mut has_style = false;
 
     for attr in &node.attributes {
         match attr {
             Attribute::SpreadAttribute(spread) => {
+                has_spread = true;
                 let expr = state.visit_expr(&spread.expression);
                 props.push(state.b.spread(expr));
             }
             Attribute::Attribute(a) => {
                 let name = get_attribute_name(node, a);
-                let trim_ws = WHITESPACE_INSENSITIVE_ATTRIBUTES.contains(&name.as_str());
-                let mut value = build_attribute_value(&a.value, trim_ws, state);
-                // 写经 upstream `build_element_attributes` `class` arm: a
-                // `class={...}` whose analysis marked `needs_clsx` is wrapped in
-                // `$.clsx(...)` so the runtime flattens arrays / objects of class
-                // names before they land in the merged spread object.
-                if name == "class" && a.metadata.needs_clsx {
-                    value = state.b.call("$.clsx", vec![value]);
+                if name.eq_ignore_ascii_case("class") {
+                    has_class = true;
+                } else if name.eq_ignore_ascii_case("style") {
+                    has_style = true;
                 }
+                let trim_ws = WHITESPACE_INSENSITIVE_ATTRIBUTES.contains(&name.as_str());
+                let value = build_attribute_value(&a.value, trim_ws, state);
+                // NOTE: unlike `build_element_attributes` / the generic-element
+                // spread path, upstream's `build_spread_object` (the <option> /
+                // <select> special path, shared/element.js l.305-338) does NOT
+                // apply the `needs_clsx` `$.clsx(...)` wrap on the class attribute —
+                // the value is emitted verbatim (`class: cn(...)`).
                 props.push(state.b.init(&name, value));
             }
             Attribute::BindDirective(bind) => {
@@ -1613,6 +1691,18 @@ fn prepare_element_spread_object<'a>(
             Attribute::StyleDirective(dir) => style_directives.push(dir),
             _ => {}
         }
+    }
+
+    // 写经 analyze index.js l.909-937: synthesize the empty `class=""` (then
+    // `style=""`) so a scoped element with no real class/style attribute still
+    // emits `{ class: "" }` in the merged object. rsvelte's Phase 2 omits this
+    // synthesis (the client RegularElement injects the hash directly), so do it
+    // here for the SSR option/select spread object.
+    if !has_spread && !has_class && (node.metadata.scoped || !class_directives.is_empty()) {
+        props.push(state.b.init("class", state.b.string("")));
+    }
+    if !has_spread && !has_style && !style_directives.is_empty() {
+        props.push(state.b.init("style", state.b.string("")));
     }
 
     let object = state.b.object(props);

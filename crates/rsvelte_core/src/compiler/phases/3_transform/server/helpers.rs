@@ -4,16 +4,202 @@
 //! visitor implementations. These were extracted from `transform_server.rs`
 //! to keep the visitor files focused on their specific AST node handling.
 
-use super::types::{ConstantFoldResult, OutputPart};
-use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, Script, TemplateNode};
+use crate::ast::template::Script;
 use memchr::memmem;
 use rustc_hash::FxHashMap;
 use std::fmt::Write as _;
 
-// Re-export from sibling modules for backward compatibility
-pub(crate) use super::transform_legacy::*;
-pub(crate) use super::transform_script::*;
-pub(crate) use super::transform_store::*;
+/// The SSR constant-folding inputs that the pure-AST server pipeline needs:
+/// the constant-variable map (`scope.evaluate` folds template reads of these to
+/// their literal value) and the top-level async blocker map (`use_async`).
+/// Extracted from the now-removed text `ServerCodeGenerator::new`.
+pub(crate) struct EvalInputsRaw {
+    pub(crate) constant_vars: FxHashMap<String, String>,
+    pub(crate) top_level_blocker_map: FxHashMap<String, usize>,
+}
+
+/// Compute the SSR constant-folding inputs (`constant_vars`,
+/// `top_level_blocker_map`) for a component, mirroring the harvesting logic
+/// that used to live in the text `ServerCodeGenerator::new`.
+pub(crate) fn compute_eval_inputs(
+    analysis: Option<&crate::compiler::phases::phase2_analyze::ComponentAnalysis>,
+    instance_script: Option<&Script>,
+    module_script: Option<&Script>,
+    source: &str,
+    use_async: bool,
+) -> EvalInputsRaw {
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+    // Extract constant variables from script
+    let mut constant_vars = FxHashMap::default();
+
+    // Extract constants from module script first (only const declarations)
+    if let Some(script) = module_script {
+        let start = script.content.start().unwrap_or(0) as usize;
+        let end = script.content.end().unwrap_or(0) as usize;
+        if end > start && end <= source.len() {
+            for (k, v) in extract_constant_vars(&source[start..end], source) {
+                constant_vars.insert(k, v);
+            }
+        }
+    }
+
+    // Then from instance script (both let and const)
+    if let Some(script) = instance_script {
+        let start = script.content.start().unwrap_or(0) as usize;
+        let end = script.content.end().unwrap_or(0) as usize;
+        if end > start && end <= source.len() {
+            for (k, v) in extract_constant_vars(&source[start..end], source) {
+                constant_vars.insert(k, v);
+            }
+        }
+    }
+
+    // Add scope-based constants for $state variables that are not updated.
+    // The text-based extraction skips $state lines, but if scope analysis shows
+    // a $state binding is never reassigned/mutated, we can fold its initial value.
+    // Only template-visible scopes participate: a `$state` declared inside a
+    // function body (e.g. within a `$derived.by` arrow) must not be folded
+    // into template reads of a same-named outer binding.
+    if let Some(analysis) = analysis {
+        let template_scopes: rustc_hash::FxHashSet<usize> =
+            analysis.root.template_scope_map.values().copied().collect();
+        for binding in &analysis.root.bindings {
+            if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
+                && (binding.scope_index == 0
+                    || binding.scope_index == analysis.root.instance_scope_index
+                    || template_scopes.contains(&binding.scope_index))
+                && !binding.is_updated()
+                && !constant_vars.contains_key(&binding.name)
+                && let Some(ref init) = binding.initial
+            {
+                let trimmed = init.trim();
+                // Parse the initial value as a constant
+                if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
+                    || (trimmed.starts_with('"') && trimmed.ends_with('"'))
+                {
+                    if trimmed.len() >= 2 {
+                        constant_vars.insert(
+                            binding.name.clone(),
+                            trimmed[1..trimmed.len() - 1].to_string(),
+                        );
+                    }
+                } else if let Ok(n) = trimmed.parse::<i64>() {
+                    constant_vars.insert(binding.name.clone(), n.to_string());
+                } else if let Ok(n) = trimmed.parse::<f64>() {
+                    if n.is_finite() {
+                        constant_vars.insert(binding.name.clone(), n.to_string());
+                    }
+                } else {
+                    match trimmed {
+                        "true" | "false" | "null" | "undefined" => {
+                            constant_vars.insert(binding.name.clone(), trimmed.to_string());
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    // Check if any script uses TypeScript (needed for $derived expression stripping)
+    let is_ts = instance_script.is_some_and(script_is_typescript)
+        || module_script.is_some_and(script_is_typescript);
+
+    // After we have both text-based and scope-based constants, try to fold
+    // $derived() expressions whose inner value can be evaluated with known constants.
+    // $derived values are readonly by definition, so they're safe to fold.
+    if let Some(script) = instance_script {
+        let start = script.content.start().unwrap_or(0) as usize;
+        let end = script.content.end().unwrap_or(0) as usize;
+        if end > start && end <= source.len() {
+            let script_content = &source[start..end];
+            for line in script_content.lines() {
+                let trimmed = line.trim();
+                let tb = trimmed.as_bytes();
+                if memmem::find(tb, b"$derived(").is_none()
+                    || memmem::find(tb, b"$derived.by(").is_some()
+                {
+                    continue;
+                }
+                let decl_trimmed = if let Some(rest) = trimmed.strip_prefix("export ") {
+                    rest.trim_start()
+                } else {
+                    trimmed
+                };
+                let decl_start = if decl_trimmed.starts_with("const ") {
+                    Some(6)
+                } else if decl_trimmed.starts_with("let ") {
+                    Some(4)
+                } else {
+                    None
+                };
+                if let Some(s) = decl_start {
+                    let rest = &decl_trimmed[s..];
+                    if let Some(eq_idx) = rest.find('=') {
+                        let name = rest[..eq_idx].trim();
+                        if name.contains('{')
+                            || name.contains('[')
+                            || constant_vars.contains_key(name)
+                        {
+                            continue;
+                        }
+                        let value = rest[eq_idx + 1..].trim().trim_end_matches(';');
+                        if let Some(inner) = extract_rune_inner(value, "$derived(") {
+                            // Strip TypeScript syntax (as T, !, etc.) from inner expression
+                            let inner = strip_ts_from_derived_inner(&inner, is_ts);
+                            if let Some(folded) =
+                                try_evaluate_with_constants(&inner, &constant_vars)
+                            {
+                                constant_vars.insert(name.to_string(), folded);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Remove BindableProp variables from constant_vars.
+    // Variables exported via `export { x }` are props and can receive values from parents,
+    // so they should NOT be treated as constants even if they have literal initial values.
+    // Also remove any binding that the scope analysis marks as updated (reassigned or mutated),
+    // to handle cases that the text-based reassignment check misses (e.g. destructuring
+    // assignments like `({ x } = { x: 1 })`).
+    if let Some(analysis) = analysis {
+        for binding in &analysis.root.bindings {
+            if matches!(binding.kind, BindingKind::BindableProp) || binding.is_updated() {
+                constant_vars.remove(&binding.name);
+            }
+        }
+    }
+
+    // When experimental.async is enabled, remove variables that are in the
+    // blocker_map from constant_vars. These variables are assigned asynchronously
+    // in $$promises thunks and should NOT be constant-folded, because they need to
+    // be rendered via $$renderer.async() wrappers.
+    let mut top_level_blocker_map: FxHashMap<String, usize> = FxHashMap::default();
+    if use_async && let Some(script) = instance_script {
+        let start = script.content.start().unwrap_or(0) as usize;
+        let end = script.content.end().unwrap_or(0) as usize;
+        if end > start && end <= source.len() {
+            let raw_script = &source[start..end];
+            let blocker_map =
+                crate::compiler::phases::phase3_transform::shared::async_body::compute_blocker_map(
+                    raw_script,
+                );
+            for name in blocker_map.keys() {
+                constant_vars.remove(name);
+            }
+            top_level_blocker_map = blocker_map;
+        }
+    }
+
+    EvalInputsRaw {
+        constant_vars,
+        top_level_blocker_map,
+    }
+}
 
 /// Check if a JavaScript expression string contains `await` at the expression level
 /// (not inside nested function expressions or arrow functions).
@@ -277,25 +463,6 @@ fn transform_await_to_save_textual(expr: &str) -> String {
     result
 }
 
-/// Resolve the end of an `await` operand at keyword position `kw_pos`, using
-/// the AST-derived `arg_ends` map when available and falling back to the
-/// byte scanner [`find_await_arg_end`] otherwise. `arg_ends` maps each
-/// `await` keyword offset to its operand end (see `await_save_ast::await_arg_ends`).
-fn await_arg_end_for_keyword(
-    arg_ends: &Option<Vec<(u32, u32)>>,
-    kw_pos: usize,
-    bytes: &[u8],
-    arg_start: usize,
-    len: usize,
-) -> usize {
-    if let Some(ends) = arg_ends
-        && let Some(&(_, end)) = ends.iter().find(|&&(start, _)| start as usize == kw_pos)
-    {
-        return end as usize;
-    }
-    find_await_arg_end(bytes, arg_start, len)
-}
-
 /// Find the end of an `await` argument expression.
 ///
 /// `await` has unary-expression precedence, so it only binds to the
@@ -465,51 +632,6 @@ pub(crate) fn is_valid_js_identifier(name: &str) -> bool {
     }
 
     true
-}
-
-/// Replace an identifier in an expression with a replacement, being careful
-/// to only replace whole-word occurrences (not substrings of other identifiers).
-pub(crate) fn replace_identifier_in_expr(expr: &str, from: &str, to: &str) -> String {
-    if !expr.contains(from) {
-        return expr.to_string();
-    }
-
-    let chars: Vec<char> = expr.chars().collect();
-    let from_chars: Vec<char> = from.chars().collect();
-    let from_len = from_chars.len();
-    let mut result = String::with_capacity(expr.len() + to.len());
-    let mut i = 0;
-
-    while i < chars.len() {
-        // Check if we have a match at position i
-        if i + from_len <= chars.len() && chars[i..i + from_len] == from_chars[..] {
-            // Check that the character before is not an identifier char
-            let before_ok = if i == 0 {
-                true
-            } else {
-                let c = chars[i - 1];
-                !c.is_alphanumeric() && c != '_' && c != '$'
-            };
-
-            // Check that the character after is not an identifier char
-            let after_ok = if i + from_len >= chars.len() {
-                true
-            } else {
-                let c = chars[i + from_len];
-                !c.is_alphanumeric() && c != '_' && c != '$'
-            };
-
-            if before_ok && after_ok {
-                result.push_str(to);
-                i += from_len;
-                continue;
-            }
-        }
-        result.push(chars[i]);
-        i += 1;
-    }
-
-    result
 }
 
 /// Strip TypeScript type annotations from snippet parameters.
@@ -682,561 +804,6 @@ pub(crate) fn strip_ts_type_annotation(param: &str) -> String {
     ident.to_string()
 }
 
-/// Check if a class attribute value needs to be wrapped in $.clsx().
-///
-/// Corresponds to the condition in Attribute.js for setting needs_clsx:
-/// - The value is a single Expression (not a Sequence or True)
-/// - The expression type is NOT Literal, TemplateLiteral, or BinaryExpression
-///
-/// This is needed for class={x} where x is a variable, array, or object,
-/// because Svelte's clsx function normalizes these to proper class strings.
-pub(crate) fn needs_clsx(attr_value: &AttributeValue) -> bool {
-    // Helper to check if an expression type needs clsx
-    let expr_needs_clsx = |expr_type: &str| -> bool {
-        // Needs clsx if NOT a simple literal, template literal, or binary expression
-        !matches!(
-            expr_type,
-            "Literal" | "TemplateLiteral" | "BinaryExpression"
-        )
-    };
-
-    match attr_value {
-        AttributeValue::Expression(expr_tag) => {
-            // Get expression type
-            let expr_type = expr_tag.expression.node_type().unwrap_or("");
-            expr_needs_clsx(expr_type)
-        }
-        // Upstream's `needs_clsx` requires `!Array.isArray(node.value)`
-        // (2-analyze/visitors/Attribute.js): clsx is only applied to the bare
-        // single-expression form `class={x}`. A quoted `class="{x}"` parses to
-        // an array (our `Sequence`) and coerces to a string, so it must NOT be
-        // wrapped in `$.clsx(...)`, even when it has a single expression part.
-        AttributeValue::Sequence(_) | AttributeValue::True(_) => false,
-    }
-}
-
-/// Quote a property name if needed for JavaScript object literal syntax.
-/// Returns the name as-is if it's a valid identifier, or quoted if it contains special characters.
-pub(crate) fn quote_prop_name(name: &str) -> String {
-    if is_valid_js_identifier(name) {
-        name.to_string()
-    } else {
-        format!("'{}'", name)
-    }
-}
-
-/// Build a property string with shorthand support.
-/// If key (after quoting) equals the value, emit just `key` (shorthand).
-/// Otherwise emit `key: value`.
-pub(crate) fn prop_string(key: &str, value: &str) -> String {
-    let quoted_key = quote_prop_name(key);
-    if quoted_key == value && is_valid_js_identifier(key) {
-        quoted_key
-    } else {
-        format!("{}: {}", quoted_key, value)
-    }
-}
-
-/// Extract slot name from a template node's attributes.
-///
-/// If the node has a `slot="..."` attribute, returns that slot name.
-/// Otherwise returns "default".
-pub(crate) fn get_slot_name(node: &TemplateNode) -> String {
-    // Helper to extract slot name from element attributes
-    fn extract_slot_from_attributes(attrs: &[Attribute]) -> Option<String> {
-        for attr in attrs {
-            if let Attribute::Attribute(attr_node) = attr
-                && attr_node.name.as_str() == "slot"
-            {
-                // Extract the slot name value
-                match &attr_node.value {
-                    AttributeValue::True(_) => {
-                        // slot (boolean) - unlikely but handle it
-                        return Some("default".to_string());
-                    }
-                    AttributeValue::Sequence(parts) => {
-                        // slot="name" - text value
-                        if let Some(AttributeValuePart::Text(text)) = parts.first() {
-                            return Some(text.data.to_string());
-                        }
-                    }
-                    AttributeValue::Expression(_) => {
-                        // slot={expr} - dynamic slot names not supported, use default
-                        return None;
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    match node {
-        TemplateNode::RegularElement(elem) => {
-            extract_slot_from_attributes(&elem.attributes).unwrap_or_else(|| "default".to_string())
-        }
-        TemplateNode::Component(comp) => {
-            extract_slot_from_attributes(&comp.attributes).unwrap_or_else(|| "default".to_string())
-        }
-        TemplateNode::SvelteElement(elem) => {
-            extract_slot_from_attributes(&elem.attributes).unwrap_or_else(|| "default".to_string())
-        }
-        TemplateNode::SvelteSelf(elem) => {
-            extract_slot_from_attributes(&elem.attributes).unwrap_or_else(|| "default".to_string())
-        }
-        TemplateNode::SvelteComponent(elem) => {
-            extract_slot_from_attributes(&elem.attributes).unwrap_or_else(|| "default".to_string())
-        }
-        TemplateNode::SvelteFragment(frag) => {
-            extract_slot_from_attributes(&frag.attributes).unwrap_or_else(|| "default".to_string())
-        }
-        TemplateNode::SlotElement(slot) => {
-            extract_slot_from_attributes(&slot.attributes).unwrap_or_else(|| "default".to_string())
-        }
-        _ => "default".to_string(),
-    }
-}
-
-/// Extract let directive names from a node's attributes.
-/// Returns a list of let directive names (e.g., `let:thing` -> "thing").
-pub(crate) fn get_let_directives(node: &TemplateNode) -> Vec<String> {
-    fn extract_let_from_attributes(attrs: &[Attribute]) -> Vec<String> {
-        attrs
-            .iter()
-            .filter_map(|attr| {
-                if let Attribute::LetDirective(let_dir) = attr {
-                    Some(let_dir.name.to_string())
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-
-    match node {
-        TemplateNode::RegularElement(elem) => extract_let_from_attributes(&elem.attributes),
-        TemplateNode::Component(comp) => extract_let_from_attributes(&comp.attributes),
-        TemplateNode::SvelteElement(elem) => extract_let_from_attributes(&elem.attributes),
-        TemplateNode::SvelteSelf(elem) => extract_let_from_attributes(&elem.attributes),
-        TemplateNode::SvelteComponent(elem) => extract_let_from_attributes(&elem.attributes),
-        TemplateNode::SvelteFragment(frag) => extract_let_from_attributes(&frag.attributes),
-        _ => Vec::new(),
-    }
-}
-
-/// Extract let directive parameter patterns including aliases.
-/// Returns strings like "thing" or "thing: x" (for let:thing={x}).
-/// These are used as object destructuring property patterns.
-pub(crate) fn get_let_directive_params(
-    attrs: &[crate::ast::template::Attribute],
-    source: &str,
-) -> Vec<String> {
-    attrs
-        .iter()
-        .filter_map(|attr| {
-            if let crate::ast::template::Attribute::LetDirective(let_dir) = attr {
-                let name = let_dir.name.as_str();
-                if let Some(ref expr) = let_dir.expression {
-                    // Get the expression source text
-                    let expr_start = expr.start().unwrap_or(0) as usize;
-                    let expr_end = expr.end().unwrap_or(0) as usize;
-                    if expr_end > expr_start && expr_end <= source.len() {
-                        let expr_src = source[expr_start..expr_end].trim();
-                        // Check if expression is the same as name (no alias needed)
-                        if expr_src != name {
-                            // It's an alias: generate "name: alias"
-                            return Some(format!("{}: {}", name, expr_src));
-                        }
-                    }
-                }
-                Some(name.to_string())
-            } else {
-                None
-            }
-        })
-        .collect()
-}
-
-/// Collapse whitespace sequences (including newlines) to single spaces.
-/// This matches the behavior of clean_nodes in the official compiler.
-/// Check if a character is "collapsible" whitespace (NOT non-breaking space).
-/// Non-breaking space (U+00A0) must be preserved as-is, not collapsed.
-fn is_collapsible_whitespace(c: char) -> bool {
-    c != '\u{00A0}' && c.is_whitespace()
-}
-
-pub(crate) fn collapse_whitespace(s: &str) -> String {
-    let trimmed: String = s
-        .chars()
-        .skip_while(|c| is_collapsible_whitespace(*c))
-        .collect::<String>()
-        .chars()
-        .rev()
-        .skip_while(|c| is_collapsible_whitespace(*c))
-        .collect::<String>()
-        .chars()
-        .rev()
-        .collect();
-    let has_leading_ws = s.chars().next().is_some_and(is_collapsible_whitespace);
-    let has_trailing_ws = s.chars().last().is_some_and(is_collapsible_whitespace);
-
-    // Collapse internal whitespace sequences to single spaces
-    let mut result = String::new();
-    let mut in_whitespace = false;
-
-    if has_leading_ws {
-        result.push(' ');
-    }
-
-    for c in trimmed.chars() {
-        if is_collapsible_whitespace(c) {
-            if !in_whitespace {
-                result.push(' ');
-                in_whitespace = true;
-            }
-        } else {
-            result.push(c);
-            in_whitespace = false;
-        }
-    }
-
-    // Remove trailing space that was added if content ended with whitespace
-    if in_whitespace && !has_trailing_ws {
-        result.pop();
-    } else if has_trailing_ws && !result.ends_with(' ') {
-        result.push(' ');
-    }
-
-    result
-}
-
-/// Trim leading and trailing whitespace from output parts.
-///
-/// Mirrors upstream `clean_nodes` (3-transform/utils.js): ALL leading /
-/// trailing whitespace-only text nodes are removed (not just one), and the
-/// remaining first / last text gets its edge whitespace trimmed using the
-/// Svelte whitespace set (` \t\r\n` — NOT `\u{00A0}` from `&nbsp;`, which
-/// upstream's `regex_not_whitespace = /[^ \t\r\n]/` treats as content).
-pub(crate) fn trim_output_parts(parts: &mut Vec<OutputPart>) {
-    use crate::compiler::phases::phase3_transform::utils::{
-        is_svelte_whitespace_only, svelte_trim_end, svelte_trim_start,
-    };
-
-    // Remove leading whitespace-only Html parts (upstream pops every
-    // whitespace-only leading text node), then trim the first remaining one.
-    while matches!(parts.first(), Some(OutputPart::Html(html)) if is_svelte_whitespace_only(html)) {
-        parts.remove(0);
-    }
-    if let Some(OutputPart::Html(html)) = parts.first_mut() {
-        *html = svelte_trim_start(html).to_string();
-    }
-
-    // Same for the tail.
-    while matches!(parts.last(), Some(OutputPart::Html(html)) if is_svelte_whitespace_only(html)) {
-        parts.pop();
-    }
-    if let Some(OutputPart::Html(html)) = parts.last_mut() {
-        *html = svelte_trim_end(html).to_string();
-    }
-}
-
-/// Try to constant-fold a simple expression.
-///
-/// Returns:
-/// - `Null` if the expression is `null` or `undefined`
-/// - `Constant(value)` if the expression is a numeric or string literal
-/// - `Dynamic` if the expression cannot be folded at compile time
-pub(crate) fn try_constant_fold_full(expr: &str) -> ConstantFoldResult {
-    let trimmed = expr.trim();
-
-    if trimmed == "null" || trimmed == "undefined" {
-        return ConstantFoldResult::Null;
-    }
-
-    if let Ok(n) = trimmed.parse::<i64>() {
-        return ConstantFoldResult::Constant(n.to_string());
-    }
-    if let Ok(n) = trimmed.parse::<f64>() {
-        // Don't fold NaN or Infinity - they're global variables, not constants
-        if n.is_finite() {
-            return ConstantFoldResult::Constant(n.to_string());
-        }
-    }
-
-    if trimmed.len() >= 2
-        && ((trimmed.starts_with('\'') && trimmed.ends_with('\''))
-            || (trimmed.starts_with('"') && trimmed.ends_with('"')))
-    {
-        let content = &trimmed[1..trimmed.len() - 1];
-        return ConstantFoldResult::Constant(content.to_string());
-    }
-
-    // Template literals without interpolations: `text` -> constant "text"
-    if trimmed.len() >= 2 && trimmed.starts_with('`') && trimmed.ends_with('`') {
-        let inner = &trimmed[1..trimmed.len() - 1];
-        // Only fold if there are no ${...} interpolations
-        if !inner.contains("${") {
-            return ConstantFoldResult::Constant(inner.to_string());
-        }
-    }
-
-    // Handle && operator: if left is known and falsy, result is left's value
-    if let Some(idx) = memchr::memmem::find(trimmed.as_bytes(), b"&&") {
-        let left = trimmed[..idx].trim();
-        let right = trimmed[idx + 2..].trim();
-
-        match try_constant_fold_full(left) {
-            ConstantFoldResult::Null => {
-                // null && anything => null
-                return ConstantFoldResult::Null;
-            }
-            ConstantFoldResult::Constant(val) => {
-                // Check if the constant value is falsy
-                if is_constant_falsy(&val) {
-                    // false && anything => false, 0 && anything => 0, '' && anything => ''
-                    return ConstantFoldResult::Constant(val);
-                }
-                // Truthy left side, result is right side
-                return try_constant_fold_full(right);
-            }
-            ConstantFoldResult::Dynamic => {}
-        }
-    }
-
-    // Handle || operator: if left is known and truthy, result is left's value
-    if let Some(idx) = memchr::memmem::find(trimmed.as_bytes(), b"||") {
-        // Make sure it's not inside ?? (e.g., a ?? b || c)
-        let left = trimmed[..idx].trim();
-        let right = trimmed[idx + 2..].trim();
-
-        match try_constant_fold_full(left) {
-            ConstantFoldResult::Null => {
-                // null || anything => anything
-                return try_constant_fold_full(right);
-            }
-            ConstantFoldResult::Constant(val) => {
-                if is_constant_falsy(&val) {
-                    // falsy || anything => anything
-                    return try_constant_fold_full(right);
-                }
-                // Truthy left side, result is left
-                return ConstantFoldResult::Constant(val);
-            }
-            ConstantFoldResult::Dynamic => {}
-        }
-    }
-
-    if let Some(idx) = memchr::memmem::find(trimmed.as_bytes(), b"??") {
-        let left = trimmed[..idx].trim();
-        let right = trimmed[idx + 2..].trim();
-
-        match try_constant_fold_full(left) {
-            ConstantFoldResult::Null => {
-                return try_constant_fold_full(right);
-            }
-            ConstantFoldResult::Constant(val) => {
-                return ConstantFoldResult::Constant(val);
-            }
-            ConstantFoldResult::Dynamic => {}
-        }
-    }
-
-    if trimmed.starts_with("Math.")
-        && let Some(result) = eval_math_expr(trimmed)
-    {
-        return ConstantFoldResult::Constant(result);
-    }
-
-    // Handle comparison operators: ===, !==, ==, !=, <, >, <=, >=
-    // and arithmetic operators: +, -, *, /, %
-    for &op in &[
-        "===", "!==", "==", "!=", "<=", ">=", "<", ">", "+", "-", "*", "/", "%",
-    ] {
-        if let Some(idx) = trimmed.find(op) {
-            // Avoid false matches (e.g., '===' in '!==')
-            let left = trimmed[..idx].trim();
-            let right = trimmed[idx + op.len()..].trim();
-
-            let left_result = try_constant_fold_full(left);
-            let right_result = try_constant_fold_full(right);
-
-            if let (ConstantFoldResult::Constant(l), ConstantFoldResult::Constant(r)) =
-                (&left_result, &right_result)
-            {
-                let l_num = l.parse::<f64>().ok();
-                let r_num = r.parse::<f64>().ok();
-
-                if let (Some(ln), Some(rn)) = (l_num, r_num) {
-                    let result = match op {
-                        "===" | "==" => Some(format!("{}", (ln - rn).abs() < f64::EPSILON)),
-                        "!==" | "!=" => Some(format!("{}", (ln - rn).abs() >= f64::EPSILON)),
-                        "<" => Some(format!("{}", ln < rn)),
-                        ">" => Some(format!("{}", ln > rn)),
-                        "<=" => Some(format!("{}", ln <= rn)),
-                        ">=" => Some(format!("{}", ln >= rn)),
-                        "+" => {
-                            let res = ln + rn;
-                            if res.fract() == 0.0 {
-                                Some(format!("{}", res as i64))
-                            } else {
-                                Some(res.to_string())
-                            }
-                        }
-                        "-" => {
-                            let res = ln - rn;
-                            if res.fract() == 0.0 {
-                                Some(format!("{}", res as i64))
-                            } else {
-                                Some(res.to_string())
-                            }
-                        }
-                        "*" => {
-                            let res = ln * rn;
-                            if res.fract() == 0.0 {
-                                Some(format!("{}", res as i64))
-                            } else {
-                                Some(res.to_string())
-                            }
-                        }
-                        "/" if rn != 0.0 => {
-                            let res = ln / rn;
-                            if res.fract() == 0.0 {
-                                Some(format!("{}", res as i64))
-                            } else {
-                                Some(res.to_string())
-                            }
-                        }
-                        "%" if rn != 0.0 => {
-                            let res = ln % rn;
-                            if res.fract() == 0.0 {
-                                Some(format!("{}", res as i64))
-                            } else {
-                                Some(res.to_string())
-                            }
-                        }
-                        _ => None,
-                    };
-                    if let Some(r) = result {
-                        return ConstantFoldResult::Constant(r);
-                    }
-                }
-
-                // String comparison for === and !==
-                match op {
-                    "===" => {
-                        return ConstantFoldResult::Constant(format!("{}", l == r));
-                    }
-                    "!==" => {
-                        return ConstantFoldResult::Constant(format!("{}", l != r));
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    ConstantFoldResult::Dynamic
-}
-
-/// Check if a constant folded value is falsy in JavaScript.
-/// This is for string representations of constant values.
-fn is_constant_falsy(val: &str) -> bool {
-    val.is_empty() || val == "0" || val == "false" || val == "NaN"
-}
-
-fn eval_math_expr(expr: &str) -> Option<String> {
-    if expr.starts_with("Math.max(") && expr.ends_with(')') {
-        let inner = &expr[9..expr.len() - 1];
-        return eval_math_max_min(inner);
-    }
-    if expr.starts_with("Math.min(") && expr.ends_with(')') {
-        let inner = &expr[9..expr.len() - 1];
-        return eval_math_max_min_op(inner, false);
-    }
-    None
-}
-
-fn eval_math_max_min(args: &str) -> Option<String> {
-    let parts = split_args(args);
-    if parts.len() != 2 {
-        return None;
-    }
-
-    let a = parse_numeric_expr(&parts[0])?;
-    let b = parse_numeric_expr(&parts[1])?;
-
-    Some(a.max(b).to_string())
-}
-
-fn eval_math_max_min_op(args: &str, is_max: bool) -> Option<String> {
-    let parts = split_args(args);
-    if parts.len() != 2 {
-        return None;
-    }
-
-    let a = parse_numeric_expr(&parts[0])?;
-    let b = parse_numeric_expr(&parts[1])?;
-
-    let result = if is_max { a.max(b) } else { a.min(b) };
-    Some(result.to_string())
-}
-
-fn split_args(s: &str) -> Vec<String> {
-    let mut parts = Vec::new();
-    let mut current = String::new();
-    let mut depth = 0;
-
-    for c in s.chars() {
-        match c {
-            '(' => {
-                depth += 1;
-                current.push(c);
-            }
-            ')' => {
-                depth -= 1;
-                current.push(c);
-            }
-            ',' if depth == 0 => {
-                parts.push(current.trim().to_string());
-                current = String::new();
-            }
-            _ => current.push(c),
-        }
-    }
-    if !current.is_empty() {
-        parts.push(current.trim().to_string());
-    }
-    parts
-}
-
-fn parse_numeric_expr(s: &str) -> Option<i64> {
-    let trimmed = s.trim();
-
-    if let Ok(n) = trimmed.parse::<i64>() {
-        return Some(n);
-    }
-
-    if trimmed.starts_with("Math.min(") && trimmed.ends_with(')') {
-        let inner = &trimmed[9..trimmed.len() - 1];
-        let parts = split_args(inner);
-        if parts.len() == 2 {
-            let a = parse_numeric_expr(&parts[0])?;
-            let b = parse_numeric_expr(&parts[1])?;
-            return Some(a.min(b));
-        }
-    }
-    if trimmed.starts_with("Math.max(") && trimmed.ends_with(')') {
-        let inner = &trimmed[9..trimmed.len() - 1];
-        let parts = split_args(inner);
-        if parts.len() == 2 {
-            let a = parse_numeric_expr(&parts[0])?;
-            let b = parse_numeric_expr(&parts[1])?;
-            return Some(a.max(b));
-        }
-    }
-
-    None
-}
-
 // ============================================================================
 // Functions extracted from transform_server.rs
 // ============================================================================
@@ -1281,516 +848,6 @@ pub(crate) fn sanitize_identifier(name: &str) -> String {
         } else {
             result.push('_');
         }
-    }
-
-    result
-}
-
-/// Detect if script uses patterns that require $$renderer.component() wrapper with $$slots/$$events exclusion.
-pub(crate) fn detect_props_spread_pattern(script: &str) -> bool {
-    for line in script.lines() {
-        let trimmed = line.trim();
-        if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
-            && memmem::find(trimmed.as_bytes(), b"= $props()").is_some()
-            && let Some(props_idx) = memmem::find(trimmed.as_bytes(), b"= $props()")
-        {
-            let left = &trimmed[..props_idx].trim();
-            let pattern = left
-                .strip_prefix("let ")
-                .or_else(|| left.strip_prefix("const "))
-                .map(|s| s.trim())
-                .unwrap_or(left);
-
-            // Case 1: Simple identifier (let props = $props())
-            if !pattern.contains('{') && !pattern.contains('[') {
-                return true;
-            }
-
-            // Case 2: ObjectPattern with RestElement (let { ...rest } = $props())
-            if pattern.starts_with('{') && pattern.contains("...") {
-                return true;
-            }
-        }
-    }
-
-    // Multi-line check: collapse newlines and check again
-    let script_bytes = script.as_bytes();
-    if memmem::find(script_bytes, b"$props()").is_some()
-        && memmem::find(script_bytes, b"...").is_some()
-    {
-        let collapsed: String = script
-            .chars()
-            .map(|c| if c == '\n' || c == '\r' { ' ' } else { c })
-            .collect();
-        let collapsed = if memchr::memmem::find(collapsed.as_bytes(), b"  ").is_some() {
-            collapsed.replace("  ", " ")
-        } else {
-            collapsed
-        };
-        let collapsed_bytes = collapsed.as_bytes();
-        // Accept an optional TS type annotation between the closing brace and the
-        // `= $props()` (e.g. `}: PinInputRootProps = $props()`); requiring the
-        // literal `} = $props()` missed typed `$props()` destructurings, leaving
-        // their `...rest` exposing `$$slots` / `$$events`.
-        if (memmem::find(collapsed_bytes, b"let {").is_some()
-            || memmem::find(collapsed_bytes, b"const {").is_some())
-            && memmem::find(collapsed_bytes, b"= $props()").is_some()
-            && memmem::find(collapsed_bytes, b"...").is_some()
-        {
-            return true;
-        }
-    }
-
-    false
-}
-
-/// Strip a trailing `// line comment` from a code snippet, without touching
-/// `//` inside string or template literals. Returns the code portion only
-/// (trimmed of trailing whitespace). Pure comment lines (trimmed starts with
-/// `//`) return an empty string.
-///
-/// This is used by `collapse_multiline_destructuring` so that an inline
-/// comment like `open = void 0, // some note` does not get embedded in the
-/// collapsed single-line output where it would swallow subsequent tokens.
-fn strip_inline_line_comment(s: &str) -> &str {
-    let bytes = s.as_bytes();
-    let len = bytes.len();
-    let mut i = 0;
-    while i < len {
-        match bytes[i] {
-            // Single-quoted or double-quoted string literal.
-            b'\'' | b'"' => {
-                let quote = bytes[i];
-                i += 1;
-                while i < len {
-                    if bytes[i] == b'\\' {
-                        i += 2;
-                        continue;
-                    }
-                    if bytes[i] == quote {
-                        i += 1;
-                        break;
-                    }
-                    i += 1;
-                }
-            }
-            // Template literal (skip `${...}` interpolations so their `//`
-            // is also ignored).
-            b'`' => {
-                i += 1;
-                while i < len {
-                    if bytes[i] == b'\\' {
-                        i += 2;
-                        continue;
-                    }
-                    if bytes[i] == b'`' {
-                        i += 1;
-                        break;
-                    }
-                    if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
-                        i += 2;
-                        let mut depth = 1i32;
-                        while i < len && depth > 0 {
-                            match bytes[i] {
-                                b'{' => depth += 1,
-                                b'}' => depth -= 1,
-                                b'\\' => {
-                                    i += 1;
-                                }
-                                _ => {}
-                            }
-                            i += 1;
-                        }
-                        continue;
-                    }
-                    i += 1;
-                }
-            }
-            // Block comment — advance past `*/`.
-            b'/' if i + 1 < len && bytes[i + 1] == b'*' => {
-                i += 2;
-                while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                    i += 1;
-                }
-                i = (i + 2).min(len);
-            }
-            // Line comment found outside a string literal — strip from here.
-            b'/' if i + 1 < len && bytes[i + 1] == b'/' => {
-                return s[..i].trim_end();
-            }
-            _ => {
-                i += 1;
-            }
-        }
-    }
-    s
-}
-
-/// Collapse multi-line `let/const { ... } = $$props` destructurings into single lines.
-fn collapse_multiline_destructuring(script: &str) -> String {
-    let mut result = String::new();
-    let mut in_destructure = false;
-    let mut accum = String::new();
-    // Original (verbatim) lines of the in-progress accumulation, so a block that
-    // turns out NOT to be a props destructuring is emitted unchanged.
-    let mut orig: Vec<String> = Vec::new();
-    // Running brace depth, ignoring braces inside string / template literals (e.g.
-    // the `}` in `inputId = `${createId(uid)}-input``, which must NOT end the
-    // destructure early — a naive `contains('}')` check truncated such patterns).
-    let mut depth: i32 = 0;
-    // When `depth` reaches 0 but we haven't yet seen `= $$props` / `= $props()`,
-    // the pattern closing `}` is on its own line and the `= rhs` follows on a
-    // later line (e.g. after TS type-annotation removal leaves a lone `}` line
-    // followed by ` = $props()`).  In that state, keep accumulating through
-    // blank / comment lines until we find the `=` assignment or a code line that
-    // can't be the RHS — then finalize.
-    let mut awaiting_rhs = false;
-
-    for line in script.lines() {
-        let trimmed = line.trim();
-
-        if !in_destructure {
-            // Start tracking a `let {` / `const {` whose braces do not balance on
-            // the same line (the pattern — or an object-literal RHS — continues).
-            if trimmed.starts_with("let {") || trimmed.starts_with("const {") {
-                let d = net_brace_depth(trimmed);
-                if d > 0 {
-                    in_destructure = true;
-                    awaiting_rhs = false;
-                    depth = d;
-                    accum.clear();
-                    // Strip any trailing inline `//` comment from the first line too.
-                    let code_part = strip_inline_line_comment(trimmed);
-                    accum.push_str(code_part);
-                    accum.push(' ');
-                    orig.clear();
-                    orig.push(line.to_string());
-                    continue;
-                }
-            }
-            result.push_str(line);
-            result.push('\n');
-        } else if awaiting_rhs {
-            // We've seen the pattern's closing `}` but not the `= $$props` yet.
-            // Skip blank and comment-only lines; accept `= $$props`/`= $props()`.
-            orig.push(line.to_string());
-            if trimmed.is_empty()
-                || trimmed.starts_with("//")
-                || trimmed.starts_with("/*")
-                || trimmed.starts_with("*")
-            {
-                // Blank or comment line — keep waiting.
-                continue;
-            }
-            // Any non-comment, non-blank line: it should be the `= $$props` /
-            // `= $props()` assignment.  Append it to accum and finalize.
-            let code_part = strip_inline_line_comment(trimmed);
-            accum.push_str(code_part);
-            accum.push(' ');
-            in_destructure = false;
-            awaiting_rhs = false;
-            depth = 0;
-            let collapsed = accum.trim();
-            if memmem::find(collapsed.as_bytes(), b"= $$props").is_some()
-                || memmem::find(collapsed.as_bytes(), b"= $props()").is_some()
-            {
-                result.push_str("\t\t");
-                result.push_str(collapsed);
-                result.push('\n');
-            } else {
-                for l in &orig {
-                    result.push_str(l);
-                    result.push('\n');
-                }
-            }
-        } else {
-            orig.push(line.to_string());
-            // Skip pure comment lines when collapsing (they can't be on one line with code after them)
-            if trimmed.starts_with("//") {
-                // Don't include line comments in the collapsed output
-            } else {
-                // Strip any trailing inline `// line comment` before appending to
-                // the single-line accumulation. Without this, a comment like
-                //   open = void 0, // If undefined, renders inline; if defined …
-                // would be embedded in the collapsed output and swallow the following
-                // property (`badgeProps = …`) — making the output unparseable.
-                let code_part = strip_inline_line_comment(trimmed);
-                accum.push_str(code_part);
-                accum.push(' ');
-                depth += net_brace_depth(code_part);
-            }
-            if depth <= 0 {
-                depth = 0;
-                let collapsed_so_far = accum.trim();
-                // Only collapse a *props* destructuring (`= $$props` / `= $props()`).
-                // Anything else (e.g. `const { a } = { …object literal… }`) is
-                // emitted verbatim so we never reformat — and risk corrupting —
-                // unrelated multi-line object-literal initializers.
-                if memmem::find(collapsed_so_far.as_bytes(), b"= $$props").is_some()
-                    || memmem::find(collapsed_so_far.as_bytes(), b"= $props()").is_some()
-                {
-                    in_destructure = false;
-                    result.push_str("\t\t");
-                    result.push_str(collapsed_so_far);
-                    result.push('\n');
-                } else {
-                    // The brace pattern is closed but we haven't seen the `= rhs`
-                    // yet.  This can happen when a TS type annotation was stripped
-                    // and the closing `}` of the pattern ended up on its own line:
-                    //
-                    //   let { ...rest }          ← pattern closing `}` alone
-                    //   /**  JSDoc  */           ← stripped-annotation comment
-                    //    = $props();             ← RHS on a later line
-                    //
-                    // Stay in `in_destructure` mode (now flagged as `awaiting_rhs`)
-                    // and continue consuming lines until we see `= $$props` or
-                    // encounter an unrecognized code line.
-                    awaiting_rhs = true;
-                }
-            }
-        }
-    }
-
-    // An unterminated accumulation (no balancing `}`) is flushed verbatim so we
-    // never silently drop lines.
-    if in_destructure {
-        for l in &orig {
-            result.push_str(l);
-            result.push('\n');
-        }
-    }
-
-    result
-}
-
-/// Net `{` minus `}` count of a line, skipping braces inside `'`/`"`/`` ` ``
-/// string and template literals. Template-literal `${…}` interpolations still
-/// contribute their braces (they are real JS braces), which keeps the running
-/// object-pattern depth balanced across the whole expression.
-fn net_brace_depth(line: &str) -> i32 {
-    let bytes = line.as_bytes();
-    let mut depth = 0i32;
-    let mut i = 0;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'\'' | b'"' => {
-                let quote = bytes[i];
-                i += 1;
-                while i < bytes.len() {
-                    if bytes[i] == b'\\' {
-                        i += 2;
-                        continue;
-                    }
-                    if bytes[i] == quote {
-                        break;
-                    }
-                    i += 1;
-                }
-            }
-            b'`' => {
-                i += 1;
-                while i < bytes.len() {
-                    if bytes[i] == b'\\' {
-                        i += 2;
-                        continue;
-                    }
-                    if bytes[i] == b'`' {
-                        break;
-                    }
-                    if bytes[i] == b'$' && bytes.get(i + 1) == Some(&b'{') {
-                        depth += 1;
-                        i += 2;
-                        let mut interp = 1i32;
-                        while i < bytes.len() && interp > 0 {
-                            match bytes[i] {
-                                b'{' => interp += 1,
-                                b'}' => {
-                                    interp -= 1;
-                                    if interp == 0 {
-                                        depth -= 1;
-                                    }
-                                }
-                                _ => {}
-                            }
-                            i += 1;
-                        }
-                        continue;
-                    }
-                    i += 1;
-                }
-            }
-            b'{' => depth += 1,
-            b'}' => depth -= 1,
-            _ => {}
-        }
-        i += 1;
-    }
-    depth
-}
-
-/// Transform script code to use proper destructuring for props spread pattern.
-/// Transform props spread destructuring in script code.
-/// `extra_tabs` controls how many extra tabs to add:
-///   * 2 for inside $$renderer.component() wrapper (3 total from 1 base)
-///   * 0 for direct function body (1 total from 1 base)
-///
-/// `rename_slots` - if true, rename `$$slots` to `$$slots_` in destructuring
-/// (used when `$$slots` is already declared via `$.sanitize_slots`)
-pub(crate) fn transform_props_spread_ex(
-    script: &str,
-    extra_tabs: usize,
-    rename_slots: bool,
-) -> String {
-    // Detect space indentation unit from the script to convert spaces to tabs.
-    // This handles source code that uses e.g. 2-space or 4-space indentation.
-    let space_indent_unit = detect_space_indent_unit(script);
-
-    // First, collapse multi-line destructurings into single lines
-    let script = collapse_multiline_destructuring(script);
-    let mut result = String::new();
-    let mut in_template_literal = false;
-    let mut template_brace_depth: i32 = 0;
-    let target_indent = "\t".repeat(1 + extra_tabs); // base 1 tab + extra
-    let slots_part = if rename_slots {
-        "$$slots: $$slots_"
-    } else {
-        "$$slots"
-    };
-
-    for line in script.lines() {
-        let trimmed = line.trim();
-
-        let tb = trimmed.as_bytes();
-        if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
-            && (trimmed.ends_with("= $$props")
-                || trimmed.ends_with("= $$props;")
-                || memmem::find(tb, b"= $$props ").is_some())
-            && let Some(props_idx) = memmem::find(tb, b"= $$props")
-        {
-            let left = trimmed[..props_idx].trim();
-            let (decl_keyword, pattern) = if let Some(stripped) = left.strip_prefix("let ") {
-                ("let", stripped.trim())
-            } else if let Some(stripped) = left.strip_prefix("const ") {
-                ("const", stripped.trim())
-            } else {
-                ("let", left)
-            };
-
-            // Strip a trailing TS type annotation on the destructuring pattern,
-            // e.g. `{ a, ...rest }: SomeProps` → `{ a, ...rest }` (the server
-            // output is plain JS, so the annotation is dropped).
-            //
-            // Previously this was gated on `!pattern.ends_with('}')`, which skipped
-            // the strip when the TS type annotation is itself an object type —
-            // e.g. `{ a, ...rest }: BaseProps & { extra?: string }`. In that case
-            // the pattern ends with `}` (the annotation's closing brace), so the
-            // guard prevented stripping and `rest_name` below acquired the junk
-            // `}: BaseProps & { ... }` tail, corrupting `$$slots`/`$$events` injection.
-            //
-            // The fix: always attempt to strip. Find the FIRST `}` that brings the
-            // depth back to 0 (the destructure's own closing brace). If what follows
-            // it starts with `:`, the rest is a TS annotation — drop it.  When there
-            // is no annotation (plain `{ a, b }`) the closing `}` is the last char
-            // and nothing follows it, so the pattern is returned unchanged.
-            let pattern = if pattern.starts_with('{') {
-                let bytes = pattern.as_bytes();
-                let mut depth = 0i32;
-                let mut close = None;
-                for (i, &b) in bytes.iter().enumerate() {
-                    match b {
-                        b'{' => depth += 1,
-                        b'}' => {
-                            depth -= 1;
-                            if depth == 0 {
-                                close = Some(i);
-                                break;
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                match close {
-                    Some(c) if pattern[c + 1..].trim_start().starts_with(':') => &pattern[..c + 1],
-                    _ => pattern,
-                }
-            } else {
-                pattern
-            };
-
-            // Case 1: Simple identifier (let props = $$props)
-            if !pattern.starts_with('{') {
-                let _ = writeln!(
-                    result,
-                    "{}{} {{ {}, $$events, ...{} }} = $$props;",
-                    target_indent, decl_keyword, slots_part, pattern
-                );
-                continue;
-            }
-
-            // Case 2 & 3: ObjectPattern with RestElement
-            if pattern.starts_with('{') && pattern.ends_with('}') {
-                let inner = &pattern[1..pattern.len() - 1].trim();
-
-                // Find `...` rest element, but skip `...` inside string literals
-                if let Some(rest_idx) = find_rest_element_index(inner) {
-                    let rest_part = &inner[rest_idx..];
-                    let rest_name = rest_part.trim_start_matches("...").trim();
-                    let other_props = inner[..rest_idx].trim().trim_end_matches(',').trim();
-
-                    if other_props.is_empty() {
-                        let _ = writeln!(
-                            result,
-                            "{}{} {{ {}, $$events, ...{} }} = $$props;",
-                            target_indent, decl_keyword, slots_part, rest_name
-                        );
-                    } else {
-                        let _ = writeln!(
-                            result,
-                            "{}{} {{ {}, {}, $$events, ...{} }} = $$props;",
-                            target_indent, decl_keyword, other_props, slots_part, rest_name
-                        );
-                    }
-                    continue;
-                }
-            }
-
-            // Fallback: keep original line
-            let _ = writeln!(result, "{}{}", target_indent, trimmed);
-            continue;
-        }
-
-        if trimmed.is_empty() {
-            result.push('\n');
-        } else if in_template_literal || template_brace_depth > 0 {
-            // Inside template literal or ${...} expression - preserve content exactly
-            let (new_in_template, new_brace_depth) =
-                update_template_literal_state_full(line, in_template_literal, template_brace_depth);
-            in_template_literal = new_in_template;
-            template_brace_depth = new_brace_depth;
-            result.push_str(line);
-            result.push('\n');
-        } else {
-            // Preserve relative indentation: detect leading tabs/spaces and add extra tabs.
-            // If the script uses space indentation, convert spaces to tabs proportionally.
-            let leading_tabs = if line.starts_with('\t') {
-                line.chars().take_while(|c| *c == '\t').count()
-            } else if space_indent_unit > 0 && line.starts_with(' ') {
-                let leading_spaces = line.len() - line.trim_start_matches(' ').len();
-                leading_spaces / space_indent_unit
-            } else {
-                0
-            };
-            let indent = "\t".repeat(leading_tabs + extra_tabs);
-            let (new_in_template, new_brace_depth) =
-                update_template_literal_state_full(line, in_template_literal, template_brace_depth);
-            in_template_literal = new_in_template;
-            template_brace_depth = new_brace_depth;
-            let _ = writeln!(result, "{}{}", indent, trimmed);
-        }
-    }
-
-    if result.ends_with('\n') {
-        result.pop();
     }
 
     result
@@ -2337,314 +1394,6 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
     constants
 }
 
-/// Extract import statements from script content (instance script version).
-/// Strips `export { ... }` statements as they're handled via $.bind_props.
-pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
-    extract_imports_with_options(script, true)
-}
-
-/// Extract import statements from module script content.
-/// Keeps `export { ... }` statements as they should be emitted directly.
-pub(crate) fn extract_imports_module(script: &str) -> (Vec<String>, String) {
-    extract_imports_with_options(script, false)
-}
-
-/// Extract import statements from script content.
-/// Handles multi-line imports properly.
-fn extract_imports_with_options(script: &str, strip_exports: bool) -> (Vec<String>, String) {
-    let mut imports = Vec::new();
-    let mut rest = String::new();
-    let mut current_import: Option<Vec<String>> = None;
-    // Track whether we are inside a template literal across lines.
-    // A line that lies inside a template literal must not be treated as an
-    // import statement even if it starts with `import ` (e.g. a string that
-    // contains example code: `` `import { ${x} } from 'svelte/transition'` ``).
-    // We count unbalanced backticks (outside single/double quotes) to decide.
-    let mut in_template_literal = false;
-
-    for line in script.lines() {
-        // Snapshot the template-literal state at the START of this line.  The
-        // state we need for the import-guard check is "were we already inside a
-        // template literal before this line began?".  We then advance the state
-        // for the next iteration.
-        let was_in_template_literal = in_template_literal;
-        in_template_literal = update_template_literal_state_for_indent(line, in_template_literal);
-
-        if let Some(ref mut import_lines) = current_import {
-            // We're inside a multi-line import. The closing line may carry
-            // trailing statements after the import terminator; split them off.
-            let trimmed = line.trim();
-            let closes = trimmed.contains(';')
-                || trimmed.ends_with('\'')
-                || trimmed.ends_with('"')
-                || trimmed.ends_with('`');
-            if closes {
-                if let Some((import_part, remainder)) = split_leading_import(trimmed) {
-                    import_lines.push(import_part.to_string());
-                    imports.push(import_lines.join("\n"));
-                    current_import = None;
-                    // The remainder may itself begin with further imports packed
-                    // on the same line; peel them all before routing the rest.
-                    let remainder = peel_leading_imports(remainder, &mut imports);
-                    if !remainder.trim().is_empty() {
-                        rest.push_str(&remainder);
-                        rest.push('\n');
-                    }
-                } else {
-                    import_lines.push(line.to_string());
-                    imports.push(import_lines.join("\n"));
-                    current_import = None;
-                }
-            } else {
-                import_lines.push(line.to_string());
-            }
-        } else {
-            let trimmed = line.trim();
-            // A line that starts with `import` but is inside a template literal
-            // (e.g. example code embedded in a template string) is NOT a real
-            // import and must be routed to `rest`.  Also skip any line whose
-            // potential import-path contains a template interpolation `${…}` —
-            // static import paths cannot have interpolations, so the line is
-            // template-literal content leaking through line-by-line scanning.
-            let is_template_content =
-                was_in_template_literal || memmem::find(trimmed.as_bytes(), b"${").is_some();
-
-            if !is_template_content
-                && (trimmed.starts_with("import ") || trimmed.starts_with("import{"))
-            {
-                if trimmed.contains(';')
-                    || is_complete_side_effect_import(trimmed)
-                    || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
-                        && (trimmed.ends_with('\'')
-                            || trimmed.ends_with('"')
-                            || trimmed.ends_with('`')))
-                {
-                    // The line begins with a *complete* import statement. It may,
-                    // however, carry additional imports and/or statements on the
-                    // same physical line (e.g. `import a from 'x';import b from
-                    // 'y';` or `import x from 'm'; const a = 1;`). Peel every
-                    // packed import so each is hoisted, then route any trailing
-                    // non-import code through `rest` so it is transformed normally
-                    // instead of being swallowed into the import string.
-                    let remainder = peel_leading_imports(trimmed, &mut imports);
-                    if !remainder.trim().is_empty() {
-                        rest.push_str(&remainder);
-                        rest.push('\n');
-                    }
-                } else {
-                    current_import = Some(vec![line.to_string()]);
-                }
-            } else {
-                rest.push_str(line);
-                rest.push('\n');
-            }
-        }
-    }
-
-    if let Some(import_lines) = current_import {
-        imports.push(import_lines.join("\n"));
-    }
-
-    if rest.ends_with('\n') {
-        rest.pop();
-    }
-
-    if strip_exports {
-        let rest = strip_export_specifiers(&rest);
-        (imports, rest)
-    } else {
-        (imports, rest)
-    }
-}
-
-/// Split a `trimmed` line containing a leading/just-completed import statement
-/// into `(import_statement, remainder)` when the line carries additional code
-/// after the import terminator on the same physical line — e.g.
-/// `import x from 'm'; const a = 1;` → `("import x from 'm';", " const a = 1;")`.
-///
-/// Returns `None` when the whole line is just the import (nothing meaningful
-/// follows), so callers can keep their existing behaviour for that case.
-fn split_leading_import(trimmed: &str) -> Option<(&str, &str)> {
-    let end = import_statement_end(trimmed)?;
-    if end >= trimmed.len() {
-        return None;
-    }
-    let (import_part, remainder) = trimmed.split_at(end);
-    if remainder.trim().is_empty() {
-        None
-    } else {
-        Some((import_part, remainder))
-    }
-}
-
-/// Peel every complete leading `import` statement off `s`, pushing each onto
-/// `imports`, and return the remaining tail (front-trimmed).
-///
-/// Handles several imports packed onto one physical line, e.g.
-/// `import a from 'x';import b from 'y';` → both hoisted, empty tail. Stops at
-/// the first non-import token or an *incomplete* import (one that continues on a
-/// following line) and returns it so the caller can route it.
-fn peel_leading_imports(s: &str, imports: &mut Vec<String>) -> String {
-    let mut cur = s.trim_start();
-    while cur.starts_with("import ") || cur.starts_with("import{") {
-        let Some(end) = import_statement_end(cur) else {
-            break;
-        };
-        let (import_part, remainder) = cur.split_at(end);
-        imports.push(import_part.trim().to_string());
-        cur = remainder.trim_start();
-    }
-    cur.to_string()
-}
-
-/// Find the byte index at which the leading import statement in `s` ends.
-///
-/// String literals (single/double quotes and template backticks) are skipped
-/// honouring backslash escapes, so a `;` inside a module specifier is ignored.
-/// If a top-level `;` is found it terminates the statement (index just past it).
-/// Otherwise — ASI — the statement ends just past the last completed top-level
-/// string literal (the module specifier). Returns `None` if neither is present
-/// (incomplete import; let the caller fall back to its default handling).
-fn import_statement_end(s: &str) -> Option<usize> {
-    let bytes = s.as_bytes();
-    let mut i = 0usize;
-    let mut last_string_end: Option<usize> = None;
-    while i < bytes.len() {
-        match bytes[i] {
-            b';' => return Some(i + 1),
-            q @ (b'\'' | b'"' | b'`') => {
-                i += 1;
-                while i < bytes.len() {
-                    if bytes[i] == b'\\' && i + 1 < bytes.len() {
-                        i += 2;
-                        continue;
-                    }
-                    if bytes[i] == q {
-                        i += 1;
-                        break;
-                    }
-                    i += 1;
-                }
-                last_string_end = Some(i);
-            }
-            _ => i += 1,
-        }
-    }
-    last_string_end
-}
-
-/// Check whether `trimmed` is a complete *side-effect* import statement —
-/// `import "module"` or `import 'module'` with no `from` clause and no
-/// terminating semicolon. Mirrors the helper in `transform/client/mod.rs`.
-fn is_complete_side_effect_import(trimmed: &str) -> bool {
-    let after_import = if let Some(rest) = trimmed.strip_prefix("import ") {
-        rest.trim_start()
-    } else {
-        return false;
-    };
-
-    let bytes = after_import.as_bytes();
-    let quote = match bytes.first() {
-        Some(&b'"') => b'"',
-        Some(&b'\'') => b'\'',
-        _ => return false,
-    };
-
-    let mut i = 1;
-    let mut closed = false;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'\\' if i + 1 < bytes.len() => i += 2,
-            c if c == quote => {
-                closed = true;
-                i += 1;
-                break;
-            }
-            _ => i += 1,
-        }
-    }
-    if !closed {
-        return false;
-    }
-
-    after_import[i..].trim().is_empty()
-}
-
-/// Strip `export { ... }` statements from script content.
-fn strip_export_specifiers(script: &str) -> String {
-    // The previous implementation collected `script.chars()` into a `Vec<char>`
-    // AND, more wastefully, allocated a fresh `String` per byte position by
-    // doing `chars[i..i+6].iter().collect()` just to compare against "export".
-    // Switch to byte-indexing + a segment-flush emit pattern. All tokens we
-    // look at (`export`, space/tab/newline, `{}`, `;`) are pure ASCII, so
-    // byte indexing is UTF-8 safe (continuation bytes 0x80-0xFF never collide
-    // with ASCII).
-    let bytes = script.as_bytes();
-    let len = bytes.len();
-    let mut result = String::with_capacity(len);
-    let mut segment_start = 0;
-    let mut i = 0;
-
-    while i < len {
-        if i + 6 <= len && &bytes[i..i + 6] == b"export" {
-            let mut j = i + 6;
-
-            while j < len && matches!(bytes[j], b' ' | b'\t' | b'\n') {
-                j += 1;
-            }
-
-            if j < len && bytes[j] == b'{' {
-                let mut depth = 1;
-                let start = j + 1;
-                let mut end = start;
-
-                while end < len && depth > 0 {
-                    match bytes[end] {
-                        b'{' => depth += 1,
-                        b'}' => depth -= 1,
-                        _ => {}
-                    }
-                    if depth > 0 {
-                        end += 1;
-                    }
-                }
-
-                if end < len {
-                    end += 1; // skip '}'
-                }
-
-                // Skip trailing semicolons, whitespace, and newline
-                while end < len && matches!(bytes[end], b' ' | b'\t') {
-                    end += 1;
-                }
-                if end < len && bytes[end] == b';' {
-                    end += 1; // skip trailing semicolon
-                }
-                while end < len && matches!(bytes[end], b' ' | b'\t') {
-                    end += 1;
-                }
-                if end < len && bytes[end] == b'\n' {
-                    end += 1;
-                }
-
-                // Flush the bytes before the `export` and skip to `end`. Both
-                // segment_start and i / end point at ASCII or UTF-8 char
-                // boundaries (we only advance through ASCII control tokens
-                // or stay at the original position), so the slice is valid.
-                result.push_str(&script[segment_start..i]);
-                segment_start = end;
-                i = end;
-                continue;
-            }
-        }
-
-        i += 1;
-    }
-
-    result.push_str(&script[segment_start..]);
-    result
-}
-
 /// Split a variable declaration's declarator list by top-level commas.
 /// Handles `a = 1, b = 2, c = 3` -> ["a = 1", "b = 2", "c = 3"]
 /// Respects nesting: commas inside parens, brackets, braces, strings, and template literals
@@ -2776,326 +1525,6 @@ pub(crate) fn find_expression_blockers(
     blockers.into_iter().collect()
 }
 
-/// Check if an HTML template string contains `await` inside `${...}` expressions.
-/// Only checks expression interpolations, not static text.
-pub(crate) fn html_template_contains_await(html: &str) -> bool {
-    let bytes = html.as_bytes();
-    let len = bytes.len();
-    let mut i = 0;
-
-    while i < len {
-        // Look for `${` which starts a template expression
-        if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
-            i += 2;
-            let start = i;
-            let mut depth = 1;
-            while i < len && depth > 0 {
-                let ch = bytes[i];
-                if ch == b'{' {
-                    depth += 1;
-                } else if ch == b'}' {
-                    depth -= 1;
-                } else if matches!(ch, b'\'' | b'"' | b'`') {
-                    i = skip_string_literal(bytes, i);
-                    continue;
-                }
-                if depth > 0 {
-                    i += 1;
-                }
-            }
-            let expr = &html[start..i];
-            if expr_contains_await(expr) {
-                return true;
-            }
-            if i < len {
-                i += 1; // skip closing }
-            }
-        } else {
-            i += 1;
-        }
-    }
-    false
-}
-
-/// Extract `await` expressions from an HTML template string's `${...}` interpolations.
-/// Returns a tuple of:
-/// - The modified HTML with `await expr` replaced by `$$N` variables
-/// - A vector of (var_name, save_declaration) pairs for the extracted expressions
-///
-/// For example, given `<p${$.attributes({ ...await { class: 'cool'} })}>cool</p>`:
-/// - Returns modified HTML: `<p${$.attributes({ ...$$0 })}>cool</p>`
-/// - Returns declarations: [("$$0", "(await $.save({ class: 'cool' }))()")]
-pub(crate) fn extract_await_from_html_template(html: &str) -> (String, Vec<(String, String)>) {
-    let bytes = html.as_bytes();
-    let len = bytes.len();
-    let mut result = String::with_capacity(len);
-    let mut declarations: Vec<(String, String)> = Vec::new();
-    let mut var_counter = 0;
-    let mut i = 0;
-
-    while i < len {
-        // Look for `${` which starts a template expression
-        if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
-            result.push_str("${");
-            i += 2;
-            let expr_start = i;
-            let mut depth = 1;
-            while i < len && depth > 0 {
-                let ch = bytes[i];
-                if ch == b'{' {
-                    depth += 1;
-                } else if ch == b'}' {
-                    depth -= 1;
-                } else if matches!(ch, b'\'' | b'"' | b'`') {
-                    i = skip_string_literal(bytes, i);
-                    continue;
-                }
-                if depth > 0 {
-                    i += 1;
-                }
-            }
-            let expr = &html[expr_start..i];
-
-            if expr_contains_await(expr) {
-                // Transform the expression to extract await and replace with $$N
-                let (new_expr, new_decls) = extract_await_from_expression(expr, &mut var_counter);
-                result.push_str(&new_expr);
-                declarations.extend(new_decls);
-            } else {
-                result.push_str(expr);
-            }
-
-            result.push('}');
-            if i < len {
-                i += 1; // skip closing }
-            }
-        } else {
-            result.push(bytes[i] as char);
-            i += 1;
-        }
-    }
-
-    (result, declarations)
-}
-
-/// Extract `await expr` from a single expression, replacing with `$$N` variables.
-///
-/// This handles patterns like:
-/// - `$.attributes({ ...await { class: 'cool'} })` → `$.attributes({ ...$$0 })`
-///   with decl: `$$0 = (await $.save({ class: 'cool' }))()`
-/// - `$.attr_class($.clsx(await 'awesome'))` → `$.attr_class($$0)`
-///   with decl: `$$0 = $.clsx((await $.save('awesome'))())`
-/// - `$.attributes({ ...{}, class: $.clsx(await 'neato') })` → `$.attributes({ ...{}, class: $$0 })`
-///   with decl: `$$0 = $.clsx((await $.save('neato'))())`
-fn extract_await_from_expression(
-    expr: &str,
-    var_counter: &mut usize,
-) -> (String, Vec<(String, String)>) {
-    let mut decls: Vec<(String, String)> = Vec::new();
-
-    // Strategy: Find the outermost expression that contains `await` and extract it.
-    // The PromiseOptimiser extracts the whole expression passed to `transform()`,
-    // which is usually the attribute value expression.
-
-    // Check for pattern: $.clsx(await expr) or $.clsx(...await expr...)
-    // In this case, the whole $.clsx() call should be extracted as $$N
-    if let Some(new_expr) = try_extract_clsx_with_await(expr, var_counter, &mut decls) {
-        return (new_expr, decls);
-    }
-
-    // Check for pattern: ...await expr (spread with await)
-    // In this case, extract just the `await expr` part
-    if let Some(new_expr) = try_extract_spread_await(expr, var_counter, &mut decls) {
-        return (new_expr, decls);
-    }
-
-    // Fallback: extract each `await expr` individually
-    let transformed = extract_all_awaits(expr, var_counter, &mut decls);
-    (transformed, decls)
-}
-
-/// Try to extract `$.clsx(await expr)` pattern - the whole clsx call becomes $$N
-fn try_extract_clsx_with_await(
-    expr: &str,
-    var_counter: &mut usize,
-    decls: &mut Vec<(String, String)>,
-) -> Option<String> {
-    // Look for $.clsx( pattern
-    if let Some(clsx_pos) = memmem::find(expr.as_bytes(), b"$.clsx(") {
-        let inner_start = clsx_pos + 7; // after "$.clsx("
-        let bytes = expr.as_bytes();
-        let mut depth = 1;
-        let mut j = inner_start;
-        while j < bytes.len() && depth > 0 {
-            match bytes[j] {
-                b'(' => depth += 1,
-                b')' => depth -= 1,
-                b'\'' | b'"' | b'`' => {
-                    j = skip_string_literal(bytes, j);
-                    continue;
-                }
-                _ => {}
-            }
-            if depth > 0 {
-                j += 1;
-            }
-        }
-        let clsx_end = j + 1; // include closing )
-        let clsx_inner = &expr[inner_start..j];
-
-        if expr_contains_await(clsx_inner) {
-            // Transform the inner await: await X → (await $.save(X))()
-            let transformed_inner = transform_await_to_save(clsx_inner);
-            let var_name = format!("$${}", *var_counter);
-            *var_counter += 1;
-            let decl_value = format!("$.clsx({})", transformed_inner);
-            decls.push((var_name.clone(), decl_value));
-
-            // Replace the $.clsx(...) with $$N
-            let mut result = String::new();
-            result.push_str(&expr[..clsx_pos]);
-            result.push_str(&var_name);
-            result.push_str(&expr[clsx_end..]);
-            return Some(result);
-        }
-    }
-    None
-}
-
-/// Try to extract `...await expr` pattern - `await expr` becomes $$N
-fn try_extract_spread_await(
-    expr: &str,
-    var_counter: &mut usize,
-    decls: &mut Vec<(String, String)>,
-) -> Option<String> {
-    // Look for ...await pattern
-    let bytes = expr.as_bytes();
-    let len = bytes.len();
-    let mut i = 0;
-    let mut result = String::with_capacity(len);
-
-    // Operand extents from the parsed AST (see `extract_all_awaits`).
-    let arg_ends = super::await_save_ast::await_arg_ends(expr);
-
-    while i < len {
-        // Skip string literals
-        if matches!(bytes[i], b'\'' | b'"' | b'`') {
-            let end = skip_string_literal(bytes, i);
-            result.push_str(&expr[i..end]);
-            i = end;
-            continue;
-        }
-
-        // Look for ...await
-        if i + 8 <= len && &bytes[i..i + 3] == b"..." {
-            let after_dots = i + 3;
-            // Skip whitespace
-            let mut k = after_dots;
-            while k < len && matches!(bytes[k], b' ' | b'\t' | b'\n' | b'\r') {
-                k += 1;
-            }
-            if k + 5 <= len && &expr[k..k + 5] == "await" {
-                let after_await = k + 5;
-                let next = if after_await < len {
-                    bytes[after_await]
-                } else {
-                    0
-                };
-                if !next.is_ascii_alphanumeric() && next != b'_' && next != b'$' {
-                    // Found ...await - extract the await argument
-                    let mut arg_start = after_await;
-                    while arg_start < len
-                        && matches!(bytes[arg_start], b' ' | b'\t' | b'\n' | b'\r')
-                    {
-                        arg_start += 1;
-                    }
-                    // `k` is the `await` keyword offset.
-                    let arg_end = await_arg_end_for_keyword(&arg_ends, k, bytes, arg_start, len);
-                    let arg = &expr[arg_start..arg_end];
-
-                    let var_name = format!("$${}", *var_counter);
-                    *var_counter += 1;
-                    let decl_value = format!("(await $.save({}))()", arg);
-                    decls.push((var_name.clone(), decl_value));
-
-                    result.push_str("...");
-                    result.push_str(&var_name);
-                    i = arg_end;
-                    continue;
-                }
-            }
-        }
-
-        result.push(bytes[i] as char);
-        i += 1;
-    }
-
-    if decls.is_empty() { None } else { Some(result) }
-}
-
-/// Fallback: extract all `await expr` occurrences and replace with $$N
-fn extract_all_awaits(
-    expr: &str,
-    var_counter: &mut usize,
-    decls: &mut Vec<(String, String)>,
-) -> String {
-    let bytes = expr.as_bytes();
-    let len = bytes.len();
-    let mut result = String::with_capacity(len);
-    let mut i = 0;
-
-    // Operand extents from the parsed AST, keyed by the `await` keyword
-    // position. Bounding each operand by its `AwaitExpression` span instead of
-    // the hand-rolled `find_await_arg_end` scanner removes the "forgot an
-    // operator" bug class (e.g. a ternary `:` swallowed into the operand —
-    // issue #1036). Falls back to the scanner when the expression doesn't
-    // parse as a standalone expression.
-    let arg_ends = super::await_save_ast::await_arg_ends(expr);
-
-    while i < len {
-        // Skip string literals
-        if matches!(bytes[i], b'\'' | b'"' | b'`') {
-            let end = skip_string_literal(bytes, i);
-            result.push_str(&expr[i..end]);
-            i = end;
-            continue;
-        }
-
-        // Check for `await` keyword
-        if bytes[i] == b'a' && i + 5 <= len && &bytes[i..i + 5] == b"await" {
-            let before_ok = i == 0
-                || !bytes[i - 1].is_ascii_alphanumeric()
-                    && bytes[i - 1] != b'_'
-                    && bytes[i - 1] != b'$';
-            let after = if i + 5 < len { bytes[i + 5] } else { 0 };
-            let after_ok = !after.is_ascii_alphanumeric() && after != b'_' && after != b'$';
-            if before_ok && after_ok {
-                // Found `await` - extract argument
-                let mut arg_start = i + 5;
-                while arg_start < len && matches!(bytes[arg_start], b' ' | b'\t' | b'\n' | b'\r') {
-                    arg_start += 1;
-                }
-                let arg_end = await_arg_end_for_keyword(&arg_ends, i, bytes, arg_start, len);
-                let arg = &expr[arg_start..arg_end];
-
-                let var_name = format!("$${}", *var_counter);
-                *var_counter += 1;
-                let decl_value = format!("(await $.save({}))()", arg);
-                decls.push((var_name.clone(), decl_value));
-
-                result.push_str(&var_name);
-                i = arg_end;
-                continue;
-            }
-        }
-
-        result.push(bytes[i] as char);
-        i += 1;
-    }
-
-    result
-}
-
 /// Find const-tag-level blocker expressions for identifiers referenced in a JS expression string.
 /// Returns a list of unique blocker expressions (e.g., "promises_2[1]") for variables
 /// referenced in the expression that have entries in the const_blocker_map.
@@ -3113,83 +1542,6 @@ pub(crate) fn find_const_expression_blockers(
         }
     }
     blockers
-}
-
-/// Find const-tag-level blocker expressions for identifiers referenced in an HTML template string.
-/// Only checks ${...} expression interpolations within the HTML.
-pub(crate) fn find_const_html_blockers(
-    html: &str,
-    const_blocker_map: &rustc_hash::FxHashMap<String, String>,
-) -> Vec<String> {
-    let mut blockers = Vec::new();
-    // Find ${...} expressions in the HTML
-    let bytes = html.as_bytes();
-    let len = bytes.len();
-    let mut i = 0;
-    while i < len {
-        if i + 1 < len && bytes[i] == b'$' && bytes[i + 1] == b'{' {
-            // Find the matching closing brace
-            let start = i + 2;
-            let mut depth = 1;
-            let mut j = start;
-            while j < len && depth > 0 {
-                match bytes[j] {
-                    b'{' => depth += 1,
-                    b'}' => depth -= 1,
-                    _ => {}
-                }
-                j += 1;
-            }
-            if depth == 0 {
-                let expr = &html[start..j - 1];
-                let expr_blockers = find_const_expression_blockers(expr, const_blocker_map);
-                for b in expr_blockers {
-                    if !blockers.contains(&b) {
-                        blockers.push(b);
-                    }
-                }
-            }
-            i = j;
-        } else {
-            i += 1;
-        }
-    }
-    blockers
-}
-
-/// Split an HTML string at the first ${...} expression that references a blocked variable.
-/// Returns (prefix, expression_content, suffix) if an expression is found.
-pub(crate) fn split_html_expression(html: &str) -> Option<(String, String, String)> {
-    let bytes = html.as_bytes();
-    let len = bytes.len();
-    let mut i = 0;
-    while i < len {
-        if i + 1 < len && bytes[i] == b'$' && bytes[i + 1] == b'{' {
-            let expr_start = i;
-            let start = i + 2;
-            let mut depth = 1;
-            let mut j = start;
-            while j < len && depth > 0 {
-                match bytes[j] {
-                    b'{' => depth += 1,
-                    b'}' => depth -= 1,
-                    _ => {}
-                }
-                j += 1;
-            }
-            if depth == 0 {
-                let prefix = html[..expr_start].to_string();
-                // Extract just the expression (without ${ and })
-                let expr = html[start..j - 1].to_string();
-                let suffix = html[j..].to_string();
-                return Some((prefix, expr, suffix));
-            }
-            i = j;
-        } else {
-            i += 1;
-        }
-    }
-    None
 }
 
 /// Extract all identifier names from a JavaScript expression string.
@@ -3381,131 +1733,6 @@ pub fn update_template_literal_state_full(
     (in_template, brace_depth)
 }
 
-/// Normalize an import statement to match esrap formatting:
-/// - If the single-line version is ≤ 83 chars, use single-line format
-/// - If > 83 chars, break into multi-line with tab indentation per specifier
-/// - No trailing commas on the last specifier
-/// - Single quotes for module path
-/// - Multi-line format: `import {\n\tspec1,\n\tspec2\n} from 'module';`
-pub(crate) fn normalize_import(import_str: &str) -> String {
-    let s = import_str.trim();
-
-    // Only normalize named imports: `import { ... } from '...'`
-    // Skip: `import * as`, `import '...'`, `import Foo from`
-    let Some(brace_start) = s.find('{') else {
-        return s.to_string();
-    };
-    let Some(brace_end) = s.rfind('}') else {
-        return s.to_string();
-    };
-
-    // Extract the part before `{`, the specifiers, and the part after `}`
-    let prefix = s[..brace_start].trim(); // "import" or "import type"
-    let specifiers_str = &s[brace_start + 1..brace_end];
-    let after_brace = s[brace_end + 1..].trim(); // "from '...'"  or "from '...';
-
-    // Parse specifiers: split by commas, trim each, remove empty ones
-    let specifiers: Vec<&str> = specifiers_str
-        .split(',')
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .collect();
-
-    if specifiers.is_empty() {
-        return s.to_string();
-    }
-
-    let after_brace = after_brace.trim();
-
-    // Build single-line version
-    let single_line = format!("{} {{ {} }} {}", prefix, specifiers.join(", "), after_brace);
-
-    // esrap threshold: the `sequence()` function in esrap uses `length > 60` to decide
-    // multiline. The total length includes the `{ }` braces, specifier names, commas,
-    // and spaces. We measure just the specifier part: `{ spec1, spec2 }` portion.
-    let specifier_part_len = 2
-        + specifiers.iter().map(|s| s.len()).sum::<usize>()
-        + (specifiers.len().saturating_sub(1)) * 2; // ", " between specs
-    if specifier_part_len <= 60 {
-        // Ensure trailing semicolon
-        if single_line.ends_with(';') {
-            single_line
-        } else {
-            format!("{};", single_line)
-        }
-    } else {
-        // Multi-line format
-        let mut result = format!("{} {{\n", prefix);
-        for (i, spec) in specifiers.iter().enumerate() {
-            if i < specifiers.len() - 1 {
-                let _ = writeln!(result, "\t{},", spec);
-            } else {
-                // Last specifier: no trailing comma
-                let _ = writeln!(result, "\t{}", spec);
-            }
-        }
-        let _ = write!(result, "}} {}", after_brace);
-        if !result.ends_with(';') {
-            result.push(';');
-        }
-        result
-    }
-}
-
-/// Detect the space indentation unit of a script.
-/// Returns the smallest non-zero leading-space count, or 0 if the script uses tabs.
-fn detect_space_indent_unit(script: &str) -> usize {
-    // If any line starts with a tab, assume tab-based indentation
-    if script.lines().any(|l| l.starts_with('\t')) {
-        return 0;
-    }
-    let mut min_spaces: Option<usize> = None;
-    for line in script.lines() {
-        if line.trim().is_empty() {
-            continue;
-        }
-        let leading = line.len() - line.trim_start_matches(' ').len();
-        if leading > 0 {
-            min_spaces = Some(match min_spaces {
-                Some(m) => m.min(leading),
-                None => leading,
-            });
-        }
-    }
-    min_spaces.unwrap_or(0)
-}
-
-/// Find the byte index of `...` rest element in a destructuring pattern,
-/// skipping `...` that appears inside string literals.
-fn find_rest_element_index(inner: &str) -> Option<usize> {
-    let bytes = inner.as_bytes();
-    let len = bytes.len();
-    let mut i = 0;
-    let mut in_string = false;
-    let mut string_char = 0u8;
-
-    while i < len {
-        if in_string {
-            if bytes[i] == string_char && (i == 0 || bytes[i - 1] != b'\\') {
-                in_string = false;
-            }
-            i += 1;
-            continue;
-        }
-        if bytes[i] == b'\'' || bytes[i] == b'"' || bytes[i] == b'`' {
-            in_string = true;
-            string_char = bytes[i];
-            i += 1;
-            continue;
-        }
-        if i + 2 < len && bytes[i] == b'.' && bytes[i + 1] == b'.' && bytes[i + 2] == b'.' {
-            return Some(i);
-        }
-        i += 1;
-    }
-    None
-}
-
 #[cfg(test)]
 mod ts_strip_tests {
     use super::strip_ts_type_annotation;
@@ -3530,299 +1757,6 @@ mod ts_strip_tests {
         assert_eq!(
             strip_ts_type_annotation("[a, b]: number[] = []"),
             "[a, b] = []"
-        );
-    }
-}
-
-#[cfg(test)]
-mod collapse_destructuring_tests {
-    use super::{collapse_multiline_destructuring, strip_inline_line_comment};
-
-    // ── strip_inline_line_comment ───────────────────────────────────────────
-
-    #[test]
-    fn strip_comment_after_code() {
-        assert_eq!(
-            strip_inline_line_comment("open = void 0, // If undefined, renders as modal"),
-            "open = void 0,"
-        );
-    }
-
-    #[test]
-    fn no_comment_returns_unchanged() {
-        assert_eq!(
-            strip_inline_line_comment("badgeProps = { color: \"blue\" },"),
-            "badgeProps = { color: \"blue\" },"
-        );
-    }
-
-    #[test]
-    fn slash_slash_inside_string_not_stripped() {
-        // `//` inside a string literal must NOT be treated as a comment.
-        assert_eq!(
-            strip_inline_line_comment("url = \"http://example.com\","),
-            "url = \"http://example.com\","
-        );
-    }
-
-    #[test]
-    fn pure_comment_line_becomes_empty() {
-        assert_eq!(strip_inline_line_comment("// just a comment"), "");
-    }
-
-    #[test]
-    fn block_comment_followed_by_code_not_stripped() {
-        // A `/* … */` block comment before `//` does not confuse the scanner.
-        assert_eq!(
-            strip_inline_line_comment("/* note */ open = 1, // line comment"),
-            "/* note */ open = 1,"
-        );
-    }
-
-    // ── collapse_multiline_destructuring with inline comment ───────────────
-
-    /// A multi-line `$props()` destructure that contains an interior `//`
-    /// line comment (trailing on a property line) must produce a *parseable*
-    /// collapsed single line — the `//` must NOT swallow subsequent properties.
-    #[test]
-    fn inline_comment_in_props_destructure_is_parseable() {
-        let input = "\tlet {\n\
-                     \t  a = 1,\n\
-                     \t  open = void 0, // If undefined, renders inline; if defined, renders as modal\n\
-                     \t  badgeProps = { color: \"blue\" },\n\
-                     \t  b = 2\n\
-                     \t} = $$props;\n";
-        let collapsed = collapse_multiline_destructuring(input);
-        // The collapsed output must be on one line and must NOT contain `//`
-        // (which would make everything after it a comment on that line).
-        assert!(
-            collapsed.contains("= $$props"),
-            "Expected $$props in output: {collapsed:?}"
-        );
-        // The `//` comment should have been stripped — `badgeProps` must still appear.
-        assert!(
-            collapsed.contains("badgeProps"),
-            "badgeProps was swallowed by inline comment: {collapsed:?}"
-        );
-        // The line must not contain a `//` that would make subsequent tokens into a comment.
-        let single_line = collapsed
-            .lines()
-            .find(|l| l.contains("= $$props"))
-            .unwrap_or("");
-        assert!(
-            !single_line.contains("//"),
-            "Inline comment survived collapse and would swallow following tokens: {single_line:?}"
-        );
-    }
-
-    /// A `$props()` destructure that has a *pure* comment line (starts with `//`)
-    /// in the middle should also collapse correctly (the comment line is already
-    /// excluded by the existing logic).
-    #[test]
-    fn pure_comment_line_in_props_destructure_is_excluded() {
-        let input = "\tlet {\n\
-                     \t  a = 1,\n\
-                     \t  // This is a standalone comment line\n\
-                     \t  b = 2\n\
-                     \t} = $$props;\n";
-        let collapsed = collapse_multiline_destructuring(input);
-        assert!(
-            collapsed.contains("a = 1") && collapsed.contains("b = 2"),
-            "Properties missing after collapsing: {collapsed:?}"
-        );
-        let single_line = collapsed
-            .lines()
-            .find(|l| l.contains("= $$props"))
-            .unwrap_or("");
-        assert!(
-            !single_line.contains("//"),
-            "Standalone comment line survived collapse: {single_line:?}"
-        );
-    }
-
-    /// When a `let { ...restProps }: TypeAnnotation & { ... } = $$props`
-    /// destructure has a TypeScript type annotation with its own JSDoc block
-    /// comment, collapse_multiline_destructuring should still produce a single
-    /// collapsed line that contains `= $$props`.
-    #[test]
-    fn ts_type_annotation_with_jsdoc_collapses_to_single_line() {
-        let input = "\tlet {\n\
-                     \t\tvalue: valueProp = [],\n\
-                     \t\titems = [],\n\
-                     \t\t...restProps\n\
-                     \t}: Checkbox.GroupProps & {\n\
-                     \t\t/**\n\
-                     \t\t * The individual checkbox items.\n\
-                     \t\t */\n\
-                     \t\titems?: string[];\n\
-                     \t} = $$props;\n";
-        let collapsed = collapse_multiline_destructuring(input);
-        let single_line = collapsed
-            .lines()
-            .find(|l| l.contains("= $$props"))
-            .unwrap_or("");
-        assert!(
-            !single_line.is_empty(),
-            "No collapsed line with = $$props found: {collapsed:?}"
-        );
-        assert!(
-            single_line.contains("...restProps"),
-            "restProps missing from collapsed line: {single_line:?}"
-        );
-        assert!(
-            single_line.contains("value: valueProp"),
-            "value prop missing from collapsed line: {single_line:?}"
-        );
-    }
-
-    /// transform_props_spread_ex should add $$slots and $$events even when the
-    /// destructure has a TypeScript type annotation.
-    #[test]
-    fn ts_annotated_props_gets_slots_and_events() {
-        use super::transform_props_spread_ex;
-        let input = "\tlet {\n\
-                     \t\tvalue: valueProp = [],\n\
-                     \t\titems = [],\n\
-                     \t\t...restProps\n\
-                     \t}: Checkbox.GroupProps & {\n\
-                     \t\t/**\n\
-                     \t\t * The individual checkbox items.\n\
-                     \t\t */\n\
-                     \t\titems?: string[];\n\
-                     \t} = $$props;\n";
-        let result = transform_props_spread_ex(input, 0, false);
-        assert!(
-            result.contains("$$slots"),
-            "$$slots missing from output: {result:?}"
-        );
-        assert!(
-            result.contains("$$events"),
-            "$$events missing from output: {result:?}"
-        );
-        assert!(
-            result.contains("...restProps"),
-            "restProps missing from output: {result:?}"
-        );
-        // TS type annotation must not appear in the output
-        assert!(
-            !result.contains("Checkbox.GroupProps"),
-            "TS type annotation leaked into output: {result:?}"
-        );
-    }
-
-    /// Regression: when `strip_typescript` re-emits a JSDoc comment that was
-    /// inside a TS type annotation on a `$props()` destructure, the comment
-    /// lands between the closing `}` of the destructure and `= $$props`.
-    /// `collapse_multiline_destructuring` must not break on this — it should
-    /// treat the block comment lines as continuations and still produce a single
-    /// collapsed line containing `= $$props`, so `transform_props_spread_ex`
-    /// can inject `$$slots` / `$$events`.
-    ///
-    /// Input reproduces what `strip_typescript` emits for:
-    ///   let { ..., ...restProps }: SomeType & { /** JSDoc */ items?: ... } = $props()
-    /// after the TS annotation is removed but its interior comment is re-emitted.
-    #[test]
-    fn jsdoc_comment_between_brace_and_equals_does_not_drop_slots_events() {
-        use super::transform_props_spread_ex;
-        // Simulates the post-strip_typescript form: comment floats between `}` and `= $$props`.
-        let input = "\tlet {\n\
-                     \t\tvalue: valueProp = [],\n\
-                     \t\titems = [],\n\
-                     \t\t...restProps\n\
-                     \t}\n\
-                     \t/**\n\
-                     \t * The individual checkbox items.\n\
-                     \t */\n\
-                     \t= $$props;\n";
-        let result = transform_props_spread_ex(input, 0, false);
-        assert!(
-            result.contains("$$slots"),
-            "$$slots missing from output: {result:?}"
-        );
-        assert!(
-            result.contains("$$events"),
-            "$$events missing from output: {result:?}"
-        );
-        assert!(
-            result.contains("...restProps"),
-            "restProps missing from output: {result:?}"
-        );
-    }
-}
-
-#[cfg(test)]
-mod extract_imports_template_literal_tests {
-    use super::extract_imports;
-
-    /// Bug A regression: a line inside a template literal that starts with
-    /// `import` and ends with a backtick must NOT be hoisted as an import.
-    ///
-    /// Reproducer: flowbite-svelte +page.svelte has
-    /// ```svelte
-    /// let importScript = currentTransition !== transitions[0]
-    ///   ? ` // script tag
-    ///         import { ${currentTransition} } from 'svelte/transition'`
-    ///   : "";
-    /// ```
-    /// The line `` import { ${currentTransition} } from 'svelte/transition'` ``
-    /// starts with `import `, has ` from `, and ends with `` ` ``, so it
-    /// accidentally matched the "complete import" heuristic. It must be routed
-    /// to the script body, not hoisted.
-    #[test]
-    fn template_literal_import_like_line_is_not_hoisted() {
-        let script = r#"
-import { blur } from 'svelte/transition';
-let importScript =
-    currentTransition !== transitions[0]
-        ? ` // script tag
-                import { ${currentTransition} } from 'svelte/transition'`
-        : "";
-"#;
-        let (imports, rest) = extract_imports(script);
-        // Only the real import should be hoisted
-        assert_eq!(
-            imports.len(),
-            1,
-            "expected 1 import, got {}: {:?}",
-            imports.len(),
-            imports
-        );
-        assert!(
-            imports[0].contains("svelte/transition"),
-            "hoisted import should be the real one: {:?}",
-            imports
-        );
-        // The template-literal line must appear in the rest body, not vanish
-        assert!(
-            rest.contains("import { ${currentTransition} }"),
-            "template-literal import-like line must remain in rest body: {rest:?}"
-        );
-    }
-
-    /// Lines entirely inside a multi-line template literal must not be treated
-    /// as imports even if they start with `import `.
-    #[test]
-    fn multiline_template_literal_body_not_hoisted() {
-        let script = r#"
-import { x } from './mod';
-const code = `
-import foo from 'bar';
-import baz from 'qux';
-`;
-"#;
-        let (imports, rest) = extract_imports(script);
-        // Only the single real import should be hoisted
-        assert_eq!(
-            imports.len(),
-            1,
-            "expected 1 import, got {}: {:?}",
-            imports.len(),
-            imports
-        );
-        // The template literal lines must survive in rest
-        assert!(
-            rest.contains("import foo from 'bar'"),
-            "template-literal body line must remain in rest: {rest:?}"
         );
     }
 }

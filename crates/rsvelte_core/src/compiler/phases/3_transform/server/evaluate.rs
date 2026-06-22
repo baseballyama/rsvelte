@@ -20,7 +20,6 @@
 
 use serde_json::Value;
 
-use super::ServerCodeGenerator;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -721,42 +720,6 @@ pub(crate) struct EvalCtx<'c> {
     pub top_level_blocker_map: &'c FxHashMap<String, usize>,
     pub current_scope_index: Option<usize>,
     pub template_scopes_cache: &'c OnceCell<FxHashSet<usize>>,
-}
-
-impl<'a> ServerCodeGenerator<'a> {
-    /// Build an [`EvalCtx`] borrowing this generator's evaluation-relevant
-    /// fields. A pure delegation — every field is forwarded verbatim, so the
-    /// evaluator result is identical to the historical inline methods.
-    pub(crate) fn eval_ctx(&self) -> EvalCtx<'_> {
-        EvalCtx {
-            analysis: self.analysis,
-            constant_vars: &self.constant_vars,
-            source: &self.source,
-            use_async: self.use_async,
-            top_level_blocker_map: &self.top_level_blocker_map,
-            current_scope_index: self.current_scope_index,
-            template_scopes_cache: &self.template_scopes_cache,
-        }
-    }
-
-    /// Evaluate a template expression (typed AST wrapper). Delegates to
-    /// [`EvalCtx::evaluate_template_expression`].
-    pub(crate) fn evaluate_template_expression(
-        &self,
-        expr: &crate::ast::js::Expression,
-    ) -> Evaluation {
-        self.eval_ctx().evaluate_template_expression(expr)
-    }
-
-    /// Resolve a bare identifier (public wrapper for the attribute fast path).
-    pub(crate) fn evaluate_identifier_pub(&self, name: &str) -> Evaluation {
-        self.eval_ctx().evaluate_identifier(name, 0)
-    }
-
-    /// Core estree evaluator entry (used by the attribute folding path).
-    pub(crate) fn evaluate_estree(&self, node: &Value, depth: u8) -> Evaluation {
-        self.eval_ctx().evaluate_estree(node, depth)
-    }
 }
 
 impl<'a> EvalCtx<'a> {

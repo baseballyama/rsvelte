@@ -782,7 +782,15 @@ impl<'opt> Printer<'opt> {
         body_end: u32,
         ctx: &mut Context,
     ) {
-        let non_empty: Vec<&BodyElem> = elems.iter().filter(|e| !e.is_empty_stmt()).collect();
+        // esrap filters `EmptyStatement` (`;`) nodes from statement-list bodies
+        // (matching the server AST + official esrap). The client `to_oxc` path,
+        // which parses string-codegen `Raw` `;;` into real EmptyStatement nodes the
+        // official COMPILER output keeps, opts into preserving them.
+        let non_empty: Vec<&BodyElem> = if self.options.keep_empty_statements {
+            elems.iter().collect()
+        } else {
+            elems.iter().filter(|e| !e.is_empty_stmt()).collect()
+        };
         // Re-sync to the body's own start so a leading comment that precedes the
         // first statement (e.g. a file header) isn't skipped over.
         self.reset_comment_index(body_start);

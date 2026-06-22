@@ -34,7 +34,7 @@ use oxc_ast::ast::{
     FormalParameterKind, FunctionType, ImportOrExportKind, ObjectPropertyKind, PropertyKey,
     PropertyKind, RegExp, RegExpFlags, RegExpPattern, Statement, VariableDeclarationKind,
 };
-use oxc_span::SPAN;
+use oxc_span::{GetSpanMut, SPAN, Span};
 use oxc_syntax::number::{BigintBase, NumberBase};
 use oxc_syntax::operator::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
@@ -53,12 +53,12 @@ pub fn program_to_oxc<'a>(
     let ab = AstBuilder::new(allocator);
     let cx = Cx { ab, arena };
 
-    // Collect into an Option<Vec<_>> first so a single None bails the program.
-    let body: Vec<Statement<'a>> = program
-        .body
-        .iter()
-        .map(|s| cx.stmt(s))
-        .collect::<Option<Vec<_>>>()?;
+    // Collect, flattening multi-statement `Raw` blobs inline. A single None
+    // (parse failure / unhandled node) bails the whole program.
+    let mut body: Vec<Statement<'a>> = Vec::with_capacity(program.body.len());
+    for s in &program.body {
+        body.extend(cx.expand_stmt(s)?);
+    }
 
     let body = ab.vec_from_iter(body);
     Some(ab.program(
@@ -164,9 +164,23 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 Some(self.ab.statement_labeled(SPAN, label, body))
             }
             JsStatement::Try(t) => self.try_statement(t),
-            // Bail on opaque Raw / RawMapped (the CRITICAL RULE) and any other
-            // variant not explicitly handled above.
-            _ => None,
+            // `Raw`/`RawMapped` at a SINGLE-statement site (if / while / for
+            // body): parse the text; a lone statement is returned directly, a
+            // multi-statement blob is wrapped in a block. (Statement-LIST sites
+            // use `expand_stmt` instead, which flattens inline.)
+            JsStatement::Raw(code) => self.raw_single_statement(code),
+            JsStatement::RawMapped { code, .. } => self.raw_single_statement(code),
+        }
+    }
+
+    /// Convert a `Raw` statement at a single-statement position: one parsed
+    /// statement is returned as-is; several are wrapped in a `{ … }` block.
+    fn raw_single_statement(&self, code: &str) -> Option<Statement<'a>> {
+        let stmts = self.parse_raw_statements(code)?;
+        if stmts.len() == 1 {
+            stmts.into_iter().next()
+        } else {
+            Some(self.ab.statement_block(SPAN, self.ab.vec_from_iter(stmts)))
         }
     }
 
@@ -202,7 +216,14 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     fn for_of_statement(&self, for_of: &JsForOfStatement) -> Option<Statement<'a>> {
         let left = match &for_of.left {
             JsForOfLeft::Variable(decl) => {
-                let var_decl = self.variable_declaration_node(decl)?;
+                let mut var_decl = self.variable_declaration_node(decl)?;
+                // A `for (… in/of …)` binding cannot carry an initializer. The IR
+                // declarator may hold a spurious `null` init (which the string
+                // codegen drops in this position); strip it so we emit
+                // `for (const k in obj)`, not `for (const k = null in obj)`.
+                for d in var_decl.declarations.iter_mut() {
+                    d.init = None;
+                }
                 ForStatementLeft::VariableDeclaration(var_decl)
             }
             JsForOfLeft::Pattern(pattern) => {
@@ -448,10 +469,10 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     /// Convert a slice of IR statements into an arena `Vec`, bailing on any
     /// unhandled statement.
     fn statements(&self, body: &[JsStatement]) -> Option<ArenaVec<'a, Statement<'a>>> {
-        let v: Vec<Statement<'a>> = body
-            .iter()
-            .map(|s| self.stmt(s))
-            .collect::<Option<Vec<_>>>()?;
+        let mut v: Vec<Statement<'a>> = Vec::with_capacity(body.len());
+        for s in body {
+            v.extend(self.expand_stmt(s)?);
+        }
         Some(self.ab.vec_from_iter(v))
     }
 
@@ -747,8 +768,87 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 Some(self.ab.expression_yield(SPAN, y.delegate, argument))
             }
             JsExpr::Class(class) => self.class(class),
-            // Bail on opaque Raw / Spanned (the CRITICAL RULE).
-            _ => None,
+            // `Spanned` wraps a real inner expression with the original-source
+            // byte span (start, end). Convert the inner expression and stamp its
+            // span so esrap's `print_with_map` maps it back to the user source.
+            JsExpr::Spanned(inner, start, end) => {
+                let mut e = self.expr_id(*inner)?;
+                *e.span_mut() = Span::new(*start, *end);
+                Some(e)
+            }
+            // `Raw` carries opaque JS expression text. Parse it into a real oxc
+            // expression so esrap can print it canonically (the text is
+            // semantically what the official compiler emits, so the round-trip is
+            // byte-identical after esrap normalization).
+            JsExpr::Raw(code) => self.parse_raw_expression(code),
+        }
+    }
+
+    /// Parse a raw JS expression source string into an oxc [`Expression`].
+    /// Wraps in `( … )` so a leading `{`/`function` parses as an expression, then
+    /// strips the synthetic parens. Returns `None` on a parse error.
+    fn parse_raw_expression(&self, code: &str) -> Option<Expression<'a>> {
+        let wrapped = format!("({})", code.trim());
+        let owned = self.ab.allocator.alloc_str(&wrapped);
+        let ret =
+            oxc_parser::Parser::new(self.ab.allocator, owned, oxc_span::SourceType::mjs()).parse();
+        // Bail on any comment-bearing chunk: re-printing a parsed AST drops the
+        // comments (esrap places them by source line, which a reassembled program
+        // has no unified coordinate for). Falling back to the verbatim string
+        // codegen for these preserves the comments exactly. (KNOWN GAP: AST-side
+        // comment preservation, see docs/phase3-server-ast-remaining-work.md.)
+        if !ret.diagnostics.is_empty() || !ret.program.comments.is_empty() {
+            return None;
+        }
+        for stmt in ret.program.body {
+            if let Statement::ExpressionStatement(es) = stmt {
+                let mut e = es.unbox().expression;
+                while let Expression::ParenthesizedExpression(p) = e {
+                    e = p.unbox().expression;
+                }
+                return Some(e);
+            }
+        }
+        None
+    }
+
+    /// Parse a raw JS statement source string into a vec of oxc [`Statement`]s
+    /// (`Raw` may hold several statements). Returns `None` on a parse error.
+    fn parse_raw_statements(&self, code: &str) -> Option<Vec<Statement<'a>>> {
+        let owned = self.ab.allocator.alloc_str(code.trim());
+        let ret =
+            oxc_parser::Parser::new(self.ab.allocator, owned, oxc_span::SourceType::mjs()).parse();
+        // Bail on comments so the verbatim string codegen preserves them (see
+        // `parse_raw_expression`).
+        if !ret.diagnostics.is_empty() || !ret.program.comments.is_empty() {
+            return None;
+        }
+        Some(ret.program.body.into_iter().collect())
+    }
+
+    /// Expand one IR statement into its oxc statements — a `Raw`/`RawMapped`
+    /// expands to (possibly several) parsed statements, every other variant to a
+    /// single converted statement. Used at statement-LIST sites (program body,
+    /// block bodies) so a multi-statement `Raw` flattens inline.
+    fn expand_stmt(&self, stmt: &JsStatement) -> Option<Vec<Statement<'a>>> {
+        match stmt {
+            JsStatement::Raw(code) => self.parse_raw_statements(code),
+            JsStatement::RawMapped {
+                code,
+                source_offset,
+            } => {
+                let mut stmts = self.parse_raw_statements(code)?;
+                // Stamp each statement with the original-source offset so esrap's
+                // `print_with_map` maps the (transformed) instance-script lines
+                // back to the user source — mirroring the text codegen's
+                // per-block `source_offset` line mapping.
+                let sp = Span::new(*source_offset, *source_offset);
+                for s in &mut stmts {
+                    *s.span_mut() = sp;
+                }
+                Some(stmts)
+            }
+            other => Some(vec![self.stmt(other)?]),
         }
     }
 
