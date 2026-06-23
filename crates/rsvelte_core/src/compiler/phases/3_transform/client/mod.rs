@@ -2364,6 +2364,12 @@ fn find_module_scope_injection_point(code: &str) -> usize {
         "= $.from_svg(",
         "= $.from_mathml(",
         "= $.from_tree(",
+        // `<script>`-bearing templates wrap the factory: `var root =
+        // $.with_script($.from_html(...))`. The inner `= $.from_html(` is preceded
+        // by `(` not `= `, so match the outer `$.with_script(` declaration too —
+        // otherwise the `rest_excludes` hoist lands AFTER this first template
+        // instead of above all of them (upstream emits it right after imports).
+        "= $.with_script(",
     ];
 
     let mut best: Option<usize> = None;

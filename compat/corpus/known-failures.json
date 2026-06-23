@@ -8,7 +8,6 @@
 	"bits-ui/packages/bits-ui/src/lib/bits/utilities/floating-layer/use-floating-layer.svelte.ts",
 	"bits-ui/packages/bits-ui/src/lib/internal/dom-typeahead.svelte.ts",
 	"flowbite-svelte/src/lib/clipboard-manager/ClipboardManager.svelte",
-	"flowbite-svelte/src/lib/darkmode/DarkMode.svelte",
 	"flowbite-svelte/src/lib/datepicker/Datepicker.svelte",
 	"flowbite-svelte/src/lib/forms/timepicker/Timepicker.svelte",
 	"flowbite-svelte/src/routes/+page.svelte",
