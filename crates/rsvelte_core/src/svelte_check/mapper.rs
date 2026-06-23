@@ -48,7 +48,7 @@ const SEMANTIC_TS_1XXX_CODES: &[u32] = &[
 /// `TS1005` (`',' expected`), `TS1109` (`Expression expected`), `TS1128`
 /// (`Declaration or statement expected`), `TS1136` (`Property assignment
 /// expected`). Semantic / type errors live in `TS2xxx`+ — plus the handful of
-/// binder/checker-emitted `1xxx` codes listed in [`SEMANTIC_TS_1XXX_CODES`],
+/// binder/checker-emitted `1xxx` codes listed in `SEMANTIC_TS_1XXX_CODES`,
 /// which are explicitly excluded here.
 ///
 /// This distinction is load-bearing: TypeScript (and tsgo) suppress ALL
