@@ -5,6 +5,15 @@
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
+// Re-export the exact `FxHashMap` (and its hasher) that the preprocess attribute
+// maps are built from. With `resolver = "3"`, `rustc-hash` is compiled separately
+// for the normal and build-dependency graphs (oxc_formatter pulls the oxc stack
+// into the build graph), so an integration test that names `rustc_hash::FxHashMap`
+// directly can resolve a *different* `FxBuildHasher` instance than this crate's
+// `AttributeValue` map uses. Tests construct attribute maps through this re-export
+// so the hasher type always unifies with the library's.
+pub use rustc_hash::FxHashMap as PreprocessAttributeMap;
+
 /// The result of a preprocessor run.
 ///
 /// If the preprocessor does not return a result, it is assumed that the code is unchanged.

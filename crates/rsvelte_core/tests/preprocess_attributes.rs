@@ -4,10 +4,9 @@
 
 use rsvelte_core::compiler::preprocess::preprocess;
 use rsvelte_core::compiler::preprocess::types::{
-    AttributeValue, PreprocessError, PreprocessorFn, PreprocessorGroup, PreprocessorOptions,
-    PreprocessorResult, Processed,
+    AttributeValue, PreprocessAttributeMap as FxHashMap, PreprocessError, PreprocessorFn,
+    PreprocessorGroup, PreprocessorOptions, PreprocessorResult, Processed,
 };
-use rustc_hash::FxHashMap;
 use std::future::Future;
 
 fn ok<F>(f: F) -> PreprocessorResult
