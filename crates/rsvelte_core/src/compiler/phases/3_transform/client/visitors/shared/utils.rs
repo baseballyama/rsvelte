@@ -3427,7 +3427,7 @@ fn collect_expr_ids_recursive(val: &serde_json::Value, names: &mut Vec<String>) 
 /// verbatim wherever the folded value lands (e.g. a known-const string of
 /// bidirectional-control escapes folds to the literal characters, matching
 /// upstream's `scope.evaluate` which returns the cooked value).
-fn decode_unicode_escapes(s: &str) -> String {
+pub(crate) fn decode_unicode_escapes(s: &str) -> String {
     if !s.contains('\\') {
         return s.to_string();
     }

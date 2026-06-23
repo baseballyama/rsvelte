@@ -991,8 +991,14 @@ fn try_insert_constant_value(
             || (value.starts_with('"') && value.ends_with('"'))
             || (value.starts_with('`') && value.ends_with('`') && !value.contains("${")))
     {
+        // Decode `\uXXXX` / `\u{...}` / `\xHH` escapes to their actual characters so
+        // a known-const string folds to the cooked value (matching upstream's
+        // `scope.evaluate`), e.g. a bidirectional-control-character string emits the
+        // literal characters rather than the raw source escapes. Other escapes
+        // (`\n`, `\\`, ...) are left intact by `decode_unicode_escapes`.
         let content = &value[1..value.len() - 1];
-        constants.insert(name.to_string(), content.to_string());
+        let decoded = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::decode_unicode_escapes(content);
+        constants.insert(name.to_string(), decoded);
         true
     } else if value == "true" || value == "false" || value == "null" || value == "undefined" {
         constants.insert(name.to_string(), value.to_string());
