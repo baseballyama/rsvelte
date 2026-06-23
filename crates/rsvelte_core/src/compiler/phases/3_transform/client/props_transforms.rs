@@ -1649,6 +1649,42 @@ pub(super) fn is_identifier_str(s: &str) -> bool {
 /// - Object literals: { a: 1 }
 /// - Call expressions: foo()
 /// - Template literals: `hello`, `${x}` (TemplateLiteral != Literal in AST)
+/// Whether `s` contains a `=>` token at bracket depth 0 (i.e. the expression is
+/// itself an arrow function), as opposed to a `=>` nested inside a call argument
+/// (`x.map(a => b)`). The call/member-expression "not simple" checks below use
+/// this to avoid bailing on a call CHAIN that merely contains a nested arrow —
+/// `type.split("").map((c) => c).join("")` is a CallExpression (NOT simple),
+/// even though it contains `=>`.
+fn has_top_level_arrow(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    let mut depth: i32 = 0;
+    let mut i = 0;
+    let mut string: Option<u8> = None;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if let Some(q) = string {
+            if b == b'\\' {
+                i += 2;
+                continue;
+            }
+            if b == q {
+                string = None;
+            }
+            i += 1;
+            continue;
+        }
+        match b {
+            b'\'' | b'"' | b'`' => string = Some(b),
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'=' if depth == 0 && i + 1 < bytes.len() && bytes[i + 1] == b'>' => return true,
+            _ => {}
+        }
+        i += 1;
+    }
+    false
+}
+
 pub(super) fn is_simple_expression_str(value: &str) -> bool {
     let trimmed = value.trim();
 
@@ -1705,10 +1741,7 @@ pub(super) fn is_simple_expression_str(value: &str) -> bool {
 
     // Call expressions are NOT simple (unless it's a no-arg function reference)
     // e.g., foo() is not simple, but foo is simple
-    if trimmed.ends_with(')')
-        && !trimmed.starts_with("function")
-        && memchr::memmem::find(trimmed.as_bytes(), b"=>").is_none()
-    {
+    if trimmed.ends_with(')') && !trimmed.starts_with("function") && !has_top_level_arrow(trimmed) {
         // Check if it looks like a call expression
         // Find matching parens
         let mut depth = 0;
@@ -1723,7 +1756,7 @@ pub(super) fn is_simple_expression_str(value: &str) -> bool {
                         // If there's a valid identifier before the paren, it's a call
                         if !before.is_empty()
                             && !before.ends_with("function")
-                            && memchr::memmem::find(before.as_bytes(), b"=>").is_none()
+                            && !has_top_level_arrow(before)
                         {
                             return false;
                         }
@@ -1755,7 +1788,7 @@ pub(super) fn is_simple_expression_str(value: &str) -> bool {
 
     // Member expressions (containing dots) are NOT simple
     if !trimmed.starts_with("function")
-        && memchr::memmem::find(trimmed.as_bytes(), b"=>").is_none()
+        && !has_top_level_arrow(trimmed)
         && !trimmed.starts_with('"')
         && !trimmed.starts_with('\'')
         && !trimmed.starts_with('`')
