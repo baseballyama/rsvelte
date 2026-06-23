@@ -30,7 +30,6 @@
 	"melt-ui/packages/melt/src/lib/builders/tests/SpatialMenuNavTest.svelte",
 	"shadcn-svelte/docs/src/lib/components/cards/team-members.svelte",
 	"shadcn-svelte/docs/src/lib/components/mobile-nav.svelte",
-	"shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte",
 	"shadcn-svelte/docs/src/lib/registry/examples/create/vercel/circular-gauge.svelte",
 	"shadcn-svelte/docs/src/lib/registry/examples/date-picker-form.svelte",
 	"shadcn-svelte/docs/src/lib/registry/ui/sidebar/sidebar-menu-skeleton.svelte",

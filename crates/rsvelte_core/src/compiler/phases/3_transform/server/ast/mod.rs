@@ -396,12 +396,19 @@ impl<'a> ServerTransformState<'a> {
     /// contains exactly one node that is a non-dynamic RenderTag or non-dynamic
     /// Component (so the parent anchors suffice and the trailing `<!---->` is
     /// elided). Snippet defs / const tags / head-like nodes are hoisted out.
-    pub fn is_standalone_fragment(nodes: &[TemplateNode]) -> bool {
+    pub fn is_standalone_fragment(nodes: &[TemplateNode], preserve_whitespace: bool) -> bool {
         use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
         let meaningful: Vec<&TemplateNode> = nodes
             .iter()
             .filter(|n| match n {
-                TemplateNode::Text(t) => !is_svelte_whitespace_only(&t.data),
+                // In a whitespace-preserving context (`<pre>` / `<textarea>` /
+                // sticky descendant), whitespace-only text is NOT trimmed, so it
+                // counts as a real sibling — mirroring upstream `clean_nodes`,
+                // which computes `is_standalone` on the (un-trimmed) `trimmed`
+                // list when `preserve_whitespace` is set. This keeps a component
+                // with surrounding whitespace inside `<pre>` from being treated as
+                // standalone, so its trailing `<!---->` anchor is still emitted.
+                TemplateNode::Text(t) => preserve_whitespace || !is_svelte_whitespace_only(&t.data),
                 TemplateNode::Comment(_)
                 | TemplateNode::SnippetBlock(_)
                 | TemplateNode::ConstTag(_)
@@ -880,7 +887,10 @@ pub fn server_component_ast<'a>(
     // -- template body ------------------------------------------------------
     // Walk the root fragment through process_children + build_template, then
     // append the coalesced `$$renderer.push(...)` statements.
-    state.is_standalone = ServerTransformState::is_standalone_fragment(&ast.fragment.nodes);
+    state.is_standalone = ServerTransformState::is_standalone_fragment(
+        &ast.fragment.nodes,
+        state.preserve_whitespace,
+    );
     // Root fragment: parent is the Fragment node itself, so it IS an
     // `is_text_first` parent (upstream `clean_nodes`/`Fragment`).
     // 写经 upstream `SnippetBlock.js`: NON-hoistable snippet function
