@@ -1,5 +1,33 @@
 # @rsvelte/svelte-check
 
+## 0.3.0
+
+### Minor Changes
+
+- ae32c7e: svelte-check: type-check with `tsc` by default (previously only with `--tsgo`)
+
+  Running `rsvelte-check` without `--tsgo` used to skip TypeScript type-checking entirely, reporting only Svelte-side compile diagnostics — a silent no-op for type errors. Type-checking is now on by default and runs the stock `tsc` against the `.svelte` overlay. `--tsgo` switches the preferred backend to Microsoft's native `tsgo` (each falls back to the other; `$TSGO_BIN` still wins as an explicit override), and a new `--no-type-check` flag restores Svelte-only mode.
+
+### Patch Changes
+
+- f563b03: svelte-check (`--tsgo`): stop misclassifying binder/checker-emitted `TS1xxx`
+  codes as syntax errors. The overlay-validity guard treated the entire
+  `1000..2000` range as syntactic, but a handful of those codes — most notably
+  `TS1192` ("Module has no default export"), plus `TS1259` / `TS1361` / `TS1371`
+  — are emitted by the checker, not the parser. They do **not** trigger
+  TypeScript's program-wide semantic-diagnostic suppression, so flagging them as
+  syntactic raised a spurious `internal error: rsvelte produced invalid TSX … /
+TypeScript suppressed type errors for the rest of the project` banner even
+  though every real type error was still reported.
+
+  This surfaced on components that have a sibling `Foo.svelte.ts` companion
+  module re-exported into the shadow (the `#751` feature): consumers importing
+  `import Default, { Named } from './Foo.svelte'` could see `TS1192`, which then
+  masqueraded as an overlay parse failure. Unlike official `svelte-check` — which
+  classifies by `getSyntacticDiagnostics` / `getSemanticDiagnostics` origin
+  rather than by code number — rsvelte only has tsgo's textual code, so the fix
+  maintains an explicit denylist of the known binder-emitted `1xxx` codes.
+
 ## 0.2.15
 
 ### Patch Changes
