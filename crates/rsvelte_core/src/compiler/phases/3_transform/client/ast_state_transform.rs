@@ -155,7 +155,14 @@ struct StateVarCollector<'a, 's> {
     /// Variables declared with `$derived()` / `$derived.by()` — assignments should never proxy.
     derived_vars: FxHashSet<String>,
     /// Variables known to not need proxy wrapping (literals, non-object types).
+    /// Used for the `$state(arg)` INITIALIZER proxy decision — must NOT contain
+    /// props (a `$state(prop)` initializer always proxies the getter-call value).
     non_proxy_vars: &'a [String],
+    /// Like `non_proxy_vars` but additionally includes props whose default value
+    /// is a non-proxy primitive. Used ONLY for the REASSIGNMENT proxy decision
+    /// (`state = prop` → `$.set(state, prop(), proxy)`), where upstream traces the
+    /// prop's default and omits the proxy for a primitive default.
+    reassign_non_proxy_vars: &'a [String],
     /// Whether the component is in runes mode.
     is_runes: bool,
     /// Whether dev-mode rewrites should fire (currently used by the
@@ -239,6 +246,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         raw_state_vars: &'a FxHashSet<&'a str>,
         derived_vars: &[String],
         non_proxy_vars: &'a [String],
+        reassign_non_proxy_vars: &'a [String],
         is_runes: bool,
         dev: bool,
         analysis_source: Option<&'s str>,
@@ -271,6 +279,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             raw_state_vars,
             derived_vars: derived_vars.iter().cloned().collect(),
             non_proxy_vars,
+            reassign_non_proxy_vars,
             is_runes,
             dev,
             analysis_source,
@@ -2530,7 +2539,7 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                         let needs_proxy = self.is_runes
                             && !is_raw
                             && !is_derived
-                            && should_proxy_ast(&expr.right, self.non_proxy_vars);
+                            && should_proxy_ast(&expr.right, self.reassign_non_proxy_vars);
 
                         let replacement = if needs_proxy {
                             format!("$.set({}, {}, true)", name, rhs_text)
@@ -2569,7 +2578,7 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                             && self.is_runes
                             && !is_raw
                             && !is_derived
-                            && should_proxy_ast(&expr.right, self.non_proxy_vars);
+                            && should_proxy_ast(&expr.right, self.reassign_non_proxy_vars);
 
                         let replacement = if needs_proxy {
                             format!(
@@ -3566,6 +3575,9 @@ pub(super) struct AstTransformConfig<'a> {
     pub raw_state_vars: &'a [String],
     pub derived_vars: &'a [String],
     pub non_proxy_vars: &'a [String],
+    /// `non_proxy_vars` + props with a non-proxy primitive default — used ONLY for
+    /// the reassignment proxy decision (see `StateVarCollector::reassign_non_proxy_vars`).
+    pub reassign_non_proxy_vars: &'a [String],
     pub is_runes: bool,
     /// Whether dev-mode rune rewrites should fire (e.g. the `$inspect(...)`
     /// expansion into `$.inspect(() => [args], ...)` — non-dev removal of
@@ -3605,6 +3617,7 @@ pub(super) fn transform_state_vars_ast(
     let raw_state_vars = config.raw_state_vars;
     let derived_vars = config.derived_vars;
     let non_proxy_vars = config.non_proxy_vars;
+    let reassign_non_proxy_vars = config.reassign_non_proxy_vars;
     let is_runes = config.is_runes;
     let prop_source_vars = config.prop_source_vars;
     let prop_assignment_transform_vars = config.prop_assignment_transform_vars;
@@ -3741,6 +3754,7 @@ pub(super) fn transform_state_vars_ast(
             &raw_set,
             derived_vars,
             non_proxy_vars,
+            reassign_non_proxy_vars,
             is_runes,
             config.dev,
             config.analysis_source,
@@ -3789,6 +3803,7 @@ mod tests {
             raw_state_vars: &[],
             derived_vars: &[],
             non_proxy_vars: &[],
+            reassign_non_proxy_vars: &[],
             is_runes: true,
             dev: false,
             analysis_source: None,
@@ -3819,6 +3834,7 @@ mod tests {
             raw_state_vars: &[],
             derived_vars: &[],
             non_proxy_vars: &[],
+            reassign_non_proxy_vars: &[],
             is_runes: true,
             dev: false,
             analysis_source: None,
@@ -4070,6 +4086,7 @@ mod tests {
             raw_state_vars: &[],
             derived_vars: &[],
             non_proxy_vars: &[],
+            reassign_non_proxy_vars: &[],
             is_runes: true,
             dev: false,
             analysis_source: None,

@@ -4547,6 +4547,34 @@ fn transform_instance_script_for_visitors(
         .map(|b| b.name.clone())
         .collect();
 
+    // Reassignment-only non-proxy list = `non_proxy_vars` PLUS props whose default
+    // value is a non-proxy primitive. Upstream's `AssignmentExpression` proxy
+    // decision resolves a prop Identifier to its `binding.initial` (the destructure
+    // DEFAULT for `let { x = false } = $props()`), so `state = x` proxies only when
+    // the default is proxy-eligible (object/array/no default), NOT for a primitive
+    // default. This MUST stay separate from `non_proxy_vars`: the `$state(prop)`
+    // INITIALIZER always proxies a prop read (its value is the getter call `prop()`,
+    // a CallExpression), so a prop in the shared list would wrongly drop that proxy.
+    let reassign_non_proxy_vars: Vec<String> = {
+        let mut v = non_proxy_vars.clone();
+        for b in &analysis.root.bindings {
+            if b.reassigned || reactive_mut_binding_names.contains(&b.name) {
+                continue;
+            }
+            let is_top_level = b.scope_index == 0 || b.scope_index == instance_scope_for_proxy;
+            if is_top_level
+                && matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
+                && b.initial_node_type
+                    .as_deref()
+                    .map(is_non_proxy_node_type)
+                    .unwrap_or(false)
+            {
+                v.push(b.name.clone());
+            }
+        }
+        v
+    };
+
     // Collect reactive statements to append at end (mirroring official compiler behavior
     // which appends all $: reactive statements AFTER the rest of instance body code).
     // Each entry is (assigned_vars, dependency_vars, transformed_code).
@@ -5403,6 +5431,7 @@ fn transform_instance_script_for_visitors(
                 raw_state_vars: &raw_state_vars,
                 derived_vars: &derived_vars,
                 non_proxy_vars: &non_proxy_vars,
+                reassign_non_proxy_vars: &reassign_non_proxy_vars,
                 is_runes: true,
                 dev,
                 analysis_source: Some(&analysis.source),
