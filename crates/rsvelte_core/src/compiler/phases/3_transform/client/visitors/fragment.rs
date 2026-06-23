@@ -194,6 +194,7 @@ pub fn fragment(
         each_index_name: context.state.each_index_name.clone(),
         ancestor_each_index_names: context.state.ancestor_each_index_names.clone(),
         each_item_assign_or_mutate: context.state.each_item_assign_or_mutate.clone(),
+        each_item_name_flags: context.state.each_item_name_flags.clone(),
         each_item_names: context.state.each_item_names.clone(),
         each_binding_context: context.state.each_binding_context.clone(),
         local_var_init_types: Vec::new(),

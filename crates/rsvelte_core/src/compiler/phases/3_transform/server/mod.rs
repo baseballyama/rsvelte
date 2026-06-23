@@ -124,6 +124,13 @@ pub fn transform_server_module(
     // applied there.
     let transformed = transform_script::unthunk_bare_derived_arg(&transformed);
 
+    // Collapse `const NAME = $.snapshot(x)` → `const NAME = x` on the module path.
+    // The client module transform lowered `$state.snapshot(x)` → `$.snapshot(x)`;
+    // upstream `compileModule` server keeps `$.snapshot` everywhere EXCEPT a plain
+    // variable-declarator init, where it is redundant and strips to the bare arg
+    // (e.g. melt-ui Popover / selection-state `const prev = $state.snapshot(this.x)`).
+    let transformed = transform_script::strip_snapshot_declarator_init_module(&transformed);
+
     // Split imports from body
     let (script_imports, script_rest) = super::client::extract_imports_str(&transformed);
 
