@@ -1,6 +1,5 @@
 [
 	"bits-ui/docs/src/lib/components/callout.svelte",
-	"bits-ui/docs/src/lib/components/examples/command/framer/framer-command.svelte",
 	"bits-ui/docs/src/routes/+page.svelte",
 	"bits-ui/packages/bits-ui/src/lib/bits/navigation-menu/navigation-menu.svelte.ts",
 	"bits-ui/packages/bits-ui/src/lib/bits/pin-input/pin-input.svelte.ts",
