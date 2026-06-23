@@ -128,8 +128,9 @@ npx svelte-check
 Common flags:
 
 ```bash
-npx svelte-check --workspace .              # type-check the current workspace
-npx svelte-check --tsgo                     # run tsgo against the .svelte overlay (recommended)
+npx svelte-check --workspace .              # type-check the current workspace (uses tsc)
+npx svelte-check --tsgo                     # type-check with tsgo instead of tsc (faster)
+npx svelte-check --no-type-check            # Svelte diagnostics only, skip TypeScript
 npx svelte-check --watch                    # re-check on file changes
 npx svelte-check --incremental              # reuse cached overlay between runs
 npx svelte-check --output machine           # JSON-friendly output for CI
@@ -137,7 +138,11 @@ npx svelte-check --fail-on-warnings         # treat warnings as errors
 npx svelte-check --compiler-warnings "css-unused-selector:ignore"
 ```
 
-See `npx svelte-check --help` for the full list. The CLI flag set is a superset of upstream's — every upstream flag works, plus a few rsvelte-specific ones (`--tsgo`, `--emit-overlay`).
+Type-checking is on by default and runs the stock `tsc` against the
+`.svelte` overlay; pass `--tsgo` to prefer Microsoft's native `tsgo`
+instead, or `--no-type-check` to report only Svelte-side diagnostics.
+
+See `npx svelte-check --help` for the full list. The CLI flag set is a superset of upstream's — every upstream flag works, plus a few rsvelte-specific ones (`--tsgo`, `--no-type-check`, `--emit-overlay`).
 
 ### Convert `.svelte` to `.tsx` (`svelte2tsx`)
 

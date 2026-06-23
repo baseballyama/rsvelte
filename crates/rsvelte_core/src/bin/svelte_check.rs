@@ -1,6 +1,7 @@
-//! `svelte-check` CLI binary — Wave 2 of the ecosystem port. v0.1
-//! covers Svelte-side diagnostics only (compile errors + compiler
-//! warnings). tsgo integration is the next milestone.
+//! `svelte-check` CLI binary — Wave 2 of the ecosystem port. Reports
+//! Svelte-side diagnostics (compile errors + compiler warnings) plus
+//! TypeScript type errors. Type-checking runs by default via `tsc`
+//! (or `tsgo` with `--tsgo`); pass `--no-type-check` for Svelte-only.
 
 // Use jemalloc as the global allocator for better multi-threaded
 // performance. Defined per-bin rather than once in the lib because the lib
@@ -55,10 +56,10 @@ struct Cli {
     #[arg(long = "fail-on-warnings", default_value_t = false)]
     fail_on_warnings: bool,
 
-    /// Materialise `.tsx` shadow files + an overlay tsconfig under
-    /// `<workspace>/.svelte-check/`. The directory layout matches the
-    /// JS reference's `--tsgo` cache, so a follow-up step can hand it
-    /// straight to a TypeScript compiler.
+    /// Keep the materialised `.tsx` shadow files + overlay tsconfig under
+    /// `<workspace>/.svelte-check/` on disk (they are written internally
+    /// for type-checking regardless). Useful for inspecting the overlay,
+    /// or combined with `--no-type-check` to emit without compiling.
     #[arg(long = "emit-overlay", default_value_t = false)]
     emit_overlay: bool,
 
@@ -67,11 +68,18 @@ struct Cli {
     #[arg(long = "tsconfig")]
     tsconfig: Option<PathBuf>,
 
-    /// Run `tsgo` (or `tsc`) against the overlay tsconfig and report
-    /// the resulting TypeScript diagnostics mapped back to the
-    /// original `.svelte` source. Implies `--emit-overlay`.
+    /// Prefer Microsoft's native `tsgo` over the stock `tsc` when
+    /// type-checking the overlay. Without this flag type-checking still
+    /// runs, using `tsc`. (`tsgo` falls back to `tsc` and vice-versa if
+    /// the preferred binary isn't installed.)
     #[arg(long = "tsgo", default_value_t = false)]
     tsgo: bool,
+
+    /// Skip the TypeScript type-checking pass entirely and report only
+    /// Svelte-side diagnostics (compile errors + compiler warnings).
+    /// Type-checking is on by default.
+    #[arg(long = "no-type-check", default_value_t = false)]
+    no_type_check: bool,
 
     /// Comma-separated `code:error|ignore` overrides for compiler
     /// warnings. Example: `css-unused-selector:ignore,a11y-no-noninteractive-element-to-interactive-role:error`.
@@ -135,13 +143,17 @@ fn main() -> ExitCode {
     let compiler_warnings = parse_compiler_warnings(cli.compiler_warnings.as_deref());
     let diagnostic_sources = parse_diagnostic_sources(cli.diagnostic_sources.as_deref());
 
+    // Type-checking is on by default; `--no-type-check` opts out. `--tsgo`
+    // only selects which compiler backend is preferred (tsgo vs tsc).
+    let type_check = !cli.no_type_check;
     let options = RunOptions {
         workspace: workspace.clone(),
         ignore,
         fail_on_warnings: cli.fail_on_warnings,
-        emit_overlay: cli.emit_overlay || cli.tsgo,
+        emit_overlay: cli.emit_overlay,
         tsconfig: cli.tsconfig,
-        use_tsgo: cli.tsgo,
+        type_check,
+        prefer_tsgo: cli.tsgo,
         compiler_warnings,
         diagnostic_sources,
         incremental: cli.incremental,
