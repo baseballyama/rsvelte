@@ -141,11 +141,20 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 
 | ファイル | 件数 | 内容 |
 |---|---|---|
-| `compat/corpus/known-failures.json` | **50**（67→50、本セッションで −17） | CSR/SSR コンパイル出力の非一致。下記クラスタ別 root-cause マップ参照。 |
+| `compat/corpus/known-failures.json` | **41**（67→50→41、直近セッションで −9） | CSR/SSR コンパイル出力の非一致。下記クラスタ別 root-cause マップ参照。 |
 | `compat/corpus/fmt-known-failures.json` | **0** ✅ | （PR #1111 で達成済み） |
 | `compat/corpus/svelte2tsx-known-failures.json` | 0 | ✅ 既に 100% |
 
-#### 本セッションで直したクラスタ（67→58、各コミットでコーパス verify + gate 緑）
+#### 直近セッションで直したクラスタ（50→41、各コミットでコーパス verify + gate 緑）
+1. **server each-item が同名 component `$derived` を read-wrap で shadow**（`server/ast/visitors/each_block.rs`）— each-block の context 名を `slot_let_shadows` だけでなく `shadowed_names` にも push。`{#each tree.children as file}` 内の `file.path` が外側 `const file = $derived(...)` で `file().path` に誤 wrap される問題を修正。**component-code-viewer-code-title** −1。
+2. **module path の `$state.snapshot` strip**（`server/transform_script.rs::strip_snapshot_declarator_init_module` + `server/mod.rs`）— `.svelte.ts` で `const NAME = $state.snapshot(x)` だけ bare `x` に（declarator-init 限定。plain assignment は `$.snapshot` 維持）。公式 `compileModule` 準拠。**Popover/Tooltip/selection-state** −3。
+3. **server destructured-props lowering**（`server/ast/script.rs::extract_paths`）— ①ArrayPattern ごとに `$$array`/`$$array_1`/… を component-wide counter で採番（leaf access + nested to_array base も）。②AssignmentPattern default を `$.fallback(access, default)` で wrap（`build_fallback`）。③RestElement: array `[a, ...rest]`→`rest = $$array.slice(i)`（rest 有り時 length 引数省略）、object `{a, ...rest}`→`$.exclude_from_object`。nested rest も再帰。**destructured-props-1/2/4/5** −4。
+4. **SSR component trailing `<!---->` anchor in preserve-whitespace**（`server/ast/mod.rs::is_standalone_fragment`）— preserve-ws（`<pre>`/`<textarea>`）下では whitespace-only text を real sibling として数え、component が standalone 扱いされて trailing `<!---->` が抜ける問題を修正。**theme-customizer-code** −1。
+5. **client each-item assign/mutate → uses_index（per-block flag stack）**（`client/visitors/each_block.rs` + `expression_converter.rs` + `types.rs`）— each item の assign/mutate で OWNING block の uses_index を立てる name→flag スタック。nested-each で外側 item を mutate しても外側の `$$index` param が出る（EachBlock.js 準拠）。※AST path の正しさ改善。team-members は verbatim-fallback 経由なので corpus 減には未寄与。
+
+> **試したが REVERT したもの:** ①props-default を non_proxy_vars に追加（reassign は非 proxy だが `$.state(prop)` initializer は常に proxy ＝ non_proxy_vars 共有のため `$.state($.proxy(prop()))` を3件 REGRESS）。reassign 専用ルールが要る。②`infer_namespace` の deep `check_nodes_for_namespace`（Dropzone は直るが AccordionItem/Loading で svg↔html 双方向 REGRESS。deep-walk の shallow-loop との相互作用が微妙）。
+
+#### 旧セッションで直したクラスタ（67→58、各コミットでコーパス verify + gate 緑）
 1. **私有 `$state` フィールド代入の scope-aware should_proxy**（`private_class_assign_ast.rs`）— ①複合代入
    (`this.#x += y`) は `is_non_coercive_operator` が false なので proxy しない。②識別子 RHS は binding の
    initializer を辿る（`const fps = 1000/delta; this.#fps = fps` → BinaryExpression initial → 非 proxy）。
@@ -215,7 +224,8 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 > 型注釈名バグは無関係、read-transform が callee 位置を未対応）。③`selection-state`/`Popover` の server
 > `$state.snapshot` strip は `compileModule` 内部ロジック依存。
 
-#### 残り 58 の root-cause マップ（次セッションの burn-down 指針。各 verify は rebuild napi→`corpus:compile`(12s)→`corpus:verify`）
+#### 残り 41 の root-cause マップ（次セッションの burn-down 指針。各 verify は rebuild napi→`corpus:compile`(12s)→`corpus:verify`）
+> **残り 41 のクラスタ別内訳（直近セッション時点）:** ①`.svelte.ts` クラス機構（~8: navigation-menu/pin-input/scroll-area/tooltip/use-floating-layer/dom-typeahead/Toaster）＝§6 ClassBody AST rewrite が本丸。②client `generate_expr`/Raw/verbatim-fallback（~10: team-members/preview/ClipboardManager/badge/spinner/callout/framer-command/mobile-nav/blocks/+page）＝§2 client AST 化が前提（bind get/set setter 内の each-item/@const read が `$.get` wrap されない、component prop arrow が text path 等）。③コメント保持（~6: scroll-area/Toaster/Video/sidebar-menu-skeleton/transition）＝§5.4。④namespace（Dropzone/analytics-card）＝deep `check_nodes_for_namespace`（上記 REVERT 理由参照、要慎重）。⑤niche svelte fixture（const-tag-snippet 重複 snippet 順序/migrate slot-usages/bidirectional unicode escape/store-rune-conflic `$state`=store vs rune 曖昧）。⑥literal-array each-item text reactivity（products/users `+page`＝広範・高リスク）、CompoAttributesViewer（statement-context での `return $$value` 抑制＝await-RHS destructure）。
 > 検証ループ: `CARGO_TARGET_DIR=target-verify cargo build --release --features napi --lib && cp
 > target-verify/release/librsvelte_core.dylib .corpus-cache/rsvelte.node && pnpm run corpus:compile &&
 > pnpm run corpus:verify`。baseline 更新: `node scripts/compat-corpus/verify.mjs --no-fmt --update-baseline`
