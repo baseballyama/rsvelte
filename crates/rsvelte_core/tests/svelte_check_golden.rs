@@ -188,7 +188,7 @@ fn test_error_fixture_emits_expected_ts_error_codes() {
         eprintln!("Skipping: test-error fixture not found");
         return;
     }
-    if find_compiler(&workspace).is_err() {
+    if find_compiler(&workspace, true).is_err() {
         eprintln!(
             "Skipping: no `tsgo` / `tsc` binary on this machine \
              (set TSGO_BIN or install @typescript/native-preview to enable)"
@@ -199,7 +199,8 @@ fn test_error_fixture_emits_expected_ts_error_codes() {
     let opts = RunOptions {
         workspace: workspace.clone(),
         tsconfig: Some(tsconfig.clone()),
-        use_tsgo: true,
+        type_check: true,
+        prefer_tsgo: true,
         ..RunOptions::default()
     };
     let result = run(&opts);
