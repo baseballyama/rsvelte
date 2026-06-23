@@ -1,5 +1,251 @@
 # @rsvelte/compiler
 
+## 0.7.12
+
+### Patch Changes
+
+- a93f50c: Phase-3 client: add a structured `JsLiteral::BigInt` variant and use it for
+  bigint literals (`123n`) instead of `JsExpr::Raw`. Continues the Phase-3 Step 1+3
+  `js_ast` `Raw(...)` burn-down. Output is unchanged (byte-identical; corpus
+  baseline holds at 120).
+- a93f50c: Phase-3 client: replace the dynamic-`import()` `Raw` escape hatch with a
+  structured `JsExpr::ImportExpression { source, options }` node. Previously the
+  source/options were eagerly stringified via `generate_expr` and spliced into a
+  `format!("import({})")` `Raw`; now they are held as converted sub-expressions and
+  emitted lazily by the codegen. The node is treated as a terminal in the analysis
+  passes (await / transform / reactive-ref collection), exactly mirroring the opaque
+  `Raw` it replaced, so the sub-expressions are not re-transformed after conversion
+  — keeping output byte-identical. Continues the Phase-3 Step 1+3 client `js_ast`
+  `Raw(...)` burn-down (`docs/phase3-ast-refactor-plan.md`). Corpus baseline holds
+  at 120.
+- a93f50c: Phase-3 client: replace the `format!`-based `JsExpr::Raw("import.meta")` escape
+  hatch with a structured `JsExpr::MetaProperty(meta, property)` node (printed as
+  `meta.property`, handled as a terminal leaf in the await/transform/reference
+  passes). Continues the Phase-3 Step 1+3 burn-down of the client `js_ast`
+  `Raw(...)` surface (`docs/phase3-ast-refactor-plan.md`). Output is unchanged
+  (byte-identical; corpus baseline holds at 120).
+- a93f50c: Phase-3 client: replace the `JsExpr::Raw("super")` escape hatch with a structured
+  `JsExpr::Super` node (printed by the codegen, handled as a terminal leaf in the
+  await/transform/reference-collection passes). First slice of the Phase-3 Step 1+3
+  work to shrink the client `js_ast` `Raw(...)` surface ahead of switching client
+  output to oxc-AST + `rsvelte_esrap` printing (`docs/phase3-ast-refactor-plan.md`).
+  Output is unchanged (byte-identical; corpus baseline holds at 120).
+- a93f50c: Phase-3 Step 1+3 (direct-AST): add the `js_ast::to_oxc` converter that lowers the
+  client `js_ast` IR (`JsProgram`) into an oxc `Program` for printing by
+  `rsvelte_esrap` — the foundation for replacing the handwritten `js_ast::codegen`
+  with structured esrap printing. The converter returns `None` on any `Raw`/unhandled
+  variant so the caller transparently falls back to the existing codegen (partial
+  coverage is always safe). It is wired behind the `RSVELTE_CLIENT_TO_OXC` env flag,
+  **off by default**, so committed behavior is unchanged. With the flag on, the
+  byte-exact suites pass identically (`runtime` 19/19, `compiler_fixtures` 17/17),
+  confirming the converter is faithful for every structured client program in the
+  fixtures. Coverage grows one node kind at a time, gated by those byte-exact tests;
+  the flag flips to default-on once `Raw` nodes are eliminated and all variants are
+  handled.
+- f68f2a3: Phase-3 corpus byte-parity burndown: known-failures `67 → 50`. Each fix is
+  independent and AST-precise, verified byte-identical against the official
+  compiler with zero corpus regressions:
+
+  - scope-aware `should_proxy` for private `$state` field assignments
+  - constructor nested-function private `$state` reads use `$.get(...)` not `.v`
+  - boundary-nested `{#snippet}` emitted inline (not hoisted to module scope)
+  - `Math.*` / `Number` / `String` / `BigInt` const initializers are `is_defined`
+    (no spurious `?? ""`)
+  - `$.css_props` SVG-namespace flag reflects the rendering context
+  - store reads inside a spread (`...$store`) are wrapped
+  - no constant-fold of an identifier shadowed by an `{#each}` item
+  - a class-body-declared private field assigned a rune in the constructor keeps
+    its source position
+  - nested-function private `$state` member mutation reads through the proxy
+    (`$.get(this.#x).prop`)
+  - TS-typed declaration tag `{const x: number = …}` no longer dropped on the server
+  - invalid top-level reactive declaration `$:` in `<script module>` is dropped
+
+  Output for all other inputs is unchanged.
+
+- b75ceb5: Harden the `rsvelte_esrap` printer (which prints the compiler's Phase-3 output)
+  against the upstream esrap `v2.2.11` test suite, now vendored as a submodule and
+  ported to Rust. The full esrap sample corpus is byte-identical (97/97) and every
+  esrap unit test (quotes, indent, compat, additional-comments, arrow-return-type,
+  sourcemap-keywords) is ported and passing. Printer behaviour was made faithful
+  to esrap: directives, `EmptyStatement`/`WithStatement`, import attributes,
+  comment threading through sequences/call-args/class-bodies, full TypeScript
+  type-syntax and JSX printing, precedence-based parenthesisation (unwrapping
+  explicit parens like esrap's acorn baseline), and string escaping (`\t` left
+  literal). Adds source-map generation (`print_with_map`) and synthetic-comment
+  hooks (`print_with_hooks`).
+- 47e5bec: Phase-3 output codegen is now AST-based on both sides (output byte-identical).
+  Server SSR switched to the pure-AST `server/ast` pipeline and the legacy text
+  generator (`build.rs`/`bridge.rs`/text `server/visitors/`/`ServerCodeGenerator`,
+  ~32k lines) was deleted. Client CSR now defaults to `js_ast::to_oxc` →
+  `rsvelte_esrap`, with the handwritten string printer kept only as a fallback for
+  comment-bearing / unsupported-node programs. `to_oxc` learned to parse
+  `Raw`/`RawMapped` and unwrap `Spanned`, sourcemaps route through esrap
+  `print_with_map`, and a new `PrintOptions.keep_empty_statements` flag preserves
+  empty-statement parity for the client path. Validated byte-exact across runtime,
+  compiler_fixtures, ssr, sourcemaps, real_world, and the compatibility report;
+  corpus baseline shrank 120 → 67 with no regressions.
+- a93f50c: Phase-3 Step 1+3 (Raw elimination): replace the three `JsExpr::Raw` escape hatches
+  used for literal source-spelling preservation (double-quoted strings,
+  non-canonical number formats like `1_000_000`) with structured
+  `JsLiteral::RawString { value, raw }` / `RawNumber { value, raw }` variants. The
+  codegen emits the `raw` verbatim (byte-identical to the old `Raw`), and the
+  `js_ast::to_oxc` converter builds an oxc literal with `raw` set so esrap reproduces
+  it. First slice of eliminating the client `Raw(...)` constructions so real programs
+  become Raw-free and convert direct-AST. Byte-identical: corpus 120 no-NEW,
+  flag-off and flag-on byte-exact suites both 19/19 + 17/17.
+- a93f50c: Phase-3 Step 1+3 (Raw elimination): replace the 4 load-bearing `JsExpr::Raw(name)`
+  prop-setter-callee escape hatches (in `shared/declarations.rs` / `program.rs`)
+  with a structured `JsExpr::OpaqueIdentifier(name)` variant. Like the `Raw` it
+  replaces, it is skipped by the transform passes (so the setter callee is not
+  re-read-transformed into `x()(value)`) and codegens the bare name — but it is now
+  a structured node the `js_ast::to_oxc` direct-AST converter handles (builds a plain
+  oxc identifier). Byte-identical: corpus 120 no-NEW, flag-off and flag-on byte-exact
+  both 19/19 + 17/17.
+- a93f50c: Phase-3 server: lower derived **assignments** (`count = x` → `count(x)`, compound
+  and logical operators expanding via `build_assignment_value` — `count += 1` →
+  `count(count() + 1)`, `flag &&= x` → `flag(flag() && x)`; upstream
+  `AssignmentExpression.js`) structurally in the AST read-wrapping pass
+  (`derived_reads_ast::visit_assignment_expression`), over the original valid
+  script, instead of the textual `rewrite_derived_assignments` scan. That scan ran
+  on the post-wrap intermediate `count() = x` — not valid JS (a call is not an
+  assignment target), so it could never be re-parsed — and now survives only on the
+  byte-scanner fallback path. Implemented as non-overlapping edits (skip the LHS
+  identifier, replace the `op=` gap, append `)`) so RHS read-wrapping and nested
+  `a = b = 1` resolve in the same pass. Follows the update-expression fold; part of
+  the staged Phase-3 text → AST migration (`docs/phase3-ast-refactor-plan.md`).
+  Output is unchanged (byte-identical; corpus baseline holds at 120).
+- a93f50c: Phase-3 server: lower derived **update expressions** (`count++` / `--count` →
+  `$.update_derived(count)` / `$.update_derived_pre(count)`, Svelte 5.53.2 upstream
+  `6aa7b9c64`) structurally in the AST read-wrapping pass
+  (`derived_reads_ast::visit_update_expression`), over the original valid script,
+  instead of the textual `rewrite_derived_update_expressions` scan. That scan ran
+  on the post-wrap intermediate `count()++` — not valid JS (a call is not an
+  assignment target), so it could never be re-parsed — and now survives only on
+  the byte-scanner fallback path, where it keeps the two paths byte-identical. Part
+  of the staged Phase-3 text → AST migration (`docs/phase3-ast-refactor-plan.md`).
+  Output is unchanged (byte-identical; corpus baseline holds at 120).
+- 7d0c17b: Phase-3 server: the pure oxc-AST + `rsvelte_esrap` SSR pipeline (`server/ast/`)
+  now matches the official Svelte compiler byte-for-byte across the entire curated
+  suite — runtime-runes 993/993, runtime-legacy 1205/1205, hydration 77/77, the
+  byte-exact `compiler_fixtures` / `ssr` snapshots, and 100% of every
+  compatibility-report category. It remains OPT-IN behind `RSVELTE_SERVER_AST=1`;
+  the text-based `ServerCodeGenerator` is still the default. The switchover to
+  default is deferred: enabling the AST pipeline by default currently regresses 88
+  real-world corpus entries on SSR (chiefly an over-eager `$.stringify(...)` wrap
+  on conditional class/title interpolations, dropped instance-script comments, and
+  a few function/`$$settled` ordering and slot-arg cases), which must be fixed
+  first. See `docs/phase3-server-ast-remaining-work.md`. No change to default
+  output; corpus baseline holds at 120.
+- a93f50c: Phase-3 server: collapse `$.derived(() => NAME())` → `$.derived(NAME)` (Svelte
+  5.55.5 upstream `b771df3`) structurally via a new AST pass
+  (`unthunk_derived_ast`), matching the `$.derived(...)` call with a single
+  parameterless expression-bodied arrow whose body is a 0-arg non-optional call of
+  a derived identifier. Replaces the literal-prefix byte scanner
+  `unthunk_bare_derived_arg`, which now serves only as the parse-failure fallback.
+  Part of the staged Phase-3 text → AST migration
+  (`docs/phase3-ast-refactor-plan.md`). Output is unchanged (byte-identical; corpus
+  baseline holds at 120).
+- 99725cc: Make several SSR (server) code-generation paths byte-faithful to the official
+  compiler / esrap, burning down the output-equality corpus:
+
+  - The `rsvelte_esrap` printer now flushes per-property leading comments in
+    object **patterns** (and their rest element), mirroring esrap's `_` wildcard.
+    A `// line` comment inside a `$props()` destructure no longer prints on a
+    single line where it would swallow the following token (`tabindex = // c 0`).
+  - `escape_js_string` emits tab characters literally instead of as `\t`, matching
+    esrap's `quote()` — multi-line `class="…"` values keep their source tabs.
+  - `transform_class_fields_server` no longer mangles JSDoc / block comments in the
+    class body of `.svelte.(js|ts)` server modules (it was appending `;` to every
+    comment line and joining `*/` to the following method).
+  - Component-prop template-literal interpolations that statically evaluate to a
+    defined string are interpolated raw instead of wrapped in `$.stringify(…)`,
+    matching upstream `build_attribute_value`.
+  - TypeScript field modifiers (`readonly`, `public`, …) are stripped when lowering
+    public `$derived`/`$derived.by` class fields, so `readonly x = $derived.by(…)`
+    lowers to the correct `get x()/set x($$value)` accessor pair.
+  - `transform_class_fields_server` recurses across all classes in a module instead
+    of bailing out at the first class without rune fields (which silently skipped
+    later classes' field lowering).
+  - `bind:this` is excluded from `<svelte:element>` server spread attributes, and a
+    dynamic `class` value in a spread object is wrapped in `$.clsx(…)`.
+  - Multi-line template-literal interiors in transformed `<script>` blocks are no
+    longer re-indented (their content is part of the string value).
+  - `bind:prop={() => get, set}` (SequenceExpression) bindings keep their source
+    position relative to `{...spread}` in `$.spread_props([…])`, and their get/set
+    accessors reference the hoisted `bind_get()`/`bind_set($$value)` variables.
+  - Event-handler attributes (`onclick={…}` etc.) are excluded from `<svelte:element>`
+    server spread attributes.
+  - A `{#snippet}` body — and a component's inline `children`/default-slot whose
+    sole child is a standalone component/render-tag — no longer emits a trailing
+    `<!---->` marker.
+  - A typed `$props()` destructure with an object/intersection TS annotation
+    (`{ a, ...rest }: Base & { … }`) strips the annotation correctly instead of
+    leaking it into the rest element (which dropped user-written `$$slots`/`$$events`).
+  - A multi-line `$props()` destructure with an interior `// line comment` no longer
+    collapses into unparseable output (the comment swallowing the next property).
+  - `const id = $.props_id($$renderer)` is hoisted to the top of the component body,
+    matching upstream's `body.unshift(...)`.
+  - Template-literal lines that resemble imports are no longer hoisted by the
+    line-based import scanner, and template-literal interiors are preserved verbatim
+    when re-indenting nested dynamic-component calls (no spurious tabs in HTML).
+  - A method chain split across lines by `//` comments no longer gets a spurious
+    `;` inserted mid-chain (which orphaned the continuation and broke parsing).
+
+- a93f50c: Phase-3 Step 2 (script transform → AST): migrate the server
+  `strip_export_from_declarations` pass from a line scanner to an AST-driven-edit
+  pass (`server/strip_export_ast.rs`, mirroring the `derived_reads_ast` pattern):
+  it visits `ExportNamedDeclaration`s whose declaration is a function/class/`const`
+  and strips the exact 7-byte `export ` prefix structurally. The line scanner remains
+  as the parse-failure fallback. Byte-identical: corpus 120 no-NEW, byte-exact
+  runtime 19/19 + compiler_fixtures 17/17, plus 11 new unit tests.
+- a93f50c: Phase-3 Step 1+3 (direct-AST): extend `js_ast::to_oxc` to handle class expressions
+  (methods of all kinds incl. constructor, instance/static fields, computed keys,
+  super-class; bails on static blocks/decorators) and assignment-target
+  destructuring (`[a,b] = x` / `{a} = x` with defaults/rest/holes via oxc
+  `AssignmentTargetPattern`). The converter is now **variant-complete** — every JS
+  construct is handled; only opaque `Raw`/`Spanned` IR nodes bail. Still gated OFF
+  behind `RSVELTE_CLIENT_TO_OXC`; flag-on byte-exact suites pass identically (runtime
+  19/19, compiler_fixtures 17/17). Committed behavior unchanged.
+- a93f50c: Phase-3 Step 1+3 (direct-AST burn-down): extend `js_ast::to_oxc` to handle the
+  control-flow statements — `for`, `for…of` / `for…in` / `for await…of`, `while`,
+  `do…while`, `switch`, labeled statements, and `try/catch/finally` — plus a shared
+  `variable_declaration_node` helper reused by var-decl/export/for-init. Still gated
+  OFF behind `RSVELTE_CLIENT_TO_OXC`; flag-on byte-exact suites pass identically
+  (runtime 19/19, compiler_fixtures 17/17). Committed behavior unchanged.
+- a93f50c: Phase-3 Step 1+3 (direct-AST burn-down): extend `js_ast::to_oxc` to handle
+  destructuring binding patterns — object/array patterns with defaults, rest
+  elements, holes, computed keys, and nesting — via a shared recursive
+  `binding_pattern` helper now used by variable declarators, function/arrow params
+  (incl. rest params), for-of/for bindings, and catch parameters. Still gated OFF
+  behind `RSVELTE_CLIENT_TO_OXC`; flag-on byte-exact suites pass identically (runtime
+  19/19, compiler_fixtures 17/17). Committed behavior unchanged.
+- a93f50c: Phase-3 Step 1+3 (direct-AST burn-down): extend `js_ast::to_oxc` to handle
+  `Function` expressions, `Chain` (optional chaining), dynamic `import()`
+  (`ImportExpression`), and `Regex` literals. Still gated OFF behind
+  `RSVELTE_CLIENT_TO_OXC`; flag-on byte-exact suites pass identically (runtime 19/19,
+  compiler_fixtures 17/17). Committed behavior unchanged.
+- a93f50c: Phase-3 Step 1+3 (direct-AST burn-down): extend `js_ast::to_oxc` to handle
+  `import`, `export { … }` / `export const/function …`, `export default`, and
+  function-declaration statements — the high-impact unlock that lets the converter
+  fire on real components (which all have imports). Import/export source strings and
+  the no-specifier (`import 'x'`) distinction mirror the existing codegen exactly.
+  Still gated OFF behind `RSVELTE_CLIENT_TO_OXC`; flag-on byte-exact suites pass
+  identically (runtime 19/19, compiler_fixtures 17/17). Committed behavior unchanged.
+- a93f50c: Phase-3 Step 1+3 (direct-AST burn-down): extend the `js_ast::to_oxc` converter to
+  handle `TemplateLiteral`, `TaggedTemplate`, `Assignment` (identifier / non-optional
+  member targets), and `Update` expressions, so more client programs lower directly
+  to oxc + esrap instead of bailing to the string codegen. Still gated OFF behind
+  `RSVELTE_CLIENT_TO_OXC`; with the flag on, byte-exact suites pass identically
+  (runtime 19/19, compiler_fixtures 17/17). Committed behavior unchanged.
+- a93f50c: Phase-3 Step 1+3 (direct-AST burn-down): extend `js_ast::to_oxc` to handle `yield`
+  expressions, private-field member access (`obj.#x`), and object-literal
+  method/getter/setter/computed properties (mirroring codegen's `auto_method`
+  heuristic so non-computed `Init` function-valued props print as method shorthand).
+  Only `JsExpr::Class` remains bailed at the expression level. Still gated OFF behind
+  `RSVELTE_CLIENT_TO_OXC`; flag-on byte-exact suites pass identically (runtime 19/19,
+  compiler_fixtures 17/17). Committed behavior unchanged.
+
 ## 0.7.11
 
 ### Patch Changes
