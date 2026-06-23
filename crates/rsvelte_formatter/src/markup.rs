@@ -647,9 +647,10 @@ fn push_open_tag(
     // `>` always breaks to its own line when the open tag wraps — even with text
     // directly after it (block elements trim edge whitespace, so no significant
     // whitespace is injected).
-    // Exception: `<pre>` always hugs `>` to the last attribute — breaking `>` onto
-    // its own line would inject a newline before the content, changing how the
-    // browser renders whitespace-sensitive preformatted text.
+    // Exception: `<pre>` / `<textarea>` always hug `>` to the last attribute —
+    // breaking `>` onto its own line would inject a newline before the content,
+    // changing how the browser renders these whitespace-sensitive elements
+    // (oxfmt 0.56 treats `<textarea>` content as verbatim raw text, like `<pre>`).
     // Whether `tag_name` is a Svelte Component (uppercase-initial or `svelte:*`).
     let is_component = tag_name.starts_with("svelte:")
         || tag_name
@@ -657,7 +658,7 @@ fn push_open_tag(
             .next()
             .is_some_and(|c| c.is_ascii_uppercase());
     let hug_open = !self_closing
-        && (tag_name == "pre"
+        && (matches!(tag_name, "pre" | "textarea")
             || (!is_block_element(tag_name)
                 && source
                     .as_bytes()
