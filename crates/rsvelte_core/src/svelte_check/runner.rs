@@ -675,6 +675,28 @@ mod tests {
     }
 
     #[test]
+    fn loud_binder_emitted_ts1192_is_not_a_syntax_taint() {
+        // A `.svelte` component with a sibling `Foo.svelte.ts` companion
+        // re-exported into its shadow can surface `TS1192` ("Module has no
+        // default export"). That code is checker-emitted, NOT a parse error,
+        // so tsgo keeps reporting real semantics (the `TS7006` below proves
+        // nothing was suppressed). It must therefore raise neither an
+        // `overlay-invalid-tsx` internal error nor a `tsgo-semantics-suppressed`
+        // note — otherwise every consumer of such a component drowns in a
+        // spurious "rsvelte produced invalid TSX" banner.
+        let sources = vec![PathBuf::from("/ws/Foo.svelte")];
+        let mapped = vec![
+            ts_diag("/ws/Foo.svelte", "TS1192", DiagnosticSeverity::Error),
+            ts_diag("/ws/Bar.svelte", "TS7006", DiagnosticSeverity::Error),
+        ];
+        let loud = overlay_syntax_loud_diagnostics(&sources, &mapped, &[], Path::new("/ws"));
+        assert!(
+            loud.is_empty(),
+            "TS1192 is semantic and must not trip the loud syntax-taint path: {loud:?}"
+        );
+    }
+
+    #[test]
     fn loud_overlay_defect_emits_internal_error_and_note() {
         // rsvelte parsed the .svelte cleanly (no svelte-side compile-error)
         // but the generated TSX failed to parse → blame rsvelte loudly.
