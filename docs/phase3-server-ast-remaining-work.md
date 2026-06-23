@@ -141,11 +141,11 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 
 | ファイル | 件数 | 内容 |
 |---|---|---|
-| `compat/corpus/known-failures.json` | **37**（67→50→37、直近セッションで −13） | CSR/SSR コンパイル出力の非一致。下記クラスタ別 root-cause マップ参照。 |
+| `compat/corpus/known-failures.json` | **35**（67→50→35、直近セッションで −15） | CSR/SSR コンパイル出力の非一致。下記クラスタ別 root-cause マップ参照。 |
 | `compat/corpus/fmt-known-failures.json` | **0** ✅ | （PR #1111 で達成済み） |
 | `compat/corpus/svelte2tsx-known-failures.json` | 0 | ✅ 既に 100% |
 
-#### 直近セッションで直したクラスタ（50→37、各コミットでコーパス verify + gate 緑）
+#### 直近セッションで直したクラスタ（50→35、各コミットでコーパス verify + gate 緑）
 1. **server each-item が同名 component `$derived` を read-wrap で shadow**（`server/ast/visitors/each_block.rs`）— each-block の context 名を `slot_let_shadows` だけでなく `shadowed_names` にも push。`{#each tree.children as file}` 内の `file.path` が外側 `const file = $derived(...)` で `file().path` に誤 wrap される問題を修正。**component-code-viewer-code-title** −1。
 2. **module path の `$state.snapshot` strip**（`server/transform_script.rs::strip_snapshot_declarator_init_module` + `server/mod.rs`）— `.svelte.ts` で `const NAME = $state.snapshot(x)` だけ bare `x` に（declarator-init 限定。plain assignment は `$.snapshot` 維持）。公式 `compileModule` 準拠。**Popover/Tooltip/selection-state** −3。
 3. **server destructured-props lowering**（`server/ast/script.rs::extract_paths`）— ①ArrayPattern ごとに `$$array`/`$$array_1`/… を component-wide counter で採番（leaf access + nested to_array base も）。②AssignmentPattern default を `$.fallback(access, default)` で wrap（`build_fallback`）。③RestElement: array `[a, ...rest]`→`rest = $$array.slice(i)`（rest 有り時 length 引数省略）、object `{a, ...rest}`→`$.exclude_from_object`。nested rest も再帰。**destructured-props-1/2/4/5** −4。
@@ -155,6 +155,7 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 7. **static input child が parent traversal を強制しない**（`client/visitors/regular_element.rs::has_dynamic_children_for_merge`）— `!is_static_element(child)` だと static `<input checked>` が parent を dynamic 化し spurious `$.child(...) + $.remove_input_defaults(...)`。公式準拠で `has_dynamic_children`（attribute ベース）に置換。**framer-command** −1。
 8. **rest_excludes を `$.with_script` テンプレより上に hoist**（`client/mod.rs::find_module_scope_injection_point`）— `= $.with_script(` を factory needle に追加。**DarkMode** −1。
 9. **nested-arrow を含む prop default を non-simple 扱い（lazy thunk）**（`client/props_transforms.rs::is_simple_expression_str`）— `=>` がどこかにあれば call/member 判定を bail していた → `has_top_level_arrow`（depth 0 の `=>` のみ arrow）で gate。**callout** −1。
+10. **prop-with-primitive-default への state 再代入は proxy しない（reassign 専用リスト）**（`client/mod.rs` + `ast_state_transform.rs`）— 上記 REVERT ①の正しい実装。`reassign_non_proxy_vars`（= `non_proxy_vars` + primitive-default を持つ prop）を `AstTransformConfig` 経由で thread し、**reassignment の should_proxy_ast 2 箇所だけ**で使用（`$state(prop)` initializer 箇所 728 は `non_proxy_vars` のまま＝常に proxy 維持）。`state = prop` → `$.set(state, prop())`（flag 無し）。**JSONView ×2** −2。
 
 > **試したが REVERT したもの（次セッション注意）:** ①props-default を non_proxy_vars に追加（reassign は非 proxy だが `$.state(prop)` initializer は常に proxy ＝ non_proxy_vars 共有のため `$.state($.proxy(prop()))` を3件 REGRESS）。reassign 専用ルールが要る。②`infer_namespace` の deep `check_nodes_for_namespace`（Dropzone は直るが AccordionItem/Loading で svg↔html 双方向 REGRESS。deep-walk の shallow-loop との相互作用が微妙）。③component prop の object reactivity: `has_reactive_state_json` の Normal-binding path を `is_expression_known_json`（context-aware・recursive・template literal 対応）に全置換 → metaTitle/subtitle/dark 等で 3件 REGRESS（is_expression_known_json は一部で stricter）。EXPAND-only OR（template-literal だけ追加で known 扱い）は無回帰だが blocks/+page を直せず（`og={{ url: image }}` の `image`=template-of-known-const が依然 reactive 扱い；regular-attribute memoize path が別 check か has_call か未特定）。MetaTags クラスタ（blocks/+page, flowbite/+page, 他 +page 群）は regular-attribute memoize の reactivity 判定を要精査。
 
@@ -228,8 +229,8 @@ ssr 16/16・sourcemaps 16/16・コーパス無回帰。
 > 型注釈名バグは無関係、read-transform が callee 位置を未対応）。③`selection-state`/`Popover` の server
 > `$state.snapshot` strip は `compileModule` 内部ロジック依存。
 
-#### 残り 37 の root-cause マップ（次セッションの burn-down 指針。各 verify は rebuild napi→`corpus:compile`(12s)→`corpus:verify`）
-> **残り 37 のクラスタ別内訳（直近セッション時点）:** ①`.svelte.ts` クラス機構（~8: navigation-menu/pin-input/scroll-area/tooltip/use-floating-layer/dom-typeahead/Toaster）＝§6 ClassBody AST rewrite が本丸。②client `generate_expr`/Raw/verbatim-fallback（~10: team-members/preview/ClipboardManager/badge/spinner/callout/framer-command/mobile-nav/blocks/+page）＝§2 client AST 化が前提（bind get/set setter 内の each-item/@const read が `$.get` wrap されない、component prop arrow が text path 等）。③コメント保持（~6: scroll-area/Toaster/Video/sidebar-menu-skeleton/transition）＝§5.4。④namespace（Dropzone/analytics-card）＝deep `check_nodes_for_namespace`（上記 REVERT 理由参照、要慎重）。⑤niche svelte fixture（const-tag-snippet 重複 snippet 順序/migrate slot-usages/bidirectional unicode escape/store-rune-conflic `$state`=store vs rune 曖昧）。⑥literal-array each-item text reactivity（products/users `+page`＝広範・高リスク）、CompoAttributesViewer（statement-context での `return $$value` 抑制＝await-RHS destructure）。
+#### 残り 35 の root-cause マップ（次セッションの burn-down 指針。各 verify は rebuild napi→`corpus:compile`(12s)→`corpus:verify`）
+> **残り 35 のクラスタ別内訳（直近セッション時点）:** ①`.svelte.ts` クラス機構（~8: navigation-menu/pin-input/scroll-area/tooltip/use-floating-layer/dom-typeahead/Toaster）＝§6 ClassBody AST rewrite が本丸。②client `generate_expr`/Raw/verbatim-fallback（~10: team-members/preview/ClipboardManager/badge/spinner/callout/framer-command/mobile-nav/blocks/+page）＝§2 client AST 化が前提（bind get/set setter 内の each-item/@const read が `$.get` wrap されない、component prop arrow が text path 等）。③コメント保持（~6: scroll-area/Toaster/Video/sidebar-menu-skeleton/transition）＝§5.4。④namespace（Dropzone/analytics-card）＝deep `check_nodes_for_namespace`（上記 REVERT 理由参照、要慎重）。⑤niche svelte fixture（const-tag-snippet 重複 snippet 順序/migrate slot-usages/bidirectional unicode escape/store-rune-conflic `$state`=store vs rune 曖昧）。⑥literal-array each-item text reactivity（products/users `+page`＝広範・高リスク）、CompoAttributesViewer（statement-context での `return $$value` 抑制＝await-RHS destructure）。
 > 検証ループ: `CARGO_TARGET_DIR=target-verify cargo build --release --features napi --lib && cp
 > target-verify/release/librsvelte_core.dylib .corpus-cache/rsvelte.node && pnpm run corpus:compile &&
 > pnpm run corpus:verify`。baseline 更新: `node scripts/compat-corpus/verify.mjs --no-fmt --update-baseline`
