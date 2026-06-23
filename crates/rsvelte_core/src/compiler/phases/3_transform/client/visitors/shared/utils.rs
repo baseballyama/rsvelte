@@ -3611,6 +3611,17 @@ pub(crate) fn get_literal_value(
                     return None;
                 }
 
+                // An identifier that names an enclosing `{#each … as <item>[, <index>]}`
+                // loop variable shadows any outer `const` of the same name: inside the
+                // block it is the (reactive) loop variable, NOT a foldable constant.
+                // Without this, `const title = '…'; {#each xs as title}{title}{/each}`
+                // wrongly folds `{title}` to the const's value.
+                if context.state.each_binding_context.iter().any(|c| {
+                    c.item_name == name || (!c.index_name.is_empty() && c.index_name == name)
+                }) {
+                    return None;
+                }
+
                 // Check if the identifier is a constant binding
                 let binding = context.state.get_binding(name)?;
 

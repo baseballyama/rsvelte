@@ -1,5 +1,28 @@
 # @rsvelte/svelte-check
 
+## 0.2.15
+
+### Patch Changes
+
+- d3eb1c0: Fix the doubled `apps/apps/npm/...` path in the published `repository.directory`
+  metadata. The correct location is `apps/npm/<pkg>`, so the "source" link on
+  each package's npm page now resolves instead of 404ing. This corrects the
+  remaining packages missed when `@rsvelte/svelte-check` was fixed in #977: the
+  `svelte-check-*` and `vite-plugin-svelte-native*` prebuilt-binary packages and
+  `@rsvelte/svelte2tsx`. The `fixed` changeset groups carry the patch bump to
+  every native sub-package.
+- a3186c7: `svelte-check` now reads the diagnostic-relevant Svelte `compilerOptions`
+  (`experimental.async`, `runes`) from project config instead of always
+  compiling with defaults. The options are statically parsed (oxc) from both
+  `svelte.config.{js,cjs,mjs,ts,mts}` and the `vite.config.{js,ts,…}`
+  Svelte-plugin call (`svelte({ compilerOptions })`), merged with vite-plugin
+  precedence (`defaults → svelte.config → inline`) to mirror
+  vite-plugin-svelte's own order. This fixes spurious `experimental_async`
+  errors on components using top-level / derived `await` when async is enabled
+  via the vite plugin — the placement SvelteKit increasingly uses (#1034). The
+  `--incremental` warnings cache carries a config fingerprint and invalidates
+  when the resolved options change.
+
 ## 0.2.14
 
 ### Patch Changes

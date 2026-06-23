@@ -8,6 +8,7 @@
 pub(crate) use super::shared::ast_rewrite;
 use std::fmt::Write as _;
 mod ast_state_transform;
+mod class_body_ast;
 mod class_transforms;
 mod console_dev_ast;
 mod derived_by_ast;
@@ -19,6 +20,7 @@ mod legacy_state_member_mutate_ast;
 mod local_assign_ast;
 mod private_class_assign_ast;
 mod private_field_assign_ast;
+mod private_member_mutate_root_ast;
 mod private_member_read_wrap_ast;
 mod private_read_wrap_ast;
 mod private_v_suffix_ast;

@@ -1,5 +1,74 @@
 # @rsvelte/svelte2tsx
 
+## 0.1.19
+
+### Patch Changes
+
+- d3eb1c0: Fix the doubled `apps/apps/npm/...` path in the published `repository.directory`
+  metadata. The correct location is `apps/npm/<pkg>`, so the "source" link on
+  each package's npm page now resolves instead of 404ing. This corrects the
+  remaining packages missed when `@rsvelte/svelte-check` was fixed in #977: the
+  `svelte-check-*` and `vite-plugin-svelte-native*` prebuilt-binary packages and
+  `@rsvelte/svelte2tsx`. The `fixed` changeset groups carry the patch bump to
+  every native sub-package.
+- f23c67f: svelte2tsx output-parity corpus burndown (29 fixes): preserve comments inside
+  expression tags and between element-opener attributes, emit a `$$ComponentProps`
+  typedef for every `$props()` destructure, fix auto-closed-element closing braces,
+  hoist `{#snippet}` above sibling consts, lower `<slot>` inside
+  `<template shadowrootmode>` to `createSlot`, compile snippet rest params, and
+  tolerate instance-script JS that acorn accepts but OXC rejects (raw passthrough).
+  Defers `each_key_without_as` / `render_tag` / snippet-rest / `<textarea>` logic-block
+  checks from parse to analyze so svelte2tsx (parse-only) matches the official oracle.
+- e7770df: svelte2tsx output-parity corpus burn-down (124 → 11 known failures): hoist
+  `$$ComponentProps` when a `typeof` references an import (not a local);
+  preserve trailing TS postfixes (`as T` / `satisfies T` / `!`) on component
+  bind props, spreads (parenthesised) and use/transition/animate directive
+  params; wrap empty-valued `data-*` attributes in `__sveltets_2_empty` on the
+  `createElement` path; gate interface / `$$ComponentProps` hoisting and
+  emission on the upstream `HoistableInterfaces` rules (no over-hoisting when
+  the props interface is absent/imported, no synthetic `Record<string, never>`
+  alias); support the `$props<TypeArg>()` type-argument form; place the
+  `@component` documentation block adjacent to the component declaration; stop
+  treating TS keywords as hoist-blocking value deps; insert the auto
+  `$$ComponentProps` typedef before leading comments rather than into them; and
+  keep instance-referencing top-level `{#snippet}` blocks inside
+  `function $$render()`; fully enumerate deeply-nested destructured `export`
+  props (recurse into `rest`); fix the `__sveltets_createSlot` props-object
+  spacing; and preserve block-comment interior indentation. Remaining
+  divergences (one genuine upstream `svelte2tsx` crash, shared-parser HTML edge
+  cases, and a few low-ROI individual diffs) are documented in
+  `docs/svelte2tsx-corpus-remaining.md`.
+- ec51d22: Fix a panic in svelte2tsx when a declaration is immediately preceded by a
+  multi-byte character (e.g. a `─` box-drawing char in a `// ── … ──` comment
+  banner). `leading_jsdoc_comment` probed the block-comment terminator by slicing
+  `&source[p - 2..p]`, which lands mid-char and panics on a non-char-boundary
+  index; in the wasm playground this surfaced as a bare `unreachable` trap. The
+  terminator is now tested with `source[..p].ends_with("*/")`.
+- Updated dependencies [a93f50c]
+- Updated dependencies [a93f50c]
+- Updated dependencies [a93f50c]
+- Updated dependencies [a93f50c]
+- Updated dependencies [a93f50c]
+- Updated dependencies [f68f2a3]
+- Updated dependencies [b75ceb5]
+- Updated dependencies [47e5bec]
+- Updated dependencies [a93f50c]
+- Updated dependencies [a93f50c]
+- Updated dependencies [a93f50c]
+- Updated dependencies [a93f50c]
+- Updated dependencies [7d0c17b]
+- Updated dependencies [a93f50c]
+- Updated dependencies [99725cc]
+- Updated dependencies [a93f50c]
+- Updated dependencies [a93f50c]
+- Updated dependencies [a93f50c]
+- Updated dependencies [a93f50c]
+- Updated dependencies [a93f50c]
+- Updated dependencies [a93f50c]
+- Updated dependencies [a93f50c]
+- Updated dependencies [a93f50c]
+  - @rsvelte/compiler@0.7.12
+
 ## 0.1.18
 
 ### Patch Changes

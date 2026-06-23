@@ -48,6 +48,91 @@ use oxc_ast::ast::{Expression as OxcExpression, Statement};
 
 /// Visit a `{let …}` / `{const …}` declaration tag — lower its declarators and
 /// emit the resulting `let`/`const` declaration as a hoistable statement.
+/// Strip a TS type annotation from a single declaration-tag declarator, e.g.
+/// `const x: number = total / 2` → `const x = total / 2` (and `let y: T` →
+/// `let y`). The annotation is the `: <type>` region at bracket-depth 0 in the
+/// LHS (before the assignment `=`); a `:` inside a destructuring pattern
+/// (`{ a: b }`, `{ [k]: v }`) is nested (depth > 0) and left intact, and a `:`
+/// in the initializer (a ternary, after `=`) is never reached. No-op when there
+/// is no depth-0 LHS annotation.
+fn strip_declarator_type_annotation(src: &str) -> String {
+    let b = src.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0;
+    // LHS ends at the top-level assignment `=` (or end of string for `let x: T;`).
+    let mut lhs_end = src.len();
+    while i < b.len() {
+        match b[i] {
+            b'\'' | b'"' | b'`' => {
+                let q = b[i];
+                i += 1;
+                while i < b.len() {
+                    if b[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if b[i] == q {
+                        break;
+                    }
+                    i += 1;
+                }
+            }
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'=' if depth == 0 => {
+                let next = b.get(i + 1).copied().unwrap_or(0);
+                let prev = if i > 0 { b[i - 1] } else { 0 };
+                if next != b'=' && next != b'>' && prev != b'!' && prev != b'<' && prev != b'>' {
+                    lhs_end = i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    // Find the first depth-0 `:` within the LHS — the type annotation start.
+    let lhs = &b[..lhs_end];
+    depth = 0;
+    let mut j = 0;
+    let mut ann_start = None;
+    while j < lhs.len() {
+        match lhs[j] {
+            b'\'' | b'"' | b'`' => {
+                let q = lhs[j];
+                j += 1;
+                while j < lhs.len() {
+                    if lhs[j] == b'\\' {
+                        j += 2;
+                        continue;
+                    }
+                    if lhs[j] == q {
+                        break;
+                    }
+                    j += 1;
+                }
+            }
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b':' if depth == 0 => {
+                ann_start = Some(j);
+                break;
+            }
+            _ => {}
+        }
+        j += 1;
+    }
+    match ann_start {
+        Some(s) => {
+            // Keep `<lhs-before-:>` + the trailing `= <init>` (or nothing).
+            let mut out = src[..s].trim_end().to_string();
+            out.push_str(&src[lhs_end..]);
+            out
+        }
+        None => src.to_string(),
+    }
+}
+
 pub fn visit_declaration_tag<'a>(node: &DeclarationTag, state: &mut ServerTransformState<'a>) {
     let start = node.declaration.start().unwrap_or(0) as usize;
     let end = node.declaration.end().unwrap_or(0) as usize;
@@ -70,6 +155,11 @@ pub fn visit_declaration_tag<'a>(node: &DeclarationTag, state: &mut ServerTransf
     // through the final declarator), so a trailing `;` is appended for a clean
     // statement parse.
     let mut decl_src = state.source[start..end].trim().to_string();
+    // Strip a TS type annotation on the declarator (`{const x: number = …}`):
+    // `reparse_statement` parses plain mjs, so a `: type` annotation would make
+    // it bail and silently drop the whole declaration. The official output is
+    // the type-stripped JS (`const x = …`).
+    decl_src = strip_declarator_type_annotation(&decl_src);
     if !decl_src.ends_with(';') {
         decl_src.push(';');
     }

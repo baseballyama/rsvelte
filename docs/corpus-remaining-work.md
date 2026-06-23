@@ -1,5 +1,14 @@
 # Corpus-compat: remaining work (burn-down playbook)
 
+> **⚠️ CURRENT STATUS (2026-06-23): baseline is `50` known failures, not the 42 below.**
+> The Phase-3 AST switchover (PR #1112/#1118) changed both the pipeline and the
+> normalization, so the per-id analysis below (pre-switchover) is **history**.
+> The authoritative remaining-work map (current root causes per cluster, the
+> verification loop, and the AST `ClassBody` rewrite plan that the bulk of the
+> remaining failures need) is **`docs/phase3-server-ast-remaining-work.md` §3/§6**.
+> The general burn-down methodology in this file (verify loop, group-by-first-diff,
+> AST-precise fixes) still applies.
+
 Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 
 | metric | count |

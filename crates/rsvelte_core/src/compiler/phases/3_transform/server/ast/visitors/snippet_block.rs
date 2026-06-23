@@ -101,7 +101,16 @@ pub fn visit_snippet_block<'a>(node: &SnippetBlock, state: &mut ServerTransformS
     // runtime, but byte-parity requires source order). `function` declarations
     // flush the joinable text run (like a `{@const}`), so the rendered `push`
     // calls that surround them stay in place.
-    if node.metadata.can_hoist {
+    // Upstream `can_hoist = is_root_level && body_refs_only_own_params`. Our
+    // analyze does NOT bump its depth counters for `<svelte:boundary>`, so a
+    // snippet that sits directly inside a boundary's children fragment (e.g.
+    // `{#snippet children()}` in `<svelte:boundary>`) wrongly reports
+    // `can_hoist == true`. Re-impose the root-level gate with the server-side
+    // `fragment_depth` (root fragment = 1; any nested block / boundary body ≥ 2)
+    // so a boundary-nested snippet is emitted INLINE in the boundary block rather
+    // than hoisted to module scope — mirroring the same gate the SvelteBoundary
+    // visitor applies to the `failed` snippet.
+    if node.metadata.can_hoist && state.fragment_depth <= 1 {
         state.hoisted.push(fn_decl);
     } else {
         state

@@ -320,10 +320,11 @@ fn build_inline_component<'a, 'b>(
     // Custom-CSS props wrap (写经 `shared/component.js` lines 331-340):
     //   $.css_props($$renderer, namespace==='svg'?false:true, { '--foo': value },
     //               () => { <statement> }, dynamic && true);
-    // The SVG-namespace flag is a 写经 simplification — every current fixture is
-    // `html`, so emit `true`; the dynamic flag is the 5th arg only when dynamic.
+    // The 2nd arg is `is_html` (`false` inside an `<svg>` / mathml subtree); read
+    // the current namespace threaded through `process_children_inner`.
     let has_css_props = !custom_css_props.is_empty();
     if has_css_props {
+        let is_html = state.namespace != "svg";
         let b = state.b;
         let css_obj = b.object(custom_css_props);
         let thunk = b.arrow(
@@ -332,7 +333,7 @@ fn build_inline_component<'a, 'b>(
             false,
             false,
         );
-        let mut args = vec![b.id("$$renderer"), b.bool(true), css_obj, thunk];
+        let mut args = vec![b.id("$$renderer"), b.bool(is_html), css_obj, thunk];
         if dynamic {
             args.push(b.bool(true));
         }
