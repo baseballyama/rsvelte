@@ -85,6 +85,12 @@ pub struct ServerTransformState<'a> {
     /// `<span>` inside a `<pre>` keeps its inner whitespace. The element visitor
     /// saves/restores it around its children.
     pub preserve_whitespace: bool,
+    /// Current element namespace for the children being visited (`"html"` /
+    /// `"svg"` / `"mathml"`), mirroring upstream `state.namespace`. Set by
+    /// `process_children_inner` from the namespace it is handed and restored
+    /// after, so a nested visitor (e.g. the component `$.css_props` SVG flag)
+    /// can tell whether it renders inside an `<svg>` subtree.
+    pub namespace: &'static str,
     /// Monotonic counter for `each_array` / `$$index` unique-name suffixes,
     /// mirroring upstream's `state.scope.root.unique('each_array')`. The first
     /// each block uses bare `each_array` / `$$index`; subsequent ones append
@@ -252,6 +258,7 @@ impl<'a> ServerTransformState<'a> {
             is_standalone: false,
             fragment_depth: 0,
             preserve_whitespace: options.preserve_whitespace,
+            namespace: "html",
             each_index: 0,
             eval_inputs: EvalInputs::default(),
             body_counter: 0,

@@ -32,6 +32,7 @@
 //! `$derived.by`) go in `other_qualified`.
 
 use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
@@ -43,7 +44,117 @@ use oxc_span::SourceType;
 use oxc_syntax::operator::{AssignmentOperator, UpdateOperator};
 
 use super::ast_rewrite::{self, Edit};
-use super::expression_utils::expression_needs_proxy;
+
+/// Scope-less mirror of the official compiler's `should_proxy(node, null)`
+/// (`client/utils.js`): the set of expression shapes that never need a
+/// reactive proxy wrapper. Used both directly on an assignment RHS and to
+/// pre-compute the proxy-ability of every local binding's initializer.
+fn should_proxy_no_trace(expr: &Expression<'_>) -> bool {
+    match expr {
+        Expression::BooleanLiteral(_)
+        | Expression::NullLiteral(_)
+        | Expression::NumericLiteral(_)
+        | Expression::BigIntLiteral(_)
+        | Expression::RegExpLiteral(_)
+        | Expression::StringLiteral(_)
+        | Expression::TemplateLiteral(_)
+        | Expression::ArrowFunctionExpression(_)
+        | Expression::FunctionExpression(_)
+        | Expression::UnaryExpression(_)
+        | Expression::BinaryExpression(_) => false,
+        Expression::TSAsExpression(e) => should_proxy_no_trace(&e.expression),
+        Expression::TSSatisfiesExpression(e) => should_proxy_no_trace(&e.expression),
+        Expression::TSNonNullExpression(e) => should_proxy_no_trace(&e.expression),
+        Expression::TSTypeAssertion(e) => should_proxy_no_trace(&e.expression),
+        Expression::TSInstantiationExpression(e) => should_proxy_no_trace(&e.expression),
+        Expression::ParenthesizedExpression(e) => should_proxy_no_trace(&e.expression),
+        Expression::Identifier(ident) => ident.name != "undefined",
+        // CallExpression, MemberExpression, ObjectExpression, ArrayExpression,
+        // NewExpression, SequenceExpression, … all fall through to `true` in the
+        // official `should_proxy`.
+        _ => true,
+    }
+}
+
+/// Scope-aware mirror of the official `should_proxy(value, scope)`: like
+/// [`should_proxy_no_trace`] but, for an identifier RHS, traces the binding's
+/// initializer (`should_proxy(binding.initial, null)`) when the binding is not
+/// reassigned. Falls back to `true` (proxy) when the binding is unknown or
+/// reassigned, matching upstream's behaviour for params / reassigned vars.
+fn should_proxy_with_bindings(
+    expr: &Expression<'_>,
+    var_proxy: &HashMap<String, bool>,
+    reassigned: &HashSet<String>,
+) -> bool {
+    match expr {
+        Expression::TSAsExpression(e) => {
+            should_proxy_with_bindings(&e.expression, var_proxy, reassigned)
+        }
+        Expression::TSSatisfiesExpression(e) => {
+            should_proxy_with_bindings(&e.expression, var_proxy, reassigned)
+        }
+        Expression::TSNonNullExpression(e) => {
+            should_proxy_with_bindings(&e.expression, var_proxy, reassigned)
+        }
+        Expression::TSTypeAssertion(e) => {
+            should_proxy_with_bindings(&e.expression, var_proxy, reassigned)
+        }
+        Expression::TSInstantiationExpression(e) => {
+            should_proxy_with_bindings(&e.expression, var_proxy, reassigned)
+        }
+        Expression::ParenthesizedExpression(e) => {
+            should_proxy_with_bindings(&e.expression, var_proxy, reassigned)
+        }
+        Expression::Identifier(ident) => {
+            if ident.name == "undefined" {
+                return false;
+            }
+            if !reassigned.contains(ident.name.as_str())
+                && let Some(&proxyable) = var_proxy.get(ident.name.as_str())
+            {
+                return proxyable;
+            }
+            true
+        }
+        other => should_proxy_no_trace(other),
+    }
+}
+
+/// Pre-walk that records, for the whole program, each local binding's
+/// initializer proxy-ability and the set of identifiers ever reassigned —
+/// the inputs [`should_proxy_with_bindings`] needs to mirror upstream's
+/// `scope.get(name)` lookup.
+#[derive(Default)]
+struct BindingInfoCollector {
+    var_proxy: HashMap<String, bool>,
+    reassigned: HashSet<String>,
+}
+
+impl<'ast> Visit<'ast> for BindingInfoCollector {
+    fn visit_variable_declarator(&mut self, decl: &VariableDeclarator<'ast>) {
+        walk::walk_variable_declarator(self, decl);
+        if let BindingPattern::BindingIdentifier(id) = &decl.id
+            && let Some(init) = &decl.init
+        {
+            self.var_proxy
+                .insert(id.name.to_string(), should_proxy_no_trace(init));
+        }
+    }
+
+    fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
+        walk::walk_assignment_expression(self, expr);
+        if let AssignmentTarget::AssignmentTargetIdentifier(id) = &expr.left {
+            self.reassigned.insert(id.name.to_string());
+        }
+    }
+
+    fn visit_update_expression(&mut self, expr: &UpdateExpression<'ast>) {
+        walk::walk_update_expression(self, expr);
+        if let SimpleAssignmentTarget::AssignmentTargetIdentifier(id) = &expr.argument {
+            self.reassigned.insert(id.name.to_string());
+        }
+    }
+}
 
 thread_local! {
     static MODULE_PRIVATE_CLASS_ASSIGN_ALLOC: RefCell<Allocator> =
@@ -131,10 +242,15 @@ fn single_pass(
             None => &parser_ret.program,
         };
 
+        let mut binding_info = BindingInfoCollector::default();
+        binding_info.visit_program(program_ref);
+
         let mut collector = PrivateClassAssignCollector {
             source: parse_str,
             state_qualified,
             other_qualified,
+            var_proxy: &binding_info.var_proxy,
+            reassigned: &binding_info.reassigned,
             replacements: Vec::new(),
         };
         collector.visit_program(program_ref);
@@ -160,6 +276,8 @@ struct PrivateClassAssignCollector<'a> {
     source: &'a str,
     state_qualified: &'a [String],
     other_qualified: &'a [String],
+    var_proxy: &'a HashMap<String, bool>,
+    reassigned: &'a HashSet<String>,
     replacements: Vec<Edit>,
 }
 
@@ -208,17 +326,22 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
         let rhs_span = expr.right.span();
         let rhs_text = &self.source[rhs_span.start as usize..rhs_span.end as usize];
 
-        // Proxy logic applies ONLY for $state with proxy-needing RHS.
-        let needs_proxy = matches!(kind, Match::State) && expression_needs_proxy(rhs_text);
+        // Proxy logic mirrors upstream `AssignmentExpression.js` private-state
+        // branch: `needs_proxy = field.type === '$state' &&
+        // is_non_coercive_operator(operator) && should_proxy(value, scope)`.
+        // The only non-coercive operator this pass handles is `=` (compound
+        // arithmetic `+= -= *= …` is coercive, so it never proxies); the
+        // logical compound ops are excluded earlier. `should_proxy` is the
+        // scope-aware check that traces an identifier RHS to its binding's
+        // initializer.
+        let needs_proxy = matches!(kind, Match::State)
+            && op_str.is_none()
+            && should_proxy_with_bindings(&expr.right, self.var_proxy, self.reassigned);
 
-        let rewrite = match (op_str, needs_proxy) {
-            (None, true) => format!("$.set({}, {}, true)", qualified, rhs_text),
-            (None, false) => format!("$.set({}, {})", qualified, rhs_text),
-            (Some(op), true) => format!(
-                "$.set({}, $.get({}) {} {}, true)",
-                qualified, qualified, op, rhs_text
-            ),
-            (Some(op), false) => format!(
+        let rewrite = match op_str {
+            None if needs_proxy => format!("$.set({}, {}, true)", qualified, rhs_text),
+            None => format!("$.set({}, {})", qualified, rhs_text),
+            Some(op) => format!(
                 "$.set({}, $.get({}) {} {})",
                 qualified, qualified, op, rhs_text
             ),
@@ -310,17 +433,30 @@ mod tests {
     }
 
     #[test]
-    fn compound_state_with_proxy_obj_rhs() {
+    fn compound_state_never_proxies() {
+        // Compound arithmetic (`+=`) is a coercive operator, so upstream's
+        // `is_non_coercive_operator(operator)` gate makes `needs_proxy` false
+        // regardless of the RHS shape — no `, true` even for an object literal.
         let out = transform_private_class_assign_ast(
             "this.#data += { x: 1 };",
             &ssv(&["this.#data"]),
             &[],
         )
         .unwrap();
-        assert_eq!(
-            out,
-            "$.set(this.#data, $.get(this.#data) + { x: 1 }, true);"
-        );
+        assert_eq!(out, "$.set(this.#data, $.get(this.#data) + { x: 1 });");
+    }
+
+    #[test]
+    fn state_assign_identifier_traces_to_nonproxyable_initial() {
+        // `fps` is bound to a BinaryExpression initializer, which is not
+        // proxyable, so the assignment to a `$state` field must not proxy.
+        let out = transform_private_class_assign_ast(
+            "const fps = 1000 / delta;\nthis.#fps = fps;",
+            &ssv(&["this.#fps"]),
+            &[],
+        )
+        .unwrap();
+        assert_eq!(out, "const fps = 1000 / delta;\n$.set(this.#fps, fps);");
     }
 
     #[test]
