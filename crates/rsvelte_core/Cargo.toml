@@ -54,18 +54,18 @@ smallvec = { version = "1.13", features = ["serde"] }
 rustc-hash = "2.0"
 
 # JavaScript parsing and code generation
-oxc_allocator = "0.136"
-oxc_parser = "0.136"
-oxc_ast = { version = "0.136", features = ["serialize"] }
-oxc_span = "0.136"
-oxc_diagnostics = "0.136"
-oxc_codegen = "0.136"
+oxc_allocator = "0.137"
+oxc_parser = "0.137"
+oxc_ast = { version = "0.137", features = ["serialize"] }
+oxc_span = "0.137"
+oxc_diagnostics = "0.137"
+oxc_codegen = "0.137"
 rsvelte_esrap = { path = "../rsvelte_esrap" }
-oxc_syntax = "0.136"
-oxc_semantic = "0.136"
+oxc_syntax = "0.137"
+oxc_semantic = "0.137"
 
 # SPIKE: oxc_formatter is publish=false in oxc; pull via git from main HEAD
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "aa79b5be9915068f60bc361febf2e7496b92fc24" }
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "8339ad49f2c144a582ad5d63adb281bf0444424e" }
 
 # Error handling
 thiserror = "2.0"
@@ -113,7 +113,7 @@ console_error_panic_hook = { version = "0.1", optional = true }
 getrandom = { version = "0.4", optional = true }
 lazy_static = "1.5.0"
 indexmap = { version = "2.13.0", features = ["serde"] }
-oxc_ast_visit = "0.136"
+oxc_ast_visit = "0.137"
 
 # Better multi-threaded memory allocator (optional, Unix/Mac only)
 [target.'cfg(all(not(windows), not(target_arch = "wasm32")))'.dependencies]

@@ -21,12 +21,12 @@ wasm = ["rsvelte_core/wasm-deps"]
 
 [dependencies]
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
-oxc_allocator = "0.136"
-oxc_ast = "0.136"
-oxc_parser = "0.136"
-oxc_span = "0.136"
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "aa79b5be9915068f60bc361febf2e7496b92fc24" }
-oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "aa79b5be9915068f60bc361febf2e7496b92fc24" }
+oxc_allocator = "0.137"
+oxc_ast = "0.137"
+oxc_parser = "0.137"
+oxc_span = "0.137"
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "8339ad49f2c144a582ad5d63adb281bf0444424e" }
+oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "8339ad49f2c144a582ad5d63adb281bf0444424e" }
 thiserror = "2.0"
 unicode-width = "0.2"
 

@@ -4,10 +4,10 @@
 //! `_config.js` JS preprocessor into Rust closures here.
 
 use rsvelte_core::compiler::preprocess::types::{
-    AttributeValue, MarkupPreprocessorFn, MarkupPreprocessorOptions, PreprocessorFn,
-    PreprocessorGroup, PreprocessorOptions, PreprocessorResult, Processed,
+    AttributeValue, MarkupPreprocessorFn, MarkupPreprocessorOptions,
+    PreprocessAttributeMap as FxHashMap, PreprocessorFn, PreprocessorGroup, PreprocessorOptions,
+    PreprocessorResult, Processed,
 };
-use rustc_hash::FxHashMap;
 
 /// Read a string attribute value, panicking if it isn't a `String`.
 pub fn attr_str<'a>(attrs: &'a FxHashMap<String, AttributeValue>, name: &str) -> Option<&'a str> {
