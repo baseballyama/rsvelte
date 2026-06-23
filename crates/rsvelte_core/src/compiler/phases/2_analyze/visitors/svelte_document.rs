@@ -11,7 +11,10 @@ use super::bind_directive;
 use crate::ast::template::{Attribute, SvelteElement};
 
 /// Visit a svelte:document.
-pub fn visit(document: &SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(
+    document: &mut SvelteElement,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
     // Check for duplicate
     if context.has_svelte_document {
         return Err(errors::svelte_meta_duplicate("svelte:document"));
@@ -32,7 +35,7 @@ pub fn visit(document: &SvelteElement, context: &mut VisitorContext) -> Result<(
     }
 
     // Validate attributes - check for invalid ones
-    for attr in &document.attributes {
+    for attr in &mut document.attributes {
         match attr {
             Attribute::BindDirective(bind) => {
                 bind_directive::visit_with_svelte_element(bind, "svelte:document", context)?;
@@ -47,6 +50,11 @@ pub fn visit(document: &SvelteElement, context: &mut VisitorContext) -> Result<(
             Attribute::SpreadAttribute(_) => {
                 // Spread attributes are NOT allowed on svelte:document
                 return Err(errors::illegal_element_attribute("svelte:document"));
+            }
+            // Regular-attribute handler expressions drive `needs_context` (see
+            // svelte_window for the rationale).
+            Attribute::Attribute(a) => {
+                super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
             _ => {}
         }

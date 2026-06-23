@@ -1,5 +1,4 @@
 [
-	"bits-ui/docs/src/routes/+page.svelte",
 	"bits-ui/packages/bits-ui/src/lib/bits/navigation-menu/navigation-menu.svelte.ts",
 	"bits-ui/packages/bits-ui/src/lib/bits/pin-input/pin-input.svelte.ts",
 	"bits-ui/packages/bits-ui/src/lib/bits/scroll-area/scroll-area.svelte.ts",
