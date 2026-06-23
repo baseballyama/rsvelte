@@ -39,10 +39,6 @@
 	"svelte.dev/apps/svelte.dev/src/routes/_home/Video.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/slot-usages/input.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-1/A.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-2/A.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-4/A.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-5/A.svelte",
 	"svelte/packages/svelte/tests/validator/samples/bidirectional-control-characters/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/store-rune-conflic-from-props/input.svelte"
 ]
