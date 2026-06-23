@@ -31,7 +31,7 @@ thiserror = "2.0"
 unicode-width = "0.2"
 
 [dev-dependencies]
-criterion = { version = "4.7.0", features = [
+criterion = { version = "5.0.0", features = [
   "html_reports",
 ], package = "codspeed-criterion-compat" }
 

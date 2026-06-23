@@ -1022,6 +1022,86 @@ fn transform_state_snapshot_server(script: &str, dev: bool) -> String {
     result
 }
 
+/// Strip `$.snapshot(arg)` → `arg` when the call is the COMPLETE initializer of a
+/// variable declarator (`const|let|var NAME = $.snapshot(arg)`), mirroring upstream's
+/// `compileModule` server output. On the server-module path the client transform has
+/// already lowered `$state.snapshot(x)` → `$.snapshot(x)`; upstream keeps `$.snapshot`
+/// in every position EXCEPT a plain variable-declarator init, where the snapshot is
+/// redundant (the value is already a server-side plain value) and collapses to the bare
+/// argument:
+///   `const prev = $state.snapshot(this.rect)` → `const prev = this.rect`
+///   `return $state.snapshot(this.rect)`       → `return $.snapshot(this.rect)`  (kept)
+///   `this.other = $state.snapshot(this.rect)` → `this.other = $.snapshot(this.rect)` (kept)
+/// Only a single-declarator `const|let|var NAME = <whole-init>` is stripped — plain
+/// assignments (`x = …`, `obj.y = …`) and partial inits (`= cond ? snapshot(x) : y`)
+/// keep `$.snapshot`.
+pub(super) fn strip_snapshot_declarator_init_module(script: &str) -> String {
+    let needle = "$.snapshot(";
+    let mut result = script.to_string();
+    let mut search_from = 0;
+
+    while let Some(pos) = result[search_from..].find(needle) {
+        let abs_pos = search_from + pos;
+        let after_needle = abs_pos + needle.len();
+
+        // The text immediately before must be `const|let|var IDENT =` with nothing
+        // else between the `=` and the `$.snapshot(` (i.e. snapshot is the whole init).
+        let before = result[..abs_pos].trim_end();
+        let is_declarator_init = before.strip_suffix('=').is_some_and(|head| {
+            // Reject compound / comparison operators ending in `=` (`==`, `<=`, `=>`…).
+            let h = head.trim_end();
+            if h.ends_with('=')
+                || h.ends_with('!')
+                || h.ends_with('<')
+                || h.ends_with('>')
+                || head.ends_with('>')
+            {
+                return false;
+            }
+            // `head` should now end with the declarator name; the token before that
+            // name must be a `const`/`let`/`var` keyword (single-declarator form).
+            let name_start = h
+                .rfind(|c: char| !(c.is_alphanumeric() || c == '_' || c == '$'))
+                .map(|i| i + 1)
+                .unwrap_or(0);
+            let name = &h[name_start..];
+            if name.is_empty() {
+                return false;
+            }
+            let kw = h[..name_start].trim_end();
+            kw.ends_with("const") || kw.ends_with("let") || kw.ends_with("var")
+        });
+
+        if !is_declarator_init {
+            search_from = after_needle;
+            continue;
+        }
+
+        let Some(content_end) = find_matching_paren_for_state(&result[after_needle..]) else {
+            search_from = after_needle;
+            continue;
+        };
+        let close = after_needle + content_end;
+        // The snapshot must be the WHOLE init: the next non-whitespace char after the
+        // closing paren is a declarator terminator (`;`, `,`, newline) or EOF.
+        let after_close = result[close + 1..].trim_start();
+        let whole_init = after_close.is_empty()
+            || after_close.starts_with(';')
+            || after_close.starts_with(',')
+            || after_close.starts_with('\n');
+        if !whole_init {
+            search_from = after_needle;
+            continue;
+        }
+
+        let content = result[after_needle..close].to_string();
+        result = format!("{}{}{}", &result[..abs_pos], content, &result[close + 1..]);
+        search_from = abs_pos + content.len();
+    }
+
+    result
+}
+
 /// Check if there's a `svelte-ignore <code>` comment before a position in the source.
 fn has_svelte_ignore_before(before: &str, code: &str) -> bool {
     // Look for the pattern in the lines above

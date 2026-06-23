@@ -213,13 +213,20 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // Set up item assign/mutate tracking before visiting the body.
     // Save the previous state so we can restore it after (for nested each blocks).
     let saved_each_item_names = context.state.each_item_names.clone();
-    let saved_each_item_assign_or_mutate = context.state.each_item_assign_or_mutate.get();
+    // Replace the current-block flag with a FRESH cell so a nested each block does not
+    // share its outer block's flag. The outer block's cell stays reachable through
+    // `each_item_name_flags` (pushed below), so a nested mutation of an outer item sets
+    // the correct block. Mirrors the `each_index_used` Rc-swap above.
+    let saved_each_item_assign_or_mutate = context.state.each_item_assign_or_mutate.clone();
+    context.state.each_item_assign_or_mutate = ::std::rc::Rc::new(::std::cell::Cell::new(false));
 
     // Collect the item variable names from the context pattern.
     let mut item_names = Vec::new();
+    let mut context_is_identifier_name: Option<compact_str::CompactString> = None;
     if let Some(context_expr) = &node.context {
         if let Some(name) = context_expr.identifier_name() {
             item_names.push(compact_str::CompactString::from(name));
+            context_is_identifier_name = Some(compact_str::CompactString::from(name));
         } else {
             let node_type = context_expr.node_type();
             if node_type == Some("ObjectPattern") || node_type == Some("ArrayPattern") {
@@ -231,7 +238,19 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         }
     }
     context.state.each_item_names = item_names;
-    context.state.each_item_assign_or_mutate.set(false);
+    // Only Identifier-context items participate in the assign/mutate → uses_index rule
+    // (official EachBlock.js only installs the uses_index-setting transform for the
+    // `node.context.type === 'Identifier'` branch). Register this block's name so a
+    // (possibly nested) assignment to it sets THIS block's flag.
+    let pushed_item_flag = if let Some(ref name) = context_is_identifier_name {
+        context.state.each_item_name_flags.push((
+            name.clone(),
+            context.state.each_item_assign_or_mutate.clone(),
+        ));
+        true
+    } else {
+        false
+    };
 
     // Push the each binding context for legacy mode binding generation.
     // This allows bind_directive to generate correct getters/setters with
@@ -455,10 +474,12 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
     // Restore the previous each_item state (for nested each blocks)
     context.state.each_item_names = saved_each_item_names;
-    context
-        .state
-        .each_item_assign_or_mutate
-        .set(saved_each_item_assign_or_mutate);
+    if pushed_item_flag {
+        context.state.each_item_name_flags.pop();
+    }
+    // Restore the OUTER block's flag cell (its value may have been set during this
+    // block's body traversal by a nested mutation of the outer item).
+    context.state.each_item_assign_or_mutate = saved_each_item_assign_or_mutate;
 
     // Restore the original transform map to prevent leaking to sibling blocks
     context.state.transform = saved_transform;

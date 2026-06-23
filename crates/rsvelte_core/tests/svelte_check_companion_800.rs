@@ -21,7 +21,7 @@ use rsvelte_core::svelte_check::{RunOptions, run};
 #[ignore = "#800: companion .svelte.ts shadows ./Foo.svelte — needs resolution interception (tsgo plugin); repro only"]
 #[test]
 fn companion_svelte_ts_does_not_shadow_component_module() {
-    if find_compiler(&PathBuf::from(".")).is_err() {
+    if find_compiler(&PathBuf::from("."), true).is_err() {
         eprintln!("skip #800: no tsgo/tsc found");
         return;
     }
@@ -66,7 +66,8 @@ fn companion_svelte_ts_does_not_shadow_component_module() {
 
     let opts = RunOptions {
         workspace: dir.clone(),
-        use_tsgo: true,
+        type_check: true,
+        prefer_tsgo: true,
         ignore: vec!["node_modules".to_string()],
         ..RunOptions::default()
     };

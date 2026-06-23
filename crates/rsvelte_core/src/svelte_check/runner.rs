@@ -74,10 +74,18 @@ pub struct RunOptions {
     /// Optional path to a project tsconfig.json the overlay should
     /// `extends`. None → write a self-contained overlay tsconfig.
     pub tsconfig: Option<PathBuf>,
-    /// When `true`, also run `tsgo` (or `tsc`) against the overlay
-    /// tsconfig and surface mapped TypeScript diagnostics on the
-    /// original `.svelte` source. Implies `emit_overlay`.
-    pub use_tsgo: bool,
+    /// When `true`, materialise the overlay and run a TypeScript
+    /// compiler (`tsc` by default, or `tsgo` when `prefer_tsgo`) against
+    /// it, surfacing the mapped TypeScript diagnostics on the original
+    /// `.svelte` source. This is the behaviour the `rsvelte-check` CLI
+    /// turns on by default — without it the run only reports Svelte-side
+    /// compile diagnostics. Implies `emit_overlay`.
+    pub type_check: bool,
+    /// Backend preference when `type_check` is set: `true` prefers
+    /// Microsoft's native `tsgo` (falling back to `tsc`), `false` (the
+    /// default) prefers the stock `tsc` (falling back to `tsgo`). Has no
+    /// effect unless `type_check` is set.
+    pub prefer_tsgo: bool,
     /// Compiler-warning overrides keyed by warning code (e.g.
     /// `css-unused-selector` → `Ignore`). Empty = pass all warnings
     /// through unchanged. Mirrors the JS `--compiler-warnings`.
@@ -100,7 +108,8 @@ impl Default for RunOptions {
             fail_on_warnings: false,
             emit_overlay: false,
             tsconfig: None,
-            use_tsgo: false,
+            type_check: false,
+            prefer_tsgo: false,
             compiler_warnings: HashMap::new(),
             diagnostic_sources: None,
             incremental: false,
@@ -113,8 +122,8 @@ impl Default for RunOptions {
 pub struct RunResult {
     pub diagnostics: Vec<Diagnostic>,
     pub files_checked: usize,
-    /// `Some` only when `RunOptions::emit_overlay` was set; mainly used
-    /// by the upcoming tsgo subprocess pipeline.
+    /// `Some` whenever the overlay was materialised — i.e. when
+    /// `RunOptions::emit_overlay` or `RunOptions::type_check` was set.
     pub overlay: Option<OverlayLayout>,
 }
 
@@ -169,7 +178,7 @@ pub fn run(options: &RunOptions) -> RunResult {
         overlay: None,
     };
 
-    let need_overlay = options.emit_overlay || options.use_tsgo;
+    let need_overlay = options.emit_overlay || options.type_check;
     if need_overlay {
         match materialize_overlay_with_kit(
             &options.workspace,
@@ -180,8 +189,13 @@ pub fn run(options: &RunOptions) -> RunResult {
             &kit_settings,
         ) {
             Ok(layout) => {
-                if options.use_tsgo {
-                    run_tsgo_phase(&layout, &options.workspace, &mut result.diagnostics);
+                if options.type_check {
+                    run_type_check_phase(
+                        &layout,
+                        &options.workspace,
+                        options.prefer_tsgo,
+                        &mut result.diagnostics,
+                    );
                 }
                 result.overlay = Some(layout);
             }
@@ -235,16 +249,22 @@ fn apply_filters(diagnostics: &mut Vec<Diagnostic>, options: &RunOptions) {
     }
 }
 
-fn run_tsgo_phase(layout: &OverlayLayout, workspace: &Path, out: &mut Vec<Diagnostic>) {
-    let binary = match find_compiler(workspace) {
+fn run_type_check_phase(
+    layout: &OverlayLayout,
+    workspace: &Path,
+    prefer_tsgo: bool,
+    out: &mut Vec<Diagnostic>,
+) {
+    let binary = match find_compiler(workspace, prefer_tsgo) {
         Ok(b) => b,
         Err(TsgoError::NotFound) => {
             out.push(Diagnostic {
                 file: workspace.to_path_buf(),
                 severity: DiagnosticSeverity::Warning,
-                code: Some("tsgo-not-found".into()),
-                message: "Skipping TypeScript diagnostics: no `tsgo` or `tsc` binary found. \
-                     Install `@typescript/native-preview` or set `TSGO_BIN`."
+                code: Some("ts-compiler-not-found".into()),
+                message: "Skipping TypeScript diagnostics: no `tsc` or `tsgo` binary found. \
+                     Install `typescript` (or `@typescript/native-preview` for `--tsgo`), \
+                     or set `TSGO_BIN`."
                     .into(),
                 range: None,
                 source: "ts",
@@ -255,7 +275,7 @@ fn run_tsgo_phase(layout: &OverlayLayout, workspace: &Path, out: &mut Vec<Diagno
             out.push(Diagnostic {
                 file: workspace.to_path_buf(),
                 severity: DiagnosticSeverity::Error,
-                code: Some("tsgo-error".into()),
+                code: Some("ts-compiler-error".into()),
                 message: format!("{e}"),
                 range: None,
                 source: "ts",
@@ -287,8 +307,8 @@ fn run_tsgo_phase(layout: &OverlayLayout, workspace: &Path, out: &mut Vec<Diagno
             out.push(Diagnostic {
                 file: workspace.to_path_buf(),
                 severity: DiagnosticSeverity::Error,
-                code: Some("tsgo-error".into()),
-                message: format!("tsgo execution failed: {e}"),
+                code: Some("ts-compiler-error".into()),
+                message: format!("TypeScript compiler execution failed: {e}"),
                 range: None,
                 source: "ts",
             });
@@ -652,6 +672,28 @@ mod tests {
         let mapped = vec![ts_diag("/ws/A.svelte", "TS2322", DiagnosticSeverity::Error)];
         let loud = overlay_syntax_loud_diagnostics(&[], &mapped, &[], Path::new("/ws"));
         assert!(loud.is_empty(), "{loud:?}");
+    }
+
+    #[test]
+    fn loud_binder_emitted_ts1192_is_not_a_syntax_taint() {
+        // A `.svelte` component with a sibling `Foo.svelte.ts` companion
+        // re-exported into its shadow can surface `TS1192` ("Module has no
+        // default export"). That code is checker-emitted, NOT a parse error,
+        // so tsgo keeps reporting real semantics (the `TS7006` below proves
+        // nothing was suppressed). It must therefore raise neither an
+        // `overlay-invalid-tsx` internal error nor a `tsgo-semantics-suppressed`
+        // note — otherwise every consumer of such a component drowns in a
+        // spurious "rsvelte produced invalid TSX" banner.
+        let sources = vec![PathBuf::from("/ws/Foo.svelte")];
+        let mapped = vec![
+            ts_diag("/ws/Foo.svelte", "TS1192", DiagnosticSeverity::Error),
+            ts_diag("/ws/Bar.svelte", "TS7006", DiagnosticSeverity::Error),
+        ];
+        let loud = overlay_syntax_loud_diagnostics(&sources, &mapped, &[], Path::new("/ws"));
+        assert!(
+            loud.is_empty(),
+            "TS1192 is semantic and must not trip the loud syntax-taint path: {loud:?}"
+        );
     }
 
     #[test]

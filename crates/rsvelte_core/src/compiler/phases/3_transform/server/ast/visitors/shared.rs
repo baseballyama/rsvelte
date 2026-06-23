@@ -979,7 +979,8 @@ pub fn build_fragment_body<'a>(
     // child. Recompute it here (save/restore) so every fragment block matches
     // upstream.
     let saved_standalone = state.is_standalone;
-    state.is_standalone = ServerTransformState::is_standalone_fragment(&fragment.nodes);
+    state.is_standalone =
+        ServerTransformState::is_standalone_fragment(&fragment.nodes, state.preserve_whitespace);
     // Track fragment nesting depth: the root component fragment is depth 1; any
     // nested block / boundary / snippet body is depth ≥ 2. The boundary visitor
     // reads this to decide `failed`-snippet hoist-vs-inline placement.

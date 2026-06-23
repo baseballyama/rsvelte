@@ -11,7 +11,10 @@ use super::bind_directive;
 use crate::ast::template::{Attribute, SvelteElement};
 
 /// Visit a svelte:window.
-pub fn visit(window: &SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(
+    window: &mut SvelteElement,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
     // Check for duplicate
     if context.has_svelte_window {
         return Err(errors::svelte_meta_duplicate("svelte:window"));
@@ -32,7 +35,7 @@ pub fn visit(window: &SvelteElement, context: &mut VisitorContext) -> Result<(),
     }
 
     // Validate attributes - check for invalid ones
-    for attr in &window.attributes {
+    for attr in &mut window.attributes {
         match attr {
             Attribute::BindDirective(bind) => {
                 bind_directive::visit_with_svelte_element(bind, "svelte:window", context)?;
@@ -47,6 +50,14 @@ pub fn visit(window: &SvelteElement, context: &mut VisitorContext) -> Result<(),
             Attribute::SpreadAttribute(_) => {
                 // Spread attributes are NOT allowed on svelte:window
                 return Err(errors::illegal_element_attribute("svelte:window"));
+            }
+            // Regular attributes (e.g. `onkeydown={(e) => …}`) carry expressions
+            // that must be analysed — a non-safe call inside them (e.g. an imported
+            // `goto(...)`) sets `needs_context`, driving the `$.push`/`$.pop`
+            // component-context emission. Previously these were ignored, so a
+            // `<svelte:window onkeydown={…goto(…)…}>` left `needs_context` false.
+            Attribute::Attribute(a) => {
+                super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
             _ => {}
         }

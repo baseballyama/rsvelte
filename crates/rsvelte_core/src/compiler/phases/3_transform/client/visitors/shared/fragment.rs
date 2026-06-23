@@ -58,7 +58,7 @@ fn is_text_attribute(attr: &Attribute) -> bool {
 }
 
 /// Recursively check if any child nodes contain dynamic content or special attributes.
-fn has_dynamic_children(nodes: &[TemplateNode]) -> bool {
+pub(crate) fn has_dynamic_children(nodes: &[TemplateNode]) -> bool {
     for node in nodes {
         match node {
             TemplateNode::ExpressionTag(_) => return true,

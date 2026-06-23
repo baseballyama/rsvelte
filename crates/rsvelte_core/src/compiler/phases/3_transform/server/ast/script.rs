@@ -1628,13 +1628,21 @@ fn create_state_declarators<'a>(
     decls.push((b.id_pat(&tmp_name), value));
 
     let mut paths: Vec<(oxc_ast::ast::BindingPattern<'a>, OxcExpression<'a>)> = Vec::new();
-    let mut inserts: Vec<OxcExpression<'a>> = Vec::new();
+    let mut array_decls: Vec<(String, OxcExpression<'a>)> = Vec::new();
     let tmp_id = b.id(&tmp_name);
-    extract_paths(pat, tmp_id, state, &mut paths, &mut inserts);
+    let mut array_counter: u32 = 0;
+    extract_paths(
+        pat,
+        tmp_id,
+        state,
+        &mut array_counter,
+        &mut paths,
+        &mut array_decls,
+    );
 
-    // `$$array = $.to_array(tmp, N)` inserts (one per array sub-pattern).
-    for value in inserts {
-        decls.push((state.b.id_pat("$$array"), Some(value)));
+    // `$$array[_N] = $.to_array(tmp, N)` inserts (one per array sub-pattern).
+    for (name, value) in array_decls {
+        decls.push((state.b.id_pat(&name), Some(value)));
     }
 
     // Leaf declarators: `x = $$array[0]`, `a = tmp.a`, …
@@ -1656,8 +1664,9 @@ fn extract_paths<'a>(
     pat: oxc_ast::ast::BindingPattern<'a>,
     expression: OxcExpression<'a>,
     state: &ServerTransformState<'a>,
+    array_counter: &mut u32,
     paths: &mut Vec<(oxc_ast::ast::BindingPattern<'a>, OxcExpression<'a>)>,
-    inserts: &mut Vec<OxcExpression<'a>>,
+    array_decls: &mut Vec<(String, OxcExpression<'a>)>,
 ) {
     use oxc_ast::ast::BindingPattern;
     let b = state.b;
@@ -1667,8 +1676,13 @@ fn extract_paths<'a>(
         }
         BindingPattern::ObjectPattern(obj) => {
             let obj = obj.unbox();
-            // Rest elements are a KNOWN GAP; only the property leaves are walked.
+            // Collect the static property keys first so an `...rest` can exclude
+            // them (写经 the upstream `$.exclude_from_object(expr, [keys])` build).
+            let mut exclude_keys: Vec<Option<OxcExpression<'a>>> = Vec::new();
             for prop in obj.properties {
+                if let Some(name) = prop.key.static_name() {
+                    exclude_keys.push(Some(b.string(&name)));
+                }
                 let base = expression_clone(&expression, state);
                 // Upstream: `b.member(expression, prop.key,
                 // prop.computed || prop.key.type !== 'Identifier')`. A plain
@@ -1684,33 +1698,121 @@ fn extract_paths<'a>(
                     // Computed `[expr]` key — KNOWN GAP; keep the base verbatim.
                     base
                 };
-                extract_paths(prop.value, object_expression, state, paths, inserts);
+                extract_paths(
+                    prop.value,
+                    object_expression,
+                    state,
+                    array_counter,
+                    paths,
+                    array_decls,
+                );
+            }
+            // `{ a, ...rest }` → `rest = $.exclude_from_object(expression, ['a'])`
+            // (写経 `_extract_paths` ObjectPattern RestElement branch).
+            if let Some(rest) = obj.rest {
+                let rest = rest.unbox();
+                let rest_expression = b.call(
+                    "$.exclude_from_object",
+                    vec![expression, b.array(exclude_keys)],
+                );
+                extract_paths(
+                    rest.argument,
+                    rest_expression,
+                    state,
+                    array_counter,
+                    paths,
+                    array_decls,
+                );
             }
         }
         BindingPattern::ArrayPattern(arr) => {
             let arr = arr.unbox();
-            // `$$array = $.to_array(<expression>, <len>)` (rest-less length;
-            // rest patterns are a KNOWN GAP, so always emit the length arg).
+            // `$$array[_N] = $.to_array(<expression>[, <len>])` — each ArrayPattern in
+            // the destructure gets a fresh `$$array` / `$$array_1` / … name (写経
+            // upstream's per-scope `scope.generate('$$array')`), and the leaf accesses
+            // reference THAT name. The element-count arg is OMITTED when the pattern
+            // has a trailing `...rest` (an unbounded destructure).
             let len = arr.elements.len();
-            let to_array = b.call("$.to_array", vec![expression, b.number(len as f64)]);
-            inserts.push(to_array);
+            let to_array = if arr.rest.is_some() {
+                b.call("$.to_array", vec![expression])
+            } else {
+                b.call("$.to_array", vec![expression, b.number(len as f64)])
+            };
+            let array_name = if *array_counter == 0 {
+                "$$array".to_string()
+            } else {
+                format!("$$array_{}", *array_counter)
+            };
+            *array_counter += 1;
+            array_decls.push((array_name.clone(), to_array));
 
             for (i, element) in arr.elements.into_iter().enumerate() {
                 if let Some(element) = element {
-                    // `$$array[i]`
-                    let array_expression = b.member_computed(b.id("$$array"), b.number(i as f64));
-                    extract_paths(element, array_expression, state, paths, inserts);
+                    // `$$array[i]` / `$$array_N[i]`
+                    let array_expression = b.member_computed(b.id(&array_name), b.number(i as f64));
+                    extract_paths(
+                        element,
+                        array_expression,
+                        state,
+                        array_counter,
+                        paths,
+                        array_decls,
+                    );
                 }
+            }
+            // `[a, ...rest]` → `rest = $$array.slice(i)` where `i` is the rest's
+            // position (= element count, holes included). A nested pattern argument
+            // recurses; a bare identifier becomes a leaf.
+            if let Some(rest) = arr.rest {
+                let rest = rest.unbox();
+                let rest_expression = b.call(
+                    b.member(b.id(&array_name), "slice"),
+                    vec![b.number(len as f64)],
+                );
+                extract_paths(
+                    rest.argument,
+                    rest_expression,
+                    state,
+                    array_counter,
+                    paths,
+                    array_decls,
+                );
             }
         }
         BindingPattern::AssignmentPattern(asgn) => {
             let asgn = asgn.unbox();
-            // `<left> = <expression> ?? <right>`-style fallback. Upstream uses
-            // `build_fallback`; for SSR `$state` defaults the simplest faithful
-            // shape is keeping the access expression (defaults are evaluated
-            // client-side). KNOWN GAP: no `build_fallback` wrapping.
-            extract_paths(asgn.left, expression, state, paths, inserts);
+            // `<left> = <default>` → wrap the access in `$.fallback(<access>, <default>)`
+            // (写经 upstream `_extract_paths` AssignmentPattern → `build_fallback`).
+            // The leaf then carries the fallback-bearing access; the OUTER prop fallback
+            // (`build_legacy_fallback`) wraps it again for `export let` props.
+            let fallback = build_destructure_fallback(state, expression, asgn.right);
+            extract_paths(
+                asgn.left,
+                fallback,
+                state,
+                array_counter,
+                paths,
+                array_decls,
+            );
         }
+    }
+}
+
+/// `build_fallback(expression, default)` (写经 `utils/ast.js:585`): a "simple"
+/// default emits `$.fallback(expr, default)`; anything else emits
+/// `$.fallback(expr, () => default, true)`. (Async / await defaults are a KNOWN
+/// GAP — not exercised by the in-scope destructure fixtures.)
+fn build_destructure_fallback<'a>(
+    state: &ServerTransformState<'a>,
+    expression: OxcExpression<'a>,
+    default_expr: OxcExpression<'a>,
+) -> OxcExpression<'a> {
+    let b = state.b;
+    if is_simple_default(&default_expr) {
+        b.call("$.fallback", vec![expression, default_expr])
+    } else {
+        let thunk = b.thunk(default_expr, false);
+        b.call("$.fallback", vec![expression, thunk, b.id("true")])
     }
 }
 
@@ -2254,7 +2356,13 @@ fn transform_script_legacy<'a>(
                 };
                 match decl {
                     oxc_ast::ast::Declaration::VariableDeclaration(vd) => {
-                        out.extend(lower_legacy_var_decl(vd, src, state, true));
+                        out.extend(lower_legacy_var_decl(
+                            vd,
+                            src,
+                            state,
+                            true,
+                            &mut array_counter,
+                        ));
                     }
                     other => {
                         // `export function` / `export class` → keep the inner
@@ -2282,7 +2390,13 @@ fn transform_script_legacy<'a>(
                 }
             }
             Statement::VariableDeclaration(vd) => {
-                out.extend(lower_legacy_var_decl(vd, src, state, false));
+                out.extend(lower_legacy_var_decl(
+                    vd,
+                    src,
+                    state,
+                    false,
+                    &mut array_counter,
+                ));
             }
             Statement::LabeledStatement(ls) if is_instance && ls.label.name.as_str() == "$" => {
                 // Top-level legacy reactive `$:` statement. Upstream keeps the
@@ -2578,6 +2692,7 @@ fn lower_legacy_var_decl<'a>(
     src: &str,
     state: &mut ServerTransformState<'a>,
     is_export: bool,
+    array_counter: &mut u32,
 ) -> Vec<Statement<'a>> {
     let b = state.b;
     let kind = match vd.kind {
@@ -2660,7 +2775,13 @@ fn lower_legacy_var_decl<'a>(
                     .init
                     .as_ref()
                     .map(|init| reparse_init_read_wrapped(init, src, state));
-                create_props_destructure_declarators(pat, init_expr, state, &mut decls);
+                create_props_destructure_declarators(
+                    pat,
+                    init_expr,
+                    state,
+                    array_counter,
+                    &mut decls,
+                );
                 out.push(b.var_decl_from_pairs(kind, decls));
             }
             continue;
@@ -2807,6 +2928,7 @@ fn create_props_destructure_declarators<'a>(
     pat: oxc_ast::ast::BindingPattern<'a>,
     value: Option<OxcExpression<'a>>,
     state: &ServerTransformState<'a>,
+    array_counter: &mut u32,
     decls: &mut Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)>,
 ) {
     let b = state.b;
@@ -2816,11 +2938,18 @@ fn create_props_destructure_declarators<'a>(
     decls.push((b.id_pat(tmp_name), value));
 
     let mut paths: Vec<(oxc_ast::ast::BindingPattern<'a>, OxcExpression<'a>)> = Vec::new();
-    let mut inserts: Vec<OxcExpression<'a>> = Vec::new();
-    extract_paths(pat, b.id(tmp_name), state, &mut paths, &mut inserts);
+    let mut array_decls: Vec<(String, OxcExpression<'a>)> = Vec::new();
+    extract_paths(
+        pat,
+        b.id(tmp_name),
+        state,
+        array_counter,
+        &mut paths,
+        &mut array_decls,
+    );
 
-    for value in inserts {
-        decls.push((b.id_pat("$$array"), Some(value)));
+    for (name, value) in array_decls {
+        decls.push((b.id_pat(&name), Some(value)));
     }
 
     for (node, access) in paths {

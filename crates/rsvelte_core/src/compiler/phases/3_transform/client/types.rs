@@ -2005,6 +2005,14 @@ pub struct ComponentClientTransformState<'a> {
     /// `uses_index` is set to `true` inside the assign/mutate transform callbacks.
     pub each_item_assign_or_mutate: Rc<Cell<bool>>,
 
+    /// Stack mapping each enclosing Identifier-context each-item name to that block's
+    /// `each_item_assign_or_mutate` flag cell. When a nested each body assigns to or
+    /// mutates an OUTER each item (e.g. `member.role = role.name` inside `{#each roles}`
+    /// where `member` comes from an outer `{#each members}`), the OUTER block's flag —
+    /// not the current inner one — must be set so the outer block emits its `$$index`
+    /// parameter. Mirrors the `ancestor_each_index_names` mechanism for the index.
+    pub each_item_name_flags: Vec<(compact_str::CompactString, Rc<Cell<bool>>)>,
+
     /// The names of the current each block's item variables (from context pattern).
     /// For simple `{#each items as item}`, this is `["item"]`.
     /// For destructured patterns, this contains all declared names.
@@ -2253,6 +2261,7 @@ impl<'a> ComponentClientTransformState<'a> {
             each_index_name: None,
             ancestor_each_index_names: Vec::new(),
             each_item_assign_or_mutate: Rc::new(Cell::new(false)),
+            each_item_name_flags: Vec::new(),
             each_item_names: Vec::new(),
             each_binding_context: Vec::new(),
             local_var_init_types: Vec::new(),

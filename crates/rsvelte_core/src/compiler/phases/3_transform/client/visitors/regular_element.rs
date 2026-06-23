@@ -24,7 +24,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::element
     build_attribute_effect, build_attribute_value, build_set_class, build_set_style,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::{
-    TextOrExpr, is_static_element, process_children,
+    TextOrExpr, has_dynamic_children, is_static_element, process_children,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     build_render_statement_with_memoizer, build_template_chunk, expression_has_reactive_state,
@@ -1600,12 +1600,22 @@ fn has_hoisted_init_producers(hoisted: &[Cow<'_, TemplateNode>]) -> bool {
 /// merged when the fragment is dynamic.
 fn has_dynamic_children_for_merge(
     trimmed: &[Cow<'_, TemplateNode>],
-    state: &ComponentClientTransformState,
+    _state: &ComponentClientTransformState,
 ) -> bool {
-    trimmed.iter().any(|n| {
-        !matches!(n.as_ref(), TemplateNode::Text(_) | TemplateNode::Comment(_))
-            && !is_static_element(n.as_ref(), state)
-    })
+    // Mirror upstream's parent-static determination, which decides whether to
+    // bake an element whole vs traverse its children via `is_static_element` →
+    // `has_dynamic_children` (ATTRIBUTE-based). A static `<input checked>` /
+    // `<input value="x">` child is NOT a dynamism trigger for the PARENT (the
+    // input is baked into the template; its `remove_input_defaults` is only
+    // emitted if the element is visited for some OTHER reason). Using
+    // `!is_static_element(child)` here was too strict — it flagged a static
+    // input (non-static in isolation because it WOULD need remove_input_defaults
+    // when visited) and forced the parent to traverse, emitting a spurious
+    // `$.child(...) + $.remove_input_defaults(...)` (e.g. framer-command's
+    // `<label><input type="radio" checked/> Radio Button</label>`).
+    trimmed
+        .iter()
+        .any(|n| has_dynamic_children(std::slice::from_ref(n.as_ref())))
 }
 
 /// Check if a node is a custom element.
