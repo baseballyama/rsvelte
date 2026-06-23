@@ -165,12 +165,20 @@ pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'
     }
     let pushed_shadow = !each_shadow.is_empty();
     if pushed_shadow {
+        // Push to BOTH shadow sets: `slot_let_shadows` suppresses the SSR
+        // constant-fold (each-item reads are runtime values), and
+        // `shadowed_names` suppresses the derived/state read-wrap so an each
+        // item that shadows a same-named component `$derived` (e.g.
+        // `const file = $derived(...)` + `{#each tree.children as file}`) stays
+        // a bare `file.path` instead of being wrapped to `file().path`.
+        state.shadowed_names.push(each_shadow.clone());
         state.slot_let_shadows.push(each_shadow);
     }
     // EachBlock body IS an `is_text_first` parent (upstream `clean_nodes`).
     each_body.extend(build_fragment_body(&node.body, true, state));
     if pushed_shadow {
         state.slot_let_shadows.pop();
+        state.shadowed_names.pop();
     }
 
     let for_loop = build_for_loop(b, &array_var, &index_var, b.block(each_body));

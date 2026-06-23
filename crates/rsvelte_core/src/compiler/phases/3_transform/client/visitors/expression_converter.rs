@@ -4581,6 +4581,23 @@ fn convert_assignment_expression(
     // `rows` into `rows()`, making it impossible to identify the root identifier later.
     let original_root_name = obj.get("left").and_then(extract_root_identifier_from_json);
 
+    // Mirror the official EachBlock `assign`/`mutate` transforms (EachBlock.js
+    // lines 229-243): assigning to or mutating an each-block item identifier sets
+    // `uses_index = true` on the OWNING each block, forcing the `$$index` callback
+    // parameter to be emitted even when the produced code does not reference it.
+    // We look the name up in `each_item_name_flags` (most-recent first) so a nested
+    // each body that mutates an outer item still sets the outer block's flag.
+    if let Some(root) = original_root_name.as_deref()
+        && let Some((_, flag)) = context
+            .state
+            .each_item_name_flags
+            .iter()
+            .rev()
+            .find(|(n, _)| n.as_str() == root)
+    {
+        flag.set(true);
+    }
+
     // Check if this assignment needs ownership mutation validation (dev mode only).
     // We need to check the ORIGINAL JSON left-hand side because transforms may have
     // already altered the LHS (e.g., `object.count` -> `object().count`).

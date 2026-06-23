@@ -30,5 +30,13 @@ pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
         ));
     }
 
+    // Regular-attribute handler expressions drive `needs_context` (see
+    // svelte_window for the rationale).
+    for attr in &mut body.attributes {
+        if let crate::ast::template::Attribute::Attribute(a) = attr {
+            super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
+        }
+    }
+
     Ok(())
 }
