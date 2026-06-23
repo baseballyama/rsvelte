@@ -22,12 +22,34 @@ struct EntryMap {
     map: SourceMap,
 }
 
+/// TS `1xxx` codes that are emitted by the BINDER/CHECKER (semantic), not the
+/// parser, despite living in the range otherwise reserved for parse errors.
+///
+/// The `1xxx` range is *mostly* syntactic, but TypeScript reuses a handful of
+/// codes in it for module/import semantics that require symbol resolution.
+/// These do NOT cause the parser to fail, so they do NOT trigger the
+/// program-wide semantic-diagnostic suppression that `is_syntactic_ts_code`
+/// guards against — treating them as syntactic raises a spurious
+/// `overlay-invalid-tsx` / `tsgo-semantics-suppressed` alarm when, in fact,
+/// every real type error is still reported (e.g. a `.svelte` component with a
+/// sibling `Foo.svelte.ts` companion re-exported into the shadow can surface
+/// `TS1192` while `TS7006` & friends keep flowing — proof semantics were never
+/// suppressed).
+const SEMANTIC_TS_1XXX_CODES: &[u32] = &[
+    1192, // "Module '{0}' has no default export."
+    1259, // "Module '{0}' can only be default-imported using the '{1}' flag."
+    1361, // "'{0}' cannot be used as a value because it was imported using 'import type'."
+    1371, // "This import is never used as a value and must use 'import type' ..."
+];
+
 /// Whether a TypeScript diagnostic code denotes a SYNTACTIC error.
 ///
 /// TypeScript groups syntax (parse) errors under the `TS1xxx` range — e.g.
 /// `TS1005` (`',' expected`), `TS1109` (`Expression expected`), `TS1128`
 /// (`Declaration or statement expected`), `TS1136` (`Property assignment
-/// expected`). Semantic / type errors live in `TS2xxx`+.
+/// expected`). Semantic / type errors live in `TS2xxx`+ — plus the handful of
+/// binder/checker-emitted `1xxx` codes listed in [`SEMANTIC_TS_1XXX_CODES`],
+/// which are explicitly excluded here.
 ///
 /// This distinction is load-bearing: TypeScript (and tsgo) suppress ALL
 /// semantic diagnostics program-wide as soon as the program contains ANY
@@ -37,7 +59,7 @@ struct EntryMap {
 pub fn is_syntactic_ts_code(code: &str) -> bool {
     code.strip_prefix("TS")
         .and_then(|n| n.parse::<u32>().ok())
-        .map(|n| (1000..2000).contains(&n))
+        .map(|n| (1000..2000).contains(&n) && !SEMANTIC_TS_1XXX_CODES.contains(&n))
         .unwrap_or(false)
 }
 
@@ -372,6 +394,18 @@ mod tests {
         // TS2xxx (type), TS6xxx (lint-ish), TS7xxx (implicit-any) are NOT
         // syntactic and must not trip the loud-error path.
         for code in ["TS2322", "TS2304", "TS6133", "TS7006", "TS18047"] {
+            assert!(!is_syntactic_ts_code(code), "{code} should be semantic");
+        }
+    }
+
+    #[test]
+    fn classifies_binder_emitted_ts1xxx_as_semantic() {
+        // A handful of `1xxx` codes are checker/binder-emitted module-import
+        // semantics, NOT parse errors — they must not be treated as syntactic
+        // (which would falsely flag an `overlay-invalid-tsx` and claim
+        // program-wide suppression). Regression guard for the `Foo.svelte` +
+        // sibling `Foo.svelte.ts` companion re-export case (`TS1192`).
+        for code in ["TS1192", "TS1259", "TS1361", "TS1371"] {
             assert!(!is_syntactic_ts_code(code), "{code} should be semantic");
         }
     }
