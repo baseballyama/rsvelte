@@ -1631,28 +1631,10 @@ pub(super) fn is_identifier_str(s: &str) -> bool {
     }
 }
 
-/// Check if a value string represents a "simple expression" that can be passed directly.
-///
-/// Simple expressions don't need to be wrapped in a thunk (factory function).
-/// This matches the official Svelte compiler's `is_simple_expression()` function.
-///
-/// Simple expressions include:
-/// - Literals (numbers, strings, booleans, null, undefined)
-/// - Identifiers (variable references)
-/// - Arrow function expressions
-/// - Function expressions
-/// - Binary and logical expressions where both sides are simple
-/// - Conditional expressions where all parts are simple
-///
-/// Non-simple expressions include:
-/// - Array literals: [1, 2, 3]
-/// - Object literals: { a: 1 }
-/// - Call expressions: foo()
-/// - Template literals: `hello`, `${x}` (TemplateLiteral != Literal in AST)
 /// Whether `s` contains a `=>` token at bracket depth 0 (i.e. the expression is
 /// itself an arrow function), as opposed to a `=>` nested inside a call argument
 /// (`x.map(a => b)`). The call/member-expression "not simple" checks below use
-/// this to avoid bailing on a call CHAIN that merely contains a nested arrow —
+/// this to avoid bailing on a call CHAIN that merely contains a nested arrow:
 /// `type.split("").map((c) => c).join("")` is a CallExpression (NOT simple),
 /// even though it contains `=>`.
 fn has_top_level_arrow(s: &str) -> bool {
@@ -1685,6 +1667,24 @@ fn has_top_level_arrow(s: &str) -> bool {
     false
 }
 
+/// Check if a value string represents a "simple expression" that can be passed directly.
+///
+/// Simple expressions don't need to be wrapped in a thunk (factory function).
+/// This matches the official Svelte compiler's `is_simple_expression()` function.
+///
+/// Simple expressions include:
+/// - Literals (numbers, strings, booleans, null, undefined)
+/// - Identifiers (variable references)
+/// - Arrow function expressions
+/// - Function expressions
+/// - Binary and logical expressions where both sides are simple
+/// - Conditional expressions where all parts are simple
+///
+/// Non-simple expressions include:
+/// - Array literals: [1, 2, 3]
+/// - Object literals: { a: 1 }
+/// - Call expressions: foo()
+/// - Template literals: `hello`, `${x}` (TemplateLiteral != Literal in AST)
 pub(super) fn is_simple_expression_str(value: &str) -> bool {
     let trimmed = value.trim();
 
