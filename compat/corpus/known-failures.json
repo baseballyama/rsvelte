@@ -18,7 +18,6 @@
 	"flowbite-svelte/src/routes/utils/CompoAttributesViewer.svelte",
 	"melt-ui/docs/src/components/preview.svelte",
 	"melt-ui/docs/src/components/transition.svelte",
-	"melt-ui/docs/src/previews/tree.svelte",
 	"melt-ui/packages/melt/src/lib/builders/Toaster.svelte.ts",
 	"melt-ui/packages/melt/src/lib/builders/tests/SpatialMenuNavTest.svelte",
 	"shadcn-svelte/docs/src/lib/components/cards/team-members.svelte",

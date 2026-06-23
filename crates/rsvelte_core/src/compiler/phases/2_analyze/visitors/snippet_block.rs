@@ -658,10 +658,28 @@ fn check_hoistable(
                 return false;
             }
 
-            // Dynamic components and SvelteSelf prevent hoisting
-            TemplateNode::SvelteComponent(_)
-            | TemplateNode::SvelteElement(_)
-            | TemplateNode::SvelteSelf(_) => return false,
+            // `<svelte:component this={expr} …>` is hoistable when its `this`
+            // expression, attributes, and children only reference hoistable names
+            // (e.g. `this={item.expanded ? FolderOpen : Folder}` where `item` is a
+            // param and the components are imports). Mirrors upstream's reference-based
+            // `can_hoist_snippet`, which does not blanket-reject dynamic components.
+            TemplateNode::SvelteComponent(comp) => {
+                if !expr_only_uses_params(&comp.expression, param_names, context) {
+                    return false;
+                }
+                for attr in &comp.attributes {
+                    if !check_attribute_hoistable(attr, param_names, context) {
+                        return false;
+                    }
+                }
+                if !check_hoistable(&comp.fragment.nodes, param_names, context) {
+                    return false;
+                }
+            }
+
+            // `<svelte:element>` (runtime tag) and `<svelte:self>` (recursive)
+            // conservatively prevent hoisting (not exercised by the in-scope fixtures).
+            TemplateNode::SvelteElement(_) | TemplateNode::SvelteSelf(_) => return false,
 
             // Components - check attributes/props for instance-level references
             TemplateNode::Component(comp) => {
