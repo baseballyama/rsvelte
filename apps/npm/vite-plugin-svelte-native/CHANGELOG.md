@@ -1,5 +1,25 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.2.6
+
+### Patch Changes
+
+- d3eb1c0: Fix the doubled `apps/apps/npm/...` path in the published `repository.directory`
+  metadata. The correct location is `apps/npm/<pkg>`, so the "source" link on
+  each package's npm page now resolves instead of 404ing. This corrects the
+  remaining packages missed when `@rsvelte/svelte-check` was fixed in #977: the
+  `svelte-check-*` and `vite-plugin-svelte-native*` prebuilt-binary packages and
+  `@rsvelte/svelte2tsx`. The `fixed` changeset groups carry the patch bump to
+  every native sub-package.
+- 92ea741: Fix invalid SSR codegen when a `{@const}` (or any awaited expression) sits in
+  the consequent of a ternary in async mode — e.g.
+  `{@const x = cond ? await fn({...}) : undefined}`. The server `await <expr>` →
+  `(await $.save(<expr>))()` rewrite used a hand-rolled byte scanner that forgot
+  the ternary alternate separator `:`, so `: undefined` leaked into the
+  `$.save(...)` argument list and produced unparseable JS (issue #1036, bug 2).
+  The operand is now bounded by its parsed `AwaitExpression` span, so everything
+  outside it stays untouched.
+
 ## 0.2.5
 
 ### Patch Changes

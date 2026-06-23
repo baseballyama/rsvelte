@@ -1,5 +1,44 @@
 # @rsvelte/fmt
 
+## 0.3.15
+
+### Patch Changes
+
+- 40b683f: Fix the collapse/markup layout path hardcoding 2-space indentation: the Doc-IR
+  print unit and the space-count→indent-level conversion now honor the configured
+  `indentWidth`/`indentStyle` (4-space, tabs, etc.) instead of assuming 2 spaces.
+  Previously, fill-wrapped prose and hugged inline elements were re-indented at the
+  wrong column for any non-default indent setting. Byte-identical for the default
+  2-space config (0 corpus regressions); adds 4-space and tab regression tests.
+- 5e2fafb: Drive the formatter-parity corpus (rsvelte-fmt vs the `oxfmt(svelte:true)` =
+  prettier-plugin-svelte oracle) from 295 known failures down to a small residual,
+  with no regressions. Completes large parts of the prettier-plugin-svelte HTML
+  child-layout port onto the Doc IR (open-tag `dedent(softline)`, pure-text prose
+  word-fill via `Doc::Fill`, wrappable self-closing components, prose-fill
+  component bodies, re-hugging inline elements whose open tag already wrapped,
+  `blockElements` alignment) and improves embedded-JS formatting (`{@render}`/
+  `{@html}` object-arg wrapping, declaration-tag formatting, `{#each}`/`{#if}`
+  block-header wrapping, `<script>`/`<style>` open-tag attribute wrapping) via
+  correct width/column accounting. Also fixes several correctness bugs: preserve
+  TypeScript `as` casts in spread attributes, keep leading comments in function
+  bindings, and keep inline self-closing components in prose runs. Genuine
+  prettier-plugin-svelte/oxfmt oracle bugs (which corrupt source) and out-of-scope
+  inputs are excluded from the parity oracle and documented in
+  `docs/fmt-oracle-bugs.md` for upstream filing.
+- 96b92fb: Formatter-parity corpus reaches 0 known failures (from 295): every in-scope
+  component across sveltejs/svelte + svelte.dev + bits-ui/flowbite/melt/shadcn now
+  formats byte-identically to the `oxfmt(svelte:true)` oracle, with 23 principled
+  documented exclusions (oracle bugs that corrupt source, oxc/prettier engine
+  divergences, invalid input, migrate, and one oxfmt cross-platform
+  non-determinism case). See `docs/fmt-oracle-bugs.md` + `docs/corpus-fmt-remaining-work.md`.
+- df144a3: Formatter-parity: byte-parity for nested inline `<span>` highlighting inside
+  `<pre><code>` (`code-viewer`), via the `<pre>` verbatim re-indent subsystem
+  (text-only span collapse + sibling-span pack/unpack/overflow-split). `<pre>`
+  content is whitespace-verbatim, so it is handled by string-level re-indentation
+  by design (the documented exception to the Doc-IR element-layout rule); a faithful
+  Doc-IR `printPre` refactor remains tracked in `docs/corpus-fmt-remaining-work.md`.
+  Known-failures: 2 → 1.
+
 ## 0.3.14
 
 ### Patch Changes
