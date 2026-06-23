@@ -64,6 +64,11 @@ rsvelte_esrap = { path = "../rsvelte_esrap" }
 oxc_syntax = "0.137"
 oxc_semantic = "0.137"
 
+# Module resolution for the svelte-check overlay: resolves `.svelte` imports
+# (including tsconfig `paths`/`baseUrl` aliases like `$lib/...`) so aliased
+# imports can be rewritten to point straight at their generated shadow `.tsx`.
+oxc_resolver = "11"
+
 # SPIKE: oxc_formatter is publish=false in oxc; pull via git from main HEAD
 oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "8339ad49f2c144a582ad5d63adb281bf0444424e" }
 

@@ -173,6 +173,12 @@ pub fn materialize_overlay_with(
         manifest::prune_deleted(&mut manifest, &abs_files);
     }
 
+    // Resolver used to re-point tsconfig-alias `.svelte` imports at their
+    // shadow `.tsx` (see `rewrite_aliased_svelte_imports`). Built once and
+    // reused across files; `None` when there is no project tsconfig (a
+    // self-contained overlay has no path aliases to resolve).
+    let svelte_resolver = build_svelte_import_resolver(tsconfig_path);
+
     let mut entries = Vec::with_capacity(files.len());
     for abs_source in &abs_files {
         let rel = abs_source
@@ -245,6 +251,19 @@ pub fn materialize_overlay_with(
             let mut tsx_code = result.code.clone();
             if let Some(spec) = companion_reexport_specifier(abs_source, &tsx_path) {
                 let _ = writeln!(tsx_code, "\nexport * from \"{spec}\";");
+            }
+            // Re-point tsconfig-alias `.svelte` imports (`$lib/Foo.svelte`) at
+            // their shadow `.tsx`. Relative `.svelte` imports already resolve to
+            // shadows via the overlay's `rootDirs`, but TS applies `rootDirs`
+            // ONLY to relative specifiers — an aliased import lands on the raw
+            // source `.svelte` (no shadow there → unresolved `any` / spurious
+            // `TS1192`). oxc_resolver honours the project tsconfig
+            // `paths`/`baseUrl`, so we resolve each alias and rewrite it to a
+            // concrete shadow-relative path that tsgo resolves directly.
+            if let Some(resolver) = svelte_resolver.as_ref() {
+                tsx_code = rewrite_aliased_svelte_imports(
+                    &tsx_code, abs_source, &tsx_path, workspace, &emit_dir, resolver,
+                );
             }
             fs::write(&tsx_path, &tsx_code)?;
 
@@ -999,6 +1018,205 @@ fn companion_reexport_specifier(abs_source: &Path, tsx_path: &Path) -> Option<St
     None
 }
 
+/// Build the module resolver used to re-point tsconfig-alias `.svelte` imports
+/// at their shadow `.tsx`. `None` when there is no project tsconfig (aliases
+/// can only come from a tsconfig's `paths`/`baseUrl`).
+fn build_svelte_import_resolver(tsconfig: Option<&Path>) -> Option<oxc_resolver::Resolver> {
+    use oxc_resolver::{
+        ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
+    };
+    let tsconfig = tsconfig?;
+    Some(Resolver::new(ResolveOptions {
+        extensions: vec![
+            ".svelte".into(),
+            ".ts".into(),
+            ".tsx".into(),
+            ".js".into(),
+            ".jsx".into(),
+            ".json".into(),
+        ],
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: tsconfig.to_path_buf(),
+            references: TsconfigReferences::Auto,
+        })),
+        condition_names: vec!["svelte".into(), "import".into(), "default".into()],
+        ..ResolveOptions::default()
+    }))
+}
+
+/// Rewrite non-relative `.svelte` import specifiers (tsconfig path aliases like
+/// `$lib/Foo.svelte`) in a generated shadow `.tsx` so they point straight at
+/// the target component's shadow `.tsx` under `emit_dir`. Relative `.svelte`
+/// imports are left as-is — the overlay's `rootDirs` already bridges those to
+/// shadows, and TS only applies `rootDirs` to relative specifiers.
+///
+/// Only specifiers that oxc_resolver maps to a `.svelte` file UNDER the
+/// workspace are rewritten; bare packages, `.svelte.ts` companions and
+/// cross-package components are untouched.
+fn rewrite_aliased_svelte_imports(
+    tsx: &str,
+    abs_source: &Path,
+    tsx_path: &Path,
+    workspace: &Path,
+    emit_dir: &Path,
+    resolver: &oxc_resolver::Resolver,
+) -> String {
+    let (Some(source_dir), Some(generated_dir)) = (abs_source.parent(), tsx_path.parent()) else {
+        return tsx.to_string();
+    };
+    // oxc_resolver returns canonicalised paths (symlinks resolved), so compare
+    // against a canonicalised workspace — otherwise a symlinked root (e.g.
+    // macOS `/var` → `/private/var`) makes `strip_prefix` spuriously fail and
+    // no alias gets rewritten.
+    let workspace_canon = workspace
+        .canonicalize()
+        .unwrap_or_else(|_| workspace.to_path_buf());
+
+    let decide = |spec: &str| -> Option<String> {
+        if spec.starts_with('.') {
+            return None;
+        }
+        let path_part = spec.split(['?', '#']).next().unwrap_or(spec);
+        if !path_part.ends_with(".svelte") {
+            return None;
+        }
+        let resolution = resolver.resolve(source_dir, spec).ok()?;
+        let resolved = resolution.path();
+        if resolved.extension().and_then(|e| e.to_str()) != Some("svelte") {
+            return None;
+        }
+        let resolved_canon = resolved
+            .canonicalize()
+            .unwrap_or_else(|_| resolved.to_path_buf());
+        let rel = resolved_canon.strip_prefix(&workspace_canon).ok()?;
+        let shadow = append_extension(&emit_dir.join(rel), ".tsx");
+        let mut rewritten = lexical_relative_posix(generated_dir, &shadow);
+        if !rewritten.starts_with('.') {
+            rewritten = format!("./{rewritten}");
+        }
+        Some(rewritten)
+    };
+
+    rewrite_module_specifiers(tsx, &decide)
+}
+
+/// Scan `text` for `from "<spec>"` / `import("<spec>")` module specifiers and
+/// replace each one for which `decide` returns `Some(replacement)`. String
+/// literals and line comments are skipped so only real specifiers are touched.
+/// (Same scanner shape as svelte2tsx's `rewrite_external_specifiers_in_text`.)
+fn rewrite_module_specifiers(text: &str, decide: &dyn Fn(&str) -> Option<String>) -> String {
+    let bytes = text.as_bytes();
+    let len = bytes.len();
+    let is_ws = |b: u8| matches!(b, b' ' | b'\t' | b'\n' | b'\r');
+    let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'$';
+    let mut out = String::with_capacity(len);
+    let mut copied = 0usize;
+    let mut i = 0usize;
+    let emit = |spec_start: usize, spec_end: usize, out: &mut String, copied: &mut usize| {
+        if let Some(rep) = decide(&text[spec_start..spec_end]) {
+            out.push_str(&text[*copied..spec_start]);
+            out.push_str(&rep);
+            *copied = spec_end;
+        }
+    };
+    while i < len {
+        let b = bytes[i];
+        if b == b'\'' || b == b'"' {
+            let q = b;
+            i += 1;
+            while i < len && bytes[i] != q {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2;
+                    continue;
+                }
+                i += 1;
+            }
+            i = (i + 1).min(len);
+            continue;
+        }
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+        if b == b'f' && i + 4 <= len && &bytes[i..i + 4] == b"from" {
+            let prev_ok = i == 0 || !is_ident(bytes[i - 1]);
+            if prev_ok {
+                let mut j = i + 4;
+                while j < len && is_ws(bytes[j]) {
+                    j += 1;
+                }
+                if j < len && (bytes[j] == b'\'' || bytes[j] == b'"') {
+                    let q = bytes[j];
+                    let spec_start = j + 1;
+                    let mut spec_end = spec_start;
+                    while spec_end < len && bytes[spec_end] != q {
+                        spec_end += 1;
+                    }
+                    emit(spec_start, spec_end, &mut out, &mut copied);
+                    i = (spec_end + 1).min(len);
+                    continue;
+                }
+            }
+        }
+        if b == b'i' && i + 6 <= len && &bytes[i..i + 6] == b"import" {
+            let prev_ok = i == 0 || !is_ident(bytes[i - 1]);
+            if prev_ok {
+                let mut j = i + 6;
+                while j < len && is_ws(bytes[j]) {
+                    j += 1;
+                }
+                if j < len && bytes[j] == b'(' {
+                    j += 1;
+                    while j < len && is_ws(bytes[j]) {
+                        j += 1;
+                    }
+                    if j < len && (bytes[j] == b'\'' || bytes[j] == b'"') {
+                        let q = bytes[j];
+                        let spec_start = j + 1;
+                        let mut spec_end = spec_start;
+                        while spec_end < len && bytes[spec_end] != q {
+                            spec_end += 1;
+                        }
+                        emit(spec_start, spec_end, &mut out, &mut copied);
+                        i = (spec_end + 1).min(len);
+                        continue;
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    if copied < text.len() {
+        out.push_str(&text[copied..]);
+    }
+    out
+}
+
+/// Lexical POSIX relative path from `from_dir` to `to_path` — no filesystem
+/// access (the shadow `.tsx` may not be written yet), so symlink resolution
+/// can't skew the result the way [`path_relative`]'s `canonicalize` would.
+fn lexical_relative_posix(from_dir: &Path, to_path: &Path) -> String {
+    use std::path::Component;
+    let comps = |p: &Path| -> Vec<String> {
+        p.components()
+            .filter(|c| !matches!(c, Component::RootDir | Component::Prefix(_)))
+            .map(|c| c.as_os_str().to_string_lossy().into_owned())
+            .collect()
+    };
+    let from = comps(from_dir);
+    let to = comps(to_path);
+    let common = from.iter().zip(&to).take_while(|(a, b)| a == b).count();
+    let mut parts: Vec<String> = vec!["..".to_string(); from.len() - common];
+    parts.extend(to[common..].iter().cloned());
+    if parts.is_empty() {
+        ".".to_string()
+    } else {
+        parts.join("/")
+    }
+}
+
 fn path_relative(from_dir: &Path, to_path: &Path) -> String {
     use std::path::Component;
     let from_abs = from_dir
@@ -1342,6 +1560,74 @@ mod tests {
         assert!(
             !include.iter().any(|i| i.contains("../../../")),
             "glob rebase produced a mangled path: {include:?}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn rewrite_module_specifiers_targets_only_real_specifiers() {
+        let src = "import A from '$lib/A.svelte';\n\
+                   export { x } from '$lib/B.svelte';\n\
+                   const m = import(\"./rel.svelte\");\n\
+                   const s = \"$lib/A.svelte is not a specifier\";\n";
+        let out = rewrite_module_specifiers(src, &|spec| {
+            spec.strip_prefix("$lib/")
+                .map(|rest| format!("./shadow/{rest}"))
+        });
+        // `from '<alias>'` (import + re-export) is rewritten …
+        assert!(out.contains("from './shadow/A.svelte'"), "{out}");
+        assert!(out.contains("from './shadow/B.svelte'"), "{out}");
+        // … the relative dynamic import is left alone by this decider …
+        assert!(out.contains("import(\"./rel.svelte\")"), "{out}");
+        // … and a bare string literal that merely looks like a specifier is
+        // not touched (the scanner skips string-literal bodies).
+        assert!(
+            out.contains("\"$lib/A.svelte is not a specifier\""),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn aliased_svelte_import_is_rewritten_to_its_shadow() {
+        let tmp = std::env::temp_dir().join(format!("svc_alias_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/lib")).unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            "{\"compilerOptions\":{\"paths\":{\"$lib/*\":[\"./src/lib/*\"]}}}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/lib/Button.svelte"),
+            "<script lang=\"ts\">let { n }: { n: number } = $props();</script>\n<button>{n}</button>\n",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/App.svelte"),
+            "<script lang=\"ts\">import Button from '$lib/Button.svelte';</script>\n<Button n={1} />\n",
+        )
+        .unwrap();
+
+        let files = vec![
+            tmp.join("src/App.svelte"),
+            tmp.join("src/lib/Button.svelte"),
+        ];
+        let tsconfig = tmp.join("tsconfig.json");
+        materialize_overlay_with(&tmp, &files, Some(&tsconfig), false).unwrap();
+
+        let app_tsx =
+            fs::read_to_string(tmp.join(".svelte-check/svelte/src/App.svelte.tsx")).unwrap();
+        // The `$lib/Button.svelte` alias is gone, replaced by a concrete
+        // relative path at Button's shadow `.tsx` (which TS resolves directly,
+        // unlike the alias `rootDirs` can't bridge).
+        assert!(
+            !app_tsx.contains("$lib/Button.svelte"),
+            "alias was not rewritten:\n{app_tsx}"
+        );
+        assert!(
+            app_tsx.contains("Button.svelte.tsx"),
+            "rewrite did not point at the shadow:\n{app_tsx}"
         );
 
         let _ = fs::remove_dir_all(&tmp);
