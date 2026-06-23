@@ -114,7 +114,7 @@ jobs:
 
       - name: Cache Svelte compiler dependencies
         id: svelte-deps-cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: |
             submodules/svelte/node_modules
@@ -232,7 +232,7 @@ jobs:
       # The oracle depends only on the pins + oxfmt version + oracle config, so
       # cache it: only the first run per pin pays the ~6k oxfmt invocations.
       - name: Cache fmt oracle
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: |
             compat/corpus/fmt/oracle
