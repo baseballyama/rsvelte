@@ -21,7 +21,13 @@ official svelte-check, eliminating two classes of false positives.
   `<cache>/svelte/…` is the authoritative version, so the raw source route
   file's pre-injection diagnostics are now dropped.
 
+It also always pairs the workspace source root with the `<cache>/svelte` shadow
+mirror in `rootDirs` (previously the fallback, used when a project declares no
+`rootDirs` of its own, omitted it). Without the pairing a plain `.ts` /
+`.svelte.ts` source file importing `./Foo.svelte` resolved to nothing (`any`),
+silently degrading `ComponentProps<typeof Foo>` to `any`.
+
 Together with the alias-import resolution fix, this takes a large SvelteKit app
-from 140 reported errors to 25 (the remainder are deeper svelte2tsx codegen
-divergences — generic-component `ComponentProps` typing and discriminated-union
-narrowing).
+from 140 reported errors to 25 (the remainder are deeper cross-package
+ext-mirror `ComponentProps` typing and discriminated-union narrowing
+divergences).
