@@ -1,5 +1,27 @@
 # @rsvelte/svelte-check
 
+## 0.3.6
+
+### Patch Changes
+
+- 032b301: svelte-check: find a workspace-hoisted `tsgo` (or `tsc`) in monorepos.
+  `find_compiler` only looked in `<workspace>/node_modules/.bin`, but pnpm
+  (and npm/yarn workspaces) hoist the binary to the **repo-root**
+  `node_modules/.bin`, so a nested package (`apps/foo/frontend/app`) has no
+  local `.bin/tsgo`. `--tsgo` therefore silently fell back to `tsc`, which is
+  ~3-4x slower — the whole point of `--tsgo` was lost. The lookup now walks
+  the workspace and every ancestor directory, preferring a hoisted `tsgo`
+  over a locally-resolvable `tsc`. On a large SvelteKit monorepo this took the
+  per-package check from ~34s (silent tsc) to ~8s (actual tsgo).
+- 032b301: svelte-check: in `--incremental` mode, emit `incremental` + `tsBuildInfoFile`
+  into the overlay tsconfig so tsgo / tsc persist their program graph and
+  per-file check state across runs. Previously `--incremental` only
+  short-circuited svelte2tsx (the cheap part); the compiler still re-parsed and
+  re-checked all ~8k program files (node_modules `.d.ts` included) every run —
+  the dominant cost. The overlay tsconfig is byte-stable across runs, so the
+  build info stays valid and an unchanged warm run on a large SvelteKit app
+  drops from ~5.5s to ~1.5–1.9s.
+
 ## 0.3.5
 
 ### Patch Changes
