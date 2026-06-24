@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 use oxc_formatter::{
     ArrowParentheses, JsFormatOptions, QuoteProperties, QuoteStyle, Semicolons, TrailingCommas,
 };
-use oxc_formatter_core::LineEnding;
+use oxc_formatter_core::{IndentStyle, IndentWidth, LineEnding, LineWidth};
 
 /// Config file names oxfmt recognises, in the order it prefers them.
 const CONFIG_NAMES: &[&str] = &[".oxfmtrc.json", ".oxfmtrc.jsonc"];
@@ -49,6 +49,21 @@ pub struct OxfmtConfig {
     /// `oxfmt` (which applies them to the non-`.svelte` files it walks itself).
     /// Resolved relative to the config file's directory, like oxfmt.
     pub ignore_patterns: Vec<String>,
+    /// Per-file option overrides (`.oxfmtrc`'s `overrides`). Each entry's
+    /// `files` globs select which files its `options` apply to; matching
+    /// overrides are merged onto the base in source order (prettier semantics).
+    /// Used by the native `.ts`/`.js` path to format each file at the same
+    /// options `oxfmt` would.
+    pub overrides: Vec<OverrideConfig>,
+}
+
+/// One `.oxfmtrc` `overrides` entry: globs + the option subset they apply.
+#[derive(Debug, Default, Clone)]
+pub struct OverrideConfig {
+    /// Globs (relative to the config dir) selecting the files this applies to.
+    pub files: Vec<String>,
+    /// The option keys to layer onto the base for matching files.
+    pub options: OxfmtConfig,
 }
 
 impl OxfmtConfig {
@@ -118,6 +133,23 @@ impl OxfmtConfig {
         }
     }
 
+    /// Apply this config's print-width / tab-width / use-tabs onto `js`. Used
+    /// for `overrides` entries (the base width has flag precedence and is
+    /// resolved by the caller, so this is skipped when a CLI width flag won).
+    pub fn apply_width(&self, js: &mut JsFormatOptions) {
+        if let Some(w) = self.print_width {
+            js.line_width = LineWidth::try_from(w).unwrap_or(js.line_width);
+        }
+        if let Some(t) = self.tab_width {
+            js.indent_width = IndentWidth::try_from(t).unwrap_or(js.indent_width);
+        }
+        match self.use_tabs {
+            Some(true) => js.indent_style = IndentStyle::Tab,
+            Some(false) => js.indent_style = IndentStyle::Space,
+            None => {}
+        }
+    }
+
     /// Directory the config file lives in — the base for resolving
     /// `ignorePatterns` globs. `None` when no config file was found.
     pub fn config_dir(&self) -> Option<&Path> {
@@ -158,7 +190,12 @@ fn parse(src: &str) -> OxfmtConfig {
     let serde_json::Value::Object(map) = value else {
         return OxfmtConfig::default();
     };
+    parse_object(&map)
+}
 
+/// Parse a JSON object into an [`OxfmtConfig`]. Shared by the top-level config
+/// and each `overrides` entry's nested `options` object.
+fn parse_object(map: &serde_json::Map<String, serde_json::Value>) -> OxfmtConfig {
     let mut cfg = OxfmtConfig::default();
     let as_bool = |k: &str| map.get(k).and_then(serde_json::Value::as_bool);
     let as_str = |k: &str| map.get(k).and_then(serde_json::Value::as_str);
@@ -208,7 +245,37 @@ fn parse(src: &str) -> OxfmtConfig {
         })
         .unwrap_or_default();
 
+    cfg.overrides = map
+        .get("overrides")
+        .and_then(serde_json::Value::as_array)
+        .map(|arr| arr.iter().filter_map(parse_override).collect())
+        .unwrap_or_default();
+
     cfg
+}
+
+/// Parse one `overrides` entry (`{ "files": [...], "options": { … } }`).
+/// Returns `None` when it has no usable `files` globs.
+fn parse_override(value: &serde_json::Value) -> Option<OverrideConfig> {
+    let obj = value.as_object()?;
+    // `files` may be a single string or an array of strings.
+    let files: Vec<String> = match obj.get("files") {
+        Some(serde_json::Value::String(s)) => vec![s.clone()],
+        Some(serde_json::Value::Array(a)) => a
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_owned))
+            .collect(),
+        _ => return None,
+    };
+    if files.is_empty() {
+        return None;
+    }
+    let options = obj
+        .get("options")
+        .and_then(serde_json::Value::as_object)
+        .map(parse_object)
+        .unwrap_or_default();
+    Some(OverrideConfig { files, options })
 }
 
 /// Strip `//` and `/* */` comments and trailing commas from a JSONC document,
@@ -363,5 +430,29 @@ mod tests {
         let cfg = parse("not json at all");
         assert_eq!(cfg.single_quote, None);
         assert_eq!(cfg.print_width, None);
+    }
+
+    #[test]
+    fn parses_overrides_with_globs_and_options() {
+        let cfg = parse(
+            r#"{
+            "printWidth": 100,
+            "overrides": [
+                { "files": ["a/*.ts"], "options": { "printWidth": 1000 } },
+                { "files": "b.ts", "options": { "singleQuote": false } }
+            ]
+        }"#,
+        );
+        assert_eq!(cfg.overrides.len(), 2);
+        assert_eq!(cfg.overrides[0].files, vec!["a/*.ts"]);
+        assert_eq!(cfg.overrides[0].options.print_width, Some(1000));
+        assert_eq!(cfg.overrides[1].files, vec!["b.ts"]);
+        assert_eq!(cfg.overrides[1].options.single_quote, Some(false));
+    }
+
+    #[test]
+    fn ignores_override_without_files() {
+        let cfg = parse(r#"{ "overrides": [{ "options": { "printWidth": 50 } }] }"#);
+        assert!(cfg.overrides.is_empty());
     }
 }

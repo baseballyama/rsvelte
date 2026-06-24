@@ -7,6 +7,34 @@ use rsvelte_core::ast::template::Script;
 use crate::error::FormatError;
 use crate::options::FormatOptions;
 
+/// Format a standalone JS/TS source file in-process via `oxc_formatter` — the
+/// same engine `oxfmt` uses for `.ts`/`.js`, so the output is byte-identical
+/// without the `oxfmt` subprocess. `ext` is the file extension (`ts`/`tsx`/
+/// `js`/`jsx`/`mjs`/`cjs`) used to pick the parser dialect. EXPERIMENTAL: used
+/// to benchmark a native (delegation-free) `.ts` path.
+pub fn format_js_source(
+    source: &str,
+    ext: &str,
+    options: &FormatOptions,
+) -> Result<String, FormatError> {
+    let source_type = SourceType::from_extension(ext).unwrap_or_else(|_| SourceType::ts());
+    let allocator = Allocator::default();
+    let parser_ret = Parser::new(&allocator, source, source_type)
+        .with_options(formatter_parse_options())
+        .parse();
+    if !parser_ret.diagnostics.is_empty() {
+        return Err(FormatError::ScriptParse(format!(
+            "{:?}",
+            parser_ret.diagnostics
+        )));
+    }
+    let formatted = format_program(&allocator, &parser_ret.program, options.js.clone(), None)
+        .print()
+        .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
+        .into_code();
+    Ok(formatted)
+}
+
 /// The single indent unit (one nesting level) implied by `JsFormatOptions`.
 /// Used to outdent the formatter output by one level when splicing into
 /// `<script>…</script>` — keeps the body's outer indent consistent with

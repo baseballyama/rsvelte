@@ -785,6 +785,131 @@ for (const p of args) {
     assert!(out.contains("/*W=96*/"), "nested block width wrong:\n{out}");
 }
 
+// ─── native `.ts`/`.js` path ──────────────────────────────────────────────
+
+/// A `.ts` file is formatted in-process via `oxc_formatter` — no `oxfmt`
+/// subprocess needed (here `--oxfmt-bin true` is a no-op, proving the `.ts`
+/// never reached oxfmt).
+#[test]
+fn native_ts_file_formatted_in_process() {
+    let dir = tempdir();
+    let file = dir.join("a.ts");
+    std::fs::write(&file, "const x={a:1,b:2}\n").unwrap();
+
+    let status = Command::new(bin())
+        .args([file.to_str().unwrap(), "--write", "--oxfmt-bin", "true"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success(), "exit code: {:?}", status.code());
+
+    let out = std::fs::read_to_string(&file).unwrap();
+    assert_eq!(
+        out, "const x = { a: 1, b: 2 };\n",
+        "native TS not formatted:\n{out}"
+    );
+}
+
+/// `--no-native-js` routes `.ts` back to oxfmt (the fake marker proves oxfmt
+/// handled it instead of the in-process path).
+#[test]
+fn no_native_js_delegates_ts_to_oxfmt() {
+    let dir = tempdir();
+    let fake = dir.join("marker-oxfmt.cjs");
+    std::fs::write(&fake, MARKER_OXFMT).unwrap();
+    let file = dir.join("a.ts");
+    std::fs::write(&file, "const x = 1;\n").unwrap();
+
+    // Pass the file explicitly: the fake oxfmt formats explicit file args (it
+    // ignores plain directory inputs by design).
+    let status = Command::new(bin())
+        .args([
+            file.to_str().unwrap(),
+            "--write",
+            "--no-native-js",
+            "--oxfmt-bin",
+            fake.to_str().unwrap(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let out = std::fs::read_to_string(&file).unwrap();
+    assert!(
+        out.contains("/*FMT*/"),
+        "ts should be delegated to oxfmt:\n{out}"
+    );
+}
+
+/// With the native path on, oxfmt must NOT touch `.ts` files: the fake marker
+/// must be absent (the directory's `.ts` is handled in-process, excluded from
+/// the oxfmt delegation).
+#[test]
+fn native_path_excludes_ts_from_oxfmt() {
+    let dir = tempdir();
+    let fake = dir.join("marker-oxfmt.cjs");
+    std::fs::write(&fake, MARKER_OXFMT).unwrap();
+    let file = dir.join("a.ts");
+    std::fs::write(&file, "const x = 1;\n").unwrap();
+
+    let status = Command::new(bin())
+        .args([
+            dir.to_str().unwrap(),
+            "--write",
+            "--oxfmt-bin",
+            fake.to_str().unwrap(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let out = std::fs::read_to_string(&file).unwrap();
+    assert!(
+        !out.contains("/*FMT*/"),
+        "native .ts must not be re-formatted by oxfmt:\n{out}"
+    );
+    assert_eq!(out, "const x = 1;\n");
+}
+
+/// `.oxfmtrc` `overrides` apply per-file: a wide line that overflows the base
+/// print width stays flat when an override raises `printWidth` for that file.
+#[test]
+fn native_js_respects_override_print_width() {
+    let dir = tempdir();
+    std::fs::write(
+        dir.join(".oxfmtrc.json"),
+        r#"{ "printWidth": 80, "overrides": [{ "files": ["wide.ts"], "options": { "printWidth": 200 } }] }"#,
+    )
+    .unwrap();
+    // ~106-col call that wraps at 80 but fits at 200.
+    let long = "someFunction(argumentNumberOne, argumentNumberTwo, argumentNumberThree, argumentNumberFour, argumentFive);\n";
+    std::fs::write(dir.join("wide.ts"), long).unwrap();
+    std::fs::write(dir.join("narrow.ts"), long).unwrap();
+
+    let status = Command::new(bin())
+        .current_dir(&dir)
+        .args([".", "--write", "--oxfmt-bin", "true"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success());
+
+    let wide = std::fs::read_to_string(dir.join("wide.ts")).unwrap();
+    let narrow = std::fs::read_to_string(dir.join("narrow.ts")).unwrap();
+    assert!(
+        !wide.contains("\n  "),
+        "override printWidth 400 should keep `wide.ts` on one line:\n{wide}"
+    );
+    assert!(
+        narrow.contains("\n  "),
+        "base printWidth 80 should wrap `narrow.ts`:\n{narrow}"
+    );
+}
+
 fn tempdir() -> PathBuf {
     let mut dir = std::env::temp_dir();
     dir.push(format!(
