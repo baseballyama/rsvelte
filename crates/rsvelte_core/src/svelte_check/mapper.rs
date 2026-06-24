@@ -110,7 +110,19 @@ fn line_col_to_byte_offset(text: &str, line: usize, column: usize) -> usize {
     let mut offset = 0usize;
     for (idx, l) in text.split_inclusive('\n').enumerate() {
         if idx + 1 == line {
-            return (offset + column.saturating_sub(1)).min(offset + l.len());
+            // `column` is a 1-based *character* index within the line, not a
+            // byte offset — multi-byte content (e.g. Japanese) makes the two
+            // diverge. Walk char boundaries so the result always lands on a
+            // valid boundary; otherwise slicing it later (`text[off..]` in
+            // `index_of_from`) panics mid-codepoint. Past the line end clamps
+            // to the line's end (also a boundary).
+            let target = column.saturating_sub(1);
+            let byte_in_line = l
+                .char_indices()
+                .nth(target)
+                .map(|(b, _)| b)
+                .unwrap_or(l.len());
+            return offset + byte_in_line;
         }
         offset += l.len();
     }
@@ -505,6 +517,23 @@ mod tests {
         assert_eq!(line_col_to_byte_offset(t, 1, 1), 0);
         assert_eq!(line_col_to_byte_offset(t, 2, 2), 4); // 'd'
         assert_eq!(line_col_to_byte_offset(t, 3, 1), 7); // 'f'
+    }
+
+    #[test]
+    fn line_col_to_byte_offset_multibyte_stays_on_char_boundary() {
+        // `column` is a char index; a line with multi-byte chars (Japanese)
+        // must still yield a valid UTF-8 boundary. Regression for the panic
+        // `byte index … is not a char boundary; it is inside '社'`.
+        let t = "本社で働く\n次の行";
+        // col 3 → 3rd char '' starts at byte 6 (each kanji = 3 bytes).
+        let off = line_col_to_byte_offset(t, 1, 3);
+        assert_eq!(off, 6);
+        assert!(t.is_char_boundary(off), "offset must be a char boundary");
+        // Column past the line end clamps to the line's end (still a boundary).
+        let end = line_col_to_byte_offset(t, 1, 99);
+        assert!(t.is_char_boundary(end));
+        // Slicing at the offset (as index_of_from does) must not panic.
+        let _ = &t[off..];
     }
 
     #[test]
