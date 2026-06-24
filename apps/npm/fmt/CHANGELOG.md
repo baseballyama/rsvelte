@@ -1,5 +1,22 @@
 # @rsvelte/fmt
 
+## 0.3.18
+
+### Patch Changes
+
+- b72a96d: fmt: narrow a wrapped `class:NAME={EXPR}` directive value by its `class:NAME=`
+  prefix, like `style:` / `on:` / `use:` already do (#795). When the open tag
+  wraps and the directive's full line overflows the print width, its value now
+  breaks at the right operator instead of staying flat past the margin.
+- b72a96d: fmt: don't insert a blank line between a comment and the `<style>` / `<script>`
+  it leads. The section-reorder pass treated a markup gap that ended with a
+  comment glued to the next section (e.g. `</div>\n<!-- … -->\n<style>`) as one
+  markup unit, then joined it to the section with a blank line — pushing the
+  comment away from the tag it documents. The trailing comment run is now split
+  off and attached to the section as its leading comment, so the blank line falls
+  before the comment (matching prettier-plugin-svelte / oxfmt). UTF-8 safe for
+  multi-byte markup text.
+
 ## 0.3.17
 
 ### Patch Changes
