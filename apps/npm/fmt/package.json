@@ -30,7 +30,8 @@
   "files": [
     "bin/rsvelte-fmt",
     "install.js",
-    "lib/resolve.cjs"
+    "lib/resolve.cjs",
+    "daemon/daemon.mjs"
   ],
   "optionalDependencies": {
     "@rsvelte/fmt-darwin-arm64": "workspace:^",

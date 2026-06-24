@@ -48,6 +48,14 @@ If your package manager **gates install scripts** (e.g. pnpm's
 Without it (or with `--ignore-scripts`, or on Windows) a small Node launcher is
 used instead — identical output, just a little slower to start.
 
+### oxfmt daemon (warm CSS formatting)
+
+On POSIX, inline `<style>` blocks are formatted through a short-lived oxfmt
+daemon kept warm across invocations, so re-formatting a changed `<style>` costs
+a ~ms socket round-trip instead of a fresh `oxfmt` Node start (~370ms → ~5ms).
+It idle-exits after 60s and is keyed to your oxfmt version. Output is identical
+to the non-daemon path; set `RSVELTE_FMT_NO_DAEMON=1` to disable it.
+
 ### oxfmt (optional, bring-your-own version)
 
 Non-`.svelte` files and the CSS inside `<style>` blocks are formatted by

@@ -18,6 +18,7 @@ use rayon::prelude::*;
 use rsvelte_formatter::{FormatOptions, format, format_js_source, reindent};
 
 mod config;
+mod daemon;
 mod oxfmt_ignore;
 mod style_cache;
 use config::OxfmtConfig;
@@ -416,14 +417,10 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> FormatOptions {
 /// a non-JSON / unreadable base. Configs are cached by width under a per-process
 /// temp dir.
 fn css_config_for_width(base: Option<&Path>, width: usize) -> Option<PathBuf> {
-    let mut json: serde_json::Value = base
-        .and_then(|p| std::fs::read_to_string(p).ok())
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new()));
-    let Some(obj) = json.as_object_mut() else {
+    let json = css_options_for_width(base, width);
+    if !json.is_object() {
         return base.map(Path::to_path_buf);
-    };
-    obj.insert("printWidth".into(), serde_json::Value::from(width));
+    }
     let dir = std::env::temp_dir().join(format!("rsvelte-fmt-css-cfg-{}", std::process::id()));
     if std::fs::create_dir_all(&dir).is_err() {
         return base.map(Path::to_path_buf);
@@ -433,6 +430,21 @@ fn css_config_for_width(base: Option<&Path>, width: usize) -> Option<PathBuf> {
         Ok(()) => Some(p),
         Err(_) => base.map(Path::to_path_buf),
     }
+}
+
+/// The resolved oxfmt options for an inline `<style>` block at `width`: the base
+/// `.oxfmtrc` (if any) with `printWidth` forced to the block's column. Returned
+/// as a JSON value so the daemon path can send it inline as `format()`'s options
+/// and the spawn path can serialize it to a temp config — both at byte parity.
+fn css_options_for_width(base: Option<&Path>, width: usize) -> serde_json::Value {
+    let mut json: serde_json::Value = base
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new()));
+    if let Some(obj) = json.as_object_mut() {
+        obj.insert("printWidth".into(), serde_json::Value::from(width));
+    }
+    json
 }
 
 fn make_oxfmt_style_formatter(
@@ -937,6 +949,14 @@ fn batch_format_styles(
         by_width.entry(s.width).or_default().push(i);
     }
 
+    // Prefer the warm daemon (POSIX): one socket round-trip per block instead of
+    // a fresh `oxfmt` Node start. The daemon is dumb — it formats with the
+    // options we resolve here — so its output is byte-identical to the spawn
+    // path. Any failure disables it for the rest of this run and we fall back to
+    // spawning oxfmt, so correctness never depends on it.
+    #[cfg(unix)]
+    let mut daemon = daemon::DaemonClient::try_start(oxfmt);
+
     let mut results = vec![String::new(); styles.len()];
     let mut all_ok = true;
     for (width, idxs) in by_width {
@@ -944,13 +964,37 @@ fn batch_format_styles(
             .iter()
             .map(|&i| (styles[i].css, styles[i].lang))
             .collect();
-        // Narrow the project config to this width so oxfmt wraps embedded CSS at
-        // the same column the block renders at (falls back to the base config).
-        let cfg = css_config_for_width(config, width);
-        let (formatted, ok) = batch_format_styles_group(oxfmt, cfg.as_deref(), &group)?;
-        all_ok &= ok;
-        for (slot, css) in idxs.into_iter().zip(formatted) {
-            results[slot] = css;
+
+        // `mut`/`placed` are only mutated on unix (the daemon branch); on other
+        // targets the spawn path below always runs.
+        #[allow(unused_mut)]
+        let mut placed = false;
+        #[cfg(unix)]
+        if let Some(d) = daemon.as_mut() {
+            let options = css_options_for_width(config, width);
+            match d.format_group(&group, &options) {
+                Some((formatted, ok)) => {
+                    all_ok &= ok;
+                    for (&slot, css) in idxs.iter().zip(formatted) {
+                        results[slot] = css;
+                    }
+                    placed = true;
+                }
+                // Drop the daemon and fall back to spawning for this group and
+                // every group after it.
+                None => daemon = None,
+            }
+        }
+
+        if !placed {
+            // Narrow the project config to this width so oxfmt wraps embedded CSS
+            // at the same column the block renders at (falls back to base config).
+            let cfg = css_config_for_width(config, width);
+            let (formatted, ok) = batch_format_styles_group(oxfmt, cfg.as_deref(), &group)?;
+            all_ok &= ok;
+            for (slot, css) in idxs.into_iter().zip(formatted) {
+                results[slot] = css;
+            }
         }
     }
     Ok((results, all_ok))
