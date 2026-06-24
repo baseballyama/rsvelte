@@ -116,6 +116,22 @@ pub fn map_tsgo_diagnostics(
             by_kit.insert(rel.to_path_buf(), entry);
         }
     }
+    // The raw source route file (`+layout.ts` / `+page.ts`) is a program root
+    // and is type-checked WITHOUT rsvelte's kit injection (which wraps `load`
+    // in `(… ) satisfies …Load` so its destructured event is typed). That
+    // un-injected check yields false `implicit-any` on un-annotated `load`
+    // params. The injected mirror under `<cache>/svelte/…` (matched via
+    // `by_kit` → `out_path`) is the authoritative version, so drop diagnostics
+    // landing directly on the raw source route file.
+    let mut kit_source_paths: HashSet<PathBuf> = HashSet::new();
+    for entry in &overlay.kit_entries {
+        let canon = entry
+            .source_path
+            .canonicalize()
+            .unwrap_or_else(|_| entry.source_path.clone());
+        kit_source_paths.insert(canon);
+        kit_source_paths.insert(entry.source_path.clone());
+    }
     // Shadows for imported external packages live under `<cache>/ext/<n>/`.
     // Diagnostics landing on those files are library *internals* — official
     // svelte-check never type-checks a node_modules `.svelte` as a reported
@@ -145,6 +161,11 @@ pub fn map_tsgo_diagnostics(
         let canon = absolute.canonicalize().unwrap_or_else(|_| absolute.clone());
         // Suppress imported-library-internal diagnostics (see `ext_root` above).
         if absolute.starts_with(&ext_root) || canon.starts_with(&ext_root_canon) {
+            continue;
+        }
+        // Drop the raw (pre-injection) source route file's diagnostics; the
+        // injected kit mirror is the authoritative version (see above).
+        if kit_source_paths.contains(&canon) || kit_source_paths.contains(&absolute) {
             continue;
         }
         let kit_match = by_kit

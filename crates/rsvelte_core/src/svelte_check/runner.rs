@@ -215,9 +215,36 @@ pub fn run(options: &RunOptions) -> RunResult {
         }
     }
 
+    // Scope reported diagnostics to the workspace being checked. Official
+    // svelte-check only reports the invoked workspace's own documents; a
+    // monorepo sibling pulled in transitively (e.g.
+    // `packages/frontend/design-system/...` resolved through a workspace
+    // symlink) is that package's own concern — its internal diagnostics (such
+    // as a `Foo.svelte` + `Foo.svelte.ts` companion's no-default-export edge)
+    // must not leak into every consumer's report. Errors at the *use* site in
+    // the workspace are unaffected; only diagnostics whose file lives outside
+    // the workspace root are dropped.
+    drop_out_of_workspace_diagnostics(&mut result.diagnostics, &options.workspace);
+
     apply_filters(&mut result.diagnostics, options);
 
     result
+}
+
+/// Drop diagnostics whose file lives outside the checked workspace root.
+fn drop_out_of_workspace_diagnostics(diagnostics: &mut Vec<Diagnostic>, workspace: &Path) {
+    let ws = workspace
+        .canonicalize()
+        .unwrap_or_else(|_| workspace.to_path_buf());
+    diagnostics.retain(|d| {
+        let abs = if d.file.is_absolute() {
+            d.file.clone()
+        } else {
+            workspace.join(&d.file)
+        };
+        let canon = abs.canonicalize().unwrap_or(abs);
+        canon.starts_with(&ws)
+    });
 }
 
 /// Apply compiler-warnings + diagnostic-source filters in place.

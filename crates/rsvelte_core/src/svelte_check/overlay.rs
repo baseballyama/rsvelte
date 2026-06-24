@@ -540,7 +540,7 @@ fn looks_like_ts_svelte(source: &str) -> bool {
 fn build_overlay_tsconfig(
     cache_dir: &Path,
     original: Option<&Path>,
-    _workspace: &Path,
+    workspace: &Path,
     ext_root_dir_pairs: &[(PathBuf, PathBuf)],
 ) -> String {
     let mut obj: BTreeMap<&str, serde_json::Value> = BTreeMap::new();
@@ -568,7 +568,20 @@ fn build_overlay_tsconfig(
     let mut root_dirs_abs = original
         .map(resolve_root_dirs_abs)
         .filter(|v| !v.is_empty())
-        .unwrap_or_else(|| vec![cache_dir.to_path_buf()]);
+        .unwrap_or_default();
+    // Always pair the workspace source root with the `<cache>/svelte` shadow
+    // mirror. `rootDirs` is what bridges a `.svelte` import to its generated
+    // `.tsx` shadow, but TS applies it only to RELATIVE specifiers resolved
+    // across the listed roots — so a plain `.ts` / `.svelte.ts` source file
+    // importing `./Foo.svelte` needs the workspace root present to reach the
+    // mirror. SvelteKit projects declare `rootDirs: ["..", …]` (workspace
+    // included), but a project without its own `rootDirs` would otherwise fall
+    // back to the cache dir alone and lose the bridge entirely — every
+    // `.svelte` import from a `.ts` file then resolves to nothing (`any`),
+    // which silently poisons e.g. `ComponentProps<typeof Foo>`.
+    if !root_dirs_abs.iter().any(|p| p == workspace) {
+        root_dirs_abs.push(workspace.to_path_buf());
+    }
     root_dirs_abs.push(cache_dir.join("svelte"));
     // Each external package contributes a `rootDirs` pair: its real source dir
     // and the cache mirror holding its shadows. TypeScript then treats both as
