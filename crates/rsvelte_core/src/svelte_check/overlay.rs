@@ -129,6 +129,7 @@ pub fn materialize_overlay_with_kit(
 ) -> Result<OverlayLayout, OverlayError> {
     let mut layout = materialize_overlay_with(workspace, svelte_files, tsconfig_path, incremental)?;
     layout.kit_entries = materialize_kit_files(workspace, &layout.emit_dir, kit_files, settings)?;
+    materialize_kit_types(workspace, &layout.emit_dir, kit_files)?;
     Ok(layout)
 }
 
@@ -550,6 +551,130 @@ fn materialize_kit_files(
         });
     }
     Ok(out)
+}
+
+/// Mirror each SvelteKit route's generated `$types.d.ts` next to the
+/// route's shadows under `<emit_dir>/<route-rel>/$types.d.ts`, rewriting
+/// the `import('…/+layout.js').load` / `+page.js` reverse-references so
+/// they point at the **injected** mirror route file (co-located
+/// `./+layout.js`) rather than the raw on-disk source.
+///
+/// Why this is needed: svelte-kit's `$types.d.ts` derives `PageData` /
+/// `LayoutData` from `ReturnType<typeof import('…/+layout.js').load>`.
+/// That specifier resolves (via the overlay `rootDirs`) to the *source*
+/// `+layout.ts`, whose `load` event is un-annotated — so an un-typed
+/// `await parent()` collapses streamed/parent props to `any`, surfacing
+/// as spurious `implicitly has an 'any' type` at the consuming `.svelte`.
+/// `materialize_kit_files` already writes an injected mirror (`(…)
+/// satisfies LayoutLoad`) that types the event, but nothing referenced it
+/// because the un-rewritten `$types` still pointed at the source.
+///
+/// Official svelte-check sidesteps this entirely: its in-memory language
+/// service serves the injected text *as* the source file's content, so
+/// the source path is already authoritative. A subprocess driver (tsc /
+/// tsgo over a real overlay dir) can't overlay on-disk content, so we
+/// instead co-locate a rewritten `$types.d.ts` with the shadows — an
+/// exact-directory match that wins over the `rootDirs` route to the
+/// source copy, with no global `rootDirs` reordering (which would perturb
+/// resolution for every non-kit file).
+fn materialize_kit_types(
+    workspace: &Path,
+    emit_dir: &Path,
+    kit_files: &[PathBuf],
+) -> Result<(), OverlayError> {
+    let kit_types_dir = workspace.join(".svelte-kit").join("types");
+    if !kit_types_dir.is_dir() {
+        // No `svelte-kit sync` output (or a custom `outDir`) — nothing to
+        // mirror. The shadows fall back to the source `$types` via
+        // `rootDirs`, exactly as before this pass existed.
+        return Ok(());
+    }
+
+    // Unique route directories (workspace-relative) that own a route file.
+    let mut route_dirs: BTreeMap<PathBuf, ()> = BTreeMap::new();
+    for source in kit_files {
+        let abs = if source.is_absolute() {
+            source.clone()
+        } else {
+            workspace.join(source)
+        };
+        if !kit_file::is_kit_route_file(&abs) {
+            continue;
+        }
+        let rel = abs.strip_prefix(workspace).unwrap_or(&abs);
+        if let Some(dir) = rel.parent() {
+            route_dirs.insert(dir.to_path_buf(), ());
+        }
+    }
+
+    for dir in route_dirs.keys() {
+        let types_src = kit_types_dir.join(dir).join("$types.d.ts");
+        if !types_src.is_file() {
+            continue;
+        }
+        let Ok(text) = fs::read_to_string(&types_src) else {
+            continue;
+        };
+        let mirror_dir = emit_dir.join(dir);
+        let rewritten = rewrite_kit_types_route_imports(&text, &mirror_dir);
+        let dest = mirror_dir.join("$types.d.ts");
+        if let Some(parent) = dest.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&dest, rewritten)?;
+
+        // When the source `load` carries an explicit `: LayoutLoad` /
+        // `: PageLoad` annotation, svelte-kit doesn't reverse-reference the
+        // source file; it emits a sibling `proxy+layout.ts` (`@ts-nocheck`,
+        // event typed via `Parameters<LayoutLoad>[0]`) and points `$types`
+        // at `./proxy+layout.js`. That proxy in turn imports `./$types.ts`
+        // — so unless we co-locate it next to our rewritten `$types`, the
+        // proxy resolves back to the *source* `$types` (and its un-typed
+        // parent chain), reintroducing the `any`. Copy the proxies verbatim
+        // into the mirror dir so the whole chain stays on the mirror tree.
+        let types_route_dir = kit_types_dir.join(dir);
+        if let Ok(read_dir) = fs::read_dir(&types_route_dir) {
+            for entry in read_dir.flatten() {
+                let name = entry.file_name();
+                let Some(name_str) = name.to_str() else {
+                    continue;
+                };
+                if name_str.starts_with("proxy+")
+                    && name_str.ends_with(".ts")
+                    && let Ok(proxy_text) = fs::read_to_string(entry.path())
+                {
+                    fs::write(mirror_dir.join(name_str), proxy_text)?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Rewrite `import('…/+layout.js')` (and `+page.js`, `+{layout,page}.server.js`)
+/// reverse-references inside a route's `$types.d.ts` to the co-located
+/// injected mirror (`./+layout.js`, …), but only when that mirror exists
+/// in `mirror_dir` — otherwise the specifier is left untouched so it still
+/// resolves to the source via `rootDirs`. A route's `$types` only ever
+/// reverse-references its *own* route files (parent data flows through
+/// `import('…/$types.js')`, which is deliberately not matched), so a
+/// basename-keyed rewrite is unambiguous.
+fn rewrite_kit_types_route_imports(text: &str, mirror_dir: &Path) -> String {
+    // `import( <q> <maybe-path>/ +layout .js <q> )` → capture quote + basename.
+    let re = regex::Regex::new(
+        r#"import\((['"])(?:[^'"]*/)?(\+(?:layout|page)(?:\.server)?)\.js(['"])\)"#,
+    )
+    .expect("static kit-$types import regex");
+    re.replace_all(text, |caps: &regex::Captures| {
+        let quote = &caps[1];
+        let base = &caps[2];
+        if mirror_dir.join(format!("{base}.ts")).is_file() {
+            format!("import({quote}./{base}.js{quote})")
+        } else {
+            caps[0].to_string()
+        }
+    })
+    .into_owned()
 }
 
 /// Append a literal extension (`".tsx"`, `".d.ts"`) to a relative path
@@ -1303,6 +1428,40 @@ mod tests {
     use super::*;
     use std::fs;
     use std::io::Write;
+
+    #[test]
+    fn rewrites_kit_types_route_imports_to_colocated_mirror() {
+        let tmp = std::env::temp_dir().join(format!("svc_kittypes_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+        // A co-located injected mirror exists for +layout but NOT +page.
+        fs::write(tmp.join("+layout.ts"), b"export const load = () => ({});\n").unwrap();
+
+        let text = concat!(
+            "type A = import('../../../../../$types.js').LayoutData;\n",
+            "type L = ReturnType<typeof import('../../../../src/routes/x/+layout.js').load>;\n",
+            "type P = ReturnType<typeof import('../../../../src/routes/x/+page.js').load>;\n",
+            "import type * as Kit from '@sveltejs/kit';\n",
+        );
+        let out = rewrite_kit_types_route_imports(text, &tmp);
+
+        // Own +layout.js reverse-ref → co-located mirror (mirror exists).
+        assert!(
+            out.contains("import('./+layout.js')"),
+            "+layout.js should be rewritten to the co-located mirror: {out}"
+        );
+        // +page.js left untouched — no mirror on disk, must still resolve
+        // to the source via rootDirs rather than become a dangling import.
+        assert!(
+            out.contains("src/routes/x/+page.js"),
+            "+page.js must be left untouched when no mirror exists: {out}"
+        );
+        // Parent-data `$types.js` and bare `@sveltejs/kit` are never matched.
+        assert!(out.contains("import('../../../../../$types.js')"), "{out}");
+        assert!(out.contains("from '@sveltejs/kit'"), "{out}");
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
 
     #[test]
     fn materialises_tsx_and_dts_per_svelte_file() {
