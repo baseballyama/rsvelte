@@ -27,6 +27,7 @@ mod style;
 
 pub use error::FormatError;
 pub use options::{FormatOptions, StyleFormatter};
+pub use script::format_js_source;
 pub use style::reindent;
 
 // Re-exports so consumers don't need to depend on `oxc_formatter` directly.

@@ -11,10 +11,11 @@ use std::sync::Arc;
 use anyhow::{Context, Result, anyhow};
 use clap::Parser;
 use ignore::WalkBuilder;
+use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use oxc_formatter::JsFormatOptions;
 use oxc_formatter_core::{IndentStyle, IndentWidth, LineWidth};
 use rayon::prelude::*;
-use rsvelte_formatter::{FormatOptions, format, reindent};
+use rsvelte_formatter::{FormatOptions, format, format_js_source, reindent};
 
 mod config;
 mod oxfmt_ignore;
@@ -86,9 +87,34 @@ struct Cli {
     /// subsequent runs. Also disabled by `RSVELTE_FMT_NO_CACHE`. See #703.
     #[arg(long)]
     no_style_cache: bool,
+
+    /// Format `.ts`/`.js` files by delegating to `oxfmt` instead of formatting
+    /// them in-process via `oxc_formatter`. The in-process path is byte-identical
+    /// (same engine) but avoids the per-invocation `oxfmt` startup; this flag is
+    /// an escape hatch if a divergence is ever found.
+    #[arg(long)]
+    no_native_js: bool,
 }
 
 const SVELTE_EXT: &str = "svelte";
+
+/// Extensions formatted in-process via `oxc_formatter` (the same engine `oxfmt`
+/// uses for these files), so they need no `oxfmt` subprocess. Everything else
+/// `oxfmt` supports (`.css`/`.json`/`.md`/`.yaml`/`.toml`/`.html`) stays
+/// delegated. JSON is excluded here: it needs oxfmt's JSON formatter, not the
+/// JS one.
+const NATIVE_JS_EXTS: &[&str] = &["ts", "tsx", "js", "jsx", "mjs", "cjs", "mts", "cts"];
+
+fn is_native_js(p: &Path) -> bool {
+    p.extension()
+        .and_then(OsStr::to_str)
+        .is_some_and(|e| NATIVE_JS_EXTS.contains(&e))
+}
+
+/// `oxc_formatter_core::LineWidth`'s maximum (1..=320). A file whose resolved
+/// `printWidth` exceeds this can't be represented natively, so it's delegated to
+/// oxfmt (which honors larger widths) to keep output byte-identical.
+const LINE_WIDTH_MAX: u16 = 320;
 
 /// Build a `Command` that runs `oxfmt`.
 ///
@@ -123,6 +149,20 @@ fn oxfmt_command(oxfmt: &Path) -> Command {
 /// those are handled in-process by `rsvelte_formatter`. Applies to directory
 /// walks and to any explicitly-passed `.svelte` path.
 const OXFMT_EXCLUDE_SVELTE: &str = "!**/*.svelte";
+
+/// oxfmt exclude globs that keep the native-`.ts`/`.js` set out of the delegated
+/// directory pass — those are handled in-process. One per extension in
+/// [`NATIVE_JS_EXTS`]; only added when the native path is enabled.
+const OXFMT_EXCLUDE_NATIVE_JS: &[&str] = &[
+    "!**/*.ts",
+    "!**/*.tsx",
+    "!**/*.js",
+    "!**/*.jsx",
+    "!**/*.mjs",
+    "!**/*.cjs",
+    "!**/*.mts",
+    "!**/*.cts",
+];
 
 fn main() -> ExitCode {
     match run() {
@@ -163,32 +203,46 @@ fn run() -> Result<ExitCode> {
         ));
     }
 
+    let native_js = !cli.no_native_js;
     let ignore = oxfmt_ignore::SvelteIgnore::from_config(&cwd, &cfg)?;
-    let (svelte, oxfmt_paths) = partition_files(&cli.paths, &ignore, &cwd)?;
+    let (svelte, native, oxfmt_paths) = partition_files(&cli.paths, &ignore, &cwd, native_js)?;
 
     let mode = if cli.check { Mode::Check } else { Mode::Write };
 
-    // Run both pipelines in parallel — oxfmt subprocess will overlap
-    // with the in-process Svelte formatter.
+    // Per-file JS options resolver (base + `.oxfmtrc` `overrides`). A CLI width
+    // flag takes precedence over an override's printWidth/tabWidth.
+    let cli_width_flag = cli.print_width.is_some() || cli.tab_width.is_some() || cli.use_tabs;
+    let resolver = JsOptionsResolver::new(&options, &cfg, &cwd, cli_width_flag);
+
+    // Run the pipelines in parallel: the oxfmt subprocess overlaps with the
+    // in-process Svelte and native-JS formatters.
     let use_style_cache = !cli.no_style_cache;
-    let (svelte_result, oxfmt_result) = rayon::join(
+    let exclude_native = native_js && !native.is_empty();
+    let ((svelte_result, native_result), oxfmt_result) = rayon::join(
         || {
-            run_svelte_files(
-                &svelte,
-                &options,
-                &cli.oxfmt_bin,
-                &cfg,
-                mode,
-                use_style_cache,
+            rayon::join(
+                || {
+                    run_svelte_files(
+                        &svelte,
+                        &options,
+                        &cli.oxfmt_bin,
+                        &cfg,
+                        mode,
+                        use_style_cache,
+                    )
+                },
+                || run_native_js(&native, &resolver, &cwd, &cli.oxfmt_bin, mode),
             )
         },
-        || run_oxfmt(&oxfmt_paths, &cli.oxfmt_bin, mode),
+        || run_oxfmt(&oxfmt_paths, &cli.oxfmt_bin, mode, exclude_native),
     );
 
     let svelte_status = svelte_result?;
+    let native_status = native_result?;
     let oxfmt_status = oxfmt_result?;
-    print_summary(&svelte_status, &oxfmt_status, mode);
-    Ok(combine(svelte_status, oxfmt_status, mode))
+    let combined = svelte_status.merge(native_status);
+    print_summary(&combined, &oxfmt_status, mode);
+    Ok(combine(combined, oxfmt_status, mode))
 }
 
 fn print_summary(svelte: &PipelineStatus, oxfmt: &PipelineStatus, mode: Mode) {
@@ -212,6 +266,17 @@ struct PipelineStatus {
     files_changed: usize,
     files_total: usize,
     had_errors: bool,
+}
+
+impl PipelineStatus {
+    /// Fold another pipeline's counts into this one (e.g. the in-process Svelte
+    /// and native-JS passes report as one "in-process" total in the summary).
+    fn merge(mut self, other: PipelineStatus) -> PipelineStatus {
+        self.files_changed += other.files_changed;
+        self.files_total += other.files_total;
+        self.had_errors |= other.had_errors;
+        self
+    }
 }
 
 fn combine(a: PipelineStatus, b: PipelineStatus, mode: Mode) -> ExitCode {
@@ -434,8 +499,10 @@ fn partition_files(
     roots: &[PathBuf],
     ignore: &oxfmt_ignore::SvelteIgnore,
     cwd: &Path,
-) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
+    native_js: bool,
+) -> Result<(Vec<PathBuf>, Vec<PathBuf>, Vec<PathBuf>)> {
     let mut svelte = Vec::new();
+    let mut native = Vec::new();
     let mut oxfmt_paths = Vec::new();
     for root in roots {
         let meta = std::fs::metadata(root)
@@ -469,11 +536,13 @@ fn partition_files(
             for entry in builder.build() {
                 let entry = entry.context("walking input tree")?;
                 let path = entry.path();
-                if entry.file_type().is_some_and(|ft| ft.is_file())
-                    && is_svelte(path)
-                    && !ignore.is_ignored(path, false)
-                {
+                if !entry.file_type().is_some_and(|ft| ft.is_file()) {
+                    continue;
+                }
+                if is_svelte(path) && !ignore.is_ignored(path, false) {
                     svelte.push(entry.into_path());
+                } else if native_js && is_native_js(path) && !ignore.is_ignored(path, false) {
+                    native.push(entry.into_path());
                 }
             }
             oxfmt_paths.push(root.clone());
@@ -487,11 +556,21 @@ fn partition_files(
             if !ignore.is_ignored(&abs, false) {
                 svelte.push(root.clone());
             }
+        } else if native_js && is_native_js(root) {
+            // Single explicit `.ts`/`.js` file — native pass (same ignore rules).
+            let abs = if root.is_absolute() {
+                root.clone()
+            } else {
+                cwd.join(root)
+            };
+            if !ignore.is_ignored(&abs, false) {
+                native.push(root.clone());
+            }
         } else {
             oxfmt_paths.push(root.clone());
         }
     }
-    Ok((svelte, oxfmt_paths))
+    Ok((svelte, native, oxfmt_paths))
 }
 
 fn is_svelte(p: &Path) -> bool {
@@ -909,6 +988,182 @@ fn apply_output(path: &Path, source: &str, formatted: &str, mode: Mode) -> Resul
     }
 }
 
+// ─── native JS/TS pipeline ────────────────────────────────────────────────
+
+/// Resolves the per-file [`JsFormatOptions`] for the native `.ts`/`.js` path:
+/// the base options layered with any matching `.oxfmtrc` `overrides`. Glob
+/// matchers are built once; `for_path` is cheap per file.
+struct JsOptionsResolver {
+    base: JsFormatOptions,
+    /// `(glob matcher rooted at the config dir, the override's option subset)`.
+    overrides: Vec<(Gitignore, OxfmtConfig)>,
+    /// Whether an override's `printWidth`/`tabWidth` may apply — false when a
+    /// CLI width flag took precedence over the config.
+    apply_override_width: bool,
+}
+
+impl JsOptionsResolver {
+    fn new(options: &FormatOptions, cfg: &OxfmtConfig, cwd: &Path, cli_width_flag: bool) -> Self {
+        let dir = cfg
+            .config_dir()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| cwd.to_path_buf());
+        let overrides = cfg
+            .overrides
+            .iter()
+            .filter_map(|ov| {
+                let mut builder = GitignoreBuilder::new(&dir);
+                for glob in &ov.files {
+                    let _ = builder.add_line(None, glob);
+                }
+                builder.build().ok().map(|gi| (gi, ov.options.clone()))
+            })
+            .collect();
+        Self {
+            base: options.js.clone(),
+            overrides,
+            apply_override_width: !cli_width_flag,
+        }
+    }
+
+    /// The options for `abs_path` — base with every matching override merged on
+    /// top in source order (prettier semantics). `abs_path` must be absolute so
+    /// it can be matched against the config-dir-rooted globs.
+    /// The options for `abs_path`, or `None` when the file can't be formatted
+    /// natively at parity and must be delegated to oxfmt — specifically when a
+    /// matching override sets `printWidth` above `oxc_formatter`'s representable
+    /// maximum (320). oxfmt honors larger widths (e.g. flyle's `printWidth:
+    /// 1000` "never wrap" overrides), so those files go to oxfmt to stay
+    /// byte-identical rather than wrapping at 320.
+    fn for_path(&self, abs_path: &Path) -> Option<JsFormatOptions> {
+        let matching: Vec<&OxfmtConfig> = self
+            .overrides
+            .iter()
+            .filter(|(matcher, _)| matcher.matched(abs_path, false).is_ignore())
+            .map(|(_, opts)| opts)
+            .collect();
+        if self.apply_override_width
+            && matching
+                .iter()
+                .any(|o| o.print_width.is_some_and(|w| w > LINE_WIDTH_MAX))
+        {
+            return None;
+        }
+        let mut js = self.base.clone();
+        for opts in matching {
+            opts.apply_js(&mut js);
+            if self.apply_override_width {
+                opts.apply_width(&mut js);
+            }
+        }
+        Some(js)
+    }
+}
+
+/// Outcome of formatting one native-JS file.
+enum NativeOutcome {
+    Changed,
+    Unchanged,
+    /// oxc couldn't parse the file — retry it through `oxfmt` so coverage never
+    /// regresses on edge syntax the in-process parser rejects.
+    Fallback,
+    Error(String),
+}
+
+/// Format `.ts`/`.js` files in-process via `oxc_formatter` (the same engine
+/// `oxfmt` uses), in parallel. Files oxc can't parse fall back to a single
+/// `oxfmt` invocation so coverage matches delegation exactly.
+fn run_native_js(
+    files: &[PathBuf],
+    resolver: &JsOptionsResolver,
+    cwd: &Path,
+    oxfmt: &Path,
+    mode: Mode,
+) -> Result<PipelineStatus> {
+    if files.is_empty() {
+        return Ok(PipelineStatus::default());
+    }
+
+    let outcomes: Vec<(PathBuf, NativeOutcome)> = files
+        .par_iter()
+        .map(|path| {
+            let abs = if path.is_absolute() {
+                path.clone()
+            } else {
+                cwd.join(path)
+            };
+            let source = match std::fs::read_to_string(path) {
+                Ok(s) => s,
+                Err(e) => {
+                    return (
+                        path.clone(),
+                        NativeOutcome::Error(format!("reading {}: {e}", path.display())),
+                    );
+                }
+            };
+            let ext = path.extension().and_then(OsStr::to_str).unwrap_or("ts");
+            // An override that can't be represented natively (printWidth > 320)
+            // delegates this file to oxfmt for byte-identical output.
+            let Some(js) = resolver.for_path(&abs) else {
+                return (path.clone(), NativeOutcome::Fallback);
+            };
+            let opts = FormatOptions {
+                js,
+                style_formatter: None,
+                typescript: false,
+            };
+            match format_js_source(&source, ext, &opts) {
+                Ok(out) if out == source => (path.clone(), NativeOutcome::Unchanged),
+                Ok(out) => match mode {
+                    Mode::Write => match std::fs::write(path, &out) {
+                        Ok(()) => (path.clone(), NativeOutcome::Changed),
+                        Err(e) => (
+                            path.clone(),
+                            NativeOutcome::Error(format!("writing {}: {e}", path.display())),
+                        ),
+                    },
+                    Mode::Check => (path.clone(), NativeOutcome::Changed),
+                },
+                // Parse error — defer to the oxfmt fallback.
+                Err(_) => (path.clone(), NativeOutcome::Fallback),
+            }
+        })
+        .collect();
+
+    let mut status = PipelineStatus {
+        files_total: files.len(),
+        ..PipelineStatus::default()
+    };
+    let mut fallback: Vec<PathBuf> = Vec::new();
+    for (path, outcome) in outcomes {
+        match outcome {
+            NativeOutcome::Changed => {
+                if matches!(mode, Mode::Check) {
+                    println!("would format {}", path.display());
+                }
+                status.files_changed += 1;
+            }
+            NativeOutcome::Unchanged => {}
+            NativeOutcome::Fallback => fallback.push(path),
+            NativeOutcome::Error(e) => {
+                eprintln!("rsvelte-fmt: {e}");
+                status.had_errors = true;
+            }
+        }
+    }
+
+    // oxfmt fallback for the (rare) files oxc couldn't parse. They're already
+    // counted in `files_total`; a parse-error file the fallback also can't
+    // handle surfaces oxfmt's own diagnostics.
+    if !fallback.is_empty() {
+        let fb = run_oxfmt(&fallback, oxfmt, mode, false)?;
+        status.files_changed += fb.files_changed;
+        status.had_errors |= fb.had_errors;
+    }
+
+    Ok(status)
+}
+
 // ─── oxfmt delegation ───────────────────────────────────────────────────
 
 /// Delegate every non-`.svelte` path to a single `oxfmt` invocation.
@@ -920,7 +1175,12 @@ fn apply_output(path: &Path, source: &str, formatted: &str, mode: Mode) -> Resul
 /// ("Finished … on N files", "Format issues found in above N files") goes to
 /// stdout; we capture it to recover file counts for our own summary, then
 /// forward it. Warnings/errors on stderr stay inherited.
-fn run_oxfmt(paths: &[PathBuf], oxfmt: &Path, mode: Mode) -> Result<PipelineStatus> {
+fn run_oxfmt(
+    paths: &[PathBuf],
+    oxfmt: &Path,
+    mode: Mode,
+    exclude_native: bool,
+) -> Result<PipelineStatus> {
     if paths.is_empty() {
         return Ok(PipelineStatus::default());
     }
@@ -934,6 +1194,11 @@ fn run_oxfmt(paths: &[PathBuf], oxfmt: &Path, mode: Mode) -> Result<PipelineStat
     }
     cmd.arg("--no-error-on-unmatched-pattern");
     cmd.arg(OXFMT_EXCLUDE_SVELTE);
+    // When the native `.ts`/`.js` path handled those files in-process, keep
+    // oxfmt from re-formatting them in directory walks.
+    if exclude_native {
+        cmd.args(OXFMT_EXCLUDE_NATIVE_JS);
+    }
     cmd.args(paths);
     cmd.stdout(Stdio::piped()).stderr(Stdio::inherit());
 
