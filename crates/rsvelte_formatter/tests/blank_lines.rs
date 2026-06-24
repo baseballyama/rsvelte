@@ -30,6 +30,25 @@ fn keeps_blank_line_before_style() {
 }
 
 #[test]
+fn comment_glued_to_style_keeps_no_blank_between_comment_and_style() {
+    // A comment that immediately precedes `<style>` (no blank line between the
+    // `-->` and the tag) is the style's leading comment: the blank line goes
+    // *before* the comment, not between it and `<style>`. Regression for the
+    // section-reorder pass treating the whole markup gap (incl. the trailing
+    // comment) as one unit and inserting a blank before `<style>` (#1166).
+    let src =
+        "<div>x</div>\n\n<!-- keep me glued -->\n<style>\n  .a {\n    color: red;\n  }\n</style>\n";
+    assert_eq!(fmt(src), src);
+}
+
+#[test]
+fn comment_glued_to_style_is_idempotent() {
+    let src = "<div>x</div>\n\n<!-- c -->\n<style>\n  .a {\n    color: red;\n  }\n</style>\n";
+    let once = fmt(src);
+    assert_eq!(fmt(&once), once, "comment-before-style not idempotent");
+}
+
+#[test]
 fn keeps_single_blank_line_between_siblings() {
     let src = "<div>a</div>\n\n<div>b</div>\n";
     assert_eq!(fmt(src), src);

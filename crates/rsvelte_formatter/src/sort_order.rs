@@ -66,11 +66,38 @@ pub(crate) fn reorder_sections(out: &str, mut sections: Vec<(u8, usize, usize)>)
     for &(priority, start, end) in &sections {
         let gap = &out[cursor..start];
         let gap_trim = gap.trim();
-        if !gap_trim.is_empty() && is_comment_only(gap) {
-            // The gap is a comment-only block — it becomes the leading comment
-            // of this section.  Preserve the separator between the comment and
-            // the section as it appears in the source: a blank line (`\n\n`)
-            // if the source had one, a single newline otherwise.
+        let section_text = out[start..end].trim();
+
+        // A comment run glued to the section (no other markup between the last
+        // `-->` and the opening tag) is the section's leading comment and travels
+        // with it. This is the whole gap when it is comment-only, or just the
+        // trailing comment run when markup precedes it (e.g.
+        // `</div>\n<!-- … -->\n<style>` — the comment leads `<style>`, not the
+        // markup). The preceding markup, if any, stays a markup unit.
+        let (markup_part, comment_run): (&str, &str) = if gap_trim.is_empty() {
+            ("", "")
+        } else if is_comment_only(gap) {
+            ("", gap_trim)
+        } else {
+            split_trailing_comment_run(gap).unwrap_or((gap_trim, ""))
+        };
+
+        if !markup_part.is_empty() {
+            units.push(Unit {
+                priority: P_MARKUP,
+                text: markup_part.to_string(),
+            });
+        }
+
+        if comment_run.is_empty() {
+            units.push(Unit {
+                priority,
+                text: section_text.to_string(),
+            });
+        } else {
+            // Preserve the separator between the comment and the section as in
+            // the source: a blank line (`\n\n`) if the source had one between the
+            // last `-->` and the opening tag, a single newline otherwise.
             let after_comment_offset = gap.rfind("-->").map_or(0, |i| i + 3);
             let after_comment = &gap[after_comment_offset..];
             let separator = if after_comment.contains("\n\n") || after_comment.contains("\r\n\r\n")
@@ -79,22 +106,9 @@ pub(crate) fn reorder_sections(out: &str, mut sections: Vec<(u8, usize, usize)>)
             } else {
                 "\n"
             };
-            let section_text = out[start..end].trim();
             units.push(Unit {
                 priority,
-                text: format!("{gap_trim}{separator}{section_text}"),
-            });
-        } else {
-            if !gap_trim.is_empty() {
-                units.push(Unit {
-                    priority: P_MARKUP,
-                    text: gap_trim.to_string(),
-                });
-            }
-            let section_text = out[start..end].trim();
-            units.push(Unit {
-                priority,
-                text: section_text.to_string(),
+                text: format!("{comment_run}{separator}{section_text}"),
             });
         }
         cursor = cursor.max(end);
@@ -151,6 +165,59 @@ pub(crate) fn reorder_sections(out: &str, mut sections: Vec<(u8, usize, usize)>)
         result.push('\n');
     }
     result
+}
+
+/// Split a gap that ends with a run of HTML comments glued to the following
+/// section into `(markup_before, trailing_comment_run)`.
+///
+/// The trailing comment run is everything after the last non-comment,
+/// non-whitespace character — i.e. the comments (and whitespace) that sit
+/// directly before the section with no intervening markup. Returns `None` when
+/// there is no markup before it (the comment-only path handles that) or no
+/// trailing comment at all. UTF-8 safe: markup may contain multi-byte text.
+fn split_trailing_comment_run(gap: &str) -> Option<(&str, &str)> {
+    let mut last_markup_end = 0usize;
+    let mut base = 0usize; // byte offset of `rest` within `gap`
+    let mut rest = gap;
+    loop {
+        match rest.find("<!--") {
+            Some(open) => {
+                // Characters before this comment are markup-or-whitespace; record
+                // the byte offset just past the last non-whitespace one.
+                if let Some(p) = rest[..open].rfind(|c: char| !c.is_whitespace()) {
+                    let ch_len = rest[p..].chars().next().map_or(1, char::len_utf8);
+                    last_markup_end = base + p + ch_len;
+                }
+                let after_open = open + 4;
+                match rest[after_open..].find("-->") {
+                    Some(close) => {
+                        let consumed = after_open + close + 3;
+                        base += consumed;
+                        rest = &rest[consumed..];
+                    }
+                    // Unterminated comment — treat the remainder as markup.
+                    None => {
+                        last_markup_end = gap.len();
+                        break;
+                    }
+                }
+            }
+            None => {
+                if let Some(p) = rest.rfind(|c: char| !c.is_whitespace()) {
+                    let ch_len = rest[p..].chars().next().map_or(1, char::len_utf8);
+                    last_markup_end = base + p + ch_len;
+                }
+                break;
+            }
+        }
+    }
+    let markup = gap[..last_markup_end].trim();
+    let comment_run = gap[last_markup_end..].trim();
+    if markup.is_empty() || comment_run.is_empty() {
+        None
+    } else {
+        Some((markup, comment_run))
+    }
 }
 
 /// Whether `s` contains only HTML comments and whitespace.

@@ -1342,7 +1342,20 @@ fn render_attribute(
             }
         }
         Attribute::ClassDirective(d) => {
-            let inner = render_directive_value(source, &d.expression, d.end, options, attr_depth)?;
+            // Columns before the value's `{`: `class:` + name + `=` (the `{` is
+            // counted separately). Narrowing by this prefix once the open tag has
+            // wrapped makes a long value break where prettier-plugin-svelte does
+            // (#795) — matching `style:` / `on:` / `use:` etc.
+            let prefix = visual_width("class:") + visual_width(d.name.as_str()) + 1;
+            let inner = render_directive_value_narrow(
+                source,
+                &d.expression,
+                d.end,
+                options,
+                attr_depth,
+                narrow_value,
+                prefix,
+            )?;
             if inner == d.name.as_str() {
                 Ok(format!("class:{}", d.name))
             } else {
