@@ -58,17 +58,18 @@ impl StyleCache {
         Some(StyleCache { dir, salt })
     }
 
-    /// Look up the formatted form of `(body, lang)`. Returns the cached bytes
-    /// on a hit, `None` on a miss.
-    pub(crate) fn get(&self, body: &str, lang: &str) -> Option<String> {
-        let key = self.key(body, lang);
+    /// Look up the formatted form of `(body, lang, width)`. Returns the cached
+    /// bytes on a hit, `None` on a miss. The width is part of the key because the
+    /// same body wraps differently when narrowed to a different column.
+    pub(crate) fn get(&self, body: &str, lang: &str, width: usize) -> Option<String> {
+        let key = self.key(body, lang, width);
         std::fs::read_to_string(self.path_for(&key)).ok()
     }
 
-    /// Store `formatted` as the canonical form of `(body, lang)`. Best-effort:
-    /// any I/O error is ignored (the cache is purely an optimization).
-    pub(crate) fn put(&self, body: &str, lang: &str, formatted: &str) {
-        let key = self.key(body, lang);
+    /// Store `formatted` as the canonical form of `(body, lang, width)`.
+    /// Best-effort: any I/O error is ignored (the cache is purely an optimization).
+    pub(crate) fn put(&self, body: &str, lang: &str, width: usize, formatted: &str) {
+        let key = self.key(body, lang, width);
         let path = self.path_for(&key);
         if let Some(parent) = path.parent()
             && std::fs::create_dir_all(parent).is_err()
@@ -88,9 +89,9 @@ impl StyleCache {
     /// 128-bit content key as hex (two SipHashes with distinct salts —
     /// collision probability is astronomically small for content addressing,
     /// and a key only needs to be stable within a single binary build).
-    fn key(&self, body: &str, lang: &str) -> String {
-        let h0 = hash_parts(0xA5, &self.salt, lang, body);
-        let h1 = hash_parts(0x5A, &self.salt, lang, body);
+    fn key(&self, body: &str, lang: &str, width: usize) -> String {
+        let h0 = hash_parts(0xA5, &self.salt, lang, body, width);
+        let h1 = hash_parts(0x5A, &self.salt, lang, body, width);
         format!("{h0:016x}{h1:016x}")
     }
 
@@ -100,7 +101,7 @@ impl StyleCache {
     }
 }
 
-fn hash_parts(salt_byte: u8, run_salt: &[u8], lang: &str, body: &str) -> u64 {
+fn hash_parts(salt_byte: u8, run_salt: &[u8], lang: &str, body: &str, width: usize) -> u64 {
     let mut h = std::collections::hash_map::DefaultHasher::new();
     // `Hash` for slices/strings writes a length prefix, so the parts are
     // unambiguously delimited (no concatenation collisions).
@@ -108,6 +109,7 @@ fn hash_parts(salt_byte: u8, run_salt: &[u8], lang: &str, body: &str) -> u64 {
     run_salt.hash(&mut h);
     lang.hash(&mut h);
     body.hash(&mut h);
+    width.hash(&mut h);
     h.finish()
 }
 

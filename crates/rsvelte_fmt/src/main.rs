@@ -14,7 +14,7 @@ use ignore::WalkBuilder;
 use oxc_formatter::JsFormatOptions;
 use oxc_formatter_core::{IndentStyle, IndentWidth, LineWidth};
 use rayon::prelude::*;
-use rsvelte_formatter::{FormatOptions, format};
+use rsvelte_formatter::{FormatOptions, format, reindent};
 
 mod config;
 mod oxfmt_ignore;
@@ -500,11 +500,24 @@ fn is_svelte(p: &Path) -> bool {
 
 // ─── Svelte pipeline ────────────────────────────────────────────────────
 
-/// A `<style>` body captured during pass 1, to be formatted in the
-/// single batched `oxfmt` call instead of one spawn per block.
+/// A `<style>` body captured during pass 1, to be formatted in a batched
+/// `oxfmt` call (one per distinct print width) instead of one spawn per block.
 struct CollectedStyle {
     css: String,
     lang: String,
+    /// Print width the block must format at — the global width narrowed by the
+    /// block's indentation, exactly as the single-file/stdin path computes it.
+    /// Blocks are batched per width so column-sensitive wrapping matches oxfmt.
+    width: usize,
+}
+
+/// A `<style>` body to format, borrowing from the per-file [`CollectedStyle`]s.
+/// Carries the print width so the batch pass can group blocks by width.
+#[derive(Clone, Copy)]
+struct Style<'a> {
+    css: &'a str,
+    lang: &'a str,
+    width: usize,
 }
 
 /// Result of pass 1 for a single `.svelte` file.
@@ -521,6 +534,34 @@ struct Pass1 {
 /// the substitution can't collide with real content.
 fn style_placeholder(local_idx: usize) -> String {
     format!("\u{0}RSVELTE_FMT_STYLE_{local_idx}\u{0}")
+}
+
+/// Splice one batched-`oxfmt` `<style>` result back in place of its placeholder.
+///
+/// Pass 1 records each raw `<style>` body and emits a single-line placeholder; the
+/// in-process formatter positions that placeholder at the body's indent (one level
+/// past the `<style>` tag) but, being one line, never re-indents the multi-line CSS
+/// that replaces it here. A plain `String::replace` therefore left every CSS line
+/// after the first at column 0 and kept oxfmt's trailing newline (a stray blank
+/// line before `</style>`). Re-indent with the *same* [`reindent`] the single-file
+/// / stdin path applies, so both paths are byte-identical (#1166).
+///
+/// The placeholder sits alone on its line, preceded only by the body indent, so
+/// that leading whitespace is the indent to apply. If it is ever not alone on its
+/// line (it shouldn't be), fall back to a verbatim replace rather than corrupt the
+/// output.
+fn substitute_style(out: &mut String, placeholder: &str, css: &str) {
+    let Some(pos) = out.find(placeholder) else {
+        return;
+    };
+    let line_start = out[..pos].rfind('\n').map_or(0, |i| i + 1);
+    let indent = &out[line_start..pos];
+    if indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        let reindented = reindent(css, indent);
+        out.replace_range(line_start..pos + placeholder.len(), &reindented);
+    } else {
+        out.replace_range(pos..pos + placeholder.len(), css);
+    }
 }
 
 /// Format every `.svelte` file, batching all their `<style>` bodies into a
@@ -547,12 +588,16 @@ fn run_svelte_files(
         .collect();
 
     // ── Flatten collected styles across all files, keyed by (file, local) ──
-    let mut slot_css: Vec<(&str, &str)> = Vec::new(); // (css, lang) in batch order
+    let mut slot_css: Vec<Style> = Vec::new(); // (css, lang, width) in batch order
     let mut slot_owner: Vec<(usize, usize)> = Vec::new(); // (file_idx, local_idx)
     for (fi, p1) in pass1.iter().enumerate() {
         if let Ok((_, styles)) = &p1.outcome {
             for (li, st) in styles.iter().enumerate() {
-                slot_css.push((&st.css, &st.lang));
+                slot_css.push(Style {
+                    css: &st.css,
+                    lang: &st.lang,
+                    width: st.width,
+                });
                 slot_owner.push((fi, li));
             }
         }
@@ -598,7 +643,7 @@ fn run_svelte_files(
         };
         for li in 0..styles.len() {
             let css = per_file[fi].get(li).cloned().unwrap_or_default();
-            out = out.replace(&style_placeholder(li), &css);
+            substitute_style(&mut out, &style_placeholder(li), &css);
         }
         match apply_output(&p1.path, &p1.source, &out, mode) {
             Ok(true) => status.files_changed += 1,
@@ -629,17 +674,18 @@ fn format_collecting(path: &Path, options: &FormatOptions) -> Pass1 {
     let styles: Arc<std::sync::Mutex<Vec<CollectedStyle>>> = Arc::default();
     let sink = styles.clone();
     let mut opts = options.clone();
-    // The multi-file batch path collects all `<style>` bodies for one batched
-    // oxfmt call shared across files, so it formats them at the base print width
-    // (per-width narrowing — see make_oxfmt_style_formatter — would defeat the
-    // batch). CSS whose wrapping is sensitive to the style's column is a minor
-    // edge here; the single-file / stdin path narrows correctly.
-    opts.style_formatter = Some(Arc::new(move |body: &str, lang: &str, _width: usize| {
+    // Record each `<style>` body with the print width it must format at (the
+    // global width narrowed by the block's indentation). The batch pass groups
+    // blocks by width and runs one oxfmt call per distinct width, so
+    // column-sensitive wrapping matches the single-file / stdin path (and oxfmt)
+    // while still batching — nearly every block shares one width (#1166).
+    opts.style_formatter = Some(Arc::new(move |body: &str, lang: &str, width: usize| {
         let mut v = sink.lock().expect("style sink poisoned");
         let idx = v.len();
         v.push(CollectedStyle {
             css: body.to_string(),
             lang: lang.to_string(),
+            width,
         });
         Ok(style_placeholder(idx))
     }));
@@ -673,7 +719,7 @@ fn format_collecting(path: &Path, options: &FormatOptions) -> Pass1 {
 fn format_styles_cached(
     oxfmt: &Path,
     config: Option<&Path>,
-    styles: &[(&str, &str)],
+    styles: &[Style],
     cache: Option<&StyleCache>,
 ) -> Result<Vec<String>> {
     if styles.is_empty() {
@@ -685,16 +731,18 @@ fn format_styles_cached(
         return Ok(batch_format_styles(oxfmt, config, styles)?.0);
     };
 
-    // Partition into cache hits and misses, preserving input order.
+    // Partition into cache hits and misses, preserving input order. The cache
+    // key includes the width, so the same body at two indentations is two
+    // distinct entries (its wrapping differs).
     let mut results: Vec<Option<String>> = Vec::with_capacity(styles.len());
-    let mut miss_styles: Vec<(&str, &str)> = Vec::new();
+    let mut miss_styles: Vec<Style> = Vec::new();
     let mut miss_slots: Vec<usize> = Vec::new();
-    for (i, (css, lang)) in styles.iter().enumerate() {
-        match cache.get(css, lang) {
+    for (i, s) in styles.iter().enumerate() {
+        match cache.get(s.css, s.lang, s.width) {
             Some(hit) => results.push(Some(hit)),
             None => {
                 results.push(None);
-                miss_styles.push((css, lang));
+                miss_styles.push(*s);
                 miss_slots.push(i);
             }
         }
@@ -707,8 +755,8 @@ fn format_styles_cached(
             // body round-trips unchanged; caching that would pin the unformatted
             // form, so skip it and let the next run retry.
             if ok {
-                let (body, lang) = styles[*slot];
-                cache.put(body, lang, &css);
+                let s = styles[*slot];
+                cache.put(s.css, s.lang, s.width, &css);
             }
             results[*slot] = Some(css);
         }
@@ -717,17 +765,60 @@ fn format_styles_cached(
     Ok(results.into_iter().map(|r| r.unwrap_or_default()).collect())
 }
 
-/// Format every collected `<style>` body in a single `oxfmt` invocation by
-/// staging each into a temp directory and running `oxfmt <dir>` (in-place),
-/// then reading them back. Returns the formatted CSS in input order plus
-/// whether oxfmt exited successfully (so callers can decide whether to cache).
+/// Format a set of `<style>` bodies, grouping by print width so each block wraps
+/// at the column it renders at (matching the single-file / stdin path and oxfmt).
+///
+/// Column-sensitive CSS — a long selector or value near the wrap point — must be
+/// formatted at the global width *minus its indentation*, or it diverges from
+/// oxfmt. Nearly every block shares one width, so grouping costs at most a couple
+/// of extra oxfmt round-trips while restoring parity. Results are returned in the
+/// input order. The combined `ok` is false if any width group's oxfmt failed.
+fn batch_format_styles(
+    oxfmt: &Path,
+    config: Option<&Path>,
+    styles: &[Style],
+) -> Result<(Vec<String>, bool)> {
+    if styles.is_empty() {
+        return Ok((Vec::new(), true));
+    }
+
+    let mut by_width: std::collections::BTreeMap<usize, Vec<usize>> =
+        std::collections::BTreeMap::new();
+    for (i, s) in styles.iter().enumerate() {
+        by_width.entry(s.width).or_default().push(i);
+    }
+
+    let mut results = vec![String::new(); styles.len()];
+    let mut all_ok = true;
+    for (width, idxs) in by_width {
+        let group: Vec<(&str, &str)> = idxs
+            .iter()
+            .map(|&i| (styles[i].css, styles[i].lang))
+            .collect();
+        // Narrow the project config to this width so oxfmt wraps embedded CSS at
+        // the same column the block renders at (falls back to the base config).
+        let cfg = css_config_for_width(config, width);
+        let (formatted, ok) = batch_format_styles_group(oxfmt, cfg.as_deref(), &group)?;
+        all_ok &= ok;
+        for (slot, css) in idxs.into_iter().zip(formatted) {
+            results[slot] = css;
+        }
+    }
+    Ok((results, all_ok))
+}
+
+/// Format one same-width group of `<style>` bodies in a single `oxfmt`
+/// invocation by staging each into a temp directory and running `oxfmt <dir>`
+/// (in-place), then reading them back. Returns the formatted CSS in input order
+/// plus whether oxfmt exited successfully (so callers can decide whether to
+/// cache). `config` is the (width-narrowed) config to force via `-c`.
 ///
 /// The styles are handed to oxfmt as a single **directory** argument rather
 /// than N explicit file paths: oxfmt parallelizes its directory walk, and on
 /// large trees a multi-thousand-entry argv can also be slower (or hit
 /// `ARG_MAX`). The staging dir holds only our `s{i}.{ext}` files, so the walk
 /// formats exactly the set we read back. See #707.
-fn batch_format_styles(
+fn batch_format_styles_group(
     oxfmt: &Path,
     config: Option<&Path>,
     styles: &[(&str, &str)],
