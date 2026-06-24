@@ -429,7 +429,39 @@ fn discover_external_svelte_packages(workspace: &Path, cache_dir: &Path) -> Vec<
 /// its cache mirror, preserving each file's path relative to the package root.
 /// Non-incremental (external packages change rarely and are bounded by the
 /// dependency set).
+/// Symlink `<dst>` → `<src>` (a directory), cross-platform.
+fn symlink_dir(src: &Path, dst: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(src, dst)
+    }
+    #[cfg(windows)]
+    {
+        std::os::windows::fs::symlink_dir(src, dst)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = (src, dst);
+        Ok(())
+    }
+}
+
 fn emit_external_shadows(pkg: &ExternalPackage) -> Result<(), OverlayError> {
+    // Mirror the package's own `node_modules` into the shadow dir so the
+    // shadow's bare-package imports (`import type { X } from 'sortablejs'`,
+    // incl. its `@types/*` declarations) resolve from the SAME context as the
+    // real package. The shadows live under `<cache>/ext/<n>/`, where TS's
+    // walk-up would otherwise reach the *workspace* `node_modules` and miss a
+    // dependency present only in the external package's tree — silently
+    // degrading the imported type to `any` (and poisoning `ComponentProps<…>`
+    // in every consumer). A symlink keeps resolution identical to in-place
+    // checking without copying or rewriting specifiers.
+    let real_nm = pkg.real_dir.join("node_modules");
+    let mirror_nm = pkg.mirror_dir.join("node_modules");
+    if real_nm.is_dir() && !mirror_nm.exists() {
+        fs::create_dir_all(&pkg.mirror_dir)?;
+        let _ = symlink_dir(&real_nm, &mirror_nm);
+    }
     for abs_source in &pkg.svelte_files {
         let rel = abs_source.strip_prefix(&pkg.real_dir).unwrap_or(abs_source);
         let tsx_path = pkg.mirror_dir.join(append_extension(rel, ".tsx"));
