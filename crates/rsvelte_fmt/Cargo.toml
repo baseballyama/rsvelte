@@ -22,7 +22,7 @@ path = "src/bin/fmt_benchmark_runner.rs"
 [dependencies]
 rsvelte_formatter = { path = "../rsvelte_formatter" }
 oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd" }
-oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd" }
+oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "e1886a0c7685de47d0a2f93568663b6c7ca8f0d2" }
 clap = { version = "4.5", features = ["derive"] }
 walkdir = "2.5"
 rayon = "1.10"
