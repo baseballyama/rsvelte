@@ -1548,7 +1548,7 @@ dependencies = [
 [[package]]
 name = "oxc_allocator"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "allocator-api2",
  "hashbrown 0.17.1",
@@ -1561,7 +1561,7 @@ dependencies = [
 [[package]]
 name = "oxc_ast"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "bitflags 2.11.1",
  "oxc_allocator",
@@ -1578,7 +1578,7 @@ dependencies = [
 [[package]]
 name = "oxc_ast_macros"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "phf",
  "proc-macro2 1.0.106",
@@ -1589,7 +1589,7 @@ dependencies = [
 [[package]]
 name = "oxc_ast_visit"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1600,7 +1600,7 @@ dependencies = [
 [[package]]
 name = "oxc_codegen"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "bitflags 2.11.1",
  "cow-utils",
@@ -1621,12 +1621,12 @@ dependencies = [
 [[package]]
 name = "oxc_data_structures"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 
 [[package]]
 name = "oxc_diagnostics"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "cow-utils",
  "oxc-miette",
@@ -1636,7 +1636,7 @@ dependencies = [
 [[package]]
 name = "oxc_ecmascript"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "cow-utils",
  "num-bigint",
@@ -1651,7 +1651,7 @@ dependencies = [
 [[package]]
 name = "oxc_estree"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "dragonbox_ecma",
  "itoa",
@@ -1661,7 +1661,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter"
 version = "0.56.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "cow-utils",
  "fast-glob",
@@ -1687,7 +1687,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter_core"
 version = "0.56.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "cow-utils",
  "oxc_allocator",
@@ -1712,7 +1712,7 @@ dependencies = [
 [[package]]
 name = "oxc_jsdoc"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "oxc_ast",
  "oxc_span",
@@ -1722,7 +1722,7 @@ dependencies = [
 [[package]]
 name = "oxc_parser"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "bitflags 2.11.1",
  "cow-utils",
@@ -1745,7 +1745,7 @@ dependencies = [
 [[package]]
 name = "oxc_regular_expression"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "bitflags 2.11.1",
  "oxc_allocator",
@@ -1788,7 +1788,7 @@ dependencies = [
 [[package]]
 name = "oxc_semantic"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "itertools 0.15.0",
  "memchr",
@@ -1823,7 +1823,7 @@ dependencies = [
 [[package]]
 name = "oxc_span"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "compact_str",
  "oxc-miette",
@@ -1837,7 +1837,7 @@ dependencies = [
 [[package]]
 name = "oxc_str"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "compact_str",
  "hashbrown 0.17.1",
@@ -1849,7 +1849,7 @@ dependencies = [
 [[package]]
 name = "oxc_syntax"
 version = "0.137.0"
-source = "git+https://github.com/oxc-project/oxc?rev=8339ad49f2c144a582ad5d63adb281bf0444424e#8339ad49f2c144a582ad5d63adb281bf0444424e"
+source = "git+https://github.com/oxc-project/oxc?rev=3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd#3f574f5a4eb25f6ba7f10da454ce3fcda0f030dd"
 dependencies = [
  "bitflags 2.11.1",
  "cow-utils",
