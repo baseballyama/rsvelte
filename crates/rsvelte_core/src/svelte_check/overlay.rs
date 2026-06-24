@@ -330,8 +330,13 @@ pub fn materialize_overlay_with(
     }
 
     let overlay_tsconfig = cache_dir.join("tsconfig.json");
-    let tsconfig_json =
-        build_overlay_tsconfig(&cache_dir, tsconfig_path, workspace, &ext_root_dir_pairs);
+    let tsconfig_json = build_overlay_tsconfig(
+        &cache_dir,
+        tsconfig_path,
+        workspace,
+        &ext_root_dir_pairs,
+        incremental,
+    );
     fs::write(&overlay_tsconfig, tsconfig_json)?;
 
     if incremental {
@@ -699,6 +704,7 @@ fn build_overlay_tsconfig(
     original: Option<&Path>,
     workspace: &Path,
     ext_root_dir_pairs: &[(PathBuf, PathBuf)],
+    incremental: bool,
 ) -> String {
     let mut obj: BTreeMap<&str, serde_json::Value> = BTreeMap::new();
     if let Some(orig) = original {
@@ -708,6 +714,20 @@ fn build_overlay_tsconfig(
     let mut compiler_opts = serde_json::Map::new();
     compiler_opts.insert("noEmit".into(), true.into());
     compiler_opts.insert("allowArbitraryExtensions".into(), true.into());
+    // In `--incremental` mode, hand the compiler a `tsBuildInfoFile` so tsgo /
+    // tsc persist their program graph + per-file check state across runs.
+    // Without this the manifest only short-circuits svelte2tsx; the compiler
+    // still re-parses + re-checks all ~8k program files every invocation
+    // (the dominant cost). The overlay tsconfig is byte-stable across runs, so
+    // the build-info stays valid and an unchanged warm run drops from ~5.5s to
+    // ~1s. The path is relative to the overlay tsconfig (this `cache_dir`).
+    if incremental {
+        compiler_opts.insert("incremental".into(), true.into());
+        compiler_opts.insert(
+            "tsBuildInfoFile".into(),
+            "./tsgo.tsbuildinfo".to_string().into(),
+        );
+    }
     // The `.tsx` shadows svelte2tsx emits must be processed with a JSX
     // backend or tsgo / tsc rejects every `.svelte` → `.tsx` import with
     // TS6142 ("'--jsx' is not set"). `preserve` matches what svelte2tsx's
@@ -1505,6 +1525,44 @@ mod tests {
         assert_eq!(
             cfg["compilerOptions"]["allowArbitraryExtensions"],
             serde_json::Value::Bool(true)
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn incremental_overlay_tsconfig_enables_tsbuildinfo() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_inctsc_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        let svelte_path = tmp.join("src/App.svelte");
+        fs::File::create(&svelte_path)
+            .unwrap()
+            .write_all(b"<script>let x = 0;</script>{x}")
+            .unwrap();
+        let files = vec![svelte_path];
+
+        // Non-incremental: no compiler-side build info (each run is cold).
+        let layout = materialize_overlay_with(&tmp, &files, None, false).unwrap();
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        assert!(
+            cfg["compilerOptions"]["incremental"].is_null(),
+            "non-incremental overlay must not set incremental"
+        );
+
+        // Incremental: hand tsgo/tsc a `tsBuildInfoFile` so the compiler caches
+        // its program graph across runs (the warm-run speedup).
+        let layout = materialize_overlay_with(&tmp, &files, None, true).unwrap();
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        assert_eq!(
+            cfg["compilerOptions"]["incremental"],
+            serde_json::json!(true)
+        );
+        assert_eq!(
+            cfg["compilerOptions"]["tsBuildInfoFile"],
+            serde_json::json!("./tsgo.tsbuildinfo")
         );
 
         let _ = fs::remove_dir_all(&tmp);
