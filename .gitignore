@@ -37,6 +37,10 @@ target
 # release workflow; never committed)
 /apps/npm/fmt-*/rsvelte-fmt
 /apps/npm/fmt-*/rsvelte-fmt.exe
+# rsvelte-fmt native-direct install artifacts (written by `install.js` at
+# install time into the consumer's tree; never committed — but guard against a
+# local dev run of the postinstall clobbering the JS launcher / leaving a sidecar)
+/apps/npm/fmt/bin/rsvelte-fmt.runtime.json
 
 # Playwright MCP
 .playwright-mcp/

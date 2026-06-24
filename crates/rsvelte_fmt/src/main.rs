@@ -6,7 +6,7 @@ use std::ffi::OsStr;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use anyhow::{Context, Result, anyhow};
 use clap::Parser;
@@ -116,33 +116,84 @@ fn is_native_js(p: &Path) -> bool {
 /// oxfmt (which honors larger widths) to keep output byte-identical.
 const LINE_WIDTH_MAX: u16 = 320;
 
+/// The Node interpreter used to run a JS `oxfmt` launcher, resolved once.
+///
+/// Two entry points populate it, in priority order:
+///   1. The native-direct install path ([`run`] reads it from the
+///      `rsvelte-fmt.runtime.json` sidecar the npm `postinstall` writes next to
+///      the binary) calls [`set_oxfmt_node`].
+///   2. Otherwise [`oxfmt_node`] falls back to `RSVELTE_FMT_NODE` (set by the
+///      npm JS launcher when it spawns this binary).
+static OXFMT_NODE: OnceLock<Option<PathBuf>> = OnceLock::new();
+
+/// Record the Node interpreter for JS `oxfmt` launchers (from the install
+/// sidecar). Best-effort: a later call is ignored, which is fine — the value is
+/// set once at startup before any `oxfmt` invocation.
+fn set_oxfmt_node(node: Option<PathBuf>) {
+    let _ = OXFMT_NODE.set(node);
+}
+
+/// The Node interpreter to run a JS `oxfmt` launcher through, if any. Prefers
+/// the value recorded from the install sidecar, else `RSVELTE_FMT_NODE`.
+fn oxfmt_node() -> Option<PathBuf> {
+    if let Some(v) = OXFMT_NODE.get() {
+        return v.clone();
+    }
+    std::env::var_os("RSVELTE_FMT_NODE")
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+}
+
 /// Build a `Command` that runs `oxfmt`.
 ///
 /// The npm `@rsvelte/fmt` launcher resolves the consumer's `oxfmt/bin/oxfmt`
 /// Node launcher (an extensionless script with shebang `#!/usr/bin/env node`)
 /// and passes it via `--oxfmt-bin`, setting `RSVELTE_FMT_NODE` to the exact
-/// interpreter. Such a script isn't directly executable on Windows, so when
-/// `RSVELTE_FMT_NODE` is set we run the oxfmt path through that `node`. As a
-/// convenience for `cargo run` users who point `--oxfmt-bin` at a `.js` /
-/// `.cjs` / `.mjs` launcher without setting the env var, we also fall back to
-/// `node` on `$PATH` in that case. A plain native binary (the default `oxfmt`
-/// on `$PATH`, or any user-supplied path) is run directly.
+/// interpreter. When installed native-direct (the JS launcher replaced by this
+/// binary at `postinstall`), the same two values come from the
+/// `rsvelte-fmt.runtime.json` sidecar instead — see [`oxfmt_node`]. Such a
+/// script isn't directly executable on Windows, so when a Node interpreter is
+/// known we run the oxfmt path through it. As a convenience for `cargo run`
+/// users who point `--oxfmt-bin` at a `.js` / `.cjs` / `.mjs` launcher without
+/// providing an interpreter, we also fall back to `node` on `$PATH` in that
+/// case. A plain native binary (the default `oxfmt` on `$PATH`, or any
+/// user-supplied path) is run directly.
 fn oxfmt_command(oxfmt: &Path) -> Command {
-    let node_env = std::env::var_os("RSVELTE_FMT_NODE").filter(|v| !v.is_empty());
+    let node_env = oxfmt_node();
     let is_js_ext = matches!(
         oxfmt.extension().and_then(OsStr::to_str),
         Some("js" | "cjs" | "mjs")
     );
     if node_env.is_some() || is_js_ext {
-        let node = node_env
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("node"));
+        let node = node_env.unwrap_or_else(|| PathBuf::from("node"));
         let mut cmd = Command::new(node);
         cmd.arg(oxfmt);
         cmd
     } else {
         Command::new(oxfmt)
     }
+}
+
+/// Recover the consumer's `oxfmt` launcher + Node interpreter from the
+/// `rsvelte-fmt.runtime.json` sidecar the npm `postinstall` writes next to this
+/// binary when it installs native-direct (the JS launcher replaced by the
+/// platform binary). Returns `(oxfmt_bin, node)`; `None` when there is no
+/// sidecar or it doesn't name an `oxfmtBin` (then `oxfmt` is resolved on `$PATH`
+/// as usual). `node` may be `None` (oxfmt installed as a native binary).
+fn load_oxfmt_runtime_sidecar() -> Option<(PathBuf, Option<PathBuf>)> {
+    let exe = std::env::current_exe().ok()?;
+    let sidecar = exe.parent()?.join("rsvelte-fmt.runtime.json");
+    let bytes = std::fs::read(sidecar).ok()?;
+    let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    let oxfmt = value
+        .get("oxfmtBin")
+        .and_then(serde_json::Value::as_str)
+        .map(PathBuf::from)?;
+    let node = value
+        .get("node")
+        .and_then(serde_json::Value::as_str)
+        .map(PathBuf::from);
+    Some((oxfmt, node))
 }
 
 /// oxfmt exclude pattern that keeps `.svelte` files out of the delegated pass —
@@ -175,7 +226,26 @@ fn main() -> ExitCode {
 }
 
 fn run() -> Result<ExitCode> {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+
+    // Native-direct install: when not launched via the npm JS launcher (which
+    // passes `--oxfmt-bin` + `RSVELTE_FMT_NODE`) and the user didn't override
+    // `--oxfmt-bin`, recover the consumer's `oxfmt` launcher + Node interpreter
+    // from the `postinstall` sidecar written next to this binary. This is what
+    // lets the JS launcher be dropped from the hot path (#1177 follow-up): the
+    // platform binary runs directly, then finds oxfmt the same way the launcher
+    // would have.
+    let launched_via_js_launcher = std::env::var_os("RSVELTE_FMT_NODE")
+        .filter(|v| !v.is_empty())
+        .is_some();
+    let user_set_oxfmt_bin = cli.oxfmt_bin != Path::new("oxfmt");
+    if !launched_via_js_launcher
+        && !user_set_oxfmt_bin
+        && let Some((oxfmt_bin, node)) = load_oxfmt_runtime_sidecar()
+    {
+        cli.oxfmt_bin = oxfmt_bin;
+        set_oxfmt_node(node);
+    }
 
     // Resolve the project's `.oxfmtrc` once. Standalone files delegated to
     // `oxfmt` discover it themselves; we resolve it here so inline `<script>`

@@ -1,0 +1,80 @@
+#!/usr/bin/env node
+// Fallback launcher for the @rsvelte/fmt CLI.
+//
+// On a normal install the `postinstall` script (`install.js`) replaces THIS
+// file with a copy of the platform-native `rsvelte-fmt` binary, so the consumer
+// runs the native binary directly with no Node startup cost. This JS launcher
+// only runs when `postinstall` didn't (e.g. `--ignore-scripts`, or a package
+// manager that gates build scripts): it resolves the right
+// `@rsvelte/fmt-<triple>` binary and the consumer's `oxfmt`, then execs the
+// native binary — correct, just paying one Node cold start per invocation.
+
+const { spawnSync } = require('node:child_process');
+const {
+	platformPackage,
+	resolvePlatformBinary,
+	resolveOxfmtLauncher,
+	ensureExecutable,
+} = require('../lib/resolve.cjs');
+
+const binPath = resolvePlatformBinary();
+if (!binPath) {
+	const { triple, pkgName } = platformPackage();
+	if (!triple) {
+		console.error(
+			`[@rsvelte/fmt] Unsupported platform: ${process.platform}-${process.arch}.\n` +
+				`Open an issue at https://github.com/baseballyama/rsvelte/issues if you'd like this platform supported.`,
+		);
+	} else {
+		console.error(
+			`[@rsvelte/fmt] Couldn't find the platform binary "${pkgName}".\n` +
+				`This usually means npm/pnpm skipped the optional dependency for your platform.\n` +
+				`Try reinstalling: npm install --include=optional ${pkgName}`,
+		);
+	}
+	process.exit(1);
+}
+
+// `pnpm pack` normalises file modes to 0644, dropping the execute bit. Re-apply
+// +x best-effort right before spawn so the binary can actually run.
+ensureExecutable(binPath);
+
+const argv = process.argv.slice(2);
+const env = { ...process.env };
+
+// Resolve the consumer's `oxfmt` so `rsvelte-fmt` can delegate non-`.svelte`
+// files and `<style>` CSS bodies to it. We never pin a version. If the user
+// already passed `--oxfmt-bin`, leave argv untouched; if oxfmt isn't installed,
+// pass nothing — the native binary falls back to `oxfmt` on `$PATH`.
+const userSetOxfmtBin = argv.some(
+	(a) => a === '--oxfmt-bin' || a.startsWith('--oxfmt-bin='),
+);
+if (!userSetOxfmtBin) {
+	const oxfmtLauncher = resolveOxfmtLauncher();
+	if (oxfmtLauncher) {
+		argv.push('--oxfmt-bin', oxfmtLauncher);
+		env.RSVELTE_FMT_NODE = process.execPath;
+	}
+}
+
+const result = spawnSync(binPath, argv, {
+	stdio: 'inherit',
+	windowsHide: true,
+	env,
+});
+
+if (result.error) {
+	console.error(`[@rsvelte/fmt] Failed to exec ${binPath}: ${result.error.message}`);
+	process.exit(1);
+}
+
+// If the native binary was killed by a signal (e.g. SIGABRT from a Rust
+// panic), `result.status` is null and `result.signal` holds the signal name.
+// Returning `status ?? 0` would mask the crash as a clean exit 0; propagate
+// signal terminations as the conventional 128 + signal-number exit code.
+if (result.signal) {
+	const signum = require('node:os').constants.signals[result.signal];
+	console.error(`[@rsvelte/fmt] ${binPath} was terminated by ${result.signal}.`);
+	process.exit(typeof signum === 'number' ? 128 + signum : 1);
+}
+process.exit(result.status ?? 0);
