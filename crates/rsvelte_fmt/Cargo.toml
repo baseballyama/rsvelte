@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_fmt"
-version = "0.3.18"
+version = "0.3.19"
 edition = "2024"
 rust-version = "1.90"
 description = "Fast Svelte + JS/TS/CSS formatter — dispatches .svelte to rsvelte_formatter and other files to oxfmt"
