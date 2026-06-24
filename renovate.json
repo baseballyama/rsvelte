@@ -2,5 +2,14 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "description": "The oxc_* crates are redirected through [patch.crates-io] to a single pinned git rev so rsvelte's AST types unify with oxc_formatter's transitive deps. Renovate's per-crate git-digest PRs can never pass CI on their own: bumping one crate's rev leaves the lockfile with two distinct oxc revs and the Program<'a> types fail to unify. The whole stack must be moved together as a manual unified bump. Disable digest (git-rev) auto-updates for the oxc crates so these unmergeable PRs stop being opened; version updates (e.g. 0.137 -> 0.138) are still surfaced.",
+      "matchManagers": ["cargo"],
+      "matchPackageNames": ["/^oxc/"],
+      "matchUpdateTypes": ["digest"],
+      "enabled": false
+    }
   ]
 }
