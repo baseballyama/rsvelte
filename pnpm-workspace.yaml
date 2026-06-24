@@ -7,3 +7,12 @@ packages:
 allowBuilds:
   '@parcel/watcher': true
   esbuild: true
+# `svelte` and `vite` are first-party-tracked core deps that Renovate bumps the
+# moment upstream publishes. The CI runner's global `minimumReleaseAge` gate
+# then rejects the fresh lockfile entry until it ages out (~24h), red-flagging
+# `pnpm install` on every PR (and main) in the interim — see the
+# ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION on svelte@5.56.4 / vite@8.1.0. Exclude
+# them from the release-age gate; their upgrades are reviewed via Renovate PRs.
+minimumReleaseAgeExclude:
+  - svelte
+  - vite
