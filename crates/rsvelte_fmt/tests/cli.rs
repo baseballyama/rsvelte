@@ -608,6 +608,183 @@ fn check_excludes_svelte_via_prettierignore() {
     assert_eq!(out.status.code(), Some(1));
 }
 
+// ─── Batched `<style>` re-indentation + per-width parity (#1166) ──────────
+
+/// An identity fake oxfmt: in `<style>` staging mode it leaves the (already
+/// dedented) bodies untouched, and in the stdin per-block mode it copies stdin
+/// to stdout verbatim. This isolates the *re-embedding* (re-indent + trailing
+/// newline handling) the dispatcher does around oxfmt, so the batch (`--write`)
+/// path and the single-block (`--stdin`) path must produce identical output.
+const IDENTITY_OXFMT: &str = r#"const fs = require('node:fs');
+const path = require('node:path');
+const args = process.argv.slice(2);
+// Mimic the surrounding-whitespace normalization a real CSS formatter applies:
+// strip a leading blank line and trailing whitespace, end with one newline. The
+// dispatcher hands oxfmt the *dedented* body (which has a leading empty line from
+// the newline after `<style>`); a real oxfmt drops it, so identity must too.
+const norm = (s) => s.replace(/^[ \t]*\n/, '').replace(/\s+$/, '') + '\n';
+if (args.includes('--stdin-filepath')) {
+  process.stdout.write(norm(fs.readFileSync(0, 'utf8')));
+} else {
+  for (const p of args) {
+    if (p.startsWith('-') || p.startsWith('!')) continue;
+    let st; try { st = fs.statSync(p); } catch { continue; }
+    if (st.isFile() && !p.endsWith('.json')) fs.writeFileSync(p, norm(fs.readFileSync(p, 'utf8')));
+    else if (st.isDirectory() && path.basename(p).startsWith('rsvelte-fmt-styles-')) {
+      for (const e of fs.readdirSync(p)) { const fp = path.join(p, e); if (fs.statSync(fp).isFile()) fs.writeFileSync(fp, norm(fs.readFileSync(fp, 'utf8'))); }
+    }
+  }
+}
+"#;
+
+/// Regression: the batched `--write` path must re-indent a multi-line `<style>`
+/// body one level under the tag — not leave lines 2..N at column 0 with a stray
+/// blank line before `</style>` (the bug behind ~33% of a real corpus diverging).
+#[test]
+fn write_path_reindents_multiline_style_body() {
+    let dir = tempdir();
+    let fake = dir.join("identity-oxfmt.cjs");
+    std::fs::write(&fake, IDENTITY_OXFMT).unwrap();
+
+    let file = dir.join("C.svelte");
+    std::fs::write(
+        &file,
+        "<div>x</div>\n\n<style>\n  .a {\n    color: red;\n    background: blue;\n  }\n</style>\n",
+    )
+    .unwrap();
+
+    let status = Command::new(bin())
+        .args([
+            file.to_str().unwrap(),
+            "--write",
+            "--no-style-cache",
+            "--oxfmt-bin",
+            fake.to_str().unwrap(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success(), "exit code: {:?}", status.code());
+
+    let out = std::fs::read_to_string(&file).unwrap();
+    let want =
+        "<div>x</div>\n\n<style>\n  .a {\n    color: red;\n    background: blue;\n  }\n</style>\n";
+    assert_eq!(
+        out, want,
+        "style body not re-indented under the tag:\n{out}"
+    );
+}
+
+/// The batched `--write` path and the single-block `--stdin` path must be
+/// byte-identical for the same `<style>` file: both dedent the body, run it
+/// through oxfmt, and re-embed with the same re-indentation.
+#[test]
+fn write_and_stdin_paths_agree_on_style() {
+    let dir = tempdir();
+    let fake = dir.join("identity-oxfmt.cjs");
+    std::fs::write(&fake, IDENTITY_OXFMT).unwrap();
+
+    let src = "<section>\n  <p>hi</p>\n</section>\n\n<style>\n  .a {\n    color: red;\n  }\n\n  .b > .c {\n    margin: 0;\n  }\n</style>\n";
+
+    // stdin path → stdout
+    let (stdout, _stderr, code) = run_stdin(
+        src,
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            "x.svelte",
+            "--oxfmt-bin",
+            fake.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "stdin path failed");
+
+    // write path → file
+    let file = dir.join("x.svelte");
+    std::fs::write(&file, src).unwrap();
+    let status = Command::new(bin())
+        .args([
+            file.to_str().unwrap(),
+            "--write",
+            "--no-style-cache",
+            "--oxfmt-bin",
+            fake.to_str().unwrap(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let written = std::fs::read_to_string(&file).unwrap();
+
+    assert_eq!(written, stdout, "write and stdin paths diverged");
+}
+
+/// Each `<style>` block must be formatted at its own print width (global width
+/// minus its indentation), so a top-level block and a deeper nested block reach
+/// oxfmt with *different* `printWidth` configs — even when batched together.
+/// A fake oxfmt stamps the `printWidth` it was handed via `-c`.
+#[test]
+fn batched_styles_format_at_per_block_width() {
+    let dir = tempdir();
+    let fake = dir.join("width-oxfmt.cjs");
+    std::fs::write(
+        &fake,
+        r#"const fs = require('node:fs');
+const path = require('node:path');
+const args = process.argv.slice(2);
+let width = '?';
+const ci = args.indexOf('-c');
+if (ci >= 0 && args[ci + 1]) {
+  try { const j = JSON.parse(fs.readFileSync(args[ci + 1], 'utf8')); if (j.printWidth != null) width = String(j.printWidth); } catch {}
+}
+function stamp(p) { fs.writeFileSync(p, `/*W=${width}*/ ` + fs.readFileSync(p, 'utf8')); }
+for (const p of args) {
+  if (p.startsWith('-') || p.startsWith('!')) continue;
+  let st; try { st = fs.statSync(p); } catch { continue; }
+  if (st.isFile() && !p.endsWith('.json')) stamp(p);
+  else if (st.isDirectory() && path.basename(p).startsWith('rsvelte-fmt-styles-')) {
+    for (const e of fs.readdirSync(p)) { const fp = path.join(p, e); if (fs.statSync(fp).isFile()) stamp(fp); }
+  }
+}
+"#,
+    )
+    .unwrap();
+
+    // Top-level <style> renders at body indent 2 (width 100-2=98); the nested
+    // <style> inside <div> renders deeper at body indent 4 (width 100-4=96).
+    let file = dir.join("W.svelte");
+    std::fs::write(
+        &file,
+        "<div>\n  <style>.x {\n    color: red;\n  }</style>\n</div>\n\n<style>.y {\n  color: blue;\n}</style>\n",
+    )
+    .unwrap();
+
+    let status = Command::new(bin())
+        .args([
+            file.to_str().unwrap(),
+            "--write",
+            "--no-style-cache",
+            "--print-width",
+            "100",
+            "--oxfmt-bin",
+            fake.to_str().unwrap(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success(), "exit code: {:?}", status.code());
+
+    let out = std::fs::read_to_string(&file).unwrap();
+    assert!(
+        out.contains("/*W=98*/"),
+        "top-level block width wrong:\n{out}"
+    );
+    assert!(out.contains("/*W=96*/"), "nested block width wrong:\n{out}");
+}
+
 fn tempdir() -> PathBuf {
     let mut dir = std::env::temp_dir();
     dir.push(format!(

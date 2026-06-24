@@ -264,8 +264,13 @@ fn dedent(s: &str) -> String {
 
 /// Prefix every non-empty line of `s` with `indent`, dropping any trailing
 /// newline (the splice adds its own surrounding newlines). Lines inside a
-/// multi-line `/* … */` comment are left verbatim (see [`dedent`]).
-fn reindent(s: &str, indent: &str) -> String {
+/// multi-line `/* … */` comment are left verbatim (the inverse of `dedent`).
+///
+/// Exposed for the `rsvelte-fmt` CLI: its batched `<style>` path collects raw
+/// bodies during the format pass (returning a placeholder) and formats them in
+/// one oxfmt call afterwards, so it must re-indent the formatted CSS with the
+/// *same* routine the single-file/stdin path uses here to stay byte-identical.
+pub fn reindent(s: &str, indent: &str) -> String {
     let trimmed = s.trim_end_matches('\n');
     let cont = comment_continuation_flags(trimmed);
     let mut out = Vec::new();
