@@ -41,3 +41,26 @@ fn cjk_width_wrap_is_idempotent() {
         "CJK width-driven wrap is not idempotent:\n{once}"
     );
 }
+
+#[test]
+fn class_directive_value_breaks_narrowed_by_its_prefix() {
+    // Once the open tag wraps, a `class:NAME={EXPR}` whose full line overflows
+    // must break its value where prettier does — the value's wrap budget is
+    // narrowed by the `class:NAME=` prefix, matching `style:` / `on:` / `use:`
+    // (#795). Without that, the value's own width check (indent only) keeps the
+    // 107-column line flat past the 100-column print width.
+    let src = "<div\n  role=\"button\"\n  class:template-option-selected={selectedUserDefinedId === templateOption.customPageUserDefinedIdentifier}\n></div>\n";
+    let want = "<div\n  role=\"button\"\n  class:template-option-selected={selectedUserDefinedId ===\n    templateOption.customPageUserDefinedIdentifier}\n></div>\n";
+    assert_eq!(
+        fmt(src),
+        want,
+        "class directive value not narrowed by prefix"
+    );
+}
+
+#[test]
+fn class_directive_value_that_fits_stays_flat() {
+    // A `class:NAME={EXPR}` whose full line fits the print width must NOT break.
+    let src = "<div class:active={isActive}></div>\n";
+    assert_eq!(fmt(src), src, "short class directive should not wrap");
+}

@@ -36,7 +36,8 @@ fn comment_glued_to_style_keeps_no_blank_between_comment_and_style() {
     // *before* the comment, not between it and `<style>`. Regression for the
     // section-reorder pass treating the whole markup gap (incl. the trailing
     // comment) as one unit and inserting a blank before `<style>` (#1166).
-    let src = "<div>x</div>\n\n<!-- keep me glued -->\n<style>\n  .a {\n    color: red;\n  }\n</style>\n";
+    let src =
+        "<div>x</div>\n\n<!-- keep me glued -->\n<style>\n  .a {\n    color: red;\n  }\n</style>\n";
     assert_eq!(fmt(src), src);
 }
 
