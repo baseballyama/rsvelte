@@ -1,5 +1,57 @@
 # @rsvelte/svelte-check
 
+## 0.3.1
+
+### Patch Changes
+
+- 620f0dd: svelte-check: resolve tsconfig-alias `.svelte` imports (e.g. `$lib/Foo.svelte`)
+  to their shadow `.tsx` so type-checking sees the real component type.
+
+  The overlay bridges each `.svelte` source to its generated shadow `.tsx` via
+  `rootDirs`, but TypeScript applies `rootDirs` only to **relative** specifiers —
+  an aliased import (`import X from '$lib/Foo.svelte'`) is resolved through
+  `paths` and lands on the raw source `.svelte`, where no `.tsx` shadow exists.
+  The component therefore resolved to `any` (every callback prop became a
+  spurious `TS7006` implicit-any) or, when a sibling `Foo.svelte.ts` companion
+  existed, to the companion (spurious `TS1192` "no default export").
+
+  Each generated shadow's non-relative `.svelte` import is now pre-resolved with
+  `oxc_resolver` (which honours the project tsconfig `paths`/`baseUrl`/`extends`)
+  and rewritten to a concrete relative path at the target's shadow `.tsx`, so the
+  backing TypeScript compiler resolves it directly — matching what official
+  svelte-check achieves with its in-memory `resolveModuleNames` hook. On a large
+  SvelteKit app this dropped reported errors from 140 to 43 (the remainder are
+  unrelated SvelteKit route-load typing and companion-module edges).
+
+- fe16df5: svelte-check: scope reported diagnostics to the checked workspace, matching
+  official svelte-check, eliminating two classes of false positives.
+
+  - **Cross-package source files.** In a monorepo a sibling package pulled in
+    transitively (e.g. `packages/design-system/...` resolved through a workspace
+    symlink) is that package's own concern — official svelte-check only reports
+    the invoked workspace's documents. rsvelte was surfacing the sibling's
+    internal diagnostics (such as a `Foo.svelte` + `Foo.svelte.ts` companion's
+    no-default-export edge) in every consumer's report. Diagnostics whose file
+    lives outside the workspace root are now dropped; use-site errors in the
+    workspace are unaffected.
+  - **Raw SvelteKit route files.** A `+layout.ts` / `+page.ts` is a program root
+    and was type-checked WITHOUT rsvelte's kit injection (which wraps `load` in
+    `(…) satisfies …Load` so its destructured event is typed), producing false
+    `implicit-any` on un-annotated `load` params. The injected mirror under
+    `<cache>/svelte/…` is the authoritative version, so the raw source route
+    file's pre-injection diagnostics are now dropped.
+
+  It also always pairs the workspace source root with the `<cache>/svelte` shadow
+  mirror in `rootDirs` (previously the fallback, used when a project declares no
+  `rootDirs` of its own, omitted it). Without the pairing a plain `.ts` /
+  `.svelte.ts` source file importing `./Foo.svelte` resolved to nothing (`any`),
+  silently degrading `ComponentProps<typeof Foo>` to `any`.
+
+  Together with the alias-import resolution fix, this takes a large SvelteKit app
+  from 140 reported errors to 25 (the remainder are deeper cross-package
+  ext-mirror `ComponentProps` typing and discriminated-union narrowing
+  divergences).
+
 ## 0.3.0
 
 ### Minor Changes
