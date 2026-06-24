@@ -1,5 +1,54 @@
 # @rsvelte/svelte-check
 
+## 0.3.2
+
+### Patch Changes
+
+- 108ee1d: svelte-check: resolve an external package's `.svelte` shadow imports from the
+  package's own `node_modules`.
+
+  A monorepo sibling's `.svelte` shadows are emitted under `<cache>/ext/<n>/`.
+  Their bare-package imports (`import type { SortableOptions } from 'sortablejs'`,
+  including the matching `@types/*` declarations) were resolved by walking up to
+  the _workspace_ `node_modules`, missing any dependency present only in the
+  external package's own tree — the imported type silently became `any`, which
+  poisoned `ComponentProps<typeof Foo>` in every consumer (callback props turned
+  into spurious implicit-any).
+
+  The shadow dir now symlinks `<mirror>/node_modules` → `<real-pkg>/node_modules`,
+  so bare imports resolve from the same context as in-place checking — no
+  specifier rewriting, `@types` resolution intact. On a large SvelteKit app this
+  cleared the cross-package `ComponentProps` cluster (25 → 10 reported errors).
+
+- 108ee1d: svelte-check: scope reported diagnostics to the checked workspace, matching
+  official svelte-check, eliminating two classes of false positives.
+
+  - **Cross-package source files.** In a monorepo a sibling package pulled in
+    transitively (e.g. `packages/design-system/...` resolved through a workspace
+    symlink) is that package's own concern — official svelte-check only reports
+    the invoked workspace's documents. rsvelte was surfacing the sibling's
+    internal diagnostics (such as a `Foo.svelte` + `Foo.svelte.ts` companion's
+    no-default-export edge) in every consumer's report. Diagnostics whose file
+    lives outside the workspace root are now dropped; use-site errors in the
+    workspace are unaffected.
+  - **Raw SvelteKit route files.** A `+layout.ts` / `+page.ts` is a program root
+    and was type-checked WITHOUT rsvelte's kit injection (which wraps `load` in
+    `(…) satisfies …Load` so its destructured event is typed), producing false
+    `implicit-any` on un-annotated `load` params. The injected mirror under
+    `<cache>/svelte/…` is the authoritative version, so the raw source route
+    file's pre-injection diagnostics are now dropped.
+
+  It also always pairs the workspace source root with the `<cache>/svelte` shadow
+  mirror in `rootDirs` (previously the fallback, used when a project declares no
+  `rootDirs` of its own, omitted it). Without the pairing a plain `.ts` /
+  `.svelte.ts` source file importing `./Foo.svelte` resolved to nothing (`any`),
+  silently degrading `ComponentProps<typeof Foo>` to `any`.
+
+  Together with the alias-import resolution fix, this takes a large SvelteKit app
+  from 140 reported errors to 25 (the remainder are deeper cross-package
+  ext-mirror `ComponentProps` typing and discriminated-union narrowing
+  divergences).
+
 ## 0.3.1
 
 ### Patch Changes
