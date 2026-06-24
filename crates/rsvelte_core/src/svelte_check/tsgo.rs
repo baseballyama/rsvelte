@@ -63,12 +63,16 @@ pub struct TsgoBinary {
 /// that the search order depends on `prefer_tsgo`:
 ///   * `prefer_tsgo == false` (the default, `rsvelte-check` without
 ///     `--tsgo`) — prefer the stock `tsc`, falling back to `tsgo`:
-///       1. `<workspace>/node_modules/.bin/tsc`, then `…/tsgo`
+///       1. `node_modules/.bin/tsc` in `workspace` or any ancestor, then `…/tsgo`
 ///       2. Globally on `$PATH`: `tsc`, then `tsgo`.
 ///   * `prefer_tsgo == true` (`rsvelte-check --tsgo`) — prefer
 ///     Microsoft's native `tsgo`, falling back to `tsc`:
-///       1. `<workspace>/node_modules/.bin/tsgo`, then `…/tsc`
+///       1. `node_modules/.bin/tsgo` in `workspace` or any ancestor, then `…/tsc`
 ///       2. Globally on `$PATH`: `tsgo`, then `tsc`.
+///
+/// Each name is searched across the full ancestor chain before the next,
+/// so a workspace-hoisted `tsgo` (pnpm puts it at the monorepo root, not in
+/// a deeply-nested package) still wins over a locally-resolvable `tsc`.
 pub fn find_compiler(workspace: &Path, prefer_tsgo: bool) -> Result<TsgoBinary, TsgoError> {
     if let Ok(explicit) = std::env::var("TSGO_BIN")
         && !explicit.is_empty()
@@ -84,14 +88,25 @@ pub fn find_compiler(workspace: &Path, prefer_tsgo: bool) -> Result<TsgoBinary, 
     } else {
         ["tsc", "tsgo"]
     };
-    // 1. Local `node_modules/.bin`, in preference order.
+    // 1. `node_modules/.bin` in `workspace` AND every ancestor directory,
+    //    in preference order. pnpm (and npm/yarn workspaces) hoist workspace
+    //    binaries to the repo-root `node_modules/.bin`, so a package nested
+    //    several levels deep (e.g. `apps/foo/frontend/app`) usually has NO
+    //    local `.bin/tsgo` — only the monorepo root does. Walking each name
+    //    across all ancestors before moving to the fallback means a hoisted
+    //    `tsgo` is still preferred over a locally-resolvable `tsc`; without
+    //    this, `--tsgo` silently ran `tsc` (≈3-4x slower) in monorepos.
     for name in names {
-        let path = workspace.join("node_modules/.bin").join(name);
-        if path.exists() {
-            return Ok(TsgoBinary {
-                program: path.display().to_string(),
-                args_prefix: Vec::new(),
-            });
+        let mut dir: Option<&Path> = Some(workspace);
+        while let Some(d) = dir {
+            let path = d.join("node_modules/.bin").join(name);
+            if path.exists() {
+                return Ok(TsgoBinary {
+                    program: path.display().to_string(),
+                    args_prefix: Vec::new(),
+                });
+            }
+            dir = d.parent();
         }
     }
     // 2. Global `$PATH`, in preference order.
@@ -231,6 +246,43 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn find_compiler_walks_up_to_hoisted_monorepo_bin() {
+        if std::env::var_os("TSGO_BIN").is_some() {
+            eprintln!("skip: TSGO_BIN is set in the environment");
+            return;
+        }
+        // Monorepo layout: `tsgo` hoisted to the repo root, only `tsc`
+        // resolvable from the nested package — `--tsgo` must still pick the
+        // hoisted `tsgo` (regression for the silent tsc fallback).
+        let root =
+            std::env::temp_dir().join(format!("rsvelte_find_compiler_mono_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let root_bin = root.join("node_modules/.bin");
+        let pkg = root.join("apps/foo/frontend/app");
+        let pkg_bin = pkg.join("node_modules/.bin");
+        std::fs::create_dir_all(&root_bin).unwrap();
+        std::fs::create_dir_all(&pkg_bin).unwrap();
+        std::fs::write(root_bin.join("tsgo"), "").unwrap();
+        std::fs::write(pkg_bin.join("tsc"), "").unwrap();
+
+        let found = find_compiler(&pkg, true).expect("tsgo found via ancestor");
+        assert!(
+            found.program.ends_with("tsgo"),
+            "hoisted tsgo must win over a nested tsc, got {}",
+            found.program
+        );
+        assert!(
+            found
+                .program
+                .contains(&root.join("node_modules").display().to_string()),
+            "tsgo must resolve from the root, got {}",
+            found.program
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
