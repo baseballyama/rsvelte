@@ -63,6 +63,60 @@ pub fn is_syntactic_ts_code(code: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// svelte2tsx wraps the synthesised helper code it emits for type-checking
+/// (e.g. a `bind:value` reverse-assignment `() => x.y = …`, cast shims) in
+/// `/*Ωignore_startΩ*/ … /*Ωignore_endΩ*/`. Diagnostics landing inside such a
+/// region are artefacts of the generated TSX, not user errors — official
+/// svelte-check drops them (`isInGeneratedCode`). We mirror that exactly.
+const IGNORE_START_COMMENT: &str = "/*Ωignore_startΩ*/";
+const IGNORE_END_COMMENT: &str = "/*Ωignore_endΩ*/";
+
+/// `str.lastIndexOf(needle, from)` — last occurrence starting at or before
+/// byte index `from`, or `-1`.
+fn last_index_of(text: &str, needle: &str, from: usize) -> isize {
+    // `match_indices` yields in increasing order, so the last one at or before
+    // `from` is the answer (string searchers aren't reversible).
+    text.match_indices(needle)
+        .take_while(|(i, _)| *i <= from)
+        .last()
+        .map(|(i, _)| i as isize)
+        .unwrap_or(-1)
+}
+
+/// `str.indexOf(needle, from)` — first occurrence at or after byte index
+/// `from`, or `-1`.
+fn index_of_from(text: &str, needle: &str, from: usize) -> isize {
+    let from = from.min(text.len());
+    text[from..]
+        .find(needle)
+        .map(|i| (i + from) as isize)
+        .unwrap_or(-1)
+}
+
+/// Port of svelte-check's `isInGeneratedCode`: is the `[start, end)` span
+/// inside a `/*Ωignore_startΩ*/ … /*Ωignore_endΩ*/` region?
+fn is_in_generated_code(text: &str, start: usize, end: usize) -> bool {
+    let last_start = last_index_of(text, IGNORE_START_COMMENT, start);
+    let last_end = last_index_of(text, IGNORE_END_COMMENT, start);
+    let next_end = index_of_from(text, IGNORE_END_COMMENT, end);
+    (last_start > last_end || last_end == next_end) && last_start < next_end
+}
+
+/// Byte offset of a 1-indexed (line, column) position. `column` is treated as
+/// a byte column; only used to test ignore-region membership, where the few
+/// multi-byte chars that precede an ASCII identifier on a line can nudge the
+/// offset slightly without crossing a region boundary.
+fn line_col_to_byte_offset(text: &str, line: usize, column: usize) -> usize {
+    let mut offset = 0usize;
+    for (idx, l) in text.split_inclusive('\n').enumerate() {
+        if idx + 1 == line {
+            return (offset + column.saturating_sub(1)).min(offset + l.len());
+        }
+        offset += l.len();
+    }
+    text.len()
+}
+
 /// Result of mapping a tsgo diagnostic stream back to `.svelte` source.
 pub struct MappedTsDiagnostics {
     /// Diagnostics with `file` / `range` pointing at the original source.
@@ -142,6 +196,9 @@ pub fn map_tsgo_diagnostics(
     let ext_root = overlay.cache_dir.join("ext");
     let ext_root_canon = ext_root.canonicalize().unwrap_or_else(|_| ext_root.clone());
     let mut maps: HashMap<PathBuf, EntryMap> = HashMap::new();
+    // Generated `.tsx` text per shadow, read on demand to test whether a
+    // diagnostic falls inside a svelte2tsx `Ωignore` region.
+    let mut tsx_texts: HashMap<PathBuf, String> = HashMap::new();
     let mut out: Vec<Diagnostic> = Vec::with_capacity(raw.len());
     // `.svelte` sources whose generated overlay produced a TS1xxx syntax
     // diagnostic, in first-seen order (deduped). Recorded regardless of
@@ -183,6 +240,16 @@ pub fn map_tsgo_diagnostics(
             .or_else(|| by_tsx.get(&absolute).copied())
             .or_else(|| by_tsx.get(&diag.file).copied());
         if let Some(entry) = entry_match {
+            // Drop diagnostics inside svelte2tsx `Ωignore` regions (synthesised
+            // helper code such as `bind:value` reverse-assignments) — official
+            // svelte-check's `isInGeneratedCode`. These are not user errors.
+            let tsx_text = tsx_texts
+                .entry(entry.tsx_path.clone())
+                .or_insert_with(|| std::fs::read_to_string(&entry.tsx_path).unwrap_or_default());
+            let off = line_col_to_byte_offset(tsx_text, diag.line as usize, diag.column as usize);
+            if is_in_generated_code(tsx_text, off, off) {
+                continue;
+            }
             // A syntax error in this generated `.tsx` overlay taints the
             // whole program's semantic checking — record its `.svelte`
             // source so the runner can surface it loudly.
@@ -417,6 +484,27 @@ mod tests {
         for code in ["TS2322", "TS2304", "TS6133", "TS7006", "TS18047"] {
             assert!(!is_syntactic_ts_code(code), "{code} should be semantic");
         }
+    }
+
+    #[test]
+    fn is_in_generated_code_matches_ignore_regions() {
+        let t = "abc/*Ωignore_startΩ*/HIDDEN/*Ωignore_endΩ*/def";
+        let hidden = t.find("HIDDEN").unwrap();
+        let abc = t.find("abc").unwrap();
+        let def = t.find("def").unwrap();
+        assert!(is_in_generated_code(t, hidden, hidden + 6), "inside region");
+        assert!(!is_in_generated_code(t, abc, abc + 3), "before region");
+        assert!(!is_in_generated_code(t, def, def + 3), "after region");
+        // No markers at all → never generated.
+        assert!(!is_in_generated_code("plain text", 2, 4));
+    }
+
+    #[test]
+    fn line_col_to_byte_offset_handles_lines() {
+        let t = "ab\ncde\nfg";
+        assert_eq!(line_col_to_byte_offset(t, 1, 1), 0);
+        assert_eq!(line_col_to_byte_offset(t, 2, 2), 4); // 'd'
+        assert_eq!(line_col_to_byte_offset(t, 3, 1), 7); // 'f'
     }
 
     #[test]
