@@ -1,5 +1,61 @@
 # @rsvelte/fmt
 
+## 0.3.19
+
+### Patch Changes
+
+- ebe80fa: fmt: ship the CLI as a native-direct binary, dropping the Node launcher from the
+  hot path. A `postinstall` step now copies the platform-native `rsvelte-fmt`
+  binary over the package's `bin/rsvelte-fmt`, so the package manager's
+  `.bin/rsvelte-fmt` runs the binary directly — no per-invocation Node cold start
+  (~200ms measured). The consumer's `oxfmt` launcher + Node interpreter, which the
+  JS launcher used to pass via `--oxfmt-bin` / `RSVELTE_FMT_NODE`, are written to a
+  `rsvelte-fmt.runtime.json` sidecar at install time and read by the binary.
+
+  The JS launcher is kept as a fallback for when `postinstall` doesn't run
+  (`--ignore-scripts`, package managers that gate build scripts, or Windows, which
+  stays on the launcher) — same behavior as before, just slower. Output is
+  unchanged (same formatter engine); this is purely a distribution/startup change.
+
+  Consumers that gate install scripts (e.g. pnpm's `onlyBuiltDependencies`) should
+  allow `@rsvelte/fmt` to get the native-direct speedup; otherwise the fallback
+  launcher is used.
+
+- 2e87e1c: fmt: format `.ts`/`.js` files in-process via `oxc_formatter` instead of
+  delegating them to an `oxfmt` subprocess. It's the same engine `oxfmt` uses for
+  these files, so the output is byte-identical (verified 1496/1496 on a real-world
+  corpus), while skipping the per-invocation `oxfmt` Node startup. CSS / Markdown /
+  YAML / JSON stay delegated to `oxfmt` (those are a separate, prettier-based
+  engine).
+
+  `.oxfmtrc` `overrides` are now parsed and resolved per file, so each file is
+  formatted at the same options `oxfmt` would apply. An override `printWidth`
+  larger than `oxc_formatter` can represent (320) — e.g. a "never wrap" `1000` — is
+  delegated to `oxfmt` (which honors it) to stay byte-identical. Files `oxc` can't
+  parse fall back to `oxfmt`, so coverage never regresses, and `--no-native-js` is
+  an escape hatch.
+
+- b1b9f02: fmt: format inline `<style>` blocks through a warm oxfmt daemon (POSIX) instead
+  of spawning `oxfmt` per block. Spawning paid a Node cold start (~370ms measured)
+  every time a changed `<style>` block was re-formatted — the dominant cost of
+  format-on-save once `.svelte`/`.ts`/`.js` moved in-process. A long-lived daemon
+  (`daemon.mjs`, shipped in the package) keeps oxfmt loaded; the binary connects
+  over a Unix socket and gets each block back in ~ms (~370ms → ~5ms warm).
+
+  The daemon is deliberately "dumb": the Rust side resolves the per-block oxfmt
+  options (base `.oxfmtrc` + the block's print width) and sends them inline, so the
+  daemon never reads config files or applies `overrides` — its output is
+  byte-identical to the spawn path (verified 555/555 on a real-world `.svelte`
+  corpus, daemon vs spawn). Any failure (no Node, no bundle, connect/spawn/protocol
+  error) falls back to spawning `oxfmt`, so correctness never depends on it; Windows
+  stays on the spawn path. `RSVELTE_FMT_NO_DAEMON=1` forces the spawn path.
+
+  The daemon is version-keyed by oxfmt fingerprint + protocol version (an oxfmt
+  upgrade starts a fresh one), idle-exits after 60s, and handles concurrent
+  invocations (e.g. `pnpm -r`) on one instance. Directory delegation stays a single
+  `oxfmt` invocation — oxfmt already parallelizes its own directory walk there, so
+  routing it per-file through the daemon would be slower, not faster.
+
 ## 0.3.18
 
 ### Patch Changes
