@@ -19,8 +19,8 @@ npm install -D @rsvelte/fmt
 # yarn add -D @rsvelte/fmt
 ```
 
-The package ships a small loader that resolves the right prebuilt native binary
-for your platform via `optionalDependencies`. Supported targets:
+The package resolves the right prebuilt native binary for your platform via
+`optionalDependencies`. Supported targets:
 
 | OS | Architecture |
 |---|---|
@@ -29,6 +29,24 @@ for your platform via `optionalDependencies`. Supported targets:
 | Windows | x64 (MSVC) |
 
 If your platform isn't listed, please [open an issue](https://github.com/baseballyama/rsvelte/issues).
+
+### Native-direct binary (no Node startup)
+
+On install, a `postinstall` step swaps in the platform-native binary as the
+CLI's `bin`, so `rsvelte-fmt` runs directly with no per-invocation Node cold
+start — the biggest cost for format-on-save. It also records your `oxfmt` +
+Node paths in a sidecar the binary reads at runtime.
+
+If your package manager **gates install scripts** (e.g. pnpm's
+`onlyBuiltDependencies`), allow `@rsvelte/fmt` so this step runs:
+
+```jsonc
+// package.json (pnpm)
+"pnpm": { "onlyBuiltDependencies": ["@rsvelte/fmt"] }
+```
+
+Without it (or with `--ignore-scripts`, or on Windows) a small Node launcher is
+used instead — identical output, just a little slower to start.
 
 ### oxfmt (optional, bring-your-own version)
 

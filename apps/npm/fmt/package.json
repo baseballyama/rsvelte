@@ -22,10 +22,15 @@
     "rust"
   ],
   "bin": {
-    "rsvelte-fmt": "bin/rsvelte-fmt.cjs"
+    "rsvelte-fmt": "bin/rsvelte-fmt"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
   },
   "files": [
-    "bin/rsvelte-fmt.cjs"
+    "bin/rsvelte-fmt",
+    "install.js",
+    "lib/resolve.cjs"
   ],
   "optionalDependencies": {
     "@rsvelte/fmt-darwin-arm64": "workspace:^",
