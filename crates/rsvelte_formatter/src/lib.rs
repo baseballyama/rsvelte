@@ -17,6 +17,7 @@ mod doc;
 mod error;
 mod expression;
 mod indent;
+mod json;
 mod markup;
 mod options;
 mod prettier_ignore;
@@ -26,6 +27,7 @@ mod sort_order;
 mod style;
 
 pub use error::FormatError;
+pub use json::{JsonVariant, format_json_source};
 pub use options::{FormatOptions, StyleFormatter};
 pub use script::format_js_source;
 pub use style::reindent;
@@ -33,6 +35,7 @@ pub use style::reindent;
 // Re-exports so consumers don't need to depend on `oxc_formatter` directly.
 pub use oxc_formatter::JsFormatOptions;
 pub use oxc_formatter_core::{IndentStyle, IndentWidth, LineWidth};
+pub use oxc_formatter_json::JsonFormatOptions;
 
 use rsvelte_core::{ParseOptions, parse};
 

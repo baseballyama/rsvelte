@@ -1699,6 +1699,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxc_formatter_json"
+version = "0.56.0"
+source = "git+https://github.com/oxc-project/oxc?rev=7537c582e090181244450aa4a9797c4264a84180#7537c582e090181244450aa4a9797c4264a84180"
+dependencies = [
+ "dragonbox_ecma",
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_diagnostics",
+ "oxc_formatter_core",
+ "oxc_parser",
+ "oxc_span",
+ "oxc_syntax",
+]
+
+[[package]]
 name = "oxc_index"
 version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2260,6 +2275,7 @@ dependencies = [
  "oxc_ast",
  "oxc_formatter",
  "oxc_formatter_core",
+ "oxc_formatter_json",
  "oxc_parser",
  "oxc_span",
  "rsvelte_core",
