@@ -603,9 +603,121 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     let runes_mode = options.runes.unwrap_or(analysis.runes);
 
     // Phase 3: Transform (pass AST to avoid re-parsing)
-    let mut transform_result =
+    let transform_result =
         phases::phase3_transform::transform_component(&analysis, &ast, source, &options)?;
 
+    Ok(finalize_compile_result(
+        transform_result,
+        &analysis,
+        source,
+        &options,
+        runes_mode,
+    ))
+}
+
+/// Compile a single component to **both** client (CSR) and server (SSR) output in
+/// one call, sharing one parse + analyze pass between the two transforms.
+///
+/// This is the mold-linker P5 principle ("never reprocess data you already hold")
+/// applied structurally. A dual-output build (e.g. Vite/SvelteKit SSR) otherwise
+/// calls [`compile`] twice and re-parses + re-analyzes the same source each time —
+/// and analyze alone is ~half of a compile. `analyze_component` is deterministic
+/// and does not depend on `generate` mode, and `transform_component` borrows the
+/// AST + analysis immutably, so running both transforms over a single shared
+/// analysis yields byte-identical output to two separate [`compile`] calls while
+/// doing the parse + analyze work only once.
+///
+/// `options.generate` is ignored; the returned tuple is `(client, server)`.
+pub fn compile_both(
+    source: &str,
+    options: CompileOptions,
+) -> Result<(CompileResult, CompileResult), CompileError> {
+    // Phase 1: Parse (identical to `compile`).
+    let parse_options = crate::ParseOptions {
+        modern: true,
+        loose: false,
+        skip_expression_loc: true,
+        defer_script_parse: true,
+        force_typescript: false,
+        lenient_script: false,
+    };
+    let mut ast = phases::phase1_parse::parse(source, parse_options)?;
+
+    // SAFETY: `ast.arena` lives until the end of this function (see `compile`).
+    let _arena_guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
+
+    if let Some(parse_err) =
+        phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(&mut ast, source)
+    {
+        return Err(parse_err.into());
+    }
+
+    {
+        let line_offsets = phases::phase1_parse::compute_line_offsets(source, false);
+        if let Some(ref mut instance) = ast.instance
+            && let Some(parse_err) = phases::phase1_parse::read::script::ensure_script_parsed(
+                &ast.arena,
+                instance,
+                source,
+                &line_offsets,
+            )
+        {
+            return Err(parse_err.into());
+        }
+        if let Some(ref mut module) = ast.module
+            && let Some(parse_err) = phases::phase1_parse::read::script::ensure_script_parsed(
+                &ast.arena,
+                module,
+                source,
+                &line_offsets,
+            )
+        {
+            return Err(parse_err.into());
+        }
+    }
+
+    remove_typescript_from_ast(&mut ast)?;
+
+    let mut options = options;
+    if let Some(ref parsed_options) = ast.options {
+        if let Some(pw) = parsed_options.preserve_whitespace {
+            options.preserve_whitespace = pw;
+        }
+        if parsed_options.css == Some(crate::ast::template::CssOption::Injected) {
+            options.css = CssMode::Injected;
+        }
+    }
+
+    // Phase 2: Analyze — ONCE, shared by both transforms (mode-independent).
+    let analysis = phases::phase2_analyze::analyze_component(&mut ast, source, &options)?;
+    let runes_mode = options.runes.unwrap_or(analysis.runes);
+
+    // Phase 3: Transform twice over the shared (ast, analysis).
+    let mut client_options = options.clone();
+    client_options.generate = GenerateMode::Client;
+    let client_tr =
+        phases::phase3_transform::transform_component(&analysis, &ast, source, &client_options)?;
+    let client = finalize_compile_result(client_tr, &analysis, source, &client_options, runes_mode);
+
+    let mut server_options = options;
+    server_options.generate = GenerateMode::Server;
+    let server_tr =
+        phases::phase3_transform::transform_component(&analysis, &ast, source, &server_options)?;
+    let server = finalize_compile_result(server_tr, &analysis, source, &server_options, runes_mode);
+
+    Ok((client, server))
+}
+
+/// Build a [`CompileResult`] from a finished transform — accessors-deprecation
+/// warning, source-position resolution, frame generation, and warning filtering.
+/// Shared by [`compile`] and [`compile_both`] so the two paths are identical.
+fn finalize_compile_result(
+    mut transform_result: TransformResult,
+    analysis: &ComponentAnalysis,
+    source: &str,
+    options: &CompileOptions,
+    runes_mode: bool,
+) -> CompileResult {
     // Emit options_deprecated_accessors warning when accessors option is used in runes mode.
     // Reference: svelte/packages/svelte/src/compiler/validate-options.js line 52
     if options.accessors && runes_mode {
@@ -621,7 +733,7 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     }
 
     // Convert to CompileResult
-    Ok(CompileResult {
+    CompileResult {
         js: CompileOutput {
             code: transform_result.js,
             map: transform_result.js_map,
@@ -696,7 +808,7 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
         },
         metadata: CompileMetadata { runes: runes_mode },
         ast: None, // TODO: Return AST if options.modern_ast is true
-    })
+    }
 }
 
 /// Module compile options (subset of CompileOptions for module files).

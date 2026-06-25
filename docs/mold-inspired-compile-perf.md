@@ -145,27 +145,43 @@ Criterion's t-test (`p`) is the arbiter, not the raw millisecond delta.
    clean A/B shows *no measurable change* — but the swap is provably never-worse and aligns
    the hot path with mold's "never SipHash on trusted input." **→ Kept.**
 
-### The real, unexploited mold win: P5 at the API level (recommended next)
+### The real mold win, IMPLEMENTED: P5 at the API level — `compile_both`
 
 The profile makes the highest-value mold-principle opportunity obvious. Parse + analyze =
-~**54%** of a compile, and analyze is mostly mode-independent. Yet a dual-output (SSR) build
-produces both CSR and SSR by calling `compile(src, Client)` **and** `compile(src, Server)`
-— i.e. it **parses and analyzes the same source twice**. This is exactly mold's P5
-violation ("never reprocess data you already hold").
+~**54%** of a compile, and analyze does not depend on `generate` mode. Yet a dual-output
+(SSR) build produces both CSR and SSR by calling `compile(src, Client)` **and**
+`compile(src, Server)` — i.e. it **parses and analyzes the same source twice**. That is
+exactly mold's P5 violation ("never reprocess data you already hold").
 
-A `compile_both(src)` that parses + analyzes **once** and runs the two transforms over the
-shared analysis would cut the dual-output cost from `2×(parse+analyze+transform)` to
-`1×(parse+analyze) + 2×transform` — roughly a **~27% reduction** for the both-outputs case
-(the common Vite/SvelteKit SSR path). This is structural (no per-call micro-tuning), large,
-and measurable. It requires verifying analysis is truly generate-mode-independent (or
-splitting the few mode-specific bits), so it is scoped as a follow-up rather than rushed in
-here — but it is the change that would actually move CSR/SSR compile time.
+`compile_both(src)` (in `compiler/mod.rs`, re-exported from the crate root) parses +
+resolves + strips TS + analyzes **once**, then runs the client and server transforms over
+the shared `(ast, analysis)` (both borrowed immutably). Cost drops from
+`2×(parse+analyze+transform)` to `1×(parse+analyze) + 2×transform`.
+
+**Correctness:** `analyze_component` is deterministic and mode-independent and
+`transform_component` does not mutate the AST/analysis, so the output is **byte-identical**
+to two separate `compile` calls. Guarded by `tests/compile_both_parity.rs` (asserts JS, CSS
+and warning-count equality across runes / legacy / blocks+snippet / callback-scope samples).
+
+**Measured** (criterion `compile_both` group, same-run back-to-back so no load confound):
+
+| Case | two `compile` calls | `compile_both` | speedup |
+|---|---|---|---|
+| synthetic-large | 7.39 ms | 5.79 ms | **−21.6%** |
+| synthetic-state-heavy | 30.80 ms | 17.02 ms | **−44.7%** |
+| synthetic-legacy-state-heavy | 28.85 ms | 15.79 ms | **−45.2%** |
+
+The state-heavy cases nearly halve because analyze is the dominant cost there and is now
+paid once instead of twice. Adopting `compile_both` in the dual-output consumer
+(`@rsvelte/vite-plugin-svelte`'s SSR build, where Vite asks for both CSR and SSR) is the
+follow-up that turns this library win into a user-visible build-time win.
 
 ### Takeaway
 
 rsvelte's per-component compile already embodies most of mold's *single-threaded* levers
-(FxHash throughout, bumpalo/OXC arenas, capacity hints, no hot-path locks). The remaining
-per-call hotspot (the analyze walk over `serde_json::Value`) resists the obvious fixes —
-both the map-clone removal here and the documented `serde_json` removal measure neutral-to-
-negative. The genuine remaining win is mold's P5/P1 applied **structurally** (share
-parse+analyze across CSR+SSR), not more micro-optimization of the single call.
+(FxHash throughout, bumpalo/OXC arenas, capacity hints, no hot-path locks), so micro-tuning
+the single call yields little — the map-clone removal and the documented `serde_json`
+removal both measure neutral-to-negative. The decisive win came from mold's **P5 applied
+structurally**: stop redoing the 54%-of-compile parse+analyze for the second output. That is
+`compile_both`, and it cuts dual-output (SSR) compile time by ~22–45% with byte-identical
+results.
