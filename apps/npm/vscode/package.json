@@ -1,0 +1,78 @@
+{
+  "name": "rsvelte-vscode",
+  "version": "0.1.0",
+  "private": true,
+  "displayName": "rsvelte",
+  "description": "Rust-powered Svelte formatting and linting for VS Code (rsvelte-fmt + rsvelte_lint)",
+  "license": "MIT",
+  "publisher": "rsvelte",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baseballyama/rsvelte.git",
+    "directory": "apps/npm/vscode"
+  },
+  "homepage": "https://github.com/baseballyama/rsvelte/tree/main/apps/npm/vscode#readme",
+  "bugs": {
+    "url": "https://github.com/baseballyama/rsvelte/issues"
+  },
+  "keywords": [
+    "svelte",
+    "formatter",
+    "linter",
+    "rust",
+    "language-server"
+  ],
+  "categories": ["Formatters", "Linters", "Programming Languages"],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:svelte",
+    "onLanguage:typescript",
+    "onLanguage:javascript",
+    "onLanguage:json",
+    "onLanguage:jsonc",
+    "onLanguage:css",
+    "onLanguage:scss",
+    "onLanguage:less"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "rsvelte",
+      "properties": {
+        "rsvelte.format.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable formatting via the native rsvelte-fmt CLI."
+        },
+        "rsvelte.lint.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable linting via the bundled rsvelte_lint engine."
+        },
+        "rsvelte.rsvelteFmtPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to a rsvelte-fmt binary. When empty, the extension resolves node_modules/.bin/rsvelte-fmt from the workspace."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "package": "npx --yes @vscode/vsce@^3 package --no-dependencies",
+    "vscode:prepublish": "node build.mjs"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.28.0",
+    "typescript": "^5.7.0"
+  }
+}
