@@ -32,7 +32,8 @@
 //! `$derived.by`) go in `other_qualified`.
 
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+// mold principle P6: trusted-input compiler hot path uses FxHash, never SipHash.
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::*;

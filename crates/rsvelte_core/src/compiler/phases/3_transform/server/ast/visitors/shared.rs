@@ -778,7 +778,7 @@ fn sort_const_tags<'n>(
 
     // Map each declared name → the index of the const that declares it (first
     // wins, mirroring upstream's `tags.set(binding, …)` keyed by binding).
-    let mut name_to_idx: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    let mut name_to_idx: rustc_hash::FxHashMap<&str, usize> = rustc_hash::FxHashMap::default();
     for (i, c) in consts.iter().enumerate() {
         for d in &c.declared {
             name_to_idx.entry(d.as_str()).or_insert(i);
@@ -794,7 +794,7 @@ fn sort_const_tags<'n>(
     fn add(
         i: usize,
         deps_of: &[Vec<String>],
-        name_to_idx: &std::collections::HashMap<&str, usize>,
+        name_to_idx: &rustc_hash::FxHashMap<&str, usize>,
         done: &mut [bool],
         on_stack: &mut [bool],
         sorted: &mut Vec<usize>,

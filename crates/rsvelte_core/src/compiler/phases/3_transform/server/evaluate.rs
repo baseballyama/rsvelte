@@ -863,11 +863,11 @@ impl<'a> EvalCtx<'a> {
         // the latest-declared one before evaluating, so the agreement rule
         // below only spans genuinely distinct (shadowing) scopes.
         if bindings.len() > 1 {
-            use std::collections::HashMap;
-            let mut by_scope: HashMap<
+            use rustc_hash::FxHashMap;
+            let mut by_scope: FxHashMap<
                 usize,
                 &crate::compiler::phases::phase2_analyze::scope::Binding,
-            > = HashMap::new();
+            > = FxHashMap::default();
             for &b in &bindings {
                 by_scope
                     .entry(b.scope_index)

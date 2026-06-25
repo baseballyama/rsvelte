@@ -63,3 +63,6 @@
 	ignore = dirty
 	shallow = true
 	branch = main
+[submodule "submodules/mold"]
+	path = submodules/mold
+	url = https://github.com/rui314/mold.git
