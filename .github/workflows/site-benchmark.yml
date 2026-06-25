@@ -1,0 +1,133 @@
+name: Site Benchmark
+
+# Produces the JS-vs-Rust benchmark JSON that the /benchmark page on the docs
+# site renders (`apps/playground/static/benchmark-results.json`). This is
+# deliberately a manual, on-demand job — the numbers do not move per-push, and
+# running the full five-task comparison (compile-client / parse / svelte2tsx /
+# fmt / svelte-check) takes long enough that gating CI on it would be wasteful.
+#
+# Flow: dispatch this workflow from a local checkout
+#   gh workflow run site-benchmark.yml
+# wait for it to finish, then download the `benchmark-results` artifact, eyeball
+# the numbers, and open a PR committing it to
+# `apps/playground/static/benchmark-results.json`.
+#
+# Runner: `ubuntu-24.04-arm`. Linux arm64 hosted runners are free for public
+# repos and the arm64 arch lines up with the Apple-silicon machines the JSON
+# was historically generated on, so the figures stay comparable.
+
+on:
+  workflow_dispatch:
+    inputs:
+      warmup:
+        description: 'Warmup iterations (BENCHMARK_WARMUP)'
+        required: false
+        default: '3'
+      iterations:
+        description: 'Measured iterations (BENCHMARK_ITERATIONS)'
+        required: false
+        default: '10'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: JS vs Rust benchmark
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: false
+
+      # run-benchmark.mjs reads .svelte fixtures straight from the `svelte`
+      # submodule's test tree and dynamic-imports the JS baselines built from
+      # `svelte` + `language-tools`. typescript-go / the SSH-only
+      # vite-plugin-svelte remote are not needed, so init only what we use.
+      - name: Checkout svelte + language-tools submodules
+        run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Resolve Svelte submodule SHA
+        id: svelte-sha
+        shell: bash
+        run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+
+      # The JS baselines (svelte/compiler, svelte2tsx, language-server,
+      # svelte-check) are rollup/tsc build outputs that run-benchmark.mjs
+      # bootstraps on demand. Cache them keyed by submodule SHA so warm runs
+      # skip the ~several-minute build chain.
+      - name: Cache JS baseline builds
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        with:
+          path: |
+            submodules/svelte/node_modules
+            submodules/svelte/packages/svelte/node_modules
+            submodules/svelte/packages/svelte/compiler/index.js
+            submodules/svelte/packages/svelte/types
+            submodules/svelte/packages/svelte/*.d.ts
+            submodules/svelte/packages/svelte/scripts/_bundle.js
+            submodules/language-tools/node_modules
+            submodules/language-tools/packages/*/node_modules
+            submodules/language-tools/packages/svelte2tsx/index.mjs
+            submodules/language-tools/packages/language-server/dist
+            submodules/language-tools/packages/svelte-check/dist
+          key: js-baselines-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
+
+      # prettier + prettier-plugin-svelte (the JS `fmt` baseline) resolve from
+      # the repo-root node_modules.
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+
+      # Pre-build the Rust harnesses so the first measured `cargo run` inside
+      # run-benchmark.mjs is a no-op build. (Build time never pollutes the
+      # reported numbers — those come from each binary's in-process timing
+      # loop — but pre-building keeps the run-benchmark step's wall-clock sane
+      # and surfaces build failures as their own step.)
+      - name: Build Rust benchmark harnesses
+        run: |
+          cargo build --release --bin benchmark_runner --bin svelte_check
+          cargo build --profile=bench --bin fmt_benchmark_runner
+        timeout-minutes: 45
+
+      - name: Run benchmark
+        env:
+          BENCHMARK_WARMUP: ${{ github.event.inputs.warmup || '3' }}
+          BENCHMARK_ITERATIONS: ${{ github.event.inputs.iterations || '10' }}
+          BENCHMARK_RUNNER_LABEL: ubuntu-24.04-arm (GitHub-hosted, ${{ runner.arch }})
+        run: node scripts/bench/run-benchmark.mjs > benchmark-results.json
+        timeout-minutes: 45
+
+      - name: Show summary
+        run: |
+          echo '### Benchmark results' >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          node -e "const r=require('./benchmark-results.json');console.log(JSON.stringify({generatedAt:r.generatedAt,commitSha:r.commitSha,runner:r.runner,testFilesCount:r.testFilesCount,compileClient:r.speedup,parse:r.parse.speedup,svelte2tsx:r.svelte2tsx?.speedup,fmt:r.fmt?.speedup,svelteCheck:r.svelteCheck?.speedup},null,2))" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark JSON
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: benchmark-results
+          path: benchmark-results.json
+          retention-days: 30
