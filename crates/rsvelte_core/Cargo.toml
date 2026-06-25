@@ -14,7 +14,11 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["native"]
-native = ["rayon", "miette/fancy", "jemalloc"]
+# `mimalloc-alloc` is included so the NAPI cdylib + profiling bins default to
+# mimalloc, which A/B-measured ~11% faster than jemalloc on the compile workload
+# (mold itself links mimalloc for the same allocation-bound reason). jemalloc is
+# kept available for comparison.
+native = ["rayon", "miette/fancy", "jemalloc", "mimalloc-alloc"]
 trace-fastpath = []
 # `napi` opts the cdylib into the NAPI build. When the cdylib gets
 # dlopen'd by Node (post-program-start), jemalloc's default
@@ -25,6 +29,8 @@ trace-fastpath = []
 # jemalloc is disabled (e.g. `--no-default-features --features napi`).
 napi = ["dep:napi", "dep:napi-derive", "dep:napi-build", "tikv-jemallocator?/disable_initial_exec_tls"]
 jemalloc = ["dep:tikv-jemallocator"]
+# Profiling-only: use mimalloc instead of jemalloc in the profiling bins (A/B).
+mimalloc-alloc = ["dep:mimalloc"]
 pprof = ["dep:pprof"]
 # `wasm` exports this crate's own `#[wasm_bindgen]` surface (the `wasm`
 # module — `parse_svelte`, `compile_client`, `svelte2tsx`, …) and is what
@@ -123,6 +129,9 @@ oxc_ast_visit = "0.137"
 # Better multi-threaded memory allocator (optional, Unix/Mac only)
 [target.'cfg(all(not(windows), not(target_arch = "wasm32")))'.dependencies]
 tikv-jemallocator = { version = "0.7", optional = true }
+# mimalloc: allocator A/B candidate (mold itself links mimalloc). Used only by
+# the profiling bins behind the `mimalloc-alloc` feature to compare against jemalloc.
+mimalloc = { version = "0.1", optional = true }
 pprof = { version = "0.15", default-features = false, optional = true }
 
 [build-dependencies]

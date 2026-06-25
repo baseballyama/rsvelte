@@ -5,6 +5,19 @@
 //! 2. Analyze - Semantic analysis
 //! 3. Transform - Code generation
 
+// Match the shipped NAPI cdylib's global allocator (mimalloc) so the tracked
+// benchmark reflects production compile() cost. mimalloc A/B-measured ~11%
+// faster than jemalloc on this allocation-bound workload (mold links mimalloc
+// for the same reason); the previous bench used the system allocator and so
+// understated neither — it simply measured a different allocator than ships.
+#[cfg(all(
+    feature = "mimalloc-alloc",
+    not(target_arch = "wasm32"),
+    not(target_os = "windows")
+))]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use std::fmt::Write as _;
 use std::fs;

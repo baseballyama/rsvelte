@@ -11,15 +11,31 @@
 // the new API surface is out of scope for the dep bump.
 #![allow(deprecated)]
 
-// Jemalloc is installed here (rather than at the lib root) so that the
-// rlib doesn't carry a `#[global_allocator]` symbol — which collides with
+// The global allocator is installed here (rather than at the lib root) so that
+// the rlib doesn't carry a `#[global_allocator]` symbol — which collides with
 // the cdylib's copy on Linux + fat LTO when a downstream bin links against
 // both crate-type outputs (cargo issue rust-lang/cargo#6313). This module
 // is only compiled when the `napi` feature is on, so the rlib stays clean
-// for normal builds, and the cdylib gets jemalloc when it ships as the
+// for normal builds, and the cdylib gets a fast allocator when it ships as the
 // NAPI prebuilt.
+//
+// We prefer mimalloc: an interleaved A/B over the full compile corpus measured
+// it ~11% faster than jemalloc, and the allocation-bound profile (serde_json
+// Value churn) is exactly the workload mimalloc wins on — the same reason the
+// mold linker links mimalloc. mimalloc also sidesteps jemalloc's initial-exec
+// TLS issue when the cdylib is dlopen'd by Node, so no TLS workaround is needed.
+// jemalloc remains the fallback when only the `jemalloc` feature is enabled.
+#[cfg(all(
+    feature = "mimalloc-alloc",
+    not(target_arch = "wasm32"),
+    not(target_os = "windows")
+))]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 #[cfg(all(
     feature = "jemalloc",
+    not(feature = "mimalloc-alloc"),
     not(target_arch = "wasm32"),
     not(target_os = "windows")
 ))]

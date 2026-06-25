@@ -176,12 +176,41 @@ paid once instead of twice. Adopting `compile_both` in the dual-output consumer
 (`@rsvelte/vite-plugin-svelte`'s SSR build, where Vite asks for both CSR and SSR) is the
 follow-up that turns this library win into a user-visible build-time win.
 
+### The single-`compile()` win that landed: mimalloc (mold's allocator)
+
+Profiling a real single-`compile()` run (macOS `sample` over a long compile loop, see
+`bin/compile_hot.rs`) shows the dominant self-time is **allocation**: ~12% in allocator
+internals plus the `serde_json::Value` walk representation it feeds (its `Map` is an
+`IndexMap` whose `RandomState` is SipHash → ~4% SipHash + ~3% IndexMap insert + Value
+build/drop). Removing `serde_json::Value` is the repo's known-resistant lever (a prior naive
+typed conversion measured ~3% *slower*), so the value-representation itself was left alone.
+
+The allocator, though, is mold's own lever: **mold links mimalloc** precisely because linking
+is allocation-bound. rsvelte's NAPI cdylib (the production CSR/SSR compile path used by
+`@rsvelte/vite-plugin-svelte`) shipped **jemalloc**. An interleaved, same-load A/B over the
+3854-file corpus (`compile_profile`, jemalloc vs mimalloc builds run back-to-back):
+
+| Allocator | TOTAL (parse+analyze+transform, 3854 files) |
+|---|---|
+| jemalloc (previous) | ~569 ms |
+| **mimalloc** | **~504 ms** |
+
+**~11% faster single-`compile()`**, identical compiler work — a true apples-to-apples win on
+the standard `compile()` path (not a new API). Shipped by switching the NAPI cdylib +
+profiling bins + the criterion bench to mimalloc (`mimalloc-alloc` feature, enabled by
+`native`). Validated: the mimalloc cdylib passes the full Node smoke test
+(`pnpm run test:vps`, 21/21 — `compile`, `compileModule`, `hmrDiff`, `preprocess`, CSS,
+client/server). mimalloc also removes the need for jemalloc's `disable_initial_exec_tls`
+dlopen TLS workaround.
+
 ### Takeaway
 
 rsvelte's per-component compile already embodies most of mold's *single-threaded* levers
 (FxHash throughout, bumpalo/OXC arenas, capacity hints, no hot-path locks), so micro-tuning
 the single call yields little — the map-clone removal and the documented `serde_json`
-removal both measure neutral-to-negative. The decisive win came from mold's **P5 applied
-structurally**: stop redoing the 54%-of-compile parse+analyze for the second output. That is
-`compile_both`, and it cuts dual-output (SSR) compile time by ~22–45% with byte-identical
-results.
+removal both measure neutral-to-negative. Two mold levers did land, both measured:
+
+1. **mimalloc** (mold's allocator): ~11% faster on the standard single-`compile()` path
+   (allocation-bound workload), shipped in the production NAPI cdylib, Node-validated.
+2. **`compile_both`** (P5 applied structurally): stop redoing the 54%-of-compile
+   parse+analyze for the second output — ~22–45% off dual-output (SSR) builds, byte-identical.
