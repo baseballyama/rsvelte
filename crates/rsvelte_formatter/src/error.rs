@@ -8,6 +8,8 @@ pub enum FormatError {
     ScriptParse(String),
     #[error("style formatter failed: {0}")]
     StyleFormat(String),
+    #[error("json parse failed: {0}")]
+    JsonParse(String),
 }
 
 impl FormatError {

@@ -910,6 +910,72 @@ fn native_js_respects_override_print_width() {
     );
 }
 
+// ─── native JSON path ─────────────────────────────────────────────────────
+
+/// A `.json` file is formatted in-process via `oxc_formatter_json` — `--oxfmt-bin
+/// true` is a no-op, so the formatting proves it never reached oxfmt.
+#[test]
+fn native_json_formatted_in_process() {
+    let dir = tempdir();
+    let file = dir.join("data.json");
+    std::fs::write(&file, "{\"b\":1,\"a\":[1,2,3]}").unwrap();
+
+    let status = Command::new(bin())
+        .args([file.to_str().unwrap(), "--write", "--oxfmt-bin", "true"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success(), "exit code: {:?}", status.code());
+
+    let out = std::fs::read_to_string(&file).unwrap();
+    assert_eq!(
+        out, "{ \"b\": 1, \"a\": [1, 2, 3] }\n",
+        "native JSON not formatted:\n{out}"
+    );
+}
+
+/// `package.json` is delegated to `oxfmt` (it needs `sortPackageJson`, which
+/// isn't in oxc), while a sibling `data.json` is formatted natively. A fake
+/// oxfmt that marks the files it touches proves the split: `package.json` gets
+/// the marker, `data.json` does not.
+#[test]
+fn package_json_delegated_to_oxfmt() {
+    let dir = tempdir();
+    let fake = dir.join("marker-oxfmt.cjs");
+    std::fs::write(&fake, MARKER_OXFMT).unwrap();
+
+    let pkg = dir.join("package.json");
+    let data = dir.join("data.json");
+    std::fs::write(&pkg, "{ \"name\": \"x\" }\n").unwrap();
+    std::fs::write(&data, "{\"b\":1}").unwrap();
+
+    let status = Command::new(bin())
+        .args([
+            dir.to_str().unwrap(),
+            "--write",
+            "--oxfmt-bin",
+            fake.to_str().unwrap(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success(), "exit code: {:?}", status.code());
+
+    let pkg_out = std::fs::read_to_string(&pkg).unwrap();
+    let data_out = std::fs::read_to_string(&data).unwrap();
+    assert!(
+        pkg_out.contains("/*FMT*/"),
+        "package.json should be delegated to oxfmt:\n{pkg_out}"
+    );
+    assert!(
+        !data_out.contains("/*FMT*/"),
+        "data.json should be formatted natively (no oxfmt marker):\n{data_out}"
+    );
+    assert_eq!(data_out, "{ \"b\": 1 }\n", "data.json native output wrong");
+}
+
 // ─── oxfmt daemon (#1179 follow-up) ───────────────────────────────────────
 
 /// `node` on `$PATH`, or `None` to skip a daemon test on a host without it.

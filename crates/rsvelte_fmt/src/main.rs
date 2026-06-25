@@ -15,7 +15,10 @@ use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use oxc_formatter::JsFormatOptions;
 use oxc_formatter_core::{IndentStyle, IndentWidth, LineWidth};
 use rayon::prelude::*;
-use rsvelte_formatter::{FormatOptions, format, format_js_source, reindent};
+use rsvelte_formatter::{
+    FormatOptions, JsonFormatOptions, JsonVariant, format, format_js_source, format_json_source,
+    reindent,
+};
 
 mod config;
 mod daemon;
@@ -100,16 +103,42 @@ struct Cli {
 const SVELTE_EXT: &str = "svelte";
 
 /// Extensions formatted in-process via `oxc_formatter` (the same engine `oxfmt`
-/// uses for these files), so they need no `oxfmt` subprocess. Everything else
-/// `oxfmt` supports (`.css`/`.json`/`.md`/`.yaml`/`.toml`/`.html`) stays
-/// delegated. JSON is excluded here: it needs oxfmt's JSON formatter, not the
-/// JS one.
+/// uses for these files), so they need no `oxfmt` subprocess. JSON is handled by
+/// the separate native-JSON path ([`NATIVE_JSON_EXTS`]); everything else `oxfmt`
+/// supports (`.css`/`.md`/`.yaml`/`.toml`/`.html`) stays delegated.
 const NATIVE_JS_EXTS: &[&str] = &["ts", "tsx", "js", "jsx", "mjs", "cjs", "mts", "cts"];
 
 fn is_native_js(p: &Path) -> bool {
     p.extension()
         .and_then(OsStr::to_str)
         .is_some_and(|e| NATIVE_JS_EXTS.contains(&e))
+}
+
+/// Extensions formatted in-process via `oxc_formatter_json` (the same engine
+/// `oxfmt` uses for JSON, so byte-identical) — except `package.json`, which
+/// `oxfmt` additionally runs through `sortPackageJson` (a key-ordering pass that
+/// isn't in oxc), so those are delegated to `oxfmt` like a parse-error fallback.
+const NATIVE_JSON_EXTS: &[&str] = &["json", "jsonc", "json5"];
+
+fn is_native_json(p: &Path) -> bool {
+    p.extension()
+        .and_then(OsStr::to_str)
+        .is_some_and(|e| NATIVE_JSON_EXTS.contains(&e))
+}
+
+/// `package.json` needs oxfmt's `sortPackageJson`; never format it natively.
+fn is_package_json(p: &Path) -> bool {
+    p.file_name().and_then(OsStr::to_str) == Some("package.json")
+}
+
+/// The `oxc_formatter_json` variant for a file extension, mirroring how `oxfmt`
+/// picks a JSON parser/printer per extension.
+fn json_variant(ext: &str) -> JsonVariant {
+    match ext {
+        "jsonc" => JsonVariant::Jsonc,
+        "json5" => JsonVariant::Json5,
+        _ => JsonVariant::Json,
+    }
 }
 
 /// `oxc_formatter_core::LineWidth`'s maximum (1..=320). A file whose resolved
@@ -216,6 +245,12 @@ const OXFMT_EXCLUDE_NATIVE_JS: &[&str] = &[
     "!**/*.cts",
 ];
 
+/// oxfmt exclude globs that keep the native-JSON set out of the delegated
+/// directory pass — non-`package.json` JSON is formatted in-process. `oxfmt`
+/// still formats `package.json` (re-included as explicit paths for the
+/// `sortPackageJson` pass) and any native parse-error fallbacks.
+const OXFMT_EXCLUDE_NATIVE_JSON: &[&str] = &["!**/*.json", "!**/*.jsonc", "!**/*.json5"];
+
 fn main() -> ExitCode {
     match run() {
         Ok(code) => code,
@@ -276,7 +311,8 @@ fn run() -> Result<ExitCode> {
 
     let native_js = !cli.no_native_js;
     let ignore = oxfmt_ignore::SvelteIgnore::from_config(&cwd, &cfg)?;
-    let (svelte, native, oxfmt_paths) = partition_files(&cli.paths, &ignore, &cwd, native_js)?;
+    let (svelte, native, native_json, oxfmt_paths) =
+        partition_files(&cli.paths, &ignore, &cwd, native_js)?;
 
     let mode = if cli.check { Mode::Check } else { Mode::Write };
 
@@ -285,11 +321,18 @@ fn run() -> Result<ExitCode> {
     let cli_width_flag = cli.print_width.is_some() || cli.tab_width.is_some() || cli.use_tabs;
     let resolver = JsOptionsResolver::new(&options, &cfg, &cwd, cli_width_flag);
 
+    // Per-file JSON options resolver (native JSON; `package.json` + overrides +
+    // parse errors delegate to oxfmt).
+    let json_options = build_json_options(&cli, &cfg);
+    let base_print_width = cli.print_width.or(cfg.print_width).unwrap_or(80);
+    let json_resolver = JsonOptionsResolver::new(json_options, base_print_width, &cfg, &cwd);
+
     // Run the pipelines in parallel: the oxfmt subprocess overlaps with the
-    // in-process Svelte and native-JS formatters.
+    // in-process Svelte, native-JS, and native-JSON formatters.
     let use_style_cache = !cli.no_style_cache;
     let exclude_native = native_js && !native.is_empty();
-    let ((svelte_result, native_result), oxfmt_result) = rayon::join(
+    let exclude_native_json = native_js && !native_json.is_empty();
+    let ((svelte_result, native_result), (json_result, oxfmt_result)) = rayon::join(
         || {
             rayon::join(
                 || {
@@ -305,13 +348,27 @@ fn run() -> Result<ExitCode> {
                 || run_native_js(&native, &resolver, &cwd, &cli.oxfmt_bin, mode),
             )
         },
-        || run_oxfmt(&oxfmt_paths, &cli.oxfmt_bin, mode, exclude_native),
+        || {
+            rayon::join(
+                || run_native_json(&native_json, &json_resolver, &cwd, &cli.oxfmt_bin, mode),
+                || {
+                    run_oxfmt(
+                        &oxfmt_paths,
+                        &cli.oxfmt_bin,
+                        mode,
+                        exclude_native,
+                        exclude_native_json,
+                    )
+                },
+            )
+        },
     );
 
     let svelte_status = svelte_result?;
     let native_status = native_result?;
+    let json_status = json_result?;
     let oxfmt_status = oxfmt_result?;
-    let combined = svelte_status.merge(native_status);
+    let combined = svelte_status.merge(native_status).merge(json_status);
     print_summary(&combined, &oxfmt_status, mode);
     Ok(combine(combined, oxfmt_status, mode))
 }
@@ -405,6 +462,37 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> FormatOptions {
         // `format` derives this per-document from `<script lang="ts">`.
         typescript: false,
     }
+}
+
+/// The base [`JsonFormatOptions`] for the native-JSON path: width/indent/EOL
+/// resolved exactly as the JS path, plus `bracketSpacing`. `objectWrap` is left
+/// at oxc's default (`Expand::Auto` = Prettier `preserve`), matching `oxfmt`.
+/// `variant` is set per file by [`json_variant`].
+fn build_json_options(cli: &Cli, cfg: &OxfmtConfig) -> JsonFormatOptions {
+    let use_tabs = cli.use_tabs || cfg.use_tabs.unwrap_or(false);
+    let indent_style = if use_tabs {
+        IndentStyle::Tab
+    } else {
+        IndentStyle::Space
+    };
+    let tab_width = cli.tab_width.or(cfg.tab_width).unwrap_or(2);
+    let print_width = cli.print_width.or(cfg.print_width).unwrap_or(80);
+    let indent_width = IndentWidth::try_from(tab_width).unwrap_or_default();
+    let line_width = LineWidth::try_from(print_width).unwrap_or_default();
+
+    let mut opts = JsonFormatOptions {
+        indent_style,
+        indent_width,
+        line_width,
+        ..JsonFormatOptions::default()
+    };
+    if let Some(eol) = cfg.end_of_line {
+        opts.line_ending = eol;
+    }
+    if let Some(spacing) = cfg.bracket_spacing {
+        opts.bracket_spacing = spacing.into();
+    }
+    opts
 }
 
 /// Build the callback that runs `oxfmt --stdin-filepath inline.<lang>`
@@ -582,9 +670,10 @@ fn partition_files(
     ignore: &oxfmt_ignore::SvelteIgnore,
     cwd: &Path,
     native_js: bool,
-) -> Result<(Vec<PathBuf>, Vec<PathBuf>, Vec<PathBuf>)> {
+) -> Result<(Vec<PathBuf>, Vec<PathBuf>, Vec<PathBuf>, Vec<PathBuf>)> {
     let mut svelte = Vec::new();
     let mut native = Vec::new();
+    let mut native_json = Vec::new();
     let mut oxfmt_paths = Vec::new();
     for root in roots {
         let meta = std::fs::metadata(root)
@@ -625,6 +714,10 @@ fn partition_files(
                     svelte.push(entry.into_path());
                 } else if native_js && is_native_js(path) && !ignore.is_ignored(path, false) {
                     native.push(entry.into_path());
+                } else if native_js && is_native_json(path) && !ignore.is_ignored(path, false) {
+                    // JSON (incl. `package.json`) goes to the native-JSON pass;
+                    // `package.json` is re-delegated to oxfmt there.
+                    native_json.push(entry.into_path());
                 }
             }
             oxfmt_paths.push(root.clone());
@@ -648,11 +741,21 @@ fn partition_files(
             if !ignore.is_ignored(&abs, false) {
                 native.push(root.clone());
             }
+        } else if native_js && is_native_json(root) {
+            // Single explicit `.json`/`.jsonc` file — native-JSON pass.
+            let abs = if root.is_absolute() {
+                root.clone()
+            } else {
+                cwd.join(root)
+            };
+            if !ignore.is_ignored(&abs, false) {
+                native_json.push(root.clone());
+            }
         } else {
             oxfmt_paths.push(root.clone());
         }
     }
-    Ok((svelte, native, oxfmt_paths))
+    Ok((svelte, native, native_json, oxfmt_paths))
 }
 
 fn is_svelte(p: &Path) -> bool {
@@ -1270,7 +1373,154 @@ fn run_native_js(
     // counted in `files_total`; a parse-error file the fallback also can't
     // handle surfaces oxfmt's own diagnostics.
     if !fallback.is_empty() {
-        let fb = run_oxfmt(&fallback, oxfmt, mode, false)?;
+        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false)?;
+        status.files_changed += fb.files_changed;
+        status.had_errors |= fb.had_errors;
+    }
+
+    Ok(status)
+}
+
+// ─── native JSON pipeline ─────────────────────────────────────────────────
+
+/// Resolves the per-file [`JsonFormatOptions`] for the native-JSON path. JSON
+/// has no `overrides`-merging here: a file matched by any `.oxfmtrc` override —
+/// or any file when the base `printWidth` exceeds `oxc_formatter_core`'s max
+/// (320) — is delegated to `oxfmt` rather than risk a mismatch. flyle-style
+/// configs only override `.ts`/`.js` globs, so JSON formats natively there.
+struct JsonOptionsResolver {
+    base: JsonFormatOptions,
+    /// Base `printWidth` exceeds the native max (320) — can't represent natively.
+    over_width: bool,
+    /// Override glob matchers (rooted at the config dir). Any match → delegate.
+    overrides: Vec<Gitignore>,
+}
+
+impl JsonOptionsResolver {
+    fn new(base: JsonFormatOptions, base_print_width: u16, cfg: &OxfmtConfig, cwd: &Path) -> Self {
+        let dir = cfg
+            .config_dir()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| cwd.to_path_buf());
+        let overrides = cfg
+            .overrides
+            .iter()
+            .filter_map(|ov| {
+                let mut builder = GitignoreBuilder::new(&dir);
+                for glob in &ov.files {
+                    let _ = builder.add_line(None, glob);
+                }
+                builder.build().ok()
+            })
+            .collect();
+        Self {
+            base,
+            over_width: base_print_width > LINE_WIDTH_MAX,
+            overrides,
+        }
+    }
+
+    /// The native options for `abs_path`, or `None` to delegate it to `oxfmt`.
+    fn for_path(&self, abs_path: &Path) -> Option<JsonFormatOptions> {
+        if self.over_width {
+            return None;
+        }
+        if self
+            .overrides
+            .iter()
+            .any(|m| m.matched(abs_path, false).is_ignore())
+        {
+            return None;
+        }
+        Some(self.base)
+    }
+}
+
+/// Format `.json`/`.jsonc`/`.json5` in-process via `oxc_formatter_json` (the same
+/// engine `oxfmt` uses, so byte-identical), in parallel. `package.json` (needs
+/// oxfmt's `sortPackageJson`), files an override touches, and parse errors all
+/// fall back to a single `oxfmt` invocation so coverage matches delegation.
+fn run_native_json(
+    files: &[PathBuf],
+    resolver: &JsonOptionsResolver,
+    cwd: &Path,
+    oxfmt: &Path,
+    mode: Mode,
+) -> Result<PipelineStatus> {
+    if files.is_empty() {
+        return Ok(PipelineStatus::default());
+    }
+
+    let outcomes: Vec<(PathBuf, NativeOutcome)> = files
+        .par_iter()
+        .map(|path| {
+            // `package.json` always goes to oxfmt for the `sortPackageJson` pass.
+            if is_package_json(path) {
+                return (path.clone(), NativeOutcome::Fallback);
+            }
+            let abs = if path.is_absolute() {
+                path.clone()
+            } else {
+                cwd.join(path)
+            };
+            let source = match std::fs::read_to_string(path) {
+                Ok(s) => s,
+                Err(e) => {
+                    return (
+                        path.clone(),
+                        NativeOutcome::Error(format!("reading {}: {e}", path.display())),
+                    );
+                }
+            };
+            let Some(options) = resolver.for_path(&abs) else {
+                return (path.clone(), NativeOutcome::Fallback);
+            };
+            let ext = path.extension().and_then(OsStr::to_str).unwrap_or("json");
+            match format_json_source(&source, json_variant(ext), &options) {
+                Ok(out) if out == source => (path.clone(), NativeOutcome::Unchanged),
+                Ok(out) => match mode {
+                    Mode::Write => match std::fs::write(path, &out) {
+                        Ok(()) => (path.clone(), NativeOutcome::Changed),
+                        Err(e) => (
+                            path.clone(),
+                            NativeOutcome::Error(format!("writing {}: {e}", path.display())),
+                        ),
+                    },
+                    Mode::Check => (path.clone(), NativeOutcome::Changed),
+                },
+                // Parse error — defer to the oxfmt fallback.
+                Err(_) => (path.clone(), NativeOutcome::Fallback),
+            }
+        })
+        .collect();
+
+    let mut status = PipelineStatus {
+        files_total: files.len(),
+        ..PipelineStatus::default()
+    };
+    let mut fallback: Vec<PathBuf> = Vec::new();
+    for (path, outcome) in outcomes {
+        match outcome {
+            NativeOutcome::Changed => {
+                if matches!(mode, Mode::Check) {
+                    println!("would format {}", path.display());
+                }
+                status.files_changed += 1;
+            }
+            NativeOutcome::Unchanged => {}
+            NativeOutcome::Fallback => fallback.push(path),
+            NativeOutcome::Error(e) => {
+                eprintln!("rsvelte-fmt: {e}");
+                status.had_errors = true;
+            }
+        }
+    }
+
+    // oxfmt fallback for `package.json` + override-matched + parse-error files.
+    // Explicit paths with no native excludes, so oxfmt formats exactly these
+    // (and applies `sortPackageJson` to any `package.json`).
+    if !fallback.is_empty() {
+        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false)?;
         status.files_changed += fb.files_changed;
         status.had_errors |= fb.had_errors;
     }
@@ -1294,6 +1544,7 @@ fn run_oxfmt(
     oxfmt: &Path,
     mode: Mode,
     exclude_native: bool,
+    exclude_native_json: bool,
 ) -> Result<PipelineStatus> {
     if paths.is_empty() {
         return Ok(PipelineStatus::default());
@@ -1312,6 +1563,12 @@ fn run_oxfmt(
     // oxfmt from re-formatting them in directory walks.
     if exclude_native {
         cmd.args(OXFMT_EXCLUDE_NATIVE_JS);
+    }
+    // Likewise for native JSON. `package.json` is re-delegated as an explicit
+    // path by the native-JSON fallback (a separate call with this flag false),
+    // so excluding it from the directory walk here doesn't drop it.
+    if exclude_native_json {
+        cmd.args(OXFMT_EXCLUDE_NATIVE_JSON);
     }
     cmd.args(paths);
     cmd.stdout(Stdio::piped()).stderr(Stdio::inherit());
