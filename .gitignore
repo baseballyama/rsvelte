@@ -19,6 +19,13 @@ target
 # Formatter WASM build output (rsvelte_fmt_wasm → browser fmt tool)
 /pkg-fmt
 
+# Language server: vendored lint wasm (built via build:wasm:lint-node) + bundle
+/apps/npm/language-server/vendor
+/apps/npm/language-server/dist
+# VS Code extension bundle + packaged vsix
+/apps/npm/vscode/dist
+/apps/npm/vscode/*.vsix
+
 # svelte-check platform binaries (staged into per-platform npm packages by the
 # release workflow; never committed)
 /apps/npm/svelte-check-*/svelte-check

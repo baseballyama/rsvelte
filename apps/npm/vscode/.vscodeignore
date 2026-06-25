@@ -1,0 +1,9 @@
+# Source & config — only the bundled output ships in the vsix.
+src/**
+build.mjs
+tsconfig.json
+.gitignore
+**/*.map
+
+# Test-only artifacts copied from the language-server bundle.
+dist/lib/**
