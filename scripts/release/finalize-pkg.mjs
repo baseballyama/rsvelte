@@ -3,8 +3,9 @@
 // builds (currently `rsvelte_lint`, which re-exports the `rsvelte_core`
 // compiler wasm exports — see `crates/rsvelte_lint/src/wasm.rs`). We publish
 // under the scoped npm name `@rsvelte/compiler`, so we overlay the npm-side
-// metadata here after the wasm build completes and before `pnpm publish`
-// reads it.
+// metadata (and the user-facing README, since wasm-pack copies the linter
+// crate's README into `pkg/`) here after the wasm build completes and before
+// `pnpm publish` reads it.
 //
 // The version is the changeset-managed `apps/npm/compiler/package.json`
 // version — the single source of truth. We force it here rather than trusting
@@ -19,7 +20,7 @@
 // `workspace:^` consumers (e.g. `@rsvelte/svelte2tsx`) read when pnpm rewrites
 // their dependency range at publish time.
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -27,6 +28,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../..');
 const pkgJsonPath = resolve(repoRoot, 'pkg/package.json');
 const sourceJsonPath = resolve(repoRoot, 'apps/npm/compiler/package.json');
+const sourceReadmePath = resolve(repoRoot, 'apps/npm/compiler/README.md');
+const pkgReadmePath = resolve(repoRoot, 'pkg/README.md');
 
 const generated = JSON.parse(readFileSync(pkgJsonPath, 'utf8'));
 const source = JSON.parse(readFileSync(sourceJsonPath, 'utf8'));
@@ -51,3 +54,10 @@ if (source.keywords) generated.keywords = source.keywords;
 
 writeFileSync(pkgJsonPath, JSON.stringify(generated, null, 2) + '\n');
 console.log(`Finalized pkg/package.json as ${generated.name}@${generated.version}`);
+
+// Overlay the user-facing README. `wasm-pack` copies the built crate's README
+// (`crates/rsvelte_lint/README.md`, the linter docs) into `pkg/README.md`, which
+// would otherwise ship as the `@rsvelte/compiler` README on npm. Replace it with
+// the compiler-specific README from the version-anchor directory.
+copyFileSync(sourceReadmePath, pkgReadmePath);
+console.log(`Copied ${sourceReadmePath} -> pkg/README.md`);
