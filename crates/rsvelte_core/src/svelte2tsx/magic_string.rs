@@ -246,7 +246,8 @@ impl MagicString {
     /// Create a new `MagicString` from the given source.
     pub fn new(source: &str) -> Self {
         let chunk = Chunk::new(0, source.len() as u32);
-        let mut by_start: std::collections::BTreeMap<u32, usize> = std::collections::BTreeMap::new();
+        let mut by_start: std::collections::BTreeMap<u32, usize> =
+            std::collections::BTreeMap::new();
         let mut by_end: HashMap<u32, usize> = HashMap::default();
         by_start.insert(0, 0);
         by_end.insert(source.len() as u32, 0);
