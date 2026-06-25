@@ -554,12 +554,32 @@ async function runFmtTask(files) {
 // ── svelte-check task ──────────────────────────────────────────────────────
 //
 // Unlike the other tasks, svelte-check is a project-wise CLI, not a per-file
-// API. We materialise a synthetic workspace of N `.svelte` files (no tsconfig
-// so both implementations skip TypeScript checking — a fair like-for-like)
-// and time each CLI's wall-clock cost end-to-end. Multi-threaded numbers come
-// from rsvelte's default rayon fan-out; single-threaded numbers come from
-// forcing `RAYON_NUM_THREADS=1` so the two figures parallel the per-file
-// tasks above.
+// API. We materialise a synthetic workspace of N `.svelte` files and time each
+// CLI's wall-clock cost end-to-end.
+//
+// IMPORTANT — what this measures and why both sides skip TypeScript checking:
+// svelte-check's job is split into (1) the *tool's own work* — find files,
+// parse + analyze each `.svelte`, generate the `.tsx` overlay — and (2)
+// delegating semantic type-checking to an *external* TypeScript compiler
+// (`tsc`/`tsgo`) as a subprocess. Part (2) is the same shared dependency for
+// both implementations (rsvelte shells out to `tsc`/`tsgo`; JS svelte-check
+// runs the TypeScript LanguageService), so when it is enabled it dominates the
+// wall-clock and compresses the ratio toward ~1x — it benchmarks TypeScript,
+// not svelte-check. To isolate part (1) — the only part where rsvelte's Rust +
+// rayon implementation differs from the JS one — we disable the TS pass on
+// BOTH sides:
+//   * rsvelte: `--no-type-check` (skips overlay materialisation + the tsc/tsgo
+//     subprocess), plus `--diagnostic-sources svelte` for parity.
+//   * JS svelte-check: `--diagnostic-sources svelte`. This is the only
+//     supported way to make JS svelte-check skip TS work — it stops the
+//     language-server from registering the TypeScript plugin at all. (Merely
+//     omitting a tsconfig does NOT skip checking: TS then falls back to a
+//     default inferred config and still semantic-checks every file, which is
+//     why a previous version of this comment — "no tsconfig so both skip TS"
+//     — was wrong on the JS side and produced a meaningless ~1.6x.)
+// Multi-threaded numbers come from rsvelte's default rayon fan-out;
+// single-threaded numbers come from forcing `RAYON_NUM_THREADS=1` so the two
+// figures parallel the per-file tasks above.
 
 const SVELTE_CHECK_FILES = 500;
 const RSVELTE_SVELTE_CHECK_BIN = join(REPO_ROOT, 'target/release/svelte_check');
@@ -632,8 +652,30 @@ async function runSvelteCheckTask() {
 	ensureRsvelteSvelteCheckBuilt();
 	const fixture = makeSvelteCheckFixture(SVELTE_CHECK_FILES);
 	try {
-		const rsArgs = ['--workspace', fixture, '--output', 'machine'];
-		const jsArgs = [JS_SVELTE_CHECK_BIN, '--workspace', fixture, '--output', 'machine'];
+		// See the task comment above: disable the external TypeScript pass on
+		// BOTH sides so this isolates the tool's own Svelte work (find +
+		// parse + analyze), not the shared `tsc`/`tsgo` subprocess.
+		//   * rsvelte: `--no-type-check` (no overlay + no tsc/tsgo) + svelte-only sources.
+		//   * JS svelte-check: `--diagnostic-sources svelte` (the only flag that
+		//     stops it registering the TypeScript plugin).
+		const rsArgs = [
+			'--workspace',
+			fixture,
+			'--output',
+			'machine',
+			'--no-type-check',
+			'--diagnostic-sources',
+			'svelte',
+		];
+		const jsArgs = [
+			JS_SVELTE_CHECK_BIN,
+			'--workspace',
+			fixture,
+			'--output',
+			'machine',
+			'--diagnostic-sources',
+			'svelte',
+		];
 
 		console.error('  Benchmarking JavaScript (svelte-check)...');
 		const jsStats = timeSvelteCheckRun('JS svelte-check', 'node', jsArgs);
