@@ -222,8 +222,14 @@ pub struct MagicString {
     /// Index of the last chunk in the linked list.
     last_chunk: usize,
     /// Map from original-source position → chunk index that *starts* at that position.
-    /// Populated lazily via `split_at`.
-    by_start: HashMap<u32, usize>,
+    /// Populated lazily via `split_at`. A `BTreeMap` (not a hash map) so
+    /// `split_at` can locate the chunk containing an arbitrary position with an
+    /// O(log n) `range(..=index).next_back()` lookup instead of an O(n) walk
+    /// from the head of the chunk list — the walk made repeated splits on a
+    /// large edited file O(n²) (the dominant svelte2tsx hotspot). Every chunk's
+    /// start is kept here and entries are never removed, so the greatest start
+    /// `<= index` is always the chunk that contains `index`.
+    by_start: std::collections::BTreeMap<u32, usize>,
     /// Map from original-source position → chunk index that *ends* at that position.
     by_end: HashMap<u32, usize>,
     /// Content prepended before everything.
@@ -240,7 +246,8 @@ impl MagicString {
     /// Create a new `MagicString` from the given source.
     pub fn new(source: &str) -> Self {
         let chunk = Chunk::new(0, source.len() as u32);
-        let mut by_start: HashMap<u32, usize> = HashMap::default();
+        let mut by_start: std::collections::BTreeMap<u32, usize> =
+            std::collections::BTreeMap::new();
         let mut by_end: HashMap<u32, usize> = HashMap::default();
         by_start.insert(0, 0);
         by_end.insert(source.len() as u32, 0);
@@ -306,29 +313,37 @@ impl MagicString {
             return usize::MAX;
         }
 
-        // Walk the linked list to find the chunk containing `index`.
-        let mut cur = self.first_chunk;
-        loop {
-            let chunk = &self.chunks[cur];
-            if index > chunk.start && index < chunk.end {
-                // Need to split this chunk.
-                break;
+        // Find the chunk containing `index` via the sorted start index in
+        // O(log n). `by_start` holds every chunk's start and chunks partition
+        // the source contiguously, so the greatest start `<= index` is the
+        // chunk that contains `index`. (The `by_start.get(&index)` fast-path
+        // above already handled the case where `index` is itself a boundary,
+        // so here `start < index`.) This replaces an O(n) walk from the head
+        // that made repeated splits O(n²).
+        let cur = match self.by_start.range(..=index).next_back() {
+            Some((_, &chunk_idx)) => chunk_idx,
+            None => {
+                #[cfg(debug_assertions)]
+                eprintln!(
+                    "split_at({}): no chunk start <= index (source length {})",
+                    index,
+                    self.original.len()
+                );
+                return usize::MAX;
             }
-            match chunk.next {
-                Some(next) => cur = next,
-                // The earlier `index >= self.original.len()` guard means we
-                // should not reach the end of the chunk list with `index` past
-                // the source. If we somehow do (e.g. corrupted chunk list),
-                // log in debug and return the sentinel rather than panic.
-                None => {
-                    #[cfg(debug_assertions)]
-                    eprintln!(
-                        "split_at({}): chunk list exhausted (source length {})",
-                        index,
-                        self.original.len()
-                    );
-                    return usize::MAX;
-                }
+        };
+        // Defensive: confirm `index` really falls strictly inside `cur`. With a
+        // well-formed chunk list this always holds; if not, fall back to the
+        // sentinel rather than producing a corrupt split.
+        {
+            let chunk = &self.chunks[cur];
+            if !(index > chunk.start && index < chunk.end) {
+                #[cfg(debug_assertions)]
+                eprintln!(
+                    "split_at({}): located chunk [{}, {}) does not strictly contain index",
+                    index, chunk.start, chunk.end
+                );
+                return usize::MAX;
             }
         }
 
