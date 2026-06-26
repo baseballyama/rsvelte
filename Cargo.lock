@@ -2474,6 +2474,7 @@ version = "0.1.0"
 dependencies = [
  "grass",
  "rsvelte_core",
+ "serde_json",
  "tokio",
 ]
 

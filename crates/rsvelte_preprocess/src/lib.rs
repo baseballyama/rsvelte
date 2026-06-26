@@ -14,7 +14,13 @@ pub mod switch_case;
 #[cfg(feature = "sass")]
 pub mod sass;
 
+#[cfg(feature = "less")]
+pub mod less;
+
 pub use switch_case::switch_case;
 
 #[cfg(feature = "sass")]
 pub use sass::sass;
+
+#[cfg(feature = "less")]
+pub use less::less;
