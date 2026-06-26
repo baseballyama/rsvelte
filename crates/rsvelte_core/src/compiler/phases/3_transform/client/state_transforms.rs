@@ -257,7 +257,20 @@ pub(super) fn body_references_identifier(body: &str, identifier: &str) -> bool {
     // to correctly handle the `$`-prefixed store subscription case.
     // Also exclude `.` from valid preceding characters to avoid matching property
     // accesses like `obj.prop` when checking for standalone `prop` references.
-    let pattern = format!(r"(^|[^a-zA-Z0-9_$\.]){}([^a-zA-Z0-9_$]|$)", escaped);
+    //
+    // EXCEPTION: the `$$`-prefixed compiler specials (`$$props` / `$$restProps` /
+    // `$$slots`) are never member-access targets, but they DO appear after a `.`
+    // in a spread — `{ ...$$restProps }`. Excluding `.` there made
+    // `body_references_identifier(body, "$$restProps")` miss the spread, so a
+    // `$: x = { ...$$restProps }` reactive statement dropped its
+    // `$.deep_read_state($$restProps)` dependency (emitting `() => {}`). Allow a
+    // leading `.` for `$$`-names so the spread form is detected.
+    let preceding = if identifier.starts_with("$$") {
+        r"[^a-zA-Z0-9_$]"
+    } else {
+        r"[^a-zA-Z0-9_$\.]"
+    };
+    let pattern = format!(r"(^|{}){}([^a-zA-Z0-9_$]|$)", preceding, escaped);
     let re = match get_or_compile_regex(&pattern) {
         Some(re) => re,
         None => return false,
