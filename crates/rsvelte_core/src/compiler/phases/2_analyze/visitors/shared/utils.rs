@@ -472,8 +472,24 @@ pub fn validate_assignment(
             }
 
             // Check for each block item assignment (only in runes mode)
-            // In legacy mode, binding to each items is allowed
-            if context.analysis.runes && binding.kind == BindingKind::EachItem {
+            // In legacy mode, binding to each items is allowed.
+            //
+            // Guard against false positives caused by root-scope pollution: the
+            // root scope (index 0) is intentionally seeded with every child
+            // scope's declarations, so a `get_binding` walk that reaches the root
+            // can resolve to an each-item binding that is NOT lexically visible
+            // from the assignment site (e.g. a same-named `for`-loop variable
+            // inside a `$derived.by(() => { ... })` callback). Only treat the
+            // binding as an each item when its declaring scope is an ancestor of
+            // the current scope. Upstream resolves this naturally via
+            // `scope.get(name)` walking only the real lexical chain.
+            if context.analysis.runes
+                && binding.kind == BindingKind::EachItem
+                && context
+                    .analysis
+                    .root
+                    .is_scope_ancestor_of(binding.scope_index, context.scope)
+            {
                 return Err(errors::each_item_invalid_assignment());
             }
 
@@ -2718,7 +2734,18 @@ pub fn validate_assignment_node(
                 return Err(errors::constant_assignment("$props.id()"));
             }
 
-            if context.analysis.runes && binding.kind == BindingKind::EachItem {
+            // See the matching guard in `validate_assignment`: only fire the
+            // each-item error when the binding is lexically visible from the
+            // assignment site, so root-scope pollution can't misresolve a
+            // same-named local (e.g. a `for`-loop variable inside a
+            // `$derived.by` callback) to a template each item.
+            if context.analysis.runes
+                && binding.kind == BindingKind::EachItem
+                && context
+                    .analysis
+                    .root
+                    .is_scope_ancestor_of(binding.scope_index, context.scope)
+            {
                 return Err(errors::each_item_invalid_assignment());
             }
 
