@@ -123,7 +123,14 @@ pub(crate) fn format_script(
     // are skipped — their whitespace is part of the string value, so
     // re-indenting them would both mutate the runtime string and make
     // formatting non-idempotent (every pass adds another level) (#686).
-    let unit = indent_unit(&options.js);
+    // `svelteIndentScriptAndStyle` (default true) controls whether the body is
+    // indented one level under `<script>`. When disabled, the body sits flush at
+    // column 0 (an empty indent unit re-indents every line to column 0).
+    let unit = if options.indent_script_and_style {
+        indent_unit(&options.js)
+    } else {
+        String::new()
+    };
     let body_indented = crate::reindent::reindent(formatted.trim_end(), &unit, false);
     let wrapped = format!("\n{body_indented}\n");
 
@@ -171,7 +178,13 @@ pub(crate) fn format_nested_script(
     }
 
     let unit = indent_unit(&options.js);
-    let body_indent = unit.repeat(depth + 1);
+    // `svelteIndentScriptAndStyle` (default true): when disabled, drop the extra
+    // body indent level so the body sits at the element's own depth.
+    let body_indent = if options.indent_script_and_style {
+        unit.repeat(depth + 1)
+    } else {
+        unit.repeat(depth)
+    };
     // Narrow the width by the final nesting so wrap decisions match the indented
     // result (mirrors `format_script`'s one-level narrowing, generalised).
     let mut js = options.js.clone();

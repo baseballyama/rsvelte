@@ -33,6 +33,33 @@ pub struct FormatOptions {
     /// body (#682). Callers normally leave it at its `false` default; it is
     /// not a user-facing knob.
     pub typescript: bool,
+
+    /// Prettier's `singleAttributePerLine`. When `true`, an element with more
+    /// than one attribute always breaks its attributes onto separate lines —
+    /// even when they would fit on one line. Default `false`.
+    pub single_attribute_per_line: bool,
+
+    /// prettier-plugin-svelte's `svelteAllowShorthand`. When `true` (the
+    /// default), `name={name}` collapses to the `{name}` shorthand and the
+    /// directive shorthands (`class:active`, `style:color`, `bind:value`)
+    /// collapse too. When `false`, every attribute keeps its full
+    /// `name={value}` form.
+    pub allow_shorthand: bool,
+
+    /// prettier-plugin-svelte's `svelteIndentScriptAndStyle`. When `true` (the
+    /// default), `<script>` / `<style>` bodies are indented one level under
+    /// their tag. When `false`, the body sits flush at column 0.
+    pub indent_script_and_style: bool,
+
+    /// prettier-plugin-svelte's `svelteSortOrder` — the print order of the
+    /// top-level sections. Defaults to `options-scripts-markup-styles`.
+    pub sort_order: crate::sort_order::SortOrderSpec,
+
+    /// Prettier's `bracketSameLine` (the replacement for the removed
+    /// `svelteBracketNewLine`). When `true`, the `>` (or ` />`) of a wrapped,
+    /// multi-line open tag is kept on the same line as the last attribute
+    /// instead of dropping to its own line. Default `false`.
+    pub bracket_same_line: bool,
 }
 
 /// Callback used to format the body of a `<style>` block: `(css, lang, width)`.
@@ -49,6 +76,11 @@ impl FormatOptions {
             js: JsFormatOptions::new(),
             style_formatter: None,
             typescript: false,
+            single_attribute_per_line: false,
+            allow_shorthand: true,
+            indent_script_and_style: true,
+            sort_order: crate::sort_order::SortOrderSpec::default(),
+            bracket_same_line: false,
         }
     }
 
@@ -74,6 +106,11 @@ impl std::fmt::Debug for FormatOptions {
                 &self.style_formatter.as_ref().map(|_| "<callback>"),
             )
             .field("typescript", &self.typescript)
+            .field("single_attribute_per_line", &self.single_attribute_per_line)
+            .field("allow_shorthand", &self.allow_shorthand)
+            .field("indent_script_and_style", &self.indent_script_and_style)
+            .field("sort_order", &self.sort_order)
+            .field("bracket_same_line", &self.bracket_same_line)
             .finish()
     }
 }

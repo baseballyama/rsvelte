@@ -111,6 +111,26 @@ honor it too, so settings like `singleQuote`, `semi`, `printWidth`,
 apply consistently across standalone files and embedded blocks. Explicit
 `--print-width` / `--tab-width` / `--use-tabs` flags override the config.
 
+### Svelte markup & sort options
+
+The following `.oxfmtrc` keys also drive `.svelte` formatting, matching
+`oxfmt` + `prettier-plugin-svelte`:
+
+| Key | Default | Effect |
+|---|---|---|
+| `singleAttributePerLine` | `false` | Break every attribute onto its own line when an element has more than one |
+| `bracketSameLine` | `false` | Keep a wrapped open tag's `>` / `/>` on the last attribute's line |
+| `sortImports` | off | Sort imports inside embedded `<script>` (and standalone JS/TS) — accepts `true` or the full oxfmt object form |
+| `svelte.allowShorthand` | `true` | Collapse `name={name}` / `class:x={x}` / `style:x={x}` / `bind:x={x}` to shorthand; set `false` to always emit the full form |
+| `svelte.indentScriptAndStyle` | `true` | Indent the body of `<script>` / `<style>` one level under its tag; `false` keeps it flush |
+| `svelte.sortOrder` | `options-scripts-markup-styles` | Print order of the top-level sections (any permutation of `options`/`scripts`/`markup`/`styles`, or `none` to keep source order) |
+
+`sortTailwindcss` is **not** supported — its ordering depends on the project's
+Tailwind stylesheet, which `rsvelte-fmt` does not reimplement. When it is set,
+`rsvelte-fmt` prints a warning and leaves class names unchanged (rather than
+silently dropping the option); run `oxfmt` directly if you need Tailwind class
+sorting.
+
 ## CLI flags
 
 | Flag | Default | Effect |

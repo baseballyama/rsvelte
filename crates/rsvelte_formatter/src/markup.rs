@@ -511,6 +511,14 @@ fn push_close_tag(
     if hug_close {
         let indent = indent_str(depth, &options.js);
         edits.push((start, end, format!("</{tag_name}\n{indent}>")));
+    } else if open_wrapped && is_empty && options.bracket_same_line {
+        // `bracketSameLine` glues the wrapped open tag's `>` to the last
+        // attribute (`…role="c">`), so an empty element's close tag drops to its
+        // own line at the element indent (`…role="c">\n</div>`). Emit the
+        // newline as part of the close-tag replacement so it never conflicts
+        // with the open-tag edit that ends at this same position.
+        let indent = indent_str(depth, &options.js);
+        edits.push((start, end, format!("\n{indent}</{tag_name}>")));
     } else {
         edits.push((start, end, format!("</{tag_name}>")));
     }
@@ -810,11 +818,23 @@ fn push_open_tag(
     // special elements (the inner attr-group stays flat). For plain HTML block
     // elements, prettier instead wraps the attributes (full multi-line shape),
     // so shape_two is suppressed for them — they get the full `wrapped` path.
+    // Prettier's `singleAttributePerLine`: an element with more than one
+    // attribute always breaks every attribute onto its own line, even when they
+    // would fit flat. `this={…}` (the special `<svelte:component this=…>` /
+    // `<svelte:element this=…>` slot) counts as an attribute, matching
+    // prettier-plugin-svelte's `node.attributes.length` test. A lone attribute
+    // stays inline.
+    let force_single_attr = options.single_attribute_per_line
+        && (attributes.len() + usize::from(this_expression.is_some())) > 1;
+
     let shape_two = !rendered_attrs.is_empty()
         && fits_one_line
         && element_overflows
         && one_liner.ends_with('>')
-        && !is_block_element(tag_name);
+        && !is_block_element(tag_name)
+        // singleAttributePerLine forces the full multi-line shape, not the
+        // attrs-on-one-line `shape_two`.
+        && !force_single_attr;
     // For HTML block elements (div, p, section, …), when the full empty element
     // overflows the print width but the open tag alone fits, prettier still wraps
     // the attributes. This matches the group-model where the outer element group
@@ -833,7 +853,8 @@ fn push_open_tag(
     let wrapped = !(rendered_attrs.is_empty() || fits_one_line)
         || shape_two
         || force_wrap_block
-        || hug_overflow;
+        || hug_overflow
+        || force_single_attr;
 
     // Second pass: once we know the open tag wraps (attributes each on their own
     // line at `attr_depth`), re-render the attributes narrowing each value
@@ -892,6 +913,7 @@ fn push_open_tag(
             depth,
             &options.js,
             hug_open,
+            options.bracket_same_line,
         )
     } else {
         one_liner
@@ -1085,6 +1107,7 @@ fn render_multi_line(
     depth: usize,
     js_opts: &JsFormatOptions,
     hug_open: bool,
+    bracket_same_line: bool,
 ) -> String {
     let inner_indent = indent_str(depth + 1, js_opts);
     let outer_indent = indent_str(depth, js_opts);
@@ -1136,6 +1159,15 @@ fn render_multi_line(
         out.push('\n');
         out.push_str(&inner_indent);
         out.push('>');
+    } else if bracket_same_line && !attrs.is_empty() {
+        // `bracketSameLine`: keep the closer glued to the last attribute line
+        // instead of dropping it to its own line. Self-closing keeps the space
+        // (` />`); a normal tag's `>` sits flush after the last attribute.
+        if self_closing {
+            out.push_str(" />");
+        } else {
+            out.push('>');
+        }
     } else {
         out.push('\n');
         out.push_str(&outer_indent);
@@ -1335,7 +1367,9 @@ fn render_attribute(
                 return Ok(format!("bind:{}{modifiers}={value}", d.name));
             }
             let inner = render_directive_value(source, &d.expression, d.end, options, attr_depth)?;
-            if inner == d.name.as_str() && modifiers.is_empty() {
+            // `bind:value={value}` → `bind:value` only when shorthand is allowed
+            // (`svelteAllowShorthand`, default true).
+            if options.allow_shorthand && inner == d.name.as_str() && modifiers.is_empty() {
                 Ok(format!("bind:{}", d.name))
             } else {
                 Ok(format!("bind:{}{modifiers}={{{inner}}}", d.name))
@@ -1356,7 +1390,9 @@ fn render_attribute(
                 narrow_value,
                 prefix,
             )?;
-            if inner == d.name.as_str() {
+            // `class:active={active}` → `class:active` only when shorthand is
+            // allowed (`svelteAllowShorthand`, default true).
+            if options.allow_shorthand && inner == d.name.as_str() {
                 Ok(format!("class:{}", d.name))
             } else {
                 Ok(format!("class:{}={{{inner}}}", d.name))
@@ -1463,11 +1499,21 @@ fn render_attribute(
             )?;
             // Shorthand: `style:color={color}` → `style:color` when the
             // expression is a simple identifier matching the directive name,
-            // mirroring prettier-plugin-svelte's shorthand collapsing.
+            // mirroring prettier-plugin-svelte's shorthand collapsing — gated on
+            // `svelteAllowShorthand` (default true). With shorthand disabled the
+            // full `style:color={color}` form is emitted, reconstructing the
+            // implicit `{name}` value for a source-bare `style:color`.
             let shorthand_value = format!("{{{}}}", d.name);
-            if value.is_empty() || (modifiers.is_empty() && value == shorthand_value) {
+            if options.allow_shorthand
+                && (value.is_empty() || (modifiers.is_empty() && value == shorthand_value))
+            {
                 Ok(format!("style:{}{modifiers}", d.name))
             } else {
+                let value = if value.is_empty() {
+                    &shorthand_value
+                } else {
+                    &value
+                };
                 Ok(format!("style:{}{modifiers}={value}", d.name))
             }
         }
@@ -1712,7 +1758,9 @@ fn render_single_expression_value(
         && name
             .chars()
             .all(|c| c.is_alphanumeric() || c == '_' || c == '$');
-    if is_valid_js_identifier && formatted == name {
+    // `name={name}` → `{name}` only when shorthand is allowed
+    // (`svelteAllowShorthand`, default true).
+    if options.allow_shorthand && is_valid_js_identifier && formatted == name {
         Ok(format!("{{{formatted}}}"))
     } else {
         Ok(format!("{}={{{formatted}}}", name))

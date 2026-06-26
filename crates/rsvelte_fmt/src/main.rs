@@ -16,8 +16,8 @@ use oxc_formatter::JsFormatOptions;
 use oxc_formatter_core::{IndentStyle, IndentWidth, LineWidth};
 use rayon::prelude::*;
 use rsvelte_formatter::{
-    FormatOptions, JsonFormatOptions, JsonVariant, format, format_js_source, format_json_source,
-    reindent,
+    FormatOptions, JsonFormatOptions, JsonVariant, SortOrderSpec, format, format_js_source,
+    format_json_source, reindent,
 };
 
 mod config;
@@ -452,6 +452,32 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> FormatOptions {
     // Layer the remaining `.oxfmtrc` JS keys (quotes, semicolons, …) so inline
     // `<script>` blocks match standalone files. See #693.
     cfg.apply_js(&mut js);
+    // `sortImports` reorders imports inside embedded `<script>` (and native
+    // `.ts`/`.js`) just as oxfmt does for standalone files.
+    js.sort_imports = cfg.sort_imports_options();
+
+    // Resolve `svelteSortOrder`; an unrecognised value falls back to the default
+    // and warns, mirroring oxfmt rejecting it (we warn rather than hard-fail).
+    let sort_order = match &cfg.svelte_sort_order {
+        Some(s) => SortOrderSpec::parse(s).unwrap_or_else(|| {
+            eprintln!(
+                "rsvelte-fmt: warning: unrecognised svelteSortOrder \"{s}\"; using the default \
+                 \"options-scripts-markup-styles\""
+            );
+            SortOrderSpec::default()
+        }),
+        None => SortOrderSpec::default(),
+    };
+
+    // `sortTailwindcss` orders class names by the project's tailwind stylesheet —
+    // a layer rsvelte-fmt does not reimplement. Warn instead of silently
+    // dropping it, since a missing re-sort is invisible in the diff (#1057).
+    if cfg.sort_tailwindcss {
+        eprintln!(
+            "rsvelte-fmt: warning: `sortTailwindcss` is not supported; Tailwind class ordering \
+             in markup is left unchanged. Run `oxfmt` if you need class sorting."
+        );
+    }
 
     FormatOptions {
         js,
@@ -461,6 +487,11 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> FormatOptions {
         )),
         // `format` derives this per-document from `<script lang="ts">`.
         typescript: false,
+        single_attribute_per_line: cfg.single_attribute_per_line.unwrap_or(false),
+        allow_shorthand: cfg.svelte_allow_shorthand.unwrap_or(true),
+        indent_script_and_style: cfg.svelte_indent_script_and_style.unwrap_or(true),
+        sort_order,
+        bracket_same_line: cfg.bracket_same_line.unwrap_or(false),
     }
 }
 
@@ -1328,6 +1359,7 @@ fn run_native_js(
                 js,
                 style_formatter: None,
                 typescript: false,
+                ..FormatOptions::new()
             };
             match format_js_source(&source, ext, &opts) {
                 Ok(out) if out == source => (path.clone(), NativeOutcome::Unchanged),

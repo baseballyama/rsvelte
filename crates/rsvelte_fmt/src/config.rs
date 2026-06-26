@@ -17,7 +17,8 @@
 use std::path::{Path, PathBuf};
 
 use oxc_formatter::{
-    ArrowParentheses, JsFormatOptions, QuoteProperties, QuoteStyle, Semicolons, TrailingCommas,
+    ArrowParentheses, JsFormatOptions, QuoteProperties, QuoteStyle, Semicolons, SortImportsOptions,
+    SortOrder, TrailingCommas,
 };
 use oxc_formatter_core::{IndentStyle, IndentWidth, LineEnding, LineWidth};
 
@@ -55,6 +56,26 @@ pub struct OxfmtConfig {
     /// Used by the native `.ts`/`.js` path to format each file at the same
     /// options `oxfmt` would.
     pub overrides: Vec<OverrideConfig>,
+
+    /// Prettier's `singleAttributePerLine` — force every attribute of a
+    /// multi-attribute element onto its own line.
+    pub single_attribute_per_line: Option<bool>,
+    /// prettier-plugin-svelte's `svelteAllowShorthand` (the `svelte.allowShorthand`
+    /// key under oxfmt's `svelte` object). Default `true`.
+    pub svelte_allow_shorthand: Option<bool>,
+    /// prettier-plugin-svelte's `svelteIndentScriptAndStyle`
+    /// (`svelte.indentScriptAndStyle`). Default `true`.
+    pub svelte_indent_script_and_style: Option<bool>,
+    /// prettier-plugin-svelte's `svelteSortOrder` (`svelte.sortOrder`).
+    pub svelte_sort_order: Option<String>,
+    /// The raw `sortImports` value (`true` / `false` / an object). Built into
+    /// [`SortImportsOptions`] by [`OxfmtConfig::sort_imports_options`].
+    pub sort_imports: Option<serde_json::Value>,
+    /// Whether `sortTailwindcss` was set. rsvelte-fmt cannot reproduce the
+    /// tailwind class ordering faithfully (it depends on the project's tailwind
+    /// stylesheet/config), so the CLI emits a warning when this is present
+    /// rather than silently dropping it.
+    pub sort_tailwindcss: bool,
 }
 
 /// One `.oxfmtrc` `overrides` entry: globs + the option subset they apply.
@@ -155,6 +176,56 @@ impl OxfmtConfig {
     pub fn config_dir(&self) -> Option<&Path> {
         self.path.as_deref().and_then(Path::parent)
     }
+
+    /// Build the [`SortImportsOptions`] for the embedded-`<script>` / native-JS
+    /// paths from the raw `sortImports` config, mirroring oxfmt's mapping:
+    /// `true` (or an object) starts from [`SortImportsOptions::default()`] and an
+    /// object overlays the documented scalar fields; `false` / absent yields
+    /// `None` (no sorting). Advanced `groups` / `customGroups` keep their
+    /// defaults — the common `sortImports: true` and scalar-tuned configs are
+    /// covered byte-for-byte.
+    pub fn sort_imports_options(&self) -> Option<SortImportsOptions> {
+        match self.sort_imports.as_ref()? {
+            serde_json::Value::Bool(false) => None,
+            serde_json::Value::Bool(true) => Some(SortImportsOptions::default()),
+            serde_json::Value::Object(obj) => {
+                let mut opts = SortImportsOptions::default();
+                let as_bool = |k: &str| obj.get(k).and_then(serde_json::Value::as_bool);
+                if let Some(v) = as_bool("partitionByNewline") {
+                    opts.partition_by_newline = v;
+                }
+                if let Some(v) = as_bool("partitionByComment") {
+                    opts.partition_by_comment = v;
+                }
+                if let Some(v) = as_bool("sortSideEffects") {
+                    opts.sort_side_effects = v;
+                }
+                if let Some(v) = as_bool("ignoreCase") {
+                    opts.ignore_case = v;
+                }
+                if let Some(v) = as_bool("newlinesBetween") {
+                    opts.newlines_between = v;
+                }
+                if let Some(v) = obj.get("order").and_then(serde_json::Value::as_str) {
+                    opts.order = match v {
+                        "desc" => SortOrder::Desc,
+                        _ => SortOrder::Asc,
+                    };
+                }
+                if let Some(arr) = obj
+                    .get("internalPattern")
+                    .and_then(serde_json::Value::as_array)
+                {
+                    opts.internal_pattern = arr
+                        .iter()
+                        .filter_map(|v| v.as_str().map(str::to_owned))
+                        .collect();
+                }
+                Some(opts)
+            }
+            _ => None,
+        }
+    }
 }
 
 /// Search `start` and each ancestor directory for the first recognised config
@@ -234,6 +305,34 @@ fn parse_object(map: &serde_json::Map<String, serde_json::Value>) -> OxfmtConfig
 
     cfg.print_width = as_u64("printWidth").and_then(|n| u16::try_from(n).ok());
     cfg.tab_width = as_u64("tabWidth").and_then(|n| u8::try_from(n).ok());
+
+    cfg.single_attribute_per_line = as_bool("singleAttributePerLine");
+
+    // The `svelte` key is either `true` / `false` or an object carrying the
+    // prettier-plugin-svelte knobs (`allowShorthand`, `indentScriptAndStyle`,
+    // `sortOrder`). A bare `true` leaves every sub-option at its default.
+    if let Some(serde_json::Value::Object(s)) = map.get("svelte") {
+        cfg.svelte_allow_shorthand = s.get("allowShorthand").and_then(serde_json::Value::as_bool);
+        cfg.svelte_indent_script_and_style = s
+            .get("indentScriptAndStyle")
+            .and_then(serde_json::Value::as_bool);
+        cfg.svelte_sort_order = s
+            .get("sortOrder")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned);
+    }
+
+    // `sortImports` is `true` / `false` / an object. Keep the raw value; it is
+    // turned into `SortImportsOptions` lazily so the embedded `<script>` path
+    // gets the same import ordering oxfmt applies.
+    cfg.sort_imports = match map.get("sortImports") {
+        Some(v @ serde_json::Value::Bool(_)) | Some(v @ serde_json::Value::Object(_)) => {
+            Some(v.clone())
+        }
+        _ => None,
+    };
+
+    cfg.sort_tailwindcss = map.contains_key("sortTailwindcss");
 
     cfg.ignore_patterns = map
         .get("ignorePatterns")
@@ -454,5 +553,60 @@ mod tests {
     fn ignores_override_without_files() {
         let cfg = parse(r#"{ "overrides": [{ "options": { "printWidth": 50 } }] }"#);
         assert!(cfg.overrides.is_empty());
+    }
+
+    #[test]
+    fn parses_single_attribute_per_line() {
+        let cfg = parse(r#"{ "singleAttributePerLine": true }"#);
+        assert_eq!(cfg.single_attribute_per_line, Some(true));
+    }
+
+    #[test]
+    fn parses_svelte_object_options() {
+        let cfg = parse(
+            r#"{ "svelte": { "allowShorthand": false, "indentScriptAndStyle": false, "sortOrder": "styles-scripts-markup-options" } }"#,
+        );
+        assert_eq!(cfg.svelte_allow_shorthand, Some(false));
+        assert_eq!(cfg.svelte_indent_script_and_style, Some(false));
+        assert_eq!(
+            cfg.svelte_sort_order.as_deref(),
+            Some("styles-scripts-markup-options")
+        );
+    }
+
+    #[test]
+    fn svelte_true_leaves_sub_options_default() {
+        let cfg = parse(r#"{ "svelte": true }"#);
+        assert_eq!(cfg.svelte_allow_shorthand, None);
+        assert_eq!(cfg.svelte_indent_script_and_style, None);
+        assert_eq!(cfg.svelte_sort_order, None);
+    }
+
+    #[test]
+    fn sort_imports_true_yields_default_options() {
+        let cfg = parse(r#"{ "sortImports": true }"#);
+        assert!(cfg.sort_imports_options().is_some());
+    }
+
+    #[test]
+    fn sort_imports_false_yields_none() {
+        let cfg = parse(r#"{ "sortImports": false }"#);
+        assert!(cfg.sort_imports_options().is_none());
+    }
+
+    #[test]
+    fn sort_imports_object_overlays_scalars() {
+        let cfg = parse(r#"{ "sortImports": { "order": "desc", "ignoreCase": false } }"#);
+        let opts = cfg.sort_imports_options().expect("some");
+        assert!(opts.order.is_desc());
+        assert!(!opts.ignore_case);
+    }
+
+    #[test]
+    fn sort_tailwindcss_presence_is_tracked() {
+        let cfg = parse(r#"{ "sortTailwindcss": { "functions": ["cn"] } }"#);
+        assert!(cfg.sort_tailwindcss);
+        let cfg2 = parse(r#"{ "singleQuote": true }"#);
+        assert!(!cfg2.sort_tailwindcss);
     }
 }

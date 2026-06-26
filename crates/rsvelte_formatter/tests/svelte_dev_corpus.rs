@@ -153,6 +153,7 @@ fn format_options(style: StyleFormatter) -> FormatOptions {
         js,
         style_formatter: Some(style),
         typescript: false,
+        ..FormatOptions::new()
     }
 }
 

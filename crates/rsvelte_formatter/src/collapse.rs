@@ -775,11 +775,11 @@ fn fix_pre_packed_span_siblings(
 /// This matches prettier's behaviour inside `<pre>` (isPreTagContent) where the
 /// narrow line budget forces the inner close + trailing content to the next line:
 ///
-/// ```
+/// ```text
 ///   ><span> x=<span class="...">VAL</span>,</span     (overflows after re-indent)
 /// ```
 /// becomes:
-/// ```
+/// ```text
 ///   ><span> x=<span class="...">VAL</span            (fits)
 ///     >,</span                                         (continuation at depth+1)
 /// ```
