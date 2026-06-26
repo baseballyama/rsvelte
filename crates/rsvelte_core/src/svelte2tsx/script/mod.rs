@@ -157,6 +157,10 @@ struct PossibleExport {
     is_let: bool,
     has_init: bool,
     has_type_annotation: bool,
+    /// Initializer is a boolean literal (`let x = false`). Like official's
+    /// `propTypeAssertToUserDefined`, this still forces the `__sveltets_2_any`
+    /// widen (TS would otherwise narrow `x` to the `false`/`true` literal type).
+    has_boolean_init: bool,
     decl_end: u32,
     type_annotation_text: Option<String>,
     /// Leading JSDoc `/** @type {…} */` on the declaration, for
@@ -987,6 +991,7 @@ pub fn process_instance_script(
                                     is_let,
                                     has_init: declarator.init.is_some(),
                                     has_type_annotation: declarator.type_annotation.is_some(),
+                                    has_boolean_init: declarator_has_boolean_init(declarator),
                                     decl_end: declarator.span.end,
                                     type_annotation_text: ta_text,
                                     doc: leading_jsdoc_comment(
@@ -1008,6 +1013,7 @@ pub fn process_instance_script(
                                         is_let,
                                         has_init: declarator.init.is_some(),
                                         has_type_annotation: false,
+                                        has_boolean_init: false,
                                         decl_end: declarator.span.end,
                                         type_annotation_text: None,
                                         doc: None,
@@ -1124,6 +1130,9 @@ pub fn process_instance_script(
                                                 has_type_annotation: declarator
                                                     .type_annotation
                                                     .is_some(),
+                                                has_boolean_init: declarator_has_boolean_init(
+                                                    declarator,
+                                                ),
                                                 decl_end: declarator.span.end,
                                                 type_annotation_text: ta_text,
                                                 doc: leading_jsdoc_comment(
@@ -3383,12 +3392,24 @@ fn handle_export_named_decl(
             if let Some(doc) = doc {
                 exported_names.set_doc(&exported, doc);
             }
-            // Inject __sveltets_2_any for exported variables that either:
-            // 1. Have no initializer (export { x } where x has no default)
-            // 2. Have a type annotation (export { x } where x: Type = value)
+            // Inject __sveltets_2_any for exported variables. Mirrors official
+            // `propTypeAssertToUserDefined` (called from `addExport` when the
+            // re-exported local is a `let`): widen when the declaration has
+            //   1. no initializer (`export { x }` where `x` has no default), OR
+            //   2. a type — a TS annotation (`let x: T = …`) OR a JSDoc
+            //      `/** @type {T} */` (the doc lives on the `let x` declaration), OR
+            //   3. a boolean-literal initializer (`let x = false`), which TS would
+            //      otherwise narrow to the `false`/`true` literal type.
+            // Cases 2 and 3 cover renamed legacy props like
+            // `let className = ""; export { className as class }` with a JSDoc
+            // `@type` (e.g. sveltestrap) that previously lost the widen.
             if is_instance && is_let {
                 let has_ta = possible.map(|p| p.has_type_annotation).unwrap_or(false);
-                if (!has_init || has_ta)
+                let has_jsdoc_type = possible
+                    .and_then(|p| p.doc.as_deref())
+                    .is_some_and(|d| d.contains("@type"));
+                let has_bool_init = possible.map(|p| p.has_boolean_init).unwrap_or(false);
+                if (!has_init || has_ta || has_jsdoc_type || has_bool_init)
                     && let Some(pe) = possible
                 {
                     let inject = format!(
@@ -4715,6 +4736,17 @@ fn binding_pattern_simple_name(pattern: &oxc::BindingPattern) -> Option<String> 
         oxc::BindingPattern::BindingIdentifier(id) => Some(id.name.to_string()),
         _ => None,
     }
+}
+
+/// Whether a declarator's initializer is a boolean literal (`let x = false`).
+/// Mirrors official `propTypeAssertToUserDefined`'s `True/FalseKeyword` check —
+/// such an init still forces the `__sveltets_2_any` widen (TS would otherwise
+/// narrow `x` to the `false`/`true` literal type).
+fn declarator_has_boolean_init(declarator: &oxc::VariableDeclarator) -> bool {
+    declarator
+        .init
+        .as_ref()
+        .is_some_and(|init| matches!(init, oxc::Expression::BooleanLiteral(_)))
 }
 
 /// Convert a PropertyKey to a string name.
