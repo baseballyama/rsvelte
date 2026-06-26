@@ -529,6 +529,7 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
         defer_script_parse: true,
         force_typescript: false,
         lenient_script: false,
+        skip_non_css_lang_style: false,
     };
     let mut ast = phases::phase1_parse::parse(source, parse_options)?;
 
@@ -640,6 +641,7 @@ pub fn compile_both(
         defer_script_parse: true,
         force_typescript: false,
         lenient_script: false,
+        skip_non_css_lang_style: false,
     };
     let mut ast = phases::phase1_parse::parse(source, parse_options)?;
 

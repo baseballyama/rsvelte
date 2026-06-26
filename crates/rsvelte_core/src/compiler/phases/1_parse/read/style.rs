@@ -140,7 +140,8 @@ impl Parser<'_> {
         // other lint on the file. Plain-CSS `<style>` keeps full strictness, so
         // invalid plain CSS still fails to parse exactly as the official
         // compiler (and the eslint oracle) treats it.
-        let lenient_non_css = self.options.lenient_script && has_non_css_lang(&attributes);
+        let lenient_non_css = (self.options.lenient_script || self.options.skip_non_css_lang_style)
+            && has_non_css_lang(&attributes);
 
         let content_start = self.index;
 
