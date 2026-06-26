@@ -3367,7 +3367,16 @@ fn handle_export_named_decl(
             let is_let = possible.map(|p| p.is_let).unwrap_or(false);
             let has_init = possible.map(|p| p.has_init).unwrap_or(true);
             let type_ann = possible.and_then(|p| p.type_annotation_text.clone());
-            let doc = possible.and_then(|p| p.doc.clone());
+            // Mirror official `getDoc(target)`: the doc is taken from the `let x`
+            // declaration first, then — if none there — from the `export { … }`
+            // statement itself (`exportExpr`). So
+            //   let _class = null;
+            //   /** @type {string | false | null} */
+            //   export { _class as class };
+            // carries the `@type` onto the prop in the render destructure.
+            let doc = possible
+                .and_then(|p| p.doc.clone())
+                .or_else(|| leading_jsdoc_comment(raw_content, export.span.start as usize));
             let is_prop = is_instance && is_let;
             exported_names.add_full(
                 exported.clone(),
