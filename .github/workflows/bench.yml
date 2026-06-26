@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'crates/rsvelte_core/**'
+      - 'crates/rsvelte_formatter/**'
+      - 'benches/corpus/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/bench.yml'
@@ -27,84 +29,42 @@ jobs:
     name: Criterion benchmarks
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    # Criterion takes ~25 minutes per run; not worth gating every PR on
-    # absolute throughput numbers that move slowly. Always run on push to
-    # `main` (and manual dispatch); on PRs run only when the PR is
-    # labeled `bench`.
+    # Criterion reports absolute wall-clock throughput, which is noisier than
+    # CodSpeed's instruction counts and moves slowly — not worth gating every
+    # PR on. Always run on push to `main` (and manual dispatch); on PRs run
+    # only when the PR is labeled `bench`. (The per-PR *regression* signal
+    # comes from the CodSpeed workflow, which runs on every PR.)
     if: |
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
        contains(github.event.pull_request.labels.*.name, 'bench'))
     steps:
+      # No submodules: the bench harnesses read the in-repo corpus
+      # (`benches/corpus/`) and in-code synthetic generators, never the
+      # `svelte` submodule — so there's nothing to build or generate first.
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          submodules: true
+          submodules: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: '24'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-
-      - name: Resolve Svelte submodule SHA
-        id: svelte-sha
-        shell: bash
-        run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
-
-      - name: Cache fixtures
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
-        with:
-          path: fixtures
-          key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
-
-      - name: Cache Svelte compiler build
-        # See the matching step in `.github/workflows/ci.yml`.
-        id: svelte-build-cache
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
-        with:
-          path: |
-            submodules/svelte/node_modules
-            submodules/svelte/packages/svelte/node_modules
-            submodules/svelte/packages/svelte/compiler/index.js
-            submodules/svelte/packages/svelte/types
-            submodules/svelte/packages/svelte/*.d.ts
-            submodules/svelte/packages/svelte/scripts/_bundle.js
-          key: svelte-build-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
-
-      - name: Build Svelte compiler
-        if: steps.svelte-build-cache.outputs.cache-hit != 'true'
-        run: |
-          cd submodules/svelte
-          pnpm install --frozen-lockfile
-          pnpm build
-
-      - name: Generate fixtures
-        run: pnpm run generate-fixtures
-        timeout-minutes: 15
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           # This job times out on a cold cache (oxc is built from a git rev,
-          # so the first compile is ~15 min and used to eat most of the
-          # `Run criterion` budget — see below). rust-cache defaults to NOT
+          # so the first compile is ~15 min). rust-cache defaults to NOT
           # saving on a failed job, so a single timeout left the cache cold
-          # forever: every subsequent run recompiled from scratch and timed
-          # out again. Saving on failure breaks that deadlock — the compiled
-          # `target/` is preserved even if a later step fails.
+          # forever. Saving on failure preserves the compiled `target/` even
+          # if a later step fails.
           cache-on-failure: true
 
       - name: Build benchmarks
         # Compile the bench harnesses separately so the cold-cache build
         # (~15 min) is not charged against the `Run criterion` measurement
         # budget below. On a warm cache this is a quick no-op.
-        run: cargo bench --bench parser --bench compiler --no-run
+        run: cargo bench --bench parser --bench compiler --bench formatter --no-run
         timeout-minutes: 30
 
       - name: Run criterion
@@ -112,7 +72,7 @@ jobs:
         # time measuring. `--save-baseline pr` saves results so a follow-up
         # job (or the next commit) can diff against this baseline with
         # `--baseline pr`.
-        run: cargo bench --bench parser --bench compiler -- --save-baseline pr
+        run: cargo bench --bench parser --bench compiler --bench formatter -- --save-baseline pr
         timeout-minutes: 30
 
       - name: Upload criterion reports

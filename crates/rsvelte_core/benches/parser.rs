@@ -1,90 +1,51 @@
 //! Parser benchmarks.
 //!
-//! Measures the performance of the Svelte parser on various inputs.
+//! Measures single-file `parse` and the parallel `parse_parallel` path used by
+//! batch tooling. Inputs come from the **pinned, in-repo corpus** at
+//! `benches/corpus/` (committed to the repo, never read from the `svelte`
+//! submodule) so the workload — and the benchmark IDs — stay stable across
+//! submodule bumps, which is what makes the CodSpeed regression diff valid.
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use std::fs;
 use std::hint::black_box;
-use std::path::PathBuf;
 
 use rsvelte_core::{ParseOptions, parse, parse_parallel};
 
-/// Get sample Svelte files for benchmarking.
-fn get_sample_files() -> Vec<(String, String)> {
-    let samples_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join("submodules/svelte/packages/svelte/tests/parser-modern/samples");
-
-    if !samples_dir.exists() {
-        return Vec::new();
-    }
-
-    let mut files = Vec::new();
-
-    for entry in fs::read_dir(&samples_dir).unwrap() {
-        let entry = entry.unwrap();
-        let input_path = entry.path().join("input.svelte");
-
-        if input_path.exists() {
-            let name = entry.file_name().to_str().unwrap().to_string();
-            let content = fs::read_to_string(&input_path).unwrap();
-            files.push((name, content));
-        }
-    }
-
-    files
-}
+#[path = "common/corpus.rs"]
+mod corpus;
 
 fn bench_single_parse(c: &mut Criterion) {
-    let files = get_sample_files();
-
-    if files.is_empty() {
-        eprintln!("No sample files found for benchmarking");
-        return;
-    }
-
+    let files = corpus::load();
     let mut group = c.benchmark_group("single_parse");
 
-    for (name, content) in &files {
-        let size = content.len() as u64;
-        group.throughput(Throughput::Bytes(size));
-
-        group.bench_with_input(BenchmarkId::new("parse", name), content, |b, source| {
-            b.iter(|| {
-                let options = ParseOptions::default();
-                parse(black_box(source), options)
-            });
-        });
+    for sample in &files {
+        group.throughput(Throughput::Bytes(sample.bytes()));
+        group.bench_with_input(
+            BenchmarkId::new("parse", &sample.id),
+            &sample.source,
+            |b, source| {
+                b.iter(|| parse(black_box(source), ParseOptions::default()));
+            },
+        );
     }
 
     group.finish();
 }
 
 fn bench_parallel_parse(c: &mut Criterion) {
-    let files = get_sample_files();
-
-    if files.is_empty() {
-        eprintln!("No sample files found for benchmarking");
-        return;
-    }
-
-    let total_size: u64 = files.iter().map(|(_, c)| c.len() as u64).sum();
-
-    let mut group = c.benchmark_group("parallel_parse");
-    group.throughput(Throughput::Bytes(total_size));
+    let files = corpus::load();
+    let total_size: u64 = files.iter().map(|s| s.bytes()).sum();
 
     let sources: Vec<(&str, &str)> = files
         .iter()
-        .map(|(name, content)| (name.as_str(), content.as_str()))
+        .map(|s| (s.id.as_str(), s.source.as_str()))
         .collect();
 
-    group.bench_function("all_samples", |b| {
-        b.iter(|| {
-            let options = ParseOptions::default();
-            parse_parallel(black_box(sources.clone()), options)
-        });
+    let mut group = c.benchmark_group("parallel_parse");
+    group.throughput(Throughput::Bytes(total_size));
+    group.bench_function("corpus", |b| {
+        b.iter(|| parse_parallel(black_box(sources.clone()), ParseOptions::default()));
     });
-
     group.finish();
 }
 
