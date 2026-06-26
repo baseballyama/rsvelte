@@ -1,0 +1,106 @@
+name: Publish VS Code Extension
+
+# Publishes `rsvelte-vscode` to the VS Code Marketplace (+ Open VSX). The
+# extension version follows `@rsvelte/language-server` (kept in lockstep by the
+# changesets `fixed` group), so a normal release — merging the "Version
+# Packages" PR — bumps both and pushes to main, which triggers this workflow.
+# A cheap `check` job queries the Marketplace and only fans out to the heavy
+# build+publish `publish` job when the target version isn't published yet.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/npm/vscode/**'
+      - 'apps/npm/language-server/**'
+      - 'crates/rsvelte_lint/**'
+      - 'scripts/release/publish-vscode.mjs'
+      - '.github/workflows/publish-vscode.yml'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Publish even if the target version is already on the Marketplace'
+        type: boolean
+        default: false
+
+concurrency:
+  group: publish-vscode
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_publish: ${{ steps.decide.outputs.should_publish }}
+      version: ${{ steps.decide.outputs.version }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+
+      - name: Decide whether to publish
+        id: decide
+        env:
+          VSCODE_PUBLISH_FORCE: ${{ github.event.inputs.force }}
+        run: node scripts/release/publish-vscode.mjs --check
+
+  publish:
+    name: Publish extension
+    needs: check
+    if: needs.check.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: false
+
+      # rsvelte_core's build.rs reads the Svelte version string from the submodule.
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Setup mold linker
+        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@0d096b08b4e5a7de8c28de67e11e945404e9eefa # v0.4.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          shared-key: language-server
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Build the lint wasm (nodejs target) + the language-server bundle the
+      # extension embeds; vsce's prepublish (build.mjs) copies it next to the
+      # extension bundle.
+      - name: Build language server
+        run: pnpm run build:language-server
+
+      - name: Publish to Marketplace (+ Open VSX)
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+          VSCODE_PUBLISH_FORCE: ${{ github.event.inputs.force }}
+        run: node scripts/release/publish-vscode.mjs

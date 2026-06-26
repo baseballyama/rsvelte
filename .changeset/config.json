@@ -26,6 +26,10 @@
       "@rsvelte/fmt-linux-arm64-gnu",
       "@rsvelte/fmt-linux-x64-gnu",
       "@rsvelte/fmt-win32-x64-msvc"
+    ],
+    [
+      "@rsvelte/language-server",
+      "rsvelte-vscode"
     ]
   ],
   "linked": [],
