@@ -9,9 +9,11 @@ runs on the rsvelte pipeline instead of (or alongside) the JS originals.
 wrappers folded into a bigger port, but each is targeted and tracked. See
 [§5](#5-coverage) for the per-entry mapping.
 
-> Status: **planning only.** No preprocessor code is ported yet. This document
-> + the eight reference submodules below are the starting point. The
-> next-session `/goal` text is in [§7](#7-next-session-goal).
+> Status: **all eight ported** in the new `crates/rsvelte_preprocess` crate, each
+> shipping only after passing its upstream submodule's fixtures (see the test
+> files named per port). Native where a faithful pure-Rust backend exists,
+> JS-fallback (Node bridge to the installed upstream tool, per [§2.2](#2-design-decisions-decide-before-coding))
+> otherwise. Live status in [§8](#8-implementation-status).
 
 ---
 
@@ -209,3 +211,37 @@ Paste this as the `/goal` for the next session (all the detail is in §1–6
 above, so the goal is one sentence):
 
 > Port all 8 awesome-svelte preprocessors to rsvelte following `docs/preprocessor-port-plan.md`, doing the waves (0→2) in order and shipping each only after it passes its upstream submodule's fixtures.
+
+✅ **Done.** See [§8](#8-implementation-status).
+
+---
+
+## 8. Implementation status
+
+All eight are ported in **`crates/rsvelte_preprocess`** as rsvelte
+`PreprocessorGroup`s plugged into the existing `rsvelte_core` preprocess engine.
+Each lands with a test file that drives the port against its upstream fixtures.
+
+| Entry | Backend | Tests (upstream fixtures) |
+|---|---|---|
+| svelte-switch-case | **Native** (brace-aware scanner) | `tests/switch_case.rs` — 9/9 vitest cases |
+| svelte-preprocess-sass | **Native** (`grass`) | `tests/sass.rs` — 6/6 ava cases |
+| svelte-preprocess-less | **JS-fallback** (Node → `less`) | `tests/less.rs` — 4/4 ava cases (error-frame native) |
+| svelte-preprocess (auto) | **Native subset** (replace, globalStyle, scss/sass) | `tests/svelte_preprocess.rs` — 23 cases (replace + globalStyle transformer suites + scss) |
+| @modular-css/svelte | **JS-fallback** (Node → `@modular-css/processor`) | `tests/bridge_ports.rs` — byte-exact `style.svelte` markup + output.css |
+| mdsvex | **JS-fallback** (Node → `mdsvex`) | `tests/bridge_ports.rs` |
+| svelte-preprocess-markdown | **JS-fallback** (Node → `marked`) | `tests/bridge_ports.rs` |
+| @nvl/sveltex | **JS-fallback** (Node → `@nvl/sveltex`) | `tests/bridge_ports.rs` |
+
+### Native-port follow-ups (tracked, not yet native)
+
+- **svelte-preprocess**: `typescript` (full `tsc`: enums/decorators), `postcss`,
+  `less`/`stylus`/`pug`/`coffeescript`/`babel`, and scss import-dependency /
+  tilde-import tracking — JS-toolchain transforms left to the fallback boundary.
+- **modular-css**: a `lightningcss`-css-modules native core (the postcss-defined
+  whitespace/output is currently bridged).
+- **markdown family**: comrak/pulldown-cmark cores for mdsvex / markdown and a
+  Rust LaTeX path for sveltex — each upstream's output is defined by its own JS
+  engine, so the bridge is the only byte-faithful drop-in for now.
+- **Source maps**: the bridged ports forward upstream maps; the native ports
+  (switch-case, globalStyle) do not yet emit maps.
