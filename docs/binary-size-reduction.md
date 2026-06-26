@@ -6,7 +6,19 @@ everything we can do**, with measured data, prioritized into tiers by
 risk/reward. Research base: oxc's own build setup, napi-rs docs, `min-sized-rust`,
 the Rust Performance Book.
 
-Worktree: `rsvelte-binsize` (branch `perf/binary-size`).
+Worktree: `rsvelte-binsize` (branches `perf/binary-size` = Tier 1, `perf/binary-size-tier2` = Tier 2).
+
+## TL;DR — what was executed and measured
+
+| Change | Tier | Artifact effect | Status |
+|---|---|---|---|
+| `[profile.dist]` + `strip = "symbols"`, wired into `release.yml` | 1 | **−13–16%** on every native artifact (fmt 5.7→4.8 MB verified; .node ~10.1→8.8, svelte_check ~10.9→9.3) | ✅ PR (Tier 1) |
+| `wasm-opt = ['-Oz']` (was `false`) | 1 | **−15–40%** on the `.wasm` | ✅ PR (Tier 1) |
+| Trim `regex` Unicode tables (core + lint) | 2 | **−242 KiB** on every artifact (stacks on strip; fmt stripped 5,038,512→4,790,920 B) | ✅ PR (Tier 2), 1517+240 tests green |
+| Drop dual allocator / gate miette-fancy / lean-`.node` | 2 | **0** — fat LTO already dead-strips unreferenced deps (byte-identical lean `.node` proves it) | ❌ no size benefit |
+| `opt-level = "z"` on native, linker GC/ICF | 3 | rejected (perf mandate) / redundant (fat LTO) | ❌ |
+
+**Bottom line:** the native binaries are dominated by *reachable* compiler/oxc/regex code; after stripping (−~15%) and the regex-table trim (−242 KiB), further native shrinkage would require `opt-level=z`, which the 100× performance goal forbids. The deepest remaining wins are WASM-only (`wasm-opt`, and optionally nightly `build-std`).
 
 ---
 
@@ -124,14 +136,14 @@ reachable*. That makes the regex Unicode tables the one real Tier-2 size lever.
 | 2.4 | Gate `miette/fancy` / svelte_check out of the `.node`. | ❌ **no size benefit** | 0 (the lean-`.node` experiment above was byte-identical). | Same dead-strip reason. A separate *compile-time* win if desired. |
 | 2.5 | Trim `chrono`/`im`/`sourcemap`/`notify` default features. | ⏳ low priority | only the *reachable* portion matters; unused parts already stripped. | Marginal; measure per-crate before touching. |
 
-### Tier 3 — Aggressive / nightly (WASM, or a dedicated `min` build only)
+### Tier 3 — Aggressive / nightly (assessed; native items rejected by the perf mandate)
 
-| # | Action | Expected | Risk |
+| # | Action | Verdict | Why |
 |---|---|---|---|
-| 3.1 | Nightly `-Z build-std=std,panic_abort -Z build-std-features="optimize_for_size"` for WASM. Rebuilds std with size algorithms. | large on WASM | nightly-only; ~2x build time; pin nightly (a Sept-2025 regression exists, rust#147257). |
-| 3.2 | `-C panic=immediate-abort` (replaces panic runtime with `ud2`, kills panic-message formatting). | further WASM/size cut | nightly; suppresses all panic messages → only for a dedicated min artifact. |
-| 3.3 | `opt-level = "z"`/`"s"` on **native** artifacts. | single-digit–25% | **slower** — violates the 100x mandate. Only if a specific artifact is size-critical and cold. Measure perf regression first. |
-| 3.4 | Linker GC / ICF: `-Wl,--gc-sections` + `-Wl,--icf=safe` (lld/mold on Linux), `-Wl,-dead_strip` (macOS). | low single-digit % on top of LTO | `--icf=all` can break fn-pointer identity; use `safe`. |
+| 3.1 | Nightly `-Z build-std=std,panic_abort -Z build-std-features="optimize_for_size"` for WASM. | ⏳ **deferred** | Real WASM win, but nightly-only + ~2× build time + a pinned-nightly regression (rust#147257). `wasm-opt -Oz` (Tier 1.2) already captures the bulk; revisit only if WASM bytes still matter. |
+| 3.2 | `-C panic=immediate-abort` (kills panic-message formatting). | ⏳ **deferred** | Nightly; suppresses all panic messages → only viable for a dedicated `min` WASM artifact. |
+| 3.3 | `opt-level = "z"`/`"s"` on **native** artifacts. | ❌ **rejected** | Directly trades away the project's 100× performance mandate. Not acceptable for the compiler/CLIs. (Already used for WASM via the package override in 1.3.) |
+| 3.4 | Linker GC / ICF: `-Wl,--gc-sections` / `-Wl,--icf=safe` (Linux lld/mold), `-Wl,-dead_strip` (macOS). | ❌ **redundant** | `lto = "fat"` already performs whole-program dead-code elimination (empirically confirmed — see the byte-identical lean-`.node` experiment in Tier 2). No measurable additional win on top of fat LTO + strip. |
 
 ### Explicitly rejected
 
