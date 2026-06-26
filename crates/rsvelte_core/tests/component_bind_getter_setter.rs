@@ -10,6 +10,10 @@
 use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn compile_js(src: &str) -> String {
+    compile_js_with(src, Some(true))
+}
+
+fn compile_js_with(src: &str, runes: Option<bool>) -> String {
     let result = compile(
         src,
         CompileOptions {
@@ -17,7 +21,7 @@ fn compile_js(src: &str) -> String {
             generate: GenerateMode::Client,
             dev: false,
             css: CssMode::External,
-            runes: Some(true),
+            runes,
             ..Default::default()
         },
     )
@@ -44,5 +48,29 @@ fn two_getter_setter_binds_declare_unique_names() {
     assert!(
         out.contains("bind_set_1("),
         "second setter helper should be declared/called as bind_set_1, got:\n{out}"
+    );
+}
+
+/// Regression test for issue #1228: a `bind:` on a component whose target is a
+/// legacy reactive (`$:`-declared) variable must lower the setter write through
+/// `$.set(path, $$value)`, not a plain `path = $$value` assignment — otherwise
+/// the bound state loses reactivity (writes don't notify subscribers).
+#[test]
+fn legacy_reactive_component_bind_setter_uses_set() {
+    let src = r#"<script>
+  export let page;
+  $: path = page.path;
+</script>
+
+<Tabs bind:selected={path} />"#;
+    let out = compile_js_with(src, None);
+
+    assert!(
+        out.contains("$.set(path, $$value)"),
+        "setter for a legacy-reactive bind target must use $.set, got:\n{out}"
+    );
+    assert!(
+        !out.contains("path = $$value"),
+        "setter must not be a plain assignment, got:\n{out}"
     );
 }

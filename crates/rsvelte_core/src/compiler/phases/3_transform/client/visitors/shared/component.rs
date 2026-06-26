@@ -1486,17 +1486,22 @@ fn process_bind_directive(
     // Check if this is a store member expression (e.g., $store.value)
     let is_store_member = is_store_member_expression(&bind.expression, context);
 
-    // Check if this is a state source or derived binding that needs $.get/$.set
-    // In the official compiler, the transform.assign for both State and Derived
-    // generates $.set(node, value), so both need the same treatment.
+    // Check if this is a state source or derived binding that needs $.get/$.set.
+    // In the official compiler, the transform.assign for state, derived AND legacy
+    // reactive (`$:`-declared) bindings all generate $.set(node, value) — this is
+    // exactly the set `add_state_transformers` registers a `$.set` assign for
+    // (is_state_source || Derived || LegacyReactive). Without LegacyReactive here,
+    // a plain `bind:x={path}` whose `path` comes from `$: path = …` falls through
+    // to a plain `path = $$value` assignment and loses reactivity (issue #1228).
     let is_state_binding = if let JsExpr::Identifier(name) = &raw_expression {
         if let Some(binding) = context.state.get_binding(name) {
+            use crate::compiler::phases::phase2_analyze::scope::BindingKind;
             crate::compiler::phases::phase3_transform::client::utils::is_state_source(
                 binding,
                 context.state.analysis,
             ) || matches!(
                 binding.kind,
-                crate::compiler::phases::phase2_analyze::scope::BindingKind::Derived
+                BindingKind::Derived | BindingKind::LegacyReactive
             )
         } else {
             false
