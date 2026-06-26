@@ -6258,14 +6258,28 @@ pub fn parse_program_with_error(
                 .collect();
 
             // Distribute comments to nested bodies within each statement.
-            // We convert each statement to a mutable Value, run distribution, then wrap back.
+            //
+            // A statement only needs the `JsNode::Raw(Value)` representation if it
+            // actually carries comment payload:
+            //   - it already has its own `leadingComments` (already wrapped as Raw above), or
+            //   - distribution attaches `leadingComments` to a nested statement body.
+            // Otherwise we keep the typed `JsNode` so downstream typed walkers don't
+            // have to fall back to a serde_json::Value walk for it.
             for node in body_nodes.iter_mut() {
-                let mut val = node.to_value();
-                distribute_comments_to_node(&mut val, &comment_entries);
-                // Check if the value was actually modified (has nested leadingComments added)
-                // by comparing against the original. Since distribute_comments_to_node modifies
-                // in-place, we always wrap back as Raw to preserve any changes.
-                *node = JsNode::Raw(val);
+                if matches!(node, JsNode::Raw(_)) {
+                    // Already Raw (had its own leading comments). Run distribution on
+                    // the existing Value in place so nested bodies still get comments.
+                    if let JsNode::Raw(val) = node {
+                        distribute_comments_to_node(val, &comment_entries);
+                    }
+                } else {
+                    // Typed node: distribute onto a throwaway Value and only convert
+                    // to Raw if distribution actually inserted nested comments.
+                    let mut val = node.to_value();
+                    if distribute_comments_to_node(&mut val, &comment_entries) {
+                        *node = JsNode::Raw(val);
+                    }
+                }
             }
 
             body_nodes
@@ -6373,10 +6387,13 @@ struct CommentEntry {
 /// This function operates entirely in-place: it never clones statement Values.
 /// Comments are attached by inserting `leadingComments` directly into existing
 /// statement Map objects via mutable references.
-fn distribute_comments_to_node(node: &mut Value, comments: &[CommentEntry]) {
+/// Distribute comments to nested statement bodies. Returns `true` if any
+/// `leadingComments` field was actually inserted (i.e. the node was mutated).
+fn distribute_comments_to_node(node: &mut Value, comments: &[CommentEntry]) -> bool {
     let Some(obj) = node.as_object_mut() else {
-        return;
+        return false;
     };
+    let mut modified = false;
 
     let node_type = obj
         .get("type")
@@ -6422,6 +6439,7 @@ fn distribute_comments_to_node(node: &mut Value, comments: &[CommentEntry]) {
 
                         if !leading.is_empty() {
                             stmt_obj.insert("leadingComments".to_string(), Value::Array(leading));
+                            modified = true;
                         }
                     }
 
@@ -6459,14 +6477,16 @@ fn distribute_comments_to_node(node: &mut Value, comments: &[CommentEntry]) {
             if child.is_array() {
                 if let Some(items) = child.as_array_mut() {
                     for item in items {
-                        distribute_comments_to_node(item, comments);
+                        modified |= distribute_comments_to_node(item, comments);
                     }
                 }
             } else if child.is_object() {
-                distribute_comments_to_node(child, comments);
+                modified |= distribute_comments_to_node(child, comments);
             }
         }
     }
+
+    modified
 }
 
 /// Convert a statement to JSON value (for program context, no -1 offset adjustment).
