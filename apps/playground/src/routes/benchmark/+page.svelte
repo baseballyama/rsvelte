@@ -7,7 +7,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	type TaskId = 'full' | 'parse' | 'svelte2tsx' | 'fmt' | 'svelte-check';
+	type TaskId = 'full' | 'full-ssr' | 'parse' | 'svelte2tsx' | 'fmt' | 'svelte-check';
 
 	// `animationTime` is the elapsed wall-clock ms since the run started.
 	// Each bar across every task shows `min(animationTime, this.durationMs)`,
@@ -59,9 +59,20 @@
 		if (!data.results) return [];
 		const r = data.results;
 		const list: TaskPanel[] = [
-			{ id: 'full', label: 'Compile (CSR)', sub: 'parse / analyze / codegen → DOM', group: 'compiler', baseline: 'svelte/compiler', data: r },
-			{ id: 'parse', label: 'Parser only', sub: 'phase 1, isolated', group: 'compiler', baseline: 'svelte/compiler', data: r.parse }
+			{ id: 'full', label: 'Compile (CSR)', sub: 'parse / analyze / codegen → DOM', group: 'compiler', baseline: 'svelte/compiler', data: r }
 		];
+		// SSR compile — optional (older JSON snapshots predate it).
+		if (r.compileServer) {
+			list.push({
+				id: 'full-ssr',
+				label: 'Compile (SSR)',
+				sub: 'parse / analyze / codegen → HTML',
+				group: 'compiler',
+				baseline: 'svelte/compiler',
+				data: r.compileServer
+			});
+		}
+		list.push({ id: 'parse', label: 'Parser only', sub: 'phase 1, isolated', group: 'compiler', baseline: 'svelte/compiler', data: r.parse });
 		if (r.svelte2tsx) {
 			list.push({
 				id: 'svelte2tsx',
