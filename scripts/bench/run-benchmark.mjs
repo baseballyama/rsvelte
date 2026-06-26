@@ -719,25 +719,24 @@ async function main() {
 	const files = collectTestFiles();
 	console.error(`Found ${files.length} files`);
 
-	// `compile-server` benchmarks are currently broken (Rust durations report
-	// near-zero, yielding `Infinity` speedups) and would mislead the report —
-	// omit until the runner is fixed.
 	const compileClient = await runBenchmarkTask(files, 'compile-client');
+	const compileServer = await runBenchmarkTask(files, 'compile-server');
 	const parse = await runBenchmarkTask(files, 'parse');
 	const svelte2tsx = await runBenchmarkTask(files, 'svelte2tsx');
 	const fmt = await runFmtTask(files);
 	const svelteCheck = await runSvelteCheckTask();
 
-	// Output combined JSON. Compile-client lives at the top level for
-	// backward compatibility with the existing benchmark page; parse,
-	// svelte2tsx, fmt and svelte-check are nested siblings so the page can
-	// render each as its own section.
+	// Output combined JSON. Compile-client (CSR) lives at the top level for
+	// backward compatibility with the existing benchmark page; compile-server
+	// (SSR), parse, svelte2tsx, fmt and svelte-check are nested siblings so the
+	// page can render each as its own section.
 	const output = {
 		generatedAt: new Date().toISOString(),
 		commitSha: getCommitSha(),
 		runner: getRunnerInfo(),
 		testFilesCount: files.length,
 		...asTaskResults(compileClient),
+		compileServer: asTaskResults(compileServer),
 		parse: asTaskResults(parse),
 		svelte2tsx: asTaskResults(svelte2tsx),
 		fmt: asTaskResults(fmt),

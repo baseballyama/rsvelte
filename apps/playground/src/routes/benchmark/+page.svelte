@@ -7,7 +7,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	type TaskId = 'full' | 'parse' | 'svelte2tsx' | 'fmt' | 'svelte-check';
+	type TaskId = 'full' | 'full-ssr' | 'parse' | 'svelte2tsx' | 'fmt' | 'svelte-check';
 
 	// `animationTime` is the elapsed wall-clock ms since the run started.
 	// Each bar across every task shows `min(animationTime, this.durationMs)`,
@@ -40,10 +40,15 @@
 		return v.toFixed(0);
 	};
 
+	// Which tier a task belongs to: the core compiler itself, or the
+	// surrounding ecosystem tooling built on top of it.
+	type TaskGroup = 'compiler' | 'ecosystem';
+
 	type TaskPanel = {
 		id: TaskId;
 		label: string;
 		sub: string;
+		group: TaskGroup;
 		// Name of the JavaScript tool this task is benchmarked against.
 		baseline: string;
 		data: BenchmarkTaskResults;
@@ -54,14 +59,26 @@
 		if (!data.results) return [];
 		const r = data.results;
 		const list: TaskPanel[] = [
-			{ id: 'full', label: 'Full pipeline', sub: 'parse / analyze / codegen', baseline: 'svelte/compiler', data: r },
-			{ id: 'parse', label: 'Parser only', sub: 'phase 1, isolated', baseline: 'svelte/compiler', data: r.parse }
+			{ id: 'full', label: 'Compile (CSR)', sub: 'parse / analyze / codegen → DOM', group: 'compiler', baseline: 'svelte/compiler', data: r }
 		];
+		// SSR compile — optional (older JSON snapshots predate it).
+		if (r.compileServer) {
+			list.push({
+				id: 'full-ssr',
+				label: 'Compile (SSR)',
+				sub: 'parse / analyze / codegen → HTML',
+				group: 'compiler',
+				baseline: 'svelte/compiler',
+				data: r.compileServer
+			});
+		}
+		list.push({ id: 'parse', label: 'Parser only', sub: 'phase 1, isolated', group: 'compiler', baseline: 'svelte/compiler', data: r.parse });
 		if (r.svelte2tsx) {
 			list.push({
 				id: 'svelte2tsx',
 				label: 'svelte2tsx',
-				sub: '.svelte / .tsx generation',
+				sub: '.svelte → .tsx generation',
+				group: 'ecosystem',
 				baseline: 'svelte2tsx',
 				data: r.svelte2tsx
 			});
@@ -69,8 +86,9 @@
 		if (r.fmt) {
 			list.push({
 				id: 'fmt',
-				label: 'fmt',
+				label: 'Format',
 				sub: 'formatter · .svelte sources',
+				group: 'ecosystem',
 				baseline: 'prettier-svelte',
 				data: r.fmt
 			});
@@ -80,6 +98,7 @@
 				id: 'svelte-check',
 				label: 'svelte-check',
 				sub: `CLI · ${r.svelteCheck.filesCount.toLocaleString('en-US')}-file workspace`,
+				group: 'ecosystem',
 				baseline: 'svelte-check',
 				data: r.svelteCheck,
 				filesCount: r.svelteCheck.filesCount
@@ -87,6 +106,17 @@
 		}
 		return list;
 	});
+
+	// Tasks split into the two tiers shown as separate sections on the page.
+	const taskGroups: { key: TaskGroup; title: string; sub: string }[] = [
+		{ key: 'compiler', title: 'Compiler', sub: 'the rsvelte core — Svelte source → JS' },
+		{ key: 'ecosystem', title: 'Ecosystem', sub: 'tooling built on the compiler' }
+	];
+	const tasksByGroup = $derived(
+		taskGroups
+			.map((g) => ({ ...g, items: tasks.filter((t) => t.group === g.key) }))
+			.filter((g) => g.items.length > 0)
+	);
 
 	const headlineSpeedups: { id: TaskId; label: string; sub: string; x: number; precision: number }[] = $derived(
 		tasks.map((t) => ({
@@ -229,8 +259,15 @@
 				</button>
 			</header>
 
-			<div class="task-panels">
-				{#each tasks as task (task.id)}
+			<div class="task-groups">
+				{#each tasksByGroup as group (group.key)}
+				<div class="task-group">
+					<div class="task-group-head">
+						<span class="task-group-title">{group.title}</span>
+						<span class="task-group-sub">{group.sub}</span>
+					</div>
+					<div class="task-grid">
+				{#each group.items as task (task.id)}
 					{@const t = task.data}
 					<article class="task-panel">
 						<header class="task-panel-head">
@@ -275,6 +312,9 @@
 							{/each}
 						</div>
 					</article>
+				{/each}
+					</div>
+				</div>
 				{/each}
 			</div>
 		</section>
@@ -503,10 +543,45 @@
 		margin: 0;
 	}
 
-	.task-panels {
+	.task-groups {
 		display: flex;
 		flex-direction: column;
+		gap: 1.6rem;
+	}
+
+	.task-group {
+		display: flex;
+		flex-direction: column;
+		gap: 0.7rem;
+	}
+
+	.task-group-head {
+		display: flex;
+		align-items: baseline;
+		gap: 0.6rem;
+		flex-wrap: wrap;
+		padding-bottom: 0.5rem;
+		border-bottom: 1px solid var(--rule);
+	}
+
+	.task-group-title {
+		font-size: 0.95rem;
+		font-weight: 600;
+		letter-spacing: -0.01em;
+	}
+
+	.task-group-sub {
+		font-size: 0.78rem;
+		color: var(--ink-faint);
+	}
+
+	/* Responsive grid: as many ~26rem columns as fit, collapsing to a single
+	   column on narrow / mobile viewports. Halves the scroll on desktop. */
+	.task-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
 		gap: 1rem;
+		align-items: start;
 	}
 
 	.task-panel {

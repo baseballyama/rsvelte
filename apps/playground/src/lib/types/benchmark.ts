@@ -36,6 +36,10 @@ export interface BenchmarkResults extends BenchmarkTaskResults {
 	// Optional — older JSON files don't have this field.
 	runner?: RunnerInfo;
 	testFilesCount: number;
+	// The top-level `BenchmarkTaskResults` fields are the client/CSR compile.
+	// `compileServer` is the SSR compile. Optional — older JSON snapshots
+	// predate the SSR task.
+	compileServer?: BenchmarkTaskResults;
 	parse: BenchmarkTaskResults;
 	svelte2tsx?: BenchmarkTaskResults;
 	// rsvelte_formatter vs prettier-plugin-svelte. Optional — older JSON
