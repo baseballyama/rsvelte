@@ -77,6 +77,31 @@ fn svg_snippet_with_html_child_stays_html() {
 }
 
 #[test]
+fn server_if_consequent_with_nested_svg_stays_html() {
+    // Guard against the server over-eagerly deep-walking namespace inference:
+    // an {#if} consequent in HTML context that has a render-tag sibling and a
+    // *deeply nested* `<svg>` must stay html, so the whitespace between the
+    // render anchor and the nested block is kept (`<!----> `), not trimmed.
+    // (Regression from the first attempt at #1227, surfaced by
+    // flowbite-svelte AccordionItem.svelte in the corpus.)
+    let src = r#"<script>let header, open;</script>
+<button>
+  {#if header}
+    {@render header()}
+    {#if open}
+      <svg viewBox="0 0 10 6"><path d="M9 5" /></svg>
+    {/if}
+  {/if}
+</button>"#;
+    let server = compile_gen(src, GenerateMode::Server);
+    assert!(
+        server.contains("<!----> "),
+        "if-consequent with a render-tag sibling and nested <svg> must keep the \
+         whitespace anchor (html context); got:\n{server}"
+    );
+}
+
+#[test]
 fn svg_snippet_if_html_child_deep_walk_stays_html() {
     // Deep-walk: an HTML element nested inside an {#if} within an <svg> snippet
     // must resolve the snippet body to html.
