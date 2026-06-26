@@ -55,7 +55,7 @@ pub fn detect_store_subscriptions(
 ) -> Result<(), AnalysisError> {
     // Collect all $xxx references from the AST with context
     let mut store_refs: Vec<StoreRef> = Vec::new();
-    let mut unique_names: FxHashSet<String> = FxHashSet::default();
+    let mut template_refs: Vec<StoreRef> = Vec::new();
 
     // Scan scripts for $xxx identifiers
     if let Some(ref instance) = ast.instance {
@@ -78,20 +78,22 @@ pub fn detect_store_subscriptions(
         );
     }
 
-    // Scan template for $xxx identifiers
-    collect_dollar_refs_from_fragment(&ast.fragment, &analysis.source, &mut unique_names);
-    // Convert unique names from template to StoreRef (not in module).
-    // Sort by first occurrence position in source to match the official Svelte compiler's
-    // AST traversal order (it uses scope.declarations which is a JS Map maintaining insertion order).
-    let mut template_names: Vec<String> = unique_names.into_iter().collect();
-    template_names.sort_by_key(|name| analysis.source.find(name).unwrap_or(usize::MAX));
-    for name in &template_names {
-        if !store_refs.iter().any(|r| &r.name == name) {
-            store_refs.push(StoreRef {
-                name: name.clone(),
-                position: 0,
-                in_module: false,
-            });
+    // Scan template for $xxx identifiers. The recursive collector visits nodes in
+    // document order, so `template_refs` arrives in AST-traversal order — the same
+    // order the official compiler inserts store bindings into `scope.declarations`
+    // (a JS Map keyed by first reference). We must NOT sort by a textual position:
+    // a substring search would place `$x` at the offset of `$xGet`/`$xScale` and
+    // `$y` inside `$yGet`/`$yRange`, reordering the emitted getters (issue #1229).
+    collect_dollar_refs_from_fragment(&ast.fragment, &analysis.source, &mut template_refs);
+    // Append template references in first-occurrence order, skipping any name already
+    // seen in the instance/module scripts (which are visited before the template).
+    let mut seen_template: FxHashSet<&str> = FxHashSet::default();
+    for store_ref in &template_refs {
+        if store_refs.iter().any(|r| r.name == store_ref.name) {
+            continue;
+        }
+        if seen_template.insert(store_ref.name.as_str()) {
+            store_refs.push(store_ref.clone());
         }
     }
 
@@ -567,7 +569,16 @@ fn is_dollar_ident_parameter(chars: &[char], ident_start: usize, ident_end: usiz
 /// Returns true if `$xxx` is followed (ignoring whitespace) by `:` but NOT `::`.
 /// This indicates it's being used as a property key in an object literal like
 /// `{ $userName4: 'value' }` rather than as a store subscription reference.
-fn is_dollar_ident_object_property_key(chars: &[char], ident_end: usize) -> bool {
+///
+/// A ternary consequent (`cond ? $x : y`) is also `$x` followed by `:`, but `$x`
+/// there is a real reference, not a property key. Such a `$x` is preceded
+/// (ignoring whitespace) by `?`, which never precedes a property key in a runtime
+/// object literal, so we exclude it (issue #1229).
+fn is_dollar_ident_object_property_key(
+    chars: &[char],
+    ident_start: usize,
+    ident_end: usize,
+) -> bool {
     let len = chars.len();
     // Skip whitespace after the identifier
     let mut j = ident_end;
@@ -578,8 +589,21 @@ fn is_dollar_ident_object_property_key(chars: &[char], ident_end: usize) -> bool
     if j < len && chars[j] == ':' {
         // Make sure it's not `::` and not `:`  followed by nothing
         let next = if j + 1 < len { chars[j + 1] } else { '\0' };
-        // It IS a property key if followed by `:` and not `::`
-        return next != ':';
+        if next == ':' {
+            return false;
+        }
+        // Exclude a ternary consequent: `cond ? $x : y`. Walk back over
+        // whitespace (incl. newlines, for multi-line ternaries) from the
+        // identifier; a leading `?` means this is the `then` branch of a
+        // conditional expression, not a property key.
+        let mut k = ident_start as isize - 1;
+        while k >= 0 && chars[k as usize].is_whitespace() {
+            k -= 1;
+        }
+        if k >= 0 && chars[k as usize] == '?' {
+            return false;
+        }
+        return true;
     }
     false
 }
@@ -800,9 +824,19 @@ fn collect_dollar_identifiers_pass(
         // Check for $ that could start an identifier
         if chars[i] == '$' {
             // Check if this is a valid identifier start (not part of a larger identifier)
-            // Also skip $ preceded by '.' (member access like `obj.$set`)
+            // Also skip $ preceded by '.' (member access like `obj.$set`) — but a `$`
+            // preceded by the third dot of a spread (`...$store`) is a real reference,
+            // not a member access, so only treat a *single* leading dot as member access.
             let prev_is_ident_char = if i > 0 {
-                is_identifier_char(chars[i - 1]) || chars[i - 1] == '.'
+                if is_identifier_char(chars[i - 1]) {
+                    true
+                } else if chars[i - 1] == '.' {
+                    // `...$x` (spread) has a second dot immediately before; `obj.$x`
+                    // (member access) does not. Skip only the member-access form.
+                    !(i >= 2 && chars[i - 2] == '.')
+                } else {
+                    false
+                }
             } else {
                 false
             };
@@ -839,7 +873,7 @@ fn collect_dollar_identifiers_pass(
                         // let/const/var) resolve to that binding upstream,
                         // never to a store subscription.
                         && !declared.contains(&ident)
-                        && !is_dollar_ident_object_property_key(&chars, i)
+                        && !is_dollar_ident_object_property_key(&chars, ident_start, i)
                         && !is_dollar_ident_type_declaration(&chars, ident_start)
                     {
                         refs.push(StoreRef {
@@ -889,18 +923,14 @@ fn is_import_from_svelte_store(name: &str, source: &str) -> bool {
 }
 
 /// Collect $xxx identifiers from a template fragment.
-fn collect_dollar_refs_from_fragment(
-    fragment: &Fragment,
-    source: &str,
-    refs: &mut FxHashSet<String>,
-) {
+fn collect_dollar_refs_from_fragment(fragment: &Fragment, source: &str, refs: &mut Vec<StoreRef>) {
     for node in &fragment.nodes {
         collect_dollar_refs_from_node(node, source, refs);
     }
 }
 
 /// Collect $xxx identifiers from a template node.
-fn collect_dollar_refs_from_node(node: &TemplateNode, source: &str, refs: &mut FxHashSet<String>) {
+fn collect_dollar_refs_from_node(node: &TemplateNode, source: &str, refs: &mut Vec<StoreRef>) {
     match node {
         TemplateNode::ExpressionTag(tag) => {
             collect_dollar_refs_from_expression(&tag.expression, source, refs);
@@ -1004,7 +1034,7 @@ fn collect_dollar_refs_from_node(node: &TemplateNode, source: &str, refs: &mut F
 fn collect_dollar_refs_from_element(
     element: &RegularElement,
     source: &str,
-    refs: &mut FxHashSet<String>,
+    refs: &mut Vec<StoreRef>,
 ) {
     collect_dollar_refs_from_attributes(&element.attributes, source, refs);
     collect_dollar_refs_from_fragment(&element.fragment, source, refs);
@@ -1014,7 +1044,7 @@ fn collect_dollar_refs_from_element(
 fn collect_dollar_refs_from_attributes(
     attributes: &[Attribute],
     source: &str,
-    refs: &mut FxHashSet<String>,
+    refs: &mut Vec<StoreRef>,
 ) {
     for attr in attributes {
         match attr {
@@ -1076,7 +1106,11 @@ fn collect_dollar_refs_from_attributes(
                         use_dir.name.as_str()
                     };
                     if store_name.len() > 1 {
-                        refs.insert(store_name.to_string());
+                        refs.push(StoreRef {
+                            name: store_name.to_string(),
+                            position: use_dir.start as usize,
+                            in_module: false,
+                        });
                     }
                 }
                 if let Some(ref expr) = use_dir.expression {
@@ -1107,7 +1141,7 @@ fn collect_dollar_refs_from_attributes(
 fn collect_dollar_refs_from_expression(
     expr: &crate::ast::js::Expression,
     source: &str,
-    refs: &mut FxHashSet<String>,
+    refs: &mut Vec<StoreRef>,
 ) {
     // Extract source range and collect identifiers from the expression source
     if let Some(start) = expr.start()
@@ -1118,22 +1152,18 @@ fn collect_dollar_refs_from_expression(
         if end <= source.len() && start < end {
             // Use the context-aware variant that filters out function parameters and
             // variable declarations (let/const/var $xxx) to avoid false positives.
-            let mut context_refs: Vec<StoreRef> = Vec::new();
             collect_dollar_identifiers_from_js_with_context(
                 &source[start..end],
                 start,
-                &mut context_refs,
+                refs,
                 false,
             );
-            for r in context_refs {
-                refs.insert(r.name);
-            }
         }
     }
 }
 
 /// Collect $xxx identifiers from an if block.
-fn collect_dollar_refs_from_if_block(block: &IfBlock, source: &str, refs: &mut FxHashSet<String>) {
+fn collect_dollar_refs_from_if_block(block: &IfBlock, source: &str, refs: &mut Vec<StoreRef>) {
     collect_dollar_refs_from_expression(&block.test, source, refs);
     collect_dollar_refs_from_fragment(&block.consequent, source, refs);
     if let Some(ref alternate) = block.alternate {
@@ -1142,11 +1172,7 @@ fn collect_dollar_refs_from_if_block(block: &IfBlock, source: &str, refs: &mut F
 }
 
 /// Collect $xxx identifiers from an each block.
-fn collect_dollar_refs_from_each_block(
-    block: &EachBlock,
-    source: &str,
-    refs: &mut FxHashSet<String>,
-) {
+fn collect_dollar_refs_from_each_block(block: &EachBlock, source: &str, refs: &mut Vec<StoreRef>) {
     collect_dollar_refs_from_expression(&block.expression, source, refs);
     if let Some(ref key) = block.key {
         collect_dollar_refs_from_expression(key, source, refs);
@@ -1161,7 +1187,7 @@ fn collect_dollar_refs_from_each_block(
 fn collect_dollar_refs_from_await_block(
     block: &AwaitBlock,
     source: &str,
-    refs: &mut FxHashSet<String>,
+    refs: &mut Vec<StoreRef>,
 ) {
     collect_dollar_refs_from_expression(&block.expression, source, refs);
     if let Some(ref pending) = block.pending {
@@ -1176,11 +1202,7 @@ fn collect_dollar_refs_from_await_block(
 }
 
 /// Collect $xxx identifiers from a key block.
-fn collect_dollar_refs_from_key_block(
-    block: &KeyBlock,
-    source: &str,
-    refs: &mut FxHashSet<String>,
-) {
+fn collect_dollar_refs_from_key_block(block: &KeyBlock, source: &str, refs: &mut Vec<StoreRef>) {
     collect_dollar_refs_from_expression(&block.expression, source, refs);
     collect_dollar_refs_from_fragment(&block.fragment, source, refs);
 }
@@ -1189,7 +1211,7 @@ fn collect_dollar_refs_from_key_block(
 fn collect_dollar_refs_from_snippet_block(
     block: &SnippetBlock,
     source: &str,
-    refs: &mut FxHashSet<String>,
+    refs: &mut Vec<StoreRef>,
 ) {
     collect_dollar_refs_from_fragment(&block.body, source, refs);
 }
@@ -1293,5 +1315,99 @@ mod tests {
             .iter()
             .any(|b| b.name == "$items" && matches!(b.kind, BindingKind::StoreSub));
         assert!(has_items_store, "Should have a StoreSub binding for $items");
+    }
+
+    /// Collect the `StoreSub` binding names in declaration order — this is the
+    /// order the client/server codegen emits the `const $x = () => $.store_get(…)`
+    /// getters, so it must match the official compiler's first-reference order.
+    fn store_sub_order(source: &str) -> Vec<String> {
+        use crate::ast::arena::{clear_serialize_arena, set_serialize_arena};
+        use crate::compiler::CompileOptions;
+        use crate::compiler::phases::phase1_parse::{ParseOptions, parse};
+        use crate::compiler::phases::phase2_analyze::analyze_component;
+
+        let mut ast = parse(source, ParseOptions::default()).unwrap();
+        let options = CompileOptions::default();
+        // SAFETY: `ast` outlives the analyze call; `clear_serialize_arena()` runs
+        // before `ast` is dropped, so the installed pointer never dangles.
+        unsafe { set_serialize_arena(&ast.arena as *const _) };
+        let analysis = analyze_component(&mut ast, source, &options).unwrap();
+        clear_serialize_arena();
+        analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| matches!(b.kind, BindingKind::StoreSub))
+            .map(|b| b.name.to_string())
+            .collect()
+    }
+
+    /// Issue #1229: a store referenced ONLY through a spread (`...$store`) must
+    /// still be detected. The `$` is preceded by the third `.` of `...`, which the
+    /// member-access guard previously mistook for `obj.$store` and skipped.
+    #[test]
+    fn test_spread_store_subscription_detected() {
+        let source = r#"<script>
+    import { getContext } from 'svelte';
+    const { xRange } = getContext('X');
+    let left = $derived(Math.max(...$xRange));
+</script>
+<p>{left}</p>
+"#;
+        assert!(
+            store_sub_order(source).contains(&"$xRange".to_string()),
+            "spread `...$xRange` should be detected as a store subscription"
+        );
+    }
+
+    /// Issue #1229: a store in the consequent of a ternary (`cond ? $store : y`)
+    /// must be detected. `$store :` previously looked like an object property key
+    /// (`{ $store: … }`) to the heuristic and was dropped.
+    #[test]
+    fn test_ternary_consequent_store_subscription_detected() {
+        let source = r#"<script>
+    import { getContext } from 'svelte';
+    const { xGet, yGet } = getContext('X');
+    let g = $derived(true ? $xGet : $yGet);
+</script>
+<p>{g}</p>
+"#;
+        let order = store_sub_order(source);
+        assert!(
+            order.contains(&"$xGet".to_string()),
+            "ternary consequent `? $xGet :` should be detected: got {order:?}"
+        );
+        assert!(order.contains(&"$yGet".to_string()));
+    }
+
+    /// Issue #1229: store getters must be emitted in first-reference (AST
+    /// traversal) order. A substring `source.find` previously placed `$x` at the
+    /// offset of `$xGet` and `$y` inside `$yGet`, reordering the getters.
+    #[test]
+    fn test_store_getter_first_reference_order() {
+        let source = r#"<script>
+    import { getContext } from 'svelte';
+    const { x, y, xGet, yGet } = getContext('X');
+    let a = $derived($xGet + $yGet);
+</script>
+<g>
+    {#each [1] as d}
+        {@const c = $y}
+        <rect data-range={$x}></rect>
+    {/each}
+</g>
+"#;
+        // Script deriveds reference $xGet then $yGet; the template then references
+        // $y (in the @const) before $x (in the attribute). The buggy substring
+        // sort emitted $x/$y at the $xGet/$yGet offsets, ahead of their real use.
+        assert_eq!(
+            store_sub_order(source),
+            vec![
+                "$xGet".to_string(),
+                "$yGet".to_string(),
+                "$y".to_string(),
+                "$x".to_string(),
+            ],
+        );
     }
 }
