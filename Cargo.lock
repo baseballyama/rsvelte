@@ -2473,6 +2473,7 @@ name = "rsvelte_preprocess"
 version = "0.1.0"
 dependencies = [
  "grass",
+ "regex",
  "rsvelte_core",
  "serde_json",
  "tokio",

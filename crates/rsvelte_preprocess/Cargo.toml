@@ -11,17 +11,21 @@ publish = false
 crate-type = ["rlib"]
 
 [features]
-default = ["sass", "less"]
+default = ["sass", "less", "svelte-preprocess"]
 # Rust-native Sass/SCSS via the `grass` compiler (svelte-preprocess-sass).
 sass = ["dep:grass"]
 # JS-fallback Less via the user's installed `less` over a Node bridge
 # (svelte-preprocess-less).
 less = ["dep:serde_json"]
+# The svelte-preprocess auto-preprocessor (native subset: replace, globalStyle,
+# scss, typescript). Reuses the `sass` backend for scss.
+svelte-preprocess = ["sass", "dep:regex"]
 
 [dependencies]
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
 grass = { version = "0.13", optional = true }
 serde_json = { version = "1", optional = true }
+regex = { version = "1.11", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }
