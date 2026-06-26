@@ -6894,81 +6894,60 @@ fn convert_statement_for_program(
         oxc_ast::ast::Statement::ClassDeclaration(class_decl) => {
             let start = offset + class_decl.span.start as usize;
             let end = offset + class_decl.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ClassDeclaration".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
             // id
-            if let Some(id) = &class_decl.id {
+            let id = class_decl.id.as_ref().map(|id| {
                 let id_start = offset + id.span.start as usize;
                 let id_end = offset + id.span.end as usize;
                 let id_expr = create_identifier(&id.name, id_start, id_end, line_offsets);
-                obj.insert("id".to_string(), id_expr.as_json().clone());
-            } else {
-                obj.insert("id".to_string(), Value::Null);
-            }
+                arena.alloc_js_node(expr_to_node(id_expr))
+            });
 
             // superClass
-            if let Some(super_class) = &class_decl.super_class {
+            let super_class = class_decl.super_class.as_ref().map(|super_class| {
                 let super_class_value =
                     convert_expression_for_program(arena, super_class, offset, line_offsets);
-                obj.insert(
-                    "superClass".to_string(),
-                    super_class_value.as_json().clone(),
-                );
-            } else {
-                obj.insert("superClass".to_string(), Value::Null);
-            }
+                arena.alloc_js_node(expr_to_node(super_class_value))
+            });
 
-            // body (ClassBody)
+            // body (ClassBody) — kept as a Raw value (mirrors ClassExpression).
             let body_value =
                 convert_class_body_for_program(arena, &class_decl.body, offset, line_offsets);
-            obj.insert("body".to_string(), body_value);
+            let body = arena.alloc_js_node(JsNode::Raw(body_value));
 
-            // TypeScript: declare field
-            if class_decl.declare {
-                obj.insert("declare".to_string(), Value::Bool(true));
-            }
-
-            // TypeScript: abstract field
-            if class_decl.r#abstract {
-                obj.insert("abstract".to_string(), Value::Bool(true));
-            }
-
-            // TypeScript: implements (presence indicates it should be removed by remove_typescript_nodes)
-            if !class_decl.implements.is_empty() {
-                obj.insert("implements".to_string(), Value::Bool(true));
-            }
-
-            // Decorators: include so remove_typescript_nodes can detect them
-            if !class_decl.decorators.is_empty() {
-                let decorators: Vec<Value> = class_decl
+            // Decorators: include so remove_typescript_nodes can detect them.
+            let decorators = if class_decl.decorators.is_empty() {
+                IdRange::empty()
+            } else {
+                let decorator_nodes: Vec<JsNode> = class_decl
                     .decorators
                     .iter()
                     .map(|dec| {
                         let dec_start = offset + dec.span.start as usize;
                         let dec_end = offset + dec.span.end as usize;
-                        let mut dec_obj = Map::new();
-                        dec_obj.insert("type".to_string(), Value::String("Decorator".to_string()));
-                        dec_obj.insert(
-                            "start".to_string(),
-                            Value::Number((dec_start as i64).into()),
-                        );
-                        dec_obj.insert("end".to_string(), Value::Number((dec_end as i64).into()));
-                        Value::Object(dec_obj)
+                        JsNode::Decorator {
+                            start: dec_start as u32,
+                            end: dec_end as u32,
+                            loc: None,
+                        }
                     })
                     .collect();
-                obj.insert("decorators".to_string(), Value::Array(decorators));
-            }
+                arena.alloc_js_children(decorator_nodes)
+            };
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::ClassDeclaration {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                id,
+                super_class,
+                body,
+                declare: class_decl.declare,
+                r#abstract: class_decl.r#abstract,
+                implements: !class_decl.implements.is_empty(),
+                decorators,
+            })
         }
         oxc_ast::ast::Statement::ReturnStatement(ret_stmt) => {
             let start = offset + ret_stmt.span.start as usize;
