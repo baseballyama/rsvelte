@@ -342,6 +342,13 @@ pub enum JsNode {
         leading_comments: Option<Vec<Value>>,
         /// Trailing comments on the Program node (all JS comments in the program).
         trailing_comments: Option<Vec<Value>>,
+        /// Map from a JS AST node's absolute `start` offset to the raw `svelte-ignore`
+        /// comment value texts that were attached to it as leading comments (at any
+        /// depth in this program). This lets Phase-2 analyze surface `svelte-ignore`
+        /// suppression for typed nodes without materializing them as `JsNode::Raw`
+        /// just to carry a `leadingComments` array. Empty when the script has no
+        /// `svelte-ignore` comments (the common case). Internal-only: not serialized.
+        ignore_comment_map: Vec<(u32, Vec<CompactString>)>,
     },
     ExpressionStatement {
         start: u32,
@@ -1253,6 +1260,8 @@ impl Serialize for JsNode {
                 source_type,
                 leading_comments,
                 trailing_comments,
+                // Internal analyze-only metadata; never part of the ESTree output.
+                ignore_comment_map: _,
             } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "Program")?;
@@ -2309,6 +2318,10 @@ impl JsNode {
                         trailing_comments: obj
                             .get("trailingComments")
                             .and_then(|v| v.as_array().cloned()),
+                        // Reconstructed-from-Value programs carry no analyze-only
+                        // svelte-ignore map; comment-bearing nodes in that path keep
+                        // their leadingComments and go through the Value walker.
+                        ignore_comment_map: Vec::new(),
                     },
                     "ExpressionStatement" => JsNode::ExpressionStatement {
                         start,

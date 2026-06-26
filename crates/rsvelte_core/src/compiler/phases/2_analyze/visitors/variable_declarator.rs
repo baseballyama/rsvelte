@@ -963,10 +963,33 @@ fn collect_ignore_codes_from_parent(context: &VisitorContext) -> Vec<String> {
         return codes;
     }
     for node in context.js_path[..path_len - 1].iter().rev() {
-        let node_type = node.get("type").and_then(|t| t.as_str());
+        let node_type = node.get_type_str();
         match node_type {
             Some("VariableDeclaration") | Some("ExportNamedDeclaration") => {
-                if let Some(comments) = node.get("leadingComments").and_then(|c| c.as_array()) {
+                // Prefer the parser-harvested svelte-ignore map (keyed by the parent's
+                // absolute start). This covers both typed parents and Value-entry parents
+                // that live inside a genuinely-`JsNode::Raw` subtree, without materializing
+                // a typed node into a Value.
+                let before = codes.len();
+                if let Some(start) = node.get_field_u64("start")
+                    && let Some(values) = context.script_ignore_comments.get(&(start as u32))
+                {
+                    for value in values {
+                        codes.extend(
+                            crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore(
+                                value,
+                                context.analysis.runes,
+                            ),
+                        );
+                    }
+                }
+                // Legacy Value-path fallback: read the materialized `leadingComments`
+                // directly when the map yielded nothing (e.g. pure Value-path analysis,
+                // where `script_ignore_comments` is empty).
+                if codes.len() == before
+                    && node.as_js_node().is_none()
+                    && let Some(comments) = node.get("leadingComments").and_then(|c| c.as_array())
+                {
                     for comment in comments {
                         if let Some(value) = comment.get("value").and_then(|v| v.as_str()) {
                             let extracted =

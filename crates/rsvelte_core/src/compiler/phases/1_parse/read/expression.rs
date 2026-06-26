@@ -6196,14 +6196,34 @@ pub fn parse_program_with_error(
         }
 
         // Build body as Vec<JsNode> (typed, no Value conversion needed for common case).
+        //
+        // `ignore_comment_map` accumulates `node_start -> [svelte-ignore comment text]`
+        // for every node that carries a `svelte-ignore` leading comment (at any depth).
+        // It replaces the former `JsNode::Raw(value_with_leadingComments)` wrapping: the
+        // only Phase-2 consumer of those statement-level `leadingComments` is svelte-ignore
+        // warning suppression, so we keep the statement TYPED and surface just the ignore
+        // texts. Comments still reach `Root.comments` independently via `record_oxc_comment`
+        // above, and codegen re-parses script text, so dropping the Raw wrapping changes no
+        // output.
+        let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
         let body: Vec<JsNode> = if has_comments {
-            // When there are comments, we need to:
-            // 1. Attach leadingComments to individual statements
-            // 2. Distribute comments to nested bodies
-            // For statements with comments, we wrap as JsNode::Raw(Value) since
-            // leadingComments is a JSON-only concept not modeled in JsNode variants.
             let mut comment_idx = 0;
             let mut body_nodes: Vec<JsNode> = Vec::with_capacity(program.body.len());
+
+            // Pre-compute comment entries (absolute positions + Value) once, used for
+            // distributing comments onto nested statement bodies.
+            let comment_entries: Vec<CommentEntry> = all_comments
+                .iter()
+                .map(|comment| {
+                    let comment_start = offset + comment.span.start as usize;
+                    let comment_end = offset + comment.span.end as usize;
+                    CommentEntry {
+                        start: comment_start as u32,
+                        end: comment_end as u32,
+                        value: build_comment_value(comment, content, offset),
+                    }
+                })
+                .collect();
 
             for stmt in program.body.iter() {
                 if let Some(stmt_node) =
@@ -6211,7 +6231,8 @@ pub fn parse_program_with_error(
                 {
                     let stmt_start = stmt.span().start;
 
-                    // Collect comments that appear before this statement
+                    // Collect comments that appear before this statement (its own leading
+                    // comments).
                     let mut stmt_leading = Vec::new();
                     while comment_idx < all_comments.len()
                         && all_comments[comment_idx].span.end <= stmt_start
@@ -6228,57 +6249,21 @@ pub fn parse_program_with_error(
                         comment_idx += 1;
                     }
 
-                    if !stmt_leading.is_empty() {
-                        // Convert to Value to attach leadingComments, then wrap as Raw
-                        let mut stmt_value = stmt_node.to_value();
-                        if let Value::Object(ref mut obj) = stmt_value {
+                    // Reproduce the exact comment-attachment the old code used (own leading
+                    // comments + nested distribution) on a throwaway Value, then harvest
+                    // svelte-ignore texts into the map. The statement itself stays TYPED.
+                    if !stmt_leading.is_empty() || !comment_entries.is_empty() {
+                        let mut val = stmt_node.to_value();
+                        if !stmt_leading.is_empty()
+                            && let Value::Object(ref mut obj) = val
+                        {
                             obj.insert("leadingComments".to_string(), Value::Array(stmt_leading));
                         }
-                        body_nodes.push(JsNode::Raw(stmt_value));
-                    } else {
-                        // No leading comments - keep as typed JsNode
-                        body_nodes.push(stmt_node);
+                        distribute_comments_to_node(&mut val, &comment_entries);
+                        harvest_ignore_comments(&val, &mut ignore_comment_map);
                     }
-                }
-            }
 
-            // Post-process: distribute comments to nested statement bodies.
-            // Build a temporary Value body array, run distribution, then extract back.
-            let comment_entries: Vec<CommentEntry> = all_comments
-                .iter()
-                .map(|comment| {
-                    let comment_start = offset + comment.span.start as usize;
-                    let comment_end = offset + comment.span.end as usize;
-                    CommentEntry {
-                        start: comment_start as u32,
-                        end: comment_end as u32,
-                        value: build_comment_value(comment, content, offset),
-                    }
-                })
-                .collect();
-
-            // Distribute comments to nested bodies within each statement.
-            //
-            // A statement only needs the `JsNode::Raw(Value)` representation if it
-            // actually carries comment payload:
-            //   - it already has its own `leadingComments` (already wrapped as Raw above), or
-            //   - distribution attaches `leadingComments` to a nested statement body.
-            // Otherwise we keep the typed `JsNode` so downstream typed walkers don't
-            // have to fall back to a serde_json::Value walk for it.
-            for node in body_nodes.iter_mut() {
-                if matches!(node, JsNode::Raw(_)) {
-                    // Already Raw (had its own leading comments). Run distribution on
-                    // the existing Value in place so nested bodies still get comments.
-                    if let JsNode::Raw(val) = node {
-                        distribute_comments_to_node(val, &comment_entries);
-                    }
-                } else {
-                    // Typed node: distribute onto a throwaway Value and only convert
-                    // to Raw if distribution actually inserted nested comments.
-                    let mut val = node.to_value();
-                    if distribute_comments_to_node(&mut val, &comment_entries) {
-                        *node = JsNode::Raw(val);
-                    }
+                    body_nodes.push(stmt_node);
                 }
             }
 
@@ -6330,6 +6315,7 @@ pub fn parse_program_with_error(
                 source_type: CompactString::from("module"),
                 leading_comments: leading_comments_val,
                 trailing_comments: trailing_comments_val,
+                ignore_comment_map,
             }),
             parse_error,
         )
@@ -6373,6 +6359,49 @@ fn build_comment_value(comment: &oxc_ast::ast::Comment, content: &str, offset: u
         Value::Number((comment_end as i64).into()),
     );
     Value::Object(comment_obj)
+}
+
+/// Walk a comment-annotated statement `Value` (after `distribute_comments_to_node`)
+/// and harvest every `svelte-ignore` leading-comment text into `map`, keyed by the
+/// owning node's absolute `start` offset.
+///
+/// Only `svelte-ignore` comments are kept (the sole Phase-2 consumer of statement-level
+/// `leadingComments`); a comment is a candidate when its value text — after leading
+/// whitespace — begins with `svelte-ignore` (a strict superset of the analyze-side
+/// `^\s*svelte-ignore\s` match, so nothing relevant is dropped and non-matching texts
+/// that survive simply extract to zero codes downstream).
+fn harvest_ignore_comments(node: &Value, map: &mut Vec<(u32, Vec<CompactString>)>) {
+    let Value::Object(obj) = node else {
+        return;
+    };
+
+    if let Some(Value::Array(comments)) = obj.get("leadingComments")
+        && let Some(start) = obj.get("start").and_then(|s| s.as_u64())
+    {
+        let kept: Vec<CompactString> = comments
+            .iter()
+            .filter_map(|c| c.get("value").and_then(|v| v.as_str()))
+            .filter(|v| v.trim_start().starts_with("svelte-ignore"))
+            .map(CompactString::from)
+            .collect();
+        if !kept.is_empty() {
+            map.push((start as u32, kept));
+        }
+    }
+
+    // Recurse into every nested object / array so nested `svelte-ignore` comments
+    // (attached by `distribute_comments_to_node`) are harvested too.
+    for value in obj.values() {
+        match value {
+            Value::Object(_) => harvest_ignore_comments(value, map),
+            Value::Array(items) => {
+                for item in items {
+                    harvest_ignore_comments(item, map);
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 /// A pre-computed comment entry with positions extracted to avoid repeated Value lookups.

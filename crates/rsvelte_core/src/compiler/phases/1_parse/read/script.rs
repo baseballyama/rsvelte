@@ -247,6 +247,7 @@ impl Parser<'_> {
                 source_type: CompactString::from("module"),
                 leading_comments: None,
                 trailing_comments: None,
+                ignore_comment_map: Vec::new(),
             });
             Script {
                 node_type: ScriptType::Script,
@@ -292,6 +293,7 @@ impl Parser<'_> {
                     source_type: CompactString::from("module"),
                     leading_comments: None,
                     trailing_comments: None,
+                    ignore_comment_map: Vec::new(),
                 });
                 Script {
                     node_type: ScriptType::Script,

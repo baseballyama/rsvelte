@@ -433,6 +433,14 @@ pub struct VisitorContext<'a> {
     /// Each entry is a set of warning codes that should be ignored at that nesting level.
     /// Corresponds to ignore_stack in Svelte's state.js.
     pub ignore_stack: Vec<rustc_hash::FxHashSet<String>>,
+    /// Map from a script JS node's absolute `start` offset to the raw `svelte-ignore`
+    /// comment value texts attached to it as leading comments. Populated from the typed
+    /// `JsNode::Program`'s `ignore_comment_map` for the duration of a script body walk
+    /// (see `script::visit_script_expr`), and consulted by the typed walker
+    /// (`walk_js_node_typed`) and `variable_declarator::collect_ignore_codes_from_parent`
+    /// in place of reading `leadingComments` off a materialized `JsNode::Raw` Value.
+    /// Empty outside a script walk and whenever the script has no `svelte-ignore` comments.
+    pub script_ignore_comments: rustc_hash::FxHashMap<u32, Vec<compact_str::CompactString>>,
     /// Stack of ancestor element names for node_invalid_placement validation.
     /// This is separate from path because path contains TemplateNode references that are difficult to manage.
     pub element_ancestors: Vec<String>,
@@ -565,6 +573,7 @@ impl<'a> VisitorContext<'a> {
             in_expression_tag: false,
             in_template_function: false,
             ignore_stack: Vec::new(),
+            script_ignore_comments: rustc_hash::FxHashMap::default(),
             element_ancestors: Vec::new(),
             block_depth_at_element: Vec::new(),
             each_block_stack: Vec::new(),
