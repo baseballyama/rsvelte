@@ -667,9 +667,9 @@ fn post_process_for_server(source: &str) -> String {
 /// Used by `post_process_for_server` so reads via `$.get(X)` can be lowered
 /// to `X()` (the server runtime treats a derived as a callable) while plain
 /// state reads stay as `X`.
-fn collect_derived_names(source: &str) -> std::collections::HashSet<String> {
-    use std::collections::HashSet;
-    let mut names: HashSet<String> = HashSet::new();
+fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
+    use rustc_hash::FxHashSet;
+    let mut names: FxHashSet<String> = FxHashSet::default();
     let patterns: &[&[u8]] = &[b"$.derived(", b"$.derived_safe_equal("];
     let bytes = source.as_bytes();
     for pat in patterns {
@@ -755,8 +755,8 @@ fn collect_derived_names(source: &str) -> std::collections::HashSet<String> {
 /// to pick the right form per field — previously every `this.#x` was treated as
 /// callable, which turned plain `$state` field assignments into the broken
 /// `this.#x(value)` call form (issue #907).
-fn collect_derived_private_fields(source: &str) -> std::collections::HashSet<String> {
-    let mut names = std::collections::HashSet::new();
+fn collect_derived_private_fields(source: &str) -> rustc_hash::FxHashSet<String> {
+    let mut names = rustc_hash::FxHashSet::default();
     for line in source.lines() {
         let trimmed = line.trim_start();
         let Some(rest) = trimmed.strip_prefix('#') else {

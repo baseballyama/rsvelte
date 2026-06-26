@@ -1101,7 +1101,7 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
     fn rewrite_constructor_assignments(
         &mut self,
         class: &mut oxc_ast::ast::Class<'a>,
-        backing: &std::collections::HashMap<String, String>,
+        backing: &rustc_hash::FxHashMap<String, String>,
     ) {
         use oxc_ast::ast::{
             AssignmentTarget as AT, ClassElement, Expression as E, MethodDefinitionKind, Statement,
@@ -1338,8 +1338,7 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
         // target fixtures. We record the public-name → backing-name map so the
         // constructor assignments and the inserted accessors agree.
         let ctor_fields = self.collect_ctor_fields(class);
-        let mut backing: std::collections::HashMap<String, String> =
-            std::collections::HashMap::new();
+        let mut backing: rustc_hash::FxHashMap<String, String> = rustc_hash::FxHashMap::default();
         for cf in ctor_fields.iter() {
             if cf.is_private {
                 continue;
@@ -2542,8 +2541,8 @@ fn topo_sort_reactive(entries: Vec<ReactiveEntry>) -> Vec<ReactiveEntry> {
     }
 
     // binding index → statement indices that assign to it.
-    let mut assign_to_stmts: std::collections::HashMap<usize, Vec<usize>> =
-        std::collections::HashMap::new();
+    let mut assign_to_stmts: rustc_hash::FxHashMap<usize, Vec<usize>> =
+        rustc_hash::FxHashMap::default();
     for (i, e) in entries.iter().enumerate() {
         for &idx in &e.assigns {
             assign_to_stmts.entry(idx).or_default().push(i);

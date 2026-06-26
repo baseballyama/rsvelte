@@ -5,6 +5,23 @@
 //! 2. Analyze - Semantic analysis
 //! 3. Transform - Code generation
 
+// Match the shipped NAPI cdylib's global allocator (mimalloc) so the tracked
+// benchmark reflects production compile() cost. mimalloc A/B-measured ~11%
+// faster than jemalloc on this allocation-bound workload (mold links mimalloc
+// for the same reason); the previous bench used the system allocator and so
+// understated neither — it simply measured a different allocator than ships.
+// `not(feature = "napi")` mirrors the bin entry points: under `--all-features`
+// (CI clippy) the `napi` feature compiles napi.rs's `#[global_allocator]` into the
+// rlib this bench links, so the bench must not register a second one.
+#[cfg(all(
+    feature = "mimalloc-alloc",
+    not(feature = "napi"),
+    not(target_arch = "wasm32"),
+    not(target_os = "windows")
+))]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use std::fmt::Write as _;
 use std::fs;
@@ -434,6 +451,64 @@ fn bench_full_compile(c: &mut Criterion) {
     group.finish();
 }
 
+/// Benchmark the dual-output (CSR + SSR) path: `compile_both` (one shared
+/// parse+analyze, two transforms — mold principle P5) vs the status quo of two
+/// separate `compile` calls (which re-parse and re-analyze the same source).
+fn bench_compile_both(c: &mut Criterion) {
+    let mut files = get_sample_files();
+    files.push(create_large_synthetic_file());
+    files.push(create_state_var_heavy_file());
+    files.push(create_legacy_state_var_heavy_file());
+
+    if files.is_empty() {
+        eprintln!("No sample files found for benchmarking");
+        return;
+    }
+
+    let mut group = c.benchmark_group("compile_both");
+
+    for (name, content) in &files {
+        let size = content.len() as u64;
+        group.throughput(Throughput::Bytes(size));
+
+        // Status quo: two separate compiles (each re-parses + re-analyzes).
+        group.bench_with_input(
+            BenchmarkId::new("two_compiles", name),
+            content,
+            |b, source| {
+                b.iter(|| {
+                    let client = compile(
+                        black_box(source),
+                        CompileOptions {
+                            generate: GenerateMode::Client,
+                            ..Default::default()
+                        },
+                    );
+                    let server = compile(
+                        black_box(source),
+                        CompileOptions {
+                            generate: GenerateMode::Server,
+                            ..Default::default()
+                        },
+                    );
+                    (client, server)
+                });
+            },
+        );
+
+        // Shared parse+analyze, two transforms.
+        group.bench_with_input(
+            BenchmarkId::new("compile_both", name),
+            content,
+            |b, source| {
+                b.iter(|| rsvelte_core::compile_both(black_box(source), CompileOptions::default()));
+            },
+        );
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_phase1_parse,
@@ -441,5 +516,6 @@ criterion_group!(
     bench_phase3_transform_client,
     bench_phase3_transform_server,
     bench_full_compile,
+    bench_compile_both,
 );
 criterion_main!(benches);
