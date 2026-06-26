@@ -17,7 +17,13 @@ pub mod sass;
 #[cfg(feature = "less")]
 pub mod less;
 
+#[cfg(feature = "svelte-preprocess")]
+pub mod svelte_preprocess;
+
 pub use switch_case::switch_case;
+
+#[cfg(feature = "svelte-preprocess")]
+pub use svelte_preprocess::svelte_preprocess;
 
 #[cfg(feature = "sass")]
 pub use sass::sass;
