@@ -19,6 +19,18 @@ strip = false
 debug = false
 panic = "abort"
 
+# Distribution profile for the artifacts published to npm / GitHub Releases
+# (svelte_check, rsvelte-fmt, rsvelte-lint CLIs and the NAPI `.node` cdylib).
+# Identical optimization to `release` — same speed — but strips local + debug
+# symbols, which measured ~13–16% smaller on every artifact. We keep the shared
+# `[profile.release]` at `strip = false` because CodSpeed / profiling builds rely
+# on its symbols; release.yml's `cargo build` steps opt into `--profile dist`.
+# `strip = "symbols"` preserves the dynamic export table, so the `.node` addon's
+# napi registration symbols survive (this is exactly what oxc ships).
+[profile.dist]
+inherits = "release"
+strip = "symbols"
+
 [profile.profiling]
 inherits = "release"
 lto = "thin"          # thin LTO keeps profiling builds within the dev box's RAM
