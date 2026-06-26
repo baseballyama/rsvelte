@@ -2656,9 +2656,13 @@ fn convert_object_pattern_to_expr(
         .map(|prop| {
             let prop_start = adjusted_offset + prop.span.start as usize;
             let prop_end = adjusted_offset + prop.span.end as usize;
-            let key_value =
-                convert_property_key_for_param(arena, &prop.key, adjusted_offset, line_offsets);
-            let value_value = convert_binding_pattern_for_param(
+            let key_node = convert_property_key_for_param_as_node(
+                arena,
+                &prop.key,
+                adjusted_offset,
+                line_offsets,
+            );
+            let value_node = convert_binding_pattern_for_param_as_node(
                 arena,
                 &prop.value,
                 adjusted_offset,
@@ -2671,8 +2675,8 @@ fn convert_object_pattern_to_expr(
                 method: false,
                 shorthand: prop.shorthand,
                 computed: prop.computed,
-                key: arena.alloc_js_node(JsNode::Raw(key_value)),
-                value: arena.alloc_js_node(JsNode::Raw(value_value)),
+                key: arena.alloc_js_node(key_node),
+                value: arena.alloc_js_node(value_node),
                 kind: CompactString::from("init"),
             }
         })
@@ -2681,13 +2685,17 @@ fn convert_object_pattern_to_expr(
     if let Some(rest) = &obj_pat.rest {
         let rest_start = adjusted_offset + rest.span.start as usize;
         let rest_end = adjusted_offset + rest.span.end as usize;
-        let argument =
-            convert_binding_pattern_for_param(arena, &rest.argument, adjusted_offset, line_offsets);
+        let argument = convert_binding_pattern_for_param_as_node(
+            arena,
+            &rest.argument,
+            adjusted_offset,
+            line_offsets,
+        );
         properties.push(JsNode::RestElement {
             start: rest_start as u32,
             end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
-            argument: arena.alloc_js_node(JsNode::Raw(argument)),
+            argument: arena.alloc_js_node(argument),
         });
     }
 
@@ -2714,12 +2722,12 @@ fn convert_array_pattern_to_expr(
         .iter()
         .map(|elem| {
             elem.as_ref().map(|pattern| {
-                JsNode::Raw(convert_binding_pattern_for_param(
+                convert_binding_pattern_for_param_as_node(
                     arena,
                     pattern,
                     adjusted_offset,
                     line_offsets,
-                ))
+                )
             })
         })
         .collect();
@@ -2727,13 +2735,17 @@ fn convert_array_pattern_to_expr(
     if let Some(rest) = &arr_pat.rest {
         let rest_start = adjusted_offset + rest.span.start as usize;
         let rest_end = adjusted_offset + rest.span.end as usize;
-        let argument =
-            convert_binding_pattern_for_param(arena, &rest.argument, adjusted_offset, line_offsets);
+        let argument = convert_binding_pattern_for_param_as_node(
+            arena,
+            &rest.argument,
+            adjusted_offset,
+            line_offsets,
+        );
         elements.push(Some(JsNode::RestElement {
             start: rest_start as u32,
             end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
-            argument: arena.alloc_js_node(JsNode::Raw(argument)),
+            argument: arena.alloc_js_node(argument),
         }));
     }
 
@@ -2755,10 +2767,19 @@ fn convert_assignment_pattern_to_expr(
     let start = adjusted_offset + assign_pat.span.start as usize;
     let end = adjusted_offset + assign_pat.span.end as usize;
 
-    let left =
-        convert_binding_pattern_for_param(arena, &assign_pat.left, adjusted_offset, line_offsets);
+    let left = convert_binding_pattern_for_param_as_node(
+        arena,
+        &assign_pat.left,
+        adjusted_offset,
+        line_offsets,
+    );
 
-    // Convert right (the default value) - simplified for now
+    // Convert right (the default value) - simplified for now. This top-level
+    // param assignment-pattern path emits a bare `{ type: "Expression" }`
+    // placeholder (no real expression conversion); keep it as `JsNode::Raw`
+    // since it is not a well-formed typed node. (The recursive
+    // `convert_binding_pattern_for_param_as_node` AssignmentPattern arm DOES
+    // produce a real typed default value.)
     let right_start = adjusted_offset + assign_pat.right.span().start as usize;
     let right_end = adjusted_offset + assign_pat.right.span().end as usize;
     let mut right_obj = Map::new();
@@ -2773,69 +2794,9 @@ fn convert_assignment_pattern_to_expr(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        left: arena.alloc_js_node(JsNode::Raw(left)),
+        left: arena.alloc_js_node(left),
         right: arena.alloc_js_node(JsNode::Raw(Value::Object(right_obj))),
     })
-}
-
-/// Convert oxc PropertyKey to our JSON format (for function parameters).
-fn convert_property_key_for_param(
-    arena: &ParseArena,
-    key: &oxc_ast::ast::PropertyKey,
-    adjusted_offset: usize,
-    line_offsets: &[usize],
-) -> Value {
-    use oxc_ast::ast::PropertyKey;
-
-    match key {
-        PropertyKey::StaticIdentifier(id) => {
-            let start = adjusted_offset + id.span.start as usize;
-            let end = adjusted_offset + id.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert("type".to_string(), Value::String("Identifier".to_string()));
-            obj.insert("name".to_string(), Value::String(id.name.to_string()));
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            Value::Object(obj)
-        }
-        PropertyKey::PrivateIdentifier(id) => {
-            let start = adjusted_offset + id.span.start as usize;
-            let end = adjusted_offset + id.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("PrivateIdentifier".to_string()),
-            );
-            obj.insert("name".to_string(), Value::String(id.name.to_string()));
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            Value::Object(obj)
-        }
-        _ => {
-            // For computed keys, convert the expression properly.
-            // Must use with_serialize_arena to resolve IdRange children
-            // allocated in the parse arena during serialization.
-            if let Some(expr) = key.as_expression() {
-                let converted = convert_expression(arena, expr, adjusted_offset, line_offsets);
-                crate::ast::arena::with_serialize_arena(arena, || converted.as_json().clone())
-            } else {
-                // Fallback placeholder for truly unhandled cases
-                let mut obj = Map::new();
-                obj.insert("type".to_string(), Value::String("Identifier".to_string()));
-                obj.insert(
-                    "name".to_string(),
-                    Value::String("__computed__".to_string()),
-                );
-                Value::Object(obj)
-            }
-        }
-    }
 }
 
 /// Convert oxc BindingPattern to our JSON format (for function parameters).
@@ -2962,6 +2923,118 @@ fn convert_binding_pattern_for_param(
             obj.insert("right".to_string(), right_val);
 
             Value::Object(obj)
+        }
+    }
+}
+
+/// Typed object-pattern property-key converter (param path).
+///
+/// Produces a typed `JsNode` (Identifier / PrivateIdentifier / converted
+/// expression) that serializes identically to the Value form, so object-pattern
+/// keys route through the typed analyze walker instead of `JsNode::Raw`. Falls
+/// back to `JsNode::Raw` only for the truly-unhandled placeholder
+/// (`{ type: "Identifier", name: "__computed__" }`), which carries no span and
+/// is therefore not representable as a well-formed typed `Identifier`.
+fn convert_property_key_for_param_as_node(
+    arena: &ParseArena,
+    key: &oxc_ast::ast::PropertyKey,
+    adjusted_offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    use oxc_ast::ast::PropertyKey;
+
+    match key {
+        PropertyKey::StaticIdentifier(id) => {
+            let start = adjusted_offset + id.span.start as usize;
+            let end = adjusted_offset + id.span.end as usize;
+            expr_to_node(create_identifier(&id.name, start, end, line_offsets))
+        }
+        PropertyKey::PrivateIdentifier(id) => {
+            let start = adjusted_offset + id.span.start as usize;
+            let end = adjusted_offset + id.span.end as usize;
+            expr_to_node(create_private_identifier(
+                &id.name,
+                start,
+                end,
+                line_offsets,
+            ))
+        }
+        _ => {
+            if let Some(expr) = key.as_expression() {
+                expr_to_node(convert_expression(
+                    arena,
+                    expr,
+                    adjusted_offset,
+                    line_offsets,
+                ))
+            } else {
+                // Fallback placeholder for truly unhandled cases (no span).
+                let mut obj = Map::new();
+                obj.insert("type".to_string(), Value::String("Identifier".to_string()));
+                obj.insert(
+                    "name".to_string(),
+                    Value::String("__computed__".to_string()),
+                );
+                JsNode::Raw(Value::Object(obj))
+            }
+        }
+    }
+}
+
+/// Typed sibling of [`convert_binding_pattern_for_param`].
+///
+/// Produces typed `JsNode` pattern subtrees (Identifier / ObjectPattern /
+/// ArrayPattern / AssignmentPattern) that serialize byte-identically to the
+/// Value form, so pattern interiors route through the typed analyze walker
+/// instead of `JsNode::Raw`. The ObjectPattern / ArrayPattern arms delegate to
+/// the now-fully-typed `convert_object_pattern_to_expr` /
+/// `convert_array_pattern_to_expr`; the AssignmentPattern arm mirrors the Value
+/// arm exactly — the default value uses `convert_expression` (the param-path
+/// converter, with its synthetic-paren offset semantics), NOT the program-path
+/// `convert_expression_for_program`.
+fn convert_binding_pattern_for_param_as_node(
+    arena: &ParseArena,
+    pattern: &oxc_ast::ast::BindingPattern,
+    adjusted_offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    use oxc_ast::ast::BindingPattern;
+
+    match pattern {
+        BindingPattern::BindingIdentifier(id) => {
+            let start = adjusted_offset + id.span.start as usize;
+            let end = adjusted_offset + id.span.end as usize;
+            expr_to_node(create_identifier(&id.name, start, end, line_offsets))
+        }
+        BindingPattern::ObjectPattern(obj_pat) => expr_to_node(convert_object_pattern_to_expr(
+            arena,
+            obj_pat,
+            adjusted_offset,
+            line_offsets,
+        )),
+        BindingPattern::ArrayPattern(arr_pat) => expr_to_node(convert_array_pattern_to_expr(
+            arena,
+            arr_pat,
+            adjusted_offset,
+            line_offsets,
+        )),
+        BindingPattern::AssignmentPattern(assign_pat) => {
+            let start = adjusted_offset + assign_pat.span.start as usize;
+            let end = adjusted_offset + assign_pat.span.end as usize;
+            let left = convert_binding_pattern_for_param_as_node(
+                arena,
+                &assign_pat.left,
+                adjusted_offset,
+                line_offsets,
+            );
+            let right = convert_expression(arena, &assign_pat.right, adjusted_offset, line_offsets);
+            JsNode::AssignmentPattern {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                left: arena.alloc_js_node(left),
+                right: arena.alloc_js_node(expr_to_node(right)),
+            }
         }
     }
 }
@@ -5242,13 +5315,17 @@ fn create_arrow_function(
     if let Some(rest) = &arrow.params.rest {
         let rest_start = offset + rest.span.start as usize - 1;
         let rest_end = offset + rest.span.end as usize - 1;
-        let argument =
-            convert_binding_pattern_for_param(arena, &rest.rest.argument, offset - 1, line_offsets);
+        let argument = convert_binding_pattern_for_param_as_node(
+            arena,
+            &rest.rest.argument,
+            offset - 1,
+            line_offsets,
+        );
         params.push(JsNode::RestElement {
             start: rest_start as u32,
             end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
-            argument: arena.alloc_js_node(JsNode::Raw(argument)),
+            argument: arena.alloc_js_node(argument),
         });
     }
 
@@ -5489,12 +5566,12 @@ fn convert_statement(
                 let h_start = offset + handler.span.start as usize - 1;
                 let h_end = offset + handler.span.end as usize - 1;
                 let param = handler.param.as_ref().map(|param| {
-                    arena.alloc_js_node(JsNode::Raw(convert_binding_pattern_for_param(
+                    arena.alloc_js_node(convert_binding_pattern_for_param_as_node(
                         arena,
                         &param.pattern,
                         offset - 1,
                         line_offsets,
-                    )))
+                    ))
                 });
                 let h_body_start = offset + handler.body.span.start as usize - 1;
                 let h_body_end = offset + handler.body.span.end as usize - 1;
@@ -5581,7 +5658,7 @@ fn convert_statement(
             if let Some(rest) = &func_decl.params.rest {
                 let rest_start = offset + rest.span.start as usize - 1;
                 let rest_end = offset + rest.span.end as usize - 1;
-                let argument = convert_binding_pattern_for_param(
+                let argument = convert_binding_pattern_for_param_as_node(
                     arena,
                     &rest.rest.argument,
                     offset - 1,
@@ -5591,7 +5668,7 @@ fn convert_statement(
                     start: rest_start as u32,
                     end: rest_end as u32,
                     loc: create_typed_loc(rest_start, rest_end, line_offsets),
-                    argument: arena.alloc_js_node(JsNode::Raw(argument)),
+                    argument: arena.alloc_js_node(argument),
                 });
             }
 
@@ -5664,13 +5741,13 @@ fn convert_variable_declarator(
     let end = offset + decl.span.end as usize - 1;
 
     // Convert id (pattern) with type annotation
-    let id = JsNode::Raw(convert_binding_pattern_for_decl(
+    let id = convert_binding_pattern_for_decl_as_node(
         arena,
         &decl.id,
         offset,
         line_offsets,
         decl.type_annotation.as_deref(),
-    ));
+    );
 
     // Convert init
     let init = decl.init.as_ref().map(|expr| {
@@ -5736,6 +5813,51 @@ fn convert_binding_pattern_for_decl(
         oxc_ast::ast::BindingPattern::AssignmentPattern(assign_pat) => {
             convert_assignment_pattern(arena, assign_pat, offset - 1, line_offsets).to_value()
         }
+    }
+}
+
+/// Typed sibling of [`convert_binding_pattern_for_decl`].
+///
+/// Returns the typed `JsNode` directly so a variable declarator id routes
+/// through the typed analyze walker instead of `JsNode::Raw`. The
+/// Object / Array / Assignment pattern arms reuse the already-typed program-path
+/// converters (`offset - 1`), exactly as the Value form does before its
+/// `.to_value()`. A bare `BindingIdentifier` produces a typed `Identifier`.
+///
+/// A TS-type-annotated `BindingIdentifier` carries a `typeAnnotation` field that
+/// is not representable on the typed `Identifier` node, so that single case
+/// stays `JsNode::Raw` (deferred to a later TS-aware stage).
+fn convert_binding_pattern_for_decl_as_node(
+    arena: &ParseArena,
+    pattern: &oxc_ast::ast::BindingPattern,
+    offset: usize,
+    line_offsets: &[usize],
+    type_annotation: Option<&oxc_ast::ast::TSTypeAnnotation>,
+) -> JsNode {
+    match pattern {
+        oxc_ast::ast::BindingPattern::BindingIdentifier(id) if type_annotation.is_none() => {
+            let start = offset + id.span.start as usize - 1;
+            let end = offset + id.span.end as usize - 1;
+            expr_to_node(create_identifier(&id.name, start, end, line_offsets))
+        }
+        oxc_ast::ast::BindingPattern::ObjectPattern(obj_pat) => {
+            convert_object_pattern(arena, obj_pat, offset - 1, line_offsets)
+        }
+        oxc_ast::ast::BindingPattern::ArrayPattern(arr_pat) => {
+            convert_array_pattern(arena, arr_pat, offset - 1, line_offsets)
+        }
+        oxc_ast::ast::BindingPattern::AssignmentPattern(assign_pat) => {
+            convert_assignment_pattern(arena, assign_pat, offset - 1, line_offsets)
+        }
+        // TS-annotated `BindingIdentifier` only — keep the Value form (its
+        // `typeAnnotation` field is not yet representable as a typed node).
+        _ => JsNode::Raw(convert_binding_pattern_for_decl(
+            arena,
+            pattern,
+            offset,
+            line_offsets,
+            type_annotation,
+        )),
     }
 }
 
