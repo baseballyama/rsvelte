@@ -7062,10 +7062,25 @@ fn convert_statement_for_program(
                 arena.alloc_js_node(expr_to_node(super_class_value))
             });
 
-            // body (ClassBody) — kept as a Raw value (mirrors ClassExpression).
-            let body_value =
-                convert_class_body_for_program(arena, &class_decl.body, offset, line_offsets);
-            let body = arena.alloc_js_node(JsNode::Raw(body_value));
+            // body (ClassBody) — typed when every member is plain JS; otherwise a
+            // Raw blob fallback (TS modifiers / decorators / declare / accessor).
+            let body = match convert_class_body_for_program_as_node(
+                arena,
+                &class_decl.body,
+                offset,
+                line_offsets,
+            ) {
+                Some(node) => arena.alloc_js_node(node),
+                None => {
+                    let body_value = convert_class_body_for_program(
+                        arena,
+                        &class_decl.body,
+                        offset,
+                        line_offsets,
+                    );
+                    arena.alloc_js_node(JsNode::Raw(body_value))
+                }
+            };
 
             // Decorators: include so remove_typescript_nodes can detect them.
             let decorators = if class_decl.decorators.is_empty() {
@@ -8508,8 +8523,20 @@ fn convert_expression_for_program(
                 )))
             });
 
-            let body =
-                convert_class_body_for_program(arena, &class_expr.body, offset, line_offsets);
+            let body = match convert_class_body_for_program_as_node(
+                arena,
+                &class_expr.body,
+                offset,
+                line_offsets,
+            ) {
+                Some(node) => arena.alloc_js_node(node),
+                None => arena.alloc_js_node(JsNode::Raw(convert_class_body_for_program(
+                    arena,
+                    &class_expr.body,
+                    offset,
+                    line_offsets,
+                ))),
+            };
 
             Expression::from_node(JsNode::ClassExpression {
                 start: start as u32,
@@ -8517,7 +8544,7 @@ fn convert_expression_for_program(
                 loc: create_typed_loc(start, end, line_offsets),
                 id,
                 super_class,
-                body: arena.alloc_js_node(JsNode::Raw(body)),
+                body,
             })
         }
         OxcExpression::Super(super_expr) => {
@@ -9003,6 +9030,151 @@ fn convert_class_body_for_program(
     obj.insert("body".to_string(), Value::Array(body_elements));
 
     Value::Object(obj)
+}
+
+/// Outcome of attempting to build a typed program-path class member.
+enum TypedClassElem {
+    /// A fully typed member node.
+    Node(JsNode),
+    /// Element intentionally dropped (mirrors the Value path's `None`).
+    Skip,
+    /// Member carries data the typed variants can't represent byte-identically
+    /// (TS modifiers / decorators / `declare` / accessor); the whole class body
+    /// must fall back to a `JsNode::Raw(Value)` blob.
+    Bail,
+}
+
+/// Typed twin of [`convert_class_body_for_program`]. Returns `Some(ClassBody)`
+/// when every member can be represented byte-identically by the typed
+/// `MethodDefinition` / `PropertyDefinition` variants; returns `None` when any
+/// member carries TS modifiers / decorators / `declare` / accessor (the caller
+/// then falls back to the `Raw(Value)` blob via `convert_class_body_for_program`).
+///
+/// Serializes byte-identically to the Value blob (modulo the method value's
+/// `expression: false` field, which the official ESTree output also emits and
+/// the `convert_function_expression_for_program` Value blob was missing — same
+/// improvement landed in D2 for top-level `FunctionExpression`s).
+fn convert_class_body_for_program_as_node(
+    arena: &ParseArena,
+    body: &oxc_ast::ast::ClassBody,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<JsNode> {
+    let start = offset + body.span.start as usize;
+    let end = offset + body.span.end as usize;
+
+    let mut members: Vec<JsNode> = Vec::with_capacity(body.body.len());
+    for element in &body.body {
+        match convert_class_element_for_program_as_node(arena, element, offset, line_offsets) {
+            TypedClassElem::Node(node) => members.push(node),
+            TypedClassElem::Skip => {}
+            TypedClassElem::Bail => return None,
+        }
+    }
+
+    Some(JsNode::ClassBody {
+        start: start as u32,
+        end: end as u32,
+        loc: create_typed_loc(start, end, line_offsets),
+        body: arena.alloc_js_children(members),
+    })
+}
+
+/// Typed twin of [`convert_class_element_for_program`]. Bails (to a `Raw` class
+/// body) on any member that carries TS modifiers / decorators / `declare` /
+/// accessor, so the typed path is only taken for plain-JS class members whose
+/// shape matches the Value blob exactly.
+fn convert_class_element_for_program_as_node(
+    arena: &ParseArena,
+    element: &oxc_ast::ast::ClassElement,
+    offset: usize,
+    line_offsets: &[usize],
+) -> TypedClassElem {
+    match element {
+        oxc_ast::ast::ClassElement::MethodDefinition(method) => {
+            // Abstract methods are dropped by the Value path (`return None`).
+            if method.r#type == oxc_ast::ast::MethodDefinitionType::TSAbstractMethodDefinition {
+                return TypedClassElem::Skip;
+            }
+            // TS modifiers / decorators have no typed representation here.
+            if !method.decorators.is_empty()
+                || method.r#override
+                || method.optional
+                || method.accessibility.is_some()
+            {
+                return TypedClassElem::Bail;
+            }
+            let start = offset + method.span.start as usize;
+            let end = offset + method.span.end as usize;
+            let kind = match method.kind {
+                oxc_ast::ast::MethodDefinitionKind::Constructor => "constructor",
+                oxc_ast::ast::MethodDefinitionKind::Method => "method",
+                oxc_ast::ast::MethodDefinitionKind::Get => "get",
+                oxc_ast::ast::MethodDefinitionKind::Set => "set",
+            };
+            let key = convert_property_key(arena, &method.key, offset, line_offsets);
+            let value = convert_function_expression_for_program_as_node(
+                arena,
+                &method.value,
+                offset,
+                line_offsets,
+            );
+            TypedClassElem::Node(JsNode::MethodDefinition {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                key: arena.alloc_js_node(key),
+                value: arena.alloc_js_node(value),
+                kind: CompactString::from(kind),
+                r#static: method.r#static,
+                computed: method.computed,
+            })
+        }
+        oxc_ast::ast::ClassElement::PropertyDefinition(prop) => {
+            if prop.r#type == oxc_ast::ast::PropertyDefinitionType::TSAbstractPropertyDefinition {
+                return TypedClassElem::Skip;
+            }
+            // The Value path emits a conditional `declare` field and never the
+            // other TS modifiers / decorators — bail so those still route through
+            // the Raw blob unchanged.
+            if !prop.decorators.is_empty()
+                || prop.declare
+                || prop.r#override
+                || prop.optional
+                || prop.definite
+                || prop.readonly
+                || prop.accessibility.is_some()
+                || prop.type_annotation.is_some()
+            {
+                return TypedClassElem::Bail;
+            }
+            let start = offset + prop.span.start as usize;
+            let end = offset + prop.span.end as usize;
+            let key = convert_property_key(arena, &prop.key, offset, line_offsets);
+            let value = prop.value.as_ref().map(|value| {
+                arena.alloc_js_node(expr_to_node(convert_expression_for_program(
+                    arena,
+                    value,
+                    offset,
+                    line_offsets,
+                )))
+            });
+            TypedClassElem::Node(JsNode::PropertyDefinition {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                key: arena.alloc_js_node(key),
+                value,
+                r#static: prop.r#static,
+                computed: prop.computed,
+            })
+        }
+        // AccessorProperty: the Value path emits a `PropertyDefinition` with an
+        // `accessor: true` field that the typed variant can't carry.
+        oxc_ast::ast::ClassElement::AccessorProperty(_) => TypedClassElem::Bail,
+        // StaticBlock and TS-only members are dropped by the Value path (`_ => None`).
+        _ => TypedClassElem::Skip,
+    }
 }
 
 /// Convert a class element to JSON value (for program context).
