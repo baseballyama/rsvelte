@@ -1,19 +1,19 @@
 //! Identify exactly where parse time is spent.
 //! Measures: template-only vs script parsing vs OXC conversion vs expression parsing
 
-// Use jemalloc as the global allocator for better multi-threaded
+// Use mimalloc as the global allocator (A/B-measured faster than jemalloc;
 // performance. Defined per-bin rather than once in the lib because the lib
 // is built as both rlib and cdylib, and a lib-level `#[global_allocator]`
 // is duplicated across both outputs at link time — cargo issue
 // rust-lang/cargo#6313.
 #[cfg(all(
-    feature = "jemalloc",
+    feature = "mimalloc-alloc",
     not(feature = "napi"),
     not(target_arch = "wasm32"),
     not(target_os = "windows")
 ))]
 #[global_allocator]
-static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 use std::fs;
 use std::path::PathBuf;

@@ -9,7 +9,17 @@
 // is duplicated across both outputs at link time — cargo issue
 // rust-lang/cargo#6313.
 #[cfg(all(
+    feature = "mimalloc-alloc",
+    not(feature = "napi"),
+    not(target_arch = "wasm32"),
+    not(target_os = "windows")
+))]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
+#[cfg(all(
     feature = "jemalloc",
+    not(feature = "mimalloc-alloc"),
     not(feature = "napi"),
     not(target_arch = "wasm32"),
     not(target_os = "windows")
