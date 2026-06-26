@@ -105,19 +105,46 @@ export const shipped: EcoComponent[] = [
 		blurb:
 			'A fork of the Vite plugin whose every transform / HMR / preprocess call routes through the rsvelte compiler over NAPI. Your vite.config.js does not change.',
 		note: 'NAPI shim · public API matches upstream'
+	},
+	{
+		name: '@rsvelte/language-server',
+		dropInFor: 'svelte-language-server',
+		originalUrl: 'https://github.com/sveltejs/language-tools/tree/master/packages/language-server',
+		pkgUrl: 'https://github.com/baseballyama/rsvelte/tree/main/apps/npm/language-server',
+		install: 'npm i @rsvelte/language-server',
+		status: 'shipped',
+		blurb:
+			'The editor LSP — diagnostics, hover, completion, rename — backed by the rsvelte compiler + svelte2tsx. Ships as the `rsvelte` VS Code extension (Marketplace + Open VSX) and as a standalone package.',
+		note: 'Also published as the `rsvelte` VS Code extension'
 	}
 ];
 
-// ─── Planned / deferred ──────────────────────────────────────────────────────
+// ─── Planned / in progress ───────────────────────────────────────────────────
 export const planned: EcoComponent[] = [
 	{
-		name: 'svelte-language-server',
-		dropInFor: 'svelte-language-server',
-		originalUrl: 'https://github.com/sveltejs/language-tools/tree/master/packages/language-server',
+		name: 'eslint-plugin-svelte',
+		dropInFor: 'eslint-plugin-svelte',
+		originalUrl: 'https://github.com/sveltejs/eslint-plugin-svelte',
 		status: 'planned',
 		blurb:
-			'Editor hover / completion / rename. Deferred until tsgo ships a long-running tsserver-style daemon — sub-50 ms LSP latency needs it. CLI checking is already covered by svelte-check.',
-		note: 'Blocked on tsgo tsserver mode'
+			'A Rust-native port of the Svelte ESLint rules, driven by the rsvelte AST. In progress — rules are being ported against a registry-driven compatibility oracle for behaviour + suggestion parity.',
+		note: 'In progress'
+	},
+	{
+		name: 'svelte-preprocess',
+		dropInFor: 'svelte-preprocess',
+		originalUrl: 'https://github.com/sveltejs/svelte-preprocess',
+		status: 'planned',
+		blurb:
+			'First-class support for the common preprocessor surface (TypeScript, PostCSS, SCSS, …) so the popular Svelte preprocessors run on the rsvelte pipeline.'
+	},
+	{
+		name: 'mdsvex',
+		dropInFor: 'mdsvex',
+		originalUrl: 'https://github.com/pngwn/MDsveX',
+		status: 'planned',
+		blurb:
+			'Markdown-in-Svelte preprocessing — one of the popular preprocessors we want to support on the rsvelte pipeline.'
 	}
 ];
 
@@ -125,28 +152,6 @@ export const planned: EcoComponent[] = [
 // These are intentionally NOT ported. The Rust path runs through the wider OXC
 // toolchain or stays in JS, so a rsvelte fork would only duplicate work.
 export const delegated: EcoComponent[] = [
-	{
-		name: 'eslint-plugin-svelte',
-		dropInFor: 'eslint-plugin-svelte',
-		originalUrl: 'https://github.com/sveltejs/eslint-plugin-svelte',
-		status: 'delegated',
-		blurb: 'Linting belongs in oxlint — rsvelte gives it a Svelte surface to call into.',
-		routesTo: { label: 'oxlint', url: 'https://oxc.rs/docs/guide/usage/linter.html' }
-	},
-	{
-		name: 'svelte-preprocess',
-		dropInFor: 'svelte-preprocess',
-		originalUrl: 'https://github.com/sveltejs/svelte-preprocess',
-		status: 'delegated',
-		blurb: 'A thin wrapper around sass / postcss / ts — all JS-heavy. Nothing to gain by porting the wrapper itself.'
-	},
-	{
-		name: 'mdsvex',
-		dropInFor: 'mdsvex',
-		originalUrl: 'https://github.com/pngwn/MDsveX',
-		status: 'delegated',
-		blurb: 'Built on the unified / remark markdown ecosystem, which is JS to the core.'
-	},
 	{
 		name: 'SvelteKit',
 		dropInFor: '@sveltejs/kit',
