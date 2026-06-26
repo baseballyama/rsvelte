@@ -2338,7 +2338,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_core"
-version = "0.7.14"
+version = "0.7.15"
 dependencies = [
  "bumpalo",
  "chrono",
@@ -2448,7 +2448,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_lint"
-version = "0.7.14"
+version = "0.7.15"
 dependencies = [
  "anyhow",
  "clap",
