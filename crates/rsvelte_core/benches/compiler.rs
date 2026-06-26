@@ -1,9 +1,22 @@
-//! Compiler benchmarks - measures performance of each compilation phase.
+//! Compiler benchmarks — per-phase and end-to-end compile cost.
 //!
-//! Phases:
-//! 1. Parse - Source code → AST
-//! 2. Analyze - Semantic analysis
-//! 3. Transform - Code generation
+//! These are the primary inputs to the CodSpeed regression gate and the
+//! Criterion baseline (`bench.yml`). For that signal to mean anything the
+//! workload must be **identical** between the base commit and a PR, so every
+//! input here is either:
+//!
+//!   1. a file from the **pinned, in-repo corpus** at `benches/corpus/`
+//!      (committed to the repo — never read from the `svelte` submodule, which
+//!      is bumped continuously and would silently change the workload and the
+//!      benchmark IDs), or
+//!   2. a **deterministic synthetic** generated in-code (a pure function, so
+//!      it's stable without committing a large file).
+//!
+//! Benchmark IDs are derived from stable, feature-tagged names, so CodSpeed
+//! keeps a continuous per-benchmark history across `svelte` bumps.
+//!
+//! Phases: 1. Parse → 2. Analyze → 3. Transform, plus the full `compile`
+//! entry point (CSR + SSR) and the dual-output `compile_both` path.
 
 // Match the shipped NAPI cdylib's global allocator (mimalloc) so the tracked
 // benchmark reflects production compile() cost. mimalloc A/B-measured ~11%
@@ -24,64 +37,38 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use std::fmt::Write as _;
-use std::fs;
 use std::hint::black_box;
-use std::path::PathBuf;
 
 use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse};
 use rsvelte_core::compiler::phases::phase2_analyze::analyze_component;
 use rsvelte_core::compiler::phases::phase3_transform::transform_component;
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
-/// Get sample Svelte files for benchmarking.
-fn get_sample_files() -> Vec<(String, String)> {
-    let samples_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join("submodules/svelte/packages/svelte/tests/runtime-runes/samples");
+#[path = "common/corpus.rs"]
+mod corpus;
+use corpus::Sample;
 
-    if !samples_dir.exists() {
-        eprintln!("Samples directory not found: {:?}", samples_dir);
-        return Vec::new();
+/// Modern (runes-capable) parse options used throughout the bench.
+fn parse_opts() -> ParseOptions {
+    ParseOptions {
+        modern: true,
+        loose: false,
+        ..Default::default()
     }
-
-    let mut files = Vec::new();
-
-    for entry in fs::read_dir(&samples_dir).unwrap() {
-        let entry = entry.unwrap();
-        // Runtime-runes samples name their root component `main.svelte`, not
-        // `input.svelte` (which is the parser/snapshot convention) — looking
-        // for the wrong name here previously yielded a single real sample.
-        let input_path = entry.path().join("main.svelte");
-
-        if input_path.exists() {
-            let name = entry.file_name().to_str().unwrap().to_string();
-            if let Ok(content) = fs::read_to_string(&input_path) {
-                // Skip very small files
-                if content.len() > 50 {
-                    files.push((name, content));
-                }
-            }
-        }
-    }
-
-    // Sort by size for consistent ordering
-    files.sort_by_key(|a| a.1.len());
-
-    // Take a representative sample: small, medium, large
-    let mut selected = Vec::new();
-    if files.len() >= 3 {
-        selected.push(files[0].clone()); // smallest
-        selected.push(files[files.len() / 2].clone()); // medium
-        selected.push(files[files.len() - 1].clone()); // largest
-    } else {
-        selected = files;
-    }
-
-    selected
 }
 
-/// Create a large synthetic file for stress testing.
-fn create_large_synthetic_file() -> (String, String) {
+/// The full benchmark workload: the pinned corpus plus deterministic
+/// synthetic scale/feature stress files. Stable order, stable IDs.
+fn workload() -> Vec<Sample> {
+    let mut files = corpus::load();
+    files.push(create_large_synthetic_file());
+    files.push(create_state_var_heavy_file());
+    files.push(create_legacy_state_var_heavy_file());
+    files
+}
+
+/// A large markup-heavy synthetic, to stress template/codegen scaling.
+fn create_large_synthetic_file() -> Sample {
     let mut source = String::from(
         r#"<script>
     let count = $state(0);
@@ -92,7 +79,6 @@ fn create_large_synthetic_file() -> (String, String) {
 "#,
     );
 
-    // Add many elements to create a large template
     for i in 0..100 {
         let _ = write!(
             source,
@@ -108,14 +94,13 @@ fn create_large_synthetic_file() -> (String, String) {
         );
     }
 
-    ("synthetic-large".to_string(), source)
+    Sample::synthetic("synthetic-large", source)
 }
 
-/// Legacy-mode (non-runes) state-var-heavy synthetic. Exercises
-/// the AST helpers in `state_assigns_combined_ast` (and its
-/// `_simple` / `_compound` / `_update` predecessors) which are
-/// only called in non-runes mode.
-fn create_legacy_state_var_heavy_file() -> (String, String) {
+/// Legacy-mode (non-runes) state-var-heavy synthetic. Exercises the AST
+/// helpers in `state_assigns_combined_ast` (and its `_simple` / `_compound`
+/// / `_update` predecessors) which are only called in non-runes mode.
+fn create_legacy_state_var_heavy_file() -> Sample {
     let mut script = String::from(
         r#"<script>
     let count = 0;
@@ -154,18 +139,13 @@ fn create_legacy_state_var_heavy_file() -> (String, String) {
             "<button on:click={{action_{i}}}>Action {i}</button>"
         );
     }
-    ("synthetic-legacy-state-heavy".to_string(), script)
+    Sample::synthetic("synthetic-legacy-state-heavy", script)
 }
 
-/// Synthetic file exercising the state-var assignment surface
-/// heavily. Used to baseline the perf impact of recent AST
-/// migrations (PRs #215-#234, especially #230-#234 which deleted
-/// ~2040 LOC of text scanners in favor of AST passes).
-///
-/// Each state var is read, simple-assigned, compound-assigned,
-/// and updated in a body that mimics typical reactive logic.
-/// Runes mode so all state assigns go through the AST helpers.
-fn create_state_var_heavy_file() -> (String, String) {
+/// Runes-mode state-var assignment stress. Each state var is read,
+/// simple-assigned, compound-assigned, and updated in a body that mimics
+/// typical reactive logic, exercising the AST state-assign helpers.
+fn create_state_var_heavy_file() -> Sample {
     let mut script = String::from(
         r#"<script>
     let count = $state(0);
@@ -176,8 +156,6 @@ fn create_state_var_heavy_file() -> (String, String) {
 
 "#,
     );
-    // Build a function body with many state-var ops — covers the
-    // simple/compound/update/reads paths in one pass.
     for i in 0..40 {
         let _ = write!(
             script,
@@ -206,275 +184,176 @@ fn create_state_var_heavy_file() -> (String, String) {
             "<button on:click={{action_{i}}}>Action {i}</button>"
         );
     }
-    ("synthetic-state-heavy".to_string(), script)
+    Sample::synthetic("synthetic-state-heavy", script)
 }
 
-/// Benchmark Phase 1: Parsing
+/// Phase 1: Parsing.
 fn bench_phase1_parse(c: &mut Criterion) {
-    let mut files = get_sample_files();
-    files.push(create_large_synthetic_file());
-    files.push(create_state_var_heavy_file());
-    files.push(create_legacy_state_var_heavy_file());
-
-    if files.is_empty() {
-        eprintln!("No sample files found for benchmarking");
-        return;
-    }
-
+    let files = workload();
     let mut group = c.benchmark_group("phase1_parse");
 
-    for (name, content) in &files {
-        let size = content.len() as u64;
-        group.throughput(Throughput::Bytes(size));
-
-        group.bench_with_input(BenchmarkId::new("parse", name), content, |b, source| {
-            b.iter(|| {
-                let options = ParseOptions {
-                    modern: true,
-                    loose: false,
-                    ..Default::default()
-                };
-                parse(black_box(source), options)
-            });
-        });
+    for sample in &files {
+        group.throughput(Throughput::Bytes(sample.bytes()));
+        group.bench_with_input(
+            BenchmarkId::new("parse", &sample.id),
+            &sample.source,
+            |b, source| {
+                b.iter(|| parse(black_box(source), parse_opts()));
+            },
+        );
     }
 
     group.finish();
 }
 
-/// Benchmark Phase 2: Analysis
+/// Phase 2: Analysis.
 fn bench_phase2_analyze(c: &mut Criterion) {
-    let mut files = get_sample_files();
-    files.push(create_large_synthetic_file());
-    files.push(create_state_var_heavy_file());
-    files.push(create_legacy_state_var_heavy_file());
-
-    if files.is_empty() {
-        eprintln!("No sample files found for benchmarking");
-        return;
-    }
-
+    let files = workload();
     let mut group = c.benchmark_group("phase2_analyze");
 
-    for (name, content) in &files {
-        let size = content.len() as u64;
-        group.throughput(Throughput::Bytes(size));
-
-        // Pre-parse the AST (not included in measurement)
-        let parse_options = ParseOptions {
-            modern: true,
-            loose: false,
-            ..Default::default()
-        };
-        let ast_result = parse(content, parse_options);
-        if ast_result.is_err() {
-            continue;
-        }
-
+    for sample in &files {
         let compile_options = CompileOptions {
             generate: GenerateMode::Client,
             ..Default::default()
         };
+        // Sanity-check the input compiles so the workload stays fixed.
+        sample.assert_parses();
 
-        group.bench_with_input(BenchmarkId::new("analyze", name), content, |b, source| {
-            b.iter(|| {
-                let mut ast = parse(source, parse_options).unwrap();
-                analyze_component(black_box(&mut ast), black_box(source), &compile_options)
-            });
-        });
+        group.throughput(Throughput::Bytes(sample.bytes()));
+        group.bench_with_input(
+            BenchmarkId::new("analyze", &sample.id),
+            &sample.source,
+            |b, source| {
+                b.iter(|| {
+                    let mut ast = parse(source, parse_opts()).unwrap();
+                    analyze_component(black_box(&mut ast), black_box(source), &compile_options)
+                });
+            },
+        );
     }
 
     group.finish();
 }
 
-/// Benchmark Phase 3: Transform (Client)
+/// Run a transform benchmark for the given generate mode.
+fn bench_transform(c: &mut Criterion, mode: GenerateMode, group_name: &str, id_prefix: &str) {
+    let files = workload();
+    let mut group = c.benchmark_group(group_name);
+
+    for sample in &files {
+        let compile_options = CompileOptions {
+            generate: mode,
+            ..Default::default()
+        };
+
+        // Pre-parse and analyze (not included in measurement).
+        let mut ast = parse(&sample.source, parse_opts())
+            .unwrap_or_else(|_| panic!("corpus sample {} failed to parse", sample.id));
+        let analysis = analyze_component(&mut ast, &sample.source, &compile_options)
+            .unwrap_or_else(|_| panic!("corpus sample {} failed to analyze", sample.id));
+
+        group.throughput(Throughput::Bytes(sample.bytes()));
+        group.bench_with_input(
+            BenchmarkId::new(id_prefix, &sample.id),
+            &sample.source,
+            |b, source| {
+                b.iter(|| {
+                    transform_component(
+                        black_box(&analysis),
+                        black_box(&ast),
+                        black_box(source),
+                        &compile_options,
+                    )
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Phase 3: Transform (Client).
 fn bench_phase3_transform_client(c: &mut Criterion) {
-    let mut files = get_sample_files();
-    files.push(create_large_synthetic_file());
-    files.push(create_state_var_heavy_file());
-    files.push(create_legacy_state_var_heavy_file());
-
-    if files.is_empty() {
-        eprintln!("No sample files found for benchmarking");
-        return;
-    }
-
-    let mut group = c.benchmark_group("phase3_transform_client");
-
-    for (name, content) in &files {
-        let size = content.len() as u64;
-        group.throughput(Throughput::Bytes(size));
-
-        // Pre-parse and analyze (not included in measurement)
-        let parse_options = ParseOptions {
-            modern: true,
-            loose: false,
-            ..Default::default()
-        };
-        let ast_result = parse(content, parse_options);
-        if ast_result.is_err() {
-            continue;
-        }
-        let mut ast = ast_result.unwrap();
-
-        let compile_options = CompileOptions {
-            generate: GenerateMode::Client,
-            ..Default::default()
-        };
-
-        let analysis_result = analyze_component(&mut ast, content, &compile_options);
-        if analysis_result.is_err() {
-            continue;
-        }
-        let analysis = analysis_result.unwrap();
-
-        group.bench_with_input(
-            BenchmarkId::new("transform_client", name),
-            content,
-            |b, source| {
-                b.iter(|| {
-                    transform_component(
-                        black_box(&analysis),
-                        black_box(&ast),
-                        black_box(source),
-                        &compile_options,
-                    )
-                });
-            },
-        );
-    }
-
-    group.finish();
+    bench_transform(
+        c,
+        GenerateMode::Client,
+        "phase3_transform_client",
+        "transform_client",
+    );
 }
 
-/// Benchmark Phase 3: Transform (Server)
+/// Phase 3: Transform (Server).
 fn bench_phase3_transform_server(c: &mut Criterion) {
-    let mut files = get_sample_files();
-    files.push(create_large_synthetic_file());
-    files.push(create_state_var_heavy_file());
-    files.push(create_legacy_state_var_heavy_file());
-
-    if files.is_empty() {
-        eprintln!("No sample files found for benchmarking");
-        return;
-    }
-
-    let mut group = c.benchmark_group("phase3_transform_server");
-
-    for (name, content) in &files {
-        let size = content.len() as u64;
-        group.throughput(Throughput::Bytes(size));
-
-        // Pre-parse and analyze (not included in measurement)
-        let parse_options = ParseOptions {
-            modern: true,
-            loose: false,
-            ..Default::default()
-        };
-        let ast_result = parse(content, parse_options);
-        if ast_result.is_err() {
-            continue;
-        }
-        let mut ast = ast_result.unwrap();
-
-        let compile_options = CompileOptions {
-            generate: GenerateMode::Server,
-            ..Default::default()
-        };
-
-        let analysis_result = analyze_component(&mut ast, content, &compile_options);
-        if analysis_result.is_err() {
-            continue;
-        }
-        let analysis = analysis_result.unwrap();
-
-        group.bench_with_input(
-            BenchmarkId::new("transform_server", name),
-            content,
-            |b, source| {
-                b.iter(|| {
-                    transform_component(
-                        black_box(&analysis),
-                        black_box(&ast),
-                        black_box(source),
-                        &compile_options,
-                    )
-                });
-            },
-        );
-    }
-
-    group.finish();
+    bench_transform(
+        c,
+        GenerateMode::Server,
+        "phase3_transform_server",
+        "transform_server",
+    );
 }
 
-/// Benchmark full compilation pipeline
+/// Full compilation pipeline (the production `compile` entry point), CSR + SSR.
 fn bench_full_compile(c: &mut Criterion) {
-    let mut files = get_sample_files();
-    files.push(create_large_synthetic_file());
-    files.push(create_state_var_heavy_file());
-    files.push(create_legacy_state_var_heavy_file());
-
-    if files.is_empty() {
-        eprintln!("No sample files found for benchmarking");
-        return;
-    }
-
+    let files = workload();
     let mut group = c.benchmark_group("full_compile");
 
-    for (name, content) in &files {
-        let size = content.len() as u64;
-        group.throughput(Throughput::Bytes(size));
+    for sample in &files {
+        // Fail loudly if a corpus fixture stops compiling — keeps the
+        // CodSpeed workload fixed and complete (no silent skips).
+        sample.assert_compiles();
 
-        // Client mode
-        group.bench_with_input(BenchmarkId::new("client", name), content, |b, source| {
-            b.iter(|| {
-                let options = CompileOptions {
-                    generate: GenerateMode::Client,
-                    ..Default::default()
-                };
-                compile(black_box(source), options)
-            });
-        });
+        group.throughput(Throughput::Bytes(sample.bytes()));
 
-        // Server mode
-        group.bench_with_input(BenchmarkId::new("server", name), content, |b, source| {
-            b.iter(|| {
-                let options = CompileOptions {
-                    generate: GenerateMode::Server,
-                    ..Default::default()
-                };
-                compile(black_box(source), options)
-            });
-        });
+        group.bench_with_input(
+            BenchmarkId::new("client", &sample.id),
+            &sample.source,
+            |b, source| {
+                b.iter(|| {
+                    compile(
+                        black_box(source),
+                        CompileOptions {
+                            generate: GenerateMode::Client,
+                            ..Default::default()
+                        },
+                    )
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("server", &sample.id),
+            &sample.source,
+            |b, source| {
+                b.iter(|| {
+                    compile(
+                        black_box(source),
+                        CompileOptions {
+                            generate: GenerateMode::Server,
+                            ..Default::default()
+                        },
+                    )
+                });
+            },
+        );
     }
 
     group.finish();
 }
 
-/// Benchmark the dual-output (CSR + SSR) path: `compile_both` (one shared
-/// parse+analyze, two transforms — mold principle P5) vs the status quo of two
-/// separate `compile` calls (which re-parse and re-analyze the same source).
+/// Dual-output (CSR + SSR) path: `compile_both` (one shared parse+analyze, two
+/// transforms — mold principle P5) vs the status quo of two separate `compile`
+/// calls (which re-parse and re-analyze the same source).
 fn bench_compile_both(c: &mut Criterion) {
-    let mut files = get_sample_files();
-    files.push(create_large_synthetic_file());
-    files.push(create_state_var_heavy_file());
-    files.push(create_legacy_state_var_heavy_file());
-
-    if files.is_empty() {
-        eprintln!("No sample files found for benchmarking");
-        return;
-    }
-
+    let files = workload();
     let mut group = c.benchmark_group("compile_both");
 
-    for (name, content) in &files {
-        let size = content.len() as u64;
-        group.throughput(Throughput::Bytes(size));
+    for sample in &files {
+        group.throughput(Throughput::Bytes(sample.bytes()));
 
         // Status quo: two separate compiles (each re-parses + re-analyzes).
         group.bench_with_input(
-            BenchmarkId::new("two_compiles", name),
-            content,
+            BenchmarkId::new("two_compiles", &sample.id),
+            &sample.source,
             |b, source| {
                 b.iter(|| {
                     let client = compile(
@@ -498,8 +377,8 @@ fn bench_compile_both(c: &mut Criterion) {
 
         // Shared parse+analyze, two transforms.
         group.bench_with_input(
-            BenchmarkId::new("compile_both", name),
-            content,
+            BenchmarkId::new("compile_both", &sample.id),
+            &sample.source,
             |b, source| {
                 b.iter(|| rsvelte_core::compile_both(black_box(source), CompileOptions::default()));
             },

@@ -4,9 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    # Default + `labeled` so adding the `bench` label triggers a run; the
-    # job's `if:` below skips unlabeled events.
-    types: [opened, synchronize, reopened, labeled]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -25,36 +23,38 @@ jobs:
   benchmarks:
     name: Run CodSpeed benchmarks
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    # CodSpeed's Valgrind-instrumented simulation runs ~15 min — far past the
-    # PR feedback budget, and the per-PR perf diff is rarely the gating signal.
-    # Mirror the `Benchmark` / `Coverage` jobs: always run on push to `main`
-    # (continuous perf tracking against the main baseline) and on manual
-    # dispatch; on PRs only when the author opts in with the `bench` label.
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' &&
-       contains(github.event.pull_request.labels.*.name, 'bench'))
+    timeout-minutes: 45
+    # Runs on every PR to `main` (and on push to `main` for the baseline).
+    # CodSpeed measures instruction counts under Valgrind, which is
+    # deterministic and low-variance — unlike wall-clock timing it gives a
+    # trustworthy per-PR regression signal, so it's worth gating PRs on. The
+    # workload is the pinned in-repo corpus (`benches/corpus/`), identical on
+    # base and head, which is what makes the head-vs-base diff meaningful.
     steps:
+      # No submodules: the bench harnesses read their inputs from the
+      # in-repo corpus (`benches/corpus/`) and from in-code synthetic
+      # generators — never from the `svelte` submodule. Skipping the (large,
+      # recursive) submodule checkout shaves minutes off every run.
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          # The parser/compiler/formatter benchmarks read Svelte test
-          # samples directly from the `svelte` submodule.
-          submodules: true
+          submodules: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install cargo-codspeed
-        # cargo-codspeed isn't available via taiki-e/install-action; build it
-        # with `cargo install`. CodSpeed now runs only on main / `bench`-labeled
-        # PRs (see the job `if:` above), so this install is off the PR feedback
-        # path and its cost no longer gates PR turnaround.
-        run: cargo install cargo-codspeed --locked
-
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          # oxc is built from a git rev, so the first compile is ~15 min.
+          # Save the warm `target/` even when a later step fails so a single
+          # flake doesn't force a cold rebuild on every subsequent run.
+          cache-on-failure: true
+
+      - name: Install cargo-codspeed
+        # cargo-codspeed isn't carried by taiki-e/install-action, so build it
+        # with `cargo install`. The Swatinem cache above keeps the rest of the
+        # build warm, so this is the only from-source install on the path.
+        run: cargo install cargo-codspeed --locked
 
       - name: Build the benchmark targets
         run: cargo codspeed build --bench parser --bench compiler --bench formatter

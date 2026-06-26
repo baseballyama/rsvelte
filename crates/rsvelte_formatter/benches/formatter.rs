@@ -1,76 +1,24 @@
 //! Formatter benchmarks.
 //!
-//! Measures the throughput of the Svelte formatter (`rsvelte_formatter::format`)
-//! on real Svelte test inputs plus a couple of synthetic stress files. The
-//! formatter parses each `.svelte` source, formats every `<script>` /
-//! `<style>` body and the markup, and reassembles the output — so these
-//! numbers cover the full format pipeline, not just the JS pass.
+//! Measures the full `rsvelte_formatter::format` pipeline (parse → format each
+//! `<script>` / `<style>` body + the markup → reassemble) on the **pinned,
+//! in-repo corpus** at `benches/corpus/` plus a couple of deterministic
+//! synthetic stress files. Inputs are committed to the repo (never read from
+//! the `svelte` submodule) so the workload and benchmark IDs stay stable
+//! across submodule bumps — the precondition for a meaningful CodSpeed diff.
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use std::fmt::Write as _;
-use std::fs;
 use std::hint::black_box;
-use std::path::PathBuf;
 
 use rsvelte_formatter::{FormatOptions, format};
 
-/// Collect representative Svelte sources for benchmarking.
-///
-/// Pulls inputs from the `runtime-runes` and `runtime-legacy` sample
-/// directories (the most script-heavy corpora, which exercise the JS
-/// formatting path the hardest), sorts by size, and keeps a small / medium
-/// / large spread so the report shows how the formatter scales with input
-/// size rather than drowning in hundreds of tiny fixtures.
-fn get_sample_files() -> Vec<(String, String)> {
-    let tests_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join("submodules/svelte/packages/svelte/tests");
+#[path = "common/corpus.rs"]
+mod corpus;
+use corpus::Sample;
 
-    let sample_dirs = ["runtime-runes/samples", "runtime-legacy/samples"];
-
-    let mut files = Vec::new();
-    for sub in sample_dirs {
-        let dir = tests_dir.join(sub);
-        if !dir.exists() {
-            continue;
-        }
-        let Ok(entries) = fs::read_dir(&dir) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            // Runtime samples name their root component `main.svelte` (unlike
-            // the parser/snapshot corpora, which use `input.svelte`).
-            let input_path = entry.path().join("main.svelte");
-            if !input_path.exists() {
-                continue;
-            }
-            if let Ok(content) = fs::read_to_string(&input_path) {
-                // Skip trivial files — they only measure fixed overhead.
-                if content.len() <= 80 {
-                    continue;
-                }
-                let name = entry.file_name().to_string_lossy().into_owned();
-                files.push((name, content));
-            }
-        }
-    }
-
-    files.sort_by_key(|(_, content)| content.len());
-
-    // Small / medium / large spread.
-    let mut selected = Vec::new();
-    if files.len() >= 3 {
-        selected.push(files[0].clone());
-        selected.push(files[files.len() / 2].clone());
-        selected.push(files[files.len() - 1].clone());
-    } else {
-        selected = files;
-    }
-    selected
-}
-
-/// A script-heavy synthetic component, to baseline the JS-formatting hot path.
-fn create_script_heavy_file() -> (String, String) {
+/// Script-heavy synthetic — baselines the embedded-JS formatting hot path.
+fn create_script_heavy_file() -> Sample {
     let mut src = String::from("<script>\n    let count = $state(0);\n");
     for i in 0..60 {
         let _ = writeln!(
@@ -85,12 +33,12 @@ fn create_script_heavy_file() -> (String, String) {
             "<button onclick={{handler_{i}}}>Item {i}: {{count}}</button>"
         );
     }
-    ("synthetic-script-heavy".to_string(), src)
+    Sample::synthetic("synthetic-script-heavy", src)
 }
 
-/// A markup-heavy synthetic component, to baseline the indent / open-tag /
-/// template-expression passes.
-fn create_markup_heavy_file() -> (String, String) {
+/// Markup-heavy synthetic — baselines the indent / open-tag / template-expr
+/// passes.
+fn create_markup_heavy_file() -> Sample {
     let mut src = String::from("<script>\n  let count = $state(0);\n</script>\n\n");
     for i in 0..80 {
         let _ = writeln!(
@@ -98,31 +46,30 @@ fn create_markup_heavy_file() -> (String, String) {
             "<div class=\"item-{i}\" data-index={{ {i} }} aria-label=\"row {i}\"><span>Item {i}: {{count + {i}}}</span>{{#if count > {i}}}<strong>on</strong>{{:else}}<em>off</em>{{/if}}</div>"
         );
     }
-    ("synthetic-markup-heavy".to_string(), src)
+    Sample::synthetic("synthetic-markup-heavy", src)
 }
 
-fn all_inputs() -> Vec<(String, String)> {
-    let mut files = get_sample_files();
+fn workload() -> Vec<Sample> {
+    let mut files = corpus::load();
     files.push(create_script_heavy_file());
     files.push(create_markup_heavy_file());
     files
 }
 
 fn bench_format(c: &mut Criterion) {
-    let files = all_inputs();
-    if files.is_empty() {
-        eprintln!("No sample files found for formatter benchmarking");
-        return;
-    }
-
+    let files = workload();
     let mut group = c.benchmark_group("format");
 
-    for (name, content) in &files {
-        group.throughput(Throughput::Bytes(content.len() as u64));
-        group.bench_with_input(BenchmarkId::new("svelte", name), content, |b, source| {
-            let options = FormatOptions::default();
-            b.iter(|| format(black_box(source), &options));
-        });
+    for sample in &files {
+        group.throughput(Throughput::Bytes(sample.bytes()));
+        group.bench_with_input(
+            BenchmarkId::new("svelte", &sample.id),
+            &sample.source,
+            |b, source| {
+                let options = FormatOptions::default();
+                b.iter(|| format(black_box(source), &options));
+            },
+        );
     }
 
     group.finish();
