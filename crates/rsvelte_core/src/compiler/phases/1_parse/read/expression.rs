@@ -8184,12 +8184,7 @@ fn convert_expression_for_program(
                     line_offsets,
                 ))
             } else {
-                JsNode::Raw(convert_function_body_for_program(
-                    arena,
-                    &arrow.body,
-                    offset,
-                    line_offsets,
-                ))
+                convert_function_body_for_program_as_node(arena, &arrow.body, offset, line_offsets)
             };
 
             Expression::from_node(JsNode::ArrowFunctionExpression {
@@ -8204,9 +8199,9 @@ fn convert_expression_for_program(
                 body: arena.alloc_js_node(body_node),
             })
         }
-        OxcExpression::FunctionExpression(func) => Expression::from_node(JsNode::Raw(
-            convert_function_expression_for_program(arena, func, offset, line_offsets),
-        )),
+        OxcExpression::FunctionExpression(func) => Expression::from_node(
+            convert_function_expression_for_program_as_node(arena, func, offset, line_offsets),
+        ),
         OxcExpression::StaticMemberExpression(member) => {
             let start = offset + member.span.start as usize;
             let end = offset + member.span.end as usize;
@@ -9073,6 +9068,66 @@ fn convert_function_expression_for_program(
     }
 
     Value::Object(obj)
+}
+
+/// Typed twin of `convert_function_expression_for_program`: builds a typed
+/// `JsNode::FunctionExpression` (program-offset convention) instead of a
+/// `JsNode::Raw(Value)` blob, so the function body subtree routes through the
+/// typed analyze walker. Serializes byte-identically to the Value blob (modulo
+/// the `expression: false` field, which the official ESTree output also emits
+/// and the Value blob was missing). `id` is always `null` to match the Value
+/// blob, and params keep the TS-aware `convert_formal_parameter` shape (TS bits
+/// fall through to `JsNode::Raw` via `expr_to_node`).
+fn convert_function_expression_for_program_as_node(
+    arena: &ParseArena,
+    func: &oxc_ast::ast::Function,
+    offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    let start = offset + func.span.start as usize;
+    let end = offset + func.span.end as usize;
+
+    // params
+    let mut params: Vec<JsNode> = func
+        .params
+        .items
+        .iter()
+        .map(|param| expr_to_node(convert_formal_parameter(arena, param, offset, line_offsets)))
+        .collect();
+    if let Some(rest) = &func.params.rest {
+        let rest_start = offset + rest.span.start as usize;
+        let rest_end = offset + rest.span.end as usize;
+        let argument =
+            convert_binding_pattern_for_param(arena, &rest.rest.argument, offset, line_offsets);
+        params.push(JsNode::RestElement {
+            start: rest_start as u32,
+            end: rest_end as u32,
+            loc: create_typed_loc(rest_start, rest_end, line_offsets),
+            argument: arena.alloc_js_node(JsNode::Raw(argument)),
+        });
+    }
+
+    // body
+    let body = func.body.as_ref().map(|body| {
+        arena.alloc_js_node(convert_function_body_for_program_as_node(
+            arena,
+            body,
+            offset,
+            line_offsets,
+        ))
+    });
+
+    JsNode::FunctionExpression {
+        start: start as u32,
+        end: end as u32,
+        loc: create_typed_loc(start, end, line_offsets),
+        id: None,
+        params: arena.alloc_js_children(params),
+        body,
+        generator: func.generator,
+        r#async: func.r#async,
+        expression: false,
+    }
 }
 
 /// Convert a function body (statement or expression) to JSON value.
