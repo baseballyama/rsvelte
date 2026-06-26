@@ -934,7 +934,8 @@ fn visit_fragment(frag: &Fragment, context: &mut ComponentContext) -> Vec<JsStat
     // For example:
     //   - {#snippet} inside <svg> with <p> children -> "html"
     //   - {#snippet} inside <svg> with <a><text>...</text></a> children -> "svg"
-    let snippet_namespace = infer_namespace_from_children(&frag.nodes);
+    let snippet_namespace =
+        infer_namespace_from_children(&frag.nodes, &context.state.metadata.namespace);
     let saved_namespace =
         std::mem::replace(&mut context.state.metadata.namespace, snippet_namespace);
 
@@ -963,58 +964,125 @@ fn visit_fragment(frag: &Fragment, context: &mut ComponentContext) -> Vec<JsStat
     block.body
 }
 
-/// Infer namespace from snippet body children.
+/// Result of scanning a snippet body for its namespace.
 ///
-/// Matches the official Svelte compiler's `check_nodes_for_namespace()` logic:
-/// - If all elements are SVG -> "svg"
-/// - If all elements are MathML -> "mathml"
-/// - If any element is regular HTML -> "html"
-/// - If no elements found -> "html" (default)
-fn infer_namespace_from_children(nodes: &[crate::ast::template::TemplateNode]) -> String {
-    use crate::ast::template::TemplateNode;
+/// Mirrors the `Namespace | 'keep' | 'maybe_html'` accumulator in upstream's
+/// `check_nodes_for_namespace()`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum NsScan {
+    Keep,
+    MaybeHtml,
+    Html,
+    Svg,
+    Mathml,
+}
 
-    let mut found_namespace: Option<&str> = None;
-
+/// Infer namespace for a snippet body, mirroring upstream's
+/// `infer_namespace()` for a `SnippetBlock` parent.
+///
+/// Faithful port of `check_nodes_for_namespace()` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/utils.js`. The walk
+/// descends through block containers (`{#if}` / `{#each}` / `{#await}` /
+/// `{#key}` / fragments) and stops at the first element it reaches; components,
+/// render tags, and nested snippets are *not* descended (they reset the
+/// namespace themselves). When the scan finds no element — only whitespace,
+/// text, or dynamic anchors — the result is `keep`/`maybe_html`, and upstream
+/// falls back to the *inherited* namespace rather than defaulting to `html`.
+/// Previously this defaulted to `"html"`, which wrongly emitted `$.from_html`
+/// (and a spurious whitespace text anchor) for a `{#snippet}` of adjacent
+/// component/render anchors inside `<svg>` (issue #1227).
+fn infer_namespace_from_children(
+    nodes: &[crate::ast::template::TemplateNode],
+    inherited: &str,
+) -> String {
+    let mut ns = NsScan::Keep;
     for node in nodes {
-        match node {
-            TemplateNode::RegularElement(elem) => {
-                if !elem.metadata.svg && !elem.metadata.mathml {
-                    return "html".to_string();
-                }
-                if elem.metadata.svg {
-                    found_namespace = Some(match found_namespace {
-                        None | Some("svg") => "svg",
-                        _ => return "html".to_string(),
-                    });
-                } else if elem.metadata.mathml {
-                    found_namespace = Some(match found_namespace {
-                        None | Some("mathml") => "mathml",
-                        _ => return "html".to_string(),
-                    });
-                }
-            }
-            TemplateNode::SvelteElement(elem) => {
-                if !elem.metadata.svg && !elem.metadata.mathml {
-                    return "html".to_string();
-                }
-                if elem.metadata.svg {
-                    found_namespace = Some(match found_namespace {
-                        None | Some("svg") => "svg",
-                        _ => return "html".to_string(),
-                    });
-                } else if elem.metadata.mathml {
-                    found_namespace = Some(match found_namespace {
-                        None | Some("mathml") => "mathml",
-                        _ => return "html".to_string(),
-                    });
-                }
-            }
-            // For non-element nodes (text, expressions, blocks), continue checking
-            _ => {}
+        // The per-node "stop" (return value) only halts the walk *within* one
+        // top-level node — upstream's outer loop keeps scanning siblings and
+        // only bails once the namespace resolves to `html`.
+        scan_node_for_namespace(node, &mut ns);
+        if ns == NsScan::Html {
+            break;
         }
     }
 
-    found_namespace.unwrap_or("html").to_string()
+    match ns {
+        NsScan::Html => "html".to_string(),
+        NsScan::Svg => "svg".to_string(),
+        NsScan::Mathml => "mathml".to_string(),
+        // `keep` / `maybe_html` → inherit the surrounding namespace.
+        NsScan::Keep | NsScan::MaybeHtml => inherited.to_string(),
+    }
+}
+
+/// Apply the element-namespace rule from upstream's `RegularElement` /
+/// `SvelteElement` walk visitors. Returns `true` to stop the walk (upstream's
+/// `stop()`): the first element reached determines the namespace.
+fn apply_element_namespace(svg: bool, mathml: bool, ns: &mut NsScan) -> bool {
+    if !svg && !mathml {
+        *ns = NsScan::Html;
+    } else if *ns == NsScan::Keep {
+        *ns = if svg { NsScan::Svg } else { NsScan::Mathml };
+    }
+    true
+}
+
+/// Recursive walk mirroring upstream `check_nodes_for_namespace()`'s zimmerframe
+/// traversal. Returns `true` when the walk should stop (an element was found).
+fn scan_node_for_namespace(node: &crate::ast::template::TemplateNode, ns: &mut NsScan) -> bool {
+    use crate::ast::template::TemplateNode;
+
+    match node {
+        TemplateNode::RegularElement(e) => {
+            apply_element_namespace(e.metadata.svg, e.metadata.mathml, ns)
+        }
+        TemplateNode::SvelteElement(e) => {
+            apply_element_namespace(e.metadata.svg, e.metadata.mathml, ns)
+        }
+        TemplateNode::Text(t) => {
+            if !t.data.trim().is_empty() {
+                *ns = NsScan::MaybeHtml;
+            }
+            false
+        }
+        TemplateNode::IfBlock(b) => {
+            scan_nodes_for_namespace(&b.consequent.nodes, ns)
+                || b.alternate
+                    .as_ref()
+                    .is_some_and(|f| scan_nodes_for_namespace(&f.nodes, ns))
+        }
+        TemplateNode::EachBlock(b) => {
+            scan_nodes_for_namespace(&b.body.nodes, ns)
+                || b.fallback
+                    .as_ref()
+                    .is_some_and(|f| scan_nodes_for_namespace(&f.nodes, ns))
+        }
+        TemplateNode::AwaitBlock(b) => {
+            b.pending
+                .as_ref()
+                .is_some_and(|f| scan_nodes_for_namespace(&f.nodes, ns))
+                || b.then
+                    .as_ref()
+                    .is_some_and(|f| scan_nodes_for_namespace(&f.nodes, ns))
+                || b.catch
+                    .as_ref()
+                    .is_some_and(|f| scan_nodes_for_namespace(&f.nodes, ns))
+        }
+        TemplateNode::KeyBlock(b) => scan_nodes_for_namespace(&b.fragment.nodes, ns),
+        // Components, render tags, nested snippets, expression tags, etc. are
+        // not descended — they reset the namespace on their own.
+        _ => false,
+    }
+}
+
+/// Walk a node list, stopping early when a child requests a stop.
+fn scan_nodes_for_namespace(nodes: &[crate::ast::template::TemplateNode], ns: &mut NsScan) -> bool {
+    for node in nodes {
+        if scan_node_for_namespace(node, ns) {
+            return true;
+        }
+    }
+    false
 }
 
 #[cfg(test)]

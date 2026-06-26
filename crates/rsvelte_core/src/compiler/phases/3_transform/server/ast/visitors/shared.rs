@@ -1009,9 +1009,16 @@ pub fn build_fragment_body<'a>(
     // 写经 upstream `Fragment.js` → `clean_nodes(..., infer_namespace(...))`: a
     // fragment whose direct RegularElement children are all SVG (or all MathML)
     // adopts that namespace, so whitespace-only text between them is removable
-    // (`can_remove_entirely`) just like inside an `<svg>` element. The root
-    // fragment defaults to `html`; refine it from the children.
-    let fragment_namespace = infer_namespace_from_nodes_owned(&fragment.nodes, "html");
+    // (`can_remove_entirely`) just like inside an `<svg>` element. When the
+    // fragment has no element children (only text / render tags / components),
+    // it inherits the ENCLOSING namespace (`state.namespace`) rather than
+    // defaulting to `html` — mirroring upstream `infer_namespace()`'s fall-through
+    // to the incoming namespace. Previously this hardcoded `"html"`, so a
+    // `{#snippet}` of adjacent render/component anchors inside `<svg>` kept its
+    // whitespace text node, emitting a spurious trailing space in the SSR markup
+    // (issue #1227). The root component fragment has `state.namespace == "html"`,
+    // so its default is unchanged.
+    let fragment_namespace = infer_namespace_from_nodes_owned(&fragment.nodes, state.namespace);
     process_children_inner(
         &fragment.nodes,
         None,
@@ -1601,35 +1608,107 @@ pub(crate) fn locate_in_source(source: &str, offset: usize) -> (usize, usize) {
     (line, col)
 }
 
-/// Infer a fragment's namespace from its children (owned-slice variant). If every
-/// direct `RegularElement` child is SVG (or every one MathML) the fragment adopts
-/// that namespace, so whitespace-only text between them is removable. (Relocated
-/// from the deleted text `server/visitors/fragment.rs`.)
+/// Accumulator state for [`infer_namespace_from_nodes_owned`], mirroring the
+/// `Namespace | 'keep' | 'maybe_html'` variable in upstream
+/// `check_nodes_for_namespace()`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum NsScan {
+    Keep,
+    MaybeHtml,
+    Html,
+    Svg,
+    Mathml,
+}
+
+/// Infer a fragment's namespace from its children (owned-slice variant).
+///
+/// Faithful port of `infer_namespace()` / `check_nodes_for_namespace()` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/utils.js`. The walk
+/// descends through block containers (`{#if}` / `{#each}` / `{#await}` /
+/// `{#key}` / fragments) and stops at the first element it reaches; components,
+/// render tags, and nested snippets are not descended. A fragment whose elements
+/// are all SVG (or all MathML) adopts that namespace, so whitespace-only text
+/// between them is removable (`can_remove_entirely`). When no element is found
+/// — only text / render tags / components — the fragment inherits the enclosing
+/// `parent_namespace` (issue #1227: a `{#snippet}` of adjacent render/component
+/// anchors inside `<svg>` must inherit `svg` so the interior whitespace is
+/// trimmed, rather than defaulting to `html`).
 pub(crate) fn infer_namespace_from_nodes_owned(
     nodes: &[TemplateNode],
     parent_namespace: &str,
 ) -> String {
-    let mut found_namespace: Option<&str> = None;
+    let mut ns = NsScan::Keep;
     for node in nodes {
-        if let TemplateNode::RegularElement(el) = node {
-            if el.metadata.svg {
-                match found_namespace {
-                    None => found_namespace = Some("svg"),
-                    Some("svg") => {}
-                    _ => return "html".to_string(),
-                }
-            } else if el.metadata.mathml {
-                match found_namespace {
-                    None => found_namespace = Some("mathml"),
-                    Some("mathml") => {}
-                    _ => return "html".to_string(),
-                }
-            } else {
-                return "html".to_string();
-            }
+        // The per-node "stop" only halts the walk within one top-level node;
+        // upstream's outer loop keeps scanning siblings until it resolves `html`.
+        ns_scan_node(node, &mut ns);
+        if ns == NsScan::Html {
+            break;
         }
     }
-    found_namespace
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| parent_namespace.to_string())
+    match ns {
+        NsScan::Html => "html".to_string(),
+        NsScan::Svg => "svg".to_string(),
+        NsScan::Mathml => "mathml".to_string(),
+        NsScan::Keep | NsScan::MaybeHtml => parent_namespace.to_string(),
+    }
+}
+
+/// Apply upstream's element-namespace rule. Returns `true` to stop the walk
+/// (upstream's `stop()`): the first element reached decides the namespace.
+fn ns_apply_element(svg: bool, mathml: bool, ns: &mut NsScan) -> bool {
+    if !svg && !mathml {
+        *ns = NsScan::Html;
+    } else if *ns == NsScan::Keep {
+        *ns = if svg { NsScan::Svg } else { NsScan::Mathml };
+    }
+    true
+}
+
+/// Recursive walk mirroring upstream `check_nodes_for_namespace()`. Returns
+/// `true` when the walk should stop (an element was found).
+fn ns_scan_node(node: &TemplateNode, ns: &mut NsScan) -> bool {
+    match node {
+        TemplateNode::RegularElement(e) => ns_apply_element(e.metadata.svg, e.metadata.mathml, ns),
+        TemplateNode::SvelteElement(e) => ns_apply_element(e.metadata.svg, e.metadata.mathml, ns),
+        TemplateNode::Text(t) => {
+            if !t.data.trim().is_empty() {
+                *ns = NsScan::MaybeHtml;
+            }
+            false
+        }
+        TemplateNode::IfBlock(b) => {
+            ns_scan_nodes(&b.consequent.nodes, ns)
+                || b.alternate
+                    .as_ref()
+                    .is_some_and(|f| ns_scan_nodes(&f.nodes, ns))
+        }
+        TemplateNode::EachBlock(b) => {
+            ns_scan_nodes(&b.body.nodes, ns)
+                || b.fallback
+                    .as_ref()
+                    .is_some_and(|f| ns_scan_nodes(&f.nodes, ns))
+        }
+        TemplateNode::AwaitBlock(b) => {
+            b.pending
+                .as_ref()
+                .is_some_and(|f| ns_scan_nodes(&f.nodes, ns))
+                || b.then.as_ref().is_some_and(|f| ns_scan_nodes(&f.nodes, ns))
+                || b.catch
+                    .as_ref()
+                    .is_some_and(|f| ns_scan_nodes(&f.nodes, ns))
+        }
+        TemplateNode::KeyBlock(b) => ns_scan_nodes(&b.fragment.nodes, ns),
+        _ => false,
+    }
+}
+
+/// Walk a node list, stopping early when a child requests a stop.
+fn ns_scan_nodes(nodes: &[TemplateNode], ns: &mut NsScan) -> bool {
+    for node in nodes {
+        if ns_scan_node(node, ns) {
+            return true;
+        }
+    }
+    false
 }
