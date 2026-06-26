@@ -260,7 +260,8 @@ pub fn transform_component(
             });
 
         if !should_ignore_unused {
-            let css_warnings = css::collect_css_unused_warnings(analysis, source);
+            let css_warnings =
+                css::collect_css_unused_warnings(analysis, ast.css.as_deref(), source);
             for w in css_warnings {
                 warnings.push(TransformWarning {
                     code: "css_unused_selector".to_string(),
