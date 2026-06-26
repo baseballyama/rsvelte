@@ -28,7 +28,10 @@ jobs:
   bench:
     name: Criterion benchmarks
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Build (≤30 min, mostly the cold oxc-from-git compile) + Run criterion
+    # (≤40 min: absorbs the local-crate rebuild noted on that step, then the
+    # measurement sweep). Keep the job ceiling above their sum.
+    timeout-minutes: 75
     # Criterion reports absolute wall-clock throughput, which is noisier than
     # CodSpeed's instruction counts and moves slowly — not worth gating every
     # PR on. Always run on push to `main` (and manual dispatch); on PRs run
@@ -61,19 +64,38 @@ jobs:
           cache-on-failure: true
 
       - name: Build benchmarks
-        # Compile the bench harnesses separately so the cold-cache build
-        # (~15 min) is not charged against the `Run criterion` measurement
-        # budget below. On a warm cache this is a quick no-op.
+        # Compile the bench harnesses up front so a build failure is reported
+        # as its own step (a clear CI signal, separate from a measurement
+        # timeout). On a warm cache this is a quick no-op.
+        #
+        # NOTE: this build is intentionally NOT relied on to make the `Run
+        # criterion` step a pure measurement pass. `rsvelte_core` is a
+        # `cdylib`+`rlib`, and building it for its own benches alongside the
+        # `rsvelte_formatter` bench (which depends on it) produces an "output
+        # filename collision" on `librsvelte_core.{so,rlib}`. That collision
+        # makes the unit's fingerprint ambiguous, so the *next* `cargo bench`
+        # re-links/re-compiles the local crates from scratch (~14 min) instead
+        # of reusing this output. Rather than fight Cargo's fingerprinting, the
+        # measurement step below just absorbs that rebuild and is given a
+        # budget large enough for build + measurement.
         run: cargo bench --bench parser --bench compiler --bench formatter --no-run
         timeout-minutes: 30
 
       - name: Run criterion
-        # Benches are already compiled by the step above, so this only spends
-        # time measuring. `--save-baseline pr` saves results so a follow-up
-        # job (or the next commit) can diff against this baseline with
-        # `--baseline pr`.
-        run: cargo bench --bench parser --bench compiler --bench formatter -- --save-baseline pr
-        timeout-minutes: 30
+        # `--save-baseline pr` saves results so a follow-up job (or the next
+        # commit) can diff against this baseline with `--baseline pr`.
+        #
+        # Criterion wall-clock throughput is noisier than CodSpeed's
+        # instruction counts and isn't a PR gate (see the job comment), so we
+        # trade a little statistical fidelity for a much shorter, reliable run:
+        # a 1s warm-up + 2s measurement window with 50 samples is plenty to
+        # track coarse regressions while keeping the whole sweep (~100 benches,
+        # plus the ~14 min local rebuild noted above) well inside the budget.
+        run: >-
+          cargo bench --bench parser --bench compiler --bench formatter --
+          --save-baseline pr
+          --warm-up-time 1 --measurement-time 2 --sample-size 50
+        timeout-minutes: 40
 
       - name: Upload criterion reports
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
