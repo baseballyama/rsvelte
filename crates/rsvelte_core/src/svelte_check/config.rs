@@ -14,6 +14,14 @@
 //! the vite-plugin options taking precedence, mirroring
 //! vite-plugin-svelte's `defaults → svelte.config.js → inline` order.
 //!
+//! Two plugin shapes carry inline `compilerOptions` in `vite.config.*`:
+//!   * `svelte({ compilerOptions })` (`@sveltejs/vite-plugin-svelte`) —
+//!     vite-plugin-svelte *merges* this over `svelte.config.js`.
+//!   * `sveltekit({ compilerOptions })` (`@sveltejs/kit/vite`, since
+//!     SvelteKit 2.62.0) — when config is passed inline, SvelteKit
+//!     *ignores* `svelte.config.js` entirely. We mirror that suppression
+//!     so the resolved options match what the runtime would compile with.
+//!
 //! Only statically-resolvable literal values are supported; dynamic
 //! expressions (env vars, function calls, spreads, re-exports) fall back
 //! to defaults. This matches the existing `load_kit_files_settings`
@@ -77,21 +85,38 @@ const VITE_CONFIG_CANDIDATES: &[&str] = &[
 /// Precedence (lowest → highest, matching vite-plugin-svelte's merge):
 ///   1. defaults
 ///   2. `svelte.config.*` `compilerOptions`
-///   3. `vite.config.*` `svelte({ compilerOptions })` (inline plugin opts)
+///   3. `vite.config.*` `svelte({ compilerOptions })` /
+///      `sveltekit({ compilerOptions })` (inline plugin opts)
 ///
 /// Each source only overrides a field when it statically declares it, so
 /// a value set in `svelte.config.js` survives a `vite.config.ts` that
 /// doesn't mention it.
+///
+/// Exception: when `vite.config.*` passes inline config to the
+/// `sveltekit()` plugin (SvelteKit 2.62.0+), SvelteKit ignores
+/// `svelte.config.js` entirely, so step 2 is skipped and only the inline
+/// `sveltekit({...})` options apply over the defaults.
 pub fn load_compiler_options(workspace: &Path) -> CompilerOptionsSettings {
     let mut settings = CompilerOptionsSettings::default();
 
-    // 2. svelte.config.* — lower precedence.
-    if let Some((source, source_type)) = read_first_config(workspace, SVELTE_CONFIG_CANDIDATES) {
+    // Read the vite.config once: it both decides whether svelte.config is
+    // consulted (the `sveltekit()` inline-config case) and may itself
+    // carry inline `compilerOptions`.
+    let vite = read_first_config(workspace, VITE_CONFIG_CANDIDATES);
+    let svelte_config_ignored = vite.as_ref().is_some_and(|(source, source_type)| {
+        vite_uses_inline_sveltekit_config(source, *source_type)
+    });
+
+    // 2. svelte.config.* — lower precedence; suppressed when an inline
+    //    `sveltekit({...})` config takes over.
+    if !svelte_config_ignored
+        && let Some((source, source_type)) = read_first_config(workspace, SVELTE_CONFIG_CANDIDATES)
+    {
         parse_config(&source, source_type, ConfigKind::Svelte, &mut settings);
     }
     // 3. vite.config.* — higher precedence (overrides the above).
-    if let Some((source, source_type)) = read_first_config(workspace, VITE_CONFIG_CANDIDATES) {
-        parse_config(&source, source_type, ConfigKind::Vite, &mut settings);
+    if let Some((source, source_type)) = &vite {
+        parse_config(source, *source_type, ConfigKind::Vite, &mut settings);
     }
 
     settings
@@ -141,11 +166,14 @@ fn parse_config(
         match kind {
             ConfigKind::Svelte => extract_compiler_options(obj, settings),
             ConfigKind::Vite => {
-                // The Svelte compiler options live in the `svelte(...)`
-                // plugin call inside the `plugins` array.
+                // The Svelte compiler options live in the inline argument
+                // of the `svelte(...)` (`@sveltejs/vite-plugin-svelte`) or
+                // `sveltekit(...)` (`@sveltejs/kit/vite`, 2.62.0+) plugin
+                // call inside the `plugins` array.
                 if let Some(plugins) = lookup_property(obj, "plugins")
-                    && let Some(call) = find_svelte_plugin_call(plugins)
-                    && let Some(oxc::Argument::ObjectExpression(opts)) = call.arguments.first()
+                    && let Some(plugin) = find_svelte_plugin_call(plugins)
+                    && let Some(oxc::Argument::ObjectExpression(opts)) =
+                        plugin.call.arguments.first()
                 {
                     extract_compiler_options(opts, settings);
                 }
@@ -196,20 +224,39 @@ fn config_object_from_stmt<'a>(
     }
 }
 
-/// Find the `svelte(...)` plugin call anywhere within a `plugins` value.
-/// Recurses into nested array literals so `plugins: [[svelte()]]` and
-/// `plugins: [otherPlugin(), svelte({...})]` both resolve. Best-effort:
-/// matches the conventional `svelte` import name (a renamed import is
-/// not tracked, consistent with the static-parse contract).
-fn find_svelte_plugin_call<'a>(
-    expr: &'a oxc::Expression<'a>,
-) -> Option<&'a oxc::CallExpression<'a>> {
+/// Which Svelte-related Vite plugin wraps the inline compiler options.
+/// They differ in how they interact with `svelte.config.js`: `svelte()`
+/// merges, `sveltekit()` (with inline config) ignores it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PluginKind {
+    /// `svelte()` from `@sveltejs/vite-plugin-svelte`.
+    Svelte,
+    /// `sveltekit()` from `@sveltejs/kit/vite` (2.62.0+).
+    SvelteKit,
+}
+
+/// A located `svelte(...)` / `sveltekit(...)` plugin call.
+struct SveltePluginCall<'a> {
+    kind: PluginKind,
+    call: &'a oxc::CallExpression<'a>,
+}
+
+/// Find the `svelte(...)` or `sveltekit(...)` plugin call anywhere within
+/// a `plugins` value. Recurses into nested array literals so
+/// `plugins: [[svelte()]]` and `plugins: [otherPlugin(), sveltekit({...})]`
+/// both resolve. Best-effort: matches the conventional `svelte` /
+/// `sveltekit` import names (a renamed import is not tracked, consistent
+/// with the static-parse contract).
+fn find_svelte_plugin_call<'a>(expr: &'a oxc::Expression<'a>) -> Option<SveltePluginCall<'a>> {
     match expr {
         oxc::Expression::CallExpression(call) => {
-            if let oxc::Expression::Identifier(id) = &call.callee
-                && id.name.as_str() == "svelte"
-            {
-                return Some(call);
+            if let oxc::Expression::Identifier(id) = &call.callee {
+                let kind = match id.name.as_str() {
+                    "svelte" => PluginKind::Svelte,
+                    "sveltekit" => PluginKind::SvelteKit,
+                    _ => return None,
+                };
+                return Some(SveltePluginCall { kind, call });
             }
             None
         }
@@ -219,8 +266,8 @@ fn find_svelte_plugin_call<'a>(
                     oxc::ArrayExpressionElement::SpreadElement(_)
                     | oxc::ArrayExpressionElement::Elision(_) => continue,
                     _ => {
-                        if let Some(call) = find_svelte_plugin_call(el.to_expression()) {
-                            return Some(call);
+                        if let Some(found) = find_svelte_plugin_call(el.to_expression()) {
+                            return Some(found);
                         }
                     }
                 }
@@ -229,6 +276,36 @@ fn find_svelte_plugin_call<'a>(
         }
         _ => None,
     }
+}
+
+/// Does `vite.config.*` pass inline config to the `sveltekit()` plugin?
+///
+/// SvelteKit 2.62.0 accepts the Svelte config (`compilerOptions`,
+/// `preprocess`, …) as the first argument to `sveltekit()`. When that
+/// argument is present, SvelteKit ignores `svelte.config.js` entirely
+/// (it forwards `configFile: false` to vite-plugin-svelte and warns).
+/// We treat *any* argument to `sveltekit(...)` as "inline config
+/// provided" — matching SvelteKit's `config !== undefined` check — so
+/// even an argument we can't read statically still suppresses the file,
+/// exactly as it would at runtime. The plain `svelte()` plugin never
+/// suppresses `svelte.config.js`.
+fn vite_uses_inline_sveltekit_config(source: &str, source_type: SourceType) -> bool {
+    let allocator = Allocator::default();
+    let parser = OxcParser::new(&allocator, source, source_type);
+    let result = parser.parse();
+    for stmt in &result.program.body {
+        let Some(obj) = config_object_from_stmt(stmt) else {
+            continue;
+        };
+        if let Some(plugins) = lookup_property(obj, "plugins")
+            && let Some(plugin) = find_svelte_plugin_call(plugins)
+            && plugin.kind == PluginKind::SvelteKit
+            && !plugin.call.arguments.is_empty()
+        {
+            return true;
+        }
+    }
+    false
 }
 
 /// Read `compilerOptions.{experimental.async, runes}` out of an object
@@ -386,6 +463,138 @@ mod tests {
             import other from 'other';
             export default {
                 plugins: [other(), svelte({ compilerOptions: { experimental: { async: true } } })]
+            };"#,
+        );
+        let s = load_compiler_options(&dir);
+        assert!(s.experimental_async);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn reads_compiler_options_from_sveltekit_plugin_call() {
+        // SvelteKit 2.62.0: config passed inline to `sveltekit()`.
+        let dir = workspace("svkit_async");
+        write(
+            &dir,
+            "vite.config.ts",
+            r#"import { sveltekit } from '@sveltejs/kit/vite';
+            import { defineConfig } from 'vite';
+            export default defineConfig({
+                plugins: [sveltekit({ compilerOptions: { experimental: { async: true } } })]
+            });"#,
+        );
+        let s = load_compiler_options(&dir);
+        assert!(
+            s.experimental_async,
+            "experimental.async must be read from the sveltekit() plugin call"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn reads_runes_from_sveltekit_plugin_call() {
+        let dir = workspace("svkit_runes");
+        write(
+            &dir,
+            "vite.config.ts",
+            r#"import { sveltekit } from '@sveltejs/kit/vite';
+            export default { plugins: [sveltekit({ compilerOptions: { runes: true } })] };"#,
+        );
+        let s = load_compiler_options(&dir);
+        assert_eq!(s.runes, Some(true));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn inline_sveltekit_config_ignores_svelte_config() {
+        // svelte.config sets runes:true; vite.config passes inline config
+        // to sveltekit() (async only). SvelteKit ignores svelte.config.js
+        // entirely in this case, so runes must fall back to auto (None) —
+        // NOT the merge behaviour used for the plain svelte() plugin.
+        let dir = workspace("svkit_ignore");
+        write(
+            &dir,
+            "svelte.config.js",
+            "export default { compilerOptions: { runes: true } };",
+        );
+        write(
+            &dir,
+            "vite.config.ts",
+            r#"import { sveltekit } from '@sveltejs/kit/vite';
+            export default {
+                plugins: [sveltekit({ compilerOptions: { experimental: { async: true } } })]
+            };"#,
+        );
+        let s = load_compiler_options(&dir);
+        assert!(s.experimental_async, "inline sveltekit async applies");
+        assert_eq!(
+            s.runes, None,
+            "svelte.config.js is ignored when sveltekit() gets inline config"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn sveltekit_without_args_keeps_svelte_config() {
+        // `sveltekit()` with no argument => config read from
+        // svelte.config.js as before (no suppression).
+        let dir = workspace("svkit_noargs");
+        write(
+            &dir,
+            "svelte.config.js",
+            "export default { compilerOptions: { experimental: { async: true }, runes: true } };",
+        );
+        write(
+            &dir,
+            "vite.config.ts",
+            r#"import { sveltekit } from '@sveltejs/kit/vite';
+            export default { plugins: [sveltekit()] };"#,
+        );
+        let s = load_compiler_options(&dir);
+        assert!(s.experimental_async);
+        assert_eq!(s.runes, Some(true));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn plain_svelte_plugin_still_merges_svelte_config() {
+        // Regression guard: the `svelte()` plugin (vite-plugin-svelte)
+        // must keep MERGE semantics — svelte.config.js is the base and an
+        // inline value that the plugin doesn't restate survives.
+        let dir = workspace("svelte_merge");
+        write(
+            &dir,
+            "svelte.config.js",
+            "export default { compilerOptions: { runes: true } };",
+        );
+        write(
+            &dir,
+            "vite.config.ts",
+            r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+            export default {
+                plugins: [svelte({ compilerOptions: { experimental: { async: true } } })]
+            };"#,
+        );
+        let s = load_compiler_options(&dir);
+        assert!(s.experimental_async, "inline svelte() async applies");
+        assert_eq!(
+            s.runes,
+            Some(true),
+            "svelte.config.js runes survives a svelte() plugin that omits it"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn sveltekit_among_other_plugins() {
+        let dir = workspace("svkit_multi");
+        write(
+            &dir,
+            "vite.config.ts",
+            r#"import { sveltekit } from '@sveltejs/kit/vite';
+            import other from 'other';
+            export default {
+                plugins: [other(), sveltekit({ compilerOptions: { experimental: { async: true } } })]
             };"#,
         );
         let s = load_compiler_options(&dir);

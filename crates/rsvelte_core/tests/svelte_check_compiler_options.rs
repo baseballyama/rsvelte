@@ -101,6 +101,29 @@ fn experimental_async_from_vite_plugin_clears_error() {
 }
 
 #[test]
+fn experimental_async_from_sveltekit_plugin_clears_error() {
+    // SvelteKit 2.62.0 lets the option live in the `sveltekit()` plugin
+    // call in vite.config rather than in svelte.config.js / a `svelte()`
+    // call. svelte-check must honour it the same way.
+    let dir = workspace_with_async_component("sveltekitconfig");
+    write(
+        &dir,
+        "vite.config.ts",
+        r#"import { sveltekit } from '@sveltejs/kit/vite';
+        import { defineConfig } from 'vite';
+        export default defineConfig({
+            plugins: [sveltekit({ compilerOptions: { experimental: { async: true } } })]
+        });"#,
+    );
+    let errors = svelte_errors(&dir);
+    assert!(
+        errors.is_empty(),
+        "experimental.async in the sveltekit() plugin call should clear the error, got: {errors:#?}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn incremental_cache_invalidates_when_config_changes() {
     // First incremental run with no config caches the experimental_async
     // error; adding a vite.config that enables async must invalidate that
