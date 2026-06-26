@@ -205,39 +205,7 @@ package → move it in `ecosystem.ts` (planned → shipped).
 
 ## 7. Next-session `/goal`
 
-Paste this as the `/goal` for the next session:
+Paste this as the `/goal` for the next session (all the detail is in §1–6
+above, so the goal is one sentence):
 
-> Port ALL eight Svelte preprocessors from awesome-svelte to rsvelte per
-> `docs/preprocessor-port-plan.md`. Every entry is in scope. Work strictly in
-> phases (Wave 0 → 1 → 2); do not advance a wave until the previous wave's
-> upstream-fixture compatibility suites are green. Reuse rsvelte's existing
-> preprocess engine (`crates/rsvelte_core/src/compiler/preprocess/`) — port each
-> preprocessor as a `PreprocessorGroup` (decide per-crate vs. `preprocess/builtins`
-> per plan §2). Keep correct source maps and the upstream options shape; use
-> Rust backends (oxc / grass / lightningcss / comrak) where they exist and a JS
-> fallback to the user's installed tool otherwise, documenting every fallback.
->
-> **Wave 0 — foundations:** (1) svelte-switch-case (`submodules/svelte-switch-case`)
-> — switch/case→`{#if}` on the rsvelte template AST; (2) svelte-preprocess-sass
-> (`submodules/svelte-preprocess-sass`) — Sass via `grass`; (3) svelte-preprocess-less
-> (`submodules/svelte-preprocess-less`) — Less via JS fallback. Port each one's
-> upstream fixtures into a Rust compat suite (identical code + maps) and ship it.
->
-> **Wave 1 — CSS stack:** (4) svelte-preprocess (`submodules/svelte-preprocess`)
-> — auto-preprocess dispatch + native TypeScript (oxc), SCSS/Sass (grass), CSS
-> (lightningcss), globalStyle, replace; JS fallbacks for Less/Stylus/Pug; drive
-> `submodules/svelte-preprocess/test`. (5) modular-css (`submodules/modular-css`)
-> — CSS modules via lightningcss; drive `submodules/modular-css/packages/svelte`.
->
-> **Wave 2 — markdown family:** (6) mdsvex (`submodules/mdsvex`) — Rust markdown→
-> Svelte core (comrak/pulldown-cmark): frontmatter, layouts, fenced code; decide
-> the remark/rehype plugin strategy (JS bridge vs. unsupported-v1). (7)
-> svelte-preprocess-markdown (`submodules/svelte-preprocess-markdown`) —
-> components-in-markdown via the same core. (8) @nvl/sveltex (`submodules/sveltex`)
-> — Svelte + Markdown + LaTeX; LaTeX via a JS (KaTeX) bridge in v1.
->
-> Keep cargo test / nextest 100% green throughout; commit per preprocessor, push,
-> and open a PR per wave. Update `apps/playground/src/lib/ecosystem.ts` (planned →
-> shipped) as each lands. Before starting, re-read `docs/preprocessor-port-plan.md`
-> and confirm the §2 design decisions (per-crate vs. builtins; Rust-native vs.
-> JS-fallback boundary).
+> Port all 8 awesome-svelte preprocessors to rsvelte following `docs/preprocessor-port-plan.md`, doing the waves (0→2) in order and shipping each only after it passes its upstream submodule's fixtures.
