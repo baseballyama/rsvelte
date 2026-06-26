@@ -144,10 +144,20 @@ fn path_is_relevant(path: &Path, workspace: &Path) -> bool {
         .file_name()
         .and_then(|s| s.to_str())
         .unwrap_or_default();
+    // `.ts/.js/.mts/.cts` config files are already covered by the generic
+    // source-extension match above; the `.mjs/.cjs` config variants are
+    // not, so list them explicitly. `vite.config.*` matters now that the
+    // Svelte compiler options can live in the `svelte()`/`sveltekit()`
+    // plugin call there (SvelteKit 2.62.0). Exact filenames only — Vite's
+    // transient `vite.config.ts.timestamp-*.mjs` must not trigger reruns.
     matches!(ext, "svelte" | "ts" | "js" | "tsx" | "jsx" | "mts" | "cts")
         || basename == "tsconfig.json"
         || basename == "svelte.config.js"
         || basename == "svelte.config.ts"
+        || basename == "svelte.config.mjs"
+        || basename == "svelte.config.cjs"
+        || basename == "vite.config.mjs"
+        || basename == "vite.config.cjs"
 }
 
 #[cfg(test)]
@@ -162,6 +172,18 @@ mod tests {
         assert!(path_is_relevant(&ws.join("src/lib.ts"), &ws));
         assert!(path_is_relevant(&ws.join("tsconfig.json"), &ws));
         assert!(path_is_relevant(&ws.join("svelte.config.js"), &ws));
+        assert!(path_is_relevant(&ws.join("svelte.config.mjs"), &ws));
+        // `vite.config.*` carries Svelte compiler options since SvelteKit
+        // 2.62.0 — edits must trigger a rerun. `.ts`/`.js` are covered by
+        // the generic source-extension match; `.mjs`/`.cjs` explicitly.
+        assert!(path_is_relevant(&ws.join("vite.config.ts"), &ws));
+        assert!(path_is_relevant(&ws.join("vite.config.mjs"), &ws));
+
+        // Vite's transient compiled-config file must NOT trigger reruns.
+        assert!(!path_is_relevant(
+            &ws.join("vite.config.ts.timestamp-1700000000000.mjs"),
+            &ws
+        ));
 
         // node_modules / .git / cache dir are filtered out.
         assert!(!path_is_relevant(&ws.join("node_modules/foo/bar.ts"), &ws));
