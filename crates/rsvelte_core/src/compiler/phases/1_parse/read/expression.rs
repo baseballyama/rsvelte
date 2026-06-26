@@ -259,6 +259,7 @@ fn get_loose_identifier(
             end: end as u32,
             loc: None,
             name: CompactString::from(""),
+            type_annotation: None,
         }));
     }
     None
@@ -841,6 +842,7 @@ fn try_parse_arrow_function(
                 end: 0,
                 loc: None,
                 name: CompactString::from(p),
+                type_annotation: None,
             });
         }
     }
@@ -1306,6 +1308,7 @@ fn try_parse_ident_or_member(
             end: (offset + seg_end) as u32,
             loc: create_typed_loc(offset + seg_start, offset + seg_end, line_offsets),
             name: CompactString::from(prop_name),
+            type_annotation: None,
         };
 
         result = Expression::from_node(JsNode::MemberExpression {
@@ -1746,6 +1749,7 @@ fn create_invalid_identifier(start: usize, end: usize, _line_offsets: &[usize]) 
         end: end as u32,
         loc: None,
         name: CompactString::from(""),
+        type_annotation: None,
     })
 }
 
@@ -3931,6 +3935,7 @@ fn create_identifier(name: &str, start: usize, end: usize, line_offsets: &[usize
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         name: CompactString::from(name),
+        type_annotation: None,
     })
 }
 
@@ -3961,6 +3966,7 @@ fn create_identifier_for_binding(
         end: end as u32,
         loc: create_typed_loc_for_binding(start, end, line_offsets),
         name: CompactString::from(name),
+        type_annotation: None,
     }
 }
 
@@ -3992,6 +3998,7 @@ fn create_identifier_for_binding_toplevel(
         end: end as u32,
         loc: create_typed_loc_for_binding_identifier(start, end, line_offsets),
         name: CompactString::from(name),
+        type_annotation: None,
     }
 }
 
@@ -4062,6 +4069,7 @@ pub fn create_identifier_with_character(
         end: end as u32,
         loc: create_typed_loc_with_character(start, end, line_offsets),
         name: CompactString::from(name),
+        type_annotation: None,
     })
 }
 
@@ -4073,6 +4081,7 @@ pub fn create_empty_identifier(name: &str, start: usize, end: usize) -> Expressi
         end: end as u32,
         loc: None,
         name: CompactString::from(name),
+        type_annotation: None,
     })
 }
 
@@ -4278,6 +4287,7 @@ fn create_static_member_expression(
             end: prop_end as u32,
             loc: create_typed_loc(prop_start, prop_end, line_offsets),
             name: CompactString::from(member.property.name.as_str()),
+            type_annotation: None,
         }),
         computed: false,
         optional: member.optional,
@@ -5768,65 +5778,16 @@ fn convert_variable_declarator(
     }
 }
 
-/// Convert a binding pattern for variable declarations.
-fn convert_binding_pattern_for_decl(
-    arena: &ParseArena,
-    pattern: &oxc_ast::ast::BindingPattern,
-    offset: usize,
-    line_offsets: &[usize],
-    type_annotation: Option<&oxc_ast::ast::TSTypeAnnotation>,
-) -> Value {
-    match pattern {
-        oxc_ast::ast::BindingPattern::BindingIdentifier(id) => {
-            let start = offset + id.span.start as usize - 1;
-            // If there's a type annotation, extend the end to include it
-            let end = if let Some(type_ann) = type_annotation {
-                offset + type_ann.span.end as usize - 1
-            } else {
-                offset + id.span.end as usize - 1
-            };
-
-            let mut obj = Map::new();
-            obj.insert("type".to_string(), Value::String("Identifier".to_string()));
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            obj.insert("name".to_string(), Value::String(id.name.to_string()));
-
-            // OXC v0.107: type annotations are on VariableDeclarator, not BindingIdentifier
-            if let Some(type_ann) = type_annotation {
-                let type_ann_value =
-                    convert_type_annotation_adjusted(type_ann, offset - 1, line_offsets);
-                obj.insert("typeAnnotation".to_string(), type_ann_value);
-            }
-
-            Value::Object(obj)
-        }
-        oxc_ast::ast::BindingPattern::ObjectPattern(obj_pat) => {
-            convert_object_pattern(arena, obj_pat, offset - 1, line_offsets).to_value()
-        }
-        oxc_ast::ast::BindingPattern::ArrayPattern(arr_pat) => {
-            convert_array_pattern(arena, arr_pat, offset - 1, line_offsets).to_value()
-        }
-        oxc_ast::ast::BindingPattern::AssignmentPattern(assign_pat) => {
-            convert_assignment_pattern(arena, assign_pat, offset - 1, line_offsets).to_value()
-        }
-    }
-}
-
-/// Typed sibling of [`convert_binding_pattern_for_decl`].
+/// Convert a binding pattern for a variable declarator id, returning a typed
+/// `JsNode` directly so the id routes through the typed analyze walker instead
+/// of `JsNode::Raw`. The Object / Array / Assignment pattern arms reuse the
+/// already-typed program-path converters (`offset - 1`). A bare
+/// `BindingIdentifier` produces a typed `Identifier`.
 ///
-/// Returns the typed `JsNode` directly so a variable declarator id routes
-/// through the typed analyze walker instead of `JsNode::Raw`. The
-/// Object / Array / Assignment pattern arms reuse the already-typed program-path
-/// converters (`offset - 1`), exactly as the Value form does before its
-/// `.to_value()`. A bare `BindingIdentifier` produces a typed `Identifier`.
-///
-/// A TS-type-annotated `BindingIdentifier` carries a `typeAnnotation` field that
-/// is not representable on the typed `Identifier` node, so that single case
-/// stays `JsNode::Raw` (deferred to a later TS-aware stage).
+/// A TS-type-annotated `BindingIdentifier` carries its `typeAnnotation` as an
+/// opaque, output-only boundary blob on the typed `Identifier` node (analyze
+/// never walks into it), with the extended `end`, recomputed `loc`, and the
+/// `convert_type_annotation_adjusted` blob.
 fn convert_binding_pattern_for_decl_as_node(
     arena: &ParseArena,
     pattern: &oxc_ast::ast::BindingPattern,
@@ -5835,10 +5796,25 @@ fn convert_binding_pattern_for_decl_as_node(
     type_annotation: Option<&oxc_ast::ast::TSTypeAnnotation>,
 ) -> JsNode {
     match pattern {
-        oxc_ast::ast::BindingPattern::BindingIdentifier(id) if type_annotation.is_none() => {
+        oxc_ast::ast::BindingPattern::BindingIdentifier(id) => {
             let start = offset + id.span.start as usize - 1;
-            let end = offset + id.span.end as usize - 1;
-            expr_to_node(create_identifier(&id.name, start, end, line_offsets))
+            if let Some(type_ann) = type_annotation {
+                // TS-annotated: extend `end` over the annotation and carry the
+                // annotation blob verbatim (same as the Value form at
+                // `convert_binding_pattern_for_decl`).
+                let end = offset + type_ann.span.end as usize - 1;
+                let ta_value = convert_type_annotation_adjusted(type_ann, offset - 1, line_offsets);
+                JsNode::Identifier {
+                    start: start as u32,
+                    end: end as u32,
+                    loc: create_typed_loc(start, end, line_offsets),
+                    name: CompactString::from(id.name.as_str()),
+                    type_annotation: Some(Box::new(ta_value)),
+                }
+            } else {
+                let end = offset + id.span.end as usize - 1;
+                expr_to_node(create_identifier(&id.name, start, end, line_offsets))
+            }
         }
         oxc_ast::ast::BindingPattern::ObjectPattern(obj_pat) => {
             convert_object_pattern(arena, obj_pat, offset - 1, line_offsets)
@@ -5849,15 +5825,6 @@ fn convert_binding_pattern_for_decl_as_node(
         oxc_ast::ast::BindingPattern::AssignmentPattern(assign_pat) => {
             convert_assignment_pattern(arena, assign_pat, offset - 1, line_offsets)
         }
-        // TS-annotated `BindingIdentifier` only — keep the Value form (its
-        // `typeAnnotation` field is not yet representable as a typed node).
-        _ => JsNode::Raw(convert_binding_pattern_for_decl(
-            arena,
-            pattern,
-            offset,
-            line_offsets,
-            type_annotation,
-        )),
     }
 }
 
@@ -8126,43 +8093,58 @@ fn convert_variable_declarator_for_program(
     let end = offset + decl.span.end as usize;
     let loc = create_typed_loc(start, end, line_offsets);
 
-    // Convert the id (pattern).
-    // Only use JsNode::Raw when TypeScript type annotation is present,
-    // otherwise keep the typed JsNode so the scope builder's typed path works.
+    // Convert the id (pattern). When a TS type annotation is present, a plain
+    // annotated identifier (`let x: T = …`) routes through the typed walker
+    // carrying the annotation as an opaque boundary blob; an annotated
+    // destructuring pattern (`let { a }: T = …`) keeps the Value (Raw) form
+    // since the annotation hangs off a pattern node.
     let id_pattern = convert_binding_pattern(arena, &decl.id, offset, line_offsets);
     let id_node = if let Some(type_annotation) = &decl.type_annotation {
-        let mut id_value = id_pattern.to_value();
-        if let Value::Object(ref mut id_obj) = id_value {
-            let ts_start = type_annotation.span.start as usize + offset;
-            let ts_end = type_annotation.span.end as usize + offset;
+        let ts_start = type_annotation.span.start as usize + offset;
+        let ts_end = type_annotation.span.end as usize + offset;
 
-            let mut ts_obj = Map::new();
-            ts_obj.insert(
-                "type".to_string(),
-                Value::String("TSTypeAnnotation".to_string()),
-            );
-            ts_obj.insert("start".to_string(), Value::Number((ts_start as i64).into()));
-            ts_obj.insert("end".to_string(), Value::Number((ts_end as i64).into()));
-            if let Some(loc) = create_loc(ts_start, ts_end, line_offsets) {
-                ts_obj.insert("loc".to_string(), loc);
-            }
+        let mut ts_obj = Map::new();
+        ts_obj.insert(
+            "type".to_string(),
+            Value::String("TSTypeAnnotation".to_string()),
+        );
+        ts_obj.insert("start".to_string(), Value::Number((ts_start as i64).into()));
+        ts_obj.insert("end".to_string(), Value::Number((ts_end as i64).into()));
+        if let Some(loc) = create_loc(ts_start, ts_end, line_offsets) {
+            ts_obj.insert("loc".to_string(), loc);
+        }
+        let type_value = convert_ts_type(&type_annotation.type_annotation, offset, line_offsets);
+        ts_obj.insert("typeAnnotation".to_string(), type_value);
+        let ts_value = Value::Object(ts_obj);
 
-            let type_value =
-                convert_ts_type(&type_annotation.type_annotation, offset, line_offsets);
-            ts_obj.insert("typeAnnotation".to_string(), type_value);
-
-            id_obj.insert("typeAnnotation".to_string(), Value::Object(ts_obj));
-
-            id_obj.insert("end".to_string(), Value::Number((ts_end as i64).into()));
-            if let Some(loc) = create_loc(
-                id_obj.get("start").and_then(|v| v.as_i64()).unwrap_or(0) as usize,
-                ts_end,
-                line_offsets,
-            ) {
-                id_obj.insert("loc".to_string(), loc);
+        match id_pattern {
+            JsNode::Identifier {
+                start: id_start,
+                name,
+                ..
+            } => arena.alloc_js_node(JsNode::Identifier {
+                start: id_start,
+                end: ts_end as u32,
+                loc: create_typed_loc(id_start as usize, ts_end, line_offsets),
+                name,
+                type_annotation: Some(Box::new(ts_value)),
+            }),
+            other => {
+                let mut id_value = other.to_value();
+                if let Value::Object(ref mut id_obj) = id_value {
+                    id_obj.insert("typeAnnotation".to_string(), ts_value);
+                    id_obj.insert("end".to_string(), Value::Number((ts_end as i64).into()));
+                    if let Some(loc) = create_loc(
+                        id_obj.get("start").and_then(|v| v.as_i64()).unwrap_or(0) as usize,
+                        ts_end,
+                        line_offsets,
+                    ) {
+                        id_obj.insert("loc".to_string(), loc);
+                    }
+                }
+                arena.alloc_js_node(JsNode::Raw(id_value))
             }
         }
-        arena.alloc_js_node(JsNode::Raw(id_value))
     } else {
         arena.alloc_js_node(id_pattern)
     };
@@ -9482,13 +9464,17 @@ fn convert_function_expression_for_program_as_node(
     if let Some(rest) = &func.params.rest {
         let rest_start = offset + rest.span.start as usize;
         let rest_end = offset + rest.span.end as usize;
-        let argument =
-            convert_binding_pattern_for_param(arena, &rest.rest.argument, offset, line_offsets);
+        let argument = convert_binding_pattern_for_param_as_node(
+            arena,
+            &rest.rest.argument,
+            offset,
+            line_offsets,
+        );
         params.push(JsNode::RestElement {
             start: rest_start as u32,
             end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
-            argument: arena.alloc_js_node(JsNode::Raw(argument)),
+            argument: arena.alloc_js_node(argument),
         });
     }
 

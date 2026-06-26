@@ -90,6 +90,13 @@ pub enum JsNode {
         end: u32,
         loc: Option<Box<Loc>>,
         name: CompactString,
+        /// Opaque, output-only TS `typeAnnotation` boundary blob (ESTree
+        /// `TSTypeAnnotation`). Analyze never walks into it; it exists solely so
+        /// a TS-annotated binding/declarator identifier can route through the
+        /// typed walker while still serializing its annotation verbatim. `None`
+        /// for the overwhelming majority of identifiers (serializes identically
+        /// to an un-annotated id — no stray `typeAnnotation` key).
+        type_annotation: Option<Box<serde_json::Value>>,
     },
     PrivateIdentifier {
         start: u32,
@@ -688,6 +695,7 @@ impl Serialize for JsNode {
                 end,
                 loc,
                 name,
+                type_annotation,
             } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "Identifier")?;
@@ -695,6 +703,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 map.serialize_entry("name", name.as_str())?;
+                if let Some(ta) = type_annotation {
+                    map.serialize_entry("typeAnnotation", ta.as_ref())?;
+                }
                 map.end()
             }
             JsNode::PrivateIdentifier {
@@ -2043,6 +2054,7 @@ impl JsNode {
                         end,
                         loc,
                         name: get_str(obj, "name"),
+                        type_annotation: obj.get("typeAnnotation").cloned().map(Box::new),
                     },
                     "PrivateIdentifier" => JsNode::PrivateIdentifier {
                         start,

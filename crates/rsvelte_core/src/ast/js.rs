@@ -108,6 +108,7 @@ impl Expression {
             end,
             loc: typed_loc,
             name: name.into(),
+            type_annotation: None,
         }))
     }
 

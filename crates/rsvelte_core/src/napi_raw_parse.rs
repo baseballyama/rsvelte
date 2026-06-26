@@ -1135,6 +1135,43 @@ fn write_root<W: Writer>(w: &mut W, root: &Root) -> std::io::Result<()> {
 // JsNode (estree) — 74-variant dispatcher
 // ---------------------------------------------------------------------------
 
+/// Encode an opaque ESTree JSON sub-tree as a `JS_RAW_JSON` blob, mirroring the
+/// `JsNode::Raw(value)` arm (including UTF-16 offset remapping when active). Used
+/// both for genuine `Raw` nodes and for a TS-annotated `Identifier` whose
+/// `typeAnnotation` boundary blob is re-materialized so the NAPI binary output
+/// stays byte-identical to the pre-typed (`JsNode::Raw`) encoding.
+fn write_raw_json<W: Writer>(w: &mut W, value: &serde_json::Value) -> std::io::Result<()> {
+    write_preamble(w, JS_RAW_JSON, u32::MAX, u32::MAX);
+    let len_slot = w.position();
+    write_u32(w, 0);
+    let p0 = w.position();
+    struct A<'a, W2: Writer>(&'a mut W2);
+    impl<W2: Writer> std::io::Write for A<'_, W2> {
+        fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+            self.0.write_bytes(b);
+            Ok(b.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut shim = A(w);
+    if offset_remap_active() {
+        let mut json_value = value.clone();
+        OFFSET_CONV.with(|c| {
+            if let Some(conv) = &*c.borrow() {
+                crate::compiler::legacy::convert_positions_to_utf16(&mut json_value, conv);
+            }
+        });
+        serde_json::to_writer(&mut shim, &json_value).map_err(std::io::Error::other)?;
+    } else {
+        serde_json::to_writer(&mut shim, value).map_err(std::io::Error::other)?;
+    }
+    let p1 = shim.0.position();
+    w.patch_u32(len_slot, (p1 - p0) as u32);
+    Ok(())
+}
+
 fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std::io::Result<()> {
     match node {
         JsNode::Identifier {
@@ -1142,7 +1179,37 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             end,
             loc,
             name,
+            type_annotation,
         } => {
+            if let Some(ta) = type_annotation {
+                // Re-materialize the legacy Raw blob shape so the NAPI binary
+                // output stays byte-identical to the pre-typed encoding.
+                let mut obj = serde_json::Map::new();
+                obj.insert(
+                    "type".to_string(),
+                    serde_json::Value::String("Identifier".to_string()),
+                );
+                obj.insert(
+                    "start".to_string(),
+                    serde_json::Value::Number((*start as i64).into()),
+                );
+                obj.insert(
+                    "end".to_string(),
+                    serde_json::Value::Number((*end as i64).into()),
+                );
+                if let Some(l) = loc.as_deref() {
+                    obj.insert(
+                        "loc".to_string(),
+                        serde_json::to_value(l).map_err(std::io::Error::other)?,
+                    );
+                }
+                obj.insert(
+                    "name".to_string(),
+                    serde_json::Value::String(name.to_string()),
+                );
+                obj.insert("typeAnnotation".to_string(), (**ta).clone());
+                return write_raw_json(w, &serde_json::Value::Object(obj));
+            }
             write_preamble(w, JS_IDENTIFIER, *start, *end);
             write_typed_loc(w, loc.as_deref());
             write_str(w, name.as_str());
@@ -2035,41 +2102,12 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
         }
         // `Raw(Value)` and `Null` don't carry positions, so they use
         // dedicated sentinel tags without the usual preamble pair.
+        // A `Raw` sub-tree (e.g. a typed function parameter, or a whole typed
+        // arrow lowered to legacy JSON) carries byte offsets too. `write_raw_json`
+        // remaps them to UTF-16 so the envelope stays consistent with the JSON
+        // `parse` path (#793, #908).
         JsNode::Raw(value) => {
-            write_preamble(w, JS_RAW_JSON, u32::MAX, u32::MAX);
-            let len_slot = w.position();
-            write_u32(w, 0);
-            let p0 = w.position();
-            struct A<'a, W2: Writer>(&'a mut W2);
-            impl<W2: Writer> std::io::Write for A<'_, W2> {
-                fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
-                    self.0.write_bytes(b);
-                    Ok(b.len())
-                }
-                fn flush(&mut self) -> std::io::Result<()> {
-                    Ok(())
-                }
-            }
-            let mut shim = A(w);
-            if offset_remap_active() {
-                // A `Raw` sub-tree (e.g. a typed function parameter, or a whole
-                // typed arrow lowered to legacy JSON) carries byte offsets too.
-                // Remap them to UTF-16 so the envelope stays consistent with the
-                // JSON `parse` path (#793, #908). Without this, every descendant
-                // of a typed-parameter arrow keeps its byte offsets and drifts
-                // past any preceding non-ASCII source.
-                let mut json_value = value.clone();
-                OFFSET_CONV.with(|c| {
-                    if let Some(conv) = &*c.borrow() {
-                        crate::compiler::legacy::convert_positions_to_utf16(&mut json_value, conv);
-                    }
-                });
-                serde_json::to_writer(&mut shim, &json_value).map_err(std::io::Error::other)?;
-            } else {
-                serde_json::to_writer(&mut shim, value).map_err(std::io::Error::other)?;
-            }
-            let p1 = shim.0.position();
-            w.patch_u32(len_slot, (p1 - p0) as u32);
+            write_raw_json(w, value)?;
         }
         JsNode::Null => {
             write_preamble(w, JS_NULL, u32::MAX, u32::MAX);
