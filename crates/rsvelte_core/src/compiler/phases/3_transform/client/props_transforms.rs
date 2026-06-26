@@ -413,8 +413,12 @@ pub(super) fn transform_let_with_reexported_props(
                 // Track if the identifier refers to a prop (it will be a no-arg call after transform,
                 // and the official compiler unwraps no-arg calls to just the callee)
                 let mut is_prop_ref = false;
-                if is_simple
-                    && is_identifier_str(val)
+                // A bare reactive-binding identifier is a no-arg getter call after
+                // transform (`val()`); the official compiler unwraps it to the bare
+                // callee. This must fire regardless of `is_simple` — which is now
+                // false for such an identifier (it is non-simple, like upstream's
+                // visited CallExpression) — otherwise it would be thunked instead.
+                if is_identifier_str(val)
                     && analysis
                         .root
                         .find_binding_any_scope(val)
@@ -903,8 +907,11 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
                 // An identifier is NOT simple if it refers to another prop/state variable
                 // because after transforms it would become a function call (e.g., v2 -> v2()).
                 let mut is_prop_ref = false;
-                if is_simple
-                    && is_identifier_str(value)
+                // A bare reactive-binding identifier is a no-arg getter call after
+                // transform (`value()`); the official compiler unwraps it to the bare
+                // callee. Fire regardless of `is_simple` (now false for such an
+                // identifier) so it is emitted bare rather than thunked.
+                if is_identifier_str(value)
                     && analysis
                         .root
                         .find_binding_any_scope(value)
@@ -1853,6 +1860,13 @@ fn ast_expr_is_simple(value: &str, analysis: &ComponentAnalysis) -> Option<bool>
 /// simple expression: upstream's `is_simple_expression` runs after that rewrite
 /// and sees a `CallExpression`. Mirrors the `is_prop_ref` binding-kind set.
 fn is_call_becoming_binding(name: &str, analysis: &ComponentAnalysis) -> bool {
+    // Only legacy mode rewrites a prop/state read into a getter call (`name()` /
+    // `$.get(name)`); in runes mode these identifiers stay plain reads, so they
+    // remain simple. Gating here keeps runes default-value handling identical to
+    // before this predicate existed (mirrors the legacy-only `is_prop_ref` sites).
+    if analysis.runes {
+        return false;
+    }
     analysis
         .root
         .find_binding_any_scope(name)
