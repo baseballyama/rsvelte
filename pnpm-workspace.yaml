@@ -6,6 +6,7 @@ packages:
 # corpus pipeline's .svelte.ts TS-strip (scripts/compat-corpus/compile.mjs).
 allowBuilds:
   '@parcel/watcher': true
+  core-js-pure: false
   esbuild: true
 # `svelte` and `vite` are first-party-tracked core deps that Renovate bumps the
 # moment upstream publishes. The CI runner's global `minimumReleaseAge` gate
