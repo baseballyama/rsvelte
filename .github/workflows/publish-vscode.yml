@@ -47,6 +47,10 @@ jobs:
       - name: Decide whether to publish
         id: decide
         env:
+          # Presence of OVSX_PAT lets the check consider Open VSX as a target
+          # (so a missing Open VSX release is back-filled even when the
+          # Marketplace is already up to date). Not used to publish here.
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
           VSCODE_PUBLISH_FORCE: ${{ github.event.inputs.force }}
         run: node scripts/release/publish-vscode.mjs --check
 
