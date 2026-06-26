@@ -67,6 +67,7 @@ pub struct CssUnusedWarning {
 /// Corresponds to `warn_unused()` in Svelte's `css-warn.js`.
 pub fn collect_css_unused_warnings(
     analysis: &ComponentAnalysis,
+    ast: Option<&crate::ast::css::StyleSheet>,
     source: &str,
 ) -> Vec<CssUnusedWarning> {
     let mut warnings = Vec::new();
@@ -90,11 +91,38 @@ pub fn collect_css_unused_warnings(
         minify: false,
     };
 
-    if let Some((css_content, css_start)) = extract_css_content(source) {
-        let children = parse_css(&css_content, css_start);
+    // Prefer the phase-1-parsed stylesheet's recorded content span over a
+    // textual scan: a `<style>` substring inside a `<script>` string literal
+    // would otherwise be mistaken for the real stylesheet (see
+    // `render_stylesheet_internal`).
+    let extracted;
+    let resolved: Option<(&str, usize, Option<&[Value]>)> = match ast {
+        Some(ss) => Some((
+            ss.content.styles.as_str(),
+            ss.content.start as usize,
+            (!ss.children.is_empty()).then_some(ss.children.as_slice()),
+        )),
+        None => match extract_css_content(source) {
+            Some((c, s)) => {
+                extracted = c;
+                Some((extracted.as_str(), s, None))
+            }
+            None => None,
+        },
+    };
+
+    if let Some((css_content, css_start, ast_children)) = resolved {
+        let reparsed;
+        let children: &[Value] = match ast_children {
+            Some(c) => c,
+            None => {
+                reparsed = parse_css(css_content, css_start);
+                &reparsed
+            }
+        };
         collect_unused_warnings_from_nodes(
-            &children,
-            &css_content,
+            children,
+            css_content,
             css_start,
             &ctx,
             &mut warnings,
@@ -404,22 +432,42 @@ fn render_stylesheet_internal(
         minify,
     };
 
-    // Extract CSS content and its start position
-    if let Some((css_content, css_start)) = extract_css_content(source) {
-        // Reuse the phase-1-parsed stylesheet when it lines up with the content
-        // extracted here, avoiding a redundant full re-parse (the transform
-        // profile showed this re-parse at ~60% inclusive on CSS-heavy input).
-        // `parse_css` here is the *same* function phase 1 used, so when the
-        // start offsets agree the trees are byte-identical; the offset guard
-        // falls back to re-parsing on any mismatch (e.g. an unusual opener that
-        // the two extraction paths disagree on), preserving current behavior.
+    // Determine the CSS content and its start offset. Prefer the phase-1-parsed
+    // stylesheet's recorded content span: the AST captured the *real* `<style>`
+    // block from a structural parse, where the script body is opaque raw text.
+    // The textual `extract_css_content` scan must NOT be used when an AST exists
+    // because a `<style>` substring can legitimately appear inside a `<script>`
+    // string literal (e.g. a docs page rendering a Svelte code sample), which
+    // the scan would wrongly latch onto instead of the actual stylesheet.
+    let extracted;
+    let (css_content, css_start): (&str, usize) = match ast {
+        Some(ss) => (ss.content.styles.as_str(), ss.content.start as usize),
+        None => match extract_css_content(source) {
+            Some((c, s)) => {
+                extracted = c;
+                (extracted.as_str(), s)
+            }
+            None => {
+                return Ok(CssOutput {
+                    code: String::new(),
+                    map: None,
+                });
+            }
+        },
+    };
+
+    {
+        // Reuse the phase-1-parsed stylesheet's children when present, avoiding a
+        // redundant full re-parse (the transform profile showed this re-parse at
+        // ~60% inclusive on CSS-heavy input). `parse_css` here is the *same*
+        // function phase 1 used, so the trees are byte-identical; fall back to a
+        // re-parse only when no AST children are available (e.g. a deferred parse
+        // or comment-only `<style>` block).
         let reparsed;
         let children: &[Value] = match ast {
-            Some(ss) if ss.content.start as usize == css_start && !ss.children.is_empty() => {
-                &ss.children
-            }
+            Some(ss) if !ss.children.is_empty() => &ss.children,
             _ => {
-                reparsed = parse_css(&css_content, css_start);
+                reparsed = parse_css(css_content, css_start);
                 &reparsed
             }
         };
@@ -428,7 +476,7 @@ fn render_stylesheet_internal(
         let keyframes = collect_keyframe_names(children);
 
         // Transform the CSS
-        let mut code = transform_css(children, &selector, hash, &css_content, css_start, &ctx);
+        let mut code = transform_css(children, &selector, hash, css_content, css_start, &ctx);
 
         // Post-process: replace animation keyframe references
         if !keyframes.is_empty() {
@@ -439,11 +487,6 @@ fn render_stylesheet_internal(
         let map = generate_css_sourcemap(source, &code, css_start, options);
 
         Ok(CssOutput { code, map })
-    } else {
-        Ok(CssOutput {
-            code: String::new(),
-            map: None,
-        })
     }
 }
 
@@ -2596,10 +2639,19 @@ fn selector_matches_element(
         return false;
     }
 
-    // Check classes
-    for class in &info.classes {
-        if !el.classes.contains(class) {
-            return false;
+    // Check classes. An element whose `class` value can't be fully resolved at
+    // compile time — an interpolated expression we couldn't enumerate (so the
+    // attribute name lands in `dynamic_attribute_names`) or a spread that may
+    // inject arbitrary classes — matches *any* class selector. This mirrors
+    // upstream `attribute_matches`, which returns `true` as soon as a class
+    // chunk's possible values are indeterminate (css-prune.js), so e.g.
+    // `class="wx-icon {expr}"` still satisfies a `.wx-icon` sibling selector.
+    let class_is_indeterminate = el.has_spread || el.dynamic_attribute_names.contains("class");
+    if !class_is_indeterminate {
+        for class in &info.classes {
+            if !el.classes.contains(class) {
+                return false;
+            }
         }
     }
 
@@ -5188,6 +5240,43 @@ fn is_global_like(relative_selector: &Value) -> bool {
 }
 
 /// Transform a complex selector (sequence of relative selectors)
+/// Append the verbatim source text *inside* a `:global(...)` pseudo-class to
+/// `out`, i.e. everything between the opening `(` and the closing `)`.
+///
+/// This mirrors upstream `remove_global_pseudo_class` (css/index.js), which
+/// `code.remove(selector.start, selector.start + ':global('.length)` and
+/// `code.remove(selector.end - 1, selector.end)` — keeping every byte of the
+/// argument span untouched, including any whitespace/newlines that sit between
+/// the parentheses and the inner selector list. Slicing the `args` SelectorList
+/// node's own `start..end` instead would drop that inner padding (the AST span
+/// is tight around the selectors), so a multi-line
+/// `:global(\n    .a,\n    .b\n)` would lose its indentation.
+fn push_global_args_text(
+    out: &mut String,
+    global_sel: &Value,
+    args: &Value,
+    css_source: &str,
+    css_start: usize,
+) {
+    let sel_start = global_sel
+        .get("start")
+        .and_then(|s| s.as_u64())
+        .unwrap_or(0) as usize;
+    let sel_end = global_sel.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+    // Inner content spans `:global(`.end ..= the byte before the closing `)`.
+    let inner_start = sel_start + ":global(".len();
+    let inner_end = sel_end.saturating_sub(1); // drop the trailing ')'
+    let src_start = inner_start.saturating_sub(css_start);
+    let src_end = inner_end.saturating_sub(css_start);
+    if inner_start < inner_end && src_end <= css_source.len() && src_start < src_end {
+        out.push_str(&css_source[src_start..src_end]);
+    } else {
+        // Fallback to the reconstructed args text (e.g. synthetic nodes without
+        // a reliable source span).
+        out.push_str(&get_selector_text(args));
+    }
+}
+
 fn transform_complex_selector(
     node: &Value,
     selector: &str,
@@ -5441,19 +5530,13 @@ fn transform_complex_selector(
                         {
                             // Extract the content inside :global() from source
                             if let Some(args) = sel.get("args") {
-                                let args_start =
-                                    args.get("start").and_then(|s| s.as_u64()).unwrap_or(0)
-                                        as usize;
-                                let args_end =
-                                    args.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
-                                let src_start = args_start.saturating_sub(css_start);
-                                let src_end = args_end.saturating_sub(css_start);
-                                if src_end <= css_source.len() && src_start < src_end {
-                                    result.push_str(&css_source[src_start..src_end]);
-                                } else {
-                                    // Fallback to reconstructed text
-                                    result.push_str(&get_selector_text(args));
-                                }
+                                push_global_args_text(
+                                    &mut result,
+                                    sel,
+                                    args,
+                                    css_source,
+                                    css_start,
+                                );
                             }
                         } else {
                             // For non-:global() selectors like :is(x) following :global(.foo),
@@ -5512,18 +5595,13 @@ fn transform_complex_selector(
                         {
                             // Extract the content inside :global() from source
                             if let Some(args) = sel.get("args") {
-                                let args_start =
-                                    args.get("start").and_then(|s| s.as_u64()).unwrap_or(0)
-                                        as usize;
-                                let args_end =
-                                    args.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
-                                let src_start = args_start.saturating_sub(css_start);
-                                let src_end = args_end.saturating_sub(css_start);
-                                if src_end <= css_source.len() && src_start < src_end {
-                                    selector_parts.push_str(&css_source[src_start..src_end]);
-                                } else {
-                                    selector_parts.push_str(&get_selector_text(args));
-                                }
+                                push_global_args_text(
+                                    &mut selector_parts,
+                                    sel,
+                                    args,
+                                    css_source,
+                                    css_start,
+                                );
                             }
                         } else {
                             selector_parts.push_str(&format_simple_selector_with_scope(
