@@ -66,6 +66,60 @@ jobs:
             path: submodules/melt-ui
           - name: shadcn-svelte
             path: submodules/shadcn-svelte
+          # awesome-svelte Svelte-dominant projects (TheComputerM/awesome-svelte),
+          # added to the compat corpus by scripts/compat-corpus/corpus-sources.json.
+          - name: sveltestrap
+            path: submodules/sveltestrap
+          - name: attractions
+            path: submodules/attractions
+          - name: svelte-ux
+            path: submodules/svelte-ux
+          - name: smelte
+            path: submodules/smelte
+          - name: svar-core
+            path: submodules/svar-core
+          - name: svelte-table
+            path: submodules/svelte-table
+          - name: powertable
+            path: submodules/powertable
+          - name: svelte-pivottable
+            path: submodules/svelte-pivottable
+          - name: svelte-toast
+            path: submodules/svelte-toast
+          - name: svelte-sonner
+            path: submodules/svelte-sonner
+          - name: svelte-notifications
+            path: submodules/svelte-notifications
+          - name: svelte-fa
+            path: submodules/svelte-fa
+          - name: svelte-heroicons
+            path: submodules/svelte-heroicons
+          - name: svelte-calendar
+            path: submodules/svelte-calendar
+          - name: date-picker-svelte
+            path: submodules/date-picker-svelte
+          - name: svelte-maplibre
+            path: submodules/svelte-maplibre
+          - name: layercake
+            path: submodules/layercake
+          - name: layerchart
+            path: submodules/layerchart
+          - name: svelte-splitpanes
+            path: submodules/svelte-splitpanes
+          - name: svelte-stepper
+            path: submodules/svelte-stepper
+          - name: svelte-formly
+            path: submodules/svelte-formly
+          - name: svelte-form-builder
+            path: submodules/svelte-form-builder
+          - name: svelte-checkbox
+            path: submodules/svelte-checkbox
+          - name: svelte-toggle
+            path: submodules/svelte-toggle
+          - name: svelthree
+            path: submodules/svelthree
+          - name: cmsaasstarter
+            path: submodules/cmsaasstarter
     concurrency:
       group: auto-update-submodules-${{ matrix.name }}
       cancel-in-progress: false

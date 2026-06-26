@@ -19,6 +19,32 @@ the same way. **To grow the corpus, [add a repository](#adding-a-repository-to-t
 | [themesberg/flowbite-svelte](https://github.com/themesberg/flowbite-svelte) | `submodules/flowbite-svelte` | UI library (real-world) |
 | [melt-ui/next-gen](https://github.com/melt-ui/next-gen) | `submodules/melt-ui` | headless/runes UI library (real-world) |
 | [huntabyte/shadcn-svelte](https://github.com/huntabyte/shadcn-svelte) | `submodules/shadcn-svelte` | SvelteKit component app (real-world) |
+| [sveltestrap/sveltestrap](https://github.com/sveltestrap/sveltestrap) | `submodules/sveltestrap` | Bootstrap UI library (awesome-svelte) |
+| [illright/attractions](https://github.com/illright/attractions) | `submodules/attractions` | UI kit (awesome-svelte) |
+| [techniq/svelte-ux](https://github.com/techniq/svelte-ux) | `submodules/svelte-ux` | UI component library (awesome-svelte) |
+| [matyunya/smelte](https://github.com/matyunya/smelte) | `submodules/smelte` | Material UI library (awesome-svelte) |
+| [svar-widgets/core](https://github.com/svar-widgets/core) | `submodules/svar-core` | SVAR widgets core (awesome-svelte) |
+| [dasDaniel/svelte-table](https://github.com/dasDaniel/svelte-table) | `submodules/svelte-table` | Data table (awesome-svelte) |
+| [muonw/powertable](https://github.com/muonw/powertable) | `submodules/powertable` | Data table (awesome-svelte) |
+| [jjagielka/svelte-pivottable](https://github.com/jjagielka/svelte-pivottable) | `submodules/svelte-pivottable` | Pivot table (awesome-svelte) |
+| [zerodevx/svelte-toast](https://github.com/zerodevx/svelte-toast) | `submodules/svelte-toast` | Toast notifications (awesome-svelte) |
+| [wobsoriano/svelte-sonner](https://github.com/wobsoriano/svelte-sonner) | `submodules/svelte-sonner` | Toast notifications (awesome-svelte) |
+| [beyonk-adventures/svelte-notifications](https://github.com/beyonk-adventures/svelte-notifications) | `submodules/svelte-notifications` | Notifications (awesome-svelte) |
+| [Cweili/svelte-fa](https://github.com/Cweili/svelte-fa) | `submodules/svelte-fa` | FontAwesome icons (awesome-svelte) |
+| [krowten/svelte-heroicons](https://github.com/krowten/svelte-heroicons) | `submodules/svelte-heroicons` | Heroicons (awesome-svelte) |
+| [6eDesign/svelte-calendar](https://github.com/6eDesign/svelte-calendar) | `submodules/svelte-calendar` | Calendar (awesome-svelte) |
+| [probablykasper/date-picker-svelte](https://github.com/probablykasper/date-picker-svelte) | `submodules/date-picker-svelte` | Date picker (awesome-svelte) |
+| [dimfeld/svelte-maplibre](https://github.com/dimfeld/svelte-maplibre) | `submodules/svelte-maplibre` | MapLibre bindings (awesome-svelte) |
+| [mhkeller/layercake](https://github.com/mhkeller/layercake) | `submodules/layercake` | Charting framework (awesome-svelte) |
+| [techniq/layerchart](https://github.com/techniq/layerchart) | `submodules/layerchart` | Charting library (awesome-svelte) |
+| [orefalo/svelte-splitpanes](https://github.com/orefalo/svelte-splitpanes) | `submodules/svelte-splitpanes` | Split panes (awesome-svelte) |
+| [efstajas/svelte-stepper](https://github.com/efstajas/svelte-stepper) | `submodules/svelte-stepper` | Stepper (awesome-svelte) |
+| [arabdevelop/svelte-formly](https://github.com/arabdevelop/svelte-formly) | `submodules/svelte-formly` | Form builder (awesome-svelte) |
+| [pragmatic-engineering/svelte-form-builder-community](https://github.com/pragmatic-engineering/svelte-form-builder-community) | `submodules/svelte-form-builder` | Form builder (awesome-svelte) |
+| [HosseinShabani/svelte-checkbox](https://github.com/HosseinShabani/svelte-checkbox) | `submodules/svelte-checkbox` | Checkbox (awesome-svelte) |
+| [beyonk-adventures/svelte-toggle](https://github.com/beyonk-adventures/svelte-toggle) | `submodules/svelte-toggle` | Toggle (awesome-svelte) |
+| [vatro/svelthree](https://github.com/vatro/svelthree) | `submodules/svelthree` | Three.js components (awesome-svelte) |
+| [CriticalMoments/CMSaasStarter](https://github.com/CriticalMoments/CMSaasStarter) | `submodules/cmsaasstarter` | SvelteKit SaaS starter (awesome-svelte) |
 
 Every source is **pinned by its submodule gitlink** and bumped by
 `auto-update-submodules.yml` (weekly PR per submodule; svelte itself goes through
