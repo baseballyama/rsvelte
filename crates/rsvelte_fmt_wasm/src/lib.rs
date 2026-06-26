@@ -70,10 +70,30 @@ fn parse_options(options_json: &str) -> FormatOptions {
         js.line_width = width;
     }
 
+    // `sortImports: true` reorders imports inside embedded `<script>` (the object
+    // form is a CLI/`.oxfmtrc`-only knob; the playground exposes the boolean).
+    if get_bool("sortImports").unwrap_or(false) {
+        js.sort_imports = Some(rsvelte_formatter::SortImportsOptions::default());
+    }
+
+    // The `svelte` object carries prettier-plugin-svelte's knobs.
+    let svelte = obj.and_then(|o| o.get("svelte")).and_then(Value::as_object);
+    let svelte_bool = |k: &str| svelte.and_then(|s| s.get(k)).and_then(Value::as_bool);
+    let sort_order = svelte
+        .and_then(|s| s.get("sortOrder"))
+        .and_then(Value::as_str)
+        .and_then(rsvelte_formatter::SortOrderSpec::parse)
+        .unwrap_or_default();
+
     FormatOptions {
         js,
         style_formatter: None,
         // `format` re-derives this per-document from `<script lang="ts">`.
         typescript: false,
+        single_attribute_per_line: get_bool("singleAttributePerLine").unwrap_or(false),
+        bracket_same_line: get_bool("bracketSameLine").unwrap_or(false),
+        allow_shorthand: svelte_bool("allowShorthand").unwrap_or(true),
+        indent_script_and_style: svelte_bool("indentScriptAndStyle").unwrap_or(true),
+        sort_order,
     }
 }

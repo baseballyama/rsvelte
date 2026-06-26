@@ -30,10 +30,11 @@ pub use error::FormatError;
 pub use json::{JsonVariant, format_json_source};
 pub use options::{FormatOptions, StyleFormatter};
 pub use script::format_js_source;
+pub use sort_order::SortOrderSpec;
 pub use style::reindent;
 
 // Re-exports so consumers don't need to depend on `oxc_formatter` directly.
-pub use oxc_formatter::JsFormatOptions;
+pub use oxc_formatter::{JsFormatOptions, SortImportsOptions};
 pub use oxc_formatter_core::{IndentStyle, IndentWidth, LineWidth};
 pub use oxc_formatter_json::JsonFormatOptions;
 
@@ -127,18 +128,19 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     // original offset plus the net length change of every edit ending at or
     // before it. Only collect spans when reordering could change something
     // (more than one top-level unit); otherwise the pass is skipped entirely.
+    let so = &options.sort_order;
     let mut sections: Vec<(u8, u32, u32)> = Vec::new();
     if let Some(o) = &root.options {
-        sections.push((sort_order::P_OPTIONS, o.start, o.end));
+        sections.push((so.options, o.start, o.end));
     }
     if let Some(m) = &root.module {
-        sections.push((sort_order::P_MODULE, m.start, m.end));
+        sections.push((so.module, m.start, m.end));
     }
     if let Some(i) = &root.instance {
-        sections.push((sort_order::P_INSTANCE, i.start, i.end));
+        sections.push((so.instance, i.start, i.end));
     }
     if let Some(c) = &root.css {
-        sections.push((sort_order::P_STYLE, c.start, c.end));
+        sections.push((so.style, c.start, c.end));
     }
     let has_markup = root.fragment.nodes.iter().any(|n| {
         !matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if t.data.trim().is_empty())
@@ -199,7 +201,7 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     // the two are orthogonal — collapse only touches inline elements inside the
     // markup fragment, never the section order.
     if !reorder_spans.is_empty() {
-        out = sort_order::reorder_sections(&out, reorder_spans);
+        out = sort_order::reorder_sections(&out, reorder_spans, so.markup, so.reorder);
     }
 
     // Post-pass: collapse pure-text elements onto one line when they fit.

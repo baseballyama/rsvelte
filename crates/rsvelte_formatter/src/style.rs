@@ -142,7 +142,13 @@ fn format_nested_style(
     // body indent from the depth — not the source whitespace (which may be tabs).
     let unit = indent_unit(options);
     let tag_indent = unit.repeat(depth);
-    let body_indent = format!("{tag_indent}{unit}");
+    // `svelteIndentScriptAndStyle` (default true): when disabled the body sits at
+    // the tag's own indent with no extra level.
+    let body_indent = if options.indent_script_and_style {
+        format!("{tag_indent}{unit}")
+    } else {
+        tag_indent.clone()
+    };
     let width = css_width(options, &body_indent);
     let dedented = dedent(body);
     let formatted = formatter(&dedented, "css", width).map_err(FormatError::StyleFormat)?;
@@ -183,7 +189,13 @@ pub(crate) fn collect_style_edit(
     // tags). Without this the formatted CSS is glued onto the open tag
     // (`<style>.foo {`) with no indentation.
     let tag_indent = leading_indent(source, css.start);
-    let body_indent = format!("{tag_indent}{}", indent_unit(options));
+    // `svelteIndentScriptAndStyle` (default true): when disabled the body sits at
+    // the tag's own indent (column 0 for a top-level `<style>`).
+    let body_indent = if options.indent_script_and_style {
+        format!("{tag_indent}{}", indent_unit(options))
+    } else {
+        tag_indent.to_string()
+    };
     let width = css_width(options, &body_indent);
     let dedented = dedent(body);
     let formatted = formatter(&dedented, &lang, width).map_err(FormatError::StyleFormat)?;

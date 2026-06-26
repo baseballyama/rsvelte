@@ -39,6 +39,90 @@ pub(crate) const P_INSTANCE: u8 = 2;
 const P_MARKUP: u8 = 3;
 pub(crate) const P_STYLE: u8 = 4;
 
+/// Resolved `svelteSortOrder`: the print priority of each top-level section
+/// kind. Lower prints earlier. The four prettier-plugin-svelte keywords
+/// (`options`, `scripts`, `markup`, `styles`) map onto five rsvelte sections —
+/// `scripts` covers both `<script context="module">` (module) and the instance
+/// `<script>`, with module kept before instance within the group.
+#[derive(Clone, Copy, Debug)]
+pub struct SortOrderSpec {
+    pub options: u8,
+    pub module: u8,
+    pub instance: u8,
+    pub markup: u8,
+    pub style: u8,
+    /// `false` for `svelteSortOrder = "none"` — sections keep their source
+    /// order (the blank-line normalisation still runs, but no reordering).
+    pub reorder: bool,
+}
+
+impl Default for SortOrderSpec {
+    /// prettier-plugin-svelte's default `options-scripts-markup-styles`.
+    fn default() -> Self {
+        Self {
+            options: P_OPTIONS,
+            module: P_MODULE,
+            instance: P_INSTANCE,
+            markup: P_MARKUP,
+            style: P_STYLE,
+            reorder: true,
+        }
+    }
+}
+
+impl SortOrderSpec {
+    /// Parse a `svelteSortOrder` string (e.g. `"styles-scripts-markup-options"`
+    /// or `"none"`). Returns `None` when the string is not a valid permutation
+    /// of the four keywords (the caller then falls back to the default and may
+    /// warn). Each keyword's position in the list becomes its group priority;
+    /// `scripts` expands to module-then-instance so they stay adjacent and in
+    /// order.
+    pub fn parse(s: &str) -> Option<Self> {
+        let s = s.trim();
+        if s == "none" {
+            return Some(Self {
+                reorder: false,
+                ..Self::default()
+            });
+        }
+        let keywords: Vec<&str> = s.split('-').collect();
+        // Must be exactly the four keywords, each once.
+        if keywords.len() != 4 {
+            return None;
+        }
+        let mut options = None;
+        let mut scripts = None;
+        let mut markup = None;
+        let mut style = None;
+        for (idx, kw) in keywords.iter().enumerate() {
+            // Multiply by 2 so module/instance can interleave within `scripts`
+            // (module = base, instance = base + 1) without colliding with the
+            // neighbouring group's priority.
+            let base = (idx as u8) * 2;
+            let slot = match *kw {
+                "options" => &mut options,
+                "scripts" => &mut scripts,
+                "markup" => &mut markup,
+                "styles" => &mut style,
+                _ => return None,
+            };
+            if slot.is_some() {
+                return None; // duplicate keyword
+            }
+            *slot = Some(base);
+        }
+        let scripts = scripts?;
+        Some(Self {
+            options: options?,
+            module: scripts,
+            instance: scripts + 1,
+            markup: markup?,
+            style: style?,
+            reorder: true,
+        })
+    }
+}
+
 /// A top-level unit in source order: a section (with any attached leading
 /// comment) or a markup run.
 struct Unit {
@@ -53,7 +137,12 @@ struct Unit {
 /// non-markup sections (options / module / instance script / style) **in `out`'s
 /// coordinates** — the caller remaps them from the parsed source through the
 /// applied edits, so this pass never re-parses. Markup is everything else.
-pub(crate) fn reorder_sections(out: &str, mut sections: Vec<(u8, usize, usize)>) -> String {
+pub(crate) fn reorder_sections(
+    out: &str,
+    mut sections: Vec<(u8, usize, usize)>,
+    markup_priority: u8,
+    reorder: bool,
+) -> String {
     if sections.is_empty() {
         return out.to_string();
     }
@@ -84,7 +173,7 @@ pub(crate) fn reorder_sections(out: &str, mut sections: Vec<(u8, usize, usize)>)
 
         if !markup_part.is_empty() {
             units.push(Unit {
-                priority: P_MARKUP,
+                priority: markup_priority,
                 text: markup_part.to_string(),
             });
         }
@@ -117,15 +206,16 @@ pub(crate) fn reorder_sections(out: &str, mut sections: Vec<(u8, usize, usize)>)
         let trailing = out[cursor..].trim();
         if !trailing.is_empty() {
             units.push(Unit {
-                priority: P_MARKUP,
+                priority: markup_priority,
                 text: trailing.to_string(),
             });
         }
     }
 
     // Check whether the file is already in canonical (non-decreasing priority)
-    // order.
-    let is_canonical = units.windows(2).all(|w| w[0].priority <= w[1].priority);
+    // order. With `svelteSortOrder = "none"` (`reorder == false`) sections keep
+    // their source order, so the sort is skipped unconditionally.
+    let is_canonical = !reorder || units.windows(2).all(|w| w[0].priority <= w[1].priority);
 
     if !is_canonical {
         // `slice::sort_by_key` is stable, so equal-priority units (e.g. two
@@ -140,8 +230,10 @@ pub(crate) fn reorder_sections(out: &str, mut sections: Vec<(u8, usize, usize)>)
     let units = {
         let mut merged: Vec<Unit> = Vec::with_capacity(units.len());
         for unit in units {
-            if unit.priority == P_MARKUP
-                && merged.last().is_some_and(|last| last.priority == P_MARKUP)
+            if unit.priority == markup_priority
+                && merged
+                    .last()
+                    .is_some_and(|last| last.priority == markup_priority)
             {
                 let last = merged.last_mut().expect("checked above");
                 last.text.push('\n');
