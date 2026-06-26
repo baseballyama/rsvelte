@@ -409,12 +409,16 @@ pub(super) fn transform_let_with_reexported_props(
                 // because after transforms it would become a function call (e.g., v2 -> v2()).
                 // The official compiler checks is_simple_expression on the VISITED (transformed)
                 // expression, where prop identifiers become CallExpressions.
-                let mut is_simple = is_simple_expression_str(val);
+                let mut is_simple = is_simple_expression_str(val, analysis);
                 // Track if the identifier refers to a prop (it will be a no-arg call after transform,
                 // and the official compiler unwraps no-arg calls to just the callee)
                 let mut is_prop_ref = false;
-                if is_simple
-                    && is_identifier_str(val)
+                // A bare reactive-binding identifier is a no-arg getter call after
+                // transform (`val()`); the official compiler unwraps it to the bare
+                // callee. This must fire regardless of `is_simple` — which is now
+                // false for such an identifier (it is non-simple, like upstream's
+                // visited CallExpression) — otherwise it would be thunked instead.
+                if is_identifier_str(val)
                     && analysis
                         .root
                         .find_binding_any_scope(val)
@@ -899,12 +903,15 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
             } else {
                 // Check if the value is a "simple expression" that can be passed directly
                 // Non-simple expressions need to be wrapped in a thunk and use PROPS_IS_LAZY_INITIAL
-                let mut is_simple = is_simple_expression_str(value);
+                let mut is_simple = is_simple_expression_str(value, analysis);
                 // An identifier is NOT simple if it refers to another prop/state variable
                 // because after transforms it would become a function call (e.g., v2 -> v2()).
                 let mut is_prop_ref = false;
-                if is_simple
-                    && is_identifier_str(value)
+                // A bare reactive-binding identifier is a no-arg getter call after
+                // transform (`value()`); the official compiler unwraps it to the bare
+                // callee. Fire regardless of `is_simple` (now false for such an
+                // identifier) so it is emitted bare rather than thunked.
+                if is_identifier_str(value)
                     && analysis
                         .root
                         .find_binding_any_scope(value)
@@ -1685,7 +1692,7 @@ fn has_top_level_arrow(s: &str) -> bool {
 /// - Object literals: { a: 1 }
 /// - Call expressions: foo()
 /// - Template literals: `hello`, `${x}` (TemplateLiteral != Literal in AST)
-pub(super) fn is_simple_expression_str(value: &str) -> bool {
+pub(super) fn is_simple_expression_str(value: &str, analysis: &ComponentAnalysis) -> bool {
     let trimmed = value.trim();
 
     // Empty is not simple
@@ -1798,6 +1805,17 @@ pub(super) fn is_simple_expression_str(value: &str) -> bool {
         return false;
     }
 
+    // Conditional / binary / logical expressions are simple ONLY when every
+    // operand is itself simple — mirroring upstream `is_simple_expression`
+    // (utils/ast.js), which recurses into test/consequent/alternate (and
+    // left/right). The string heuristic above never recursed, so e.g.
+    // `solid() ? "a" : "b"` (whose test is a CallExpression) was wrongly treated
+    // as simple, dropping PROPS_IS_LAZY_INITIAL and the default thunk. Defer to an
+    // exact AST check; only flips a heuristic `true` to `false`, never the reverse.
+    if ast_expr_is_simple(trimmed, analysis) == Some(false) {
+        return false;
+    }
+
     // Everything else is considered simple:
     // - Numeric literals: 42, 3.14, -1
     // - String literals: "hello", 'world'
@@ -1809,6 +1827,93 @@ pub(super) fn is_simple_expression_str(value: &str) -> bool {
     // - Binary/logical expressions: a + b, a && b
     // - Conditional expressions: a ? b : c
     true
+}
+
+/// Exact `is_simple_expression` check via the OXC parser, mirroring upstream's
+/// `is_simple_expression` in `packages/svelte/src/compiler/utils/ast.js`.
+///
+/// Returns `Some(true)`/`Some(false)` when `value` parses as a single expression,
+/// and `None` when it cannot be parsed (callers then keep the string-heuristic
+/// result). The text passed here is post-transform (prop reads are already
+/// `name()` calls), so a `CallExpression` operand is correctly non-simple.
+fn ast_expr_is_simple(value: &str, analysis: &ComponentAnalysis) -> Option<bool> {
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast::Statement;
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    let alloc = Allocator::default();
+    // Wrap in parens so an object literal (`{...}`) parses as an expression, not a block.
+    let src = format!("({})", value.trim());
+    let parsed = Parser::new(&alloc, &src, SourceType::mjs()).parse();
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
+        return None;
+    }
+    let Some(Statement::ExpressionStatement(stmt)) = parsed.program.body.first() else {
+        return None;
+    };
+    Some(expr_is_simple(&stmt.expression, analysis))
+}
+
+/// `true` if `name` is a reactive binding that prop-read transforms rewrite into
+/// a getter call (`name` -> `name()`). Such an identifier is therefore NOT a
+/// simple expression: upstream's `is_simple_expression` runs after that rewrite
+/// and sees a `CallExpression`. Mirrors the `is_prop_ref` binding-kind set.
+fn is_call_becoming_binding(name: &str, analysis: &ComponentAnalysis) -> bool {
+    // Only legacy mode rewrites a prop/state read into a getter call (`name()` /
+    // `$.get(name)`); in runes mode these identifiers stay plain reads, so they
+    // remain simple. Gating here keeps runes default-value handling identical to
+    // before this predicate existed (mirrors the legacy-only `is_prop_ref` sites).
+    if analysis.runes {
+        return false;
+    }
+    analysis
+        .root
+        .find_binding_any_scope(name)
+        .and_then(|idx| analysis.root.bindings.get(idx))
+        .is_some_and(|b| {
+            matches!(
+                b.kind,
+                BindingKind::BindableProp
+                    | BindingKind::Prop
+                    | BindingKind::State
+                    | BindingKind::RawState
+                    | BindingKind::Derived
+            )
+        })
+}
+
+/// Recursive AST predicate matching upstream `is_simple_expression`
+/// (`utils/ast.js`), evaluated as if prop/state reads were already rewritten to
+/// getter calls (so a reactive-binding identifier is non-simple).
+fn expr_is_simple(expr: &oxc_ast::ast::Expression, analysis: &ComponentAnalysis) -> bool {
+    use oxc_ast::ast::Expression;
+    match expr {
+        Expression::ParenthesizedExpression(p) => expr_is_simple(&p.expression, analysis),
+        Expression::NumericLiteral(_)
+        | Expression::StringLiteral(_)
+        | Expression::BooleanLiteral(_)
+        | Expression::NullLiteral(_)
+        | Expression::BigIntLiteral(_)
+        | Expression::RegExpLiteral(_)
+        | Expression::ArrowFunctionExpression(_)
+        | Expression::FunctionExpression(_) => true,
+        // A bare identifier is simple only if it stays a plain identifier; a
+        // prop/state/derived binding is rewritten to `name()` (a call) later.
+        Expression::Identifier(id) => !is_call_becoming_binding(id.name.as_str(), analysis),
+        Expression::ConditionalExpression(c) => {
+            expr_is_simple(&c.test, analysis)
+                && expr_is_simple(&c.consequent, analysis)
+                && expr_is_simple(&c.alternate, analysis)
+        }
+        Expression::BinaryExpression(b) => {
+            expr_is_simple(&b.left, analysis) && expr_is_simple(&b.right, analysis)
+        }
+        Expression::LogicalExpression(l) => {
+            expr_is_simple(&l.left, analysis) && expr_is_simple(&l.right, analysis)
+        }
+        _ => false,
+    }
 }
 
 /// Create the argument for a lazy prop initializer.
@@ -2236,7 +2341,7 @@ pub(super) fn transform_props_destructuring(
             let default_value = default_value.as_str();
 
             // Check if the TRANSFORMED default value is a simple expression
-            let is_simple = is_simple_expression_str(default_value);
+            let is_simple = is_simple_expression_str(default_value, analysis);
 
             // Calculate flags using the official logic
             let flags = calculate_prop_flags(local_name, analysis, !is_simple);
