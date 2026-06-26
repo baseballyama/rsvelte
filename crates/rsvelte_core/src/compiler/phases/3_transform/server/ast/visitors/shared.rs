@@ -1009,9 +1009,16 @@ pub fn build_fragment_body<'a>(
     // 写经 upstream `Fragment.js` → `clean_nodes(..., infer_namespace(...))`: a
     // fragment whose direct RegularElement children are all SVG (or all MathML)
     // adopts that namespace, so whitespace-only text between them is removable
-    // (`can_remove_entirely`) just like inside an `<svg>` element. The root
-    // fragment defaults to `html`; refine it from the children.
-    let fragment_namespace = infer_namespace_from_nodes_owned(&fragment.nodes, "html");
+    // (`can_remove_entirely`) just like inside an `<svg>` element. When the
+    // fragment has no element children (only text / render tags / components),
+    // it inherits the ENCLOSING namespace (`state.namespace`) rather than
+    // defaulting to `html` — mirroring upstream `infer_namespace()`'s fall-through
+    // to the incoming namespace. Previously this hardcoded `"html"`, so a
+    // `{#snippet}` of adjacent render/component anchors inside `<svg>` kept its
+    // whitespace text node, emitting a spurious trailing space in the SSR markup
+    // (issue #1227). The root component fragment has `state.namespace == "html"`,
+    // so its default is unchanged.
+    let fragment_namespace = infer_namespace_from_nodes_owned(&fragment.nodes, state.namespace);
     process_children_inner(
         &fragment.nodes,
         None,
@@ -1605,6 +1612,22 @@ pub(crate) fn locate_in_source(source: &str, offset: usize) -> (usize, usize) {
 /// direct `RegularElement` child is SVG (or every one MathML) the fragment adopts
 /// that namespace, so whitespace-only text between them is removable. (Relocated
 /// from the deleted text `server/visitors/fragment.rs`.)
+///
+/// When the fragment has no direct element child — only text / render tags /
+/// components — it inherits the enclosing `parent_namespace`. The caller passes
+/// the live `state.namespace` (the surrounding element namespace), so a
+/// `{#snippet}` of adjacent render/component anchors inside `<svg>` inherits
+/// `svg` and its interior whitespace is removed (issue #1227), while an
+/// `{#if}` / `{#each}` body in html context stays html.
+///
+/// NOTE: this is intentionally a SHALLOW, direct-child check — it does NOT
+/// deep-walk into nested `{#if}` / `{#each}` bodies. On the server, block-body
+/// fragments inherit `state.namespace` (which is changed only by an actual
+/// enclosing element via `determine_namespace_for_children`), so a deeply nested
+/// `<svg>` (whose own `metadata.svg` is true) must NOT flip an outer
+/// html-context fragment to svg — that mirrors upstream, where `infer_namespace`
+/// only runs `check_nodes_for_namespace` when the parent is a
+/// Fragment/Component/SnippetBlock, not an `{#if}` / `{#each}` block.
 pub(crate) fn infer_namespace_from_nodes_owned(
     nodes: &[TemplateNode],
     parent_namespace: &str,
