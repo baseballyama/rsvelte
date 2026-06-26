@@ -472,8 +472,24 @@ pub fn validate_assignment(
             }
 
             // Check for each block item assignment (only in runes mode)
-            // In legacy mode, binding to each items is allowed
-            if context.analysis.runes && binding.kind == BindingKind::EachItem {
+            // In legacy mode, binding to each items is allowed.
+            //
+            // Guard against false positives caused by root-scope pollution: the
+            // root scope (index 0) is intentionally seeded with every child
+            // scope's declarations, so a `get_binding` walk that reaches the root
+            // can resolve to an each-item binding that is NOT lexically visible
+            // from the assignment site (e.g. a same-named `for`-loop variable
+            // inside a `$derived.by(() => { ... })` callback). Only treat the
+            // binding as an each item when its declaring scope is an ancestor of
+            // the current scope. Upstream resolves this naturally via
+            // `scope.get(name)` walking only the real lexical chain.
+            if context.analysis.runes
+                && binding.kind == BindingKind::EachItem
+                && context
+                    .analysis
+                    .root
+                    .is_scope_ancestor_of(binding.scope_index, context.scope)
+            {
                 return Err(errors::each_item_invalid_assignment());
             }
 
@@ -1714,18 +1730,27 @@ pub fn walk_js_expression(
                             context.analysis.root.scope.declarations.get(store_name)
                         {
                             let binding = &context.analysis.root.bindings[binding_idx];
-                            // If the binding's scope_index is > 1 (deeper than instance scope),
-                            // AND we're inside that nested scope, it's a shadowing error
-                            // Scope 0 = module, Scope 1 = instance, Scope 2+ = nested
+                            // If the binding's scope_index is deeper than the instance
+                            // scope, AND we're inside that nested scope, it's a shadowing
+                            // error. The instance scope is NOT always index 1: a function
+                            // declaration in `<script context="module">` pushes its own
+                            // function scope, so the instance scope index shifts. We must
+                            // compare against the real `instance_scope_index` (mirroring
+                            // upstream's `owner !== instance.scope` check) instead of a
+                            // hardcoded `1`, otherwise an instance-scope store binding is
+                            // wrongly treated as nested (false-positive
+                            // `store_invalid_scoped_subscription`).
                             //
                             // We need to check if we're actually inside the scope where this
                             // binding is declared. function_depth gives us an approximation:
                             // - In template: function_depth = 0
                             // - In event handler (first level function): function_depth = 1
                             // - In nested function: function_depth >= 2
-                            // Only error if scope_index > 1 AND we're deep enough to be in that scope
-                            if binding.scope_index > 1
-                                && binding.scope_index <= context.function_depth + 1
+                            // Only error if the binding is deeper than the instance scope
+                            // AND we're deep enough to be in that scope.
+                            let instance_scope = context.analysis.root.instance_scope_index;
+                            if binding.scope_index > instance_scope
+                                && binding.scope_index <= context.function_depth + instance_scope
                             {
                                 return Err(
                                     super::super::super::errors::store_invalid_scoped_subscription(
@@ -2718,7 +2743,18 @@ pub fn validate_assignment_node(
                 return Err(errors::constant_assignment("$props.id()"));
             }
 
-            if context.analysis.runes && binding.kind == BindingKind::EachItem {
+            // See the matching guard in `validate_assignment`: only fire the
+            // each-item error when the binding is lexically visible from the
+            // assignment site, so root-scope pollution can't misresolve a
+            // same-named local (e.g. a `for`-loop variable inside a
+            // `$derived.by` callback) to a template each item.
+            if context.analysis.runes
+                && binding.kind == BindingKind::EachItem
+                && context
+                    .analysis
+                    .root
+                    .is_scope_ancestor_of(binding.scope_index, context.scope)
+            {
                 return Err(errors::each_item_invalid_assignment());
             }
 
@@ -3008,7 +3044,16 @@ pub fn walk_js_expression_node(
                         context.analysis.root.scope.declarations.get(store_name)
                 {
                     let binding = &context.analysis.root.bindings[binding_idx];
-                    if binding.scope_index > 1 && binding.scope_index <= context.function_depth + 1
+                    // Compare against the real instance scope index, not a hardcoded `1`:
+                    // a function declaration in `<script context="module">` shifts the
+                    // instance scope deeper, so a hardcoded `1` would treat an
+                    // instance-scope store as nested (false-positive
+                    // `store_invalid_scoped_subscription`). Mirrors upstream's
+                    // `owner !== instance.scope` check. See the matching guard in
+                    // `walk_js_expression`.
+                    let instance_scope = context.analysis.root.instance_scope_index;
+                    if binding.scope_index > instance_scope
+                        && binding.scope_index <= context.function_depth + instance_scope
                     {
                         return Err(
                             super::super::super::errors::store_invalid_scoped_subscription(),

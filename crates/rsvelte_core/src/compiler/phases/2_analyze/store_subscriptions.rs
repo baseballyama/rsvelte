@@ -1410,4 +1410,65 @@ mod tests {
             ],
         );
     }
+
+    /// Regression test for #1225: a function declaration in
+    /// `<script context="module">` pushes its own function scope, which shifts
+    /// the instance scope index past 1. The scoped-subscription guard must
+    /// compare against the real `instance_scope_index` (mirroring upstream's
+    /// `owner !== instance.scope` check), not a hardcoded `1`, otherwise an
+    /// instance-scope store referenced inside a template arrow function is
+    /// wrongly rejected with `store_invalid_scoped_subscription`.
+    #[test]
+    fn test_module_function_does_not_cause_false_scoped_subscription() {
+        use crate::ast::arena::{clear_serialize_arena, set_serialize_arena};
+        use crate::compiler::CompileOptions;
+        use crate::compiler::phases::phase1_parse::{ParseOptions, parse};
+        use crate::compiler::phases::phase2_analyze::analyze_component;
+
+        let options = CompileOptions::default();
+
+        let analyze = |source: &str| {
+            let mut ast = parse(source, ParseOptions::default()).unwrap();
+            // SAFETY: `ast` (and thus `ast.arena`) outlives the
+            // `analyze_component` call; `clear_serialize_arena()` runs before
+            // `ast` is dropped, so the installed pointer never dangles.
+            unsafe { set_serialize_arena(&ast.arena as *const _) };
+            let result = analyze_component(&mut ast, source, &options).map(|_| ());
+            clear_serialize_arena();
+            result
+        };
+
+        // Valid: the module script declares a function (which shifts the
+        // instance scope index), and `$opts` (an instance-scope import) is
+        // referenced inside a template arrow. Official Svelte accepts this.
+        let valid = r#"<script context="module">
+    export function f() {}
+</script>
+<script>
+    import { opts } from './store';
+</script>
+<button on:click={() => ($opts = false)}>x</button>
+"#;
+        assert!(
+            analyze(valid).is_ok(),
+            "module-script function must not trigger a false-positive store_invalid_scoped_subscription"
+        );
+
+        // Still invalid: an arrow PARAMETER shadows the store, so the `$store`
+        // reference is a genuinely scoped subscription — must keep erroring even
+        // when a module-script function shifts the instance scope index.
+        let invalid = r#"<script context="module">
+    export function g() {}
+</script>
+<script>
+    import { writable } from 'svelte/store';
+    const store = writable();
+</script>
+<button on:click={(store) => { $store = Math.random(); }} />
+"#;
+        assert!(
+            analyze(invalid).is_err(),
+            "a store shadowed by an arrow parameter must still error even with a module-script function"
+        );
+    }
 }
