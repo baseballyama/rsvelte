@@ -439,6 +439,24 @@ pub fn detect_store_subscriptions(
             // Corresponds to Svelte's L398-400 in 2-analyze/index.js
             if !store_name.is_empty() && store_name.chars().next().is_some_and(|c| c.is_lowercase())
             {
+                // Before erroring, check whether `$name` is itself a real declared
+                // binding — e.g. a destructured callback parameter
+                // `derived([box_d], ([$box]) => $box.width)`, where `$box` is the
+                // array-pattern param, not a store ref. The lexical `declared`
+                // scan in `collect_dollar_identifiers_*` only recognises `($x)` /
+                // `let $x` forms and misses array/object destructuring, so it
+                // collected `$box` as a ref. Upstream resolves it through the scope
+                // chain to the local binding; mirror that here. This guard lives at
+                // the error path (not the loop top) so a genuine store whose name
+                // also appears as a nested callback param — e.g. `page` used both as
+                // `$page` in the template and as `($page) => …` in `.subscribe()` —
+                // still creates its StoreSub (it never reaches this branch because
+                // the unprefixed `page` binding exists).
+                if analysis.root.bindings.iter().any(|b| {
+                    &b.name == ref_name && b.declaration_kind != DeclarationKind::Synthetic
+                }) {
+                    continue;
+                }
                 return Err(errors::global_reference_invalid(ref_name));
             }
         }
