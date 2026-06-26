@@ -9,7 +9,8 @@ use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
 use super::{
     extract_destructured_prop_names, find_matching_paren, get_or_compile_regex,
-    is_inside_string_literal, is_shadowed_by_function_param, is_shorthand_object_property,
+    is_explicit_property_key, is_inside_string_literal, is_shadowed_by_function_param,
+    is_shorthand_object_property,
 };
 
 /// Transform prop reads in an expression to prop() calls.
@@ -207,6 +208,12 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                 // Check if this identifier is shadowed by a function parameter
                 let is_shadowed = is_shadowed_by_function_param(&chars, i, prop_name);
 
+                // Check if this identifier is an explicit object-literal property
+                // KEY (`{ foo: bar }`). A key is not a value read and must not be
+                // wrapped — `{ foo(): bar }` is invalid JS. (Shorthand `{ foo }`
+                // is handled below by expanding to `{ foo: foo() }`.)
+                let is_property_key = is_explicit_property_key(&chars, i, prop_name.len());
+
                 if before_ok
                     && after_ok
                     && !is_update_target
@@ -214,6 +221,7 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                     && !is_inside_update_call
                     && !is_shadowed
                     && !is_sole_derived_arg
+                    && !is_property_key
                 {
                     // Check if this is a shorthand property in an object literal.
                     // e.g., `{ value }` should become `{ value: value() }` not `{ value() }`
@@ -3223,7 +3231,7 @@ pub(super) fn split_top_level_args(s: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod split_declarators_tests {
-    use super::split_declarators;
+    use super::{split_declarators, transform_prop_reads_in_expr};
 
     #[test]
     fn splits_top_level_commas() {
@@ -3257,6 +3265,28 @@ mod split_declarators_tests {
         assert_eq!(
             split_declarators(r#"a = "x\",y", b"#),
             vec![r#"a = "x\",y""#, " b"]
+        );
+    }
+
+    #[test]
+    fn does_not_wrap_explicit_property_key() {
+        // An explicit object-literal property KEY must not be wrapped as a
+        // value read — `{ active(): active() }` is invalid JS. Only the value
+        // (and shorthand) get the prop-getter call.
+        let props = vec!["active".to_string(), "className".to_string()];
+        assert_eq!(
+            transform_prop_reads_in_expr("classnames(className, { active: active, x: 1 })", &props),
+            "classnames(className(), { active: active(), x: 1 })"
+        );
+        // Shorthand still expands.
+        assert_eq!(
+            transform_prop_reads_in_expr("({ active })", &vec!["active".to_string()]),
+            "({ active: active() })"
+        );
+        // A ternary value before `:` is still wrapped (it is a read, not a key).
+        assert_eq!(
+            transform_prop_reads_in_expr("cond ? active : 0", &vec!["active".to_string()]),
+            "cond ? active() : 0"
         );
     }
 }
