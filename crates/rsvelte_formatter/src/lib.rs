@@ -53,13 +53,22 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     // cannot regress — only previously-erroring TS-in-plain-`<script>` files gain
     // formatting. The TS retry sets `is_typescript` on the scripts, so the
     // dialect detection below threads TS through every template expression too.
-    let root = match parse(source, ParseOptions::default()) {
+    // A `<style lang="scss|less|postcss|…">` body is not plain CSS, so parsing it
+    // as CSS would abort the whole-file parse (`css_expected_identifier` on `//`
+    // comments, `$variables`, maps, …). prettier-plugin-svelte treats these as
+    // opaque preprocessor input and leaves them untouched; mirror that by skipping
+    // the CSS parse for non-CSS `lang` blocks (the body is left verbatim below).
+    let parse_options = ParseOptions {
+        skip_non_css_lang_style: true,
+        ..ParseOptions::default()
+    };
+    let root = match parse(source, parse_options) {
         Ok(root) => root,
         Err(_) => parse(
             source,
             ParseOptions {
                 force_typescript: true,
-                ..ParseOptions::default()
+                ..parse_options
             },
         )
         .map_err(FormatError::from_parse)?,

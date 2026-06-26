@@ -106,6 +106,16 @@ pub struct ParseOptions {
     /// script error-recovery path only — template expressions and everything
     /// outside `<script>` are unaffected.
     pub lenient_script: bool,
+    /// When true, a top-level `<style lang="...">` whose lang is not plain CSS
+    /// (scss/sass/less/stylus/postcss/…) is NOT parsed as CSS: its body is kept
+    /// verbatim (`children: []`, `content.styles` = raw) instead of being run
+    /// through the CSS parser. The compiler keeps this `false` — it relies on
+    /// preprocessing to turn the body into CSS before it sees it — but the
+    /// *formatter* sets it so a `<style lang="scss">` doesn't abort the
+    /// whole-file parse with `css_expected_identifier`; the formatter then
+    /// leaves such blocks untouched, matching prettier-plugin-svelte. Also
+    /// implied by `lenient_script` (lint mode).
+    pub skip_non_css_lang_style: bool,
 }
 
 /// Extended parse options with filename (separate to keep ParseOptions Copy).

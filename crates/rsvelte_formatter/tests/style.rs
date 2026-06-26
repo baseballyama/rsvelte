@@ -59,12 +59,47 @@ fn callback_receives_scss_lang_attribute() {
         style_formatter: Some(cb),
         ..FormatOptions::default()
     };
-    // Use CSS-valid body but declare lang="scss" — rsvelte's CSS
-    // parser still walks the body, so syntactic CSS keeps the test
-    // hermetic.
+    // CSS-valid body declared `lang="scss"`. The body is no longer CSS-parsed
+    // (it's opaque preprocessor input), but it is still handed to the embedded
+    // formatter callback with the declared lang so an scss-capable engine can
+    // format it — matching the oxfmt-based oracle.
     let _out = fmt("<style lang=\"scss\">p { color: red; }</style>", &opts);
 
     assert_eq!(captured.lock().unwrap().as_deref(), Some("scss"));
+}
+
+#[test]
+fn scss_syntax_body_does_not_abort_parse() {
+    // SCSS-only syntax (`//` line comments, `$variables`, maps) would make the
+    // CSS parser raise `css_expected_identifier` and abort the whole-file format
+    // (#1233). The body must no longer be CSS-parsed: the file formats, the
+    // callback receives the raw scss body verbatim, and lang is "scss".
+    let captured: Arc<Mutex<Option<(String, String)>>> = Arc::new(Mutex::new(None));
+    let captured_clone = captured.clone();
+    // Identity formatter (an scss-aware engine would reformat; here we only assert
+    // the body reaches the callback untouched and the file no longer errors).
+    let cb: StyleFormatter = Arc::new(move |body, lang, _width| {
+        *captured_clone.lock().unwrap() = Some((body.to_string(), lang.to_string()));
+        Ok(body.to_string())
+    });
+
+    let opts = FormatOptions {
+        style_formatter: Some(cb),
+        ..FormatOptions::default()
+    };
+    let src = "<script>let x=1+2</script>\n<style lang=\"scss\">\n  // Disable default zoom\n  $light_root: (a: 1, b: 2);\n  .foo {\n    color: $light_root;\n  }\n</style>";
+    let out = fmt(src, &opts);
+
+    assert!(
+        out.contains("let x = 1 + 2;"),
+        "rest of file formatted:\n{out}"
+    );
+    let (body, lang) = captured.lock().unwrap().clone().expect("callback ran");
+    assert_eq!(lang, "scss");
+    assert!(
+        body.contains("// Disable default zoom") && body.contains("$light_root: (a: 1, b: 2)"),
+        "scss body reached the callback verbatim:\n{body}"
+    );
 }
 
 #[test]
