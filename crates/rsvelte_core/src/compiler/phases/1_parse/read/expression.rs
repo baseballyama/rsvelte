@@ -6692,53 +6692,7 @@ fn convert_statement_for_program(
             })
         }
         oxc_ast::ast::Statement::FunctionDeclaration(func_decl) => {
-            // Filter out TypeScript declare functions and function overload signatures (no body)
-            if func_decl.r#type == oxc_ast::ast::FunctionType::TSDeclareFunction
-                || func_decl.body.is_none()
-            {
-                return None;
-            }
-            let start = offset + func_decl.span.start as usize;
-            let end = offset + func_decl.span.end as usize;
-            let loc = create_typed_loc(start, end, line_offsets);
-
-            let id_node = func_decl.id.as_ref().map(|id| {
-                let id_start = offset + id.span.start as usize;
-                let id_end = offset + id.span.end as usize;
-                let id_expr = create_identifier(&id.name, id_start, id_end, line_offsets);
-                arena.alloc_js_node(expr_to_node(id_expr))
-            });
-
-            // Convert params
-            let params: Vec<JsNode> = func_decl
-                .params
-                .items
-                .iter()
-                .map(|param| {
-                    expr_to_node(convert_formal_parameter(arena, param, offset, line_offsets))
-                })
-                .collect();
-
-            // Convert body
-            let body_node = func_decl.body.as_ref().map(|body| {
-                arena.alloc_js_node(convert_function_body_for_program_as_node(
-                    arena,
-                    body,
-                    offset,
-                    line_offsets,
-                ))
-            });
-
-            Some(JsNode::FunctionDeclaration {
-                start: start as u32,
-                end: end as u32,
-                loc,
-                id: id_node,
-                params: arena.alloc_js_children(params),
-                body: body_node,
-                generator: func_decl.generator,
-                r#async: func_decl.r#async,
-            })
+            convert_function_declaration_as_node(arena, func_decl, offset, line_offsets)
         }
         oxc_ast::ast::Statement::ExportNamedDeclaration(export_decl) => {
             let start = offset + export_decl.span.start as usize;
@@ -6747,8 +6701,12 @@ fn convert_statement_for_program(
 
             // Handle declaration if present (e.g., export let x;)
             let declaration = export_decl.declaration.as_ref().map(|decl| {
-                let decl_value = convert_declaration_for_program(arena, decl, offset, line_offsets);
-                arena.alloc_js_node(JsNode::Raw(decl_value))
+                arena.alloc_js_node(convert_declaration_for_program_as_node(
+                    arena,
+                    decl,
+                    offset,
+                    line_offsets,
+                ))
             });
 
             // Handle specifiers
@@ -6885,8 +6843,21 @@ fn convert_statement_for_program(
                         r#async: func_decl.r#async,
                     }
                 }
+                oxc_ast::ast::ExportDefaultDeclarationKind::ClassDeclaration(class_decl)
+                    if !class_decl.declare
+                        && !class_decl.r#abstract
+                        && class_decl.implements.is_empty()
+                        && class_decl.decorators.is_empty() =>
+                {
+                    // Plain-JS class: the typed `ClassDeclaration` node omits the
+                    // TS-only `abstract`/`declare`/`implements`/`decorators`
+                    // fields, so it serializes byte-identical to the former Value
+                    // blob while routing the class body through the typed walker.
+                    convert_class_declaration_as_node(arena, class_decl, offset, line_offsets)
+                }
                 oxc_ast::ast::ExportDefaultDeclarationKind::ClassDeclaration(class_decl) => {
-                    // Class declarations in export default are complex, use Raw fallback
+                    // Class declarations with TS modifiers / decorators are not
+                    // representable in the byte-identical typed shape; use Raw.
                     let class_start = offset + class_decl.span.start as usize;
                     let class_end = offset + class_decl.span.end as usize;
                     let mut class_obj = Map::new();
@@ -7042,79 +7013,9 @@ fn convert_statement_for_program(
                 body: arena.alloc_js_children(body),
             })
         }
-        oxc_ast::ast::Statement::ClassDeclaration(class_decl) => {
-            let start = offset + class_decl.span.start as usize;
-            let end = offset + class_decl.span.end as usize;
-            let loc = create_typed_loc(start, end, line_offsets);
-
-            // id
-            let id = class_decl.id.as_ref().map(|id| {
-                let id_start = offset + id.span.start as usize;
-                let id_end = offset + id.span.end as usize;
-                let id_expr = create_identifier(&id.name, id_start, id_end, line_offsets);
-                arena.alloc_js_node(expr_to_node(id_expr))
-            });
-
-            // superClass
-            let super_class = class_decl.super_class.as_ref().map(|super_class| {
-                let super_class_value =
-                    convert_expression_for_program(arena, super_class, offset, line_offsets);
-                arena.alloc_js_node(expr_to_node(super_class_value))
-            });
-
-            // body (ClassBody) — typed when every member is plain JS; otherwise a
-            // Raw blob fallback (TS modifiers / decorators / declare / accessor).
-            let body = match convert_class_body_for_program_as_node(
-                arena,
-                &class_decl.body,
-                offset,
-                line_offsets,
-            ) {
-                Some(node) => arena.alloc_js_node(node),
-                None => {
-                    let body_value = convert_class_body_for_program(
-                        arena,
-                        &class_decl.body,
-                        offset,
-                        line_offsets,
-                    );
-                    arena.alloc_js_node(JsNode::Raw(body_value))
-                }
-            };
-
-            // Decorators: include so remove_typescript_nodes can detect them.
-            let decorators = if class_decl.decorators.is_empty() {
-                IdRange::empty()
-            } else {
-                let decorator_nodes: Vec<JsNode> = class_decl
-                    .decorators
-                    .iter()
-                    .map(|dec| {
-                        let dec_start = offset + dec.span.start as usize;
-                        let dec_end = offset + dec.span.end as usize;
-                        JsNode::Decorator {
-                            start: dec_start as u32,
-                            end: dec_end as u32,
-                            loc: None,
-                        }
-                    })
-                    .collect();
-                arena.alloc_js_children(decorator_nodes)
-            };
-
-            Some(JsNode::ClassDeclaration {
-                start: start as u32,
-                end: end as u32,
-                loc,
-                id,
-                super_class,
-                body,
-                declare: class_decl.declare,
-                r#abstract: class_decl.r#abstract,
-                implements: !class_decl.implements.is_empty(),
-                decorators,
-            })
-        }
+        oxc_ast::ast::Statement::ClassDeclaration(class_decl) => Some(
+            convert_class_declaration_as_node(arena, class_decl, offset, line_offsets),
+        ),
         oxc_ast::ast::Statement::ReturnStatement(ret_stmt) => {
             let start = offset + ret_stmt.span.start as usize;
             let end = offset + ret_stmt.span.end as usize;
@@ -7649,6 +7550,196 @@ fn convert_statement_for_program(
 }
 
 /// Convert a Declaration to JSON value (for program context).
+/// Convert a `FunctionDeclaration` to a typed `JsNode` (program context, no -1
+/// offset adjustment). Returns `None` for TypeScript `declare function` and
+/// overload signatures (no body) so the caller can drop them, mirroring the
+/// `remove_typescript_nodes` filter. Note: rest parameters are not emitted (only
+/// `params.items`); callers that need rest-param fidelity must route through the
+/// `JsNode::Raw` Value form (`convert_declaration_for_program`).
+fn convert_function_declaration_as_node(
+    arena: &ParseArena,
+    func_decl: &oxc_ast::ast::Function,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<JsNode> {
+    // Filter out TypeScript declare functions and function overload signatures (no body)
+    if func_decl.r#type == oxc_ast::ast::FunctionType::TSDeclareFunction || func_decl.body.is_none()
+    {
+        return None;
+    }
+    let start = offset + func_decl.span.start as usize;
+    let end = offset + func_decl.span.end as usize;
+    let loc = create_typed_loc(start, end, line_offsets);
+
+    let id_node = func_decl.id.as_ref().map(|id| {
+        let id_start = offset + id.span.start as usize;
+        let id_end = offset + id.span.end as usize;
+        let id_expr = create_identifier(&id.name, id_start, id_end, line_offsets);
+        arena.alloc_js_node(expr_to_node(id_expr))
+    });
+
+    // Convert params
+    let params: Vec<JsNode> = func_decl
+        .params
+        .items
+        .iter()
+        .map(|param| expr_to_node(convert_formal_parameter(arena, param, offset, line_offsets)))
+        .collect();
+
+    // Convert body
+    let body_node = func_decl.body.as_ref().map(|body| {
+        arena.alloc_js_node(convert_function_body_for_program_as_node(
+            arena,
+            body,
+            offset,
+            line_offsets,
+        ))
+    });
+
+    Some(JsNode::FunctionDeclaration {
+        start: start as u32,
+        end: end as u32,
+        loc,
+        id: id_node,
+        params: arena.alloc_js_children(params),
+        body: body_node,
+        generator: func_decl.generator,
+        r#async: func_decl.r#async,
+    })
+}
+
+/// Convert a `ClassDeclaration` to a typed `JsNode` (program context, no -1
+/// offset adjustment). The body is typed when every member is plain JS,
+/// otherwise it falls back to a `JsNode::Raw` blob (TS modifiers / decorators /
+/// declare / accessor).
+fn convert_class_declaration_as_node(
+    arena: &ParseArena,
+    class_decl: &oxc_ast::ast::Class,
+    offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    let start = offset + class_decl.span.start as usize;
+    let end = offset + class_decl.span.end as usize;
+    let loc = create_typed_loc(start, end, line_offsets);
+
+    // id
+    let id = class_decl.id.as_ref().map(|id| {
+        let id_start = offset + id.span.start as usize;
+        let id_end = offset + id.span.end as usize;
+        let id_expr = create_identifier(&id.name, id_start, id_end, line_offsets);
+        arena.alloc_js_node(expr_to_node(id_expr))
+    });
+
+    // superClass
+    let super_class = class_decl.super_class.as_ref().map(|super_class| {
+        let super_class_value =
+            convert_expression_for_program(arena, super_class, offset, line_offsets);
+        arena.alloc_js_node(expr_to_node(super_class_value))
+    });
+
+    // body (ClassBody) — typed when every member is plain JS; otherwise a
+    // Raw blob fallback (TS modifiers / decorators / declare / accessor).
+    let body =
+        match convert_class_body_for_program_as_node(arena, &class_decl.body, offset, line_offsets)
+        {
+            Some(node) => arena.alloc_js_node(node),
+            None => {
+                let body_value =
+                    convert_class_body_for_program(arena, &class_decl.body, offset, line_offsets);
+                arena.alloc_js_node(JsNode::Raw(body_value))
+            }
+        };
+
+    // Decorators: include so remove_typescript_nodes can detect them.
+    let decorators = if class_decl.decorators.is_empty() {
+        IdRange::empty()
+    } else {
+        let decorator_nodes: Vec<JsNode> = class_decl
+            .decorators
+            .iter()
+            .map(|dec| {
+                let dec_start = offset + dec.span.start as usize;
+                let dec_end = offset + dec.span.end as usize;
+                JsNode::Decorator {
+                    start: dec_start as u32,
+                    end: dec_end as u32,
+                    loc: None,
+                }
+            })
+            .collect();
+        arena.alloc_js_children(decorator_nodes)
+    };
+
+    JsNode::ClassDeclaration {
+        start: start as u32,
+        end: end as u32,
+        loc,
+        id,
+        super_class,
+        body,
+        declare: class_decl.declare,
+        r#abstract: class_decl.r#abstract,
+        implements: !class_decl.implements.is_empty(),
+        decorators,
+    }
+}
+
+/// Typed sibling of `convert_declaration_for_program`: returns a typed `JsNode`
+/// for the plain-JS `VariableDeclaration` / `FunctionDeclaration` /
+/// `ClassDeclaration` cases (so an `export <decl>` declaration routes through the
+/// typed analyze walker instead of `JsNode::Raw`). Cases whose byte-identical
+/// serialization needs the Value form — TS `declare`/overload functions, rest
+/// parameters (the typed function path drops `params.rest`), abstract / declare
+/// / implements / decorated classes, and all TS-only declarations — fall back to
+/// `JsNode::Raw(convert_declaration_for_program(...))`.
+fn convert_declaration_for_program_as_node(
+    arena: &ParseArena,
+    decl: &oxc_ast::ast::Declaration,
+    offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    use oxc_ast::ast::Declaration;
+    match decl {
+        Declaration::VariableDeclaration(var_decl) => {
+            convert_variable_declaration_as_node(arena, var_decl, offset, line_offsets)
+        }
+        // The typed function path emits only `params.items`, so a rest parameter
+        // would be dropped relative to the Value form — keep Raw in that case.
+        Declaration::FunctionDeclaration(func_decl)
+            if func_decl.r#type != oxc_ast::ast::FunctionType::TSDeclareFunction
+                && func_decl.body.is_some()
+                && func_decl.params.rest.is_none() =>
+        {
+            convert_function_declaration_as_node(arena, func_decl, offset, line_offsets)
+                .unwrap_or_else(|| {
+                    JsNode::Raw(convert_declaration_for_program(
+                        arena,
+                        decl,
+                        offset,
+                        line_offsets,
+                    ))
+                })
+        }
+        // The typed class node adds `abstract` / `declare` / `implements` /
+        // `decorators` fields that the Value form omits, so only the plain-JS
+        // shape is byte-identical.
+        Declaration::ClassDeclaration(class_decl)
+            if !class_decl.declare
+                && !class_decl.r#abstract
+                && class_decl.implements.is_empty()
+                && class_decl.decorators.is_empty() =>
+        {
+            convert_class_declaration_as_node(arena, class_decl, offset, line_offsets)
+        }
+        _ => JsNode::Raw(convert_declaration_for_program(
+            arena,
+            decl,
+            offset,
+            line_offsets,
+        )),
+    }
+}
+
 fn convert_declaration_for_program(
     arena: &ParseArena,
     decl: &oxc_ast::ast::Declaration,
@@ -9683,12 +9774,12 @@ fn convert_assignment_target_for_program(
                 optional: member.optional,
             }
         }
-        AssignmentTarget::ObjectAssignmentTarget(obj_target) => JsNode::Raw(
-            convert_object_assignment_target_for_program(arena, obj_target, offset, line_offsets),
-        ),
-        AssignmentTarget::ArrayAssignmentTarget(arr_target) => JsNode::Raw(
-            convert_array_assignment_target_for_program(arena, arr_target, offset, line_offsets),
-        ),
+        AssignmentTarget::ObjectAssignmentTarget(obj_target) => {
+            convert_object_assignment_target_for_program(arena, obj_target, offset, line_offsets)
+        }
+        AssignmentTarget::ArrayAssignmentTarget(arr_target) => {
+            convert_array_assignment_target_for_program(arena, arr_target, offset, line_offsets)
+        }
         AssignmentTarget::PrivateFieldExpression(member) => {
             // `this.#field = …` LHS in a function-body statement (program
             // context). Without this arm it falls to `JsNode::Null`, so the
@@ -9723,28 +9814,18 @@ fn convert_assignment_target_for_program(
     }
 }
 
-/// Convert an ObjectAssignmentTarget to ObjectPattern JSON (no -1 offset adjustment).
+/// Convert an ObjectAssignmentTarget to a typed `ObjectPattern` `JsNode`
+/// (no -1 offset adjustment).
 fn convert_object_assignment_target_for_program(
     arena: &ParseArena,
     obj_target: &oxc_ast::ast::ObjectAssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     let start = offset + obj_target.span.start as usize;
     let end = offset + obj_target.span.end as usize;
 
-    let mut obj = Map::new();
-    obj.insert(
-        "type".to_string(),
-        Value::String("ObjectPattern".to_string()),
-    );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
-
-    let mut properties: Vec<Value> = obj_target
+    let mut properties: Vec<JsNode> = obj_target
         .properties
         .iter()
         .map(|prop| {
@@ -9756,62 +9837,50 @@ fn convert_object_assignment_target_for_program(
     if let Some(rest) = &obj_target.rest {
         let rest_start = offset + rest.span.start as usize;
         let rest_end = offset + rest.span.end as usize;
-
-        let mut rest_obj = Map::new();
-        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
-        rest_obj.insert(
-            "start".to_string(),
-            Value::Number((rest_start as i64).into()),
-        );
-        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
-        if let Some(loc) = create_loc(rest_start, rest_end, line_offsets) {
-            rest_obj.insert("loc".to_string(), loc);
-        }
-        rest_obj.insert(
-            "argument".to_string(),
-            convert_assignment_target_for_program(arena, &rest.target, offset, line_offsets)
-                .to_value(),
-        );
-        properties.push(Value::Object(rest_obj));
+        properties.push(JsNode::RestElement {
+            start: rest_start as u32,
+            end: rest_end as u32,
+            loc: create_typed_loc(rest_start, rest_end, line_offsets),
+            argument: arena.alloc_js_node(convert_assignment_target_for_program(
+                arena,
+                &rest.target,
+                offset,
+                line_offsets,
+            )),
+        });
     }
 
-    obj.insert("properties".to_string(), Value::Array(properties));
-
-    Value::Object(obj)
+    JsNode::ObjectPattern {
+        start: start as u32,
+        end: end as u32,
+        loc: create_typed_loc(start, end, line_offsets),
+        properties: arena.alloc_js_children(properties),
+    }
 }
 
-/// Convert an ArrayAssignmentTarget to ArrayPattern JSON (no -1 offset adjustment).
+/// Convert an ArrayAssignmentTarget to a typed `ArrayPattern` `JsNode`
+/// (no -1 offset adjustment).
 fn convert_array_assignment_target_for_program(
     arena: &ParseArena,
     arr_target: &oxc_ast::ast::ArrayAssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     let start = offset + arr_target.span.start as usize;
     let end = offset + arr_target.span.end as usize;
 
-    let mut obj = Map::new();
-    obj.insert(
-        "type".to_string(),
-        Value::String("ArrayPattern".to_string()),
-    );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
-
-    let mut elements: Vec<Value> = arr_target
+    let mut elements: Vec<Option<JsNode>> = arr_target
         .elements
         .iter()
-        .map(|elem| match elem {
-            Some(target) => convert_assignment_target_maybe_default_for_program(
-                arena,
-                target,
-                offset,
-                line_offsets,
-            ),
-            None => Value::Null,
+        .map(|elem| {
+            elem.as_ref().map(|target| {
+                convert_assignment_target_maybe_default_for_program(
+                    arena,
+                    target,
+                    offset,
+                    line_offsets,
+                )
+            })
         })
         .collect();
 
@@ -9819,37 +9888,35 @@ fn convert_array_assignment_target_for_program(
     if let Some(rest) = &arr_target.rest {
         let rest_start = offset + rest.span.start as usize;
         let rest_end = offset + rest.span.end as usize;
-
-        let mut rest_obj = Map::new();
-        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
-        rest_obj.insert(
-            "start".to_string(),
-            Value::Number((rest_start as i64).into()),
-        );
-        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
-        if let Some(loc) = create_loc(rest_start, rest_end, line_offsets) {
-            rest_obj.insert("loc".to_string(), loc);
-        }
-        rest_obj.insert(
-            "argument".to_string(),
-            convert_assignment_target_for_program(arena, &rest.target, offset, line_offsets)
-                .to_value(),
-        );
-        elements.push(Value::Object(rest_obj));
+        elements.push(Some(JsNode::RestElement {
+            start: rest_start as u32,
+            end: rest_end as u32,
+            loc: create_typed_loc(rest_start, rest_end, line_offsets),
+            argument: arena.alloc_js_node(convert_assignment_target_for_program(
+                arena,
+                &rest.target,
+                offset,
+                line_offsets,
+            )),
+        }));
     }
 
-    obj.insert("elements".to_string(), Value::Array(elements));
-
-    Value::Object(obj)
+    JsNode::ArrayPattern {
+        start: start as u32,
+        end: end as u32,
+        loc: create_typed_loc(start, end, line_offsets),
+        elements,
+    }
 }
 
-/// Convert an AssignmentTargetProperty to Property JSON (no -1 offset adjustment).
+/// Convert an AssignmentTargetProperty to a typed `Property` `JsNode`
+/// (no -1 offset adjustment).
 fn convert_assignment_target_property_for_program(
     arena: &ParseArena,
     prop: &oxc_ast::ast::AssignmentTargetProperty,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     use oxc_ast::ast::AssignmentTargetProperty;
 
     match prop {
@@ -9857,81 +9924,72 @@ fn convert_assignment_target_property_for_program(
             let start = offset + id_prop.span.start as usize;
             let end = offset + id_prop.span.end as usize;
 
-            let mut obj = Map::new();
-            obj.insert("type".to_string(), Value::String("Property".to_string()));
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            obj.insert("method".to_string(), Value::Bool(false));
-            obj.insert("shorthand".to_string(), Value::Bool(true));
-            obj.insert("computed".to_string(), Value::Bool(false));
-            obj.insert("kind".to_string(), Value::String("init".to_string()));
-
             let id_start = offset + id_prop.binding.span.start as usize;
             let id_end = offset + id_prop.binding.span.end as usize;
-            let identifier =
-                create_identifier(&id_prop.binding.name, id_start, id_end, line_offsets)
-                    .as_json()
-                    .clone();
+            let make_identifier = || {
+                expr_to_node(create_identifier(
+                    &id_prop.binding.name,
+                    id_start,
+                    id_end,
+                    line_offsets,
+                ))
+            };
 
-            obj.insert("key".to_string(), identifier.clone());
+            let key = arena.alloc_js_node(make_identifier());
 
-            if let Some(init) = &id_prop.init {
-                let mut assign_pat = Map::new();
-                assign_pat.insert(
-                    "type".to_string(),
-                    Value::String("AssignmentPattern".to_string()),
-                );
-                assign_pat.insert("start".to_string(), Value::Number((id_start as i64).into()));
+            let value = if let Some(init) = &id_prop.init {
                 let init_end = offset + init.span().end as usize;
-                assign_pat.insert("end".to_string(), Value::Number((init_end as i64).into()));
-                if let Some(loc) = create_loc(id_start, init_end, line_offsets) {
-                    assign_pat.insert("loc".to_string(), loc);
-                }
-                assign_pat.insert("left".to_string(), identifier);
-                assign_pat.insert(
-                    "right".to_string(),
-                    convert_expression_for_program(arena, init, offset, line_offsets)
-                        .as_json()
-                        .clone(),
-                );
-                obj.insert("value".to_string(), Value::Object(assign_pat));
+                arena.alloc_js_node(JsNode::AssignmentPattern {
+                    start: id_start as u32,
+                    end: init_end as u32,
+                    loc: create_typed_loc(id_start, init_end, line_offsets),
+                    left: arena.alloc_js_node(make_identifier()),
+                    right: arena.alloc_js_node(expr_to_node(convert_expression_for_program(
+                        arena,
+                        init,
+                        offset,
+                        line_offsets,
+                    ))),
+                })
             } else {
-                obj.insert("value".to_string(), identifier);
-            }
+                arena.alloc_js_node(make_identifier())
+            };
 
-            Value::Object(obj)
+            JsNode::Property {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                key,
+                value,
+                kind: CompactString::from("init"),
+                method: false,
+                shorthand: true,
+                computed: false,
+            }
         }
         AssignmentTargetProperty::AssignmentTargetPropertyProperty(prop_prop) => {
             let start = offset + prop_prop.span.start as usize;
             let end = offset + prop_prop.span.end as usize;
 
-            let mut obj = Map::new();
-            obj.insert("type".to_string(), Value::String("Property".to_string()));
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            obj.insert("method".to_string(), Value::Bool(false));
-            obj.insert("shorthand".to_string(), Value::Bool(false));
-            obj.insert("computed".to_string(), Value::Bool(prop_prop.computed));
-            obj.insert("kind".to_string(), Value::String("init".to_string()));
-
             let key = convert_property_key(arena, &prop_prop.name, offset, line_offsets);
-            obj.insert("key".to_string(), key.to_value());
-
             let value = convert_assignment_target_maybe_default_for_program(
                 arena,
                 &prop_prop.binding,
                 offset,
                 line_offsets,
             );
-            obj.insert("value".to_string(), value);
 
-            Value::Object(obj)
+            JsNode::Property {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                key: arena.alloc_js_node(key),
+                value: arena.alloc_js_node(value),
+                kind: CompactString::from("init"),
+                method: false,
+                shorthand: false,
+                computed: prop_prop.computed,
+            }
         }
     }
 }
@@ -10021,13 +10079,15 @@ fn convert_simple_assignment_target_for_program(
     }
 }
 
-/// Convert an AssignmentTargetMaybeDefault to JSON (no -1 offset adjustment).
+/// Convert an AssignmentTargetMaybeDefault to a typed `JsNode` (no -1 offset
+/// adjustment). A `WithDefault` becomes an `AssignmentPattern`; a bare target
+/// delegates to `convert_assignment_target_for_program`.
 fn convert_assignment_target_maybe_default_for_program(
     arena: &ParseArena,
     target: &oxc_ast::ast::AssignmentTargetMaybeDefault,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     use oxc_ast::ast::AssignmentTargetMaybeDefault;
 
     match target {
@@ -10035,40 +10095,29 @@ fn convert_assignment_target_maybe_default_for_program(
             let start = offset + with_default.span.start as usize;
             let end = offset + with_default.span.end as usize;
 
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("AssignmentPattern".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            obj.insert(
-                "left".to_string(),
-                convert_assignment_target_for_program(
+            JsNode::AssignmentPattern {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                left: arena.alloc_js_node(convert_assignment_target_for_program(
                     arena,
                     &with_default.binding,
                     offset,
                     line_offsets,
-                )
-                .to_value(),
-            );
-            obj.insert(
-                "right".to_string(),
-                convert_expression_for_program(arena, &with_default.init, offset, line_offsets)
-                    .as_json()
-                    .clone(),
-            );
-
-            Value::Object(obj)
+                )),
+                right: arena.alloc_js_node(expr_to_node(convert_expression_for_program(
+                    arena,
+                    &with_default.init,
+                    offset,
+                    line_offsets,
+                ))),
+            }
         }
         _ => {
             if let Some(inner) = target.as_assignment_target() {
-                convert_assignment_target_for_program(arena, inner, offset, line_offsets).to_value()
+                convert_assignment_target_for_program(arena, inner, offset, line_offsets)
             } else {
-                Value::Null
+                JsNode::Null
             }
         }
     }
