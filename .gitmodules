@@ -81,3 +81,28 @@
 	url = https://github.com/l-portet/svelte-switch-case
 	ignore = dirty
 	shallow = true
+[submodule "submodules/svelte-preprocess-less"]
+	path = submodules/svelte-preprocess-less
+	url = https://github.com/ls-age/svelte-preprocess-less
+	ignore = dirty
+	shallow = true
+[submodule "submodules/svelte-preprocess-sass"]
+	path = submodules/svelte-preprocess-sass
+	url = https://github.com/ls-age/svelte-preprocess-sass
+	ignore = dirty
+	shallow = true
+[submodule "submodules/modular-css"]
+	path = submodules/modular-css
+	url = https://github.com/tivac/modular-css
+	ignore = dirty
+	shallow = true
+[submodule "submodules/svelte-preprocess-markdown"]
+	path = submodules/svelte-preprocess-markdown
+	url = https://github.com/AlexxNB/svelte-preprocess-markdown
+	ignore = dirty
+	shallow = true
+[submodule "submodules/sveltex"]
+	path = submodules/sveltex
+	url = https://github.com/nvlang/sveltex
+	ignore = dirty
+	shallow = true
