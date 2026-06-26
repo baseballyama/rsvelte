@@ -236,8 +236,8 @@
 		</header>
 
 		<section class="stats">
-			{#each headlineSpeedups as s, i (s.id)}
-				<article class="stat" class:stat-hero={i === 0}>
+			{#each headlineSpeedups as s (s.id)}
+				<article class="stat">
 					<span class="stat-k">{s.label}</span>
 					<span class="stat-n">
 						{s.x.toFixed(s.precision)}<span class="stat-x">×</span>
@@ -456,11 +456,6 @@
 		gap: 0.5rem;
 	}
 
-	.stat.stat-hero {
-		border-color: var(--rust);
-		box-shadow: 0 0 0 3px color-mix(in srgb, var(--rust) 8%, transparent);
-	}
-
 	.stat-k {
 		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.7rem;
@@ -481,10 +476,6 @@
 		align-items: baseline;
 	}
 
-	.stat.stat-hero .stat-n {
-		color: var(--rust);
-	}
-
 	.stat-x {
 		font-family: 'JetBrains Mono', monospace;
 		font-weight: 500;
@@ -492,11 +483,6 @@
 		margin-left: 0.18em;
 		color: var(--ink-faint);
 		letter-spacing: 0.04em;
-	}
-
-	.stat.stat-hero .stat-x {
-		color: var(--rust);
-		opacity: 0.75;
 	}
 
 	.stat-s {
