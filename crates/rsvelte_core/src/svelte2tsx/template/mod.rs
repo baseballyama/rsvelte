@@ -3356,13 +3356,18 @@ fn has_component_slot_children(fragment: &Fragment, source: &str) -> bool {
 /// this does not recurse.
 fn has_default_slot_let_children(fragment: &Fragment, _source: &str) -> bool {
     fragment.nodes.iter().any(|node| {
+        // Only NON-component default-slot children forward their `let:` bindings
+        // to the enclosing component's `$$slot_def.default`. A component child
+        // (`<Child let:x>` / `<svelte:component let:x>` / `<svelte:self let:x>`)
+        // binds `let:x` from its OWN `$$slot_def.default` — its own
+        // `handle_component` emits that destructure — so it must not mark the
+        // parent as needing an instance var. Mirrors official svelte2tsx, where
+        // only `Element`/`SlotElement`/`InlineComponent` *slot content* (not the
+        // inline component's own lets) routes through the parent slot.
         let attrs = match node {
             TemplateNode::RegularElement(el) => &el.attributes,
-            TemplateNode::Component(c) => &c.attributes,
             TemplateNode::SvelteFragment(f) => &f.attributes,
             TemplateNode::SvelteElement(e) => &e.attributes,
-            TemplateNode::SvelteComponent(sc) => &sc.attributes,
-            TemplateNode::SvelteSelf(s) => &s.attributes,
             _ => return false,
         };
         !get_let_directives(attrs).is_empty()
@@ -3581,12 +3586,18 @@ fn process_component_children_with_slots(
                 str.append_left(node.start(), &block_open);
                 default_slot_opened = true;
             }
-            // A default-slot child (`<svelte:fragment let:foo>`, `<div let:foo>`,
-            // `<Child let:foo>`) with no `slot=` but its OWN `let:` directives
-            // needs a `$$slot_def.default` destructure block — JS reference's
-            // Element.performTransformation emits one whenever the default-slot
-            // child has `let:` directives. Wrap the child so the `let:` bindings
-            // are scoped to its body.
+            // A default-slot child (`<svelte:fragment let:foo>`, `<div let:foo>`)
+            // with no `slot=` but its OWN `let:` directives needs a
+            // `$$slot_def.default` destructure block referencing the ENCLOSING
+            // component — JS reference's Element.performTransformation emits one
+            // whenever the default-slot child has `let:` directives. Wrap the
+            // child so the `let:` bindings are scoped to its body.
+            //
+            // A COMPONENT child (`<Child let:foo>`) is excluded: its `let:foo`
+            // binds from `Child`'s OWN `$$slot_def.default`, which its own
+            // `handle_component` already emits. Routing it through the parent
+            // here would wrongly duplicate the destructure onto the parent
+            // instance (#1232).
             let fragment_lets: Option<Vec<&LetDirective>> = match node {
                 TemplateNode::SvelteFragment(el) => {
                     let lets = get_let_directives(&el.attributes);
@@ -3594,10 +3605,6 @@ fn process_component_children_with_slots(
                 }
                 TemplateNode::RegularElement(el) => {
                     let lets = get_let_directives(&el.attributes);
-                    if lets.is_empty() { None } else { Some(lets) }
-                }
-                TemplateNode::Component(c) => {
-                    let lets = get_let_directives(&c.attributes);
                     if lets.is_empty() { None } else { Some(lets) }
                 }
                 _ => None,
