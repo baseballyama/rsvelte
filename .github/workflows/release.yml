@@ -120,7 +120,7 @@ jobs:
         shell: bash
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
-        run: cargo build --release --bin svelte_check --target ${{ matrix.target }}
+        run: cargo build --profile dist --bin svelte_check --target ${{ matrix.target }}
 
       - name: Stage binary
         shell: bash
@@ -129,7 +129,7 @@ jobs:
           # cargo writes the binary as the bin's `name` field (`svelte_check`,
           # with an underscore — Cargo doesn't translate the filename), but we
           # ship it under the user-facing `svelte-check` name.
-          cp "target/${{ matrix.target }}/release/svelte_check${{ matrix.ext }}" \
+          cp "target/${{ matrix.target }}/dist/svelte_check${{ matrix.ext }}" \
              "stage/svelte-check${{ matrix.ext }}"
 
       - name: Upload artifact
@@ -187,13 +187,13 @@ jobs:
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
           CC_aarch64_unknown_linux_gnu: ${{ matrix.linker }}
-        run: cargo build --release --features napi --lib --target ${{ matrix.target }}
+        run: cargo build --profile dist --features napi --lib --target ${{ matrix.target }}
 
       - name: Stage .node binary
         shell: bash
         run: |
           mkdir -p stage
-          cp "target/${{ matrix.target }}/release/${{ matrix.dylib }}" stage/rsvelte.node
+          cp "target/${{ matrix.target }}/dist/${{ matrix.dylib }}" stage/rsvelte.node
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -243,13 +243,13 @@ jobs:
         shell: bash
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
-        run: cargo build --release --bin rsvelte-fmt --target ${{ matrix.target }}
+        run: cargo build --profile dist --bin rsvelte-fmt --target ${{ matrix.target }}
 
       - name: Stage binary
         shell: bash
         run: |
           mkdir -p stage
-          cp "target/${{ matrix.target }}/release/rsvelte-fmt${{ matrix.ext }}" \
+          cp "target/${{ matrix.target }}/dist/rsvelte-fmt${{ matrix.ext }}" \
              "stage/rsvelte-fmt${{ matrix.ext }}"
 
       - name: Upload artifact

@@ -1,0 +1,26 @@
+[package]
+name = "rsvelte_preprocess"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+description = "Native Rust ports of the awesome-svelte preprocessors (switch-case, sass, less, …) as rsvelte PreprocessorGroups"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["rlib"]
+
+[features]
+default = ["sass"]
+# Rust-native Sass/SCSS via the `grass` compiler (svelte-preprocess-sass).
+sass = ["dep:grass"]
+
+[dependencies]
+rsvelte_core = { path = "../rsvelte_core", default-features = false }
+grass = { version = "0.13", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }
+
+[lints]
+workspace = true
