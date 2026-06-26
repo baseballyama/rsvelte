@@ -1,5 +1,7 @@
 # @rsvelte/fmt-linux-arm64-gnu
 
+## 0.4.0
+
 ## 0.3.20
 
 ## 0.3.19

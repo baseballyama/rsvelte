@@ -1,5 +1,7 @@
 # @rsvelte/svelte-check-linux-arm64-gnu
 
+## 0.3.7
+
 ## 0.3.6
 
 ## 0.3.5
