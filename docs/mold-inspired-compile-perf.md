@@ -200,8 +200,13 @@ the standard `compile()` path (not a new API). Shipped by switching the NAPI cdy
 profiling bins + the criterion bench to mimalloc (`mimalloc-alloc` feature, enabled by
 `native`). Validated: the mimalloc cdylib passes the full Node smoke test
 (`pnpm run test:vps`, 21/21 — `compile`, `compileModule`, `hmrDiff`, `preprocess`, CSS,
-client/server). mimalloc also removes the need for jemalloc's `disable_initial_exec_tls`
-dlopen TLS workaround.
+client/server) and the Linux CI corpus compile.
+
+Cross-platform gotcha (caught by Linux CI, not macOS): mimalloc defaults to the
+initial-exec TLS model, which fails when the cdylib is `dlopen`'d by Node on Linux
+(`cannot allocate memory in static TLS block`, `ERR_DLOPEN_FAILED`) — the same class
+of issue jemalloc's `disable_initial_exec_tls` solved. Fixed by enabling the mimalloc
+crate's `local_dynamic_tls` feature (local-dynamic TLS model).
 
 ### Takeaway
 

@@ -129,9 +129,12 @@ oxc_ast_visit = "0.137"
 # Better multi-threaded memory allocator (optional, Unix/Mac only)
 [target.'cfg(all(not(windows), not(target_arch = "wasm32")))'.dependencies]
 tikv-jemallocator = { version = "0.7", optional = true }
-# mimalloc: allocator A/B candidate (mold itself links mimalloc). Used only by
-# the profiling bins behind the `mimalloc-alloc` feature to compare against jemalloc.
-mimalloc = { version = "0.1", optional = true }
+# mimalloc: production allocator (mold itself links mimalloc). `local_dynamic_tls`
+# builds mimalloc with the local-dynamic TLS model instead of the default
+# initial-exec one — required so the NAPI cdylib can be `dlopen`'d by Node on
+# Linux without "cannot allocate memory in static TLS block" (the same class of
+# issue jemalloc's `disable_initial_exec_tls` solved).
+mimalloc = { version = "0.1", optional = true, features = ["local_dynamic_tls"] }
 pprof = { version = "0.15", default-features = false, optional = true }
 
 [build-dependencies]

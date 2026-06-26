@@ -22,8 +22,10 @@
 // We prefer mimalloc: an interleaved A/B over the full compile corpus measured
 // it ~11% faster than jemalloc, and the allocation-bound profile (serde_json
 // Value churn) is exactly the workload mimalloc wins on — the same reason the
-// mold linker links mimalloc. mimalloc also sidesteps jemalloc's initial-exec
-// TLS issue when the cdylib is dlopen'd by Node, so no TLS workaround is needed.
+// mold linker links mimalloc. mimalloc has the same initial-exec TLS issue as
+// jemalloc when the cdylib is dlopen'd by Node on Linux ("cannot allocate memory
+// in static TLS block"); the mimalloc crate's `local_dynamic_tls` feature
+// (enabled in Cargo.toml) builds it with the local-dynamic TLS model to fix that.
 // jemalloc remains the fallback when only the `jemalloc` feature is enabled.
 #[cfg(all(
     feature = "mimalloc-alloc",
