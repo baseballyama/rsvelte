@@ -38,25 +38,6 @@ fn attrs(pairs: &[(&str, &str)]) -> Map<String, AttributeValue> {
     m
 }
 
-/// Returns `false` (with a printed notice) when Node / `less` isn't available.
-fn toolchain_ready() -> bool {
-    match preprocess_less(
-        &opts(),
-        &FilterOptions::default(),
-        Some("./probe.html"),
-        "a{b:1}",
-        &attrs(&[("lang", "less")]),
-    ) {
-        Ok(_) => true,
-        Err(LessError::Bridge(msg)) => {
-            eprintln!("skipping: less toolchain unavailable: {msg}");
-            false
-        }
-        // A render error still proves the toolchain runs.
-        Err(LessError::Render { .. }) => true,
-    }
-}
-
 #[test]
 fn filters_non_less_styles() {
     let out = preprocess_less(
@@ -81,9 +62,8 @@ fn less_returns_a_preprocessor() {
 
 #[test]
 fn returns_preprocessed_styles() {
-    if !toolchain_ready() {
-        return;
-    }
+    // The native compiler handles variables + flat rules without the toolchain,
+    // matching the original upstream fixture byte-for-byte.
     let result = preprocess_less(
         &opts(),
         &FilterOptions::default(),
@@ -94,21 +74,11 @@ fn returns_preprocessed_styles() {
     .expect("compiles")
     .expect("not filtered out");
 
-    // The compiled CSS body matches the upstream fixture; the installed less@4
-    // additionally inlines a sourceMappingURL comment (the upstream fixture
-    // predates that behavior).
-    assert!(
-        result.code.starts_with("b {\n  color: red;\n}\n"),
-        "unexpected css: {:?}",
-        result.code
-    );
+    assert_eq!(result.code, "b {\n  color: red;\n}\n");
 }
 
 #[test]
 fn formats_errors_correctly() {
-    if !toolchain_ready() {
-        return;
-    }
     let err = preprocess_less(
         &opts(),
         &FilterOptions::default(),

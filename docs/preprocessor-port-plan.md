@@ -226,9 +226,9 @@ Each lands with a test file that drives the port against its upstream fixtures.
 |---|---|---|
 | svelte-switch-case | **Native** (brace-aware scanner) | `tests/switch_case.rs` — 9/9 vitest cases |
 | svelte-preprocess-sass | **Native** (`grass`) | `tests/sass.rs` — 6/6 ava cases |
-| svelte-preprocess-less | **JS-fallback** (Node → `less`) | `tests/less.rs` — 4/4 ava cases (error-frame native) |
+| svelte-preprocess-less | **Native** (variables + flat rules; bridge fallback for the rest) | `tests/less.rs` — 4/4 ava cases (compile + error-frame native) |
 | svelte-preprocess (auto) | **Native subset** (replace, globalStyle, scss/sass) | `tests/svelte_preprocess.rs` — 23 cases (replace + globalStyle transformer suites + scss) |
-| @modular-css/svelte | **JS-fallback** (Node → `@modular-css/processor`) | `tests/bridge_ports.rs` — byte-exact `style.svelte` markup + output.css |
+| @modular-css/svelte | **Native** `<style type=text/m-css>` (scoping + composes + cross-file); bridge for `<link>`/`<script import>` | `tests/modular_css_native.rs` — byte-exact markup + output.css (style / unquoted / no-attribute); `tests/bridge_ports.rs` |
 | mdsvex | **JS-fallback** (Node → `mdsvex`) | `tests/bridge_ports.rs` |
 | svelte-preprocess-markdown | **JS-fallback** (Node → `marked`) | `tests/bridge_ports.rs` |
 | @nvl/sveltex | **JS-fallback** (Node → `@nvl/sveltex`) | `tests/bridge_ports.rs` |
@@ -238,8 +238,11 @@ Each lands with a test file that drives the port against its upstream fixtures.
 - **svelte-preprocess**: `typescript` (full `tsc`: enums/decorators), `postcss`,
   `less`/`stylus`/`pug`/`coffeescript`/`babel`, and scss import-dependency /
   tilde-import tracking — JS-toolchain transforms left to the fallback boundary.
-- **modular-css**: a `lightningcss`-css-modules native core (the postcss-defined
-  whitespace/output is currently bridged).
+- **modular-css**: the `<link>` / `<script import>` entry kinds (ES-module import
+  parsing) and the non-deterministic default (hash) namer; the `<style>` path is
+  native.
+- **less**: the native compiler covers variables + flat rules; nesting, mixins,
+  operations, functions and `@import` fall back to the bridge.
 - **markdown family**: comrak/pulldown-cmark cores for mdsvex / markdown and a
   Rust LaTeX path for sveltex — each upstream's output is defined by its own JS
   engine, so the bridge is the only byte-faithful drop-in for now.

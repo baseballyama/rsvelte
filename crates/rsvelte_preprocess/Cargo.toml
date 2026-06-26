@@ -32,7 +32,7 @@ less = ["dep:serde_json"]
 svelte-preprocess = ["sass", "dep:regex"]
 # JS-fallback markdown/CSS-modules ports (bridge to the installed upstream tool).
 mdsvex = ["bridge"]
-modular-css = ["bridge"]
+modular-css = ["bridge", "dep:regex"]
 markdown = ["bridge"]
 sveltex = ["bridge"]
 
