@@ -2,33 +2,41 @@
 	path = submodules/svelte
 	url = https://github.com/sveltejs/svelte.git
 	ignore = dirty
+
 [submodule "language-tools"]
 	path = submodules/language-tools
 	url = https://github.com/sveltejs/language-tools.git
+
 [submodule "submodules/typescript-go"]
 	path = submodules/typescript-go
 	url = https://github.com/microsoft/typescript-go
+
 [submodule "submodules/vize"]
 	path = submodules/vize
 	url = git@github.com:ubugeeei-prod/vize.git
+
 [submodule "submodules/corsa-bind"]
 	path = submodules/corsa-bind
 	url = git@github.com:ubugeeei-prod/corsa-bind.git
+
 [submodule "submodules/eslint-plugin-svelte"]
 	path = submodules/eslint-plugin-svelte
 	url = https://github.com/sveltejs/eslint-plugin-svelte
 	ignore = dirty
+
 [submodule "submodules/svelte.dev"]
 	path = submodules/svelte.dev
 	url = https://github.com/sveltejs/svelte.dev.git
 	ignore = dirty
 	shallow = true
+
 [submodule "submodules/svelte-eslint-parser"]
 	path = submodules/svelte-eslint-parser
 	url = https://github.com/sveltejs/svelte-eslint-parser
 	ignore = dirty
 # esrap printer — vendored upstream (sveltejs/esrap), pinned to v2.2.11. Its test
 # suite is ported to crates/rsvelte_esrap; excluded from the auto-update rotation.
+
 [submodule "submodules/esrap"]
 	path = submodules/esrap
 	url = https://github.com/sveltejs/esrap.git
@@ -39,70 +47,265 @@
 # compiler and rsvelte and required to match — the same three tracks as svelte/svelte.dev.
 # To add another project to the corpus, add a submodule here + an entry in
 # scripts/compat-corpus/corpus-sources.json. Bumped weekly by auto-update-submodules.yml.
+
 [submodule "submodules/bits-ui"]
 	path = submodules/bits-ui
 	url = https://github.com/huntabyte/bits-ui.git
 	ignore = dirty
 	shallow = true
 	branch = main
+
 [submodule "submodules/flowbite-svelte"]
 	path = submodules/flowbite-svelte
 	url = https://github.com/themesberg/flowbite-svelte.git
 	ignore = dirty
 	shallow = true
 	branch = main
+
 [submodule "submodules/melt-ui"]
 	path = submodules/melt-ui
 	url = https://github.com/melt-ui/next-gen.git
 	ignore = dirty
 	shallow = true
 	branch = main
+
 [submodule "submodules/shadcn-svelte"]
 	path = submodules/shadcn-svelte
 	url = https://github.com/huntabyte/shadcn-svelte.git
 	ignore = dirty
 	shallow = true
 	branch = main
+
 [submodule "submodules/mold"]
 	path = submodules/mold
 	url = https://github.com/rui314/mold.git
+
 [submodule "submodules/svelte-preprocess"]
 	path = submodules/svelte-preprocess
 	url = https://github.com/sveltejs/svelte-preprocess
 	ignore = dirty
 	shallow = true
+
 [submodule "submodules/mdsvex"]
 	path = submodules/mdsvex
 	url = https://github.com/pngwn/MDsveX
 	ignore = dirty
 	shallow = true
+
 [submodule "submodules/svelte-switch-case"]
 	path = submodules/svelte-switch-case
 	url = https://github.com/l-portet/svelte-switch-case
 	ignore = dirty
 	shallow = true
+
 [submodule "submodules/svelte-preprocess-less"]
 	path = submodules/svelte-preprocess-less
 	url = https://github.com/ls-age/svelte-preprocess-less
 	ignore = dirty
 	shallow = true
+
 [submodule "submodules/svelte-preprocess-sass"]
 	path = submodules/svelte-preprocess-sass
 	url = https://github.com/ls-age/svelte-preprocess-sass
 	ignore = dirty
 	shallow = true
+
 [submodule "submodules/modular-css"]
 	path = submodules/modular-css
 	url = https://github.com/tivac/modular-css
 	ignore = dirty
 	shallow = true
+
 [submodule "submodules/svelte-preprocess-markdown"]
 	path = submodules/svelte-preprocess-markdown
 	url = https://github.com/AlexxNB/svelte-preprocess-markdown
 	ignore = dirty
 	shallow = true
+
 [submodule "submodules/sveltex"]
 	path = submodules/sveltex
 	url = https://github.com/nvlang/sveltex
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/sveltestrap"]
+	path = submodules/sveltestrap
+	url = https://github.com/sveltestrap/sveltestrap
+	branch = main
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/attractions"]
+	path = submodules/attractions
+	url = https://github.com/illright/attractions
+	branch = main
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-ux"]
+	path = submodules/svelte-ux
+	url = https://github.com/techniq/svelte-ux
+	branch = main
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/smelte"]
+	path = submodules/smelte
+	url = https://github.com/matyunya/smelte
+	branch = master
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svar-core"]
+	path = submodules/svar-core
+	url = https://github.com/svar-widgets/core
+	branch = main
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-table"]
+	path = submodules/svelte-table
+	url = https://github.com/dasDaniel/svelte-table
+	branch = develop
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/powertable"]
+	path = submodules/powertable
+	url = https://github.com/muonw/powertable
+	branch = main
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-pivottable"]
+	path = submodules/svelte-pivottable
+	url = https://github.com/jjagielka/svelte-pivottable
+	branch = master
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-toast"]
+	path = submodules/svelte-toast
+	url = https://github.com/zerodevx/svelte-toast
+	branch = master
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-sonner"]
+	path = submodules/svelte-sonner
+	url = https://github.com/wobsoriano/svelte-sonner
+	branch = main
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-notifications"]
+	path = submodules/svelte-notifications
+	url = https://github.com/beyonk-adventures/svelte-notifications
+	branch = master
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-fa"]
+	path = submodules/svelte-fa
+	url = https://github.com/Cweili/svelte-fa
+	branch = master
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-heroicons"]
+	path = submodules/svelte-heroicons
+	url = https://github.com/krowten/svelte-heroicons
+	branch = main
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-calendar"]
+	path = submodules/svelte-calendar
+	url = https://github.com/6eDesign/svelte-calendar
+	branch = master
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/date-picker-svelte"]
+	path = submodules/date-picker-svelte
+	url = https://github.com/probablykasper/date-picker-svelte
+	branch = master
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-maplibre"]
+	path = submodules/svelte-maplibre
+	url = https://github.com/dimfeld/svelte-maplibre
+	branch = master
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/layercake"]
+	path = submodules/layercake
+	url = https://github.com/mhkeller/layercake
+	branch = main
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/layerchart"]
+	path = submodules/layerchart
+	url = https://github.com/techniq/layerchart
+	branch = main
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-splitpanes"]
+	path = submodules/svelte-splitpanes
+	url = https://github.com/orefalo/svelte-splitpanes
+	branch = master
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-stepper"]
+	path = submodules/svelte-stepper
+	url = https://github.com/efstajas/svelte-stepper
+	branch = main
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-formly"]
+	path = submodules/svelte-formly
+	url = https://github.com/arabdevelop/svelte-formly
+	branch = master
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-form-builder"]
+	path = submodules/svelte-form-builder
+	url = https://github.com/pragmatic-engineering/svelte-form-builder-community
+	branch = master
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-checkbox"]
+	path = submodules/svelte-checkbox
+	url = https://github.com/HosseinShabani/svelte-checkbox
+	branch = master
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-toggle"]
+	path = submodules/svelte-toggle
+	url = https://github.com/beyonk-adventures/svelte-toggle
+	branch = master
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelthree"]
+	path = submodules/svelthree
+	url = https://github.com/vatro/svelthree
+	branch = dev
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/cmsaasstarter"]
+	path = submodules/cmsaasstarter
+	url = https://github.com/CriticalMoments/CMSaasStarter
+	branch = main
 	ignore = dirty
 	shallow = true
