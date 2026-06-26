@@ -307,12 +307,22 @@ pub enum JsNode {
         end: u32,
         loc: Option<Box<Loc>>,
         properties: IdRange,
+        /// Opaque, output-only TS `typeAnnotation` boundary blob for an
+        /// annotated destructuring declarator id (`let { a }: T = …`). Analyze
+        /// never walks into it; it lets such a pattern route through the typed
+        /// walker while serializing its annotation verbatim. `None` for the
+        /// overwhelming majority of object patterns (serializes identically to
+        /// an un-annotated pattern — no stray `typeAnnotation` key).
+        type_annotation: Option<Box<serde_json::Value>>,
     },
     ArrayPattern {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
         elements: Vec<Option<JsNode>>,
+        /// See `ObjectPattern::type_annotation`. Opaque output-only TS annotation
+        /// for an annotated array-destructuring declarator id (`let [ a ]: T = …`).
+        type_annotation: Option<Box<serde_json::Value>>,
     },
     AssignmentPattern {
         start: u32,
@@ -1186,6 +1196,7 @@ impl Serialize for JsNode {
                 end,
                 loc,
                 properties,
+                type_annotation,
             } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "ObjectPattern")?;
@@ -1193,6 +1204,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_children!(map, "properties", properties);
+                if let Some(ta) = type_annotation {
+                    map.serialize_entry("typeAnnotation", ta.as_ref())?;
+                }
                 map.end()
             }
             JsNode::ArrayPattern {
@@ -1200,6 +1214,7 @@ impl Serialize for JsNode {
                 end,
                 loc,
                 elements,
+                type_annotation,
             } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "ArrayPattern")?;
@@ -1207,6 +1222,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 map.serialize_entry("elements", elements)?;
+                if let Some(ta) = type_annotation {
+                    map.serialize_entry("typeAnnotation", ta.as_ref())?;
+                }
                 map.end()
             }
             JsNode::AssignmentPattern {
@@ -2287,12 +2305,14 @@ impl JsNode {
                         end,
                         loc,
                         properties: convert_array(obj, "properties"),
+                        type_annotation: obj.get("typeAnnotation").cloned().map(Box::new),
                     },
                     "ArrayPattern" => JsNode::ArrayPattern {
                         start,
                         end,
                         loc,
                         elements: convert_nullable_array(obj, "elements"),
+                        type_annotation: obj.get("typeAnnotation").cloned().map(Box::new),
                     },
                     "AssignmentPattern" => JsNode::AssignmentPattern {
                         start,

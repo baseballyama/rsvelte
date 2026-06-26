@@ -2708,6 +2708,7 @@ fn convert_object_pattern_to_expr(
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         properties: arena.alloc_js_children(properties),
+        type_annotation: None,
     })
 }
 
@@ -2758,6 +2759,7 @@ fn convert_array_pattern_to_expr(
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         elements,
+        type_annotation: None,
     })
 }
 
@@ -4914,6 +4916,7 @@ fn convert_object_assignment_target(
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         properties: arena.alloc_js_children(properties),
+        type_annotation: None,
     }
 }
 
@@ -4961,6 +4964,7 @@ fn convert_array_assignment_target(
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         elements,
+        type_annotation: None,
     }
 }
 
@@ -8129,6 +8133,34 @@ fn convert_variable_declarator_for_program(
                 name,
                 type_annotation: Some(Box::new(ts_value)),
             }),
+            // Annotated destructuring declarator id (`let { a }: T` / `let [ a ]: T`):
+            // keep the pattern typed and carry the TS annotation as an opaque
+            // boundary blob (mirrors the Identifier branch above). The outer
+            // `end`/`loc` extend to cover the annotation; the pattern's own
+            // children keep their original spans — byte-identical to the former
+            // `JsNode::Raw(to_value + typeAnnotation/end/loc override)` shape.
+            JsNode::ObjectPattern {
+                start: p_start,
+                properties,
+                ..
+            } => arena.alloc_js_node(JsNode::ObjectPattern {
+                start: p_start,
+                end: ts_end as u32,
+                loc: create_typed_loc(p_start as usize, ts_end, line_offsets),
+                properties,
+                type_annotation: Some(Box::new(ts_value)),
+            }),
+            JsNode::ArrayPattern {
+                start: p_start,
+                elements,
+                ..
+            } => arena.alloc_js_node(JsNode::ArrayPattern {
+                start: p_start,
+                end: ts_end as u32,
+                loc: create_typed_loc(p_start as usize, ts_end, line_offsets),
+                elements,
+                type_annotation: Some(Box::new(ts_value)),
+            }),
             other => {
                 let mut id_value = other.to_value();
                 if let Value::Object(ref mut id_obj) = id_value {
@@ -9621,6 +9653,7 @@ fn convert_object_pattern(
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         properties: arena.alloc_js_children(properties),
+        type_annotation: None,
     }
 }
 
@@ -9665,6 +9698,7 @@ fn convert_array_pattern(
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         elements,
+        type_annotation: None,
     }
 }
 
@@ -9841,6 +9875,7 @@ fn convert_object_assignment_target_for_program(
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         properties: arena.alloc_js_children(properties),
+        type_annotation: None,
     }
 }
 
@@ -9892,6 +9927,7 @@ fn convert_array_assignment_target_for_program(
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         elements,
+        type_annotation: None,
     }
 }
 

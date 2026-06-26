@@ -1174,6 +1174,22 @@ fn write_raw_json<W: Writer>(w: &mut W, value: &serde_json::Value) -> std::io::R
 
 fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std::io::Result<()> {
     match node {
+        // Annotated destructuring declarator id (`let { a }: T` / `let [ a ]: T`):
+        // re-materialize the legacy Raw JSON blob (children + `typeAnnotation`) so
+        // the NAPI binary output stays byte-identical to the pre-typed encoding.
+        // The serialize arena is installed for the whole emission (see
+        // `to_typed_raw`), so `serde_json::to_value` can resolve the child IdRange.
+        pat @ (JsNode::ObjectPattern {
+            type_annotation: Some(_),
+            ..
+        }
+        | JsNode::ArrayPattern {
+            type_annotation: Some(_),
+            ..
+        }) => {
+            let value = serde_json::to_value(pat).map_err(std::io::Error::other)?;
+            return write_raw_json(w, &value);
+        }
         JsNode::Identifier {
             start,
             end,
@@ -1561,6 +1577,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             end,
             loc,
             properties,
+            type_annotation: _,
         } => {
             write_preamble(w, JS_OBJECT_PATTERN, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -1571,6 +1588,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             end,
             loc,
             elements,
+            type_annotation: _,
         } => {
             write_preamble(w, JS_ARRAY_PATTERN, *start, *end);
             write_typed_loc(w, loc.as_deref());
