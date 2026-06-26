@@ -6,7 +6,7 @@
 	import SiteNav from '$lib/components/SiteNav.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
 	import EcoCard from '$lib/components/EcoCard.svelte';
-	import { shipped, counts } from '$lib/ecosystem';
+	import { shipped, planned, delegated, counts } from '$lib/ecosystem';
 
 	let bench = $state<BenchmarkResults | null>(null);
 	let tests = $state<TestResults | null>(null);
@@ -144,8 +144,8 @@
 		</p>
 
 		<div class="cta">
-			<a href="{base}/ecosystem" class="btn btn-primary">
-				Explore the ecosystem <span aria-hidden="true">→</span>
+			<a href="#ecosystem" class="btn btn-primary">
+				Explore the ecosystem <span aria-hidden="true">↓</span>
 			</a>
 			<a href="{base}/playground" class="btn btn-ghost">
 				Open playground <span aria-hidden="true">→</span>
@@ -245,28 +245,42 @@
 		</div>
 	</section>
 
-	<section class="eco">
+	<section class="eco" id="ecosystem">
 		<div class="section-head">
 			<span class="num">02</span>
 			<h2>Not just a <em>compiler</em>.</h2>
 			<p class="lede">
 				rsvelte ports the hot path of every common Svelte workflow. {counts.shipped} drop-in
-				packages ship today, each a byte-for-byte replacement for its upstream tool.
+				packages ship today — each a byte-for-byte replacement for its upstream tool — with
+				{counts.planned} more planned and {counts.delegated} deliberately delegated to the wider
+				<a class="link" href="https://oxc.rs/" target="_blank" rel="noopener">OXC</a> toolchain.
 			</p>
 		</div>
 
+		<h3 class="eco-tier">Shipped <span class="eco-tier-n">· usable today</span></h3>
 		<div class="eco-grid">
 			{#each shipped as c (c.name)}
 				<EcoCard {c} compact />
 			{/each}
 		</div>
 
-		<div class="eco-foot">
-			<a class="eco-link" href="{base}/ecosystem">
-				See the full inventory — shipped, planned &amp; delegated
-				<span aria-hidden="true">→</span>
-			</a>
-		</div>
+		{#if planned.length > 0}
+			<h3 class="eco-tier">Planned <span class="eco-tier-n">· on the roadmap</span></h3>
+			<div class="eco-grid">
+				{#each planned as c (c.name)}
+					<EcoCard {c} compact />
+				{/each}
+			</div>
+		{/if}
+
+		{#if delegated.length > 0}
+			<h3 class="eco-tier">Delegated <span class="eco-tier-n">· routed to OXC / JS</span></h3>
+			<div class="eco-grid">
+				{#each delegated as c (c.name)}
+					<EcoCard {c} compact />
+				{/each}
+			</div>
+		{/if}
 	</section>
 
 	<section class="dropin">
@@ -857,6 +871,11 @@
 	.eco {
 		max-width: 1080px;
 		margin: 0 auto;
+		/* Bottom breathing room (previously provided by the removed `.eco-foot`). */
+		padding-bottom: clamp(2rem, 4vh, 3rem);
+		/* Anchor target from the hero CTA — offset so the heading isn't hidden
+		   under the sticky nav. */
+		scroll-margin-top: 5rem;
 	}
 
 	.eco-grid {
@@ -868,32 +887,26 @@
 		gap: 1rem;
 	}
 
-	.eco-foot {
+	/* Sub-group heading inside the ecosystem section (Shipped / Planned /
+	   Delegated). */
+	.eco-tier {
 		max-width: 1080px;
-		margin: 0 auto;
-		padding: 1.6rem clamp(1rem, 4vw, 2.5rem) clamp(2rem, 4vh, 3rem);
-	}
-
-	.eco-link {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
+		margin: 1.8rem auto 0.8rem;
+		padding: 0 clamp(1rem, 4vw, 2.5rem);
 		font-family: 'Hanken Grotesk', sans-serif;
-		font-weight: 600;
+		font-weight: 700;
 		font-size: 0.95rem;
-		color: var(--svelte);
+		letter-spacing: -0.01em;
+		color: var(--ink);
 	}
 
-	.eco-link span {
-		transition: transform 0.18s;
+	.eco-tier:first-of-type {
+		margin-top: 0;
 	}
 
-	.eco-link:hover {
-		color: var(--svelte-hover);
-	}
-
-	.eco-link:hover span {
-		transform: translateX(3px);
+	.eco-tier-n {
+		font-weight: 500;
+		color: var(--ink-faint);
 	}
 
 	/* DROP-IN */

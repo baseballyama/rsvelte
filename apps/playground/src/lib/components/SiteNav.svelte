@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { themeStore } from '$lib/theme.svelte';
 
-	type Active = 'home' | 'docs' | 'ecosystem' | 'playground' | 'progress' | 'benchmark';
+	type Active = 'home' | 'docs' | 'playground' | 'progress' | 'benchmark';
 
 	interface Props {
 		// Each page passes its own slug so the link gets the `active` style
@@ -34,12 +34,10 @@
 			</svg>
 		</span>
 		<span class="brand-text">rsvelte</span>
-		<span class="brand-tag">svelte&nbsp;·&nbsp;in&nbsp;rust</span>
 	</a>
 
 	<div class="links">
 		<a href="{base}/docs" class:active={isActive('docs')}>Docs</a>
-		<a href="{base}/ecosystem" class:active={isActive('ecosystem')}>Ecosystem</a>
 		<a href="{base}/playground" class:active={isActive('playground')}>Playground</a>
 		<a href="{base}/progress" class:active={isActive('progress')}>Compatibility</a>
 		<a href="{base}/benchmark" class:active={isActive('benchmark')}>Benchmark</a>
@@ -119,19 +117,6 @@
 		letter-spacing: -0.01em;
 	}
 
-	.brand-tag {
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.62rem;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-		color: var(--rust);
-		padding: 0.2rem 0.45rem;
-		border: 1px solid currentColor;
-		border-radius: 2px;
-		line-height: 1;
-		margin-left: 0.2rem;
-	}
-
 	.links {
 		display: flex;
 		align-items: center;
@@ -197,17 +182,14 @@
 	}
 
 	@media (max-width: 640px) {
-		.brand-tag {
-			display: none;
-		}
 		.links {
 			gap: 0.7rem;
 			font-size: 0.84rem;
 		}
-		/* Keep the primary destinations (Docs, Ecosystem, Playground) on phones;
+		/* Keep the primary destinations (Docs, Playground) on phones;
 		   Compatibility + Benchmark are reachable from the home page. */
-		.links a:nth-child(4),
-		.links a:nth-child(5) {
+		.links a:nth-child(3),
+		.links a:nth-child(4) {
 			display: none;
 		}
 	}
