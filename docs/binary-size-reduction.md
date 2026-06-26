@@ -99,16 +99,30 @@ Per-crate analysis for the `.node`/`svelte_check` build should be re-run with
 | 1.3 | **Add a WASM size profile.** `[profile.release.package.rsvelte_core]`/`rsvelte_fmt_wasm` with `opt-level = "s"` (matching oxc's playground `'z'` trick), `lto = true`. WASM only — does not touch native opt-level. | `Cargo.toml` | stacks with 1.2 | Measure `s` vs `z` (non-monotonic). |
 | 1.4 | **Gate `console_error_panic_hook` + `getrandom/wasm_js` to debug WASM only.** The panic hook drags in all of `std::fmt`/`std::panicking`. | `rsvelte_fmt_wasm`, `rsvelte_core` wasm feature | meaningful KB on WASM | Lose pretty panics in release WASM (acceptable; gate by feature). |
 
-### Tier 2 — Dependency discipline (shrinks `rsvelte_core` → every artifact)
+### Tier 2 — Dependency discipline (EXECUTED + measured)
 
-| # | Action | Target | Expected | Risk |
+**Key empirical result that reframes this whole tier:** under `lto = "fat"`, the
+linker already dead-strips every dependency whose code no path references. We
+proved this by building the `.node` two ways:
+
+- full (`--features napi`, i.e. default `native` + napi): **10,330,440 bytes**
+- lean (`--no-default-features --features napi`, which drops svelte_check, `clap`,
+  `notify`/`kqueue`, `chrono`, `oxc_resolver`, the `miette/fancy` stack and one
+  allocator from *compilation*): **10,330,440 bytes — byte-identical.**
+
+So **feature-gating unused deps out of an artifact does not shrink it** (it only
+speeds up compilation / shrinks the dep surface). This kills the naive size case
+for 2.3 and 2.4 below. The only things that shrink a fat-LTO binary are (a)
+stripping symbols (Tier 1) and (b) reducing code that is *actually linked and
+reachable*. That makes the regex Unicode tables the one real Tier-2 size lever.
+
+| # | Action | Status | Measured | Notes |
 |---|---|---|---|---|
-| 2.1 | **Audit the `regex` stack (470 KiB in fmt).** It comes from `ignore`+`globset` (gitignore) and `markdown`. Options: (a) trim regex features (`default-features=false`, drop `unicode-perl`), (b) confirm whether `markdown` needs regex, (c) evaluate `regex-lite`. The compiler core itself uses `regex` directly too — check `cargo tree -i regex`. | `rsvelte_core`, `rsvelte_fmt` | up to ~0.4 MB | `regex-lite` is slower; only swap on cold paths. |
-| 2.2 | **`clap` → `lexopt`/`pico-args` for the CLIs (161 KiB clap_builder).** Or at least drop unused clap features. | `rsvelte_fmt`, `rsvelte_lint`, `svelte_check` | 100–250 KiB/CLI | Lose derive/help/completions UX — weigh per CLI. |
-| 2.3 | **Drop one of the two allocators.** `native` enables *both* `jemalloc` and `mimalloc-alloc`; only one is `#[global_allocator]` (mimalloc, via `cfg`). The unused crate relies on dead-stripping. Make `native` pull **only mimalloc**; keep jemalloc behind an explicit opt-in feature for benches. | `rsvelte_core` features | tens of KB + faster builds | Confirm no bench/bin path needs jemalloc unconditionally. |
-| 2.4 | **`miette` `fancy` only in CLIs, never lib/WASM.** `fancy` pulls the full pretty-render stack (owo-colors, supports-color, textwrap, terminal_size). The `native` feature wires `miette/fancy` into core. | `rsvelte_core` | meaningful KB on `.node`/WASM | Keep `fancy` for human-facing CLIs; plain `miette` for the addon. |
-| 2.5 | **Review `im`, `chrono`, `num_bigint`, `sourcemap`, `notify`.** `cargo tree -i` each; `chrono` → drop `clock`/default features; `im` only if structural sharing is truly used. | `rsvelte_core` | small–medium | Per-crate verification. |
-| 2.6 | **Kill panic-backtrace symbolization weight (gimli/addr2line/rustc_demangle ≈ 63 KiB).** With `panic = "abort"` these are mostly the std backtrace path; a `dist` build with `-Zlocation-detail=none`/`build-std` removes them (Tier 3), or accept as-is. | std | ~60 KiB | Tier-3 territory. |
+| **2.1** | **Trim the `regex` Unicode feature set.** `rsvelte_core` + `rsvelte_lint` pulled `regex` with default features (all Unicode tables). Our patterns use only `(?i)` / `(?m)` / `(?s)` and `\w \s \d \b` — no `\p{…}`/script/category classes, no `\X`. Set `default-features = false, features = ["std","perf","unicode-perl","unicode-case"]`, dropping the large `unicode-age/-bool/-gencat/-script/-segment` tables. (`string_wizard` 1.1.3 already requests exactly this minimal set, so feature unification keeps it effective.) | ✅ **done** | **−242 KiB** on the stripped `rsvelte-fmt` (5,038,512 → 4,790,920 B, −4.9%). Applies to **every** artifact (all link `regex`). | Behavior preserved by construction (`unicode-perl`+`unicode-case` retained); validated against the fixture suite. |
+| 2.2 | `clap` → `lexopt`/`pico-args` for the CLIs (~161 KiB `clap_builder`, *used* code). | ⏳ candidate | est. 100–250 KiB/CLI | Loses derive/help/completions UX. Real used-code, so it *would* shrink — but a UX/maintenance trade. Deferred. |
+| 2.3 | Drop the dual allocator from `native`. | ❌ **no size benefit** | 0 (dead-stripped per binary; each bin already `cfg`-selects one allocator). | Worth doing only as a build-time/cleanliness change, not for size. |
+| 2.4 | Gate `miette/fancy` / svelte_check out of the `.node`. | ❌ **no size benefit** | 0 (the lean-`.node` experiment above was byte-identical). | Same dead-strip reason. A separate *compile-time* win if desired. |
+| 2.5 | Trim `chrono`/`im`/`sourcemap`/`notify` default features. | ⏳ low priority | only the *reachable* portion matters; unused parts already stripped. | Marginal; measure per-crate before touching. |
 
 ### Tier 3 — Aggressive / nightly (WASM, or a dedicated `min` build only)
 

@@ -82,8 +82,13 @@ oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "7537c582e09
 thiserror = "2.0"
 miette = "7.4"
 
-# Regex
-regex = "1.11"
+# Regex. Trim to the minimal feature set our patterns need — `unicode-perl`
+# (`\w \s \d \b`) + `unicode-case` (`(?i)`). We use no `\p{...}`/script/category
+# classes or `\X` graphemes, so dropping `unicode-age`/`-bool`/`-gencat`/
+# `-script`/`-segment` (the large Unicode tables) shrinks every artifact with no
+# behavior change. (string_wizard already requests exactly this minimal set, so
+# feature unification keeps the trim effective.)
+regex = { version = "1.11", default-features = false, features = ["std", "perf", "unicode-perl", "unicode-case"] }
 
 # Immutable data structures for efficient cloning
 im = "15.1"
