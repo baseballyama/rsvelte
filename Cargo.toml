@@ -8,6 +8,7 @@ members = [
     "crates/rsvelte_fmt_wasm",
     "crates/rsvelte_formatter",
     "crates/rsvelte_lint",
+    "crates/rsvelte_preprocess",
 ]
 
 [profile.release]
