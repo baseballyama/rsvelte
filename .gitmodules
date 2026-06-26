@@ -66,3 +66,18 @@
 [submodule "submodules/mold"]
 	path = submodules/mold
 	url = https://github.com/rui314/mold.git
+[submodule "submodules/svelte-preprocess"]
+	path = submodules/svelte-preprocess
+	url = https://github.com/sveltejs/svelte-preprocess
+	ignore = dirty
+	shallow = true
+[submodule "submodules/mdsvex"]
+	path = submodules/mdsvex
+	url = https://github.com/pngwn/MDsveX
+	ignore = dirty
+	shallow = true
+[submodule "submodules/svelte-switch-case"]
+	path = submodules/svelte-switch-case
+	url = https://github.com/l-portet/svelte-switch-case
+	ignore = dirty
+	shallow = true
