@@ -11,10 +11,13 @@ publish = false
 crate-type = ["rlib"]
 
 [features]
-default = []
+default = ["sass"]
+# Rust-native Sass/SCSS via the `grass` compiler (svelte-preprocess-sass).
+sass = ["dep:grass"]
 
 [dependencies]
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
+grass = { version = "0.13", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }

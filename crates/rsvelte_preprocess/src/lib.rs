@@ -8,6 +8,13 @@
 //! [awesome]: https://github.com/TheComputerM/awesome-svelte#preprocessing
 //! [`PreprocessorGroup`]: rsvelte_core::compiler::preprocess::types::PreprocessorGroup
 
+pub mod filter;
 pub mod switch_case;
 
+#[cfg(feature = "sass")]
+pub mod sass;
+
 pub use switch_case::switch_case;
+
+#[cfg(feature = "sass")]
+pub use sass::sass;
