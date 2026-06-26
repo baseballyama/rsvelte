@@ -268,7 +268,9 @@ pub fn visit(
     // so children with slot attributes should be allowed (they may be valid at runtime).
     // This matches how <svelte:component> allows slot attributes on its children.
     let was_direct_child = context.is_direct_child_of_component;
+    let was_direct_snippet = context.is_direct_child_of_snippet;
     context.is_direct_child_of_component = true;
+    context.is_direct_child_of_snippet = false;
     context
         .slot_owner_ancestors
         .push(super::SlotOwnerType::Component);
@@ -336,6 +338,7 @@ pub fn visit(
     context.fragment_owner_stack.pop();
     context.slot_owner_ancestors.pop();
     context.is_direct_child_of_component = was_direct_child;
+    context.is_direct_child_of_snippet = was_direct_snippet;
 
     Ok(())
 }

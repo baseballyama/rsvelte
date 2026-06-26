@@ -129,7 +129,6 @@
 	"smelte/src/components/Tooltip/Tooltip.svelte",
 	"smelte/src/routes/_layout.svelte",
 	"smelte/src/routes/components/_layout.svelte",
-	"svar-core/svelte/demos/cases/TwoState.svelte",
 	"svar-core/svelte/demos/common/Link.svelte",
 	"svar-core/svelte/src/components/Segmented.svelte",
 	"svar-core/svelte/src/components/Tabs.svelte",
