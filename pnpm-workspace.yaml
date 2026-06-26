@@ -6,6 +6,7 @@ packages:
 # corpus pipeline's .svelte.ts TS-strip (scripts/compat-corpus/compile.mjs).
 allowBuilds:
   '@parcel/watcher': true
+  core-js-pure: false
   esbuild: true
 # `svelte`, `vite`, and `oxlint` are Renovate-bumped tooling deps that get
 # bumped the moment upstream publishes. The CI runner's global `minimumReleaseAge`
