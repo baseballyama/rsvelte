@@ -64,8 +64,16 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
         context.scope = snippet_scope_idx;
     }
 
+    // Direct children of the snippet body are direct children of a SnippetBlock,
+    // which `validate_slot_attribute` treats specially (a `slot="…"` text attribute
+    // there is allowed). Nested elements/blocks reset this flag.
+    let was_direct_snippet = context.is_direct_child_of_snippet;
+    context.is_direct_child_of_snippet = true;
+
     // Analyze the body
     fragment::analyze(&mut block.body, context)?;
+
+    context.is_direct_child_of_snippet = was_direct_snippet;
 
     // Restore parent_element and scope
     context.parent_element = old_parent_element;

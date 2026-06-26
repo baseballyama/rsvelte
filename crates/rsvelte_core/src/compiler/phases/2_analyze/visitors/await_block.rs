@@ -154,7 +154,9 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
     // Clear is_direct_child_of_component since children of control flow blocks
     // are not direct children of a component
     let was_direct_child = context.is_direct_child_of_component;
+    let was_direct_snippet = context.is_direct_child_of_snippet;
     context.is_direct_child_of_component = false;
+    context.is_direct_child_of_snippet = false;
 
     // Push fragment owner type for const_tag placement validation
     context
@@ -209,6 +211,7 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
 
     // Restore is_direct_child_of_component
     context.is_direct_child_of_component = was_direct_child;
+    context.is_direct_child_of_snippet = was_direct_snippet;
 
     // Decrement block depth
     context.block_depth -= 1;

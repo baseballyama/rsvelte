@@ -87,7 +87,9 @@ pub fn visit(
     // Set up component context for slot attribute validation
     // svelte:component is a component, so children with slot attributes should be valid
     let was_direct_child = context.is_direct_child_of_component;
+    let was_direct_snippet = context.is_direct_child_of_snippet;
     context.is_direct_child_of_component = true;
+    context.is_direct_child_of_snippet = false;
     context.component_depth += 1;
     context
         .slot_owner_ancestors
@@ -111,6 +113,7 @@ pub fn visit(
     context.slot_owner_ancestors.pop();
     context.component_depth -= 1;
     context.is_direct_child_of_component = was_direct_child;
+    context.is_direct_child_of_snippet = was_direct_snippet;
 
     Ok(())
 }

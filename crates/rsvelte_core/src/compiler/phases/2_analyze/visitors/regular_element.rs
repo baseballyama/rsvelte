@@ -1192,7 +1192,9 @@ pub fn visit(
 
     // Clear is_direct_child_of_component since we're now inside an element
     let was_direct_child = context.is_direct_child_of_component;
+    let was_direct_snippet = context.is_direct_child_of_snippet;
     context.is_direct_child_of_component = false;
+    context.is_direct_child_of_snippet = false;
 
     // Push fragment owner type for const_tag placement validation
     // Elements with a slot attribute allow {@const} tags (like components)
@@ -1298,6 +1300,7 @@ pub fn visit(
 
     // Restore is_direct_child_of_component
     context.is_direct_child_of_component = was_direct_child;
+    context.is_direct_child_of_snippet = was_direct_snippet;
 
     // Pop from each_block_stack
     context.each_block_stack.pop();

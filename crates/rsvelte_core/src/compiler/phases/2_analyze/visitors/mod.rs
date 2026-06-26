@@ -450,6 +450,12 @@ pub struct VisitorContext<'a> {
     /// This is set to true when entering a Component/SvelteComponent, and reset to false
     /// when entering any other element type.
     pub is_direct_child_of_component: bool,
+    /// True while analyzing the *direct* children of a `{#snippet}` body. Mirrors
+    /// upstream's `context.path.at(-2)?.type === 'SnippetBlock'` check in
+    /// `validate_slot_attribute`: a `slot="…"` text attribute on an element whose
+    /// immediate parent is a snippet block is allowed (not a placement error).
+    /// Reset to false whenever a nested element/block is entered.
+    pub is_direct_child_of_snippet: bool,
     /// Stack of slot owner types (Component or CustomElement).
     /// When entering a component, push SlotOwnerType::Component.
     /// When entering a custom element (RegularElement with '-' in name), push SlotOwnerType::CustomElement.
@@ -569,6 +575,7 @@ impl<'a> VisitorContext<'a> {
             block_depth_at_element: Vec::new(),
             each_block_stack: Vec::new(),
             is_direct_child_of_component: false,
+            is_direct_child_of_snippet: false,
             slot_owner_ancestors: Vec::new(),
             fragment_owner_stack: vec![FragmentOwnerType::Root],
             current_template_scope: 0,

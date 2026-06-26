@@ -99,6 +99,15 @@ pub fn validate_slot_attribute(
         return Ok(());
     }
 
+    // A `slot="…"` on an element whose immediate parent is a `{#snippet}` body is
+    // allowed — upstream `validate_slot_attribute` returns early when
+    // `context.path.at(-2)?.type === 'SnippetBlock'`. (A non-text `slot={…}` value
+    // is still rejected by the separate `is_text_attribute` check in the attribute
+    // visitor, mirroring upstream's `slot_attribute_invalid` there.)
+    if context.is_direct_child_of_snippet {
+        return Ok(());
+    }
+
     // Find the nearest slot owner (last item in the stack)
     if let Some(nearest_owner) = context.slot_owner_ancestors.last() {
         match nearest_owner {
