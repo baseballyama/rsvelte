@@ -2424,6 +2424,22 @@ fn collect_reactive_refs<'a>(
             }
             path.pop();
         }
+        "SwitchCase" => {
+            // acorn populates `consequent` BEFORE `test`, so upstream's traversal
+            // (and thus scope.references first-appearance order) visits the case
+            // body before the case test. Our JSON serializes `test` first, so
+            // mirror acorn here to keep dependency-thunk ordering byte-identical.
+            path.push(node);
+            if let Some(cons) = node.get("consequent").and_then(|c| c.as_array()) {
+                for s in cons {
+                    collect_reactive_refs(s, path, locals, order, included);
+                }
+            }
+            if let Some(test) = node.get("test").filter(|t| t.is_object()) {
+                collect_reactive_refs(test, path, locals, order, included);
+            }
+            path.pop();
+        }
         _ => {
             // Generic field walk in AST/source (insertion) order — serde_json is
             // built with `preserve_order`, so object fields iterate in insertion
