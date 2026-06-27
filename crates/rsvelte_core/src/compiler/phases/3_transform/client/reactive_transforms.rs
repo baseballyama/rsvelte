@@ -514,7 +514,18 @@ pub(super) fn transform_reactive_statement(
             let temp = transform_prop_update_expressions(body, prop_assignment_transform_vars);
             let temp =
                 transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
-            let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
+            // Route prop reads through the scope-aware AST wrapper so a prop name
+            // used as a local binding inside the keyword body — e.g.
+            // `$: if (cond) { const [x, y] = f(); … }` where `x`/`y` shadow props —
+            // is neither wrapped in the destructuring binding position
+            // (`[x(), y()]`, invalid) nor in the shadowed reads. Falls back to the
+            // scope-unaware text path on any parse failure / no-match.
+            let temp = super::prop_source_reads_ast::wrap_prop_source_reads_ast(
+                &temp,
+                prop_assignment_transform_vars,
+                &[],
+            )
+            .unwrap_or_else(|| transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars));
             let temp = transform_prop_assignments(&temp, prop_assignment_transform_vars, &[]);
             // Wrap state-var member mutations (`obj.a.b = x`) in `$.mutate(obj, …)`.
             // The keyword branch (a `$: if (cond) X = rhs` reactive statement) was
