@@ -102,6 +102,9 @@ pub fn transform_server_module(
     // alone. Mirrors how the component server path lowers class fields.
     let source_without_effects =
         transform_script::transform_class_fields_server(&source_without_effects);
+    // `$effect.tracking()` has no effect tracking on the server → `false`
+    // (mirrors the instance-script path + upstream server CallExpression visitor).
+    let source_without_effects = source_without_effects.replace("$effect.tracking()", "false");
 
     // Transform rune calls using the same infrastructure as client modules.
     let transformed =
