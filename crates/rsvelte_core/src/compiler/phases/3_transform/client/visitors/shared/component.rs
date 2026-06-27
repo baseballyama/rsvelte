@@ -2215,12 +2215,29 @@ fn visit_slot_children(
     // Convert &[&TemplateNode] to Vec<TemplateNode> for clean_nodes
     let nodes: Vec<TemplateNode> = children.iter().map(|n| (*n).clone()).collect();
 
+    // Slot content is its own fragment, so its namespace is RE-INFERRED from the
+    // children (a component is a namespace-reset boundary), NOT inherited from
+    // the component's position. e.g. `<Svg><Group><circle/><Text/></Group></Svg>`
+    // — `Svg`/`Group` are components, so the inherited namespace is still `html`,
+    // but the `<circle>` makes the slot fragment `svg`. `clean_nodes` needs this
+    // namespace so the SVG `can_remove_entirely` whitespace rule fires (drop the
+    // whitespace between `<circle/>` and `<Text/>` rather than collapsing it to a
+    // space) — matching the `$.from_svg` template built below from the same
+    // inferred namespace.
+    let inferred_ns = crate::compiler::phases::phase3_transform::utils::infer_namespace(
+        &context.state.metadata.namespace,
+        crate::compiler::phases::phase3_transform::utils::ParentRef::None,
+        &nodes,
+        context.state.analysis,
+        true,
+    );
+
     // Clean the nodes (trim whitespace, etc.)
     let cleaned = clean_nodes(
         crate::compiler::phases::phase3_transform::utils::ParentRef::None, // No parent in slot context
         &nodes,
         &context.path,
-        &context.state.metadata.namespace,
+        inferred_ns,
         context.state.scope,
         context.state.analysis,
         context.state.preserve_whitespace,
@@ -2567,18 +2584,10 @@ fn visit_slot_children(
             } else {
                 // Standard template case (template_name was reserved at the start of this function)
 
-                // Infer namespace from the slot children themselves.
-                // For example, if all children are SVG elements, use "svg".
-                let inferred_ns = crate::compiler::phases::phase3_transform::utils::infer_namespace(
-                    &context.state.metadata.namespace,
-                    crate::compiler::phases::phase3_transform::utils::ParentRef::None,
-                    &cleaned.trimmed,
-                    context.state.analysis,
-                    // Component slot children are a namespace-reset boundary
-                    // (upstream parent is the Component), so re-evaluate from
-                    // the children — including elements nested inside blocks.
-                    true,
-                );
+                // Reuse the namespace inferred from the raw slot children above
+                // (the same value `clean_nodes` was given), so the emitted
+                // `$.from_svg` / `$.from_html` template and the whitespace
+                // trimming agree.
                 let namespace = match inferred_ns {
                     "svg" => Namespace::Svg,
                     "mathml" => Namespace::Mathml,
