@@ -2348,12 +2348,6 @@ pub(super) fn transform_props_destructuring(
             };
             let default_value = default_value.as_str();
 
-            // Check if the TRANSFORMED default value is a simple expression
-            let is_simple = is_simple_expression_str(default_value, analysis);
-
-            // Calculate flags using the official logic
-            let flags = calculate_prop_flags(local_name, analysis, !is_simple);
-
             // Check if the value needs $.proxy() wrapping.
             // Only $bindable() defaults get proxy-wrapped when should_proxy returns true.
             // Regular prop defaults are NOT proxied.
@@ -2368,6 +2362,17 @@ pub(super) fn transform_props_destructuring(
             } else {
                 default_value.to_string()
             };
+
+            // Check if the VISITED default value is a simple expression. Upstream's
+            // `get_prop_source` receives the already-proxied `initial`, so the
+            // is_simple / lazy-thunk decision is made on `$.proxy(defValue)` — a
+            // CallExpression, hence non-simple → thunked + PROPS_IS_LAZY_INITIAL.
+            // Checking the bare `defValue` (an Identifier) instead would wrongly
+            // treat it as simple and emit a non-lazy, un-thunked default.
+            let is_simple = is_simple_expression_str(&proxy_wrapped, analysis);
+
+            // Calculate flags using the official logic
+            let flags = calculate_prop_flags(local_name, analysis, !is_simple);
 
             if is_simple {
                 declarators.push(format!(
