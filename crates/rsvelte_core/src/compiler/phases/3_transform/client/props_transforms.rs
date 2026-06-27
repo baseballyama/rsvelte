@@ -3280,12 +3280,12 @@ mod split_declarators_tests {
         );
         // Shorthand still expands.
         assert_eq!(
-            transform_prop_reads_in_expr("({ active })", &vec!["active".to_string()]),
+            transform_prop_reads_in_expr("({ active })", &["active".to_string()]),
             "({ active: active() })"
         );
         // A ternary value before `:` is still wrapped (it is a read, not a key).
         assert_eq!(
-            transform_prop_reads_in_expr("cond ? active : 0", &vec!["active".to_string()]),
+            transform_prop_reads_in_expr("cond ? active : 0", &["active".to_string()]),
             "cond ? active() : 0"
         );
     }
