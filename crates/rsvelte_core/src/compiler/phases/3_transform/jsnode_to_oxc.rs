@@ -1664,20 +1664,6 @@ mod tests {
         assert_eq!(roundtrip(src), expected, "round-trip mismatch for {src:?}");
     }
 
-    /// Assert that conversion bails (returns `None`) for `src` — used for shapes
-    /// the parse-phase `_for_program` IR stores as opaque `JsNode::Raw` (e.g.
-    /// block-bodied arrows, function expressions, destructuring assignment
-    /// targets, `export` declarations), which the structural printer cannot
-    /// faithfully reconstruct.
-    fn assert_bails(src: &str) {
-        let (arena, program) = parse(src);
-        let allocator = Allocator::default();
-        assert!(
-            jsnode_to_oxc_program(&program, &arena, &allocator).is_none(),
-            "expected conversion to bail for {src:?}"
-        );
-    }
-
     #[test]
     fn identifier_and_member() {
         assert_rt("foo;", "foo;");
@@ -1727,20 +1713,23 @@ mod tests {
         // Expression-bodied arrows are typed and convert faithfully.
         assert_rt("(a, b) => a + b;", "(a, b) => a + b;");
         assert_rt("async (x) => x;", "async (x) => x;");
-        // A block-bodied arrow stores its body as opaque `JsNode::Raw` in the
-        // parse-phase `_for_program` IR, so conversion bails (safe fallback).
-        assert_bails("() => { return 1; };");
+        // Block-bodied arrows are now typed in the parse-phase `_for_program`
+        // IR and round-trip faithfully.
+        assert_rt("() => { return 1; };", "() => {\n\treturn 1;\n};");
     }
 
     #[test]
-    fn function_declaration_converts_but_expression_bails() {
+    fn function_declaration_and_expression_convert() {
         // A top-level `FunctionDeclaration` is fully typed in the IR.
         assert_rt(
             "function add(a, b) { return a + b; }",
             "function add(a, b) {\n\treturn a + b;\n}",
         );
-        // A `FunctionExpression` is stored as opaque `JsNode::Raw`; bail.
-        assert_bails("const f = function* () { yield 1; };");
+        // A `FunctionExpression` initializer is now typed and round-trips.
+        assert_rt(
+            "const f = function* () { yield 1; };",
+            "const f = function* () {\n\tyield 1;\n};",
+        );
     }
 
     #[test]
@@ -1748,9 +1737,12 @@ mod tests {
         assert_rt("({ a: 1, b });", "({ a: 1, b });");
         assert_rt("({ ...rest });", "({ ...rest });");
         assert_rt("({ [k]: v });", "({ [k]: v });");
-        // A getter / method value is a `FunctionExpression` → opaque `Raw`; bail.
-        assert_bails("({ get x() { return 1; } });");
-        assert_bails("({ m() { return 2; } });");
+        // Getter / method values are now typed and round-trip faithfully.
+        assert_rt(
+            "({ get x() { return 1; } });",
+            "({\n\tget x() {\n\t\treturn 1;\n\t}\n});",
+        );
+        assert_rt("({ m() { return 2; } });", "({\n\tm() {\n\t\treturn 2;\n\t}\n});");
     }
 
     #[test]
@@ -1792,10 +1784,10 @@ mod tests {
         assert_rt("a = b;", "a = b;");
         assert_rt("a += 1;", "a += 1;");
         assert_rt("a.b = c;", "a.b = c;");
-        // Destructuring assignment targets (`[a]=` / `{a}=`) are stored as
-        // opaque `JsNode::Raw` in the parse IR, so conversion bails.
-        assert_bails("[a, b] = c;");
-        assert_bails("({ a, b } = c);");
+        // Destructuring assignment targets (`[a]=` / `{a}=`) are now typed in
+        // the parse IR and round-trip faithfully.
+        assert_rt("[a, b] = c;", "[a, b] = c;");
+        assert_rt("({ a, b } = c);", "({ a, b } = c);");
     }
 
     #[test]
@@ -1827,9 +1819,8 @@ mod tests {
         );
         assert_rt("import Foo from 'mod';", "import Foo from 'mod';");
         assert_rt("import * as ns from 'mod';", "import * as ns from 'mod';");
-        // `export` declarations carry a `JsNode::Raw` declaration in the parse
-        // IR, so conversion bails.
-        assert_bails("export const x = 1;");
+        // `export` declarations are now typed in the parse IR and round-trip.
+        assert_rt("export const x = 1;", "export const x = 1;");
     }
 
     #[test]
@@ -1841,13 +1832,13 @@ mod tests {
     }
 
     #[test]
-    fn bails_on_raw_nodes() {
-        // A block-bodied arrow / function expression / destructuring assignment
-        // target are all `JsNode::Raw` in the parse IR; the converter must
-        // return `None` rather than emit guessed code.
-        assert_bails("() => { f(); };");
-        assert_bails("(function () {})();");
-        assert_bails("[a] = b;");
+    fn typed_formerly_raw_nodes() {
+        // Block-bodied arrows, IIFEs, and destructuring assignment targets are
+        // now typed in the parse IR and round-trip faithfully (previously these
+        // were opaque `JsNode::Raw` and the converter bailed).
+        assert_rt("() => { f(); };", "() => {\n\tf();\n};");
+        assert_rt("(function () {})();", "(function () {})();");
+        assert_rt("[a] = b;", "[a] = b;");
     }
 
     #[test]
