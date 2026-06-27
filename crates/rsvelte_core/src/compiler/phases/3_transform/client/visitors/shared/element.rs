@@ -837,6 +837,22 @@ pub fn build_set_class(
                     class_value = b::string(format!("{} {}", s, css_hash));
                 }
             }
+            // A quote-preserving string literal (`class={"draggable"}`) is just as
+            // static — fold the hash into the string rather than passing it as a
+            // separate `$.set_class` argument (matches upstream, which sees a plain
+            // string `Literal`).
+            JsExpr::Literal(
+                crate::compiler::phases::phase3_transform::js_ast::nodes::JsLiteral::RawString {
+                    value,
+                    ..
+                },
+            ) => {
+                if value.is_empty() {
+                    class_value = b::string(css_hash);
+                } else {
+                    class_value = b::string(format!("{} {}", value, css_hash));
+                }
+            }
             _ => {
                 // Dynamic class value - use css_hash as separate argument
                 css_hash_expr = Some(b::string(css_hash));
