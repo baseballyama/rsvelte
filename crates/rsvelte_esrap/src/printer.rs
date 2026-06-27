@@ -174,6 +174,22 @@ fn unparen<'a, 'b>(mut expr: &'a Expression<'b>) -> &'a Expression<'b> {
     expr
 }
 
+/// Faithful port of esrap's `has_call_expression`: walk a callee's member-object
+/// spine and report whether any link is a CallExpression. Used to decide whether
+/// a `new` callee needs wrapping parens.
+fn callee_has_call_expression(expr: &Expression) -> bool {
+    let mut node = unparen(expr);
+    loop {
+        match node {
+            Expression::CallExpression(_) => return true,
+            Expression::StaticMemberExpression(m) => node = unparen(&m.object),
+            Expression::ComputedMemberExpression(m) => node = unparen(&m.object),
+            Expression::PrivateFieldExpression(m) => node = unparen(&m.object),
+            _ => return false,
+        }
+    }
+}
+
 /// esrap's `EXPRESSIONS_PRECEDENCE`, keyed by oxc `Expression` kind. Higher
 /// binds tighter; a child is parenthesised when its precedence is lower than the
 /// position requires.
@@ -2173,7 +2189,21 @@ impl<'opt> Printer<'opt> {
             }
             Expression::NewExpression(n) => {
                 ctx.write("new ");
-                self.child_with_parens(&n.callee, 19, ctx);
+                // `new` binds tighter than a call, so a callee whose member-spine
+                // contains a CallExpression (`$.get(x).Member`) — or a
+                // ChainExpression — must be parenthesized, else `new a().b(c)`
+                // would parse the trailing `(c)` as the `new` arguments. Mirrors
+                // esrap's `has_call_expression` clause.
+                let callee = unparen(&n.callee);
+                if matches!(callee, Expression::ChainExpression(_))
+                    || callee_has_call_expression(callee)
+                {
+                    ctx.write("(");
+                    self.print_expression(&n.callee, ctx);
+                    ctx.write(")");
+                } else {
+                    self.child_with_parens(&n.callee, 19, ctx);
+                }
                 self.call_arguments(&n.arguments, n.span().end, ctx);
             }
             Expression::UpdateExpression(u) => {
