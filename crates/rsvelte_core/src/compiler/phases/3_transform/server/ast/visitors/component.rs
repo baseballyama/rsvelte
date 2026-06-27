@@ -439,6 +439,14 @@ fn build_component_children<'a, 'b>(
         }
 
         match slot_name_of(child) {
+            // An explicit `slot="default"` IS the default slot (upstream
+            // `slot_name === 'default'`): its `let:` directives become the
+            // default-slot lets and its content joins the `children` snippet,
+            // NOT a `$$slots.default` entry.
+            Some(name) if name == "default" => {
+                default_lets = let_directives_of(child);
+                default_children.push(child);
+            }
             // A `slot="name"` child: its OWN `let:` directives scope the named
             // slot (upstream `lets[slot_name] = child.attributes.filter(...)`).
             Some(name) => {
