@@ -98,6 +98,11 @@ pub(super) fn is_function_parameter_in_statement(statement: &str, store_sub: &st
                     let trimmed = param.trim();
                     // Handle destructuring and default values
                     let param_name = trimmed.split('=').next().unwrap_or(trimmed).trim();
+                    // Strip destructuring delimiters so a name inside an array /
+                    // object pattern param (`([$x, $y]) =>`) is recognized.
+                    let param_name = param_name.trim_matches(|c: char| {
+                        c == '[' || c == ']' || c == '{' || c == '}' || c.is_whitespace()
+                    });
                     if param_name == store_sub {
                         return true;
                     }
@@ -163,6 +168,15 @@ pub(super) fn is_function_parameter_in_statement(statement: &str, store_sub: &st
                                     let trimmed = param.trim();
                                     let param_name =
                                         trimmed.split('=').next().unwrap_or(trimmed).trim();
+                                    // Strip destructuring delimiters so a name inside an
+                                    // array/object pattern param (`([$x, $y]) =>`) matches.
+                                    let param_name = param_name.trim_matches(|c: char| {
+                                        c == '['
+                                            || c == ']'
+                                            || c == '{'
+                                            || c == '}'
+                                            || c.is_whitespace()
+                                    });
                                     if param_name == store_sub {
                                         return true;
                                     }
