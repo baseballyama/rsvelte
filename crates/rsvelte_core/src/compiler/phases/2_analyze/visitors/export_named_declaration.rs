@@ -216,26 +216,30 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
             if let Some(local) = specifier.get("local")
                 && let Some(local_name) = local.get("name").and_then(|n| n.as_str())
             {
-                // Find and mark the binding as bindable_prop
-                if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(local_name)
+                // Find and mark the binding as bindable_prop. The binding is
+                // declared by `export let foo` in the INSTANCE scope, not the
+                // module/root scope, so look it up across scopes — the previous
+                // `root.scope.declarations.get(...)` only checked the root scope
+                // and silently missed every `export { foo as bar }` rename,
+                // leaving `prop_alias` unset (so `$.prop($$props, 'foo', …)` used
+                // the local name instead of the exported `'bar'`).
+                if let Some(binding_idx) = context.analysis.root.find_binding_any_scope(local_name)
                     && let Some(binding) = context.analysis.root.bindings.get_mut(binding_idx)
-                {
                     // Only mark let/var declarations as bindable props
-                    if matches!(
+                    && matches!(
                         binding.declaration_kind,
                         crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Let
                             | crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Var
-                    ) {
-                        binding.kind = BindingKind::BindableProp;
+                    )
+                {
+                    binding.kind = BindingKind::BindableProp;
 
-                        // Set prop_alias if exported with a different name
-                        if let Some(exported) = specifier.get("exported")
-                            && let Some(exported_name) =
-                                exported.get("name").and_then(|n| n.as_str())
-                            && exported_name != local_name
-                        {
-                            binding.prop_alias = Some(exported_name.to_string());
-                        }
+                    // Set prop_alias if exported with a different name
+                    if let Some(exported) = specifier.get("exported")
+                        && let Some(exported_name) = exported.get("name").and_then(|n| n.as_str())
+                        && exported_name != local_name
+                    {
+                        binding.prop_alias = Some(exported_name.to_string());
                     }
                 }
                 // Set needs_props since we're using $.prop()
@@ -662,12 +666,12 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                         name: local_name, ..
                     } = arena.get_js_node(*local_id)
                 {
-                    if let Some(&binding_idx) = context
-                        .analysis
-                        .root
-                        .scope
-                        .declarations
-                        .get(local_name.as_str())
+                    // Look up across scopes — `export let foo` declares the
+                    // binding in the INSTANCE scope, not the root scope, so the
+                    // old root-only `scope.declarations.get(...)` missed the
+                    // rename and left `prop_alias` unset.
+                    if let Some(binding_idx) =
+                        context.analysis.root.find_binding_any_scope(local_name.as_str())
                         && let Some(binding) = context.analysis.root.bindings.get_mut(binding_idx)
                         && matches!(
                             binding.declaration_kind,

@@ -868,6 +868,19 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
 
     let mut results = Vec::new();
 
+    // The `$.prop($$props, '<key>', …)` KEY is the prop's PUBLIC name, which is
+    // the `prop_alias` for a renamed export (`export let fore; export { fore as
+    // for }` → key `'for'`, local binding `fore`). Falls back to the local name.
+    let prop_key_for = |local: &str| -> String {
+        analysis
+            .root
+            .find_binding_any_scope(local)
+            .and_then(|idx| analysis.root.bindings.get(idx))
+            .and_then(|b| b.prop_alias.as_deref())
+            .unwrap_or(local)
+            .to_string()
+    };
+
     for decl in declarators {
         let decl = decl.trim();
         if decl.is_empty() {
@@ -906,7 +919,12 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
                 let flags = calculate_prop_flags(name, analysis, true);
                 results.push(format!(
                     "{}{} {} = $.prop($$props, '{}', {}, {});",
-                    leading_ws, kw, name, name, flags, value
+                    leading_ws,
+                    kw,
+                    name,
+                    prop_key_for(name),
+                    flags,
+                    value
                 ));
             } else {
                 // Check if the value is a "simple expression" that can be passed directly
@@ -945,13 +963,23 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
                 if is_simple {
                     results.push(format!(
                         "{}{} {} = $.prop($$props, '{}', {}, {});",
-                        leading_ws, kw, name, name, flags, value
+                        leading_ws,
+                        kw,
+                        name,
+                        prop_key_for(name),
+                        flags,
+                        value
                     ));
                 } else if is_prop_ref {
                     // Prop/state identifier: pass directly (official compiler unwraps no-arg calls)
                     results.push(format!(
                         "{}{} {} = $.prop($$props, '{}', {}, {});",
-                        leading_ws, kw, name, name, flags, value
+                        leading_ws,
+                        kw,
+                        name,
+                        prop_key_for(name),
+                        flags,
+                        value
                     ));
                 } else {
                     // Wrap non-simple values in a thunk: () => value
@@ -961,7 +989,12 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
                     let lazy_arg = make_lazy_prop_arg(value);
                     results.push(format!(
                         "{}{} {} = $.prop($$props, '{}', {}, {});",
-                        leading_ws, kw, name, name, flags, lazy_arg
+                        leading_ws,
+                        kw,
+                        name,
+                        prop_key_for(name),
+                        flags,
+                        lazy_arg
                     ));
                 }
             }
@@ -972,7 +1005,11 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
 
             results.push(format!(
                 "{}{} {} = $.prop($$props, '{}', {});",
-                leading_ws, kw, name, name, flags
+                leading_ws,
+                kw,
+                name,
+                prop_key_for(name),
+                flags
             ));
         }
     }
