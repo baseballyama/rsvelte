@@ -552,12 +552,18 @@ pub fn visit_regular_element(
                     continue;
                 }
 
-                // Skip STATIC TEXT style attribute if there are style directives.
-                // Static style attribute values should be passed to $.set_style() directly,
-                // not baked into the template. They will be handled in the post-loop section.
-                // Dynamic style attributes (style={expr}) must still go through the
-                // else-if name == "style" branch to be properly processed.
-                if name == "style" && !style_directives.is_empty() && is_text_attribute(attr) {
+                // Handle the `style` attribute together with style directives at
+                // its SOURCE position, mirroring upstream RegularElement.js
+                // (`else if (name === 'style') build_set_style(node_id, attribute,
+                // style_directives, context)` — reached whenever style directives
+                // exist, for both static and dynamic style values). Deferring the
+                // static case to the post-loop section emitted `$.set_style` AFTER
+                // later attributes (e.g. `aria-*`), reordering the template_effect
+                // body vs the official compiler.
+                if name == "style" && !style_directives.is_empty() {
+                    let node_id = extract_node_id(&context.state.node);
+                    build_set_style(&node_id, Some(&attr.value), &style_directives, context);
+                    style_handled = true;
                     continue;
                 }
 
