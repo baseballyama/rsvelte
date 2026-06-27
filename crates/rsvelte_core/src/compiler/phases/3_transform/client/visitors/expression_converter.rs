@@ -1029,6 +1029,23 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             // Extract root identifier from original JsNode (before transforms)
             let original_root_name = extract_root_identifier_from_jsnode(left_node, pa);
 
+            // Mirror the official EachBlock `assign`/`mutate` transforms: assigning
+            // to / mutating an each-item identifier sets `uses_index = true` on the
+            // owning each block (forcing the `$$index` callback param). The JSON
+            // assignment path (`convert_assignment_expression`) already does this;
+            // the typed path (taken for event-handler bodies) was missing it, so a
+            // nested handler mutating an outer item dropped the outer block's index.
+            if let Some(root) = original_root_name.as_deref()
+                && let Some((_, flag)) = context
+                    .state
+                    .each_item_name_flags
+                    .iter()
+                    .rev()
+                    .find(|(n, _)| n.as_str() == root)
+            {
+                flag.set(true);
+            }
+
             // Pre-compute proxy decision from the JsNode directly (no JSON serialization)
             let should_proxy = Some(should_proxy_jsnode(right_node, pa, context));
 

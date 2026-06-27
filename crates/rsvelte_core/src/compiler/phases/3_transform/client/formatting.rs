@@ -524,23 +524,29 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
             _ => &"\t".repeat(indent_level),
         };
         let mut result = String::with_capacity(code.len() + code.lines().count() * indent_level);
-        let mut in_template_literal = false;
+        // Use the full template/interpolation stack, not a `bool`: a multi-line
+        // `${ … }` interpolation (the `[Template, Interp]` state) cannot be
+        // represented by a single bool, which then desyncs and mis-indents the
+        // continuation lines of a LATER template literal's string content. This
+        // mirrors the slow path below.
+        let mut stack: Vec<TemplateStateFrame> = Vec::new();
         for (i, line) in code.lines().enumerate() {
             if i > 0 {
                 result.push('\n');
             }
+            let in_template_literal = matches!(stack.last(), Some(TemplateStateFrame::Template));
             if i == 0 {
                 let stripped = strip_indent(line, base_indent);
-                in_template_literal = update_template_literal_state(stripped, in_template_literal);
+                update_template_literal_stack(stripped, &mut stack);
                 result.push_str(stripped);
             } else if line.is_empty() {
                 // empty line, nothing to push
             } else if in_template_literal {
-                in_template_literal = update_template_literal_state(line, in_template_literal);
+                update_template_literal_stack(line, &mut stack);
                 result.push_str(line);
             } else {
                 let stripped = strip_indent(line, base_indent);
-                in_template_literal = update_template_literal_state(stripped, in_template_literal);
+                update_template_literal_stack(stripped, &mut stack);
                 result.push_str(indent_str);
                 result.push_str(stripped);
             }
