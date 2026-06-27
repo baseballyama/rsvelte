@@ -126,7 +126,10 @@ pub(super) fn is_assigned_anywhere_in_body(body: &str, var_name: &str) -> bool {
             } else {
                 b' '
             };
-            let before_ok = !before.is_ascii_alphanumeric() && before != b'_' && before != b'$';
+            let before_ok = !before.is_ascii_alphanumeric()
+                && before != b'_'
+                && before != b'$'
+                && before != b'.';
             let after_ok = !after.is_ascii_alphanumeric() && after != b'_' && after != b'$';
             if before_ok && after_ok {
                 return true;
@@ -148,7 +151,10 @@ pub(super) fn is_assigned_anywhere_in_body(body: &str, var_name: &str) -> bool {
             } else {
                 b' '
             };
-            let before_ok = !before.is_ascii_alphanumeric() && before != b'_' && before != b'$';
+            let before_ok = !before.is_ascii_alphanumeric()
+                && before != b'_'
+                && before != b'$'
+                && before != b'.';
             if before_ok {
                 // Also make sure it's not `==` or `=>`
                 let after_eq = pos + var_name.len() + assign_op.len();
@@ -510,6 +516,14 @@ pub(super) fn transform_reactive_statement(
                 transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
             let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
             let temp = transform_prop_assignments(&temp, prop_assignment_transform_vars, &[]);
+            // Wrap state-var member mutations (`obj.a.b = x`) in `$.mutate(obj, …)`.
+            // The keyword branch (a `$: if (cond) X = rhs` reactive statement) was
+            // missing this pass that both sibling branches have, so a state-var
+            // member mutation inside an `if`-guarded reactive statement was emitted
+            // without the `$.mutate` wrap. Must run before `wrap_state_vars_in_expr`
+            // (which rewrites the LHS root to `$.get(obj)`, after which the
+            // member-mutate detector bails).
+            let temp = transform_state_member_mutations(&temp, state_vars, non_reactive_state_vars);
             let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
             transformed_body =
                 wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
