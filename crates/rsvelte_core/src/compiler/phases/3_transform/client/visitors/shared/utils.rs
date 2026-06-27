@@ -2520,6 +2520,18 @@ fn collect_reactive_references_inner(
             }
         }
 
+        // A spread (`[...x]`, `f(...x)`) READS its argument — recurse so the
+        // dependency is collected (upstream iterates `metadata.references`, which
+        // already includes spread reads; this fallback walker must mirror it).
+        JsExpr::Spread(inner) => {
+            collect_reactive_references_inner(
+                context.arena.get_expr(*inner),
+                context,
+                getters,
+                seen,
+            );
+        }
+
         // Terminal nodes or nodes that don't contain expressions
         JsExpr::Literal(_)
         | JsExpr::This
@@ -2527,7 +2539,6 @@ fn collect_reactive_references_inner(
         | JsExpr::MetaProperty(_, _)
         | JsExpr::Raw(_)
         | JsExpr::OpaqueIdentifier(_)
-        | JsExpr::Spread(_)
         | JsExpr::New(_)
         | JsExpr::Class(_)
         | JsExpr::Yield(_)
