@@ -18,7 +18,7 @@
 import {
   type Diagnostic,
   DiagnosticSeverity,
-} from "vscode-languageserver/node.js";
+} from "vscode-languageserver/node";
 
 /** One entry as emitted by the rsvelte_lint wasm `lint()` export. */
 export interface LintEntry {
