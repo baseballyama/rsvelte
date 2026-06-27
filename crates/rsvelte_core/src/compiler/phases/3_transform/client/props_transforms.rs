@@ -13,6 +13,82 @@ use super::{
     is_shorthand_object_property,
 };
 
+/// True when the identifier at `var_start` (len `var_len`) is a *binding* in an
+/// arrow-function parameter list — `name => …`, `(name) => …`, `(a, name, b) =>
+/// …`. Such positions declare a new local that shadows a like-named prop and
+/// must not be wrapped as a prop read. Mirrors the `in_param_position` guard the
+/// AST version (`prop_source_reads_ast`) applies.
+fn is_arrow_param_binding(chars: &[char], var_start: usize, var_len: usize) -> bool {
+    let after = var_start + var_len;
+
+    // `name => …`  (single param, no parens)
+    {
+        let mut k = after;
+        while k < chars.len() && chars[k].is_whitespace() {
+            k += 1;
+        }
+        if k + 1 < chars.len() && chars[k] == '=' && chars[k + 1] == '>' {
+            return true;
+        }
+    }
+
+    // `( … name … ) => …` : find enclosing `(` at depth 0 (stop at array/object/`;`)
+    let mut depth = 0i32;
+    let mut j = var_start;
+    let mut open = None;
+    while j > 0 {
+        j -= 1;
+        match chars[j] {
+            ')' | ']' | '}' => depth += 1,
+            '(' if depth == 0 => {
+                open = Some(j);
+                break;
+            }
+            '(' => depth -= 1,
+            '[' | '{' if depth == 0 => return false,
+            '[' | '{' => depth -= 1,
+            ';' if depth == 0 => return false,
+            _ => {}
+        }
+    }
+    let Some(open) = open else { return false };
+
+    // Must be at a parameter *name* position (preceded by `(` or `,`), not a
+    // default-value expression like `(a = prop) =>` where `prop` is a read.
+    let mut p = var_start;
+    while p > 0 && chars[p - 1].is_whitespace() {
+        p -= 1;
+    }
+    if !(p == 0 || chars[p - 1] == '(' || chars[p - 1] == ',') {
+        return false;
+    }
+
+    // matching `)` then `=>`
+    let mut depth2 = 0i32;
+    let mut m = open + 1;
+    let mut close = None;
+    while m < chars.len() {
+        match chars[m] {
+            '(' | '[' | '{' => depth2 += 1,
+            ')' if depth2 == 0 => {
+                close = Some(m);
+                break;
+            }
+            ')' => depth2 -= 1,
+            ']' | '}' if depth2 == 0 => return false,
+            ']' | '}' => depth2 -= 1,
+            _ => {}
+        }
+        m += 1;
+    }
+    let Some(close) = close else { return false };
+    let mut k = close + 1;
+    while k < chars.len() && chars[k].is_whitespace() {
+        k += 1;
+    }
+    k + 1 < chars.len() && chars[k] == '=' && chars[k + 1] == '>'
+}
+
 /// Transform prop reads in an expression to prop() calls.
 ///
 /// For example, `a + b` where `a` and `b` are props becomes `a() + b()`.
@@ -214,6 +290,12 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                 // is handled below by expanding to `{ foo: foo() }`.)
                 let is_property_key = is_explicit_property_key(&chars, i, prop_name.len());
 
+                // Check if this identifier is the BINDING in an arrow-function
+                // parameter list (`name =>`, `(a, name) =>`). That declares a new
+                // local shadowing the prop and must not be wrapped as a read —
+                // `(name()) =>` is invalid syntax.
+                let is_arrow_param = is_arrow_param_binding(&chars, i, prop_name.len());
+
                 if before_ok
                     && after_ok
                     && !is_update_target
@@ -222,6 +304,7 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                     && !is_shadowed
                     && !is_sole_derived_arg
                     && !is_property_key
+                    && !is_arrow_param
                 {
                     // Check if this is a shorthand property in an object literal.
                     // e.g., `{ value }` should become `{ value: value() }` not `{ value() }`
