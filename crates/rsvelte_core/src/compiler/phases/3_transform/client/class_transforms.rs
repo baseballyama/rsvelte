@@ -426,15 +426,12 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
             );
         }
     } else if field.rune_type == "$derived.by" {
-        let mut derived_expr = field.value.clone();
-        for f in all_fields {
-            if f.is_private {
-                let private_ref = format!("this.#{}", f.private_backing_name);
-                let getter = format!("$.get(this.#{})", f.private_backing_name);
-                derived_expr =
-                    replace_field_ref_word_boundary(&derived_expr, &private_ref, &getter);
-            }
-        }
+        // Use the assignment-aware method transformer (not a blind read-replace):
+        // a `$derived.by(() => …)` body can contain nested WRITES to private state
+        // fields (`() => { … this.#x = v … }`), which must lower to
+        // `$.set(this.#x, v)`, not the invalid `$.get(this.#x) = v`. It also wraps
+        // the remaining reads in `$.get(...)` with correct LHS/update guards.
+        let derived_expr = transform_class_methods(&field.value, all_fields);
         let _ = writeln!(
             output,
             "\t\t{} = {}$.derived({});",
