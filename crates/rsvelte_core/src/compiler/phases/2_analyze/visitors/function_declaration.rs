@@ -90,20 +90,31 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             context.scope = scope_idx;
         }
 
-        // Visit function body
+        // Visit function body. Snapshot the Raw-delegation counter so we can tell
+        // whether the typed body walk had to fall back to the Value walker for any
+        // genuinely-`JsNode::Raw` subtree (the typed walker routes `Raw` →
+        // `walk_js_node`, which bumps `raw_walk_count`).
+        let raw_before = context.raw_walk_count;
         let result = if let Some(body_id) = body {
             let body_node = arena.get_js_node(*body_id);
             super::script::walk_js_node_typed(body_node, context)
         } else {
             Ok(())
         };
+        let body_had_raw = context.raw_walk_count > raw_before;
 
         // For function bodies containing arrow functions whose body was serialized
         // as JsNode::Raw(Value) during parsing, the Value may have corrupt nested
         // nodes (JsNodeIds resolved incorrectly during to_value()). The walker above
-        // may miss NewExpression nodes nested inside arrow function bodies.
-        // Scan the source text as a fallback to detect `new ` keyword usage.
+        // may miss NewExpression nodes nested inside such genuinely-`Raw` subtrees.
+        // Scan the source text as a fallback to detect `new ` keyword usage — but
+        // ONLY when the body actually contained a `Raw` subtree. For a fully-typed
+        // body the typed walk already visits every `NewExpression` precisely, so the
+        // text scan is redundant there and would false-positive on the substring
+        // `"new "` inside string literals / comments (e.g. `prompt("Add a new card")`),
+        // spuriously forcing `needs_context` (and an unwanted `$.push`/`$$props`).
         if !context.analysis.needs_context
+            && body_had_raw
             && let Some(body_id) = body
         {
             let body_node = arena.get_js_node(*body_id);

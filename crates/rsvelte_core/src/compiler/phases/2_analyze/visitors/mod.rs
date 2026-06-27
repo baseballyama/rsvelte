@@ -441,6 +441,12 @@ pub struct VisitorContext<'a> {
     /// in place of reading `leadingComments` off a materialized `JsNode::Raw` Value.
     /// Empty outside a script walk and whenever the script has no `svelte-ignore` comments.
     pub script_ignore_comments: rustc_hash::FxHashMap<u32, Vec<compact_str::CompactString>>,
+    /// Number of times the Value walker (`walk_js_node`) has been entered. The
+    /// typed walker delegates genuinely-`JsNode::Raw` subtrees to it, so a delta
+    /// in this counter across a typed subtree walk reveals whether that subtree
+    /// contained any `Raw` node (used by `function_declaration::visit_typed` to
+    /// gate its `new `-keyword text-scan fallback to Raw-bearing bodies only).
+    pub raw_walk_count: usize,
     /// Stack of ancestor element names for node_invalid_placement validation.
     /// This is separate from path because path contains TemplateNode references that are difficult to manage.
     pub element_ancestors: Vec<String>,
@@ -574,6 +580,7 @@ impl<'a> VisitorContext<'a> {
             in_template_function: false,
             ignore_stack: Vec::new(),
             script_ignore_comments: rustc_hash::FxHashMap::default(),
+            raw_walk_count: 0,
             element_ancestors: Vec::new(),
             block_depth_at_element: Vec::new(),
             each_block_stack: Vec::new(),

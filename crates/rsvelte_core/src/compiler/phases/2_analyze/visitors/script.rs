@@ -116,6 +116,12 @@ pub fn visit_script(script_ast: &Value, context: &mut VisitorContext) -> Result<
 /// * `node` - The JavaScript AST node
 /// * `context` - The visitor context
 pub fn walk_js_node(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Count Value-walker entries. The typed walker only reaches here by
+    // delegating a genuinely-`JsNode::Raw` subtree, so a nonzero delta across a
+    // typed subtree walk signals that the subtree contained a `Raw` node (see
+    // `function_declaration::visit_typed`'s `new `-keyword fallback gate).
+    context.raw_walk_count = context.raw_walk_count.saturating_add(1);
+
     // Fast path: skip non-object values (primitives, arrays, nulls)
     let obj = match node {
         Value::Object(obj) => obj,
