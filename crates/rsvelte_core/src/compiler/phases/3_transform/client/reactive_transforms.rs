@@ -6,8 +6,8 @@ use super::{
     body_references_identifier, extract_destructure_targets, extract_member_expression_base,
     find_assignment_position, get_or_compile_regex, is_only_assignment_target,
     is_simple_identifier, lhs_starts_with_keyword, transform_destructure_assignments_with_props,
-    transform_prop_assignments, transform_prop_reads_in_expr, transform_store_reads_client,
-    transform_store_sub_calls, wrap_state_vars_in_expr,
+    transform_prop_assignments, transform_prop_reads_in_expr, transform_store_assignments_client,
+    transform_store_reads_client, transform_store_sub_calls, wrap_state_vars_in_expr,
 };
 
 /// Extract assigned variable names and dependency variable names from a raw `$:` reactive statement.
@@ -734,6 +734,16 @@ pub(super) fn transform_reactive_statement(
     // Then, transform store reads: `$foo` -> `$foo()` in the reactive statement body.
     let transformed_body = if !store_sub_vars.is_empty() {
         let transformed_body = transform_store_sub_calls(&transformed_body, store_sub_vars);
+        // Lower store WRITES nested in a reactive block body (`$: { … $store = x }`)
+        // to `$.store_set(store, x)` BEFORE wrapping reads. Without this the read
+        // wrap mangles the assignment LHS into `$store() = x` (invalid JS).
+        let transformed_body = transform_store_assignments_client(
+            &transformed_body,
+            store_sub_vars,
+            prop_assignment_transform_vars,
+            state_vars,
+            non_reactive_state_vars,
+        );
         transform_store_reads_client(&transformed_body, store_sub_vars)
     } else {
         transformed_body
