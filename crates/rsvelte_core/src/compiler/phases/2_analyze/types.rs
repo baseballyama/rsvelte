@@ -1787,6 +1787,15 @@ pub struct ComponentAnalysis {
     /// Maps from the labeled statement node (JSON string) to its analysis
     pub reactive_statements: FxHashMap<String, ReactiveStatement>,
 
+    /// Ordered legacy `$:` dependency identifier names, one entry per top-level
+    /// reactive statement in source order. Mirrors the dependency set built by
+    /// `2-analyze/visitors/LabeledStatement.js` (order = first-appearance during
+    /// AST traversal; membership = a reference not solely on an assignment LHS;
+    /// member-property keys are never references). Consumed by the Phase-3 client
+    /// `transform_reactive_statement` to emit the deps thunk instead of scanning
+    /// the statement text.
+    pub reactive_statement_dependencies: Vec<Vec<String>>,
+
     /// Whether the component is immutable (no reactivity)
     pub immutable: bool,
 
@@ -1941,6 +1950,7 @@ impl ComponentAnalysis {
             dev: options.dev,
             classes: FxHashMap::default(),
             reactive_statements: FxHashMap::default(),
+            reactive_statement_dependencies: Vec::new(),
             immutable: options.immutable,
             accessors: options.accessors,
             pickled_awaits: FxHashSet::default(),
