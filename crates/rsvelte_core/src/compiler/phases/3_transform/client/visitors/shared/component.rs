@@ -1594,14 +1594,27 @@ fn process_bind_directive(
         if needs_proxy {
             set_args.push(b::boolean(true));
         }
-        vec![b::stmt(
+        let set_call = b::call(
             &context.arena,
-            b::call(
+            b::member_path(&context.arena, "$.set"),
+            set_args,
+        );
+        // If the bound state variable is ALSO store-subscribed (`$store` is
+        // referenced elsewhere), writing a new value to it must unsubscribe the
+        // old store so subsequent `$store` reads re-subscribe. Upstream gets
+        // this for free because its setter visits the `store = $$value`
+        // assignment, whose AssignmentExpression visitor wraps it in
+        // `$.store_unsub($.set(...), '$store', $$stores)`. We build the `$.set`
+        // directly, so apply the same wrap here.
+        let setter_expr = match &raw_expression {
+            JsExpr::Identifier(name) if is_var_store_subscribed(name, context) => b::call(
                 &context.arena,
-                b::member_path(&context.arena, "$.set"),
-                set_args,
+                b::member_path(&context.arena, "$.store_unsub"),
+                vec![set_call, b::string(format!("${}", name)), b::id("$$stores")],
             ),
-        )]
+            _ => set_call,
+        };
+        vec![b::stmt(&context.arena, setter_expr)]
     } else if is_store_sub {
         // For direct store subscriptions, use $.store_set(store, $$value)
         // $store = value -> $.store_set(store, value)
@@ -3101,6 +3114,19 @@ fn is_store_subscription(expr: &Expression, context: &ComponentContext) -> bool 
             == crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub;
     }
     false
+}
+
+/// Whether the local variable `name` is also auto-subscribed as a store — i.e.
+/// `$<name>` is referenced somewhere, creating a `StoreSub` binding named
+/// `$<name>`. Used to decide whether a `bind:` write to a store-holding state
+/// variable needs a `$.store_unsub(...)` wrap.
+fn is_var_store_subscribed(name: &str, context: &ComponentContext) -> bool {
+    context
+        .state
+        .get_binding(&format!("${}", name))
+        .is_some_and(|b| {
+            b.kind == crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub
+        })
 }
 
 #[cfg(test)]
