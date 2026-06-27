@@ -2451,12 +2451,137 @@ pub(crate) fn is_js_comments_and_whitespace_only(src: &str) -> bool {
     true
 }
 
+/// Cross-line string / template-literal / block-comment tracker for the
+/// line-based `extract_imports`. A line is only import-eligible when it *begins*
+/// in pure-code state — so an `import …` line living inside a backtick template
+/// literal (e.g. a code-sample string) is not mis-hoisted as a real import.
+#[derive(Default, Clone)]
+struct ScanState {
+    /// One entry per open template literal. `0` = in template text; `>=1` =
+    /// inside a `${ }` hole, value is the brace-nesting depth.
+    template_brace_depth: Vec<i32>,
+    in_block_comment: bool,
+}
+
+impl ScanState {
+    /// True when the start of the next line is plain code (import-eligible).
+    fn in_code(&self) -> bool {
+        self.template_brace_depth.is_empty() && !self.in_block_comment
+    }
+
+    /// Advance the carried state across one line. Single/double-quoted strings
+    /// and `//` comments cannot cross a newline, so only template literals and
+    /// block comments persist between lines.
+    fn advance(&mut self, line: &str) {
+        let b = line.as_bytes();
+        let n = b.len();
+        let mut i = 0;
+        let (mut in_squote, mut in_dquote) = (false, false);
+        while i < n {
+            let c = b[i];
+            if self.in_block_comment {
+                if c == b'*' && i + 1 < n && b[i + 1] == b'/' {
+                    self.in_block_comment = false;
+                    i += 2;
+                    continue;
+                }
+                i += 1;
+                continue;
+            }
+            if in_squote {
+                if c == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if c == b'\'' {
+                    in_squote = false;
+                }
+                i += 1;
+                continue;
+            }
+            if in_dquote {
+                if c == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if c == b'"' {
+                    in_dquote = false;
+                }
+                i += 1;
+                continue;
+            }
+            // Inside a template literal's TEXT (top of stack == 0)?
+            if matches!(self.template_brace_depth.last(), Some(0)) {
+                if c == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if c == b'`' {
+                    self.template_brace_depth.pop();
+                    i += 1;
+                    continue;
+                }
+                if c == b'$' && i + 1 < n && b[i + 1] == b'{' {
+                    *self.template_brace_depth.last_mut().unwrap() = 1; // enter ${ } hole
+                    i += 2;
+                    continue;
+                }
+                i += 1;
+                continue;
+            }
+            // Code mode (top level, or inside a ${ } hole).
+            match c {
+                b'/' if i + 1 < n && b[i + 1] == b'/' => break, // line comment to EOL
+                b'/' if i + 1 < n && b[i + 1] == b'*' => {
+                    self.in_block_comment = true;
+                    i += 2;
+                }
+                b'\'' => {
+                    in_squote = true;
+                    i += 1;
+                }
+                b'"' => {
+                    in_dquote = true;
+                    i += 1;
+                }
+                b'`' => {
+                    self.template_brace_depth.push(0);
+                    i += 1;
+                }
+                b'{' => {
+                    if let Some(d) = self.template_brace_depth.last_mut() {
+                        *d += 1;
+                    }
+                    i += 1;
+                }
+                b'}' => {
+                    if let Some(d) = self.template_brace_depth.last_mut() {
+                        if *d == 1 {
+                            *d = 0;
+                        } else if *d > 1 {
+                            *d -= 1;
+                        }
+                    }
+                    i += 1;
+                }
+                _ => i += 1,
+            }
+        }
+    }
+}
+
 pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
     let mut imports = Vec::new();
     let mut rest = Vec::new();
     let mut current_import: Option<Vec<String>> = None;
+    let mut scan = ScanState::default();
 
     for line in script.lines() {
+        // Only treat a line as import-eligible when it begins in pure-code state
+        // (not inside a multi-line template literal / block comment).
+        let line_starts_in_code = scan.in_code();
+        scan.advance(line);
+        let scan = line_starts_in_code; // shadow for the decision below
         if let Some(ref mut import_lines) = current_import {
             // We're inside a multi-line import. The closing line may carry
             // trailing statements after the import terminator; split them off.
@@ -2489,7 +2614,7 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
             }
         } else {
             let trimmed = line.trim();
-            if trimmed.starts_with("import ") || trimmed.starts_with("import{") {
+            if scan && (trimmed.starts_with("import ") || trimmed.starts_with("import{")) {
                 // Check if this import is complete on one line
                 if trimmed.contains(';')
                     || is_complete_side_effect_import(trimmed)
