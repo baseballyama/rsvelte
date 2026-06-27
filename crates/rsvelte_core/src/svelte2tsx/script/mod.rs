@@ -51,6 +51,13 @@ pub struct ExportedNames {
     pub has_slots_type: bool,
     /// Whether `$$Events` type/interface is declared in the script
     pub has_events_type: bool,
+    /// Absolute source position of the FIRST `$$Events` interface / type
+    /// declaration, if any. Official only injects `<__sveltets_2_CustomEvents<
+    /// $$Events>>` onto an untyped `createEventDispatcher()` when the `$$Events`
+    /// declaration was already seen earlier in the single source-order walk
+    /// (`ComponentEventsFromInterface.isPresent()` gate), so the injection is
+    /// gated on the dispatcher position coming AFTER this.
+    pub events_type_decl_pos: Option<u32>,
     /// Whether the $$ComponentProps type was already inserted by apply_props_typedef
     /// (for best-effort auto-generated types that go inside $$render, not before it)
     pub type_already_inserted: bool,
@@ -182,6 +189,7 @@ impl ExportedNames {
             uses_dollar_props_type: false,
             has_slots_type: false,
             has_events_type: false,
+            events_type_decl_pos: None,
             type_already_inserted: false,
             dollar_generics: Vec::new(),
             dollar_generic_positions: Vec::new(),
@@ -324,6 +332,37 @@ impl ExportedNames {
             info.doc = Some(doc);
         }
     }
+    /// Mirror official `addExport` overwriting an existing entry when a binding
+    /// already added by `export let local` (Case 1) is later renamed via
+    /// `export { local as exported }`. Official keys its `exports` map by the
+    /// LOCAL name, so the rename overwrites the same entry in place. An
+    /// `export let` is NOT a "possible export", so `existingDeclaration` is
+    /// undefined inside `addExport`: `isLet` falls to `false`, the type is
+    /// dropped, and the doc comes only from the `export { … }` statement's own
+    /// leading comment (`getDoc(target)`), never the declaration's. rsvelte keys
+    /// by the EXPORTED name, so emulate the overwrite by relocating the
+    /// `local`-keyed entry to the `exported` key at its original insertion
+    /// position instead of appending a duplicate entry.
+    pub fn rename_export_let_in_place(
+        &mut self,
+        local: &str,
+        exported: String,
+        doc: Option<String>,
+    ) {
+        let Some(mut info) = self.names.remove(local) else {
+            return;
+        };
+        info.local_name = local.to_string();
+        info.is_let = false;
+        info.is_named_export = true;
+        info.type_annotation = None;
+        info.doc = doc;
+        match self.insertion_order.iter().position(|k| k == local) {
+            Some(pos) => self.insertion_order[pos] = exported.clone(),
+            None => self.insertion_order.push(exported.clone()),
+        }
+        self.names.insert(exported, info);
+    }
     pub fn get(&self, name: &str) -> Option<&ExportedNameInfo> {
         self.names.get(name)
     }
@@ -393,15 +432,22 @@ impl ExportedNames {
         // and assert against `$$Props` (with non-`let` exports `& `-joined in).
         // Reference: ExportedNames.ts createPropsStr uses$$Props branch.
         if self.uses_dollar_props_type && is_ts {
+            // Mirror official `createReturnElementsType`: each member is prefixed
+            // with its leading JSDoc (`addDoc` defaults true), so a `/** … */`
+            // comment on the `export let` survives into the `$$Props` type list.
             let type_entry = |en: &str, info: &ExportedNameInfo| -> String {
                 let optional = if info.has_default || !info.is_let {
                     "?"
                 } else {
                     ""
                 };
+                let doc = match &info.doc {
+                    Some(d) => format!("{} ", d),
+                    None => String::new(),
+                };
                 match &info.type_annotation {
-                    Some(ta) => format!("{}{}: {}", en, optional, ta),
-                    None => format!("{}{}: typeof {}", en, optional, info.local_name),
+                    Some(ta) => format!("{}{}{}: {}", doc, en, optional, ta),
+                    None => format!("{}{}{}: typeof {}", doc, en, optional, info.local_name),
                 }
             };
             let lets: Vec<String> = self
@@ -427,14 +473,25 @@ impl ExportedNames {
                 others_prefix
             );
         }
-        // In JS (non-TS) files the props object omits the `as {…}` type assert
-        // (`dontAddTypeDef`), so a captured leading JSDoc `/** @type {…} */` is
-        // emitted before the prop — mirrors official `createReturnElements`.
+        // Mirror official `dontAddTypeDef` (ExportedNames.ts createPropsStr):
+        // omit the `as {…}` cast entirely when every export is untyped AND
+        // required — a plain `export let x` with no default and no type
+        // annotation (`required = !initializer`). A typed or defaulted /
+        // optional export (or any non-`let` export) forces the cast. Computed
+        // up-front because it also gates whether the *value* elements carry the
+        // leading JSDoc (official `createReturnElements`: doc when dontAddTypeDef).
+        let dont_add_type_def = !is_ts
+            || self.get_ordered().iter().all(|(_, info)| {
+                info.type_annotation.is_none() && info.is_let && !info.has_default
+            });
+        // When `dontAddTypeDef`, the props object omits the `as {…}` type assert,
+        // so a captured leading JSDoc `/** … */` is emitted before the prop's
+        // value element — mirrors official `createReturnElements`.
         let entries: Vec<String> = self
             .get_ordered()
             .iter()
-            .map(|(en, info)| match (&info.doc, is_ts) {
-                (Some(doc), false) => format!("{} {}: {}", doc, en, info.local_name),
+            .map(|(en, info)| match &info.doc {
+                Some(doc) if dont_add_type_def => format!("{} {}: {}", doc, en, info.local_name),
                 _ => format!("{}: {}", en, info.local_name),
             })
             .collect();
@@ -452,14 +509,6 @@ impl ExportedNames {
             }
         } else {
             let base = format!("{{{}}}", entries.join(" , "));
-            // Mirror official `dontAddTypeDef` (ExportedNames.ts createPropsStr):
-            // omit the `as {…}` cast entirely when every export is untyped AND
-            // required — a plain `export let x` with no default and no type
-            // annotation (`required = !initializer`). A typed or defaulted /
-            // optional export (or any non-`let` export) forces the cast.
-            let dont_add_type_def = self.get_ordered().iter().all(|(_, info)| {
-                info.type_annotation.is_none() && info.is_let && !info.has_default
-            });
             if is_ts && !dont_add_type_def {
                 // For TS files, add `as {name1?: type, ...}` type assertion
                 let type_entries: Vec<String> = self
@@ -690,11 +739,27 @@ pub struct ComponentEvents {
     /// Generic type text from `createEventDispatcher<Type>()`, if any.
     /// Used to generate `{...__sveltets_2_toEventTypings<Type>()}` in the events return.
     pub dispatcher_generic_type: Option<String>,
-    /// Names of locally-created, *untyped* event dispatchers
-    /// (`const dispatch = createEventDispatcher()`). Their `dispatch("name")`
-    /// call sites are scanned across the whole component to populate the
-    /// `events: { name: __sveltets_2_customEvent }` return.
-    pub dispatcher_names: Vec<String>,
+    /// Locally-created, *untyped* event dispatchers
+    /// (`const dispatch = createEventDispatcher()`) as `(name, decl_pos)` where
+    /// `decl_pos` is the dispatcher declarator's absolute position in `source`.
+    /// Their `dispatch("name")` call sites are scanned across the component to
+    /// populate the `events: { name: __sveltets_2_customEvent }` return.
+    /// Official only counts an instance-script `dispatch(...)` call when the
+    /// dispatcher was already registered during its in-order AST walk — i.e.
+    /// the call appears AFTER the declaration — so `decl_pos` is the order gate.
+    pub dispatcher_decls: Vec<(String, u32)>,
+    /// Dispatched event names in official insertion order: template
+    /// `dispatch(...)` calls first (collected as `EventHandler` callees during
+    /// the template walk, surfaced when the dispatcher declaration is reached),
+    /// then instance-script `dispatch(...)` calls that appear after the
+    /// declaration. Preserved (not sorted) for the `events:` return.
+    dispatched_order: Vec<String>,
+    /// Absolute source positions (end of the `createEventDispatcher` callee, just
+    /// before its `(`) of every UNTYPED `createEventDispatcher()` call. When a
+    /// `$$Events` interface is present, official `ComponentEventsFromInterface`
+    /// prepends `<__sveltets_2_CustomEvents<$$Events>>` here so the untyped
+    /// dispatcher picks up the declared event typings.
+    pub dispatcher_typing_inject_pos: Vec<u32>,
 }
 
 /// Metadata about a single component event.
@@ -713,7 +778,9 @@ impl ComponentEvents {
             events: HashMap::new(),
             forwards_all_events: false,
             dispatcher_generic_type: None,
-            dispatcher_names: Vec::new(),
+            dispatcher_decls: Vec::new(),
+            dispatched_order: Vec::new(),
+            dispatcher_typing_inject_pos: Vec::new(),
         }
     }
 
@@ -741,17 +808,39 @@ impl ComponentEvents {
     }
 
     /// Scan `source` for `<dispatcher>("eventName", …)` call sites of every
-    /// recorded untyped dispatcher and add each event name. Mirrors official
-    /// `ComponentEventsFromEventsMap`, which walks the component for dispatcher
-    /// calls and records the first string-literal argument. A lightweight
-    /// lexical scan suffices here: find the dispatcher identifier as a word,
-    /// require the next non-space char to be `(`, then read a single quoted
-    /// string-literal first argument.
-    pub fn collect_dispatched_events(&mut self, source: &str) {
-        let names = self.dispatcher_names.clone();
+    /// recorded untyped dispatcher and add each event name in official insertion
+    /// order. Mirrors `ComponentEventsFromEventsMap`:
+    ///
+    /// * **Template** `dispatch(...)` calls (those OUTSIDE the instance/module
+    ///   `<script>` regions) are collected as `EventHandler` callees during the
+    ///   template walk and surfaced (regardless of source order) when the
+    ///   dispatcher declaration is reached — so they come FIRST, in template
+    ///   source order.
+    /// * **Instance-script** `dispatch(...)` calls are only counted when they
+    ///   appear AFTER the dispatcher declaration in the in-order AST walk
+    ///   (`checkIfCallExpressionIsDispatch` requires the dispatcher to already
+    ///   be registered) — so each call's position must exceed its dispatcher's
+    ///   `decl_pos`. These come after the template events, in script order.
+    ///
+    /// `inst_range` / `mod_range` are the `[content_start, end)` byte spans of
+    /// the instance and module `<script>` elements (module dispatch calls are
+    /// never counted — official only walks the instance script for dispatches).
+    pub fn collect_dispatched_events(
+        &mut self,
+        source: &str,
+        inst_range: Option<(u32, u32)>,
+        mod_range: Option<(u32, u32)>,
+    ) {
+        let decls = self.dispatcher_decls.clone();
+        if decls.is_empty() {
+            return;
+        }
+        // Every `<dispatcher>("evt", …)` match across the source, as
+        // `(call_idx, dispatcher_index, event_name)`, in ascending position.
+        let mut matches: Vec<(usize, usize, String)> = Vec::new();
         let bytes = source.as_bytes();
         let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'$';
-        for disp in &names {
+        for (di, (disp, _)) in decls.iter().enumerate() {
             let dn = disp.as_bytes();
             let mut from = 0usize;
             while let Some(rel) = source[from..].find(disp.as_str()) {
@@ -787,24 +876,50 @@ impl ComponentEvents {
                 if p < bytes.len() {
                     let evt = &source[name_start..p];
                     // Only simple identifier-ish names (skip interpolated/dynamic).
-                    if !evt.is_empty() && !self.events.contains_key(evt) {
-                        self.add(evt.to_string(), None, false);
+                    if !evt.is_empty() {
+                        matches.push((idx, di, evt.to_string()));
                     }
                 }
             }
         }
+        matches.sort_by_key(|m| m.0);
+
+        let in_range = |idx: usize, r: Option<(u32, u32)>| {
+            r.is_some_and(|(a, b)| idx >= a as usize && idx < b as usize)
+        };
+
+        // Partition into template-first / script-after-decl groups, each kept in
+        // source order, then merge with dedup (first occurrence wins).
+        let mut template_events: Vec<String> = Vec::new();
+        let mut script_events: Vec<String> = Vec::new();
+        for (idx, di, evt) in matches {
+            if in_range(idx, mod_range) {
+                continue; // module dispatches are not counted
+            }
+            if in_range(idx, inst_range) {
+                let decl_pos = decls[di].1;
+                if idx as u32 > decl_pos {
+                    script_events.push(evt);
+                }
+            } else {
+                template_events.push(evt);
+            }
+        }
+        for evt in template_events.into_iter().chain(script_events) {
+            if !self.events.contains_key(&evt) {
+                self.dispatched_order.push(evt.clone());
+                self.add(evt, None, false);
+            }
+        }
     }
 
-    /// Get event entries for the return statement.
+    /// Get event entries for the return statement, in official insertion order.
     /// Returns (name, value) pairs like ("hi", "__sveltets_2_customEvent").
     pub fn get_event_entries(&self) -> Vec<(String, String)> {
-        let mut entries: Vec<(String, String)> = self
-            .events
-            .keys()
+        self.dispatched_order
+            .iter()
             .map(|name| (name.clone(), "__sveltets_2_customEvent".to_string()))
-            .collect();
-        entries.sort_by(|a, b| a.0.cmp(&b.0));
-        entries
+            .collect()
     }
 }
 
@@ -958,7 +1073,7 @@ pub fn process_instance_script(
                         detect_runes_call(declarator, exported_names, &declared_names);
                         detect_props_rune_oxc(declarator, exported_names, raw_content);
                         // Detect createEventDispatcher<Type>() calls
-                        detect_create_event_dispatcher(declarator, raw_content, _events);
+                        detect_create_event_dispatcher(declarator, raw_content, _events, offset);
                         // Collect $props() info for typedef generation (one per
                         // `$props()` destructure).
                         if let Some(info) = collect_props_rune_info(
@@ -1221,6 +1336,9 @@ pub fn process_instance_script(
                         exported_names.has_slots_type = true;
                     } else if name == "$$Events" {
                         exported_names.has_events_type = true;
+                        if exported_names.events_type_decl_pos.is_none() {
+                            exported_names.events_type_decl_pos = Some(offset + iface.span.start);
+                        }
                     } else if name == "$$Props" {
                         exported_names.uses_dollar_props_type = true;
                     }
@@ -1248,6 +1366,10 @@ pub fn process_instance_script(
                         exported_names.has_slots_type = true;
                     } else if name == "$$Events" {
                         exported_names.has_events_type = true;
+                        if exported_names.events_type_decl_pos.is_none() {
+                            exported_names.events_type_decl_pos =
+                                Some(offset + type_alias.span.start);
+                        }
                     } else if name == "$$Props" {
                         exported_names.uses_dollar_props_type = true;
                     }
@@ -1534,6 +1656,11 @@ pub fn process_instance_script(
         // Pass 6: disambiguate generic arrow type-parameter lists for the
         // `.tsx` overlay (`<T>` → `<T,>`) so they aren't misparsed as JSX.
         disambiguate_arrow_type_params(program, offset, raw_content, str);
+
+        // Pass 7: rewrite TS angle-bracket type assertions (`<X>e` → `e as X`)
+        // anywhere in the instance script — TSX cannot parse the `<X>e` form.
+        // Mirrors official `handleTypeAssertion`, applied during the same walk.
+        rewrite_type_assertions_with_program(program, offset as usize, str);
     });
 }
 
@@ -1961,12 +2088,7 @@ pub fn process_module_script(
         // the `e as X` form. Inside the module script the rewrite is
         // required because the generated `.tsx` parses the module-script
         // body at top level, where `<X>e` would be lexed as JSX.
-        rewrite_module_script_type_assertions_with_program(
-            program,
-            raw_content,
-            offset as usize,
-            str,
-        );
+        rewrite_type_assertions_with_program(program, offset as usize, str);
 
         // Disambiguate generic arrow type-parameter lists (`<T>` → `<T,>`) so
         // the module-script body, parsed at the top level of the `.tsx`
@@ -2886,38 +3008,65 @@ fn rewrite_interface_to_type_dts(
 
 /// Reuses an already-parsed module program (callers parse the module
 /// script once and pass the result here, avoiding a second OXC parse).
-fn rewrite_module_script_type_assertions_with_program(
+/// Rewrite every TS angle-bracket type assertion `<Type>expr` → `expr as Type`
+/// in `program`, anywhere it appears (function bodies, return statements, etc.),
+/// because TSX cannot parse the `<Type>expr` form. Mirrors the official
+/// `handleTypeAssertion` (`nodes/handleTypeAssertion.ts`) surgically — moving the
+/// type after the expression and removing the `<` / `>` — so any inner edits on
+/// the expression (store wraps, etc.) survive untouched.
+fn rewrite_type_assertions_with_program(
     program: &oxc::Program,
-    raw_content: &str,
     content_offset: usize,
     str: &mut MagicString,
 ) {
-    let mut assertions: Vec<(u32, u32, u32, u32)> = Vec::new();
-    for stmt in program.body.iter() {
-        collect_ts_type_assertions_stmt(stmt, &mut assertions);
+    let mut collector = TypeAssertionCollector { out: Vec::new() };
+    collector.visit_program(program);
+    let off = content_offset as u32;
+    for a in &collector.out {
+        // assertionStart = `<`, typeStart/typeEnd = the `Type`, exprStart/exprEnd.
+        let assertion_start = a.assertion_start + off;
+        let type_start = a.type_start + off;
+        let type_end = a.type_end + off;
+        let expr_start = a.expr_start + off;
+        let expr_end = a.expr_end + off;
+        // ` as ` before the (moved) type, which lands at the expression end.
+        str.append_left(expr_end, " as ");
+        // Move `<Type` to the end of the expression…
+        str.move_range(assertion_start, type_end, expr_end);
+        // …then drop the leading `<` and the trailing `>`.
+        str.remove(assertion_start, type_start);
+        str.remove(type_end, expr_start);
     }
-    assertions.sort_by_key(|(start, end, _, _)| (*start, std::cmp::Reverse(*end)));
-    let mut last_end: u32 = 0;
-    for (start, end, type_start, type_end) in assertions {
-        if start < last_end {
-            continue;
-        }
-        let type_text = &raw_content[type_start as usize..type_end as usize];
-        let bytes = raw_content.as_bytes();
-        let mut gt_pos = type_end as usize;
-        while gt_pos < bytes.len() && bytes[gt_pos] != b'>' {
-            gt_pos += 1;
-        }
-        if gt_pos >= bytes.len() {
-            continue;
-        }
-        let expr_start = gt_pos + 1;
-        let expr_text = raw_content[expr_start..end as usize].trim_start();
-        let new_text = format!("{} as {}", expr_text, type_text);
-        let abs_start = (start as usize + content_offset) as u32;
-        let abs_end = (end as usize + content_offset) as u32;
-        str.overwrite(abs_start, abs_end, &new_text);
-        last_end = end;
+}
+
+/// One collected `<Type>expr` assertion, spans relative to script content.
+struct CollectedTypeAssertion {
+    assertion_start: u32,
+    type_start: u32,
+    type_end: u32,
+    expr_start: u32,
+    expr_end: u32,
+}
+
+/// Recursively collects every `TSTypeAssertion` in a parsed script.
+struct TypeAssertionCollector {
+    out: Vec<CollectedTypeAssertion>,
+}
+
+impl<'a> Visit<'a> for TypeAssertionCollector {
+    fn visit_ts_type_assertion(&mut self, it: &oxc::TSTypeAssertion<'a>) {
+        let (type_start, type_end) = oxc_ast_span(&it.type_annotation);
+        let expr_span = it.expression.span();
+        self.out.push(CollectedTypeAssertion {
+            assertion_start: it.span.start,
+            type_start,
+            type_end,
+            expr_start: expr_span.start,
+            expr_end: expr_span.end,
+        });
+        // Recurse so nested assertions (and assertions inside the expression)
+        // are collected too.
+        oxc_ast_visit::walk::walk_ts_type_assertion(self, it);
     }
 }
 
@@ -2985,47 +3134,6 @@ impl<'a> Visit<'a> for ArrowGenericCommaCollector<'_> {
         }
         // Recurse so nested arrow functions are handled too.
         oxc_ast_visit::walk::walk_arrow_function_expression(self, it);
-    }
-}
-
-fn collect_ts_type_assertions_stmt(stmt: &oxc::Statement, out: &mut Vec<(u32, u32, u32, u32)>) {
-    match stmt {
-        oxc::Statement::VariableDeclaration(var_decl) => {
-            for declarator in var_decl.declarations.iter() {
-                if let Some(init) = &declarator.init {
-                    collect_ts_type_assertions_expr(init, out);
-                }
-            }
-        }
-        oxc::Statement::ExpressionStatement(es) => {
-            collect_ts_type_assertions_expr(&es.expression, out);
-        }
-        oxc::Statement::ExportNamedDeclaration(export) => {
-            if let Some(decl) = &export.declaration
-                && let oxc::Declaration::VariableDeclaration(var_decl) = decl
-            {
-                for declarator in var_decl.declarations.iter() {
-                    if let Some(init) = &declarator.init {
-                        collect_ts_type_assertions_expr(init, out);
-                    }
-                }
-            }
-        }
-        _ => {
-            // Other statement kinds (functions, classes, ifs, blocks…) are not
-            // part of the simple module-script `let x = <X>...;` pattern this
-            // pass targets. Extend if a fixture demands it.
-        }
-    }
-}
-
-fn collect_ts_type_assertions_expr(expr: &oxc::Expression, out: &mut Vec<(u32, u32, u32, u32)>) {
-    if let oxc::Expression::TSTypeAssertion(assertion) = expr {
-        let span = assertion.span;
-        let type_span = oxc_ast_span(&assertion.type_annotation);
-        out.push((span.start, span.end, type_span.0, type_span.1));
-        // Recurse into the wrapped expression in case it's another assertion.
-        collect_ts_type_assertions_expr(&assertion.expression, out);
     }
 }
 
@@ -3376,16 +3484,34 @@ fn handle_export_named_decl(
             let is_let = possible.map(|p| p.is_let).unwrap_or(false);
             let has_init = possible.map(|p| p.has_init).unwrap_or(true);
             let type_ann = possible.and_then(|p| p.type_annotation_text.clone());
-            // Mirror official `getDoc(target)`: the doc is taken from the `let x`
-            // declaration first, then — if none there — from the `export { … }`
-            // statement itself (`exportExpr`). So
-            //   let _class = null;
-            //   /** @type {string | false | null} */
-            //   export { _class as class };
-            // carries the `@type` onto the prop in the render destructure.
-            let doc = possible
-                .and_then(|p| p.doc.clone())
-                .or_else(|| leading_jsdoc_comment(raw_content, export.span.start as usize));
+            // Mirror official `addExport`: `doc: this.getDoc(target) ||
+            // existingDeclaration?.doc`. For a RENAMED export (`export { x as y }`,
+            // `target = y`), `getDoc` reads the leading comment on the
+            // `export { … }` statement itself first, then falls back to the
+            // `let x` declaration's leading doc. A plain (non-renamed)
+            // `export { x }` passes `target = undefined`, so `getDoc` is skipped
+            // and only the declaration's doc applies.
+            let renamed = local != exported;
+
+            // Collision: `export let local; … export { local as exported }`.
+            // The binding was already registered as a prop by Case 1 (keyed by
+            // `local`). Official overwrites that same (local-keyed) entry in
+            // place — see `rename_export_let_in_place`. The doc comes ONLY from
+            // the `export { … }` statement's leading comment (an `export let` is
+            // not a possible-export, so its declaration doc does not carry over),
+            // and `propTypeAssert` is NOT re-run, so no extra widening here.
+            if renamed && exported_names.has(&local) {
+                let merged_doc = leading_jsdoc_comment(raw_content, export.span.start as usize);
+                exported_names.rename_export_let_in_place(&local, exported.clone(), merged_doc);
+                continue;
+            }
+
+            let doc = if renamed {
+                leading_jsdoc_comment(raw_content, export.span.start as usize)
+                    .or_else(|| possible.and_then(|p| p.doc.clone()))
+            } else {
+                possible.and_then(|p| p.doc.clone())
+            };
             let is_prop = is_instance && is_let;
             exported_names.add_full(
                 exported.clone(),
@@ -3396,7 +3522,8 @@ fn handle_export_named_decl(
                 is_let,
                 true,
             );
-            // The JSDoc lives on the `let x` declaration; carry it onto the
+            // The JSDoc lives on the `let x` declaration (or, for a renamed
+            // export, on the `export { … }` statement); carry it onto the
             // export so it round-trips into the legacy props return.
             if let Some(doc) = doc {
                 exported_names.set_doc(&exported, doc);
@@ -4097,6 +4224,7 @@ fn detect_create_event_dispatcher(
     declarator: &oxc::VariableDeclarator,
     raw_content: &str,
     events: &mut ComponentEvents,
+    content_offset: u32,
 ) {
     if let Some(ref init) = declarator.init
         && let oxc::Expression::CallExpression(call) = init
@@ -4114,10 +4242,17 @@ fn detect_create_event_dispatcher(
                 events.dispatcher_generic_type = Some(type_text);
             }
         } else if let Some(name) = binding_pattern_simple_name(&declarator.id) {
-            // Untyped dispatcher: record its name so `dispatch("name")` call
-            // sites (anywhere in the component, incl. template handlers) can be
-            // scanned to populate the events return.
-            events.dispatcher_names.push(name);
+            // Untyped dispatcher: record its name + absolute declaration position
+            // (`content_offset + declarator.span.start`) so `dispatch("name")`
+            // call sites can be scanned — and order-gated against this position —
+            // to populate the events return.
+            let decl_pos = content_offset + declarator.span.start;
+            events.dispatcher_decls.push((name, decl_pos));
+            // Record the callee end (before `(`) so a `$$Events` interface can
+            // inject `<__sveltets_2_CustomEvents<$$Events>>` onto the untyped call.
+            events
+                .dispatcher_typing_inject_pos
+                .push(content_offset + callee.span.end);
         }
     }
 }
@@ -4808,28 +4943,45 @@ const SVELTE_RUNES: &[&str] = &[
 fn leading_jsdoc_comment(source: &str, before: usize) -> Option<String> {
     let bytes = source.as_bytes();
     let before = before.min(bytes.len());
-    // Skip whitespace immediately before the declaration.
+    // Mirror official `getLastLeadingDoc`: walk the leading trivia and return the
+    // LAST block comment (`MultiLineCommentTrivia`) — i.e. the one closest to the
+    // declaration. Whitespace AND intervening single-line `// …` comments are
+    // skipped (they're filtered out by `c.kind === MultiLineCommentTrivia`), so a
+    // `/** … */` separated from the export by a `// @ts-expect-error` line still
+    // attaches. Stop at the first non-trivia content (the previous token).
     let mut p = before;
-    while p > 0 && bytes[p - 1].is_ascii_whitespace() {
-        p -= 1;
-    }
-    // Require a block comment terminator `*/` right there. `p` is a valid char
-    // boundary (it was stepped back only over ASCII whitespace), but the two
-    // bytes ending at `p` may land inside a multi-byte char (e.g. a `─` in a
-    // preceding comment), so test with `ends_with` instead of slicing — a raw
-    // `source[p - 2..p]` would panic on a non-char-boundary index.
-    if !source[..p].ends_with("*/") {
+    loop {
+        // Skip whitespace immediately before `p`.
+        while p > 0 && bytes[p - 1].is_ascii_whitespace() {
+            p -= 1;
+        }
+        if p == 0 {
+            return None;
+        }
+        // A block comment terminator `*/` right here? `p` is a valid char
+        // boundary (stepped back only over ASCII whitespace / to a `\n`+1 line
+        // start), but the two bytes ending at `p` may land inside a multi-byte
+        // char (e.g. a `─` in a preceding comment), so test with `ends_with`.
+        if source[..p].ends_with("*/") {
+            // Official `getDoc` captures ANY leading block comment (not just
+            // `/**` JSDoc), so a plain `/* … */` before an export is preserved.
+            let open = source[..p].rfind("/*")?;
+            // Ensure the `/*` is the opener for THIS `*/` (no intervening `*/`).
+            if source[open..p - 2].contains("*/") {
+                return None;
+            }
+            return Some(source[open..p].to_string());
+        }
+        // Otherwise, if the trivia line ending at `p` is a single-line `// …`
+        // comment, skip the whole line and keep looking for an earlier block
+        // comment. A non-comment line (real code / previous token) stops the walk.
+        let line_start = source[..p].rfind('\n').map(|i| i + 1).unwrap_or(0);
+        if source[line_start..p].trim_start().starts_with("//") {
+            p = line_start;
+            continue;
+        }
         return None;
     }
-    // Find the matching `/*` opener. Official `getDoc` captures ANY leading
-    // block comment (MultiLineCommentTrivia), not just `/**` JSDoc — so a plain
-    // `/* … */` before an export is preserved on the prop too.
-    let open = source[..p].rfind("/*")?;
-    // Ensure the `/*` is the opener for THIS `*/` (no intervening `*/`).
-    if source[open..p - 2].contains("*/") {
-        return None;
-    }
-    Some(source[open..p].to_string())
 }
 
 /// True when the source has a `<script context="module">` / `<script module>` tag.
@@ -4878,6 +5030,106 @@ fn blank_module_script_body(source: &str, buf: &mut [u8]) {
                 *b = b' ';
             }
         }
+    }
+}
+
+/// Locate the instance `<script>` tag (the one WITHOUT `module` /
+/// `context="module"`), returning `(body_start, body_end)`.
+fn find_instance_script_span(source: &str) -> Option<(usize, usize)> {
+    let bytes = source.as_bytes();
+    let mut search = 0usize;
+    while let Some(rel) = source[search..].find("<script") {
+        let tag_start = search + rel;
+        let gt = match source[tag_start..].find('>') {
+            Some(g) => tag_start + g,
+            None => return None,
+        };
+        let open_tag = &source[tag_start..gt];
+        let is_module = open_tag.contains("context=\"module\"")
+            || open_tag.contains("context='module'")
+            || open_tag
+                .split(|c: char| c.is_ascii_whitespace() || c == '>' || c == '=')
+                .any(|tok| tok == "module");
+        if !is_module && !open_tag.starts_with("<scripts") {
+            let body_start = gt + 1;
+            let body_end = source[body_start..]
+                .find("</script")
+                .map(|e| body_start + e)
+                .unwrap_or(bytes.len());
+            return Some((body_start, body_end));
+        }
+        search = gt + 1;
+    }
+    None
+}
+
+/// Cheap pre-check: does the instance script body contain a `//` or `/*`
+/// comment-opener? (Gates the buffer copy in `collect_store_references`.)
+fn instance_script_has_comment(source: &str) -> bool {
+    if !source.contains("<script") {
+        return false;
+    }
+    match find_instance_script_span(source) {
+        Some((start, end)) => {
+            let body = &source[start..end];
+            body.contains("//") || body.contains("/*")
+        }
+        None => false,
+    }
+}
+
+/// Blank `//` line and `/* */` block comments inside the instance `<script>`
+/// body so a byte-level store scan never sees a `$name` token that only appears
+/// in a comment. String literals are skipped (not blanked) so a `//` inside a
+/// string is not mistaken for a comment. Mirrors the level of care in
+/// `collect_loose_dollar_names_from_script`.
+fn blank_instance_script_comments(source: &str, buf: &mut [u8]) {
+    let (start, end) = match find_instance_script_span(source) {
+        Some(s) => s,
+        None => return,
+    };
+    let bytes = source.as_bytes();
+    let mut i = start;
+    while i < end {
+        let b = bytes[i];
+        // Line comment `// … <eol>`
+        if b == b'/' && i + 1 < end && bytes[i + 1] == b'/' {
+            while i < end && bytes[i] != b'\n' {
+                buf[i] = b' ';
+                i += 1;
+            }
+            continue;
+        }
+        // Block comment `/* … */`
+        if b == b'/' && i + 1 < end && bytes[i + 1] == b'*' {
+            let mut j = i + 2;
+            while j + 1 < end && !(bytes[j] == b'*' && bytes[j + 1] == b'/') {
+                j += 1;
+            }
+            let stop = (j + 2).min(end);
+            for slot in &mut buf[i..stop] {
+                if *slot != b'\n' && *slot != b'\r' {
+                    *slot = b' ';
+                }
+            }
+            i = stop;
+            continue;
+        }
+        // String / template literal — skip (do NOT blank) so `$name` inside a
+        // real string is handled by the existing prev-byte quote guards.
+        if b == b'"' || b == b'\'' || b == b'`' {
+            let q = b;
+            i += 1;
+            while i < end && bytes[i] != q {
+                if bytes[i] == b'\\' {
+                    i += 1;
+                }
+                i += 1;
+            }
+            i += 1;
+            continue;
+        }
+        i += 1;
     }
 }
 
@@ -4991,6 +5243,13 @@ fn collect_loose_dollar_names_from_script(text: &str) -> HashSet<String> {
 }
 
 fn collect_store_references(source: &str) -> HashSet<String> {
+    collect_store_references_with_shadow(source, &HashMap::new())
+}
+
+fn collect_store_references_with_shadow(
+    source: &str,
+    shadow: &HashMap<String, Vec<(u32, u32)>>,
+) -> HashSet<String> {
     // Hand-rolled byte-level scan. The previous implementation compiled a
     // regex on every call; using `memchr` to jump between `$` bytes is
     // dramatically faster on the common script-free template (one SIMD
@@ -5005,7 +5264,12 @@ fn collect_store_references(source: &str) -> HashSet<String> {
     // script + template, never the module script body. So a `<script module>`
     // that internally reads `$foo` must not make `foo` look like a store.
     let blanked;
-    let needs_blank = source.contains("<!--") || has_module_script(source);
+    // Instance-script JS comments must be blanked too: official only collects
+    // `$name` store accesses from the parsed instance-script AST + template
+    // expression values, so a `$name` that appears only inside a `//` / `/* */`
+    // comment (e.g. a JSDoc `[`$on`](…$on)` link) is never a store reference.
+    let needs_blank =
+        source.contains("<!--") || has_module_script(source) || instance_script_has_comment(source);
     let source: &str = if needs_blank {
         let mut buf = source.as_bytes().to_vec();
         let mut j = 0usize;
@@ -5023,6 +5287,7 @@ fn collect_store_references(source: &str) -> HashSet<String> {
             j = end;
         }
         blank_module_script_body(source, &mut buf);
+        blank_instance_script_comments(source, &mut buf);
         blanked = String::from_utf8(buf).unwrap_or_else(|_| source.to_string());
         &blanked
     } else {
@@ -5047,7 +5312,14 @@ fn collect_store_references(source: &str) -> HashSet<String> {
         // Skip member access, string keys, identifier continuations.
         if pos > 0 {
             let prev = bytes[pos - 1];
-            if prev == b'.'
+            // `...$store` (a spread element) IS a real store reference, but a
+            // single-dot member access `obj.$store` is not. Official walks the
+            // parsed AST, where a `SpreadElement` argument identifier is
+            // collected while a `.property` member is skipped. The byte scan
+            // distinguishes the two by looking one byte further back: the third
+            // dot of `...` is preceded by another `.`.
+            let is_spread_dot = prev == b'.' && pos >= 2 && bytes[pos - 2] == b'.';
+            if (prev == b'.' && !is_spread_dot)
                 || prev == b'\''
                 || prev == b'"'
                 || prev.is_ascii_alphanumeric()
@@ -5089,6 +5361,18 @@ fn collect_store_references(source: &str) -> HashSet<String> {
             }
         }
         let full = &source[pos..end];
+        // Object-literal property KEY (`{ $name: value }` / after a `,`): the
+        // `$name` is a property name, not a store reference. Official walks the
+        // parsed AST and skips `Property.key` identifiers, so e.g. a row object
+        // `{ $expanded: …, $selected: … }` must not turn `expanded` / `selected`
+        // into store auto-subscriptions. Detected by `$name` followed (skipping
+        // whitespace) by `:` AND preceded (skipping whitespace) by `{` or `,`
+        // (which excludes a ternary `cond ? $name : x`, where the preceding
+        // token is `?`).
+        if is_object_property_key(bytes, pos, end) {
+            i = end;
+            continue;
+        }
         if RESERVED_STORE_NAMES.contains(&full) {
             i = end;
             continue;
@@ -5105,10 +5389,117 @@ fn collect_store_references(source: &str) -> HashSet<String> {
             i = end;
             continue;
         }
-        stores.insert(source[next..end].to_string());
+        let base = &source[next..end];
+        // A `$name` whose `$`-prefixed binding (a function/arrow parameter)
+        // lexically encloses this position is a LOCAL binding reference, not a
+        // store auto-subscription. Mirrors official `resolveStore`, which walks
+        // the scope chain and skips a `$name` reference declared in any
+        // enclosing `scope.declared` set.
+        if !is_dollar_binding_shadowed(shadow, base, pos) {
+            stores.insert(base.to_string());
+        }
         i = end;
     }
     stores
+}
+
+/// True when the `$name` token spanning `[pos, end)` is an object-literal
+/// property KEY (`{ $name: value }` or `, $name: value`), which the official
+/// `Stores` AST walker skips (it only collects `$name` Identifier nodes in
+/// reference position, never `Property.key`).
+///
+/// A property key is `$name` followed — skipping whitespace — by a single `:`
+/// (not `::` and not a ternary `?:`, since a ternary's `$name` is preceded by
+/// `?`), AND preceded — skipping whitespace — by `{` or `,`. Comments are
+/// already blanked to spaces before this scan, so the whitespace skip crosses
+/// them. Shorthand (`{ $name }`, no colon) and computed keys (`{ [$name]: … }`,
+/// preceded by `[`) are intentionally NOT treated as keys.
+fn is_object_property_key(bytes: &[u8], pos: usize, end: usize) -> bool {
+    // Look forward for a `:` after optional whitespace.
+    let mut f = end;
+    while f < bytes.len() && matches!(bytes[f], b' ' | b'\t' | b'\n' | b'\r') {
+        f += 1;
+    }
+    if f >= bytes.len() || bytes[f] != b':' {
+        return false;
+    }
+    // `::` is not an object-key colon.
+    if f + 1 < bytes.len() && bytes[f + 1] == b':' {
+        return false;
+    }
+    // Look backward for `{` or `,` after optional whitespace.
+    let mut b = pos;
+    while b > 0 && matches!(bytes[b - 1], b' ' | b'\t' | b'\n' | b'\r') {
+        b -= 1;
+    }
+    b > 0 && matches!(bytes[b - 1], b'{' | b',')
+}
+
+/// True when `pos` (a source byte offset of a `$name` reference) falls inside a
+/// function span that binds `$name` as a parameter.
+fn is_dollar_binding_shadowed(
+    shadow: &HashMap<String, Vec<(u32, u32)>>,
+    name: &str,
+    pos: usize,
+) -> bool {
+    match shadow.get(name) {
+        Some(spans) => {
+            let p = pos as u32;
+            spans.iter().any(|&(s, e)| p >= s && p < e)
+        }
+        None => false,
+    }
+}
+
+/// Collect, from the instance-script AST, every `$`-prefixed function / arrow
+/// parameter binding mapped (sans `$`) to the source span of its enclosing
+/// function. A `$name` reference inside such a span is a local binding read, not
+/// a store auto-subscription (official tracks this via `Scope.declared`).
+fn collect_dollar_param_shadow(
+    program: &oxc::Program,
+    offset: u32,
+) -> HashMap<String, Vec<(u32, u32)>> {
+    let mut collector = DollarParamShadowCollector {
+        offset,
+        spans: HashMap::new(),
+    };
+    collector.visit_program(program);
+    collector.spans
+}
+
+struct DollarParamShadowCollector {
+    offset: u32,
+    spans: HashMap<String, Vec<(u32, u32)>>,
+}
+
+impl DollarParamShadowCollector {
+    fn add_params(&mut self, params: &oxc::FormalParameters, span: oxc_span::Span) {
+        let src_span = (span.start + self.offset, span.end + self.offset);
+        for item in params.items.iter() {
+            let mut names = Vec::new();
+            collect_binding_names(&item.pattern, &mut names);
+            for n in names {
+                if let Some(base) = n.strip_prefix('$') {
+                    self.spans
+                        .entry(base.to_string())
+                        .or_default()
+                        .push(src_span);
+                }
+            }
+        }
+    }
+}
+
+impl<'a> Visit<'a> for DollarParamShadowCollector {
+    fn visit_function(&mut self, it: &oxc::Function<'a>, flags: oxc_syntax::scope::ScopeFlags) {
+        self.add_params(&it.params, it.span);
+        oxc_ast_visit::walk::walk_function(self, it, flags);
+    }
+
+    fn visit_arrow_function_expression(&mut self, it: &oxc::ArrowFunctionExpression<'a>) {
+        self.add_params(&it.params, it.span);
+        oxc_ast_visit::walk::walk_arrow_function_expression(self, it);
+    }
 }
 
 /// True when the first non-whitespace byte at/after `from` is `(`.
@@ -5401,7 +5792,11 @@ fn inject_store_subscriptions_with_program(
     source: &str,
     str: &mut MagicString,
 ) {
-    let accessed_stores = collect_store_references(source);
+    // Exclude `$name` references that are shadowed by a `$`-prefixed function /
+    // arrow parameter binding in the instance script (official `resolveStore`
+    // scope-chain check). The shadow map is keyed by source byte ranges.
+    let shadow = collect_dollar_param_shadow(program, offset);
+    let accessed_stores = collect_store_references_with_shadow(source, &shadow);
     if accessed_stores.is_empty() {
         return;
     }
