@@ -2561,6 +2561,10 @@ fn visit_slot_children(
                     crate::compiler::phases::phase3_transform::utils::ParentRef::None,
                     &cleaned.trimmed,
                     context.state.analysis,
+                    // Component slot children are a namespace-reset boundary
+                    // (upstream parent is the Component), so re-evaluate from
+                    // the children — including elements nested inside blocks.
+                    true,
                 );
                 let namespace = match inferred_ns {
                     "svg" => Namespace::Svg,

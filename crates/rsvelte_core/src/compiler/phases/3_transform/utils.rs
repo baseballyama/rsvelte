@@ -937,6 +937,7 @@ pub fn infer_namespace<N: AsRef<TemplateNode>>(
     parent: ParentRef<'_>,
     nodes: &[N],
     _analysis: &ComponentAnalysis,
+    is_reset_boundary: bool,
 ) -> &'static str {
     // Check for foreignObject which resets to html
     if let Some(elem) = parent.as_regular_element() {
@@ -991,6 +992,35 @@ pub fn infer_namespace<N: AsRef<TemplateNode>>(
         || parent.is_none();
 
     if should_reevaluate {
+        // Mirror upstream's `check_nodes_for_namespace()` (utils.js lines
+        // 336-340): a recursive walk that descends through block containers
+        // (`{#if}` / `{#each}` / `{#await}` / `{#key}` / fragments) and stops at
+        // the first element it reaches. This catches the case where the
+        // fragment has NO direct element child but an svg/mathml element nested
+        // inside an `{#if}` (e.g. a component whose body is
+        // `{#if line}<Spline/>{/if}{#if svg}<path/>{/if}` resolves to svg).
+        //
+        // Upstream runs this ONLY at namespace-reset boundaries — where
+        // `parent = path.at(-1) ?? node` is a `Fragment`/`Root`/`Component`/
+        // `SvelteComponent`/`SvelteFragment`/`SnippetBlock`/`SlotElement`. The
+        // root fragment hits this because `path` is empty so `parent` is the
+        // Fragment node itself. rsvelte never populates `path`, so the caller
+        // tells us via `is_reset_boundary`; for a NON-boundary (a fragment
+        // nested directly under an `{#if}`/element), upstream instead derives
+        // the namespace from the parent element and we rely on the inherited
+        // `namespace` + the direct-children consistency check below. Without
+        // this gate the recursion would descend through a sibling `{#if}` whose
+        // body holds an `<svg>`/`<div>` and wrongly flip an element-scoped
+        // fragment's namespace.
+        if is_reset_boundary {
+            match check_nodes_for_namespace(nodes) {
+                NsScan::Html => return "html",
+                NsScan::Svg => return "svg",
+                NsScan::Mathml => return "mathml",
+                NsScan::Keep | NsScan::MaybeHtml => {}
+            }
+        }
+
         // Check ALL child elements for consistent namespace.
         // Matches the JS behavior at lines 346-356 of utils.js:
         // If elements are mixed (some SVG, some not), fall back to "html".
@@ -1060,6 +1090,109 @@ pub fn determine_namespace_for_children(node: &RegularElement, _namespace: &str)
     } else {
         "html".to_string()
     }
+}
+
+/// Result of scanning a fragment's nodes for their namespace.
+///
+/// Mirrors the `Namespace | 'keep' | 'maybe_html'` accumulator in upstream's
+/// `check_nodes_for_namespace()`
+/// (`svelte/packages/svelte/src/compiler/phases/3-transform/utils.js`).
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum NsScan {
+    Keep,
+    MaybeHtml,
+    Html,
+    Svg,
+    Mathml,
+}
+
+/// Faithful port of upstream's `check_nodes_for_namespace()`. The walk descends
+/// through block containers (`{#if}` / `{#each}` / `{#await}` / `{#key}` /
+/// fragments) and stops at the first element it reaches; components, render
+/// tags, and nested snippets are *not* descended (they reset the namespace
+/// themselves). When the scan finds no element — only whitespace, text, or
+/// dynamic anchors — the result is `Keep`/`MaybeHtml`, and the caller falls
+/// back to the inherited namespace rather than defaulting to `html`.
+pub(crate) fn check_nodes_for_namespace<N: AsRef<TemplateNode>>(nodes: &[N]) -> NsScan {
+    let mut ns = NsScan::Keep;
+    for node in nodes {
+        // The per-node "stop" only halts the walk *within* one top-level node —
+        // upstream's outer loop keeps scanning siblings and only bails once the
+        // namespace resolves to `html`.
+        scan_node_for_namespace(node.as_ref(), &mut ns);
+        if ns == NsScan::Html {
+            break;
+        }
+    }
+    ns
+}
+
+/// Apply the element-namespace rule from upstream's `RegularElement` /
+/// `SvelteElement` walk visitors. Returns `true` to stop the walk (upstream's
+/// `stop()`): the first element reached determines the namespace.
+fn apply_element_namespace(svg: bool, mathml: bool, ns: &mut NsScan) -> bool {
+    if !svg && !mathml {
+        *ns = NsScan::Html;
+    } else if *ns == NsScan::Keep {
+        *ns = if svg { NsScan::Svg } else { NsScan::Mathml };
+    }
+    true
+}
+
+/// Recursive walk mirroring upstream `check_nodes_for_namespace()`'s zimmerframe
+/// traversal. Returns `true` when the walk should stop (an element was found).
+fn scan_node_for_namespace(node: &TemplateNode, ns: &mut NsScan) -> bool {
+    match node {
+        TemplateNode::RegularElement(e) => {
+            apply_element_namespace(e.metadata.svg, e.metadata.mathml, ns)
+        }
+        TemplateNode::SvelteElement(e) => {
+            apply_element_namespace(e.metadata.svg, e.metadata.mathml, ns)
+        }
+        TemplateNode::Text(t) => {
+            if !t.data.trim().is_empty() {
+                *ns = NsScan::MaybeHtml;
+            }
+            false
+        }
+        TemplateNode::IfBlock(b) => {
+            scan_nodes_for_namespace(&b.consequent.nodes, ns)
+                || b.alternate
+                    .as_ref()
+                    .is_some_and(|f| scan_nodes_for_namespace(&f.nodes, ns))
+        }
+        TemplateNode::EachBlock(b) => {
+            scan_nodes_for_namespace(&b.body.nodes, ns)
+                || b.fallback
+                    .as_ref()
+                    .is_some_and(|f| scan_nodes_for_namespace(&f.nodes, ns))
+        }
+        TemplateNode::AwaitBlock(b) => {
+            b.pending
+                .as_ref()
+                .is_some_and(|f| scan_nodes_for_namespace(&f.nodes, ns))
+                || b.then
+                    .as_ref()
+                    .is_some_and(|f| scan_nodes_for_namespace(&f.nodes, ns))
+                || b.catch
+                    .as_ref()
+                    .is_some_and(|f| scan_nodes_for_namespace(&f.nodes, ns))
+        }
+        TemplateNode::KeyBlock(b) => scan_nodes_for_namespace(&b.fragment.nodes, ns),
+        // Components, render tags, nested snippets, expression tags, etc. are
+        // not descended — they reset the namespace on their own.
+        _ => false,
+    }
+}
+
+/// Walk a node list, stopping early when a child requests a stop.
+fn scan_nodes_for_namespace(nodes: &[TemplateNode], ns: &mut NsScan) -> bool {
+    for node in nodes {
+        if scan_node_for_namespace(node, ns) {
+            return true;
+        }
+    }
+    false
 }
 
 /// Canonicalises a `$props()` rune assignment written with non-standard
@@ -1140,7 +1273,13 @@ mod tests {
 
         let options = CompileOptions::default();
         let analysis = ComponentAnalysis::new("", &options);
-        let namespace = infer_namespace("html", ParentRef::None, &[] as &[TemplateNode], &analysis);
+        let namespace = infer_namespace(
+            "html",
+            ParentRef::None,
+            &[] as &[TemplateNode],
+            &analysis,
+            true,
+        );
 
         assert_eq!(namespace, "html");
     }
