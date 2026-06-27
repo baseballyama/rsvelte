@@ -4952,6 +4952,16 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let mut derived_field_is_private = false;
     let mut derived_field_is_by = false;
 
+    // For multiline `$state(...)` / `$state.raw(...)` field initializers:
+    // accumulate until parens balance, then unwrap to the inner value (a plain
+    // public field on the server). Mirrors `in_derived_field`. Without this a
+    // multiline `$state.raw({ … })` falls through and the rune leaks into the
+    // client module transform, which then privatizes the public field.
+    let mut in_state_field = false;
+    let mut state_accum = String::new();
+    let mut state_paren_depth: i32 = 0;
+    let mut state_field_name = String::new();
+
     // For multiline plain (non-rune) field initializers: accumulate lines until
     // the bracket depth returns to 0. E.g. `bundler = new Bundler({\n  ...\n})`
     // where the `{` is inside the initializer and spans multiple lines.
@@ -5056,6 +5066,45 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                             is_private: derived_field_is_private,
                             constructor_declared: false,
                         });
+                    }
+                }
+            }
+            continue;
+        }
+
+        // Continue accumulating a multiline `$state` / `$state.raw` field.
+        if in_state_field {
+            state_accum.push('\n');
+            state_accum.push_str(trimmed);
+            for c in trimmed.chars() {
+                match c {
+                    '(' | '{' | '[' => state_paren_depth += 1,
+                    ')' | '}' | ']' => state_paren_depth -= 1,
+                    _ => {}
+                }
+            }
+            if state_paren_depth <= 0 {
+                in_state_field = false;
+                let full_text = state_accum.clone();
+                let state_pattern = if full_text.contains("$state.raw(") {
+                    "$state.raw("
+                } else {
+                    "$state("
+                };
+                if let Some(sp) = full_text.find(state_pattern) {
+                    let value_start = sp + state_pattern.len();
+                    let after_paren = &full_text[value_start..];
+                    if let Some(value_end) = find_matching_paren_server(after_paren) {
+                        let value = after_paren[..value_end].trim();
+                        has_state_fields = true;
+                        if value.is_empty() {
+                            members.push(ClassMember::Field(state_field_name.clone()));
+                        } else {
+                            members.push(ClassMember::Field(format!(
+                                "{} = {}",
+                                state_field_name, value
+                            )));
+                        }
                     }
                 }
             }
@@ -5181,9 +5230,45 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         }
 
         let trimmed_bytes = trimmed.as_bytes();
+        // A genuine arrow-fn FIELD (`name = (args) => { … }`) has its body `{` at
+        // the top level of the initializer (paren-depth 0). When the arrow is
+        // nested inside a call — `name = whenMouse(() => { … })` — the body `{`
+        // sits inside the call's parens, so the brace-depth tracker (which only
+        // counts top-level `{` as body braces) never sees the block open and the
+        // accumulator runs away, swallowing every following member. Such
+        // call-wrapped arrows fall through to the plain multi-line field
+        // accumulator (`in_plain_field`) instead, which balances all brackets.
+        let has_top_level_open_brace = {
+            let mut paren = 0i32;
+            let mut in_str = false;
+            let mut str_ch = ' ';
+            let mut found = false;
+            for ch in trimmed.chars() {
+                if in_str {
+                    if ch == str_ch {
+                        in_str = false;
+                    }
+                    continue;
+                }
+                match ch {
+                    '\'' | '"' | '`' => {
+                        in_str = true;
+                        str_ch = ch;
+                    }
+                    '(' | '[' => paren += 1,
+                    ')' | ']' => paren -= 1,
+                    '{' if paren == 0 => {
+                        found = true;
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            found
+        };
         let is_arrow_fn_start = trimmed.contains('=')
             && memmem::find(trimmed_bytes, b"=>").is_some()
-            && trimmed.contains('{')
+            && has_top_level_open_brace
             && memmem::find(trimmed_bytes, b"$derived").is_none()
             && memmem::find(trimmed_bytes, b"$state").is_none();
 
@@ -5350,6 +5435,21 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                 } else {
                     members.push(ClassMember::Field(format!("{} = {}", field_name, value)));
                 }
+                continue;
+            } else {
+                // Multiline `$state` / `$state.raw` field — accumulate until the
+                // parens balance, then unwrap (see the `in_state_field` block).
+                in_state_field = true;
+                state_accum = trimmed.to_string();
+                state_paren_depth = 0;
+                for c in trimmed.chars() {
+                    match c {
+                        '(' | '{' | '[' => state_paren_depth += 1,
+                        ')' | '}' | ']' => state_paren_depth -= 1,
+                        _ => {}
+                    }
+                }
+                state_field_name = field_name.to_string();
                 continue;
             }
         }
@@ -5692,10 +5792,15 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             }
             ClassMember::ArrowFn(lines) => {
                 new_class_body.push('\n');
-                for line in lines {
-                    new_class_body.push_str(line);
-                    new_class_body.push('\n');
-                }
+                // Wrap private-derived reads inside arrow-function fields too
+                // (e.g. `onkeydown = (e) => { … this.#regexPattern … }`). The
+                // Field/Method arms already do this; ArrowFn previously emitted
+                // verbatim, leaving `this.#<derived>` reads uncalled.
+                let arrow_text = lines.join("\n");
+                let transformed =
+                    transform_private_derived_accesses_server(&arrow_text, &derived_private_names);
+                new_class_body.push_str(&transformed);
+                new_class_body.push('\n');
                 last_was_comment = false;
             }
             ClassMember::Comment(lines) => {

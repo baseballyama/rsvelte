@@ -2493,10 +2493,20 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             // pre-rewrite tokens around the store-sub reference.
             let before_start = start as usize;
             let trimmed_before = self.source[..before_start].trim_end();
-            let in_getter_context = trimmed_before.ends_with("$.untrack(")
+            let prefix_is_getter_call = trimmed_before.ends_with("$.untrack(")
                 || trimmed_before.ends_with("$.derived(")
                 || trimmed_before.ends_with("$derived(")
                 || trimmed_before.ends_with("untrack(");
+            // Only keep the store reference bare when it is the SOLE argument to
+            // the getter-context call (`$derived($store)` / `untrack($store)`) —
+            // i.e. the store getter IS the derivation/untrack function. When the
+            // store read is merely part of a larger expression
+            // (`$derived($store.x / 2)`), it must still be wrapped to `$store()`.
+            // Mirrors the `is_sole_derived_arg` check in the prop-source branch.
+            let in_getter_context = prefix_is_getter_call && {
+                let after = &self.source[end as usize..];
+                after.trim_start().starts_with(')')
+            };
             if !in_getter_context {
                 if self.in_shorthand_property {
                     self.add_replacement(start, end, format!("{}: {}()", name, name));

@@ -268,7 +268,12 @@ pub(super) fn body_references_identifier(body: &str, identifier: &str) -> bool {
     let preceding = if identifier.starts_with("$$") {
         r"[^a-zA-Z0-9_$]"
     } else {
-        r"[^a-zA-Z0-9_$\.]"
+        // Exclude `.` so member access (`obj.prop`) does not match a standalone
+        // `prop`, but DO allow a spread prefix (`...prop`): three dots before the
+        // name are a read, not a member access (`$: x = f(...prop)` reads `prop`).
+        // The regex crate has no lookbehind, so add `...` as an explicit
+        // alternative in the leading-boundary group.
+        r"[^a-zA-Z0-9_$\.]|\.\.\."
     };
     let pattern = format!(r"(^|{}){}([^a-zA-Z0-9_$]|$)", preceding, escaped);
     let re = match get_or_compile_regex(&pattern) {
