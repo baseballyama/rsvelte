@@ -2291,7 +2291,15 @@ fn collect_reactive_references_inner(
                         | BindingKind::AwaitCatch
                         | BindingKind::Let
                 ) || (binding.kind == BindingKind::EachIndex && has_read_transform)
-                    || binding.declaration_kind == DeclarationKind::Import
+                    // A direct import read is deep-read-wrapped — UNLESS the name
+                    // has a local read transform, which means it is shadowed by a
+                    // local binding (each-item / each-index / snippet param) that
+                    // happens to share an import's name. The reference then
+                    // resolves to that local (not the import), so it gets a plain
+                    // `$.get(...)` like any each-item, matching upstream's
+                    // scope-resolved `metadata.references`.
+                    || (binding.declaration_kind == DeclarationKind::Import
+                        && !has_read_transform)
             } else {
                 false
             };
