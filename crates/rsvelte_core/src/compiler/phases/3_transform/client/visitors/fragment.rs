@@ -87,6 +87,11 @@ pub fn fragment(
             parent,
             &node.nodes,
             context.state.analysis,
+            // Only the root component fragment is a namespace-reset boundary in
+            // this code path; nested block fragments inherit from their element
+            // ancestor (snippet bodies are handled by snippet_block.rs, which
+            // pre-sets the namespace and calls this with is_root_fragment=true).
+            is_root_fragment,
         )
         .to_string()
     };

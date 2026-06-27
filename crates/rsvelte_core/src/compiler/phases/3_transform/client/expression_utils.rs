@@ -1108,12 +1108,46 @@ pub(super) fn is_shorthand_object_property(
     }
 
     // Now we need to verify this is inside an object literal
-    // by checking what's before the variable
-    // We need to find a matching `{` that's not a block statement
-    // This is tricky, but we can use a simple heuristic:
-    // - Preceded by `{` or `,` (possibly with whitespace)
-    // - And we should verify the context looks like an object literal
+    // by checking what's before the variable.
+    is_object_literal_property_position(chars, var_start)
+}
 
+/// Check if a variable at the given position is the KEY of an explicit
+/// (non-shorthand) object-literal property, e.g. the `foo` in
+/// `{ foo: bar }`. Used to avoid rewriting a property key as if it were a
+/// value read — `{ foo(): bar }` is invalid JavaScript.
+///
+/// Mirrors [`is_shorthand_object_property`] but the forward check looks for a
+/// `:` (property-value separator) rather than `,`/`}`. The backward
+/// object-literal-context check is shared via
+/// [`is_object_literal_property_position`], which also excludes ternary
+/// `cond ? a : b` (there `a` is not preceded by `{`/`,`).
+pub(super) fn is_explicit_property_key(chars: &[char], var_start: usize, var_len: usize) -> bool {
+    let var_end = var_start + var_len;
+
+    // Skip whitespace after the variable.
+    let mut k = var_end;
+    while k < chars.len() && chars[k].is_whitespace() {
+        k += 1;
+    }
+
+    if k >= chars.len() {
+        return false;
+    }
+
+    // Must be followed by a single `:` (property-value separator). Exclude
+    // `::` (not valid object syntax, but guard anyway) — a real key is `name:`.
+    if chars[k] != ':' || (k + 1 < chars.len() && chars[k + 1] == ':') {
+        return false;
+    }
+
+    is_object_literal_property_position(chars, var_start)
+}
+
+/// Shared backward heuristic: returns true when the identifier at `var_start`
+/// sits in object-literal property position — preceded (ignoring whitespace)
+/// by `{` or `,` inside an object literal (not a block statement or array).
+fn is_object_literal_property_position(chars: &[char], var_start: usize) -> bool {
     let mut j = var_start;
     // Skip whitespace before the variable
     while j > 0 && chars[j - 1].is_whitespace() {
