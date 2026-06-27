@@ -319,6 +319,7 @@ mod tests {
             end: 0,
             loc: None,
             name: CompactString::new(name),
+            type_annotation: None,
         }
     }
 

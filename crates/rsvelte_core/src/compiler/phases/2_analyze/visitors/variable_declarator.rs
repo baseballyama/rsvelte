@@ -963,10 +963,33 @@ fn collect_ignore_codes_from_parent(context: &VisitorContext) -> Vec<String> {
         return codes;
     }
     for node in context.js_path[..path_len - 1].iter().rev() {
-        let node_type = node.get("type").and_then(|t| t.as_str());
+        let node_type = node.get_type_str();
         match node_type {
             Some("VariableDeclaration") | Some("ExportNamedDeclaration") => {
-                if let Some(comments) = node.get("leadingComments").and_then(|c| c.as_array()) {
+                // Prefer the parser-harvested svelte-ignore map (keyed by the parent's
+                // absolute start). This covers both typed parents and Value-entry parents
+                // that live inside a genuinely-`JsNode::Raw` subtree, without materializing
+                // a typed node into a Value.
+                let before = codes.len();
+                if let Some(start) = node.get_field_u64("start")
+                    && let Some(values) = context.script_ignore_comments.get(&(start as u32))
+                {
+                    for value in values {
+                        codes.extend(
+                            crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore(
+                                value,
+                                context.analysis.runes,
+                            ),
+                        );
+                    }
+                }
+                // Legacy Value-path fallback: read the materialized `leadingComments`
+                // directly when the map yielded nothing (e.g. pure Value-path analysis,
+                // where `script_ignore_comments` is empty).
+                if codes.len() == before
+                    && node.as_js_node().is_none()
+                    && let Some(comments) = node.get("leadingComments").and_then(|c| c.as_array())
+                {
                     for comment in comments {
                         if let Some(value) = comment.get("value").and_then(|v| v.as_str()) {
                             let extracted =
@@ -1241,8 +1264,44 @@ fn is_expression_defined_typed(node: &JsNode, arena: &crate::ast::arena::ParseAr
                 .map(|last| is_expression_defined_typed(last, arena))
                 .unwrap_or(false)
         }
+        // Mirror the Value-path `CallExpression` arm: upstream `scope.evaluate`
+        // knows the global `Math.*` / `Number` / `String` / `BigInt` functions
+        // return a defined number/string, so a `const x = Math.round(...)`
+        // binding is `is_defined` and a template `${x}` reads bare (no `?? ''`).
+        // Without this arm the typed path falls through to `_ => false`, which
+        // spuriously adds `?? ''` for TS scripts now walked typed.
+        JsNode::CallExpression { callee, .. } => {
+            js_node_member_keypath(arena.get_js_node(*callee), arena)
+                .map(|kp| is_known_defined_global_call(&kp))
+                .unwrap_or(false)
+        }
         JsNode::Raw(value) => is_expression_defined(value),
         _ => false,
+    }
+}
+
+/// Build a dotted keypath for a non-computed identifier member chain on a typed
+/// `JsNode` (`Math.round` → `"Math.round"`, `Number` → `"Number"`). Returns
+/// `None` for any computed access / non-identifier link. Typed mirror of
+/// `json_member_keypath`; falls back to it for genuinely-`Raw` subtrees.
+fn js_node_member_keypath(node: &JsNode, arena: &crate::ast::arena::ParseArena) -> Option<String> {
+    match node {
+        JsNode::Identifier { name, .. } => Some(name.to_string()),
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed: false,
+            ..
+        } => {
+            let object = js_node_member_keypath(arena.get_js_node(*object), arena)?;
+            let prop = match arena.get_js_node(*property) {
+                JsNode::Identifier { name, .. } => name.to_string(),
+                _ => return None,
+            };
+            Some(format!("{object}.{prop}"))
+        }
+        JsNode::Raw(value) => json_member_keypath(value),
+        _ => None,
     }
 }
 
@@ -1343,6 +1402,22 @@ fn visit_runes_mode_typed(
                 .or_else(|| context.analysis.root.get_binding(&path.name, context.scope))
                 .or_else(|| context.analysis.root.find_binding_any_scope(&path.name));
             if let Some(binding_idx) = binding_idx {
+                // Guard: a plain (non-rune) `const`/`let`/`var` declarator must
+                // never write `initial` onto a prop binding. In runes mode props
+                // derive `initial` solely from the `$props()` destructuring, so a
+                // same-named binding reached here is always a *different* (e.g.
+                // block-scoped) variable. Without this guard, the typed-path
+                // position lookup — whose `path.start` (global) cannot match the
+                // binding's `declaration_start` (global + script offset, see
+                // scope_builder) — falls back to a scope-insensitive lookup that
+                // resolves to the prop and erases its default (initial → None),
+                // which then mis-emits `$$props.x` instead of the `x()` accessor.
+                if matches!(
+                    context.analysis.root.bindings[binding_idx].kind,
+                    BindingKind::Prop | BindingKind::BindableProp | BindingKind::RestProp
+                ) {
+                    continue;
+                }
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string_typed(init);
                 binding.initial_is_defined = is_expression_defined_typed(init, arena);

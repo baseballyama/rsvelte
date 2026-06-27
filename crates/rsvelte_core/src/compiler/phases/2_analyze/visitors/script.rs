@@ -28,29 +28,44 @@ pub fn visit_script_expr(
 ) -> Result<(), AnalysisError> {
     match script_expr {
         Expression::Typed(te) => {
-            if let JsNode::Program { body, .. } = &te.node {
+            if let JsNode::Program {
+                body,
+                ignore_comment_map,
+                ..
+            } = &te.node
+            {
+                // Install this program's svelte-ignore map for the duration of the body
+                // walk, so the typed walker can surface statement-level svelte-ignore
+                // suppression without the nodes being materialized as `JsNode::Raw`.
+                // Save/restore the previous map (module vs instance scripts each set
+                // their own; template walks expect an empty map).
+                let saved_ignores = std::mem::take(&mut context.script_ignore_comments);
+                context.script_ignore_comments = ignore_comment_map.iter().cloned().collect();
+
                 // Fast path: push a lazily-computed Value for js_path, then walk body typed
                 let program_value = te.as_json();
                 context.js_path.push(super::JsPathEntry::new(program_value));
 
                 let arena = context.parse_arena;
+                let mut result = Ok(());
                 for stmt in arena.get_js_children(*body) {
-                    match stmt {
+                    let step = match stmt {
                         // For Raw nodes (statements with leadingComments attached),
                         // use the Value-based walker which handles all node types
                         // via string matching and processes leadingComments properly.
-                        JsNode::Raw(value) => {
-                            walk_js_node(value, context)?;
-                        }
+                        JsNode::Raw(value) => walk_js_node(value, context),
                         // For typed nodes, use the typed walker for direct field access.
-                        _ => {
-                            walk_js_node_typed(stmt, context)?;
-                        }
+                        _ => walk_js_node_typed(stmt, context),
+                    };
+                    if step.is_err() {
+                        result = step;
+                        break;
                     }
                 }
 
                 context.js_path.pop();
-                Ok(())
+                context.script_ignore_comments = saved_ignores;
+                result
             } else {
                 // Not a Program - fall back to JSON path
                 visit_script(script_expr.as_json(), context)
@@ -101,6 +116,12 @@ pub fn visit_script(script_ast: &Value, context: &mut VisitorContext) -> Result<
 /// * `node` - The JavaScript AST node
 /// * `context` - The visitor context
 pub fn walk_js_node(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Count Value-walker entries. The typed walker only reaches here by
+    // delegating a genuinely-`JsNode::Raw` subtree, so a nonzero delta across a
+    // typed subtree walk signals that the subtree contained a `Raw` node (see
+    // `function_declaration::visit_typed`'s `new `-keyword fallback gate).
+    context.raw_walk_count = context.raw_walk_count.saturating_add(1);
+
     // Fast path: skip non-object values (primitives, arrays, nulls)
     let obj = match node {
         Value::Object(obj) => obj,
@@ -114,17 +135,34 @@ pub fn walk_js_node(node: &Value, context: &mut VisitorContext) -> Result<(), An
     // which extracts svelte-ignore codes from JS comments and pushes them to the ignore stack.
     // Most nodes don't have leadingComments, so check existence first.
     let mut has_ignores = false;
+    let mut ignores = Vec::new();
     if let Some(comments) = obj.get("leadingComments").and_then(|c| c.as_array()) {
-        let mut ignores = Vec::new();
         for comment in comments {
             if let Some(value) = comment.get("value").and_then(|v| v.as_str()) {
                 ignores.extend(extract_svelte_ignore(value, context.analysis.runes));
             }
         }
-        if !ignores.is_empty() {
-            context.push_ignore(ignores);
-            has_ignores = true;
+    }
+    // Fallback to the harvested svelte-ignore map (keyed by absolute node start).
+    // This covers statements nested inside a genuinely-`JsNode::Raw` subtree — e.g.
+    // a function-expression / block-bodied arrow / class body — which are walked here
+    // via the Value walker and no longer carry `leadingComments` on their Value (the
+    // parser harvests those texts into `script_ignore_comments` instead of wrapping the
+    // whole owning statement as Raw). The map is empty outside a script body walk and
+    // in the pure Value-path analysis, so this is a no-op there.
+    if ignores.is_empty() && !context.script_ignore_comments.is_empty() {
+        let runes = context.analysis.runes;
+        if let Some(start) = obj.get("start").and_then(|s| s.as_u64())
+            && let Some(values) = context.script_ignore_comments.get(&(start as u32))
+        {
+            for value in values {
+                ignores.extend(extract_svelte_ignore(value, runes));
+            }
         }
+    }
+    if !ignores.is_empty() {
+        context.push_ignore(ignores);
+        has_ignores = true;
     }
 
     // Push to JS path
@@ -621,8 +659,26 @@ pub fn walk_js_node_typed(
         return walk_js_node(value, context);
     }
 
-    // leadingComments are not stored in JsNode variants (only in Raw/Value),
-    // so we skip that processing for typed nodes. The Raw fallback handles it.
+    // Process svelte-ignore directives attached to this node as leading comments.
+    // The parser harvests those comment texts into the Program's `ignore_comment_map`
+    // (keyed by absolute node start) instead of materializing the node as `JsNode::Raw`,
+    // so we consult that map here. This mirrors `walk_js_node`'s leadingComments handling:
+    // push the ignore codes before visiting children, pop after.
+    let mut has_ignores = false;
+    if !context.script_ignore_comments.is_empty()
+        && let Some(start) = node.start()
+        && let Some(values) = context.script_ignore_comments.get(&start)
+    {
+        let runes = context.analysis.runes;
+        let mut ignores = Vec::new();
+        for value in values {
+            ignores.extend(extract_svelte_ignore(value, runes));
+        }
+        if !ignores.is_empty() {
+            context.push_ignore(ignores);
+            has_ignores = true;
+        }
+    }
 
     // Push a TypedNode entry onto js_path. The Value will be lazily materialized
     // only if code inspects this entry through Deref (which most entries never need).
@@ -706,6 +762,11 @@ pub fn walk_js_node_typed(
 
     // Pop from JS path
     context.js_path.pop();
+
+    // Pop svelte-ignore codes (after visiting children), mirroring walk_js_node.
+    if has_ignores {
+        context.pop_ignore();
+    }
 
     Ok(())
 }
