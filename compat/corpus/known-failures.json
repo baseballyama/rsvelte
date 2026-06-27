@@ -4,7 +4,6 @@
 	"bits-ui/packages/bits-ui/src/lib/bits/navigation-menu/navigation-menu.svelte.ts",
 	"bits-ui/packages/bits-ui/src/lib/bits/pin-input/pin-input.svelte.ts",
 	"bits-ui/packages/bits-ui/src/lib/bits/scroll-area/scroll-area.svelte.ts",
-	"bits-ui/packages/bits-ui/src/lib/bits/tooltip/tooltip.svelte.ts",
 	"bits-ui/packages/bits-ui/src/lib/bits/utilities/floating-layer/use-floating-layer.svelte.ts",
 	"cmsaasstarter/src/routes/(marketing)/+page.svelte",
 	"cmsaasstarter/src/routes/(marketing)/blog/(posts)/+layout.svelte",

@@ -1846,6 +1846,33 @@ pub(super) fn find_matching_brace(s: &str) -> Option<usize> {
     None
 }
 
+/// Strip leading block comments and line comments (and the whitespace between
+/// them) from the start of an expression string. Returns the remainder starting
+/// at the first non-comment, non-whitespace character.
+pub(super) fn strip_leading_comments(s: &str) -> &str {
+    let mut rest = s.trim_start();
+    loop {
+        if let Some(after) = rest.strip_prefix("/*") {
+            if let Some(end) = after.find("*/") {
+                rest = after[end + 2..].trim_start();
+                continue;
+            }
+            // Unterminated block comment — nothing usable follows.
+            return "";
+        }
+        if let Some(after) = rest.strip_prefix("//") {
+            match after.find('\n') {
+                Some(nl) => {
+                    rest = after[nl + 1..].trim_start();
+                    continue;
+                }
+                None => return "",
+            }
+        }
+        return rest;
+    }
+}
+
 /// Determine if an expression needs proxying (could return an object/array).
 ///
 /// Returns `true` for:
@@ -1861,7 +1888,14 @@ pub(super) fn find_matching_brace(s: &str) -> Option<usize> {
 /// - Identifier references
 /// - Arrow functions and function expressions (even if they contain objects inside)
 pub(super) fn expression_needs_proxy(expr: &str) -> bool {
-    let trimmed = expr.trim();
+    // Strip leading comments before sniffing the expression shape. esbuild
+    // (which strips TS from `.svelte.ts` modules before compilation) prepends
+    // `/* @__PURE__ */` to `new`/call initializers, e.g.
+    // `$state(new Map())` → `$state(/* @__PURE__ */ new Map())`. The official
+    // compiler sees the comment as leading trivia on the AST node, so
+    // `should_proxy` still fires; this text sniff must skip it too, otherwise
+    // `trimmed.starts_with("new ")` (and the call/identifier checks) miss.
+    let trimmed = strip_leading_comments(expr.trim()).trim();
 
     // `await expr` needs proxy because the resolved value could be an object/array.
     // In the official Svelte compiler, AwaitExpression is not in the list of types
@@ -2720,4 +2754,31 @@ pub(super) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
     }
 
     result
+}
+
+#[cfg(test)]
+mod proxy_detection_tests {
+    use super::{expression_needs_proxy, strip_leading_comments};
+
+    #[test]
+    fn strips_leading_block_and_line_comments() {
+        assert_eq!(
+            strip_leading_comments("/* @__PURE__ */ new Map()"),
+            "new Map()"
+        );
+        assert_eq!(strip_leading_comments("// x\nfoo"), "foo");
+        assert_eq!(strip_leading_comments("  /*a*/ /*b*/ x"), "x");
+        assert_eq!(strip_leading_comments("plain"), "plain");
+    }
+
+    #[test]
+    fn needs_proxy_through_leading_pure_comment() {
+        // esbuild prepends `/* @__PURE__ */` to `new`/call initializers when
+        // stripping TS from `.svelte.ts` modules; proxy detection must see past it.
+        assert!(expression_needs_proxy("/* @__PURE__ */ new Map()"));
+        assert!(expression_needs_proxy("new Map()"));
+        assert!(expression_needs_proxy("/* @__PURE__ */ createThing()"));
+        // Functions still don't need a proxy even behind a comment.
+        assert!(!expression_needs_proxy("/* c */ () => 1"));
+    }
 }
