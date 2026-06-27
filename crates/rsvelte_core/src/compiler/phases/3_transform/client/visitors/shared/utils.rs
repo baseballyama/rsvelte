@@ -1114,7 +1114,34 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         JsExpr::Identifier(name.clone())
                     };
 
-                    return mutate_fn(&context.arena, mutate_target, full_assignment);
+                    let mutated = mutate_fn(&context.arena, mutate_target, full_assignment);
+
+                    // For store subscriptions, the store *source* (first arg of
+                    // `$.store_mutate`) is read through its own binding's transform —
+                    // a prop reads as the getter call `store()`, a state /
+                    // mutable_source as `$.get(store)` — mirroring upstream's
+                    // `get_store()` = `context.visit(b.id(store_name))`. The
+                    // context-free `store_sub_mutate` emits the bare name, so apply
+                    // the transform here where `context` is available.
+                    if is_store_sub {
+                        return match mutated {
+                            JsExpr::Call(mut call) => {
+                                let store_name =
+                                    name.as_str().strip_prefix('$').unwrap_or(name.as_str());
+                                if let Some(first) = call.arguments.first_mut()
+                                    && let Some(store_transform) =
+                                        context.state.transform.get(store_name)
+                                    && let Some(read_fn) = store_transform.read
+                                {
+                                    *first = read_fn(&context.arena, b::id(store_name));
+                                }
+                                JsExpr::Call(call)
+                            }
+                            other => other,
+                        };
+                    }
+
+                    return mutated;
                 }
             }
 

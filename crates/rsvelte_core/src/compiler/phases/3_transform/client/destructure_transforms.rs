@@ -360,6 +360,7 @@ pub(super) fn find_and_transform_one_destructure(
     let is_standalone = (before_text.is_empty()
         || before_text.ends_with(';')
         || before_text.ends_with('{')
+        || before_text.ends_with('}')
         || before_text.ends_with('\n'))
         && (after_text.is_empty() || after_text.starts_with(';') || after_text.starts_with('\n'));
 

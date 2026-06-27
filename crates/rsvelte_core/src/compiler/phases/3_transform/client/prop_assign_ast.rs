@@ -52,7 +52,10 @@ use oxc_span::GetSpan;
 use oxc_span::SourceType;
 use oxc_syntax::operator::AssignmentOperator;
 
+use oxc_semantic::{Semantic, SemanticBuilder};
+
 use super::ast_rewrite::{self, Edit};
+use super::scope_analysis::is_locally_shadowed;
 
 thread_local! {
     static MODULE_PROP_ASSIGN_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -80,9 +83,12 @@ pub fn transform_prop_assign_ast(source: &str, prop_vars: &[String]) -> Option<S
             ParseOptions::default(),
             true,
             |program| {
+                let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
+                let semantic = &semantic_ret.semantic;
                 let mut collector = PropAssignCollector {
                     source: src,
                     prop_vars,
+                    semantic,
                     replacements: Vec::new(),
                 };
                 collector.visit_program(program);
@@ -92,13 +98,14 @@ pub fn transform_prop_assign_ast(source: &str, prop_vars: &[String]) -> Option<S
     })
 }
 
-struct PropAssignCollector<'a> {
+struct PropAssignCollector<'a, 'sem> {
     source: &'a str,
     prop_vars: &'a [String],
+    semantic: &'sem Semantic<'sem>,
     replacements: Vec<Edit>,
 }
 
-impl<'a, 'ast> Visit<'ast> for PropAssignCollector<'a> {
+impl<'a, 'sem, 'ast> Visit<'ast> for PropAssignCollector<'a, 'sem> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
 
@@ -109,6 +116,13 @@ impl<'a, 'ast> Visit<'ast> for PropAssignCollector<'a> {
         };
         let name = id.name.as_str();
         if !self.prop_vars.iter().any(|p| p == name) {
+            return;
+        }
+        // Skip a write whose LHS resolves to a binding shadowing the prop in a
+        // nested scope (e.g. a local `let timeout` inside a function). Mirrors
+        // the prop-source-reads pass, which already skips shadowed reads — so a
+        // local write stays bare instead of becoming a prop-setter call.
+        if is_locally_shadowed(self.semantic, id) {
             return;
         }
 

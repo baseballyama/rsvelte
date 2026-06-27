@@ -1140,11 +1140,17 @@ pub(super) fn build_element_attributes<'a>(
             let call = build_attr_class(value, css_hash, &class_directives, state);
             push_interp(state, call);
         } else if is_style {
-            // Emit the scope class BEFORE this style attribute's `attr_style` when
-            // the element is scoped with no real/directive class (upstream's synth
-            // `class=""` precedes synth `style=""`).
+            // Emit the scope class BEFORE this style attribute's `attr_style` ONLY
+            // when this is the SYNTHETIC empty `style=""` (`a.start == u32::MAX`),
+            // i.e. the element has a `style:` directive but no real `style`
+            // attribute. Upstream appends synth `class=""` then synth `style=""` at
+            // the END of the attribute list, so the scope class precedes the
+            // synthetic style. When a REAL `style` attribute exists no synthetic
+            // style is created, so the scope class instead trails at the very end
+            // (handled by the post-loop injection below).
             if let Some(hash) = css_hash
                 && has_style_directive
+                && a.start == u32::MAX
                 && !emitted_class
                 && !has_class_dir_or_spread
                 && !scope_class_emitted_early

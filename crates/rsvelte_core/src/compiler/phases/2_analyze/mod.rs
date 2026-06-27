@@ -1967,12 +1967,17 @@ fn collect_each_block_promotions(
                     let mut names = Vec::new();
                     extract_each_pattern_identifiers_node(&context_node, &mut names);
                     names.iter().any(|name| {
-                        // Check ALL bindings with this name, not just the first one.
-                        // The each block's item binding (EachItem kind) may be shadowed by
-                        // callback parameters with the same name in earlier scopes.
-                        // We need to find the EachItem binding specifically.
+                        // Mirror upstream EachBlock.js `scope.get(id.name)?.mutated`,
+                        // which resolves WITHIN the each scope — i.e. the each block's
+                        // own item binding (BindingKind::EachItem) — never a same-named
+                        // outer binding that happens to be reassigned (e.g. a `let`/prop
+                        // bound via `bind:`). Without the kind filter, a `const items`
+                        // collection whose item name collides with a `bind:`-reassigned
+                        // outer `let` was wrongly promoted to mutable_source.
                         analysis.root.bindings.iter().any(|binding| {
-                            binding.name == *name && (binding.reassigned || binding.mutated)
+                            binding.name == *name
+                                && binding.kind == BindingKind::EachItem
+                                && (binding.reassigned || binding.mutated)
                         })
                     })
                 } else {
