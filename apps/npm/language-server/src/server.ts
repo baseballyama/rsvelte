@@ -15,7 +15,7 @@ import {
   type InitializeParams,
   type InitializeResult,
   type TextEdit,
-} from "vscode-languageserver/node.js";
+} from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
