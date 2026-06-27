@@ -186,7 +186,7 @@ jobs:
         run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
 
       - name: Cache fixtures
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           # Fixtures are keyed on the Svelte submodule SHA; if the SHA hasn't
           # changed we can reuse them and skip generation entirely.
@@ -208,7 +208,7 @@ jobs:
         # Includes `node_modules/.bin/tsc`, which is referenced via
         # `TSGO_BIN` below.
         id: svelte-build-cache
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             submodules/svelte/node_modules
@@ -348,14 +348,14 @@ jobs:
         run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
 
       - name: Cache fixtures
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: fixtures
           key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
 
       - name: Cache Svelte compiler build
         id: svelte-build-cache
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             submodules/svelte/node_modules
@@ -536,7 +536,7 @@ jobs:
         run: echo "sha=$(git submodule status submodules/svelte.dev | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
 
       - name: Cache formatter parity corpus
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: fixtures/fmt-corpus
           key: fmt-corpus-v1-${{ runner.os }}-${{ steps.svelte-dev-sha.outputs.sha }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json') }}
@@ -682,7 +682,7 @@ jobs:
         run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
 
       - name: Cache fixtures
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: fixtures
           # Bump `v2` to invalidate previously-cached fixtures: the
@@ -693,7 +693,7 @@ jobs:
       - name: Cache Svelte compiler build
         # See the matching step in the `test` job above.
         id: svelte-build-cache
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             submodules/svelte/node_modules
