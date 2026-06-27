@@ -1264,8 +1264,44 @@ fn is_expression_defined_typed(node: &JsNode, arena: &crate::ast::arena::ParseAr
                 .map(|last| is_expression_defined_typed(last, arena))
                 .unwrap_or(false)
         }
+        // Mirror the Value-path `CallExpression` arm: upstream `scope.evaluate`
+        // knows the global `Math.*` / `Number` / `String` / `BigInt` functions
+        // return a defined number/string, so a `const x = Math.round(...)`
+        // binding is `is_defined` and a template `${x}` reads bare (no `?? ''`).
+        // Without this arm the typed path falls through to `_ => false`, which
+        // spuriously adds `?? ''` for TS scripts now walked typed.
+        JsNode::CallExpression { callee, .. } => {
+            js_node_member_keypath(arena.get_js_node(*callee), arena)
+                .map(|kp| is_known_defined_global_call(&kp))
+                .unwrap_or(false)
+        }
         JsNode::Raw(value) => is_expression_defined(value),
         _ => false,
+    }
+}
+
+/// Build a dotted keypath for a non-computed identifier member chain on a typed
+/// `JsNode` (`Math.round` → `"Math.round"`, `Number` → `"Number"`). Returns
+/// `None` for any computed access / non-identifier link. Typed mirror of
+/// `json_member_keypath`; falls back to it for genuinely-`Raw` subtrees.
+fn js_node_member_keypath(node: &JsNode, arena: &crate::ast::arena::ParseArena) -> Option<String> {
+    match node {
+        JsNode::Identifier { name, .. } => Some(name.to_string()),
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed: false,
+            ..
+        } => {
+            let object = js_node_member_keypath(arena.get_js_node(*object), arena)?;
+            let prop = match arena.get_js_node(*property) {
+                JsNode::Identifier { name, .. } => name.to_string(),
+                _ => return None,
+            };
+            Some(format!("{object}.{prop}"))
+        }
+        JsNode::Raw(value) => json_member_keypath(value),
+        _ => None,
     }
 }
 
