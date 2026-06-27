@@ -1742,7 +1742,10 @@ mod tests {
             "({ get x() { return 1; } });",
             "({\n\tget x() {\n\t\treturn 1;\n\t}\n});",
         );
-        assert_rt("({ m() { return 2; } });", "({\n\tm() {\n\t\treturn 2;\n\t}\n});");
+        assert_rt(
+            "({ m() { return 2; } });",
+            "({\n\tm() {\n\t\treturn 2;\n\t}\n});",
+        );
     }
 
     #[test]
