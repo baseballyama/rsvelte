@@ -58,7 +58,6 @@
 	"svelte-maplibre/src/lib/DeckGlLayer.svelte",
 	"svelte-pivottable/src/lib/UI/Draggable.svelte",
 	"svelte-sonner/src/lib/Toaster.svelte",
-	"svelte-splitpanes/src/routes/+layout.svelte",
 	"svelte-table/example/Example2.svelte",
 	"svelte-table/example/example6/ContactButtonComponent.svelte",
 	"svelte-table/src/SvelteTable.svelte",

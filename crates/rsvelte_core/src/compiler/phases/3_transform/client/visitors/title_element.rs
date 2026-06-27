@@ -11,7 +11,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::expression_conv
 use crate::compiler::phases::phase3_transform::client::visitors::fragment::collect_ids_from_expr;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     apply_transforms_to_expression, expression_has_await, expression_has_reactive_state,
-    get_literal_value,
+    get_literal_value, is_expression_defined,
 };
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -378,12 +378,12 @@ fn build_title_content(
                         is_async: has_await,
                     });
                     let param_ref = b::id(&param_name);
-                    if !is_known_defined_expr(&expr.expression) {
+                    if !is_expression_defined(&expr.expression, context) {
                         expressions.push(b::nullish(&context.arena, param_ref, b::string("")));
                     } else {
                         expressions.push(param_ref);
                     }
-                } else if !is_known_defined_expr(&expr.expression) {
+                } else if !is_expression_defined(&expr.expression, context) {
                     expressions.push(b::nullish(&context.arena, value, b::string("")));
                 } else {
                     expressions.push(value);
