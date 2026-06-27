@@ -195,7 +195,13 @@ pub fn visit_svelte_boundary<'a>(node: &SvelteElement, state: &mut ServerTransfo
         if failed_fn_hoist {
             state.body.push(fn_decl);
         } else {
-            state.snippet_inits.push(fn_decl);
+            // Emit inline in the current template stream (visit order), exactly like
+            // the regular SnippetBlock visitor (snippet_block.rs). `build_template`
+            // lifts every `HoistableDecl` to the front of the block PRESERVING
+            // source order, so a nested boundary's `failed` lands AFTER preceding
+            // `{@const}` / sibling snippets, not prepended ahead of them (which
+            // `state.snippet_inits` did).
+            state.template.push(TemplateEntry::HoistableDecl(fn_decl));
         }
     }
 

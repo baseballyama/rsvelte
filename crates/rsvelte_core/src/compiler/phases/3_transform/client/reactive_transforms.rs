@@ -527,6 +527,15 @@ pub(super) fn transform_reactive_statement(
                 // State var assignment → $.set(lhs, rhs)
                 let transformed_rhs =
                     transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
+                // A nested prop assignment in the RHS (e.g. an arrow default
+                // `() => (isOpen = !isOpen)`) must become a setter call
+                // `isOpen(!isOpen())`. The ternary / destructure branches already
+                // run this pass; the state-var-assignment branch was missing it.
+                let transformed_rhs = transform_prop_assignments(
+                    &transformed_rhs,
+                    prop_assignment_transform_vars,
+                    &[],
+                );
                 let transformed_rhs = wrap_state_vars_in_expr(
                     &transformed_rhs,
                     state_vars,
