@@ -2261,24 +2261,32 @@ mod tests {
         assert_eq!(buf[root_off], TAG_ROOT);
     }
 
-    /// #908: a typed arrow parameter (`(r: number[]) => …`) is lowered to a
-    /// `JsNode::Raw` JSON sub-tree. That JSON carries byte offsets, which must
+    /// #908: a genuinely-TS construct lowered to a `JsNode::Raw` JSON sub-tree
+    /// (here a constructor parameter property) carries byte offsets, which must
     /// be remapped to UTF-16 like every other span when the source contains
-    /// non-ASCII characters — otherwise the whole arrow (params + body) drifts
-    /// past the preceding multibyte text and `source.slice(start, end)` breaks.
+    /// non-ASCII characters — otherwise the whole sub-tree drifts past the
+    /// preceding multibyte text and `source.slice(start, end)` breaks.
     #[test]
-    fn typed_arrow_raw_json_offsets_are_utf16() {
+    fn raw_json_offsets_are_utf16() {
         use std::collections::HashSet;
 
-        // 4 multibyte chars precede the typed arrow, so a leaked byte offset
-        // would be shifted by +8 (4 chars × 2 extra bytes) versus UTF-16.
+        // A TypeScript constructor *parameter property* (`constructor(public a:
+        // number)`) is a genuinely-TS construct still lowered to a `JsNode::Raw`
+        // JSON sub-tree (the `analyze-value-detax` typing campaign now types the
+        // previously-Raw TS arrow this test originally used). That JSON carries
+        // byte offsets, which must be remapped to UTF-16 like every other span
+        // when the source contains non-ASCII characters — otherwise the whole
+        // class drifts past the preceding multibyte text and
+        // `source.slice(start, end)` breaks (#908).
+        //
+        // 4 multibyte chars precede the class, so a leaked byte offset would be
+        // shifted by +8 (4 chars × 2 extra bytes) versus UTF-16.
         let src = concat!(
             "<script lang=\"ts\">\n",
             "  const \u{30E9}\u{30D9}\u{30EB} = \"\u{3042}\";\n",
-            "  let last = 0;\n",
-            "  const set = (r: number[]) => { last = r.length; };\n",
+            "  class P { constructor(public a: number) { this.a = a; } }\n",
             "</script>\n",
-            "<p>{\u{30E9}\u{30D9}\u{30EB}}{last}{set}</p>",
+            "<p>{\u{30E9}\u{30D9}\u{30EB}}</p>",
         );
         let ast = parse(src, ParseOptions::default()).unwrap();
 
