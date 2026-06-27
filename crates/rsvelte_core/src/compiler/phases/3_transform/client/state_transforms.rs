@@ -62,7 +62,9 @@ pub(super) fn is_only_assignment_target(body: &str, identifier: &str) -> bool {
                 || after.starts_with("=\t")
                 || after.starts_with("=\n")
                 || after.starts_with("=;")
-                || after.starts_with(";\n")
+                // NOTE: a bare `ident;` is a READ statement, not an assignment
+                // target — it must remain a dependency (was wrongly excluded,
+                // dropping deps like `transform;` / `currentStep;`).
                 || after.starts_with("+=")
                 || after.starts_with("-=")
                 || after.starts_with("*=")

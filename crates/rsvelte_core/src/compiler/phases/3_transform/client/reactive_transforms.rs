@@ -791,6 +791,12 @@ pub(super) fn transform_reactive_statement(
         "".to_string()
     } else {
         // Find the first occurrence position of an identifier in the body text.
+        // Scan a copy with string/template-literal TEXT blanked (offsets preserved)
+        // so a literal like `width: ${x}` does not let the literal word `width`
+        // text-match before the real `${width}` read — which would misorder deps.
+        // Blanking never touches a real reference, so this cannot reorder
+        // non-literal deps (layerchart-safe).
+        let body_for_pos = super::state_transforms::strip_string_literal_text(body);
         let find_pos = |name: &str| -> usize {
             let escaped = regex::escape(name);
             let pattern = if name.starts_with('$') {
@@ -800,7 +806,7 @@ pub(super) fn transform_reactive_statement(
                 format!(r"\b{}\b", escaped)
             };
             if let Some(re) = get_or_compile_regex(&pattern) {
-                if let Some(m) = re.find(body) {
+                if let Some(m) = re.find(&body_for_pos) {
                     // If name starts with `$`, the match may include one leading non-ident char;
                     // return the position where the identifier actually starts.
                     let start = m.start();

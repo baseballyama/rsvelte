@@ -2734,9 +2734,10 @@ impl<'opt> Printer<'opt> {
             return;
         }
         // Method / accessor shorthand: `key() {}`, `get key() {}`, `*key() {}`.
-        if (prop.method || prop.kind != PropertyKind::Init)
-            && let Expression::FunctionExpression(f) = &prop.value
-        {
+        // esrap takes this branch for ANY property whose value is a
+        // FunctionExpression (regardless of the `method` flag or key kind), so a
+        // string-keyed function property prints as `"k"() {}`, not `"k": function`.
+        if let Expression::FunctionExpression(f) = &prop.value {
             match prop.kind {
                 PropertyKind::Get => ctx.write("get "),
                 PropertyKind::Set => ctx.write("set "),

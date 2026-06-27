@@ -1064,7 +1064,6 @@ impl<'a> ComponentContext<'a> {
                 Attribute::Attribute(attr) => {
                     // Use the memoizer callback: if expression has_call or has_await,
                     // memoize it and replace with $.get($N)
-                    let memo_idx_start = memo_entries.len();
                     // SAFETY: `JsArena` allocates via interior mutability
                     // (`UnsafeCell`) with nodes behind stable `Box`es, so a
                     // shared `&JsArena` stays valid while `self` is reborrowed
@@ -1076,8 +1075,10 @@ impl<'a> ComponentContext<'a> {
                         let has_await = metadata.has_await();
                         if has_call || has_await {
                             // This expression needs memoization
-                            // We'll track the index and expression, then replace with $.get($N)
-                            let idx = memo_idx_start + memo_entries.len();
+                            // We'll track the index and expression, then replace with $.get($N).
+                            // The index is the position about to be pushed, matching the
+                            // enumerate-based declaration numbering (was double-counted).
+                            let idx = memo_entries.len();
                             memo_entries.push(SlotMemoEntry {
                                 expression: value,
                                 is_async: has_await,
