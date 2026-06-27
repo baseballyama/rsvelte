@@ -16,7 +16,6 @@ use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
 // Identifier reference detection (lines 7653-8602 of mod.rs)
 // ---------------------------------------------------------------------------
 
-
 /// Check if a body references an identifier as a read (not only as an assignment target).
 ///
 /// This is used to determine dependencies for `$.legacy_pre_effect()` calls.
