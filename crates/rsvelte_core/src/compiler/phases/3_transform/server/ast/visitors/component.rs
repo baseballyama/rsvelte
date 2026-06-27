@@ -544,7 +544,29 @@ fn render_slot_body<'a>(
         nodes: nodes.iter().map(|n| (*n).clone()).collect(),
         metadata: Default::default(),
     };
-    super::shared::build_fragment_body(&synthetic, is_text_first_parent, state)
+
+    // Slot content is its own fragment, and a component is a namespace-RESET
+    // boundary, so re-infer the namespace from the slot children — DEEPLY,
+    // descending through `{#if}` / `{#each}` blocks (写经 upstream
+    // `infer_namespace` → `check_nodes_for_namespace`). e.g.
+    // `<Svg>…<LinearGradient/>{#each …}<rect/>{/each}</Svg>` has no DIRECT svg
+    // element child of the slot, but the `<rect>` nested in the `{#each}` still
+    // makes the slot fragment `svg` so the whitespace-only text between the
+    // component anchors is removed (no spurious trailing space in the SSR
+    // `<!---->` markers) rather than kept. `process_fragment`'s own shallow
+    // re-inference then inherits this value when it finds no direct element.
+    use crate::compiler::phases::phase3_transform::utils::{NsScan, check_nodes_for_namespace};
+    let inferred_ns: &'static str = match check_nodes_for_namespace(&synthetic.nodes) {
+        NsScan::Html => "html",
+        NsScan::Svg => "svg",
+        NsScan::Mathml => "mathml",
+        NsScan::Keep | NsScan::MaybeHtml => state.namespace,
+    };
+    let saved_namespace = state.namespace;
+    state.namespace = inferred_ns;
+    let body = super::shared::build_fragment_body(&synthetic, is_text_first_parent, state);
+    state.namespace = saved_namespace;
+    body
 }
 
 /// `($$renderer[, { lets… }]) => { <body> }` — the slot snippet function. When
