@@ -2474,7 +2474,21 @@ fn transform_script_legacy<'a>(
             other => {
                 let span = other.span();
                 let slice = &src[span.start as usize..span.end as usize];
-                if let Some(rehomed) = state.reparse_statement(slice) {
+                if let Some(mut rehomed) = state.reparse_statement(slice) {
+                    // Wrap store/derived reads inside instance-scope control-flow
+                    // statements (`if ($store === …) …`, `for`, `while`, blocks…) —
+                    // upstream's server visitor visits every statement, so reads
+                    // become `$.store_get(...)`. The ExpressionStatement /
+                    // FunctionDeclaration arms already do this; this catch-all did not.
+                    if is_instance {
+                        super::read_wrap::wrap_reads_in_statement_counted(
+                            &mut rehomed,
+                            state.b,
+                            state.analysis,
+                            state.analysis.root.instance_scope_index,
+                            &mut array_counter,
+                        );
+                    }
                     out.push(rehomed);
                 }
             }
