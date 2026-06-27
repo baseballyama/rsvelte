@@ -1402,6 +1402,22 @@ fn visit_runes_mode_typed(
                 .or_else(|| context.analysis.root.get_binding(&path.name, context.scope))
                 .or_else(|| context.analysis.root.find_binding_any_scope(&path.name));
             if let Some(binding_idx) = binding_idx {
+                // Guard: a plain (non-rune) `const`/`let`/`var` declarator must
+                // never write `initial` onto a prop binding. In runes mode props
+                // derive `initial` solely from the `$props()` destructuring, so a
+                // same-named binding reached here is always a *different* (e.g.
+                // block-scoped) variable. Without this guard, the typed-path
+                // position lookup — whose `path.start` (global) cannot match the
+                // binding's `declaration_start` (global + script offset, see
+                // scope_builder) — falls back to a scope-insensitive lookup that
+                // resolves to the prop and erases its default (initial → None),
+                // which then mis-emits `$$props.x` instead of the `x()` accessor.
+                if matches!(
+                    context.analysis.root.bindings[binding_idx].kind,
+                    BindingKind::Prop | BindingKind::BindableProp | BindingKind::RestProp
+                ) {
+                    continue;
+                }
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string_typed(init);
                 binding.initial_is_defined = is_expression_defined_typed(init, arena);
