@@ -951,7 +951,18 @@ pub(super) fn build_element_attributes<'a>(
             // `class:` / `style:` directives are consumed up-front into
             // `class_directives` / `style_directives` (fed to `build_attr_class`
             // / `build_attr_style` when the synthetic-or-real `class` / `style`
-            // attribute is emitted). `use:` / `@attach` remain a KNOWN GAP.
+            // attribute is emitted). `@attach` remains a KNOWN GAP.
+            //
+            // A `use:` directive on a load/error element (`<img>` / `<track>` /
+            // …) re-captures `onload`/`onerror`, mirroring upstream's
+            // UseDirective arm in build_element_attributes (the spread path
+            // below already does this; the non-spread path was missing it).
+            if matches!(attr, Attribute::UseDirective(_))
+                && is_load_error_element(node.name.as_str())
+            {
+                capture_onload = true;
+                capture_onerror = true;
+            }
             continue;
         };
 
