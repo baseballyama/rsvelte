@@ -67,7 +67,7 @@
     "vscode:prepublish": "node build.mjs"
   },
   "dependencies": {
-    "vscode-languageclient": "^9.0.1"
+    "vscode-languageclient": "^10.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
