@@ -1099,19 +1099,37 @@ fn remove_typescript_from_ast(ast: &mut crate::ast::Root) -> Result<(), crate::e
     fn strip_ts_from_script(
         script: &mut crate::ast::Script,
     ) -> Result<(), crate::error::ParseError> {
-        let val = match &mut script.content {
-            crate::ast::js::Expression::Value(v) => v,
-            crate::ast::js::Expression::Typed(_) | crate::ast::js::Expression::Lazy { .. } => {
-                // Convert Typed/Lazy to Value for mutation
+        use crate::ast::js::Expression;
+        match &mut script.content {
+            // Typed path: mutate the arena-backed typed tree in place, keeping
+            // the script `Expression::Typed` (no expensive `as_json()` round
+            // trip). The serialize arena is installed by the caller's
+            // `SerializeArenaGuard`, so it backs this Program's children.
+            Expression::Typed(te) => crate::ast::arena::with_current_serialize_arena(|arena| {
+                phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes_typed(
+                    &mut te.node,
+                    arena,
+                )
+            }),
+            // Legacy Value path (kept for the rare `Expression::Value` case).
+            Expression::Value(v) => {
+                phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(v, &[])
+            }
+            // Lazy expressions are resolved before this point; fall back defensively.
+            Expression::Lazy { .. } => {
                 let json = script.content.as_json().clone();
-                script.content = crate::ast::js::Expression::Value(json);
+                script.content = Expression::Value(json);
                 match &mut script.content {
-                    crate::ast::js::Expression::Value(v) => v,
+                    Expression::Value(v) => {
+                        phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(
+                            v,
+                            &[],
+                        )
+                    }
                     _ => unreachable!(),
                 }
             }
-        };
-        phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(val, &[])
+        }
     }
 
     // In Svelte, if ANY script has lang="ts", ALL scripts are treated as TypeScript.
@@ -1142,16 +1160,28 @@ fn remove_typescript_from_ast(ast: &mut crate::ast::Root) -> Result<(), crate::e
 fn strip_ts_from_expression(
     expr: &mut crate::ast::js::Expression,
 ) -> Result<(), crate::error::ParseError> {
-    // Ensure we have a Value variant for mutation
-    if matches!(expr, crate::ast::js::Expression::Typed(_)) {
-        let json = expr.as_json().clone();
-        *expr = crate::ast::js::Expression::Value(json);
-    }
+    use crate::ast::js::Expression;
     match expr {
-        crate::ast::js::Expression::Value(val) => {
+        // Typed path: mutate the arena-backed typed tree in place (no `as_json()`).
+        Expression::Typed(te) => crate::ast::arena::with_current_serialize_arena(|arena| {
+            phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes_typed(
+                &mut te.node,
+                arena,
+            )
+        }),
+        Expression::Value(val) => {
             phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(val, &[])
         }
-        _ => unreachable!(),
+        Expression::Lazy { .. } => {
+            let json = expr.as_json().clone();
+            *expr = Expression::Value(json);
+            match expr {
+                Expression::Value(val) => {
+                    phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(val, &[])
+                }
+                _ => unreachable!(),
+            }
+        }
     }
 }
 
