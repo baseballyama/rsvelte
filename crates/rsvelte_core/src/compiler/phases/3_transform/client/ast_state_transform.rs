@@ -2085,6 +2085,17 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
     }
 
     fn visit_function(&mut self, it: &Function<'ast>, flags: ScopeFlags) {
+        // A `function foo()` DECLARATION binds `foo` in the ENCLOSING scope,
+        // shadowing any same-named prop/state var for references elsewhere — so
+        // `executing.then(enter)` (where a local `async function enter()` shadows
+        // an `enter` prop) must stay bare, not become `enter()`. Register it before
+        // walk_function pushes the function's own scope. Named function EXPRESSIONS
+        // bind only in their own scope, so they are excluded.
+        if it.r#type == oxc_ast::ast::FunctionType::FunctionDeclaration
+            && let Some(id) = &it.id
+        {
+            self.declare_in_current_scope(&id.name);
+        }
         // Track enclosing function depth so the `$derived(await …)`
         // declarator handler can choose between `await $.async_derived(…)`
         // (top-level instance script, depth 0) and
