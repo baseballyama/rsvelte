@@ -4705,6 +4705,9 @@ fn transform_instance_script_for_visitors(
     // Each entry is (assigned_vars, dependency_vars, transformed_code).
     // After collection, these are topologically sorted by dependencies before emission.
     let mut pending_reactive_statements: Vec<(Vec<String>, Vec<String>, String)> = Vec::new();
+    // Source-ordinal counter for top-level `$:` statements, aligning each with its
+    // Phase-2 `reactive_statement_dependencies` entry.
+    let mut reactive_stmt_ordinal: usize = 0;
 
     // Track if we're inside a multi-line export block
     let mut in_export_block = false;
@@ -4734,7 +4737,8 @@ fn transform_instance_script_for_visitors(
                                import_names: &[String],
                                analysis: &ComponentAnalysis,
                                dev: bool,
-                               has_legacy_export_let: bool| {
+                               has_legacy_export_let: bool,
+                               reactive_ordinal: &mut usize| {
         if accumulated.is_empty() {
             return;
         }
@@ -4760,6 +4764,15 @@ fn transform_instance_script_for_visitors(
                 .filter(|(_, _, kind)| *kind == DeclarationKind::Var)
                 .map(|(n, _, _)| n.clone())
                 .collect();
+            // AST-derived ordered dependency names for THIS top-level `$:` statement
+            // (Phase 2, source-ordinal aligned). Both phases count top-level `$:`
+            // in source order, so the ordinal stays in sync.
+            let dep_names: &[String] = analysis
+                .reactive_statement_dependencies
+                .get(*reactive_ordinal)
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]);
+            *reactive_ordinal += 1;
             let transformed = transform_reactive_statement(
                 &statement,
                 state_vars,
@@ -4769,6 +4782,7 @@ fn transform_instance_script_for_visitors(
                 store_sub_vars,
                 import_names,
                 &var_state_vars,
+                dep_names,
                 analysis,
             );
             // Also apply state assignment transformations to the reactive statement body
@@ -5425,6 +5439,7 @@ fn transform_instance_script_for_visitors(
                         analysis,
                         dev,
                         has_legacy_export_let,
+                        &mut reactive_stmt_ordinal,
                     );
                     accumulated_lines.clear();
                     // Reset depth counters for next statement
@@ -5461,6 +5476,7 @@ fn transform_instance_script_for_visitors(
             analysis,
             dev,
             has_legacy_export_let,
+            &mut reactive_stmt_ordinal,
         );
     }
 

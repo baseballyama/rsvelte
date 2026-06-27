@@ -436,6 +436,7 @@ pub fn analyze_component(
     // `binding.legacy_dependencies = Array.from(reactive_statement.dependencies)` is set.
     if !analysis.runes {
         populate_legacy_dependencies(ast, &mut analysis);
+        collect_reactive_statement_dependencies(ast, &mut analysis);
     }
 
     // Pre-compute legacy-pattern detection so template visitors (notably
@@ -2221,6 +2222,245 @@ fn extract_object_root(node: &serde_json::Value) -> Option<String> {
             .and_then(|n| n.as_str())
             .map(|s| s.to_string()),
         _ => None,
+    }
+}
+
+/// Collect ordered `$:` dependency identifier names per top-level reactive
+/// statement, mirroring `2-analyze/visitors/LabeledStatement.js`. Stored in
+/// `analysis.reactive_statement_dependencies` indexed by source ordinal (the
+/// Phase-3 client reads the same ordinal). Order = first-appearance during AST
+/// traversal; a name is a dependency unless its only references are the outermost
+/// member-chain LHS of an `=` assignment; member-property keys, object keys,
+/// function params and block-locals are never references.
+fn collect_reactive_statement_dependencies(ast: &Root, analysis: &mut ComponentAnalysis) {
+    let instance = match ast.instance {
+        Some(ref inst) => inst,
+        None => return,
+    };
+    if !instance_body_has_labeled_statement(ast) {
+        return;
+    }
+    let program = instance.content.as_json();
+    let body = match program.get("body").and_then(|b| b.as_array()) {
+        Some(b) => b,
+        None => return,
+    };
+
+    for stmt in body {
+        if stmt.get("type").and_then(|t| t.as_str()) != Some("LabeledStatement") {
+            continue;
+        }
+        if stmt
+            .get("label")
+            .and_then(|l| l.get("name"))
+            .and_then(|n| n.as_str())
+            != Some("$")
+        {
+            continue;
+        }
+        let Some(stmt_body) = stmt.get("body") else {
+            analysis.reactive_statement_dependencies.push(Vec::new());
+            continue;
+        };
+
+        let mut order: Vec<String> = Vec::new();
+        let mut included: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
+        let mut path: Vec<&serde_json::Value> = Vec::new();
+        collect_reactive_refs(stmt_body, &mut path, &Vec::new(), &mut order, &mut included);
+
+        let deps: Vec<String> = order.into_iter().filter(|n| included.contains(n)).collect();
+        analysis.reactive_statement_dependencies.push(deps);
+    }
+}
+
+/// One genuine reference visit: record first-appearance order + whether the name
+/// is a dependency (i.e. has at least one reference that is NOT the outermost
+/// member-chain on the LHS of an `=` assignment).
+fn note_reactive_ref(
+    id: &serde_json::Value,
+    path: &[&serde_json::Value],
+    order: &mut Vec<String>,
+    included: &mut rustc_hash::FxHashSet<String>,
+) {
+    let Some(name) = id.get("name").and_then(|n| n.as_str()) else {
+        return;
+    };
+    let name = name.to_string();
+    if !order.iter().any(|n| n == &name) {
+        order.push(name.clone());
+    }
+    if included.contains(&name) {
+        return;
+    }
+
+    let span = |n: &serde_json::Value| -> (u64, u64) {
+        (
+            n.get("start").and_then(|v| v.as_u64()).unwrap_or(u64::MAX),
+            n.get("end").and_then(|v| v.as_u64()).unwrap_or(u64::MAX),
+        )
+    };
+    // Walk up through MemberExpression parents to the outermost chain node.
+    let mut left_span = span(id);
+    let mut k = path.len(); // path[k-1] == immediate parent
+    while k >= 1 && path[k - 1].get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+        left_span = span(path[k - 1]);
+        k -= 1;
+    }
+    let excluded = if k >= 1 {
+        let parent = path[k - 1];
+        parent.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression")
+            && parent.get("operator").and_then(|o| o.as_str()) == Some("=")
+            && parent.get("left").map(span) == Some(left_span)
+    } else {
+        false
+    };
+    if !excluded {
+        included.insert(name);
+    }
+}
+
+/// Traversal mirroring `scope.references` population for one `$:` body. Skips
+/// non-computed member-property keys, non-computed/non-shorthand object keys,
+/// function params, and block-local declarations.
+fn collect_reactive_refs<'a>(
+    node: &'a serde_json::Value,
+    path: &mut Vec<&'a serde_json::Value>,
+    locals: &Vec<String>,
+    order: &mut Vec<String>,
+    included: &mut rustc_hash::FxHashSet<String>,
+) {
+    let Some(node_type) = node.get("type").and_then(|t| t.as_str()) else {
+        return;
+    };
+
+    match node_type {
+        "Identifier" => {
+            if let Some(name) = node.get("name").and_then(|n| n.as_str())
+                && !locals.iter().any(|l| l == name)
+            {
+                note_reactive_ref(node, path, order, included);
+            }
+        }
+        "MemberExpression" => {
+            path.push(node);
+            if let Some(obj) = node.get("object") {
+                collect_reactive_refs(obj, path, locals, order, included);
+            }
+            if node
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false)
+                && let Some(prop) = node.get("property")
+            {
+                collect_reactive_refs(prop, path, locals, order, included);
+            }
+            path.pop();
+        }
+        "Property" => {
+            path.push(node);
+            if node
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false)
+                && let Some(key) = node.get("key")
+            {
+                collect_reactive_refs(key, path, locals, order, included);
+            }
+            if let Some(value) = node.get("value") {
+                collect_reactive_refs(value, path, locals, order, included);
+            }
+            path.pop();
+        }
+        "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration" => {
+            let mut new_locals = locals.clone();
+            if let Some(params) = node.get("params").and_then(|p| p.as_array()) {
+                for p in params {
+                    extract_param_names(p, &mut new_locals);
+                }
+            }
+            path.push(node);
+            if let Some(b) = node.get("body") {
+                collect_reactive_refs(b, path, &new_locals, order, included);
+            }
+            path.pop();
+        }
+        "BlockStatement" => {
+            let mut new_locals = locals.clone();
+            if let Some(stmts) = node.get("body").and_then(|b| b.as_array()) {
+                for s in stmts {
+                    collect_block_local_decls(s, &mut new_locals);
+                }
+                path.push(node);
+                for s in stmts {
+                    collect_reactive_refs(s, path, &new_locals, order, included);
+                }
+                path.pop();
+            }
+        }
+        "VariableDeclaration" => {
+            path.push(node);
+            if let Some(decls) = node.get("declarations").and_then(|d| d.as_array()) {
+                for d in decls {
+                    path.push(d);
+                    if let Some(init) = d.get("init") {
+                        collect_reactive_refs(init, path, locals, order, included);
+                    }
+                    path.pop();
+                }
+            }
+            path.pop();
+        }
+        "ForOfStatement" | "ForInStatement" => {
+            let mut new_locals = locals.clone();
+            if let Some(left) = node.get("left") {
+                collect_block_local_decls(left, &mut new_locals);
+            }
+            path.push(node);
+            if let Some(right) = node.get("right") {
+                collect_reactive_refs(right, path, locals, order, included);
+            }
+            if let Some(b) = node.get("body") {
+                collect_reactive_refs(b, path, &new_locals, order, included);
+            }
+            path.pop();
+        }
+        _ => {
+            // Generic field walk in AST/source (insertion) order — serde_json is
+            // built with `preserve_order`, so object fields iterate in insertion
+            // order, matching upstream traversal order.
+            path.push(node);
+            if let Some(obj) = node.as_object() {
+                for (key, val) in obj {
+                    if matches!(key.as_str(), "type" | "start" | "end" | "loc" | "range") {
+                        continue;
+                    }
+                    if val.is_object() {
+                        collect_reactive_refs(val, path, locals, order, included);
+                    } else if let Some(arr) = val.as_array() {
+                        for item in arr {
+                            if item.is_object() {
+                                collect_reactive_refs(item, path, locals, order, included);
+                            }
+                        }
+                    }
+                }
+            }
+            path.pop();
+        }
+    }
+}
+
+/// Add `let/const/var` (and `for`-binding) identifiers from a statement to
+/// `locals` so they shadow outer reactive bindings within their block.
+fn collect_block_local_decls(node: &serde_json::Value, locals: &mut Vec<String>) {
+    if node.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+        && let Some(decls) = node.get("declarations").and_then(|d| d.as_array())
+    {
+        for d in decls {
+            if let Some(id) = d.get("id") {
+                extract_param_names(id, locals);
+            }
+        }
     }
 }
 

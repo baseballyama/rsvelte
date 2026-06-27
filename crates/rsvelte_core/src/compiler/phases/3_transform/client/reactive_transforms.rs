@@ -4,10 +4,10 @@ use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
 use super::{
     body_references_identifier, extract_destructure_targets, extract_member_expression_base,
-    find_assignment_position, get_or_compile_regex, is_only_assignment_target,
-    is_simple_identifier, lhs_starts_with_keyword, transform_destructure_assignments_with_props,
-    transform_prop_assignments, transform_prop_reads_in_expr, transform_store_assignments_client,
-    transform_store_reads_client, transform_store_sub_calls, wrap_state_vars_in_expr,
+    find_assignment_position, get_or_compile_regex, is_simple_identifier, lhs_starts_with_keyword,
+    transform_destructure_assignments_with_props, transform_prop_assignments,
+    transform_prop_reads_in_expr, transform_store_assignments_client, transform_store_reads_client,
+    transform_store_sub_calls, wrap_state_vars_in_expr,
 };
 
 /// Extract assigned variable names and dependency variable names from a raw `$:` reactive statement.
@@ -277,6 +277,11 @@ pub(super) fn transform_reactive_statement(
     store_sub_vars: &[String],
     import_names: &[String],
     var_state_vars: &[String],
+    // Ordered dependency names from Phase 2
+    // (`analysis.reactive_statement_dependencies[ordinal]`): the AST-faithful
+    // dependency set (order + membership) the deps thunk is built from; the legacy
+    // text scan is no longer consulted.
+    dep_names: &[String],
     _analysis: &ComponentAnalysis,
 ) -> String {
     let trimmed = statement.trim();
@@ -402,88 +407,13 @@ pub(super) fn transform_reactive_statement(
     };
     let body = body_owned.trim_end_matches(';').trim();
 
-    // Collect dependencies from the body
-    // Dependencies are variables that need tracking in the dependency thunk.
-    // We track whether each dependency is a prop or a state var, because they
-    // are serialized differently:
-    // - Props (bindable_prop): $.deep_read_state(name()) - deep read with function call
-    // - State vars (mutable_source): $.get(name) - simple get without function call
-    let mut prop_dependencies: Vec<String> = Vec::new();
-    let mut state_dependencies: Vec<String> = Vec::new();
-
-    // Props are dependencies that need tracking
-    for prop_name in prop_assignment_transform_vars {
-        // Check if this prop is referenced in the body (but not on the left side of assignment)
-        if body_references_identifier(body, prop_name)
-            && !super::state_transforms::is_in_lhs_only(body, prop_name)
-        {
-            prop_dependencies.push(prop_name.clone());
-        }
-    }
-
-    // $$props and $$restProps are also treated as prop dependencies in the official compiler.
-    // They are wrapped in $.deep_read_state() just like regular props, BUT without the ()
-    // function call (they are accessed directly, not via getter functions).
-    // Reference: LabeledStatement.js line 44: `if (name === '$$props' || name === '$$restProps' ...)`
-    // Note: In our code, $$props is later replaced by $$sanitized_props in post-processing.
-    let mut special_prop_dependencies: Vec<String> = Vec::new();
-    for special_prop in &["$$props", "$$restProps"] {
-        if body_references_identifier(body, special_prop) {
-            special_prop_dependencies.push(special_prop.to_string());
-        }
-    }
-
-    // State vars are also dependencies, but only if they are READ in the body
-    // (not just assigned). In the official compiler, reactive_statement.dependencies
-    // only includes bindings that are read, not those that are only assigned.
-    for state_var in state_vars {
-        if !non_reactive_state_vars.contains(state_var)
-            && body_references_identifier(body, state_var)
-            && !is_only_assignment_target(body, state_var)
-        {
-            state_dependencies.push(state_var.clone());
-        }
-    }
-
-    // Store subscription vars are also dependencies
-    // e.g., `$: bar = $foo` - `$foo` is a store subscription and should be tracked as a dep.
-    // Store subs appear as `$foo()` calls in the dependency thunk.
-    let mut store_sub_dependencies: Vec<String> = Vec::new();
-    for store_sub in store_sub_vars {
-        // Check if the store subscription is referenced on the RHS of the assignment
-        // (not as the LHS itself, since `$: $foo = ...` would be a store assignment, not a dep)
-        if body_references_identifier(body, store_sub) {
-            // Only add as dependency if it appears on the RHS (not as the target of assignment)
-            // Check if the body is an assignment and `store_sub` is NOT the LHS
-            let is_assignment_target = if let Some(eq_pos) = find_assignment_position(body) {
-                let lhs = body[..eq_pos].trim();
-                lhs == store_sub.as_str()
-            } else {
-                false
-            };
-            if !is_assignment_target {
-                store_sub_dependencies.push(store_sub.clone());
-            }
-        }
-    }
-
-    // Import identifiers referenced in the body are also dependencies.
-    // In the official compiler, import bindings with `declaration_kind === 'import'`
-    // are included as bare identifiers in the dependency list.
-    // This handles cases like `$: selected() ? component = Sub : component = banana`
-    // where `Sub` is an imported component that should appear in the deps.
-    let mut import_dependencies: Vec<String> = Vec::new();
-    for import_name in import_names {
-        if body_references_identifier(body, import_name) {
-            // Don't add if it's already a state var or prop (would be double-counted)
-            if !state_vars.contains(import_name)
-                && !prop_assignment_transform_vars.contains(import_name)
-                && !store_sub_vars.contains(import_name)
-            {
-                import_dependencies.push(import_name.clone());
-            }
-        }
-    }
+    // Dependency membership + ORDER come from the Phase-2 AST reference set
+    // (`dep_names`), mirroring `2-analyze/visitors/LabeledStatement.js`. The
+    // legacy text-scan membership loops were removed: they mis-handled chained
+    // member-property keys (`.add(add)` matched `add` from the `.add(` key),
+    // string-literal text, block mutations, etc. The body-transform code below
+    // re-derives its rewrites from the `*_vars` lists, not from the dep set, so
+    // only the deps-thunk build (further down) consumes `dep_names`.
 
     // Transform the body - apply prop transformations
     // For `$: c = a + b;`, the body should become `c(a() + b());`
@@ -782,92 +712,41 @@ pub(super) fn transform_reactive_statement(
     //
     // Dependencies are sorted by their first occurrence in the body (left-to-right order),
     // matching the official Svelte compiler's Phase 2 dependency ordering.
-    let has_deps = !prop_dependencies.is_empty()
-        || !state_dependencies.is_empty()
-        || !store_sub_dependencies.is_empty()
-        || !import_dependencies.is_empty()
-        || !special_prop_dependencies.is_empty();
-    let deps_expr = if !has_deps {
-        "".to_string()
-    } else {
-        // Find the first occurrence position of an identifier in the body text.
-        // Scan a copy with string/template-literal TEXT blanked (offsets preserved)
-        // so a literal like `width: ${x}` does not let the literal word `width`
-        // text-match before the real `${width}` read — which would misorder deps.
-        // Blanking never touches a real reference, so this cannot reorder
-        // non-literal deps (layerchart-safe).
-        let body_for_pos = super::state_transforms::strip_string_literal_text(body);
-        let find_pos = |name: &str| -> usize {
-            let escaped = regex::escape(name);
-            let pattern = if name.starts_with('$') {
-                // `$` is not a word char; use alternation to simulate word boundary
-                format!(r"(^|[^a-zA-Z0-9_$]){}([^a-zA-Z0-9_$]|$)", escaped)
-            } else {
-                format!(r"\b{}\b", escaped)
-            };
-            if let Some(re) = get_or_compile_regex(&pattern) {
-                if let Some(m) = re.find(&body_for_pos) {
-                    // If name starts with `$`, the match may include one leading non-ident char;
-                    // return the position where the identifier actually starts.
-                    let start = m.start();
-                    if name.starts_with('$') && start < body.len() {
-                        let first_char = body[start..].chars().next().unwrap_or('$');
-                        if first_char != '$' {
-                            start + first_char.len_utf8()
-                        } else {
-                            start
-                        }
-                    } else {
-                        start
-                    }
+    // Build the dependency thunk from the AST-derived ordered dependency list
+    // (`dep_names`, from Phase 2). Order = upstream traversal order; membership =
+    // upstream scope-reference set (member-property keys are never present, so a
+    // chained `.add(add)` resolves to the `add` argument, not the method key).
+    // Each name is classified to its serialized getter form, mirroring
+    // `3-transform/client/visitors/LabeledStatement.js`'s build_getter +
+    // deep_read_state. A name that matches no `*_vars` list is a plain local /
+    // non-reactive `normal` binding and is skipped (upstream `continue`).
+    let deps_expr = {
+        let mut parts: Vec<String> = Vec::with_capacity(dep_names.len());
+        for name in dep_names {
+            if name == "$$props" || name == "$$restProps" {
+                parts.push(format!("$.deep_read_state({})", name));
+            } else if prop_assignment_transform_vars.iter().any(|p| p == name) {
+                parts.push(format!("$.deep_read_state({}())", name));
+            } else if store_sub_vars.iter().any(|s| s == name) {
+                parts.push(format!("{}()", name));
+            } else if state_vars.iter().any(|s| s == name)
+                && !non_reactive_state_vars.iter().any(|s| s == name)
+            {
+                let getter = if var_state_vars.iter().any(|v| v == name) {
+                    "$.safe_get"
                 } else {
-                    usize::MAX
-                }
-            } else {
-                usize::MAX
+                    "$.get"
+                };
+                parts.push(format!("{}({})", getter, name));
+            } else if import_names.iter().any(|i| i == name)
+                && !state_vars.iter().any(|s| s == name)
+                && !prop_assignment_transform_vars.iter().any(|p| p == name)
+                && !store_sub_vars.iter().any(|s| s == name)
+            {
+                parts.push(name.clone());
             }
-        };
-        // Build unified dep list: (position, expression_string)
-        let mut unified_deps: Vec<(usize, String)> = Vec::new();
-        for dep in &prop_dependencies {
-            let pos = find_pos(dep);
-            unified_deps.push((pos, format!("$.deep_read_state({}())", dep)));
         }
-        for dep in &state_dependencies {
-            let pos = find_pos(dep);
-            let getter = if var_state_vars.iter().any(|v| v == dep) {
-                "$.safe_get"
-            } else {
-                "$.get"
-            };
-            unified_deps.push((pos, format!("{}({})", getter, dep)));
-        }
-        // Store subscription vars: `$foo()` - call the getter to track dependency
-        for dep in &store_sub_dependencies {
-            let pos = find_pos(dep);
-            unified_deps.push((pos, format!("{}()", dep)));
-        }
-        // Import identifiers: appear as bare identifiers in the dependency list.
-        // In the official compiler, import bindings pass through build_getter()
-        // which returns them unchanged (no transform registered).
-        for dep in &import_dependencies {
-            let pos = find_pos(dep);
-            unified_deps.push((pos, dep.clone()));
-        }
-        // $$props and $$restProps: wrapped in $.deep_read_state() without function call.
-        // Unlike regular props which are accessed via getter functions (prop_name()),
-        // $$props/$$restProps are accessed directly.
-        for dep in &special_prop_dependencies {
-            let pos = find_pos(dep);
-            unified_deps.push((pos, format!("$.deep_read_state({})", dep)));
-        }
-        // Sort by first occurrence in body so deps match official compiler output order
-        unified_deps.sort_by_key(|&(pos, _)| pos);
-        unified_deps
-            .into_iter()
-            .map(|(_, expr)| expr)
-            .collect::<Vec<_>>()
-            .join(", ")
+        parts.join(", ")
     };
 
     // Replace `break $;` with `return;` since the reactive block becomes a function callback.
