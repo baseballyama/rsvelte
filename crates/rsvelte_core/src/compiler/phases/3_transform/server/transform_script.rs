@@ -5760,15 +5760,22 @@ fn transform_private_derived_accesses_server(
                 continue;
             }
 
-            let next_non_ws = after_match.chars().find(|c| !c.is_whitespace());
-            let is_already_call = next_non_ws == Some('(');
-
             let is_assignment = {
                 let trimmed_after = after_match.trim_start();
                 trimmed_after.starts_with('=') && !trimmed_after.starts_with("==")
             };
 
-            if is_already_call || is_assignment {
+            // A READ of a private `$derived` field is always rewritten to a call
+            // `this.#field()`, mirroring upstream's `MemberExpression` visitor
+            // (`b.call(member)`), EXCEPT when it is the LHS of an assignment
+            // (`this.#field = …`, lowered to a setter call elsewhere). Crucially,
+            // a following `(` does NOT mean the read is already wrapped: when the
+            // derived holds a FUNCTION (`#fn = $derived.by(() => () => …)`),
+            // user source `this.#fn(args)` calls that function, so the read still
+            // needs wrapping → `this.#fn()(args)`. (The generated getter
+            // delegations `return this.#name();` are written directly and never
+            // pass through this function, so there is no double-wrap risk.)
+            if is_assignment {
                 new_result.push_str(&search_pattern);
             } else {
                 new_result.push_str(&search_pattern);
@@ -7185,6 +7192,39 @@ mod class_field_server_tests {
         assert!(
             !out.contains("set isDisabled("),
             "private #isDisabled must not get a public setter:\n{out}"
+        );
+    }
+
+    /// A `$derived.by` private field that holds a FUNCTION is read AND called in
+    /// user source (`this.#fn(args)`). The READ must still be wrapped to a call,
+    /// yielding `this.#fn()(args)` — a following `(` does not mean the read is
+    /// already wrapped. (Regression: a previous `is_already_call` guard skipped
+    /// the wrap, emitting `this.#fn(args)`.)
+    #[test]
+    fn function_valued_derived_read_in_callee_position_is_wrapped() {
+        let input = r#"class Foo {
+  #opts;
+  #onMatch = $derived.by(() => {
+    return (node) => node.focus();
+  });
+  constructor(opts) {
+    this.#opts = opts;
+  }
+  run(item) {
+    const cur = this.#onMatch;
+    if (item) this.#onMatch(item);
+  }
+}"#;
+        let out = transform_class_fields_server(input);
+        // Bare read → call.
+        assert!(
+            out.contains("const cur = this.#onMatch();"),
+            "bare derived read must be wrapped:\n{out}"
+        );
+        // Call of a function-valued derived → wrap the read, keep the user call.
+        assert!(
+            out.contains("this.#onMatch()(item);"),
+            "function-valued derived call must wrap the read:\n{out}"
         );
     }
 
