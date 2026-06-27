@@ -583,12 +583,24 @@ pub(super) fn apply_prop_reads_in_prop_default_values(line: &str, prop_vars: &[S
             let default_val = &after_prop[start_byte..end_byte];
             let _after_default = &after_prop[end_byte..];
 
-            let transformed_default = super::prop_source_reads_ast::wrap_prop_source_reads_ast(
-                default_val,
-                prop_vars,
-                &[],
-            )
-            .unwrap_or_else(|| default_val.to_string());
+            // A default value that is EXACTLY a bare prop identifier is the lazy
+            // getter reference upstream passes directly (`get_prop_source`
+            // unwraps a zero-arg call back to its callee, so `prop` stays `prop`,
+            // NOT `prop()`). Leave it bare — only wrap prop reads NESTED inside a
+            // larger default (e.g. `() => { logs.push(…) }`).
+            let default_trimmed = default_val.trim();
+            let transformed_default = if is_identifier_str(default_trimmed)
+                && prop_vars.iter().any(|p| p == default_trimmed)
+            {
+                default_val.to_string()
+            } else {
+                super::prop_source_reads_ast::wrap_prop_source_reads_ast(
+                    default_val,
+                    prop_vars,
+                    &[],
+                )
+                .unwrap_or_else(|| default_val.to_string())
+            };
             result.push_str("$.prop(");
             result.push_str(before_default);
             result.push_str(&transformed_default);
@@ -3273,7 +3285,31 @@ pub(super) fn split_top_level_args(s: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod split_declarators_tests {
-    use super::{split_declarators, transform_prop_reads_in_expr};
+    use super::{
+        apply_prop_reads_in_prop_default_values, split_declarators, transform_prop_reads_in_expr,
+    };
+
+    #[test]
+    fn bare_prop_default_stays_a_getter_reference() {
+        let props = vec!["log_all".to_string(), "logs".to_string()];
+        // A default value that IS a bare prop identifier is the lazy getter ref
+        // upstream passes directly — keep it bare.
+        assert_eq!(
+            apply_prop_reads_in_prop_default_values(
+                "let log_rs = $.prop($$props, 'log_rs', 24, log_all);",
+                &props
+            ),
+            "let log_rs = $.prop($$props, 'log_rs', 24, log_all);"
+        );
+        // A prop read NESTED inside a larger default still wraps.
+        assert_eq!(
+            apply_prop_reads_in_prop_default_values(
+                "let f = $.prop($$props, 'f', 24, () => logs.push(1));",
+                &props
+            ),
+            "let f = $.prop($$props, 'f', 24, () => logs().push(1));"
+        );
+    }
 
     #[test]
     fn splits_top_level_commas() {
