@@ -1012,6 +1012,12 @@ impl<'a> EvalCtx<'a> {
             return Evaluation::single(EvalValue::Undefined);
         }
         let Some(initial) = binding.initial.as_deref() else {
+            // A template-literal initializer (`const w = `…${x}…``) is always a
+            // defined string (upstream scope.js `TemplateLiteral` → STRING marker),
+            // so reads of it must NOT be wrapped in `$.stringify(...)`.
+            if binding.initial_node_type.as_deref() == Some("TemplateLiteral") {
+                return Evaluation::single(EvalValue::StringMarker);
+            }
             // The analyzer does not capture non-literal initials in
             // `binding.initial`, but upstream's `scope.evaluate` still knows
             // `const uid = $props.id()` is a (defined) string — `$props.id`
