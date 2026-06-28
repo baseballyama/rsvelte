@@ -999,7 +999,32 @@ pub fn server_component_ast<'a>(
             matches!(binding.kind, BindingKind::BindableProp) && !binding.name.starts_with("$$")
         })
         .collect();
-    bindable.sort_by_key(|binding| binding.declaration_start.unwrap_or(u32::MAX));
+    // Sort by source-declaration position. A bindable prop that is shadowed by a
+    // same-named function parameter can have its BindableProp kind on the param
+    // binding (no `declaration_start`); borrow the real `let/var` declaration's
+    // position so the prop sorts at its true source location instead of last.
+    // Sort-only — does not change which binding is marked (so var-hoisting is
+    // untouched).
+    let decl_pos = |binding: &crate::compiler::phases::phase2_analyze::scope::Binding| -> u32 {
+        if let Some(start) = binding.declaration_start {
+            return start;
+        }
+        use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
+        analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| {
+                b.name == binding.name
+                    && matches!(
+                        b.declaration_kind,
+                        DeclarationKind::Let | DeclarationKind::Var
+                    )
+            })
+            .find_map(|b| b.declaration_start)
+            .unwrap_or(u32::MAX)
+    };
+    bindable.sort_by_key(|binding| decl_pos(binding));
     let mut bind_props: Vec<oxc_ast::ast::ObjectPropertyKind<'a>> = Vec::new();
     for binding in bindable {
         let key = binding.prop_alias.as_deref().unwrap_or(&binding.name);
