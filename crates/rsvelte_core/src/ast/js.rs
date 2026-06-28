@@ -205,13 +205,6 @@ impl Expression {
         match self {
             Expression::Typed(te) => match &te.node {
                 JsNode::Identifier { name, .. } => Some(name.as_str()),
-                JsNode::Raw(v) => {
-                    if v.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-                        v.get("name").and_then(|n| n.as_str())
-                    } else {
-                        None
-                    }
-                }
                 _ => None,
             },
             Expression::Value(v) => {

@@ -342,25 +342,6 @@ fn expression_only_uses_params_node(
                     {
                         return false;
                     }
-                    JsNode::Raw(v) => {
-                        // Fallback for Raw property nodes
-                        if let Some(prop_obj) = v.as_object() {
-                            if prop_obj
-                                .get("computed")
-                                .and_then(|c| c.as_bool())
-                                .unwrap_or(false)
-                                && let Some(key) = prop_obj.get("key")
-                                && !expression_only_uses_params(key, param_names, context)
-                            {
-                                return false;
-                            }
-                            if let Some(value) = prop_obj.get("value")
-                                && !expression_only_uses_params(value, param_names, context)
-                            {
-                                return false;
-                            }
-                        }
-                    }
                     _ => {}
                 }
             }
@@ -396,9 +377,6 @@ fn expression_only_uses_params_node(
 
         JsNode::ArrowFunctionExpression { .. } | JsNode::FunctionExpression { .. } => true,
 
-        // Fallback for Raw nodes: convert to JSON and use the JSON-based function
-        JsNode::Raw(v) => expression_only_uses_params(v, param_names, context),
-
         _ => false,
     }
 }
@@ -433,33 +411,6 @@ fn extract_pattern_names_node(
                             names.extend(inner_names);
                         }
                     }
-                    JsNode::Raw(v) => {
-                        // Fallback for Raw property nodes
-                        if let Some(prop_obj) = v.as_object() {
-                            if prop_obj.get("type").and_then(|t| t.as_str()) == Some("Property") {
-                                if let Some(value) = prop_obj.get("value") {
-                                    let actual_value = if value.get("type").and_then(|t| t.as_str())
-                                        == Some("AssignmentPattern")
-                                    {
-                                        value.get("left")
-                                    } else {
-                                        Some(value)
-                                    };
-                                    if let Some(v) = actual_value
-                                        && let Some(inner_names) = extract_pattern_names(v)
-                                    {
-                                        names.extend(inner_names);
-                                    }
-                                }
-                            } else if prop_obj.get("type").and_then(|t| t.as_str())
-                                == Some("RestElement")
-                                && let Some(arg) = prop_obj.get("argument")
-                                && let Some(inner_names) = extract_pattern_names(arg)
-                            {
-                                names.extend(inner_names);
-                            }
-                        }
-                    }
                     _ => {}
                 }
             }
@@ -483,9 +434,6 @@ fn extract_pattern_names_node(
         JsNode::RestElement { argument, .. } => {
             extract_pattern_names_node(arena.get_js_node(*argument), arena)
         }
-
-        // Fallback for Raw nodes
-        JsNode::Raw(v) => extract_pattern_names(v),
 
         _ => None,
     }
@@ -511,14 +459,6 @@ fn check_pattern_defaults_hoistable_node(
                     {
                         return false;
                     }
-                    JsNode::Raw(v) => {
-                        if let Some(prop_obj) = v.as_object()
-                            && let Some(value) = prop_obj.get("value")
-                            && !check_pattern_defaults_hoistable(value, param_names, context)
-                        {
-                            return false;
-                        }
-                    }
                     _ => {}
                 }
             }
@@ -539,9 +479,6 @@ fn check_pattern_defaults_hoistable_node(
         JsNode::AssignmentPattern { right, .. } => {
             expression_only_uses_params_node(arena.get_js_node(*right), param_names, context)
         }
-
-        // Fallback for Raw nodes
-        JsNode::Raw(v) => check_pattern_defaults_hoistable(v, param_names, context),
 
         _ => true,
     }
@@ -571,23 +508,6 @@ fn check_params_hoistable(
                     if !check_pattern_defaults_hoistable_node(&te.node, param_names, context) =>
                 {
                     return false;
-                }
-                JsNode::Raw(v) => {
-                    // Fallback for Raw nodes
-                    if let Some(obj) = v.as_object() {
-                        let param_type = obj.get("type").and_then(|v| v.as_str());
-                        if param_type == Some("AssignmentPattern")
-                            && let Some(right) = obj.get("right")
-                            && !expression_only_uses_params(right, param_names, context)
-                        {
-                            return false;
-                        } else if (param_type == Some("ObjectPattern")
-                            || param_type == Some("ArrayPattern"))
-                            && !check_pattern_defaults_hoistable(v, param_names, context)
-                        {
-                            return false;
-                        }
-                    }
                 }
                 _ => {}
             },

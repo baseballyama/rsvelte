@@ -2423,7 +2423,6 @@ fn get_name_node(node: &JsNode) -> Option<String> {
         },
         JsNode::PrivateIdentifier { name, .. } => Some(format!("#{}", name)),
         JsNode::Identifier { name, .. } => Some(name.to_string()),
-        JsNode::Raw(value) => get_name(value),
         _ => None,
     }
 }
@@ -2480,7 +2479,6 @@ fn get_global_keypath_node(
                 Some(name.to_string())
             }
         }
-        JsNode::Raw(value) => get_global_keypath(value, scope),
         _ => None,
     }
 }
@@ -2501,7 +2499,6 @@ pub fn get_rune_from_node(
             }
             Some(keypath)
         }
-        JsNode::Raw(value) => get_rune_from_json(value, scope),
         _ => None,
     }
 }
@@ -2560,7 +2557,6 @@ pub fn is_pure_node(node: &JsNode, context: &VisitorContext) -> bool {
                 is_pure_node(left, context)
             }
         }
-        JsNode::Raw(value) => is_pure(value, context),
         _ => false,
     }
 }
@@ -2578,7 +2574,6 @@ pub fn is_safe_identifier_node(expression: &JsNode, context: &VisitorContext) ->
     // Must be an Identifier at the base
     let name = match node {
         JsNode::Identifier { name, .. } => name.as_str(),
-        JsNode::Raw(value) => return is_safe_identifier(value, context),
         _ => return false,
     };
 
@@ -2708,9 +2703,6 @@ pub fn validate_no_const_assignment_node(
                 }
             }
         }
-        JsNode::Raw(value) => {
-            return validate_no_const_assignment(value, context, is_binding);
-        }
         _ => {}
     }
 
@@ -2822,11 +2814,6 @@ pub fn validate_assignment_node(
         }
     }
 
-    // Handle Raw fallback
-    if let JsNode::Raw(value) = argument {
-        return validate_assignment(value, context, is_bind_directive);
-    }
-
     Ok(())
 }
 
@@ -2869,9 +2856,6 @@ pub fn extract_identifiers_node(
                 arena.get_js_node(*argument),
                 arena,
             ));
-        }
-        JsNode::Raw(value) => {
-            return extract_identifiers(value);
         }
         _ => {}
     }
@@ -2926,9 +2910,6 @@ pub fn collect_all_identifier_names_from_pattern_node(
                 arena,
             );
         }
-        JsNode::Raw(value) => {
-            collect_all_identifier_names_from_pattern(value, names);
-        }
         _ => {}
     }
 }
@@ -2981,7 +2962,6 @@ fn get_rune_name_node(callee: &JsNode, context: &VisitorContext) -> Option<Strin
             }
             None
         }
-        JsNode::Raw(value) => get_rune_name(value, context),
         _ => None,
     }
 }
@@ -3404,10 +3384,6 @@ pub fn walk_js_expression_node(
             walk_js_expression_node(arena.get_js_node(*arg), context, metadata)?;
         }
         JsNode::YieldExpression { argument: None, .. } => {}
-        // Raw fallback: delegate to JSON-based walker
-        JsNode::Raw(value) => {
-            walk_js_expression(value, context, metadata)?;
-        }
         // Literals and other leaf nodes - no recursion needed
         _ => {}
     }
@@ -3541,10 +3517,6 @@ pub fn walk_js_statement_node(
         }
         JsNode::ThrowStatement { argument, .. } => {
             walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
-        }
-        // Raw fallback: delegate to JSON-based walker
-        JsNode::Raw(value) => {
-            walk_js_statement(value, context, metadata)?;
         }
         _ => {}
     }

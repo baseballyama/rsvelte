@@ -1004,450 +1004,7 @@ impl<'a> ScopeBuilder<'a> {
             | JsNode::DebuggerStatement { .. }
             | JsNode::BreakStatement { .. }
             | JsNode::ContinueStatement { .. } => {}
-            // Handle JsNode::Raw for statements stored as JSON values.
-            // This is needed because ExportNamedDeclaration wraps its declaration
-            // as JsNode::Raw(Value) in the parser, so the scope builder must be
-            // able to process it.
-            JsNode::Raw(json) => {
-                self.process_raw_statement(json);
-            }
             _ => {}
-        }
-    }
-
-    /// Process a statement stored as a JSON Value (Raw fallback).
-    ///
-    /// This handles cases where the parser wraps declarations as JsNode::Raw(Value),
-    /// such as the declaration inside ExportNamedDeclaration.
-    fn process_raw_statement(&mut self, json: &serde_json::Value) {
-        let json_type = json.get("type").and_then(|t| t.as_str());
-        match json_type {
-            Some("VariableDeclaration") => {
-                let decl_kind = match json.get("kind").and_then(|k| k.as_str()) {
-                    Some("const") => DeclarationKind::Const,
-                    Some("let") => DeclarationKind::Let,
-                    Some("var") => DeclarationKind::Var,
-                    _ => DeclarationKind::Const,
-                };
-                if let Some(declarators) = json.get("declarations").and_then(|d| d.as_array()) {
-                    for declarator in declarators {
-                        let id = declarator.get("id");
-                        let init = declarator.get("init");
-                        self.process_raw_binding_pattern(id, init, decl_kind);
-                        // Track updates in the initializer expression
-                        if let Some(init_val) = init {
-                            self.track_json_expression_updates(init_val);
-                        }
-                    }
-                }
-            }
-            Some("FunctionDeclaration") => {
-                if let Some(id) = json.get("id")
-                    && let Some(name) = id.get("name").and_then(|n| n.as_str())
-                {
-                    let idx = self.declare_binding(
-                        name.to_string(),
-                        BindingKind::Normal,
-                        DeclarationKind::Function,
-                    );
-                    self.bindings[idx].initial_is_function = true;
-                }
-                // Process function body for updates
-                if let Some(body) = json.get("body")
-                    && let Some(body_stmts) = body.get("body").and_then(|b| b.as_array())
-                {
-                    let old_scope = self.push_function_scope();
-                    self.function_depth += 1;
-                    // Register function scope for visitor phase scope lookup
-                    if let Some(start) = body.get("start").and_then(|s| s.as_u64()) {
-                        let key = start as u32;
-                        self.function_scope_map.insert(key, self.current_scope);
-                    }
-                    // Declare function parameters
-                    if let Some(params) = json.get("params").and_then(|p| p.as_array()) {
-                        for param in params {
-                            self.declare_raw_binding_names(
-                                param,
-                                BindingKind::Normal,
-                                DeclarationKind::Param,
-                            );
-                        }
-                    }
-                    for stmt in body_stmts {
-                        self.process_raw_statement(stmt);
-                    }
-                    self.function_depth -= 1;
-                    self.pop_scope(old_scope);
-                }
-            }
-            Some("ClassDeclaration") => {
-                if let Some(id) = json.get("id")
-                    && let Some(name) = id.get("name").and_then(|n| n.as_str())
-                {
-                    self.declare_binding(
-                        name.to_string(),
-                        BindingKind::Normal,
-                        DeclarationKind::Let,
-                    );
-                }
-                // Process class body to find declarations in methods, getters, setters, etc.
-                // This ensures that identifiers like constructor parameters are added to the
-                // conflicts set, preventing naming collisions with generated variables.
-                if let Some(body) = json.get("body") {
-                    self.process_raw_class_body(body);
-                }
-            }
-            Some("ExpressionStatement") => {
-                if let Some(expression) = json.get("expression") {
-                    self.track_json_expression_updates(expression);
-                }
-            }
-            Some("BlockStatement") => {
-                if let Some(body) = json.get("body").and_then(|b| b.as_array()) {
-                    let old_scope = self.push_scope();
-                    for stmt in body {
-                        self.process_raw_statement(stmt);
-                    }
-                    self.pop_scope(old_scope);
-                }
-            }
-            Some("ExportNamedDeclaration") => {
-                // Skip type-only exports
-                if json.get("exportKind").and_then(|k| k.as_str()) == Some("type") {
-                    return;
-                }
-                // Process the inner declaration (e.g., VariableDeclaration, FunctionDeclaration)
-                if let Some(declaration) = json.get("declaration")
-                    && !declaration.is_null()
-                {
-                    self.process_raw_statement(declaration);
-                }
-                // Also handle export specifiers to find re-exports:
-                // export { name as alias }
-                // These don't create new bindings but we handle them for completeness
-            }
-            Some("LabeledStatement") => {
-                // Check for `$:` reactive declarations in legacy mode
-                let label_name = json
-                    .get("label")
-                    .and_then(|l| l.get("name"))
-                    .and_then(|n| n.as_str());
-                if label_name == Some("$")
-                    && !self.runes_mode
-                    && let Some(body) = json.get("body")
-                    && body.get("type").and_then(|t| t.as_str()) == Some("ExpressionStatement")
-                    && let Some(expr) = body.get("expression")
-                {
-                    // Handle both direct AssignmentExpression and ParenthesizedExpression
-                    let inner_expr = if expr.get("type").and_then(|t| t.as_str())
-                        == Some("ParenthesizedExpression")
-                    {
-                        expr.get("expression").unwrap_or(expr)
-                    } else {
-                        expr
-                    };
-                    if inner_expr.get("type").and_then(|t| t.as_str())
-                        == Some("AssignmentExpression")
-                        && let Some(left) = inner_expr.get("left")
-                        && self.function_depth == 1
-                    {
-                        self.collect_raw_assignment_lhs_identifiers(left);
-                    }
-                }
-                // Process the body
-                if let Some(body) = json.get("body")
-                    && !body.is_null()
-                {
-                    self.process_raw_statement(body);
-                }
-            }
-            Some("IfStatement") => {
-                // Process consequent and alternate
-                if let Some(test) = json.get("test") {
-                    self.track_json_expression_updates(test);
-                }
-                if let Some(consequent) = json.get("consequent") {
-                    self.process_raw_statement(consequent);
-                }
-                if let Some(alternate) = json.get("alternate")
-                    && !alternate.is_null()
-                {
-                    self.process_raw_statement(alternate);
-                }
-            }
-            Some("ForStatement") => {
-                // `for (let x = 0; ...)` gets its own block scope so the loop
-                // binding does not leak into — or collide within — the parent
-                // scope. Mirrors the typed `ForStatement` path; without it two
-                // sibling `for (let i …)` loops falsely trip
-                // `declaration_duplicate`.
-                let needs_scope = json
-                    .get("init")
-                    .filter(|init| !init.is_null())
-                    .map(|init| {
-                        init.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
-                            && matches!(
-                                init.get("kind").and_then(|k| k.as_str()),
-                                Some("let") | Some("const")
-                            )
-                    })
-                    .unwrap_or(false);
-                let old_scope = if needs_scope {
-                    Some(self.push_scope())
-                } else {
-                    None
-                };
-                if let Some(init) = json.get("init")
-                    && !init.is_null()
-                {
-                    self.process_raw_statement(init);
-                }
-                if let Some(test) = json.get("test") {
-                    self.track_json_expression_updates(test);
-                }
-                if let Some(update) = json.get("update") {
-                    self.track_json_expression_updates(update);
-                }
-                if let Some(body) = json.get("body") {
-                    self.process_raw_statement(body);
-                }
-                if let Some(old) = old_scope {
-                    self.pop_scope(old);
-                }
-            }
-            Some("ForInStatement") | Some("ForOfStatement") => {
-                // A `let`/`const` loop variable lives in the for-statement's own
-                // block scope; declare it there (mirrors the typed ForIn/ForOf
-                // paths) so it neither leaks nor collides with sibling loops.
-                let left = json.get("left").filter(|l| !l.is_null());
-                let left_is_var_decl = left
-                    .map(|l| l.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration"))
-                    .unwrap_or(false);
-                let needs_scope = left
-                    .map(|l| {
-                        l.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
-                            && matches!(
-                                l.get("kind").and_then(|k| k.as_str()),
-                                Some("let") | Some("const")
-                            )
-                    })
-                    .unwrap_or(false);
-                let old_scope = if needs_scope {
-                    Some(self.push_scope())
-                } else {
-                    None
-                };
-                if left_is_var_decl && let Some(left) = left {
-                    self.process_raw_statement(left);
-                }
-                if let Some(right) = json.get("right") {
-                    self.track_json_expression_updates(right);
-                }
-                if let Some(body) = json.get("body") {
-                    self.process_raw_statement(body);
-                }
-                if let Some(old) = old_scope {
-                    self.pop_scope(old);
-                }
-            }
-            Some("WhileStatement") | Some("DoWhileStatement") => {
-                if let Some(test) = json.get("test") {
-                    self.track_json_expression_updates(test);
-                }
-                if let Some(body) = json.get("body") {
-                    self.process_raw_statement(body);
-                }
-            }
-            Some("ReturnStatement") | Some("ThrowStatement") => {
-                if let Some(argument) = json.get("argument")
-                    && !argument.is_null()
-                {
-                    self.track_json_expression_updates(argument);
-                }
-            }
-            Some("TryStatement") => {
-                if let Some(block) = json.get("block") {
-                    self.process_raw_statement(block);
-                }
-                if let Some(handler) = json.get("handler")
-                    && !handler.is_null()
-                {
-                    self.process_raw_statement(handler);
-                }
-                if let Some(finalizer) = json.get("finalizer")
-                    && !finalizer.is_null()
-                {
-                    self.process_raw_statement(finalizer);
-                }
-            }
-            Some("CatchClause") => {
-                if let Some(body) = json.get("body") {
-                    let old_scope = self.push_scope();
-                    // Declare catch parameter
-                    if let Some(param) = json.get("param")
-                        && !param.is_null()
-                    {
-                        self.declare_raw_binding_names(
-                            param,
-                            BindingKind::Normal,
-                            DeclarationKind::Const,
-                        );
-                    }
-                    self.process_raw_statement(body);
-                    self.pop_scope(old_scope);
-                }
-            }
-            Some("SwitchStatement") => {
-                if let Some(discriminant) = json.get("discriminant") {
-                    self.track_json_expression_updates(discriminant);
-                }
-                if let Some(cases) = json.get("cases").and_then(|c| c.as_array()) {
-                    for case in cases {
-                        if let Some(test) = case.get("test")
-                            && !test.is_null()
-                        {
-                            self.track_json_expression_updates(test);
-                        }
-                        if let Some(consequent) = case.get("consequent").and_then(|c| c.as_array())
-                        {
-                            for stmt in consequent {
-                                self.process_raw_statement(stmt);
-                            }
-                        }
-                    }
-                }
-            }
-            Some("ExportDefaultDeclaration") => {
-                // Export default doesn't create a named binding in the module scope
-            }
-            Some("ImportDeclaration") => {
-                // Process import specifiers for the Raw path
-                if json.get("importKind").and_then(|k| k.as_str()) == Some("type") {
-                    return;
-                }
-                let source_val = json
-                    .get("source")
-                    .and_then(|s| s.get("value"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                if let Some(specifiers) = json.get("specifiers").and_then(|s| s.as_array()) {
-                    for spec in specifiers {
-                        // Skip per-specifier type imports: `import { type Foo, Bar }`
-                        if spec.get("importKind").and_then(|k| k.as_str()) == Some("type") {
-                            continue;
-                        }
-                        let spec_type = spec.get("type").and_then(|t| t.as_str());
-                        let local_name = spec
-                            .get("local")
-                            .and_then(|l| l.get("name"))
-                            .and_then(|n| n.as_str());
-                        if let Some(name) = local_name {
-                            match spec_type {
-                                Some("ImportDefaultSpecifier")
-                                | Some("ImportSpecifier")
-                                | Some("ImportNamespaceSpecifier") => {
-                                    let specifier_type = spec_type.unwrap_or("ImportSpecifier");
-                                    let idx = self.declare_binding(
-                                        name.to_string(),
-                                        BindingKind::Normal,
-                                        DeclarationKind::Import,
-                                    );
-                                    self.bindings[idx].import_source = Some(source_val.clone());
-                                    // Store initial as ImportDeclaration JSON for
-                                    // legacy_component_creation warning detection
-                                    let import_json = serde_json::json!({
-                                        "type": "ImportDeclaration",
-                                        "source": { "value": source_val },
-                                        "specifiers": [{
-                                            "type": specifier_type,
-                                            "local": { "name": name }
-                                        }]
-                                    });
-                                    self.bindings[idx].initial = Some(import_json.to_string());
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    /// Process a class body stored as a JSON Value.
-    /// This handles ClassDeclaration stored as JsNode::Raw(Value) by iterating
-    /// method definitions and declaring their parameters in inner scopes.
-    /// This ensures that identifiers like constructor parameters are added to the
-    /// conflicts set, preventing naming collisions with generated variables.
-    fn process_raw_class_body(&mut self, body: &serde_json::Value) {
-        let elements = match body.get("body").and_then(|b| b.as_array()) {
-            Some(elems) => elems,
-            None => return,
-        };
-        for element in elements {
-            let elem_type = element.get("type").and_then(|t| t.as_str());
-            match elem_type {
-                Some("MethodDefinition") => {
-                    if let Some(value) = element.get("value") {
-                        let old_scope = self.push_function_scope();
-                        self.function_depth += 1;
-                        // Register the method body scope for the visitor phase, keyed
-                        // by the body's JSON `start` offset (same as the JSON
-                        // `FunctionDeclaration` path above). Without this the visitor
-                        // resolved identifiers inside the method against the outer
-                        // class/module scope, so a method-local `let x` shadowing a
-                        // top-level function param `x` was misresolved to the outer
-                        // (constant) binding and mis-reported as `constant_assignment`
-                        // (issue #907 follow-up: runed `persisted-state`,
-                        // `use-search-params`).
-                        if let Some(fn_body) = value.get("body")
-                            && let Some(start) = fn_body.get("start").and_then(|s| s.as_u64())
-                        {
-                            self.function_scope_map
-                                .insert(start as u32, self.current_scope);
-                        }
-                        // Declare function parameters
-                        if let Some(params) = value.get("params").and_then(|p| p.as_array()) {
-                            for param in params {
-                                self.declare_raw_binding_names(
-                                    param,
-                                    BindingKind::Normal,
-                                    DeclarationKind::Param,
-                                );
-                            }
-                        }
-                        // Process method body for declarations and updates
-                        if let Some(fn_body) = value.get("body")
-                            && let Some(body_stmts) = fn_body.get("body").and_then(|b| b.as_array())
-                        {
-                            for stmt in body_stmts {
-                                self.process_raw_statement(stmt);
-                            }
-                        }
-                        self.function_depth -= 1;
-                        self.pop_scope(old_scope);
-                    }
-                }
-                Some("PropertyDefinition") => {
-                    if let Some(value) = element.get("value")
-                        && !value.is_null()
-                    {
-                        self.track_json_expression_updates(value);
-                    }
-                }
-                Some("StaticBlock") => {
-                    if let Some(body_stmts) = element.get("body").and_then(|b| b.as_array()) {
-                        let old_scope = self.push_scope();
-                        for stmt in body_stmts {
-                            self.process_raw_statement(stmt);
-                        }
-                        self.pop_scope(old_scope);
-                    }
-                }
-                _ => {}
-            }
         }
     }
 
@@ -1487,9 +1044,6 @@ impl<'a> ScopeBuilder<'a> {
             JsNode::RestElement { argument, .. } => {
                 let a = self.arena.get_js_node(*argument);
                 self.collect_names_from_pattern_into_nested(a);
-            }
-            JsNode::Raw(v) => {
-                self.collect_names_from_raw_pattern_into_nested(v);
             }
             _ => {}
         }
@@ -1620,60 +1174,6 @@ impl<'a> ScopeBuilder<'a> {
             }
             Some("AssignmentPattern") => {
                 self.process_raw_binding_pattern(pattern.get("left"), init, decl_kind);
-            }
-            _ => {}
-        }
-    }
-
-    /// Declare binding names from a JSON pattern (for function parameters in Raw paths).
-    fn declare_raw_binding_names(
-        &mut self,
-        pattern: &serde_json::Value,
-        kind: BindingKind,
-        decl_kind: DeclarationKind,
-    ) {
-        let pattern_type = pattern.get("type").and_then(|t| t.as_str());
-        match pattern_type {
-            Some("Identifier") => {
-                if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
-                    self.declare_binding(name.to_string(), kind, decl_kind);
-                }
-            }
-            Some("ObjectPattern") => {
-                if let Some(props) = pattern.get("properties").and_then(|p| p.as_array()) {
-                    for prop in props {
-                        let prop_type = prop.get("type").and_then(|t| t.as_str());
-                        if prop_type == Some("Property") {
-                            if let Some(value) = prop.get("value") {
-                                self.declare_raw_binding_names(value, kind, decl_kind);
-                            }
-                        } else if (prop_type == Some("RestElement")
-                            || prop_type == Some("SpreadElement"))
-                            && let Some(arg) = prop.get("argument")
-                        {
-                            self.declare_raw_binding_names(arg, kind, decl_kind);
-                        }
-                    }
-                }
-            }
-            Some("ArrayPattern") => {
-                if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
-                    for elem in elements {
-                        if !elem.is_null() {
-                            self.declare_raw_binding_names(elem, kind, decl_kind);
-                        }
-                    }
-                }
-            }
-            Some("AssignmentPattern") => {
-                if let Some(left) = pattern.get("left") {
-                    self.declare_raw_binding_names(left, kind, decl_kind);
-                }
-            }
-            Some("RestElement") => {
-                if let Some(arg) = pattern.get("argument") {
-                    self.declare_raw_binding_names(arg, kind, decl_kind);
-                }
             }
             _ => {}
         }
@@ -1820,120 +1320,6 @@ impl<'a> ScopeBuilder<'a> {
             JsNode::RestElement { argument, .. } => {
                 let arg_node = self.arena.get_js_node(*argument);
                 self.process_binding_pattern_typed(arg_node, None, decl_kind);
-            }
-            JsNode::Raw(json) => {
-                // Fallback for patterns stored as JSON (e.g., with TypeScript annotations).
-                let json_type = json.get("type").and_then(|t| t.as_str());
-                match json_type {
-                    Some("Identifier") => {
-                        if let Some(name) = json.get("name").and_then(|n| n.as_str()) {
-                            let kind = if let Some(init_id) = init {
-                                let init_node = self.arena.get_js_node(init_id);
-                                self.detect_binding_kind_from_node(init_node)
-                            } else {
-                                BindingKind::Normal
-                            };
-                            let start_val =
-                                json.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
-                            let idx = self.declare_binding(name.to_string(), kind, decl_kind);
-                            self.bindings[idx].declaration_start = Some(start_val);
-                            if let Some(init_id) = init {
-                                let init_node = self.arena.get_js_node(init_id);
-                                if matches!(
-                                    init_node,
-                                    JsNode::ArrowFunctionExpression { .. }
-                                        | JsNode::FunctionExpression { .. }
-                                ) {
-                                    self.bindings[idx].initial_is_function = true;
-                                }
-                            }
-                        }
-                    }
-                    Some("ObjectPattern") => {
-                        let is_props_init = init
-                            .map(|init_id| {
-                                let init_node = self.arena.get_js_node(init_id);
-                                matches!(
-                                    self.detect_binding_kind_from_node(init_node),
-                                    BindingKind::Prop
-                                )
-                            })
-                            .unwrap_or(false);
-                        if let Some(props) = json.get("properties").and_then(|p| p.as_array()) {
-                            for prop in props {
-                                let prop_type = prop.get("type").and_then(|t| t.as_str());
-                                match prop_type {
-                                    Some("Property") => {
-                                        if let Some(value) = prop.get("value") {
-                                            let node = JsNode::Raw(value.clone());
-                                            let node_id = self.arena.alloc_js_node(node);
-                                            let node_ref = self.arena.get_js_node(node_id);
-                                            self.process_binding_pattern_typed(
-                                                node_ref, None, decl_kind,
-                                            );
-                                        }
-                                    }
-                                    Some("RestElement") | Some("SpreadElement") => {
-                                        if is_props_init {
-                                            if let Some(arg) = prop.get("argument")
-                                                && arg.get("type").and_then(|t| t.as_str())
-                                                    == Some("Identifier")
-                                                && let Some(name) =
-                                                    arg.get("name").and_then(|n| n.as_str())
-                                            {
-                                                self.declare_binding(
-                                                    name.to_string(),
-                                                    BindingKind::RestProp,
-                                                    decl_kind,
-                                                );
-                                            }
-                                        } else if let Some(arg) = prop.get("argument") {
-                                            let node = JsNode::Raw(arg.clone());
-                                            let node_id = self.arena.alloc_js_node(node);
-                                            let node_ref = self.arena.get_js_node(node_id);
-                                            self.process_binding_pattern_typed(
-                                                node_ref, None, decl_kind,
-                                            );
-                                        }
-                                    }
-                                    _ => {}
-                                }
-                            }
-                        }
-                    }
-                    Some("ArrayPattern") => {
-                        if let Some(elements) = json.get("elements").and_then(|e| e.as_array()) {
-                            for elem in elements {
-                                if !elem.is_null() {
-                                    let node = JsNode::Raw(elem.clone());
-                                    let node_id = self.arena.alloc_js_node(node);
-                                    let node_ref = self.arena.get_js_node(node_id);
-                                    self.process_binding_pattern_typed(node_ref, None, decl_kind);
-                                }
-                            }
-                        }
-                    }
-                    Some("AssignmentPattern") => {
-                        if let Some(left) = json.get("left") {
-                            let node = JsNode::Raw(left.clone());
-                            let node_id = self.arena.alloc_js_node(node);
-                            let node_ref = self.arena.get_js_node(node_id);
-                            self.process_binding_pattern_typed(node_ref, init, decl_kind);
-                        }
-                    }
-                    // An array-pattern rest element (`[a, ...rest]` /
-                    // `[a, ...[b, c]]`) declares the bindings of its argument
-                    // pattern (destructured-props-4/5).
-                    Some("RestElement") | Some("SpreadElement") => {
-                        if let Some(arg) = json.get("argument") {
-                            let node = JsNode::Raw(arg.clone());
-                            let node_id = self.arena.alloc_js_node(node);
-                            let node_ref = self.arena.get_js_node(node_id);
-                            self.process_binding_pattern_typed(node_ref, None, decl_kind);
-                        }
-                    }
-                    _ => {}
-                }
             }
             _ => {}
         }
@@ -2108,61 +1494,7 @@ impl<'a> ScopeBuilder<'a> {
                 let left_node = self.arena.get_js_node(*left);
                 self.collect_assignment_lhs_identifiers_typed(left_node);
             }
-            // Raw fallback - delegate to the JSON-based collector
-            JsNode::Raw(json) => {
-                self.collect_raw_assignment_lhs_identifiers(json);
-            }
             // MemberExpression, etc. - not implicit declarations
-            _ => {}
-        }
-    }
-
-    /// Collect identifiers from the LHS of an assignment expression (JSON path).
-    /// Used to find possible implicit `legacy_reactive` declarations from `$: x = expr`.
-    fn collect_raw_assignment_lhs_identifiers(&mut self, node: &serde_json::Value) {
-        let node_type = node.get("type").and_then(|t| t.as_str());
-        match node_type {
-            Some("Identifier") => {
-                if let Some(name) = node.get("name").and_then(|n| n.as_str())
-                    && !name.starts_with('$')
-                {
-                    self.possible_implicit_declarations.push(name.to_string());
-                }
-            }
-            Some("ArrayPattern") => {
-                if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
-                    for elem in elements {
-                        if !elem.is_null() {
-                            self.collect_raw_assignment_lhs_identifiers(elem);
-                        }
-                    }
-                }
-            }
-            Some("ObjectPattern") => {
-                if let Some(props) = node.get("properties").and_then(|p| p.as_array()) {
-                    for prop in props {
-                        let prop_type = prop.get("type").and_then(|t| t.as_str());
-                        match prop_type {
-                            Some("Property") => {
-                                if let Some(value) = prop.get("value") {
-                                    self.collect_raw_assignment_lhs_identifiers(value);
-                                }
-                            }
-                            Some("RestElement") | Some("SpreadElement") => {
-                                if let Some(arg) = prop.get("argument") {
-                                    self.collect_raw_assignment_lhs_identifiers(arg);
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
-            Some("AssignmentPattern") => {
-                if let Some(left) = node.get("left") {
-                    self.collect_raw_assignment_lhs_identifiers(left);
-                }
-            }
             _ => {}
         }
     }
@@ -3490,43 +2822,6 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
 
-            // Raw fallback: use JSON version
-            JsNode::Raw(json) => {
-                let expr_type = json.get("type").and_then(|t| t.as_str());
-                if expr_type == Some("SequenceExpression") {
-                    return;
-                }
-                if expr_type == Some("Identifier") {
-                    if let Some(serde_json::Value::String(name)) = json.get("name") {
-                        self.updates.push(Update {
-                            name: name.clone(),
-                            is_direct_assignment: true,
-                            scope_idx: self.current_scope,
-                        });
-                    }
-                    return;
-                }
-                if expr_type == Some("MemberExpression") {
-                    let mut current = json;
-                    while current.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
-                        if let Some(obj) = current.get("object") {
-                            current = obj;
-                        } else {
-                            return;
-                        }
-                    }
-                    if current.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                        && let Some(serde_json::Value::String(name)) = current.get("name")
-                    {
-                        self.updates.push(Update {
-                            name: name.clone(),
-                            is_direct_assignment: false,
-                            scope_idx: self.current_scope,
-                        });
-                    }
-                }
-            }
-
             _ => {}
         }
     }
@@ -4129,19 +3424,6 @@ impl<'a> ScopeBuilder<'a> {
                     for stmt in self.arena.get_js_children(stmts) {
                         self.process_statement_typed(stmt);
                     }
-                } else if let JsNode::Raw(json) = body_node {
-                    // The parser wraps arrow function bodies as JsNode::Raw(Value).
-                    // Handle both BlockStatement and expression bodies from JSON.
-                    let body_type = json.get("type").and_then(|t| t.as_str());
-                    if body_type == Some("BlockStatement") {
-                        if let Some(stmts) = json.get("body").and_then(|b| b.as_array()) {
-                            for stmt in stmts {
-                                self.track_json_statement_updates(stmt);
-                            }
-                        }
-                    } else {
-                        self.track_json_expression_updates(json);
-                    }
                 } else {
                     self.track_node_expression_updates(body_node);
                 }
@@ -4173,15 +3455,6 @@ impl<'a> ScopeBuilder<'a> {
                         let stmts = *stmts;
                         for stmt in self.arena.get_js_children(stmts) {
                             self.process_statement_typed(stmt);
-                        }
-                    } else if let JsNode::Raw(json) = body_node {
-                        // Handle Raw BlockStatement body (from convert_function_body_for_program)
-                        if json.get("type").and_then(|t| t.as_str()) == Some("BlockStatement") {
-                            if let Some(stmts) = json.get("body").and_then(|b| b.as_array()) {
-                                for stmt in stmts {
-                                    self.track_json_statement_updates(stmt);
-                                }
-                            }
                         }
                     }
                 }
@@ -4322,10 +3595,6 @@ impl<'a> ScopeBuilder<'a> {
                     }
                 }
             }
-            // JsNode::Raw fallback: convert to JSON and use the JSON walker
-            JsNode::Raw(json) => {
-                self.track_json_expression_updates(json);
-            }
             // Literals and other leaf nodes - no updates to track
             _ => {}
         }
@@ -4394,9 +3663,6 @@ impl<'a> ScopeBuilder<'a> {
             JsNode::RestElement { argument, .. } => {
                 self.track_node_assignment_target(self.arena.get_js_node(*argument));
             }
-            JsNode::Raw(json) => {
-                self.track_json_assignment_target(json);
-            }
             _ => {}
         }
     }
@@ -4421,9 +3687,6 @@ impl<'a> ScopeBuilder<'a> {
                         scope_idx: self.current_scope,
                     });
                 }
-            }
-            JsNode::Raw(json) => {
-                self.track_json_simple_assignment_target(json);
             }
             _ => {}
         }
@@ -4516,9 +3779,6 @@ impl<'a> ScopeBuilder<'a> {
                 if let Some(finalizer) = finalizer {
                     self.track_node_statement_updates(self.arena.get_js_node(*finalizer));
                 }
-            }
-            JsNode::Raw(json) => {
-                self.track_json_statement_updates(json);
             }
             _ => {}
         }
@@ -4791,10 +4051,6 @@ impl<'a> ScopeBuilder<'a> {
                     decl_kind,
                 );
             }
-            // Raw fallback: use JSON version
-            JsNode::Raw(v) => {
-                self.declare_bindings_from_pattern_with_kind(v, kind, inside_rest, decl_kind);
-            }
             _ => {}
         }
     }
@@ -4953,7 +4209,7 @@ impl<'a> ScopeBuilder<'a> {
         use crate::compiler::phases::phase2_analyze::scope::{BindingKind, DeclarationKind};
 
         let node = tag.declaration.as_node();
-        let (declarators_typed, declarators_json, decl_kind) = match &*node {
+        let (declarators_typed, decl_kind) = match &*node {
             JsNode::VariableDeclaration {
                 declarations, kind, ..
             } => {
@@ -4962,21 +4218,7 @@ impl<'a> ScopeBuilder<'a> {
                     "var" => DeclarationKind::Var,
                     _ => DeclarationKind::Let,
                 };
-                (Some(self.arena.get_js_children(*declarations)), None, dk)
-            }
-            JsNode::Raw(v) => {
-                let kind_str = v.get("kind").and_then(|k| k.as_str()).unwrap_or("let");
-                let dk = match kind_str {
-                    "const" => DeclarationKind::Const,
-                    "var" => DeclarationKind::Var,
-                    _ => DeclarationKind::Let,
-                };
-                let arr = v
-                    .get("declarations")
-                    .and_then(|d| d.as_array())
-                    .cloned()
-                    .unwrap_or_default();
-                (None, Some(arr), dk)
+                (Some(self.arena.get_js_children(*declarations)), dk)
             }
             _ => return,
         };
@@ -4992,20 +4234,6 @@ impl<'a> ScopeBuilder<'a> {
                 self.declare_decl_tag_bindings_node(id_node, decl_kind, binding_kind);
                 if let Some(init) = init_node {
                     self.set_const_tag_initial_typed(id_node, init);
-                }
-            }
-        } else if let Some(declarators) = declarators_json {
-            for declaration in declarators {
-                if let Some(id) = declaration.get("id") {
-                    let binding_kind = declaration
-                        .get("init")
-                        .filter(|i| !i.is_null())
-                        .map(binding_kind_from_init_json)
-                        .unwrap_or(BindingKind::Template);
-                    self.declare_decl_tag_bindings_json(id, decl_kind, binding_kind);
-                    if let Some(init) = declaration.get("init") {
-                        self.set_const_tag_initial(id, init);
-                    }
                 }
             }
         }
@@ -5059,56 +4287,6 @@ impl<'a> ScopeBuilder<'a> {
                     binding_kind,
                 );
             }
-            JsNode::Raw(v) => {
-                self.declare_decl_tag_bindings_json(v, decl_kind, binding_kind);
-            }
-            _ => {}
-        }
-    }
-
-    fn declare_decl_tag_bindings_json(
-        &mut self,
-        pattern: &serde_json::Value,
-        decl_kind: crate::compiler::phases::phase2_analyze::scope::DeclarationKind,
-        binding_kind: crate::compiler::phases::phase2_analyze::scope::BindingKind,
-    ) {
-        let Some(node_type) = pattern.get("type").and_then(|t| t.as_str()) else {
-            return;
-        };
-        match node_type {
-            "Identifier" => {
-                if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
-                    self.declare_binding(name.to_string(), binding_kind, decl_kind);
-                }
-            }
-            "ObjectPattern" => {
-                if let Some(props) = pattern.get("properties").and_then(|p| p.as_array()) {
-                    for prop in props {
-                        if let Some(value) = prop.get("value") {
-                            self.declare_decl_tag_bindings_json(value, decl_kind, binding_kind);
-                        }
-                    }
-                }
-            }
-            "ArrayPattern" => {
-                if let Some(elems) = pattern.get("elements").and_then(|e| e.as_array()) {
-                    for elem in elems {
-                        if !elem.is_null() {
-                            self.declare_decl_tag_bindings_json(elem, decl_kind, binding_kind);
-                        }
-                    }
-                }
-            }
-            "AssignmentPattern" => {
-                if let Some(left) = pattern.get("left") {
-                    self.declare_decl_tag_bindings_json(left, decl_kind, binding_kind);
-                }
-            }
-            "RestElement" => {
-                if let Some(argument) = pattern.get("argument") {
-                    self.declare_decl_tag_bindings_json(argument, decl_kind, binding_kind);
-                }
-            }
             _ => {}
         }
     }
@@ -5143,25 +4321,6 @@ impl<'a> ScopeBuilder<'a> {
                     }
                 }
             }
-            // Raw fallback: use JSON version
-            JsNode::Raw(v) => {
-                if v.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression") {
-                    if let Some(left) = v.get("left") {
-                        self.process_binding_pattern_from_json(left);
-                        if let Some(right) = v.get("right") {
-                            self.set_const_tag_initial(left, right);
-                        }
-                    }
-                } else if let Some(declarations) = v.get("declarations").and_then(|d| d.as_array())
-                    && let Some(declaration) = declarations.first()
-                    && let Some(id) = declaration.get("id")
-                {
-                    self.process_binding_pattern_from_json(id);
-                    if let Some(init) = declaration.get("init") {
-                        self.set_const_tag_initial(id, init);
-                    }
-                }
-            }
             _ => {}
         }
     }
@@ -5175,13 +4334,6 @@ impl<'a> ScopeBuilder<'a> {
     fn set_const_tag_initial_typed(&mut self, pattern: &JsNode, init: &JsNode) {
         let pattern_name = match pattern {
             JsNode::Identifier { name, .. } => Some(name.as_str()),
-            JsNode::Raw(v) => {
-                if v.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-                    v.get("name").and_then(|n| n.as_str())
-                } else {
-                    None
-                }
-            }
             _ => None,
         };
         let Some(name) = pattern_name else {
@@ -5194,93 +4346,18 @@ impl<'a> ScopeBuilder<'a> {
         self.bindings[idx].initial_is_defined = true;
         // Record the init node type so downstream transforms (e.g. should_proxy)
         // can check whether the initial value is a primitive expression.
-        let init_type = match init {
-            JsNode::Raw(v) => v.get("type").and_then(|t| t.as_str()).map(String::from),
-            _ => Some(init.type_str().to_string()),
-        };
+        let init_type = Some(init.type_str().to_string());
         if let Some(ty) = init_type {
             self.bindings[idx].initial_node_type = Some(ty.clone());
             if ty == "Identifier" {
                 let init_name = match init {
                     JsNode::Identifier { name, .. } => Some(name.to_string()),
-                    JsNode::Raw(v) => v.get("name").and_then(|n| n.as_str()).map(String::from),
                     _ => None,
                 };
                 if let Some(n) = init_name {
                     self.bindings[idx].initial_identifier_name = Some(n);
                 }
             }
-        }
-    }
-
-    /// Set the initial value on @const bindings for scope.evaluate() support.
-    /// This stores the init expression as a JSON string on binding.initial,
-    /// enabling is_expression_known_json to recursively evaluate const values.
-    fn set_const_tag_initial(&mut self, pattern: &serde_json::Value, init: &serde_json::Value) {
-        if let Some("Identifier") = pattern.get("type").and_then(|t| t.as_str())
-            && let Some(name) = pattern.get("name").and_then(|n| n.as_str())
-            && let Some(&idx) = self.scopes[self.current_scope].declarations.get(name)
-        {
-            self.bindings[idx].initial = Some(init.to_string());
-            self.bindings[idx].initial_is_defined = true;
-            // Record the init node type so downstream transforms (e.g. should_proxy)
-            // can check whether the initial value is a primitive expression.
-            if let Some(ty) = init.get("type").and_then(|t| t.as_str()) {
-                self.bindings[idx].initial_node_type = Some(ty.to_string());
-                if ty == "Identifier"
-                    && let Some(n) = init.get("name").and_then(|n| n.as_str())
-                {
-                    self.bindings[idx].initial_identifier_name = Some(n.to_string());
-                }
-            }
-        }
-        // For destructuring patterns, we don't store initial per-binding
-        // (the whole expression is too complex to decompose per-identifier)
-    }
-
-    /// Process a binding pattern from a JSON value.
-    /// Const-tag bindings get `BindingKind::Template` to match the official Svelte compiler
-    /// (scope.js line 1057: `scope.declare(id, 'template', 'const')`).
-    fn process_binding_pattern_from_json(&mut self, pattern: &serde_json::Value) {
-        match pattern.get("type").and_then(|t| t.as_str()) {
-            Some("Identifier") => {
-                if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
-                    self.declare_binding(
-                        name.to_string(),
-                        BindingKind::Template,
-                        DeclarationKind::Const,
-                    );
-                }
-            }
-            Some("ObjectPattern") | Some("ObjectExpression") => {
-                if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
-                    for prop in properties {
-                        if let Some(value) = prop.get("value") {
-                            self.process_binding_pattern_from_json(value);
-                        }
-                    }
-                }
-            }
-            Some("ArrayPattern") | Some("ArrayExpression") => {
-                if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
-                    for element in elements {
-                        if !element.is_null() {
-                            self.process_binding_pattern_from_json(element);
-                        }
-                    }
-                }
-            }
-            Some("AssignmentPattern") => {
-                if let Some(left) = pattern.get("left") {
-                    self.process_binding_pattern_from_json(left);
-                }
-            }
-            Some("RestElement") => {
-                if let Some(argument) = pattern.get("argument") {
-                    self.process_binding_pattern_from_json(argument);
-                }
-            }
-            _ => {}
         }
     }
 
@@ -5314,10 +4391,6 @@ impl<'a> ScopeBuilder<'a> {
             }
             JsNode::RestElement { argument, .. } => {
                 self.process_binding_pattern_from_node(self.arena.get_js_node(*argument));
-            }
-            // Raw fallback: use JSON version
-            JsNode::Raw(v) => {
-                self.process_binding_pattern_from_json(v);
             }
             _ => {}
         }
@@ -5374,81 +4447,6 @@ fn binding_kind_from_init_node(
         }
     }
     BindingKind::Template
-}
-
-/// JSON-shape fallback of `binding_kind_from_init_node`.
-fn binding_kind_from_init_json(
-    init: &serde_json::Value,
-) -> crate::compiler::phases::phase2_analyze::scope::BindingKind {
-    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-    if init.get("type").and_then(|t| t.as_str()) != Some("CallExpression") {
-        return BindingKind::Template;
-    }
-    let Some(callee) = init.get("callee") else {
-        return BindingKind::Template;
-    };
-    match callee.get("type").and_then(|t| t.as_str()) {
-        Some("Identifier") => match callee.get("name").and_then(|n| n.as_str()) {
-            Some("$state") => BindingKind::State,
-            Some("$derived") => BindingKind::Derived,
-            _ => BindingKind::Template,
-        },
-        Some("MemberExpression") => {
-            let computed = callee
-                .get("computed")
-                .and_then(|c| c.as_bool())
-                .unwrap_or(false);
-            if computed {
-                return BindingKind::Template;
-            }
-            let obj = callee.get("object").and_then(|o| {
-                if o.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-                    o.get("name").and_then(|n| n.as_str())
-                } else {
-                    None
-                }
-            });
-            let prop = callee.get("property").and_then(|p| {
-                if p.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-                    p.get("name").and_then(|n| n.as_str())
-                } else {
-                    None
-                }
-            });
-            match (obj, prop) {
-                (Some("$state"), Some("raw")) => BindingKind::RawState,
-                (Some("$derived"), Some("by")) => BindingKind::Derived,
-                _ => BindingKind::Template,
-            }
-        }
-        _ => BindingKind::Template,
-    }
-}
-
-fn collect_identifiers_from_json(val: &serde_json::Value, result: &mut Vec<String>) {
-    match val {
-        serde_json::Value::Object(obj) => {
-            if obj.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-                if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
-                    result.push(name.to_string());
-                }
-                // Don't recurse into Identifier children (start/end/loc are not sub-expressions)
-            } else {
-                for (key, v) in obj {
-                    // Skip position fields and type field to avoid false matches
-                    if key != "start" && key != "end" && key != "loc" && key != "type" {
-                        collect_identifiers_from_json(v, result);
-                    }
-                }
-            }
-        }
-        serde_json::Value::Array(arr) => {
-            for v in arr {
-                collect_identifiers_from_json(v, result);
-            }
-        }
-        _ => {}
-    }
 }
 
 /// Recursively collect all Identifier names from a JsNode AST.
@@ -5536,10 +4534,6 @@ fn collect_identifiers_from_node(node: &JsNode, result: &mut Vec<String>, arena:
             for arg in arena.get_js_children(*arguments) {
                 collect_identifiers_from_node(arg, result, arena);
             }
-        }
-        // Raw fallback
-        JsNode::Raw(v) => {
-            collect_identifiers_from_json(v, result);
         }
         // Leaf nodes (Literal, ThisExpression, etc.) - no identifiers
         _ => {}
@@ -5780,9 +4774,6 @@ fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>, arena:
                 collect_arrow_param_names_node(arena.get_js_node(*alternate), names, arena);
             }
         }
-        JsNode::Raw(json) => {
-            collect_arrow_param_names(json, names);
-        }
         // Leaf nodes or nodes without interesting children
         _ => {}
     }
@@ -5814,9 +4805,6 @@ fn collect_pattern_names_node(node: &JsNode, names: &mut Vec<String>, arena: &Pa
         JsNode::AssignmentPattern { left, .. } => {
             collect_pattern_names_node(arena.get_js_node(*left), names, arena);
         }
-        JsNode::Raw(json) => {
-            collect_pattern_names(json, names);
-        }
         _ => {}
     }
 }
@@ -5843,7 +4831,6 @@ fn node_start(node: &JsNode) -> Option<u32> {
         | JsNode::LogicalExpression { start, .. }
         | JsNode::NewExpression { start, .. }
         | JsNode::TemplateLiteral { start, .. } => Some(*start),
-        JsNode::Raw(json) => json.get("start").and_then(|s| s.as_u64()).map(|s| s as u32),
         _ => None,
     }
 }
@@ -5854,37 +4841,6 @@ fn get_node_base_identifier_name(node: &JsNode, arena: &ParseArena) -> Option<St
         JsNode::Identifier { name, .. } => Some(name.to_string()),
         JsNode::MemberExpression { object, .. } => {
             get_node_base_identifier_name(arena.get_js_node(*object), arena)
-        }
-        JsNode::Raw(json) => {
-            // Fallback to JSON-based extraction
-            let obj = json.as_object()?;
-            match obj.get("type").and_then(|t| t.as_str())? {
-                "Identifier" => obj
-                    .get("name")
-                    .and_then(|n| n.as_str())
-                    .map(|s| s.to_string()),
-                "MemberExpression" => {
-                    let object = obj.get("object")?;
-                    get_node_base_identifier_name_json(object)
-                }
-                _ => None,
-            }
-        }
-        _ => None,
-    }
-}
-
-/// JSON-only fallback for get_node_base_identifier_name (no arena needed).
-fn get_node_base_identifier_name_json(json: &serde_json::Value) -> Option<String> {
-    let obj = json.as_object()?;
-    match obj.get("type").and_then(|t| t.as_str())? {
-        "Identifier" => obj
-            .get("name")
-            .and_then(|n| n.as_str())
-            .map(|s| s.to_string()),
-        "MemberExpression" => {
-            let object = obj.get("object")?;
-            get_node_base_identifier_name_json(object)
         }
         _ => None,
     }

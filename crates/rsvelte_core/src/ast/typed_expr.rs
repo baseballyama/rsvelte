@@ -641,6 +641,14 @@ pub enum JsNode {
         end: u32,
         loc: Option<Box<Loc>>,
     },
+    // TS parameter property (`constructor(private x)` / `readonly x`). Only ever
+    // constructed when an accessibility/readonly modifier is present, so its
+    // presence is always an unsupported-feature error (raised by the TS stripper).
+    TSParameterProperty {
+        start: u32,
+        end: u32,
+        loc: Option<Box<Loc>>,
+    },
     TSModuleDeclaration {
         start: u32,
         end: u32,
@@ -654,8 +662,6 @@ pub enum JsNode {
         comment_type: CompactString,
         value: CompactString,
     },
-    // Fallback for unknown/opaque JSON nodes
-    Raw(Value),
     // Null placeholder
     #[default]
     Null,
@@ -1915,6 +1921,14 @@ impl Serialize for JsNode {
                 ser_node!(map, "typeAnnotation", type_annotation);
                 map.end()
             }
+            JsNode::TSParameterProperty { start, end, loc } => {
+                let mut map = serializer.serialize_map(None)?;
+                map.serialize_entry("type", "TSParameterProperty")?;
+                map.serialize_entry("start", start)?;
+                map.serialize_entry("end", end)?;
+                ser_loc!(map, loc);
+                map.end()
+            }
             JsNode::TSEnumDeclaration { start, end, loc } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "TSEnumDeclaration")?;
@@ -1952,7 +1966,6 @@ impl Serialize for JsNode {
                 map.serialize_entry("value", value.as_str())?;
                 map.end()
             }
-            JsNode::Raw(value) => value.serialize(serializer),
             JsNode::Null => serializer.serialize_none(),
         }
     }
@@ -2624,6 +2637,7 @@ impl JsNode {
                         loc,
                         type_annotation: convert_child(obj, "typeAnnotation"),
                     },
+                    "TSParameterProperty" => JsNode::TSParameterProperty { start, end, loc },
                     "TSEnumDeclaration" => JsNode::TSEnumDeclaration { start, end, loc },
                     "TSModuleDeclaration" => JsNode::TSModuleDeclaration {
                         start,
@@ -2637,10 +2651,14 @@ impl JsNode {
                         comment_type: type_str.into(),
                         value: get_str(obj, "value"),
                     },
-                    _ => JsNode::Raw(value),
+                    // `from_value` is total over every ESTree/TS node type that
+                    // appears in the corpus (0 fallbacks across ~12k entries incl.
+                    // all svelte tests + real-world libs). An unhandled type here
+                    // means a genuine gap to add an arm for, not a silent blob.
+                    other => unreachable!("from_value: unhandled node type `{other}`"),
                 }
             }
-            _ => JsNode::Raw(value),
+            other => unreachable!("from_value: non-node JSON value `{other:?}`"),
         }
     }
 
@@ -2717,10 +2735,10 @@ impl JsNode {
             JsNode::StaticBlock { .. } => Some("StaticBlock"),
             JsNode::Decorator { .. } => Some("Decorator"),
             JsNode::TSTypeAnnotation { .. } => Some("TSTypeAnnotation"),
+            JsNode::TSParameterProperty { .. } => Some("TSParameterProperty"),
             JsNode::TSEnumDeclaration { .. } => Some("TSEnumDeclaration"),
             JsNode::TSModuleDeclaration { .. } => Some("TSModuleDeclaration"),
             JsNode::Comment { comment_type, .. } => Some(comment_type.as_str()),
-            JsNode::Raw(v) => v.get("type").and_then(|t| t.as_str()),
             JsNode::Null => None,
         }
     }
@@ -2728,7 +2746,6 @@ impl JsNode {
     pub fn start(&self) -> Option<u32> {
         match self {
             JsNode::Null => None,
-            JsNode::Raw(v) => v.get("start").and_then(|s| s.as_u64()).map(|n| n as u32),
             JsNode::Comment { start, .. } => Some(*start),
             _ => {
                 // All named variants have start as first field
@@ -2740,7 +2757,6 @@ impl JsNode {
     pub fn end(&self) -> Option<u32> {
         match self {
             JsNode::Null => None,
-            JsNode::Raw(v) => v.get("end").and_then(|e| e.as_u64()).map(|n| n as u32),
             JsNode::Comment { end, .. } => Some(*end),
             _ => Some(self.get_end_inner()),
         }
@@ -2751,13 +2767,6 @@ impl JsNode {
     pub fn identifier_name(&self) -> Option<&str> {
         match self {
             JsNode::Identifier { name, .. } => Some(name.as_str()),
-            JsNode::Raw(v) => {
-                if v.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-                    v.get("name").and_then(|n| n.as_str())
-                } else {
-                    None
-                }
-            }
             _ => None,
         }
     }
@@ -2771,7 +2780,6 @@ impl JsNode {
             JsNode::Identifier { name, .. } | JsNode::PrivateIdentifier { name, .. } => {
                 Some(name.as_str())
             }
-            JsNode::Raw(v) => v.get("name").and_then(|n| n.as_str()),
             _ => None,
         }
     }
@@ -3395,10 +3403,11 @@ impl JsNode {
             | JsNode::StaticBlock { start, .. }
             | JsNode::Decorator { start, .. }
             | JsNode::TSTypeAnnotation { start, .. }
+            | JsNode::TSParameterProperty { start, .. }
             | JsNode::TSEnumDeclaration { start, .. }
             | JsNode::TSModuleDeclaration { start, .. }
             | JsNode::Comment { start, .. } => *start,
-            JsNode::Raw(_) | JsNode::Null => 0,
+            JsNode::Null => 0,
         }
     }
 
@@ -3475,10 +3484,11 @@ impl JsNode {
             | JsNode::StaticBlock { end, .. }
             | JsNode::Decorator { end, .. }
             | JsNode::TSTypeAnnotation { end, .. }
+            | JsNode::TSParameterProperty { end, .. }
             | JsNode::TSEnumDeclaration { end, .. }
             | JsNode::TSModuleDeclaration { end, .. }
             | JsNode::Comment { end, .. } => *end,
-            JsNode::Raw(_) | JsNode::Null => 0,
+            JsNode::Null => 0,
         }
     }
 
@@ -3557,10 +3567,10 @@ impl JsNode {
             JsNode::StaticBlock { .. } => "StaticBlock",
             JsNode::Decorator { .. } => "Decorator",
             JsNode::TSTypeAnnotation { .. } => "TSTypeAnnotation",
+            JsNode::TSParameterProperty { .. } => "TSParameterProperty",
             JsNode::TSEnumDeclaration { .. } => "TSEnumDeclaration",
             JsNode::TSModuleDeclaration { .. } => "TSModuleDeclaration",
             JsNode::Comment { .. } => "Comment",
-            JsNode::Raw(v) => v.get("type").and_then(|t| t.as_str()).unwrap_or("Unknown"),
             JsNode::Null => "Null",
         }
     }
@@ -3825,10 +3835,16 @@ mod tests {
     }
 
     #[test]
-    fn test_null_and_raw_fallback() {
+    fn test_null() {
         assert_eq!(JsNode::from_value(Value::Null), JsNode::Null);
+    }
+
+    #[test]
+    #[should_panic(expected = "unhandled node type")]
+    fn test_unknown_node_type_panics() {
+        // `from_value` is total over real inputs; an unknown type is a genuine
+        // gap that must surface loudly rather than degrade to an opaque blob.
         let unknown = serde_json::json!({"type": "SomeUnknownNode", "start": 0, "end": 1});
-        let node = JsNode::from_value(unknown);
-        assert!(matches!(node, JsNode::Raw(_)));
+        let _ = JsNode::from_value(unknown);
     }
 }

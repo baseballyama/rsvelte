@@ -1275,7 +1275,6 @@ fn is_expression_defined_typed(node: &JsNode, arena: &crate::ast::arena::ParseAr
                 .map(|kp| is_known_defined_global_call(&kp))
                 .unwrap_or(false)
         }
-        JsNode::Raw(value) => is_expression_defined(value),
         _ => false,
     }
 }
@@ -1300,7 +1299,6 @@ fn js_node_member_keypath(node: &JsNode, arena: &crate::ast::arena::ParseArena) 
             };
             Some(format!("{object}.{prop}"))
         }
-        JsNode::Raw(value) => json_member_keypath(value),
         _ => None,
     }
 }

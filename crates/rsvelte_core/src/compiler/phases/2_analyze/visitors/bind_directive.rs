@@ -818,7 +818,6 @@ fn get_object_node<'a>(
         JsNode::MemberExpression { object, .. } => {
             get_object_node(arena.get_js_node(*object), arena)
         }
-        JsNode::Raw(_) => None,
         _ => None,
     }
 }

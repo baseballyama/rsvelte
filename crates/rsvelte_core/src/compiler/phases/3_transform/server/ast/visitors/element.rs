@@ -2226,13 +2226,6 @@ fn string_literal_of(expr: &crate::ast::js::Expression) -> Option<String> {
                 None
             }
         }
-        crate::ast::typed_expr::JsNode::Raw(val) => {
-            if let Some(serde_json::Value::String(s)) = val.get("value") {
-                Some(s.clone())
-            } else {
-                None
-            }
-        }
         _ => None,
     }
 }

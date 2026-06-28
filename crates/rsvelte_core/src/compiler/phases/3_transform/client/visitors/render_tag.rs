@@ -306,16 +306,8 @@ fn unwrap_optional(expr: &Expression, arena: &crate::ast::arena::ParseArena) -> 
     use crate::ast::typed_expr::JsNode;
     if expr.node_type() == Some("ChainExpression") {
         let node = expr.as_node();
-        match &*node {
-            JsNode::ChainExpression { expression, .. } => {
-                return Expression::from_node(arena.get_js_node(*expression).clone());
-            }
-            JsNode::Raw(val) => {
-                if let Some(inner) = val.get("expression") {
-                    return Expression::Value(inner.clone());
-                }
-            }
-            _ => {}
+        if let JsNode::ChainExpression { expression, .. } = &*node {
+            return Expression::from_node(arena.get_js_node(*expression).clone());
         }
     }
     expr.clone()
@@ -348,15 +340,6 @@ fn extract_call_arguments(
             .iter()
             .map(|arg| Expression::from_node(arg.clone()))
             .collect(),
-        JsNode::Raw(val) => {
-            if let Some(args) = val.get("arguments").and_then(|a| a.as_array()) {
-                args.iter()
-                    .map(|arg| Expression::Value(arg.clone()))
-                    .collect()
-            } else {
-                Vec::new()
-            }
-        }
         _ => Vec::new(),
     }
 }
@@ -380,7 +363,6 @@ fn extract_call_callee(
         JsNode::CallExpression { callee, .. } => {
             Some(Expression::from_node(arena.get_js_node(*callee).clone()))
         }
-        JsNode::Raw(val) => val.get("callee").map(|c| Expression::Value(c.clone())),
         _ => None,
     }
 }

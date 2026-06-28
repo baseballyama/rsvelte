@@ -140,11 +140,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
 
         // For the complex `new Component({ target: ... })` warning detection,
         // fall back to Value-based logic
-        let is_new_expr = match expr_node {
-            JsNode::NewExpression { .. } => true,
-            JsNode::Raw(v) => v.get("type").and_then(|t| t.as_str()) == Some("NewExpression"),
-            _ => false,
-        };
+        let is_new_expr = matches!(expr_node, JsNode::NewExpression { .. });
         if is_new_expr {
             let value = node.to_value();
             if let Some(expr_val) = value.get("expression") {

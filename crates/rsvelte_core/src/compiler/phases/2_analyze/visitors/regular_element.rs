@@ -1375,7 +1375,6 @@ fn extract_binding_root_identifier_node(
             // whole MemberExpression chain into a Value.
             extract_binding_root_identifier_node(arena.get_js_node(*object), arena)
         }
-        JsNode::Raw(v) => extract_binding_root_identifier_json(v),
         _ => None,
     }
 }
