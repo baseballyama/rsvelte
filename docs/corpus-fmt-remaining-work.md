@@ -1,30 +1,137 @@
 # Formatter-parity corpus: remaining work (burn-down playbook)
 
-> **Status 2026-06-22 (unified corpus incl. bits-ui/flowbite/melt/shadcn,
-> ~9,715 components, oxfmt 0.54.0): 295 → 0 known failures, 0 regressions,
-> 23 documented exclusions**
-> (`compat/corpus/fmt-oracle-excluded.json` + `docs/fmt-oracle-bugs.md`).
-> **Every in-scope corpus component now formats byte-identically to the oracle.**
->
-> `code-viewer.svelte` (nested `<span>` highlighting inside `<pre><code>`) was
-> FIXED via the `<pre>` verbatim re-indent subsystem (Linux-validated). The last
-> case, `theme-customizer-code.svelte`, is **excluded as an oxfmt cross-platform
-> oracle bug** (#23): oxfmt produces PLATFORM-DEPENDENT output for it — on macOS
-> it collapses the overflowing self-closing `<ColorIndicator color={value} />`
-> inside `<pre>`, on Linux it attribute-wraps it. The oracle is therefore
-> self-inconsistent across OSes, so byte-parity is undefined (a deterministic
-> formatter cannot match both). Diagnosed empirically: rsvelte's output is stable
-> (5/5 identical) on macOS, and the macOS/Linux oxfmt oracles differ in opposite
-> directions. Filed in `docs/fmt-oracle-bugs.md` as an upstream oxfmt
-> non-determinism bug. (A faithful Doc-IR `isPreTagContent`/`printPre` printer
-> remains the ideal long-term replacement for the string-based `<pre>` re-indent
-> subsystem, but is not required for parity — tracked below.)
->
-> NOTE: a bespoke string post-pass for this file was tried and REVERTED (it was
-> platform-dependent itself); do not re-attempt a string post-pass — the oracle
-> being platform-inconsistent makes the file an exclusion, not a fix target.
->
-> The historical narrative below is retained.
+> **Status 2026-06-28 (unified corpus, 11,478 components, oxfmt 0.56.0,
+> svelte 5.56.x): 101 known failures, 18 exclusions, 0 regressions, Linux CI
+> green** (`compat/corpus/fmt-known-failures.json` /
+> `fmt-oracle-excluded.json`). See **“Remaining 101 (2026-06-28 snapshot)”**
+> below for the live cluster breakdown, root causes, concrete examples, and the
+> approaches already proven net-negative. The historical narrative (the original
+> 431→0 burn-down on the smaller svelte-only corpus) is retained further down.
+
+---
+
+## Remaining 101 (2026-06-28 snapshot)
+
+Re-generate this view any time with:
+
+```bash
+RSVELTE_FMT_BIN=target/release/rsvelte-fmt node scripts/compat-corpus/fmt.mjs --actual
+node scripts/compat-corpus/fmt-verify.mjs --max-print 200   # full per-id diffs
+node scripts/compat-corpus/fmt-cluster.mjs                  # ranked clusters
+node scripts/compat-corpus/fmt-one.mjs <id>                 # one id, live oracle vs rsvelte
+```
+
+The 101 are concentrated in real-world repos (corpus submodules): layercake (20),
+svelte-ux (17), layerchart (11), svelte-form-builder (9), cmsaasstarter (7),
+svelte-maplibre (5), then a long tail. **Almost all are the interconnected
+prettier HTML-layout / embedded-JS reflow behaviors** — the two dominant clusters
+have _opposing_ failure modes, so a blanket width or break-eagerness change trades
+one cluster for the other (verified — see “proven net-negative” below). Reaching 0
+needs the faithful prettier `printChildren` / `fill` / `group` Doc-IR layout port
+(`docs/fmt-layout-port-plan.md`), not point patches.
+
+### Cluster A — oracle wraps, rsvelte stays too compact (~49) — *under-break*
+
+The oracle breaks a long open tag / text run / embedded expression onto MORE
+lines than rsvelte. Sub-shapes:
+
+- **Long open-tag → break before child.** `<pre><code class="language-bash">` +
+  immediate text: the oracle puts `# Code blocks…` on its own line; rsvelte hugs
+  it onto the open tag. (`cmsaasstarter/.../awesome_post`.)
+- **Prose text `fill`.** A long mixed text run (`This is a basic setup … numbers
+  is unusual (<code>1,10,100…</code> …)`) is word-wrapped by the oracle at the
+  print width; rsvelte keeps it on one (very long) line. (`powertable/.../examples/+layout`.)
+- **Attribute string value wrapping.** Long `message="…"` /
+  `class="… {ternary} …"` attribute values the oracle wraps. (`cmsaasstarter/.../delete_account`.)
+- **Close-tag placement after a wrapped child** (`</div></a` vs `</div></a>`).
+
+### Cluster B — rsvelte over-breaks an open tag / embedded expression (~39) — *over-break*
+
+The mirror image: rsvelte wraps something the oracle keeps inline (or breaks it
+more aggressively). Two distinct root causes here:
+
+- **Inline element kept on one line.** `View our <a href=… class="link">pricing
+  page</a> for details.` overflows 80 cols, but the oracle keeps the whole
+  text+`<a>`+text run on one line (breaking the inline `<a>` open tag would change
+  whitespace-significant rendering); rsvelte breaks the `<a>` open tag into the
+  ugly `<a …\n  >pricing page</a\n> for details.` form.
+  (`cmsaasstarter/.../billing`.)
+- **Embedded `{expr}` width over-break.** An expression inside an attribute value
+  is formatted at a too-narrow width, so oxc breaks a call/ternary the oracle keeps
+  compact: `class="{fieldError(form, 'fullName') ? … }"` → rsvelte breaks
+  `fieldError(\n  form,\n  'fullName',\n)`; `style:transform="translate({dx + (a ?
+  -3 : 0)}px, …)"` → rsvelte explodes the ternary. The available-width accounting
+  for an attribute-embedded `{expr}` (`format_attribute_value_expression`) is the
+  suspect. (`cmsaasstarter/.../create_profile`, `layercake/_components/AxisY.*`.)
+
+### Cluster C — embedded-JS paren/disambiguation differences (~7)
+
+oxc's `NeedsParentheses` adds parens the oracle (prettier) omits in expression
+position, because rsvelte formats the embedded `{expr}` through a statement
+wrapper (`(expr);`):
+
+- **`object-paren` (4)** — `attr={{ … }[k]}` / `attr={{ … }}` → rsvelte emits
+  `attr={({ … })[k]}`: oxc parenthesises a leading object literal to avoid
+  block-parsing in statement position. (`layerchart/Arc`, `svelte-ux/Checkbox`,
+  `svelte-ux/Radio`, `layerchart/Timeline`.)
+- **`other-content` (2)** — same family: `(feature) => (Array.isArray(…))` keeps a
+  paren around an arrow body; `{(dataAttribute.value = [])}` keeps a paren around
+  an assignment expression — the oracle omits both. (`layerchart/docs/+layout`,
+  `svelte-form-builder/PropertyPanelDataAttributes`.)
+- **`tsx-generic-comma` (1)** — `<T>(cb…) =>` formatted as `<T,>(cb…) =>`: the
+  trailing comma disambiguates a generic arrow from JSX, but `.svelte` scripts are
+  TS not TSX, so the oracle emits `<T>`. (`svelte-splitpanes/Splitpanes`.)
+  Note `SourceType::ts()` is already non-JSX in `script.rs`; the comma comes from
+  `oxc_formatter`'s arrow-generic printing — likely an oxc-version-alignment item.
+
+> **PROVEN NET-NEGATIVE (do not re-attempt without a different mechanism):**
+> routing leading-object expressions through the const-initializer wrapper to drop
+> the Cluster-C `object-paren` parens (commit reverted 2026-06-28) fixes the 4
+> object-paren files but **regresses ~50** others: the const wrapper adds a `+20`
+> line-width compensation (for the stripped `const _rsvelte_x_ = ` prefix) that
+> also inflates the budget for CONTINUATION lines, so multi-line objects/expressions
+> the oracle breaks (`description: "…"`, `xAxis: { … }`, ternaries in
+> `force.strength(…)`) collapse onto one line. A correct fix needs a zero-width
+> expression-context wrapper (oxc can't currently be told the `{expr}` is in
+> expression, not statement, position) — i.e. an `oxc_formatter` change, not a
+> rsvelte wrapper trick. String-surgery paren-stripping is forbidden by project rule.
+
+### Cluster D — indent-only niches (~6)
+
+Heterogeneous, each its own small root cause (not a shared fix):
+
+- **Method-chain continuation indent.** A multi-line member chain inside `{expr}`
+  (`…\n  .ancestors()\n  .map(…)`) is indented to the expression’s column by the
+  oracle but to a flat 2 spaces by rsvelte. (`layerchart/Partition`, `Treemap`.)
+- **`{#if}` / text indent inside whitespace-sensitive `<pre>`** — a tab vs the
+  configured 2-space indent on one line inside `<pre>`. (`svelte-calendar/Code`,
+  `JSONEditor`.)
+- **SVG child / self-close depth** (`><path` indented one level deeper by the
+  oracle). (`date-picker-svelte/DatePicker`, `svelte-ux/ProgressCircle`.)
+
+### How to attack (priority order for a future pass)
+
+1. **Cluster B embedded-`{expr}` width** (subset of ~39) is the most
+   self-contained: fix the available-width passed to
+   `format_attribute_value_expression` so an attribute-embedded expression isn’t
+   broken more eagerly than prettier. Validate against the FULL corpus — Clusters
+   A and B share the width machinery, so confirm 0 regressions before committing.
+2. **Cluster A/B HTML inline-element layout** is the big prize (~85 combined) but
+   needs the `printChildren`/`fill`/`group` Doc-IR port — a dedicated,
+   benchmark-gated effort, not a point patch.
+3. **Cluster C** waits on an `oxc_formatter` expression-position API (or an oxc
+   bump that drops the `<T,>` comma / leading-object paren in this context).
+4. **Cluster D** items are individually small and safe but low-yield.
+
+**Cross-platform / baseline rule (critical):** the committed
+`fmt-known-failures.json` is the **Linux CI** failure set; macOS `--update-baseline`
+drops the loose-declaration-tag entries Linux includes (this snapshot: Linux
+`included` 11477 vs macOS 11478) and breaks CI. Shrink the baseline only from a
+Linux `corpus-compat.yml` run — read the Formatter-parity job log for the
+“N known failures now PASS” count and the per-id NOTICEs, then REMOVE exactly the
+confirmed-fixed ids from the committed list (do NOT regenerate via
+`--update-baseline` on macOS). See `scripts/compat-corpus/README.md` and the
+`project_corpus_fmt_parity` memory.
 
 ---
 
@@ -124,7 +231,11 @@ Earlier landed fixes:
   section reorder**, **`{#each … as x (key)}` space before the key**, and
   **`{#snippet}` header wrap width**.
 
-## Remaining 78 fixable (local, after 16 oracle-excluded), by class
+## (Historical) Remaining 78 fixable (local, after 16 oracle-excluded), by class
+
+> Superseded by the “Remaining 101 (2026-06-28 snapshot)” section at the top of
+> this file. Kept for the per-cluster root-cause notes, which still apply to the
+> equivalent clusters in the current set.
 
 After excluding the 16 oracle-bug / invalid-input / migrate ids (see
 `fmt-oracle-excluded.json` and `docs/fmt-oracle-bugs.md`), the following fixable
