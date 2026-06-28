@@ -798,10 +798,24 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
         | JsNode::ExportNamedDeclaration { .. }
         | JsNode::ImportDeclaration { .. } => Ok(()),
 
-        // Block-like with body array (IdRange)
-        JsNode::BlockStatement { body, .. }
-        | JsNode::Program { body, .. }
-        | JsNode::StaticBlock { body, .. } => {
+        // Block-like with body array (IdRange). For a BlockStatement, enter the
+        // block's lexical scope (registered by scope_builder) so block-local `let`s
+        // shadow outer bindings of the same name during mutation/reference
+        // resolution — mirroring scope_builder. Program/StaticBlock keep the scope.
+        JsNode::BlockStatement { body, .. } => {
+            let saved_scope = context.scope;
+            if let Some(start) = node.start()
+                && let Some(&scope_idx) = context.analysis.root.function_scope_map.get(&start)
+            {
+                context.scope = scope_idx;
+            }
+            for child in arena.get_js_children(*body) {
+                walk_js_node_typed(child, context)?;
+            }
+            context.scope = saved_scope;
+            Ok(())
+        }
+        JsNode::Program { body, .. } | JsNode::StaticBlock { body, .. } => {
             for child in arena.get_js_children(*body) {
                 walk_js_node_typed(child, context)?;
             }

@@ -758,6 +758,14 @@ impl<'a> ScopeBuilder<'a> {
             JsNode::BlockStatement { body, .. } => {
                 let body = *body;
                 let old_scope = self.push_scope();
+                // Register this (non-function) block's scope so the Phase-2 visitor
+                // can enter it too — otherwise block-local `let`s (e.g. a `let css`
+                // inside a `for` body that shadows a `css` prop) are invisible to the
+                // visitor's mutation/reference resolution, which then mis-attributes
+                // the mutation to the outer (prop) binding. Keyed by block start.
+                if let Some(bstart) = node.start() {
+                    self.function_scope_map.insert(bstart, self.current_scope);
+                }
                 for stmt in self.arena.get_js_children(body) {
                     self.process_statement_typed(stmt);
                 }
