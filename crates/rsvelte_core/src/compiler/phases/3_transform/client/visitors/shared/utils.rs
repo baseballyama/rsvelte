@@ -4787,9 +4787,39 @@ pub fn is_effect_pending_expr(
     }
 }
 
+// Recursion-depth guard for `initial_is_non_reactive` so cyclic initializers
+// (`const a = `${b}`; const b = `${a}``) cannot loop forever.
+thread_local! {
+    static REACTIVE_INIT_DEPTH: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+}
+
+/// True when a binding's stored initializer (`init_expr_json`, an interpolated
+/// template literal) contains NO reactive state — i.e. its value is compile-time
+/// "known" (approximates `scope.evaluate(node).is_known`, letting
+/// `const url = `…${KNOWN}…`` be treated as non-reactive). Depth-guarded.
+fn initial_is_non_reactive(init_expr_json: &Option<String>, context: &ComponentContext) -> bool {
+    let Some(s) = init_expr_json else {
+        return false;
+    };
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(s) else {
+        return false;
+    };
+    REACTIVE_INIT_DEPTH.with(|d| {
+        if d.get() >= 8 {
+            return false;
+        }
+        d.set(d.get() + 1);
+        // `is_expression_known_json` is the proper compile-time-known check: it
+        // returns false for calls / awaits / reactive reads, so a template with
+        // an impure or reactive interpolation stays reactive (memoized).
+        let known = is_expression_known_json(&json, context);
+        d.set(d.get() - 1);
+        known
+    })
+}
+
 /// Internal helper that processes JSON values directly, avoiding serde_json::from_value overhead.
 /// This eliminates expensive cloning and deserialization in recursive calls.
-#[inline]
 fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
     let Some(obj) = json_value.as_object() else {
         return false;
@@ -4972,12 +5002,18 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                         //   Note: initial_is_defined is NOT required here because
                         //   `undefined` is a compile-time constant even if it's falsy.
                         //   is_initial_value_literal_or_known handles None → false.
-                        let is_known = matches!(
+                        let decl_known_eligible = matches!(
                             binding.declaration_kind,
                             DeclarationKind::Const | DeclarationKind::Let
                         ) && !binding.reassigned
-                            && !binding.mutated
-                            && is_initial_value_literal_or_known(&binding.initial);
+                            && !binding.mutated;
+                        let is_known = decl_known_eligible
+                            && (is_initial_value_literal_or_known(&binding.initial)
+                                // Recursive `scope.evaluate`-style fallback for an
+                                // interpolated-template-literal initializer whose
+                                // interpolations are themselves non-reactive
+                                // (e.g. `const url = `…${KNOWN_CONST}…``). Depth-guarded.
+                                || initial_is_non_reactive(&binding.init_expr_json, context));
 
                         // has_state is true when the value is NOT known at compile time
                         return !is_known;

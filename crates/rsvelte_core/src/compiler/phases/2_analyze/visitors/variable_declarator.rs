@@ -154,6 +154,17 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
         }
     } else if let Some(init) = init {
         // Non-rune variable declaration - set initial value for constant folding
+        if std::env::var("RSV_DBG4").is_ok() {
+            for path in &paths {
+                if let Some(nm) = path.get("name").and_then(|n| n.as_str()) {
+                    eprintln!(
+                        "DBG4 nonrune name={} init.type={:?}",
+                        nm,
+                        init.get("type").and_then(|t| t.as_str())
+                    );
+                }
+            }
+        }
         for path in &paths {
             if let Some(name) = path.get("name").and_then(|n| n.as_str()) {
                 // Prefer a position-based lookup so that identical names in
@@ -175,6 +186,14 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
                 if let Some(binding_idx) = binding_idx {
                     let binding = &mut context.analysis.root.bindings[binding_idx];
                     binding.initial = extract_literal_string(init);
+                    if init.get("type").and_then(|t| t.as_str()) == Some("TemplateLiteral")
+                        && init
+                            .get("expressions")
+                            .and_then(|e| e.as_array())
+                            .is_some_and(|a| !a.is_empty())
+                    {
+                        binding.init_expr_json = Some(init.to_string());
+                    }
                     binding.initial_is_defined = is_expression_defined(init);
                     // Store the AST node type of the initial value for should_proxy()
                     binding.initial_node_type =
@@ -1420,6 +1439,14 @@ fn visit_runes_mode_typed(
                 }
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string_typed(init);
+                // Keep the init AST for an interpolated template literal so
+                // reactive-state evaluation can see through `const url =
+                // `…${KNOWN}…``. Stored separately from `initial` (which feeds
+                // `is_prop_source`).
+                if matches!(init, JsNode::TemplateLiteral { expressions, .. } if !expressions.is_empty())
+                {
+                    binding.init_expr_json = Some(init.to_json_string());
+                }
                 binding.initial_is_defined = is_expression_defined_typed(init, arena);
                 binding.initial_node_type = Some(init.type_str().to_string());
                 if binding.initial_node_type.as_deref() == Some("Identifier")
