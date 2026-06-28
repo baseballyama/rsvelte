@@ -1950,11 +1950,27 @@ fn render_attribute_value_sequence(
                     // first line ends with `{`/`[` (expanded call-argument block),
                     // keep the wider result to avoid over-constraining inner exprs.
                     let on_line = out.rsplit('\n').next().unwrap_or(&out);
-                    let lead_cols = if out.contains('\n') {
+                    // A multi-line string value (`style="…\n\tleft: {expr}%;\n…"`)
+                    // already carries the interpolation's physical column in the
+                    // emitted leading text on its own line (the source tabs/spaces),
+                    // so `lead_cols` IS the start column — the attribute's logical
+                    // indent must NOT be added on top (that double-counts and
+                    // over-breaks an expression that actually fits). On a single-line
+                    // value the logical indent still applies.
+                    let value_is_multiline = out.contains('\n');
+                    let lead_cols = if value_is_multiline {
                         visual_width(on_line)
                     } else {
                         name_prefix + visual_width(on_line)
                     };
+                    // `format_attribute_value_expression` narrows the print width by
+                    // `attr_depth` indent levels. For a multi-line string value the
+                    // interpolation's physical indent is the literal text already on
+                    // its line (counted in `lead_cols`), NOT the logical attribute
+                    // depth — so pass depth 0 there to avoid subtracting the indent
+                    // twice (which over-breaks: e.g. a member chain wraps instead of
+                    // the top-level `??`).
+                    let effective_attr_depth = if value_is_multiline { 0 } else { attr_depth };
                     // Trailing columns that share the interpolation's closing-`}`
                     // LINE — i.e. literal text up to the next newline only. A
                     // multi-line string value (`style="…\n\twidth: {r * 2}px;\n…"`)
@@ -1984,10 +2000,17 @@ fn render_attribute_value_sequence(
                     let has_trailing_expr = parts[i + 1..]
                         .iter()
                         .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
-                    let first_pass =
-                        format_attribute_value_expression(inner_src, &opts, attr_depth, 0)?;
+                    let first_pass = format_attribute_value_expression(
+                        inner_src,
+                        &opts,
+                        effective_attr_depth,
+                        0,
+                    )?;
                     let formatted = if narrow_value && is_shallow_value(inner_src) {
                         let indent_cols = attr_depth * opts.js.indent_width.value() as usize;
+                        // For a multi-line string value the physical indent is already
+                        // in `lead_cols`; don't add the logical attribute indent again.
+                        let effective_indent = if value_is_multiline { 0 } else { indent_cols };
                         let line_width_val = opts.js.line_width.value() as usize;
                         // Narrowing strategy: narrow only by the expression's START
                         // column (indent + prefix + `{`). When the expression wraps to
@@ -1999,7 +2022,7 @@ fn render_attribute_value_sequence(
                         // force the MINIMAL break below (`force_extra`) so only the
                         // expression's top-level operator wraps, matching the oracle.
                         let extra_start = lead_cols + 1; // chars before `{`
-                        if indent_cols + extra_start >= line_width_val {
+                        if effective_indent + extra_start >= line_width_val {
                             // Expression starts at or past the print width.
                             // OXC formatted at indent-only width. When there are no
                             // trailing interpolations, apply the prettier-style
@@ -2033,7 +2056,7 @@ fn render_attribute_value_sequence(
                         } else if !first_pass.contains('\n') {
                             // Wide first-pass produced a single-line result.
                             // Check if it fits with trailing on the same line.
-                            let total = indent_cols
+                            let total = effective_indent
                                 + lead_cols
                                 + 1
                                 + first_pass.len()
@@ -2056,7 +2079,7 @@ fn render_attribute_value_sequence(
                                 let start_result = format_attribute_value_expression(
                                     inner_src,
                                     &opts,
-                                    attr_depth,
+                                    effective_attr_depth,
                                     extra_start,
                                 )?;
                                 if start_result.contains('\n') {
@@ -2073,13 +2096,14 @@ fn render_attribute_value_sequence(
                                     // itself (e.g. ternary at `?`/`:` or comparison at `===`),
                                     // accepting that the trailing text may overflow on the last
                                     // continuation line.
-                                    let base_width = line_width_val.saturating_sub(indent_cols);
+                                    let base_width =
+                                        line_width_val.saturating_sub(effective_indent);
                                     let expr_len = visual_width(first_pass.as_str());
                                     let force_extra = base_width.saturating_sub(expr_len) + 1;
                                     let forced = format_attribute_value_expression(
                                         inner_src,
                                         &opts,
-                                        attr_depth,
+                                        effective_attr_depth,
                                         force_extra,
                                     )?;
                                     if forced.contains('\n') {
@@ -2133,7 +2157,7 @@ fn render_attribute_value_sequence(
                                 format_attribute_value_expression(
                                     inner_src,
                                     &opts,
-                                    attr_depth,
+                                    effective_attr_depth,
                                     extra_start,
                                 )?
                             }
