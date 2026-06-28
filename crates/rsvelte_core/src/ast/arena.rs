@@ -19,11 +19,23 @@
 //! - Mutable/destructive access is `unsafe` and requires callers to prove no
 //!   aliases exist
 
-use std::cell::UnsafeCell;
+use std::cell::{Cell, RefCell, UnsafeCell};
 
 use bumpalo::Bump;
+use rustc_hash::FxHashMap;
 
 use super::typed_expr::JsNode;
+
+/// Leading + trailing comment arrays attached to a node, keyed by the node's
+/// absolute `start` offset. Stored as raw ESTree `serde_json::Value`s (the same
+/// shape the parser emits), so they round-trip byte-identically through
+/// `parse()` output. Kept in a per-arena side table rather than on every
+/// `JsNode` variant: comments are rare, and a side table avoids bloating every
+/// node by 32 bytes (mirrors the `ignore_comment_map` side-channel on `Program`).
+pub type NodeComments = (
+    Option<Vec<serde_json::Value>>,
+    Option<Vec<serde_json::Value>>,
+);
 
 /// Handle to a `JsNode` stored in the parse arena.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -77,6 +89,15 @@ pub struct ParseArena {
     /// to ParseArena without changing public APIs so that Phase 1+ have a
     /// place to allocate from.
     bump: Bump,
+    /// Side table of `leadingComments`/`trailingComments` keyed by node `start`.
+    /// Populated by `JsNode::from_value` when `capture_comments` is set (the
+    /// `parse()` path), and read back by `JsNode`'s `Serialize` impl so AST
+    /// output stays comment-lossless without storing comments on every node.
+    node_comments: RefCell<FxHashMap<u32, NodeComments>>,
+    /// When `true`, `from_value` records node comments into `node_comments`.
+    /// Off by default (compile path) so the hot codegen path never builds the
+    /// table; `parse()` turns it on.
+    capture_comments: Cell<bool>,
 }
 
 // ParseArena is explicitly NOT Sync - it's single-threaded only.
@@ -101,7 +122,54 @@ impl ParseArena {
             js_child_range_by_start: UnsafeCell::new(Vec::new()),
             next_js_child_start: UnsafeCell::new(0),
             bump: Bump::new(),
+            node_comments: RefCell::new(FxHashMap::default()),
+            capture_comments: Cell::new(false),
         }
+    }
+
+    // -- Node comment side table (parse-only) --------------------------------
+
+    /// Enable/disable recording of node `leadingComments`/`trailingComments`
+    /// into the side table. `parse()` enables it; the compile path leaves it off.
+    #[inline]
+    pub fn set_capture_comments(&self, on: bool) {
+        self.capture_comments.set(on);
+    }
+
+    /// Whether comment capture is currently enabled.
+    #[inline]
+    pub fn capture_comments(&self) -> bool {
+        self.capture_comments.get()
+    }
+
+    /// Record the comments attached to the node at `start` (no-op when capture
+    /// is disabled or both arrays are absent).
+    #[inline]
+    pub fn record_node_comments(
+        &self,
+        start: u32,
+        leading: Option<Vec<serde_json::Value>>,
+        trailing: Option<Vec<serde_json::Value>>,
+    ) {
+        if !self.capture_comments.get() || (leading.is_none() && trailing.is_none()) {
+            return;
+        }
+        self.node_comments
+            .borrow_mut()
+            .insert(start, (leading, trailing));
+    }
+
+    /// Whether any node comments have been recorded (cheap guard for the
+    /// serialize hot path).
+    #[inline]
+    pub fn has_node_comments(&self) -> bool {
+        !self.node_comments.borrow().is_empty()
+    }
+
+    /// Look up the comments recorded for the node at `start`, if any.
+    #[inline]
+    pub fn node_comments(&self, start: u32) -> Option<NodeComments> {
+        self.node_comments.borrow().get(&start).cloned()
     }
 
     /// Access the bump allocator used by Phase 1+ of the bumpalo migration.
@@ -290,6 +358,8 @@ impl Clone for ParseArena {
                 ),
                 next_js_child_start: UnsafeCell::new(*self.next_js_child_start.get()),
                 bump: Bump::new(),
+                node_comments: RefCell::new(self.node_comments.borrow().clone()),
+                capture_comments: Cell::new(self.capture_comments.get()),
             }
         }
     }
@@ -362,8 +432,6 @@ mod tests {
 }
 
 // -- Thread-local serialization context --------------------------------------
-
-use std::cell::Cell;
 
 thread_local! {
     static SERIALIZE_ARENA: Cell<Option<*const ParseArena>> = const { Cell::new(None) };
