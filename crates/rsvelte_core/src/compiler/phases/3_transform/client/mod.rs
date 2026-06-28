@@ -5360,6 +5360,16 @@ fn transform_instance_script_for_visitors(
                 || first_trimmed_line.starts_with("var ");
             // The current line (trimmed) is always the last accumulated line,
             // so checking its trailing char is equivalent to checking the full text's trailing char.
+            // Strip a trailing line comment first: its text can end in an
+            // operator-looking char (e.g. `export let w = 768; // md+` ends in
+            // `+`), which would otherwise be misread as a continuation operator
+            // and merge the next statement. Comments are not always stripped
+            // upstream (only when the legacy script carries a `$`-token), so this
+            // path must be comment-robust on its own. Strings are respected.
+            let trimmed = match props_transforms::find_line_comment_position(trimmed) {
+                Some(pos) => trimmed[..pos].trim_end(),
+                None => trimmed,
+            };
             let trailing_comma = is_var_decl && trimmed.ends_with(',');
 
             // Check if the current trimmed line ends with a binary/assignment operator,
