@@ -1955,13 +1955,28 @@ fn render_attribute_value_sequence(
                     } else {
                         name_prefix + visual_width(on_line)
                     };
-                    let trailing_cols: usize = parts[i + 1..]
-                        .iter()
-                        .map(|p| match p {
-                            AttributeValuePart::Text(t) => visual_width(t.raw.as_str()),
-                            AttributeValuePart::ExpressionTag(_) => 0,
-                        })
-                        .sum();
+                    // Trailing columns that share the interpolation's closing-`}`
+                    // LINE — i.e. literal text up to the next newline only. A
+                    // multi-line string value (`style="…\n\twidth: {r * 2}px;\n…"`)
+                    // keeps each interpolation on its own physical line, so text on
+                    // SUBSEQUENT lines must not count toward this one's width (else a
+                    // trivial `{r * 2}` is force-broken to fit a phantom-long line).
+                    let mut trailing_cols = 0usize;
+                    for p in &parts[i + 1..] {
+                        match p {
+                            AttributeValuePart::Text(t) => {
+                                let raw = t.raw.as_str();
+                                if let Some(nl) = raw.find('\n') {
+                                    trailing_cols += visual_width(&raw[..nl]);
+                                    break;
+                                }
+                                trailing_cols += visual_width(raw);
+                            }
+                            // A following interpolation continues the same line; its
+                            // width is unknown here, so (as before) count it as 0.
+                            AttributeValuePart::ExpressionTag(_) => {}
+                        }
+                    }
                     // Whether there are trailing expression tags after this one.
                     // When true, the closing `)` of an expanded-arg form would land
                     // on a line followed by the next interpolation, producing
@@ -1974,25 +1989,16 @@ fn render_attribute_value_sequence(
                     let formatted = if narrow_value && is_shallow_value(inner_src) {
                         let indent_cols = attr_depth * opts.js.indent_width.value() as usize;
                         let line_width_val = opts.js.line_width.value() as usize;
-                        // Two-phase narrowing strategy:
-                        //
-                        // Phase 1 (`extra_start`): narrow only by the expression's
-                        // START column (indent + prefix + `{`). When the expression
-                        // wraps to multiple lines, the trailing text after `}` lands
-                        // on the final continuation line — NOT the first — so it must
-                        // NOT influence the first-line break decision.  This fixes
-                        // over-breaking when trailing is large (e.g. a long class list
-                        // after the interpolation).
-                        //
-                        // Phase 2 (`extra_full`): if the phase-1 result is still
-                        // single-line but the full assembled line overflows, the
-                        // trailing DOES land on the same line.  Re-format including
-                        // the trailing columns so OXC places the break at the right
-                        // spot (i.e. the expression is forced to wrap before its
-                        // closing `}` lands at column > line_width).
+                        // Narrowing strategy: narrow only by the expression's START
+                        // column (indent + prefix + `{`). When the expression wraps to
+                        // multiple lines, the trailing text after `}` lands on the final
+                        // continuation line — NOT the first — so it must NOT influence
+                        // the first-line break decision (narrowing by the trailing width
+                        // over-breaks nested calls/args). When the start-column form
+                        // still fits on one line but the full assembled line overflows,
+                        // force the MINIMAL break below (`force_extra`) so only the
+                        // expression's top-level operator wraps, matching the oracle.
                         let extra_start = lead_cols + 1; // chars before `{`
-                        // `+1` for `{`, `+1` for `}`, `+1` for closing `"`
-                        let extra_full = lead_cols + 3 + trailing_cols;
                         if indent_cols + extra_start >= line_width_val {
                             // Expression starts at or past the print width.
                             // OXC formatted at indent-only width. When there are no
@@ -2037,15 +2043,15 @@ fn render_attribute_value_sequence(
                             if total <= line_width_val {
                                 // Fits: no narrowing needed
                                 first_pass
-                            } else if indent_cols + extra_full < line_width_val {
-                                // Doesn't fit, and full-extra still leaves room:
-                                // use full narrowing (trailing collapses the width).
-                                format_attribute_value_expression(
-                                    inner_src, &opts, attr_depth, extra_full,
-                                )?
                             } else {
-                                // Full-extra overflows too: the trailing literal is very
-                                // long and all approaches overflow.
+                                // Doesn't fit on one line. The oracle breaks the
+                                // expression at its MINIMAL break point (top-level
+                                // operator) and lets the trailing literal sit on the
+                                // final continuation line — it never narrows by the
+                                // trailing width (doing so over-breaks nested calls/args,
+                                // e.g. `fieldError(form, 'fullName')` exploding into
+                                // multi-line arguments). So pick the narrowest width that
+                                // still keeps the expression's first line intact.
                                 // First try start-column narrowing (the original approach).
                                 let start_result = format_attribute_value_expression(
                                     inner_src,
