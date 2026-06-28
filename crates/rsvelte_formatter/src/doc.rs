@@ -39,6 +39,19 @@ pub(crate) enum Doc {
     /// Alternating `[content, sep, content, sep, …]` greedily packed.
     Fill(Vec<Doc>),
     Concat(Vec<Doc>),
+    /// A pre-formatted embedded expression (`{expr}`) whose JS was formatted by
+    /// the external engine (oxc) into a string, not a Doc. In `Flat` mode it
+    /// prints `flat`; in `Break` mode it prints `broken` — the multi-line form,
+    /// one entry per line, the first line bare and each continuation carrying its
+    /// own relative indent (as produced at column 0) plus the current indent
+    /// level. This lets an oxc-formatted interpolation participate in a `Fill`:
+    /// the fill keeps it on one line when its `flat` form fits at the current
+    /// column, else places it broken with continuation lines indented under the
+    /// attribute. `fits` measures it by `flat` width (it never forces a break).
+    RawExpr {
+        flat: String,
+        broken: Vec<String>,
+    },
     /// Sentinel: forces the nearest enclosing group to break. Consumed by
     /// [`propagate_breaks`]; prints as nothing.
     BreakParent,
@@ -109,6 +122,26 @@ pub(crate) fn print(
                 trim_trailing_blanks(&mut out);
                 out.push('\n');
                 pos = 0;
+            }
+            Doc::RawExpr { flat, broken } => {
+                if mode == Mode::Flat || broken.len() <= 1 {
+                    pos += flat.width();
+                    out.push_str(&flat);
+                } else {
+                    let pad = unit.repeat(ind);
+                    let mut lines = broken.into_iter();
+                    if let Some(first) = lines.next() {
+                        pos += first.width();
+                        out.push_str(&first);
+                    }
+                    for line in lines {
+                        trim_trailing_blanks(&mut out);
+                        out.push('\n');
+                        out.push_str(&pad);
+                        out.push_str(&line);
+                        pos = pad.width() + line.width();
+                    }
+                }
             }
             Doc::BreakParent => {} // consumed by propagate_breaks; prints nothing
             Doc::Group(ps) => {
@@ -217,6 +250,18 @@ fn fits(mut remaining: isize, rest_stack: &[(usize, Mode, Doc)], next: &[Doc]) -
                     remaining -= s.width() as isize;
                 }
             }
+            // A pre-formatted interpolation is measured by its flat width: the
+            // fill decides whether to keep it inline (flat) or break it based on
+            // whether that flat form fits at the current column.
+            Doc::RawExpr { flat, .. } => {
+                if !flat.is_empty() {
+                    if has_pending_space {
+                        remaining -= 1;
+                        has_pending_space = false;
+                    }
+                    remaining -= flat.width() as isize;
+                }
+            }
             Doc::Concat(ps)
             | Doc::Indent(ps)
             | Doc::Dedent(ps)
@@ -283,6 +328,9 @@ pub(crate) fn propagate_breaks(doc: Doc) -> Doc {
         }
         match doc {
             Doc::Text(_) | Doc::Line | Doc::Softline => (doc, false),
+            // A RawExpr has a flat form, so it never forces the enclosing group
+            // to break (the fill/group decides per-position).
+            Doc::RawExpr { .. } => (doc, false),
             Doc::Hardline | Doc::Literalline | Doc::BreakParent => (doc, true),
             Doc::Concat(ps) => {
                 let (ps, f) = map_children(ps);
@@ -335,6 +383,43 @@ mod tests {
             Doc::Dedent(vec![Doc::Hardline, Doc::Text("b".into())]),
         ])]);
         assert_eq!(p(doc, 80), "\n  a\nb");
+    }
+
+    #[test]
+    fn raw_expr_flat_when_it_fits() {
+        // A pre-formatted interpolation prints its flat form inline when the
+        // enclosing group fits flat.
+        let doc = Doc::Group(vec![
+            Doc::Text("x: ".into()),
+            Doc::RawExpr {
+                flat: "{a + b}".into(),
+                broken: vec!["{a +".into(), "  b}".into()],
+            },
+        ]);
+        assert_eq!(p(doc, 80), "x: {a + b}");
+    }
+
+    #[test]
+    fn raw_expr_breaks_in_a_fill_when_too_wide() {
+        // In a fill, a RawExpr that does not fit at the current column prints its
+        // broken form, with continuation lines indented to the fill's level.
+        let doc = propagate_breaks(Doc::Fill(vec![
+            Doc::Text("lead".into()),
+            Doc::Line,
+            Doc::RawExpr {
+                flat: "{averylongidentifier + anotherlongidentifier}".into(),
+                broken: vec![
+                    "{averylongidentifier +".into(),
+                    "  anotherlongidentifier}".into(),
+                ],
+            },
+        ]));
+        // width 20 forces the fill's Line to break before the wide RawExpr, then
+        // the RawExpr itself prints broken with its continuation at indent 0.
+        assert_eq!(
+            print(doc, 20, "  ", 0, 0),
+            "lead\n{averylongidentifier +\n  anotherlongidentifier}"
+        );
     }
 
     #[test]
