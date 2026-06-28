@@ -30,7 +30,15 @@ Doc primitives the layout relies on: `group`, `indent`, `dedent`, `softline`,
 0. **Extend `doc.rs`** — add `Dedent`, `BreakParent`, `Literalline`, `ForcedGroup`
    variants; `fits()` arms (`BreakParent`/`Literalline` → not-fit, `Dedent` →
    indent-1); a `propagate_breaks` pre-pass (Group containing `BreakParent` →
-   `ForcedGroup`). Unit-tested.
+   `ForcedGroup`). Unit-tested. **DONE.** Also landed (2026-06-28):
+   `Doc::RawExpr { flat, broken }` — embeds an oxc-formatted interpolation
+   (`{expr}`) into a measured Doc: `flat` (single-line) in `Flat` mode, the
+   pre-broken `broken` lines (continuation reindented to the current level) in
+   `Break` mode; `fits` measures it by `flat` width and it never forces a break.
+   This is the primitive that lets an oxc-string expression participate in a
+   `Fill`/`Group` (rsvelte formats embedded JS with oxc, not as a Doc, so the
+   expression can't otherwise be measured in-place by the outer layout). Unit-tested
+   (`raw_expr_*`). NOT yet wired into markup (see the style-value finding below).
 1. **New `children.rs`** — faithful port of `printChildren` + the 4-case element
    assembly; `should_hug_start/end`, canonical `is_block_element` (the 33-name
    oracle list, replacing the two divergent lists in markup.rs/collapse.rs),
@@ -47,6 +55,28 @@ Doc primitives the layout relies on: `group`, `indent`, `dedent`, `softline`,
    sibling forces the parent group to break (`forceBreakContent`).
 6. **`Doc::Literalline` for `<pre>`/`<textarea>`** — verbatim path via
    `in_pre_context`.
+
+## Finding (2026-06-28): style-value cases are CSS-aware, not a markup fill
+
+The remaining `style:transform="translate({a}px, calc(-50% + {b}px))"` failures
+(AxisY/AxisYRight) are NOT solvable with a generic whitespace-`fill` over the
+attribute value. Traced from the raw source + oracle:
+
+- The oracle breaks after `…px,` — the `translate(a, b)` **argument comma** — and
+  keeps `calc(-50% + {b…}` together on the next line, with `{b}` breaking
+  internally (oxc). A naive whitespace fill would instead break before `{b}`
+  (the `+ {b}` separator), which is wrong.
+- So oxfmt formats a `style` value **CSS-structure-aware** (it knows `translate`
+  takes comma-separated args and `calc(...)` is one unit), interleaving the
+  embedded `{expr}` mustaches. That is a CSS-value-with-interpolations formatter,
+  a distinct subsystem from `printChildren`/markup fill — and likely needs the
+  embedded JS as `Doc::RawExpr` atoms placed by a CSS-aware layout.
+
+Implication for the port: target **prose / mixed text+element content fill**
+(Cluster A, `printChildren`) first — that IS the generic whitespace fill the
+milestones describe. The CSS-aware style-value path is a separate, later effort;
+`Doc::RawExpr` is the right primitive for both, but the style path additionally
+needs a CSS value tokenizer (split at CSS punctuation, not whitespace).
 
 ## Gotchas
 
