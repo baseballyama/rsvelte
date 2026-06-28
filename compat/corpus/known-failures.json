@@ -26,7 +26,6 @@
 	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelComponentSpecific/PropertyPanelChoiceCheckboxRadioSpecific.svelte",
 	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelComponentSpecific/Table/TableColumnSpecific.svelte",
 	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelDataAttributes.svelte",
-	"svelte-form-builder/src/lib/FormBuilder.svelte",
 	"svelte-maplibre/src/lib/DeckGlLayer.svelte",
 	"svelte-sonner/src/lib/Toaster.svelte",
 	"svelte-table/example/Example2.svelte",
