@@ -6218,8 +6218,28 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
         // Arrow/function expressions are "known" (they evaluate to a function)
         "ArrowFunctionExpression" | "FunctionExpression" => true,
 
-        // Member expressions are generally not known
-        "MemberExpression" => false,
+        // Member expressions are generally not known, EXCEPT a non-computed
+        // member of a pure global namespace whose members are compile-time
+        // constants — `Math.PI`, `Math.E`, `Number.MAX_VALUE`, etc. (mirrors the
+        // globals table in upstream `scope.evaluate`). This lets a derived like
+        // `$derived(2 * Math.PI * r)` fold to a known constant (no reactive deps).
+        "MemberExpression" => {
+            if obj.get("computed").and_then(|c| c.as_bool()) == Some(true) {
+                return false;
+            }
+            let Some(object) = obj.get("object") else {
+                return false;
+            };
+            if object.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+                return false;
+            }
+            object
+                .get("name")
+                .and_then(|n| n.as_str())
+                .is_some_and(|name| {
+                    matches!(name, "Math" | "Number") && context.state.get_binding(name).is_none()
+                })
+        }
 
         // Default: not known
         _ => false,

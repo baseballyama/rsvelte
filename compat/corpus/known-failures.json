@@ -20,7 +20,6 @@
 	"melt-ui/packages/melt/src/lib/builders/tests/SpatialMenuNavTest.svelte",
 	"powertable/app/src/lib/components/PowerTable.svelte",
 	"shadcn-svelte/docs/src/lib/components/mobile-nav.svelte",
-	"shadcn-svelte/docs/src/lib/registry/examples/create/vercel/circular-gauge.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte",
 	"smelte/src/routes/components/_layout.svelte",
 	"svar-core/svelte/src/components/calendar/Month.svelte",
