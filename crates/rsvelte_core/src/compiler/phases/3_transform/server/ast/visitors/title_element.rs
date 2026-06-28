@@ -37,7 +37,15 @@ pub fn visit_title_element<'a>(node: &TitleElement, state: &mut ServerTransformS
     state
         .template
         .push(TemplateEntry::Literal("<title>".to_string()));
+    // Upstream's `TitleElement` calls `process_children` directly on the raw
+    // fragment nodes WITHOUT running `clean_nodes`, so the title's inner
+    // whitespace is preserved verbatim. rsvelte's `process_children` cleans
+    // internally, so suppress that for the title body by toggling
+    // `preserve_whitespace` (save/restore).
+    let saved_preserve = state.preserve_whitespace;
+    state.preserve_whitespace = true;
     process_children(&node.fragment.nodes, None, "html", state);
+    state.preserve_whitespace = saved_preserve;
     state
         .template
         .push(TemplateEntry::Literal("</title>".to_string()));

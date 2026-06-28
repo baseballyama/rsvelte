@@ -18,7 +18,6 @@
 	"powertable/app/src/lib/components/PowerTable.svelte",
 	"shadcn-svelte/docs/src/lib/components/mobile-nav.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte",
-	"smelte/src/routes/components/_layout.svelte",
 	"svelte-form-builder/src/lib/Components/Select.svelte",
 	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelComponentSpecific/PropertyPanelChoiceCheckboxRadioSpecific.svelte",
 	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelComponentSpecific/Table/TableColumnSpecific.svelte",
