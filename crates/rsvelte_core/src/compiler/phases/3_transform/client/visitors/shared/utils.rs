@@ -2057,6 +2057,27 @@ fn collect_reactive_references_from_metadata(
 
         let name = &binding.name;
 
+        // Store dependency: a reactive expression that references a store value
+        // (e.g. `$view`, or a `$.store_set(view, …)` write) depends on the store's
+        // subscribed value, read via the generated `$name()` getter — NOT
+        // `$.deep_read_state(name)` (which would deep-read the store object). The
+        // `$:` dependency builder already does this (reactive_transforms.rs); mirror
+        // it here for attribute/derived dependency lists. Detected by the presence
+        // of a synthesized `$name` StoreSub binding.
+        if binding.kind != BindingKind::StoreSub {
+            let store_getter = format!("${name}");
+            let is_store = context
+                .state
+                .scope_root
+                .bindings
+                .iter()
+                .any(|b| b.kind == BindingKind::StoreSub && b.name == store_getter);
+            if is_store {
+                getters.push(b::call(&context.arena, b::id(&store_getter), vec![]));
+                continue;
+            }
+        }
+
         // For reassigned each-block items in legacy mode, the dependency getter
         // should use collection[$$index] instead of $.get(item).
         if !context.state.analysis.runes
@@ -2228,6 +2249,26 @@ fn collect_reactive_references_inner(
             }
 
             seen.insert(name.to_string());
+
+            // Store dependency: a referenced store value depends on the store's
+            // subscribed value, read via the generated `$name()` getter — not
+            // `$.deep_read_state(name)`. Mirrors the metadata-based builder and the
+            // `$:` dependency builder. Detected by a synthesized `$name` StoreSub
+            // binding.
+            {
+                use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                let store_getter = format!("${name}");
+                let is_store = context
+                    .state
+                    .scope_root
+                    .bindings
+                    .iter()
+                    .any(|b| b.kind == BindingKind::StoreSub && b.name == store_getter);
+                if is_store {
+                    getters.push(b::call(&context.arena, b::id(&store_getter), vec![]));
+                    return;
+                }
+            }
 
             // For reassigned each-block items in legacy mode, the dependency getter
             // should use collection[$$index] instead of $.get(item).
