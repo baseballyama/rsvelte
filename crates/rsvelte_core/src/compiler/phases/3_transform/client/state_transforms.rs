@@ -1091,6 +1091,7 @@ pub(super) fn transform_prop_assignments(
     line: &str,
     prop_vars: &[String],
     non_bindable_prop_vars: &[String],
+    prop_invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> String {
     if prop_vars.is_empty() {
         return line.to_string();
@@ -1125,6 +1126,7 @@ pub(super) fn transform_prop_assignments(
         stage1,
         prop_vars,
         non_bindable_prop_vars,
+        prop_invalidate_bodies,
     )
     .unwrap_or_else(|| stage1.to_string())
 }

@@ -1255,7 +1255,15 @@ pub fn visit(
                         // We collect indirect_names first (read-only access to declarations
                         // and bindings), then mutate the target binding separately to avoid
                         // cloning the entire declarations HashMap.
-                        let mut indirect_names: Vec<String> = Vec::new();
+                        // Collect only bindings referenced WITHIN this `<select>`
+                        // element's own source span (its attributes + descendant
+                        // options), mirroring the official compiler which iterates
+                        // the select's scope references — NOT every template
+                        // reference in the component (which would wrongly pull in
+                        // unrelated ids used on sibling elements). Order by the
+                        // first in-span reference position so the emitted
+                        // `$.invalidate_inner_signals` body matches source order.
+                        let mut indirect_with_pos: Vec<(u32, String)> = Vec::new();
                         {
                             let scope_declarations =
                                 if context.analysis.root.all_scopes.len() > scope_idx {
@@ -1270,17 +1278,24 @@ pub fn visit(
                                 }
                                 if let Some(other_binding) =
                                     context.analysis.root.bindings.get(other_idx)
-                                {
-                                    let has_template_ref = other_binding
+                                    && let Some(min_pos) = other_binding
                                         .references
                                         .iter()
-                                        .any(|r| r.is_template_reference);
-                                    if has_template_ref {
-                                        indirect_names.push(name.clone());
-                                    }
+                                        .filter(|r| {
+                                            r.is_template_reference
+                                                && r.start >= element.start
+                                                && r.end <= element.end
+                                        })
+                                        .map(|r| r.start)
+                                        .min()
+                                {
+                                    indirect_with_pos.push((min_pos, name.clone()));
                                 }
                             }
                         }
+                        indirect_with_pos.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+                        let indirect_names: Vec<String> =
+                            indirect_with_pos.into_iter().map(|(_, n)| n).collect();
 
                         let binding = &mut context.analysis.root.bindings[binding_idx];
                         for name in indirect_names {

@@ -4388,6 +4388,61 @@ fn transform_instance_script_for_visitors(
         .map(|b| b.name.clone())
         .collect();
 
+    // For each prop binding that carries `legacy_indirect_bindings` (legacy
+    // `<select bind:value={prop…}>` whose subtree references other variables),
+    // precompute the `$.invalidate_inner_signals(() => { … })` body — the read
+    // form of each indirect binding, one statement per line. This lets the
+    // legacy prop-member-mutation transform wrap `prop(prop().x = v, true)` in a
+    // sequence so those signals re-read, mirroring AssignmentExpression.js. Only
+    // ever non-empty in legacy mode. The read form mirrors `build_getter`:
+    // prop source → `name()`, store sub → `name()`, reactive state/derived →
+    // `$.get(name)`, everything else → bare `name`.
+    let prop_invalidate_bodies: rustc_hash::FxHashMap<String, String> = {
+        use crate::compiler::phases::phase2_analyze::scope::BindingKind as BK;
+        let read_form = |n: &str| -> String {
+            match analysis
+                .root
+                .find_binding_any_scope(n)
+                .and_then(|i| analysis.root.bindings.get(i))
+            {
+                Some(b)
+                    if matches!(b.kind, BK::Prop | BK::BindableProp)
+                        && utils::is_prop_source(b, analysis) =>
+                {
+                    format!("{}()", n)
+                }
+                Some(b) if matches!(b.kind, BK::StoreSub) => format!("{}()", n),
+                Some(b)
+                    if matches!(
+                        b.kind,
+                        BK::State | BK::RawState | BK::Derived | BK::LegacyReactive
+                    ) =>
+                {
+                    format!("$.get({})", n)
+                }
+                _ => n.to_string(),
+            }
+        };
+        analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| {
+                matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
+                    && !b.legacy_indirect_bindings.is_empty()
+            })
+            .map(|b| {
+                let body = b
+                    .legacy_indirect_bindings
+                    .iter()
+                    .map(|n| format!("{};", read_form(n)))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                (b.name.clone(), body)
+            })
+            .collect()
+    };
+
     // Collect non-bindable prop vars (kind === 'prop', not 'bindable_prop').
     // In runes mode, these should NOT have member mutations wrapped with the prop setter
     // because the official compiler's mutate transform for non-bindable props returns
@@ -5126,6 +5181,7 @@ fn transform_instance_script_for_visitors(
                 &transformed,
                 prop_assignment_transform_vars,
                 &non_bindable_prop_vars,
+                &prop_invalidate_bodies,
             )
         } else {
             transformed

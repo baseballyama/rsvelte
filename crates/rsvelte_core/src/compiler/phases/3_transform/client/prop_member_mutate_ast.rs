@@ -74,6 +74,7 @@ pub fn transform_prop_member_mutate_ast(
     source: &str,
     prop_vars: &[String],
     non_bindable_prop_vars: &[String],
+    prop_invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> Option<String> {
     if prop_vars.is_empty() {
         return None;
@@ -99,6 +100,7 @@ pub fn transform_prop_member_mutate_ast(
                     source: src,
                     prop_vars,
                     non_bindable_prop_vars,
+                    prop_invalidate_bodies,
                     replacements: Vec::new(),
                     skip_assignment_spans: Vec::new(),
                 };
@@ -131,6 +133,10 @@ struct PropMemberMutateCollector<'a> {
     source: &'a str,
     prop_vars: &'a [String],
     non_bindable_prop_vars: &'a [String],
+    /// Prop name → precomputed `$.invalidate_inner_signals` body (read forms of
+    /// the prop's `legacy_indirect_bindings`). Empty unless the prop backs a
+    /// legacy `<select bind:value>` referencing other variables.
+    prop_invalidate_bodies: &'a rustc_hash::FxHashMap<String, String>,
     replacements: Vec<Edit>,
     /// Spans of `AssignmentExpression`s that are the first arg of a
     /// `prop(<assignment>, true)` wrap call. Skipping these is what
@@ -236,10 +242,24 @@ impl<'a, 'ast> Visit<'ast> for PropMemberMutateCollector<'a> {
         let rest_and_assignment = &outer_text[local_rest_start..];
 
         // Build the wrapped mutation: `prop(prop()<rest_and_assignment>, true)`
-        let rewrite = format!(
+        let mutation = format!(
             "{}({}(){}, true)",
             root_name, root_name, rest_and_assignment
         );
+
+        // If the prop carries legacy indirect bindings (a `<select bind:value>`
+        // referencing other variables), wrap the mutation in a sequence with
+        // `$.invalidate_inner_signals(() => { … })` so those signals re-read.
+        // Mirrors AssignmentExpression.js / the bind-directive setter path.
+        let rewrite = match self.prop_invalidate_bodies.get(root_name) {
+            Some(body) if !body.is_empty() => {
+                format!(
+                    "({}, $.invalidate_inner_signals(() => {{ {} }}))",
+                    mutation, body
+                )
+            }
+            _ => mutation,
+        };
 
         self.replacements
             .push((expr.span.start, expr.span.end, rewrite));
@@ -254,49 +274,80 @@ mod tests {
         names.iter().map(|s| s.to_string()).collect()
     }
 
+    /// Empty `prop_invalidate_bodies` map for tests that don't exercise the
+    /// `$.invalidate_inner_signals` wrapping.
+    fn nm() -> rustc_hash::FxHashMap<String, String> {
+        rustc_hash::FxHashMap::default()
+    }
+
+    #[test]
+    fn wraps_mutation_with_invalidate_inner_signals() {
+        let mut map = nm();
+        map.insert("field".to_string(), "a; b();".to_string());
+        let out =
+            transform_prop_member_mutate_ast("field.x = {};", &ssv(&["field"]), &[], &map).unwrap();
+        assert_eq!(
+            out,
+            "(field(field().x = {}, true), $.invalidate_inner_signals(() => { a; b(); }));"
+        );
+    }
+
+    #[test]
+    fn no_invalidate_wrap_when_prop_absent_from_map() {
+        let mut map = nm();
+        map.insert("other".to_string(), "a;".to_string());
+        let out =
+            transform_prop_member_mutate_ast("field.x = {};", &ssv(&["field"]), &[], &map).unwrap();
+        assert_eq!(out, "field(field().x = {}, true);");
+    }
+
     #[test]
     fn static_member_assignment() {
-        let out = transform_prop_member_mutate_ast("prop.foo = 5;", &ssv(&["prop"]), &[]).unwrap();
+        let out =
+            transform_prop_member_mutate_ast("prop.foo = 5;", &ssv(&["prop"]), &[], &nm()).unwrap();
         assert_eq!(out, "prop(prop().foo = 5, true);");
     }
 
     #[test]
     fn call_then_static_member_assignment_is_idempotent_shape() {
-        let out =
-            transform_prop_member_mutate_ast("prop().foo = 5;", &ssv(&["prop"]), &[]).unwrap();
+        let out = transform_prop_member_mutate_ast("prop().foo = 5;", &ssv(&["prop"]), &[], &nm())
+            .unwrap();
         assert_eq!(out, "prop(prop().foo = 5, true);");
     }
 
     #[test]
     fn computed_member_assignment() {
-        let out = transform_prop_member_mutate_ast("prop[0] = 5;", &ssv(&["prop"]), &[]).unwrap();
+        let out =
+            transform_prop_member_mutate_ast("prop[0] = 5;", &ssv(&["prop"]), &[], &nm()).unwrap();
         assert_eq!(out, "prop(prop()[0] = 5, true);");
     }
 
     #[test]
     fn compound_addition() {
-        let out = transform_prop_member_mutate_ast("prop.foo += 3;", &ssv(&["prop"]), &[]).unwrap();
+        let out = transform_prop_member_mutate_ast("prop.foo += 3;", &ssv(&["prop"]), &[], &nm())
+            .unwrap();
         assert_eq!(out, "prop(prop().foo += 3, true);");
     }
 
     #[test]
     fn compound_nullish() {
-        let out =
-            transform_prop_member_mutate_ast("prop.foo ??= 5;", &ssv(&["prop"]), &[]).unwrap();
+        let out = transform_prop_member_mutate_ast("prop.foo ??= 5;", &ssv(&["prop"]), &[], &nm())
+            .unwrap();
         assert_eq!(out, "prop(prop().foo ??= 5, true);");
     }
 
     #[test]
     fn chained_member_chain() {
-        let out =
-            transform_prop_member_mutate_ast("prop.a.b.c = 5;", &ssv(&["prop"]), &[]).unwrap();
+        let out = transform_prop_member_mutate_ast("prop.a.b.c = 5;", &ssv(&["prop"]), &[], &nm())
+            .unwrap();
         assert_eq!(out, "prop(prop().a.b.c = 5, true);");
     }
 
     #[test]
     fn mixed_static_and_computed() {
         let out =
-            transform_prop_member_mutate_ast("prop.items[0] = x;", &ssv(&["prop"]), &[]).unwrap();
+            transform_prop_member_mutate_ast("prop.items[0] = x;", &ssv(&["prop"]), &[], &nm())
+                .unwrap();
         assert_eq!(out, "prop(prop().items[0] = x, true);");
     }
 
@@ -304,45 +355,57 @@ mod tests {
     fn non_bindable_prop_left_alone() {
         // prop is in prop_vars but flagged non-bindable → no rewrite
         assert!(
-            transform_prop_member_mutate_ast("prop.foo = 5;", &ssv(&["prop"]), &ssv(&["prop"]))
-                .is_none()
+            transform_prop_member_mutate_ast(
+                "prop.foo = 5;",
+                &ssv(&["prop"]),
+                &ssv(&["prop"]),
+                &nm()
+            )
+            .is_none()
         );
     }
 
     #[test]
     fn non_prop_member_left_alone() {
-        assert!(transform_prop_member_mutate_ast("obj.foo = 5;", &ssv(&["prop"]), &[]).is_none());
+        assert!(
+            transform_prop_member_mutate_ast("obj.foo = 5;", &ssv(&["prop"]), &[], &nm()).is_none()
+        );
     }
 
     #[test]
     fn bare_prop_assignment_left_alone() {
         // `prop = 5` is handled by prop_assign_ast (PR #198)
-        assert!(transform_prop_member_mutate_ast("prop = 5;", &ssv(&["prop"]), &[]).is_none());
+        assert!(
+            transform_prop_member_mutate_ast("prop = 5;", &ssv(&["prop"]), &[], &nm()).is_none()
+        );
     }
 
     #[test]
     fn update_expression_left_alone() {
         // `prop.x++` is NOT this pass's concern.
-        assert!(transform_prop_member_mutate_ast("prop.x++;", &ssv(&["prop"]), &[]).is_none());
+        assert!(
+            transform_prop_member_mutate_ast("prop.x++;", &ssv(&["prop"]), &[], &nm()).is_none()
+        );
     }
 
     #[test]
     fn does_not_rewrite_inside_string_literal() {
         let src = r#"let s = "prop.foo = 5";"#;
-        assert!(transform_prop_member_mutate_ast(src, &ssv(&["prop"]), &[]).is_none());
+        assert!(transform_prop_member_mutate_ast(src, &ssv(&["prop"]), &[], &nm()).is_none());
     }
 
     #[test]
     fn rewrites_inside_template_expression() {
         let src = "let s = `${prop.foo = 5}`;";
-        let out = transform_prop_member_mutate_ast(src, &ssv(&["prop"]), &[]).unwrap();
+        let out = transform_prop_member_mutate_ast(src, &ssv(&["prop"]), &[], &nm()).unwrap();
         assert_eq!(out, "let s = `${prop(prop().foo = 5, true)}`;");
     }
 
     #[test]
     fn multiple_props_in_one_source() {
         let out =
-            transform_prop_member_mutate_ast("a.x = 1; b.y = 2;", &ssv(&["a", "b"]), &[]).unwrap();
+            transform_prop_member_mutate_ast("a.x = 1; b.y = 2;", &ssv(&["a", "b"]), &[], &nm())
+                .unwrap();
         assert_eq!(out, "a(a().x = 1, true); b(b().y = 2, true);");
     }
 
@@ -351,30 +414,41 @@ mod tests {
         // The text version had to specifically skip `=>` (arrow). The
         // AST naturally separates `=` (AssignmentExpression) from `=>`
         // (ArrowFunctionExpression).
-        let out = transform_prop_member_mutate_ast("prop.cb = (x) => x + 1;", &ssv(&["prop"]), &[])
-            .unwrap();
+        let out = transform_prop_member_mutate_ast(
+            "prop.cb = (x) => x + 1;",
+            &ssv(&["prop"]),
+            &[],
+            &nm(),
+        )
+        .unwrap();
         assert_eq!(out, "prop(prop().cb = (x) => x + 1, true);");
     }
 
     #[test]
     fn function_call_on_member_is_not_a_mutation() {
         // `prop.foo()` is a CallExpression, not a mutation.
-        assert!(transform_prop_member_mutate_ast("prop.foo();", &ssv(&["prop"]), &[]).is_none());
+        assert!(
+            transform_prop_member_mutate_ast("prop.foo();", &ssv(&["prop"]), &[], &nm()).is_none()
+        );
     }
 
     #[test]
     fn empty_prop_vars_is_no_op() {
-        assert!(transform_prop_member_mutate_ast("prop.foo = 5;", &[], &[]).is_none());
+        assert!(transform_prop_member_mutate_ast("prop.foo = 5;", &[], &[], &nm()).is_none());
     }
 
     #[test]
     fn parse_error_returns_none() {
-        assert!(transform_prop_member_mutate_ast("prop.foo = (", &ssv(&["prop"]), &[]).is_none());
+        assert!(
+            transform_prop_member_mutate_ast("prop.foo = (", &ssv(&["prop"]), &[], &nm()).is_none()
+        );
     }
 
     #[test]
     fn no_op_without_equals() {
-        assert!(transform_prop_member_mutate_ast("foo(prop);", &ssv(&["prop"]), &[]).is_none());
+        assert!(
+            transform_prop_member_mutate_ast("foo(prop);", &ssv(&["prop"]), &[], &nm()).is_none()
+        );
     }
 
     #[test]
@@ -383,7 +457,7 @@ mod tests {
         // recognises the `prop(<assignment>, true)` shape and skips
         // the inner AssignmentExpression — fixed-point exits cleanly.
         let already = "prop(prop().foo = 5, true);";
-        assert!(transform_prop_member_mutate_ast(already, &ssv(&["prop"]), &[]).is_none());
+        assert!(transform_prop_member_mutate_ast(already, &ssv(&["prop"]), &[], &nm()).is_none());
     }
 
     #[test]
@@ -391,8 +465,8 @@ mod tests {
         // Apply to the same source twice; the second call should
         // be a no-op (returns None).
         let first =
-            transform_prop_member_mutate_ast("prop.foo = 5;", &ssv(&["prop"]), &[]).unwrap();
-        let second = transform_prop_member_mutate_ast(&first, &ssv(&["prop"]), &[]);
+            transform_prop_member_mutate_ast("prop.foo = 5;", &ssv(&["prop"]), &[], &nm()).unwrap();
+        let second = transform_prop_member_mutate_ast(&first, &ssv(&["prop"]), &[], &nm());
         assert!(second.is_none(), "expected None, got: {:?}", second);
     }
 
@@ -402,7 +476,7 @@ mod tests {
         // The inner assignment is wrapped in parens. Verify output
         // matches the text version exactly.
         let src = "console.log((a.b = true));";
-        let out = transform_prop_member_mutate_ast(src, &ssv(&["a"]), &[]).unwrap();
+        let out = transform_prop_member_mutate_ast(src, &ssv(&["a"]), &[], &nm()).unwrap();
         assert_eq!(out, "console.log((a(a().b = true, true)));");
     }
 
@@ -414,7 +488,8 @@ mod tests {
             transform_prop_member_mutate_ast(
                 "prop.foo = 5;",
                 &ssv(&["prop", "other"]),
-                &ssv(&["prop", "other"])
+                &ssv(&["prop", "other"]),
+                &nm()
             )
             .is_none()
         );

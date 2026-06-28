@@ -456,7 +456,12 @@ pub(super) fn transform_reactive_statement(
                 &[],
             )
             .unwrap_or_else(|| transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars));
-            let temp = transform_prop_assignments(&temp, prop_assignment_transform_vars, &[]);
+            let temp = transform_prop_assignments(
+                &temp,
+                prop_assignment_transform_vars,
+                &[],
+                &rustc_hash::FxHashMap::default(),
+            );
             // Wrap state-var member mutations (`obj.a.b = x`) in `$.mutate(obj, …)`.
             // The keyword branch (a `$: if (cond) X = rhs` reactive statement) was
             // missing this pass that both sibling branches have, so a state-var
@@ -491,7 +496,12 @@ pub(super) fn transform_reactive_statement(
             let temp =
                 transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
             let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
-            let temp = transform_prop_assignments(&temp, prop_assignment_transform_vars, &[]);
+            let temp = transform_prop_assignments(
+                &temp,
+                prop_assignment_transform_vars,
+                &[],
+                &rustc_hash::FxHashMap::default(),
+            );
             let temp = transform_state_member_mutations(&temp, state_vars, non_reactive_state_vars);
             let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
             let temp =
@@ -535,6 +545,7 @@ pub(super) fn transform_reactive_statement(
                     &transformed_rhs,
                     prop_assignment_transform_vars,
                     &[],
+                    &rustc_hash::FxHashMap::default(),
                 );
                 let transformed_rhs = wrap_state_vars_in_expr(
                     &transformed_rhs,
@@ -673,7 +684,12 @@ pub(super) fn transform_reactive_statement(
         // assignment-generated calls like `callback = value` → `callback(value)`.
         let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
         // Then transform prop compound assignments (e.g., `count += 1` → `count(count() + 1)`)
-        let temp = transform_prop_assignments(&temp, prop_assignment_transform_vars, &[]);
+        let temp = transform_prop_assignments(
+            &temp,
+            prop_assignment_transform_vars,
+            &[],
+            &rustc_hash::FxHashMap::default(),
+        );
         // Transform state member-expression mutations (e.g., `object[key] = []`)
         // to `$.mutate(object, $.get(object)[key] = [])`. Must run before wrap_state_vars_in_expr
         // so identifiers are still in their original form.
