@@ -2850,6 +2850,20 @@ fn lower_legacy_var_decl<'a>(
 /// prop-lowered to `$$props['…']`; an `export const` (a `Normal`/`Static`
 /// binding) is kept verbatim.
 fn legacy_binding_is_prop(state: &ServerTransformState, name: &str) -> bool {
+    // Prefer an actual `prop` / `bindable_prop` binding of this name: a same-named
+    // `function f(prop) {…}` parameter can be registered at the instance scope
+    // index by Phase-2, so `get_binding` would return the parameter (kind
+    // `normal`) and the prop would be emitted as a plain local instead of being
+    // lowered to `$.fallback($$props['…'], …)`.
+    if state
+        .analysis
+        .root
+        .bindings
+        .iter()
+        .any(|b| b.name == name && matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp))
+    {
+        return true;
+    }
     if let Some(idx) = state
         .analysis
         .root

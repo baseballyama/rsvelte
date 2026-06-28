@@ -562,12 +562,24 @@ fn transform_client_with_visitors(
             &str,
             &crate::compiler::phases::phase2_analyze::scope::Binding,
         > = rustc_hash::FxHashMap::default();
+        let is_prop_kind = |b: &crate::compiler::phases::phase2_analyze::scope::Binding| {
+            matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
+        };
         for b in &analysis.root.bindings {
             if let Some(existing) = map.get(b.name.as_str()) {
-                // Prefer instance-scope bindings over inner-scope ones
-                if b.scope_index == instance_scope_index
-                    && existing.scope_index != instance_scope_index
-                {
+                // Prefer a `prop` / `bindable_prop` binding over a shadowing local
+                // or function parameter of the same name. Top-level prop / store
+                // resolution must bind to the prop, not an inner
+                // `function f(prop) {…}` parameter that Phase-2 may register at
+                // the instance scope index. Among same prop-ness, prefer instance
+                // scope (the original heuristic).
+                let replace = if is_prop_kind(b) != is_prop_kind(existing) {
+                    is_prop_kind(b)
+                } else {
+                    b.scope_index == instance_scope_index
+                        && existing.scope_index != instance_scope_index
+                };
+                if replace {
                     map.insert(b.name.as_str(), b);
                 }
             } else {
