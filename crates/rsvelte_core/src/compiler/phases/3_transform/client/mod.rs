@@ -5275,14 +5275,24 @@ fn transform_instance_script_for_visitors(
             continue;
         }
 
+        // The statement-boundary skips below (imports, export specifiers,
+        // `$props.id()` declarations) may only fire when we are NOT in the
+        // middle of accumulating a multi-line statement. Otherwise a line that
+        // merely *looks* like `import …` / `export { … }` while it actually
+        // lives inside a multi-line template literal (e.g. a code-sample string
+        // `const code = \`<script>import … from '…';</script>\``) would be
+        // dropped mid-string. `accumulated_lines.is_empty()` is true only at a
+        // clean statement boundary (the accumulator is cleared on completion).
+        let at_statement_boundary = accumulated_lines.is_empty();
+
         // Skip import statements (already extracted)
-        if trimmed.starts_with("import ") {
+        if at_statement_boundary && trimmed.starts_with("import ") {
             line_idx += 1;
             continue;
         }
 
         // Skip export { ... } statements (will be handled via $$exports object)
-        if starts_export_specifier(trimmed) {
+        if at_statement_boundary && starts_export_specifier(trimmed) {
             in_export_block = !trimmed.contains('}');
             line_idx += 1;
             continue;
@@ -5300,9 +5310,10 @@ fn transform_instance_script_for_visitors(
         // `$props.id()` / `$.props_id()` (whitespace-tolerant) rather than the
         // literal `= $props.id()` substring, so `let id=$props.id()` (no spaces)
         // is also skipped instead of surviving alongside the generated const. H-060.
-        if (trimmed.starts_with("let ")
-            || trimmed.starts_with("const ")
-            || trimmed.starts_with("var "))
+        if at_statement_boundary
+            && (trimmed.starts_with("let ")
+                || trimmed.starts_with("const ")
+                || trimmed.starts_with("var "))
             && trimmed
                 .find('=')
                 .map(|eq| trimmed[eq + 1..].trim().trim_end_matches(';').trim())

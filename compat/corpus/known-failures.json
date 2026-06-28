@@ -7,10 +7,8 @@
 	"flowbite-svelte/src/routes/admin-dashboard/(sidebar)/crud/products/+page.svelte",
 	"flowbite-svelte/src/routes/admin-dashboard/(sidebar)/crud/users/+page.svelte",
 	"flowbite-svelte/src/routes/blocks/+page.svelte",
-	"flowbite-svelte/src/routes/builder/badge/+page.svelte",
 	"flowbite-svelte/src/routes/docs-examples/forms/file-input/Dropzone.svelte",
 	"layercake/src/lib/LayerCake.svelte",
-	"layercake/src/routes/+page.svelte",
 	"layerchart/packages/layerchart/src/lib/components/Area.svelte",
 	"layerchart/packages/layerchart/src/lib/components/BrushContext.svelte",
 	"layerchart/packages/layerchart/src/lib/components/ChartContext.svelte",
@@ -55,7 +53,6 @@
 	"svelte-ux/packages/svelte-ux/src/lib/components/Tooltip.svelte",
 	"svelte/packages/svelte/tests/validator/samples/store-rune-conflic-from-props/input.svelte",
 	"sveltestrap/src/Input/Input.svelte",
-	"sveltestrap/src/Nav/Nav.stories.svelte",
 	"svelthree/src/lib/components/Object3D.svelte",
 	"svelthree/src/lib/components/WebGLRenderer.svelte"
 ]
