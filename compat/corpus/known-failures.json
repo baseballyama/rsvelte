@@ -1,7 +1,6 @@
 [
 	"attractions/attractions/date-picker/date-picker.svelte",
 	"attractions/attractions/slider/slider.svelte",
-	"flowbite-svelte/src/lib/clipboard-manager/ClipboardManager.svelte",
 	"flowbite-svelte/src/lib/datepicker/Datepicker.svelte",
 	"flowbite-svelte/src/routes/+page.svelte",
 	"flowbite-svelte/src/routes/admin-dashboard/(sidebar)/crud/products/+page.svelte",
@@ -27,7 +26,6 @@
 	"powertable/app/src/lib/components/PowerTable.svelte",
 	"shadcn-svelte/docs/src/lib/components/mobile-nav.svelte",
 	"shadcn-svelte/docs/src/lib/registry/examples/create/vercel/circular-gauge.svelte",
-	"shadcn-svelte/docs/src/lib/registry/ui/spinner/spinner.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte",
 	"smelte/src/routes/components/_layout.svelte",
 	"svar-core/svelte/src/components/calendar/Month.svelte",
