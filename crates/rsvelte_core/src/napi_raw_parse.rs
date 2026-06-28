@@ -2062,6 +2062,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             value,
             r#static,
             computed,
+            accessor: _,
         } => {
             write_preamble(w, JS_PROPERTY_DEFINITION, *start, *end);
             write_typed_loc(w, loc.as_deref());

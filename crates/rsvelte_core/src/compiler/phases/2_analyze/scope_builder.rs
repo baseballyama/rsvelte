@@ -1176,6 +1176,27 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             Some("ForStatement") => {
+                // `for (let x = 0; ...)` gets its own block scope so the loop
+                // binding does not leak into — or collide within — the parent
+                // scope. Mirrors the typed `ForStatement` path; without it two
+                // sibling `for (let i …)` loops falsely trip
+                // `declaration_duplicate`.
+                let needs_scope = json
+                    .get("init")
+                    .filter(|init| !init.is_null())
+                    .map(|init| {
+                        init.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+                            && matches!(
+                                init.get("kind").and_then(|k| k.as_str()),
+                                Some("let") | Some("const")
+                            )
+                    })
+                    .unwrap_or(false);
+                let old_scope = if needs_scope {
+                    Some(self.push_scope())
+                } else {
+                    None
+                };
                 if let Some(init) = json.get("init")
                     && !init.is_null()
                 {
@@ -1190,13 +1211,43 @@ impl<'a> ScopeBuilder<'a> {
                 if let Some(body) = json.get("body") {
                     self.process_raw_statement(body);
                 }
+                if let Some(old) = old_scope {
+                    self.pop_scope(old);
+                }
             }
             Some("ForInStatement") | Some("ForOfStatement") => {
+                // A `let`/`const` loop variable lives in the for-statement's own
+                // block scope; declare it there (mirrors the typed ForIn/ForOf
+                // paths) so it neither leaks nor collides with sibling loops.
+                let left = json.get("left").filter(|l| !l.is_null());
+                let left_is_var_decl = left
+                    .map(|l| l.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration"))
+                    .unwrap_or(false);
+                let needs_scope = left
+                    .map(|l| {
+                        l.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+                            && matches!(
+                                l.get("kind").and_then(|k| k.as_str()),
+                                Some("let") | Some("const")
+                            )
+                    })
+                    .unwrap_or(false);
+                let old_scope = if needs_scope {
+                    Some(self.push_scope())
+                } else {
+                    None
+                };
+                if left_is_var_decl && let Some(left) = left {
+                    self.process_raw_statement(left);
+                }
                 if let Some(right) = json.get("right") {
                     self.track_json_expression_updates(right);
                 }
                 if let Some(body) = json.get("body") {
                     self.process_raw_statement(body);
+                }
+                if let Some(old) = old_scope {
+                    self.pop_scope(old);
                 }
             }
             Some("WhileStatement") | Some("DoWhileStatement") => {

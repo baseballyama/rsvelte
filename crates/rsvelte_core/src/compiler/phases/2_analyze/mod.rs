@@ -5047,6 +5047,17 @@ fn collect_identifier_names_in_json(
         Value::Object(obj) => {
             let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
+            // TypeScript type-space nodes (`TSTypeAnnotation`, `TSTypeReference`,
+            // …) never contain value references — their identifiers live in type
+            // space and are erased from the output. Skipping them keeps type-only
+            // names (e.g. `let x: File` / `type Foo`) out of the component-name
+            // deconfliction set, which otherwise renames the component to `_1`.
+            // (The typed tree can still carry annotations at this point; the JSON
+            // strip path drops them, so this guard makes both paths agree.)
+            if node_type.starts_with("TS") {
+                return;
+            }
+
             // If this is an Identifier node, collect its name.
             if node_type == "Identifier"
                 && let Some(Value::String(name)) = obj.get("name")

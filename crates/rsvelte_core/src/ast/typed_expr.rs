@@ -613,6 +613,10 @@ pub enum JsNode {
         value: Option<JsNodeId>,
         r#static: bool,
         computed: bool,
+        /// TS `accessor` field modifier — preserved so the TS stripper can
+        /// raise `typescript_invalid_feature` (the round-trip must be lossless;
+        /// dropping it silently accepts an unsupported feature).
+        accessor: bool,
     },
     StaticBlock {
         start: u32,
@@ -1861,6 +1865,7 @@ impl Serialize for JsNode {
                 value,
                 r#static,
                 computed,
+                accessor,
             } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "PropertyDefinition")?;
@@ -1869,6 +1874,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 map.serialize_entry("static", r#static)?;
                 map.serialize_entry("computed", computed)?;
+                map.serialize_entry("accessor", accessor)?;
                 ser_node!(map, "key", key);
                 ser_opt_node!(map, "value", value);
                 map.end()
@@ -2603,6 +2609,7 @@ impl JsNode {
                         value: convert_optional_child(obj, "value"),
                         r#static: get_bool(obj, "static"),
                         computed: get_bool(obj, "computed"),
+                        accessor: get_bool(obj, "accessor"),
                     },
                     "StaticBlock" => JsNode::StaticBlock {
                         start,

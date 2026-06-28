@@ -83,7 +83,7 @@ where
 fn expr_to_node(expr: Expression) -> JsNode {
     match expr {
         Expression::Typed(te) => te.node,
-        Expression::Value(v) => JsNode::Raw(v),
+        Expression::Value(v) => JsNode::from_value(v),
         Expression::Lazy { .. } => {
             panic!("Expression::Lazy must be resolved before converting to JsNode")
         }
@@ -2801,7 +2801,7 @@ fn convert_assignment_pattern_to_expr(
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         left: arena.alloc_js_node(left),
-        right: arena.alloc_js_node(JsNode::Raw(Value::Object(right_obj))),
+        right: arena.alloc_js_node(JsNode::from_value(Value::Object(right_obj))),
     })
 }
 
@@ -2981,7 +2981,7 @@ fn convert_property_key_for_param_as_node(
                     "name".to_string(),
                     Value::String("__computed__".to_string()),
                 );
-                JsNode::Raw(Value::Object(obj))
+                JsNode::from_value(Value::Object(obj))
             }
         }
     }
@@ -4493,7 +4493,7 @@ fn create_class_expression(
         loc: create_typed_loc(start, end, line_offsets),
         id,
         super_class,
-        body: arena.alloc_js_node(JsNode::Raw(body)),
+        body: arena.alloc_js_node(JsNode::from_value(body)),
     })
 }
 
@@ -6874,7 +6874,7 @@ fn convert_statement_for_program(
                     );
                     class_obj.insert("body".to_string(), body);
 
-                    JsNode::Raw(Value::Object(class_obj))
+                    JsNode::from_value(Value::Object(class_obj))
                 }
                 oxc_ast::ast::ExportDefaultDeclarationKind::TSInterfaceDeclaration(_) => {
                     JsNode::Null
@@ -7617,7 +7617,7 @@ fn convert_class_declaration_as_node(
             None => {
                 let body_value =
                     convert_class_body_for_program(arena, &class_decl.body, offset, line_offsets);
-                arena.alloc_js_node(JsNode::Raw(body_value))
+                arena.alloc_js_node(JsNode::from_value(body_value))
             }
         };
 
@@ -7662,7 +7662,7 @@ fn convert_class_declaration_as_node(
 /// serialization needs the Value form — TS `declare`/overload functions, rest
 /// parameters (the typed function path drops `params.rest`), abstract / declare
 /// / implements / decorated classes, and all TS-only declarations — fall back to
-/// `JsNode::Raw(convert_declaration_for_program(...))`.
+/// `JsNode::from_value(convert_declaration_for_program(...))`.
 fn convert_declaration_for_program_as_node(
     arena: &ParseArena,
     decl: &oxc_ast::ast::Declaration,
@@ -7683,7 +7683,7 @@ fn convert_declaration_for_program_as_node(
         {
             convert_function_declaration_as_node(arena, func_decl, offset, line_offsets)
                 .unwrap_or_else(|| {
-                    JsNode::Raw(convert_declaration_for_program(
+                    JsNode::from_value(convert_declaration_for_program(
                         arena,
                         decl,
                         offset,
@@ -7702,7 +7702,7 @@ fn convert_declaration_for_program_as_node(
         {
             convert_class_declaration_as_node(arena, class_decl, offset, line_offsets)
         }
-        _ => JsNode::Raw(convert_declaration_for_program(
+        _ => JsNode::from_value(convert_declaration_for_program(
             arena,
             decl,
             offset,
@@ -8174,7 +8174,7 @@ fn convert_variable_declarator_for_program(
                         id_obj.insert("loc".to_string(), loc);
                     }
                 }
-                arena.alloc_js_node(JsNode::Raw(id_value))
+                arena.alloc_js_node(JsNode::from_value(id_value))
             }
         }
     } else {
@@ -8635,7 +8635,7 @@ fn convert_expression_for_program(
                 line_offsets,
             ) {
                 Some(node) => arena.alloc_js_node(node),
-                None => arena.alloc_js_node(JsNode::Raw(convert_class_body_for_program(
+                None => arena.alloc_js_node(JsNode::from_value(convert_class_body_for_program(
                     arena,
                     &class_expr.body,
                     offset,
@@ -9272,6 +9272,9 @@ fn convert_class_element_for_program_as_node(
                 value,
                 r#static: prop.r#static,
                 computed: prop.computed,
+                // AccessorProperty bails above, so a typed PropertyDefinition is
+                // never an `accessor` field.
+                accessor: false,
             })
         }
         // AccessorProperty: the Value path emits a `PropertyDefinition` with an

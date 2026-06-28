@@ -504,6 +504,22 @@ pub fn remove_typescript_nodes_typed(
             ));
         }
 
+        // `accessor` class fields are not supported (mirrors the Value mutator).
+        Some("PropertyDefinition") => {
+            if let JsNode::PropertyDefinition {
+                accessor: true,
+                start,
+                end,
+                ..
+            } = node
+            {
+                return Err(ParseError::typescript_invalid_feature(
+                    "accessor fields (related TSC proposal is not stage 4 yet)",
+                    (*start as usize, *end as usize),
+                ));
+            }
+        }
+
         // Namespaces / modules: error if they contain non-type nodes, else strip.
         Some("TSModuleDeclaration") => {
             return strip_ts_module_declaration_typed(node, arena);
