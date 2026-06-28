@@ -1,15 +1,5 @@
 [
 	{
-		"id": "svelte/packages/svelte/tests/migrate/samples/css-ignore/input.svelte",
-		"class": "migrate",
-		"reason": "Svelte 4→5 migrate fixture using lang=scss CSS; rsvelte correctly rejects the SCSS $-variable syntax (css_expected_identifier)"
-	},
-	{
-		"id": "svelte/packages/svelte/tests/migrate/samples/css-ignore/output.svelte",
-		"class": "migrate",
-		"reason": "Svelte 4→5 migrate fixture using lang=scss CSS; rsvelte correctly rejects the SCSS $-variable syntax (css_expected_identifier)"
-	},
-	{
 		"id": "svelte/packages/svelte/tests/migrate/samples/slot-non-identifier/output.svelte",
 		"class": "migrate",
 		"reason": "Svelte 4→5 migrate output using legacy let: directives and slot= attributes; Svelte 4 migrator is out of scope per AGENTS.md"
@@ -20,19 +10,9 @@
 		"reason": "Svelte 4→5 migrate output; Svelte 4 migrator is out of scope per AGENTS.md"
 	},
 	{
-		"id": "svelte/packages/svelte/tests/runtime-legacy/samples/each-block-destructured-array-nested-rest/main.svelte",
-		"class": "oracle-bug",
-		"reason": "oxfmt/prettier-plugin-svelte silently drops nested rest destructuring variables: {#each array as [first, second, ...[third, ...{length}]]} becomes ...[...undefined], losing 'third' and 'length'"
-	},
-	{
 		"id": "svelte/packages/svelte/tests/runtime-legacy/samples/await-then-destruct-array-nested-rest/main.svelte",
 		"class": "oracle-bug",
 		"reason": "oxfmt/prettier-plugin-svelte silently drops nested rest destructuring: {:then [a, b, ...[, c, ...{length}]]} becomes ...[...undefined], losing all inner variables"
-	},
-	{
-		"id": "svelte/packages/svelte/tests/validator/samples/rest-eachblock-binding-nested-rest/input.svelte",
-		"class": "oracle-bug",
-		"reason": "oxfmt/prettier-plugin-svelte silently drops nested rest destructuring: {#each a as [first, second, ...[third, ...{length}]]} becomes ...[...undefined]"
 	},
 	{
 		"id": "svelte/packages/svelte/tests/runtime-legacy/samples/block-expression-assign/main.svelte",
@@ -43,11 +23,6 @@
 		"id": "svelte/packages/svelte/tests/runtime-legacy/samples/textarea-content/main.svelte",
 		"class": "oracle-bug",
 		"reason": "oxfmt collapses whitespace-significant <textarea> content (multiline 'A\\nB' → ' A B '), destroying the whitespace that the runtime relies on"
-	},
-	{
-		"id": "svelte/packages/svelte/tests/validator/samples/textarea-value-children/input.svelte",
-		"class": "oracle-bug",
-		"reason": "oxfmt collapses <textarea> child whitespace onto one line, losing the original newlines/spaces in whitespace-sensitive content"
 	},
 	{
 		"id": "svelte/packages/svelte/tests/css/samples/comment-html/input.svelte",

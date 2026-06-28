@@ -175,6 +175,18 @@ pub(crate) fn collect_style_edit(
     }
     let lang = detect_lang(css);
 
+    // Indented-syntax preprocessor dialects (sass, stylus) are not brace-based
+    // CSS — oxfmt cannot parse them and the oxfmt / prettier-plugin-svelte
+    // oracle leaves their bodies byte-for-byte verbatim. Emit no edit so the
+    // raw body is preserved exactly. Brace-based dialects (scss, less, postcss)
+    // fall through to the formatter callback below, which oxfmt formats.
+    if matches!(
+        lang.to_ascii_lowercase().as_str(),
+        "sass" | "stylus" | "styl"
+    ) {
+        return Ok(());
+    }
+
     // Strip the block's existing indentation before handing the body to the
     // formatter. oxfmt normalizes declaration indentation but preserves the
     // interior of multi-line tokens (block comments, multi-line strings)

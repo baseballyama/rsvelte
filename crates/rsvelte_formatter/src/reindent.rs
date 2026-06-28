@@ -192,31 +192,18 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
                 }
                 '/' if chars.get(i + 1) == Some(&'*') => {
                     block_comment = true;
-                    // `/**` is a JSDoc comment — its interior is re-indented
-                    // by `oxc_formatter`. Star-aligned `/*` comments (where
-                    // the first interior line starts with ` *`) are also
-                    // re-indented by `oxc_formatter`. Plain `/*` comments
-                    // with prose-style interiors are preserved verbatim.
-                    // Detect by peeking at the first interior line after `/*`.
-                    let is_explicitly_jsdoc = chars.get(i + 2) == Some(&'*');
-                    let is_star_aligned = if !is_explicitly_jsdoc {
-                        // Find the first newline after `/*` and check if the
-                        // next non-space character is `*`.
-                        let mut j = i + 2;
-                        while j < n && chars[j] != '\n' {
-                            j += 1;
-                        }
-                        // j now points at '\n' (or end of string)
-                        j += 1; // skip the newline
-                        // skip spaces/tabs
-                        while j < n && (chars[j] == ' ' || chars[j] == '\t') {
-                            j += 1;
-                        }
-                        j < n && chars[j] == '*'
-                    } else {
-                        false
-                    };
-                    is_jsdoc = is_explicitly_jsdoc || is_star_aligned;
+                    // A block comment's interior is re-indented (aligned) by
+                    // `oxc_formatter` only when it is "indentable": it spans
+                    // multiple lines and EVERY continuation line's first
+                    // non-whitespace character is `*` (the canonical
+                    // star-aligned JSDoc / banner shape). This mirrors
+                    // prettier's `isIndentableBlockComment`. A `/**` comment
+                    // whose continuation lines are prose — which may carry
+                    // intentional leading whitespace such as a tab — is NOT
+                    // indentable: `oxc_formatter` leaves its interior verbatim,
+                    // so the splice indent must not be prepended to those lines
+                    // either. (Being `/**` is not sufficient on its own.)
+                    is_jsdoc = is_indentable_block_comment(&chars, i, n);
                     out.push('/');
                     out.push('*');
                     i += 2;
@@ -252,4 +239,38 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
     }
 
     out
+}
+
+/// Whether the block comment beginning at `start` (where `chars[start] == '/'`
+/// and `chars[start + 1] == '*'`) is "indentable" in the prettier sense: it
+/// spans more than one line and every continuation line (each line after the
+/// opener line) has `*` as its first non-whitespace character. Only such
+/// comments have their interior re-aligned by `oxc_formatter`; all others —
+/// single-line comments and multi-line prose comments — are emitted verbatim,
+/// so their continuation lines must not receive the splice indent.
+fn is_indentable_block_comment(chars: &[char], start: usize, n: usize) -> bool {
+    let mut j = start + 2;
+    let mut saw_newline = false;
+    while j < n {
+        // Closing `*/` ends the comment before any further continuation line.
+        if chars[j] == '*' && chars.get(j + 1) == Some(&'/') {
+            break;
+        }
+        if chars[j] == '\n' {
+            saw_newline = true;
+            // First non-whitespace character of the next line.
+            let mut k = j + 1;
+            while k < n && (chars[k] == ' ' || chars[k] == '\t') {
+                k += 1;
+            }
+            // A continuation line that does not start with `*` (including a
+            // blank line, where the next char is the newline) makes the comment
+            // non-indentable.
+            if k >= n || chars[k] != '*' {
+                return false;
+            }
+        }
+        j += 1;
+    }
+    saw_newline
 }
