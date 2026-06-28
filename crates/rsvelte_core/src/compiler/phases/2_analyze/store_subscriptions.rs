@@ -507,61 +507,96 @@ fn collect_dollar_refs_from_script_with_context(
 ///
 /// This is a heuristic to avoid creating StoreSub bindings for function parameters
 /// like `($count) => $count * 2` in `derived(store, $count => ...)`.
-fn is_dollar_ident_parameter(chars: &[char], ident_start: usize, ident_end: usize) -> bool {
+/// Char-index range `[start, end)` of an arrow body starting at char `from`
+/// (the position just past `=>`). Handles both `{ … }` block bodies and
+/// expression bodies, stopping at the first top-level `,` / `;` or closing
+/// `)`/`]`/`}` (the delimiter that ends the arrow within its surrounding call).
+fn arrow_body_range(chars: &[char], from: usize) -> (usize, usize) {
+    let len = chars.len();
+    let mut s = from;
+    while s < len && (chars[s] == ' ' || chars[s] == '\t' || chars[s] == '\n' || chars[s] == '\r') {
+        s += 1;
+    }
+    if s >= len {
+        return (from, len);
+    }
+    let mut depth = 0i32;
+    let mut m = s;
+    while m < len {
+        match chars[m] {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' if depth == 0 => break,
+            ')' | ']' | '}' => depth -= 1,
+            ',' | ';' if depth == 0 => break,
+            _ => {}
+        }
+        m += 1;
+    }
+    (s, m)
+}
+
+/// If the `$xxx` ident at `[ident_start, ident_end)` is a function/arrow
+/// parameter (including inside array/object destructuring), return the char-index
+/// range `[start, end)` of that arrow's BODY — the lexical scope in which the
+/// param shadows. Returns `None` otherwise. This is the scope-aware successor to
+/// `is_dollar_ident_parameter`: a param only suppresses references inside its own
+/// body, not globally.
+fn dollar_param_body_range(
+    chars: &[char],
+    ident_start: usize,
+    ident_end: usize,
+) -> Option<(usize, usize)> {
     let len = chars.len();
 
-    // Check what comes after the identifier (skip whitespace)
+    // Skip whitespace after the ident.
     let mut j = ident_end;
     while j < len && (chars[j] == ' ' || chars[j] == '\t') {
         j += 1;
     }
 
-    // Case 1: `$x => ...` - direct arrow function parameter
+    // Case 1: `$x => …`
     if j + 1 < len && chars[j] == '=' && chars[j + 1] == '>' {
-        return true;
+        return Some(arrow_body_range(chars, j + 2));
     }
 
-    // Case 2: `($x)`, `($x, ...)`, `(..., $x)` - parenthesized parameter
-    // Check if preceded by '(' or ',' (ignoring whitespace)
+    // Case 2: parenthesized / destructured param — `($x)`, `(.., $x, ..)`,
+    // `([.., $x, ..]) =>`, `({ $x }) =>`. Preceded by one of `( , [ {`, followed
+    // by one of `) , ] }`, and the enclosing `(...)` is followed by `=>`.
     if ident_start > 0 {
         let mut k = ident_start as isize - 1;
         while k >= 0 && (chars[k as usize] == ' ' || chars[k as usize] == '\t') {
             k -= 1;
         }
-        if k >= 0 && (chars[k as usize] == '(' || chars[k as usize] == ',') {
-            // Also check what follows: should be `)`, `,`, or `=>`
-            // (avoid false positives in function calls like `derived(store, $count)`)
-            if j < len && (chars[j] == ')' || chars[j] == ',') {
-                // Look ahead more to check if this is indeed a function parameter list
-                // followed by `=>` rather than just a function call argument
-                let mut paren_depth = 0i32;
-                let mut m = j;
-                while m < len {
-                    match chars[m] {
-                        '(' => paren_depth += 1,
-                        ')' => {
-                            if paren_depth == 0 {
-                                // Found the closing paren - check if followed by =>
-                                let mut n = m + 1;
-                                while n < len && (chars[n] == ' ' || chars[n] == '\t') {
-                                    n += 1;
-                                }
-                                if n + 1 < len && chars[n] == '=' && chars[n + 1] == '>' {
-                                    return true;
-                                }
-                                break;
+        let preceded_ok = k >= 0 && matches!(chars[k as usize], '(' | ',' | '[' | '{');
+        let followed_ok = j < len && matches!(chars[j], ')' | ',' | ']' | '}');
+        if preceded_ok && followed_ok {
+            // Walk forward to the param-list closing `)`. Only `(`/`)` move the
+            // param-list paren depth (the destructure `[`/`{` don't).
+            let mut paren_depth = 0i32;
+            let mut m = j;
+            while m < len {
+                match chars[m] {
+                    '(' => paren_depth += 1,
+                    ')' => {
+                        if paren_depth == 0 {
+                            let mut n = m + 1;
+                            while n < len && (chars[n] == ' ' || chars[n] == '\t') {
+                                n += 1;
                             }
-                            paren_depth -= 1;
+                            if n + 1 < len && chars[n] == '=' && chars[n + 1] == '>' {
+                                return Some(arrow_body_range(chars, n + 2));
+                            }
+                            return None;
                         }
-                        _ => {}
+                        paren_depth -= 1;
                     }
-                    m += 1;
+                    _ => {}
                 }
+                m += 1;
             }
         }
     }
-
-    false
+    None
 }
 
 /// Check if a `$xxx` identifier at `ident_end` is being used as an object property key.
@@ -696,7 +731,10 @@ fn collect_dollar_identifiers_from_js_with_context(
     refs: &mut Vec<StoreRef>,
     in_module: bool,
 ) {
-    let mut declared: FxHashSet<String> = FxHashSet::default();
+    // Scope-ranged declarations: `(name, scope_start, scope_end)` in char-index
+    // space. A param `$x` only suppresses references inside its own arrow body
+    // `[start, end)`; a `let/const/var $x` declaration spans the whole script.
+    let mut declared: Vec<(String, usize, usize)> = Vec::new();
     collect_dollar_identifiers_pass(js, base_offset, refs, in_module, true, &mut declared);
     collect_dollar_identifiers_pass(js, base_offset, refs, in_module, false, &mut declared);
 }
@@ -710,7 +748,7 @@ fn collect_dollar_identifiers_pass(
     refs: &mut Vec<StoreRef>,
     in_module: bool,
     collect_declared: bool,
-    declared: &mut FxHashSet<String>,
+    declared: &mut Vec<(String, usize, usize)>,
 ) {
     // Simple regex-like scanning for $xxx identifiers
     // We look for $ followed by valid identifier characters
@@ -862,17 +900,24 @@ fn collect_dollar_identifiers_pass(
                 // Only add if we have more than just $
                 // (bare $ detection is handled separately via proper AST analysis)
                 if ident.len() > 1 {
-                    let is_declaration = is_dollar_ident_parameter(&chars, ident_start, i)
-                        || is_dollar_ident_variable_declaration(&chars, ident_start);
+                    let param_range = dollar_param_body_range(&chars, ident_start, i);
+                    let is_var_decl = is_dollar_ident_variable_declaration(&chars, ident_start);
+                    let is_declaration = param_range.is_some() || is_var_decl;
                     if collect_declared {
-                        if is_declaration {
-                            declared.insert(ident);
+                        if let Some((bs, be)) = param_range {
+                            // A param shadows only inside its own arrow body.
+                            declared.push((ident, bs, be));
+                        } else if is_var_decl {
+                            // `let/const/var $x` is a real variable for the whole script.
+                            declared.push((ident, 0, len));
                         }
                     } else if !is_declaration
-                        // References to a locally-declared `$name` (param /
-                        // let/const/var) resolve to that binding upstream,
-                        // never to a store subscription.
-                        && !declared.contains(&ident)
+                        // References to a locally-declared `$name` resolve to that
+                        // binding upstream (never a store) — but ONLY within the
+                        // declaring scope's char range (mirrors scope resolution).
+                        && !declared
+                            .iter()
+                            .any(|(n, s, e)| n == &ident && ident_start >= *s && ident_start < *e)
                         && !is_dollar_ident_object_property_key(&chars, ident_start, i)
                         && !is_dollar_ident_type_declaration(&chars, ident_start)
                     {
