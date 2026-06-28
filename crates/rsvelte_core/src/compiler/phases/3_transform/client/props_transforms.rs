@@ -2106,8 +2106,31 @@ pub(super) fn split_declarators(s: &str) -> Vec<&str> {
     // declarator anyway.
     let mut string_char: Option<char> = None;
     let mut escaped = false;
+    // Track comment state so commas inside `// …` / `/* … */` comments — which
+    // can legitimately appear between prop names in a `$props()` destructuring,
+    // e.g. `// we add name, color, and stroke …` — are not treated as
+    // declarator separators. The comment text itself stays inside the declarator
+    // and is stripped per-declarator by the caller.
+    let mut in_line_comment = false;
+    // Byte index just past the `/*` opener, or `usize::MAX` when not in a block
+    // comment. The close `*/` must occur at or after this index so a `/*/` does
+    // not self-close on the opener's own `*`.
+    let mut block_comment_body_start = usize::MAX;
+    let bytes = s.as_bytes();
 
     for (i, c) in s.char_indices() {
+        if in_line_comment {
+            if c == '\n' {
+                in_line_comment = false;
+            }
+            continue;
+        }
+        if block_comment_body_start != usize::MAX {
+            if c == '/' && i >= block_comment_body_start && i > 0 && bytes[i - 1] == b'*' {
+                block_comment_body_start = usize::MAX;
+            }
+            continue;
+        }
         if let Some(quote) = string_char {
             if escaped {
                 escaped = false;
@@ -2116,6 +2139,15 @@ pub(super) fn split_declarators(s: &str) -> Vec<&str> {
             } else if c == quote {
                 string_char = None;
             }
+            continue;
+        }
+        // Comment start (only outside strings). Peek the next byte.
+        if c == '/' && bytes.get(i + 1) == Some(&b'/') {
+            in_line_comment = true;
+            continue;
+        }
+        if c == '/' && bytes.get(i + 1) == Some(&b'*') {
+            block_comment_body_start = i + 3;
             continue;
         }
         match c {
@@ -3418,6 +3450,40 @@ mod split_declarators_tests {
         assert_eq!(
             split_declarators("a = `x,${y},z`, b"),
             vec!["a = `x,${y},z`", " b"]
+        );
+    }
+
+    #[test]
+    fn ignores_commas_inside_comments() {
+        // A `//` comment between prop names can contain commas; they must not
+        // split the declarator list (the comment travels with the next name and
+        // is stripped per-declarator by the caller).
+        assert_eq!(
+            split_declarators("a,\n// we add b, c, and d for compat\nb, c"),
+            vec!["a", "\n// we add b, c, and d for compat\nb", " c"]
+        );
+        // Trailing line comment after a comma (commas inside it preserved).
+        assert_eq!(
+            split_declarators("open = void 0, // If undefined, renders inline; else modal\nclose"),
+            vec![
+                "open = void 0",
+                " // If undefined, renders inline; else modal\nclose"
+            ]
+        );
+        // Block comment with commas.
+        assert_eq!(
+            split_declarators("a /* x, y, z */, b"),
+            vec!["a /* x, y, z */", " b"]
+        );
+        // `/*/` must not self-close on the opener's own star.
+        assert_eq!(
+            split_declarators("a = b /*/, c */ , d"),
+            vec!["a = b /*/, c */ ", " d"]
+        );
+        // `//` inside a string is still a string, not a comment.
+        assert_eq!(
+            split_declarators(r#"a = "http://x,y", b"#),
+            vec![r#"a = "http://x,y""#, " b"]
         );
     }
 
