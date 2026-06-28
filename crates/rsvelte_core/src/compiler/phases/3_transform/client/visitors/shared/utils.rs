@@ -5021,6 +5021,17 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                     }
                 }
             }
+            // A computed member access (`obj[key]`, `({…})[key]`) evaluates its
+            // property at runtime, which may itself read reactive state — so a
+            // `{ … }[size]` where `size` is a reactive prop is reactive even
+            // though the object literal is not. (The object-only check above
+            // misses this.)
+            if obj.get("computed").and_then(|v| v.as_bool()) == Some(true)
+                && let Some(property) = obj.get("property")
+                && has_reactive_state_json(property, context)
+            {
+                return true;
+            }
             false
         }
         "CallExpression" => {
