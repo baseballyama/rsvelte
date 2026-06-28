@@ -372,11 +372,12 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
 
         while i < chars.len() {
             // Check if we're at the start of the identifier
-            let remaining = &result[result
+            let byte_i = result
                 .char_indices()
                 .nth(i)
                 .map(|(idx, _)| idx)
-                .unwrap_or(i)..];
+                .unwrap_or(i);
+            let remaining = &result[byte_i..];
             if remaining.starts_with(store_sub) {
                 // Check character before (must be non-identifier char or start of string)
                 // Also exclude `.` - a dot before means this is a property access like `obj.$value`.
@@ -448,13 +449,14 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
                     }
                 };
 
-                // Check if this is inside a string literal (e.g., '$foo' in $.store_unsub(..., '$foo', ...))
-                let is_inside_string = if i > 0 {
-                    let prev_char = chars[i - 1];
-                    prev_char == '\'' || prev_char == '"'
-                } else {
-                    false
-                };
+                // Check if this is inside a string literal. A store-sub name can
+                // appear mid-string (a log/message argument like
+                // `"… if ($canvas_dim) :"`), not only right after the opening
+                // quote, so scan from the start tracking string + template `${}`
+                // state rather than only inspecting the preceding char. A `$x`
+                // inside a `${ }` interpolation is code and is still transformed.
+                let is_inside_string =
+                    super::state_transforms::is_inside_string_literal(&result, byte_i);
 
                 if before_ok && after_ok {
                     if is_inside_string {
