@@ -2779,6 +2779,13 @@ fn starts_export_specifier(trimmed: &str) -> bool {
 /// type-only specifier removal. Normalizes `import { A,  , C,  } from 'x'` to
 /// `import { A, C } from 'x'`.
 fn cleanup_import_line(import: &str) -> String {
+    // Strip comments first. A multi-line `import { … }` may carry `//` / `/* */`
+    // comments between specifiers (e.g. `ThemeSelect,\n// ThemeSwitch,\nTooltip`);
+    // collapsing the import onto one line below would otherwise fold a `//`
+    // comment inline and comment out the rest of the statement (including
+    // `} from '…'`), emitting invalid JS. esrap drops these comments — mirror
+    // that. String literals (the module specifier) are respected.
+    let import = props_transforms::strip_js_comments(import);
     // Normalize whitespace (join multi-line imports into a single line)
     let single_line = import
         .lines()
