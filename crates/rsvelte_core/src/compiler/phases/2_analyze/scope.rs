@@ -271,6 +271,10 @@ pub struct Binding {
     pub scope_index: usize,
     /// Initial value expression (if any)
     pub initial: Option<String>,
+    /// JSON of the initializer AST for a non-literal but potentially compile-time
+    /// "known" initializer (template literals with interpolations). Separate from
+    /// `initial` (which feeds `is_prop_source`); used only by reactive-state eval.
+    pub init_expr_json: Option<String>,
     /// Whether the initial value is known to be defined (not null/undefined).
     pub initial_is_defined: bool,
     /// All references to this binding (SmallVec avoids heap allocation for ≤4 refs)
@@ -376,6 +380,7 @@ impl Binding {
             mutated: false,
             scope_index,
             initial: None,
+            init_expr_json: None,
             initial_is_defined: false,
             initial_is_function: false,
             initial_node_type: None,
@@ -411,6 +416,7 @@ impl Binding {
             mutated: false,
             scope_index,
             initial: None,
+            init_expr_json: None,
             initial_is_defined: false,
             initial_is_function: false,
             initial_node_type: None,
