@@ -5377,7 +5377,16 @@ fn transform_instance_script_for_visitors(
                     && !t.ends_with("=>"))
                     || t.ends_with("&&")
                     || t.ends_with("||")
-                    || t.ends_with("??")
+                    // Ternary `?` (and nullish `??`, a superset) continuation:
+                    // a line ending with a bare `?` is always a dangling ternary
+                    // operator whose consequent follows on the next line. This
+                    // happens when a `// comment` between `?` and the consequent
+                    // is stripped (legacy mode), e.g.
+                    //   ? // @ts-expect-error
+                    //     isSame(date, selected.from ?? selected.to)
+                    // becomes a line ending in `?`. Valid JS never ends a
+                    // statement with a bare `?`, so this is safe.
+                    || t.ends_with('?')
                     // Binary `+` continuation: line ends with `+ ` (i.e., `+` not as part of `++`)
                     || (t.ends_with('+') && !t.ends_with("++"))
             };
