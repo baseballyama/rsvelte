@@ -11,8 +11,6 @@
 	"layercake/src/_components/AxisRadial.svelte",
 	"layercake/src/_components/AxisY.percent-range.html.svelte",
 	"layercake/src/_components/AxisYRight.percent-range.html.svelte",
-	"layercake/src/_components/Scatter.html.svelte",
-	"layercake/src/_components/SharedTooltip.percent-range.html.svelte",
 	"layercake/src/lib/layouts/ScaledSvg.svelte",
 	"layercake/src/lib/layouts/Svg.svelte",
 	"layercake/src/routes/_components/AxisY.svelte",
