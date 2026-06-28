@@ -1934,9 +1934,13 @@ pub fn svelte2tsx(
         } else {
             ""
         };
+        // Official `createRenderFunction.ts` emits the `slotsDeclaration`
+        // (`const __sveltets_createSlot = …`) in the $$render body BEFORE the
+        // `async () => {` wrapper, not inside it. Keep module-import store
+        // subscriptions inside the async wrapper.
         let render_open = format!(
-            ";function $$render() {{{}\nasync () => {{{}{}",
-            dollar_decls, store_decls, slot_decl_mod
+            ";function $$render() {{{}{}\nasync () => {{{}",
+            dollar_decls, slot_decl_mod, store_decls
         );
         str.append_left(mod_end, &render_open);
 
@@ -1988,11 +1992,15 @@ pub fn svelte2tsx(
     }
 
     // Append the closing of async wrapper, return statement, and component export
-    let use_partial_with_any = uses_dollar_props || uses_dollar_rest_props;
-    // `$$props`/`$$restProps` only flattens the props type to `{}` when there
-    // are NO explicitly-declared props; named `export let`s are still listed
-    // (mirrors official `createPropsStr(uses$$propsOr$$restProps)`).
-    let props_str = exported_names.create_props_str(options.is_ts_file, use_partial_with_any);
+    // `uses$$propsOr$$restProps` (ungated) flattens the props type to `{}` when
+    // there are NO explicitly-declared props — mirrors official
+    // `createPropsStr(uses$$propsOr$$restProps)`.
+    let uses_props_or_rest = uses_dollar_props || uses_dollar_rest_props;
+    // `canHaveAnyProp = !uses$$Props && (uses$$props || uses$$restProps)`: a
+    // `$$Props` type/interface SUPPRESSES the `__sveltets_2_with_any` widening
+    // (official addComponentExport.ts), so the two values diverge.
+    let can_have_any_prop = !exported_names.uses_dollar_props_type && uses_props_or_rest;
+    let props_str = exported_names.create_props_str(options.is_ts_file, uses_props_or_rest);
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
     // Determine effective accessors setting: from options OR <svelte:options accessors>
     let effective_accessors = options.accessors
@@ -2033,29 +2041,74 @@ pub fn svelte2tsx(
         format!("{{{}}}", slot_parts.join(", "))
     };
 
-    // Scan the whole component (instance script + template handlers) for
-    // `dispatch("name", …)` call sites of any untyped `createEventDispatcher()`
-    // so they surface in the events return.
-    events.collect_dispatched_events(source);
+    // Scan the component for `dispatch("name", …)` call sites of any untyped
+    // `createEventDispatcher()` so they surface in the events return. Template
+    // calls (outside the script regions) are collected first, then instance-
+    // script calls that appear after the dispatcher declaration; module-script
+    // calls are excluded. See `collect_dispatched_events`.
+    let inst_range = ast.instance.as_ref().map(|s| (s.content_offset, s.end));
+    let mod_range = ast.module.as_ref().map(|s| (s.content_offset, s.end));
+    events.collect_dispatched_events(source, inst_range, mod_range);
+
+    // A `$$Events` interface (official `ComponentEventsFromInterface`) overrides
+    // the inferred event map: the events def becomes `{} as unknown as $$Events`
+    // and every UNTYPED `createEventDispatcher()` gets a
+    // `<__sveltets_2_CustomEvents<$$Events>>` type argument so its dispatches are
+    // checked against the interface.
+    if exported_names.has_events_type {
+        // Official gates the injection on `ComponentEventsFromInterface.isPresent()`,
+        // which only becomes true once the `$$Events` declaration is reached in the
+        // single source-order walk. So only an untyped dispatcher declared AFTER the
+        // `$$Events` declaration gets the typing — earlier ones stay bare.
+        let events_decl_pos = exported_names.events_type_decl_pos.unwrap_or(0);
+        for pos in &events.dispatcher_typing_inject_pos {
+            if *pos > events_decl_pos {
+                str.prepend_left(*pos, "<__sveltets_2_CustomEvents<$$Events>>");
+            }
+        }
+    }
 
     // Build events string from template info and component events
-    let events_str = {
+    let events_str = if exported_names.has_events_type {
+        "{} as unknown as $$Events".to_string()
+    } else {
         let mut event_parts = Vec::new();
-        // Add element events (forwarded). When the same event name is forwarded
-        // from multiple distinct sources — e.g. an element (`<button on:click>` →
-        // `mapElementEvent`) AND a component (`<Button on:click>` →
-        // `bubbleEventDef`) — official combines them with `__sveltets_2_unionType`.
-        // Group by name (preserving order), then emit a single value or a union.
+        // Official `toDefString` order: typed-dispatcher event typings FIRST,
+        // then bubbled/forwarded events, then untyped-dispatch customEvents.
+        // Add generic event typing from createEventDispatcher<Type>() first.
+        if let Some(ref generic_type) = events.dispatcher_generic_type {
+            event_parts.push(format!(
+                "...__sveltets_2_toEventTypings<{}>()",
+                generic_type
+            ));
+        }
+        // Add element events (forwarded), reducing them exactly like the
+        // official `EventHandler` bubbled-events `Map` (event-handler.ts):
+        //   * an `Element` forward does a plain `set` (OVERWRITE) — collapsing
+        //     duplicate element forwards and clobbering any earlier component
+        //     union for that name;
+        //   * a `Component` forward CONCATS into the existing entry (so each
+        //     forwarding component instance contributes a `unionType` member).
+        // Key insertion order (first occurrence) is preserved. A single value is
+        // emitted plain; multiple values become `__sveltets_2_unionType(...)`.
         let mut grouped: Vec<(String, Vec<String>)> = Vec::new();
-        for (name, value) in &template_info.element_events {
-            if let Some(entry) = grouped.iter_mut().find(|(n, _)| n == name) {
-                // Keep duplicates: identical element forwards (`mapElementEvent`)
-                // were already collapsed at collection time, while identical
-                // component forwards (`bubbleEventDef`) must each contribute a
-                // `unionType` member (mirrors official).
-                entry.1.push(value.clone());
-            } else {
-                grouped.push((name.clone(), vec![value.clone()]));
+        for (name, value, kind) in &template_info.element_events {
+            match kind {
+                crate::svelte2tsx::template::ForwardedEventKind::Element => {
+                    if let Some(entry) = grouped.iter_mut().find(|(n, _)| n == name) {
+                        // Plain overwrite (official `set`): a single value.
+                        entry.1 = vec![value.clone()];
+                    } else {
+                        grouped.push((name.clone(), vec![value.clone()]));
+                    }
+                }
+                crate::svelte2tsx::template::ForwardedEventKind::Component => {
+                    if let Some(entry) = grouped.iter_mut().find(|(n, _)| n == name) {
+                        entry.1.push(value.clone());
+                    } else {
+                        grouped.push((name.clone(), vec![value.clone()]));
+                    }
+                }
             }
         }
         for (name, values) in &grouped {
@@ -2072,13 +2125,6 @@ pub fn svelte2tsx(
         // Add custom events from dispatchers (detected during script processing)
         for (name, value) in events.get_event_entries() {
             event_parts.push(format!("'{}': {}", name, value));
-        }
-        // Add generic event typing from createEventDispatcher<Type>()
-        if let Some(ref generic_type) = events.dispatcher_generic_type {
-            event_parts.push(format!(
-                "...__sveltets_2_toEventTypings<{}>()",
-                generic_type
-            ));
         }
         if event_parts.is_empty() {
             "{}".to_string()
@@ -2127,21 +2173,28 @@ pub fn svelte2tsx(
     //   - JS file (legacy):  __sveltets_2_partial[_with_any]([optional], renderStr)
     // where renderStr = `__sveltets_2_with_any_event($$render())` (non-async) or
     //                   `__sveltets_2_with_any_event($$$render)` (async) and
-    // canHaveAnyProp = uses $$props / $$restProps (`use_partial_with_any`).
+    // canHaveAnyProp = `!uses$$Props && (uses$$props || uses$$restProps)`.
     // `__sveltets_2_partial` is therefore ONLY emitted for legacy JS components.
     let build_prop_def = |exported_names: &ExportedNames| -> String {
-        let render_str = format!("__sveltets_2_with_any_event({render_call})");
+        // Official `_events(hasStrictEvents, renderCall)`: a `$$Events` interface
+        // (or `<svelte:options strictEvents>`) makes events strict, so the render
+        // call is NOT wrapped in `__sveltets_2_with_any_event`.
+        let render_str = if exported_names.has_events_type {
+            render_call.to_string()
+        } else {
+            format!("__sveltets_2_with_any_event({render_call})")
+        };
         if exported_names.is_runes_mode() {
             render_str
         } else if options.is_ts_file {
-            if use_partial_with_any {
+            if can_have_any_prop {
                 format!("__sveltets_2_with_any({render_str})")
             } else {
                 render_str
             }
         } else {
             let optional_props = exported_names.create_optional_props_array(options.is_ts_file);
-            let partial = if use_partial_with_any {
+            let partial = if can_have_any_prop {
                 "__sveltets_2_partial_with_any"
             } else {
                 "__sveltets_2_partial"
@@ -2325,15 +2378,32 @@ pub fn svelte2tsx(
 
                 // Build __sveltets_Render class
                 let _ = writeln!(closing, "class __sveltets_Render<{}> {{", gp);
+                // Mirror official `props(isTsFile=true, canHaveAnyProp, …, '$$render<…>()')`:
+                // a legacy (non-runes) generic component widens its `props` with
+                // `__sveltets_2_with_any` exactly when `canHaveAnyProp`.
+                let props_render = if can_have_any_prop {
+                    format!("__sveltets_2_with_any($$render<{}>())", gn)
+                } else {
+                    format!("$$render<{}>()", gn)
+                };
                 let _ = writeln!(
                     closing,
-                    "    props() {{\n        return $$render<{}>().props;\n    }}",
-                    gn
+                    "    props() {{\n        return {}.props;\n    }}",
+                    props_render
                 );
+                // Mirror official `_events(hasStrictEvents || isRunesMode, …)`:
+                // a `$$Events` interface (strict events) — or runes mode — drops
+                // the `__sveltets_2_with_any_event` fallback wrapper.
+                let events_render =
+                    if exported_names.has_events_type || exported_names.is_runes_mode() {
+                        format!("$$render<{}>()", gn)
+                    } else {
+                        format!("__sveltets_2_with_any_event($$render<{}>())", gn)
+                    };
                 let _ = writeln!(
                     closing,
-                    "    events() {{\n        return __sveltets_2_with_any_event($$render<{}>()).events;\n    }}",
-                    gn
+                    "    events() {{\n        return {}.events;\n    }}",
+                    events_render
                 );
                 let _ = writeln!(
                     closing,
@@ -2753,56 +2823,53 @@ fn extract_component_documentation(fragment: &crate::ast::template::Fragment) ->
                 // whose only newlines surround a single line of text (e.g.
                 // `<!--@component\nText\n-->`) is emitted as a single-line
                 // `/** Text */`. Check the trimmed content for newlines.
-                let is_multiline = after_tag.trim().contains('\n');
+                // Mirror official `ComponentDocumentation`: the whole text is
+                // trimmed first (`data.replace('@component','').trim()`), then
+                // single- vs multi-line is decided on the trimmed content.
+                let content = after_tag.trim();
+                if content.is_empty() {
+                    return Some("/** */".to_string());
+                }
 
-                if is_multiline {
-                    // Collect all lines after @component
-                    let mut lines: Vec<&str> = after_tag.lines().collect();
-
-                    // Remove leading empty line (from the newline right after @component)
-                    if !lines.is_empty() && lines[0].trim().is_empty() {
-                        lines.remove(0);
-                    }
-                    // Remove trailing empty lines
-                    while !lines.is_empty() && lines.last().unwrap().trim().is_empty() {
-                        lines.pop();
-                    }
-
-                    if lines.is_empty() {
-                        return Some("/** */".to_string());
-                    }
-
-                    // Detect base indentation from the first non-empty line
-                    let base_indent = lines
+                if content.contains('\n') {
+                    // Official applies `dedent-js` then maps each line to
+                    // ` *${line ? ` ${line}` : ''}`. dedent-js computes the
+                    // minimum indentation among lines that FOLLOW a newline and
+                    // carry at least one leading whitespace char (the regex
+                    // `\n[\t ]+`), i.e. it ignores the first line and ignores
+                    // zero-indent lines, then strips exactly that many leading
+                    // whitespace chars from each subsequent line that has them.
+                    let lines: Vec<&str> = content.split('\n').collect();
+                    let ws_len = |l: &str| l.len() - l.trim_start_matches([' ', '\t']).len();
+                    let size = lines[1..]
                         .iter()
-                        .filter(|l| !l.trim().is_empty())
-                        .map(|l| l.len() - l.trim_start().len())
+                        .map(|l| ws_len(l))
+                        .filter(|&n| n > 0)
                         .min()
                         .unwrap_or(0);
 
                     let mut result = String::from("/**\n");
-                    for line in &lines {
-                        if line.trim().is_empty() {
+                    for (i, line) in lines.iter().enumerate() {
+                        // First line is never dedented; subsequent lines lose
+                        // exactly `size` leading whitespace chars, but only when
+                        // they actually have at least that many (regex semantics).
+                        let dedented: &str = if i > 0 && size > 0 && ws_len(line) >= size {
+                            &line[size..]
+                        } else {
+                            line
+                        };
+                        if dedented.is_empty() {
                             result.push_str(" *\n");
                         } else {
-                            let stripped = if line.len() > base_indent {
-                                &line[base_indent..]
-                            } else {
-                                line.trim_start()
-                            };
                             result.push_str(" * ");
-                            result.push_str(stripped);
+                            result.push_str(dedented);
                             result.push('\n');
                         }
                     }
                     result.push_str(" */");
                     return Some(result);
                 } else {
-                    let doc_text = after_tag.trim();
-                    if doc_text.is_empty() {
-                        return Some("/** */".to_string());
-                    }
-                    return Some(format!("/** {} */", doc_text));
+                    return Some(format!("/** {} */", content));
                 }
             }
         }
@@ -2990,7 +3057,21 @@ fn find_instance_imports(
     let parser = OxcParser::new(&allocator, raw_content, source_type);
     let result = parser.parse();
 
+    // Comment spans (start, end) discovered by the parser, sorted by end. Used
+    // to compute each import's leading-comment region the way TS
+    // `getLeadingCommentRanges(node.getFullText())` does — including a TRAILING
+    // line comment on the PREVIOUS statement's line (it is leading trivia of the
+    // following import and moves up with it). The parser already tokenised
+    // strings/regex correctly, so `// …` inside a string is never misread.
+    let comment_spans: Vec<(u32, u32)> = result
+        .program
+        .comments
+        .iter()
+        .map(|c| (c.span.start, c.span.end))
+        .collect();
+
     let mut imports = Vec::new();
+    let bytes = raw_content.as_bytes();
     for stmt in result.program.body.iter() {
         if let oxc::Statement::ImportDeclaration(import) = stmt {
             // All import declarations (including side-effect imports like `import ''`)
@@ -2999,94 +3080,43 @@ fn find_instance_imports(
             let start = import.span.start;
             let end = import.span.end;
 
-            // Include leading comments (e.g., `// @ts-ignore`, `/*hi*/`,
-            // `/** @typedef ... */`) by scanning backwards from the import
-            // start. Multiple comments separated by blank lines are all
-            // pulled in — matches the JS svelte2tsx behaviour exposed by
-            // `js-jsdoc-before-first-import`.
-            let bytes = raw_content.as_bytes();
-            let new_start = scan_back_past_leading_comments(bytes, start as usize);
+            // Walk backwards over leading trivia, pulling in every comment whose
+            // end is reachable from the current start via whitespace only, and
+            // stopping at the first non-comment code (the previous token). This
+            // mirrors `getLeadingCommentRanges` and pulls a trailing line comment
+            // (`import …; // TODO`) into the FOLLOWING import's leading region.
+            let new_start = scan_back_leading_comments(bytes, start as usize, &comment_spans);
 
-            imports.push((new_start as u32, start, end));
+            imports.push((new_start, start, end));
         }
     }
     imports.sort_by_key(|&(s, _, _)| s);
     imports
 }
 
-/// Walk backwards from `pos` past whitespace, line comments (`// ...`), and
-/// block comments (`/* ... */` including JSDoc), pulling each into the hoisted
-/// region. Whitespace is only consumed when it precedes a comment we
-/// successfully recognise — otherwise we keep the previous committed offset
-/// so non-comment whitespace stays attached to the original line.
-fn scan_back_past_leading_comments(bytes: &[u8], pos: usize) -> usize {
-    let mut committed = pos;
+/// Walk backwards from `pos` over leading trivia (whitespace + comments),
+/// returning the start of the earliest comment reachable via whitespace-only
+/// gaps. Stops at the first non-comment code. `comment_spans` are parser-
+/// discovered `(start, end)` pairs (so strings/regex never produce false `//`).
+fn scan_back_leading_comments(bytes: &[u8], pos: usize, comment_spans: &[(u32, u32)]) -> u32 {
+    let mut cstart = pos as u32;
     loop {
-        // First try a comment immediately adjacent to `committed` (no
-        // whitespace between, e.g. `/*hi*/import …`).
-        if committed >= 2 && bytes[committed - 2] == b'*' && bytes[committed - 1] == b'/' {
-            let prefix = &bytes[..committed - 2];
-            if let Some(open) = find_last_two_byte_sequence(prefix, b'/', b'*') {
-                committed = open;
-                continue;
-            }
+        // Skip whitespace backward.
+        let mut p = cstart as usize;
+        while p > 0 && matches!(bytes[p - 1], b' ' | b'\t' | b'\n' | b'\r') {
+            p -= 1;
         }
-        // Otherwise probe past whitespace and look for a comment ending there.
-        let mut p = committed;
-        while p > 0 {
-            let b = bytes[p - 1];
-            if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-                p -= 1;
-            } else {
+        // A comment ending exactly at `p` is leading trivia of this import.
+        if let Some(&(cs, _)) = comment_spans.iter().find(|&&(_, ce)| ce as usize == p) {
+            if cs >= cstart {
                 break;
             }
+            cstart = cs;
+        } else {
+            break;
         }
-        if p == 0 || p == committed {
-            return committed;
-        }
-        // Block comment `*/` ending at p?
-        if p >= 2 && bytes[p - 2] == b'*' && bytes[p - 1] == b'/' {
-            let prefix = &bytes[..p - 2];
-            if let Some(open) = find_last_two_byte_sequence(prefix, b'/', b'*') {
-                committed = open;
-                continue;
-            } else {
-                return committed;
-            }
-        }
-        // Line comment `// ...` ending at p (just before the newline that p
-        // skipped). Valid when the immediately-preceding line, after any
-        // indentation, starts with `//`.
-        let line_end = p;
-        let mut line_start = line_end;
-        while line_start > 0 && bytes[line_start - 1] != b'\n' {
-            line_start -= 1;
-        }
-        let line = &bytes[line_start..line_end];
-        let mut i = 0;
-        while i < line.len() && (line[i] == b' ' || line[i] == b'\t') {
-            i += 1;
-        }
-        if i + 1 < line.len() && line[i] == b'/' && line[i + 1] == b'/' {
-            committed = line_start;
-            continue;
-        }
-        return committed;
     }
-}
-
-fn find_last_two_byte_sequence(buf: &[u8], a: u8, b: u8) -> Option<usize> {
-    if buf.len() < 2 {
-        return None;
-    }
-    let mut i = buf.len() - 1;
-    while i >= 1 {
-        if buf[i - 1] == a && buf[i] == b {
-            return Some(i - 1);
-        }
-        i -= 1;
-    }
-    None
+    cstart
 }
 
 // =============================================================================
