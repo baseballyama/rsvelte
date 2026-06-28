@@ -3047,6 +3047,12 @@ fn is_simple_default(init: &OxcExpression) -> bool {
         }
         E::BinaryExpression(bin) => is_simple_default(&bin.left) && is_simple_default(&bin.right),
         E::LogicalExpression(l) => is_simple_default(&l.left) && is_simple_default(&l.right),
+        // Upstream parses with `preserveParens: false`, so a parenthesized
+        // sub-expression like `(max - min)` is an implicit/transparent node there.
+        // OXC preserves it as a `ParenthesizedExpression`, so unwrap it to match —
+        // otherwise an otherwise-simple default (e.g. `min + (max - min) / 2`) is
+        // wrongly treated as complex and emitted as a lazy `$.fallback(…, () => …, true)`.
+        E::ParenthesizedExpression(p) => is_simple_default(&p.expression),
         _ => false,
     }
 }

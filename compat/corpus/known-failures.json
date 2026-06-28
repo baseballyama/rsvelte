@@ -1,5 +1,4 @@
 [
-	"attractions/attractions/slider/slider.svelte",
 	"flowbite-svelte/src/lib/datepicker/Datepicker.svelte",
 	"flowbite-svelte/src/routes/admin-dashboard/(sidebar)/crud/products/+page.svelte",
 	"flowbite-svelte/src/routes/admin-dashboard/(sidebar)/crud/users/+page.svelte",
