@@ -1721,10 +1721,22 @@ pub(super) fn calculate_prop_flags(
     // Look up the binding in the instance scope (not module scope).
     // Props always live in the instance scope; looking in any scope risks picking up
     // shadowing variables in module/function scopes with the same name.
+    //
+    // Prefer an actual `prop` / `bindable_prop` binding of this name first: a
+    // same-named `function f(prop) {…}` parameter can be registered at the
+    // instance scope index by Phase-2, so `get_binding` would return the
+    // parameter (kind `normal`) and drop the `PROPS_IS_BINDABLE` bit.
     let binding = analysis
         .root
-        .get_binding(name, analysis.root.instance_scope_index)
-        .and_then(|idx| analysis.root.bindings.get(idx));
+        .bindings
+        .iter()
+        .find(|b| b.name == name && matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp))
+        .or_else(|| {
+            analysis
+                .root
+                .get_binding(name, analysis.root.instance_scope_index)
+                .and_then(|idx| analysis.root.bindings.get(idx))
+        });
 
     // PROPS_IS_BINDABLE: only if binding.kind == BindableProp
     if let Some(b) = binding

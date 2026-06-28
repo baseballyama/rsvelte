@@ -986,12 +986,24 @@ pub fn server_component_ast<'a>(
     // push `$.bind_props($$props, { <init>... })` onto the template body. The
     // object property uses `b.init(prop_alias ?? name, b.id(name))`, so esrap
     // collapses it to shorthand `{ name }` when alias == name.
+    // Collect bindable props in SOURCE-declaration order (by `declaration_start`).
+    // The bindings list is not always in declaration order — a prop that is also a
+    // store subscription (e.g. `export let brush = writable(...)` used as `$brush`)
+    // can be registered out of order — but Svelte emits `$.bind_props` in the
+    // scope's declaration order, so sort to match.
+    let mut bindable: Vec<&crate::compiler::phases::phase2_analyze::scope::Binding> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|binding| {
+            matches!(binding.kind, BindingKind::BindableProp) && !binding.name.starts_with("$$")
+        })
+        .collect();
+    bindable.sort_by_key(|binding| binding.declaration_start.unwrap_or(u32::MAX));
     let mut bind_props: Vec<oxc_ast::ast::ObjectPropertyKind<'a>> = Vec::new();
-    for binding in &analysis.root.bindings {
-        if matches!(binding.kind, BindingKind::BindableProp) && !binding.name.starts_with("$$") {
-            let key = binding.prop_alias.as_deref().unwrap_or(&binding.name);
-            bind_props.push(b.init(key, b.id(&binding.name)));
-        }
+    for binding in bindable {
+        let key = binding.prop_alias.as_deref().unwrap_or(&binding.name);
+        bind_props.push(b.init(key, b.id(&binding.name)));
     }
     for export in &analysis.exports {
         let key = export.alias.as_deref().unwrap_or(&export.name);
