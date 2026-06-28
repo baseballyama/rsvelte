@@ -305,6 +305,15 @@ pub(super) fn find_statement_end_client(s: &str) -> usize {
                             | '>'
                             | '='
                             | ','
+                            // `(`, `[`, and a backtick after a newline continue the
+                            // expression per JS ASI rules (`foo\n(bar)` is `foo(bar)`,
+                            // `a\n[i]` is `a[i]`). Without these, a multi-line
+                            // initializer whose continuation line starts with `(`
+                            // (e.g. `let x =\n  (cond ? a : b) || c`) is truncated to
+                            // an empty expression.
+                            | '('
+                            | '['
+                            | '`'
                     ) {
                         // continuation; keep scanning
                     } else {
