@@ -48,6 +48,5 @@
 	"svelte-ux/packages/svelte-ux/src/lib/components/Tooltip.svelte",
 	"svelte/packages/svelte/tests/validator/samples/store-rune-conflic-from-props/input.svelte",
 	"sveltestrap/src/Input/Input.svelte",
-	"svelthree/src/lib/components/Object3D.svelte",
-	"svelthree/src/lib/components/WebGLRenderer.svelte"
+	"svelthree/src/lib/components/Object3D.svelte"
 ]
