@@ -1760,10 +1760,30 @@ pub(super) fn calculate_prop_flags(
     if analysis.accessors {
         flags |= PROPS_IS_UPDATED;
     } else if let Some(b) = binding {
+        use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
+        // When a prop is shadowed by a same-named function parameter, the
+        // BindableProp kind can land on the parameter binding (which is never
+        // reassigned), while the real `export let`/destructured prop binding —
+        // declared in the instance/module scope — carries the reassignment.
+        // Borrow the real declaration's updated-ness so a reassigned prop still
+        // gets PROPS_IS_UPDATED. (Sort/flag-only — does not change which binding
+        // is marked BindableProp, so var-hoisting is untouched.)
+        let real_reassigned = analysis.root.bindings.iter().any(|x| {
+            x.name == name
+                && x.declaration_kind != DeclarationKind::Param
+                && (x.scope_index == 0 || x.scope_index == analysis.root.instance_scope_index)
+                && x.reassigned
+        });
+        let real_mutated = analysis.root.bindings.iter().any(|x| {
+            x.name == name
+                && x.declaration_kind != DeclarationKind::Param
+                && (x.scope_index == 0 || x.scope_index == analysis.root.instance_scope_index)
+                && x.mutated
+        });
         let is_updated = if analysis.immutable {
-            b.reassigned || (analysis.runes && b.mutated)
+            (b.reassigned || real_reassigned) || (analysis.runes && (b.mutated || real_mutated))
         } else {
-            b.is_updated()
+            b.is_updated() || real_reassigned || real_mutated
         };
         if is_updated {
             flags |= PROPS_IS_UPDATED;
