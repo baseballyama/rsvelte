@@ -73,7 +73,7 @@ const ast = parse('<h1>Hello</h1>', { modern: true });
 console.log(VERSION); // upstream Svelte version this build targets
 ```
 
-The public surface mirrors [`svelte/compiler`](https://svelte.dev/docs/svelte-compiler) — `compile`, `compileModule`, `parse`, and `VERSION` are all available. Output is byte-identical to the official compiler on every in-scope fixture (see [Compatibility](#compatibility)).
+The public surface mirrors [`svelte/compiler`](https://svelte.dev/docs/svelte-compiler) — `compile`, `compileModule`, `parse`, and `VERSION` are all available. Output is byte-identical to the official compiler on every in-scope fixture (see [Compatibility](#compatibility)). It also matches the official compiler on over 99% of a corpus spanning real projects, Svelte's own fixtures, and svelte.dev docs — after normalization that treats cosmetic-only differences like line-wrapping as equivalent (see [Real-world corpus testing](#real-world-corpus-testing)).
 
 > **Heads-up:** a few function-valued options can't cross the wasm / NAPI boundary. See [Compiler option compatibility](#compiler-option-compatibility) before passing `cssHash` or `warningFilter`.
 
@@ -285,6 +285,36 @@ Current compatibility with the official Svelte compiler test suite:
 | Sourcemaps | 0 | 0 | — | No fixtures yet |
 
 Re-run `pnpm run test-and-update` to refresh these numbers.
+
+## Real-world corpus testing
+
+Passing the official fixture suite proves rsvelte is correct on the cases Svelte's own authors thought to test. But a drop-in replacement has to be correct on the code *real projects actually ship* — namespaced components, `$props.id()` ordering, `{@const}`-in-snippet, long `{@render}` wrapping, and a thousand other shapes that rarely show up in curated fixtures. So on top of the fixture suite, rsvelte runs a continuously growing **output-equality corpus**: it compiles thousands of units of real Svelte source with **both** the official compiler and rsvelte, and asserts the outputs match after comparison-side normalization (described below).
+
+The corpus spans ~11,900 compile units: every `.svelte` / `.svelte.js` / `.svelte.ts` file, plus every ` ```svelte ` code block in the markdown of Svelte's fixtures and the svelte.dev docs. These units come from every repository [listed in `corpus-sources.json`](scripts/compat-corpus/corpus-sources.json) (32 sources): Svelte's own fixtures, the curated [svelte.dev](https://github.com/sveltejs/svelte.dev) docs, and the shipped source of real-world component libraries and apps like [bits-ui](https://github.com/huntabyte/bits-ui), [shadcn-svelte](https://github.com/huntabyte/shadcn-svelte), [melt-ui](https://github.com/melt-ui/next-gen), [flowbite-svelte](https://github.com/themesberg/flowbite-svelte), [svelte-ux](https://github.com/techniq/svelte-ux), and [layerchart](https://github.com/techniq/layerchart). Each repo is pinned by a git submodule and bumped automatically — the project and docs repos via a weekly PR, and Svelte via a weekly check that opens a PR whenever a new stable release lands — so the corpus tracks the live ecosystem over time.
+
+Three independent tracks run over that shared corpus — in CI on every PR that touches the compiler, the pipeline, or a pinned source — each comparing rsvelte against the *real* tool it replaces, not a hand-written approximation (a separate lint-parity track runs over its own corpus, below):
+
+| Track | Compared against | What must match | Known divergences |
+|---|---|---|---|
+| **Compiler** (CSR + SSR) | `svelte/compiler` | JS + CSS output, byte-identical after oxfmt + blank-line normalization, or AST-equivalent; files the official compiler rejects produce the same error code | **54** |
+| **`svelte2tsx`** | official `svelte2tsx` | generated `.tsx`, byte-identical after oxfmt + blank-line normalization | **0** |
+| **Formatter** | `oxfmt` + `prettier-plugin-svelte` | `rsvelte-fmt` output, byte-identical | **121** |
+
+The counts are absolute divergences — each track grades a different slice of the corpus, so they aren't directly comparable; the over-99% rate above comes from the compiler track (54 of ~11,900 units). And that rate isn't flattered by Svelte's own fixtures: nearly all of those divergences are in third-party project code, so parity on the real-world-only slice (~5,500 units) is still ~99%. The formatter track grades the `.svelte` components (most of the corpus); its 121 divergences likewise work out to ~99% parity.
+
+The **lint-parity** track checks that the native `rsvelte-lint` produces the same findings as the real [`eslint-plugin-svelte`](https://github.com/sveltejs/eslint-plugin-svelte) over the two lint-relevant upstream repos (`eslint-plugin-svelte` + `svelte-eslint-parser`), since those repos *are* the lint ground truth. It currently sits at **zero** divergences over every compared rule (type-aware rules and a few non-comparable rules such as `indent` are excluded; see the pipeline README).
+
+Normalization runs only on the *comparison* side, never inside the compiler — so a real divergence can never hide behind a compiler post-pass (and rsvelte, chasing a 100× speedup, never spends cycles inside the compiler on cosmetic output massaging). Each track normalizes differently:
+
+- **Compiler** — oxfmt + blank-line stripping, plus an AST-structural fallback that absorbs pure cosmetics like line-wrapping, redundant parens, and quote style.
+- **`svelte2tsx`** — oxfmt + blank-line stripping, but no AST-equivalent fallback: the normalized TSX must match byte-for-byte, since the functional comments the language server relies on are part of its contract.
+- **Formatter** — no comparison-side normalization at all: `rsvelte-fmt`'s output is compared byte-for-byte against an oxfmt-formatted oracle, because correct blank lines and exact layout are precisely what a formatter is graded on.
+
+Anything that survives is a real difference against the official tool, not an artifact of normalization.
+
+Every track is a **ratchet**: its known-divergence count — checked into [`compat/corpus/`](compat/corpus) (and [`compat/lint-corpus/`](compat/lint-corpus) for the lint track) — **may only shrink**. A newly introduced divergence turns CI red, and fixed ones are pruned from the baseline, so real-world parity only improves over time and never silently regresses. (The counts in the table are the committed baselines as of this writing; see the `compat/` directories for live values.)
+
+This is the difference between passing your own tests and clearing a drop-in-replacement bar: rsvelte's output is checked against the official toolchain on the same kinds of code real projects ship every day. See [`scripts/compat-corpus/README.md`](scripts/compat-corpus/README.md) for the full pipeline, normalization layers, and how to add a repository to the corpus.
 
 ## Goals
 

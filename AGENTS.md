@@ -44,7 +44,7 @@ Every `.svelte` / `.svelte.(js|ts)` source (including markdown code blocks)
 from every corpus source repository — sveltejs/svelte, sveltejs/svelte.dev, and
 the real-world projects bits-ui / flowbite-svelte / melt-ui / shadcn-svelte, all
 pinned as submodules and listed in `scripts/compat-corpus/corpus-sources.json`
-(~10,000 entries) — is compiled with both the official compiler and rsvelte for
+(~12,000 entries) — is compiled with both the official compiler and rsvelte for
 CSR **and** SSR, and the outputs must be byte-identical after comparison-side
 normalization (oxfmt + blank-line stripping — never compiler post-passes). It is
 one unified corpus (no separate "ecosystem" track); to grow it, add a submodule
