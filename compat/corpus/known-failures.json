@@ -33,8 +33,6 @@
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte",
 	"smelte/src/routes/components/_layout.svelte",
 	"svar-core/svelte/src/components/calendar/Month.svelte",
-	"svelte-calendar/src/lib/components/InlineCalendar.svelte",
-	"svelte-calendar/src/lib/components/generic/InfiniteGrid.svelte",
 	"svelte-form-builder/src/lib/Components/Select.svelte",
 	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelComponentSpecific/PropertyPanelChoiceCheckboxRadioSpecific.svelte",
 	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelComponentSpecific/Table/TableColumnSpecific.svelte",
