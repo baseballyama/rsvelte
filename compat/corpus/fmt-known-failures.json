@@ -24,7 +24,6 @@
 	"layerchart/packages/layerchart/src/lib/docs/Code.svelte",
 	"layerchart/packages/layerchart/src/routes/docs/+layout.svelte",
 	"layerchart/packages/layerchart/src/routes/docs/components/LineChart/+page.svelte",
-	"layerchart/packages/layerchart/src/routes/docs/examples/Arc/+page.svelte",
 	"layerchart/packages/layerchart/src/routes/docs/examples/Histogram/+page.svelte",
 	"layerchart/packages/layerchart/src/routes/docs/examples/Partition/+page.svelte",
 	"layerchart/packages/layerchart/src/routes/docs/examples/Tree/+page.svelte",

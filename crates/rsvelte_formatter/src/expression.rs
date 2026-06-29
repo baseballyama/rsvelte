@@ -2897,18 +2897,55 @@ fn is_method_chain_break(multi: &str) -> bool {
 }
 
 fn outer_parens_match(inner: &str) -> bool {
+    // Count parens to verify the stripped outer pair was balanced, but ignore
+    // any `(`/`)` that appear inside a string/template literal or a line/block
+    // comment — e.g. a body comment like `// 1.) No clamping` carries a lone `)`
+    // that must not be counted, otherwise a perfectly balanced object/arrow value
+    // is judged unbalanced and its redundant wrapper parens are kept (`{({…})}`).
     let mut depth: i32 = 0;
-    for c in inner.chars() {
-        match c {
-            '(' => depth += 1,
-            ')' => {
-                depth -= 1;
-                if depth < 0 {
-                    return false;
+    let chars: Vec<char> = inner.chars().collect();
+    let mut i = 0;
+    let mut in_string: Option<char> = None;
+    while i < chars.len() {
+        let c = chars[i];
+        match in_string {
+            Some(q) => {
+                if c == '\\' {
+                    i += 2;
+                    continue;
+                } else if c == q {
+                    in_string = None;
                 }
             }
-            _ => {}
+            None => match c {
+                '"' | '\'' | '`' => in_string = Some(c),
+                '/' if chars.get(i + 1) == Some(&'/') => {
+                    // Line comment: skip to end of line.
+                    while i < chars.len() && chars[i] != '\n' {
+                        i += 1;
+                    }
+                    continue;
+                }
+                '/' if chars.get(i + 1) == Some(&'*') => {
+                    // Block comment: skip to the closing `*/`.
+                    i += 2;
+                    while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+                        i += 1;
+                    }
+                    i += 2;
+                    continue;
+                }
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth < 0 {
+                        return false;
+                    }
+                }
+                _ => {}
+            },
         }
+        i += 1;
     }
     depth == 0
 }
@@ -3183,6 +3220,30 @@ mod tests {
     fn has_word_await_empty() {
         assert!(!has_word_await(""));
         assert!(!has_word_await("foo bar"));
+    }
+
+    #[test]
+    fn outer_parens_match_ignores_parens_in_comments_and_strings() {
+        // Balanced object/arrow body where a line comment carries a lone `)`.
+        let inner = "{\n  onpointerdown: (e) => {\n    // 1.) No clamping\n    foo(e);\n  },\n}";
+        assert!(outer_parens_match(inner));
+        // A `)` inside a string literal must likewise not be counted.
+        assert!(outer_parens_match("{ label: \"a) b\", value: 1 }"));
+        // A `)` inside a block comment must not be counted.
+        assert!(outer_parens_match("x /* close ) here */ + y"));
+        // Genuinely unbalanced parens are still rejected.
+        assert!(!outer_parens_match("foo)"));
+        assert!(!outer_parens_match("a) + (b"));
+    }
+
+    #[test]
+    fn strip_outer_parens_strips_object_with_paren_in_comment() {
+        // The wrapper `({ … })` around a comment-bearing object value must be
+        // stripped even though a body comment contains a lone `)` (#Arc track).
+        let s = "({\n  onpointerdown: (e) => {\n    // 1.) No clamping\n    foo(e);\n  },\n})";
+        let stripped = strip_outer_parens(s);
+        assert!(stripped.trim_start().starts_with('{'));
+        assert!(!stripped.trim_start().starts_with("({"));
     }
 
     #[test]
