@@ -2146,12 +2146,19 @@ fn collect_reactive_references_from_metadata(
         } else {
             matches!(
                 binding.kind,
-                BindingKind::BindableProp
-                    | BindingKind::Template
+                BindingKind::Template
                     | BindingKind::AwaitThen
                     | BindingKind::AwaitCatch
                     | BindingKind::Let
-            ) || (binding.kind == BindingKind::EachIndex && has_read_transform)
+            )
+                // A bindable_prop deep-reads UNLESS shadowed by a local read
+                // transform (an each-item/snippet of the same name resolved via
+                // get_binding to the outer prop). A genuine prop is recorded in
+                // `transform_deep_read` (the branch above), so gating on
+                // `!has_read_transform` only suppresses the shadowed case —
+                // mirroring the `Import` arm.
+                || (binding.kind == BindingKind::BindableProp && !has_read_transform)
+                || (binding.kind == BindingKind::EachIndex && has_read_transform)
                 || binding.declaration_kind == DeclarationKind::Import
         };
 
@@ -2353,12 +2360,17 @@ fn collect_reactive_references_inner(
                 };
                 matches!(
                     binding.kind,
-                    BindingKind::BindableProp
-                        | BindingKind::Template
+                    BindingKind::Template
                         | BindingKind::AwaitThen
                         | BindingKind::AwaitCatch
                         | BindingKind::Let
-                ) || (binding.kind == BindingKind::EachIndex && has_read_transform)
+                )
+                    // A bindable_prop deep-reads UNLESS shadowed by a local read
+                    // transform (an each-item/snippet of the same name); a genuine
+                    // prop is recorded in `transform_deep_read` (handled above), so
+                    // this only suppresses the shadowed case — like the Import arm.
+                    || (binding.kind == BindingKind::BindableProp && !has_read_transform)
+                    || (binding.kind == BindingKind::EachIndex && has_read_transform)
                     // A direct import read is deep-read-wrapped — UNLESS the name
                     // has a local read transform, which means it is shadowed by a
                     // local binding (each-item / each-index / snippet param) that
