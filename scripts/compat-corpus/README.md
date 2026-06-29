@@ -114,7 +114,12 @@ Pipeline stages (all idempotent, everything under `compat/corpus/` except
    Sharded across worker processes; a Rust panic is recorded as a `rust_panic`
    error for that entry instead of killing the run.
 3. `verify.mjs` — oxfmt-normalizes both trees, byte-compares, writes `report.json`,
-   exits non-zero on any mismatch.
+   and ratchets each target independently against
+   `compat/corpus/known-failures.client.json` (CSR) and
+   `compat/corpus/known-failures.server.json` (SSR) — both checked in, both may
+   only shrink. Exits non-zero only on a **regression** (a `(id, target)` pair
+   that diverges but is absent from that target's baseline).
+   `--update-baseline` rewrites both files from the current run.
 
 Debugging helpers:
 
@@ -340,7 +345,7 @@ To add a repository:
    ```
 
    The new entries appear under the `repo/…` id prefix in the unified
-   `known-failures.json` / `svelte2tsx-known-failures.json` /
+   `known-failures.{client,server}.json` / `svelte2tsx-known-failures.json` /
    `fmt-known-failures.json`. Like every ratchet they may only **shrink** — a new
    divergence on a later run fails CI. Regenerate baselines on Linux (CI is the
    source of truth — see the formatter-parity environment note above).
