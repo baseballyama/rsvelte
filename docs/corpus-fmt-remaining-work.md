@@ -1,12 +1,73 @@
 # Formatter-parity corpus: remaining work (burn-down playbook)
 
-> **Status 2026-06-28 (unified corpus, 11,478 components, oxfmt 0.56.0,
-> svelte 5.56.x): 101 known failures, 18 exclusions, 0 regressions, Linux CI
+> **Status 2026-06-29 (unified corpus, 11,478 components, oxfmt 0.56.0,
+> svelte 5.56.x): 85 known failures, 18 exclusions, 0 regressions, Linux CI
 > green** (`compat/corpus/fmt-known-failures.json` /
 > `fmt-oracle-excluded.json`). See **“Remaining 101 (2026-06-28 snapshot)”**
 > below for the live cluster breakdown, root causes, concrete examples, and the
 > approaches already proven net-negative. The historical narrative (the original
 > 431→0 burn-down on the smaller svelte-only corpus) is retained further down.
+
+---
+
+## 2026-06-29 update (101 → 85): embedded-expression paren normalization
+
+Five entries cleared via embedded-JS paren normalization in `expression.rs`
+(PR #1328) — all platform-independent, Linux-CI-validated:
+
+1. **Object value with a stray `)` in a comment** — `track={{ … // 1.) x … }}`.
+   `outer_parens_match` counted the comment's lone `)` and kept the wrapper
+   (`track={({ … })}`). It now skips parens inside strings/templates and
+   `//` / `/* */` comments. _(layerchart Arc)_
+2. **Object that is the head of a member/call** — `size={{ … }[key]}`. OXC
+   parenthesizes the leading object at statement position (`({ … })[key]`), which
+   `strip_outer_parens` can't unwrap. Detected via the AST (`expr_has_object_head`,
+   walking the leftmost `.object`/`.callee` spine) and stripped with
+   `strip_leading_paren_pair`, keeping the postfix verbatim. _(svelte-ux
+   Checkbox/Radio/Timeline)_
+3. **Top-level assignment value** — `{x = 5}` → `{(x = 5)}` (mustache/attribute/
+   block-header alike). `format_expr_core` now applies the one-pair rule to
+   `AssignmentExpression` (with `SequenceExpression`); the redundant block-header
+   `block_header_expr_needs_parens` re-wrap is removed. _(svelte-form-builder)_
+
+### Remaining 85: the safe mechanical wins are now exhausted
+
+A full re-survey of the 85 (ranked by diff size) confirms every remaining entry
+needs one of:
+
+- **The layout engine (dominant group, ~60).** Hug / closing-`>` placement
+  (`>{label}` and `</code\n>` on their own line when content hugs a multi-line
+  element), inline under/over-break, prose `fill`. This is exactly the
+  `printChildren` / `fill` / `group` Doc-IR port (`docs/fmt-layout-port-plan.md`,
+  milestone 2). `children.rs` is built + unit-tested but still unwired; wiring it
+  is the only path to these and must proceed one element shape at a time, each
+  validated at 0 corpus regressions.
+- **Delicately-tuned heuristics (net-risky for 1–2 files each).**
+  - *Directive-value overflow* — `on:keypress={(e) => long && body}` at a deep
+    attribute indent overflows 80 but rsvelte keeps it on one line. The
+    `render_directive_value_narrow` width math (`extra_lead = prefix -
+    indent_width`) is deliberately loose to avoid over-breaking nested
+    object/array arguments. **Empirically net-zero (2026-06-29, reverted):**
+    tightening to `extra_lead = prefix + 1` for arrows with no `{`/`[` body fixes
+    the single-line break decision (`(e) =>` now wraps) but the same tight width
+    then over-breaks a slightly-longer sibling body at `&&`
+    (`e.key === "Enter" &&\n handleClickCell(…)`) — the file fails differently, 0
+    net change. A single oxc width cannot model both the first-line overflow
+    decision AND the looser body-continuation budget. The real fix is a **two-stage
+    arrow split**: format the body at the loose width, and if the tight first-line
+    budget overflowed, force a manual `params =>\n  <loose-body>` split (keeping
+    the body's loose single line). _(svelte-table)_
+  - *`<pre>` body reformat* — `reformat_pre_inner` re-indents a `{#if}` block
+    marker inside `<pre>` to a tab where the oracle keeps the source's 2 spaces
+    verbatim. The `<pre>` reformat subsystem is special-cased (tab element-lines /
+    space block-lines); making it keep simple bodies verbatim risks the cases it
+    was tuned for. _(svelte-calendar Code)_
+  - *Nested each-block key chain reindent* — `{#each xs as n (n.a().b())}` breaks
+    the key chain but reindents continuation lines to depth 0 (2 spaces) instead
+    of the block's deep column. Reindent-depth threading for block-header keys.
+    _(layerchart Partition)_
+- **Isolated oddity.** A TS generic arrow `<T,>(…) =>` keeps its disambiguating
+  trailing comma where oxfmt drops it (`<T>`). _(svelte-splitpanes)_
 
 ---
 
