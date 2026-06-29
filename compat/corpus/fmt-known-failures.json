@@ -55,7 +55,6 @@
 	"svelte-pivottable/src/routes/+page.svelte",
 	"svelte-sonner/src/components/Hero.svelte",
 	"svelte-splitpanes/src/comp/Button.svelte",
-	"svelte-splitpanes/src/lib/Splitpanes.svelte",
 	"svelte-stepper/src/routes/components/spinner.svelte",
 	"svelte-table/example/example6/ContactButtonComponent.svelte",
 	"svelte-table/src/SvelteTable.svelte",
