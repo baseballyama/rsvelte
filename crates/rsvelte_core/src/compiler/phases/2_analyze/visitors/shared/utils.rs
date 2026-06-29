@@ -2165,6 +2165,14 @@ pub fn walk_js_expression(
             }
         }
         Some("SpreadElement") => {
+            // A spread `...x` is treated like `...x.values()` — it may invoke a
+            // getter/iterator — so it counts as both a call and a state reference.
+            // Mirrors upstream `2-analyze/visitors/SpreadElement.js`, which sets
+            // `has_call = true; has_state = true`. This is what makes a legacy
+            // attribute value containing a spread (`{ ...props }`) get wrapped in
+            // the `(deps, $.untrack(...))` dependency sequence by `build_expression`.
+            metadata.set_has_call(true);
+            metadata.set_has_state(true);
             // Visit argument (e.g., ...foo => visit foo)
             if let Some(argument) = expression.get("argument") {
                 walk_js_expression(argument, context, metadata)?;
