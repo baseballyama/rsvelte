@@ -43,6 +43,14 @@ Doc primitives the layout relies on: `group`, `indent`, `dedent`, `softline`,
    assembly; `should_hug_start/end`, canonical `is_block_element` (the 33-name
    oracle list, replacing the two divergent lists in markup.rs/collapse.rs),
    `is_inline_element` (with `in_pre_context`), `can_omit_softline_before_closing_tag`.
+   **DONE (unwired, unit-tested):** `printChildren` + `splitTextToDocs` + the
+   whitespace predicates + the 33-name `BLOCK_ELEMENTS` list; and
+   `build_element_doc` — the 4-case assembly (`should_hug_start/end`,
+   `compute_no_hug_separators`) for the corpus config (supported language, not
+   `<pre>`, `bracketSameLine = false` so `canOmitSoftlineBeforeClosingTag` is
+   constant-false). `in_pre_context` / non-CSS `htmlWhitespaceSensitivity`
+   branches are deferred to wiring. Still `#[allow(dead_code)]` — milestone 2
+   wires it in and removes the attribute (validated at 0 corpus regressions).
 2. **Wire `children.rs` into `collapse.rs`** — replace `try_fill_mixed` /
    `try_hug_mixed` / `try_break_content_tag_block` with `build_element_doc`;
    keep `try_collapse` only as the pure-text fast path; route fragment-level

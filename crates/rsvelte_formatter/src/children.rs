@@ -389,6 +389,220 @@ fn set_text(c: &mut Child, s: String) {
     }
 }
 
+// ── element 4-case assembly (the element case of `print`) ──────────────────
+
+/// Inputs for [`build_element_doc`] — a `RegularElement` whose open tag and
+/// children have already been converted to Docs by the caller.
+pub(crate) struct ElementLayout {
+    /// Tag name (`div`, `a`, …).
+    pub name: String,
+    /// The attribute-list doc placed inside `<name …>` — prettier's
+    /// `group([possibleThisBinding, ...attributes])`. Empty `Doc::Text("")` when
+    /// there are no attributes.
+    pub attrs: Doc,
+    /// Raw children (before `prepareChildren`); used to decide hugging and the
+    /// non-hug separators. `print_children` re-prepares them internally.
+    pub children: Vec<Child>,
+    /// `isInlineElement(node)` — a `RegularElement` whose name is not block.
+    pub is_inline: bool,
+}
+
+/// Build the Doc for a regular element, porting the element case of
+/// prettier-plugin-svelte's `print` (the `shouldHugStart`/`shouldHugEnd`
+/// four-case assembly). Assumes the corpus oracle config: a supported language,
+/// not `<pre>`-content, and `bracketSameLine = false` (so
+/// `canOmitSoftlineBeforeClosingTag` is always false and the open-tag trailing
+/// separator is `dedent(softline)`).
+pub(crate) fn build_element_doc(el: ElementLayout) -> Doc {
+    let ElementLayout {
+        name,
+        attrs,
+        children,
+        is_inline,
+    } = el;
+
+    let is_empty = children
+        .iter()
+        .all(|c| matches!(c.text(), Some(t) if is_empty_raw(t)));
+    let hug_start = should_hug_start(is_inline, &children);
+    let hug_end = should_hug_end(is_inline, &children);
+
+    let close = format!("</{name}>");
+    let close_no_bracket = format!("</{name}");
+
+    // openingTag = ['<', name, indent(group([attrs, hugStart && !isEmpty ? '' : dedent(softline)]))]
+    let opener_trailing = if hug_start && !is_empty {
+        Doc::Text(String::new())
+    } else {
+        Doc::Dedent(vec![Doc::Softline])
+    };
+    let opening_tag = vec![
+        Doc::Text(format!("<{name}")),
+        Doc::Indent(vec![Doc::Group(vec![attrs, opener_trailing])]),
+    ];
+
+    if is_empty {
+        // body for an empty element: a `line` only for an inline element whose
+        // (raw) first child is a whitespace text; otherwise '' (bracketSameLine
+        // is false so never `softline` here).
+        let body = if is_inline
+            && children
+                .first()
+                .and_then(Child::text)
+                .is_some_and(starts_with_ws)
+        {
+            Doc::Line
+        } else {
+            Doc::Text(String::new())
+        };
+        if hug_start && hug_end {
+            // group([...opening, group([softline, group(['>', body, '</name'])]), '', '>'])
+            let hugged = Doc::Group(vec![
+                Doc::Softline,
+                Doc::Group(vec![
+                    Doc::Text(">".into()),
+                    body,
+                    Doc::Text(close_no_bracket),
+                ]),
+            ]);
+            return group_concat(opening_tag, vec![hugged, Doc::Text(">".into())]);
+        }
+        // isEmpty non-hug: group([...opening, '>', body, '</name>'])
+        return group_concat(
+            opening_tag,
+            vec![Doc::Text(">".into()), body, Doc::Text(close)],
+        );
+    }
+
+    // body = printChildren(children) — a concat the assembly wraps.
+    let mut children = children;
+    // No-hug separators + first/last text trimming (the `else` branch of the
+    // element print case). `bracketSameLine`/pre are fixed, so no early outs.
+    let (no_hug_start, no_hug_end) =
+        compute_no_hug_separators(is_inline, hug_start, hug_end, &mut children);
+    let body = || Doc::Concat(print_children(children.clone()));
+
+    if hug_start && hug_end {
+        // omitSoftlineBeforeClosingTag = (isEmpty && !bracketSameLine) || canOmit
+        //                              = false || false  (isEmpty == false here)
+        let hugged = Doc::Indent(vec![Doc::Group(vec![
+            Doc::Softline,
+            Doc::Group(vec![
+                Doc::Text(">".into()),
+                body(),
+                Doc::Text(close_no_bracket),
+            ]),
+        ])]);
+        return group_concat(
+            opening_tag,
+            vec![hugged, Doc::Softline, Doc::Text(">".into())],
+        );
+    }
+    if hug_start {
+        // group([...opening, indent([softline, group(['>', body])]), noHugEnd, '</name>'])
+        let mid = Doc::Indent(vec![
+            Doc::Softline,
+            Doc::Group(vec![Doc::Text(">".into()), body()]),
+        ]);
+        return group_concat(opening_tag, vec![mid, no_hug_end, Doc::Text(close)]);
+    }
+    if hug_end {
+        // group([...opening, '>', indent([noHugStart, group([body, '</name'])]), softline, '>'])
+        let mid = Doc::Indent(vec![
+            no_hug_start,
+            Doc::Group(vec![body(), Doc::Text(close_no_bracket)]),
+        ]);
+        return group_concat(
+            opening_tag,
+            vec![
+                Doc::Text(">".into()),
+                mid,
+                Doc::Softline,
+                Doc::Text(">".into()),
+            ],
+        );
+    }
+    // neither: group([...opening, '>', indent([noHugStart, body]), noHugEnd, '</name>'])
+    let mid = Doc::Indent(vec![no_hug_start, body()]);
+    group_concat(
+        opening_tag,
+        vec![Doc::Text(">".into()), mid, no_hug_end, Doc::Text(close)],
+    )
+}
+
+/// `group([...opening, ...rest])`.
+fn group_concat(opening: Vec<Doc>, rest: Vec<Doc>) -> Doc {
+    let mut parts = opening;
+    parts.extend(rest);
+    Doc::Group(parts)
+}
+
+/// `shouldHugStart` for the corpus config (supported lang, not pre, not
+/// SvelteBoundary): false for block elements; for inline, hug unless the first
+/// child is a text node starting with whitespace.
+fn should_hug_start(is_inline: bool, children: &[Child]) -> bool {
+    if !is_inline {
+        return false;
+    }
+    match children.first() {
+        None => true,
+        Some(first) => !first.text().is_some_and(starts_with_ws),
+    }
+}
+
+fn should_hug_end(is_inline: bool, children: &[Child]) -> bool {
+    if !is_inline {
+        return false;
+    }
+    match children.last() {
+        None => true,
+        Some(last) => !last.text().is_some_and(ends_with_ws),
+    }
+}
+
+/// The non-hug separator computation + first/last text trimming, ported from the
+/// `else` branch of the element print case (corpus config: not pre).
+fn compute_no_hug_separators(
+    is_inline: bool,
+    hug_start: bool,
+    hug_end: bool,
+    children: &mut [Child],
+) -> (Doc, Doc) {
+    let mut start = Doc::Softline;
+    let mut end = Doc::Softline;
+    let last_idx = children.len().saturating_sub(1);
+    let mut did_set_end = false;
+
+    if !hug_start && let Some(Child::Text(t)) = children.first() {
+        let t = t.clone();
+        if starts_with_linebreak(&t, 1)
+            && children.len() > 1
+            && (!is_inline
+                || children
+                    .last()
+                    .and_then(Child::text)
+                    .is_some_and(ends_with_ws))
+        {
+            start = Doc::Hardline;
+            end = Doc::Hardline;
+            did_set_end = true;
+        } else if is_inline {
+            start = Doc::Line;
+        }
+        let trimmed = trim_left(&t).to_string();
+        set_text(&mut children[0], trimmed);
+    }
+    if !hug_end && let Some(Child::Text(t)) = children.last() {
+        let t = t.clone();
+        if is_inline && !did_set_end {
+            end = Doc::Line;
+        }
+        let trimmed = trim_right(&t).to_string();
+        set_text(&mut children[last_idx], trimmed);
+    }
+    (start, end)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -465,6 +679,54 @@ mod tests {
             Child::Text("after".into()),
         ]);
         assert_eq!(render_children(out, 80), "before\n<div>x</div>\nafter");
+    }
+
+    fn render_el(doc: Doc, width: usize) -> String {
+        print(propagate_breaks(doc), width, "  ", 0, 0)
+    }
+
+    fn el(name: &str, children: Vec<Child>, is_inline: bool) -> Doc {
+        build_element_doc(ElementLayout {
+            name: name.to_string(),
+            attrs: Doc::Text(String::new()),
+            children,
+            is_inline,
+        })
+    }
+
+    #[test]
+    fn inline_element_hugs_text_on_one_line() {
+        // <a>here</a> — inline, no surrounding whitespace → hug both.
+        let doc = el("a", vec![Child::Text("here".into())], true);
+        assert_eq!(render_el(doc, 80), "<a>here</a>");
+    }
+
+    #[test]
+    fn empty_inline_element() {
+        let doc = el("a", vec![], true);
+        assert_eq!(render_el(doc, 80), "<a></a>");
+    }
+
+    #[test]
+    fn block_element_single_text_fits_flat() {
+        // <div>x</div> — block, fits on one line at wide width.
+        let doc = el("div", vec![Child::Text("x".into())], false);
+        assert_eq!(render_el(doc, 80), "<div>x</div>");
+    }
+
+    #[test]
+    fn block_element_breaks_children_when_narrow() {
+        // A block whose content overflows breaks: children on their own line,
+        // indented one level, with the close tag back at the outer column.
+        let doc = el(
+            "div",
+            vec![Child::Text("alpha beta gamma delta".into())],
+            false,
+        );
+        assert_eq!(
+            render_el(doc, 12),
+            "<div>\n  alpha beta\n  gamma\n  delta\n</div>"
+        );
     }
 
     #[test]
