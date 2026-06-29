@@ -890,17 +890,10 @@ fn push_bare_expression(
         formatted
     };
 
-    // prettier-plugin-svelte wraps assignment expressions in block-header
-    // positions with parentheses to make intent clear:
-    //   `{#if a = 0}` → `{#if (a = 0)}`
-    //   `{#key c = 0}` → `{#key (c = 0)}`
-    // OXC formats `(a = 0);` as `a = 0;` (statement context strips parens),
-    // so we must re-add them when the expression is a top-level assignment.
-    let formatted = if block_header_expr_needs_parens(slice, options.typescript) {
-        format!("({formatted})")
-    } else {
-        formatted
-    };
+    // A top-level assignment in a block header (`{#if a = 0}` → `{#if (a = 0)}`)
+    // is wrapped in parens by `format_expr_core` itself (the same canonical
+    // one-pair rule it applies to mustache / attribute assignments), so no
+    // block-header-specific re-wrap is needed here.
 
     // prettier-plugin-svelte strips unnecessary outer parens from block-header
     // expressions: `{#if (b)}` → `{#if b}`, `{#each (c) as x}` → `{#each c as x}`.
@@ -913,41 +906,6 @@ fn push_bare_expression(
 
     edits.push((edit_start, edit_end, formatted));
     Ok(edit_end)
-}
-
-/// Returns `true` when `expr_source` (trimmed) is a top-level assignment
-/// expression (`=`, `+=`, …) or a sequence expression (`a, b`). In block-header
-/// positions prettier-plugin-svelte always parenthesises both (`{#if (a = 0)}`,
-/// `{#if (a, b)}`), so the caller re-wraps the formatted result in `()` and the
-/// existing source parens are consumed by `widen_to_source_parens`.
-fn block_header_expr_needs_parens(expr_source: &str, typescript: bool) -> bool {
-    let allocator = Allocator::default();
-    let source_type = if typescript {
-        SourceType::ts()
-    } else {
-        SourceType::default()
-    };
-    let wrapped = format!("({expr_source});");
-    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
-        .with_options(formatter_parse_options())
-        .parse();
-    if !parser_ret.diagnostics.is_empty() {
-        return false;
-    }
-    let Some(oxc_ast::ast::Statement::ExpressionStatement(stmt)) = parser_ret.program.body.first()
-    else {
-        return false;
-    };
-    // Unwrap a single layer of ParenthesizedExpression (from our `(expr)` wrapper)
-    // and check whether the inner expression is an assignment. (Sequence
-    // expressions keep their parens via `is_top_sequence` in the shared
-    // expression formatter, so they must NOT be re-wrapped here — that would
-    // double them to `((a, b))`.)
-    let inner = match &stmt.expression {
-        oxc_ast::ast::Expression::ParenthesizedExpression(p) => &p.expression,
-        other => other,
-    };
-    matches!(inner, oxc_ast::ast::Expression::AssignmentExpression(_))
 }
 
 /// If the source has `(` immediately before `inner_start` (possibly with
@@ -1815,11 +1773,37 @@ fn format_expr_core(
     // true for an `ExpressionStatement` parent), and prettier-plugin-svelte
     // keeps them — so `{((a = 1), '')}` must stay parenthesized. Stripping
     // them below would wrongly emit `{(a = 1), ''}` (#799).
-    let is_top_sequence = !use_const_wrapper
+    //
+    // A top-level ASSIGNMENT expression behaves identically: in expression
+    // position (mustache / attribute value / block header) prettier-plugin-svelte
+    // always wraps it in exactly one pair — `{x = 5}` → `{(x = 5)}`,
+    // `{(y = [])}` → `{(y = [])}` — whereas OXC at statement position strips the
+    // parens. Treat both the same way: strip every redundant outer pair, then
+    // re-wrap once.
+    let is_top_paren_wrapped = !use_const_wrapper
         && matches!(
             parser_ret.program.body.first(),
             Some(oxc_ast::ast::Statement::ExpressionStatement(stmt))
-                if matches!(stmt.expression, oxc_ast::ast::Expression::SequenceExpression(_))
+                if matches!(
+                    stmt.expression,
+                    oxc_ast::ast::Expression::SequenceExpression(_)
+                        | oxc_ast::ast::Expression::AssignmentExpression(_)
+                )
+        );
+
+    // Detect an object literal that is the HEAD of a larger expression — the
+    // object of a member access or callee of a call (`{ … }[key]`, `{ … }.foo`,
+    // `{ … }()`). OXC parenthesizes the leading object because at statement
+    // position a bare `{` would start a block, so it emits `({ … })[key]`. In a
+    // mustache/attribute value the expression is in expression position, so
+    // prettier-plugin-svelte keeps no parens (`{ … }[key]`). `strip_outer_parens`
+    // can't help here because the formatted string ends with `]`/`.`/`)` of the
+    // postfix, not the wrapper `)`. Flag it so the leading pair is stripped below.
+    let leading_object_head = !use_const_wrapper
+        && matches!(
+            parser_ret.program.body.first(),
+            Some(oxc_ast::ast::Statement::ExpressionStatement(stmt))
+                if expr_has_object_head(&stmt.expression)
         );
 
     let mut js = options.js.clone();
@@ -1873,7 +1857,7 @@ fn format_expr_core(
         // top-level sequence (comma) expression in both mustache/attribute values
         // AND block headers (`{#if (a, b)}`). Normalise to exactly one pair by
         // stripping all redundant outer pairs then re-wrapping once. (#799)
-        if is_top_sequence {
+        if is_top_paren_wrapped {
             let mut inner = s.trim();
             loop {
                 let stripped = strip_outer_parens(inner).trim();
@@ -1883,6 +1867,10 @@ fn format_expr_core(
                 inner = stripped;
             }
             format!("({inner})")
+        } else if leading_object_head {
+            // Strip the leading `( … )` pair OXC wrapped around the head object,
+            // keeping the postfix (`[key]` / `.foo` / `( … )`) verbatim.
+            strip_leading_paren_pair(s).unwrap_or_else(|| s.to_string())
         } else {
             strip_outer_parens(s).trim().to_string()
         }
@@ -2753,6 +2741,103 @@ fn light_normalize_pattern(src: &str) -> String {
     out
 }
 
+/// Returns `true` when `expr` is a member access or call whose left-most leaf
+/// (walking down `.object` / `.callee`) is an object literal — i.e. the shape
+/// `{ … }[key]` / `{ … }.foo` / `{ … }()` that OXC parenthesizes at statement
+/// position but prettier keeps bare in expression position. A bare object (with
+/// no postfix) returns `false`: that case is handled by `strip_outer_parens`.
+fn expr_has_object_head(expr: &oxc_ast::ast::Expression) -> bool {
+    use oxc_ast::ast::{ChainElement, Expression as E};
+    // The top node must be a postfix wrapper, not a bare object.
+    let mut cur = match expr {
+        E::ComputedMemberExpression(_)
+        | E::StaticMemberExpression(_)
+        | E::PrivateFieldExpression(_)
+        | E::CallExpression(_)
+        | E::TaggedTemplateExpression(_)
+        | E::ChainExpression(_) => expr,
+        _ => return false,
+    };
+    loop {
+        cur = match cur {
+            E::ObjectExpression(_) => return true,
+            E::ComputedMemberExpression(m) => &m.object,
+            E::StaticMemberExpression(m) => &m.object,
+            E::PrivateFieldExpression(m) => &m.object,
+            E::CallExpression(c) => &c.callee,
+            E::TaggedTemplateExpression(t) => &t.tag,
+            E::ChainExpression(ch) => match &ch.expression {
+                ChainElement::CallExpression(c) => &c.callee,
+                ChainElement::ComputedMemberExpression(m) => &m.object,
+                ChainElement::StaticMemberExpression(m) => &m.object,
+                ChainElement::PrivateFieldExpression(m) => &m.object,
+                _ => return false,
+            },
+            _ => return false,
+        };
+    }
+}
+
+/// Strips the first `( … )` pair from `s`, keeping everything after the matched
+/// close paren verbatim. Returns `None` when `s` doesn't start with `(` or the
+/// paren is unbalanced. Paren scanning skips string/template literals and
+/// `//` / `/* */` comments so a `)` inside them isn't mistaken for the match.
+fn strip_leading_paren_pair(s: &str) -> Option<String> {
+    let t = s.trim_start();
+    if !t.starts_with('(') {
+        return None;
+    }
+    let chars: Vec<char> = t.chars().collect();
+    let mut depth: i32 = 0;
+    let mut i = 0;
+    let mut in_string: Option<char> = None;
+    let mut close: Option<usize> = None;
+    while i < chars.len() {
+        let c = chars[i];
+        match in_string {
+            Some(q) => {
+                if c == '\\' {
+                    i += 2;
+                    continue;
+                } else if c == q {
+                    in_string = None;
+                }
+            }
+            None => match c {
+                '"' | '\'' | '`' => in_string = Some(c),
+                '/' if chars.get(i + 1) == Some(&'/') => {
+                    while i < chars.len() && chars[i] != '\n' {
+                        i += 1;
+                    }
+                    continue;
+                }
+                '/' if chars.get(i + 1) == Some(&'*') => {
+                    i += 2;
+                    while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+                        i += 1;
+                    }
+                    i += 2;
+                    continue;
+                }
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close = Some(i);
+                        break;
+                    }
+                }
+                _ => {}
+            },
+        }
+        i += 1;
+    }
+    let close = close?;
+    let inner: String = chars[1..close].iter().collect();
+    let rest: String = chars[close + 1..].iter().collect();
+    Some(format!("{}{}", inner.trim(), rest))
+}
+
 fn strip_outer_parens(s: &str) -> &str {
     let trimmed = s.trim();
     let Some(inner) = trimmed.strip_prefix('(').and_then(|s| s.strip_suffix(')')) else {
@@ -2897,18 +2982,55 @@ fn is_method_chain_break(multi: &str) -> bool {
 }
 
 fn outer_parens_match(inner: &str) -> bool {
+    // Count parens to verify the stripped outer pair was balanced, but ignore
+    // any `(`/`)` that appear inside a string/template literal or a line/block
+    // comment — e.g. a body comment like `// 1.) No clamping` carries a lone `)`
+    // that must not be counted, otherwise a perfectly balanced object/arrow value
+    // is judged unbalanced and its redundant wrapper parens are kept (`{({…})}`).
     let mut depth: i32 = 0;
-    for c in inner.chars() {
-        match c {
-            '(' => depth += 1,
-            ')' => {
-                depth -= 1;
-                if depth < 0 {
-                    return false;
+    let chars: Vec<char> = inner.chars().collect();
+    let mut i = 0;
+    let mut in_string: Option<char> = None;
+    while i < chars.len() {
+        let c = chars[i];
+        match in_string {
+            Some(q) => {
+                if c == '\\' {
+                    i += 2;
+                    continue;
+                } else if c == q {
+                    in_string = None;
                 }
             }
-            _ => {}
+            None => match c {
+                '"' | '\'' | '`' => in_string = Some(c),
+                '/' if chars.get(i + 1) == Some(&'/') => {
+                    // Line comment: skip to end of line.
+                    while i < chars.len() && chars[i] != '\n' {
+                        i += 1;
+                    }
+                    continue;
+                }
+                '/' if chars.get(i + 1) == Some(&'*') => {
+                    // Block comment: skip to the closing `*/`.
+                    i += 2;
+                    while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+                        i += 1;
+                    }
+                    i += 2;
+                    continue;
+                }
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth < 0 {
+                        return false;
+                    }
+                }
+                _ => {}
+            },
         }
+        i += 1;
     }
     depth == 0
 }
@@ -3183,6 +3305,56 @@ mod tests {
     fn has_word_await_empty() {
         assert!(!has_word_await(""));
         assert!(!has_word_await("foo bar"));
+    }
+
+    #[test]
+    fn outer_parens_match_ignores_parens_in_comments_and_strings() {
+        // Balanced object/arrow body where a line comment carries a lone `)`.
+        let inner = "{\n  onpointerdown: (e) => {\n    // 1.) No clamping\n    foo(e);\n  },\n}";
+        assert!(outer_parens_match(inner));
+        // A `)` inside a string literal must likewise not be counted.
+        assert!(outer_parens_match("{ label: \"a) b\", value: 1 }"));
+        // A `)` inside a block comment must not be counted.
+        assert!(outer_parens_match("x /* close ) here */ + y"));
+        // Genuinely unbalanced parens are still rejected.
+        assert!(!outer_parens_match("foo)"));
+        assert!(!outer_parens_match("a) + (b"));
+    }
+
+    #[test]
+    fn strip_leading_paren_pair_keeps_postfix() {
+        // `({...})[size]` → `{...}[size]`
+        assert_eq!(
+            strip_leading_paren_pair("({ a: 1 })[size]").as_deref(),
+            Some("{ a: 1 }[size]")
+        );
+        // `({...}).foo` → `{...}.foo`
+        assert_eq!(
+            strip_leading_paren_pair("({ a: 1 }).foo").as_deref(),
+            Some("{ a: 1 }.foo")
+        );
+        // multi-line object head, postfix preserved
+        assert_eq!(
+            strip_leading_paren_pair("({\n  a: 1,\n})[k]").as_deref(),
+            Some("{\n  a: 1,\n}[k]")
+        );
+        // a `)` in a comment must not be taken as the match
+        assert_eq!(
+            strip_leading_paren_pair("({\n  // 1.) x\n  a: 1,\n})[k]").as_deref(),
+            Some("{\n  // 1.) x\n  a: 1,\n}[k]")
+        );
+        // not starting with `(`
+        assert_eq!(strip_leading_paren_pair("{ a: 1 }[k]"), None);
+    }
+
+    #[test]
+    fn strip_outer_parens_strips_object_with_paren_in_comment() {
+        // The wrapper `({ … })` around a comment-bearing object value must be
+        // stripped even though a body comment contains a lone `)` (#Arc track).
+        let s = "({\n  onpointerdown: (e) => {\n    // 1.) No clamping\n    foo(e);\n  },\n})";
+        let stripped = strip_outer_parens(s);
+        assert!(stripped.trim_start().starts_with('{'));
+        assert!(!stripped.trim_start().starts_with("({"));
     }
 
     #[test]
