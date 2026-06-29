@@ -1208,6 +1208,15 @@ fn build_declarations(
                             ));
                         }
                     }
+
+                    // A destructured each-item name (e.g. `data` in
+                    // `{#each items as [fruit, data]}`) is an each-item local, not a
+                    // template-kind binding — so clear any outer same-named
+                    // deep_read marker (e.g. from an `export let data` prop it
+                    // shadows). Mirrors the simple-identifier each-item path above;
+                    // without this, a legacy dependency read of the destructured
+                    // name is wrongly wrapped in `$.deep_read_state(...)`.
+                    context.state.transform_deep_read.remove(&path.name);
                 }
             }
         }
