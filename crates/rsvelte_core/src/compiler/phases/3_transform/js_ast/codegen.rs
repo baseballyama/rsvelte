@@ -1312,8 +1312,12 @@ impl<'a> JsCodegen<'a> {
                 | JsExpr::Await(_)
                 | JsExpr::Assignment(_)
                 | JsExpr::Sequence(_)
-                | JsExpr::Yield(_)
-        );
+                | JsExpr::Yield(_) // `new` binds tighter than a call, so a callee whose member spine
+                                   // contains a CallExpression (`new $.get(x).Member(args)`) — or a chain —
+                                   // must be parenthesised, else the trailing `(args)` would be parsed as
+                                   // the `new` arguments. Mirrors esrap's `callee_has_call_expression`.
+        ) || matches!(callee, JsExpr::Chain(_))
+            || self.callee_has_call_expression(callee);
         if needs_parens {
             self.output.push('(');
         }
@@ -1324,6 +1328,20 @@ impl<'a> JsCodegen<'a> {
         self.output.push('(');
         self.emit_call_args(&new_expr.arguments);
         self.output.push(')');
+    }
+
+    /// True when a `new` callee's member spine contains a `CallExpression`
+    /// (`$.get(x).Member`), which forces the callee to be parenthesised so the
+    /// `new` arguments aren't mis-parsed as a call. Mirrors esrap.
+    fn callee_has_call_expression(&self, expr: &JsExpr) -> bool {
+        let mut node = expr;
+        loop {
+            match node {
+                JsExpr::Call(_) => return true,
+                JsExpr::Member(m) => node = self.arena.get_expr(m.object),
+                _ => return false,
+            }
+        }
     }
 
     #[inline]
