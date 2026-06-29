@@ -4363,11 +4363,11 @@ fn try_hug_mixed(
     // case (`children.rs`) with a string edit. Inline elements only (block elements
     // already returned None above). `onb = open[..-1].trim_end()` exposes the real
     // last attribute line whether the open tag was single-line or wrapped.
-    if adj_raw.is_none()
-        && raw.contains('\n')
-        && !raw.starts_with([' ', '\t', '\r', '\n']) // hug_start
-        && raw.ends_with([' ', '\t', '\r', '\n']) // !hug_end
-    {
+    // hug_start = body's first char is not whitespace; !hug_end = body ends with
+    // whitespace before the close tag.
+    let body_hug_start = !raw.starts_with([' ', '\t', '\r', '\n']);
+    let body_not_hug_end = raw.ends_with([' ', '\t', '\r', '\n']);
+    if adj_raw.is_none() && raw.contains('\n') && body_hug_start && body_not_hug_end {
         let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
         let indent = out.get(line_start..s)?;
         if indent.bytes().all(|b| b == b' ' || b == b'\t') {
