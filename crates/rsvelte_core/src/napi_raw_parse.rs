@@ -226,6 +226,7 @@ pub const JS_COMMENT: u8 = 0xC9;
 // don't fit the normal preamble-with-positions shape.
 pub const JS_NULL: u8 = 0xCA;
 pub const JS_RAW_JSON: u8 = 0xCB;
+pub const JS_TS_PARAMETER_PROPERTY: u8 = 0xCC;
 
 // LiteralValue inner tag (within a JS_LITERAL payload).
 const LV_NULL: u8 = 0;
@@ -388,7 +389,6 @@ fn write_expression<W: Writer>(
             write_js_node(w, &te.node, arena)
         }),
         Expression::Lazy { start, end, .. } => write_json_node(w, *start, *end, expr),
-        Expression::Value(_) => write_json_node(w, u32::MAX, u32::MAX, expr),
     }
 }
 fn write_opt_expression<W: Writer>(
@@ -2062,6 +2062,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             value,
             r#static,
             computed,
+            accessor: _,
         } => {
             write_preamble(w, JS_PROPERTY_DEFINITION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -2098,6 +2099,10 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_preamble(w, JS_TS_ENUM_DECLARATION, *start, *end);
             write_typed_loc(w, loc.as_deref());
         }
+        JsNode::TSParameterProperty { start, end, loc } => {
+            write_preamble(w, JS_TS_PARAMETER_PROPERTY, *start, *end);
+            write_typed_loc(w, loc.as_deref());
+        }
         JsNode::TSModuleDeclaration {
             start,
             end,
@@ -2118,15 +2123,8 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_str(w, comment_type.as_str());
             write_str(w, value.as_str());
         }
-        // `Raw(Value)` and `Null` don't carry positions, so they use
-        // dedicated sentinel tags without the usual preamble pair.
-        // A `Raw` sub-tree (e.g. a typed function parameter, or a whole typed
-        // arrow lowered to legacy JSON) carries byte offsets too. `write_raw_json`
-        // remaps them to UTF-16 so the envelope stays consistent with the JSON
-        // `parse` path (#793, #908).
-        JsNode::Raw(value) => {
-            write_raw_json(w, value)?;
-        }
+        // `Null` doesn't carry positions, so it uses a dedicated sentinel tag
+        // without the usual preamble pair.
         JsNode::Null => {
             write_preamble(w, JS_NULL, u32::MAX, u32::MAX);
         }
@@ -2270,21 +2268,22 @@ mod tests {
     fn raw_json_offsets_are_utf16() {
         use std::collections::HashSet;
 
-        // A TypeScript constructor *parameter property* (`constructor(public a:
-        // number)`) is a genuinely-TS construct still lowered to a `JsNode::Raw`
-        // JSON sub-tree (the `analyze-value-detax` typing campaign now types the
-        // previously-Raw TS arrow this test originally used). That JSON carries
-        // byte offsets, which must be remapped to UTF-16 like every other span
-        // when the source contains non-ASCII characters — otherwise the whole
-        // class drifts past the preceding multibyte text and
-        // `source.slice(start, end)` breaks (#908).
+        // A type-annotated declaration (`let n: number`) still emits its
+        // `Identifier` (with `typeAnnotation`) as a `JS_RAW_JSON` envelope blob —
+        // the Raw-eradication campaign typed the previously-`JsNode::Raw` TS
+        // arrow / parameter-property nodes, but `parse()` output keeps type
+        // annotations and re-materializes type-annotated nodes as raw JSON for
+        // byte-identical encoding. That JSON carries byte offsets, which must be
+        // remapped to UTF-16 like every other span when the source contains
+        // non-ASCII characters — otherwise the node drifts past the preceding
+        // multibyte text and `source.slice(start, end)` breaks (#908).
         //
-        // 4 multibyte chars precede the class, so a leaked byte offset would be
-        // shifted by +8 (4 chars × 2 extra bytes) versus UTF-16.
+        // 4 multibyte chars precede the declaration, so a leaked byte offset
+        // would be shifted by +8 (4 chars × 2 extra bytes) versus UTF-16.
         let src = concat!(
             "<script lang=\"ts\">\n",
             "  const \u{30E9}\u{30D9}\u{30EB} = \"\u{3042}\";\n",
-            "  class P { constructor(public a: number) { this.a = a; } }\n",
+            "  let n: number = 1;\n",
             "</script>\n",
             "<p>{\u{30E9}\u{30D9}\u{30EB}}</p>",
         );

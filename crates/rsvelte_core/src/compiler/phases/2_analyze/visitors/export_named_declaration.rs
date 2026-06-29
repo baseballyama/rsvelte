@@ -570,18 +570,10 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             }
         }
 
-        // For declaration-based operations, the parser stores declarations as
-        // Raw(Value). Borrow the existing Value via `Cow::Borrowed` to avoid
-        // a deep `.clone()` per export (measured: 1960 of 1960 declarations
-        // are Raw across the runtime fixture set; the to_value() arm is dead
-        // in practice but kept defensively for any future typed paths).
-        let decl_value: Option<std::borrow::Cow<'_, Value>> = declaration.map(|decl_id| {
-            let decl_node = arena.get_js_node(decl_id);
-            match decl_node {
-                JsNode::Raw(v) => std::borrow::Cow::Borrowed(v),
-                other => std::borrow::Cow::Owned(other.to_value()),
-            }
-        });
+        // For declaration-based operations, convert the declaration node to a
+        // `Value` for the legacy export-handling logic below.
+        let decl_value: Option<std::borrow::Cow<'_, Value>> = declaration
+            .map(|decl_id| std::borrow::Cow::Owned(arena.get_js_node(decl_id).to_value()));
 
         // In runes mode, handle export declarations - only for instance script
         if context.analysis.runes

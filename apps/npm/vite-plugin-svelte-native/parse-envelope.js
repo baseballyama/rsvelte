@@ -151,6 +151,7 @@ const JS_TS_MODULE_DECLARATION = 0xc8;
 const JS_COMMENT = 0xc9;
 const JS_NULL = 0xca;
 const JS_RAW_JSON = 0xcb;
+const JS_TS_PARAMETER_PROPERTY = 0xcc;
 
 // LiteralValue inner tag (within a JS_LITERAL payload).
 const LV_NULL = 0;
@@ -543,6 +544,8 @@ function readNodeBody(ctx, tag, start, end) {
 			return readJsTSTypeAnnotation(ctx, start, end);
 		case JS_TS_ENUM_DECLARATION:
 			return readJsBareExpr(ctx, 'TSEnumDeclaration', start, end);
+		case JS_TS_PARAMETER_PROPERTY:
+			return readJsBareExpr(ctx, 'TSParameterProperty', start, end);
 		case JS_TS_MODULE_DECLARATION:
 			return readJsTSModuleDeclaration(ctx, start, end);
 		case JS_COMMENT:

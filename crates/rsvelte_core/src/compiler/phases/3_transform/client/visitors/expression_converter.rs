@@ -813,15 +813,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             // set the arrow body level to skip coercive assignment transforms.
             // Reference: AssignmentExpression.js lines 189-209
             let body_node = pa.get_js_node(*body);
-            let body_is_assignment = match body_node {
-                JsNode::Raw(v) => {
-                    v.as_object()
-                        .and_then(|o| o.get("type"))
-                        .and_then(|t| t.as_str())
-                        == Some("AssignmentExpression")
-                }
-                _ => body_node.node_type() == Some("AssignmentExpression"),
-            };
+            let body_is_assignment = body_node.node_type() == Some("AssignmentExpression");
             let saved_arrow_level = context.state.event_handler_arrow_body_level;
             if context.state.in_event_attribute_handler && body_is_assignment {
                 context.state.event_handler_arrow_body_level = 1;
@@ -830,20 +822,6 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let conv_body = match body_node {
                 JsNode::BlockStatement { body, .. } => {
                     JsArrowBody::Block(convert_block_statement_from_jsnode(body, context))
-                }
-                JsNode::Raw(v) => {
-                    if let Some(obj) = v.as_object() {
-                        if obj.get("type").and_then(|t| t.as_str()) == Some("BlockStatement") {
-                            JsArrowBody::Block(convert_block_statement(obj, context))
-                        } else {
-                            JsArrowBody::Expression({
-                                let __tmp = convert_json_value(v, context);
-                                context.arena.alloc_expr(__tmp)
-                            })
-                        }
-                    } else {
-                        JsArrowBody::Block(JsBlockStatement::new())
-                    }
                 }
                 _ => JsArrowBody::Expression({
                     let __tmp = convert_js_node(body_node, context);
@@ -880,13 +858,6 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 id.as_ref()
                     .and_then(|id_node| match pa.get_js_node(*id_node) {
                         JsNode::Identifier { name, .. } => Some(name.to_string().into()),
-                        JsNode::Raw(v) => v
-                            .as_object()
-                            .filter(|o| {
-                                o.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                            })
-                            .and_then(|o| o.get("name").and_then(|n| n.as_str()))
-                            .map(|n| n.into()),
                         _ => None,
                     });
 
@@ -923,13 +894,6 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                     match b_node {
                         JsNode::BlockStatement { body, .. } => {
                             convert_block_statement_from_jsnode(body, context)
-                        }
-                        JsNode::Raw(v) => {
-                            if let Some(obj) = v.as_object() {
-                                convert_block_statement(obj, context)
-                            } else {
-                                JsBlockStatement::new()
-                            }
                         }
                         _ => {
                             let body_value = b_node.to_value();
@@ -971,16 +935,12 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let right_node = pa.get_js_node(*right);
 
             // Check if the LHS is a destructuring pattern (typed or Raw-wrapped)
-            let left_is_pattern = match left_node {
+            let left_is_pattern = matches!(
+                left_node,
                 JsNode::ArrayPattern { .. }
-                | JsNode::ObjectPattern { .. }
-                | JsNode::RestElement { .. } => true,
-                JsNode::Raw(v) => v
-                    .as_object()
-                    .and_then(|o| o.get("type").and_then(|t| t.as_str()))
-                    .is_some_and(|t| matches!(t, "ArrayPattern" | "ObjectPattern" | "RestElement")),
-                _ => false,
-            };
+                    | JsNode::ObjectPattern { .. }
+                    | JsNode::RestElement { .. }
+            );
 
             if left_is_pattern {
                 let left_val = left_node.to_value();
@@ -1141,7 +1101,6 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             }
         }
 
-        JsNode::Raw(value) => convert_json_value(value, context),
         JsNode::Null => JsExpr::Literal(JsLiteral::Null),
 
         // Any other variant - fall back to Value conversion
@@ -1179,46 +1138,10 @@ fn is_potential_rune_call(callee: &JsNode, context: &ComponentContext) -> bool {
             return true;
         }
         // Check for $inspect().with() pattern
-        match object_node {
-            JsNode::CallExpression { callee: inner, .. } => {
-                if let Some(n) = get_jsnode_identifier_name(pa.get_js_node(*inner))
-                    && n.starts_with('$')
-                    && context.state.get_binding(&n).is_none()
-                {
-                    return true;
-                }
-            }
-            JsNode::Raw(v) => {
-                if let Some(obj) = v.as_object()
-                    && obj.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
-                    && let Some(name) = obj
-                        .get("callee")
-                        .and_then(|c| c.as_object())
-                        .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
-                        .and_then(|o| o.get("name").and_then(|n| n.as_str()))
-                    && name.starts_with('$')
-                    && context.state.get_binding(name).is_none()
-                {
-                    return true;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    // Handle Raw-wrapped callee
-    if let JsNode::Raw(v) = callee
-        && let Some(obj) = v.as_object()
-    {
-        let callee_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
-        if callee_type == "MemberExpression"
-            && let Some(name) = obj
-                .get("object")
-                .and_then(|o| o.as_object())
-                .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
-                .and_then(|o| o.get("name").and_then(|n| n.as_str()))
-            && name.starts_with('$')
-            && context.state.get_binding(name).is_none()
+        if let JsNode::CallExpression { callee: inner, .. } = object_node
+            && let Some(n) = get_jsnode_identifier_name(pa.get_js_node(*inner))
+            && n.starts_with('$')
+            && context.state.get_binding(&n).is_none()
         {
             return true;
         }
@@ -1277,64 +1200,6 @@ fn convert_object_member_from_node(
             };
             Some(JsObjectMember::SpreadElement(conv_argument))
         }
-        // Handle Raw-wrapped property nodes (common from parser)
-        JsNode::Raw(value) => {
-            if let Some(obj) = value.as_object() {
-                let prop_type = obj.get("type").and_then(|t| t.as_str())?;
-                match prop_type {
-                    "Property" => {
-                        let key = convert_property_key(obj, context);
-                        let value = obj
-                            .get("value")
-                            .map(|v| {
-                                let __tmp = convert_json_value(v, context);
-                                context.arena.alloc_expr(__tmp)
-                            })
-                            .unwrap_or_else(|| {
-                                context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null))
-                            });
-                        let computed = obj
-                            .get("computed")
-                            .and_then(|c| c.as_bool())
-                            .unwrap_or(false);
-                        let shorthand = obj
-                            .get("shorthand")
-                            .and_then(|s| s.as_bool())
-                            .unwrap_or(false);
-                        let kind = match obj.get("kind").and_then(|k| k.as_str()) {
-                            Some("init") => JsPropertyKind::Init,
-                            Some("get") => JsPropertyKind::Get,
-                            Some("set") => JsPropertyKind::Set,
-                            _ => JsPropertyKind::Init,
-                        };
-                        let method = obj.get("method").and_then(|v| v.as_bool()).unwrap_or(false);
-                        Some(JsObjectMember::Property(JsProperty {
-                            key,
-                            value,
-                            kind,
-                            computed,
-                            shorthand,
-                            method,
-                        }))
-                    }
-                    "SpreadElement" => {
-                        let argument = obj
-                            .get("argument")
-                            .map(|a| {
-                                let __tmp = convert_json_value(a, context);
-                                context.arena.alloc_expr(__tmp)
-                            })
-                            .unwrap_or_else(|| {
-                                context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null))
-                            });
-                        Some(JsObjectMember::SpreadElement(argument))
-                    }
-                    _ => None,
-                }
-            } else {
-                None
-            }
-        }
         _ => None,
     }
 }
@@ -1371,35 +1236,6 @@ fn convert_property_key_from_node(
                 },
             };
             JsPropertyKey::Literal(lit)
-        }
-        // Handle Raw-wrapped nodes (common from parser)
-        JsNode::Raw(value) => {
-            if let Some(obj) = value.as_object() {
-                let key_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
-                match key_type {
-                    "Identifier" => {
-                        let name = obj
-                            .get("name")
-                            .and_then(|n| n.as_str())
-                            .unwrap_or("unknown");
-                        if computed {
-                            JsPropertyKey::Computed({
-                                let __tmp = convert_json_value(value, context);
-                                context.arena.alloc_expr(__tmp)
-                            })
-                        } else {
-                            JsPropertyKey::Identifier(name.into())
-                        }
-                    }
-                    "Literal" => JsPropertyKey::Literal(convert_literal(obj, context).into()),
-                    _ => JsPropertyKey::Computed({
-                        let __tmp = convert_json_value(value, context);
-                        context.arena.alloc_expr(__tmp)
-                    }),
-                }
-            } else {
-                JsPropertyKey::Identifier("unknown".into())
-            }
         }
         _ => JsPropertyKey::Identifier("unknown".into()),
     }
@@ -1464,8 +1300,6 @@ fn convert_param_pattern_from_node(
                 elements: conv_elements,
             }))
         }
-        // Handle Raw-wrapped nodes (common from parser)
-        JsNode::Raw(value) => convert_param_pattern(value, context),
         _ => {
             // Fallback to Value-based conversion
             let value = node.to_value();
@@ -1503,85 +1337,6 @@ fn convert_object_pattern_property_from_node(
             *computed,
             context,
         ),
-        // Handle Raw-wrapped nodes
-        JsNode::Raw(v) => {
-            if let Some(obj) = v.as_object() {
-                let prop_type = obj.get("type").and_then(|t| t.as_str())?;
-                if prop_type == "RestElement" || prop_type == "SpreadElement" {
-                    let arg_val = obj.get("argument")?;
-                    let conv_arg = convert_param_pattern(arg_val, context)?;
-                    Some(JsObjectPatternProperty::Rest(Box::new(conv_arg)))
-                } else if prop_type == "Property" {
-                    // Delegate to Value-based convert_param_pattern path
-                    // by reconstructing what convert_param_pattern expects
-                    let key_val = obj.get("key").and_then(|k| k.as_object())?;
-                    let key_type = key_val.get("type").and_then(|t| t.as_str()).unwrap_or("");
-                    let computed = obj
-                        .get("computed")
-                        .and_then(|c| c.as_bool())
-                        .unwrap_or(false);
-                    let shorthand = obj
-                        .get("shorthand")
-                        .and_then(|s| s.as_bool())
-                        .unwrap_or(false);
-
-                    let (conv_key, fallback_name) = if key_type == "Literal" {
-                        {
-                            let val = key_val.get("value")?;
-                            if let Some(s) = val.as_str() {
-                                (JsPropertyKey::Literal(JsLiteral::String(s.into())), None)
-                            } else {
-                                let n = val.as_f64()?;
-                                (JsPropertyKey::Literal(JsLiteral::Number(n)), None)
-                            }
-                        }
-                    } else if key_type == "Identifier" {
-                        let name = key_val.get("name").and_then(|n| n.as_str())?;
-                        if computed {
-                            let key_expr =
-                                convert_json_value(&Value::Object(key_val.clone()), context);
-                            let key_expr = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
-                            (
-                                JsPropertyKey::Computed(context.arena.alloc_expr(key_expr)),
-                                None,
-                            )
-                        } else {
-                            (
-                                JsPropertyKey::Identifier(name.into()),
-                                Some(name.to_string()),
-                            )
-                        }
-                    } else {
-                        let key_expr = convert_json_value(&Value::Object(key_val.clone()), context);
-                        let key_expr = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
-                        (
-                            JsPropertyKey::Computed(context.arena.alloc_expr(key_expr)),
-                            None,
-                        )
-                    };
-
-                    let value_pat = obj
-                        .get("value")
-                        .and_then(|v| convert_param_pattern(v, context))
-                        .or_else(|| {
-                            fallback_name
-                                .as_ref()
-                                .map(|n| JsPattern::Identifier(n.clone().into()))
-                        })?;
-
-                    Some(JsObjectPatternProperty::Property {
-                        key: conv_key,
-                        value: value_pat,
-                        computed,
-                        shorthand,
-                    })
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        }
         _ => None,
     }
 }
@@ -1617,33 +1372,6 @@ fn convert_object_pattern_prop_inner(
                     JsPropertyKey::Identifier(name.to_string().into()),
                     Some(name.to_string()),
                 )
-            }
-        }
-        JsNode::Raw(v) => {
-            // Delegate to Value-based property key conversion
-            {
-                let obj = v.as_object()?;
-                let key_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
-                if key_type == "Identifier" && !computed {
-                    let name = obj
-                        .get("name")
-                        .and_then(|n| n.as_str())
-                        .unwrap_or("unknown");
-                    (
-                        JsPropertyKey::Identifier(name.into()),
-                        Some(name.to_string()),
-                    )
-                } else if key_type == "Literal" {
-                    let lit = convert_literal(obj, context);
-                    (JsPropertyKey::Literal(lit.into()), None)
-                } else {
-                    let key_expr = convert_json_value(v, context);
-                    let key_expr_t = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
-                    (
-                        JsPropertyKey::Computed(context.arena.alloc_expr(key_expr_t)),
-                        None,
-                    )
-                }
             }
         }
         _ => {
@@ -1691,7 +1419,6 @@ fn extract_root_identifier_from_jsnode(node: &JsNode, pa: &ParseArena) -> Option
         JsNode::ChainExpression { expression, .. } => {
             extract_root_identifier_from_jsnode(pa.get_js_node(*expression), pa)
         }
-        JsNode::Raw(v) => extract_root_identifier_from_json(v),
         _ => None,
     }
 }
@@ -1700,11 +1427,6 @@ fn extract_root_identifier_from_jsnode(node: &JsNode, pa: &ParseArena) -> Option
 fn get_jsnode_private_identifier_name(node: &JsNode) -> Option<String> {
     match node {
         JsNode::PrivateIdentifier { name, .. } => Some(name.to_string()),
-        JsNode::Raw(v) => v
-            .as_object()
-            .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("PrivateIdentifier"))
-            .and_then(|o| o.get("name").and_then(|n| n.as_str()))
-            .map(|s| s.to_string()),
         _ => None,
     }
 }
@@ -1713,11 +1435,6 @@ fn get_jsnode_private_identifier_name(node: &JsNode) -> Option<String> {
 fn get_jsnode_identifier_name(node: &JsNode) -> Option<String> {
     match node {
         JsNode::Identifier { name, .. } => Some(name.to_string()),
-        JsNode::Raw(v) => v
-            .as_object()
-            .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
-            .and_then(|o| o.get("name").and_then(|n| n.as_str()))
-            .map(|s| s.to_string()),
         _ => None,
     }
 }
@@ -1728,29 +1445,6 @@ fn get_jsnode_identifier_name(node: &JsNode) -> Option<String> {
 fn get_jsnode_identifier_name_unwrap_ts(node: &JsNode) -> Option<String> {
     match node {
         JsNode::Identifier { name, .. } => Some(name.to_string()),
-        JsNode::Raw(v) => {
-            let mut cur = v.as_object()?;
-            loop {
-                match cur.get("type").and_then(|t| t.as_str()) {
-                    Some("Identifier") => {
-                        return cur
-                            .get("name")
-                            .and_then(|n| n.as_str())
-                            .map(|s| s.to_string());
-                    }
-                    Some(
-                        "TSAsExpression"
-                        | "TSNonNullExpression"
-                        | "TSSatisfiesExpression"
-                        | "TSTypeAssertion"
-                        | "TSInstantiationExpression",
-                    ) => {
-                        cur = cur.get("expression").and_then(|e| e.as_object())?;
-                    }
-                    _ => return None,
-                }
-            }
-        }
         _ => None,
     }
 }
@@ -1767,23 +1461,6 @@ fn is_direct_member_with_identifier(node: &JsNode, pa: &ParseArena) -> bool {
             }
             let obj_node = pa.get_js_node(*object);
             matches!(obj_node, JsNode::Identifier { .. })
-                || matches!(obj_node, JsNode::Raw(v)
-                    if v.as_object()
-                        .and_then(|o| o.get("type").and_then(|t| t.as_str()))
-                        == Some("Identifier"))
-        }
-        JsNode::Raw(v) => {
-            if let Some(obj) = v.as_object()
-                && obj.get("type").and_then(|t| t.as_str()) == Some("MemberExpression")
-                && !obj
-                    .get("computed")
-                    .and_then(|c| c.as_bool())
-                    .unwrap_or(false)
-                && let Some(object_obj) = obj.get("object").and_then(|o| o.as_object())
-            {
-                return object_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier");
-            }
-            false
         }
         _ => false,
     }
@@ -5878,7 +5555,6 @@ fn should_proxy_jsnode(node: &JsNode, _pa: &ParseArena, context: &ComponentConte
             true
         }
         JsNode::ObjectExpression { .. } | JsNode::ArrayExpression { .. } => true,
-        JsNode::Raw(v) => should_proxy_value(Some(v), context),
         _ => !matches!(
             node.node_type(),
             Some(
@@ -6003,51 +5679,11 @@ fn register_block_decl_names_jsnode(
             .filter_map(|d| match d {
                 JsNode::VariableDeclarator { id, .. } => match pa.get_js_node(*id) {
                     JsNode::Identifier { name, .. } => Some(name.to_string()),
-                    JsNode::Raw(v) => v
-                        .as_object()
-                        .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
-                        .and_then(|o| o.get("name").and_then(|n| n.as_str()))
-                        .map(|n| n.to_string()),
                     _ => None,
                 },
-                JsNode::Raw(v) => v
-                    .as_object()
-                    .and_then(|o| o.get("id"))
-                    .and_then(|id| id.as_object())
-                    .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
-                    .and_then(|o| o.get("name").and_then(|n| n.as_str()))
-                    .map(|n| n.to_string()),
                 _ => None,
             })
             .collect(),
-        JsNode::Raw(v) => {
-            if v.as_object()
-                .and_then(|o| o.get("type").and_then(|t| t.as_str()))
-                == Some("VariableDeclaration")
-            {
-                v.as_object()
-                    .and_then(|o| o.get("declarations"))
-                    .and_then(|d| d.as_array())
-                    .map(|decls| {
-                        decls
-                            .iter()
-                            .filter_map(|decl| {
-                                decl.as_object()
-                                    .and_then(|d| d.get("id"))
-                                    .and_then(|id| id.as_object())
-                                    .filter(|o| {
-                                        o.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                                    })
-                                    .and_then(|o| o.get("name").and_then(|n| n.as_str()))
-                                    .map(|n| n.to_string())
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                    .unwrap_or_default()
-            } else {
-                vec![]
-            }
-        }
         _ => vec![],
     };
     for name in names {
@@ -6115,28 +5751,6 @@ fn convert_statement_from_jsnode(
                             init: init_expr,
                         })
                     }
-                    JsNode::Raw(v) => {
-                        let obj = v.as_object()?;
-                        let id_val = obj.get("id")?;
-                        let pattern = convert_param_pattern(id_val, context)?;
-                        if !context.state.local_var_init_types.is_empty()
-                            && let Some(init_json) = obj.get("init")
-                            && let Some(t) = unwrap_ts_expression_type(init_json)
-                            && let JsPattern::Identifier(ref name) = pattern
-                        {
-                            context
-                                .state
-                                .register_local_var_init_type(name.to_string(), t.to_string());
-                        }
-                        let init_expr = obj.get("init").filter(|i| !i.is_null()).map(|i| {
-                            let __tmp = convert_json_value(i, context);
-                            context.arena.alloc_expr(__tmp)
-                        });
-                        Some(JsVariableDeclarator {
-                            id: pattern,
-                            init: init_expr,
-                        })
-                    }
                     _ => None,
                 })
                 .collect();
@@ -6178,7 +5792,6 @@ fn convert_statement_from_jsnode(
             Some(JsStatement::Throw(context.arena.alloc_expr(expr)))
         }
         JsNode::EmptyStatement { .. } => Some(JsStatement::Empty),
-        JsNode::Raw(v) => convert_statement(v, context),
         _ => {
             let value = node.to_value();
             convert_statement(&value, context)
@@ -6191,9 +5804,6 @@ fn collect_param_names_from_jsnode(node: &JsNode, names: &mut Vec<String>) {
     match node {
         JsNode::Identifier { name, .. } => {
             names.push(name.to_string());
-        }
-        JsNode::Raw(v) => {
-            collect_param_names(v, names);
         }
         _ => {
             collect_param_names(&node.to_value(), names);

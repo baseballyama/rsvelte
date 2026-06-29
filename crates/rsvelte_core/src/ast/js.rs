@@ -61,13 +61,16 @@ impl std::fmt::Debug for TypedExpr {
 
 /// A JavaScript expression.
 ///
-/// Supports both legacy serde_json::Value and new typed JsNode representations.
-/// During migration, both variants coexist. The parser produces Typed variants,
-/// and consumers can access via as_json() (lazy conversion) or as_node() (direct).
+/// Backed by a typed `JsNode`. The parser produces `Typed` (or `Lazy`, which is
+/// resolved before analysis); consumers access via `as_json()` (lazy JSON
+/// conversion) or `as_node()` (direct).
+// `Typed` is the overwhelmingly common (hot) variant; `Lazy` is a small,
+// transient placeholder resolved before analysis. Boxing `Typed` to equalize
+// variant sizes would add an allocation + indirection to every expression on
+// the hot path, so we intentionally keep it inline.
+#[allow(clippy::large_enum_variant)]
 pub enum Expression {
-    /// A parsed JavaScript expression as a JSON value (legacy).
-    Value(serde_json::Value),
-    /// A typed JavaScript expression (new, performance-optimized).
+    /// A typed JavaScript expression (performance-optimized).
     Typed(TypedExpr),
     /// A deferred expression — stores source byte offsets (zero allocation).
     /// Resolved by `resolve_lazy_expressions()` before analysis.
@@ -112,9 +115,9 @@ impl Expression {
         }))
     }
 
-    /// Create an expression from a JSON value.
+    /// Create an expression from a JSON value (types it eagerly via `from_value`).
     pub fn from_json(value: serde_json::Value) -> Self {
-        Expression::Value(value)
+        Expression::from_node(JsNode::from_value(value))
     }
 
     /// Create an expression from a typed JsNode.
@@ -125,7 +128,6 @@ impl Expression {
     /// Get the underlying JSON value. Cached for Typed variant.
     pub fn as_json(&self) -> &serde_json::Value {
         match self {
-            Expression::Value(v) => v,
             Expression::Typed(te) => te.as_json(),
             Expression::Lazy { .. } => panic!(
                 "Expression::Lazy must be resolved before access. Call ensure_expressions_parsed() first."
@@ -133,20 +135,19 @@ impl Expression {
         }
     }
 
-    /// Get a reference to the JSON value (only available for Value variant).
-    /// For Typed variant, returns None - caller should use as_json() or to_json() instead.
+    /// Always returns `None` (no variant carries a borrowable JSON value);
+    /// callers should use `as_json()` or `as_node()` instead. Retained as a
+    /// stable accessor for call sites that still probe for a borrowable value.
     pub fn as_json_ref(&self) -> Option<&serde_json::Value> {
         match self {
-            Expression::Value(v) => Some(v),
             Expression::Typed(_) | Expression::Lazy { .. } => None,
         }
     }
 
-    /// Get the typed JsNode (converts from Value on demand).
+    /// Get the typed JsNode.
     pub fn as_node(&self) -> std::borrow::Cow<'_, JsNode> {
         match self {
             Expression::Typed(te) => std::borrow::Cow::Borrowed(&te.node),
-            Expression::Value(v) => std::borrow::Cow::Owned(JsNode::from_value(v.clone())),
             Expression::Lazy { .. } => panic!("Expression::Lazy must be resolved before access"),
         }
     }
@@ -154,7 +155,6 @@ impl Expression {
     /// Get the type of the expression.
     pub fn node_type(&self) -> Option<&str> {
         match self {
-            Expression::Value(v) => v.get("type").and_then(|t| t.as_str()),
             Expression::Typed(te) => te.node.node_type(),
             Expression::Lazy { .. } => None,
         }
@@ -163,7 +163,6 @@ impl Expression {
     /// Get the start position.
     pub fn start(&self) -> Option<u32> {
         match self {
-            Expression::Value(v) => v.get("start").and_then(|s| s.as_u64()).map(|n| n as u32),
             Expression::Typed(te) => te.node.start(),
             Expression::Lazy { start, .. } => Some(*start),
         }
@@ -172,7 +171,6 @@ impl Expression {
     /// Get the end position.
     pub fn end(&self) -> Option<u32> {
         match self {
-            Expression::Value(v) => v.get("end").and_then(|e| e.as_u64()).map(|n| n as u32),
             Expression::Typed(te) => te.node.end(),
             Expression::Lazy { end, .. } => Some(*end),
         }
@@ -184,10 +182,6 @@ impl Expression {
         match self {
             Expression::Typed(te) => {
                 matches!(&te.node, JsNode::Identifier { name: n, .. } if n.as_str() == name)
-            }
-            Expression::Value(v) => {
-                v.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                    && v.get("name").and_then(|n| n.as_str()) == Some(name)
             }
             Expression::Lazy { .. } => false,
         }
@@ -205,22 +199,8 @@ impl Expression {
         match self {
             Expression::Typed(te) => match &te.node {
                 JsNode::Identifier { name, .. } => Some(name.as_str()),
-                JsNode::Raw(v) => {
-                    if v.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-                        v.get("name").and_then(|n| n.as_str())
-                    } else {
-                        None
-                    }
-                }
                 _ => None,
             },
-            Expression::Value(v) => {
-                if v.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-                    v.get("name").and_then(|n| n.as_str())
-                } else {
-                    None
-                }
-            }
             Expression::Lazy { .. } => None,
         }
     }
@@ -241,15 +221,13 @@ impl Expression {
                 }
                 _ => false,
             },
-            Expression::Value(v) => v.get("computed").and_then(|c| c.as_bool()).unwrap_or(false),
             Expression::Lazy { .. } => false,
         }
     }
 
     /// Get a direct reference to the typed JsNode.
-    /// For Expression::Typed, returns a direct reference (zero cost).
-    /// For Expression::Value, converts lazily and caches.
-    /// Panics if called on Expression::Value (legacy path - should not happen in normal flow).
+    /// For `Expression::Typed`, returns a direct reference (zero cost).
+    /// Panics on `Expression::Lazy` (must be resolved before access).
     #[inline]
     pub fn as_node_ref(&self) -> &JsNode {
         match self {
@@ -259,7 +237,7 @@ impl Expression {
     }
 
     /// Try to get a direct reference to the typed JsNode.
-    /// Returns None for Expression::Value and Expression::Lazy.
+    /// Returns None for Expression::Lazy.
     #[inline]
     pub fn try_as_node_ref(&self) -> Option<&JsNode> {
         match self {
@@ -287,7 +265,6 @@ impl Expression {
     pub fn name(&self) -> Option<&str> {
         match self {
             Expression::Typed(te) => te.node.name(),
-            Expression::Value(v) => v.get("name").and_then(|n| n.as_str()),
             Expression::Lazy { .. } => None,
         }
     }
@@ -297,7 +274,7 @@ impl Expression {
     pub fn callee(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.callee(),
-            Expression::Value(_) | Expression::Lazy { .. } => None,
+            Expression::Lazy { .. } => None,
         }
     }
 
@@ -306,7 +283,7 @@ impl Expression {
     pub fn call_arguments(&self) -> IdRange {
         match self {
             Expression::Typed(te) => te.node.call_arguments(),
-            Expression::Value(_) | Expression::Lazy { .. } => IdRange::empty(),
+            Expression::Lazy { .. } => IdRange::empty(),
         }
     }
 
@@ -315,7 +292,7 @@ impl Expression {
     pub fn object(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.object(),
-            Expression::Value(_) | Expression::Lazy { .. } => None,
+            Expression::Lazy { .. } => None,
         }
     }
 
@@ -324,7 +301,7 @@ impl Expression {
     pub fn property(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.property(),
-            Expression::Value(_) | Expression::Lazy { .. } => None,
+            Expression::Lazy { .. } => None,
         }
     }
 
@@ -333,7 +310,7 @@ impl Expression {
     pub fn left(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.left(),
-            Expression::Value(_) | Expression::Lazy { .. } => None,
+            Expression::Lazy { .. } => None,
         }
     }
 
@@ -342,7 +319,7 @@ impl Expression {
     pub fn right(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.right(),
-            Expression::Value(_) | Expression::Lazy { .. } => None,
+            Expression::Lazy { .. } => None,
         }
     }
 
@@ -351,7 +328,6 @@ impl Expression {
     pub fn operator(&self) -> Option<&str> {
         match self {
             Expression::Typed(te) => te.node.operator(),
-            Expression::Value(v) => v.get("operator").and_then(|o| o.as_str()),
             Expression::Lazy { .. } => None,
         }
     }
@@ -361,7 +337,7 @@ impl Expression {
     pub fn argument(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.argument(),
-            Expression::Value(_) | Expression::Lazy { .. } => None,
+            Expression::Lazy { .. } => None,
         }
     }
 
@@ -370,7 +346,7 @@ impl Expression {
     pub fn properties(&self) -> IdRange {
         match self {
             Expression::Typed(te) => te.node.properties(),
-            Expression::Value(_) | Expression::Lazy { .. } => IdRange::empty(),
+            Expression::Lazy { .. } => IdRange::empty(),
         }
     }
 
@@ -379,7 +355,7 @@ impl Expression {
     pub fn elements(&self) -> &[Option<JsNode>] {
         match self {
             Expression::Typed(te) => te.node.elements(),
-            Expression::Value(_) | Expression::Lazy { .. } => &[],
+            Expression::Lazy { .. } => &[],
         }
     }
 
@@ -388,7 +364,7 @@ impl Expression {
     pub fn expressions(&self) -> IdRange {
         match self {
             Expression::Typed(te) => te.node.expressions(),
-            Expression::Value(_) | Expression::Lazy { .. } => IdRange::empty(),
+            Expression::Lazy { .. } => IdRange::empty(),
         }
     }
 
@@ -397,7 +373,7 @@ impl Expression {
     pub fn params(&self) -> IdRange {
         match self {
             Expression::Typed(te) => te.node.params(),
-            Expression::Value(_) | Expression::Lazy { .. } => IdRange::empty(),
+            Expression::Lazy { .. } => IdRange::empty(),
         }
     }
 
@@ -406,7 +382,7 @@ impl Expression {
     pub fn test(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.test(),
-            Expression::Value(_) | Expression::Lazy { .. } => None,
+            Expression::Lazy { .. } => None,
         }
     }
 
@@ -415,7 +391,7 @@ impl Expression {
     pub fn consequent(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.consequent(),
-            Expression::Value(_) | Expression::Lazy { .. } => None,
+            Expression::Lazy { .. } => None,
         }
     }
 
@@ -424,7 +400,7 @@ impl Expression {
     pub fn alternate(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.alternate(),
-            Expression::Value(_) | Expression::Lazy { .. } => None,
+            Expression::Lazy { .. } => None,
         }
     }
 
@@ -433,10 +409,6 @@ impl Expression {
     pub fn is_function(&self) -> bool {
         match self {
             Expression::Typed(te) => te.node.is_function(),
-            Expression::Value(v) => matches!(
-                v.get("type").and_then(|t| t.as_str()),
-                Some("FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration")
-            ),
             Expression::Lazy { .. } => false,
         }
     }
@@ -445,7 +417,6 @@ impl Expression {
 impl Clone for Expression {
     fn clone(&self) -> Self {
         match self {
-            Expression::Value(v) => Expression::Value(v.clone()),
             Expression::Typed(te) => Expression::Typed(te.clone()),
             Expression::Lazy { start, end, ts } => Expression::Lazy {
                 start: *start,
@@ -459,7 +430,6 @@ impl Clone for Expression {
 impl PartialEq for Expression {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Expression::Value(a), Expression::Value(b)) => a == b,
             (Expression::Typed(a), Expression::Typed(b)) => a == b,
             (
                 Expression::Lazy {
@@ -482,7 +452,6 @@ impl PartialEq for Expression {
 impl std::fmt::Debug for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Expression::Value(v) => f.debug_tuple("Expression::Value").field(v).finish(),
             Expression::Typed(te) => f.debug_tuple("Expression::Typed").field(&te.node).finish(),
             Expression::Lazy { start, end, ts } => f
                 .debug_tuple("Expression::Lazy")
@@ -497,7 +466,6 @@ impl std::fmt::Debug for Expression {
 impl Serialize for Expression {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {
-            Expression::Value(v) => v.serialize(serializer),
             Expression::Typed(te) => te.node.serialize(serializer),
             Expression::Lazy { .. } => {
                 panic!("Expression::Lazy must be resolved before serialization")
@@ -509,12 +477,28 @@ impl Serialize for Expression {
 impl<'de> Deserialize<'de> for Expression {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = serde_json::Value::deserialize(deserializer)?;
-        Ok(Expression::Value(value))
+        // Only a real ESTree node (a JSON object with a non-empty `type`) can
+        // become an Expression. Callers like
+        // `serde_json::from_value::<Expression>(sub_value).ok()` deliberately
+        // probe arbitrary sub-values (including synthetic non-node carriers such
+        // as `{ "name": "x" }`) and expect a graceful `None` on failure — so we
+        // must return a deserialize Error here rather than letting
+        // `JsNode::from_value` degrade a typeless object to `Null`.
+        let is_node = value
+            .get("type")
+            .and_then(|t| t.as_str())
+            .is_some_and(|t| !t.is_empty());
+        if !is_node {
+            return Err(serde::de::Error::custom(
+                "Expression JSON is not an ESTree node (missing `type`)",
+            ));
+        }
+        Ok(Expression::from_node(JsNode::from_value(value)))
     }
 }
 
 impl Default for Expression {
     fn default() -> Self {
-        Expression::Value(serde_json::Value::Null)
+        Expression::from_node(JsNode::Null)
     }
 }

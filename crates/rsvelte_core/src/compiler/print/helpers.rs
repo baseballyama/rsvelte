@@ -826,20 +826,6 @@ pub fn source_expression_to_string(
                     }
                 }
             }
-            crate::ast::js::Expression::Value(val) => {
-                // Extract start/end from JSON value
-                let start = val
-                    .get("start")
-                    .and_then(|s| s.as_u64())
-                    .map(|n| n as usize);
-                let end = val.get("end").and_then(|e| e.as_u64()).map(|n| n as usize);
-                if let (Some(start), Some(end)) = (start, end)
-                    && start < end
-                    && end <= src.len()
-                {
-                    return src[start..end].to_string();
-                }
-            }
             crate::ast::js::Expression::Lazy { .. } => {
                 panic!("Expression::Lazy must be resolved before printing");
             }

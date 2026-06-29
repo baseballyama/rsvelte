@@ -1415,39 +1415,6 @@ impl<'a> ComponentContext<'a> {
                                         }
                                     }
                                 }
-                                crate::ast::typed_expr::JsNode::Raw(val) => {
-                                    if let Some(obj) = val.as_object() {
-                                        let expr_type =
-                                            obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
-                                        if expr_type == "ObjectExpression" {
-                                            if let Some(serde_json::Value::Array(props)) =
-                                                obj.get("properties")
-                                            {
-                                                for prop in props {
-                                                    if let Some(name) = prop
-                                                        .get("key")
-                                                        .and_then(|k| k.get("name"))
-                                                        .and_then(|n| n.as_str())
-                                                    {
-                                                        binding_names.push(name.into());
-                                                    }
-                                                }
-                                            }
-                                        } else if expr_type == "ArrayExpression" {
-                                            if let Some(serde_json::Value::Array(elements)) =
-                                                obj.get("elements")
-                                            {
-                                                for elem in elements {
-                                                    if let Some(name) =
-                                                        elem.get("name").and_then(|n| n.as_str())
-                                                    {
-                                                        binding_names.push(name.into());
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
                                 _ => {}
                             }
 

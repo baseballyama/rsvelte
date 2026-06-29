@@ -191,7 +191,7 @@ pub(super) fn extract_snippet_param(expr: &crate::ast::js::Expression, source: &
             let right = json.get("right");
 
             let left_str = if let Some(left_val) = left {
-                let left_expr = crate::ast::js::Expression::Value(left_val.clone());
+                let left_expr = crate::ast::js::Expression::from_json(left_val.clone());
                 let start = left_expr.start().unwrap_or(0) as usize;
                 let end = left_expr.end().unwrap_or(0) as usize;
                 if end > start && end <= source.len() {
@@ -204,7 +204,7 @@ pub(super) fn extract_snippet_param(expr: &crate::ast::js::Expression, source: &
             };
 
             let right_str = if let Some(right_val) = right {
-                let right_expr = crate::ast::js::Expression::Value(right_val.clone());
+                let right_expr = crate::ast::js::Expression::from_json(right_val.clone());
                 let start = right_expr.start().unwrap_or(0) as usize;
                 let end = right_expr.end().unwrap_or(0) as usize;
                 if end > start && end <= source.len() {

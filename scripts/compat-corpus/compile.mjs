@@ -60,11 +60,15 @@ if (args.includes('--worker')) {
 	const esbuild = require('esbuild');
 
 	// In production (Vite / SvelteKit), `.svelte.ts` modules are TS-stripped
-	// by esbuild BEFORE the Svelte compiler sees them — `compileModule`
-	// itself only parses plain JS. Mirror that pipeline so the corpus
-	// exercises the real compile output instead of recording js_parse_error
-	// parity for every TS module. Falls back to the raw source when esbuild
-	// rejects the file (both compilers then see identical input).
+	// by the bundler BEFORE the Svelte compiler sees them — `compileModule`
+	// itself only parses plain JS and rejects raw TS. Mirror that pipeline so
+	// the corpus exercises the real compile output instead of recording
+	// js_parse_error parity for every TS module. We strip with esbuild as a
+	// representative stripper (Vite ≤7 uses esbuild; Vite 8 strips with oxc /
+	// rolldown — see scripts/compat-corpus/README.md). The stripped source
+	// feeds BOTH compilers, so the parity verdict stays meaningful regardless
+	// of the stripper. Falls back to the raw source when esbuild rejects the
+	// file (both compilers then see identical input).
 	function prepareSource(id, source) {
 		if (!id.endsWith('.svelte.ts')) return source;
 		try {

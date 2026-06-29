@@ -92,47 +92,49 @@ fn visit_common(
             });
         }
 
-        // Check for invalid parentheses in the binding expression
-        // But ignore parentheses that are inside comments (leading comments before the expression)
+        // Check for invalid parentheses in the binding expression, ignoring any
+        // '(' that sits inside a comment between the opening `{` and the
+        // expression. Comment regions are detected directly from the source
+        // (scanning `/* … */` and `// …`) rather than from the expression's
+        // `leadingComments` JSON — comment capture is off on the compile path,
+        // so the typed expression carries no comment metadata here; a source
+        // scan is the robust source of truth.
         if let Some(start) = directive.expression.start() {
-            // Get leading comments from the expression if available
-            let expr_json = directive.expression.as_json();
-            let leading_comments = expr_json.get("leadingComments").and_then(|c| c.as_array());
-
-            // Calculate comment range if we have leading comments
-            let comment_range: Option<(usize, usize)> = leading_comments.and_then(|comments| {
-                let first_comment = comments.first()?;
-                let last_comment = comments.last()?;
-                let comment_start = first_comment.get("start")?.as_u64()? as usize;
-                let comment_end = last_comment.get("end")?.as_u64()? as usize;
-                Some((comment_start, comment_end))
-            });
-
             let start_usize = start as usize;
+            let source_bytes = context.analysis.source.as_bytes();
             let mut i = start_usize;
-            while i > 0
-                && context.analysis.source.as_bytes().get(i.saturating_sub(1)) != Some(&b'{')
-            {
+            while i > 0 && source_bytes.get(i.saturating_sub(1)) != Some(&b'{') {
                 i -= 1;
             }
 
-            // Check for '(' between '{' and the expression, but skip if inside a comment
-            let source_bytes = context.analysis.source.as_bytes();
+            // Scan from just after `{` to the expression start, tracking comment
+            // state so parens inside comments are ignored.
             let mut pos = i;
             let mut found_invalid_paren = false;
-
             while pos < start_usize {
-                if source_bytes.get(pos) == Some(&b'(') {
-                    // Check if this position is inside a comment
-                    let inside_comment = comment_range
-                        .is_some_and(|(c_start, c_end)| pos >= c_start && pos <= c_end);
-
-                    if !inside_comment {
+                match source_bytes.get(pos) {
+                    Some(&b'/') if source_bytes.get(pos + 1) == Some(&b'*') => {
+                        pos += 2;
+                        while pos < start_usize
+                            && !(source_bytes.get(pos) == Some(&b'*')
+                                && source_bytes.get(pos + 1) == Some(&b'/'))
+                        {
+                            pos += 1;
+                        }
+                        pos += 2;
+                    }
+                    Some(&b'/') if source_bytes.get(pos + 1) == Some(&b'/') => {
+                        pos += 2;
+                        while pos < start_usize && source_bytes.get(pos) != Some(&b'\n') {
+                            pos += 1;
+                        }
+                    }
+                    Some(&b'(') => {
                         found_invalid_paren = true;
                         break;
                     }
+                    _ => pos += 1,
                 }
-                pos += 1;
             }
 
             if found_invalid_paren {
@@ -818,7 +820,6 @@ fn get_object_node<'a>(
         JsNode::MemberExpression { object, .. } => {
             get_object_node(arena.get_js_node(*object), arena)
         }
-        JsNode::Raw(_) => None,
         _ => None,
     }
 }

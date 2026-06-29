@@ -49,14 +49,7 @@ pub fn visit_script_expr(
                 let arena = context.parse_arena;
                 let mut result = Ok(());
                 for stmt in arena.get_js_children(*body) {
-                    let step = match stmt {
-                        // For Raw nodes (statements with leadingComments attached),
-                        // use the Value-based walker which handles all node types
-                        // via string matching and processes leadingComments properly.
-                        JsNode::Raw(value) => walk_js_node(value, context),
-                        // For typed nodes, use the typed walker for direct field access.
-                        _ => walk_js_node_typed(stmt, context),
-                    };
+                    let step = walk_js_node_typed(stmt, context);
                     if step.is_err() {
                         result = step;
                         break;
@@ -71,7 +64,6 @@ pub fn visit_script_expr(
                 visit_script(script_expr.as_json(), context)
             }
         }
-        Expression::Value(_) => visit_script(script_expr.as_json(), context),
         Expression::Lazy { .. } => panic!("Expression::Lazy must be resolved before analysis"),
     }
 }
@@ -651,14 +643,6 @@ pub fn walk_js_node_typed(
     node: &JsNode,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
-    // For Raw nodes, delegate to the Value-based walker which properly dispatches
-    // visitors for all node types (FunctionDeclaration, FunctionExpression, etc.).
-    // Without this, Raw nodes would skip visitor dispatch and only visit children,
-    // missing critical state changes like function_depth increments.
-    if let JsNode::Raw(value) = node {
-        return walk_js_node(value, context);
-    }
-
     // Process svelte-ignore directives attached to this node as leading comments.
     // The parser harvests those comment texts into the Program's `ignore_comment_map`
     // (keyed by absolute node start) instead of materializing the node as `JsNode::Raw`,
@@ -1131,30 +1115,6 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
             walk_js_node_typed(arena.get_js_node(*meta), context)?;
             walk_js_node_typed(arena.get_js_node(*property), context)?;
             Ok(())
-        }
-
-        // Raw(Value) fallback - use the original visit_children
-        JsNode::Raw(value) => {
-            // For Raw nodes, also handle leadingComments
-            let mut has_ignores = false;
-            if let Some(comments) = value.get("leadingComments").and_then(|c| c.as_array()) {
-                let mut ignores = Vec::new();
-                for comment in comments {
-                    if let Some(val) = comment.get("value").and_then(|v| v.as_str()) {
-                        ignores.extend(extract_svelte_ignore(val, context.analysis.runes));
-                    }
-                }
-                if !ignores.is_empty() {
-                    context.push_ignore(ignores);
-                    has_ignores = true;
-                }
-            }
-            let raw_type = value.get("type").and_then(|t| t.as_str());
-            let result = visit_children(value, raw_type, context);
-            if has_ignores {
-                context.pop_ignore();
-            }
-            result
         }
 
         // Leaf nodes (Identifier, Literal, TemplateElement, ThisExpression, Super, etc.)

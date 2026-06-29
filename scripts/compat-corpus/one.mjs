@@ -46,8 +46,10 @@ if (!fs.existsSync(file)) {
 let source = fs.readFileSync(file, 'utf8');
 const kind = /\.svelte\.(js|ts)$/.test(file) ? 'module' : 'component';
 if (file.endsWith('.svelte.ts')) {
-	// Mirror the production pipeline (see compile.mjs): TS is stripped by
-	// esbuild before the Svelte compiler sees the module.
+	// Mirror the production pipeline (see compile.mjs): the bundler strips TS
+	// before the Svelte compiler sees the module (compileModule rejects raw
+	// TS). We use esbuild as the representative stripper — Vite ≤7 uses
+	// esbuild, Vite 8 uses oxc/rolldown (see README.md).
 	try {
 		source = require('esbuild').transformSync(source, { loader: 'ts' }).code;
 	} catch {

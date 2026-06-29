@@ -735,7 +735,7 @@ fn get_object_name(expr: &Expression) -> Option<String> {
         match obj.get("type").and_then(|v| v.as_str()) {
             Some("MemberExpression") => {
                 if let Some(object) = obj.get("object") {
-                    get_object_name(&Expression::Value(object.clone()))
+                    get_object_name(&Expression::from_json(object.clone()))
                 } else {
                     None
                 }
@@ -743,7 +743,7 @@ fn get_object_name(expr: &Expression) -> Option<String> {
             // Handle LogicalExpression like `$items ?? []` by recursing into the left operand
             Some("LogicalExpression") | Some("BinaryExpression") => {
                 if let Some(left) = obj.get("left") {
-                    get_object_name(&Expression::Value(left.clone()))
+                    get_object_name(&Expression::from_json(left.clone()))
                 } else {
                     None
                 }
@@ -1119,7 +1119,8 @@ fn build_declarations(
                     if let (Some(base_expr), Some(key_json)) =
                         (path.computed_key_base.take(), path.computed_key_json.take())
                     {
-                        let key_expr = convert_expression(&Expression::Value(key_json), context);
+                        let key_expr =
+                            convert_expression(&Expression::from_json(key_json), context);
                         // Apply transforms so identifiers like `length` become `length()`
                         let transformed_key = apply_transforms_to_expression(&key_expr, context);
                         let key_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&transformed_key, &context.arena);
@@ -1775,7 +1776,8 @@ fn build_fallback_expression(
 ) -> String {
     if let Some(default_val) = default_value {
         if is_simple_default(default_val) {
-            let default_expr = convert_expression(&Expression::Value(default_val.clone()), context);
+            let default_expr =
+                convert_expression(&Expression::from_json(default_val.clone()), context);
             let default_expr = apply_transforms_to_expression(&default_expr, context);
             let default_str =
                 crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
@@ -1793,7 +1795,7 @@ fn build_fallback_expression(
             && callee.get("type").and_then(|t| t.as_str()) == Some("Identifier")
         {
             let callee_expr = convert_expression(
-                &Expression::Value(serde_json::Value::Object(callee.clone())),
+                &Expression::from_json(serde_json::Value::Object(callee.clone())),
                 context,
             );
             let callee_expr = apply_transforms_to_expression(&callee_expr, context);
@@ -1804,7 +1806,8 @@ fn build_fallback_expression(
                 );
             format!("$.fallback({}, {}, true)", expression, callee_str)
         } else {
-            let default_expr = convert_expression(&Expression::Value(default_val.clone()), context);
+            let default_expr =
+                convert_expression(&Expression::from_json(default_val.clone()), context);
             let default_expr = apply_transforms_to_expression(&default_expr, context);
             let default_str =
                 crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
@@ -2047,7 +2050,7 @@ fn convert_expression_to_pattern(
                                 let arg = prop_obj.get("argument")?;
                                 let inner = convert_expression_to_pattern(
                                     arena,
-                                    &Expression::Value(arg.clone()),
+                                    &Expression::from_json(arg.clone()),
                                 );
                                 return Some(JsObjectPatternProperty::Rest(Box::new(inner)));
                             }
@@ -2058,7 +2061,7 @@ fn convert_expression_to_pattern(
                             let value_pattern = if value.is_object() {
                                 convert_expression_to_pattern(
                                     arena,
-                                    &Expression::Value(value.clone()),
+                                    &Expression::from_json(value.clone()),
                                 )
                             } else {
                                 JsPattern::Identifier(key_name.into())
@@ -2091,7 +2094,7 @@ fn convert_expression_to_pattern(
                             } else {
                                 Some(convert_expression_to_pattern(
                                     arena,
-                                    &Expression::Value(elem.clone()),
+                                    &Expression::from_json(elem.clone()),
                                 ))
                             }
                         })
@@ -2103,7 +2106,7 @@ fn convert_expression_to_pattern(
             Some("RestElement") => {
                 if let Some(arg) = obj.get("argument") {
                     let inner =
-                        convert_expression_to_pattern(arena, &Expression::Value(arg.clone()));
+                        convert_expression_to_pattern(arena, &Expression::from_json(arg.clone()));
                     return JsPattern::Rest(Box::new(inner));
                 }
             }
@@ -2111,7 +2114,7 @@ fn convert_expression_to_pattern(
                 #[allow(unused_variables)]
                 if let (Some(left), Some(_right)) = (obj.get("left"), obj.get("right")) {
                     let left_pattern =
-                        convert_expression_to_pattern(arena, &Expression::Value(left.clone()));
+                        convert_expression_to_pattern(arena, &Expression::from_json(left.clone()));
                     return left_pattern;
                 }
             }
@@ -2135,11 +2138,11 @@ mod tests {
 
     #[test]
     fn test_is_key_same_as_item_true() {
-        let key = Expression::Value(serde_json::json!({
+        let key = Expression::from_json(serde_json::json!({
             "type": "Identifier",
             "name": "item"
         }));
-        let context = Expression::Value(serde_json::json!({
+        let context = Expression::from_json(serde_json::json!({
             "type": "Identifier",
             "name": "item"
         }));
@@ -2147,7 +2150,7 @@ mod tests {
         let node = EachBlock {
             start: 0,
             end: 100,
-            expression: Expression::Value(serde_json::json!({
+            expression: Expression::from_json(serde_json::json!({
                 "type": "Identifier",
                 "name": "items"
             })),
@@ -2164,11 +2167,11 @@ mod tests {
 
     #[test]
     fn test_is_key_same_as_item_false() {
-        let key = Expression::Value(serde_json::json!({
+        let key = Expression::from_json(serde_json::json!({
             "type": "Identifier",
             "name": "item.id"
         }));
-        let context = Expression::Value(serde_json::json!({
+        let context = Expression::from_json(serde_json::json!({
             "type": "Identifier",
             "name": "item"
         }));
@@ -2176,7 +2179,7 @@ mod tests {
         let node = EachBlock {
             start: 0,
             end: 100,
-            expression: Expression::Value(serde_json::json!({
+            expression: Expression::from_json(serde_json::json!({
                 "type": "Identifier",
                 "name": "items"
             })),
@@ -2193,7 +2196,7 @@ mod tests {
 
     #[test]
     fn test_generate_item_identifier_simple() {
-        let context = Expression::Value(serde_json::json!({
+        let context = Expression::from_json(serde_json::json!({
             "type": "Identifier",
             "name": "item"
         }));
@@ -2201,7 +2204,7 @@ mod tests {
         let node = EachBlock {
             start: 0,
             end: 100,
-            expression: Expression::Value(serde_json::json!({
+            expression: Expression::from_json(serde_json::json!({
                 "type": "Identifier",
                 "name": "items"
             })),
@@ -2225,7 +2228,7 @@ mod tests {
         let node = EachBlock {
             start: 0,
             end: 100,
-            expression: Expression::Value(serde_json::json!({
+            expression: Expression::from_json(serde_json::json!({
                 "type": "Identifier",
                 "name": "items"
             })),
@@ -2249,7 +2252,7 @@ mod tests {
         use crate::ast::js::Expression;
 
         // Simple identifier
-        let expr = Expression::Value(serde_json::json!({
+        let expr = Expression::from_json(serde_json::json!({
             "type": "Identifier",
             "name": "i"
         }));
@@ -2257,7 +2260,7 @@ mod tests {
         assert!(!expression_references_identifier(&expr, "j"));
 
         // Template literal with identifier
-        let expr = Expression::Value(serde_json::json!({
+        let expr = Expression::from_json(serde_json::json!({
             "type": "TemplateLiteral",
             "expressions": [{"type": "Identifier", "name": "i"}],
             "quasis": [{"type": "TemplateElement", "value": {"raw": "", "cooked": ""}}, {"type": "TemplateElement", "value": {"raw": "", "cooked": ""}}]
@@ -2269,7 +2272,7 @@ mod tests {
     #[test]
     fn test_convert_simple_pattern() {
         let arena = crate::compiler::phases::phase3_transform::js_ast::arena::JsArena::new();
-        let expr = Expression::Value(serde_json::json!({
+        let expr = Expression::from_json(serde_json::json!({
             "type": "Identifier",
             "name": "item"
         }));

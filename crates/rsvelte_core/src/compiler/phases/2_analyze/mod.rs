@@ -493,33 +493,6 @@ pub fn analyze_component(
                     }
                     continue;
                 }
-                // Raw fallback (statements with leadingComments)
-                if let JsNode::Raw(value) = stmt
-                    && value.get("type").and_then(|t| t.as_str()) == Some("ExportNamedDeclaration")
-                    && value.get("declaration").is_none_or(|d| d.is_null())
-                    && value.get("source").is_none_or(|s| s.is_null())
-                    && let Some(specifiers) = value.get("specifiers").and_then(|s| s.as_array())
-                {
-                    for specifier in specifiers {
-                        let Some(local) = specifier.get("local") else {
-                            continue;
-                        };
-                        if local.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
-                            continue;
-                        }
-                        let Some(name) = local.get("name").and_then(|n| n.as_str()) else {
-                            continue;
-                        };
-                        if name.is_empty() {
-                            continue;
-                        }
-                        if !is_in_module_scope_or_hoisted(name, &analysis)
-                            && analysis.template.snippets.contains(name)
-                        {
-                            return Err(errors::snippet_invalid_export());
-                        }
-                    }
-                }
             }
         }
     }
@@ -1023,16 +996,6 @@ fn instance_has_legacy_patterns(ast: &Root) -> bool {
                     }
                 }
             }
-            // Raw fallback: nodes that carry leadingComments arrive as Raw(Value)
-            JsNode::Raw(value) => match value.get("type").and_then(|v| v.as_str()) {
-                Some("LabeledStatement") => return true,
-                Some("ExportNamedDeclaration")
-                    if export_named_raw_has_legacy_let(value, *body, arena) =>
-                {
-                    return true;
-                }
-                _ => {}
-            },
             _ => {}
         }
     }
@@ -1045,10 +1008,6 @@ fn matches_let_variable_declaration(node: &crate::ast::typed_expr::JsNode) -> bo
     use crate::ast::typed_expr::JsNode;
     match node {
         JsNode::VariableDeclaration { kind, .. } => kind == "let",
-        JsNode::Raw(value) => {
-            value.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
-                && value.get("kind").and_then(|k| k.as_str()) == Some("let")
-        }
         _ => false,
     }
 }
@@ -1069,14 +1028,8 @@ fn instance_body_has_labeled_statement(ast: &Root) -> bool {
     };
     let arena = &ast.arena;
     for stmt in arena.get_js_children(*body) {
-        match stmt {
-            JsNode::LabeledStatement { .. } => return true,
-            JsNode::Raw(v)
-                if v.get("type").and_then(|t| t.as_str()) == Some("LabeledStatement") =>
-            {
-                return true;
-            }
-            _ => {}
+        if let JsNode::LabeledStatement { .. } = stmt {
+            return true;
         }
     }
     false
@@ -1105,44 +1058,8 @@ fn export_specifier_local_name<'a>(
             JsNode::Identifier { name, .. } => Some(name.as_str()),
             _ => None,
         },
-        JsNode::Raw(value) => value
-            .get("local")
-            .filter(|l| l.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
-            .and_then(|l| l.get("name"))
-            .and_then(|n| n.as_str()),
         _ => None,
     }
-}
-
-/// Raw-variant handler for `ExportNamedDeclaration`. Returns true if it is
-/// either `export let ...` or `export { x }` where `x` is declared with `let`
-/// in `body`.
-fn export_named_raw_has_legacy_let(
-    value: &serde_json::Value,
-    body: crate::ast::arena::IdRange,
-    arena: &crate::ast::arena::ParseArena,
-) -> bool {
-    if let Some(decl) = value.get("declaration").filter(|d| !d.is_null())
-        && decl.get("type").and_then(|v| v.as_str()) == Some("VariableDeclaration")
-        && decl.get("kind").and_then(|v| v.as_str()) == Some("let")
-    {
-        return true;
-    }
-    let Some(specifiers) = value.get("specifiers").and_then(|s| s.as_array()) else {
-        return false;
-    };
-    for spec in specifiers {
-        if let Some(name) = spec
-            .get("local")
-            .filter(|l| l.get("type").and_then(|v| v.as_str()) == Some("Identifier"))
-            .and_then(|l| l.get("name"))
-            .and_then(|v| v.as_str())
-            && body_has_let_declaration_typed(body, name, arena)
-        {
-            return true;
-        }
-    }
-    false
 }
 
 /// Check if `body` contains a `let` declaration for the given name.
@@ -1163,32 +1080,6 @@ fn body_has_let_declaration_typed(
                         && id_name == name
                     {
                         return true;
-                    }
-                    // Raw fallback for declarators with leadingComments
-                    if let JsNode::Raw(v) = decl
-                        && v.get("id")
-                            .and_then(|id| id.get("name"))
-                            .and_then(|n| n.as_str())
-                            == Some(name)
-                    {
-                        return true;
-                    }
-                }
-            }
-            JsNode::Raw(v) => {
-                if v.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
-                    && v.get("kind").and_then(|k| k.as_str()) == Some("let")
-                    && let Some(decls) = v.get("declarations").and_then(|d| d.as_array())
-                {
-                    for decl in decls {
-                        if decl
-                            .get("id")
-                            .and_then(|id| id.get("name"))
-                            .and_then(|n| n.as_str())
-                            == Some(name)
-                        {
-                            return true;
-                        }
                     }
                 }
             }
@@ -1457,14 +1348,6 @@ fn process_legacy_exports(ast: &Root, analysis: &mut ComponentAnalysis) {
 
     let arena = &ast.arena;
     for stmt in arena.get_js_children(*body) {
-        // Raw fallback: nodes with leadingComments
-        if let JsNode::Raw(value) = stmt {
-            if value.get("type").and_then(|v| v.as_str()) == Some("ExportNamedDeclaration") {
-                analysis.needs_props = true;
-                process_legacy_export_raw(value, analysis);
-            }
-            continue;
-        }
         // Typed dispatch on ExportNamedDeclaration
         let JsNode::ExportNamedDeclaration {
             declaration,
@@ -1521,8 +1404,6 @@ fn process_legacy_exports(ast: &Root, analysis: &mut ComponentAnalysis) {
                             arena,
                             &mut identifiers,
                         );
-                    } else if let JsNode::Raw(v) = declarator {
-                        identifiers = extract_identifiers_from_pattern(v.get("id"));
                     }
                     if is_const {
                         for name in identifiers {
@@ -1537,11 +1418,6 @@ fn process_legacy_exports(ast: &Root, analysis: &mut ComponentAnalysis) {
                         }
                     }
                 }
-            }
-            JsNode::Raw(decl_value) => {
-                // Declaration is a Raw node (carries leadingComments). Fall back to
-                // the JSON helper for legacy handling.
-                process_legacy_export_declaration_raw(decl_value, analysis);
             }
             _ => {}
         }
@@ -1566,17 +1442,6 @@ fn export_specifier_local_exported<'a>(
                 JsNode::Identifier { name, .. } => Some(name.as_str()),
                 _ => None,
             };
-            (local_name, exported_name)
-        }
-        JsNode::Raw(value) => {
-            let local_name = value
-                .get("local")
-                .and_then(|v| v.get("name"))
-                .and_then(|v| v.as_str());
-            let exported_name = value
-                .get("exported")
-                .and_then(|v| v.get("name"))
-                .and_then(|v| v.as_str());
             (local_name, exported_name)
         }
         _ => (None, None),
@@ -1616,78 +1481,6 @@ fn apply_specifier_export(local: &str, exported: &str, analysis: &mut ComponentA
     }
 }
 
-/// Raw fallback for the whole `ExportNamedDeclaration` body of
-/// `process_legacy_exports`. Mirrors the JSON-walk logic when the
-/// outer statement arrives as `JsNode::Raw`.
-fn process_legacy_export_raw(value: &serde_json::Value, analysis: &mut ComponentAnalysis) {
-    let declaration = value.get("declaration");
-    if declaration.is_some_and(|d| d.is_null()) || declaration.is_none() {
-        if let Some(specifiers) = value.get("specifiers").and_then(|v| v.as_array()) {
-            for specifier in specifiers {
-                let local_name = specifier
-                    .get("local")
-                    .and_then(|v| v.get("name"))
-                    .and_then(|v| v.as_str());
-                let exported_name = specifier
-                    .get("exported")
-                    .and_then(|v| v.get("name"))
-                    .and_then(|v| v.as_str());
-                if let (Some(local), Some(exported)) = (local_name, exported_name) {
-                    apply_specifier_export(local, exported, analysis);
-                }
-            }
-        }
-        return;
-    }
-    let Some(declaration) = declaration else {
-        return;
-    };
-    process_legacy_export_declaration_raw(declaration, analysis);
-}
-
-/// Raw fallback for an `ExportNamedDeclaration.declaration` node.
-fn process_legacy_export_declaration_raw(
-    declaration: &serde_json::Value,
-    analysis: &mut ComponentAnalysis,
-) {
-    let decl_type = declaration.get("type").and_then(|v| v.as_str());
-    match decl_type {
-        Some("FunctionDeclaration") | Some("ClassDeclaration") => {
-            if let Some(name) = declaration
-                .get("id")
-                .and_then(|v| v.get("name"))
-                .and_then(|v| v.as_str())
-            {
-                analysis.exports.push(types::Export {
-                    name: name.to_string(),
-                    alias: None,
-                });
-            }
-        }
-        Some("VariableDeclaration") => {
-            let kind = declaration.get("kind").and_then(|v| v.as_str());
-            if let Some(declarations) = declaration.get("declarations").and_then(|v| v.as_array()) {
-                for declarator in declarations {
-                    let identifiers = extract_identifiers_from_pattern(declarator.get("id"));
-                    if kind == Some("const") {
-                        for name in identifiers {
-                            analysis.exports.push(types::Export { name, alias: None });
-                        }
-                    } else {
-                        for name in identifiers {
-                            if let Some(binding_idx) = analysis.root.find_binding_any_scope(&name) {
-                                analysis.root.bindings[binding_idx].kind =
-                                    BindingKind::BindableProp;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        _ => {}
-    }
-}
-
 /// Extract identifier names from a typed pattern (handles destructuring).
 fn extract_identifiers_from_pattern_typed(
     pattern: &crate::ast::typed_expr::JsNode,
@@ -1714,7 +1507,6 @@ fn extract_identifiers_from_pattern_typed(
                             out,
                         );
                     }
-                    JsNode::Raw(v) => out.extend(extract_identifiers_from_pattern(v.get("value"))),
                     _ => {}
                 }
             }
@@ -1730,56 +1522,8 @@ fn extract_identifiers_from_pattern_typed(
         JsNode::AssignmentPattern { left, .. } => {
             extract_identifiers_from_pattern_typed(arena.get_js_node(*left), arena, out);
         }
-        JsNode::Raw(v) => out.extend(extract_identifiers_from_pattern(Some(v))),
         _ => {}
     }
-}
-
-/// Extract identifier names from a pattern (handles destructuring).
-fn extract_identifiers_from_pattern(pattern: Option<&serde_json::Value>) -> Vec<String> {
-    let Some(pattern) = pattern else {
-        return Vec::new();
-    };
-
-    let mut identifiers = Vec::new();
-
-    match pattern.get("type").and_then(|v| v.as_str()) {
-        Some("Identifier") => {
-            if let Some(name) = pattern.get("name").and_then(|v| v.as_str()) {
-                identifiers.push(name.to_string());
-            }
-        }
-        Some("ObjectPattern") => {
-            if let Some(properties) = pattern.get("properties").and_then(|v| v.as_array()) {
-                for prop in properties {
-                    // Handle RestElement in object pattern
-                    if prop.get("type").and_then(|v| v.as_str()) == Some("RestElement") {
-                        identifiers.extend(extract_identifiers_from_pattern(prop.get("argument")));
-                    } else {
-                        identifiers.extend(extract_identifiers_from_pattern(prop.get("value")));
-                    }
-                }
-            }
-        }
-        Some("ArrayPattern") => {
-            if let Some(elements) = pattern.get("elements").and_then(|v| v.as_array()) {
-                for elem in elements {
-                    if !elem.is_null() {
-                        identifiers.extend(extract_identifiers_from_pattern(Some(elem)));
-                    }
-                }
-            }
-        }
-        Some("RestElement") => {
-            identifiers.extend(extract_identifiers_from_pattern(pattern.get("argument")));
-        }
-        Some("AssignmentPattern") => {
-            identifiers.extend(extract_identifiers_from_pattern(pattern.get("left")));
-        }
-        _ => {}
-    }
-
-    identifiers
 }
 
 /// Promote store underlying variables to 'state' if reassigned in legacy mode.
@@ -2732,10 +2476,6 @@ fn extract_each_pattern_identifiers_node(node: &JsNode, names: &mut Vec<String>)
             let json = node.to_value();
             extract_each_pattern_identifiers(&json, names);
         }
-        // Raw fallback
-        JsNode::Raw(v) => {
-            extract_each_pattern_identifiers(v, names);
-        }
         _ => {}
     }
 }
@@ -3291,11 +3031,6 @@ impl JsonCheckResults {
     fn all_found(&self) -> bool {
         self.has_await && self.has_rune_reference
     }
-
-    fn merge(&mut self, other: &JsonCheckResults) {
-        self.has_await = self.has_await || other.has_await;
-        self.has_rune_reference = self.has_rune_reference || other.has_rune_reference;
-    }
 }
 
 /// Check if an expression contains an AwaitExpression and/or rune references
@@ -3325,7 +3060,6 @@ fn expression_check_features(
             );
             results
         }
-        Expression::Value(v) => json_check_features(v, store_subs),
         // `resolve_lazy_expressions` runs before analyze, so Lazy should never
         // reach here. Return empty results defensively rather than panicking.
         Expression::Lazy { .. } => JsonCheckResults::default(),
@@ -3369,58 +3103,6 @@ fn collect_dollar_param_names(node: &JsNode, arena: &ParseArena, out: &mut Vec<S
         }
         JsNode::AssignmentPattern { left, .. } => {
             collect_dollar_param_names(arena.get_js_node(*left), arena, out);
-        }
-        _ => {}
-    }
-}
-
-/// Collect `$`-prefixed identifier names from a function-parameter pattern
-/// (JSON form). See `collect_dollar_param_names`.
-fn collect_dollar_param_names_json(node: &serde_json::Value, out: &mut Vec<String>) {
-    match node.get("type").and_then(|t| t.as_str()) {
-        Some("Identifier") => {
-            if let Some(name) = node.get("name").and_then(|n| n.as_str())
-                && name.starts_with('$')
-            {
-                out.push(name.to_string());
-            }
-        }
-        Some("ObjectPattern") => {
-            if let Some(props) = node.get("properties").and_then(|p| p.as_array()) {
-                for prop in props {
-                    match prop.get("type").and_then(|t| t.as_str()) {
-                        Some("RestElement") | Some("SpreadElement") => {
-                            if let Some(arg) = prop.get("argument") {
-                                collect_dollar_param_names_json(arg, out);
-                            }
-                        }
-                        _ => {
-                            if let Some(value) = prop.get("value") {
-                                collect_dollar_param_names_json(value, out);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Some("ArrayPattern") => {
-            if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
-                for elem in elements {
-                    if !elem.is_null() {
-                        collect_dollar_param_names_json(elem, out);
-                    }
-                }
-            }
-        }
-        Some("RestElement") | Some("SpreadElement") => {
-            if let Some(arg) = node.get("argument") {
-                collect_dollar_param_names_json(arg, out);
-            }
-        }
-        Some("AssignmentPattern") => {
-            if let Some(left) = node.get("left") {
-                collect_dollar_param_names_json(left, out);
-            }
         }
         _ => {}
     }
@@ -3550,6 +3232,7 @@ fn js_node_check_features(
         | JsNode::DebuggerStatement { .. }
         | JsNode::Decorator { .. }
         | JsNode::TSEnumDeclaration { .. }
+        | JsNode::TSParameterProperty { .. }
         | JsNode::Comment { .. }
         | JsNode::Null => {}
 
@@ -3856,14 +3539,6 @@ fn js_node_check_features(
             type_annotation, ..
         } => walk_id!(*type_annotation),
         JsNode::TSModuleDeclaration { body, .. } => walk_opt_id!(body),
-
-        // Raw(Value) — fall back to the JSON walker. Used only for statements
-        // that carry leadingComments (rare). The recursion stops at this
-        // boundary; descendants of Raw are not pattern-matched on JsNode.
-        JsNode::Raw(value) => {
-            let sub = json_check_features_inner(value, store_subs, child_inside_function, shadowed);
-            results.merge(&sub);
-        }
     }
 
     shadowed.truncate(shadow_base);
@@ -3878,144 +3553,6 @@ fn is_rune_name(name: &str) -> bool {
         name,
         "$state" | "$derived" | "$props" | "$bindable" | "$effect" | "$inspect" | "$host"
     )
-}
-
-/// Recursively check a JSON AST node for both AwaitExpression and rune identifier references
-/// in a single pass.
-///
-/// For await detection:
-/// - Stops at function boundaries (FunctionExpression, ArrowFunctionExpression, FunctionDeclaration)
-///   but continues checking for rune references past those boundaries.
-///
-/// For rune detection:
-/// - Does NOT stop at function boundaries because rune references inside functions still
-///   indicate runes mode.
-/// - Skips label properties of LabeledStatement, non-computed property keys in
-///   MemberExpressions, and non-computed keys in Property nodes.
-///
-/// The `inside_function` parameter tracks whether we are inside a function boundary,
-/// which suppresses await detection while still allowing rune detection.
-fn json_check_features(
-    node: &serde_json::Value,
-    store_subs: &rustc_hash::FxHashSet<&str>,
-) -> JsonCheckResults {
-    let mut shadowed = Vec::new();
-    json_check_features_inner(node, store_subs, false, &mut shadowed)
-}
-
-fn json_check_features_inner(
-    node: &serde_json::Value,
-    store_subs: &rustc_hash::FxHashSet<&str>,
-    inside_function: bool,
-    shadowed: &mut Vec<String>,
-) -> JsonCheckResults {
-    let mut results = JsonCheckResults::default();
-    let node_type = node.get("type").and_then(|t| t.as_str());
-
-    // Check for AwaitExpression (only if not inside a function boundary)
-    if !inside_function && node_type == Some("AwaitExpression") {
-        results.has_await = true;
-        // Don't return early - still need to check children for rune references
-    }
-
-    // Check if this is an Identifier with a rune name
-    if node_type == Some("Identifier")
-        && let Some(name) = node.get("name").and_then(|n| n.as_str())
-        && is_rune_name(name)
-        && !store_subs.contains(name)
-        && !shadowed.iter().any(|s| s == name)
-    {
-        results.has_rune_reference = true;
-    }
-
-    // Early exit if both features found
-    if results.all_found() {
-        return results;
-    }
-
-    // Determine if we're entering a function boundary
-    let is_function_boundary = matches!(
-        node_type,
-        Some("FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration")
-    );
-    let child_inside_function = inside_function || is_function_boundary;
-
-    // `$`-prefixed function parameters shadow rune names inside the function
-    // (see `js_node_check_features`).
-    let shadow_base = shadowed.len();
-    if is_function_boundary && let Some(params) = node.get("params").and_then(|p| p.as_array()) {
-        for param in params {
-            collect_dollar_param_names_json(param, shadowed);
-        }
-    }
-
-    match node {
-        serde_json::Value::Object(map) => {
-            for (key, val) in map {
-                if key == "type" || key == "start" || key == "end" || key == "loc" {
-                    continue;
-                }
-                // Skip the "label" property of LabeledStatement nodes for rune check.
-                // Labels like `$effect:` contain Identifiers with rune names but
-                // they are NOT rune references - they are just label declarations.
-                // Without this check, `$effect: if (obj) x++` would falsely trigger
-                // runes mode detection, causing `export let` to be rejected.
-                //
-                // For the await check, labels can't contain AwaitExpression, so skipping is safe.
-                if key == "label" && node_type == Some("LabeledStatement") {
-                    continue;
-                }
-                // Skip property keys in non-computed MemberExpressions and Properties for rune check.
-                // `foo.$state` should not be treated as a rune reference.
-                //
-                // For the await check, property keys can't contain AwaitExpression, so skipping is safe.
-                if key == "property"
-                    && node_type == Some("MemberExpression")
-                    && !node
-                        .get("computed")
-                        .and_then(|c| c.as_bool())
-                        .unwrap_or(false)
-                {
-                    continue;
-                }
-                // Skip the "key" field of non-computed Property nodes for rune check.
-                // { $state: value } should not be treated as a rune reference.
-                //
-                // For the await check, non-computed keys can't contain AwaitExpression, so skipping is safe.
-                if key == "key"
-                    && node_type == Some("Property")
-                    && !node
-                        .get("computed")
-                        .and_then(|c| c.as_bool())
-                        .unwrap_or(false)
-                {
-                    continue;
-                }
-                let child_results =
-                    json_check_features_inner(val, store_subs, child_inside_function, shadowed);
-                results.merge(&child_results);
-                if results.all_found() {
-                    shadowed.truncate(shadow_base);
-                    return results;
-                }
-            }
-        }
-        serde_json::Value::Array(arr) => {
-            for val in arr {
-                let child_results =
-                    json_check_features_inner(val, store_subs, child_inside_function, shadowed);
-                results.merge(&child_results);
-                if results.all_found() {
-                    shadowed.truncate(shadow_base);
-                    return results;
-                }
-            }
-        }
-        _ => {}
-    }
-
-    shadowed.truncate(shadow_base);
-    results
 }
 
 /// Check if an attribute contains both await expressions and rune references in a single walk.
@@ -4633,10 +4170,6 @@ fn extract_all_identifiers_from_node(node: &JsNode, ids: &mut Vec<String>) {
             let json = node.to_value();
             extract_all_identifiers_from_expr(&json, ids);
         }
-        // Raw fallback
-        JsNode::Raw(v) => {
-            extract_all_identifiers_from_expr(v, ids);
-        }
         _ => {}
     }
 }
@@ -4722,10 +4255,6 @@ fn build_keypath_parts_node(node: &JsNode, parts: &mut Vec<String>) {
         JsNode::MemberExpression { .. } => {
             let json = node.to_value();
             build_keypath_parts(&json, parts);
-        }
-        // Raw fallback
-        JsNode::Raw(v) => {
-            build_keypath_parts(v, parts);
         }
         _ => {
             // For other expression types (CallExpression, etc.), fall back to a
@@ -5046,6 +4575,17 @@ fn collect_identifier_names_in_json(
     match value {
         Value::Object(obj) => {
             let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+            // TypeScript type-space nodes (`TSTypeAnnotation`, `TSTypeReference`,
+            // …) never contain value references — their identifiers live in type
+            // space and are erased from the output. Skipping them keeps type-only
+            // names (e.g. `let x: File` / `type Foo`) out of the component-name
+            // deconfliction set, which otherwise renames the component to `_1`.
+            // (The typed tree can still carry annotations at this point; the JSON
+            // strip path drops them, so this guard makes both paths agree.)
+            if node_type.starts_with("TS") {
+                return;
+            }
 
             // If this is an Identifier node, collect its name.
             if node_type == "Identifier"

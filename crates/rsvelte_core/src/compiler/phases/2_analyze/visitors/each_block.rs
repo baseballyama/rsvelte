@@ -257,7 +257,6 @@ fn walk_pattern_defaults_typed(
                     JsNode::RestElement { argument, .. } => {
                         walk_pattern_defaults_typed(arena.get_js_node(*argument), arena, context)?;
                     }
-                    JsNode::Raw(v) => walk_pattern_defaults(v, context)?,
                     _ => {}
                 }
             }
@@ -270,7 +269,6 @@ fn walk_pattern_defaults_typed(
         JsNode::RestElement { argument, .. } => {
             walk_pattern_defaults_typed(arena.get_js_node(*argument), arena, context)?;
         }
-        JsNode::Raw(v) => walk_pattern_defaults(v, context)?,
         _ => {}
     }
     Ok(())

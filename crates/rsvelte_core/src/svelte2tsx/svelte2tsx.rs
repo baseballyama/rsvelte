@@ -549,6 +549,7 @@ pub fn svelte2tsx(
         force_typescript: false,
         lenient_script: false,
         skip_non_css_lang_style: false,
+        capture_comments: false,
     };
     let ast = phase1_parse::parse_script_ts(&parse_source, parse_options)?;
 
@@ -4464,7 +4465,6 @@ fn expression_is_await(
     // async too once a template `await` is present.)
     let direct = match expr {
         Expression::Typed(te) => matches!(&te.node, JsNode::AwaitExpression { .. }),
-        Expression::Value(v) => v.get("type").and_then(|t| t.as_str()) == Some("AwaitExpression"),
         Expression::Lazy { .. } => false,
     };
     if direct {
@@ -4850,7 +4850,6 @@ fn expression_references_rune_global(
 
     match expr {
         Expression::Typed(te) => js_node_references_rune_global(&te.node, arena),
-        Expression::Value(v) => json_references_rune_global(v, 0),
         Expression::Lazy { start, end, .. } => {
             // Raw source slice — scan for `$state`, `$derived`, `$effect` as
             // identifier-like occurrences.  We already know the full source

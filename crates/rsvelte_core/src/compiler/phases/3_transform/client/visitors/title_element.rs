@@ -434,10 +434,6 @@ fn is_known_defined_expr(expr: &crate::ast::js::Expression) -> bool {
                 crate::ast::typed_expr::JsNode::Literal { value, .. } => {
                     !matches!(value, crate::ast::typed_expr::LiteralValue::Null)
                 }
-                crate::ast::typed_expr::JsNode::Raw(val) => {
-                    let value = val.get("value");
-                    !matches!(value, Some(serde_json::Value::Null) | None)
-                }
                 _ => false,
             }
         }

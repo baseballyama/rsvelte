@@ -530,6 +530,7 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
         force_typescript: false,
         lenient_script: false,
         skip_non_css_lang_style: false,
+        capture_comments: false,
     };
     let mut ast = phases::phase1_parse::parse(source, parse_options)?;
 
@@ -642,6 +643,7 @@ pub fn compile_both(
         force_typescript: false,
         lenient_script: false,
         skip_non_css_lang_style: false,
+        capture_comments: false,
     };
     let mut ast = phases::phase1_parse::parse(source, parse_options)?;
 
@@ -1113,23 +1115,10 @@ fn remove_typescript_from_ast(ast: &mut crate::ast::Root) -> Result<(), crate::e
                     arena,
                 )
             }),
-            // Legacy Value path (kept for the rare `Expression::Value` case).
-            Expression::Value(v) => {
-                phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(v, &[])
-            }
-            // Lazy expressions are resolved before this point; fall back defensively.
+            // Lazy expressions are resolved before strip_ts (the pipeline is
+            // resolve_lazy -> strip_ts), so this is never reached.
             Expression::Lazy { .. } => {
-                let json = script.content.as_json().clone();
-                script.content = Expression::Value(json);
-                match &mut script.content {
-                    Expression::Value(v) => {
-                        phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(
-                            v,
-                            &[],
-                        )
-                    }
-                    _ => unreachable!(),
-                }
+                unreachable!("Expression::Lazy must be resolved before strip_ts")
             }
         }
     }
@@ -1158,7 +1147,7 @@ fn remove_typescript_from_ast(ast: &mut crate::ast::Root) -> Result<(), crate::e
     Ok(())
 }
 
-/// Strip TypeScript annotations from a single Expression::Value.
+/// Strip TypeScript annotations from a single Expression.
 fn strip_ts_from_expression(
     expr: &mut crate::ast::js::Expression,
 ) -> Result<(), crate::error::ParseError> {
@@ -1171,18 +1160,9 @@ fn strip_ts_from_expression(
                 arena,
             )
         }),
-        Expression::Value(val) => {
-            phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(val, &[])
-        }
+        // Lazy expressions are resolved before strip_ts, so this is never reached.
         Expression::Lazy { .. } => {
-            let json = expr.as_json().clone();
-            *expr = Expression::Value(json);
-            match expr {
-                Expression::Value(val) => {
-                    phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(val, &[])
-                }
-                _ => unreachable!(),
-            }
+            unreachable!("Expression::Lazy must be resolved before strip_ts")
         }
     }
 }

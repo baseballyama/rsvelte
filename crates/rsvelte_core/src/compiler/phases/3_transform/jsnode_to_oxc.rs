@@ -17,10 +17,8 @@
 //! output.
 //!
 //! **CRITICAL RULE:** return `None` on ANY variant or shape that cannot be
-//! faithfully reproduced — in particular [`JsNode::Raw`] (opaque JSON the
-//! structural esrap printer cannot reconstruct), [`JsNode::Null`], BigInt
-//! literals (parsed as `Raw`), TypeScript-only nodes, decorators, and static
-//! blocks.
+//! faithfully reproduced — in particular [`JsNode::Null`], TypeScript-only
+//! nodes, decorators, and static blocks.
 //!
 //! All construction patterns are lifted verbatim from the proven
 //! `js_ast::to_oxc` converter (variant-complete against oxc 0.136), so the

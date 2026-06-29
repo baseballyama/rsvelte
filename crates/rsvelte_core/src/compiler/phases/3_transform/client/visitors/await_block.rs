@@ -454,7 +454,7 @@ fn extract_identifiers_recursive(expr: &Expression, identifiers: &mut Vec<String
                             // Extract from the argument of RestElement
                             if let Some(arg) = prop.get("argument") {
                                 extract_identifiers_recursive(
-                                    &Expression::Value(arg.clone()),
+                                    &Expression::from_json(arg.clone()),
                                     identifiers,
                                 );
                             }
@@ -464,13 +464,13 @@ fn extract_identifiers_recursive(expr: &Expression, identifiers: &mut Vec<String
                         // Regular Property
                         if let Some(value) = prop.get("value") {
                             extract_identifiers_recursive(
-                                &Expression::Value(value.clone()),
+                                &Expression::from_json(value.clone()),
                                 identifiers,
                             );
                         } else if let Some(key) = prop.get("key") {
                             // Shorthand property
                             extract_identifiers_recursive(
-                                &Expression::Value(key.clone()),
+                                &Expression::from_json(key.clone()),
                                 identifiers,
                             );
                         }
@@ -482,7 +482,7 @@ fn extract_identifiers_recursive(expr: &Expression, identifiers: &mut Vec<String
                     for elem in elems {
                         if !elem.is_null() {
                             extract_identifiers_recursive(
-                                &Expression::Value(elem.clone()),
+                                &Expression::from_json(elem.clone()),
                                 identifiers,
                             );
                         }
@@ -491,12 +491,15 @@ fn extract_identifiers_recursive(expr: &Expression, identifiers: &mut Vec<String
             }
             Some("RestElement") => {
                 if let Some(arg) = obj.get("argument") {
-                    extract_identifiers_recursive(&Expression::Value(arg.clone()), identifiers);
+                    extract_identifiers_recursive(&Expression::from_json(arg.clone()), identifiers);
                 }
             }
             Some("AssignmentPattern") => {
                 if let Some(left) = obj.get("left") {
-                    extract_identifiers_recursive(&Expression::Value(left.clone()), identifiers);
+                    extract_identifiers_recursive(
+                        &Expression::from_json(left.clone()),
+                        identifiers,
+                    );
                 }
             }
             _ => {}
@@ -706,7 +709,7 @@ fn convert_value_to_pattern_with_context(
                             let property_key = if computed {
                                 // Computed key: use convert_expression to apply reactive transforms
                                 // This converts num++ to $.update(num) and num to $.get(num) etc.
-                                let key_expr = Expression::Value(key_val.clone());
+                                let key_expr = Expression::from_json(key_val.clone());
                                 let converted = convert_expression(&key_expr, context);
                                 let converted = apply_transforms_to_expression(&converted, context);
                                 JsPropertyKey::Computed(context.arena.alloc_expr(converted))
@@ -1435,7 +1438,7 @@ mod tests {
 
     #[test]
     fn test_get_identifier_name_simple() {
-        let expr = Expression::Value(serde_json::json!({
+        let expr = Expression::from_json(serde_json::json!({
             "type": "Identifier",
             "name": "value"
         }));
@@ -1445,7 +1448,7 @@ mod tests {
 
     #[test]
     fn test_get_identifier_name_not_identifier() {
-        let expr = Expression::Value(serde_json::json!({
+        let expr = Expression::from_json(serde_json::json!({
             "type": "ObjectPattern",
             "properties": []
         }));
@@ -1455,7 +1458,7 @@ mod tests {
 
     #[test]
     fn test_extract_identifiers_simple() {
-        let expr = Expression::Value(serde_json::json!({
+        let expr = Expression::from_json(serde_json::json!({
             "type": "Identifier",
             "name": "value"
         }));
@@ -1466,7 +1469,7 @@ mod tests {
 
     #[test]
     fn test_extract_identifiers_object_pattern() {
-        let expr = Expression::Value(serde_json::json!({
+        let expr = Expression::from_json(serde_json::json!({
             "type": "ObjectPattern",
             "properties": [
                 {
@@ -1490,7 +1493,7 @@ mod tests {
 
     #[test]
     fn test_convert_simple_pattern() {
-        let expr = Expression::Value(serde_json::json!({
+        let expr = Expression::from_json(serde_json::json!({
             "type": "Identifier",
             "name": "value"
         }));

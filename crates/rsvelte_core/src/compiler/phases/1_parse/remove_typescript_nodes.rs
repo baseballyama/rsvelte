@@ -474,13 +474,6 @@ pub fn remove_typescript_nodes_typed(
     node: &mut JsNode,
     arena: &ParseArena,
 ) -> Result<(), ParseError> {
-    // `JsNode::Raw` carries a full `serde_json::Value` subtree (the TS-messy
-    // fallback). Delegate to the Value mutator, which recurses and strips it
-    // with the canonical semantics — including raising the same errors.
-    if let JsNode::Raw(value) = node {
-        return remove_typescript_nodes(value, &[]);
-    }
-
     match node.node_type() {
         // Decorators are not supported.
         Some("Decorator") => {
@@ -502,6 +495,36 @@ pub fn remove_typescript_nodes_typed(
                     node.end().unwrap_or(0) as usize,
                 ),
             ));
+        }
+
+        // TS parameter properties (`constructor(private x)` / `readonly x`) are
+        // not supported. The typed `TSParameterProperty` node is only ever built
+        // when a modifier is present, so its presence is always an error
+        // (mirrors the Value mutator's `has_modifiers` check).
+        Some("TSParameterProperty") => {
+            return Err(ParseError::typescript_invalid_feature(
+                "accessibility modifiers on constructor parameters",
+                (
+                    node.start().unwrap_or(0) as usize,
+                    node.end().unwrap_or(0) as usize,
+                ),
+            ));
+        }
+
+        // `accessor` class fields are not supported (mirrors the Value mutator).
+        Some("PropertyDefinition") => {
+            if let JsNode::PropertyDefinition {
+                accessor: true,
+                start,
+                end,
+                ..
+            } = node
+            {
+                return Err(ParseError::typescript_invalid_feature(
+                    "accessor fields (related TSC proposal is not stage 4 yet)",
+                    (*start as usize, *end as usize),
+                ));
+            }
         }
 
         // Namespaces / modules: error if they contain non-type nodes, else strip.
@@ -602,19 +625,6 @@ fn is_type_only_namespace_member(entry: &JsNode) -> bool {
                 && export_kind.as_deref() == Some("type")
             {
                 return true;
-            }
-            // `export <type-only declaration>`
-            if let JsNode::Raw(v) = entry {
-                if v.get("exportKind").and_then(|k| k.as_str()) == Some("type") {
-                    return true;
-                }
-                if let Some(decl) = v.get("declaration") {
-                    let dt = decl.get("type").and_then(|t| t.as_str()).unwrap_or("");
-                    return matches!(
-                        dt,
-                        "TSInterfaceDeclaration" | "TSTypeAliasDeclaration" | "TSEnumDeclaration"
-                    );
-                }
             }
             false
         }
@@ -726,7 +736,6 @@ fn strip_export_named_declaration_typed(
 fn specifier_import_kind_is_type(spec: &JsNode) -> bool {
     match spec {
         JsNode::ImportSpecifier { import_kind, .. } => import_kind.as_deref() == Some("type"),
-        JsNode::Raw(v) => v.get("importKind").and_then(|k| k.as_str()) == Some("type"),
         _ => false,
     }
 }
@@ -735,7 +744,6 @@ fn specifier_import_kind_is_type(spec: &JsNode) -> bool {
 fn specifier_export_kind_is_type(spec: &JsNode) -> bool {
     match spec {
         JsNode::ExportSpecifier { export_kind, .. } => export_kind.as_deref() == Some("type"),
-        JsNode::Raw(v) => v.get("exportKind").and_then(|k| k.as_str()) == Some("type"),
         _ => false,
     }
 }

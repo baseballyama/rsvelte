@@ -3661,40 +3661,6 @@ pub(crate) fn get_literal_value(
                         LiteralValue::Null => Some(None),
                         LiteralValue::Regex(r) => Some(Some(format!("/{}/{}", r.pattern, r.flags))),
                     },
-                    crate::ast::typed_expr::JsNode::Raw(val) => {
-                        if let Some(value) = val.get("value") {
-                            if let Some(s) = value.as_str() {
-                                Some(Some(s.to_string()))
-                            } else if let Some(n) = value.as_f64() {
-                                if n.fract() == 0.0 {
-                                    Some(Some(format!("{}", n as i64)))
-                                } else {
-                                    Some(Some(n.to_string()))
-                                }
-                            } else if let Some(b_val) = value.as_bool() {
-                                Some(Some(b_val.to_string()))
-                            } else if value.is_null() {
-                                Some(None)
-                            } else {
-                                None
-                            }
-                        } else if val.get("regex").is_some() {
-                            // Raw JSON regex node: {"type":"Literal","regex":{"pattern":"...","flags":"..."}}
-                            let pattern = val
-                                .get("regex")
-                                .and_then(|r| r.get("pattern"))
-                                .and_then(|p| p.as_str())
-                                .unwrap_or("");
-                            let flags = val
-                                .get("regex")
-                                .and_then(|r| r.get("flags"))
-                                .and_then(|f| f.as_str())
-                                .unwrap_or("");
-                            Some(Some(format!("/{}/{}", pattern, flags)))
-                        } else {
-                            None
-                        }
-                    }
                     _ => None,
                 }
             }
@@ -4807,33 +4773,6 @@ pub fn is_effect_pending_expr(
                 matches!(prop_node, JsNode::Identifier { name, .. } if name.as_str() == "pending");
             let is_effect_obj =
                 matches!(obj_node, JsNode::Identifier { name, .. } if name.as_str() == "$effect");
-            is_pending && is_effect_obj
-        }
-        JsNode::Raw(val) => {
-            // Fallback for legacy Value variant
-            let Some(callee_obj) = val.as_object() else {
-                return false;
-            };
-            if callee_obj.get("type").and_then(|t| t.as_str()) != Some("MemberExpression") {
-                return false;
-            }
-            if callee_obj.get("computed").and_then(|v| v.as_bool()) == Some(true) {
-                return false;
-            }
-            let is_pending = callee_obj
-                .get("property")
-                .and_then(|p| p.as_object())
-                .is_some_and(|p_obj| {
-                    p_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                        && p_obj.get("name").and_then(|n| n.as_str()) == Some("pending")
-                });
-            let is_effect_obj = callee_obj
-                .get("object")
-                .and_then(|o| o.as_object())
-                .is_some_and(|o_obj| {
-                    o_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                        && o_obj.get("name").and_then(|n| n.as_str()) == Some("$effect")
-                });
             is_pending && is_effect_obj
         }
         _ => false,

@@ -55,12 +55,24 @@ compiler itself rejects, which is noise, not a compatibility gap). Each source i
 collected under its `id` prefix (`bits-ui/…`, `svelte.dev/…`, …).
 
 Both compilers run with identical default options (`dev: false`,
-`css: 'external'`). `.svelte.ts` modules are TS-stripped with esbuild
-before compilation, mirroring the production pipeline (Vite runs esbuild
-before vite-plugin-svelte's `compileModule`, which only parses plain JS). Outputs are normalized to absorb formatting-only
-differences; anything that survives normalization is a real divergence and
-fails verification. Files the official compiler rejects are *error-parity*
-cases: rsvelte must reject them too (same error code).
+`css: 'external'`). `.svelte.ts` modules are TS-stripped before compilation,
+mirroring the production pipeline: a bundler strips the types *before*
+vite-plugin-svelte's `compileModule` sees the module, because `compileModule`
+itself only parses plain JS and rejects raw TS with a parse error (unlike
+`compile`, which strips `<script lang="ts">` via `remove_typescript_nodes`).
+The bundler's stripper differs by version — Vite ≤7 uses esbuild, while **Vite 8
+strips with oxc (rolldown); esbuild there is an optional peer and any esbuild
+options are converted to oxc config**. The corpus strips with **esbuild** as the
+representative stripper (it is the installed, synchronous, zero-extra-dep choice
+and matches Vite ≤7). The exact stripper feeds the *same* source to both
+compilers, so every verdict still reflects a genuine official-vs-rsvelte
+difference — but note that switching strippers is not output-neutral: different
+strippers emit different (yet semantically equal) code shapes, so they exercise
+different compiler paths and surface a different subset of divergences. Outputs
+are normalized to absorb formatting-only differences; anything that survives
+normalization is a real divergence and fails verification. Files the official
+compiler rejects are *error-parity* cases: rsvelte must reject them too (same
+error code).
 
 Normalization is four layers, all in the comparison side — the compiler
 itself never spends cycles on cosmetic output massaging (rsvelte targets
