@@ -373,7 +373,15 @@ fn expression_only_uses_params_node(
             true
         }
 
-        JsNode::ArrowFunctionExpression { .. } | JsNode::FunctionExpression { .. } => true,
+        JsNode::ArrowFunctionExpression { .. } | JsNode::FunctionExpression { .. } => {
+            // A nested function/arrow can close over instance-level state (e.g.
+            // `onclick={() => { open = false }}`), which blocks hoisting. Serialize
+            // it (resolving arena children) and walk its body via the JSON helper.
+            match serde_json::from_str::<serde_json::Value>(&node.to_json_string()) {
+                Ok(v) => arrow_hoistable(&v, param_names, context),
+                Err(_) => true,
+            }
+        }
 
         _ => false,
     }
@@ -1034,6 +1042,127 @@ fn is_identifier_hoistable(
     }
 }
 
+/// Collect names bound *locally* inside a function/arrow body — `var`/`let`/
+/// `const` declarators, nested function/arrow params + names, class names and
+/// `catch` params — so that later references to them are treated as local
+/// (hoistable). Mirrors the official scope-reference walk, which skips bindings
+/// whose `function_depth >= scope.function_depth` (i.e. declared inside the
+/// snippet's own nested functions).
+fn collect_local_bindings(val: &serde_json::Value, out: &mut FxHashSet<String>) {
+    match val {
+        serde_json::Value::Array(a) => {
+            for v in a {
+                collect_local_bindings(v, out);
+            }
+        }
+        serde_json::Value::Object(o) => {
+            let ty = o.get("type").and_then(|t| t.as_str());
+            match ty {
+                Some("VariableDeclarator")
+                | Some("FunctionDeclaration")
+                | Some("ClassDeclaration") => {
+                    if let Some(id) = o.get("id")
+                        && let Some(names) = extract_pattern_names(id)
+                    {
+                        for n in names {
+                            out.insert(n);
+                        }
+                    }
+                }
+                _ => {}
+            }
+            if matches!(
+                ty,
+                Some("FunctionDeclaration")
+                    | Some("FunctionExpression")
+                    | Some("ArrowFunctionExpression")
+            ) && let Some(params) = o.get("params").and_then(|p| p.as_array())
+            {
+                for p in params {
+                    if let Some(names) = extract_pattern_names(p) {
+                        for n in names {
+                            out.insert(n);
+                        }
+                    }
+                }
+            }
+            if ty == Some("CatchClause")
+                && let Some(param) = o.get("param")
+                && let Some(names) = extract_pattern_names(param)
+            {
+                for n in names {
+                    out.insert(n);
+                }
+            }
+            for (_, v) in o {
+                collect_local_bindings(v, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Walk any node (statement or expression) JSON, returning `false` if it
+/// references a non-hoistable (instance-level) identifier. Skips identifiers in
+/// non-reference position (non-computed member properties and object keys).
+fn refs_hoistable(
+    val: &serde_json::Value,
+    params: &FxHashSet<String>,
+    context: &VisitorContext,
+) -> bool {
+    match val {
+        serde_json::Value::Array(a) => a.iter().all(|v| refs_hoistable(v, params, context)),
+        serde_json::Value::Object(o) => match o.get("type").and_then(|t| t.as_str()) {
+            Some("Identifier") => o
+                .get("name")
+                .and_then(|n| n.as_str())
+                .is_none_or(|n| is_identifier_hoistable(n, params, context)),
+            Some("MemberExpression") => {
+                if let Some(obj) = o.get("object")
+                    && !refs_hoistable(obj, params, context)
+                {
+                    return false;
+                }
+                if o.get("computed").and_then(|c| c.as_bool()).unwrap_or(false)
+                    && let Some(prop) = o.get("property")
+                    && !refs_hoistable(prop, params, context)
+                {
+                    return false;
+                }
+                true
+            }
+            Some("Property") => {
+                if o.get("computed").and_then(|c| c.as_bool()).unwrap_or(false)
+                    && let Some(key) = o.get("key")
+                    && !refs_hoistable(key, params, context)
+                {
+                    return false;
+                }
+                o.get("value")
+                    .is_none_or(|v| refs_hoistable(v, params, context))
+            }
+            _ => o
+                .iter()
+                .all(|(k, v)| k == "type" || refs_hoistable(v, params, context)),
+        },
+        _ => true,
+    }
+}
+
+/// Determine whether a nested function / arrow (as JSON) only references
+/// hoistable identifiers — its own params and any names it declares locally are
+/// treated as local, mirroring upstream's reference walk through nested
+/// functions (which the blanket `=> true` arms previously skipped entirely).
+fn arrow_hoistable(
+    arrow_json: &serde_json::Value,
+    outer_params: &FxHashSet<String>,
+    context: &VisitorContext,
+) -> bool {
+    let mut locals = outer_params.clone();
+    collect_local_bindings(arrow_json, &mut locals);
+    refs_hoistable(arrow_json, &locals, context)
+}
+
 /// Check if an expression only uses hoistable identifiers - JSON version.
 fn expression_only_uses_params(
     val: &serde_json::Value,
@@ -1203,7 +1332,13 @@ fn expression_only_uses_params(
                 true
             }
 
-            Some("ArrowFunctionExpression") | Some("FunctionExpression") => true,
+            // A nested function/arrow can still close over instance-level state
+            // (e.g. an event handler `onclick={() => { open = false }}`), which
+            // blocks hoisting. Walk its body (treating its own params + local
+            // declarations as local) instead of the old blanket `=> true`.
+            Some("ArrowFunctionExpression") | Some("FunctionExpression") => {
+                arrow_hoistable(val, param_names, context)
+            }
 
             _ => false,
         }

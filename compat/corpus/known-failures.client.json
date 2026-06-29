@@ -1,5 +1,4 @@
 [
-	"flowbite-svelte/src/lib/datepicker/Datepicker.svelte",
 	"flowbite-svelte/src/routes/admin-dashboard/(sidebar)/crud/products/+page.svelte",
 	"flowbite-svelte/src/routes/admin-dashboard/(sidebar)/crud/users/+page.svelte",
 	"layercake/src/lib/LayerCake.svelte",
@@ -11,7 +10,6 @@
 	"layerchart/packages/layerchart/src/lib/docs/TilesetField.svelte",
 	"melt-ui/packages/melt/src/lib/builders/tests/SpatialMenuNavTest.svelte",
 	"powertable/app/src/lib/components/PowerTable.svelte",
-	"shadcn-svelte/docs/src/lib/components/mobile-nav.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte",
 	"svelte-form-builder/src/lib/Components/Select.svelte",
 	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelComponentSpecific/PropertyPanelChoiceCheckboxRadioSpecific.svelte",
