@@ -322,17 +322,6 @@ fn extract_call_arguments(
     if expr.node_type() != Some("CallExpression") {
         return Vec::new();
     }
-    // Fast path for Expression::Value: extract directly from JSON to avoid
-    // JsNode conversion that allocates into a different (DESER) arena.
-    if let Expression::Value(val) = expr {
-        if let Some(args) = val.get("arguments").and_then(|a| a.as_array()) {
-            return args
-                .iter()
-                .map(|arg| Expression::Value(arg.clone()))
-                .collect();
-        }
-        return Vec::new();
-    }
     let node = expr.as_node();
     match &*node {
         JsNode::CallExpression { arguments, .. } => arena
@@ -352,11 +341,6 @@ fn extract_call_callee(
     use crate::ast::typed_expr::JsNode;
     if expr.node_type() != Some("CallExpression") {
         return None;
-    }
-    // Fast path for Expression::Value: extract directly from JSON to avoid
-    // JsNode conversion that allocates into a different (DESER) arena.
-    if let Expression::Value(val) = expr {
-        return val.get("callee").map(|c| Expression::Value(c.clone()));
     }
     let node = expr.as_node();
     match &*node {
@@ -411,16 +395,16 @@ mod tests {
 
     #[test]
     fn test_extract_call_callee() {
-        let call_expr = Expression::Value(serde_json::json!({
-            "type": "CallExpression",
-            "callee": {
-                "type": "Identifier",
-                "name": "snip"
-            },
-            "arguments": []
-        }));
-
+        // Build the typed expression *within* the arena so its child node ids
+        // resolve against the same `arena` that `extract_call_callee` reads.
         let arena = crate::ast::arena::ParseArena::new();
+        let call_expr = crate::ast::arena::with_serialize_arena(&arena, || {
+            Expression::from_json(serde_json::json!({
+                "type": "CallExpression",
+                "callee": { "type": "Identifier", "name": "snip" },
+                "arguments": []
+            }))
+        });
         let callee = extract_call_callee(&call_expr, &arena);
         assert!(callee.is_some());
 
@@ -432,18 +416,14 @@ mod tests {
 
     #[test]
     fn test_extract_call_arguments() {
-        let call_expr = Expression::Value(serde_json::json!({
-            "type": "CallExpression",
-            "callee": {
-                "type": "Identifier",
-                "name": "snip"
-            },
-            "arguments": [
-                { "type": "Literal", "value": 42 }
-            ]
-        }));
-
         let arena = crate::ast::arena::ParseArena::new();
+        let call_expr = crate::ast::arena::with_serialize_arena(&arena, || {
+            Expression::from_json(serde_json::json!({
+                "type": "CallExpression",
+                "callee": { "type": "Identifier", "name": "snip" },
+                "arguments": [ { "type": "Literal", "value": 42 } ]
+            }))
+        });
         let args = extract_call_arguments(&call_expr, &arena);
         assert_eq!(args.len(), 1);
     }

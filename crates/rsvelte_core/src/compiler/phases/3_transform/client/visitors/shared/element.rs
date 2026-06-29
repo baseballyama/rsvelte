@@ -1334,7 +1334,7 @@ fn get_directive_expression(directive: &StyleDirective) -> crate::ast::js::Expre
         AttributeValue::Expression(expr_tag) => expr_tag.expression.clone(),
         AttributeValue::True(_) => {
             // For style:color shorthand, create an identifier expression
-            Expression::Value(serde_json::json!({
+            Expression::from_json(serde_json::json!({
                 "type": "Identifier",
                 "name": directive.name.to_string()
             }))
@@ -1347,7 +1347,7 @@ fn get_directive_expression(directive: &StyleDirective) -> crate::ast::js::Expre
                 }
             }
             // Static text - return a literal
-            Expression::Value(serde_json::Value::Null)
+            Expression::from_json(serde_json::Value::Null)
         }
     }
 }

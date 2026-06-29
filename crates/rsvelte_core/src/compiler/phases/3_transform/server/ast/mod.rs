@@ -1277,6 +1277,7 @@ mod tests {
             force_typescript: false,
             lenient_script: false,
             skip_non_css_lang_style: false,
+            capture_comments: false,
         };
         let mut ast = phase1_parse::parse(source, parse_options).expect("parse");
 
@@ -1329,6 +1330,7 @@ mod tests {
             force_typescript: false,
             lenient_script: false,
             skip_non_css_lang_style: false,
+            capture_comments: false,
         };
         let mut ast = phase1_parse::parse(source, parse_options).expect("parse");
         // SAFETY: `ast` (and thus `ast.arena`) outlives `_guard` for the rest of
@@ -3033,6 +3035,7 @@ mod tests {
             force_typescript: false,
             lenient_script: false,
             skip_non_css_lang_style: false,
+            capture_comments: false,
         };
         let mut ast = phase1_parse::parse(source, parse_options).expect("parse");
         // SAFETY: `ast` (and thus `ast.arena`) outlives `_guard` for the rest of
@@ -3548,6 +3551,7 @@ mod tests {
             force_typescript: false,
             lenient_script: false,
             skip_non_css_lang_style: false,
+            capture_comments: false,
         };
         let mut ast = phase1_parse::parse(source, parse_options).expect("parse");
         // SAFETY: `ast` (and thus `ast.arena`) outlives `_guard` for the rest of
@@ -5054,6 +5058,7 @@ mod tests {
             force_typescript: false,
             lenient_script: false,
             skip_non_css_lang_style: false,
+            capture_comments: false,
         };
 
         // Parse into a heap-stable Box so the arena address stays valid for the

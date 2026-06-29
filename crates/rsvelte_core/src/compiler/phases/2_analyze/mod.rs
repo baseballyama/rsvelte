@@ -3031,11 +3031,6 @@ impl JsonCheckResults {
     fn all_found(&self) -> bool {
         self.has_await && self.has_rune_reference
     }
-
-    fn merge(&mut self, other: &JsonCheckResults) {
-        self.has_await = self.has_await || other.has_await;
-        self.has_rune_reference = self.has_rune_reference || other.has_rune_reference;
-    }
 }
 
 /// Check if an expression contains an AwaitExpression and/or rune references
@@ -3065,7 +3060,6 @@ fn expression_check_features(
             );
             results
         }
-        Expression::Value(v) => json_check_features(v, store_subs),
         // `resolve_lazy_expressions` runs before analyze, so Lazy should never
         // reach here. Return empty results defensively rather than panicking.
         Expression::Lazy { .. } => JsonCheckResults::default(),
@@ -3109,58 +3103,6 @@ fn collect_dollar_param_names(node: &JsNode, arena: &ParseArena, out: &mut Vec<S
         }
         JsNode::AssignmentPattern { left, .. } => {
             collect_dollar_param_names(arena.get_js_node(*left), arena, out);
-        }
-        _ => {}
-    }
-}
-
-/// Collect `$`-prefixed identifier names from a function-parameter pattern
-/// (JSON form). See `collect_dollar_param_names`.
-fn collect_dollar_param_names_json(node: &serde_json::Value, out: &mut Vec<String>) {
-    match node.get("type").and_then(|t| t.as_str()) {
-        Some("Identifier") => {
-            if let Some(name) = node.get("name").and_then(|n| n.as_str())
-                && name.starts_with('$')
-            {
-                out.push(name.to_string());
-            }
-        }
-        Some("ObjectPattern") => {
-            if let Some(props) = node.get("properties").and_then(|p| p.as_array()) {
-                for prop in props {
-                    match prop.get("type").and_then(|t| t.as_str()) {
-                        Some("RestElement") | Some("SpreadElement") => {
-                            if let Some(arg) = prop.get("argument") {
-                                collect_dollar_param_names_json(arg, out);
-                            }
-                        }
-                        _ => {
-                            if let Some(value) = prop.get("value") {
-                                collect_dollar_param_names_json(value, out);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Some("ArrayPattern") => {
-            if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
-                for elem in elements {
-                    if !elem.is_null() {
-                        collect_dollar_param_names_json(elem, out);
-                    }
-                }
-            }
-        }
-        Some("RestElement") | Some("SpreadElement") => {
-            if let Some(arg) = node.get("argument") {
-                collect_dollar_param_names_json(arg, out);
-            }
-        }
-        Some("AssignmentPattern") => {
-            if let Some(left) = node.get("left") {
-                collect_dollar_param_names_json(left, out);
-            }
         }
         _ => {}
     }
@@ -3611,144 +3553,6 @@ fn is_rune_name(name: &str) -> bool {
         name,
         "$state" | "$derived" | "$props" | "$bindable" | "$effect" | "$inspect" | "$host"
     )
-}
-
-/// Recursively check a JSON AST node for both AwaitExpression and rune identifier references
-/// in a single pass.
-///
-/// For await detection:
-/// - Stops at function boundaries (FunctionExpression, ArrowFunctionExpression, FunctionDeclaration)
-///   but continues checking for rune references past those boundaries.
-///
-/// For rune detection:
-/// - Does NOT stop at function boundaries because rune references inside functions still
-///   indicate runes mode.
-/// - Skips label properties of LabeledStatement, non-computed property keys in
-///   MemberExpressions, and non-computed keys in Property nodes.
-///
-/// The `inside_function` parameter tracks whether we are inside a function boundary,
-/// which suppresses await detection while still allowing rune detection.
-fn json_check_features(
-    node: &serde_json::Value,
-    store_subs: &rustc_hash::FxHashSet<&str>,
-) -> JsonCheckResults {
-    let mut shadowed = Vec::new();
-    json_check_features_inner(node, store_subs, false, &mut shadowed)
-}
-
-fn json_check_features_inner(
-    node: &serde_json::Value,
-    store_subs: &rustc_hash::FxHashSet<&str>,
-    inside_function: bool,
-    shadowed: &mut Vec<String>,
-) -> JsonCheckResults {
-    let mut results = JsonCheckResults::default();
-    let node_type = node.get("type").and_then(|t| t.as_str());
-
-    // Check for AwaitExpression (only if not inside a function boundary)
-    if !inside_function && node_type == Some("AwaitExpression") {
-        results.has_await = true;
-        // Don't return early - still need to check children for rune references
-    }
-
-    // Check if this is an Identifier with a rune name
-    if node_type == Some("Identifier")
-        && let Some(name) = node.get("name").and_then(|n| n.as_str())
-        && is_rune_name(name)
-        && !store_subs.contains(name)
-        && !shadowed.iter().any(|s| s == name)
-    {
-        results.has_rune_reference = true;
-    }
-
-    // Early exit if both features found
-    if results.all_found() {
-        return results;
-    }
-
-    // Determine if we're entering a function boundary
-    let is_function_boundary = matches!(
-        node_type,
-        Some("FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration")
-    );
-    let child_inside_function = inside_function || is_function_boundary;
-
-    // `$`-prefixed function parameters shadow rune names inside the function
-    // (see `js_node_check_features`).
-    let shadow_base = shadowed.len();
-    if is_function_boundary && let Some(params) = node.get("params").and_then(|p| p.as_array()) {
-        for param in params {
-            collect_dollar_param_names_json(param, shadowed);
-        }
-    }
-
-    match node {
-        serde_json::Value::Object(map) => {
-            for (key, val) in map {
-                if key == "type" || key == "start" || key == "end" || key == "loc" {
-                    continue;
-                }
-                // Skip the "label" property of LabeledStatement nodes for rune check.
-                // Labels like `$effect:` contain Identifiers with rune names but
-                // they are NOT rune references - they are just label declarations.
-                // Without this check, `$effect: if (obj) x++` would falsely trigger
-                // runes mode detection, causing `export let` to be rejected.
-                //
-                // For the await check, labels can't contain AwaitExpression, so skipping is safe.
-                if key == "label" && node_type == Some("LabeledStatement") {
-                    continue;
-                }
-                // Skip property keys in non-computed MemberExpressions and Properties for rune check.
-                // `foo.$state` should not be treated as a rune reference.
-                //
-                // For the await check, property keys can't contain AwaitExpression, so skipping is safe.
-                if key == "property"
-                    && node_type == Some("MemberExpression")
-                    && !node
-                        .get("computed")
-                        .and_then(|c| c.as_bool())
-                        .unwrap_or(false)
-                {
-                    continue;
-                }
-                // Skip the "key" field of non-computed Property nodes for rune check.
-                // { $state: value } should not be treated as a rune reference.
-                //
-                // For the await check, non-computed keys can't contain AwaitExpression, so skipping is safe.
-                if key == "key"
-                    && node_type == Some("Property")
-                    && !node
-                        .get("computed")
-                        .and_then(|c| c.as_bool())
-                        .unwrap_or(false)
-                {
-                    continue;
-                }
-                let child_results =
-                    json_check_features_inner(val, store_subs, child_inside_function, shadowed);
-                results.merge(&child_results);
-                if results.all_found() {
-                    shadowed.truncate(shadow_base);
-                    return results;
-                }
-            }
-        }
-        serde_json::Value::Array(arr) => {
-            for val in arr {
-                let child_results =
-                    json_check_features_inner(val, store_subs, child_inside_function, shadowed);
-                results.merge(&child_results);
-                if results.all_found() {
-                    shadowed.truncate(shadow_base);
-                    return results;
-                }
-            }
-        }
-        _ => {}
-    }
-
-    shadowed.truncate(shadow_base);
-    results
 }
 
 /// Check if an attribute contains both await expressions and rune references in a single walk.

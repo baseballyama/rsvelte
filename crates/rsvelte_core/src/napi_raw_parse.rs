@@ -389,7 +389,6 @@ fn write_expression<W: Writer>(
             write_js_node(w, &te.node, arena)
         }),
         Expression::Lazy { start, end, .. } => write_json_node(w, *start, *end, expr),
-        Expression::Value(_) => write_json_node(w, u32::MAX, u32::MAX, expr),
     }
 }
 fn write_opt_expression<W: Writer>(

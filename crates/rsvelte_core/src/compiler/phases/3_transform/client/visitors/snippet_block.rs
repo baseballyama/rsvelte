@@ -642,7 +642,7 @@ fn object_pattern_key_literal(
 /// parameter access expressions.
 fn convert_snippet_expr(value: &serde_json::Value, context: &mut ComponentContext) -> JsExpr {
     use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
-    convert_expression(&Expression::Value(value.clone()), context)
+    convert_expression(&Expression::from_json(value.clone()), context)
 }
 
 /// Process an AssignmentPattern parameter (parameter with default value).
@@ -755,7 +755,8 @@ fn build_fallback_args(
         // Simple default: $.fallback(arg?.(), default). Apply reactive-read
         // transforms so a default like `x = count` becomes `$.get(count)`
         // (the default expression was previously emitted untransformed). M-068.
-        let default_expr = convert_expression(&Expression::Value(default_value.clone()), context);
+        let default_expr =
+            convert_expression(&Expression::from_json(default_value.clone()), context);
         let default_expr = apply_transforms_to_expression(&default_expr, context);
         vec![default_expr]
     } else {
@@ -773,7 +774,7 @@ fn build_fallback_args(
         {
             // Optimization: pass just the callee identifier instead of thunking
             let callee_expr = convert_expression(
-                &Expression::Value(serde_json::Value::Object(callee.clone())),
+                &Expression::from_json(serde_json::Value::Object(callee.clone())),
                 context,
             );
             vec![callee_expr, JsExpr::Literal(JsLiteral::Boolean(true))]
@@ -781,7 +782,7 @@ fn build_fallback_args(
             // General case: thunk the (transformed) expression so reactive reads
             // inside a complex default (`x = a + b`) are wrapped. M-068.
             let default_expr =
-                convert_expression(&Expression::Value(default_value.clone()), context);
+                convert_expression(&Expression::from_json(default_value.clone()), context);
             let default_expr = apply_transforms_to_expression(&default_expr, context);
             vec![
                 b::thunk(&context.arena, default_expr),
@@ -993,7 +994,7 @@ mod tests {
 
     #[test]
     fn test_get_snippet_name() {
-        let expr = Expression::Value(serde_json::json!({
+        let expr = Expression::from_json(serde_json::json!({
             "type": "Identifier",
             "name": "greeting"
         }));
@@ -1003,7 +1004,7 @@ mod tests {
 
     #[test]
     fn test_get_snippet_name_fallback() {
-        let expr = Expression::Value(serde_json::json!({
+        let expr = Expression::from_json(serde_json::json!({
             "type": "CallExpression"
         }));
 

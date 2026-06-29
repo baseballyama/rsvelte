@@ -1214,7 +1214,7 @@ impl Parser<'_> {
 
                 // Create an empty ExpressionTag value
                 let expression = if self.options.skip_expression_loc {
-                    Expression::Value(serde_json::json!({
+                    Expression::from_json(serde_json::json!({
                         "type": "Identifier",
                         "name": "",
                         "start": expr_start,
@@ -1223,7 +1223,7 @@ impl Parser<'_> {
                     }))
                 } else {
                     let loc = self.get_location(expr_start);
-                    Expression::Value(serde_json::json!({
+                    Expression::from_json(serde_json::json!({
                         "type": "Identifier",
                         "name": "",
                         "start": expr_start,

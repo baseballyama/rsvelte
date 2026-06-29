@@ -64,7 +64,6 @@ pub fn visit_script_expr(
                 visit_script(script_expr.as_json(), context)
             }
         }
-        Expression::Value(_) => visit_script(script_expr.as_json(), context),
         Expression::Lazy { .. } => panic!("Expression::Lazy must be resolved before analysis"),
     }
 }

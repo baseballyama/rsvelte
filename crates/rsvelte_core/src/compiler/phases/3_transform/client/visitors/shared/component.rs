@@ -1213,7 +1213,7 @@ fn get_original_expression(value: &AttributeValue) -> crate::ast::js::Expression
                 expr_tag.expression.clone()
             } else {
                 // Text - create a dummy literal expression
-                crate::ast::js::Expression::Value(serde_json::json!({
+                crate::ast::js::Expression::from_json(serde_json::json!({
                     "type": "Literal",
                     "value": ""
                 }))
@@ -1221,7 +1221,7 @@ fn get_original_expression(value: &AttributeValue) -> crate::ast::js::Expression
         }
         _ => {
             // Other cases - create a dummy literal expression
-            crate::ast::js::Expression::Value(serde_json::json!({
+            crate::ast::js::Expression::from_json(serde_json::json!({
                 "type": "Literal",
                 "value": ""
             }))

@@ -89,11 +89,15 @@ pub struct ParseArena {
     /// to ParseArena without changing public APIs so that Phase 1+ have a
     /// place to allocate from.
     bump: Bump,
-    /// Side table of `leadingComments`/`trailingComments` keyed by node `start`.
-    /// Populated by `JsNode::from_value` when `capture_comments` is set (the
-    /// `parse()` path), and read back by `JsNode`'s `Serialize` impl so AST
-    /// output stays comment-lossless without storing comments on every node.
-    node_comments: RefCell<FxHashMap<u32, NodeComments>>,
+    /// Side table of `leadingComments`/`trailingComments` keyed by a node's
+    /// `(start, end)` span. Populated by `JsNode::from_value` when
+    /// `capture_comments` is set (the `parse()` path), and read back by
+    /// `JsNode`'s `Serialize` impl so AST output stays comment-lossless without
+    /// storing comments on every node. The key includes `end` because a node and
+    /// its first child can share a `start` (e.g. a `SequenceExpression` and its
+    /// first element) — keying on `start` alone would leak the comment onto the
+    /// inner node too.
+    node_comments: RefCell<FxHashMap<(u32, u32), NodeComments>>,
     /// When `true`, `from_value` records node comments into `node_comments`.
     /// Off by default (compile path) so the hot codegen path never builds the
     /// table; `parse()` turns it on.
@@ -142,12 +146,13 @@ impl ParseArena {
         self.capture_comments.get()
     }
 
-    /// Record the comments attached to the node at `start` (no-op when capture
-    /// is disabled or both arrays are absent).
+    /// Record the comments attached to the node at `(start, end)` (no-op when
+    /// capture is disabled or both arrays are absent).
     #[inline]
     pub fn record_node_comments(
         &self,
         start: u32,
+        end: u32,
         leading: Option<Vec<serde_json::Value>>,
         trailing: Option<Vec<serde_json::Value>>,
     ) {
@@ -156,7 +161,7 @@ impl ParseArena {
         }
         self.node_comments
             .borrow_mut()
-            .insert(start, (leading, trailing));
+            .insert((start, end), (leading, trailing));
     }
 
     /// Whether any node comments have been recorded (cheap guard for the
@@ -166,10 +171,10 @@ impl ParseArena {
         !self.node_comments.borrow().is_empty()
     }
 
-    /// Look up the comments recorded for the node at `start`, if any.
+    /// Look up the comments recorded for the node spanning `(start, end)`, if any.
     #[inline]
-    pub fn node_comments(&self, start: u32) -> Option<NodeComments> {
-        self.node_comments.borrow().get(&start).cloned()
+    pub fn node_comments(&self, start: u32, end: u32) -> Option<NodeComments> {
+        self.node_comments.borrow().get(&(start, end)).cloned()
     }
 
     /// Access the bump allocator used by Phase 1+ of the bumpalo migration.

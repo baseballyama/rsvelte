@@ -177,7 +177,6 @@ fn expr_only_uses_params(
 ) -> bool {
     match expr {
         Expression::Typed(te) => expression_only_uses_params_node(&te.node, param_names, context),
-        Expression::Value(v) => expression_only_uses_params(v, param_names, context),
         Expression::Lazy { .. } => panic!("Expression::Lazy must be resolved before analysis"),
     }
 }
@@ -200,7 +199,6 @@ fn check_pattern_defaults_for_expr(
         Expression::Typed(te) => {
             check_pattern_defaults_hoistable_node(&te.node, param_names, context)
         }
-        Expression::Value(v) => check_pattern_defaults_hoistable(v, param_names, context),
         Expression::Lazy { .. } => panic!("Expression::Lazy must be resolved before analysis"),
     }
 }
@@ -511,22 +509,6 @@ fn check_params_hoistable(
                 }
                 _ => {}
             },
-            Expression::Value(v) => {
-                if let Some(obj) = v.as_object() {
-                    let param_type = obj.get("type").and_then(|v| v.as_str());
-                    if param_type == Some("AssignmentPattern")
-                        && let Some(right) = obj.get("right")
-                        && !expression_only_uses_params(right, param_names, context)
-                    {
-                        return false;
-                    } else if (param_type == Some("ObjectPattern")
-                        || param_type == Some("ArrayPattern"))
-                        && !check_pattern_defaults_hoistable(v, param_names, context)
-                    {
-                        return false;
-                    }
-                }
-            }
             Expression::Lazy { .. } => panic!("Expression::Lazy must be resolved before analysis"),
         }
     }

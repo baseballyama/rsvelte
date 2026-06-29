@@ -469,7 +469,7 @@ fn parse_custom_element_object(
                     "extend" => {
                         // Store the extend expression
                         if let Some(extend_expr) = prop.get("value") {
-                            extend = Some(Expression::Value(extend_expr.clone()));
+                            extend = Some(Expression::from_json(extend_expr.clone()));
                         }
                     }
                     _ => {}

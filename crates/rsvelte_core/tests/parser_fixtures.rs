@@ -135,6 +135,9 @@ fn run_fixture_test(sample_dir: &Path, modern: bool, skip_tests: &[&str]) -> Opt
     let options = ParseOptions {
         modern: true, // Always parse in modern mode first
         loose,
+        // The AST-output comparison expects `leadingComments`/`trailingComments`
+        // preserved on nodes (now carried via the arena comment side table).
+        capture_comments: true,
         ..Default::default()
     };
 

@@ -83,7 +83,6 @@ where
 fn expr_to_node(expr: Expression) -> JsNode {
     match expr {
         Expression::Typed(te) => te.node,
-        Expression::Value(v) => JsNode::from_value(v),
         Expression::Lazy { .. } => {
             panic!("Expression::Lazy must be resolved before converting to JsNode")
         }
@@ -1495,7 +1494,7 @@ pub fn parse_destructuring_pattern(
                     adjusted_offset,
                     line_offsets,
                 );
-                return Some(Expression::Value(pattern_json));
+                return Some(Expression::from_json(pattern_json));
             }
 
             None
@@ -2004,7 +2003,7 @@ fn parse_expression_with_typescript(
                             );
                         }
                     }
-                    expr = Expression::Value(json_val);
+                    expr = Expression::from_json(json_val);
                 }
             }
 
@@ -2481,7 +2480,7 @@ fn convert_formal_parameter_with_remap(
         }
     }
 
-    Expression::Value(val)
+    Expression::from_json(val)
 }
 
 /// Convert oxc FormalParameter to our Expression format with type annotations.
@@ -2525,7 +2524,7 @@ fn convert_formal_parameter(
         // Include the parameter itself so remove_typescript_nodes can extract it
         let inner = convert_formal_parameter_inner(arena, param, adjusted_offset, line_offsets);
         obj.insert("parameter".to_string(), inner.as_json().clone());
-        return Expression::Value(Value::Object(obj));
+        return Expression::from_json(Value::Object(obj));
     }
 
     convert_formal_parameter_inner(arena, param, adjusted_offset, line_offsets)
@@ -2564,7 +2563,7 @@ fn convert_formal_parameter_inner(
                     convert_type_annotation_adjusted(type_ann, adjusted_offset, line_offsets);
                 obj.insert("typeAnnotation".to_string(), type_ann_obj);
 
-                Expression::Value(Value::Object(obj))
+                Expression::from_json(Value::Object(obj))
             } else {
                 let end = adjusted_offset + id.span.end as usize;
                 create_identifier(name, start, end, line_offsets)
@@ -2641,7 +2640,7 @@ fn attach_param_type_annotation(
             convert_type_annotation_adjusted(type_ann, adjusted_offset, line_offsets);
         obj.insert("typeAnnotation".to_string(), type_ann_obj);
     }
-    Expression::Value(json)
+    Expression::from_json(json)
 }
 
 /// Convert oxc ObjectPattern to our Expression format (for function parameters).
@@ -10268,13 +10267,9 @@ pub fn parse_binding_pattern(
                 ));
             }
 
-            return Ok(Expression::Value(convert_binding_pattern_with_adjustment(
-                arena,
-                &decl.id,
-                offset,
-                4,
-                line_offsets,
-            )));
+            return Ok(Expression::from_json(
+                convert_binding_pattern_with_adjustment(arena, &decl.id, offset, 4, line_offsets),
+            ));
         }
 
         // Fallback: return as simple identifier

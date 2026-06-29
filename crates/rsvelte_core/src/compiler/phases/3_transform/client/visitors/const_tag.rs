@@ -920,7 +920,7 @@ fn parse_variable_declaration(expr: &Expression) -> Option<ParsedDeclaration> {
 
                 if id_type == "Identifier" {
                     let name = id_obj.get("name")?.as_str()?.to_string();
-                    let init_expr = Expression::Value(init.clone());
+                    let init_expr = Expression::from_json(init.clone());
                     Some(ParsedDeclaration {
                         id_name: name,
                         init_expr,
@@ -929,7 +929,7 @@ fn parse_variable_declaration(expr: &Expression) -> Option<ParsedDeclaration> {
                     })
                 } else {
                     // Destructuring pattern
-                    let init_expr = Expression::Value(init.clone());
+                    let init_expr = Expression::from_json(init.clone());
                     Some(ParsedDeclaration {
                         id_name: String::new(),
                         init_expr,
@@ -948,7 +948,7 @@ fn parse_variable_declaration(expr: &Expression) -> Option<ParsedDeclaration> {
 
                 if left_type == "Identifier" {
                     let name = left_obj.get("name")?.as_str()?.to_string();
-                    let init_expr = Expression::Value(right.clone());
+                    let init_expr = Expression::from_json(right.clone());
                     Some(ParsedDeclaration {
                         id_name: name,
                         init_expr,
@@ -957,7 +957,7 @@ fn parse_variable_declaration(expr: &Expression) -> Option<ParsedDeclaration> {
                     })
                 } else {
                     // Destructuring pattern
-                    let init_expr = Expression::Value(right.clone());
+                    let init_expr = Expression::from_json(right.clone());
                     Some(ParsedDeclaration {
                         id_name: String::new(),
                         init_expr,
@@ -991,7 +991,7 @@ mod tests {
             }]
         });
 
-        let expr = Expression::Value(json);
+        let expr = Expression::from_json(json);
         let result = parse_variable_declaration(&expr);
 
         assert!(result.is_some());
@@ -1025,7 +1025,7 @@ mod tests {
             }]
         });
 
-        let expr = Expression::Value(json);
+        let expr = Expression::from_json(json);
         let result = parse_variable_declaration(&expr);
 
         assert!(result.is_some());

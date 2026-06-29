@@ -138,6 +138,9 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
             .as_ref()
             .and_then(|o| o.skip_expression_loc)
             .unwrap_or(false),
+        // The public AST API mirrors svelte/compiler `parse()`, which keeps
+        // `leadingComments`/`trailingComments` on nodes.
+        capture_comments: true,
         ..ParseOptions::default()
     };
     match rust_parse(&source, parse_options) {

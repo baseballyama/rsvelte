@@ -116,6 +116,12 @@ pub struct ParseOptions {
     /// leaves such blocks untouched, matching prettier-plugin-svelte. Also
     /// implied by `lenient_script` (lint mode).
     pub skip_non_css_lang_style: bool,
+    /// When true, the parse arena records each node's
+    /// `leadingComments`/`trailingComments` so they survive the typed AST
+    /// round-trip in `parse()` output (the public AST API / parser fixtures set
+    /// this). The compiler leaves it `false`: codegen strips comments, and
+    /// keeping the side table off avoids any per-node recording on the hot path.
+    pub capture_comments: bool,
 }
 
 /// Extended parse options with filename (separate to keep ParseOptions Copy).
@@ -134,6 +140,9 @@ pub fn parse(source: &str, options: ParseOptions) -> ParseResult<Root> {
     // when this parse() is invoked from within a `compile()` that has
     // already installed its own arena.
     //
+    if options.capture_comments {
+        parser.arena.set_capture_comments(true);
+    }
     // SAFETY: `parser.arena` lives until `parser` is dropped, which
     // happens after `_guard`.
     let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&parser.arena as *const _) };
@@ -150,6 +159,9 @@ pub fn parse(source: &str, options: ParseOptions) -> ParseResult<Root> {
 pub fn parse_script_ts(source: &str, options: ParseOptions) -> ParseResult<Root> {
     let mut parser = Parser::new(source, options);
     parser.script_ts = true;
+    if options.capture_comments {
+        parser.arena.set_capture_comments(true);
+    }
     // SAFETY: see `parse`.
     let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&parser.arena as *const _) };
     parser.parse()
@@ -163,6 +175,9 @@ pub fn parse_reuse<'a>(
     options: ParseOptions,
 ) -> ParseResult<Root> {
     parser.reset(source, options);
+    if options.capture_comments {
+        parser.arena.set_capture_comments(true);
+    }
     // SAFETY: `parser.arena` lives until the caller drops `parser`,
     // which can only happen after this function returns.
     let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&parser.arena as *const _) };

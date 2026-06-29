@@ -252,7 +252,8 @@ impl Parser<'_> {
                     "end".to_string(),
                     serde_json::Value::Number(empty_pos.into()),
                 );
-                let declaration_expr = Expression::Value(serde_json::Value::Object(declaration));
+                let declaration_expr =
+                    Expression::from_json(serde_json::Value::Object(declaration));
                 return Ok(Some(TemplateNode::DeclarationTag(Box::new(
                     DeclarationTag {
                         start: start as u32,
@@ -320,7 +321,7 @@ impl Parser<'_> {
                 DeclarationTag {
                     start: start as u32,
                     end: self.index as u32,
-                    declaration: Expression::Value(serde_json::Value::Object(declaration)),
+                    declaration: Expression::from_json(serde_json::Value::Object(declaration)),
                     metadata: Default::default(),
                 },
             ))));
@@ -491,7 +492,7 @@ impl Parser<'_> {
         TemplateNode::DeclarationTag(Box::new(DeclarationTag {
             start: start as u32,
             end: self.index as u32,
-            declaration: Expression::Value(Value::Object(declaration)),
+            declaration: Expression::from_json(Value::Object(declaration)),
             metadata: Default::default(),
         }))
     }
@@ -2316,7 +2317,7 @@ impl Parser<'_> {
                             {
                                 expressions
                                     .iter()
-                                    .map(|e| Expression::Value(e.clone()))
+                                    .map(|e| Expression::from_json(e.clone()))
                                     .collect()
                             } else {
                                 vec![expression]
@@ -2683,7 +2684,7 @@ fn build_empty_loose_declaration(
     TemplateNode::DeclarationTag(Box::new(DeclarationTag {
         start: start as u32,
         end: tag_end as u32,
-        declaration: Expression::Value(declaration),
+        declaration: Expression::from_json(declaration),
         metadata: Default::default(),
     }))
 }
@@ -2775,7 +2776,7 @@ fn build_kind_variable_declaration(
     );
     declaration.insert("end".to_string(), Value::Number((decl_end as i64).into()));
 
-    Expression::Value(Value::Object(declaration))
+    Expression::from_json(Value::Object(declaration))
 }
 
 fn build_const_variable_declaration(
@@ -2829,5 +2830,5 @@ fn build_const_variable_declaration(
     );
     declaration.insert("end".to_string(), Value::Number((decl_end as i64).into()));
 
-    Expression::Value(Value::Object(declaration))
+    Expression::from_json(Value::Object(declaration))
 }
