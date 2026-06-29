@@ -4377,6 +4377,33 @@ fn try_hug_mixed(
             return (result != whole).then_some((start, end, result));
         }
     }
+    // !hug_start && hug_end, multi-line body: the body has leading whitespace (so
+    // the open `>` stays on the open-tag line — not hug_start) but ends adjacent to
+    // the close tag (hug_end), and the body is already broken across lines. prettier
+    // defers the close tag's final `>` onto its own line at the element indent:
+    //   `  <picture …>`
+    //   `    …`
+    //   `  </picture></GroupSlot`
+    //   `>`
+    // (mirror of the hug_start branch above — `build_element_doc`'s hug_end-only
+    // case, whose trailing `softline, '>'` breaks when the element is multi-line).
+    // `close` is the simple `</tag>` here (hug_end ⇒ the last child is a non-text
+    // node directly before it); guard `!close.contains('\n')` so an already-deferred
+    // close is a no-op.
+    if adj_raw.is_none()
+        && raw.contains('\n')
+        && !body_hug_start // body starts with whitespace
+        && !body_not_hug_end // body ends adjacent to the close tag (hug_end)
+        && close.ends_with('>')
+        && !close.contains('\n')
+    {
+        let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+        let indent = out.get(line_start..s)?;
+        if indent.bytes().all(|b| b == b' ' || b == b'\t') {
+            let result = format!("{}\n{indent}>", &whole[..whole.len() - 1]);
+            return (result != whole).then_some((start, end, result));
+        }
+    }
     // When we have an adjusted raw (hug_open form), skip the standard early-return
     // for leading whitespace and jump directly to the `open.contains('\n')` handler.
     if adj_raw.is_none()
