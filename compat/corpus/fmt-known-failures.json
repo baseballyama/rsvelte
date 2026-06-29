@@ -32,7 +32,6 @@
 	"powertable/app/src/routes/examples/+layout.svelte",
 	"powertable/app/src/routes/examples/example4/+page.svelte",
 	"smelte/src/components/Ripple/Ripple.svelte",
-	"smelte/src/routes/components/index.svelte",
 	"smelte/src/routes/index.svelte",
 	"svar-core/svelte/demos/common/Index.svelte",
 	"svar-core/svelte/src/components/RichSelect.svelte",
