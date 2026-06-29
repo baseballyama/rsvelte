@@ -890,17 +890,10 @@ fn push_bare_expression(
         formatted
     };
 
-    // prettier-plugin-svelte wraps assignment expressions in block-header
-    // positions with parentheses to make intent clear:
-    //   `{#if a = 0}` → `{#if (a = 0)}`
-    //   `{#key c = 0}` → `{#key (c = 0)}`
-    // OXC formats `(a = 0);` as `a = 0;` (statement context strips parens),
-    // so we must re-add them when the expression is a top-level assignment.
-    let formatted = if block_header_expr_needs_parens(slice, options.typescript) {
-        format!("({formatted})")
-    } else {
-        formatted
-    };
+    // A top-level assignment in a block header (`{#if a = 0}` → `{#if (a = 0)}`)
+    // is wrapped in parens by `format_expr_core` itself (the same canonical
+    // one-pair rule it applies to mustache / attribute assignments), so no
+    // block-header-specific re-wrap is needed here.
 
     // prettier-plugin-svelte strips unnecessary outer parens from block-header
     // expressions: `{#if (b)}` → `{#if b}`, `{#each (c) as x}` → `{#each c as x}`.
@@ -915,40 +908,6 @@ fn push_bare_expression(
     Ok(edit_end)
 }
 
-/// Returns `true` when `expr_source` (trimmed) is a top-level assignment
-/// expression (`=`, `+=`, …) or a sequence expression (`a, b`). In block-header
-/// positions prettier-plugin-svelte always parenthesises both (`{#if (a = 0)}`,
-/// `{#if (a, b)}`), so the caller re-wraps the formatted result in `()` and the
-/// existing source parens are consumed by `widen_to_source_parens`.
-fn block_header_expr_needs_parens(expr_source: &str, typescript: bool) -> bool {
-    let allocator = Allocator::default();
-    let source_type = if typescript {
-        SourceType::ts()
-    } else {
-        SourceType::default()
-    };
-    let wrapped = format!("({expr_source});");
-    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
-        .with_options(formatter_parse_options())
-        .parse();
-    if !parser_ret.diagnostics.is_empty() {
-        return false;
-    }
-    let Some(oxc_ast::ast::Statement::ExpressionStatement(stmt)) = parser_ret.program.body.first()
-    else {
-        return false;
-    };
-    // Unwrap a single layer of ParenthesizedExpression (from our `(expr)` wrapper)
-    // and check whether the inner expression is an assignment. (Sequence
-    // expressions keep their parens via `is_top_sequence` in the shared
-    // expression formatter, so they must NOT be re-wrapped here — that would
-    // double them to `((a, b))`.)
-    let inner = match &stmt.expression {
-        oxc_ast::ast::Expression::ParenthesizedExpression(p) => &p.expression,
-        other => other,
-    };
-    matches!(inner, oxc_ast::ast::Expression::AssignmentExpression(_))
-}
 
 /// If the source has `(` immediately before `inner_start` (possibly with
 /// leading whitespace after a preceding keyword) and `)` immediately after
@@ -1815,11 +1774,22 @@ fn format_expr_core(
     // true for an `ExpressionStatement` parent), and prettier-plugin-svelte
     // keeps them — so `{((a = 1), '')}` must stay parenthesized. Stripping
     // them below would wrongly emit `{(a = 1), ''}` (#799).
-    let is_top_sequence = !use_const_wrapper
+    //
+    // A top-level ASSIGNMENT expression behaves identically: in expression
+    // position (mustache / attribute value / block header) prettier-plugin-svelte
+    // always wraps it in exactly one pair — `{x = 5}` → `{(x = 5)}`,
+    // `{(y = [])}` → `{(y = [])}` — whereas OXC at statement position strips the
+    // parens. Treat both the same way: strip every redundant outer pair, then
+    // re-wrap once.
+    let is_top_paren_wrapped = !use_const_wrapper
         && matches!(
             parser_ret.program.body.first(),
             Some(oxc_ast::ast::Statement::ExpressionStatement(stmt))
-                if matches!(stmt.expression, oxc_ast::ast::Expression::SequenceExpression(_))
+                if matches!(
+                    stmt.expression,
+                    oxc_ast::ast::Expression::SequenceExpression(_)
+                        | oxc_ast::ast::Expression::AssignmentExpression(_)
+                )
         );
 
     // Detect an object literal that is the HEAD of a larger expression — the
@@ -1888,7 +1858,7 @@ fn format_expr_core(
         // top-level sequence (comma) expression in both mustache/attribute values
         // AND block headers (`{#if (a, b)}`). Normalise to exactly one pair by
         // stripping all redundant outer pairs then re-wrapping once. (#799)
-        if is_top_sequence {
+        if is_top_paren_wrapped {
             let mut inner = s.trim();
             loop {
                 let stripped = strip_outer_parens(inner).trim();
