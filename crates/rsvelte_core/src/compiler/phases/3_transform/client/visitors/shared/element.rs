@@ -375,6 +375,13 @@ fn walk_metadata_flags(
             if let Some(t) = obj.get("type").and_then(|t| t.as_str()) {
                 match t {
                     "CallExpression" => *has_call = true,
+                    // A spread `...x` is treated like `...x.values()` — it may
+                    // invoke a getter/iterator — so it counts as a call. Mirrors
+                    // upstream `2-analyze/visitors/SpreadElement.js`, which sets
+                    // `has_call = true`. This makes a legacy attribute value with a
+                    // spread (`{ ...props }`) get the `(deps, $.untrack(...))`
+                    // dependency wrapping from `build_expression`.
+                    "SpreadElement" => *has_call = true,
                     "MemberExpression" => *has_member = true,
                     "AssignmentExpression" | "UpdateExpression" => *has_assignment = true,
                     "AwaitExpression" => *has_await = true,
