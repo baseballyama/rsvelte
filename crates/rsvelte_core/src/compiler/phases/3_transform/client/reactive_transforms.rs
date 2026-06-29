@@ -682,7 +682,20 @@ pub(super) fn transform_reactive_statement(
         // `callback(args)` become `callback()(args)` (double-invoke for prop getters).
         // This must happen before transform_prop_assignments to avoid double-wrapping
         // assignment-generated calls like `callback = value` → `callback(value)`.
-        let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
+        //
+        // Route through the scope-aware AST wrapper first so a prop name used as a
+        // local binding inside a nested function — e.g. `$: if (cond) { items.map((p)
+        // => { const [x, y] = f(); … }) }` where `x`/`y` shadow props — is neither
+        // wrapped in the destructuring binding position (`[x(), y()]`, invalid) nor
+        // in the shadowed reads. Falls back to the scope-unaware text path only on
+        // parse failure (`None`); an empty-but-parsed result returns the source
+        // unchanged.
+        let temp = super::prop_source_reads_ast::wrap_prop_source_reads_ast(
+            &temp,
+            prop_assignment_transform_vars,
+            &[],
+        )
+        .unwrap_or_else(|| transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars));
         // Then transform prop compound assignments (e.g., `count += 1` → `count(count() + 1)`)
         let temp = transform_prop_assignments(
             &temp,

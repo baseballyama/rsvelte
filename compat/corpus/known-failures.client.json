@@ -3,7 +3,6 @@
 	"flowbite-svelte/src/routes/admin-dashboard/(sidebar)/crud/users/+page.svelte",
 	"layercake/src/lib/LayerCake.svelte",
 	"layerchart/packages/layerchart/src/lib/components/ChartContext.svelte",
-	"layerchart/packages/layerchart/src/lib/components/Highlight.svelte",
 	"layerchart/packages/layerchart/src/lib/components/Points.svelte",
 	"layerchart/packages/layerchart/src/lib/components/charts/AreaChart.svelte",
 	"layerchart/packages/layerchart/src/lib/components/charts/BarChart.svelte",

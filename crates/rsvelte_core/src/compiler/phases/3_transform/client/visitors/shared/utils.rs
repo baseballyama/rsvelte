@@ -159,6 +159,13 @@ fn register_block_local_vars(
                         .as_ref()
                         .map(|init_expr| classify_expr(arena.get_expr(*init_expr)));
                     scope.add_local_var(name.to_string(), init_kind);
+                } else {
+                    // Destructuring declarations (`const [x, y] = …` / `const { a } = …`)
+                    // also bind locals that shadow outer transforms. Register every
+                    // bound name so neither the pattern targets nor later reads are
+                    // wrongly wrapped — otherwise a prop/derived `x` leaks its getter
+                    // into the pattern, producing invalid `const [x(), y()] = …`.
+                    extract_pattern_names_to_scope(&decl.id, scope);
                 }
             }
         }

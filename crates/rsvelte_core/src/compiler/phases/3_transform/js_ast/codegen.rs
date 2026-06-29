@@ -1512,8 +1512,14 @@ impl<'a> JsCodegen<'a> {
     /// - Assignment or conditional sub-expressions
     fn logical_operand_needs_parens(&self, operand: &JsExpr, parent_op: &JsLogicalOp) -> bool {
         match operand {
-            // Assignment and conditional expressions always need parens inside logical
-            JsExpr::Assignment(_) | JsExpr::Conditional(_) => true,
+            // Assignment and conditional expressions always need parens inside logical.
+            // Arrow functions and `yield` bind LOWER than `&&`/`||`/`??`, so an arrow
+            // operand (`a && (e) => …`) would otherwise mis-parse — wrap it:
+            // `a && ((e) => …)`. (Function *expressions* bind tighter, so they don't.)
+            JsExpr::Assignment(_)
+            | JsExpr::Conditional(_)
+            | JsExpr::Arrow(_)
+            | JsExpr::Yield(_) => true,
             JsExpr::Logical(inner) => {
                 let is_parent_nullish = matches!(parent_op, JsLogicalOp::NullishCoalescing);
                 let is_inner_nullish = matches!(inner.operator, JsLogicalOp::NullishCoalescing);
