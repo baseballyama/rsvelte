@@ -13,7 +13,7 @@ keywords = ["svelte", "compiler", "esrap", "printer"]
 crate-type = ["rlib"]
 
 [dependencies]
-oxc_allocator = "0.137"
+oxc_allocator = "0.138"
 oxc_ast = "0.137"
 oxc_span = "0.137"
 oxc_syntax = "0.137"
