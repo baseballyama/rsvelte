@@ -2,9 +2,7 @@
 	"flowbite-svelte/src/lib/datepicker/Datepicker.svelte",
 	"flowbite-svelte/src/routes/admin-dashboard/(sidebar)/crud/products/+page.svelte",
 	"flowbite-svelte/src/routes/admin-dashboard/(sidebar)/crud/users/+page.svelte",
-	"flowbite-svelte/src/routes/docs-examples/forms/file-input/Dropzone.svelte",
 	"layercake/src/lib/LayerCake.svelte",
-	"layerchart/packages/layerchart/src/lib/components/Area.svelte",
 	"layerchart/packages/layerchart/src/lib/components/ChartContext.svelte",
 	"layerchart/packages/layerchart/src/lib/components/Highlight.svelte",
 	"layerchart/packages/layerchart/src/lib/components/Points.svelte",
@@ -31,7 +29,5 @@
 	"svelte-ux/packages/svelte-ux/src/lib/components/MultiSelect.svelte",
 	"svelte-ux/packages/svelte-ux/src/lib/components/SelectField.svelte",
 	"svelte-ux/packages/svelte-ux/src/lib/components/Tooltip.svelte",
-	"svelte/packages/svelte/tests/validator/samples/store-rune-conflic-from-props/input.svelte",
-	"sveltestrap/src/Input/Input.svelte",
 	"svelthree/src/lib/components/Object3D.svelte"
 ]
