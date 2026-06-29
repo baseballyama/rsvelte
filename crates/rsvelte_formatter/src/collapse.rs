@@ -4349,6 +4349,34 @@ fn try_hug_mixed(
     } else {
         None
     };
+    // hug_start && !hug_end, multi-line body: the content's first child is adjacent
+    // to `>` (hug_start) but the body ends with whitespace before `</tag>` (not
+    // hug_end) and the source kept the body broken across lines. prettier moves the
+    // open `>` onto its own indented line so it hugs the first content word, while
+    // the trailing whitespace keeps a normal close tag —
+    //   `<label …attrs`          (or a multi-line wrapped open tag whose `>` is
+    //   `  >{label}`              dropped/glued — either way the `>` lands here)
+    //   `  <slot />`
+    //   `</label>`
+    // rsvelte previously fell through to the early-return below (raw ends with ws),
+    // leaving `…attrs>{label}` glued. Mirror `build_element_doc`'s hug_start-only
+    // case (`children.rs`) with a string edit. Inline elements only (block elements
+    // already returned None above). `onb = open[..-1].trim_end()` exposes the real
+    // last attribute line whether the open tag was single-line or wrapped.
+    if adj_raw.is_none()
+        && raw.contains('\n')
+        && !raw.starts_with([' ', '\t', '\r', '\n']) // hug_start
+        && raw.ends_with([' ', '\t', '\r', '\n']) // !hug_end
+    {
+        let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+        let indent = out.get(line_start..s)?;
+        if indent.bytes().all(|b| b == b' ' || b == b'\t') {
+            let inner_indent = format!("{indent}{indent_unit_hm}");
+            let onb = open[..open.len() - 1].trim_end();
+            let result = format!("{onb}\n{inner_indent}>{raw}{close}");
+            return (result != whole).then_some((start, end, result));
+        }
+    }
     // When we have an adjusted raw (hug_open form), skip the standard early-return
     // for leading whitespace and jump directly to the `open.contains('\n')` handler.
     if adj_raw.is_none()
@@ -5655,6 +5683,10 @@ fn is_inline_node(node: &TemplateNode) -> bool {
         | TemplateNode::ConstTag(_)
         | TemplateNode::DeclarationTag(_)
         | TemplateNode::Comment(_)
+        // `<slot>` is a `display:contents` element — prettier treats it as inline
+        // for hug/layout purposes (like a component), so a `<slot>` child does not
+        // disqualify its parent from the inline hug path.
+        | TemplateNode::SlotElement(_)
         | TemplateNode::Component(_) => true,
         TemplateNode::RegularElement(e) => !is_block_display(e.name.as_str()),
         _ => false,
