@@ -1822,6 +1822,21 @@ fn format_expr_core(
                 if matches!(stmt.expression, oxc_ast::ast::Expression::SequenceExpression(_))
         );
 
+    // Detect an object literal that is the HEAD of a larger expression — the
+    // object of a member access or callee of a call (`{ … }[key]`, `{ … }.foo`,
+    // `{ … }()`). OXC parenthesizes the leading object because at statement
+    // position a bare `{` would start a block, so it emits `({ … })[key]`. In a
+    // mustache/attribute value the expression is in expression position, so
+    // prettier-plugin-svelte keeps no parens (`{ … }[key]`). `strip_outer_parens`
+    // can't help here because the formatted string ends with `]`/`.`/`)` of the
+    // postfix, not the wrapper `)`. Flag it so the leading pair is stripped below.
+    let leading_object_head = !use_const_wrapper
+        && matches!(
+            parser_ret.program.body.first(),
+            Some(oxc_ast::ast::Statement::ExpressionStatement(stmt))
+                if expr_has_object_head(&stmt.expression)
+        );
+
     let mut js = options.js.clone();
     // Compensate for the const-wrapper prefix: tell OXC the line is `prefix_len`
     // characters wider than the target so its break decision is based on the
@@ -1883,6 +1898,10 @@ fn format_expr_core(
                 inner = stripped;
             }
             format!("({inner})")
+        } else if leading_object_head {
+            // Strip the leading `( … )` pair OXC wrapped around the head object,
+            // keeping the postfix (`[key]` / `.foo` / `( … )`) verbatim.
+            strip_leading_paren_pair(s).unwrap_or_else(|| s.to_string())
         } else {
             strip_outer_parens(s).trim().to_string()
         }
@@ -2753,6 +2772,103 @@ fn light_normalize_pattern(src: &str) -> String {
     out
 }
 
+/// Returns `true` when `expr` is a member access or call whose left-most leaf
+/// (walking down `.object` / `.callee`) is an object literal — i.e. the shape
+/// `{ … }[key]` / `{ … }.foo` / `{ … }()` that OXC parenthesizes at statement
+/// position but prettier keeps bare in expression position. A bare object (with
+/// no postfix) returns `false`: that case is handled by `strip_outer_parens`.
+fn expr_has_object_head(expr: &oxc_ast::ast::Expression) -> bool {
+    use oxc_ast::ast::{ChainElement, Expression as E};
+    // The top node must be a postfix wrapper, not a bare object.
+    let mut cur = match expr {
+        E::ComputedMemberExpression(_)
+        | E::StaticMemberExpression(_)
+        | E::PrivateFieldExpression(_)
+        | E::CallExpression(_)
+        | E::TaggedTemplateExpression(_)
+        | E::ChainExpression(_) => expr,
+        _ => return false,
+    };
+    loop {
+        cur = match cur {
+            E::ObjectExpression(_) => return true,
+            E::ComputedMemberExpression(m) => &m.object,
+            E::StaticMemberExpression(m) => &m.object,
+            E::PrivateFieldExpression(m) => &m.object,
+            E::CallExpression(c) => &c.callee,
+            E::TaggedTemplateExpression(t) => &t.tag,
+            E::ChainExpression(ch) => match &ch.expression {
+                ChainElement::CallExpression(c) => &c.callee,
+                ChainElement::ComputedMemberExpression(m) => &m.object,
+                ChainElement::StaticMemberExpression(m) => &m.object,
+                ChainElement::PrivateFieldExpression(m) => &m.object,
+                _ => return false,
+            },
+            _ => return false,
+        };
+    }
+}
+
+/// Strips the first `( … )` pair from `s`, keeping everything after the matched
+/// close paren verbatim. Returns `None` when `s` doesn't start with `(` or the
+/// paren is unbalanced. Paren scanning skips string/template literals and
+/// `//` / `/* */` comments so a `)` inside them isn't mistaken for the match.
+fn strip_leading_paren_pair(s: &str) -> Option<String> {
+    let t = s.trim_start();
+    if !t.starts_with('(') {
+        return None;
+    }
+    let chars: Vec<char> = t.chars().collect();
+    let mut depth: i32 = 0;
+    let mut i = 0;
+    let mut in_string: Option<char> = None;
+    let mut close: Option<usize> = None;
+    while i < chars.len() {
+        let c = chars[i];
+        match in_string {
+            Some(q) => {
+                if c == '\\' {
+                    i += 2;
+                    continue;
+                } else if c == q {
+                    in_string = None;
+                }
+            }
+            None => match c {
+                '"' | '\'' | '`' => in_string = Some(c),
+                '/' if chars.get(i + 1) == Some(&'/') => {
+                    while i < chars.len() && chars[i] != '\n' {
+                        i += 1;
+                    }
+                    continue;
+                }
+                '/' if chars.get(i + 1) == Some(&'*') => {
+                    i += 2;
+                    while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+                        i += 1;
+                    }
+                    i += 2;
+                    continue;
+                }
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close = Some(i);
+                        break;
+                    }
+                }
+                _ => {}
+            },
+        }
+        i += 1;
+    }
+    let close = close?;
+    let inner: String = chars[1..close].iter().collect();
+    let rest: String = chars[close + 1..].iter().collect();
+    Some(format!("{}{}", inner.trim(), rest))
+}
+
 fn strip_outer_parens(s: &str) -> &str {
     let trimmed = s.trim();
     let Some(inner) = trimmed.strip_prefix('(').and_then(|s| s.strip_suffix(')')) else {
@@ -3234,6 +3350,32 @@ mod tests {
         // Genuinely unbalanced parens are still rejected.
         assert!(!outer_parens_match("foo)"));
         assert!(!outer_parens_match("a) + (b"));
+    }
+
+    #[test]
+    fn strip_leading_paren_pair_keeps_postfix() {
+        // `({...})[size]` → `{...}[size]`
+        assert_eq!(
+            strip_leading_paren_pair("({ a: 1 })[size]").as_deref(),
+            Some("{ a: 1 }[size]")
+        );
+        // `({...}).foo` → `{...}.foo`
+        assert_eq!(
+            strip_leading_paren_pair("({ a: 1 }).foo").as_deref(),
+            Some("{ a: 1 }.foo")
+        );
+        // multi-line object head, postfix preserved
+        assert_eq!(
+            strip_leading_paren_pair("({\n  a: 1,\n})[k]").as_deref(),
+            Some("{\n  a: 1,\n}[k]")
+        );
+        // a `)` in a comment must not be taken as the match
+        assert_eq!(
+            strip_leading_paren_pair("({\n  // 1.) x\n  a: 1,\n})[k]").as_deref(),
+            Some("{\n  // 1.) x\n  a: 1,\n}[k]")
+        );
+        // not starting with `(`
+        assert_eq!(strip_leading_paren_pair("{ a: 1 }[k]"), None);
     }
 
     #[test]

@@ -71,13 +71,11 @@
 	"svelte-table/example/example6/ContactButtonComponent.svelte",
 	"svelte-table/src/SvelteTable.svelte",
 	"svelte-ux/packages/svelte-ux/src/lib/components/ApiDocs.svelte",
-	"svelte-ux/packages/svelte-ux/src/lib/components/Checkbox.svelte",
 	"svelte-ux/packages/svelte-ux/src/lib/components/Code.svelte",
 	"svelte-ux/packages/svelte-ux/src/lib/components/Collapse.svelte",
 	"svelte-ux/packages/svelte-ux/src/lib/components/DateRangeField.svelte",
 	"svelte-ux/packages/svelte-ux/src/lib/components/MultiSelectField.svelte",
 	"svelte-ux/packages/svelte-ux/src/lib/components/ProgressCircle.svelte",
-	"svelte-ux/packages/svelte-ux/src/lib/components/Radio.svelte",
 	"svelte-ux/packages/svelte-ux/src/routes/+error.svelte",
 	"svelte-ux/packages/svelte-ux/src/routes/+page.svelte",
 	"svelte-ux/packages/svelte-ux/src/routes/docs/components/Gooey/+page.svelte",
@@ -86,6 +84,5 @@
 	"svelte-ux/packages/svelte-ux/src/routes/docs/components/Month/+page.svelte",
 	"svelte-ux/packages/svelte-ux/src/routes/docs/components/ResponsiveMenu/+page.svelte",
 	"svelte-ux/packages/svelte-ux/src/routes/docs/components/TextField/+page.svelte",
-	"svelte-ux/packages/svelte-ux/src/routes/docs/components/Timeline/+page.svelte",
 	"sveltestrap/src/Popover/Popover.stories.svelte"
 ]
