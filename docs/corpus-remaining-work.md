@@ -252,9 +252,10 @@ compiler-behaviour gaps; some are deep and regression-prone (a
 `derived-unowned`/`derived-map` two different ways), so each needs a careful
 upstream-mirrored fix with the corpus + fixture suites as the safety net.
 
-The remaining ids live in `compat/corpus/known-failures.json`. CI
-(`corpus-compat.yml`) fails only on entries NOT in that baseline, so every
-PR may only shrink the list, never grow it (ratchet).
+The remaining ids live in `compat/corpus/known-failures.client.json` (CSR) and
+`compat/corpus/known-failures.server.json` (SSR), tracked per target. CI
+(`corpus-compat.yml`) fails only on a `(id, target)` pair NOT in its baseline, so
+every PR may only shrink the lists, never grow them (ratchet).
 
 ## The loop (one cluster at a time)
 
@@ -387,6 +388,7 @@ map to be occurrence-positional, or fix at the printer level.
 
 ## Definition of done
 
-`compat/corpus/known-failures.json` is an empty array, `verify.mjs --strict`
-exits 0, and the corpus-compat workflow stays green across a svelte.dev pin
-bump (`auto-update-corpus.yml` PR) and a Svelte submodule bump.
+`compat/corpus/known-failures.client.json` and
+`compat/corpus/known-failures.server.json` are both empty arrays, `verify.mjs
+--strict` exits 0, and the corpus-compat workflow stays green across a svelte.dev
+pin bump (`auto-update-corpus.yml` PR) and a Svelte submodule bump.

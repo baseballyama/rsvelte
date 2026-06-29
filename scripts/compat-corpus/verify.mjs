@@ -13,12 +13,16 @@
  *
  * Writes compat/corpus/report.json.
  *
- * Ratchet baseline: compat/corpus/known-failures.json (checked in) lists
- * entry ids that are known-divergent. Verification exits non-zero only when
- * an entry NOT in the baseline fails (a regression) — known failures are
- * tolerated and burned down over time (see docs/corpus-remaining-work.md).
- * When previously-known failures now pass, a reminder to shrink the baseline
- * is printed (use --update-baseline to rewrite it from current results).
+ * Ratchet baselines (checked in), one per target so CSR and SSR are tracked
+ * independently:
+ *   - compat/corpus/known-failures.client.json  (CSR / client target)
+ *   - compat/corpus/known-failures.server.json  (SSR / server target)
+ * Each lists the entry ids whose output diverges for that target. Verification
+ * exits non-zero only when a (id, target) pair NOT in its baseline fails (a
+ * regression) — known failures are tolerated and burned down over time (see
+ * docs/corpus-remaining-work.md). When previously-known failures now pass, a
+ * reminder to shrink the relevant baseline is printed (use --update-baseline to
+ * rewrite both files from current results).
  *
  * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline] [--strict]
  */
@@ -40,13 +44,15 @@ const NO_FMT = args.includes('--no-fmt');
 const MAX_PRINT = Number(args[args.indexOf('--max-print') + 1] || 20);
 const UPDATE_BASELINE = args.includes('--update-baseline');
 const STRICT = args.includes('--strict'); // ignore the baseline: any failure fails
-// --baseline <path> selects an alternate ratchet file (default
-// known-failures.json). The corpus is a single unified set, so this is rarely
-// needed — kept for ad-hoc scoped runs.
-const BASELINE_PATH = path.resolve(
-	CORPUS,
-	args.indexOf('--baseline') !== -1 ? args[args.indexOf('--baseline') + 1] : 'known-failures.json',
-);
+// --baseline-client <path> / --baseline-server <path> select alternate ratchet
+// files (defaults: known-failures.{client,server}.json). The corpus is a single
+// unified set, so these are rarely needed — kept for ad-hoc scoped runs.
+function baselineArg(flag, fallback) {
+	const i = args.indexOf(flag);
+	return path.resolve(CORPUS, i !== -1 ? args[i + 1] : fallback);
+}
+const BASELINE_CLIENT = baselineArg('--baseline-client', 'known-failures.client.json');
+const BASELINE_SERVER = baselineArg('--baseline-server', 'known-failures.server.json');
 
 // ---- oxfmt normalization ---------------------------------------------------
 
@@ -185,30 +191,56 @@ console.log('\n[verify] results:');
 for (const [k, v] of Object.entries(counts)) console.log(`  ${k.padEnd(16)} ${v}`);
 console.log(`  report: ${path.relative(ROOT, path.join(CORPUS, 'report.json'))}`);
 
+// Partition failures by target so CSR (client) and SSR (server) ratchet
+// independently. Every failure detail carries a target (css mismatches are
+// client-only), so an entry that diverges on both targets lands in both sets.
+const failById = new Map(failures.map((f) => [f.id, f]));
+const clientFails = new Set();
+const serverFails = new Set();
+for (const f of failures) {
+	for (const d of f.details) {
+		if (d.target === 'client') clientFails.add(f.id);
+		else if (d.target === 'server') serverFails.add(f.id);
+	}
+}
+
 if (UPDATE_BASELINE) {
-	const baseline = failures.map((f) => f.id).sort();
-	fs.writeFileSync(BASELINE_PATH, JSON.stringify(baseline, null, '\t') + '\n');
-	console.log(`\n[verify] baseline updated: ${baseline.length} known failures -> ${path.relative(ROOT, BASELINE_PATH)}`);
+	const writeBaseline = (p, ids) => {
+		fs.writeFileSync(p, JSON.stringify([...ids].sort(), null, '\t') + '\n');
+		console.log(`[verify] baseline updated: ${ids.size} known failures -> ${path.relative(ROOT, p)}`);
+	};
+	console.log();
+	writeBaseline(BASELINE_CLIENT, clientFails);
+	writeBaseline(BASELINE_SERVER, serverFails);
 	process.exit(0);
 }
 
-const baseline = new Set(
-	!STRICT && fs.existsSync(BASELINE_PATH) ? JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8')) : []
-);
-const regressions = failures.filter((f) => !baseline.has(f.id));
-const failingIds = new Set(failures.map((f) => f.id));
-const fixedKnown = [...baseline].filter((id) => !failingIds.has(id));
+const loadBaseline = (p) =>
+	new Set(!STRICT && fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : []);
+const clientBaseline = loadBaseline(BASELINE_CLIENT);
+const serverBaseline = loadBaseline(BASELINE_SERVER);
 
-if (fixedKnown.length) {
-	console.log(`\n[verify] 🎉 ${fixedKnown.length} known failures now PASS — shrink the baseline:`);
+// A regression is a (id, target) pair failing while absent from that target's
+// baseline.
+const regressions = [];
+for (const id of clientFails) if (!clientBaseline.has(id)) regressions.push({ id, target: 'client' });
+for (const id of serverFails) if (!serverBaseline.has(id)) regressions.push({ id, target: 'server' });
+
+const fixedClient = [...clientBaseline].filter((id) => !clientFails.has(id));
+const fixedServer = [...serverBaseline].filter((id) => !serverFails.has(id));
+const fixedKnown = fixedClient.length + fixedServer.length;
+
+if (fixedKnown) {
+	console.log(`\n[verify] 🎉 ${fixedKnown} known failures now PASS (client ${fixedClient.length}, server ${fixedServer.length}) — shrink the baselines:`);
 	console.log('  node scripts/compat-corpus/verify.mjs --no-fmt --update-baseline');
 }
 
 if (regressions.length) {
 	console.log(`\n[verify] ❌ ${regressions.length} NEW failures (not in baseline); first ${Math.min(MAX_PRINT, regressions.length)}:`);
-	for (const f of regressions.slice(0, MAX_PRINT)) {
-		console.log(`  - ${f.id} [${f.verdict}]`);
-		for (const d of f.details.slice(0, 2)) {
+	for (const { id, target } of regressions.slice(0, MAX_PRINT)) {
+		const f = failById.get(id);
+		console.log(`  - ${id} [${f.verdict}] (${target})`);
+		for (const d of f.details.filter((d) => d.target === target).slice(0, 2)) {
 			console.log(`      ${d.target}/${d.kind} line ${d.line ?? ''}`);
 			if (d.expected !== undefined) console.log(`        expected: ${d.expected}`);
 			if (d.actual !== undefined) console.log(`        actual:   ${d.actual}`);
@@ -218,7 +250,7 @@ if (regressions.length) {
 }
 
 if (failures.length) {
-	console.log(`\n[verify] ✅ no regressions (${failures.length} known failures remain — see docs/corpus-remaining-work.md)`);
+	console.log(`\n[verify] ✅ no regressions (client ${clientFails.size}, server ${serverFails.size} known failures remain — see docs/corpus-remaining-work.md)`);
 } else {
 	console.log('\n[verify] ✅ all corpus outputs identical after normalization');
 }
