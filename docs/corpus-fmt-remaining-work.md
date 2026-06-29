@@ -47,8 +47,16 @@ needs one of:
     attribute indent overflows 80 but rsvelte keeps it on one line. The
     `render_directive_value_narrow` width math (`extra_lead = prefix -
     indent_width`) is deliberately loose to avoid over-breaking nested
-    object/array arguments; tightening it for the arrow-logical-body case is the
-    fix but trades against that tuned behavior. _(svelte-table)_
+    object/array arguments. **Empirically net-zero (2026-06-29, reverted):**
+    tightening to `extra_lead = prefix + 1` for arrows with no `{`/`[` body fixes
+    the single-line break decision (`(e) =>` now wraps) but the same tight width
+    then over-breaks a slightly-longer sibling body at `&&`
+    (`e.key === "Enter" &&\n handleClickCell(…)`) — the file fails differently, 0
+    net change. A single oxc width cannot model both the first-line overflow
+    decision AND the looser body-continuation budget. The real fix is a **two-stage
+    arrow split**: format the body at the loose width, and if the tight first-line
+    budget overflowed, force a manual `params =>\n  <loose-body>` split (keeping
+    the body's loose single line). _(svelte-table)_
   - *`<pre>` body reformat* — `reformat_pre_inner` re-indents a `{#if}` block
     marker inside `<pre>` to a tab where the oracle keeps the source's 2 spaces
     verbatim. The `<pre>` reformat subsystem is special-cased (tab element-lines /
