@@ -12,6 +12,10 @@
 //! source is passed through unchanged. Subsequent iterations will add
 //! CSS formatting and markup Doc IR composition.
 
+// Milestone-1 `printChildren` port: built and unit-tested, wired into the markup
+// printer in a follow-up (docs/fmt-layout-port-plan.md), so its API is unused for now.
+#[allow(dead_code)]
+mod children;
 mod collapse;
 mod doc;
 mod error;
