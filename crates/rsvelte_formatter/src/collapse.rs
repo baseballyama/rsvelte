@@ -2931,7 +2931,17 @@ fn try_collapse(
                 let line_start_inner = out[..s].rfind('\n').map_or(0, |i| i + 1);
                 let elem_indent = out.get(line_start_inner..s).unwrap_or("");
                 if elem_indent.bytes().all(|b| b == b' ' || b == b'\t') {
-                    let result = format!("{open}{collapsed}\n{elem_indent}</{tag}>");
+                    // shouldHugStart (we are in the `!had_lead` block) + multi-line
+                    // open tag: the open `>` hugs the content on its own indented
+                    // line (at the attribute indent), and the close tag
+                    // (shouldHugEnd=false) sits on its own line at the element
+                    // indent. This mirrors `build_element_doc`'s hug_start case
+                    // (`indent([softline, group(['>', body])])`), whose softline
+                    // breaks once the open tag wrapped. Previously the `>` was left
+                    // glued to the last attribute (`disabled>Disabled button`).
+                    let attr_indent = format!("{elem_indent}{indent_unit_tc}");
+                    let onb = open[..open.len() - 1].trim_end();
+                    let result = format!("{onb}\n{attr_indent}>{collapsed}\n{elem_indent}</{tag}>");
                     if result != whole {
                         return Some((start, end, result));
                     }
