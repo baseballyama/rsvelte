@@ -16,49 +16,13 @@
 
 use crate::doc::Doc;
 
-/// The 33 HTML block-level element names prettier-plugin-svelte treats as block
-/// (its `blockElements` list). A `RegularElement` with one of these names breaks
-/// onto its own line among siblings; everything else is inline.
-const BLOCK_ELEMENTS: &[&str] = &[
-    "address",
-    "article",
-    "aside",
-    "blockquote",
-    "details",
-    "dialog",
-    "dd",
-    "div",
-    "dl",
-    "dt",
-    "fieldset",
-    "figcaption",
-    "figure",
-    "footer",
-    "form",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "header",
-    "hgroup",
-    "hr",
-    "li",
-    "main",
-    "nav",
-    "ol",
-    "p",
-    "pre",
-    "section",
-    "table",
-    "ul",
-];
-
-/// Whether `name` is an HTML block-level element (under the default
-/// `htmlWhitespaceSensitivity: 'css'`).
+/// Whether `name` is an HTML block-level element (prettier-plugin-svelte's
+/// `blockElements` list — the 33 names) under the default
+/// `htmlWhitespaceSensitivity: 'css'`. Delegates to the single canonical list in
+/// [`crate::markup::is_html_block_display_element`] so there is one source of
+/// truth (the markup open-tag layout uses the same set).
 pub(crate) fn is_block_element_name(name: &str) -> bool {
-    BLOCK_ELEMENTS.contains(&name)
+    crate::markup::is_html_block_display_element(name)
 }
 
 // ── HTML-collapse-whitespace text predicates (port of the `*_RE` helpers) ──
@@ -620,12 +584,13 @@ mod tests {
     }
 
     #[test]
-    fn block_list_has_33_names() {
-        assert_eq!(BLOCK_ELEMENTS.len(), 33);
+    fn block_classification_matches_canonical_list() {
         assert!(is_block_element_name("div"));
         assert!(is_block_element_name("p"));
+        assert!(is_block_element_name("ul"));
         assert!(!is_block_element_name("span"));
         assert!(!is_block_element_name("a"));
+        assert!(!is_block_element_name("strong"));
     }
 
     #[test]
