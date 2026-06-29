@@ -1451,7 +1451,77 @@ fn is_select_special(node: &RegularElement) -> bool {
 /// RegularElement / text child) — we mirror the `transform_server` oracle
 /// byte-for-byte, which the corpus harness compares against.
 fn select_special_is_rich(nodes: &[TemplateNode]) -> bool {
-    select_body_is_rich(nodes, false, false)
+    is_customizable_select(nodes)
+}
+
+/// Faithful port of upstream `nodes.js::is_customizable_select_element` for a
+/// `<select>` owner, combined with its `find_descendants` walk. A `<select>` is
+/// "rich" (needs the trailing `is_rich = true` flag on `$$renderer.select`) when
+/// any descendant — skipping snippet/debug/const/declaration/comment/expression
+/// tags, and recursing into if/each/key/await/boundary branches but NOT into
+/// element children — is:
+///   - a `RegularElement` whose name is not `option`/`optgroup`, or
+///   - a non-whitespace `Text` node, or
+///   - any other node kind (slot, component, `<svelte:element>`, `{@html}`,
+///     `{@render}`, …).
+fn is_customizable_select(nodes: &[TemplateNode]) -> bool {
+    for node in nodes {
+        match node {
+            // `find_descendants` does not yield these (so they never make a
+            // select rich): see upstream `nodes.js`.
+            TemplateNode::SnippetBlock(_)
+            | TemplateNode::DebugTag(_)
+            | TemplateNode::ConstTag(_)
+            | TemplateNode::DeclarationTag(_)
+            | TemplateNode::Comment(_)
+            | TemplateNode::ExpressionTag(_) => {}
+            // Text is rich only when it has non-whitespace content.
+            TemplateNode::Text(t) if !t.data.trim().is_empty() => return true,
+            TemplateNode::Text(_) => {}
+            // Block branches are recursed into (their contents are descendants).
+            TemplateNode::IfBlock(b)
+                if is_customizable_select(&b.consequent.nodes)
+                    || b.alternate
+                        .as_ref()
+                        .is_some_and(|a| is_customizable_select(&a.nodes)) =>
+            {
+                return true;
+            }
+            TemplateNode::IfBlock(_) => {}
+            TemplateNode::EachBlock(b)
+                if is_customizable_select(&b.body.nodes)
+                    || b.fallback
+                        .as_ref()
+                        .is_some_and(|f| is_customizable_select(&f.nodes)) =>
+            {
+                return true;
+            }
+            TemplateNode::EachBlock(_) => {}
+            TemplateNode::KeyBlock(b) if is_customizable_select(&b.fragment.nodes) => return true,
+            TemplateNode::KeyBlock(_) => {}
+            TemplateNode::AwaitBlock(b)
+                if [&b.pending, &b.then, &b.catch]
+                    .into_iter()
+                    .flatten()
+                    .any(|f| is_customizable_select(&f.nodes)) =>
+            {
+                return true;
+            }
+            TemplateNode::AwaitBlock(_) => {}
+            TemplateNode::SvelteBoundary(b) if is_customizable_select(&b.fragment.nodes) => {
+                return true;
+            }
+            TemplateNode::SvelteBoundary(_) => {}
+            // A bare `<option>` / `<optgroup>` is NOT rich, and its children are
+            // not descendants of the select for this check.
+            TemplateNode::RegularElement(el)
+                if el.name.as_str() == "option" || el.name.as_str() == "optgroup" => {}
+            // Every other node — a non-option/optgroup element, slot, component,
+            // `<svelte:element>`, `{@html}`, `{@render}`, … — makes it rich.
+            _ => return true,
+        }
+    }
+    false
 }
 
 /// Whether an `<option>` body has "rich content" → the `$$renderer.option(...)`
