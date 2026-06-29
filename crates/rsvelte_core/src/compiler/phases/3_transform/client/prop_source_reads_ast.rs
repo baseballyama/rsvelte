@@ -145,7 +145,13 @@ pub fn wrap_prop_source_reads_ast(
             collector.visit_program(program);
 
             if collector.replacements.is_empty() {
-                return None;
+                // Parsing SUCCEEDED but nothing needs wrapping (e.g. every prop
+                // reference is locally shadowed). Return the source UNCHANGED
+                // rather than `None` — `None` is reserved for parse failure and
+                // triggers the scope-unaware text fallback, which would wrongly
+                // wrap shadowed reads / destructuring binding targets
+                // (`const [x, y]` → `const [x(), y()]`).
+                return Some(source.to_string());
             }
 
             // Sort by span start descending; apply right-to-left to
