@@ -908,7 +908,6 @@ fn push_bare_expression(
     Ok(edit_end)
 }
 
-
 /// If the source has `(` immediately before `inner_start` (possibly with
 /// leading whitespace after a preceding keyword) and `)` immediately after
 /// `inner_end` (possibly with trailing whitespace), returns the span
