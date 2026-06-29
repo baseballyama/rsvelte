@@ -261,13 +261,22 @@ const SKIP: &[&str] = &[
     "no-unused-props/invalid/unused-index-signature",
     "no-unused-props/invalid/custom-config-combination",
     // ── svelte/no-unused-svelte-ignore skips ──────────────────────────────
-    // `<style lang="sass|stylus">` need a real SASS / Stylus preprocessor to
-    // transpile to CSS before the compiler can decide whether a selector is
-    // unused; a native linter can't run them (same reason as `valid-style-parse`).
-    // The `postcss` fixtures (`style-lang01/02/03/05`, `transform-test`) parse as
-    // plain CSS and are covered.
-    "no-unused-svelte-ignore/invalid/style-lang04",
-    "no-unused-svelte-ignore/invalid/style-lang06",
+    // A `<style lang="…">` block in a non-CSS dialect (postcss/scss/sass/less/
+    // stylus/…) needs that preprocessor to turn its source into the CSS the
+    // compiler analyses. These *invalid* fixtures expect the leading CSS-ignore
+    // to be reported unused — but that expectation was recorded with the
+    // preprocessor installed (the transformed CSS yields no warning ⇒ ignore
+    // unused). rsvelte can't run a preprocessor, so — like the live plugin with
+    // no preprocessor — it strips the block and treats the CSS-ignore as used
+    // (see `no_unused_svelte_ignore`'s module docs). The *valid* counterparts
+    // (`valid/style-lang*`) still pass, and plain-CSS `<style>` is covered.
+    // (`style-lang0` matches `invalid/style-lang01`…`style-lang06`.)
+    "no-unused-svelte-ignore/invalid/style-lang0",
+    // `transform-test` / `transform-test-svelte4` mix that same non-CSS
+    // (`lang="postcss"`) CSS-ignore with a11y ignores; rsvelte matches the a11y
+    // reports, but the CSS-ignore (line 16) can't be reported for the reason
+    // above, so the exact `errors.yaml` set won't match.
+    "no-unused-svelte-ignore/invalid/transform-test",
     // `ts-lang01-svelte4` exercises Svelte-4 legacy semantics (`export let` +
     // the `unused-export-let` → `export_let_unused` warning). rsvelte runs
     // Svelte-5 semantics; the Svelte-5 variant (`ts-lang01`) is covered.

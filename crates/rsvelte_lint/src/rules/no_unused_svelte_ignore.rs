@@ -22,11 +22,23 @@
 //! Like [`crate::rules::valid_compile`] this is a whole-component meta-rule wired
 //! into [`crate::runner::lint_source`], not a per-node hook.
 //!
-//! ### Known divergences / out of scope
-//! - Style blocks written in a non-CSS dialect (`<style lang="scss|postcss">`)
-//!   need a real preprocessor to determine CSS warnings, which a native linter
-//!   can't run; those fixtures are out of scope (skipped in the oracle), as with
-//!   [`crate::rules::valid_style_parse`]. Plain CSS is handled normally.
+//! ### Non-CSS `<style>` blocks
+//! A `<style lang="scss|postcss|…">` block needs a real preprocessor to turn its
+//! source into the CSS the compiler analyses. rsvelte can't run one, so it mirrors
+//! upstream's no-preprocessor path (`getSvelteCompileWarnings`'s
+//! `stripStyleElements`): the block's content is blanked out of the compiled copy
+//! (so non-CSS syntax can't break the compile) and any **CSS-warning** ignore
+//! (`css-unused-selector`, `css-invalid-global`, …) that leads such a block is
+//! treated as *used* — its CSS warnings are undeterminable, so reporting it unused
+//! would be a false positive. Plain CSS (`<style>` with no `lang`, or `lang="css"`)
+//! is compiled and matched normally.
+//!
+//! ### Out of scope (skipped in the oracle)
+//! - The *invalid* `style-lang*` / `transform-test` fixtures expect the CSS-ignore
+//!   to be reported unused; that expectation was recorded with the preprocessor
+//!   installed (so the transformed CSS yields no warning → ignore unused). rsvelte
+//!   can't reproduce that environment, so those fixtures are skipped. The *valid*
+//!   counterparts pass: the ignore is treated as used either way.
 //! - The Svelte-4-only fixtures exercise legacy compiler semantics; rsvelte runs
 //!   Svelte-5 semantics, so they are out of scope (skipped in the oracle).
 
@@ -124,6 +136,11 @@ pub fn no_unused_svelte_ignore_diagnostics(
     .flatten()
     .collect();
 
+    // A `<style lang="…">` block in a non-CSS dialect can't be preprocessed here;
+    // mirror upstream's strip path — blank its content from the compiled copy and
+    // treat a leading CSS-warning ignore as used (see the module docs).
+    let non_css_style = non_css_style_block(&root, source);
+
     let mut missing: Vec<(u32, u32)> = Vec::new();
     let mut coded: Vec<CodedItem> = Vec::new();
     let mut strip_ranges: Vec<(u32, u32)> = Vec::new();
@@ -135,6 +152,12 @@ pub fn no_unused_svelte_ignore_diagnostics(
         &mut strip_ranges,
     );
     collect_script_items(&root, &mut missing, &mut coded, &mut strip_ranges);
+
+    // Blank the non-CSS style content so the compile can't choke on non-CSS syntax
+    // (`stripStyleTokens` in upstream `buildStrippedText`).
+    if let Some((_, content)) = non_css_style {
+        strip_ranges.push(content);
+    }
 
     let dsev = to_dsev(severity);
     let mk = |start: u32, end: u32, message: &str| Diagnostic {
@@ -189,7 +212,13 @@ pub fn no_unused_svelte_ignore_diagnostics(
     for item in &coded {
         let code_fired_without_span = positionless.contains(item.code.as_str())
             || positionless.contains(item.code_for_v5.as_str());
+        // A CSS-warning ignore leading the stripped non-CSS `<style>` is used —
+        // its warnings are undeterminable without a preprocessor (upstream's
+        // `stripStyleElements` loop in `processIgnore`).
+        let css_stripped_used = non_css_style
+            .is_some_and(|(elem, _)| is_css_warn_code(item) && item.scope == Some(elem));
         let used = code_fired_without_span
+            || css_stripped_used
             || item.scope.is_some_and(|(scope_start, scope_end)| {
                 let scope_start = li.position(scope_start);
                 let scope_end = li.position(scope_end);
@@ -438,6 +467,40 @@ fn code_for_v5(code: &str) -> String {
         "unused-export-let" => "export_let_unused".into(),
         _ => code.replace('-', "_"),
     }
+}
+
+/// CSS-warning codes whose ignore, when it leads a non-CSS-`lang` `<style>` block
+/// that the linter strips (cannot preprocess), is unconditionally treated as used.
+/// Mirrors upstream's `CSS_WARN_CODES` (both raw and `codeForV5` are checked).
+const CSS_WARN_CODES: &[&str] = &[
+    "css-unused-selector",
+    "css_unused_selector",
+    "css-invalid-global",
+    "css-invalid-global-selector",
+];
+
+/// Whether `item`'s code (raw or `codeForV5`) is a CSS warning code.
+fn is_css_warn_code(item: &CodedItem) -> bool {
+    CSS_WARN_CODES.contains(&item.code.as_str())
+        || CSS_WARN_CODES.contains(&item.code_for_v5.as_str())
+}
+
+/// If the component's `<style>` uses a non-CSS dialect (`lang` attribute present
+/// and not `css`), return `(element_range, content_range)`: the element range a
+/// leading ignore scopes to, and the inner-content range to blank from the
+/// compiled copy. Plain CSS (`<style>` with no `lang`, or `lang="css"`) returns
+/// `None` and is analysed normally. Mirrors upstream's
+/// `extractStyleElementsWithLangOtherThanCSS`.
+fn non_css_style_block(root: &Root, source: &str) -> Option<((u32, u32), (u32, u32))> {
+    let css = root.css.as_ref()?;
+    // The opening tag spans from `<style` to just before the inner content.
+    let open_tag = source.get(css.start as usize..css.content.start as usize)?;
+    let lang = crate::svelte_scan::attr_value(open_tag, "lang")?;
+    let lang = lang.trim().to_ascii_lowercase();
+    if lang.is_empty() || lang == "css" {
+        return None;
+    }
+    Some(((css.start, css.end), (css.content.start, css.content.end)))
 }
 
 /// Match `^\s*svelte-ignore\s+`, returning the byte index just past it (where the
@@ -707,6 +770,38 @@ mod tests {
         let out = findings(src);
         assert_eq!(out.len(), 1, "expected the ignore reported unused: {out:?}");
         assert_eq!(out[0].0, 2); // reported on the comment's line
+    }
+
+    #[test]
+    fn non_css_style_ignore_is_treated_as_used() {
+        // `<style lang="postcss">` can't be preprocessed, so a leading
+        // `css-unused-selector` ignore is treated as used (would otherwise be a
+        // false-positive "unused" — `.foo`/`.bar` parse as used CSS).
+        let src = "<div class=\"foo\"><div class=\"bar\" /></div>\n\
+                   <!-- svelte-ignore css-unused-selector -->\n\
+                   <style lang=\"postcss\">.foo { & .bar { color: red; } }</style>";
+        let out = findings(src);
+        assert!(
+            out.is_empty(),
+            "non-CSS style ignore must be used, got {out:?}"
+        );
+    }
+
+    #[test]
+    fn plain_css_unused_ignore_is_still_reported() {
+        // Plain `<style>` is analysed normally: `.bar` *is* used, so no
+        // `css-unused-selector` fires and the ignore is genuinely unused.
+        let src = "<div class=\"bar\"></div>\n\
+                   <!-- svelte-ignore css-unused-selector -->\n\
+                   <style>.bar { color: red; }</style>";
+        let out = findings(src);
+        assert_eq!(
+            out.len(),
+            1,
+            "plain-CSS unused ignore must be reported: {out:?}"
+        );
+        assert_eq!(out[0].0, 2); // reported on the comment's line
+        assert_eq!(out[0].2, "svelte-ignore comment is used, but not warned");
     }
 
     #[test]
