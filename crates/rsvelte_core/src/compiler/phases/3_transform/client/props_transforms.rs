@@ -528,6 +528,25 @@ pub(super) fn transform_let_with_reexported_props(
                     is_simple = false;
                     is_prop_ref = true;
                 }
+                // A bare legacy `$:` reactive variable (`BindingKind::LegacyReactive`)
+                // becomes `$.get(name)` after transform — a MEMBER call, not a
+                // no-arg identifier getter — so it is non-simple and must be
+                // THUNKED (`() => $.get(name)`), not unwrapped to a bare callee
+                // like a prop ref. Mirrors upstream applying the transform before
+                // `is_simple_expression` (the visited CallExpression is non-simple,
+                // and its callee `$.get` is a MemberExpression so it falls through
+                // to `b.thunk(initial)`).
+                if is_simple
+                    && is_identifier_str(val)
+                    && analysis
+                        .root
+                        .find_binding_any_scope(val)
+                        .and_then(|idx| analysis.root.bindings.get(idx))
+                        .is_some_and(|b| matches!(b.kind, BindingKind::LegacyReactive))
+                {
+                    is_simple = false;
+                    // is_prop_ref stays false → thunk path
+                }
                 let flags = calculate_prop_flags(name, analysis, !is_simple);
                 if is_simple {
                     results.push(format!(
@@ -1050,6 +1069,22 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
                 {
                     is_simple = false;
                     is_prop_ref = true;
+                }
+                // A bare legacy `$:` reactive variable becomes `$.get(name)` after
+                // transform — a MEMBER call, not a no-arg identifier getter — so it
+                // is non-simple and must be THUNKED (`() => $.get(name)`), not
+                // unwrapped to a bare callee. Mirrors upstream applying the
+                // transform before `is_simple_expression`.
+                if is_simple
+                    && is_identifier_str(value)
+                    && analysis
+                        .root
+                        .find_binding_any_scope(value)
+                        .and_then(|idx| analysis.root.bindings.get(idx))
+                        .is_some_and(|b| matches!(b.kind, BindingKind::LegacyReactive))
+                {
+                    is_simple = false;
+                    // is_prop_ref stays false → thunk path
                 }
 
                 // Calculate flags: PROPS_IS_BINDABLE + PROPS_IS_UPDATED + PROPS_IS_LAZY_INITIAL
