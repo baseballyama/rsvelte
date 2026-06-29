@@ -4719,6 +4719,18 @@ fn try_fill_mixed(
     );
     let column = current_column(out, start);
 
+    // A non-text child that is already multi-line in the output forces the content
+    // to break: the fill cannot keep that child on one line, so its surrounding
+    // separators must break too (e.g. layercake AxisY's `<input … /> <span>…</span>`
+    // where the `<input>`'s attributes wrapped). Treat this like a surviving
+    // hardline in the flat render so the break path runs instead of bailing.
+    let has_multiline_child = fragment.nodes.iter().any(|n| {
+        !matches!(n, TemplateNode::Text(_))
+            && out
+                .get(node_start(n) as usize..node_end(n) as usize)
+                .is_some_and(|s| s.contains('\n'))
+    });
+
     // Prose content (text words interspersed with tags/elements) is always
     // re-flowed. Content made of only elements / expressions is re-flowed ONLY
     // when the source forces a break (a `hardline` survives the flat render — a
@@ -4729,7 +4741,7 @@ fn try_fill_mixed(
         .nodes
         .iter()
         .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()));
-    if !has_text_word && !flat.contains('\n') {
+    if !has_text_word && !flat.contains('\n') && !has_multiline_child {
         // For block-display elements that are ALREADY on one source line but have
         // leading/trailing SPACE (not newline) boundary whitespace, collapse to
         // one line and strip the boundary whitespace — prettier's block element
@@ -4763,7 +4775,7 @@ fn try_fill_mixed(
         }
     }
 
-    if !flat.contains('\n') {
+    if !flat.contains('\n') && !has_multiline_child {
         let element_one_line = column + open.width() + flat.width() + close.width();
         // A block element (or overflowing component with prose content) puts its
         // content on its own line; an inline HTML element would instead hug, so
@@ -5294,6 +5306,59 @@ fn build_self_closing_component_doc(out: &str, node: &TemplateNode) -> Option<cr
     Some(doc)
 }
 
+/// Build a breakable doc for a self-closing **RegularElement** (`<input … />`,
+/// `<img … />`) inside a children/prose fill. Unlike
+/// [`build_self_closing_component_doc`] this reads each attribute's own span
+/// (which is single-line even when the element was already wrapped across lines
+/// in `out`), so an already-multi-line self-closing element still becomes a
+/// breakable attribute group. Returns `None` when there are no attributes, the
+/// element has content, an attribute is itself multi-line, or the rebuilt flat
+/// form wouldn't round-trip to the canonical `<tag a b c />`.
+fn build_self_closing_regular_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
+    use crate::doc::Doc;
+    let TemplateNode::RegularElement(e) = node else {
+        return None;
+    };
+    if e.attributes.is_empty() || !e.fragment.nodes.is_empty() {
+        return None;
+    }
+    let span = out.get(e.start as usize..e.end as usize)?;
+    if !span.trim_end().ends_with("/>") {
+        return None;
+    }
+    let tag = e.name.as_str();
+    let mut group_parts: Vec<Doc> = Vec::with_capacity(e.attributes.len() * 2 + 1);
+    let mut flat_attrs = String::new();
+    for attr in &e.attributes {
+        let (as_, ae) = attribute_span(attr);
+        let atext = out.get(as_ as usize..ae as usize)?;
+        if atext.contains('\n') {
+            return None;
+        }
+        group_parts.push(Doc::Line);
+        group_parts.push(Doc::Text(atext.to_string()));
+        if !flat_attrs.is_empty() {
+            flat_attrs.push(' ');
+        }
+        flat_attrs.push_str(atext);
+    }
+    // `dedent(line)`: flat → " " (space before `/>`), break → newline at indent-1.
+    group_parts.push(Doc::Dedent(vec![Doc::Line]));
+    let doc = Doc::Group(vec![
+        Doc::Text(format!("<{tag}")),
+        Doc::Indent(vec![Doc::Group(group_parts)]),
+        Doc::Text("/>".to_string()),
+    ]);
+    // Guard: the flat form must equal the canonical single-line `<tag a b c />`
+    // so this never changes bytes when the element already fits on one line.
+    let expected = format!("<{tag} {flat_attrs} />");
+    let flat = crate::doc::print(doc.clone(), 999_999, "  ", 0, 0);
+    if flat != expected {
+        return None;
+    }
+    Some(doc)
+}
+
 /// The doc for one inline element: a hug `Group` for a huggable display:inline
 /// element, otherwise the verbatim single-line span.
 fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
@@ -5320,6 +5385,16 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
             Doc::Text(">".to_string()),
         ]));
     }
+    // Self-closing RegularElement with attributes (`<input … />`): build a
+    // breakable attribute group so it can break inside a fill — and, crucially, so
+    // the fill sees its wide flat width and breaks the surrounding separators (a
+    // multi-line self-closing sibling forces the run to break, e.g. layercake AxisY
+    // `<input … /> <span>…</span>`). Previously `element_doc` returned None here,
+    // which made the whole `build_children_doc` bail and left the run unreflowed.
+    if let Some(doc) = build_self_closing_regular_doc(out, node) {
+        return Some(doc);
+    }
+
     // Empty inline element with attributes (`<span class=… aria-label=…></span>`):
     // wrap the attributes and drop `></tag>` to its own line at the base indent
     // when the open tag overflows.
