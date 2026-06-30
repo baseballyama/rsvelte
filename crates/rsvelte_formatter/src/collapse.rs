@@ -4726,9 +4726,13 @@ fn node_to_child(out: &str, node: &TemplateNode) -> Option<crate::children::Chil
         {
             Some(Child::Inline(build_inline_element_doc(out, ve)?))
         }
-        // Mustache atoms (`{expr}`, `{@html …}`) are a later cut — they must
-        // participate in the prose fill (line separators), not sit as opaque
-        // `Child::Other` atoms, so defer them rather than mis-wrap.
+        // Mustache atoms (`{expr}`, `{@html …}`) are deferred. Mapping them to
+        // `Child::Inline` (which is structurally faithful — prettier's
+        // `handleInlineChild` wraps them in `group([line, …])` too) regressed 16
+        // dense `label: {value}` prose files: the fill breaks at the WRONG position
+        // (between `g:` and `{g}` instead of after `g: {g},`). That's a doc.rs
+        // `fits`/`fill` fidelity gap vs prettier's `doc.js`, not a structure bug —
+        // it needs a dedicated fill investigation before mustaches can be wired.
         _ => None,
     }
 }
