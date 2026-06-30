@@ -4328,15 +4328,20 @@ fn transform_instance_script_for_visitors(
     // appear in reactive statement bodies.
     // Reference: LabeledStatement.js line 37 - `if (binding.kind === 'normal' && binding.declaration_kind !== 'import') continue;`
     let import_names: Vec<String> = if !analysis.runes {
-        let instance_scope_index = analysis.root.instance_scope_index;
+        // Every import binding — used to decide which legacy `$:` dependency names
+        // are emitted in the `$.legacy_pre_effect` deps thunk. Upstream
+        // `LabeledStatement.js` includes a dependency whenever its binding is NOT
+        // `kind === 'normal' && declaration_kind !== 'import'`, i.e. ALL imports
+        // qualify regardless of which scope they were declared in. We must NOT
+        // restrict to the instance scope: a TS component whose first imports are
+        // assigned scope 0 (vs later imports at the instance scope) would
+        // otherwise drop those imports from the deps thunk (e.g. an imported
+        // helper `createScale(...)` called inside a `$:` block).
         analysis
             .root
             .bindings
             .iter()
-            .filter(|b| {
-                b.declaration_kind == DeclarationKind::Import
-                    && b.scope_index == instance_scope_index
-            })
+            .filter(|b| b.declaration_kind == DeclarationKind::Import)
             .map(|b| b.name.clone())
             .collect()
     } else {
