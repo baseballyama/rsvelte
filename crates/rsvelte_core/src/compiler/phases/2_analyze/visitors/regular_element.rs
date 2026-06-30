@@ -1265,29 +1265,72 @@ pub fn visit(
                         // `$.invalidate_inner_signals` body matches source order.
                         let mut indirect_with_pos: Vec<(u32, String)> = Vec::new();
                         {
-                            let scope_declarations =
-                                if context.analysis.root.all_scopes.len() > scope_idx {
-                                    &context.analysis.root.all_scopes[scope_idx].declarations
-                                } else {
-                                    &context.analysis.root.scope.declarations
-                                };
-
-                            for (name, &other_idx) in scope_declarations {
+                            // Mirror the official `scope.references.keys()`: the
+                            // bindings visible in the select's ENCLOSING scope that
+                            // are referenced within the select. The select's own
+                            // local scope (`scope_idx`) is too narrow — an indirect
+                            // binding usually lives in an OUTER scope (e.g. a prop
+                            // `guid` read in the select's `id=` attribute when the
+                            // select is nested in `{#if}`). So we walk `scope_idx`
+                            // and all its ANCESTOR scopes, collecting their
+                            // declarations. Crucially this EXCLUDES descendant
+                            // (child) scopes — e.g. a `{#each tasks as task}` inside
+                            // the select declares `task` in a child scope, which the
+                            // official's enclosing-scope references never contain, so
+                            // mutating the bound value must not invalidate `task`.
+                            // The in-span template-reference filter keeps this to the
+                            // select element (not unrelated sibling elements).
+                            // The set of scope indices that are `scope_idx` or an
+                            // ancestor of it. A binding is in the select's ENCLOSING
+                            // scope iff its own `scope_index` is in this set; a
+                            // binding declared in a descendant scope (e.g. an
+                            // each-block item inside the select) is NOT. We use
+                            // `binding.scope_index` rather than `scope.declarations`
+                            // because the latter is polluted with child-scope
+                            // declarations for backward compat (see scope.rs).
+                            let mut ancestor_scopes: FxHashSet<usize> = FxHashSet::default();
+                            {
+                                let mut cur = Some(scope_idx);
+                                while let Some(si) = cur {
+                                    ancestor_scopes.insert(si);
+                                    cur = context
+                                        .analysis
+                                        .root
+                                        .all_scopes
+                                        .get(si)
+                                        .and_then(|s| s.parent);
+                                }
+                            }
+                            for other_binding in context.analysis.root.bindings.iter() {
+                                let name = &other_binding.name;
                                 if name == root_name {
                                     continue;
                                 }
-                                if let Some(other_binding) =
-                                    context.analysis.root.bindings.get(other_idx)
-                                    && let Some(min_pos) = other_binding
-                                        .references
-                                        .iter()
-                                        .filter(|r| {
-                                            r.is_template_reference
-                                                && r.start >= element.start
-                                                && r.end <= element.end
-                                        })
-                                        .map(|r| r.start)
-                                        .min()
+                                if !ancestor_scopes.contains(&other_binding.scope_index) {
+                                    continue;
+                                }
+                                // A store auto-subscription (`$label`) is not a real
+                                // scope binding upstream — `scope.get('$label')`
+                                // returns null (the binding is `label`), so the
+                                // official never adds it as an indirect binding.
+                                // rsvelte synthesizes a `$label` StoreSub binding, so
+                                // skip it explicitly to match.
+                                if matches!(
+                                    other_binding.kind,
+                                    crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub
+                                ) {
+                                    continue;
+                                }
+                                if let Some(min_pos) = other_binding
+                                    .references
+                                    .iter()
+                                    .filter(|r| {
+                                        r.is_template_reference
+                                            && r.start >= element.start
+                                            && r.end <= element.end
+                                    })
+                                    .map(|r| r.start)
+                                    .min()
                                 {
                                     indirect_with_pos.push((min_pos, name.clone()));
                                 }

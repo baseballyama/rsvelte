@@ -4713,10 +4713,70 @@ fn try_transform_assignment(
 
         let result = mutate_fn(&context.arena, b::id(&root_name), mutation_expr);
         let result = apply_store_ref_transform(result, &root_name, context);
+        // If the mutated prop carries `legacy_indirect_bindings` (a legacy
+        // `<select bind:value={prop…}>` whose subtree references other scope
+        // variables), wrap the mutation in a sequence with
+        // `$.invalidate_inner_signals(() => { … })` so those signals re-read.
+        // Mirrors the instance-script prop-member-mutation path
+        // (`prop_member_mutate_ast`) and upstream `AssignmentExpression.js`.
+        let result = wrap_with_legacy_invalidate(result, &root_name, context);
         return Some(result);
     }
 
     None
+}
+
+/// Wrap a prop-member-mutation expression in
+/// `(<mutation>, $.invalidate_inner_signals(() => { <reads> }))` when the
+/// mutated prop binding has `legacy_indirect_bindings`. Returns the input
+/// unchanged otherwise. The read form of each indirect binding mirrors
+/// `build_getter` / the `prop_invalidate_bodies` precompute: prop source →
+/// `name()`, store sub → `name()`, reactive state/derived → `$.get(name)`,
+/// everything else → bare `name`.
+pub(crate) fn wrap_with_legacy_invalidate(
+    result: JsExpr,
+    root_name: &str,
+    context: &ComponentContext,
+) -> JsExpr {
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind as BK;
+    use crate::compiler::phases::phase3_transform::client::utils::is_prop_source;
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+    let indirect = match context.state.get_binding(root_name) {
+        Some(binding) if !binding.legacy_indirect_bindings.is_empty() => {
+            binding.legacy_indirect_bindings.clone()
+        }
+        _ => return result,
+    };
+
+    let analysis = context.state.analysis;
+    let read_form = |n: &str| -> String {
+        match context.state.get_binding(n) {
+            Some(b)
+                if matches!(b.kind, BK::Prop | BK::BindableProp) && is_prop_source(b, analysis) =>
+            {
+                format!("{n}()")
+            }
+            Some(b) if matches!(b.kind, BK::StoreSub) => format!("{n}()"),
+            Some(b)
+                if matches!(
+                    b.kind,
+                    BK::State | BK::RawState | BK::Derived | BK::LegacyReactive
+                ) =>
+            {
+                format!("$.get({n})")
+            }
+            _ => n.to_string(),
+        }
+    };
+
+    let body = indirect
+        .iter()
+        .map(|n| format!("{};", read_form(n)))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let invalidate = b::raw(format!("$.invalidate_inner_signals(() => {{ {body} }})"));
+    b::sequence(vec![result, invalidate])
 }
 
 /// Get the appropriate $.assign* function name for an operator.
