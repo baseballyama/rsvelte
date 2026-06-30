@@ -4682,6 +4682,15 @@ fn collect_children_port_only(
     edits: &mut Vec<(u32, u32, String)>,
 ) {
     for node in &fragment.nodes {
+        // Never descend into whitespace-preserving subtrees (`<pre>`,
+        // `<textarea>`, `<script>`, `<style>`) — their content is verbatim, so a
+        // pure-text inline element inside (`<pre>…<span>C\nD</span>…`) must NOT be
+        // collapsed (mirrors prettier's `isPreTagContent` ancestor guard).
+        if let TemplateNode::RegularElement(e) = node
+            && is_whitespace_preserving(e.name.as_str())
+        {
+            continue;
+        }
         if matches!(node, TemplateNode::RegularElement(_))
             && let Some(maybe_edit) = try_children_port(out, node, line_width, options)
         {
@@ -4825,9 +4834,13 @@ fn try_children_port(
     let (s, ee) = (start as usize, end as usize);
     let whole = out.get(s..ee)?;
 
-    // Gate: at least one prose text word AND at least one non-text child (else
-    // there's nothing mixed to lay out — pure text is try_collapse's job). Per-child
-    // convertibility is enforced by `node_to_child` in the build loop below.
+    // Gate: at least one prose text word AND at least one non-text child (mixed
+    // content). Pure-text elements are `try_collapse`'s job. (A pure-text inline
+    // element with an overflowing open tag — `<a href="…long…">REPL</a>` — was
+    // tried as "cut 4" but cleared 0 corpus files: every close-`>` cluster file is
+    // multi-diff and also needs element-only + close-`>` + expression fixes, so the
+    // gate stays at mixed content.) Per-child convertibility is enforced by
+    // `node_to_child` in the build loop below.
     let has_prose_word = fragment
         .nodes
         .iter()
