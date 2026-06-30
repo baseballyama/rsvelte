@@ -2200,6 +2200,19 @@ fn collect_reactive_references(
 }
 
 /// Inner recursive function for collecting reactive references.
+/// Collect the names bound by top-level `const`/`let`/`var` declarations in a
+/// block body. Used to treat a nested function's local declarations as locals
+/// (not dependencies) during reactive-reference collection.
+fn collect_block_local_decl_names(body: &[JsStatement], out: &mut rustc_hash::FxHashSet<String>) {
+    for stmt in body {
+        if let JsStatement::VariableDeclaration(var_decl) = stmt {
+            for decl in &var_decl.declarations {
+                extract_pattern_names(&decl.id, out);
+            }
+        }
+    }
+}
+
 fn collect_reactive_references_inner(
     expr: &JsExpr,
     context: &ComponentContext,
@@ -2561,14 +2574,26 @@ fn collect_reactive_references_inner(
             // However, arrow parameter names shadow outer reactive references and must be
             // excluded. For example, in `switches.filter(s => !!s.on)`, the `s` parameter
             // shadows the each-block `s` and should NOT be collected as a dependency.
-            let mut param_names = FxHashSet::default();
+            let mut local_names = FxHashSet::default();
             for param in &arrow.params {
-                extract_pattern_names(param, &mut param_names);
+                extract_pattern_names(param, &mut local_names);
             }
-            // Add parameter names to seen set to prevent them from being collected
-            for name in &param_names {
-                seen.insert(name.clone());
+            // Block-local declarations (`const`/`let`/`var`) inside the arrow body
+            // are LOCALS, not external dependencies — the official filters
+            // references by function_depth, so a binding declared inside this
+            // nested function is never an eager dep. Add their names too, so a
+            // later read of e.g. `const seriesTooltipData = …` inside the arrow is
+            // not wrongly collected as `$.deep_read_state(seriesTooltipData)`.
+            if let JsArrowBody::Block(block) = &arrow.body {
+                collect_block_local_decl_names(&block.body, &mut local_names);
             }
+            // Add only the names we actually introduce (so we don't clobber an
+            // outer same-named dependency on restore).
+            let newly_added: Vec<String> = local_names
+                .iter()
+                .filter(|n| seen.insert((*n).clone()))
+                .cloned()
+                .collect();
             match &arrow.body {
                 JsArrowBody::Expression(body_expr) => {
                     collect_reactive_references_inner(
@@ -2584,25 +2609,28 @@ fn collect_reactive_references_inner(
                     }
                 }
             }
-            // Remove parameter names from seen set so they don't affect sibling expressions
-            for name in &param_names {
+            // Restore: only remove the names we introduced.
+            for name in &newly_added {
                 seen.remove(name);
             }
         }
 
         JsExpr::Function(func) => {
-            // Also process function bodies, excluding function parameter names
-            let mut param_names = FxHashSet::default();
+            // Also process function bodies, excluding params AND block-local decls.
+            let mut local_names = FxHashSet::default();
             for param in &func.params {
-                extract_pattern_names(param, &mut param_names);
+                extract_pattern_names(param, &mut local_names);
             }
-            for name in &param_names {
-                seen.insert(name.clone());
-            }
+            collect_block_local_decl_names(&func.body.body, &mut local_names);
+            let newly_added: Vec<String> = local_names
+                .iter()
+                .filter(|n| seen.insert((*n).clone()))
+                .cloned()
+                .collect();
             for stmt in &func.body.body {
                 collect_reactive_references_from_statement(stmt, context, getters, seen);
             }
-            for name in &param_names {
+            for name in &newly_added {
                 seen.remove(name);
             }
         }
