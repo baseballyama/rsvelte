@@ -195,6 +195,10 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // `$.async(...)` wrapper for the IfBlock branch. Same blocker-scanner
     // cluster as `async-each-const-await-iife`.
     "async-style-after-await",
+    // New 5.56.4 fixture (#18453, `36ae0622a` server-side
+    // async-derived-template-mutation). Client output matches; the server
+    // async-derived template-mutation codegen is not yet ported (server=MISMATCH).
+    "async-parallel-derived-template-mutation",
 ];
 
 /// runtime-legacy fixtures still failing on the rsvelte port. Each cluster is
