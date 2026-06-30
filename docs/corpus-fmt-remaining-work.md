@@ -1,12 +1,60 @@
 # Formatter-parity corpus: remaining work (burn-down playbook)
 
-> **Status 2026-06-29 (unified corpus, 11,478 components, oxfmt 0.56.0,
-> svelte 5.56.x): 85 known failures, 18 exclusions, 0 regressions, Linux CI
+> **Status 2026-06-30 (unified corpus, 11,478 components, oxfmt 0.56.0,
+> svelte 5.56.x): 74 known failures, 18 exclusions, 0 regressions, Linux CI
 > green** (`compat/corpus/fmt-known-failures.json` /
 > `fmt-oracle-excluded.json`). See **“Remaining 101 (2026-06-28 snapshot)”**
 > below for the live cluster breakdown, root causes, concrete examples, and the
 > approaches already proven net-negative. The historical narrative (the original
 > 431→0 burn-down on the smaller svelte-only corpus) is retained further down.
+
+---
+
+## 2026-06-30 update (85 → 74): milestone-2 hug/fill wiring + one isolated TS bug
+
+Eleven more entries cleared, all platform-independent and Linux-CI-validated, 0
+regressions throughout:
+
+- **Hug / closing-`>` placement (milestone-2 wiring, PRs #1333/#1334/#1346/#1348).**
+  Wired `children.rs::build_element_doc` semantics into `collapse.rs` one shape at a
+  time: hug-start drops the open `>` to its own indented line for a wrapped open tag
+  (`<label\n  >…`); hug-end defers the close `>` (`</picture></GroupSlot\n>`); the
+  pure-text counterpart in `try_collapse`; and a children `fill` now breaks when a
+  self-closing element child is itself multi-line (`build_self_closing_regular_doc`
+  + `has_multiline_child`). Cleared svelte-form-builder Picture, layerchart
+  Histogram, smelte, layercake AxisY/AxisYRight (CSR+SSR).
+- **Arrow type-param JSX comma (PR #1350).** `<script lang="ts">` was parsed with
+  `SourceType::ts()` (extension `None`); oxc_formatter forces a JSX-disambiguation
+  trailing comma on a single arrow-function type parameter (`<T>` → `<T,>`) for any
+  non-`.ts` extension. Parse with `SourceType::from_extension("ts")` instead. The
+  arrow comma is the only output-affecting use of `source_type.extension()` in
+  oxc_formatter. Cleared svelte-splitpanes.
+
+### Remaining 74: two more deep approaches proven net-negative / intractable
+
+- **Global fill “break-after-overflow” (reverted, net −44).** rsvelte's `doc.rs`
+  `Fill` faithfully ports prettier's break-*before*-overflow (`pair_fits` lookahead).
+  A few prose cases (maplibre geojson/3d_buildings, powertable) want break-*after*
+  (oxfmt keeps a straddling word, overflowing to col 82). Dropping `pair_fits` fixed
+  those 4 but caused **48 new failures** (pure-prose like layerchart Sparkline /
+  shadcn cards correctly break-before). oxfmt's fill is context-dependent
+  (geojson margin-2 breaks-after, shadcn margin-1 breaks-before; element-presence is
+  *not* the discriminator) — not characterizable by hand.
+- **`{#each}`-header break-then-collapse parity (layerchart docs/+layout).**
+  `push_bare_expression` already implements prettier's `forceSingleLine`/`removeLines`
+  for block headers and the arrow-body-conditional paren rule. The remaining
+  divergence on `flatMap((feature) => (cond ? map(…) : {…}))` is a MIXED-mode layout:
+  oxfmt expands the outer `flatMap(`/nested `map(` calls while keeping the arrow-body
+  conditional flat (so it keeps its parens) and objects inline. rsvelte break-formats
+  the whole expr at width 80 (conditional breaks → parens dropped) then strips
+  newlines. No single width reproduces oxfmt's outer-break+inner-flat distribution
+  (prettier's per-group `conditionalGroup`/expansion under `removeLines`); matching it
+  risks the core `{#each}`/`{#if}`/`{#await}` header path (1000s of entries) for 1 file.
+
+The remaining 74 are now all `<pre>` whitespace territory (flagged fragile),
+multi-diff files needing several deep fixes each, or these characterized dead-ends —
+each requiring a deliberate port of prettier-plugin-svelte's printer internals, not a
+targeted fix.
 
 ---
 
