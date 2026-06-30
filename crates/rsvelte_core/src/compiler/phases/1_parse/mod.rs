@@ -140,9 +140,11 @@ pub fn parse(source: &str, options: ParseOptions) -> ParseResult<Root> {
     // when this parse() is invoked from within a `compile()` that has
     // already installed its own arena.
     //
-    if options.capture_comments {
-        parser.arena.set_capture_comments(true);
-    }
+    // Enable node-comment capture (thread-local; restored on drop) only for the
+    // AST-output path — the compiler leaves `capture_comments` false.
+    let _capture = options
+        .capture_comments
+        .then(crate::ast::arena::CommentCaptureGuard::new);
     // SAFETY: `parser.arena` lives until `parser` is dropped, which
     // happens after `_guard`.
     let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&parser.arena as *const _) };
@@ -159,9 +161,9 @@ pub fn parse(source: &str, options: ParseOptions) -> ParseResult<Root> {
 pub fn parse_script_ts(source: &str, options: ParseOptions) -> ParseResult<Root> {
     let mut parser = Parser::new(source, options);
     parser.script_ts = true;
-    if options.capture_comments {
-        parser.arena.set_capture_comments(true);
-    }
+    let _capture = options
+        .capture_comments
+        .then(crate::ast::arena::CommentCaptureGuard::new);
     // SAFETY: see `parse`.
     let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&parser.arena as *const _) };
     parser.parse()
@@ -175,9 +177,9 @@ pub fn parse_reuse<'a>(
     options: ParseOptions,
 ) -> ParseResult<Root> {
     parser.reset(source, options);
-    if options.capture_comments {
-        parser.arena.set_capture_comments(true);
-    }
+    let _capture = options
+        .capture_comments
+        .then(crate::ast::arena::CommentCaptureGuard::new);
     // SAFETY: `parser.arena` lives until the caller drops `parser`,
     // which can only happen after this function returns.
     let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&parser.arena as *const _) };
