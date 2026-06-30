@@ -1643,6 +1643,7 @@ pub(super) fn transform_member_mutations(
     state_vars: &[String],
     non_reactive_state_vars: &[String],
     raw_state_vars: &[String],
+    invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> String {
     if state_vars.is_empty() {
         return line.to_string();
@@ -1661,6 +1662,7 @@ pub(super) fn transform_member_mutations(
             state_vars,
             non_reactive_state_vars,
             raw_state_vars,
+            invalidate_bodies,
         );
     if let Some(rewritten) = ast_result {
         return rewritten;

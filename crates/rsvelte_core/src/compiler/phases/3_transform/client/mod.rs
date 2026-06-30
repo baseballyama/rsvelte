@@ -4439,10 +4439,12 @@ fn transform_instance_script_for_visitors(
             .root
             .bindings
             .iter()
-            .filter(|b| {
-                matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
-                    && !b.legacy_indirect_bindings.is_empty()
-            })
+            // Any binding (prop OR legacy state) that backs a
+            // `<select bind:value>` with indirect references gets an invalidate
+            // body. The prop path keys lookups by prop name; the legacy-state
+            // member-mutation path (`$.mutate(options, …)`) keys by state name —
+            // extra entries are simply unused by whichever path doesn't apply.
+            .filter(|b| !b.legacy_indirect_bindings.is_empty())
             .map(|b| {
                 let body = b
                     .legacy_indirect_bindings
@@ -5152,6 +5154,7 @@ fn transform_instance_script_for_visitors(
                 state_vars,
                 non_reactive_state_vars,
                 raw_state_vars,
+                &prop_invalidate_bodies,
             )
         } else {
             transformed

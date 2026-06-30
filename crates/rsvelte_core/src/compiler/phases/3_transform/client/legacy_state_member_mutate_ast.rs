@@ -65,6 +65,7 @@ pub fn transform_legacy_state_member_mutate_ast(
     state_vars: &[String],
     non_reactive_state_vars: &[String],
     raw_state_vars: &[String],
+    invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> Option<String> {
     if state_vars.is_empty() {
         return None;
@@ -92,6 +93,7 @@ pub fn transform_legacy_state_member_mutate_ast(
                     state_vars,
                     non_reactive_state_vars,
                     raw_state_vars,
+                    invalidate_bodies,
                     replacements: Vec::new(),
                     skip_assignment_spans: Vec::new(),
                 };
@@ -107,6 +109,7 @@ struct LegacyStateMemberMutateCollector<'a> {
     state_vars: &'a [String],
     non_reactive_state_vars: &'a [String],
     raw_state_vars: &'a [String],
+    invalidate_bodies: &'a rustc_hash::FxHashMap<String, String>,
     replacements: Vec<Edit>,
     /// Spans of `AssignmentExpression`s that are the second arg of a
     /// `$.mutate(var, <assignment>)` wrap call. Skipping these is what
@@ -189,7 +192,20 @@ impl<'a, 'ast> Visit<'ast> for LegacyStateMemberMutateCollector<'a> {
         // Output uses the original assignment text verbatim, just
         // enclosed in `$.mutate(var, ...)`.
         let outer_text = &self.source[expr.span.start as usize..expr.span.end as usize];
-        let rewrite = format!("$.mutate({}, {})", root_name, outer_text);
+        let mutate = format!("$.mutate({}, {})", root_name, outer_text);
+        // If the mutated state backs a legacy `<select bind:value={state…}>`
+        // referencing other scope variables, wrap in a sequence with
+        // `$.invalidate_inner_signals(() => { … })` so those signals re-read.
+        // Mirrors the prop-member-mutation path (`prop_member_mutate_ast`).
+        let rewrite = match self.invalidate_bodies.get(root_name) {
+            Some(body) if !body.is_empty() => {
+                format!(
+                    "({}, $.invalidate_inner_signals(() => {{ {} }}))",
+                    mutate, body
+                )
+            }
+            _ => mutate,
+        };
         self.replacements
             .push((expr.span.start, expr.span.end, rewrite));
     }
@@ -203,42 +219,72 @@ mod tests {
         names.iter().map(|s| s.to_string()).collect()
     }
 
+    fn eb() -> rustc_hash::FxHashMap<String, String> {
+        rustc_hash::FxHashMap::default()
+    }
+
     #[test]
     fn static_member_assignment() {
-        let out =
-            transform_legacy_state_member_mutate_ast("obj.prop = 5;", &ssv(&["obj"]), &[], &[])
-                .unwrap();
+        let out = transform_legacy_state_member_mutate_ast(
+            "obj.prop = 5;",
+            &ssv(&["obj"]),
+            &[],
+            &[],
+            &eb(),
+        )
+        .unwrap();
         assert_eq!(out, "$.mutate(obj, obj.prop = 5);");
     }
 
     #[test]
     fn computed_member_assignment() {
-        let out = transform_legacy_state_member_mutate_ast("obj[0] = 5;", &ssv(&["obj"]), &[], &[])
-            .unwrap();
+        let out = transform_legacy_state_member_mutate_ast(
+            "obj[0] = 5;",
+            &ssv(&["obj"]),
+            &[],
+            &[],
+            &eb(),
+        )
+        .unwrap();
         assert_eq!(out, "$.mutate(obj, obj[0] = 5);");
     }
 
     #[test]
     fn compound_assignment_on_member() {
-        let out =
-            transform_legacy_state_member_mutate_ast("obj.prop += 3;", &ssv(&["obj"]), &[], &[])
-                .unwrap();
+        let out = transform_legacy_state_member_mutate_ast(
+            "obj.prop += 3;",
+            &ssv(&["obj"]),
+            &[],
+            &[],
+            &eb(),
+        )
+        .unwrap();
         assert_eq!(out, "$.mutate(obj, obj.prop += 3);");
     }
 
     #[test]
     fn chained_member_chain() {
-        let out =
-            transform_legacy_state_member_mutate_ast("obj.a.b.c = 5;", &ssv(&["obj"]), &[], &[])
-                .unwrap();
+        let out = transform_legacy_state_member_mutate_ast(
+            "obj.a.b.c = 5;",
+            &ssv(&["obj"]),
+            &[],
+            &[],
+            &eb(),
+        )
+        .unwrap();
         assert_eq!(out, "$.mutate(obj, obj.a.b.c = 5);");
     }
 
     #[test]
     fn mixed_static_and_computed() {
-        let out =
-            transform_legacy_state_member_mutate_ast("obj.items[0] = x;", &ssv(&["obj"]), &[], &[])
-                .unwrap();
+        let out = transform_legacy_state_member_mutate_ast(
+            "obj.items[0] = x;",
+            &ssv(&["obj"]),
+            &[],
+            &[],
+            &eb(),
+        )
+        .unwrap();
         assert_eq!(out, "$.mutate(obj, obj.items[0] = x);");
     }
 
@@ -249,7 +295,8 @@ mod tests {
                 "obj.prop = 5;",
                 &ssv(&["obj"]),
                 &ssv(&["obj"]),
-                &[]
+                &[],
+                &eb()
             )
             .is_none()
         );
@@ -262,7 +309,8 @@ mod tests {
                 "obj.prop = 5;",
                 &ssv(&["obj"]),
                 &[],
-                &ssv(&["obj"])
+                &ssv(&["obj"]),
+                &eb()
             )
             .is_none()
         );
@@ -274,24 +322,37 @@ mod tests {
         // `$.mutate(obj, <assignment>)` shape and skips the inner.
         let already = "$.mutate(obj, obj.prop = 5);";
         assert!(
-            transform_legacy_state_member_mutate_ast(already, &ssv(&["obj"]), &[], &[]).is_none()
+            transform_legacy_state_member_mutate_ast(already, &ssv(&["obj"]), &[], &[], &eb())
+                .is_none()
         );
     }
 
     #[test]
     fn double_application_is_stable() {
-        let first =
-            transform_legacy_state_member_mutate_ast("obj.prop = 5;", &ssv(&["obj"]), &[], &[])
-                .unwrap();
-        let second = transform_legacy_state_member_mutate_ast(&first, &ssv(&["obj"]), &[], &[]);
+        let first = transform_legacy_state_member_mutate_ast(
+            "obj.prop = 5;",
+            &ssv(&["obj"]),
+            &[],
+            &[],
+            &eb(),
+        )
+        .unwrap();
+        let second =
+            transform_legacy_state_member_mutate_ast(&first, &ssv(&["obj"]), &[], &[], &eb());
         assert!(second.is_none(), "expected None, got: {:?}", second);
     }
 
     #[test]
     fn leaves_non_state_member_alone() {
         assert!(
-            transform_legacy_state_member_mutate_ast("other.prop = 5;", &ssv(&["obj"]), &[], &[])
-                .is_none()
+            transform_legacy_state_member_mutate_ast(
+                "other.prop = 5;",
+                &ssv(&["obj"]),
+                &[],
+                &[],
+                &eb()
+            )
+            .is_none()
         );
     }
 
@@ -299,7 +360,7 @@ mod tests {
     fn leaves_bare_state_assignment_alone() {
         // `obj = 5` is handled by other passes.
         assert!(
-            transform_legacy_state_member_mutate_ast("obj = 5;", &ssv(&["obj"]), &[], &[])
+            transform_legacy_state_member_mutate_ast("obj = 5;", &ssv(&["obj"]), &[], &[], &eb())
                 .is_none()
         );
     }
@@ -307,7 +368,7 @@ mod tests {
     #[test]
     fn leaves_update_expression_alone() {
         assert!(
-            transform_legacy_state_member_mutate_ast("obj.x++;", &ssv(&["obj"]), &[], &[])
+            transform_legacy_state_member_mutate_ast("obj.x++;", &ssv(&["obj"]), &[], &[], &eb())
                 .is_none()
         );
     }
@@ -315,13 +376,17 @@ mod tests {
     #[test]
     fn does_not_rewrite_inside_string_literal() {
         let src = r#"let s = "obj.prop = 5";"#;
-        assert!(transform_legacy_state_member_mutate_ast(src, &ssv(&["obj"]), &[], &[]).is_none());
+        assert!(
+            transform_legacy_state_member_mutate_ast(src, &ssv(&["obj"]), &[], &[], &eb())
+                .is_none()
+        );
     }
 
     #[test]
     fn rewrites_inside_template_expression() {
         let src = "let s = `${obj.prop = 5}`;";
-        let out = transform_legacy_state_member_mutate_ast(src, &ssv(&["obj"]), &[], &[]).unwrap();
+        let out =
+            transform_legacy_state_member_mutate_ast(src, &ssv(&["obj"]), &[], &[], &eb()).unwrap();
         assert_eq!(out, "let s = `${$.mutate(obj, obj.prop = 5)}`;");
     }
 
@@ -332,6 +397,7 @@ mod tests {
             &ssv(&["a", "b"]),
             &[],
             &[],
+            &eb(),
         )
         .unwrap();
         assert_eq!(out, "$.mutate(a, a.x = 1); $.mutate(b, b.y = 2);");
@@ -340,28 +406,37 @@ mod tests {
     #[test]
     fn function_call_on_member_is_not_a_mutation() {
         assert!(
-            transform_legacy_state_member_mutate_ast("obj.foo();", &ssv(&["obj"]), &[], &[])
+            transform_legacy_state_member_mutate_ast("obj.foo();", &ssv(&["obj"]), &[], &[], &eb())
                 .is_none()
         );
     }
 
     #[test]
     fn empty_state_vars_is_no_op() {
-        assert!(transform_legacy_state_member_mutate_ast("obj.prop = 5;", &[], &[], &[]).is_none());
+        assert!(
+            transform_legacy_state_member_mutate_ast("obj.prop = 5;", &[], &[], &[], &eb())
+                .is_none()
+        );
     }
 
     #[test]
     fn parse_error_returns_none() {
         assert!(
-            transform_legacy_state_member_mutate_ast("obj.prop = (", &ssv(&["obj"]), &[], &[])
-                .is_none()
+            transform_legacy_state_member_mutate_ast(
+                "obj.prop = (",
+                &ssv(&["obj"]),
+                &[],
+                &[],
+                &eb()
+            )
+            .is_none()
         );
     }
 
     #[test]
     fn no_op_without_state_name() {
         assert!(
-            transform_legacy_state_member_mutate_ast("let x = 1;", &ssv(&["obj"]), &[], &[])
+            transform_legacy_state_member_mutate_ast("let x = 1;", &ssv(&["obj"]), &[], &[], &eb())
                 .is_none()
         );
     }
