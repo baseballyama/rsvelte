@@ -434,9 +434,23 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
                         && chars[k] == ':'
                         && (k + 1 >= chars.len() || chars[k + 1] != ':');
 
-                    // Only treat as property key if followed by `:` AND we're inside an object literal
-                    // (i.e., there is an unmatched `{` before this position in `new_result`)
-                    has_colon && {
+                    // A real property key is ALWAYS immediately preceded (skipping
+                    // whitespace/newlines) by `{` (first entry) or `,` (later entry).
+                    // A ternary consequent `cond ? $store : x` is instead preceded by
+                    // `?`. This distinguishes the two even inside a function body,
+                    // whose block `{` would otherwise make the brace-depth check below
+                    // a false positive for any ternary `$store :` in the body.
+                    let prev_is_obj_sep = {
+                        let mut j = i;
+                        while j > 0 && chars[j - 1].is_whitespace() {
+                            j -= 1;
+                        }
+                        j > 0 && (chars[j - 1] == '{' || chars[j - 1] == ',')
+                    };
+
+                    // Only treat as property key if followed by `:`, preceded by an
+                    // object-entry separator, AND we're inside an unmatched `{`.
+                    has_colon && prev_is_obj_sep && {
                         let mut brace_depth: i32 = 0;
                         for ch in new_result.chars() {
                             match ch {
