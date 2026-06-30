@@ -2954,6 +2954,33 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         // Walk normally
         walk::walk_static_member_expression(self, expr);
     }
+
+    fn visit_new_expression(&mut self, expr: &NewExpression<'ast>) {
+        // A `new X.Y(args)` whose callee member-spine bottoms out in a state var
+        // (rewritten to `$.get(name)`) gains a CallExpression in the callee after
+        // transformation, so it must be parenthesised — `new ($.get(x).Y)(args)` —
+        // else `(args)` parses as the `new` arguments. esrap/codegen apply this
+        // for proper AST `new` nodes, but this Raw-text state path can't, so we
+        // insert the parens here. The inserts are added AFTER the walk so the
+        // inner `name -> $.get(name)` replacement (which shares the callee start
+        // offset) is applied first; the right-to-left, stable-sorted apply then
+        // places `(` immediately before the rewritten callee.
+        let mut leftmost = &expr.callee;
+        let wrap = loop {
+            match leftmost {
+                Expression::StaticMemberExpression(m) => leftmost = &m.object,
+                Expression::ComputedMemberExpression(m) => leftmost = &m.object,
+                Expression::Identifier(id) => break self.is_active_state_var(id.name.as_str()),
+                _ => break false,
+            }
+        };
+        walk::walk_new_expression(self, expr);
+        if wrap {
+            let s = expr.callee.span();
+            self.add_replacement(s.start, s.start, "(".to_string());
+            self.add_replacement(s.end, s.end, ")".to_string());
+        }
+    }
 }
 
 impl<'a, 's> StateVarCollector<'a, 's> {

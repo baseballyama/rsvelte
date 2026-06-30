@@ -84,6 +84,7 @@ fn is_meta_rule(code: &str) -> bool {
             | "svelte/require-event-dispatcher-types"
             | "svelte/require-event-prefix"
             | "svelte/no-unused-props"
+            | "svelte/no-unused-svelte-ignore"
     )
 }
 
@@ -139,7 +140,6 @@ const SKIP: &[&str] = &[
     "valid-compile/invalid/svelte-config-custom-warn",
     "valid-compile/invalid/svelte-config-warning-filter",
     "valid-compile/valid/svelte-config-onwarn",
-    "valid-compile/valid/svelte-config-custom-warn",
     "valid-compile/valid/svelte-config-warning-filter",
     // `experimental.async` enabled via a `_config.cjs` (JS config) — same reason.
     "valid-compile/valid/svelte-config-experimental-async",
@@ -260,6 +260,27 @@ const SKIP: &[&str] = &[
     "no-unused-props/invalid/parent-interface-unused",
     "no-unused-props/invalid/unused-index-signature",
     "no-unused-props/invalid/custom-config-combination",
+    // ── svelte/no-unused-svelte-ignore skips ──────────────────────────────
+    // A `<style lang="…">` block in a non-CSS dialect (postcss/scss/sass/less/
+    // stylus/…) needs that preprocessor to turn its source into the CSS the
+    // compiler analyses. These *invalid* fixtures expect the leading CSS-ignore
+    // to be reported unused — but that expectation was recorded with the
+    // preprocessor installed (the transformed CSS yields no warning ⇒ ignore
+    // unused). rsvelte can't run a preprocessor, so — like the live plugin with
+    // no preprocessor — it strips the block and treats the CSS-ignore as used
+    // (see `no_unused_svelte_ignore`'s module docs). The *valid* counterparts
+    // (`valid/style-lang*`) still pass, and plain-CSS `<style>` is covered.
+    // (`style-lang0` matches `invalid/style-lang01`…`style-lang06`.)
+    "no-unused-svelte-ignore/invalid/style-lang0",
+    // `transform-test` / `transform-test-svelte4` mix that same non-CSS
+    // (`lang="postcss"`) CSS-ignore with a11y ignores; rsvelte matches the a11y
+    // reports, but the CSS-ignore (line 16) can't be reported for the reason
+    // above, so the exact `errors.yaml` set won't match.
+    "no-unused-svelte-ignore/invalid/transform-test",
+    // `ts-lang01-svelte4` exercises Svelte-4 legacy semantics (`export let` +
+    // the `unused-export-let` → `export_let_unused` warning). rsvelte runs
+    // Svelte-5 semantics; the Svelte-5 variant (`ts-lang01`) is covered.
+    "no-unused-svelte-ignore/valid/ts-lang01-svelte4",
     // Valid fixtures that would produce false positives without custom options.
     "no-unused-props/valid/ignore-property-patterns-default",
     "no-unused-props/valid/ignore-property-patterns-custom",
@@ -267,6 +288,20 @@ const SKIP: &[&str] = &[
     "no-unused-props/valid/ignored-type-patterns-custom",
     "no-unused-props/valid/ignored-type-patterns-custom2",
 ];
+
+/// Upstream fixture directories that are **not** an eslint-plugin-svelte rule and
+/// so are intentionally never ported. Every other fixture directory under
+/// `tests/fixtures/rules/` MUST map to a registered rule, or the coverage gate in
+/// [`oracle_strict_parity`] fails — this is what makes "all rules are ported" an
+/// enforced invariant rather than a hope: adding a new rule upstream (a new
+/// fixture dir) breaks CI until it is ported here or explicitly waived below with
+/// a documented reason.
+///
+/// - `@typescript-eslint`: an *integration* fixture dir (`@typescript-eslint/
+///   no-unnecessary-condition`) that checks the plugin's parser/processor against
+///   the third-party `@typescript-eslint` rule. It is not a rule this plugin
+///   defines, so there is nothing to port.
+const OUT_OF_SCOPE_RULES: &[&str] = &["@typescript-eslint"];
 
 /// One expected error from a `*-errors.yaml` file.
 #[derive(Debug, Deserialize)]
@@ -650,8 +685,33 @@ fn oracle_strict_parity() {
         failures.join("\n\n")
     );
 
-    // Coverage report (informational): upstream rules with a fixture dir that
-    // no registered rule covers yet — the remaining porting backlog.
+    // Dead-skip gate: every `SKIP` fragment must still match at least one real
+    // fixture path. A stale skip (typo, or a fixture upstream renamed/removed)
+    // would silently stop excluding anything — or worse, mask a future fixture —
+    // so an unused skip is a hard failure. This keeps the documented skip set
+    // honest as the upstream submodule moves.
+    let mut all_inputs: Vec<PathBuf> = Vec::new();
+    collect_inputs(&root, &mut all_inputs);
+    let all_paths: Vec<String> = all_inputs
+        .iter()
+        .map(|p| p.to_string_lossy().replace('\\', "/"))
+        .collect();
+    let dead_skips: Vec<&str> = SKIP
+        .iter()
+        .copied()
+        .filter(|frag| !all_paths.iter().any(|p| p.contains(frag)))
+        .collect();
+    assert!(
+        dead_skips.is_empty(),
+        "oracle dead-skip gate: {} SKIP entr(ies) match no fixture (remove or fix): {}",
+        dead_skips.len(),
+        dead_skips.join(", ")
+    );
+
+    // Coverage gate: every upstream rule fixture directory must map to a
+    // registered rule (or be explicitly out of scope). This is the enforced
+    // half of the porting guarantee — a newly-added upstream rule fails CI here
+    // until it is ported or waived in `OUT_OF_SCOPE_RULES`.
     let registered: std::collections::HashSet<&str> = under_test.iter().map(|r| r.dir).collect();
     let mut unported: Vec<String> = std::fs::read_dir(&root)
         .into_iter()
@@ -660,6 +720,7 @@ fn oracle_strict_parity() {
         .filter(|e| e.path().is_dir())
         .map(|e| e.file_name().to_string_lossy().to_string())
         .filter(|name| !registered.contains(name.as_str()))
+        .filter(|name| !OUT_OF_SCOPE_RULES.contains(&name.as_str()))
         .collect();
     unported.sort();
 
@@ -667,8 +728,10 @@ fn oracle_strict_parity() {
         "oracle: strict parity over {checked} fixtures across {} registered rules",
         under_test.len()
     );
-    eprintln!(
-        "oracle: {} upstream rules not yet ported: {}",
+    assert!(
+        unported.is_empty(),
+        "oracle coverage gate: {} upstream rule(s) have fixtures but no registered rule \
+         (port them, or add to OUT_OF_SCOPE_RULES with a reason): {}",
         unported.len(),
         unported.join(", ")
     );
