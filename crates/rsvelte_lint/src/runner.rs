@@ -105,6 +105,18 @@ pub fn lint_source(
             diags.extend(crate::rules::no_unused_props::diagnostics(
                 source, file, config,
             ));
+
+            // 2f. no-unused-svelte-ignore: compile + match svelte-ignore comments
+            // against the warnings they would suppress; report the unused ones.
+            diags.extend(
+                crate::rules::no_unused_svelte_ignore::no_unused_svelte_ignore_diagnostics(
+                    source,
+                    file,
+                    options,
+                    config,
+                    &line_index,
+                ),
+            );
             diags
         }
     };
