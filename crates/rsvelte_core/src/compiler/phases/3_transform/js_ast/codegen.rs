@@ -1363,6 +1363,14 @@ impl<'a> JsCodegen<'a> {
                 | JsExpr::Object(_)
                 | JsExpr::Class(_)
                 | JsExpr::Yield(_)
+                // A `ChainExpression` object must be parenthesised so a
+                // non-optional member doesn't join the optional chain:
+                // `($$arg0?.()).href` (mirrors esrap's `MemberExpression`
+                // `node.object.type === 'ChainExpression'` clause). A parsed
+                // chain `a?.b.c` is one top-level `Chain` whose inner member
+                // objects are plain members, so this only fires on an
+                // explicitly nested chain (the snippet-argument base).
+                | JsExpr::Chain(_)
         );
         if needs_parens {
             self.output.push('(');

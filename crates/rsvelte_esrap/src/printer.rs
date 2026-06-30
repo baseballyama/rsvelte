@@ -2393,6 +2393,24 @@ impl<'opt> Printer<'opt> {
         ctx.write(node.property.name.as_str());
     }
 
+    /// Print the object of a member expression, parenthesised per esrap's
+    /// `MemberExpression` rule: wrap when the object is a `ChainExpression`
+    /// (e.g. `($$arg0?.()).href` — the parens keep `.href` out of the optional
+    /// chain so it doesn't short-circuit) or when its precedence is below a
+    /// member access. A parsed optional chain like `a?.b.c` is a single
+    /// `ChainExpression` at the top, so its inner member objects are plain
+    /// members/identifiers and never trip this — only an explicitly nested chain
+    /// (the snippet-argument base) does.
+    fn member_object_with_parens(&mut self, object: &Expression, ctx: &mut Context) {
+        if matches!(object, Expression::ChainExpression(_)) {
+            ctx.write("(");
+            self.print_expression(object, ctx);
+            ctx.write(")");
+        } else {
+            self.child_with_parens(object, 19, ctx);
+        }
+    }
+
     /// Print `child` parenthesised iff its precedence is below `min`.
     fn child_with_parens(&mut self, child: &Expression, min: u8, ctx: &mut Context) {
         if expr_precedence(child) < min {
@@ -2461,13 +2479,13 @@ impl<'opt> Printer<'opt> {
     }
 
     fn static_member(&mut self, node: &StaticMemberExpression, ctx: &mut Context) {
-        self.child_with_parens(&node.object, 19, ctx);
+        self.member_object_with_parens(&node.object, ctx);
         ctx.write(if node.optional { "?." } else { "." });
         ctx.write(node.property.name.as_str());
     }
 
     fn computed_member(&mut self, node: &ComputedMemberExpression, ctx: &mut Context) {
-        self.child_with_parens(&node.object, 19, ctx);
+        self.member_object_with_parens(&node.object, ctx);
         if node.optional {
             ctx.write("?.");
         }
