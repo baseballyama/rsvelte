@@ -2187,9 +2187,9 @@ impl JsNode {
                 // Preserve any `leadingComments`/`trailingComments` on this node
                 // into the arena side table (parse path only — `Program` keeps
                 // its own; every other node would otherwise drop them on the
-                // typed round-trip). No-ops when comment capture is off, so the
-                // compile path pays only one `Cell<bool>` read per node.
-                if with_deser_arena(|a| a.capture_comments()) && type_str != "Program" {
+                // typed round-trip). The gate is a single thread-local `Cell`
+                // read, so the compile path (capture off) pays almost nothing.
+                if type_str != "Program" && crate::ast::arena::comment_capture_active() {
                     let leading = obj
                         .get("leadingComments")
                         .and_then(|v| v.as_array().cloned());
@@ -3939,7 +3939,7 @@ mod tests {
             }
         });
         let arena = crate::ast::arena::ParseArena::new();
-        arena.set_capture_comments(true);
+        let _capture = crate::ast::arena::CommentCaptureGuard::new();
         let back = crate::ast::arena::with_serialize_arena(&arena, || {
             JsNode::from_value(json.clone()).to_value()
         });

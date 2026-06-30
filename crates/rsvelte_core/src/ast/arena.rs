@@ -90,18 +90,14 @@ pub struct ParseArena {
     /// place to allocate from.
     bump: Bump,
     /// Side table of `leadingComments`/`trailingComments` keyed by a node's
-    /// `(start, end)` span. Populated by `JsNode::from_value` when
-    /// `capture_comments` is set (the `parse()` path), and read back by
-    /// `JsNode`'s `Serialize` impl so AST output stays comment-lossless without
-    /// storing comments on every node. The key includes `end` because a node and
-    /// its first child can share a `start` (e.g. a `SequenceExpression` and its
-    /// first element) — keying on `start` alone would leak the comment onto the
-    /// inner node too.
+    /// `(start, end)` span. Populated by `JsNode::from_value` when comment
+    /// capture is active (see [`comment_capture_active`] — the `parse()` path),
+    /// and read back by `JsNode`'s `Serialize` impl so AST output stays
+    /// comment-lossless without storing comments on every node. The key includes
+    /// `end` because a node and its first child can share a `start` (e.g. a
+    /// `SequenceExpression` and its first element) — keying on `start` alone
+    /// would leak the comment onto the inner node too.
     node_comments: RefCell<FxHashMap<(u32, u32), NodeComments>>,
-    /// When `true`, `from_value` records node comments into `node_comments`.
-    /// Off by default (compile path) so the hot codegen path never builds the
-    /// table; `parse()` turns it on.
-    capture_comments: Cell<bool>,
 }
 
 // ParseArena is explicitly NOT Sync - it's single-threaded only.
@@ -127,27 +123,14 @@ impl ParseArena {
             next_js_child_start: UnsafeCell::new(0),
             bump: Bump::new(),
             node_comments: RefCell::new(FxHashMap::default()),
-            capture_comments: Cell::new(false),
         }
     }
 
     // -- Node comment side table (parse-only) --------------------------------
 
-    /// Enable/disable recording of node `leadingComments`/`trailingComments`
-    /// into the side table. `parse()` enables it; the compile path leaves it off.
-    #[inline]
-    pub fn set_capture_comments(&self, on: bool) {
-        self.capture_comments.set(on);
-    }
-
-    /// Whether comment capture is currently enabled.
-    #[inline]
-    pub fn capture_comments(&self) -> bool {
-        self.capture_comments.get()
-    }
-
-    /// Record the comments attached to the node at `(start, end)` (no-op when
-    /// capture is disabled or both arrays are absent).
+    /// Record the comments attached to the node at `(start, end)`. Callers gate
+    /// this behind [`comment_capture_active`] (the parse path); it is never
+    /// reached on the compile path, so there is no per-call flag check here.
     #[inline]
     pub fn record_node_comments(
         &self,
@@ -156,7 +139,7 @@ impl ParseArena {
         leading: Option<Vec<serde_json::Value>>,
         trailing: Option<Vec<serde_json::Value>>,
     ) {
-        if !self.capture_comments.get() || (leading.is_none() && trailing.is_none()) {
+        if leading.is_none() && trailing.is_none() {
             return;
         }
         self.node_comments
@@ -364,7 +347,6 @@ impl Clone for ParseArena {
                 next_js_child_start: UnsafeCell::new(*self.next_js_child_start.get()),
                 bump: Bump::new(),
                 node_comments: RefCell::new(self.node_comments.borrow().clone()),
-                capture_comments: Cell::new(self.capture_comments.get()),
             }
         }
     }
@@ -440,6 +422,46 @@ mod tests {
 
 thread_local! {
     static SERIALIZE_ARENA: Cell<Option<*const ParseArena>> = const { Cell::new(None) };
+    /// Whether `JsNode::from_value` should record node comments into the current
+    /// serialize arena's side table. A thread-local so the per-node check in the
+    /// hot `from_value` path is a single `Cell` read; `parse()` flips it on via
+    /// [`CommentCaptureGuard`], the compile path leaves it off.
+    static COMMENT_CAPTURE: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Whether node-comment capture is currently active (the `parse()` AST path).
+#[inline(always)]
+pub fn comment_capture_active() -> bool {
+    COMMENT_CAPTURE.with(|c| c.get())
+}
+
+/// RAII guard that enables [`comment_capture_active`] for its lifetime,
+/// restoring the previous value on drop (so a comment-capturing `parse()`
+/// nested under a non-capturing one — or vice versa — leaves no residue).
+pub struct CommentCaptureGuard {
+    prev: bool,
+}
+
+impl CommentCaptureGuard {
+    #[inline]
+    pub fn new() -> Self {
+        let prev = COMMENT_CAPTURE.with(|c| c.replace(true));
+        CommentCaptureGuard { prev }
+    }
+}
+
+impl Default for CommentCaptureGuard {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for CommentCaptureGuard {
+    #[inline]
+    fn drop(&mut self) {
+        COMMENT_CAPTURE.with(|c| c.set(self.prev));
+    }
 }
 
 /// RAII guard that installs an arena pointer in `SERIALIZE_ARENA` for
