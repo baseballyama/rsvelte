@@ -1263,6 +1263,22 @@ pub fn visit(
                         // unrelated ids used on sibling elements). Order by the
                         // first in-span reference position so the emitted
                         // `$.invalidate_inner_signals` body matches source order.
+                        // The set of scope indices that are `scope_idx` or an
+                        // ancestor of it — used by both the identifier group
+                        // (below) and the component group (further down).
+                        let mut ancestor_scopes: FxHashSet<usize> = FxHashSet::default();
+                        {
+                            let mut cur = Some(scope_idx);
+                            while let Some(si) = cur {
+                                ancestor_scopes.insert(si);
+                                cur = context
+                                    .analysis
+                                    .root
+                                    .all_scopes
+                                    .get(si)
+                                    .and_then(|s| s.parent);
+                            }
+                        }
                         let mut indirect_with_pos: Vec<(u32, String)> = Vec::new();
                         {
                             // Mirror the official `scope.references.keys()`: the
@@ -1280,27 +1296,12 @@ pub fn visit(
                             // mutating the bound value must not invalidate `task`.
                             // The in-span template-reference filter keeps this to the
                             // select element (not unrelated sibling elements).
-                            // The set of scope indices that are `scope_idx` or an
-                            // ancestor of it. A binding is in the select's ENCLOSING
-                            // scope iff its own `scope_index` is in this set; a
-                            // binding declared in a descendant scope (e.g. an
-                            // each-block item inside the select) is NOT. We use
-                            // `binding.scope_index` rather than `scope.declarations`
-                            // because the latter is polluted with child-scope
-                            // declarations for backward compat (see scope.rs).
-                            let mut ancestor_scopes: FxHashSet<usize> = FxHashSet::default();
-                            {
-                                let mut cur = Some(scope_idx);
-                                while let Some(si) = cur {
-                                    ancestor_scopes.insert(si);
-                                    cur = context
-                                        .analysis
-                                        .root
-                                        .all_scopes
-                                        .get(si)
-                                        .and_then(|s| s.parent);
-                                }
-                            }
+                            // A binding is in the select's ENCLOSING scope iff its own
+                            // `scope_index` is in `ancestor_scopes`; a binding declared
+                            // in a descendant scope (e.g. an each-block item inside the
+                            // select) is NOT. We use `binding.scope_index` rather than
+                            // `scope.declarations` because the latter is polluted with
+                            // child-scope declarations for backward compat (see scope.rs).
                             for other_binding in context.analysis.root.bindings.iter() {
                                 let name = &other_binding.name;
                                 if name == root_name {
@@ -1340,8 +1341,41 @@ pub fn visit(
                         let indirect_names: Vec<String> =
                             indirect_with_pos.into_iter().map(|(_, n)| n).collect();
 
+                        // Component group (immediate references). In the official
+                        // compiler these are inserted into the select scope's
+                        // `references` map BEFORE the deferred identifier references,
+                        // so they must come first in `legacy_indirect_bindings`.
+                        let mut comp_names: Vec<String> = Vec::new();
+                        {
+                            let mut comp_with_pos: Vec<(u32, String)> = Vec::new();
+                            collect_subtree_component_refs(&element.fragment, &mut comp_with_pos);
+                            comp_with_pos.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+                            let mut seen: FxHashSet<String> = FxHashSet::default();
+                            for (_, name) in comp_with_pos {
+                                if &name == root_name || !seen.insert(name.clone()) {
+                                    continue;
+                                }
+                                // Resolve like the official `scope.get(name)`: only
+                                // add when it maps to an enclosing-scope binding that
+                                // is not a synthesized store-subscription alias.
+                                if let Some(bi) =
+                                    context.analysis.root.get_binding(&name, scope_idx)
+                                {
+                                    let b = &context.analysis.root.bindings[bi];
+                                    if ancestor_scopes.contains(&b.scope_index)
+                                        && !matches!(
+                                            b.kind,
+                                            crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub
+                                        )
+                                    {
+                                        comp_names.push(name);
+                                    }
+                                }
+                            }
+                        }
+
                         let binding = &mut context.analysis.root.bindings[binding_idx];
-                        for name in indirect_names {
+                        for name in comp_names.into_iter().chain(indirect_names) {
                             if !binding.legacy_indirect_bindings.contains(&name) {
                                 binding.legacy_indirect_bindings.push(name);
                             }
@@ -1435,6 +1469,76 @@ fn extract_binding_root_identifier_node(
         }
         _ => None,
     }
+}
+
+/// Recursively collect component-tag references within a fragment subtree, in
+/// source order, as `(start, root_name)` pairs.
+///
+/// Mirrors the official compiler's `Component` create-scopes visitor
+/// (`context.state.scope.reference(b.id(node.name.split('.')[0]), …)`), whose
+/// references are applied IMMEDIATELY during the walk — unlike plain identifier
+/// references, which are buffered and applied afterwards. As a result component
+/// names occupy the FIRST slots of a scope's `references` map, ahead of every
+/// deferred identifier reference. The `<select bind:value>` legacy-indirect
+/// population relies on this ordering, so we gather component refs separately
+/// and emit them before the identifier group.
+fn collect_subtree_component_refs(
+    fragment: &crate::ast::template::Fragment,
+    out: &mut Vec<(u32, String)>,
+) {
+    fn root_name(name: &str) -> String {
+        name.split('.').next().unwrap_or(name).to_string()
+    }
+    fn walk(nodes: &[TemplateNode], out: &mut Vec<(u32, String)>) {
+        for node in nodes {
+            match node {
+                TemplateNode::Component(c) => {
+                    out.push((c.start, root_name(&c.name)));
+                    walk(&c.fragment.nodes, out);
+                }
+                TemplateNode::SvelteSelf(e) => walk(&e.fragment.nodes, out),
+                TemplateNode::SvelteComponent(c) => walk(&c.fragment.nodes, out),
+                TemplateNode::RegularElement(e) => walk(&e.fragment.nodes, out),
+                TemplateNode::SvelteElement(e) => walk(&e.fragment.nodes, out),
+                TemplateNode::TitleElement(e) => walk(&e.fragment.nodes, out),
+                TemplateNode::SlotElement(e) => walk(&e.fragment.nodes, out),
+                TemplateNode::SvelteBody(e)
+                | TemplateNode::SvelteDocument(e)
+                | TemplateNode::SvelteFragment(e)
+                | TemplateNode::SvelteBoundary(e)
+                | TemplateNode::SvelteHead(e)
+                | TemplateNode::SvelteOptions(e)
+                | TemplateNode::SvelteWindow(e) => walk(&e.fragment.nodes, out),
+                TemplateNode::IfBlock(b) => {
+                    walk(&b.consequent.nodes, out);
+                    if let Some(alt) = &b.alternate {
+                        walk(&alt.nodes, out);
+                    }
+                }
+                TemplateNode::EachBlock(b) => {
+                    walk(&b.body.nodes, out);
+                    if let Some(fallback) = &b.fallback {
+                        walk(&fallback.nodes, out);
+                    }
+                }
+                TemplateNode::KeyBlock(b) => walk(&b.fragment.nodes, out),
+                TemplateNode::AwaitBlock(b) => {
+                    if let Some(p) = &b.pending {
+                        walk(&p.nodes, out);
+                    }
+                    if let Some(t) = &b.then {
+                        walk(&t.nodes, out);
+                    }
+                    if let Some(c) = &b.catch {
+                        walk(&c.nodes, out);
+                    }
+                }
+                TemplateNode::SnippetBlock(b) => walk(&b.body.nodes, out),
+                _ => {}
+            }
+        }
+    }
+    walk(&fragment.nodes, out);
 }
 
 fn extract_binding_root_identifier_json(value: &serde_json::Value) -> Option<String> {
