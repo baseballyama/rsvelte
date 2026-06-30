@@ -8,7 +8,6 @@ use super::VisitorContext;
 use crate::ast::typed_expr::{JsNode, LiteralValue};
 use crate::compiler::phases::phase2_analyze::{AnalysisError, warnings};
 use regex::Regex;
-use serde_json::Value;
 use std::sync::OnceLock;
 
 /// Regex pattern for detecting bidirectional control characters.
@@ -35,35 +34,6 @@ fn get_bidirectional_regex() -> &'static Regex {
         Regex::new(r"[\u{202a}\u{202b}\u{202c}\u{202d}\u{202e}\u{2066}\u{2067}\u{2068}\u{2069}]+")
             .expect("Failed to compile bidirectional control characters regex")
     })
-}
-
-/// Visit a literal value.
-///
-/// Checks string literals for bidirectional control characters which can
-/// be used to alter code direction and have security implications.
-///
-/// # Arguments
-///
-/// * `node` - The Literal AST node (ESTree format)
-/// * `context` - The visitor context
-///
-/// # Example
-///
-/// ```javascript
-/// const text = "Hello\u202eWorld"; // Would trigger warning
-/// ```
-pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    // Check if the literal is a string
-    if let Some(value) = node.get("value")
-        && let Some(string_value) = value.as_str()
-    {
-        // Test for bidirectional control characters
-        if get_bidirectional_regex().is_match(string_value) {
-            context.emit_warning(warnings::bidirectional_control_characters());
-        }
-    }
-
-    Ok(())
 }
 
 /// Visit a literal value (typed JsNode path).

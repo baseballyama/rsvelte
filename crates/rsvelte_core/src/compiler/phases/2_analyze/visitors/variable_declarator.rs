@@ -12,65 +12,6 @@ use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::BindingKind;
 use serde_json::Value;
 
-/// Visit a variable declarator.
-///
-/// Corresponds to `VariableDeclarator` in VariableDeclarator.js.
-pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    // Ensure no conflict with module imports
-    utils::ensure_no_module_import_conflict(node, context)?;
-
-    // Collect svelte-ignore codes from the parent VariableDeclaration's leading comments.
-    // This is needed to suppress warnings like `non_reactive_update` when the declaration
-    // has a `// svelte-ignore non_reactive_update` comment.
-    let ignore_codes = collect_ignore_codes_from_parent(context);
-    if !ignore_codes.is_empty() {
-        // Store ignore codes on all bindings declared in this declarator
-        if let Some(id) = node.get("id") {
-            store_ignore_codes_on_bindings(id, &ignore_codes, context);
-        }
-    }
-
-    if context.analysis.runes {
-        // Runes mode path
-        visit_runes_mode(node, context)?;
-    } else {
-        // Non-runes mode - check for invalid rune usage
-        visit_non_runes_mode(node, context)?;
-    }
-
-    // Handle visitation order
-    if let Some(init) = node.get("init") {
-        let rune = get_rune(init, context);
-
-        if rune.as_deref() == Some("$props") {
-            // For $props(), visit the id with incremented function_depth
-            // to prevent erroneous `state_referenced_locally` warnings
-            if let Some(id) = node.get("id") {
-                let original_depth = context.function_depth;
-                context.function_depth += 1;
-                super::script::walk_js_node(id, context)?;
-                context.function_depth = original_depth;
-            }
-
-            // Visit init normally
-            super::script::walk_js_node(init, context)?;
-        } else {
-            // Normal visitation - visit both id and init
-            if let Some(id) = node.get("id") {
-                super::script::walk_js_node(id, context)?;
-            }
-            super::script::walk_js_node(init, context)?;
-        }
-    } else {
-        // No init - just visit the id
-        if let Some(id) = node.get("id") {
-            super::script::walk_js_node(id, context)?;
-        }
-    }
-
-    Ok(())
-}
-
 /// Process variable declarator in runes mode.
 fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     let init = node.get("init");
