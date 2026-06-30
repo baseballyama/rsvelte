@@ -6,7 +6,6 @@
 	"layerchart/packages/layerchart/src/lib/components/Points.svelte",
 	"melt-ui/packages/melt/src/lib/builders/tests/SpatialMenuNavTest.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte",
-	"svelte-form-builder/src/lib/Components/Select.svelte",
 	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelComponentSpecific/PropertyPanelChoiceCheckboxRadioSpecific.svelte",
 	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelComponentSpecific/Table/TableColumnSpecific.svelte",
 	"svelte-sonner/src/lib/Toaster.svelte",
