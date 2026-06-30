@@ -8,68 +8,6 @@ use super::super::errors;
 use super::VisitorContext;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
-use serde_json::Value;
-
-/// Visit an import declaration.
-pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    // Get the source (module path) of the import
-    let source = node
-        .get("source")
-        .and_then(|s| s.get("value"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-
-    // In runes mode, check for forbidden imports
-    if context.analysis.runes {
-        // Check for svelte/internal imports
-        if source.starts_with("svelte/internal") {
-            return Err(errors::import_svelte_internal_forbidden());
-        }
-
-        // Check for beforeUpdate/afterUpdate imports from 'svelte'
-        if source == "svelte"
-            && let Some(specifiers) = node.get("specifiers").and_then(|s| s.as_array())
-        {
-            for specifier in specifiers {
-                if specifier.get("type").and_then(|t| t.as_str()) == Some("ImportSpecifier") {
-                    let imported = specifier.get("imported");
-                    if let Some(imported) = imported
-                        && imported.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                        && let Some(name) = imported.get("name").and_then(|n| n.as_str())
-                        && (name == "beforeUpdate" || name == "afterUpdate")
-                    {
-                        return Err(errors::runes_mode_invalid_import(name));
-                    }
-                }
-            }
-        }
-    }
-
-    // Validate imported names for dollar prefix
-    if let Some(specifiers) = node.get("specifiers").and_then(|s| s.as_array()) {
-        for specifier in specifiers {
-            // Get the local name (the name used in the component)
-            let local_name = specifier
-                .get("local")
-                .and_then(|l| l.get("name"))
-                .and_then(|n| n.as_str());
-
-            if let Some(name) = local_name {
-                // Check for bare '$'
-                if name == "$" {
-                    return Err(errors::dollar_binding_invalid());
-                }
-
-                // Check for names starting with '$'
-                if name.starts_with('$') {
-                    return Err(errors::dollar_prefix_invalid());
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
 
 /// Visit an import declaration (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {

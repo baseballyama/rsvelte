@@ -5,80 +5,11 @@
 //! Corresponds to Svelte's `2-analyze/visitors/AssignmentExpression.js`.
 
 use super::VisitorContext;
-use super::shared::utils::{extract_identifiers, object, validate_assignment};
+use super::shared::utils::extract_identifiers;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::scope::MutationKind;
 use serde_json::Value;
-
-/// Visit an assignment expression.
-///
-/// Corresponds to `AssignmentExpression` in AssignmentExpression.js.
-///
-/// This function validates that the assignment target is mutable and tracks
-/// which bindings are being assigned to in reactive statements.
-pub fn visit(
-    node: &Value, // The AssignmentExpression node from JavaScript AST
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    // Validate that we can assign to the left-hand side
-    if let Some(left) = node.get("left") {
-        validate_assignment(left, context, false)?;
-    }
-
-    // Track mutations/reassignments for all bindings being assigned to.
-    // This is important for prop flags (PROPS_IS_UPDATED) and state tracking.
-    if let Some(left) = node.get("left") {
-        mark_binding_mutation(left, context);
-    }
-
-    // Track assignments in reactive statements (legacy mode)
-    if let Some(reactive_stmt_ptr) = context.reactive_statement
-        && let Some(left) = node.get("left")
-    {
-        // Get the identifier: if left is a MemberExpression, get the object, otherwise use left itself
-        let id = if left.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
-            object(left)
-        } else {
-            Some(left.clone())
-        };
-
-        if id.is_some() {
-            // Extract all identifier names from the left-hand side
-            let identifier_names = extract_identifiers(left);
-
-            // SAFETY: `reactive_stmt_ptr` is the `*mut ReactiveStatement` set on
-            // the visit context by the enclosing reactive-statement scope; its
-            // referent is owned by the analysis and outlives this traversal,
-            // which is single-threaded, so there is no live aliasing reference.
-            let reactive_stmt = unsafe { &mut *reactive_stmt_ptr };
-
-            for name in identifier_names {
-                // Look up the binding in the current scope
-                if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(&name) {
-                    reactive_stmt.assignments.insert(binding_idx);
-                }
-            }
-        }
-    }
-
-    // Mark expression as having assignment
-    if let Some(expression) = context.current_expression() {
-        expression.set_has_assignment(true);
-    }
-
-    // Visit children (left and right)
-    // This is equivalent to context.next() in the JavaScript implementation
-    if let Some(left) = node.get("left") {
-        super::script::walk_js_node(left, context)?;
-    }
-
-    if let Some(right) = node.get("right") {
-        super::script::walk_js_node(right, context)?;
-    }
-
-    Ok(())
-}
 
 /// Mark a binding as mutated or reassigned based on the assignment target.
 ///

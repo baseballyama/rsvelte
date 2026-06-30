@@ -27,21 +27,20 @@ static REGEX_INVALID_IDENTIFIER_CHARS: LazyLock<Regex> =
 /// This function analyzes class bodies to find state fields (properties using $state, $derived, etc.)
 /// and validates that field names don't conflict. It handles both PropertyDefinition nodes
 /// and assignments in the constructor (this.foo = $state(...)).
-pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+/// Shared ClassBody analysis. `typed` carries the typed `JsNode::ClassBody`
+/// (always present — only called from `visit_typed` in runes mode). The
+/// state-field analysis runs on the `&Value` form, but child traversal uses the
+/// typed walker.
+fn visit_impl(
+    node: &Value,
+    typed: &JsNode,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
     // Get the class body array
     let body = match node.get("body").and_then(|b| b.as_array()) {
         Some(b) => b,
         None => return Ok(()),
     };
-
-    // Only analyze state fields if using runes
-    if !context.analysis.runes {
-        // Still need to visit children for non-runes mode to detect needs_context
-        for child in body {
-            super::script::walk_js_node(child, context)?;
-        }
-        return Ok(());
-    }
 
     // Track private identifiers to avoid conflicts when generating deconflicted names
     let mut private_ids: Vec<String> = Vec::new();
@@ -412,9 +411,13 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     );
 
     // Visit children (methods, properties, etc.)
-    // This is equivalent to context.next() in the JavaScript implementation
-    for child in body {
-        super::script::walk_js_node(child, context)?;
+    // This is equivalent to context.next() in the JavaScript implementation.
+    // Traverse children via the typed walker.
+    if let JsNode::ClassBody { body: body_ids, .. } = typed {
+        let arena = context.parse_arena;
+        for child in arena.get_js_children(*body_ids) {
+            super::script::walk_js_node_typed(child, context)?;
+        }
     }
 
     // Restore previous state_fields
@@ -441,7 +444,9 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         return Ok(());
     }
 
-    // Runes mode: delegate to Value-based visit() for full state field analysis
+    // Runes mode: the state-field analysis needs deep introspection, so run it on
+    // the Value form — but traverse children via the typed walker so this no longer
+    // re-enters the legacy Value walker.
     let value = node.to_value();
-    visit(&value, context)
+    visit_impl(&value, node, context)
 }

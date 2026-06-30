@@ -9,30 +9,6 @@ use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::errors;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-use serde_json::Value;
-
-/// Visit an export default declaration.
-///
-/// In .svelte.js module files, validate state/derived exports.
-/// In Svelte component scripts (both instance and module scripts),
-/// default exports are not allowed.
-pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    if context.analysis.is_module_file {
-        // In .svelte.js module files, check for invalid state/derived exports
-        // Corresponds to: if (!context.state.ast_type) { validate_export(...) }
-        if let Some(declaration) = node.get("declaration")
-            && declaration.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-            && let Some(name) = declaration.get("name").and_then(|n| n.as_str())
-        {
-            validate_export(name, context)?;
-        }
-        Ok(())
-    } else {
-        // In Svelte component scripts, default exports are not allowed
-        // This applies to both <script> and <script module> contexts
-        Err(errors::module_illegal_default_export())
-    }
-}
 
 /// Visit an export default declaration (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {

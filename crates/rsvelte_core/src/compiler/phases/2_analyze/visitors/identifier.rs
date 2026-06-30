@@ -7,41 +7,9 @@
 use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
 use super::shared::function::is_rune;
-use super::shared::utils::{is_reference, is_reference_for_identifier_typed};
+use super::shared::utils::is_reference_for_identifier_typed;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::{AnalysisError, BindingKind, errors, warnings};
-use serde_json::Value;
-
-/// Visit an identifier (Value-based path).
-///
-/// This extracts the name, start, and end from the Value node, checks
-/// `is_reference`, then delegates to shared logic in `visit_identifier_inner`.
-pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    // Get the parent node from js_path
-    let parent: Option<&Value> = if context.js_path.len() >= 2 {
-        Some(&context.js_path[context.js_path.len() - 2])
-    } else {
-        None
-    };
-
-    // Check if this identifier is a reference (not a declaration or property key)
-    if !is_reference(node, parent) {
-        return Ok(());
-    }
-
-    // Mark the subtree as dynamic
-    mark_subtree_dynamic(&context.path);
-
-    let name = match node.get("name").and_then(|n| n.as_str()) {
-        Some(n) => n,
-        None => return Ok(()),
-    };
-
-    let start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
-    let end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as u32;
-
-    visit_identifier_inner(name, start, end, context)
-}
 
 /// Visit an identifier (typed JsNode path).
 ///
