@@ -122,8 +122,23 @@ fn visit_const_tag_sync<'a>(node: &ConstTag, state: &mut ServerTransformState<'a
 /// state.async_consts.is_some() || blockers > 0`, and on the async branch build
 /// the bare `let`s + thunk(s) into [`ServerTransformState::async_consts`].
 fn try_async_const<'a>(node: &ConstTag, state: &mut ServerTransformState<'a>) -> bool {
-    let start = node.declaration.start().unwrap_or(0) as usize;
-    let end = node.declaration.end().unwrap_or(0) as usize;
+    // Slice the FIRST declarator's span (`x = (rhs)`), not the whole
+    // `VariableDeclaration` span — the latter now starts at the `const` keyword
+    // (Svelte 5.56.4 `start: start + 2`), so `node.declaration.start()` would
+    // wrongly include `const ` in the `<lhs> = <rhs>` split.
+    let decl_json = node.declaration.as_json();
+    let Some((start, end)) = decl_json
+        .get("declarations")
+        .and_then(|d| d.as_array())
+        .and_then(|d| d.first())
+        .and_then(|declarator| {
+            let s = declarator.get("start").and_then(|n| n.as_u64())? as usize;
+            let e = declarator.get("end").and_then(|n| n.as_u64())? as usize;
+            Some((s, e))
+        })
+    else {
+        return false;
+    };
     if end <= start || end > state.source.len() {
         return false;
     }

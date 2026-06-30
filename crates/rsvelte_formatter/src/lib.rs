@@ -120,7 +120,15 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     if let Some(opts) = &root.options {
         markup::collect_options_open_tag_edit(source, opts, options, &mut edits)?;
     }
-    expression::collect_template_edits(source, &root.fragment, 0, options, &mut edits)?;
+    // Install `root.arena` as the serialize arena for the template walk: a
+    // `{@const}`'s `VariableDeclaration` carries its declarators as arena
+    // children (allocated into `root.arena` at parse time), so `push_const_tag`
+    // reads the first declarator's span via `decl.as_json()`. Without the arena
+    // installed, `to_value` falls back to an empty thread-local deser arena and
+    // the declarations come back empty.
+    rsvelte_core::ast::arena::with_serialize_arena(&root.arena, || {
+        expression::collect_template_edits(source, &root.fragment, 0, options, &mut edits)
+    })?;
     indent::collect_indent_edits(source, &root.fragment, 0, options, &mut edits)?;
     if let Some(css) = &root.css {
         // Normalize the `<style …>` open tag (e.g. strip trailing space from
