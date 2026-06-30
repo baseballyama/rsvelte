@@ -58,6 +58,14 @@ fn remove_this_param(node: &mut JsonValue) {
 
 /// Remove TypeScript-specific fields from a node
 fn remove_typescript_fields(node: &mut JsonValue) {
+    // `optional` is reused by JS optional chaining (`a?.b`, `a?.()`), so only the
+    // TypeScript optional marker (`x?: T`, `m?(): T`, optional fields) is stripped —
+    // never the `optional` flag on a MemberExpression / CallExpression. Mirrors the
+    // upstream `_` visitor guard in `remove_typescript_nodes.js` (Svelte 5.56.4).
+    let strip_optional = !matches!(
+        get_type(node),
+        Some("MemberExpression") | Some("CallExpression")
+    );
     if let Some(obj) = node.as_object_mut() {
         obj.remove("typeAnnotation");
         obj.remove("typeParameters");
@@ -67,6 +75,9 @@ fn remove_typescript_fields(node: &mut JsonValue) {
         obj.remove("readonly");
         obj.remove("definite");
         obj.remove("override");
+        if strip_optional {
+            obj.remove("optional");
+        }
     }
 }
 

@@ -751,7 +751,8 @@ fn sort_const_tags<'n>(
             let start = ct.declaration.start().unwrap_or(0) as usize;
             let end = ct.declaration.end().unwrap_or(0) as usize;
             let (declared, deps) = if end > start && end <= state.source.len() {
-                let src = state.source[start..end].trim();
+                let src =
+                    super::const_tag::strip_leading_decl_keyword(state.source[start..end].trim());
                 match super::const_tag::find_assignment_eq(src) {
                     Some(eq) => (
                         super::const_tag::extract_declared_names(&src[..eq]),

@@ -127,7 +127,8 @@ fn try_async_const<'a>(node: &ConstTag, state: &mut ServerTransformState<'a>) ->
     if end <= start || end > state.source.len() {
         return false;
     }
-    let declaration_source = state.source[start..end].trim().to_string();
+    let declaration_source =
+        strip_leading_decl_keyword(state.source[start..end].trim()).to_string();
 
     // Split `<lhs> = <rhs>`.
     let Some(eq_idx) = find_assignment_eq(&declaration_source) else {
@@ -286,6 +287,23 @@ pub(super) fn find_assignment_eq(decl: &str) -> Option<usize> {
         i += 1;
     }
     None
+}
+
+/// Strip a leading `const ` / `let ` / `var ` keyword from a sliced declaration
+/// source. A `{@const …}` node's `declaration.start` points at the `const`
+/// keyword (mirroring upstream's `start: start + 2`), so the verbatim source
+/// slice is `const x = …`; the const-tag machinery here splits `<lhs> = <rhs>`
+/// and therefore wants the keyword removed so the LHS is just the pattern.
+pub(super) fn strip_leading_decl_keyword(src: &str) -> &str {
+    let trimmed = src.trim_start();
+    for kw in ["const", "let", "var"] {
+        if let Some(rest) = trimmed.strip_prefix(kw)
+            && rest.chars().next().is_some_and(|c| c.is_whitespace())
+        {
+            return rest.trim_start();
+        }
+    }
+    trimmed
 }
 
 /// Declared binding names from a const LHS (simple identifier or destructuring).
