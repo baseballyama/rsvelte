@@ -25,7 +25,7 @@ oxc_allocator = "0.138"
 oxc_ast = "0.138"
 oxc_parser = "0.138"
 oxc_span = "0.138"
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "dd5d39ec2e5a92a87d12d59e10ca9027f504efd8" }
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "6ca912513e2b3ef9df173d043c2f501b0532786d" }
 oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "dd5d39ec2e5a92a87d12d59e10ca9027f504efd8" }
 oxc_formatter_json = { git = "https://github.com/oxc-project/oxc", rev = "dd5d39ec2e5a92a87d12d59e10ca9027f504efd8" }
 thiserror = "2.0"
