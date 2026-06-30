@@ -85,9 +85,14 @@ pub(crate) fn format_script(
     //   1. Numeric-looking string keys like `{ '1': 'one' }` are preserved as `"1"`
     //      rather than being unquoted to `1` (see `can_remove_number_quotes_by_file_type`).
     //   2. TypeScript class property declarations keep their quotes.
-    // Both of these match the oracle, so using `SourceType::ts()` unconditionally
-    // aligns rsvelte-fmt with oxfmt's `.svelte` behaviour (#D).
-    let source_type = SourceType::ts();
+    // Both of these match the oracle, so using TypeScript unconditionally aligns
+    // rsvelte-fmt with oxfmt's `.svelte` behaviour (#D). Use `from_extension("ts")`
+    // (not the bare `SourceType::ts()`, whose `extension` field is `None`) so the
+    // formatter sees a `.ts` extension: oxc_formatter forces a JSX-disambiguation
+    // trailing comma on a single arrow-function type parameter (`<T>` → `<T,>`) for
+    // every source whose extension is not `.ts`, but oxfmt formats embedded `.svelte`
+    // scripts as `.ts` (no comma). Matching the extension keeps `<T>` as `<T>`.
+    let source_type = SourceType::from_extension("ts").unwrap_or_else(|_| SourceType::ts());
 
     let parser_ret = Parser::new(&allocator, body, source_type)
         .with_options(formatter_parse_options())
@@ -168,7 +173,9 @@ pub(crate) fn format_nested_script(
     let allocator = Allocator::default();
     // Same reasoning as format_script: always use TS source type so that
     // numeric-looking string property keys are preserved (oracle uses babel-ts).
-    let source_type = SourceType::ts();
+    // `from_extension("ts")` (extension `Some(Ts)`) avoids the forced
+    // `<T>` → `<T,>` arrow type-parameter comma that a `None` extension triggers.
+    let source_type = SourceType::from_extension("ts").unwrap_or_else(|_| SourceType::ts());
     let parser_ret = Parser::new(&allocator, body, source_type)
         .with_options(formatter_parse_options())
         .parse();

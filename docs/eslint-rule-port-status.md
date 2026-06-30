@@ -7,6 +7,36 @@ registered rule is run over `submodules/eslint-plugin-svelte/.../tests/fixtures/
 and must reproduce the upstream messages, positions, autofix output, and
 editor-suggestion `{desc, output}` exactly.
 
+**Every upstream rule is ported.** All 80 eslint-plugin-svelte rules are
+registered and parity-verified; the only non-ported fixture directory is
+`@typescript-eslint/` (a third-party-rule *integration* fixture, not a rule this
+plugin defines).
+
+## How "all rules stay ported" is guaranteed
+
+Because lint rules can't be validated by a large output-equality corpus the way
+the compiler is, the guarantee is built into the oracle as three CI-enforced
+gates, so faithfully-ported upstream tests *are* the safety net:
+
+1. **Strict per-fixture parity** — every non-skipped upstream fixture must match
+   exactly (message, line, column, suggestions, and autofix output). 1081
+   fixtures across 80 rules.
+2. **Coverage gate** — every upstream rule fixture directory must map to a
+   registered rule, or be listed in `OUT_OF_SCOPE_RULES` with a documented reason.
+   A new rule added upstream (a new fixture dir) fails CI until it is ported or
+   explicitly waived — this is what makes "all rules are ported" an *enforced*
+   invariant rather than a point-in-time claim.
+3. **Dead-skip gate** — every entry in the oracle's `SKIP` list must still match a
+   real fixture path. A stale skip (a fixture upstream renamed or removed) is a
+   hard failure, so the documented skip set can't silently rot and mask a
+   regression or a newly-added fixture.
+
+Fixtures that exercise a behaviour the native path genuinely can't reach (a TS
+type checker, a JS/TS tokenizer, a CSS preprocessor, JS config callbacks, or
+Svelte-4 legacy semantics) are the only ones in `SKIP`, each with an inline
+reason; the type-checker cases are additionally covered end-to-end against real
+`tsgo` by the isolated `crates/rsvelte_lint_types` crate.
+
 ## Ported (parity-verified by the oracle)
 
 All previously-shipped rules, plus suggestion parity added for: no-at-debug-tags,
@@ -162,10 +192,23 @@ PostCSS's own error text/position which rsvelte's hand-written CSS parser can't
 reproduce (and `lang="scss"` needs a real SCSS preprocessor) — but rsvelte still
 surfaces an invalid `<style>` as a hard `parse-error` via the validator wrap.
 
-### Blocked on an `rsvelte_core` capability
-- `no-unused-svelte-ignore` — needs a compile mode that surfaces warnings
-  *without* applying `<!-- svelte-ignore -->` suppression, plus which ignore
-  codes were consumed (today `emit_warning` silently drops suppressed ones).
+`no-unused-svelte-ignore` is ported as a whole-component meta-rule
+(`crate::rules::no_unused_svelte_ignore`, wired into `runner::lint_source`),
+a faithful port of upstream's `getSvelteIgnoreItems` + `processIgnore`. It
+extracts every `svelte-ignore` item from HTML template comments and `<script>`
+line/block comments (recording each code token's byte range, its `codeForV5`
+remapping, and the node it "leads"), reports a code-less ignore as `missingCode`,
+then strips the ignore comments (length-preserving) and compiles the result to
+collect the warnings they would have suppressed. A coded ignore is *used* iff a
+warning whose code matches (raw or `codeForV5`) falls within the byte range of the
+node the comment leads — the same scope model as upstream's warning-target /
+ignore-parent walk; every ignore left unused is reported. Parity-verified by the
+oracle plus inline unit tests. Skipped fixtures: `<style lang="sass|stylus">`
+cases (and `transform-test`) need a real preprocessor to decide CSS warnings
+(as with `valid-style-parse`); the `postcss` cases parse as plain CSS and are
+covered. The `ts-lang01-svelte4` fixture exercises Svelte-4 `export let` /
+`unused-export-let` legacy semantics (rsvelte runs Svelte-5; its `ts-lang01`
+sibling is covered).
 
 ### Large / complex
 - `indent` — **partially ported** (`rules/indent.rs`). The upstream engine is a
@@ -231,3 +274,23 @@ diverges from upstream in a benign or hard-to-fix way.
 - **no-unused-class-name**: the `allowedClassNames` option only honours the
   `i` (case-insensitive) regex flag; the `m` (multiline) and `s` (dotAll)
   flags are silently ignored.
+
+- **no-unused-svelte-ignore** (all on inputs with no upstream fixture):
+  - *Duplicate same-code ignores in one scope* (`<!-- svelte-ignore X X -->`, or
+    two `<!-- svelte-ignore X -->` before the same node): the port matches
+    many-to-one (any matching warning marks every same-code item in scope used),
+    so it reports **zero** unused where upstream's one-to-one `processIgnore`
+    reports **one**. Pathological input; no fixture exercises it.
+  - *Scope model*: the port treats an ignore as used iff a matching warning falls
+    within the byte range of the next element/block/tag the comment leads, rather
+    than replicating upstream's "resolve warning to its target node, walk up only
+    element/`{#if}`/`{#each}`/`{#key}`/`{#await}`" walk. This is fixture-equivalent
+    and, for `{#snippet}` and nested mustache tags, *more* faithful to Svelte's
+    own suppression (upstream's walk omits `SvelteSnippetBlock`, so it would flag a
+    working ignore before `{#snippet}` as unused; the port does not).
+  - *Whitespace*: `\s` is matched as ASCII whitespace only (as with
+    `comment-directive`), not the full JS-regex Unicode `\s`.
+  - *Position-less warnings*: a compiler warning rsvelte_core emits without a span
+    cannot be scope-matched, so any ignore for that code is treated as used (a
+    conservative choice — a false "unused" report would be worse, and upstream's
+    warnings always carry a span).

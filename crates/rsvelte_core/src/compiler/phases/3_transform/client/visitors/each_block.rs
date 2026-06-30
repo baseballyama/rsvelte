@@ -1004,12 +1004,24 @@ fn build_declarations(
                 replacement_id: None,
             },
         );
-        // Each index is not a template-kind binding in legacy reactivity;
-        // ensure any outer same-named deep_read marker is shadowed.
-        context
-            .state
-            .transform_deep_read
-            .remove(&index_name.to_string());
+        // A keyed each block's index is reactive — upstream gives it kind
+        // 'template', so a dependency read deep-reads it
+        // (`$.deep_read_state($.get(i))`). Mark it so `collect_reactive_references`
+        // wraps it; `get_binding` alone can resolve to a same-named non-index
+        // binding (e.g. a `map((d, i) => …)` callback param) and miss the
+        // EachIndex kind. A non-keyed (static) index instead shadows any outer
+        // same-named deep_read marker.
+        if index_reactive {
+            context
+                .state
+                .transform_deep_read
+                .insert(index_name.to_string(), ());
+        } else {
+            context
+                .state
+                .transform_deep_read
+                .remove(&index_name.to_string());
+        }
     }
 
     // Handle simple identifier context
