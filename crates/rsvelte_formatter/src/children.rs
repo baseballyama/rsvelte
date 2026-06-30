@@ -234,6 +234,31 @@ fn text_doc(text: &str) -> Doc {
     Doc::Fill(split_text_to_docs(text))
 }
 
+/// Push the doc(s) for a (possibly trimmed) text child. A whitespace-only
+/// ("empty") text node is printed via prettier-plugin-svelte's `printWhitespace`
+/// (plugin.js: the `Text` print returns `printWhitespace` when `isEmptyTextNode`)
+/// — a BARE `line` (or hardlines for blank source lines), NOT `fill([line])`.
+/// This is what lets a whitespace separator between two mustache atoms
+/// (`{a} {b}`) break under overflow, while `fill([line])` would always stay flat.
+/// A non-empty text node is the usual `fill(splitTextToDocs(...))`.
+fn push_text_child(out: &mut Vec<Doc>, text: &str) {
+    if is_only_ws(text) {
+        // printWhitespace: 2+ newlines → [hardline, hardline]; 1+ → hardline;
+        // some whitespace → line; empty → nothing.
+        let nl = text.bytes().filter(|&b| b == b'\n').count();
+        if nl >= 2 {
+            out.push(Doc::Hardline);
+            out.push(Doc::Hardline);
+        } else if nl == 1 {
+            out.push(Doc::Hardline);
+        } else if !text.is_empty() {
+            out.push(Doc::Line);
+        }
+        return;
+    }
+    out.push(text_doc(text));
+}
+
 fn handle_inline_child(
     idx: usize,
     prepared: &[Child],
@@ -302,7 +327,7 @@ fn handle_text_child(
     // First/last text: outer-whitespace handling is the parent's job.
     if idx == 0 || idx == n - 1 {
         let t = prepared[idx].text().unwrap().to_string();
-        out.push(text_doc(&t));
+        push_text_child(out, &t);
         return;
     }
 
@@ -344,7 +369,7 @@ fn handle_text_child(
     }
 
     let t = prepared[idx].text().unwrap().to_string();
-    out.push(text_doc(&t));
+    push_text_child(out, &t);
 }
 
 fn set_text(c: &mut Child, s: String) {
@@ -748,6 +773,32 @@ mod tests {
         });
         let printed = print(propagate_breaks(doc), 80, "  ", 1, 2);
         let expected = "<div slot=\"noResults\">\n    This is a custom text that<br /> will be shown when there are<br /> no rows to\n    display\n  </div>";
+        assert_eq!(printed, expected);
+    }
+
+    #[test]
+    fn mustache_ws_separator_breaks_under_overflow() {
+        // `… by {item.user} {item.time_ago}` overflows at indent 4; the whitespace
+        // between the two mustache atoms must break (printWhitespace → bare `line`),
+        // NOT stay glued (`fill([line])` would keep it flat). Mustaches are bare
+        // `Child::Other` atoms; the ws-only text between them is `Child::Text(" ")`.
+        let doc = build_element_doc(ElementLayout {
+            name: "p".into(),
+            attrs: Doc::Concat(vec![Doc::Line, Doc::Text("class=\"meta\"".into())]),
+            children: vec![
+                Child::Inline(Doc::Text(
+                    "<a href=\"#/item/{item.id}\">{comment_text()}</a>".into(),
+                )),
+                Child::Text(" by ".into()),
+                Child::Other(Doc::Text("{item.user}".into())),
+                Child::Text(" ".into()),
+                Child::Other(Doc::Text("{item.time_ago}".into())),
+            ],
+            is_inline: false,
+        });
+        // Nested one level (p at indent 2 → content indent 4).
+        let printed = print(propagate_breaks(doc), 80, "  ", 1, 2);
+        let expected = "<p class=\"meta\">\n    <a href=\"#/item/{item.id}\">{comment_text()}</a> by {item.user}\n    {item.time_ago}\n  </p>";
         assert_eq!(printed, expected);
     }
 

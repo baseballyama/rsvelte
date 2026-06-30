@@ -4735,13 +4735,22 @@ fn node_to_child(out: &str, node: &TemplateNode) -> Option<crate::children::Chil
         {
             Some(Child::Inline(build_inline_element_doc(out, ve)?))
         }
-        // Mustache atoms (`{expr}`, `{@html …}`) are deferred. Mapping them to
-        // `Child::Inline` (which is structurally faithful — prettier's
-        // `handleInlineChild` wraps them in `group([line, …])` too) regressed 16
-        // dense `label: {value}` prose files: the fill breaks at the WRONG position
-        // (between `g:` and `{g}` instead of after `g: {g},`). That's a doc.rs
-        // `fits`/`fill` fidelity gap vs prettier's `doc.js`, not a structure bug —
-        // it needs a dedicated fill investigation before mustaches can be wired.
+        // Cut 3: mustache atoms (`{expr}`, `{@html …}`). prettier-plugin-svelte's
+        // `isInlineElement` requires `type === 'RegularElement'`, so a MustacheTag
+        // is NOT inline — it goes through `printChildren`'s `else` branch: pushed
+        // BARE (no `group([line, …])`) with no preceding-text trim. That is
+        // `Child::Other` (verbatim atom, no whitespace handling); the surrounding
+        // text nodes stay `fill(splitTextToDocs(...))`, so `label: {value}` is kept
+        // together and only the inter-item spaces break. (Mapping to `Child::Inline`
+        // — a `group([line, …])` — broke `label:` from `{value}`; verified against
+        // prettier's own `printDocToString` that the bare-atom structure matches.)
+        TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_) => {
+            let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
+            if span.contains('\n') {
+                return None;
+            }
+            Some(Child::Other(Doc::Text(span.to_string())))
+        }
         _ => None,
     }
 }
