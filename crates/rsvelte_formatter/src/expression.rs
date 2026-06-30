@@ -653,7 +653,24 @@ fn push_const_tag(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
-    let (Some(start), Some(end)) = (decl.start(), decl.end()) else {
+    // Slice the FIRST declarator's span (`name = value`), not the whole
+    // `VariableDeclaration` span. The declaration `start` points at the `const`
+    // keyword (Svelte 5.56.4 `start: start + 2`), so slicing the declaration
+    // would wrongly include a leading `const `; the declarator span is exactly
+    // `<binding> = <init>`.
+    let decl_json = decl.as_json();
+    let (Some(start), Some(end)) = decl_json
+        .get("declarations")
+        .and_then(|d| d.as_array())
+        .and_then(|d| d.first())
+        .map(|declarator| {
+            (
+                declarator.get("start").and_then(|n| n.as_u64()),
+                declarator.get("end").and_then(|n| n.as_u64()),
+            )
+        })
+        .unwrap_or((None, None))
+    else {
         return Ok(());
     };
     let slice = source

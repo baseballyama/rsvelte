@@ -1083,12 +1083,23 @@ pub fn call_trimmed(arena: &JsArena, callee: JsExpr, arguments: Vec<JsExpr>) -> 
     })
 }
 
-/// Create an optional call expression.
+/// Create an optional call expression `callee?.(args…)`.
+///
+/// Mirrors upstream `b.maybe_call`, which returns a `ChainExpression` wrapping
+/// the optional `CallExpression` (not a bare optional call). The `ChainExpression`
+/// wrapper is what makes esrap parenthesize when the chain is used as the object
+/// of a *non-optional* member access — e.g. snippet destructuring builds
+/// `($$arg0?.()).href` (the parens stop `.href` from joining the optional chain
+/// and short-circuiting). Every other optional chain in the IR is likewise a
+/// `JsExpr::Chain`, so this keeps the representation consistent.
 pub fn optional_call(arena: &JsArena, callee: JsExpr, arguments: Vec<JsExpr>) -> JsExpr {
-    JsExpr::Call(JsCallExpression {
+    let call = JsExpr::Call(JsCallExpression {
         callee: arena.alloc_expr(callee),
         arguments,
         optional: true,
+    });
+    JsExpr::Chain(JsChainExpression {
+        expression: arena.alloc_expr(call),
     })
 }
 

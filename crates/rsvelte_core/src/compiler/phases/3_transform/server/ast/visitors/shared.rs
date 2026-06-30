@@ -748,8 +748,21 @@ fn sort_const_tags<'n>(
     let mut others: Vec<&'n TemplateNode> = Vec::new();
     for n in nodes {
         if let TemplateNode::ConstTag(ct) = n {
-            let start = ct.declaration.start().unwrap_or(0) as usize;
-            let end = ct.declaration.end().unwrap_or(0) as usize;
+            // Slice the FIRST declarator's span (`x = (rhs)`), not the whole
+            // `VariableDeclaration` span — the latter now starts at the `const`
+            // keyword (Svelte 5.56.4 `start: start + 2`), so the declaration
+            // span would wrongly include `const ` in the `<lhs> = <rhs>` split.
+            let decl_json = ct.declaration.as_json();
+            let (start, end) = decl_json
+                .get("declarations")
+                .and_then(|d| d.as_array())
+                .and_then(|d| d.first())
+                .and_then(|declarator| {
+                    let s = declarator.get("start").and_then(|n| n.as_u64())? as usize;
+                    let e = declarator.get("end").and_then(|n| n.as_u64())? as usize;
+                    Some((s, e))
+                })
+                .unwrap_or((0, 0));
             let (declared, deps) = if end > start && end <= state.source.len() {
                 let src = state.source[start..end].trim();
                 match super::const_tag::find_assignment_eq(src) {
