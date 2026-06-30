@@ -1,3 +1,8 @@
+// oxc 0.138 deprecated the legacy `AstBuilder` vec/alloc/*_static helpers in favour
+// of the arena APIs (oxc#23043); the old methods behave identically, so suppress the
+// deprecation here and defer the mechanical migration to a dedicated follow-up.
+
+#![allow(deprecated)]
 //! Convert rsvelte's parse-phase `JsNode` AST (the ESTree-shaped representation
 //! of `<script>` blocks and template expressions) into an oxc
 //! [`oxc_ast::ast::Expression`] / [`oxc_ast::ast::Statement`] so Phase-3 can
