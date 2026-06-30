@@ -1,5 +1,207 @@
 # @rsvelte/fmt
 
+## 0.4.1
+
+### Patch Changes
+
+- 53e6248: fix(fmt): don't CSS-parse non-CSS `<style lang>` blocks
+
+  `rsvelte-fmt` hard-failed on `<style lang="scss">` (and other non-CSS dialects):
+  the body was run through the internal CSS parser, which choked on SCSS syntax
+  (`//` line comments, `$variables`, maps) with `css_expected_identifier` and
+  aborted the whole-file format. A non-CSS `lang` block is opaque preprocessor
+  input, so the formatter no longer CSS-parses it — its raw body is still handed to
+  the embedded style formatter (oxfmt), exactly as before, so output is unchanged
+  for already-working blocks while SCSS-syntax blocks stop aborting the format.
+
+- 5d6c318: fix(fmt): stop over-breaking interpolations inside string attribute values
+
+  An embedded `{expr}` inside a quoted attribute value (`class="{…} text"`,
+  `style="…{expr}…"`) was broken more aggressively than the oxfmt /
+  prettier-plugin-svelte oracle:
+
+  - The "doesn't fit on one line" path re-formatted the expression narrowed by the
+    _trailing_ literal width, so a call like `fieldError(form, 'fullName')` inside
+    `class="{fieldError(form, 'fullName') ? … } mt-1 …"` exploded into multi-line
+    arguments instead of breaking only the top-level ternary (the trailing text
+    belongs on the final continuation line, not the first). It now always picks the
+    minimal break point.
+  - The trailing-width estimate summed _all_ following literal text, including text
+    on later physical lines of a multi-line string value (`style="…\n\twidth: {r *
+2}px;\n…"`), so a trivial `{r * 2}` was force-broken to fit a phantom-long line.
+    Trailing width now stops at the next newline.
+
+  Net: 9 real-world corpus files (cmsaasstarter, layercake, …) now format
+  byte-identically to the oracle, with no regressions.
+
+- 884f7b0: fix(fmt): don't force a JSX-disambiguation comma on a single arrow type parameter in `<script>`
+
+  `<script lang="ts">` bodies were formatted with `SourceType::ts()`, whose
+  `extension` field is `None`. oxc_formatter forces a trailing
+  JSX-disambiguation comma on a single arrow-function type parameter
+  (`const f = <T>(…) => …` → `<T,>`) for every source whose extension is not
+  `.ts` (i.e. `.tsx`/`.mts`/`.cts`/unknown), so the `None` extension triggered the
+  comma. oxfmt formats embedded `.svelte` scripts as `.ts` and emits `<T>`.
+
+  Parse `<script>` bodies with `SourceType::from_extension("ts")` (extension
+  `Some(Ts)`, otherwise identical to `SourceType::ts()`) so the formatter sees a
+  `.ts` extension and leaves `<T>` as `<T>`. The only output-affecting use of
+  `source_type.extension()` in oxc_formatter is this arrow type-parameter comma.
+
+  Burns down the fmt-parity corpus by 1 (74 known failures; svelte-splitpanes
+  Splitpanes.svelte).
+
+- 06f0c94: fix(fmt): wrap a top-level assignment value in parens in every position
+
+  prettier-plugin-svelte always wraps a root-level assignment expression in exactly
+  one paren pair in expression position — `{x = 5}` → `{(x = 5)}`, attribute
+  `class={x = 5}` → `class={(x = 5)}`, block header `{#if a = 0}` → `{#if (a = 0)}` —
+  whereas OXC strips the parens at statement position. The block-header path already
+  re-added them, but mustache and attribute values did not, so a value like
+  `{(dataAttribute.value = [])}` lost its parens.
+
+  `format_expr_core` now applies the same canonical one-pair rule to a top-level
+  `AssignmentExpression` that it already applied to a `SequenceExpression`, covering
+  all three positions uniformly; the now-redundant block-header-specific re-wrap
+  (`block_header_expr_needs_parens`) is removed.
+
+- 2a19537: fix(fmt): defer the close-tag `>` to its own line for a hug-end, multi-line inline element
+
+  Mirror of the hug-start fix. When an inline element's body has leading whitespace
+  (so the open `>` stays on the open-tag line — not hug_start) but ends directly
+  adjacent to the close tag (hug_end), and the body is already broken across lines,
+  prettier-plugin-svelte defers the close tag's final `>` onto its own line at the
+  element indent:
+
+  ```
+    <picture …>
+      …
+    </picture></GroupSlot
+  >
+  ```
+
+  rsvelte left `</GroupSlot>` glued. `try_hug_mixed` now handles this
+  `!shouldHugStart && shouldHugEnd` shape, mirroring `build_element_doc`'s
+  hug-end-only assembly (whose trailing `softline, '>'` breaks when the element is
+  multi-line).
+
+  Burns down the fmt-parity corpus by 2 (80 known failures; svelte-form-builder
+  Picture, layerchart Histogram).
+
+- d839f89: fix(fmt): move the open `>` to its own line for a hug-start, multi-line inline element
+
+  When an inline element's body hugs the open tag (`>{content}` with no leading
+  whitespace) but ends with whitespace before the close tag, and the source kept
+  the body broken across lines, prettier-plugin-svelte drops the open `>` onto its
+  own indented line so it hugs the first content word while a normal close tag
+  follows:
+
+  ```
+  <label for={forName} style="cursor:{cursor}"
+    >{label}
+    <slot />
+  </label>
+  ```
+
+  rsvelte left `…cursor:{cursor}">{label}` glued. `try_hug_mixed` now handles this
+  `shouldHugStart && !shouldHugEnd` shape (single-line or wrapped open tag),
+  mirroring `build_element_doc`'s hug-start-only assembly in `children.rs`. A
+  `<slot>` (`SlotElement`) child is also now classified as inline (it is a
+  `display:contents` element prettier hugs like a component), so it no longer
+  disqualifies its parent from the hug path.
+
+  Burns down the fmt-parity corpus by 3 (82 known failures; svelte-form-builder
+  Label/Button/Link). First increment of the milestone-2 layout-engine alignment.
+
+- 34184bb: fix(fmt): break a children fill when a self-closing element child is multi-line
+
+  A non-block element (e.g. `<label>`) containing a self-closing element whose
+  attributes wrapped (`<input … />`) followed by another element kept the two on one
+  line (`/> <span>…</span>`) where prettier breaks them onto separate lines — a
+  multi-line item in a fill forces its surrounding separators to break.
+
+  Two causes: (1) `element_doc` returned `None` for a self-closing `RegularElement`,
+  which made the whole `build_children_doc` bail, so `try_fill_mixed` skipped the
+  element entirely. A new `build_self_closing_regular_doc` builds a breakable
+  attribute group from the per-attribute spans (single-line even when the element
+  span already wrapped), guarded to round-trip the canonical `<tag a b c />`.
+  (2) `try_fill_mixed` only re-flowed non-prose content when a hardline survived the
+  flat render; it now also re-flows when any non-text child is already multi-line in
+  the output (`has_multiline_child`).
+
+  Burns down the fmt-parity corpus by 4 (75 known failures; layercake AxisY /
+  AxisYRight, CSR + SSR variants).
+
+- 06f0c94: fix(fmt): don't keep wrapper parens around an object-literal attribute value
+
+  An attribute value that is an object or arrow literal (`track={{ … }}`) is parsed
+  through a `(expr);` wrapper; the redundant outer parens are then stripped only when
+  `outer_parens_match` confirms they were balanced. Two cases leaked parens into the
+  output where the oracle keeps none:
+
+  - A body comment like `// 1.) No clamping` carries a lone `)`, so the literal
+    paren count made a balanced value look unbalanced and rsvelte emitted
+    `track={({ … })}`. `outer_parens_match` now skips parens inside string/template
+    literals and `//` / `/* */` comments.
+  - An object that is the _head_ of a member/call expression (`size={{ … }[key]}`)
+    is parenthesized by OXC at statement position (`({ … })[key]`), which
+    `strip_outer_parens` can't unwrap because the string ends with the postfix, not
+    `)`. The expression head is now detected via the AST (`expr_has_object_head`) and
+    the leading paren pair stripped while keeping the `[key]` / `.foo` / `( … )`
+    postfix verbatim.
+
+- dbf6292: fix(fmt): move the open `>` to its own line for a hug-start pure-text element with a wrapped open tag
+
+  A pure-text element/component with a wrapped (multi-line) open tag whose body
+  hugs the open tag (shouldHugStart) but ends with whitespace before the close tag
+  (shouldHugEnd = false) is handled by `try_collapse`. It kept the open `>` glued to
+  the last attribute (`disabled>Disabled button`) instead of dropping it onto its own
+  indented line:
+
+  ```
+  <Button
+    disabledClasses="…"
+    disabled
+    >Disabled button
+  </Button>
+  ```
+
+  `try_collapse`'s `had_trail` branch now reconstructs the open `>` on its own
+  attribute-indented line, mirroring `build_element_doc`'s hug_start assembly (whose
+  `indent([softline, group(['>', body])])` softline breaks once the open tag wrapped)
+  — the pure-text counterpart of the `try_hug_mixed` hug-start fix.
+
+  Burns down the fmt-parity corpus by 1 (79 known failures; smelte).
+
+- 83d4317: fix(fmt): don't double-count indent for interpolations in multi-line string attributes
+
+  A multi-line quoted attribute value (`style="…\n\tleft: {expr}%;\n…"`) carries
+  each interpolation's physical column in the literal text already emitted on its
+  own line. The interpolation-width math was _also_ subtracting the attribute's
+  logical indent, double-counting it — so an expression that actually fits was
+  force-broken (and a long member chain wrapped instead of the top-level operator).
+  The width now uses the physical column only for multi-line string values, so
+  `left: {$xGet(d) + ($xScale.bandwidth ? … : 0)}%;` and similar stay on one line,
+  matching the oxfmt / prettier-plugin-svelte oracle.
+
+- 109960b: fix(fmt): keep preprocessor styles and prose block comments verbatim
+
+  Two formatter-parity fixes that mirror the oxfmt / prettier-plugin-svelte oracle:
+
+  - Indented-syntax `<style lang="sass">` / `"stylus"` bodies are not brace-based
+    CSS — oxfmt cannot parse them and the oracle leaves them byte-for-byte
+    verbatim. The formatter now emits no edit for those dialects (scss/less/postcss
+    still route through oxfmt). Combined with the non-CSS-lang parse passthrough,
+    this stops the whole-file format from falling back to the raw source for
+    components whose `<style>` uses an indented preprocessor dialect.
+  - `reindent` over-indented prose `/**` block comments. `oxc_formatter` only
+    re-aligns a block comment whose every continuation line starts with `*`
+    (prettier's `isIndentableBlockComment`); a `/**` comment with prose
+    continuation lines — which may carry intentional leading whitespace such as a
+    tab — is left verbatim. The old heuristic treated any `/**` as indentable and
+    prepended the splice indent to those lines. Fixed with a full star-alignment
+    scan.
+
 ## 0.4.0
 
 ### Minor Changes

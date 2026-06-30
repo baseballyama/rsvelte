@@ -1,5 +1,99 @@
 # @rsvelte/svelte2tsx
 
+## 0.1.20
+
+### Patch Changes
+
+- 9818443: fix(svelte2tsx): widen renamed legacy prop with a typed default (#1231)
+
+  A renamed legacy prop with a default and a type — most commonly a JSDoc `/** @type {T} */` (the sveltestrap shape), e.g. `let className = ""; export { className as class }` — must still receive official svelte2tsx's `__sveltets_2_any` coercion bounded by `/*Ωignore_startΩ*/ … /*Ωignore_endΩ*/` markers. The `export { x as y }` widening predicate only fired on `!has_init || has_type_annotation`, so any renamed prop with a default dropped the coercion (and the Ω-ignore markers the language server relies on) even with a JSDoc `@type` or a boolean default. It now mirrors official `propTypeAssertToUserDefined`: widen on no-init OR a type (TS annotation or JSDoc `@type`) OR a boolean-literal initializer; a plain untyped string default is still left untouched.
+
+- ba7f774: fix(svelte2tsx): bind a component child's legacy `let:` from its own slot_def (#1232)
+
+  A legacy `let:` directive on a _component_ child of another component (`<Preview><State let:value let:set>…</State></Preview>`) binds from the child's OWN `$$slot_def.default` — its own `handle_component` already emits that destructure. rsvelte additionally treated the component child as a "default-slot-let child" of the enclosing component, so it gave the parent a spurious instance const and emitted a duplicate `$$_parent.$$slot_def.default` destructure that bound the child's `let:` props onto the parent instance, mistyping the slot props. Only non-component slot content (`<div let:x>` / `<svelte:fragment let:x>` / `<svelte:element let:x>`) forwards its `let:` bindings to the enclosing component's slot_def; `Component`/`SvelteComponent`/`SvelteSelf` children are now excluded from both the parent-instance trigger and the parent-side destructure emission, mirroring official svelte2tsx.
+
+- 82d3826: fix(svelte2tsx): drive corpus output-parity to zero (254 → 0)
+
+  The compat corpus added 26 awesome-svelte projects, reintroducing 254 svelte2tsx TSX output-parity divergences from the official tool. Port the remaining official `svelte2tsx` behaviors so every component is once again byte-identical (after oxfmt normalization), shrinking `compat/corpus/svelte2tsx-known-failures.json` to empty. Every fix mirrors the official algorithm (no per-file special-casing):
+
+  - Renamed reserved-word exports (`export { x as class }`): widen via `__sveltets_2_any` on a JSDoc `@type`/boolean-literal default, take the leading JSDoc from the export statement (`getDoc(target) || decl.doc`), and overwrite the local-keyed prop in place for the `export let X` + `export { X as reserved }` collision.
+  - Props/interface-member JSDoc preserved on the `$$Props` `ensureRightProps` branch, the `dontAddTypeDef` value path, and block comments separated by a `//` line comment.
+  - Event maps collected in source order (no alphabetical sort); `$$Events` typing injection gated on an actual `$$Events` interface; `canHaveAnyProp` split from `usesPropsOrRestProps`; forwarded DOM events surface as `mapElementEvent`.
+  - Store auto-subscriptions detect `...$store` spreads, skip `$`-prefixed function params (scope shadowing) and `$names` inside comments, and emit in the correct order.
+  - `@component` doc dedent via `dedent-js` semantics; module-only `$$render` emits `__sveltets_createSlot` before the `async () => {` wrapper; import-type stripping keeps a trailing line comment in place.
+  - Component children with their own `let:` destructure the child's own `$$slot_def`; named-slot `let:` bindings resolve the right slot key (last-wins component-level scope); `svelte:self` resolves through `__sveltets_1_componentType()`; destructured each/`let:` slot values use the official `((pattern) => name)(unwrapArr(coll))` form; slot-prop value normalization to `"__svelte_ts_string"`.
+
+  Verified byte-identical across all 11,490 corpus components (0 regressions); the 137 svelte2tsx unit tests and the 253-fixture suite pass.
+
+- Updated dependencies [e06d43d]
+- Updated dependencies [d826d82]
+- Updated dependencies [9c92abe]
+- Updated dependencies [257efbd]
+- Updated dependencies [8e74d34]
+- Updated dependencies [e8dfdb7]
+- Updated dependencies [7c5cef6]
+- Updated dependencies [dc40cc7]
+- Updated dependencies [4037211]
+- Updated dependencies [58fbddc]
+- Updated dependencies [20db5a3]
+- Updated dependencies [4ee5f7c]
+- Updated dependencies [cfb6a15]
+- Updated dependencies [267ba18]
+- Updated dependencies [4537f04]
+- Updated dependencies [cd60e94]
+- Updated dependencies [8541c7b]
+- Updated dependencies [79d2380]
+- Updated dependencies [639a952]
+- Updated dependencies [e151196]
+- Updated dependencies [cafa711]
+- Updated dependencies [20401c3]
+- Updated dependencies [6c1e662]
+- Updated dependencies [d4f8a77]
+- Updated dependencies [57ba819]
+- Updated dependencies [6a5f48f]
+- Updated dependencies [e6110b2]
+- Updated dependencies [a1beb29]
+- Updated dependencies [ac7d1f9]
+- Updated dependencies [128c6f6]
+- Updated dependencies [d87b019]
+- Updated dependencies [3ed1e82]
+- Updated dependencies [69fc318]
+- Updated dependencies [5a1c338]
+- Updated dependencies [f061348]
+- Updated dependencies [70f55d1]
+- Updated dependencies [4b2e841]
+- Updated dependencies [da4aa67]
+- Updated dependencies [859e522]
+- Updated dependencies [3701f7e]
+- Updated dependencies [ce42f21]
+- Updated dependencies [ea931bf]
+- Updated dependencies [0b2d7fb]
+- Updated dependencies [70f55d1]
+- Updated dependencies [429de3f]
+- Updated dependencies [ce42f21]
+- Updated dependencies [6fe6b4a]
+- Updated dependencies [7e6cd57]
+- Updated dependencies [b92840b]
+- Updated dependencies [f3a8000]
+- Updated dependencies [e0779f0]
+- Updated dependencies [8ee109d]
+- Updated dependencies [812b05f]
+- Updated dependencies [244264a]
+- Updated dependencies [f632423]
+- Updated dependencies [cd786c3]
+- Updated dependencies [ea05921]
+- Updated dependencies [af836a2]
+- Updated dependencies [70f55d1]
+- Updated dependencies [f061348]
+- Updated dependencies [f061348]
+- Updated dependencies [1af9df3]
+- Updated dependencies [fa4dd68]
+- Updated dependencies [f061348]
+- Updated dependencies [f061348]
+- Updated dependencies [f061348]
+- Updated dependencies [4746423]
+  - @rsvelte/compiler@0.7.16
+
 ## 0.1.19
 
 ### Patch Changes
