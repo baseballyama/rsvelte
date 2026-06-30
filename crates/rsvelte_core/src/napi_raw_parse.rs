@@ -222,10 +222,10 @@ pub const JS_TS_TYPE_ANNOTATION: u8 = 0xC6;
 pub const JS_TS_ENUM_DECLARATION: u8 = 0xC7;
 pub const JS_TS_MODULE_DECLARATION: u8 = 0xC8;
 pub const JS_COMMENT: u8 = 0xC9;
-// Special sentinels for the JsNode null/raw fallback variants — they
-// don't fit the normal preamble-with-positions shape.
+// Special sentinel for the JsNode null fallback variant — it doesn't fit the
+// normal preamble-with-positions shape. (0xCB was the former whole-node
+// `JS_RAW_JSON` escape; type annotations now ride a per-node trailer instead.)
 pub const JS_NULL: u8 = 0xCA;
-pub const JS_RAW_JSON: u8 = 0xCB;
 pub const JS_TS_PARAMETER_PROPERTY: u8 = 0xCC;
 
 // LiteralValue inner tag (within a JS_LITERAL payload).
@@ -1135,13 +1135,20 @@ fn write_root<W: Writer>(w: &mut W, root: &Root) -> std::io::Result<()> {
 // JsNode (estree) — 74-variant dispatcher
 // ---------------------------------------------------------------------------
 
-/// Encode an opaque ESTree JSON sub-tree as a `JS_RAW_JSON` blob, mirroring the
-/// `JsNode::Raw(value)` arm (including UTF-16 offset remapping when active). Used
-/// both for genuine `Raw` nodes and for a TS-annotated `Identifier` whose
-/// `typeAnnotation` boundary blob is re-materialized so the NAPI binary output
-/// stays byte-identical to the pre-typed (`JsNode::Raw`) encoding.
-fn write_raw_json<W: Writer>(w: &mut W, value: &serde_json::Value) -> std::io::Result<()> {
-    write_preamble(w, JS_RAW_JSON, u32::MAX, u32::MAX);
+/// Write an optional TS `typeAnnotation` trailer: a flag byte, then (when
+/// present) a u32-length-prefixed JSON blob with byte offsets remapped to UTF-16
+/// (like every other span). The open-ended TS type grammar is the one place a
+/// JSON escape is kept — the node's own stable fields (start/end/loc/name/…) use
+/// the binary encoding, so there is no whole-node `JS_RAW_JSON` re-materialization.
+fn write_opt_type_annotation<W: Writer>(
+    w: &mut W,
+    ta: Option<&serde_json::Value>,
+) -> std::io::Result<()> {
+    let Some(value) = ta else {
+        write_u8(w, 0);
+        return Ok(());
+    };
+    write_u8(w, 1);
     let len_slot = w.position();
     write_u32(w, 0);
     let p0 = w.position();
@@ -1174,22 +1181,6 @@ fn write_raw_json<W: Writer>(w: &mut W, value: &serde_json::Value) -> std::io::R
 
 fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std::io::Result<()> {
     match node {
-        // Annotated destructuring declarator id (`let { a }: T` / `let [ a ]: T`):
-        // re-materialize the legacy Raw JSON blob (children + `typeAnnotation`) so
-        // the NAPI binary output stays byte-identical to the pre-typed encoding.
-        // The serialize arena is installed for the whole emission (see
-        // `to_typed_raw`), so `serde_json::to_value` can resolve the child IdRange.
-        pat @ (JsNode::ObjectPattern {
-            type_annotation: Some(_),
-            ..
-        }
-        | JsNode::ArrayPattern {
-            type_annotation: Some(_),
-            ..
-        }) => {
-            let value = serde_json::to_value(pat).map_err(std::io::Error::other)?;
-            return write_raw_json(w, &value);
-        }
         JsNode::Identifier {
             start,
             end,
@@ -1197,38 +1188,10 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             name,
             type_annotation,
         } => {
-            if let Some(ta) = type_annotation {
-                // Re-materialize the legacy Raw blob shape so the NAPI binary
-                // output stays byte-identical to the pre-typed encoding.
-                let mut obj = serde_json::Map::new();
-                obj.insert(
-                    "type".to_string(),
-                    serde_json::Value::String("Identifier".to_string()),
-                );
-                obj.insert(
-                    "start".to_string(),
-                    serde_json::Value::Number((*start as i64).into()),
-                );
-                obj.insert(
-                    "end".to_string(),
-                    serde_json::Value::Number((*end as i64).into()),
-                );
-                if let Some(l) = loc.as_deref() {
-                    obj.insert(
-                        "loc".to_string(),
-                        serde_json::to_value(l).map_err(std::io::Error::other)?,
-                    );
-                }
-                obj.insert(
-                    "name".to_string(),
-                    serde_json::Value::String(name.to_string()),
-                );
-                obj.insert("typeAnnotation".to_string(), (**ta).clone());
-                return write_raw_json(w, &serde_json::Value::Object(obj));
-            }
             write_preamble(w, JS_IDENTIFIER, *start, *end);
             write_typed_loc(w, loc.as_deref());
             write_str(w, name.as_str());
+            write_opt_type_annotation(w, type_annotation.as_deref())?;
         }
         JsNode::PrivateIdentifier {
             start,
@@ -1577,22 +1540,24 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             end,
             loc,
             properties,
-            type_annotation: _,
+            type_annotation,
         } => {
             write_preamble(w, JS_OBJECT_PATTERN, *start, *end);
             write_typed_loc(w, loc.as_deref());
             write_id_range(w, *properties, arena)?;
+            write_opt_type_annotation(w, type_annotation.as_deref())?;
         }
         JsNode::ArrayPattern {
             start,
             end,
             loc,
             elements,
-            type_annotation: _,
+            type_annotation,
         } => {
             write_preamble(w, JS_ARRAY_PATTERN, *start, *end);
             write_typed_loc(w, loc.as_deref());
             write_node_array(w, elements, arena)?;
+            write_opt_type_annotation(w, type_annotation.as_deref())?;
         }
         JsNode::AssignmentPattern {
             start,

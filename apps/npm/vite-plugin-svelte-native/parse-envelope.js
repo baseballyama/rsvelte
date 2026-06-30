@@ -74,7 +74,7 @@ const TAG_AWAIT_BLOCK = 0x72;
 const TAG_KEY_BLOCK = 0x73;
 const TAG_SNIPPET_BLOCK = 0x74;
 
-// JsNode (estree) tags — 0x80..0xCB. Mirrors `napi_raw_parse.rs`.
+// JsNode (estree) tags — 0x80..0xCC. Mirrors `napi_raw_parse.rs`.
 const JS_IDENTIFIER = 0x80;
 const JS_PRIVATE_IDENTIFIER = 0x81;
 const JS_LITERAL = 0x82;
@@ -150,7 +150,8 @@ const JS_TS_ENUM_DECLARATION = 0xc7;
 const JS_TS_MODULE_DECLARATION = 0xc8;
 const JS_COMMENT = 0xc9;
 const JS_NULL = 0xca;
-const JS_RAW_JSON = 0xcb;
+// 0xcb was the former whole-node JS_RAW_JSON escape (removed — TS type
+// annotations now ride a per-node trailer; see readOptTypeAnnotation).
 const JS_TS_PARAMETER_PROPERTY = 0xcc;
 
 // LiteralValue inner tag (within a JS_LITERAL payload).
@@ -302,6 +303,16 @@ function readJsonNodePayload(ctx) {
 	return readInlineJson(ctx);
 }
 
+/**
+ * Read an optional TS `typeAnnotation` trailer: a flag byte, then (when set) a
+ * length-prefixed JSON blob. Mirrors `write_opt_type_annotation` in
+ * `napi_raw_parse.rs`. Returns `null` when absent.
+ */
+function readOptTypeAnnotation(ctx) {
+	if (readU8(ctx) === 0) return null;
+	return readInlineJson(ctx);
+}
+
 // ---------------------------------------------------------------------------
 // Dispatch on tag
 // ---------------------------------------------------------------------------
@@ -398,8 +409,6 @@ function readNodeBody(ctx, tag, start, end) {
 		// ----- JsNode (estree) ----------------------------------------
 		case JS_NULL:
 			return null;
-		case JS_RAW_JSON:
-			return readJsonNodePayload(ctx);
 		case JS_IDENTIFIER:
 			return readJsIdentifier(ctx, start, end);
 		case JS_PRIVATE_IDENTIFIER:
@@ -653,6 +662,8 @@ function readJsIdentifier(ctx, start, end) {
 	const node = { type: 'Identifier', start, end };
 	if (loc !== null) node.loc = loc;
 	node.name = name;
+	const typeAnnotation = readOptTypeAnnotation(ctx);
+	if (typeAnnotation !== null) node.typeAnnotation = typeAnnotation;
 	return node;
 }
 
@@ -966,6 +977,8 @@ function readJsObjectPattern(ctx, start, end) {
 	const node = { type: 'ObjectPattern', start, end };
 	if (loc !== null) node.loc = loc;
 	node.properties = properties;
+	const typeAnnotation = readOptTypeAnnotation(ctx);
+	if (typeAnnotation !== null) node.typeAnnotation = typeAnnotation;
 	return node;
 }
 
@@ -975,6 +988,8 @@ function readJsArrayPattern(ctx, start, end) {
 	const node = { type: 'ArrayPattern', start, end };
 	if (loc !== null) node.loc = loc;
 	node.elements = elements;
+	const typeAnnotation = readOptTypeAnnotation(ctx);
+	if (typeAnnotation !== null) node.typeAnnotation = typeAnnotation;
 	return node;
 }
 
