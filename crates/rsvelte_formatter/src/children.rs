@@ -704,4 +704,50 @@ mod tests {
         ]);
         assert_eq!(render_children(out, 80), "see <a>here</a> now");
     }
+
+    #[test]
+    fn geojson_label_void_then_prose_matches_oracle() {
+        // The canonical "break-after" maplibre case:
+        //   <label class="rounded p-1"><input … /> Only show states starting with 'T'</label>
+        // Oracle (oxfmt = prettier-plugin-svelte) keeps the open `>` on its own
+        // indented line, hugs `<input/>`, and wraps the prose such that "starting"
+        // stays on the input line (overflowing to col 82) and "with 'T'" wraps,
+        // with the close `>` deferred. This validates the faithful children.rs port
+        // reproduces prettier's printChildren/fill for void-element + prose content.
+        let input = "<input type=\"checkbox\" bind:checked={filterStates} />";
+        let doc = build_element_doc(ElementLayout {
+            name: "label".into(),
+            attrs: Doc::Concat(vec![Doc::Line, Doc::Text("class=\"rounded p-1\"".into())]),
+            children: vec![
+                Child::Inline(Doc::Text(input.into())),
+                Child::Text(" Only show states starting with 'T'".into()),
+            ],
+            is_inline: true,
+        });
+        let expected = "<label class=\"rounded p-1\"\n  ><input type=\"checkbox\" bind:checked={filterStates} /> Only show states starting\n  with 'T'</label\n>";
+        assert_eq!(render_el(doc, 80), expected);
+    }
+
+    #[test]
+    fn powertable_block_div_br_prose_nested() {
+        // <div slot="noResults">This is a custom text that<br /> will be shown
+        //   when there are<br /> no rows to display</div>  (block element)
+        // Nested one level (div at indent 2 → content indent 4): the oracle keeps
+        // "to" on line 1 (overflow to col 82) and wraps "display".
+        let doc = build_element_doc(ElementLayout {
+            name: "div".into(),
+            attrs: Doc::Concat(vec![Doc::Line, Doc::Text("slot=\"noResults\"".into())]),
+            children: vec![
+                Child::Text("This is a custom text that".into()),
+                Child::Inline(Doc::Text("<br />".into())),
+                Child::Text(" will be shown when there are".into()),
+                Child::Inline(Doc::Text("<br />".into())),
+                Child::Text(" no rows to display".into()),
+            ],
+            is_inline: false,
+        });
+        let printed = print(propagate_breaks(doc), 80, "  ", 1, 2);
+        let expected = "<div slot=\"noResults\">\n    This is a custom text that<br /> will be shown when there are<br /> no rows to\n    display\n  </div>";
+        assert_eq!(printed, expected);
+    }
 }

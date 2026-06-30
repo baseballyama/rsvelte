@@ -1522,8 +1522,17 @@ fn collect_fill_mixed_only(
                 }
                 // Only apply fill-mixed to block-display elements — inline
                 // elements were already handled (or correctly skipped) by pass 1.
-                if is_block_display(elem.name.as_str())
-                    && let Some(edit) = try_fill_mixed(
+                // The milestone-2 children port takes priority for its gated shape.
+                if is_block_display(elem.name.as_str()) {
+                    if let Some(maybe_edit) = try_children_port(out, node, line_width, options) {
+                        // Claimed by the children port — apply any edit and stop;
+                        // a noop still prevents try_fill_mixed from re-breaking it.
+                        if let Some(edit) = maybe_edit {
+                            edits.push(edit);
+                        }
+                        continue;
+                    }
+                    if let Some(edit) = try_fill_mixed(
                         out,
                         elem.name.as_str(),
                         elem.start,
@@ -1531,10 +1540,10 @@ fn collect_fill_mixed_only(
                         &elem.fragment,
                         line_width,
                         options,
-                    )
-                {
-                    edits.push(edit);
-                    continue; // edit owns this element, don't recurse
+                    ) {
+                        edits.push(edit);
+                        continue; // edit owns this element, don't recurse
+                    }
                 }
                 collect_fill_mixed_only(out, &elem.fragment, line_width, options, edits);
             }
@@ -2444,6 +2453,12 @@ fn collect(
                     Some(node),
                 ) {
                     edits.push(edit);
+                } else if let Some(maybe_edit) = try_children_port(out, node, line_width, options) {
+                    // Claimed by the children port (cut-1 shape) — apply its edit if
+                    // any; a noop still suppresses the legacy passes below.
+                    if let Some(edit) = maybe_edit {
+                        edits.push(edit);
+                    }
                 } else if let Some(edit) = try_fill_mixed(
                     out,
                     elem.name.as_str(),
@@ -4630,6 +4645,167 @@ fn try_hug_mixed(
     };
     let printed = crate::doc::print(elem_doc, line_width, indent_unit_hm.as_str(), level, column);
     (printed != whole).then_some((start, end, printed))
+}
+
+/// Build the `attrs` Doc for [`crate::children::ElementLayout`] — the inner
+/// attribute concat that `build_element_doc` places inside
+/// `<name` + `Indent(Group([attrs, opener_trailing]))`. Mirrors prettier's
+/// per-attribute `[line, attr]` join: `Concat([Line, attr1, Line, attr2, …])`,
+/// or `Text("")` when there are no attributes. Reads each attribute's OWN source
+/// span (single-line even when the open tag was already wrapped across lines in
+/// `out`); returns `None` if any attribute span is itself multi-line.
+fn build_attrs_concat(
+    out: &str,
+    attrs: &[rsvelte_core::ast::template::Attribute],
+) -> Option<crate::doc::Doc> {
+    use crate::doc::Doc;
+    if attrs.is_empty() {
+        return Some(Doc::Text(String::new()));
+    }
+    let mut parts: Vec<Doc> = Vec::with_capacity(attrs.len() * 2);
+    for attr in attrs {
+        let (as_, ae) = attribute_span(attr);
+        let atext = out.get(as_ as usize..ae as usize)?;
+        if atext.contains('\n') {
+            return None;
+        }
+        parts.push(Doc::Line);
+        parts.push(Doc::Text(atext.to_string()));
+    }
+    Some(Doc::Concat(parts))
+}
+
+/// Milestone-2 layout-port entry (cut 1): route an inline `RegularElement` whose
+/// content is **prose text interleaved with single-line HTML void elements**
+/// (e.g. `<label class="…"><input … /> Only show states starting with 'T'</label>`)
+/// through the faithful prettier-plugin-svelte port in `children.rs`
+/// (`build_element_doc` / `print_children`) instead of the approximate
+/// `try_fill_mixed` / `try_hug_mixed` string logic. This is the cluster where the
+/// approximate fill construction diverged from oxfmt (the oracle keeps the first
+/// word glued to the preceding void element and wraps later). The gate is a strict
+/// subset of `try_fill_mixed`'s; anything else falls through unchanged.
+///
+/// Returns `None` when the element is NOT a cut-1 shape (the caller should try
+/// the legacy passes). Returns `Some(_)` when the children port OWNS the element:
+/// `Some(Some(edit))` carries the reflow edit, `Some(None)` means the element is
+/// already correctly laid out (no edit) — but the caller must still treat it as
+/// claimed and NOT run `try_fill_mixed` / `try_hug_mixed`, which would otherwise
+/// re-break the already-correct prose with the approximate algorithm.
+fn try_children_port(
+    out: &str,
+    node: &TemplateNode,
+    line_width: usize,
+    options: &FormatOptions,
+) -> Option<Option<(u32, u32, String)>> {
+    use crate::children::{Child, ElementLayout, build_element_doc};
+    let TemplateNode::RegularElement(e) = node else {
+        return None;
+    };
+    let tag = e.name.as_str();
+    // Cut 1: inline or block elements (not pre/textarea/script/style, not
+    // inline-block like button/select/input). `is_inline` follows prettier's
+    // `isInlineElement` = not in the block-element list.
+    if is_whitespace_preserving(tag) || is_inline_block(tag) {
+        return None;
+    }
+    let is_inline = !is_block_display(tag);
+    let fragment = &e.fragment;
+    let (start, end) = (e.start, e.end);
+    let (s, ee) = (start as usize, end as usize);
+    let whole = out.get(s..ee)?;
+
+    // Classify children; gate to cut-1 shapes only.
+    let mut has_prose_word = false;
+    let mut has_non_text = false;
+    for n in &fragment.nodes {
+        match n {
+            TemplateNode::Text(t) => {
+                if t.data.split_whitespace().next().is_some() {
+                    has_prose_word = true;
+                }
+            }
+            TemplateNode::RegularElement(ve) if is_html_void_element(ve.name.as_str()) => {
+                has_non_text = true;
+                // Must be single-line in the current output.
+                let vspan = out.get(node_start(n) as usize..node_end(n) as usize)?;
+                if vspan.contains('\n') {
+                    return None;
+                }
+            }
+            // Anything else (comments, flow blocks, mustaches, non-void elements,
+            // components, block children) is a later cut.
+            _ => return None,
+        }
+    }
+    if !has_prose_word || !has_non_text {
+        return None;
+    }
+
+    // open/close sanity: content directly bounded by `>` … `</`.
+    let content_start = node_start(fragment.nodes.first()?) as usize;
+    let content_end = node_end(fragment.nodes.last()?) as usize;
+    let open = out.get(s..content_start)?;
+    let close = out.get(content_end..ee)?;
+    if !open.ends_with('>') || !close.starts_with("</") {
+        return None;
+    }
+
+    // The element must start at the beginning of its (whitespace-only) line so the
+    // base indent level is well-defined.
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    let (unit, width) = indent_config(options);
+    let base_level = if options.js.indent_style.is_tab() {
+        indent
+            .bytes()
+            .take_while(|&b| b == b' ' || b == b'\t')
+            .count()
+    } else {
+        indent.width() / width
+    };
+    let start_col = current_column(out, start);
+
+    // Build the ElementLayout from the AST (verbatim text + verbatim void spans).
+    let attrs = build_attrs_concat(out, &e.attributes)?;
+    let mut children: Vec<Child> = Vec::with_capacity(fragment.nodes.len());
+    for n in &fragment.nodes {
+        match n {
+            TemplateNode::Text(t) => {
+                let txt = out.get(t.start as usize..t.end as usize)?;
+                children.push(Child::Text(txt.to_string()));
+            }
+            _ => {
+                let vspan = out.get(node_start(n) as usize..node_end(n) as usize)?;
+                children.push(Child::Inline(crate::doc::Doc::Text(vspan.to_string())));
+            }
+        }
+    }
+    let doc = build_element_doc(ElementLayout {
+        name: tag.to_string(),
+        attrs,
+        children,
+        is_inline,
+    });
+    let doc = crate::doc::propagate_breaks(doc);
+    let printed = crate::doc::print(doc, line_width, unit.as_str(), base_level, start_col);
+
+    // Corruption guard: the non-whitespace content must be byte-identical (the
+    // port only ever changes whitespace/line breaks, never content). If it isn't,
+    // don't claim the element — let the legacy passes handle it.
+    if !printed
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .eq(whole.chars().filter(|c| !c.is_whitespace()))
+    {
+        return None;
+    }
+    // Claim the element. Emit an edit only when it changes something; a noop still
+    // claims it so the caller does NOT fall through to try_fill_mixed/try_hug_mixed
+    // (which would re-break the already-correct prose).
+    Some((printed != whole).then_some((start, end, printed)))
 }
 
 /// Narrow mixed-inline fill: when an element with inline content (text +
