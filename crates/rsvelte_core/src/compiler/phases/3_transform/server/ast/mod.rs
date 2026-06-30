@@ -1,3 +1,8 @@
+// oxc 0.138 deprecated the legacy `AstBuilder` vec/alloc/*_static helpers in favour
+// of the arena APIs (oxc#23043); the old methods behave identically, so suppress the
+// deprecation here and defer the mechanical migration to a dedicated follow-up.
+
+#![allow(deprecated)]
 //! AST-based server code generation (Phase-3 rewrite).
 //!
 //! This is the additive, in-progress replacement for the string-surgery server
