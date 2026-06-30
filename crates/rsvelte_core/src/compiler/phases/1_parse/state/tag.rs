@@ -376,17 +376,12 @@ impl Parser<'_> {
             self.parse_js_expression(init_str, init_offset)
         };
 
-        // Position just past the initializer text (incl. wrapping parens),
-        // excluding trailing whitespace — matches upstream acorn's
-        // `VariableDeclarator.end` for declaration tags (Svelte 5.56.4).
-        let declarator_end = init_offset + init_str.len();
         let declaration = build_kind_variable_declaration(
             &self.arena,
             &pattern_expr,
             &init_expr,
             decl_start,
             body_end,
-            declarator_end,
             kind,
         );
 
@@ -2257,21 +2252,12 @@ impl Parser<'_> {
                     // Use expr_start / expr_end so that the server-side handler
                     // can still extract the original source text via
                     // tag.declaration.start() / tag.declaration.end().
-                    // Position just past the initializer text (incl. wrapping
-                    // parens), excluding trailing whitespace — upstream's
-                    // `declarator_end = parser.index` after `read_expression`.
-                    let declarator_end = init_offset + init_str.len();
-                    // The VariableDeclaration starts at the `const` keyword
-                    // (`start + 2`, i.e. past the leading `{@`), matching
-                    // upstream's `start: start + 2 // start at const, not at @const`.
-                    let decl_keyword_start = start + 2;
                     build_const_variable_declaration(
                         &self.arena,
                         &pattern_expr,
                         &init_expr,
-                        decl_keyword_start,
+                        expr_start,
                         expr_end,
-                        declarator_end,
                     )
                 } else {
                     // No `=` found – fall back to parsing as a single expression
@@ -2748,7 +2734,6 @@ fn build_kind_variable_declaration(
     init: &Expression,
     decl_start: usize,
     decl_end: usize,
-    declarator_end: usize,
     kind: &str,
 ) -> Expression {
     use serde_json::{Map, Value};
@@ -2760,6 +2745,10 @@ fn build_kind_variable_declaration(
         .get("start")
         .and_then(|v| v.as_u64())
         .unwrap_or(decl_start as u64);
+    let init_end = init_value
+        .get("end")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(decl_end as u64);
 
     let mut declarator = Map::new();
     declarator.insert(
@@ -2769,15 +2758,7 @@ fn build_kind_variable_declaration(
     declarator.insert("id".to_string(), pattern_value.clone());
     declarator.insert("init".to_string(), init_value.clone());
     declarator.insert("start".to_string(), Value::Number((id_start as i64).into()));
-    // `declarator_end` is the parser position just past the initializer text
-    // (including any wrapping parens) but before trailing whitespace, mirroring
-    // upstream's `declarator_end = parser.index` (Svelte 5.56.4) rather than the
-    // bare `init.end` (which stops inside the parens). For declaration tags
-    // upstream gets the same value from acorn's `VariableDeclarator.end`.
-    declarator.insert(
-        "end".to_string(),
-        Value::Number((declarator_end as i64).into()),
-    );
+    declarator.insert("end".to_string(), Value::Number((init_end as i64).into()));
 
     let mut declaration = Map::new();
     declaration.insert(
@@ -2804,7 +2785,6 @@ fn build_const_variable_declaration(
     init: &Expression,
     decl_start: usize,
     decl_end: usize,
-    declarator_end: usize,
 ) -> Expression {
     use serde_json::{Map, Value};
 
@@ -2817,6 +2797,10 @@ fn build_const_variable_declaration(
         .get("start")
         .and_then(|v| v.as_u64())
         .unwrap_or(decl_start as u64);
+    let init_end = init_value
+        .get("end")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(decl_end as u64);
 
     // Build VariableDeclarator
     let mut declarator = Map::new();
@@ -2827,14 +2811,7 @@ fn build_const_variable_declaration(
     declarator.insert("id".to_string(), pattern_value.clone());
     declarator.insert("init".to_string(), init_value.clone());
     declarator.insert("start".to_string(), Value::Number((id_start as i64).into()));
-    // `declarator_end` is the parser position just past the initializer text
-    // (including any wrapping parens) but before trailing whitespace, mirroring
-    // upstream's `declarator_end = parser.index` (Svelte 5.56.4) rather than the
-    // bare `init.end` (which stops inside the parens).
-    declarator.insert(
-        "end".to_string(),
-        Value::Number((declarator_end as i64).into()),
-    );
+    declarator.insert("end".to_string(), Value::Number((init_end as i64).into()));
 
     // Build VariableDeclaration
     let mut declaration = Map::new();
