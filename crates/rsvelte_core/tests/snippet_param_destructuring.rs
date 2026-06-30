@@ -36,7 +36,7 @@ fn object_pattern_binds_alias_not_key() {
     // H-100: `{ id: value }` binds the local alias `value`, reading `.id`.
     assert_contains(
         r#"{#snippet foo({ id: value })}<p>{value}</p>{/snippet}{@render foo({id:1})}"#,
-        "let value = () => $$arg0?.().id;",
+        "let value = () => ($$arg0?.()).id;",
     );
 }
 
@@ -45,7 +45,7 @@ fn object_pattern_default_uses_fallback() {
     // H-101: per-property default wraps the read in `$.fallback`.
     assert_contains(
         r#"{#snippet foo({ id = 5 })}<p>{id}</p>{/snippet}{@render foo({})}"#,
-        "let id = $.derived_safe_equal(() => $.fallback($$arg0?.().id, 5));",
+        "let id = $.derived_safe_equal(() => $.fallback(($$arg0?.()).id, 5));",
     );
 }
 
