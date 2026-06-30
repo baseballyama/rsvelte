@@ -1759,14 +1759,19 @@ fn process_bind_directive(
                     transformed_expression.clone(),
                     b::id("$$value"),
                 );
-                vec![b::stmt(
+                let call = b::call(
                     &context.arena,
-                    b::call(
-                        &context.arena,
-                        b::id(root_name.clone()),
-                        vec![assignment, b::boolean(true)],
-                    ),
-                )]
+                    b::id(root_name.clone()),
+                    vec![assignment, b::boolean(true)],
+                );
+                // Wrap in `(call, $.invalidate_inner_signals(…))` when the prop
+                // carries legacy indirect bindings (a `<select bind:value>`
+                // referencing other scope variables), mirroring the text /
+                // instance-script prop-member-mutation paths.
+                let wrapped = crate::compiler::phases::phase3_transform::client::visitors::expression_converter::wrap_with_legacy_invalidate(
+                    call, &root_name, context,
+                );
+                vec![b::stmt(&context.arena, wrapped)]
             } else if is_state {
                 if context.state.analysis.runes {
                     // In runes mode, replace the root with $.get(root) in the assignment:

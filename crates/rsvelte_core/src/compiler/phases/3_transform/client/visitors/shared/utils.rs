@@ -4695,11 +4695,21 @@ fn analyze_props_json(
                     }
                 }
             }
-            // has_state: check right side
-            if !props.has_state
-                && let Some(right) = obj.get("right")
-            {
-                props.has_state = has_reactive_state_json(right, context);
+            // has_state: check BOTH sides. Upstream's AssignmentExpression
+            // visitor walks `left` and `right`, so the LHS member object is read
+            // too: `dataAttribute.value = []` reads `dataAttribute`, making the
+            // text `{(dataAttribute.value = [])}` reactive (→ `$.template_effect`,
+            // not a static `nodeValue =`) when `dataAttribute` is a reactive
+            // prop/state.
+            if !props.has_state {
+                for field in ["left", "right"] {
+                    if let Some(v) = obj.get(field)
+                        && has_reactive_state_json(v, context)
+                    {
+                        props.has_state = true;
+                        break;
+                    }
+                }
             }
             // has_call: check right side
             if !props.has_call
