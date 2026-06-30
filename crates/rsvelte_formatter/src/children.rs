@@ -750,4 +750,82 @@ mod tests {
         let expected = "<div slot=\"noResults\">\n    This is a custom text that<br /> will be shown when there are<br /> no rows to\n    display\n  </div>";
         assert_eq!(printed, expected);
     }
+
+    #[test]
+    fn strong_with_inline_a_keeps_a_flat() {
+        // <strong>Notice for <a href="…" target="_blank">Sapper</a> user:</strong>
+        // at indent 2. Oracle keeps the <a> WHOLE (content line overflows to 93)
+        // and only the strong's open/close `>` defer:
+        //   <strong
+        //     >Notice for <a href="…" target="_blank">Sapper</a> user:</strong
+        //   >  (then the sibling text continues — not modeled here)
+        let a = build_element_doc(ElementLayout {
+            name: "a".into(),
+            attrs: Doc::Concat(vec![
+                Doc::Line,
+                Doc::Text("href=\"https://sapper.svelte.dev/\"".into()),
+                Doc::Line,
+                Doc::Text("target=\"_blank\"".into()),
+            ]),
+            children: vec![Child::Text("Sapper".into())],
+            is_inline: true,
+        });
+        let strong = build_element_doc(ElementLayout {
+            name: "strong".into(),
+            attrs: Doc::Text(String::new()),
+            children: vec![
+                Child::Text("Notice for ".into()),
+                Child::Inline(a),
+                Child::Text(" user:".into()),
+            ],
+            is_inline: true,
+        });
+        let printed = print(propagate_breaks(strong), 80, "  ", 1, 2);
+        let expected = "<strong\n    >Notice for <a href=\"https://sapper.svelte.dev/\" target=\"_blank\">Sapper</a> user:</strong\n  >";
+        assert_eq!(printed, expected);
+    }
+
+    #[test]
+    fn div_with_strong_and_sibling_keeps_a_flat() {
+        // <div class="…"><strong>Notice for <a …>Sapper</a> user:</strong> You may
+        //   need to install the component as a devDependency:</div>
+        // The sibling text after </strong> must NOT cause the <a> inside the strong
+        // to over-break (the oracle keeps the <a> whole on a 93-char line).
+        let a = build_element_doc(ElementLayout {
+            name: "a".into(),
+            attrs: Doc::Concat(vec![
+                Doc::Line,
+                Doc::Text("href=\"https://sapper.svelte.dev/\"".into()),
+                Doc::Line,
+                Doc::Text("target=\"_blank\"".into()),
+            ]),
+            children: vec![Child::Text("Sapper".into())],
+            is_inline: true,
+        });
+        let strong = build_element_doc(ElementLayout {
+            name: "strong".into(),
+            attrs: Doc::Text(String::new()),
+            children: vec![
+                Child::Text("Notice for ".into()),
+                Child::Inline(a),
+                Child::Text(" user:".into()),
+            ],
+            is_inline: true,
+        });
+        let div = build_element_doc(ElementLayout {
+            name: "div".into(),
+            attrs: Doc::Concat(vec![
+                Doc::Line,
+                Doc::Text("class=\"shadow-sm p-3 mb-3 rounded\"".into()),
+            ]),
+            children: vec![
+                Child::Inline(strong),
+                Child::Text(" You may need to install the component as a devDependency:".into()),
+            ],
+            is_inline: false,
+        });
+        let printed = print(propagate_breaks(div), 80, "  ", 0, 0);
+        let expected = "<div class=\"shadow-sm p-3 mb-3 rounded\">\n  <strong\n    >Notice for <a href=\"https://sapper.svelte.dev/\" target=\"_blank\">Sapper</a> user:</strong\n  > You may need to install the component as a devDependency:\n</div>";
+        assert_eq!(printed, expected);
+    }
 }

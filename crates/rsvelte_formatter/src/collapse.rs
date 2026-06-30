@@ -185,6 +185,28 @@ pub(crate) fn collapse_pure_text_elements(
         result = apply_edits(&result, edits2);
     }
 
+    // Final children-port pass: re-assert the faithful prettier-plugin-svelte
+    // layout (`children.rs`) for its gated shapes. The earlier breaking passes
+    // (1.6–2) operate on the re-parsed output without knowing which elements the
+    // children port owns, so they can re-break an already-correct (intentionally
+    // overflowing) prose line — e.g. break an inline `<a>`'s open tag on a 93-col
+    // line that the port deliberately keeps whole. Running the port LAST gives it
+    // the final word: it re-parses, rebuilds the element from the AST, and emits a
+    // corrected edit (or a no-op when the layout is already right).
+    if let Ok(root_cp) = parse(&result, parse_opts) {
+        let mut edits_cp: Vec<(u32, u32, String)> = Vec::new();
+        collect_children_port_only(
+            &result,
+            &root_cp.fragment,
+            line_width,
+            options,
+            &mut edits_cp,
+        );
+        if !edits_cp.is_empty() {
+            result = apply_edits(&result, edits_cp);
+        }
+    }
+
     // Third pass: `<pre>` / `<textarea>` whose content contains a block. rsvelte
     // otherwise leaves their whole subtree verbatim, but oxfmt formats the block
     // bodies (space-indented) + embedded JS while keeping element-direct
@@ -4647,6 +4669,91 @@ fn try_hug_mixed(
     (printed != whole).then_some((start, end, printed))
 }
 
+/// Recurse the tree running ONLY `try_children_port` on each `RegularElement`.
+/// Used as the final collapse pass so the faithful children port has the last
+/// word over the earlier breaking passes. When the port claims an element
+/// (`Some(_)`), its layout is authoritative — apply any edit and don't recurse
+/// into it; otherwise recurse into the node's child fragments.
+fn collect_children_port_only(
+    out: &str,
+    fragment: &Fragment,
+    line_width: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for node in &fragment.nodes {
+        if matches!(node, TemplateNode::RegularElement(_))
+            && let Some(maybe_edit) = try_children_port(out, node, line_width, options)
+        {
+            if let Some(edit) = maybe_edit {
+                edits.push(edit);
+            }
+            continue;
+        }
+        for f in child_fragments(node) {
+            collect_children_port_only(out, f, line_width, options, edits);
+        }
+    }
+}
+
+/// Recursively convert a template node into a `children::Child`, building any
+/// nested inline element via the faithful `children::build_element_doc` port
+/// (NOT the approximate `element_doc`, which over-breaks inline content). Returns
+/// `None` for any node the cut doesn't yet support (block / inline-block element,
+/// component, comment, flow block) so the whole port bails.
+fn node_to_child(out: &str, node: &TemplateNode) -> Option<crate::children::Child> {
+    use crate::children::Child;
+    use crate::doc::Doc;
+    match node {
+        TemplateNode::Text(t) => {
+            let txt = out.get(t.start as usize..t.end as usize)?;
+            Some(Child::Text(txt.to_string()))
+        }
+        // Void HTML element (`<br/>`, `<input/>`) — verbatim, must be single-line.
+        TemplateNode::RegularElement(ve) if is_html_void_element(ve.name.as_str()) => {
+            let span = out.get(ve.start as usize..ve.end as usize)?;
+            if span.contains('\n') {
+                return None;
+            }
+            Some(Child::Inline(Doc::Text(span.to_string())))
+        }
+        // Non-void inline content element (`<a>`, `<span>`, `<strong>`, …) — built
+        // recursively via the faithful port so its own layout matches prettier.
+        TemplateNode::RegularElement(ve)
+            if !is_block_display(ve.name.as_str())
+                && !is_inline_block(ve.name.as_str())
+                && !is_whitespace_preserving(ve.name.as_str()) =>
+        {
+            Some(Child::Inline(build_inline_element_doc(out, ve)?))
+        }
+        // Mustache atoms (`{expr}`, `{@html …}`) are a later cut — they must
+        // participate in the prose fill (line separators), not sit as opaque
+        // `Child::Other` atoms, so defer them rather than mis-wrap.
+        _ => None,
+    }
+}
+
+/// Build the faithful `children::build_element_doc` Doc for an inline
+/// `RegularElement`, recursing on its children via [`node_to_child`]. Returns
+/// `None` if any child is unsupported or an attribute span is multi-line.
+fn build_inline_element_doc(
+    out: &str,
+    e: &rsvelte_core::ast::template::RegularElement,
+) -> Option<crate::doc::Doc> {
+    use crate::children::{Child, ElementLayout, build_element_doc};
+    let attrs = build_attrs_concat(out, &e.attributes)?;
+    let mut children: Vec<Child> = Vec::with_capacity(e.fragment.nodes.len());
+    for n in &e.fragment.nodes {
+        children.push(node_to_child(out, n)?);
+    }
+    Some(build_element_doc(ElementLayout {
+        name: e.name.to_string(),
+        attrs,
+        children,
+        is_inline: !is_block_display(e.name.as_str()),
+    }))
+}
+
 /// Build the `attrs` Doc for [`crate::children::ElementLayout`] — the inner
 /// attribute concat that `build_element_doc` places inside
 /// `<name` + `Indent(Group([attrs, opener_trailing]))`. Mirrors prettier's
@@ -4714,29 +4821,17 @@ fn try_children_port(
     let (s, ee) = (start as usize, end as usize);
     let whole = out.get(s..ee)?;
 
-    // Classify children; gate to cut-1 shapes only.
-    let mut has_prose_word = false;
-    let mut has_non_text = false;
-    for n in &fragment.nodes {
-        match n {
-            TemplateNode::Text(t) => {
-                if t.data.split_whitespace().next().is_some() {
-                    has_prose_word = true;
-                }
-            }
-            TemplateNode::RegularElement(ve) if is_html_void_element(ve.name.as_str()) => {
-                has_non_text = true;
-                // Must be single-line in the current output.
-                let vspan = out.get(node_start(n) as usize..node_end(n) as usize)?;
-                if vspan.contains('\n') {
-                    return None;
-                }
-            }
-            // Anything else (comments, flow blocks, mustaches, non-void elements,
-            // components, block children) is a later cut.
-            _ => return None,
-        }
-    }
+    // Gate: at least one prose text word AND at least one non-text child (else
+    // there's nothing mixed to lay out — pure text is try_collapse's job). Per-child
+    // convertibility is enforced by `node_to_child` in the build loop below.
+    let has_prose_word = fragment
+        .nodes
+        .iter()
+        .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()));
+    let has_non_text = fragment
+        .nodes
+        .iter()
+        .any(|n| !matches!(n, TemplateNode::Text(_)));
     if !has_prose_word || !has_non_text {
         return None;
     }
@@ -4768,20 +4863,12 @@ fn try_children_port(
     };
     let start_col = current_column(out, start);
 
-    // Build the ElementLayout from the AST (verbatim text + verbatim void spans).
+    // Build the ElementLayout from the AST, recursively converting each child via
+    // the faithful port (`node_to_child` bails on any unsupported child).
     let attrs = build_attrs_concat(out, &e.attributes)?;
     let mut children: Vec<Child> = Vec::with_capacity(fragment.nodes.len());
     for n in &fragment.nodes {
-        match n {
-            TemplateNode::Text(t) => {
-                let txt = out.get(t.start as usize..t.end as usize)?;
-                children.push(Child::Text(txt.to_string()));
-            }
-            _ => {
-                let vspan = out.get(node_start(n) as usize..node_end(n) as usize)?;
-                children.push(Child::Inline(crate::doc::Doc::Text(vspan.to_string())));
-            }
-        }
+        children.push(node_to_child(out, n)?);
     }
     let doc = build_element_doc(ElementLayout {
         name: tag.to_string(),

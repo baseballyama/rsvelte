@@ -1,5 +1,4 @@
 [
-	"cmsaasstarter/src/routes/(admin)/account/(menu)/billing/+page.svelte",
 	"cmsaasstarter/src/routes/(admin)/account/(menu)/settings/delete_account/+page.svelte",
 	"cmsaasstarter/src/routes/(marketing)/+page.svelte",
 	"cmsaasstarter/src/routes/(marketing)/blog/(posts)/awesome_post/+page.svelte",
@@ -34,7 +33,6 @@
 	"svelte-calendar/src/lib/components/Popover.svelte",
 	"svelte-calendar/src/lib/docs/Code.svelte",
 	"svelte-calendar/src/lib/docs/JSONEditor.svelte",
-	"svelte-fa/src/routes/components/sections/installation.svelte",
 	"svelte-fa/src/routes/components/ui/docs-code.svelte",
 	"svelte-form-builder/src/lib/ComponentSelection/ComponentSelection.svelte",
 	"svelte-form-builder/src/lib/FormBuilder.svelte",
@@ -45,8 +43,6 @@
 	"svelte-heroicons/src/lib/icons/BuildingLibraryIcon.svelte",
 	"svelte-heroicons/src/lib/icons/CreditCardIcon.svelte",
 	"svelte-heroicons/src/lib/icons/DevicePhoneMobileIcon.svelte",
-	"svelte-maplibre/src/routes/examples/3d_terrain/+page.svelte",
-	"svelte-maplibre/src/routes/examples/overlapping_layer_events/+page.svelte",
 	"svelte-maplibre/src/site/components/CodeBlock.svelte",
 	"svelte-pivottable/src/lib/TableRenderer.svelte",
 	"svelte-splitpanes/src/comp/Button.svelte",
