@@ -234,6 +234,31 @@ fn text_doc(text: &str) -> Doc {
     Doc::Fill(split_text_to_docs(text))
 }
 
+/// Push the doc(s) for a (possibly trimmed) text child. A whitespace-only
+/// ("empty") text node is printed via prettier-plugin-svelte's `printWhitespace`
+/// (plugin.js: the `Text` print returns `printWhitespace` when `isEmptyTextNode`)
+/// — a BARE `line` (or hardlines for blank source lines), NOT `fill([line])`.
+/// This is what lets a whitespace separator between two mustache atoms
+/// (`{a} {b}`) break under overflow, while `fill([line])` would always stay flat.
+/// A non-empty text node is the usual `fill(splitTextToDocs(...))`.
+fn push_text_child(out: &mut Vec<Doc>, text: &str) {
+    if is_only_ws(text) {
+        // printWhitespace: 2+ newlines → [hardline, hardline]; 1+ → hardline;
+        // some whitespace → line; empty → nothing.
+        let nl = text.bytes().filter(|&b| b == b'\n').count();
+        if nl >= 2 {
+            out.push(Doc::Hardline);
+            out.push(Doc::Hardline);
+        } else if nl == 1 {
+            out.push(Doc::Hardline);
+        } else if !text.is_empty() {
+            out.push(Doc::Line);
+        }
+        return;
+    }
+    out.push(text_doc(text));
+}
+
 fn handle_inline_child(
     idx: usize,
     prepared: &[Child],
@@ -302,7 +327,7 @@ fn handle_text_child(
     // First/last text: outer-whitespace handling is the parent's job.
     if idx == 0 || idx == n - 1 {
         let t = prepared[idx].text().unwrap().to_string();
-        out.push(text_doc(&t));
+        push_text_child(out, &t);
         return;
     }
 
@@ -344,7 +369,7 @@ fn handle_text_child(
     }
 
     let t = prepared[idx].text().unwrap().to_string();
-    out.push(text_doc(&t));
+    push_text_child(out, &t);
 }
 
 fn set_text(c: &mut Child, s: String) {
@@ -703,5 +728,155 @@ mod tests {
             Child::Text(" now".into()),
         ]);
         assert_eq!(render_children(out, 80), "see <a>here</a> now");
+    }
+
+    #[test]
+    fn geojson_label_void_then_prose_matches_oracle() {
+        // The canonical "break-after" maplibre case:
+        //   <label class="rounded p-1"><input … /> Only show states starting with 'T'</label>
+        // Oracle (oxfmt = prettier-plugin-svelte) keeps the open `>` on its own
+        // indented line, hugs `<input/>`, and wraps the prose such that "starting"
+        // stays on the input line (overflowing to col 82) and "with 'T'" wraps,
+        // with the close `>` deferred. This validates the faithful children.rs port
+        // reproduces prettier's printChildren/fill for void-element + prose content.
+        let input = "<input type=\"checkbox\" bind:checked={filterStates} />";
+        let doc = build_element_doc(ElementLayout {
+            name: "label".into(),
+            attrs: Doc::Concat(vec![Doc::Line, Doc::Text("class=\"rounded p-1\"".into())]),
+            children: vec![
+                Child::Inline(Doc::Text(input.into())),
+                Child::Text(" Only show states starting with 'T'".into()),
+            ],
+            is_inline: true,
+        });
+        let expected = "<label class=\"rounded p-1\"\n  ><input type=\"checkbox\" bind:checked={filterStates} /> Only show states starting\n  with 'T'</label\n>";
+        assert_eq!(render_el(doc, 80), expected);
+    }
+
+    #[test]
+    fn powertable_block_div_br_prose_nested() {
+        // <div slot="noResults">This is a custom text that<br /> will be shown
+        //   when there are<br /> no rows to display</div>  (block element)
+        // Nested one level (div at indent 2 → content indent 4): the oracle keeps
+        // "to" on line 1 (overflow to col 82) and wraps "display".
+        let doc = build_element_doc(ElementLayout {
+            name: "div".into(),
+            attrs: Doc::Concat(vec![Doc::Line, Doc::Text("slot=\"noResults\"".into())]),
+            children: vec![
+                Child::Text("This is a custom text that".into()),
+                Child::Inline(Doc::Text("<br />".into())),
+                Child::Text(" will be shown when there are".into()),
+                Child::Inline(Doc::Text("<br />".into())),
+                Child::Text(" no rows to display".into()),
+            ],
+            is_inline: false,
+        });
+        let printed = print(propagate_breaks(doc), 80, "  ", 1, 2);
+        let expected = "<div slot=\"noResults\">\n    This is a custom text that<br /> will be shown when there are<br /> no rows to\n    display\n  </div>";
+        assert_eq!(printed, expected);
+    }
+
+    #[test]
+    fn mustache_ws_separator_breaks_under_overflow() {
+        // `… by {item.user} {item.time_ago}` overflows at indent 4; the whitespace
+        // between the two mustache atoms must break (printWhitespace → bare `line`),
+        // NOT stay glued (`fill([line])` would keep it flat). Mustaches are bare
+        // `Child::Other` atoms; the ws-only text between them is `Child::Text(" ")`.
+        let doc = build_element_doc(ElementLayout {
+            name: "p".into(),
+            attrs: Doc::Concat(vec![Doc::Line, Doc::Text("class=\"meta\"".into())]),
+            children: vec![
+                Child::Inline(Doc::Text(
+                    "<a href=\"#/item/{item.id}\">{comment_text()}</a>".into(),
+                )),
+                Child::Text(" by ".into()),
+                Child::Other(Doc::Text("{item.user}".into())),
+                Child::Text(" ".into()),
+                Child::Other(Doc::Text("{item.time_ago}".into())),
+            ],
+            is_inline: false,
+        });
+        // Nested one level (p at indent 2 → content indent 4).
+        let printed = print(propagate_breaks(doc), 80, "  ", 1, 2);
+        let expected = "<p class=\"meta\">\n    <a href=\"#/item/{item.id}\">{comment_text()}</a> by {item.user}\n    {item.time_ago}\n  </p>";
+        assert_eq!(printed, expected);
+    }
+
+    #[test]
+    fn strong_with_inline_a_keeps_a_flat() {
+        // <strong>Notice for <a href="…" target="_blank">Sapper</a> user:</strong>
+        // at indent 2. Oracle keeps the <a> WHOLE (content line overflows to 93)
+        // and only the strong's open/close `>` defer:
+        //   <strong
+        //     >Notice for <a href="…" target="_blank">Sapper</a> user:</strong
+        //   >  (then the sibling text continues — not modeled here)
+        let a = build_element_doc(ElementLayout {
+            name: "a".into(),
+            attrs: Doc::Concat(vec![
+                Doc::Line,
+                Doc::Text("href=\"https://sapper.svelte.dev/\"".into()),
+                Doc::Line,
+                Doc::Text("target=\"_blank\"".into()),
+            ]),
+            children: vec![Child::Text("Sapper".into())],
+            is_inline: true,
+        });
+        let strong = build_element_doc(ElementLayout {
+            name: "strong".into(),
+            attrs: Doc::Text(String::new()),
+            children: vec![
+                Child::Text("Notice for ".into()),
+                Child::Inline(a),
+                Child::Text(" user:".into()),
+            ],
+            is_inline: true,
+        });
+        let printed = print(propagate_breaks(strong), 80, "  ", 1, 2);
+        let expected = "<strong\n    >Notice for <a href=\"https://sapper.svelte.dev/\" target=\"_blank\">Sapper</a> user:</strong\n  >";
+        assert_eq!(printed, expected);
+    }
+
+    #[test]
+    fn div_with_strong_and_sibling_keeps_a_flat() {
+        // <div class="…"><strong>Notice for <a …>Sapper</a> user:</strong> You may
+        //   need to install the component as a devDependency:</div>
+        // The sibling text after </strong> must NOT cause the <a> inside the strong
+        // to over-break (the oracle keeps the <a> whole on a 93-char line).
+        let a = build_element_doc(ElementLayout {
+            name: "a".into(),
+            attrs: Doc::Concat(vec![
+                Doc::Line,
+                Doc::Text("href=\"https://sapper.svelte.dev/\"".into()),
+                Doc::Line,
+                Doc::Text("target=\"_blank\"".into()),
+            ]),
+            children: vec![Child::Text("Sapper".into())],
+            is_inline: true,
+        });
+        let strong = build_element_doc(ElementLayout {
+            name: "strong".into(),
+            attrs: Doc::Text(String::new()),
+            children: vec![
+                Child::Text("Notice for ".into()),
+                Child::Inline(a),
+                Child::Text(" user:".into()),
+            ],
+            is_inline: true,
+        });
+        let div = build_element_doc(ElementLayout {
+            name: "div".into(),
+            attrs: Doc::Concat(vec![
+                Doc::Line,
+                Doc::Text("class=\"shadow-sm p-3 mb-3 rounded\"".into()),
+            ]),
+            children: vec![
+                Child::Inline(strong),
+                Child::Text(" You may need to install the component as a devDependency:".into()),
+            ],
+            is_inline: false,
+        });
+        let printed = print(propagate_breaks(div), 80, "  ", 0, 0);
+        let expected = "<div class=\"shadow-sm p-3 mb-3 rounded\">\n  <strong\n    >Notice for <a href=\"https://sapper.svelte.dev/\" target=\"_blank\">Sapper</a> user:</strong\n  > You may need to install the component as a devDependency:\n</div>";
+        assert_eq!(printed, expected);
     }
 }
