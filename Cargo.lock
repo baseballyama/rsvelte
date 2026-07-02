@@ -1639,10 +1639,21 @@ source = "git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2
 dependencies = [
  "allocator-api2",
  "hashbrown 0.17.1",
- "oxc_data_structures",
- "oxc_estree",
+ "oxc_data_structures 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_estree 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "rustc-hash",
  "serde",
+]
+
+[[package]]
+name = "oxc_allocator"
+version = "0.138.0"
+source = "git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170#e6cee896f28ceddea2987f4ab4c06ee6fdff0170"
+dependencies = [
+ "allocator-api2",
+ "hashbrown 0.17.1",
+ "oxc_data_structures 0.138.0 (git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170)",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -1651,14 +1662,14 @@ version = "0.138.0"
 source = "git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d#6ca912513e2b3ef9df173d043c2f501b0532786d"
 dependencies = [
  "bitflags 2.11.1",
- "oxc_allocator",
- "oxc_ast_macros",
- "oxc_data_structures",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_ast_macros 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_data_structures 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_diagnostics",
- "oxc_estree",
+ "oxc_estree 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_regular_expression",
- "oxc_span",
- "oxc_str",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_str 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_syntax",
 ]
 
@@ -1674,13 +1685,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxc_ast_macros"
+version = "0.138.0"
+source = "git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170#e6cee896f28ceddea2987f4ab4c06ee6fdff0170"
+dependencies = [
+ "phf 0.14.0",
+ "proc-macro2 1.0.106",
+ "quote 1.0.45",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "oxc_ast_visit"
 version = "0.138.0"
 source = "git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d#6ca912513e2b3ef9df173d043c2f501b0532786d"
 dependencies = [
- "oxc_allocator",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_ast",
- "oxc_span",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_syntax",
 ]
 
@@ -1693,14 +1715,14 @@ dependencies = [
  "cow-utils",
  "dragonbox_ecma",
  "itoa",
- "oxc_allocator",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_ast",
- "oxc_data_structures",
+ "oxc_data_structures 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_index",
  "oxc_semantic",
  "oxc_sourcemap",
- "oxc_span",
- "oxc_str",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_str 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_syntax",
  "rustc-hash",
 ]
@@ -1709,6 +1731,11 @@ dependencies = [
 name = "oxc_data_structures"
 version = "0.138.0"
 source = "git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d#6ca912513e2b3ef9df173d043c2f501b0532786d"
+
+[[package]]
+name = "oxc_data_structures"
+version = "0.138.0"
+source = "git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170#e6cee896f28ceddea2987f4ab4c06ee6fdff0170"
 
 [[package]]
 name = "oxc_diagnostics"
@@ -1728,10 +1755,10 @@ dependencies = [
  "cow-utils",
  "num-bigint",
  "num-traits",
- "oxc_allocator",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_ast",
  "oxc_regular_expression",
- "oxc_span",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_syntax",
 ]
 
@@ -1742,8 +1769,13 @@ source = "git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2
 dependencies = [
  "dragonbox_ecma",
  "itoa",
- "oxc_data_structures",
+ "oxc_data_structures 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
 ]
+
+[[package]]
+name = "oxc_estree"
+version = "0.138.0"
+source = "git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170#e6cee896f28ceddea2987f4ab4c06ee6fdff0170"
 
 [[package]]
 name = "oxc_formatter"
@@ -1756,14 +1788,14 @@ dependencies = [
  "markdown",
  "natord",
  "nodejs-built-in-modules",
- "oxc_allocator",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_ast",
  "oxc_diagnostics",
- "oxc_formatter_core",
+ "oxc_formatter_core 0.57.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_jsdoc",
  "oxc_parser",
- "oxc_span",
- "oxc_str",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_str 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_syntax",
  "phf 0.14.0",
  "rustc-hash",
@@ -1777,11 +1809,24 @@ version = "0.57.0"
 source = "git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d#6ca912513e2b3ef9df173d043c2f501b0532786d"
 dependencies = [
  "cow-utils",
- "oxc_allocator",
- "oxc_data_structures",
- "oxc_span",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_data_structures 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "rustc-hash",
  "serde_json",
+ "unicode-width 0.2.2",
+]
+
+[[package]]
+name = "oxc_formatter_core"
+version = "0.57.0"
+source = "git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170#e6cee896f28ceddea2987f4ab4c06ee6fdff0170"
+dependencies = [
+ "cow-utils",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170)",
+ "oxc_data_structures 0.138.0 (git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170)",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170)",
+ "rustc-hash",
  "unicode-width 0.2.2",
 ]
 
@@ -1791,12 +1836,12 @@ version = "0.57.0"
 source = "git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d#6ca912513e2b3ef9df173d043c2f501b0532786d"
 dependencies = [
  "dragonbox_ecma",
- "oxc_allocator",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_ast",
  "oxc_diagnostics",
- "oxc_formatter_core",
+ "oxc_formatter_core 0.57.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_parser",
- "oxc_span",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_syntax",
 ]
 
@@ -1817,7 +1862,7 @@ version = "0.138.0"
 source = "git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d#6ca912513e2b3ef9df173d043c2f501b0532786d"
 dependencies = [
  "oxc_ast",
- "oxc_span",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "rustc-hash",
 ]
 
@@ -1831,14 +1876,14 @@ dependencies = [
  "memchr",
  "num-bigint",
  "num-traits",
- "oxc_allocator",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_ast",
- "oxc_data_structures",
+ "oxc_data_structures 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_diagnostics",
  "oxc_ecmascript",
  "oxc_regular_expression",
- "oxc_span",
- "oxc_str",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_str 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_syntax",
  "rustc-hash",
  "seq-macro",
@@ -1850,11 +1895,11 @@ version = "0.138.0"
 source = "git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d#6ca912513e2b3ef9df173d043c2f501b0532786d"
 dependencies = [
  "bitflags 2.11.1",
- "oxc_allocator",
- "oxc_ast_macros",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_ast_macros 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_diagnostics",
- "oxc_span",
- "oxc_str",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_str 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "phf 0.14.0",
  "rustc-hash",
  "unicode-id-start",
@@ -1894,15 +1939,15 @@ source = "git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2
 dependencies = [
  "itertools 0.15.0",
  "memchr",
- "oxc_allocator",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_ast",
  "oxc_ast_visit",
- "oxc_data_structures",
+ "oxc_data_structures 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_diagnostics",
  "oxc_ecmascript",
  "oxc_index",
- "oxc_span",
- "oxc_str",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_str 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_syntax",
  "rustc-hash",
  "self_cell",
@@ -1929,11 +1974,24 @@ source = "git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2
 dependencies = [
  "compact_str",
  "oxc-miette",
- "oxc_allocator",
- "oxc_ast_macros",
- "oxc_estree",
- "oxc_str",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_ast_macros 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_estree 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_str 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "serde",
+]
+
+[[package]]
+name = "oxc_span"
+version = "0.138.0"
+source = "git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170#e6cee896f28ceddea2987f4ab4c06ee6fdff0170"
+dependencies = [
+ "compact_str",
+ "oxc-miette",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170)",
+ "oxc_ast_macros 0.138.0 (git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170)",
+ "oxc_estree 0.138.0 (git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170)",
+ "oxc_str 0.138.0 (git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170)",
 ]
 
 [[package]]
@@ -1943,9 +2001,20 @@ source = "git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2
 dependencies = [
  "compact_str",
  "hashbrown 0.17.1",
- "oxc_allocator",
- "oxc_estree",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_estree 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "serde",
+]
+
+[[package]]
+name = "oxc_str"
+version = "0.138.0"
+source = "git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170#e6cee896f28ceddea2987f4ab4c06ee6fdff0170"
+dependencies = [
+ "compact_str",
+ "hashbrown 0.17.1",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170)",
+ "oxc_estree 0.138.0 (git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170)",
 ]
 
 [[package]]
@@ -1957,12 +2026,12 @@ dependencies = [
  "cow-utils",
  "dragonbox_ecma",
  "nonmax",
- "oxc_allocator",
- "oxc_ast_macros",
- "oxc_estree",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_ast_macros 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_estree 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_index",
- "oxc_span",
- "oxc_str",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
+ "oxc_str 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "phf 0.14.0",
  "serde",
  "unicode-id-start",
@@ -2360,7 +2429,7 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "notify",
- "oxc_allocator",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_ast",
  "oxc_ast_visit",
  "oxc_codegen",
@@ -2369,7 +2438,7 @@ dependencies = [
  "oxc_parser",
  "oxc_resolver",
  "oxc_semantic",
- "oxc_span",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_syntax",
  "pprof",
  "pretty_assertions",
@@ -2395,11 +2464,11 @@ dependencies = [
 name = "rsvelte_esrap"
 version = "0.7.11"
 dependencies = [
- "oxc_allocator",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_ast",
  "oxc_ast_visit",
  "oxc_parser",
- "oxc_span",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_syntax",
 ]
 
@@ -2411,7 +2480,7 @@ dependencies = [
  "clap",
  "ignore",
  "oxc_formatter",
- "oxc_formatter_core",
+ "oxc_formatter_core 0.57.0 (git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170)",
  "rayon",
  "rsvelte_formatter",
  "serde_json",
@@ -2434,13 +2503,13 @@ name = "rsvelte_formatter"
 version = "0.1.0"
 dependencies = [
  "codspeed-criterion-compat",
- "oxc_allocator",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_ast",
  "oxc_formatter",
- "oxc_formatter_core",
+ "oxc_formatter_core 0.57.0 (git+https://github.com/oxc-project/oxc?rev=e6cee896f28ceddea2987f4ab4c06ee6fdff0170)",
  "oxc_formatter_json",
  "oxc_parser",
- "oxc_span",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "rsvelte_core",
  "thiserror",
  "unicode-width 0.2.2",
@@ -2453,11 +2522,11 @@ dependencies = [
  "anyhow",
  "clap",
  "compact_str",
- "oxc_allocator",
+ "oxc_allocator 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "oxc_ast",
  "oxc_ast_visit",
  "oxc_parser",
- "oxc_span",
+ "oxc_span 0.138.0 (git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d)",
  "rayon",
  "regex",
  "rsvelte_core",
