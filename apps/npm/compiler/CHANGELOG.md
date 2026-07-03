@@ -1,5 +1,1083 @@
 # @rsvelte/compiler
 
+## 0.7.16
+
+### Patch Changes
+
+- e06d43d: fix(compiler): lower legacy-reactive component bind writes through `$.set`
+
+  A `bind:` on a component whose target is a legacy reactive (`$:`-declared)
+  variable was lowered to a plain `path = $$value` assignment instead of the
+  reactive `$.set(path, $$value)`, so writes from the child component no longer
+  notified subscribers (reactivity loss). The getter still read the variable via
+  `$.get(path)`, producing an inconsistent get/set pair.
+
+  `process_bind_directive`'s `is_state_binding` predicate only covered
+  `is_state_source || Derived`, so a `LegacyReactive` identifier fell through to
+  the final plain-assignment branch. `add_state_transformers` registers a `$.set`
+  assign transform for exactly `is_state_source || Derived || LegacyReactive`, so
+  `LegacyReactive` is now included here to match.
+
+  Fixes #1228 (smelte `_layout.svelte`, svelte-calendar `DayPicker.svelte`).
+
+- d826d82: fix(compiler): detect spread/ternary store subscriptions and emit store getters in first-reference order
+
+  Three Phase-2 store-subscription detection bugs surfaced by the store-heavy
+  legacy layercake components in the awesome-svelte compat corpus, all affecting
+  the client `const $store = () => $.store_get(...)` getters:
+
+  - A store referenced only through a spread (`Math.max(...$xRange)`) was never
+    detected — the lexical `$`-scan treated the third `.` of `...` like a member
+    access (`obj.$x`) and skipped it, so the getter was missing entirely (broken
+    reactivity). A leading dot now counts as member access only when it is a
+    single dot.
+  - A store in a ternary consequent (`cond ? $xGet : $yGet`) was dropped because
+    `$xGet :` looked like an object property key (`{ $xGet: ... }`). A property
+    key is never preceded by `?`, so a ternary consequent is now excluded.
+  - Store getters were emitted in the wrong order: template refs were sorted by a
+    substring `source.find`, so `$x` matched inside `$xGet`/`$xScale` and `$y`
+    inside `$yGet`/`$yRange`. They are now kept in AST-traversal (first-reference)
+    order, matching the official compiler's `scope.declarations` insertion order.
+
+  Fixes #1229 (layercake `Column` / `GroupLabels` / `QuadTree` / `AxisRadial`).
+
+- 9c92abe: fix(transform): keep a bare prop-identifier prop default as a getter reference
+
+  A legacy `export let b = a` where `a` is another prop lowers to
+  `$.prop($$props, 'b', 24, a)` — the prop's getter function is passed directly as
+  the lazy initial value. The default-value prop-read pass was wrapping the bare
+  `a` into `a()`; it now leaves an exactly-bare prop-identifier default untouched
+  while still wrapping prop reads nested in a larger default.
+
+- 257efbd: fix(transform): treat a computed member with a reactive property as reactive
+
+  `has_reactive_state_json` only inspected a member expression's OBJECT, so
+  `{ xs: '…', … }[size]` (an inline object indexed by a reactive prop `size`) was
+  deemed non-reactive and emitted as a plain object property instead of a `get`
+  accessor. A computed member whose property reads reactive state is now treated as
+  reactive.
+
+- 8e74d34: fix(compiler): order `$.bind_props` props correctly when a prop is shadowed by a function parameter
+
+  When an `export let` prop shares its name with a function parameter elsewhere in
+  the script —
+
+  ```svelte
+  <script>
+    function setTooltipContext(tooltip) { setContext(key, tooltip); }
+    export let tooltip = writable({ … });   // line 116
+    export let hideDelay = 0;               // line 127
+  </script>
+  ```
+
+  — the `BindableProp` kind can land on the parameter binding (which has no
+  `declaration_start`), so the server `$.bind_props($$props, { … })` trailer sorted
+  that prop to the end (`{ …, hideDelay, tooltip }`) instead of its true source
+  position (`{ …, tooltip, hideDelay }`).
+
+  Fix the bind_props sort to borrow the real `let`/`var` declaration's
+  `declaration_start` when the marked binding lacks one. This is sort-only: it does
+  not change which binding is marked `BindableProp`, so the var-hoisting order (and
+  the previously-fixed `BrushContext`/`GeoContext` outputs) are untouched. Clears
+  `layerchart/.../tooltip/TooltipContext.svelte` (44 → 43).
+
+- e8dfdb7: fix(compiler): resolve block-scoped local shadowing a prop in mutation tracking
+
+  A block-local `let` that shadows a prop of the same name was mis-attributed to
+  the prop, inflating its `$.prop(...)` flags with `PROPS_IS_UPDATED`:
+
+  ```svelte
+  <script>
+    let { css = "" } = $props();
+    const days = $derived.by(() => {
+      for (…) {
+        let css = "";        // block-local, shadows the prop
+        css += " wx-selected"; // mutates the LOCAL, not the prop
+      }
+    });
+  </script>
+  ```
+
+  The Phase-2 scope builder created a lexical scope for each `BlockStatement` (so
+  the local `css` lived there), but it didn't register that scope anywhere the
+  later visitor pass could find it, and the visitor's `BlockStatement` walk never
+  entered block scopes. So `css += …` resolved up to the prop binding and marked it
+  reassigned → `$.prop($$props, "css", 7, "")` instead of `3`.
+
+  Register each (non-function) block's scope in `function_scope_map` keyed by the
+  block start, and have the typed visitor walk enter that scope for `BlockStatement`
+  nodes (mirroring how function bodies are already handled). Block-local mutations
+  now resolve to the correct local binding. Clears
+  `svar-core/svelte/src/components/calendar/Month.svelte` (42 → 41).
+
+- 7c5cef6: fix(compiler): strip comments when collapsing multi-line import specifiers
+
+  `cleanup_import_line` joins a hoisted multi-line `import { … }` onto a single
+  line with spaces. A `//` comment between specifiers —
+
+  ```js
+  import {
+    AppBar,
+    AppLayout,
+    Button,
+    ThemeSelect,
+    // ThemeSwitch,
+    Tooltip,
+    settings,
+  } from "svelte-ux";
+  ```
+
+  — was folded inline, commenting out the rest of the statement (including
+  `} from '…'`) and producing invalid JS. Strip `//` and `/* … */` comments (via
+  `strip_js_comments`, which respects the module-specifier string) before the
+  line-join, mirroring esrap which drops these comments. Clears
+  `layerchart/.../routes/+layout.svelte` from the corpus baseline (54 → 53).
+
+- dc40cc7: fix(compiler): ignore comments when splitting `$props()` destructuring declarators
+
+  `split_declarators` (used to parse the names in a `let { … } = $props()`
+  destructuring for the `$.rest_props(…)` exclusion list) split on every top-level
+  comma, including commas inside `//` and `/* … */` comments. A comment such as
+
+  ```js
+  let {
+    class: className,
+    // we add name, color, and stroke for compatibility with different icon libraries props
+    name,
+    ...restProps
+  } = $props();
+  ```
+
+  was split on its internal commas, so the comment fragments leaked into the
+  emitted `new Set([…])` exclusion list as bogus prop names — producing an
+  unterminated-string / invalid-JS output. The same shape with a trailing
+  `// comment, with commas` after a real prop corrupted the following names.
+
+  Make `split_declarators` comment-aware (skip `//` to end-of-line and `/* … */`,
+  respecting string literals and not self-closing a `/*/`). The comment text stays
+  with the declarator and is stripped per-declarator by the existing caller logic.
+  Clears `flowbite-svelte/.../ClipboardManager.svelte` and
+  `shadcn-svelte/.../spinner/spinner.svelte` from the corpus baseline (56 → 54).
+
+- 4037211: fix(compiler): don't collect a nested function's local declarations as reactive dependencies
+
+  A legacy reactive expression whose value contains a nested function with its own
+  local declarations —
+
+  ```svelte
+  sum(visibleSeries, (s) => {
+    const seriesTooltipData = s.data ? findRelatedData(s.data, data, x) : data;
+    return valueAccessor(seriesTooltipData);
+  })
+  ```
+
+  — wrongly listed the function-local `seriesTooltipData` in the dependency
+  sequence (`$.deep_read_state(seriesTooltipData)`). Upstream filters references by
+  `function_depth`: a binding declared inside the nested function is a local, never
+  an eager dependency (its own deps — `findRelatedData`/`data`/`x` — are tracked
+  instead).
+
+  The fallback dependency collector (`collect_reactive_references_inner`) already
+  shadowed arrow/function _parameters_; it now also shadows top-level
+  `const`/`let`/`var` declarations in the function body (scoped via the existing
+  seen-set save/restore).
+
+  Clears `layerchart/.../charts/BarChart.svelte`, zero corpus regressions.
+
+- 58fbddc: fix(compiler): don't `$.deep_read_state` an each-item that shadows a prop of the same name
+
+  A destructured each-item binding whose name matches an outer prop —
+
+  ```svelte
+  <script>export let data;</script>
+  {#each dataByFruit as [fruit, data]}
+    <Point d={data[data.length - 1]} />
+  {/each}
+  ```
+
+  — was wrapped in `$.deep_read_state(data())` in legacy dependency lists, whereas
+  upstream emits a plain `data()`. The reference resolves (correctly, via the
+  each-item read transform) to the each-item local, but the deep-read decision used
+  `get_binding`, which walks the static scope tree and returns the shadowed
+  `export let data` prop (`bindable_prop`) → forced a deep read.
+
+  Two parts:
+  1. The destructured-each-item branch now clears each path name from
+     `transform_deep_read` (the simple-identifier each-item branch already did this).
+  2. The legacy dependency builders deep-read a `bindable_prop` only when it is NOT
+     shadowed by a local read transform (`!has_read_transform`) — mirroring the
+     existing `import` arm. A genuine, unshadowed prop is still deep-read via its
+     `transform_deep_read` marker, so only the wrongly-resolved shadowed case is
+     suppressed.
+
+  Clears `layerchart/.../routes/docs/examples/Area/+page.svelte` and
+  `layerchart/.../components/Grid.svelte` (37 → 35), with zero regressions across
+  the full corpus.
+
+- 20db5a3: fix(compiler): treat a parenthesized sub-expression as "simple" in prop fallbacks (SSR)
+
+  A legacy prop whose default is a simple arithmetic expression containing
+  parentheses was emitted with a needless lazy thunk:
+
+  ```svelte
+  <script>
+    export let value = max < min ? min : min + (max - min) / 2;
+  </script>
+  ```
+
+  produced `$.fallback($$props["value"], () => (max < min ? …), true)` instead of
+  the eager `$.fallback($$props["value"], max < min ? …)`.
+
+  Upstream parses with `preserveParens: false`, so `is_simple_expression` never
+  sees a parenthesized node. OXC preserves `(max - min)` as a
+  `ParenthesizedExpression`, which `is_simple_default`'s catch-all treated as
+  non-simple — making the whole default complex → lazy. Unwrap
+  `ParenthesizedExpression` (recurse on the inner expression) so a parenthesized
+  simple expression stays simple/eager, matching upstream. Clears
+  `attractions/.../slider/slider.svelte` (38 → 37).
+
+- 4ee5f7c: fix(compiler): scope-aware prop reads in non-assignment reactive statements + parenthesize arrow operands of logical expressions
+
+  Two codegen bugs that made `layerchart/.../Highlight.svelte` emit invalid JS:
+
+  1. **Destructuring shadow in a reactive statement.** A `$:` body that is not a
+     simple assignment (e.g. `$: if (cond) { items.map((p) => { const [x, y] =
+f(p); … }) }`) was routed through the scope-unaware text prop-read transform,
+     wrapping the destructuring binding targets that shadow props `x`/`y` →
+     `const [x(), y()] = …` (a syntax error). It now goes through the AST wrapper
+     (`wrap_prop_source_reads_ast`), which uses OXC semantics to skip locally
+     shadowed names. `wrap_prop_source_reads_ast` now also returns the source
+     unchanged when parsing succeeds but nothing needs wrapping (previously it
+     returned `None`, which fell back to the text path and re-introduced the bug).
+  2. **Arrow operand of a logical expression.** The text printer didn't
+     parenthesize an arrow / `yield` operand of `&&`/`||`/`??`, so
+     `onclick={onareaclick && ((e) => …)}` printed as `onareaclick() && (e) => …`
+     (mis-parses, since arrows bind lower than `&&`). `logical_operand_needs_parens`
+     now wraps `Arrow`/`Yield` operands.
+
+  Clears `Highlight.svelte`, zero corpus regressions.
+
+- cfb6a15: fix(compiler): don't drop `import`/`export` lines inside multi-line template literals
+
+  The legacy text-based instance-script transform walks the script line by line,
+  skipping lines that begin with `import `, `export { … }`, or a `$props.id()`
+  declaration (they are hoisted / handled elsewhere). That skip fired
+  unconditionally — even when the line actually lived _inside_ a multi-line
+  template literal being accumulated, e.g. a code-sample string:
+
+  ```js
+  const code = `<script>
+    import { LayerCake, Svg } from 'layercake';
+  </script>`;
+  ```
+
+  The `import …` line was silently dropped from the emitted template literal,
+  corrupting the string. (The line-by-line `$`-token heuristic routed these
+  scripts into the text transform because `${…}` interpolations contain `$`.)
+
+  Gate the three statement-boundary skips on `accumulated_lines.is_empty()`, which
+  is true only at a clean statement boundary (the accumulator is cleared on
+  completion), so lines inside a mid-statement template literal are preserved
+  verbatim. Shrinks `compat/corpus/known-failures.json` by 3 entries (59 → 56),
+  including the large `flowbite-svelte/.../builder/badge/+page.svelte` divergence.
+
+- 267ba18: fix(compiler): emit `$.invalidate_inner_signals` for legacy prop member mutations
+
+  A legacy `<select bind:value={prop.x}>` whose subtree references other variables
+  (`<option>` content, the select's own `id`, etc.) records those on the bound
+  prop's `legacy_indirect_bindings`; the official compiler wraps every mutation of
+  that prop in `(prop(...), $.invalidate_inner_signals(() => { …reads }))` so the
+  referenced signals re-read. rsvelte only did this for `bind:` setters, not for
+  ordinary prop member mutations (e.g. `field.tooltipAttributes = {}` in `onMount`).
+
+  Two fixes:
+  - Phase 3: the legacy prop-member-mutation rewrite (`prop_member_mutate_ast`) now
+    wraps the mutation in the `$.invalidate_inner_signals` sequence when the prop
+    carries indirect bindings, using each binding's read form (prop → `name()`,
+    store sub → `name()`, reactive state/derived → `$.get(name)`, else bare).
+  - Phase 2: `legacy_indirect_bindings` collection is narrowed to identifiers
+    referenced _within the `<select>` element's own source span_ (ordered by source
+    position), mirroring the official `scope.references` iteration. Previously it
+    pulled in every template-referenced binding in the component, so an `id` used on
+    an unrelated sibling element leaked into the invalidation list.
+
+  Clears `svelte-form-builder/.../PropertyPanelTooltip.svelte` (50 → 49).
+
+- 4537f04: fix(compiler): deep-read a keyed `{#each}` block's reactive index in dependency lists
+
+  In a keyed each block (`{#each items as item, i (item.key)}`) the index `i` is
+  reactive — upstream gives it binding kind `template`, so a dependency read deep-reads
+  it: `$.deep_read_state($.get(i))`. rsvelte emitted a plain `$.get(i)` because the
+  each-block visitor unconditionally cleared the index from `transform_deep_read`, and
+  the `EachIndex` fallback check in `collect_reactive_references` can miss it when
+  `get_binding` resolves a same-named non-index binding (e.g. a `map((d, i) => …)`
+  callback param) instead of the keyed index.
+
+  The index is now marked in `transform_deep_read` when reactive (keyed), and still
+  shadows an outer same-named marker when static (non-keyed).
+
+  Clears `layerchart/.../charts/AreaChart.svelte`, zero corpus regressions.
+
+- cd60e94: fix(compiler): treat `Math`/`Number` constant members as compile-time known
+
+  A `$derived` whose initializer is constant arithmetic over a global constant —
+
+  ```svelte
+  const circumference = $derived(2 * Math.PI * 42.5);
+  ```
+
+  — was treated as reactive, so an attribute that only reads it (e.g.
+  `style="stroke-dasharray: {circumference} {circumference};"`) was emitted inside a
+  `$.template_effect(...)` instead of as a one-time `$.set_style(...)`. The
+  reactive-state evaluator's `is_expression_known_json` returned `false` for every
+  `MemberExpression`, so `Math.PI` made the whole derived "unknown → reactive".
+
+  Treat a non-computed member of a pure global namespace (`Math.*`, `Number.*`,
+  when not locally shadowed) as a known compile-time constant — mirroring the
+  globals table in upstream `scope.evaluate`. `Math.random()` etc. stay reactive
+  (they're `CallExpression`s, handled separately). Clears
+  `shadcn-svelte/.../circular-gauge.svelte` (45 → 44).
+
+- 8541c7b: fix(compiler): don't truncate a multi-line initializer whose continuation starts with `(`/`[`/backtick
+
+  A legacy state declaration whose initializer continues on the next line starting
+  with `(` was wrapped incorrectly:
+
+  ```svelte
+  <script>
+    let shownCalendar =
+      (range && value != null ? value.start : value) || new Date();
+  </script>
+  ```
+
+  produced `let shownCalendar = $.mutable_source()(range … ) || new Date()` — an
+  empty `$.mutable_source()` followed by the un-wrapped initializer — instead of
+  `$.mutable_source((range … ) || new Date())`.
+
+  `find_statement_end_client` treated the newline after `=` as a statement end
+  because the next non-whitespace char (`(`) was not in its continuation set, so the
+  extracted initializer was empty. Per JavaScript ASI, a line break followed by `(`,
+  `[`, or a backtick continues the previous expression (`foo\n(bar)` is `foo(bar)`,
+  `a\n[i]` is `a[i]`). Add those to the continuation set. Clears
+  `attractions/.../date-picker/date-picker.svelte` (40 → 39).
+
+- 79d2380: fix(compiler): parenthesize a `new` callee when a state read makes its member-spine contain a call
+
+  `new deckgl.MapboxOverlay(...)` where `deckgl` is `$state()` rewrites to
+  `new ($.get(deckgl).MapboxOverlay)(...)` upstream — the callee's member-spine now
+  contains a `CallExpression` (`$.get(deckgl)`), so `new` requires parentheses or the
+  trailing `(...)` would parse as the `new` arguments. esrap/codegen apply this for
+  proper AST `new` nodes, but the legacy `$.get(...)` text-rewrite path
+  (`ast_state_transform`) emitted the `new` as raw text and skipped it. A
+  `visit_new_expression` now inserts the parens when the callee's leftmost member-spine
+  identifier is a state variable.
+
+  Clears `svelte-maplibre/.../DeckGlLayer.svelte`, zero corpus regressions.
+
+- 639a952: fix(compiler): parenthesize a `new` callee whose member spine contains a call (text printer)
+
+  `new $.get(deckgl).MapboxOverlay({ … })` was emitted by the text-printer fallback
+  without parenthesizing the callee, so it parses as
+  `(new $.get(deckgl)).MapboxOverlay({ … })`. The AST printer (esrap) already
+  guards this via `callee_has_call_expression`; the text printer's
+  `emit_new_expression` only parenthesized low-precedence callees (conditional,
+  await, …), not a member chain containing a `CallExpression`. Mirror esrap: walk
+  the callee's `Member`/`Call` spine and parenthesize when a call is found, emitting
+  `new ($.get(deckgl).MapboxOverlay)({ … })`.
+
+  Clears the SSR (server) output for `svelte-maplibre/.../DeckGlLayer.svelte`
+  (server known-failures 35 → 34). Its CSR output still differs on an orthogonal
+  axis (the client builds the effect body as a raw string, bypassing the AST
+  printer), so the client entry remains.
+
+- e151196: fix(compiler): legacy `invalidate_inner_signals` for `$.mutate()` state member mutations
+
+  A legacy `<select bind:value={state.x}>` whose subtree references other scope
+  variables must invalidate those signals when the bound state is mutated. The prop
+  path (`prop(prop().x = v, true)`) already wrapped with
+  `$.invalidate_inner_signals`; the legacy **state** member-mutation path
+  (`$.mutate(state, …)`) did not. The precomputed invalidate bodies now cover any
+  binding with `legacy_indirect_bindings` (state as well as props), and
+  `transform_legacy_state_member_mutate_ast` wraps `$.mutate(state, …)` in
+  `(<mutation>, $.invalidate_inner_signals(() => { … }))` when applicable.
+
+  Clears `powertable/.../PowerTable.svelte`, zero corpus regressions.
+
+- cafa711: fix(compiler): a prop default referencing a legacy `$:` reactive variable is lazy
+
+  ```svelte
+  <script>
+    $: defaultServiceUrl = services['mapbox v1']['streets-v11'];
+    export let serviceUrl = defaultServiceUrl;
+  </script>
+  ```
+
+  `serviceUrl`'s default references `defaultServiceUrl`, a legacy `$:` reactive
+  variable (`BindingKind::LegacyReactive`). Upstream applies the read transform
+  first — `defaultServiceUrl` → `$.get(defaultServiceUrl)` — so `is_simple_expression`
+  sees a (non-simple) `CallExpression` and emits a lazy thunk with
+  `PROPS_IS_LAZY_INITIAL`: `$.prop($$props, 'serviceUrl', 28, () => $.get(defaultServiceUrl))`.
+
+  rsvelte's prop-flag reactivity check only recognised
+  `bindable_prop`/`prop`/`state`/`raw_state`/`derived` identifiers as non-simple, so
+  a `LegacyReactive` reference was treated as simple → emitted eagerly
+  (`…, 12, $.get(defaultServiceUrl)`). Add `LegacyReactive` to both prop-default
+  paths; unlike a prop ref it transforms to a member call (`$.get(...)`), so it is
+  thunked rather than unwrapped to a bare callee.
+
+  Clears `layerchart/.../docs/TilesetField.svelte`, zero corpus regressions.
+
+- 20401c3: fix(compiler): keep `PROPS_IS_UPDATED` when a reassigned prop is shadowed by a function parameter
+
+  When an `export let` prop shares its name with a function parameter elsewhere in
+  the component, the `BindableProp` kind can land on the parameter binding (which is
+  never reassigned), while the real prop declaration — which actually carries the
+  reassignment — ends up as a separate instance-scope binding:
+
+  ```svelte
+  <script context="module">
+    function setCanvasContext(context) { setContext(key, context); } // param `context`
+  </script>
+  <script>
+    export let context = undefined;                 // the real prop
+    onMount(() => { context = element?.getContext('2d'); }); // reassigns the prop
+  </script>
+  ```
+
+  `calculate_prop_flags` resolved the parameter binding (not reassigned) and emitted
+  `$.prop($$props, "context", 8, …)` (BINDABLE) instead of the correct `12`
+  (BINDABLE | UPDATED).
+
+  When computing `PROPS_IS_UPDATED`, also OR in the reassigned/mutated state of any
+  same-named _real_ declaration in the instance/module scope (excluding function
+  parameters). This is flag-only — it does not change which binding is marked
+  `BindableProp`, so var-hoisting (and the previously-fixed `BrushContext` /
+  `GeoContext` outputs) are untouched. Clears
+  `layerchart/.../layout/Canvas.svelte` (41 → 40).
+
+- 6c1e662: fix(compiler): resolve a prop shadowed by a same-named function parameter
+
+  When a legacy prop/store (`export let brush = writable(...)`, also read as
+  `$brush`) shares its name with a function parameter (`function setBrushContext(brush) {…}`),
+  Phase-2 can register that parameter at the instance scope index. Binding lookups
+  keyed on `instance_scope_index` then resolved to the parameter (kind `normal`)
+  instead of the prop, so the prop was mis-compiled:
+
+  - client store-getter emitted `$.store_get(brush, …)` instead of `$.store_get(brush(), …)`;
+  - the `$.prop(…)` flag dropped `PROPS_IS_BINDABLE`;
+  - the server emitted a plain `let brush = writable(...)` instead of
+    `let brush = $.fallback($$props['brush'], () => writable(...))`.
+
+  Prefer an actual `prop`/`bindable_prop` binding of the name over a shadowing
+  local/parameter in the three resolution points (`binding_by_name`,
+  `calculate_prop_flags`, server `legacy_binding_is_prop`). Also emit
+  `$.bind_props({…})` in source-declaration order (`declaration_start`) since a
+  prop that is also a store subscription can otherwise be listed out of order.
+
+  Clears `layerchart/.../BrushContext.svelte` and `.../GeoContext.svelte`
+  (49 → 47).
+
+- d4f8a77: fix(compiler): correct legacy `invalidate_inner_signals` for `<select bind:value>` indirect bindings
+
+  Legacy `<select bind:value={prop…}>` must invalidate the OTHER scope variables read
+  within the select (e.g. a `guid` prop in the select's `id=` attribute) whenever the
+  bound value is mutated. Several gaps are fixed so the invalidation matches upstream:
+
+  - **`legacy_indirect_bindings` population** (`2-analyze/RegularElement`): the indirect
+    bindings are now collected from the select's enclosing scope **and its ancestors**
+    (via `binding.scope_index`, not the backward-compat-polluted `scope.declarations`),
+    so an outer-scope prop like `guid` is included while child-scope each-block items are
+    excluded. Store auto-subscriptions (`$label`) are skipped (no real scope binding
+    upstream).
+  - **assignment LHS is reactive** (`has_reactive_state` AssignmentExpression): `{(x.value
+= [])}` now reads `x` on the LHS, so the text is reactive (`$.template_effect`) rather
+    than a static `nodeValue =`.
+  - **invalidate wrap on prop member mutations** (template assignment + component
+    `bind:value` setter): a prop member mutation whose prop has `legacy_indirect_bindings`
+    is wrapped in `(<mutation>, $.invalidate_inner_signals(() => { … }))`.
+
+  Clears `svelte-form-builder/.../PropertyPanelDataAttributes.svelte`, zero corpus
+  regressions (binding-indirect / binding-interop-derived / select-option-store etc. all
+  still pass).
+
+- 57ba819: fix(compiler): mark a `<select>` with non-option content as "rich" (SSR)
+
+  A `<select>` whose children include anything other than `<option>`/`<optgroup>`
+  elements — e.g. `<select multiple><slot /></select>` — must emit the trailing
+  `is_rich = true` flag on the SSR `$$renderer.select(attrs, fn, …rest, true)` call
+  so the runtime adds the customizable-select hydration marker.
+
+  rsvelte's rich-content scan (`select_special_is_rich`) was narrower than upstream's
+  `is_customizable_select_element`: it only treated components / `{@render}` /
+  `{@html}` as rich and missed `<slot>` (a `SlotElement`), non-option/optgroup
+  regular elements, and text. It now faithfully ports
+  `is_customizable_select_element` for the `<select>` owner (mirroring
+  `find_descendants`: skip snippet/debug/const/declaration/comment/expression tags,
+  recurse if/each/key/await/boundary branches but not element children, and treat a
+  non-option/optgroup element, non-whitespace text, or any other node as rich).
+
+  Clears `sveltestrap/.../Input/Input.svelte` (SSR), zero corpus regressions.
+
+- 6a5f48f: fix(compiler): a snippet is non-hoistable when a nested function closes over instance state
+
+  A root-level `{#snippet}` was hoisted to module scope even when one of its nested
+  functions referenced component state, e.g.:
+
+  ```svelte
+  {#snippet MobileLink({ href, content })}
+    <a {href} onclick={() => { open = false; }}>{content}</a>
+  {/snippet}
+  ```
+
+  `open` is component state, so upstream keeps `MobileLink` defined _inside_ the
+  component; rsvelte hoisted it to module top-level. The hoistability walk
+  (`can_hoist_snippet`) treated every `ArrowFunctionExpression` /
+  `FunctionExpression` as unconditionally hoistable (`=> true`), so references
+  inside nested handlers were never inspected.
+
+  Now nested functions are walked: their own params and locally-declared names are
+  treated as local, and any remaining reference to an instance-level binding blocks
+  hoisting — mirroring upstream's `scope.references` walk through nested functions.
+  Both the typed and JSON expression checkers route through one shared helper.
+
+  Clears `shadcn-svelte/.../mobile-nav.svelte` and
+  `flowbite-svelte/.../datepicker/Datepicker.svelte` on both CSR and SSR, with zero
+  corpus regressions.
+
+- e6110b2: fix(compiler): a spread element marks an expression as having a call (legacy reactivity)
+
+  A legacy component/element attribute value containing a spread —
+
+  ```svelte
+  <Comp scrollIntoView={{ condition: a === b, onlyIfNeeded: c, ...rest }} />
+  ```
+
+  — was emitted without the `(deps, $.untrack(...))` dependency sequence, so its
+  reactive dependencies (`c`, `rest`, …) weren't tracked. Upstream's
+  `2-analyze/visitors/SpreadElement.js` sets `has_call = true` (and `has_state =
+true`) for any spread ("treat `[...x]` like `[...x.values()]`"), which makes
+  `build_expression` wrap the value. rsvelte's metadata walks omitted spreads, so
+  `has_call`/`has_member`/`has_assignment` were all false → the value was emitted
+  bare.
+
+  Both metadata walks now flag a `SpreadElement` as a call: the Phase-2
+  `walk_js_expression` (`has_call` + `has_state`) and the Phase-3
+  `walk_metadata_flags` used by `build_attribute_value` (`has_call`).
+
+  Clears `svelte-ux/.../SelectField.svelte`, zero corpus regressions.
+
+- a1beb29: fix(compiler): read a store dependency via `$name()` in attribute/derived dependency lists
+
+  A reactive expression that depends on a store value (`$view`, or a store that is
+  also written via `$.store_set(view, …)`) must collect that dependency as the
+  store's subscribed value — `$view()` — not `$.deep_read_state(view)` (which would
+  deep-read the store object instead of subscribing to its value).
+
+  The `$:` reactive-statement dependency builder already handled stores, but the
+  two attribute/derived dependency builders
+  (`collect_reactive_references_from_metadata` and the tree-walking fallback
+  `collect_reactive_references`) classified a store-backed binding as a
+  prop/import and wrapped it in `$.deep_read_state(name)`. Detect a store
+  dependency by the presence of the synthesized `$name` `StoreSub` binding and emit
+  the `$name()` getter instead. Clears
+  `svelte-form-builder/src/lib/FormBuilder.svelte` (43 → 42).
+
+- ac7d1f9: fix(compiler): don't rewrite a `$store` reference inside a string literal
+
+  `transform_store_reads_client` appends `()` to legacy store-subscription reads
+  (`$store` → `$store()`). Its guard against rewriting inside a string only checked
+  whether the _immediately preceding_ character was a quote, so it caught
+  `'$store'` but not a store name appearing mid-string, e.g. a log message:
+
+  ```js
+  foo("[TODO] -> if ($canvas_dim) :", { w: $canvas_dim.w });
+  ```
+
+  The `$canvas_dim` inside the string was rewritten to `$canvas_dim()`, changing
+  the string's content. Replace the preceding-char heuristic with
+  `is_inside_string_literal`, which scans from the start tracking string and
+  template `${ }` state (a `$store` inside a `${ }` interpolation is code and is
+  still rewritten). Clears `svelthree/.../WebGLRenderer.svelte` from the corpus
+  baseline (51 → 50).
+
+- 128c6f6: fix(compiler): treat a const template-literal of known parts as non-reactive
+
+  A component object-prop that references a `const` whose initializer is an
+  interpolated template literal made of known constants —
+
+  ```svelte
+  <script>
+    const default_title = "Svelte UI Components";
+    const image = `https://example.com/og?title=${default_title}`;
+  </script>
+  <MetaTags openGraph={{ images: [{ url: image }] }} />
+  ```
+
+  — was over-memoized: `image` was treated as reactive state (so `openGraph` was
+  wrapped in `$.derived(() => ({ … }))` instead of inlined), because Phase-2 only
+  recorded a binding's `initial` for plain literals — an interpolated template
+  literal left it `None`, which the reactive-state check reads as "unknown →
+  reactive".
+
+  Record the template-literal initializer AST in a new `Binding.init_expr_json`
+  field (kept separate from `initial`, which feeds `is_prop_source`), populated in
+  both the typed and JSON variable-declarator paths. The reactive-state check then
+  runs `is_expression_known_json` over it (depth-guarded) — approximating
+  `scope.evaluate().is_known` — so a template whose interpolations are all known
+  constants is non-reactive, while one containing a call / await / reactive read
+  stays reactive (still memoized). Clears `flowbite-svelte/src/routes/+page.svelte`
+  and `.../blocks/+page.svelte` (47 → 45).
+
+- d87b019: fix(compiler): treat a line ending in `?` as a statement continuation
+
+  The text-based instance-script accumulator decides a multi-line statement is
+  complete when a line looks balanced and isn't followed by an obvious
+  continuation. A line ending in a bare ternary `?` was not recognised as a
+  continuation, so a legacy `$:` (or `$derived`) assignment whose `?` and
+  consequent were separated by a `// comment` —
+
+  ```js
+  $: isSelectedStart =
+    selected instanceof Object
+      ? // @ts-expect-error
+        isSame(date, selected.from ?? selected.to)
+      : false;
+  ```
+
+  — was split after the (comment-stripped) `?` line, orphaning
+  `isSame(…) : false;` as bogus top-level statements and emitting invalid JS.
+
+  Add `?` to the trailing-operator continuation set (a superset of the existing
+  `??` case). Valid JS never ends a statement with a bare `?`, so this only
+  rescues the dangling-ternary case. Clears
+  `svelte-ux/.../components/DateButton.svelte` from the corpus baseline (53 → 52).
+
+- 3ed1e82: fix(compiler): preserve whitespace inside `<title>` (SSR), matching upstream
+
+  Upstream's server `TitleElement` visitor calls `process_children` directly on the
+  raw fragment nodes — it never runs `clean_nodes`, so the title's inner whitespace
+  is preserved verbatim:
+
+  ```svelte
+  <svelte:head>
+    <title>
+      {name ? `${name} |` : ''} Smelte the framework
+    </title>
+  </svelte:head>
+  ```
+
+  rsvelte's `process_children` cleans whitespace internally, so the leading
+  `\n    ` before the expression was trimmed (`<title>${…}` instead of
+  `<title>\n    ${…}`). Toggle `preserve_whitespace` around the title body's
+  `process_children` so its whitespace is kept verbatim, matching upstream's
+  clean_nodes bypass. Clears `smelte/src/routes/components/_layout.svelte`
+  (39 → 38).
+
+- 69fc318: fix(compiler): don't treat a trailing line comment's text as a continuation operator
+
+  The text-based instance-script statement accumulator decides whether a statement
+  continues onto the next line by inspecting the last line's trailing character.
+  It ran this check on the raw line _including_ a trailing `//` comment, so a
+  declaration whose comment happened to end in an operator-looking character —
+
+  ```js
+  export let screenWidth = 768; // md+
+  export let menuProps = undefined;
+  ```
+
+  (the comment ends in `+`) was misread as a dangling binary `+`, merging the next
+  `export let` into the same statement and emitting invalid JS. Comments are only
+  pre-stripped here when the legacy script carries a `$`-token, so this path must
+  be comment-robust on its own. Strip a trailing line comment (respecting string
+  literals) before the trailing-operator / trailing-comma checks. Clears
+  `svelte-ux/.../components/ResponsiveMenu.svelte` from the corpus baseline
+  (52 → 51).
+
+- 5a1c338: fix(compiler/css): correct three selector scoping/pruning divergences (#1237)
+
+  Three CSS divergences from the official compiler surfaced by the awesome-svelte
+  compat corpus (svar-core, svelte-toast), now byte-identical for client and server:
+
+  - **Sibling-combinator over-prune.** `.wx-icon + .wx-label` was commented out as
+    unused when the `.wx-icon` element carried a dynamic class
+    (`class="wx-icon {expr}"`) — the static `wx-icon` chunk dropped out of the
+    element's class set on bail-out. `selector_matches_element` now treats an
+    element with an indeterminate `class` (interpolated expression or spread) as
+    matching any class selector, mirroring upstream `attribute_matches`.
+  - **Multi-line `:global( … )` whitespace.** The unwrap now slices `:global(`.end
+    up to the byte before the closing `)` (matching upstream
+    `remove_global_pseudo_class`), preserving the inner padding instead of using
+    the tight `args` SelectorList span.
+  - **`<style>` inside a `<script>` template literal.** A `<style>` substring in a
+    script string literal (a docs page rendering a Svelte sample) was mistaken for
+    the real stylesheet. `render_stylesheet` / `collect_css_unused_warnings` now
+    prefer the parsed stylesheet's recorded `content` span over a textual scan.
+
+- f061348: fix(transform): don't deep-read-wrap an import shadowed by an each-item
+
+  A legacy dependency whose name matches a module import but resolves to a local
+  each-item / each-index / snippet-param binding was wrapped in
+  `$.deep_read_state(...)` as if it were the import. It now emits a plain
+  `$.get(...)` like any each-item, matching the official compiler's scope-resolved
+  references.
+
+- 70f55d1: fix(transform): lower a write to a private state field inside a `$derived.by`
+
+  A `$derived.by(() => { … this.#x = v … })` class-field initializer ran a blind
+  read-replace that rewrote every `this.#x` to `$.get(this.#x)`, including
+  assignment targets, producing the invalid `$.get(this.#x) = v`. It now uses the
+  assignment-aware method transformer, which lowers the write to `$.set(...)`.
+
+- 4b2e841: fix(compiler): don't misresolve a `$derived.by` for-loop variable to an `{#each}` item
+
+  A `for`-loop variable inside a `$derived.by(() => { ... })` callback that shared
+  a name with an `{#each ... as name}` template item triggered a false-positive
+  `each_item_invalid_assignment` error, rejecting code the official compiler
+  accepts. The runes-mode each-item check resolved the assignment target with a
+  scope walk that reaches the pollution-seeded root scope, so it matched the
+  template each item even though the `{#each}` block is not a lexical ancestor of
+  the script callback. The error now only fires when the each-item binding's
+  declaring scope is actually an ancestor of the assignment site.
+
+- da4aa67: fix(transform): don't wrap explicit object-property keys as prop reads
+
+  An explicit (non-shorthand) object-property key that happened to share a name
+  with a `$props()` binding was being rewritten as a prop read in the client
+  transform. Only shorthand properties and value positions are reads, so explicit
+  keys are now left untouched, matching the official compiler's output.
+
+- 859e522: fix(analyze): don't report `global_reference_invalid` for a `$`-prefixed destructured callback parameter
+
+  A `$`-prefixed identifier bound by an array/object destructuring parameter — e.g. `derived([box_d], ([$box]) => $box.width)` — was wrongly treated as a store subscription and rejected with `global_reference_invalid` (`box` has no store binding). The lexical `$`-identifier scan only recognised `($x)` / `let $x` declaration forms and missed destructuring patterns. Before erroring, the unprefixed-name lookup now also checks whether the full `$name` is itself a real (non-synthetic) scope binding and, if so, treats it as a local reference. The guard sits at the error path so a genuine store whose name also appears as a nested callback parameter (e.g. `page` used as `$page` in the template and as `($page) => …` in `.subscribe()`) still subscribes correctly.
+
+- 3701f7e: fix(transform): include all imports in legacy `$:` dependency thunks regardless of scope
+
+  A legacy `$:` reactive statement compiles to `$.legacy_pre_effect(() => (deps…), …)`.
+  Upstream `LabeledStatement.js` adds a dependency for every referenced binding that
+  is not `kind === 'normal' && declaration_kind !== 'import'` — i.e. **all** imports
+  qualify, regardless of which scope they were declared in.
+
+  rsvelte built the import-membership list with a `scope_index == instance_scope`
+  filter. In some TypeScript components the first imports are assigned scope 0 while
+  later imports land in the instance scope, so a `$:` block calling an early-imported
+  helper (e.g. `createScale(...)`) dropped that helper from the deps thunk. The
+  filter now includes every `Import`-kind binding, matching upstream.
+
+  Fixes the corpus entry
+  `layerchart/packages/layerchart/src/lib/components/ChartContext.svelte`.
+
+- ce42f21: fix(transform): `$.mutate` wrap for a state member mutation in an if-guarded `$:`
+
+  A `$: if (cond) obj.a.b = x` (state-var member mutation inside an if-guarded
+  reactive statement) was emitted without the `$.mutate(obj, …)` wrap — the
+  keyword-LHS branch was missing the state-member-mutation pass that both sibling
+  branches run.
+
+- ea931bf: fix(transform): six near-miss codegen fixes (store-mutate source, each promotion, prop-write shadow, destructure IIFE, SSR scope-class position)
+
+  - `$.store_mutate(...)` first arg (the store source) now reads a prop-backed store
+    as `store()` and a state-backed store as `$.get(store)` via the store var's own
+    transform, instead of emitting the bare name — for both component-prop binds and
+    DOM-element binds.
+  - A `const` collection whose each-item name collides with a `bind:`-reassigned
+    outer binding is no longer promoted to `$.mutable_source(...)`; the each-mutation
+    check now resolves to the each-item binding (`BindingKind::EachItem`) only.
+  - A write to a local binding that shadows a same-named prop (`let timeout` inside a
+    function vs `export let timeout`) is no longer rewritten to a prop-setter call;
+    the AST prop-assign pass now skips locally-shadowed LHS identifiers.
+  - A destructuring assignment preceded by a `}` (e.g. after an `if {…}` block) is
+    recognized as a standalone statement, so its IIFE no longer appends `return $$value`.
+  - The SSR scoping `class` attribute is appended last (not before a real `style`
+    attribute) when the element has `style:` directives but no synthetic `style`.
+
+- 0b2d7fb: fix(transform): three near-miss codegen fixes (template indent, use: SSR, each index)
+
+  - The fast-path JS re-indenter tracked template-literal state with a `bool`,
+    which desynced across a multi-line `${ … }` interpolation and mis-indented the
+    continuation lines of a later template literal's string content. It now uses the
+    full template/interpolation stack (matching the slow path).
+  - A `use:` directive on a load/error element (`<track>`/`<img>`/…) in the
+    non-spread SSR attribute path now re-captures `onload`/`onerror` (the spread
+    path already did).
+  - The typed `AssignmentExpression` path now sets `uses_index` on the owning each
+    block when an each-item identifier is assigned/mutated (e.g. an event handler
+    mutating an outer item), so the `$$index` callback parameter is emitted — the
+    JSON path already did this.
+
+- 70f55d1: fix(transform): don't wrap a prop name used as an arrow-function param
+
+  A prop used as an arrow-function parameter binding (`(nodeId) => …`,
+  `options => …`) was rewritten to the invalid `(nodeId()) => …`. The text
+  prop-read wrapper now skips arrow-parameter binding positions (mirroring the AST
+  version's param guard).
+
+- 429de3f: fix(transform): build legacy `$:` dependency thunks from the Phase-2 AST reference set
+
+  The deps thunk of a `$.legacy_pre_effect` was previously built by text-scanning
+  the `$:` body (`find_pos` for order; `body_references_identifier` /
+  `is_only_assignment_target` / `is_in_lhs_only` for membership). That mis-handled
+  chained member-property keys (`l.add('x', e).add(add)` matched `add` from the
+  `.add(` method key, not the `add` argument), string-literal text, block
+  mutations, and shadowed params — producing wrong-order, wrong, extra, or missing
+  dependencies.
+
+  A new Phase-2 pass (`collect_reactive_statement_dependencies`) now records each
+  top-level reactive statement's ordered dependency identifier set by walking the
+  AST exactly like upstream `2-analyze/visitors/LabeledStatement.js` (order =
+  first-appearance traversal order; a name is a dependency unless its only
+  references are the outermost member-chain LHS of an `=`; member-property keys,
+  object keys, function params and block-locals are never references). The Phase-3
+  client deps thunk is emitted from that list. The block-ordering path
+  (`extract_reactive_statement_deps` / `sort_reactive_statements`) is untouched.
+
+- ce42f21: fix(transform): don't count a member-property key as a reactive assignment
+
+  `is_assigned_anywhere_in_body` matched a `.name = ` member-property write
+  (`obj.name = name`) as an assignment to the `name` binding, adding a spurious
+  assignment edge that reordered unrelated `$:` reactive blocks. A name preceded by
+  `.` is a member-property key, not a binding assignment, and is now excluded —
+  restoring the official source-order emission.
+
+- 6fe6b4a: fix(svelte2tsx): carry renamed-export JSDoc onto the prop
+
+  `getDoc(target)` in official svelte2tsx resolves a prop's `/** @type {...} */`
+  from the `let x` declaration first, then — when none is there — from the
+  `export { x as y }` statement itself (`exportExpr`). rsvelte only captured the
+  doc on the `let` declaration, so the common shape
+
+  ```svelte
+  let _class = null;
+  /** @type {string | false | null} */
+  export { _class as class };
+  ```
+
+  dropped the type from the generated `render({...})` destructure, losing the
+  prop's declared type in the language server. The export-specifier handler now
+  falls back to the export statement's leading JSDoc, mirroring official's
+  `getDoc`.
+
+- 7e6cd57: fix(compiler): track `$$restProps` (and `$$props`) read via a spread in a legacy reactive statement
+
+  A legacy `$: x = { ...defaults, ...$$restProps }` dropped its
+  `$.deep_read_state($$restProps)` dependency, emitting
+  `$.legacy_pre_effect(() => {}, …)` instead of
+  `$.legacy_pre_effect(() => $.deep_read_state($$restProps), …)`, so the statement
+  no longer re-ran when spread rest-props changed. `body_references_identifier`
+  excluded a leading `.` (to avoid matching `obj.prop`), which also rejected the
+  spread `...$$restProps`. The `$$`-prefixed compiler specials are never
+  member-access targets, so a leading `.` is now allowed for them.
+
+- b92840b: fix(transform): switch-case dep order, SSR control-flow store reads, bind getter/setter setter reads
+
+  - `collect_reactive_statement_dependencies` visits a `SwitchCase`'s `consequent`
+    before its `test` (acorn populates them in that order), so a `$:` switch's
+    dependency-thunk order matches the official compiler.
+  - The SSR instance-script catch-all statement arm now read-wraps store/derived
+    reads (`if ($store === …) …`, `for`/`while`/blocks), matching upstream's
+    visit-every-statement behavior (the ExpressionStatement / FunctionDeclaration
+    arms already did).
+  - A `bind:value={getter, setter}` setter body now has read transforms applied,
+    so reactive reads inside the setter (`(v) => { … control.min … }`) become
+    `$.get(...)`.
+
+- f3a8000: fix(transform): nested prop-assignment in $: RHS, function-decl shadowing, boundary snippet order
+
+  - A nested prop assignment in a `$:` state-var-assignment RHS (an arrow default
+    `() => (isOpen = !isOpen)`) is now lowered to the setter call `isOpen(!isOpen())`;
+    the state-var branch was missing the prop-assignment pass its siblings run.
+  - A `function foo()` declaration now shadows a same-named prop/state binding in the
+    runes read-wrapper, so a reference to the local function (`executing.then(enter)`,
+    where `async function enter()` shadows an `enter` prop) stays bare instead of
+    becoming `enter()`.
+  - A non-hoistable `<svelte:boundary failed>` snippet is emitted into the SSR
+    template stream in visit order (like the regular snippet visitor) instead of
+    being prepended ahead of preceding `{@const}` / sibling snippets.
+
+- e0779f0: fix(transform): fold scope hash into a quote-preserving class literal; explicit `slot="default"` → children
+
+  - A static `class={"draggable"}` (a quote-preserving string literal) now folds the
+    scope hash into the string (`$.set_class(el, 1, "draggable svelte-HASH")`) instead
+    of passing it as a separate argument — the fold only recognized the canonical
+    `String` literal, not the `RawString` variant.
+  - An explicit `<Comp><x slot="default" /></Comp>` is now emitted on the server as the
+    `children` snippet prop (with `$$slots.default: true`), matching upstream's
+    `slot_name === 'default'` handling, instead of a `$$slots.default` function.
+
+- 8ee109d: fix(transform): five codegen fixes (esrap method shorthand, slot memo index, reactive dep order/membership, import-in-template)
+
+  - esrap prints a property whose value is a `FunctionExpression` as method shorthand
+    (`"k"() {}`) regardless of key kind, matching esrap — a string-keyed function
+    property no longer prints as `"k": function`.
+  - The slot-prop memo reference index no longer double-counts, so the getter `$.get($N)`
+    matches its `$N` declaration.
+  - Legacy `$:` dependency ordering scans a string-literal-blanked copy of the body, so a
+    literal word (`` `width: ${x}` ``) no longer text-matches before the real read and
+    misorders deps.
+  - A bare `ident;` read statement is no longer misclassified as an assignment target, so
+    its dependency is kept (was dropped, producing `() => {}` / missing deps).
+  - The line-based import extractor tracks cross-line string/template/comment state, so an
+    `import …` line inside a backtick template literal is not mis-hoisted as a real import.
+
+- 812b05f: fix(transform): parenthesize `new` callees with a call in their spine + multi-node title defined-check
+
+  - esrap now wraps a `new` callee in parens when its member-object spine contains a
+    CallExpression (`new ($.get(deckgl).MapboxOverlay)(…)`) or it is a
+    ChainExpression — porting esrap's `has_call_expression` clause so the trailing
+    `(…)` is not mis-parsed as the constructor arguments.
+  - A multi-node `<title>` interpolation uses the canonical `is_expression_defined`
+    check, so a conditional with two string branches (`{name ? \`…\` : ""}`) no longer
+gets a spurious `?? ""` coercion.
+
+- 244264a: fix(transform): scope-range store-subscription parameter shadows
+
+  A `$name` used as a function/arrow parameter (including inside array/object
+  destructuring, e.g. `([$s, $focused]) => …`) was added to a script-global
+  "declared" set, suppressing genuine top-level store subscriptions of the same
+  name everywhere. Parameter shadows are now scope-ranged to the parameter's own
+  arrow body, so a real `$initialized` subscription outside that body is still
+  detected, while a destructured `$focused` param no longer produces a spurious
+  subscription. Mirrors upstream scope resolution.
+
+- f632423: fix(compiler): don't false-positive `store_invalid_scoped_subscription` when a `<script context="module">` declares a function
+
+  A function declaration in `<script context="module">` pushes its own function
+  scope, so the instance scope index is no longer always `1`. The scoped-store
+  guard in `walk_js_expression` / `walk_js_expression_node` hardcoded `1` as the
+  instance scope, so an instance-scope store (e.g. an imported store) referenced
+  inside a template arrow function was wrongly rejected with
+  `store_invalid_scoped_subscription`. The guard now compares against the real
+  `instance_scope_index`, mirroring upstream's `owner !== instance.scope` check.
+  Genuine scoped subscriptions (a store shadowed by an each-item binding or an
+  arrow parameter) still error. Fixes #1225 (svelte-form-builder `PropertyPanel`).
+
+- cd786c3: fix(analyze): include component-tag references in `<select bind:value>` indirect bindings
+
+  A legacy `<select bind:value={foo}>` invalidates every other binding referenced
+  within the select whenever `foo` mutates (emitted as a `$.invalidate_inner_signals`
+  body). The official compiler builds this list from the select scope's
+  `references` map, in which **component-tag** references (`<SelectOptions/>`) are
+  inserted _immediately_ during scope creation — ahead of the _deferred_ plain
+  identifier references.
+
+  rsvelte's scope-builder never recorded component-tag name references, so a
+  component used inside the select (e.g. `<SelectOptions bind:field/>`) was missing
+  from the invalidate body, and the surviving identifiers were emitted in pure
+  source order rather than components-first.
+
+  The `<select>` indirect-binding population now collects component-tag references
+  across the select subtree separately and emits them ahead of the identifier
+  group, matching the official `references` insertion order.
+
+  Fixes the corpus entry `svelte-form-builder/src/lib/Components/Select.svelte`.
+
+- ea05921: fix(transform/server): two SSR codegen fixes for `.svelte.(js|ts)` modules + known strings
+
+  - `$effect.tracking()` in a `.svelte.(js|ts)` module is now lowered to the literal
+    `false` on the server (there is no effect tracking during SSR), matching the
+    instance-script path and the upstream server CallExpression visitor.
+  - A binding initialized to a template literal (`const w = \`…${x}…\``) is treated
+    as a defined string by the server evaluator, so reads of it are no longer wrapped
+    in an unnecessary `$.stringify(...)`.
+
+- af836a2: fix(analyze): allow `slot="…"` on a direct child of a `{#snippet}` block
+
+  A `slot="name"` text attribute on an element whose immediate parent is a
+  `{#snippet}` body — e.g. `{#snippet active()}<span slot="active">…</span>{/snippet}` —
+  was wrongly rejected with `slot_attribute_invalid_placement`. Upstream's
+  `validate_slot_attribute` returns early when `context.path.at(-2)` is a
+  `SnippetBlock`. A new `is_direct_child_of_snippet` context flag (set while
+  analyzing a snippet body, reset on entering any nested element/block, mirroring
+  `is_direct_child_of_component`) reproduces that early return. Non-text `slot={…}`
+  values are still rejected by the separate `is_text_attribute` check.
+
+- 70f55d1: fix(transform): collect a spread argument as a reactive dependency
+
+  The legacy reactive-reference fallback walker treated a `SpreadElement`
+  (`[...x]`, `f(...x)`) as a terminal node, so the spread's argument was never
+  walked and its dependency dropped from the memo/effect (e.g.
+  `sum([...data.data], …)` lost `data`). It now recurses into the spread argument.
+
+- f061348: fix(transform): detect a spread `...prop` as a read in legacy reactive deps
+
+  `body_references_identifier` excluded a `.` before a name to skip member access,
+  which also skipped a spread (`...prop`). A `$:` statement that spreads an
+  imported/prop/state binding therefore dropped that dependency from its
+  `$.legacy_pre_effect(...)` tracking thunk. A spread prefix is now recognized as a
+  read.
+
+- f061348: fix(transform): don't wrap a store name used as a destructured arrow param
+
+  A store name inside an array/object destructuring arrow parameter
+  (`([$x, $y]) => …`) was wrapped to `$x()` (invalid in a binding position). The
+  function-parameter check now strips destructuring delimiters so the shadowing
+  local param is recognized and left bare.
+
+- 1af9df3: fix(transform): wrap store reads in a ternary inside a function body
+
+  The legacy text-based store-subscription read transform skipped any `$store`
+  whose following `:` made it look like an object property key (`{ $store: … }`).
+  Its object-literal guard only counted unmatched `{` in the emitted prefix, so a
+  function body's own block brace counted as an object literal — making a ternary
+  `cond ? $store : x` _inside any function body_ match the property-key heuristic
+  and leave `$store` un-called.
+
+  A real property key is always immediately preceded (skipping whitespace) by `{`
+  (first entry) or `,` (later entry), whereas a ternary consequent is preceded by
+  `?`. The property-key check now also requires that preceding separator, so the
+  ternary `$store` is correctly lowered to `$store()`.
+
+  Fixes the corpus entry
+  `svelte-ux/packages/svelte-ux/src/lib/components/Duration.svelte`.
+
+- fa4dd68: fix(transform): two invalid-JS emissions for store/prop reads in binding positions
+
+  - A store subscription used as an object-literal SHORTHAND (`{ $width, $height }`)
+    was wrapped to the invalid method-shorthand `{ $width() }`. It now expands to
+    `{ $width: $width() }`, matching the prop-read path.
+  - A prop name used as a destructuring binding inside a keyword-guarded reactive
+    body (`$: if (cond) { const [x, y] = f(); … }` where `x`/`y` shadow props) was
+    wrapped to the invalid `const [x(), y()] = …`. That branch now routes prop reads
+    through the scope-aware AST wrapper, which never wraps binding positions or
+    locally-shadowed reads.
+
+- f061348: fix(transform): wrap a non-sole store read inside `$derived(...)`
+
+  A store subscription that was the FIRST token of a larger `$derived(...)` /
+  `untrack(...)` argument (`$derived($store.x / 2)`) was wrongly left bare. The
+  bare-getter collapse now only applies when the store ref is the SOLE argument
+  (`$derived($store)`); otherwise it is wrapped to `$store()`.
+
+- f061348: fix(transform): lower a store write nested in a reactive block body
+
+  A `$store = x` inside a `$:` block body (`$: { … $store = x }`) was not lowered
+  to `$.store_set(store, x)`; the read wrap then mangled the LHS into `$store() = x`
+  (invalid JS). The block-body path now runs the store-assignment lowering before
+  wrapping reads.
+
+- f061348: fix(transform): three `.svelte.(js|ts)` class-field SSR fixes
+
+  - Private `$derived` reads inside arrow-function class fields (`onkeydown = (e) =>
+{ … this.#derived … }`) are now called (`this.#derived()`), matching the
+    Field/Method handling.
+  - A multi-line `$state(...)` / `$state.raw({ … })` field initializer is now
+    unwrapped to its inner value (a plain public server field) instead of leaking
+    the rune and being privatized.
+  - A class member whose arrow body is nested in a call
+    (`onpointermove = whenMouse(() => { … })`) no longer runs away the member
+    accumulator and drops every following member.
+
+- 4746423: fix(compiler): infer SVG namespace for element-less fragments inside `<svg>`
+
+  A `{#snippet}` (or any element-less fragment) whose body lives in an SVG context
+  but contains only adjacent component / render-tag anchors was emitted via
+  `$.from_html` instead of `$.from_svg`, and the SSR markup kept a spurious
+  whitespace text node between the anchors (`<!----> ` instead of `<!---->`). This
+  cascaded into wrong `$.sibling(node, 2)` offsets. Namespace inference for a
+  fragment with no element children now inherits the enclosing namespace (a
+  faithful port of upstream `check_nodes_for_namespace`, deep-walking
+  `{#if}` / `{#each}` / `{#await}` / `{#key}` containers) rather than defaulting to
+  `html`, on both the client and server transforms.
+
 ## 0.7.15
 
 ### Patch Changes
