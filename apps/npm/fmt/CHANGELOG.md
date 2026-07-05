@@ -1,5 +1,49 @@
 # @rsvelte/fmt
 
+## 0.5.0
+
+### Minor Changes
+
+- e38490f: feat(fmt): format CSS in-process via `oxc_formatter_css`
+
+  `rsvelte-fmt` now formats CSS with the Rust `oxc_formatter_css` crate (the same
+  engine `oxfmt` uses, so byte-identical) instead of spawning an `oxfmt`
+  subprocess — mirroring the existing native JS/JSON in-process paths. This covers
+  both embedded `<style>` blocks in `.svelte` files and standalone
+  `.css`/`.scss`/`.less` files, and it lets the wasm formatter format `<style>`
+  blocks in the browser (previously left verbatim, since spawning `oxfmt` can't run
+  in wasm).
+
+  The embedded-`<style>` path no longer needs the batch/daemon/on-disk-cache
+  machinery that existed only to amortize `oxfmt` spawns; the new `--no-native-css`
+  flag reverts to the legacy `oxfmt`-subprocess path as an escape hatch. Standalone
+  CSS files fall back to `oxfmt` on parse errors or when an `.oxfmtrc` override /
+  `printWidth > 320` can't be represented natively, exactly like the native JSON
+  path. Indented-syntax dialects (`sass`/`stylus`/`.styl`) are not brace-based CSS
+  and stay verbatim / delegated.
+
+### Patch Changes
+
+- 24023af: fix(fmt): wire the prettier-plugin-svelte children port for void-element + prose content
+
+  Milestone-2 layout port, cut 1. Route an inline-or-block element whose content is
+  prose text interleaved with single-line HTML void elements
+  (`<label class="…"><input … /> Only show states starting with 'T'</label>`,
+  `<div><br /></div>` runs) through the faithful `children.rs` port of
+  prettier-plugin-svelte's `printChildren` + 4-case element assembly
+  (`build_element_doc`), instead of the approximate `try_fill_mixed` / `try_hug_mixed`
+  string logic. The approximate fill construction mis-placed the prose word-wrap
+  boundary (it broke one word too early); the faithful port reproduces prettier's
+  fill — including gluing the first word to the preceding void element — byte-for-byte.
+
+  `try_children_port` returns `Some(_)` to **claim** its shape even when it produces
+  no edit (the content is already correct), so the legacy passes
+  (`collect` and `collect_fill_mixed_only`) don't re-break already-correct prose.
+
+  Burns down the fmt-parity corpus by 5 (69 known failures; svelte-maplibre
+  geojson_polygon / 3d_buildings, powertable example4, svelte-sonner Hero,
+  svelte-pivottable).
+
 ## 0.4.1
 
 ### Patch Changes
