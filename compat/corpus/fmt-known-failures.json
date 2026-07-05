@@ -63,5 +63,6 @@
 	"svelte-ux/packages/svelte-ux/src/routes/docs/components/Month/+page.svelte",
 	"svelte-ux/packages/svelte-ux/src/routes/docs/components/ResponsiveMenu/+page.svelte",
 	"svelte-ux/packages/svelte-ux/src/routes/docs/components/TextField/+page.svelte",
+	"svelte/packages/svelte/tests/parser-modern/samples/const-tag-parenthesized-init/input.svelte",
 	"sveltestrap/src/Popover/Popover.stories.svelte"
 ]

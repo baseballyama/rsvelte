@@ -392,6 +392,9 @@ fn audit_skipped_fixtures() {
         ("runtime-runes", "async-declaration-tag-2"),
         ("runtime-runes", "async-each-const-await-iife"),
         ("runtime-runes", "async-style-after-await"),
+        // New 5.56.4 fixture (#18453): server async-derived template-mutation
+        // codegen not yet ported (server=MISMATCH).
+        ("runtime-runes", "async-parallel-derived-template-mutation"),
     ];
 
     let parser_legacy_skipped = &["javascript-comments", "implicitly-closed-li-block"];
