@@ -34,10 +34,6 @@ submodules/
 The `@rsvelte/vite-plugin-svelte` Vite plugin (a fork of `@sveltejs/vite-plugin-svelte`)
 is vendored as a workspace package at `apps/npm/vite-plugin-svelte`, not a submodule.
 
-See `docs/ecosystem-implementation-plan.md` for the multi-wave plan to port
-the Svelte ecosystem (svelte2tsx, svelte-check, vite-plugin-svelte) on top
-of the rsvelte compiler.
-
 ### Corpus output-equality pipeline (`scripts/compat-corpus/`)
 
 Every `.svelte` / `.svelte.(js|ts)` source (including markdown code blocks)
@@ -142,7 +138,7 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (generated 2026-06-08, Svelte commit `a9f48540e236`, **v5.56.3**). Re-run `pnpm run test-and-update` to refresh. Skip lists live in `crates/rsvelte_core/tests/compatibility_report.rs` and `crates/rsvelte_core/tests/runtime.rs`; `crates/rsvelte_core/tests/audit_skipped.rs` re-checks every skipped fixture after a Svelte bump. See [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md) for a per-cluster breakdown of remaining skips with upstream commits, root causes, and a porting plan.
+Source: `pnpm run compatibility-report` (generated 2026-06-08, Svelte commit `a9f48540e236`, **v5.56.3**). Re-run `pnpm run test-and-update` to refresh. Skip lists live in `crates/rsvelte_core/tests/compatibility_report.rs` and `crates/rsvelte_core/tests/runtime.rs`; `crates/rsvelte_core/tests/audit_skipped.rs` re-checks every skipped fixture after a Svelte bump.
 
 | Suite | Pass/Total | Notes |
 |-------|------------|-------|
@@ -218,7 +214,7 @@ code blocks are out of scope — both sides format them with oxfmt.)
 - **SSR `$.save` parent-walk predicate** (Svelte 5.54.1 / 5.55.1 / 5.55.2 / mislabelled 5.53.4 — covers upstream's `AwaitExpression.js` walk) — `3_transform/server/visitors/expression_tag.rs` was wrapping any await with `(await $.save(...))()` whenever `self.in_block_body` was `false`, but the default at the top of the component was `false` too, so awaits inside the root component fragment got an unwanted `$.save(...)` wrap. Upstream's `AwaitExpression.js` server visitor instead walks `context.path` and only applies `save` when the first metadata-bearing ancestor is **not** a Fragment or ExpressionTag — i.e. when the immediate template parent is a `RegularElement` / `TitleElement` (the visitors that use `process_children` inline). Mirroring that, `in_block_body` now defaults to `true` (no save) and `RegularElement` / `TitleElement` / `select` / `textarea` / `<option>` toggle it `false` for their direct children iteration via save/restore. Every Fragment-bodied parent (root component fragment, IfBlock / EachBlock / KeyBlock / SnippetBlock / AwaitBlock body, SvelteHead, SvelteElement, SvelteBoundary, Component slot) leaves the flag at `true` so awaits in those bodies fall through to plain `await expr` — the surrounding `child_block(async ...)` already wraps them. The existing explicit `in_block_body = true` in `if_block.rs` / `each_block.rs` / `svelte_boundary.rs` is preserved because, after element children toggle the flag `false`, block visitors nested inside an element must re-toggle it back to `true` for their own body. Unblocked `runtime-runes/async-derived-indirect`, `runtime-runes/async-later-sync-overlaps`, `runtime-runes/async-overlap-multiple-1..4`, `runtime-runes/async-if-block-unskip`, `runtime-runes/async-if-else`.
 - **Transitive `touch`-through-`binding.assignments`** (Svelte 5.55.1, `async-overlap-multiple-5..7`) — `3_transform/shared/async_body.rs::compute_blocker_map` and `update_blocker_map_for_stmt` now walk a new `collect_var_init_map` (binding name → init source for plain `let/var/const` declarators, excluding function-valued bindings already covered by `collect_function_bodies`) so a later async statement that references binding `b` also pulls in the identifiers from `b`'s initializer. Implemented as `apply_blocker_with_transitive(source, var_init_map, all_declared_vars, blocker_map, idx)`, which BFS-walks identifiers in `source`, upgrades each instance-scope binding's blocker index to `idx` (when higher), and queues every identifier from its init. Mirrors upstream's `calculate_blockers` → `touch(call)` → `for (const assignment of binding.assignments) touch(assignment.value, …)` recursion in `2-analyze/index.js`. The chained `let b = $derived(await delay(a*2)); let d = $derived(await delay(b + c))` pattern now collapses `a`/`b`/`c`/`d` to the chained derived's index, matching upstream's `[$$promises[2]]` blockers array (was `[$$promises[0], $$promises[2]]`). Unblocked `runtime-runes/async-overlap-multiple-5..7`.
 
-### Ecosystem port (`docs/ecosystem-implementation-plan.md`)
+### Ecosystem port
 
 | Wave | Scope | Status |
 |---|---|---|
