@@ -121,7 +121,7 @@
 	<title>rsvelte · the Svelte ecosystem, in Rust</title>
 	<meta
 		name="description"
-		content="A Rust port of the Svelte ecosystem — compiler, svelte2tsx, svelte-check, fmt and vite-plugin-svelte as drop-in replacements. Same surface, identical output, up to 204× faster."
+		content="A Rust port of the Svelte ecosystem — compiler, svelte2tsx, svelte-check, fmt and vite-plugin-svelte as drop-in replacements. Same surface, identical output, up to 114× faster."
 	/>
 </svelte:head>
 
@@ -140,7 +140,7 @@
 		<p class="lede">
 			Drop-in replacements for the tools you already run — the compiler, <code>svelte2tsx</code>,
 			<code>svelte-check</code>, <code>fmt</code>, the Vite plugin. Same surface, identical output, up to
-			<span class="ink-svelte">{bench ? Math.round(maxSpeedup) : 204}×</span> faster.
+			<span class="ink-svelte">{bench ? Math.round(maxSpeedup) : 114}×</span> faster.
 		</p>
 
 		<div class="cta">
@@ -361,7 +361,7 @@
 		</ul>
 
 		<p class="capi-foot">
-			Smoke-tested per OS on every PR. See the
+			Smoke-tested in CI across Linux, macOS and Windows. See the
 			<a class="link" href="https://github.com/baseballyama/rsvelte/tree/main/crates/rsvelte_capi"
 				><code>crates/rsvelte_capi</code></a
 			> for the full API and per-language quick start.

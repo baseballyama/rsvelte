@@ -50,39 +50,39 @@ const compiler: Guide = {
 		{
 			title: 'Compile a component',
 			body: [
-				'The API mirrors `svelte/compiler`, so most code can switch import paths and keep working. `compile` returns the generated `js` and `css` plus warnings.'
+				'The package ships the compiler as WebAssembly — initialise it once, then compile for the client or the server. Output matches the official compiler.'
 			],
 			code: {
 				lang: 'js',
-				code: `import { compile } from '@rsvelte/compiler';
+				code: `import init, { compile_client, compile_server } from '@rsvelte/compiler';
 
-const { js, css, warnings } = compile(source, {
-  name: 'App',
-  generate: 'client', // 'client' | 'server'
-  css: 'external'     // 'injected' | 'external'
-});
+await init(); // once, before any other call
 
-console.log(js.code);   // generated JavaScript
-console.log(css?.code); // scoped styles, when external`
+const { js, css } = compile_client(source, 'App');
+console.log(js);  // generated JavaScript
+console.log(css); // scoped styles
+
+const ssr = compile_server(source, 'App');`
 			}
 		},
 		{
 			title: 'Parse to an AST',
-			body: ['`parse` returns the Svelte AST — the same shape the official parser produces.'],
+			body: ['`parse_svelte` returns the Svelte AST — the same shape the official parser produces.'],
 			code: {
 				lang: 'js',
-				code: `import { parse } from '@rsvelte/compiler';
+				code: `import init, { parse_svelte } from '@rsvelte/compiler';
 
-const ast = parse(source, { modern: true });
+await init();
+const ast = JSON.parse(parse_svelte(source).ast);
 // walk ast.fragment / ast.instance / ast.module / ast.css`
 			}
 		},
 		{
 			title: 'Why it is fast',
 			list: [
-				'Written in Rust, shipped as a native NAPI addon — no per-call JS ↔ engine round-trips.',
+				'Written in Rust — the same core also ships as a native NAPI addon (`@rsvelte/vite-plugin-svelte-native`) with the exact `svelte/compiler` surface.',
 				'Memory-efficient AST (u32 spans, compact strings) and direct phase-to-phase AST passing.',
-				'Parser alone runs ~96× the JavaScript parser; the full pipeline ~13×.'
+				'Parser alone runs ~113× the JavaScript parser; the full pipeline ~13×.'
 			]
 		}
 	]
@@ -107,7 +107,7 @@ const svelte2tsx: Guide = {
 				lang: 'ts',
 				code: `import { svelte2tsx } from '@rsvelte/svelte2tsx';
 
-const { code, map, exportedNames } = svelte2tsx(source, {
+const { code, map, exportedNames } = await svelte2tsx(source, {
   filename: 'App.svelte',
   isTsFile: true,
   mode: 'ts' // 'ts' | 'dts'
@@ -204,7 +204,7 @@ const svelteCheck: Guide = {
 	pkg: '@rsvelte/svelte-check',
 	dropInFor: 'svelte-check',
 	tagline:
-		'The project type-checker CLI. A Rust walker + svelte2tsx overlay drives tsgo for the TypeScript half; diagnostics map back to .svelte positions. Watch + incremental cache included.',
+		'The project type-checker CLI. A Rust walker + svelte2tsx overlay drives tsc — or Microsoft\'s native tsgo with --tsgo — for the TypeScript half; diagnostics map back to .svelte positions. Watch + incremental cache included.',
 	install: 'npm i -D @rsvelte/svelte-check',
 	runnable: false,
 	sections: [
@@ -215,11 +215,14 @@ const svelteCheck: Guide = {
 				code: `# Type-check the current project
 rsvelte-check
 
+# Prefer the native tsgo backend (faster than tsc)
+rsvelte-check --tsgo
+
 # Point at a workspace folder and tsconfig
 rsvelte-check --workspace . --tsconfig ./tsconfig.json
 
 # Re-check on change
-rsvelte-check --watch`
+rsvelte-check --watch --incremental`
 			}
 		},
 		{
@@ -228,17 +231,20 @@ rsvelte-check --watch`
 				head: ['Flag', 'Meaning'],
 				rows: [
 					['--workspace <dir>', 'Root folder to discover `.svelte` files under'],
-					['--tsconfig <path>', 'tsconfig to type-check against'],
-					['--watch', 'Watch and re-check incrementally'],
-					['--threshold <level>', 'Minimum severity to report (warning | error)'],
-					['--output <format>', 'Reporter: human | machine | machine-verbose']
+					['--tsconfig <path>', 'tsconfig the generated overlay should extend'],
+					['--tsgo', 'Prefer the native tsgo backend over tsc'],
+					['--no-type-check', 'Svelte diagnostics only, skip TypeScript'],
+					['--watch', 'Watch and re-check on change'],
+					['--incremental', 'Reuse the cached overlay between runs'],
+					['--fail-on-warnings', 'Exit non-zero when warnings exist'],
+					['--output <format>', 'Reporter: human | human-verbose | machine | machine-verbose']
 				]
 			}
 		},
 		{
 			title: 'Why it cannot run in the playground',
 			body: [
-				'svelte-check type-checks an entire project through the native `tsgo` backend, which has no WebAssembly build. The Rust walker discovers files, generates a TSX overlay per component, runs `tsgo`, then maps diagnostics back to `.svelte` positions — none of which works in a browser sandbox. Run the CLI in your project instead.'
+				'svelte-check type-checks an entire project through a native TypeScript backend (`tsc` or `tsgo`), which cannot run in a browser. The Rust walker discovers files, generates a TSX overlay per component, runs the type-checker, then maps diagnostics back to `.svelte` positions — none of which works in a browser sandbox. Run the CLI in your project instead.'
 			]
 		},
 		{

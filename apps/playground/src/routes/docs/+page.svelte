@@ -9,7 +9,7 @@
 	<title>Docs · rsvelte</title>
 	<meta
 		name="description"
-		content="Usage guides for every rsvelte package — the compiler, svelte2tsx, the formatter, svelte-check and the Vite plugin."
+		content="Usage guides for the rsvelte packages — the compiler, svelte2tsx, the formatter, svelte-check and the Vite plugin."
 	/>
 </svelte:head>
 
@@ -21,7 +21,7 @@
 			<p class="eyebrow"><span class="rule"></span>Documentation</p>
 			<h1 class="title">Guides</h1>
 			<p class="lede">
-				One guide per package in the rsvelte toolchain — install, API, examples and flags.
+				One guide per core package in the rsvelte toolchain — install, API, examples and flags.
 				Three of them (compiler, svelte2tsx, fmt) also run live in the
 				<a href="{base}/playground">playground</a>.
 			</p>

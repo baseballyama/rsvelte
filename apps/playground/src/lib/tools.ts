@@ -55,18 +55,19 @@ export const TOOLS: Tool[] = [
 	{
 		id: 'lint',
 		label: 'lint',
-		pkg: '@rsvelte/lint',
-		tagline: 'Lint a .svelte component with the Rust-native linter (compiler warnings + a11y + native rules).',
+		pkg: 'rsvelte_lint',
+		tagline:
+			'Lint a .svelte component with the Rust-native linter (compiler warnings + a11y + native rules). Powers the language server; not yet a standalone npm CLI.',
 		runnable: true
 	},
 	{
 		id: 'svelte-check',
 		label: 'svelte-check',
 		pkg: '@rsvelte/svelte-check',
-		tagline: 'Project type-checker CLI — a Rust walker + overlay driving tsgo.',
+		tagline: 'Project type-checker CLI — a Rust walker + overlay driving tsc or the native tsgo.',
 		runnable: false,
 		cantRunReason:
-			'svelte-check type-checks a whole project through the native tsgo backend, which has no WebAssembly build — so it cannot run in a browser. Use the CLI; the guide shows how.'
+			'svelte-check type-checks a whole project through a native TypeScript backend (tsc or tsgo), which cannot run in a browser. Use the CLI; the guide shows how.'
 	},
 	{
 		id: 'vite-plugin-svelte',
