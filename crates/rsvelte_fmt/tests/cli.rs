@@ -164,6 +164,8 @@ fn batched_style_delegation_maps_each_block_to_its_file() {
         .args([
             dir.to_str().unwrap(),
             "--write",
+            // Exercise the oxfmt-subprocess batch path (default is native CSS).
+            "--no-native-css",
             "--oxfmt-bin",
             fake.to_str().unwrap(),
         ])
@@ -370,6 +372,7 @@ fn style_cache_skips_oxfmt_on_warm_run() {
             .args([
                 file.to_str().unwrap(),
                 "--check",
+                "--no-native-css",
                 "--oxfmt-bin",
                 fake.to_str().unwrap(),
             ])
@@ -413,6 +416,7 @@ fn no_style_cache_flag_always_invokes_oxfmt() {
                 file.to_str().unwrap(),
                 "--check",
                 "--no-style-cache",
+                "--no-native-css",
                 "--oxfmt-bin",
                 fake.to_str().unwrap(),
             ])
@@ -450,6 +454,7 @@ fn env_disables_style_cache() {
             .args([
                 file.to_str().unwrap(),
                 "--check",
+                "--no-native-css",
                 "--oxfmt-bin",
                 fake.to_str().unwrap(),
             ])
@@ -491,6 +496,7 @@ fn style_cache_output_matches_uncached() {
         let mut args = vec![
             file.to_str().unwrap().to_string(),
             "--write".to_string(),
+            "--no-native-css".to_string(),
             "--oxfmt-bin".to_string(),
             fake.to_str().unwrap().to_string(),
         ];
@@ -658,6 +664,9 @@ fn write_path_reindents_multiline_style_body() {
             file.to_str().unwrap(),
             "--write",
             "--no-style-cache",
+            // #1166 is a batch-path (placeholder re-embed) regression; exercise
+            // the oxfmt-subprocess path, not the native CSS default.
+            "--no-native-css",
             "--oxfmt-bin",
             fake.to_str().unwrap(),
         ])
@@ -694,6 +703,7 @@ fn write_and_stdin_paths_agree_on_style() {
             "--stdin",
             "--stdin-filepath",
             "x.svelte",
+            "--no-native-css",
             "--oxfmt-bin",
             fake.to_str().unwrap(),
         ],
@@ -708,6 +718,7 @@ fn write_and_stdin_paths_agree_on_style() {
             file.to_str().unwrap(),
             "--write",
             "--no-style-cache",
+            "--no-native-css",
             "--oxfmt-bin",
             fake.to_str().unwrap(),
         ])
@@ -766,6 +777,8 @@ for (const p of args) {
             file.to_str().unwrap(),
             "--write",
             "--no-style-cache",
+            // Per-block `-c printWidth` only exists on the oxfmt-subprocess path.
+            "--no-native-css",
             "--print-width",
             "100",
             "--oxfmt-bin",
@@ -976,6 +989,137 @@ fn package_json_delegated_to_oxfmt() {
     assert_eq!(data_out, "{ \"b\": 1 }\n", "data.json native output wrong");
 }
 
+// ─── native CSS path ──────────────────────────────────────────────────────
+
+/// A standalone `.css` file is formatted in-process via `oxc_formatter_css` —
+/// `--oxfmt-bin true` is a no-op, so the formatting proves it never reached oxfmt.
+#[test]
+fn native_css_file_formatted_in_process() {
+    let dir = tempdir();
+    let file = dir.join("a.css");
+    std::fs::write(&file, ".foo{color:red;background:blue}\n").unwrap();
+
+    let status = Command::new(bin())
+        .args([file.to_str().unwrap(), "--write", "--oxfmt-bin", "true"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success(), "exit code: {:?}", status.code());
+
+    let out = std::fs::read_to_string(&file).unwrap();
+    assert_eq!(
+        out, ".foo {\n  color: red;\n  background: blue;\n}\n",
+        "native CSS not formatted:\n{out}"
+    );
+}
+
+/// An embedded `<style>` block is formatted in-process by default — no oxfmt
+/// subprocess. `--oxfmt-bin true` (inert) would leave the block untouched if the
+/// callback still delegated, so the formatted output pins it to the native path.
+#[test]
+fn native_style_block_formatted_in_process() {
+    let dir = tempdir();
+    let file = dir.join("C.svelte");
+    std::fs::write(&file, "<div></div>\n<style>.a{color:red}</style>\n").unwrap();
+
+    let status = Command::new(bin())
+        .args([file.to_str().unwrap(), "--write", "--oxfmt-bin", "true"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success(), "exit code: {:?}", status.code());
+
+    let out = std::fs::read_to_string(&file).unwrap();
+    assert_eq!(
+        out, "<div></div>\n\n<style>\n  .a {\n    color: red;\n  }\n</style>\n",
+        "native <style> not formatted:\n{out}"
+    );
+}
+
+/// `--no-native-css` excludes `.css` from the in-process pass: the fake oxfmt
+/// marker must be present, proving the file was delegated to oxfmt instead.
+#[test]
+fn no_native_css_delegates_css_to_oxfmt() {
+    let dir = tempdir();
+    let fake = dir.join("marker-oxfmt.cjs");
+    std::fs::write(&fake, MARKER_OXFMT).unwrap();
+    let file = dir.join("a.css");
+    std::fs::write(&file, ".a{color:red}\n").unwrap();
+
+    let status = Command::new(bin())
+        .args([
+            file.to_str().unwrap(),
+            "--write",
+            "--no-native-css",
+            "--oxfmt-bin",
+            fake.to_str().unwrap(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let out = std::fs::read_to_string(&file).unwrap();
+    assert!(
+        out.contains("/*FMT*/"),
+        "css should be delegated to oxfmt under --no-native-css:\n{out}"
+    );
+}
+
+/// With native CSS on (default), oxfmt must NOT touch `.css` files in a directory
+/// walk: the fake marker must be absent (the `.css` is handled in-process and
+/// excluded from the oxfmt delegation).
+#[test]
+fn native_path_excludes_css_from_oxfmt() {
+    let dir = tempdir();
+    let fake = dir.join("marker-oxfmt.cjs");
+    std::fs::write(&fake, MARKER_OXFMT).unwrap();
+    let file = dir.join("a.css");
+    std::fs::write(&file, ".a {\n  color: red;\n}\n").unwrap();
+
+    let status = Command::new(bin())
+        .args([
+            dir.to_str().unwrap(),
+            "--write",
+            "--oxfmt-bin",
+            fake.to_str().unwrap(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let out = std::fs::read_to_string(&file).unwrap();
+    assert!(
+        !out.contains("/*FMT*/"),
+        "native .css must not be re-formatted by oxfmt:\n{out}"
+    );
+    assert_eq!(out, ".a {\n  color: red;\n}\n");
+}
+
+/// Standalone `.scss` on stdin formats in-process (nested rules flattened per
+/// the SCSS dialect), with `--oxfmt-bin true` proving no subprocess is used.
+#[test]
+fn native_scss_stdin_formatted_in_process() {
+    let (stdout, _stderr, code) = run_stdin(
+        ".a{.b{color:red}}\n",
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            "x.scss",
+            "--oxfmt-bin",
+            "true",
+        ],
+    );
+    assert_eq!(code, 0);
+    assert_eq!(
+        stdout, ".a {\n  .b {\n    color: red;\n  }\n}\n",
+        "native SCSS stdin output wrong:\n{stdout}"
+    );
+}
+
 // ─── oxfmt daemon (#1179 follow-up) ───────────────────────────────────────
 
 /// `node` on `$PATH`, or `None` to skip a daemon test on a host without it.
@@ -1038,6 +1182,7 @@ fn daemon_formats_inline_style() {
             file.to_str().unwrap(),
             "--write",
             "--no-style-cache",
+            "--no-native-css",
             "--oxfmt-bin",
             oxfmt_bin.to_str().unwrap(),
         ])
@@ -1078,6 +1223,7 @@ fn no_daemon_env_forces_spawn_path() {
             file.to_str().unwrap(),
             "--write",
             "--no-style-cache",
+            "--no-native-css",
             "--oxfmt-bin",
             oxfmt_bin.to_str().unwrap(),
         ])
@@ -1139,7 +1285,12 @@ fn runtime_sidecar_drives_oxfmt_resolution() {
     // No `--oxfmt-bin`, no `RSVELTE_FMT_NODE` — resolution must come from the
     // sidecar. Clear the env var in case the harness set it.
     let status = Command::new(&exe)
-        .args([file.to_str().unwrap(), "--write", "--no-style-cache"])
+        .args([
+            file.to_str().unwrap(),
+            "--write",
+            "--no-style-cache",
+            "--no-native-css",
+        ])
         .env_remove("RSVELTE_FMT_NODE")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -1187,6 +1338,7 @@ fn explicit_oxfmt_bin_overrides_sidecar() {
             file.to_str().unwrap(),
             "--write",
             "--no-style-cache",
+            "--no-native-css",
             "--oxfmt-bin",
             fake.to_str().unwrap(),
         ])
