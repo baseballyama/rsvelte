@@ -185,6 +185,28 @@ pub(crate) fn collapse_pure_text_elements(
         result = apply_edits(&result, edits2);
     }
 
+    // Final children-port pass: re-assert the faithful prettier-plugin-svelte
+    // layout (`children.rs`) for its gated shapes. The earlier breaking passes
+    // (1.6–2) operate on the re-parsed output without knowing which elements the
+    // children port owns, so they can re-break an already-correct (intentionally
+    // overflowing) prose line — e.g. break an inline `<a>`'s open tag on a 93-col
+    // line that the port deliberately keeps whole. Running the port LAST gives it
+    // the final word: it re-parses, rebuilds the element from the AST, and emits a
+    // corrected edit (or a no-op when the layout is already right).
+    if let Ok(root_cp) = parse(&result, parse_opts) {
+        let mut edits_cp: Vec<(u32, u32, String)> = Vec::new();
+        collect_children_port_only(
+            &result,
+            &root_cp.fragment,
+            line_width,
+            options,
+            &mut edits_cp,
+        );
+        if !edits_cp.is_empty() {
+            result = apply_edits(&result, edits_cp);
+        }
+    }
+
     // Third pass: `<pre>` / `<textarea>` whose content contains a block. rsvelte
     // otherwise leaves their whole subtree verbatim, but oxfmt formats the block
     // bodies (space-indented) + embedded JS while keeping element-direct
@@ -1522,8 +1544,17 @@ fn collect_fill_mixed_only(
                 }
                 // Only apply fill-mixed to block-display elements — inline
                 // elements were already handled (or correctly skipped) by pass 1.
-                if is_block_display(elem.name.as_str())
-                    && let Some(edit) = try_fill_mixed(
+                // The milestone-2 children port takes priority for its gated shape.
+                if is_block_display(elem.name.as_str()) {
+                    if let Some(maybe_edit) = try_children_port(out, node, line_width, options) {
+                        // Claimed by the children port — apply any edit and stop;
+                        // a noop still prevents try_fill_mixed from re-breaking it.
+                        if let Some(edit) = maybe_edit {
+                            edits.push(edit);
+                        }
+                        continue;
+                    }
+                    if let Some(edit) = try_fill_mixed(
                         out,
                         elem.name.as_str(),
                         elem.start,
@@ -1531,10 +1562,10 @@ fn collect_fill_mixed_only(
                         &elem.fragment,
                         line_width,
                         options,
-                    )
-                {
-                    edits.push(edit);
-                    continue; // edit owns this element, don't recurse
+                    ) {
+                        edits.push(edit);
+                        continue; // edit owns this element, don't recurse
+                    }
                 }
                 collect_fill_mixed_only(out, &elem.fragment, line_width, options, edits);
             }
@@ -2444,6 +2475,12 @@ fn collect(
                     Some(node),
                 ) {
                     edits.push(edit);
+                } else if let Some(maybe_edit) = try_children_port(out, node, line_width, options) {
+                    // Claimed by the children port (cut-1 shape) — apply its edit if
+                    // any; a noop still suppresses the legacy passes below.
+                    if let Some(edit) = maybe_edit {
+                        edits.push(edit);
+                    }
                 } else if let Some(edit) = try_fill_mixed(
                     out,
                     elem.name.as_str(),
@@ -4630,6 +4667,258 @@ fn try_hug_mixed(
     };
     let printed = crate::doc::print(elem_doc, line_width, indent_unit_hm.as_str(), level, column);
     (printed != whole).then_some((start, end, printed))
+}
+
+/// Recurse the tree running ONLY `try_children_port` on each `RegularElement`.
+/// Used as the final collapse pass so the faithful children port has the last
+/// word over the earlier breaking passes. When the port claims an element
+/// (`Some(_)`), its layout is authoritative — apply any edit and don't recurse
+/// into it; otherwise recurse into the node's child fragments.
+fn collect_children_port_only(
+    out: &str,
+    fragment: &Fragment,
+    line_width: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for node in &fragment.nodes {
+        // Never descend into whitespace-preserving subtrees (`<pre>`,
+        // `<textarea>`, `<script>`, `<style>`) — their content is verbatim, so a
+        // pure-text inline element inside (`<pre>…<span>C\nD</span>…`) must NOT be
+        // collapsed (mirrors prettier's `isPreTagContent` ancestor guard).
+        if let TemplateNode::RegularElement(e) = node
+            && is_whitespace_preserving(e.name.as_str())
+        {
+            continue;
+        }
+        if matches!(node, TemplateNode::RegularElement(_))
+            && let Some(maybe_edit) = try_children_port(out, node, line_width, options)
+        {
+            if let Some(edit) = maybe_edit {
+                edits.push(edit);
+            }
+            continue;
+        }
+        for f in child_fragments(node) {
+            collect_children_port_only(out, f, line_width, options, edits);
+        }
+    }
+}
+
+/// Recursively convert a template node into a `children::Child`, building any
+/// nested inline element via the faithful `children::build_element_doc` port
+/// (NOT the approximate `element_doc`, which over-breaks inline content). Returns
+/// `None` for any node the cut doesn't yet support (block / inline-block element,
+/// component, comment, flow block) so the whole port bails.
+fn node_to_child(out: &str, node: &TemplateNode) -> Option<crate::children::Child> {
+    use crate::children::Child;
+    use crate::doc::Doc;
+    match node {
+        TemplateNode::Text(t) => {
+            let txt = out.get(t.start as usize..t.end as usize)?;
+            Some(Child::Text(txt.to_string()))
+        }
+        // Void HTML element (`<br/>`, `<input/>`) — verbatim, must be single-line.
+        TemplateNode::RegularElement(ve) if is_html_void_element(ve.name.as_str()) => {
+            let span = out.get(ve.start as usize..ve.end as usize)?;
+            if span.contains('\n') {
+                return None;
+            }
+            Some(Child::Inline(Doc::Text(span.to_string())))
+        }
+        // Non-void inline content element (`<a>`, `<span>`, `<strong>`, …) — built
+        // recursively via the faithful port so its own layout matches prettier.
+        TemplateNode::RegularElement(ve)
+            if !is_block_display(ve.name.as_str())
+                && !is_inline_block(ve.name.as_str())
+                && !is_whitespace_preserving(ve.name.as_str()) =>
+        {
+            Some(Child::Inline(build_inline_element_doc(out, ve)?))
+        }
+        // Cut 3: mustache atoms (`{expr}`, `{@html …}`). prettier-plugin-svelte's
+        // `isInlineElement` requires `type === 'RegularElement'`, so a MustacheTag
+        // is NOT inline — it goes through `printChildren`'s `else` branch: pushed
+        // BARE (no `group([line, …])`) with no preceding-text trim. That is
+        // `Child::Other` (verbatim atom, no whitespace handling); the surrounding
+        // text nodes stay `fill(splitTextToDocs(...))`, so `label: {value}` is kept
+        // together and only the inter-item spaces break. (Mapping to `Child::Inline`
+        // — a `group([line, …])` — broke `label:` from `{value}`; verified against
+        // prettier's own `printDocToString` that the bare-atom structure matches.)
+        TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_) => {
+            let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
+            if span.contains('\n') {
+                return None;
+            }
+            Some(Child::Other(Doc::Text(span.to_string())))
+        }
+        _ => None,
+    }
+}
+
+/// Build the faithful `children::build_element_doc` Doc for an inline
+/// `RegularElement`, recursing on its children via [`node_to_child`]. Returns
+/// `None` if any child is unsupported or an attribute span is multi-line.
+fn build_inline_element_doc(
+    out: &str,
+    e: &rsvelte_core::ast::template::RegularElement,
+) -> Option<crate::doc::Doc> {
+    use crate::children::{Child, ElementLayout, build_element_doc};
+    let attrs = build_attrs_concat(out, &e.attributes)?;
+    let mut children: Vec<Child> = Vec::with_capacity(e.fragment.nodes.len());
+    for n in &e.fragment.nodes {
+        children.push(node_to_child(out, n)?);
+    }
+    Some(build_element_doc(ElementLayout {
+        name: e.name.to_string(),
+        attrs,
+        children,
+        is_inline: !is_block_display(e.name.as_str()),
+    }))
+}
+
+/// Build the `attrs` Doc for [`crate::children::ElementLayout`] — the inner
+/// attribute concat that `build_element_doc` places inside
+/// `<name` + `Indent(Group([attrs, opener_trailing]))`. Mirrors prettier's
+/// per-attribute `[line, attr]` join: `Concat([Line, attr1, Line, attr2, …])`,
+/// or `Text("")` when there are no attributes. Reads each attribute's OWN source
+/// span (single-line even when the open tag was already wrapped across lines in
+/// `out`); returns `None` if any attribute span is itself multi-line.
+fn build_attrs_concat(
+    out: &str,
+    attrs: &[rsvelte_core::ast::template::Attribute],
+) -> Option<crate::doc::Doc> {
+    use crate::doc::Doc;
+    if attrs.is_empty() {
+        return Some(Doc::Text(String::new()));
+    }
+    let mut parts: Vec<Doc> = Vec::with_capacity(attrs.len() * 2);
+    for attr in attrs {
+        let (as_, ae) = attribute_span(attr);
+        let atext = out.get(as_ as usize..ae as usize)?;
+        if atext.contains('\n') {
+            return None;
+        }
+        parts.push(Doc::Line);
+        parts.push(Doc::Text(atext.to_string()));
+    }
+    Some(Doc::Concat(parts))
+}
+
+/// Milestone-2 layout-port entry (cut 1): route an inline `RegularElement` whose
+/// content is **prose text interleaved with single-line HTML void elements**
+/// (e.g. `<label class="…"><input … /> Only show states starting with 'T'</label>`)
+/// through the faithful prettier-plugin-svelte port in `children.rs`
+/// (`build_element_doc` / `print_children`) instead of the approximate
+/// `try_fill_mixed` / `try_hug_mixed` string logic. This is the cluster where the
+/// approximate fill construction diverged from oxfmt (the oracle keeps the first
+/// word glued to the preceding void element and wraps later). The gate is a strict
+/// subset of `try_fill_mixed`'s; anything else falls through unchanged.
+///
+/// Returns `None` when the element is NOT a cut-1 shape (the caller should try
+/// the legacy passes). Returns `Some(_)` when the children port OWNS the element:
+/// `Some(Some(edit))` carries the reflow edit, `Some(None)` means the element is
+/// already correctly laid out (no edit) — but the caller must still treat it as
+/// claimed and NOT run `try_fill_mixed` / `try_hug_mixed`, which would otherwise
+/// re-break the already-correct prose with the approximate algorithm.
+fn try_children_port(
+    out: &str,
+    node: &TemplateNode,
+    line_width: usize,
+    options: &FormatOptions,
+) -> Option<Option<(u32, u32, String)>> {
+    use crate::children::{Child, ElementLayout, build_element_doc};
+    let TemplateNode::RegularElement(e) = node else {
+        return None;
+    };
+    let tag = e.name.as_str();
+    // Cut 1: inline or block elements (not pre/textarea/script/style, not
+    // inline-block like button/select/input). `is_inline` follows prettier's
+    // `isInlineElement` = not in the block-element list.
+    if is_whitespace_preserving(tag) || is_inline_block(tag) {
+        return None;
+    }
+    let is_inline = !is_block_display(tag);
+    let fragment = &e.fragment;
+    let (start, end) = (e.start, e.end);
+    let (s, ee) = (start as usize, end as usize);
+    let whole = out.get(s..ee)?;
+
+    // Gate: at least one prose text word AND at least one non-text child (mixed
+    // content). Pure-text elements are `try_collapse`'s job. (A pure-text inline
+    // element with an overflowing open tag — `<a href="…long…">REPL</a>` — was
+    // tried as "cut 4" but cleared 0 corpus files: every close-`>` cluster file is
+    // multi-diff and also needs element-only + close-`>` + expression fixes, so the
+    // gate stays at mixed content.) Per-child convertibility is enforced by
+    // `node_to_child` in the build loop below.
+    let has_prose_word = fragment
+        .nodes
+        .iter()
+        .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()));
+    let has_non_text = fragment
+        .nodes
+        .iter()
+        .any(|n| !matches!(n, TemplateNode::Text(_)));
+    if !has_prose_word || !has_non_text {
+        return None;
+    }
+
+    // open/close sanity: content directly bounded by `>` … `</`.
+    let content_start = node_start(fragment.nodes.first()?) as usize;
+    let content_end = node_end(fragment.nodes.last()?) as usize;
+    let open = out.get(s..content_start)?;
+    let close = out.get(content_end..ee)?;
+    if !open.ends_with('>') || !close.starts_with("</") {
+        return None;
+    }
+
+    // The element must start at the beginning of its (whitespace-only) line so the
+    // base indent level is well-defined.
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    let (unit, width) = indent_config(options);
+    let base_level = if options.js.indent_style.is_tab() {
+        indent
+            .bytes()
+            .take_while(|&b| b == b' ' || b == b'\t')
+            .count()
+    } else {
+        indent.width() / width
+    };
+    let start_col = current_column(out, start);
+
+    // Build the ElementLayout from the AST, recursively converting each child via
+    // the faithful port (`node_to_child` bails on any unsupported child).
+    let attrs = build_attrs_concat(out, &e.attributes)?;
+    let mut children: Vec<Child> = Vec::with_capacity(fragment.nodes.len());
+    for n in &fragment.nodes {
+        children.push(node_to_child(out, n)?);
+    }
+    let doc = build_element_doc(ElementLayout {
+        name: tag.to_string(),
+        attrs,
+        children,
+        is_inline,
+    });
+    let doc = crate::doc::propagate_breaks(doc);
+    let printed = crate::doc::print(doc, line_width, unit.as_str(), base_level, start_col);
+
+    // Corruption guard: the non-whitespace content must be byte-identical (the
+    // port only ever changes whitespace/line breaks, never content). If it isn't,
+    // don't claim the element — let the legacy passes handle it.
+    if !printed
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .eq(whole.chars().filter(|c| !c.is_whitespace()))
+    {
+        return None;
+    }
+    // Claim the element. Emit an edit only when it changes something; a noop still
+    // claims it so the caller does NOT fall through to try_fill_mixed/try_hug_mixed
+    // (which would re-break the already-correct prose).
+    Some((printed != whole).then_some((start, end, printed)))
 }
 
 /// Narrow mixed-inline fill: when an element with inline content (text +
