@@ -488,7 +488,7 @@ fn collect_indent_edits_inner(
                         let is_implicitly_closed =
                             source.as_bytes().get(e.end as usize - 1).copied() != Some(b'>');
                         let is_empty_content = e.fragment.nodes.iter().all(
-                            |n| matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()),
+                            |n| matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())),
                         );
                         if is_implicitly_closed && is_empty_content {
                             edits.push((last_end, last_end, format!("</{}>", e.name.as_str())));
@@ -525,7 +525,7 @@ fn collect_indent_edits_inner(
                         source.as_bytes().get(e.end as usize - 1).copied() != Some(b'>');
                     let is_nonempty =
                         !e.fragment.nodes.iter().all(
-                            |n| matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()),
+                            |n| matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())),
                         );
                     let parent_close_follows = source.as_bytes().get(e.end as usize).copied()
                         == Some(b'<')
@@ -674,7 +674,7 @@ fn recurse_into_children(
                 && blk.then.as_ref().is_some_and(|f| {
                     f.nodes.iter().all(|n| {
                         matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t)
-                            if t.data.trim().is_empty())
+                            if crate::is_blank_text(t.data.as_str()))
                     })
                 });
             if !pending_collapsed && let Some(frag) = &blk.pending {

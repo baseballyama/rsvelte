@@ -28,7 +28,6 @@
 	"smelte/src/components/Ripple/Ripple.svelte",
 	"smelte/src/routes/index.svelte",
 	"svar-core/svelte/demos/common/Index.svelte",
-	"svar-core/svelte/src/components/RichSelect.svelte",
 	"svar-core/svelte/src/components/calendar/Panel.svelte",
 	"svelte-calendar/src/lib/components/Popover.svelte",
 	"svelte-calendar/src/lib/docs/Code.svelte",

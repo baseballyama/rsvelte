@@ -50,6 +50,19 @@ pub use oxc_formatter_json::JsonFormatOptions;
 
 use rsvelte_core::{ParseOptions, parse};
 
+/// Whether a text node's (decoded) data is insignificant whitespace.
+///
+/// Unlike `str::trim().is_empty()`, this treats only ASCII whitespace as
+/// blank. U+00A0 (the decoded form of `&nbsp;`) and other non-ASCII Unicode
+/// whitespace are significant content that prettier / oxfmt preserve, so a
+/// text node whose only content is `&nbsp;` must NOT be collapsed away as an
+/// empty fragment. Matches `trim().is_empty()` for every other input (empty
+/// string and pure ASCII-whitespace both return `true`).
+pub(crate) fn is_blank_text(s: &str) -> bool {
+    s.chars()
+        .all(|c| matches!(c, ' ' | '\t' | '\n' | '\r' | '\u{0b}' | '\u{0c}'))
+}
+
 /// Format a Svelte source string.
 ///
 /// On success returns the formatted source. On failure returns the parse
@@ -170,7 +183,7 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
         sections.push((so.style, c.start, c.end));
     }
     let has_markup = root.fragment.nodes.iter().any(|n| {
-        !matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if t.data.trim().is_empty())
+        !matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str()))
     });
     let reorder_spans: Vec<(u8, usize, usize)> =
         if sections.len() > 1 || (sections.len() == 1 && has_markup) {

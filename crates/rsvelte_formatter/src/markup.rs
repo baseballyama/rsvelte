@@ -95,7 +95,7 @@ fn is_empty_fragment(fragment: &Fragment) -> bool {
     fragment
         .nodes
         .iter()
-        .all(|n| matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))
+        .all(|n| matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())))
 }
 
 fn collect_node_open_tag_edits(

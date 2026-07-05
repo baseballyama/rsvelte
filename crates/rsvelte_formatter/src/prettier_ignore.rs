@@ -42,5 +42,5 @@ pub(crate) fn preceded_by_prettier_ignore(nodes: &[TemplateNode], i: usize) -> b
 }
 
 fn is_whitespace_only_text(node: &TemplateNode) -> bool {
-    matches!(node, TemplateNode::Text(t) if t.data.trim().is_empty())
+    matches!(node, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str()))
 }
