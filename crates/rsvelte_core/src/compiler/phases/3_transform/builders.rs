@@ -1043,7 +1043,7 @@ impl<'a> B<'a> {
         ))
     }
 
-    /// Assemble a module [`Program`](oxc_ast::ast::Program) from top-level
+    /// Assemble a module [`Program`] from top-level
     /// statements, ready for [`rsvelte_esrap::print`].
     pub fn program(self, body: Vec<Statement<'a>>) -> oxc_ast::ast::Program<'a> {
         let body = ArenaVec::from_iter_in(body, &self.ab);
