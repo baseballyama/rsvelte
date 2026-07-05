@@ -2059,30 +2059,51 @@ fn format_const_declaration(
     let indent_width = options.js.indent_width.value() as usize;
     let lead = depth * indent_width;
     let full_width = options.js.line_width.value() as usize;
-    // Narrow so the JS formatter's break decision lands where it will once the
-    // declaration is spliced back into the tag. The body is measured by the JS
-    // formatter as `const <body>;`, which already accounts for `const ` (6) +
-    // `;` (1); the real rendered affixes are `{@const ` (8) + `}` (1). So beyond
-    // the markup `lead`, only the affix delta `(8 - 6) + (1 - 1) = 2` must be
-    // subtracted — subtracting the full `{@const }` width here would
-    // double-count `const ;` and wrongly break tags that fit inline.
-    let narrowed = full_width.saturating_sub(lead + 2);
-    let line_width = oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16)
-        .unwrap_or(options.js.line_width);
 
-    let mut js = options.js.clone();
-    js.line_width = line_width;
-    let formatted = format_program(&allocator, &parser_ret.program, js, None)
-        .print()
-        .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
-        .into_code();
+    // Format the wrapped `const <decl>;` at `narrowed` columns and strip the
+    // `const ` / `;` affixes back off, recovering the declaration body.
+    let format_at = |narrowed: usize| -> Result<String, FormatError> {
+        let line_width = oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16)
+            .unwrap_or(options.js.line_width);
+        let mut js = options.js.clone();
+        js.line_width = line_width;
+        let formatted = format_program(&allocator, &parser_ret.program, js, None)
+            .print()
+            .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
+            .into_code();
+        let s = formatted.trim_end();
+        let s = s.strip_prefix("const ").unwrap_or(s);
+        let s = s.strip_suffix(';').unwrap_or(s);
+        Ok(s.trim_end().to_string())
+    };
 
-    // Output shape: `const <decl>;\n`. Strip the leading `const ` and the
-    // trailing `;` to recover the declaration body.
-    let s = formatted.trim_end();
-    let s = s.strip_prefix("const ").unwrap_or(s);
-    let s = s.strip_suffix(';').unwrap_or(s);
-    let formatted = s.trim_end().to_string();
+    // The JS formatter measures the body as `const <body>;` at indent 0. Two
+    // different real-render columns apply, so a single narrowing can't be exact
+    // for both:
+    //   - The FIRST line is rendered `{@const <body-line-1>}` at column `lead`,
+    //     i.e. `+2` wider than the JS `const <body-line-1>` (`{@const ` = 8 vs
+    //     `const ` = 6; the `}`/`;` delta is 0). So its break decision wants
+    //     `full - lead - 2`.
+    //   - Every CONTINUATION line is re-indented to `lead` and carries no
+    //     `{@const` prefix, so it fits iff `lead + <js line> <= full`, wanting
+    //     `full - lead`.
+    // Format at `full - lead` first so a multi-line body's continuation lines
+    // (ternary branches, call args, …) get their true budget and aren't broken
+    // one column too early. If the result is single-line and the real
+    // `{@const <body>}` tag overflows the print width, re-format at
+    // `full - lead - 2` — the tighter width that forces the break at exactly the
+    // point prettier picks. This keeps single-line consts identical to the old
+    // uniform `full - lead - 2` narrowing while relaxing the over-narrowing that
+    // used to hit deeply-nested continuation lines.
+    let formatted = format_at(full_width.saturating_sub(lead))?;
+    // `{@const ` (8) + body + `}` (1) at column `lead`.
+    let formatted = if !formatted.contains('\n')
+        && lead + 9 + UnicodeWidthStr::width(formatted.as_str()) > full_width
+    {
+        format_at(full_width.saturating_sub(lead + 2))?
+    } else {
+        formatted
+    };
 
     if !formatted.contains('\n') {
         return Ok(formatted);
