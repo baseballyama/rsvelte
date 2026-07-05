@@ -255,7 +255,7 @@ function generateTestResults(report) {
 
 // Update docs test-results.json
 function updateTestResults(report) {
-	const testResultsPath = path.join(rootDir, 'docs', 'static', 'test-results.json');
+	const testResultsPath = path.join(rootDir, 'apps', 'playground', 'static', 'test-results.json');
 	const testResults = generateTestResults(report);
 
 	// Ensure directory exists
