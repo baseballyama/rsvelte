@@ -69,7 +69,7 @@
 		"@changesets/cli": "^2.27.10",
 		"acorn": "^8.16.0",
 		"esbuild": "^0.28.0",
-		"oxfmt": "^0.57.0",
+		"oxfmt": "^0.56.0",
 		"prettier": "^3.8.3",
 		"prettier-plugin-svelte": "^4.1.0",
 		"svelte": "^5.56.4"
