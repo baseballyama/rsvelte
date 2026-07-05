@@ -970,7 +970,7 @@ pub fn build_template<'a>(
 /// / SvelteElement / SvelteFragment / TitleElement bodies.
 /// `reset_namespace` — true when this fragment's parent is a namespace-RESETTING
 /// parent (Root / Component / SnippetBlock / SlotElement). Those run the deep
-/// [`check_nodes_for_namespace`] (svg/html elements nested inside `{#if}` /
+/// `check_nodes_for_namespace` (svg/html elements nested inside `{#if}` /
 /// `{#each}` blocks are visible); block-body fragments (`{#if}` / `{#each}` /
 /// `{#key}` / `{#await}` arms) pass `false` and keep the shallow direct-child
 /// inference — mirroring upstream `infer_namespace`, which only runs the deep
@@ -1785,7 +1785,7 @@ fn check_nodes_for_namespace(nodes: &[TemplateNode]) -> NsCheck {
 
 /// Infer a fragment's namespace for a namespace-RESETTING parent (Root /
 /// Fragment / Component / SnippetBlock / SlotElement). Runs the deep
-/// [`check_nodes_for_namespace`] first (which sees svg/html elements nested
+/// `check_nodes_for_namespace` first (which sees svg/html elements nested
 /// inside `{#if}` / `{#each}` blocks); a definitive verdict wins, otherwise
 /// falls back to the shallow direct-child inference. 写经 upstream
 /// `infer_namespace`'s reset-parent branch + element-loop fall-through.
