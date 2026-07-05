@@ -57,7 +57,7 @@ export const shipped: EcoComponent[] = [
 		blurb:
 			'The whole compile pipeline — parse, analyze, transform — for client, SSR and hydration. Output matches the official compiler across the in-scope test suite.',
 		speedup: { x: 13, of: 'full pipeline' },
-		note: 'Parser alone runs 96× · 99.8% of in-scope fixtures green'
+		note: 'Parser alone runs 113× · 100% of in-scope fixtures green'
 	},
 	{
 		name: '@rsvelte/svelte2tsx',
@@ -68,7 +68,7 @@ export const shipped: EcoComponent[] = [
 		status: 'shipped',
 		blurb:
 			'Turns a .svelte component into the TSX shadow file the TypeScript checker reads, with column-accurate source maps.',
-		speedup: { x: 19, of: 'svelte2tsx' },
+		speedup: { x: 18, of: 'svelte2tsx' },
 		note: 'Wave 1 · 100% of fixtures'
 	},
 	{
@@ -79,9 +79,9 @@ export const shipped: EcoComponent[] = [
 		install: 'npm i -D @rsvelte/svelte-check',
 		status: 'shipped',
 		blurb:
-			'The project type-checker CLI. A Rust walker + overlay drives tsgo for the TypeScript half; diagnostics map back to .svelte positions. Watch + incremental cache included.',
-		speedup: { x: 145, of: 'svelte-check' },
-		note: 'Rust walker + tsgo backend · 500-file workspace'
+			'The project type-checker CLI. A Rust walker + overlay drives tsc or the native tsgo for the TypeScript half; diagnostics map back to .svelte positions. Watch + incremental cache included.',
+		speedup: { x: 71, of: 'svelte-check' },
+		note: 'Rust walker + tsc/tsgo backend · 500-file workspace'
 	},
 	{
 		name: '@rsvelte/fmt',
@@ -92,14 +92,14 @@ export const shipped: EcoComponent[] = [
 		status: 'shipped',
 		blurb:
 			'A Rust-native formatter for .svelte files — in-process, with no Node startup and no Prettier doc-IR round-trip. Routes .js / .ts / .css to oxfmt, with both pipelines running in parallel.',
-		speedup: { x: 204, of: 'fmt' },
+		speedup: { x: 114, of: 'fmt' },
 		note: 'Built on oxc_formatter · vs prettier-plugin-svelte'
 	},
 	{
 		name: '@rsvelte/vite-plugin-svelte',
 		dropInFor: '@sveltejs/vite-plugin-svelte',
 		originalUrl: 'https://github.com/sveltejs/vite-plugin-svelte',
-		pkgUrl: 'https://github.com/baseballyama/vite-plugin-svelte/tree/rsvelte',
+		pkgUrl: 'https://github.com/baseballyama/rsvelte/tree/main/apps/npm/vite-plugin-svelte',
 		install: 'npm i -D @rsvelte/vite-plugin-svelte',
 		status: 'shipped',
 		blurb:
