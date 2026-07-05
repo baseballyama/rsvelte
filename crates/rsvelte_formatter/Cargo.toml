@@ -26,7 +26,7 @@ oxc_ast = "0.138"
 oxc_parser = "0.138"
 oxc_span = "0.138"
 oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "6ca912513e2b3ef9df173d043c2f501b0532786d" }
-oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "6ca912513e2b3ef9df173d043c2f501b0532786d" }
+oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "e744e79d77b65592475deb21c78f933e3616fb79" }
 oxc_formatter_json = { git = "https://github.com/oxc-project/oxc", rev = "6ca912513e2b3ef9df173d043c2f501b0532786d" }
 oxc_formatter_css = { git = "https://github.com/oxc-project/oxc", rev = "6ca912513e2b3ef9df173d043c2f501b0532786d" }
 thiserror = "2.0"
