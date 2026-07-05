@@ -1,8 +1,3 @@
-// oxc 0.138 deprecated the legacy `AstBuilder` vec/alloc/*_static helpers in favour
-// of the arena APIs (oxc#23043); the old methods behave identically, so suppress the
-// deprecation here and defer the mechanical migration to a dedicated follow-up.
-
-#![allow(deprecated)]
 //! Server READ-WRAPPING single pass (Phase-3 rewrite).
 //!
 //! After `ServerTransformState::visit_expr` produces an oxc [`Expression`],
@@ -504,7 +499,9 @@ impl<'a, 'b> ReadWrap<'a, 'b> {
         // `if (!changed) return null`, but we must keep the already-visited node.
         if !changed {
             taken.right = rhs;
-            return Some(Expression::AssignmentExpression(b.ab.alloc(taken)));
+            return Some(Expression::AssignmentExpression(
+                oxc_allocator::ArenaBox::new_in(taken, &b.ab),
+            ));
         }
 
         let assignments: Vec<Expression<'a>> = leaves
