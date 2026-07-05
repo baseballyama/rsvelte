@@ -9,7 +9,7 @@ on:
       - 'benches/corpus/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
-      - '.github/workflows/bench.yml'
+      - '.github/workflows/benchmark.yml'
   pull_request:
     branches: [main]
     # Default + `labeled` so adding the `bench` label triggers a run; the

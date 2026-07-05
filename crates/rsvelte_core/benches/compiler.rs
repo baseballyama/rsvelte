@@ -1,7 +1,7 @@
 //! Compiler benchmarks — per-phase and end-to-end compile cost.
 //!
 //! These are the primary inputs to the CodSpeed regression gate and the
-//! Criterion baseline (`bench.yml`). For that signal to mean anything the
+//! Criterion baseline (`benchmark.yml`). For that signal to mean anything the
 //! workload must be **identical** between the base commit and a PR, so every
 //! input here is either:
 //!

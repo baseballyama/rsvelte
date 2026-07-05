@@ -21,7 +21,7 @@ env:
 
 jobs:
   benchmarks:
-    name: Run CodSpeed benchmarks
+    name: Run benchmarks
     runs-on: ubuntu-latest
     timeout-minutes: 45
     # Runs on every PR to `main` (and on push to `main` for the baseline).

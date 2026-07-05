@@ -1,4 +1,4 @@
-name: auto-update-svelte
+name: Auto-update Svelte
 
 # Weekly: when a newer stable svelte@X.Y.Z is published than the one pinned by
 # the submodules/svelte gitlink, open a STARTER PR that advances the gitlink to

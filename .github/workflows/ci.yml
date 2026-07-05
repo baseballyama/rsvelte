@@ -113,7 +113,7 @@ jobs:
     # macOS is dropped from the PR matrix to keep PR feedback fast — it
     # consistently runs ~2x slower than Linux for identical work and the
     # platform-specific failure modes (PATH, line endings, dylib loading) are
-    # already covered by `rsvelte_capi` and the `Release` workflow. macOS still
+    # already covered by the `C ABI` and `Release` workflows. macOS still
     # runs on every push to `main` and on demand via the `macos-ci` label, so
     # regressions are caught before the next release.
     #
@@ -789,7 +789,7 @@ jobs:
             }
 
   # `Build` (`cargo build --release` for the main crate) was removed —
-  # release-mode codegen is already exercised by `rsvelte_capi (C ABI)`
+  # release-mode codegen is already exercised by the `C ABI` workflow
   # (Linux/macOS/Windows release builds with the same crate's source) and
   # by the `Release` workflow's `build-svelte-check` / `build-vps-native`
   # matrices, so a standalone PR-time build only repeated work. To restore

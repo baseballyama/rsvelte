@@ -1,4 +1,4 @@
-name: check-svelte-release
+name: Check Svelte Release
 
 # Daily poll of sveltejs/svelte for new stable releases. When the latest
 # svelte@X.Y.Z release is newer than the version pinned by the

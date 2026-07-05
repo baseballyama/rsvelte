@@ -1,4 +1,4 @@
-name: auto-update-submodules
+name: Auto-update Submodules
 
 # Weekly bump of the tooling submodules — everything EXCEPT svelte. The svelte
 # submodule is handled separately by `auto-update-svelte.yml` because bumping it

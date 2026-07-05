@@ -1,4 +1,4 @@
-name: Deploy Docs to GitHub Pages
+name: Deploy Docs
 
 on:
   push:
@@ -16,6 +16,7 @@ concurrency:
 
 jobs:
   build:
+    name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -29,7 +30,7 @@ jobs:
       # string into the NAPI cdylib. The other submodules (language-tools,
       # typescript-go — ~534 MB combined, plus the SSH-only vite-plugin-svelte
       # remote) are never touched by the WASM / NAPI / playground build, so a
-      # shallow svelte-only init keeps checkout fast (mirrors rsvelte-capi.yml).
+      # shallow svelte-only init keeps checkout fast (mirrors capi.yml).
       - name: Checkout svelte submodule (shallow)
         run: git submodule update --init --depth 1 submodules/svelte
 
@@ -130,6 +131,7 @@ jobs:
           path: apps/playground/build
 
   deploy:
+    name: Deploy
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
