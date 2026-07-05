@@ -2,7 +2,7 @@
 
 A Rust-powered drop-in replacement for [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx) — converts a Svelte component into a TypeScript / TSX module that TypeScript can type-check. Part of the [rsvelte](https://github.com/baseballyama/rsvelte) project.
 
-`svelte2tsx` is the bridge that makes TypeScript-aware tooling work for `.svelte` files: editors, `svelte-check`, the Svelte VS Code extension, etc. This package exposes the same surface, backed by the rsvelte Rust compiler compiled to WebAssembly. **245 / 245** upstream `svelte2tsx` fixtures pass.
+`svelte2tsx` is the bridge that makes TypeScript-aware tooling work for `.svelte` files: editors, `svelte-check`, the Svelte VS Code extension, etc. This package exposes the same surface, backed by the rsvelte Rust compiler compiled to WebAssembly. **253 / 253** upstream `svelte2tsx` fixtures pass.
 
 > **⚠️ Early stage.** Output is byte-identical against the upstream fixtures, but tooling integrations beyond `@rsvelte/svelte-check` are not yet validated. Open an issue if you hit a mismatch.
 
@@ -88,7 +88,7 @@ If you just want to *compile* a Svelte component to JS, use [`@rsvelte/compiler`
 
 ## Compatibility
 
-- 245 / 245 upstream `svelte2tsx` fixtures pass.
+- 253 / 253 upstream `svelte2tsx` fixtures pass.
 - 2 fixtures around `expected.error.json` (error-path assertions) are skipped pending a structured error-fixture runner.
 
 If you hit a divergence from the official `svelte2tsx`, please file an issue at [github.com/baseballyama/rsvelte](https://github.com/baseballyama/rsvelte/issues) with a minimal repro.
