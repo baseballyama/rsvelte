@@ -14,7 +14,7 @@
 		<div class="meta">
 			<span>MIT licensed</span>
 			<span class="sep">·</span>
-			<span>Mirrors sveltejs/svelte@5.56.0</span>
+			<span>Mirrors <a href="https://github.com/sveltejs/svelte" target="_blank" rel="noopener">sveltejs/svelte</a></span>
 			<span class="sep">·</span>
 			<a href="https://github.com/baseballyama/rsvelte" target="_blank" rel="noopener">
 				github.com/baseballyama/rsvelte

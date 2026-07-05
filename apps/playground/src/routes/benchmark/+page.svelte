@@ -89,7 +89,7 @@
 				label: 'Format',
 				sub: 'formatter · .svelte sources',
 				group: 'ecosystem',
-				baseline: 'prettier-svelte',
+				baseline: 'prettier-plugin-svelte',
 				data: r.fmt
 			});
 		}
