@@ -1,8 +1,3 @@
-// oxc 0.138 deprecated the legacy `AstBuilder` vec/alloc/*_static helpers in favour
-// of the arena APIs (oxc#23043); the old methods behave identically, so suppress the
-// deprecation here and defer the mechanical migration to a dedicated follow-up.
-
-#![allow(deprecated)]
 //! AST-based server code generation (Phase-3 rewrite).
 //!
 //! This is the additive, in-progress replacement for the string-surgery server
@@ -745,7 +740,8 @@ fn strip_ts_expression_wrappers<'a>(expr: &mut OxcExpression<'a>, allocator: &'a
                 if !is_wrapper {
                     break;
                 }
-                let placeholder = self.ab.expression_boolean_literal(SPAN, false);
+                let placeholder =
+                    oxc_ast::ast::Expression::new_boolean_literal(SPAN, false, &self.ab);
                 let taken = std::mem::replace(expr, placeholder);
                 *expr = match taken {
                     OxcExpression::TSAsExpression(e) => e.unbox().expression,
@@ -1223,12 +1219,16 @@ pub fn server_component_ast<'a>(
         let render_target = b.member(b.id(component_name), "render");
         let render_params = b.params(vec![b.id_pat("$$props"), b.id_pat("$$opts")], None);
         // $$opts?.context — optional member chaining.
-        let opts_context = oxc_ast::ast::Expression::from(b.ab.member_expression_static(
-            SPAN,
-            b.id("$$opts"),
-            b.id_name("context"),
-            true,
-        ));
+        let opts_context =
+            oxc_ast::ast::Expression::from(oxc_ast::ast::MemberExpression::StaticMemberExpression(
+                oxc_ast::ast::StaticMemberExpression::boxed(
+                    SPAN,
+                    b.id("$$opts"),
+                    b.id_name("context"),
+                    true,
+                    &b.ab,
+                ),
+            ));
         let render_obj = b.object(vec![
             b.init("props", b.id("$$props")),
             b.init("context", opts_context),

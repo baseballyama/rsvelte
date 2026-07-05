@@ -1,8 +1,3 @@
-// oxc 0.138 deprecated the legacy `AstBuilder` vec/alloc/*_static helpers in favour
-// of the arena APIs (oxc#23043); the old methods behave identically, so suppress the
-// deprecation here and defer the mechanical migration to a dedicated follow-up.
-
-#![allow(deprecated)]
 //! AST-based server INSTANCE / MODULE script transform (Phase-3 rewrite).
 //!
 //! This is the additive, in-progress port of the server `VariableDeclaration` /
@@ -1143,12 +1138,19 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
                 let retarget =
                     !is_private && matches!(rune, DeclRune::Derived | DeclRune::DerivedBy);
                 if retarget && let Some(backing_name) = backing.get(&name) {
-                    assign.left = AT::from(b.ab.member_expression_private_field_expression(
-                        oxc_span::SPAN,
-                        b.this(),
-                        b.ab.private_identifier(oxc_span::SPAN, b.str(backing_name)),
-                        false,
-                    ));
+                    assign.left = AT::from(
+                        oxc_ast::ast::MemberExpression::new_private_field_expression(
+                            oxc_span::SPAN,
+                            b.this(),
+                            oxc_ast::ast::PrivateIdentifier::new(
+                                oxc_span::SPAN,
+                                b.str(backing_name),
+                                &b.ab,
+                            ),
+                            false,
+                            &b.ab,
+                        ),
+                    );
                 }
             }
         }
@@ -1171,7 +1173,7 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
             let call = b.call(member, vec![]);
             b.body(vec![b.return_stmt(Some(call))])
         };
-        let getter_fn = b.ab.alloc_function(
+        let getter_fn = oxc_ast::ast::Function::boxed(
             oxc_span::SPAN,
             oxc_ast::ast::FunctionType::FunctionExpression,
             None,
@@ -1183,11 +1185,12 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
             b.empty_params(),
             oxc_ast::NONE,
             Some(getter_body),
+            &b.ab,
         );
-        new_body.push(b.ab.class_element_method_definition(
+        new_body.push(oxc_ast::ast::ClassElement::new_method_definition(
             oxc_span::SPAN,
             oxc_ast::ast::MethodDefinitionType::MethodDefinition,
-            b.ab.vec(),
+            oxc_allocator::ArenaVec::new_in(&b.ab),
             b.key(public_name),
             getter_fn,
             MethodDefinitionKind::Get,
@@ -1196,6 +1199,7 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
             false,
             false,
             None,
+            &b.ab,
         ));
 
         let setter_body = {
@@ -1204,7 +1208,7 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
             b.body(vec![b.return_stmt(Some(call))])
         };
         let setter_params = b.params(vec![b.id_pat("$$value")], None);
-        let setter_fn = b.ab.alloc_function(
+        let setter_fn = oxc_ast::ast::Function::boxed(
             oxc_span::SPAN,
             oxc_ast::ast::FunctionType::FunctionExpression,
             None,
@@ -1216,11 +1220,12 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
             setter_params,
             oxc_ast::NONE,
             Some(setter_body),
+            &b.ab,
         );
-        new_body.push(b.ab.class_element_method_definition(
+        new_body.push(oxc_ast::ast::ClassElement::new_method_definition(
             oxc_span::SPAN,
             oxc_ast::ast::MethodDefinitionType::MethodDefinition,
-            b.ab.vec(),
+            oxc_allocator::ArenaVec::new_in(&b.ab),
             b.key(public_name),
             setter_fn,
             MethodDefinitionKind::Set,
@@ -1229,6 +1234,7 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
             false,
             false,
             None,
+            &b.ab,
         ));
     }
 }
@@ -1359,8 +1365,10 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
         }
 
         // Take ownership of the existing body and rebuild it element-by-element.
-        let old_body = std::mem::replace(&mut class.body.body, b.ab.vec());
-        let mut new_body: oxc_allocator::Vec<'a, ClassElement<'a>> = b.ab.vec();
+        let old_body =
+            std::mem::replace(&mut class.body.body, oxc_allocator::ArenaVec::new_in(&b.ab));
+        let mut new_body: oxc_allocator::Vec<'a, ClassElement<'a>> =
+            oxc_allocator::ArenaVec::new_in(&b.ab);
 
         // Insert backing fields + get/set accessors for constructor-declared PUBLIC
         // `$derived` / `$derived.by` fields, at the TOP of the body (写经 server
@@ -1372,12 +1380,15 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
             }
             let backing_name = backing.get(&cf.name).cloned().unwrap_or_default();
             // `#<backing>;` (bare backing field — value set in the constructor)
-            let private_key =
-                b.ab.property_key_private_identifier(oxc_span::SPAN, b.str(&backing_name));
-            new_body.push(b.ab.class_element_property_definition(
+            let private_key = oxc_ast::ast::PropertyKey::new_private_identifier(
+                oxc_span::SPAN,
+                b.str(&backing_name),
+                &b.ab,
+            );
+            new_body.push(oxc_ast::ast::ClassElement::new_property_definition(
                 oxc_span::SPAN,
                 oxc_ast::ast::PropertyDefinitionType::PropertyDefinition,
-                b.ab.vec(),
+                oxc_allocator::ArenaVec::new_in(&b.ab),
                 private_key,
                 oxc_ast::NONE,
                 None,
@@ -1389,6 +1400,7 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
                 false,
                 false,
                 None,
+                &b.ab,
             ));
             self.push_accessors(&mut new_body, &cf.name, &backing_name);
         }
@@ -1458,8 +1470,11 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
             // Move the lowered `$.derived(...)` value onto the private backing
             // field, keeping the original `PropertyDefinition` node (and its now
             // private key).
-            let private_key =
-                b.ab.property_key_private_identifier(oxc_span::SPAN, b.str(&deconflicted));
+            let private_key = oxc_ast::ast::PropertyKey::new_private_identifier(
+                oxc_span::SPAN,
+                b.str(&deconflicted),
+                &b.ab,
+            );
             prop_box.key = private_key;
             new_body.push(ClassElement::PropertyDefinition(prop_box));
 
@@ -2220,9 +2235,9 @@ fn expand_props_pattern<'a>(
     // mirrors esrap/estree printing: `{ $$slots }` when key == value, but
     // `{ $$slots: $$slots_ }` when they differ (the `uses_slots` deconfliction).
     let make_prop = |key: &str, value: &str| -> oxc_ast::ast::BindingProperty<'a> {
-        let k = ab.property_key_static_identifier(SPAN, b.str(key));
-        let v = ab.binding_pattern_binding_identifier(SPAN, b.str(value));
-        ab.binding_property(SPAN, k, v, key == value, false)
+        let k = oxc_ast::ast::PropertyKey::new_static_identifier(SPAN, b.str(key), &ab);
+        let v = oxc_ast::ast::BindingPattern::new_binding_identifier(SPAN, b.str(value), &ab);
+        oxc_ast::ast::BindingProperty::new(SPAN, k, v, key == value, false, &ab)
     };
 
     match pat {
@@ -2232,16 +2247,16 @@ fn expand_props_pattern<'a>(
             // END of `properties` keeps them before the (separately-printed) rest.
             obj.properties.push(make_prop("$$slots", slots_name));
             obj.properties.push(make_prop("$$events", "$$events"));
-            BindingPattern::ObjectPattern(ab.alloc(obj))
+            BindingPattern::ObjectPattern(oxc_allocator::ArenaBox::new_in(obj, &ab))
         }
         BindingPattern::BindingIdentifier(id) => {
             let name = b.str(id.name.as_str());
-            let mut props = ab.vec_with_capacity(2);
+            let mut props = oxc_allocator::ArenaVec::with_capacity_in(2, &ab);
             props.push(make_prop("$$slots", slots_name));
             props.push(make_prop("$$events", "$$events"));
-            let rest_inner = ab.binding_pattern_binding_identifier(SPAN, name);
-            let rest = ab.alloc_binding_rest_element(SPAN, rest_inner);
-            ab.binding_pattern_object_pattern(SPAN, props, Some(rest))
+            let rest_inner = oxc_ast::ast::BindingPattern::new_binding_identifier(SPAN, name, &ab);
+            let rest = oxc_ast::ast::BindingRestElement::boxed(SPAN, rest_inner, &ab);
+            oxc_ast::ast::BindingPattern::new_object_pattern(SPAN, props, Some(rest), &ab)
         }
         // Object pattern WITHOUT rest, or array pattern → verbatim.
         other => other,

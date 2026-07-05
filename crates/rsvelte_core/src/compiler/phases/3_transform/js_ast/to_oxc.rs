@@ -1,8 +1,3 @@
-// oxc 0.138 deprecated the legacy `AstBuilder` vec/alloc/*_static helpers in favour
-// of the arena APIs (oxc#23043); the old methods behave identically, so suppress the
-// deprecation here and defer the mechanical migration to a dedicated follow-up.
-
-#![allow(deprecated)]
 //! Convert the internal `js_ast` IR (`JsProgram`) into an oxc
 //! [`oxc_ast::ast::Program`] so it can be printed by [`rsvelte_esrap`].
 //!
@@ -32,13 +27,9 @@
 
 use super::arena::{ExprId, JsArena};
 use super::nodes::*;
-use oxc_allocator::Vec as ArenaVec;
+use oxc_allocator::{Box as ArenaBox, Vec as ArenaVec};
 use oxc_ast::AstBuilder;
-use oxc_ast::ast::{
-    Argument, ArrayExpressionElement, ChainElement, Expression, ForStatementInit, ForStatementLeft,
-    FormalParameterKind, FunctionType, ImportOrExportKind, ObjectPropertyKind, PropertyKey,
-    PropertyKind, RegExp, RegExpFlags, RegExpPattern, Statement, VariableDeclarationKind,
-};
+use oxc_ast::ast::*;
 use oxc_span::{GetSpanMut, SPAN, Span};
 use oxc_syntax::number::{BigintBase, NumberBase};
 use oxc_syntax::operator::{
@@ -65,15 +56,16 @@ pub fn program_to_oxc<'a>(
         body.extend(cx.expand_stmt(s)?);
     }
 
-    let body = ab.vec_from_iter(body);
-    Some(ab.program(
+    let body = ArenaVec::from_iter_in(body, &ab);
+    Some(Program::new(
         SPAN,
         oxc_span::SourceType::mjs(),
         "",
-        ab.vec(),
+        ArenaVec::new_in(&ab),
         None,
-        ab.vec(),
+        ArenaVec::new_in(&ab),
         body,
+        &ab,
     ))
 }
 
@@ -105,33 +97,49 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         match stmt {
             JsStatement::Expression(e) => {
                 let expr = self.expr_id(e.expression)?;
-                Some(self.ab.statement_expression(SPAN, expr))
+                Some(Statement::ExpressionStatement(ExpressionStatement::boxed(
+                    SPAN, expr, &self.ab,
+                )))
             }
             JsStatement::Return(r) => {
                 let arg = match r.argument {
                     Some(id) => Some(self.expr_id(id)?),
                     None => None,
                 };
-                Some(self.ab.statement_return(SPAN, arg))
+                Some(Statement::ReturnStatement(ReturnStatement::boxed(
+                    SPAN, arg, &self.ab,
+                )))
             }
             JsStatement::VariableDeclaration(decl) => self.variable_declaration(decl),
             JsStatement::Block(b) => {
                 let stmts = self.statements(&b.body)?;
-                Some(self.ab.statement_block(SPAN, stmts))
+                Some(Statement::BlockStatement(BlockStatement::boxed(
+                    SPAN, stmts, &self.ab,
+                )))
             }
-            JsStatement::Empty => Some(self.ab.statement_empty(SPAN)),
-            JsStatement::Debugger => Some(self.ab.statement_debugger(SPAN)),
+            JsStatement::Empty => Some(Statement::EmptyStatement(EmptyStatement::boxed(
+                SPAN, &self.ab,
+            ))),
+            JsStatement::Debugger => Some(Statement::DebuggerStatement(DebuggerStatement::boxed(
+                SPAN, &self.ab,
+            ))),
             JsStatement::Throw(id) => {
                 let arg = self.expr_id(*id)?;
-                Some(self.ab.statement_throw(SPAN, arg))
+                Some(Statement::ThrowStatement(ThrowStatement::boxed(
+                    SPAN, arg, &self.ab,
+                )))
             }
             JsStatement::Break(label) => {
                 let label = self.label(label.as_deref());
-                Some(self.ab.statement_break(SPAN, label))
+                Some(Statement::BreakStatement(BreakStatement::boxed(
+                    SPAN, label, &self.ab,
+                )))
             }
             JsStatement::Continue(label) => {
                 let label = self.label(label.as_deref());
-                Some(self.ab.statement_continue(SPAN, label))
+                Some(Statement::ContinueStatement(ContinueStatement::boxed(
+                    SPAN, label, &self.ab,
+                )))
             }
             JsStatement::If(if_stmt) => {
                 let test = self.expr_id(if_stmt.test)?;
@@ -140,7 +148,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                     Some(id) => Some(self.stmt(self.arena.get_stmt(id))?),
                     None => None,
                 };
-                Some(self.ab.statement_if(SPAN, test, consequent, alternate))
+                Some(Statement::IfStatement(IfStatement::boxed(
+                    SPAN, test, consequent, alternate, &self.ab,
+                )))
             }
             JsStatement::Import(import) => self.import_declaration(import),
             JsStatement::ExportNamed(export) => self.export_named(export),
@@ -155,18 +165,24 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             JsStatement::While(w) => {
                 let test = self.expr_id(w.test)?;
                 let body = self.stmt(self.arena.get_stmt(w.body))?;
-                Some(self.ab.statement_while(SPAN, test, body))
+                Some(Statement::WhileStatement(WhileStatement::boxed(
+                    SPAN, test, body, &self.ab,
+                )))
             }
             JsStatement::DoWhile(d) => {
                 let body = self.stmt(self.arena.get_stmt(d.body))?;
                 let test = self.expr_id(d.test)?;
-                Some(self.ab.statement_do_while(SPAN, body, test))
+                Some(Statement::DoWhileStatement(DoWhileStatement::boxed(
+                    SPAN, body, test, &self.ab,
+                )))
             }
             JsStatement::Switch(s) => self.switch_statement(s),
             JsStatement::Labeled(l) => {
-                let label = self.ab.label_identifier(SPAN, self.str(&l.label));
+                let label = LabelIdentifier::new(SPAN, self.str(&l.label), &self.ab);
                 let body = self.stmt(self.arena.get_stmt(l.body))?;
-                Some(self.ab.statement_labeled(SPAN, label, body))
+                Some(Statement::LabeledStatement(LabeledStatement::boxed(
+                    SPAN, label, body, &self.ab,
+                )))
             }
             JsStatement::Try(t) => self.try_statement(t),
             // `Raw`/`RawMapped` at a SINGLE-statement site (if / while / for
@@ -185,7 +201,11 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         if stmts.len() == 1 {
             stmts.into_iter().next()
         } else {
-            Some(self.ab.statement_block(SPAN, self.ab.vec_from_iter(stmts)))
+            Some(Statement::BlockStatement(BlockStatement::boxed(
+                SPAN,
+                ArenaVec::from_iter_in(stmts, &self.ab),
+                &self.ab,
+            )))
         }
     }
 
@@ -212,7 +232,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             None => None,
         };
         let body = self.stmt(self.arena.get_stmt(for_stmt.body))?;
-        Some(self.ab.statement_for(SPAN, init, test, update, body))
+        Some(Statement::ForStatement(ForStatement::boxed(
+            SPAN, init, test, update, body, &self.ab,
+        )))
     }
 
     /// Build a `for (left of right)` / `for await (left of right)` statement,
@@ -236,12 +258,13 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 // representable; reuse the assignment-target helper which bails
                 // on anything else.
                 let target = match pattern {
-                    JsPattern::Identifier(name) => self
-                        .ab
-                        .simple_assignment_target_assignment_target_identifier(
+                    JsPattern::Identifier(name) => {
+                        SimpleAssignmentTarget::new_assignment_target_identifier(
                             SPAN,
                             self.str(name),
-                        ),
+                            &self.ab,
+                        )
+                    }
                     _ => return None,
                 };
                 let assignment_target = oxc_ast::ast::AssignmentTarget::from(target);
@@ -255,35 +278,46 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             if for_of.is_await {
                 return None;
             }
-            Some(self.ab.statement_for_in(SPAN, left, right, body))
+            Some(Statement::ForInStatement(ForInStatement::boxed(
+                SPAN, left, right, body, &self.ab,
+            )))
         } else {
-            Some(
-                self.ab
-                    .statement_for_of(SPAN, for_of.is_await, left, right, body),
-            )
+            Some(Statement::ForOfStatement(ForOfStatement::boxed(
+                SPAN,
+                for_of.is_await,
+                left,
+                right,
+                body,
+                &self.ab,
+            )))
         }
     }
 
     /// Build a `switch (disc) { case … }` statement.
     fn switch_statement(&self, s: &JsSwitchStatement) -> Option<Statement<'a>> {
         let discriminant = self.expr_id(s.discriminant)?;
-        let mut cases = self.ab.vec_with_capacity(s.cases.len());
+        let mut cases = ArenaVec::with_capacity_in(s.cases.len(), &self.ab);
         for case in &s.cases {
             let test = match case.test {
                 Some(id) => Some(self.expr_id(id)?),
                 None => None,
             };
             let consequent = self.statements(&case.consequent)?;
-            cases.push(self.ab.switch_case(SPAN, test, consequent));
+            cases.push(SwitchCase::new(SPAN, test, consequent, &self.ab));
         }
-        Some(self.ab.statement_switch(SPAN, discriminant, cases))
+        Some(Statement::SwitchStatement(SwitchStatement::boxed(
+            SPAN,
+            discriminant,
+            cases,
+            &self.ab,
+        )))
     }
 
     /// Build a `try { } catch (e) { } finally { }` statement. Bails on a
     /// destructuring catch parameter.
     fn try_statement(&self, t: &JsTryStatement) -> Option<Statement<'a>> {
         let block_stmts = self.statements(&t.block.body)?;
-        let block = self.ab.alloc_block_statement(SPAN, block_stmts);
+        let block = BlockStatement::boxed(SPAN, block_stmts, &self.ab);
 
         let handler = match &t.handler {
             None => None,
@@ -292,12 +326,12 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                     None => None,
                     Some(pat) => {
                         let pattern = self.binding_pattern(pat)?;
-                        Some(self.ab.catch_parameter(SPAN, pattern, oxc_ast::NONE))
+                        Some(CatchParameter::new(SPAN, pattern, oxc_ast::NONE, &self.ab))
                     }
                 };
                 let body_stmts = self.statements(&catch.body.body)?;
-                let body = self.ab.alloc_block_statement(SPAN, body_stmts);
-                Some(self.ab.catch_clause(SPAN, param, body))
+                let body = BlockStatement::boxed(SPAN, body_stmts, &self.ab);
+                Some(CatchClause::new(SPAN, param, body, &self.ab))
             }
         };
 
@@ -305,11 +339,13 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             None => None,
             Some(block) => {
                 let stmts = self.statements(&block.body)?;
-                Some(self.ab.alloc_block_statement(SPAN, stmts))
+                Some(BlockStatement::boxed(SPAN, stmts, &self.ab))
             }
         };
 
-        Some(self.ab.statement_try(SPAN, block, handler, finalizer))
+        Some(Statement::TryStatement(TryStatement::boxed(
+            SPAN, block, handler, finalizer, &self.ab,
+        )))
     }
 
     /// Build a module-source `StringLiteral`. Codegen emits the source verbatim
@@ -318,14 +354,12 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     /// make esrap reproduce it byte-for-byte regardless of quote options.
     fn module_source(&self, source: &str) -> oxc_ast::ast::StringLiteral<'a> {
         let raw = self.str(&format!("'{source}'"));
-        self.ab
-            .string_literal(SPAN, self.str(source), Some(raw.into()))
+        StringLiteral::new(SPAN, self.str(source), Some(raw.into()), &self.ab)
     }
 
     /// Build a `ModuleExportName::IdentifierName` from a plain name.
     fn module_export_name(&self, name: &str) -> oxc_ast::ast::ModuleExportName<'a> {
-        self.ab
-            .module_export_name_identifier_name(SPAN, self.str(name))
+        ModuleExportName::new_identifier_name(SPAN, self.str(name), &self.ab)
     }
 
     fn import_declaration(&self, import: &JsImportDeclaration) -> Option<Statement<'a>> {
@@ -336,33 +370,30 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             && !matches!(import.specifiers[0], JsImportSpecifier::SideEffect);
 
         let specifiers = if has_specifiers {
-            let mut specs = self.ab.vec_with_capacity(import.specifiers.len());
+            let mut specs = ArenaVec::with_capacity_in(import.specifiers.len(), &self.ab);
             for spec in &import.specifiers {
                 match spec {
                     JsImportSpecifier::Default(name) => {
-                        let local = self.ab.binding_identifier(SPAN, self.str(name));
-                        specs.push(
-                            self.ab
-                                .import_declaration_specifier_import_default_specifier(SPAN, local),
-                        );
+                        let local = BindingIdentifier::new(SPAN, self.str(name), &self.ab);
+                        specs.push(ImportDeclarationSpecifier::new_import_default_specifier(
+                            SPAN, local, &self.ab,
+                        ));
                     }
                     JsImportSpecifier::Namespace(name) => {
-                        let local = self.ab.binding_identifier(SPAN, self.str(name));
-                        specs.push(
-                            self.ab
-                                .import_declaration_specifier_import_namespace_specifier(
-                                    SPAN, local,
-                                ),
-                        );
+                        let local = BindingIdentifier::new(SPAN, self.str(name), &self.ab);
+                        specs.push(ImportDeclarationSpecifier::new_import_namespace_specifier(
+                            SPAN, local, &self.ab,
+                        ));
                     }
                     JsImportSpecifier::Named { imported, local } => {
                         let imported = self.module_export_name(imported);
-                        let local = self.ab.binding_identifier(SPAN, self.str(local));
-                        specs.push(self.ab.import_declaration_specifier_import_specifier(
+                        let local = BindingIdentifier::new(SPAN, self.str(local), &self.ab);
+                        specs.push(ImportDeclarationSpecifier::new_import_specifier(
                             SPAN,
                             imported,
                             local,
                             ImportOrExportKind::Value,
+                            &self.ab,
                         ));
                     }
                     // A `SideEffect` specifier alongside real ones would mean
@@ -377,13 +408,14 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         };
 
         let source = self.module_source(&import.source);
-        let decl = self.ab.module_declaration_import_declaration(
+        let decl = ModuleDeclaration::new_import_declaration(
             SPAN,
             specifiers,
             source,
             None,
             oxc_ast::NONE,
             ImportOrExportKind::Value,
+            &self.ab,
         );
         Some(Statement::from(decl))
     }
@@ -395,30 +427,32 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         let (declaration, specifiers) = if let Some(decl) = &export.declaration {
             let var_decl = self.variable_declaration_node(decl)?;
             let declaration = oxc_ast::ast::Declaration::VariableDeclaration(var_decl);
-            (Some(declaration), self.ab.vec())
+            (Some(declaration), ArenaVec::new_in(&self.ab))
         } else {
-            let mut specs = self.ab.vec_with_capacity(export.specifiers.len());
+            let mut specs = ArenaVec::with_capacity_in(export.specifiers.len(), &self.ab);
             for spec in &export.specifiers {
                 let local = self.module_export_name(&spec.local);
                 let exported = self.module_export_name(&spec.exported);
-                specs.push(self.ab.export_specifier(
+                specs.push(ExportSpecifier::new(
                     SPAN,
                     local,
                     exported,
                     ImportOrExportKind::Value,
+                    &self.ab,
                 ));
             }
             (None, specs)
         };
 
         // The IR has no re-export source (`export { x } from 'y'`); always None.
-        let decl = self.ab.module_declaration_export_named_declaration(
+        let decl = ModuleDeclaration::new_export_named_declaration(
             SPAN,
             declaration,
             specifiers,
             None,
             ImportOrExportKind::Value,
             oxc_ast::NONE,
+            &self.ab,
         );
         Some(Statement::from(decl))
     }
@@ -434,9 +468,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 oxc_ast::ast::ExportDefaultDeclarationKind::from(expr)
             }
         };
-        let decl = self
-            .ab
-            .module_declaration_export_default_declaration(SPAN, kind);
+        let decl = ModuleDeclaration::new_export_default_declaration(SPAN, kind, &self.ab);
         Some(Statement::from(decl))
     }
 
@@ -452,11 +484,11 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         let id = func
             .id
             .as_ref()
-            .map(|name| self.ab.binding_identifier(SPAN, self.str(name)));
+            .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
         let params = self.formal_params(&func.params)?;
         let stmts = self.statements(&func.body.body)?;
-        let body = self.ab.function_body(SPAN, self.ab.vec(), stmts);
-        Some(self.ab.alloc_function(
+        let body = FunctionBody::new(SPAN, ArenaVec::new_in(&self.ab), stmts, &self.ab);
+        Some(Function::boxed(
             SPAN,
             func_type,
             id,
@@ -468,6 +500,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             params,
             oxc_ast::NONE,
             Some(body),
+            &self.ab,
         ))
     }
 
@@ -478,12 +511,12 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         for s in body {
             v.extend(self.expand_stmt(s)?);
         }
-        Some(self.ab.vec_from_iter(v))
+        Some(ArenaVec::from_iter_in(v, &self.ab))
     }
 
     /// Build an optional `LabelIdentifier` for `break`/`continue` labels.
     fn label(&self, name: Option<&str>) -> Option<oxc_ast::ast::LabelIdentifier<'a>> {
-        name.map(|n| self.ab.label_identifier(SPAN, self.str(n)))
+        name.map(|n| LabelIdentifier::new(SPAN, self.str(n), &self.ab))
     }
 
     fn variable_declaration(&self, decl: &JsVariableDeclaration) -> Option<Statement<'a>> {
@@ -505,7 +538,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             JsVariableKind::Const => VariableDeclarationKind::Const,
         };
 
-        let mut declarators = self.ab.vec_with_capacity(decl.declarations.len());
+        let mut declarators = ArenaVec::with_capacity_in(decl.declarations.len(), &self.ab);
         for d in &decl.declarations {
             // Identifier or destructuring binding pattern; `binding_pattern`
             // bails on anything it cannot faithfully reproduce.
@@ -514,20 +547,24 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 Some(id) => Some(self.expr_id(id)?),
                 None => None,
             };
-            declarators.push(self.ab.variable_declarator(
+            declarators.push(VariableDeclarator::new(
                 SPAN,
                 kind,
                 binding,
                 oxc_ast::NONE,
                 init,
                 false,
+                &self.ab,
             ));
         }
 
-        Some(
-            self.ab
-                .alloc_variable_declaration(SPAN, kind, declarators, false),
-        )
+        Some(VariableDeclaration::boxed(
+            SPAN,
+            kind,
+            declarators,
+            false,
+            &self.ab,
+        ))
     }
 
     // -- binding patterns ---------------------------------------------------
@@ -541,12 +578,13 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     /// structurally).
     fn binding_pattern(&self, pat: &JsPattern) -> Option<oxc_ast::ast::BindingPattern<'a>> {
         match pat {
-            JsPattern::Identifier(name) => Some(
-                self.ab
-                    .binding_pattern_binding_identifier(SPAN, self.str(name)),
-            ),
+            JsPattern::Identifier(name) => Some(BindingPattern::new_binding_identifier(
+                SPAN,
+                self.str(name),
+                &self.ab,
+            )),
             JsPattern::Object(obj) => {
-                let mut props = self.ab.vec_with_capacity(obj.properties.len());
+                let mut props = ArenaVec::with_capacity_in(obj.properties.len(), &self.ab);
                 let mut rest: Option<oxc_allocator::Box<'a, oxc_ast::ast::BindingRestElement<'a>>> =
                     None;
                 let last = obj.properties.len().saturating_sub(1);
@@ -572,10 +610,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                                 self.property_key(key)?
                             };
                             let value = self.binding_pattern(value)?;
-                            props.push(
-                                self.ab
-                                    .binding_property(SPAN, key, value, *shorthand, *computed),
-                            );
+                            props.push(BindingProperty::new(
+                                SPAN, key, value, *shorthand, *computed, &self.ab,
+                            ));
                         }
                         JsObjectPatternProperty::Rest(inner) => {
                             // A rest property must be the last entry.
@@ -583,14 +620,16 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                                 return None;
                             }
                             let inner = self.binding_pattern(inner)?;
-                            rest = Some(self.ab.alloc_binding_rest_element(SPAN, inner));
+                            rest = Some(BindingRestElement::boxed(SPAN, inner, &self.ab));
                         }
                     }
                 }
-                Some(self.ab.binding_pattern_object_pattern(SPAN, props, rest))
+                Some(BindingPattern::new_object_pattern(
+                    SPAN, props, rest, &self.ab,
+                ))
             }
             JsPattern::Array(arr) => {
-                let mut elements = self.ab.vec_with_capacity(arr.elements.len());
+                let mut elements = ArenaVec::with_capacity_in(arr.elements.len(), &self.ab);
                 let mut rest: Option<oxc_allocator::Box<'a, oxc_ast::ast::BindingRestElement<'a>>> =
                     None;
                 let last = arr.elements.len().saturating_sub(1);
@@ -603,20 +642,21 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                                 return None;
                             }
                             let inner = self.binding_pattern(inner)?;
-                            rest = Some(self.ab.alloc_binding_rest_element(SPAN, inner));
+                            rest = Some(BindingRestElement::boxed(SPAN, inner, &self.ab));
                         }
                         Some(el) => elements.push(Some(self.binding_pattern(el)?)),
                     }
                 }
-                Some(self.ab.binding_pattern_array_pattern(SPAN, elements, rest))
+                Some(BindingPattern::new_array_pattern(
+                    SPAN, elements, rest, &self.ab,
+                ))
             }
             JsPattern::Assignment(JsAssignmentPattern { left, right }) => {
                 let left = self.binding_pattern(left)?;
                 let right = self.expr_id(*right)?;
-                Some(
-                    self.ab
-                        .binding_pattern_assignment_pattern(SPAN, left, right),
-                )
+                Some(BindingPattern::new_assignment_pattern(
+                    SPAN, left, right, &self.ab,
+                ))
             }
             // A bare `Rest` only ever appears nested inside an object / array
             // pattern (handled above) or as the last function parameter (handled
@@ -629,85 +669,115 @@ impl<'a, 'arena> Cx<'a, 'arena> {
 
     fn expr(&self, expr: &JsExpr) -> Option<Expression<'a>> {
         match expr {
-            JsExpr::Identifier(name) => Some(self.ab.expression_identifier(SPAN, self.str(name))),
+            JsExpr::Identifier(name) => {
+                Some(Expression::new_identifier(SPAN, self.str(name), &self.ab))
+            }
             JsExpr::OpaqueIdentifier(name) => {
-                Some(self.ab.expression_identifier(SPAN, self.str(name)))
+                Some(Expression::new_identifier(SPAN, self.str(name), &self.ab))
             }
             JsExpr::Literal(lit) => self.literal(lit),
-            JsExpr::This => Some(self.ab.expression_this(SPAN)),
-            JsExpr::Super => Some(Expression::Super(self.ab.alloc_super(SPAN))),
+            JsExpr::This => Some(Expression::ThisExpression(ThisExpression::boxed(
+                SPAN, &self.ab,
+            ))),
+            JsExpr::Super => Some(Expression::Super(Super::boxed(SPAN, &self.ab))),
             JsExpr::MetaProperty(meta, property) => {
-                let meta = self.ab.identifier_name(SPAN, self.str(meta));
-                let property = self.ab.identifier_name(SPAN, self.str(property));
-                Some(self.ab.expression_meta_property(SPAN, meta, property))
+                let meta = IdentifierName::new(SPAN, self.str(meta), &self.ab);
+                let property = IdentifierName::new(SPAN, self.str(property), &self.ab);
+                Some(Expression::new_meta_property(
+                    SPAN, meta, property, &self.ab,
+                ))
             }
             JsExpr::Member(m) => self.member(m),
             JsExpr::Call(c) => {
                 let callee = self.expr_id(c.callee)?;
                 let args = self.arguments(&c.arguments)?;
-                Some(
-                    self.ab
-                        .expression_call(SPAN, callee, oxc_ast::NONE, args, c.optional),
-                )
+                Some(Expression::CallExpression(CallExpression::boxed(
+                    SPAN,
+                    callee,
+                    oxc_ast::NONE,
+                    args,
+                    c.optional,
+                    &self.ab,
+                )))
             }
             JsExpr::New(n) => {
                 let callee = self.expr_id(n.callee)?;
                 let args = self.arguments(&n.arguments)?;
-                Some(self.ab.expression_new(SPAN, callee, oxc_ast::NONE, args))
+                Some(Expression::NewExpression(NewExpression::boxed(
+                    SPAN,
+                    callee,
+                    oxc_ast::NONE,
+                    args,
+                    &self.ab,
+                )))
             }
             JsExpr::Binary(b) => {
                 let left = self.expr_id(b.left)?;
                 let right = self.expr_id(b.right)?;
-                Some(
-                    self.ab
-                        .expression_binary(SPAN, left, binary_op(b.operator), right),
-                )
+                Some(Expression::BinaryExpression(BinaryExpression::boxed(
+                    SPAN,
+                    left,
+                    binary_op(b.operator),
+                    right,
+                    &self.ab,
+                )))
             }
             JsExpr::Logical(l) => {
                 let left = self.expr_id(l.left)?;
                 let right = self.expr_id(l.right)?;
-                Some(
-                    self.ab
-                        .expression_logical(SPAN, left, logical_op(l.operator), right),
-                )
+                Some(Expression::LogicalExpression(LogicalExpression::boxed(
+                    SPAN,
+                    left,
+                    logical_op(l.operator),
+                    right,
+                    &self.ab,
+                )))
             }
             JsExpr::Unary(u) => {
                 let arg = self.expr_id(u.argument)?;
-                Some(self.ab.expression_unary(SPAN, unary_op(u.operator), arg))
+                Some(Expression::UnaryExpression(UnaryExpression::boxed(
+                    SPAN,
+                    unary_op(u.operator),
+                    arg,
+                    &self.ab,
+                )))
             }
             JsExpr::Conditional(c) => {
                 let test = self.expr_id(c.test)?;
                 let consequent = self.expr_id(c.consequent)?;
                 let alternate = self.expr_id(c.alternate)?;
-                Some(
-                    self.ab
-                        .expression_conditional(SPAN, test, consequent, alternate),
-                )
+                Some(Expression::ConditionalExpression(
+                    ConditionalExpression::boxed(SPAN, test, consequent, alternate, &self.ab),
+                ))
             }
             JsExpr::Sequence(s) => {
-                let mut exprs = self.ab.vec_with_capacity(s.expressions.len());
+                let mut exprs = ArenaVec::with_capacity_in(s.expressions.len(), &self.ab);
                 for e in &s.expressions {
                     exprs.push(self.expr(e)?);
                 }
-                Some(self.ab.expression_sequence(SPAN, exprs))
+                Some(Expression::SequenceExpression(SequenceExpression::boxed(
+                    SPAN, exprs, &self.ab,
+                )))
             }
             JsExpr::Array(a) => {
-                let mut elements = self.ab.vec_with_capacity(a.elements.len());
+                let mut elements = ArenaVec::with_capacity_in(a.elements.len(), &self.ab);
                 for el in &a.elements {
                     let element = match el {
-                        None => self.ab.array_expression_element_elision(SPAN),
+                        None => ArrayExpressionElement::new_elision(SPAN, &self.ab),
                         Some(JsExpr::Spread(inner)) => {
                             // `[...x]` — spread element inside an array.
                             let inner = self.expr_id(*inner)?;
-                            ArrayExpressionElement::SpreadElement(
-                                self.ab.alloc_spread_element(SPAN, inner),
-                            )
+                            ArrayExpressionElement::SpreadElement(SpreadElement::boxed(
+                                SPAN, inner, &self.ab,
+                            ))
                         }
                         Some(e) => ArrayExpressionElement::from(self.expr(e)?),
                     };
                     elements.push(element);
                 }
-                Some(self.ab.expression_array(SPAN, elements))
+                Some(Expression::ArrayExpression(ArrayExpression::boxed(
+                    SPAN, elements, &self.ab,
+                )))
             }
             JsExpr::Object(o) => self.object(o),
             JsExpr::Spread(inner) => {
@@ -719,39 +789,53 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             }
             JsExpr::Await(id) => {
                 let arg = self.expr_id(*id)?;
-                Some(self.ab.expression_await(SPAN, arg))
+                Some(Expression::AwaitExpression(AwaitExpression::boxed(
+                    SPAN, arg, &self.ab,
+                )))
             }
             JsExpr::Void(id) => {
                 let arg = self.expr_id(*id)?;
-                Some(self.ab.expression_unary(SPAN, UnaryOperator::Void, arg))
+                Some(Expression::UnaryExpression(UnaryExpression::boxed(
+                    SPAN,
+                    UnaryOperator::Void,
+                    arg,
+                    &self.ab,
+                )))
             }
             JsExpr::Arrow(arrow) => self.arrow(arrow),
             JsExpr::TemplateLiteral(tpl) => {
                 let tpl = self.template_literal(tpl)?;
-                Some(Expression::TemplateLiteral(self.ab.alloc(tpl)))
+                Some(Expression::TemplateLiteral(ArenaBox::new_in(tpl, &self.ab)))
             }
             JsExpr::TaggedTemplate(t) => {
                 let tag = self.expr_id(t.tag)?;
                 let quasi = self.template_literal(&t.quasi)?;
-                Some(
-                    self.ab
-                        .expression_tagged_template(SPAN, tag, oxc_ast::NONE, quasi),
-                )
+                Some(Expression::TaggedTemplateExpression(
+                    TaggedTemplateExpression::boxed(SPAN, tag, oxc_ast::NONE, quasi, &self.ab),
+                ))
             }
             JsExpr::Assignment(a) => {
                 let left = self.assignment_target(self.arena.get_expr(a.left))?;
                 let right = self.expr_id(a.right)?;
-                Some(
-                    self.ab
-                        .expression_assignment(SPAN, assignment_op(a.operator), left, right),
-                )
+                Some(Expression::AssignmentExpression(
+                    AssignmentExpression::boxed(
+                        SPAN,
+                        assignment_op(a.operator),
+                        left,
+                        right,
+                        &self.ab,
+                    ),
+                ))
             }
             JsExpr::Update(u) => {
                 let target = self.simple_assignment_target(self.arena.get_expr(u.argument))?;
-                Some(
-                    self.ab
-                        .expression_update(SPAN, update_op(u.operator), u.prefix, target),
-                )
+                Some(Expression::UpdateExpression(UpdateExpression::boxed(
+                    SPAN,
+                    update_op(u.operator),
+                    u.prefix,
+                    target,
+                    &self.ab,
+                )))
             }
             JsExpr::Chain(chain) => self.chain(chain),
             JsExpr::ImportExpression { source, options } => {
@@ -762,7 +846,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 };
                 // `phase` (`import.defer` / `import.source`) is not represented
                 // in the IR; pass `None`.
-                Some(self.ab.expression_import(SPAN, source, options, None))
+                Some(Expression::ImportExpression(ImportExpression::boxed(
+                    SPAN, source, options, None, &self.ab,
+                )))
             }
             JsExpr::Function(func) => self.function(func),
             JsExpr::Yield(y) => {
@@ -770,7 +856,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                     Some(id) => Some(self.expr_id(id)?),
                     None => None,
                 };
-                Some(self.ab.expression_yield(SPAN, y.delegate, argument))
+                Some(Expression::YieldExpression(YieldExpression::boxed(
+                    SPAN, y.delegate, argument, &self.ab,
+                )))
             }
             JsExpr::Class(class) => self.class(class),
             // `Spanned` wraps a real inner expression with the original-source
@@ -875,14 +963,14 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         let id = class
             .id
             .as_ref()
-            .map(|name| self.ab.binding_identifier(SPAN, self.str(name)));
+            .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
 
         let super_class = match class.super_class {
             Some(id) => Some(self.expr_id(id)?),
             None => None,
         };
 
-        let mut elements = self.ab.vec_with_capacity(class.body.body.len());
+        let mut elements = ArenaVec::with_capacity_in(class.body.body.len(), &self.ab);
         for member in &class.body.body {
             match member {
                 JsClassMember::Method(method) => {
@@ -897,10 +985,10 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                     // a boxed `Function` with `FunctionType::FunctionExpression`,
                     // bailing on any param / body shape that cannot be reproduced.
                     let value = self.method_function(&method.value)?;
-                    elements.push(self.ab.class_element_method_definition(
+                    elements.push(ClassElement::new_method_definition(
                         SPAN,
                         MethodDefinitionType::MethodDefinition,
-                        self.ab.vec(),
+                        ArenaVec::new_in(&self.ab),
                         key,
                         value,
                         kind,
@@ -909,6 +997,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                         false,
                         false,
                         None,
+                        &self.ab,
                     ));
                 }
                 JsClassMember::Property(prop) => {
@@ -917,10 +1006,10 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                         Some(id) => Some(self.expr_id(id)?),
                         None => None,
                     };
-                    elements.push(self.ab.class_element_property_definition(
+                    elements.push(ClassElement::new_property_definition(
                         SPAN,
                         PropertyDefinitionType::PropertyDefinition,
-                        self.ab.vec(),
+                        ArenaVec::new_in(&self.ab),
                         key,
                         oxc_ast::NONE,
                         value,
@@ -932,6 +1021,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                         false,
                         false,
                         None,
+                        &self.ab,
                     ));
                 }
                 // Static blocks (and any future member kind) are not reproducible
@@ -940,20 +1030,21 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             }
         }
 
-        let body = self.ab.class_body(SPAN, elements);
-        Some(self.ab.expression_class(
+        let body = ClassBody::new(SPAN, elements, &self.ab);
+        Some(Expression::ClassExpression(Class::boxed(
             SPAN,
             ClassType::ClassExpression,
-            self.ab.vec(),
+            ArenaVec::new_in(&self.ab),
             id,
             oxc_ast::NONE,
             super_class,
             oxc_ast::NONE,
-            self.ab.vec(),
+            ArenaVec::new_in(&self.ab),
             body,
             false,
             false,
-        ))
+            &self.ab,
+        )))
     }
 
     /// Build a class member's [`PropertyKey`]. A computed key holds an arbitrary
@@ -985,11 +1076,11 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         let id = func
             .id
             .as_ref()
-            .map(|name| self.ab.binding_identifier(SPAN, self.str(name)));
+            .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
         let params = self.formal_params(&func.params)?;
         let stmts = self.statements(&func.body.body)?;
-        let body = self.ab.function_body(SPAN, self.ab.vec(), stmts);
-        Some(self.ab.alloc_function(
+        let body = FunctionBody::new(SPAN, ArenaVec::new_in(&self.ab), stmts, &self.ab);
+        Some(Function::boxed(
             SPAN,
             FunctionType::FunctionExpression,
             id,
@@ -1001,30 +1092,37 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             params,
             oxc_ast::NONE,
             Some(body),
+            &self.ab,
         ))
     }
 
     fn literal(&self, lit: &JsLiteral) -> Option<Expression<'a>> {
         match lit {
-            JsLiteral::String(s) => {
-                Some(self.ab.expression_string_literal(SPAN, self.str(s), None))
-            }
-            JsLiteral::Number(n) => {
-                Some(
-                    self.ab
-                        .expression_numeric_literal(SPAN, *n, None, NumberBase::Decimal),
-                )
-            }
-            JsLiteral::RawString { value, raw } => Some(self.ab.expression_string_literal(
+            JsLiteral::String(s) => Some(Expression::new_string_literal(
+                SPAN,
+                self.str(s),
+                None,
+                &self.ab,
+            )),
+            JsLiteral::Number(n) => Some(Expression::new_numeric_literal(
+                SPAN,
+                *n,
+                None,
+                NumberBase::Decimal,
+                &self.ab,
+            )),
+            JsLiteral::RawString { value, raw } => Some(Expression::new_string_literal(
                 SPAN,
                 self.str(value),
                 Some(self.str(raw).into()),
+                &self.ab,
             )),
-            JsLiteral::RawNumber { value, raw } => Some(self.ab.expression_numeric_literal(
+            JsLiteral::RawNumber { value, raw } => Some(Expression::new_numeric_literal(
                 SPAN,
                 *value,
                 Some(self.str(raw).into()),
                 NumberBase::Decimal,
+                &self.ab,
             )),
             JsLiteral::BigInt(raw) => {
                 // The IR stores the raw source spelling including the trailing
@@ -1032,16 +1130,17 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 // builder's `value` field expects base-10 digits with no
                 // suffix; strip the trailing `n` for the value.
                 let value = raw.strip_suffix('n').unwrap_or(raw);
-                Some(self.ab.expression_big_int_literal(
+                Some(Expression::new_big_int_literal(
                     SPAN,
                     self.str(value),
                     None,
                     BigintBase::Decimal,
+                    &self.ab,
                 ))
             }
-            JsLiteral::Boolean(b) => Some(self.ab.expression_boolean_literal(SPAN, *b)),
-            JsLiteral::Null => Some(self.ab.expression_null_literal(SPAN)),
-            JsLiteral::Undefined => Some(self.ab.expression_identifier(SPAN, "undefined")),
+            JsLiteral::Boolean(b) => Some(Expression::new_boolean_literal(SPAN, *b, &self.ab)),
+            JsLiteral::Null => Some(Expression::new_null_literal(SPAN, &self.ab)),
+            JsLiteral::Undefined => Some(Expression::new_identifier(SPAN, "undefined", &self.ab)),
             JsLiteral::Regex { pattern, flags } => {
                 // Build the flags bitset faithfully from the source spelling;
                 // bail on any unrecognised flag character so we never guess.
@@ -1059,10 +1158,12 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 // esrap prints `raw` verbatim when present, so emit the exact
                 // `/pattern/flags` source spelling.
                 let raw = self.str(&format!("/{pattern}/{flags}"));
-                Some(
-                    self.ab
-                        .expression_reg_exp_literal(SPAN, regex, Some(raw.into())),
-                )
+                Some(Expression::new_reg_exp_literal(
+                    SPAN,
+                    regex,
+                    Some(raw.into()),
+                    &self.ab,
+                ))
             }
         }
     }
@@ -1077,22 +1178,25 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         let object = self.expr_id(m.object)?;
         let member = match &m.property {
             JsMemberProperty::Identifier(name) => {
-                let property = self.ab.identifier_name(SPAN, self.str(name));
-                self.ab
-                    .member_expression_static(SPAN, object, property, m.optional)
+                let property = IdentifierName::new(SPAN, self.str(name), &self.ab);
+                MemberExpression::StaticMemberExpression(StaticMemberExpression::boxed(
+                    SPAN, object, property, m.optional, &self.ab,
+                ))
             }
             JsMemberProperty::Expression(id) => {
                 let property = self.expr_id(*id)?;
-                self.ab
-                    .member_expression_computed(SPAN, object, property, m.optional)
+                MemberExpression::ComputedMemberExpression(ComputedMemberExpression::boxed(
+                    SPAN, object, property, m.optional, &self.ab,
+                ))
             }
             JsMemberProperty::PrivateIdentifier(name) => {
                 // The IR stores the bare name (no leading `#`, matching the
                 // ESTree `PrivateIdentifier.name` convention); codegen and the
                 // esrap printer both add the `#`, so pass the name verbatim.
-                let field = self.ab.private_identifier(SPAN, self.str(name));
-                self.ab
-                    .member_expression_private_field_expression(SPAN, object, field, m.optional)
+                let field = PrivateIdentifier::new(SPAN, self.str(name), &self.ab);
+                MemberExpression::new_private_field_expression(
+                    SPAN, object, field, m.optional, &self.ab,
+                )
             }
         };
         Some(member)
@@ -1104,19 +1208,19 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         &self,
         tpl: &JsTemplateLiteral,
     ) -> Option<oxc_ast::ast::TemplateLiteral<'a>> {
-        let mut quasis = self.ab.vec_with_capacity(tpl.quasis.len());
+        let mut quasis = ArenaVec::with_capacity_in(tpl.quasis.len(), &self.ab);
         for q in &tpl.quasis {
             let value = oxc_ast::ast::TemplateElementValue {
                 raw: self.str(&q.raw).into(),
                 cooked: Some(self.str(&q.cooked).into()),
             };
-            quasis.push(self.ab.template_element(SPAN, value, q.tail));
+            quasis.push(TemplateElement::new(SPAN, value, q.tail, &self.ab));
         }
-        let mut expressions = self.ab.vec_with_capacity(tpl.expressions.len());
+        let mut expressions = ArenaVec::with_capacity_in(tpl.expressions.len(), &self.ab);
         for e in &tpl.expressions {
             expressions.push(self.expr(e)?);
         }
-        Some(self.ab.template_literal(SPAN, quasis, expressions))
+        Some(TemplateLiteral::new(SPAN, quasis, expressions, &self.ab))
     }
 
     /// Build a [`SimpleAssignmentTarget`] from an IR expression used as an
@@ -1127,10 +1231,13 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         expr: &JsExpr,
     ) -> Option<oxc_ast::ast::SimpleAssignmentTarget<'a>> {
         match expr {
-            JsExpr::Identifier(name) => Some(
-                self.ab
-                    .simple_assignment_target_assignment_target_identifier(SPAN, self.str(name)),
-            ),
+            JsExpr::Identifier(name) => {
+                Some(SimpleAssignmentTarget::new_assignment_target_identifier(
+                    SPAN,
+                    self.str(name),
+                    &self.ab,
+                ))
+            }
             JsExpr::Member(m) if !m.optional => {
                 let member = self.member_expr(m)?;
                 Some(oxc_ast::ast::SimpleAssignmentTarget::from(member))
@@ -1156,7 +1263,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     fn assignment_target(&self, expr: &JsExpr) -> Option<oxc_ast::ast::AssignmentTarget<'a>> {
         match expr {
             JsExpr::Array(arr) => {
-                let mut elements = self.ab.vec_with_capacity(arr.elements.len());
+                let mut elements = ArenaVec::with_capacity_in(arr.elements.len(), &self.ab);
                 let mut rest: Option<
                     oxc_allocator::Box<'a, oxc_ast::ast::AssignmentTargetRest<'a>>,
                 > = None;
@@ -1170,16 +1277,16 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                                 return None;
                             }
                             let target = self.assignment_target(self.arena.get_expr(*inner))?;
-                            rest = Some(self.ab.alloc_assignment_target_rest(SPAN, target));
+                            rest = Some(AssignmentTargetRest::boxed(SPAN, target, &self.ab));
                         }
                         Some(e) => elements.push(Some(self.assignment_target_maybe_default(e)?)),
                     }
                 }
-                let array = self.ab.alloc_array_assignment_target(SPAN, elements, rest);
+                let array = ArrayAssignmentTarget::boxed(SPAN, elements, rest, &self.ab);
                 Some(oxc_ast::ast::AssignmentTarget::ArrayAssignmentTarget(array))
             }
             JsExpr::Object(obj) => {
-                let mut props = self.ab.vec_with_capacity(obj.properties.len());
+                let mut props = ArenaVec::with_capacity_in(obj.properties.len(), &self.ab);
                 let mut rest: Option<
                     oxc_allocator::Box<'a, oxc_ast::ast::AssignmentTargetRest<'a>>,
                 > = None;
@@ -1192,7 +1299,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                                 return None;
                             }
                             let target = self.assignment_target(self.arena.get_expr(*id))?;
-                            rest = Some(self.ab.alloc_assignment_target_rest(SPAN, target));
+                            rest = Some(AssignmentTargetRest::boxed(SPAN, target, &self.ab));
                         }
                         JsObjectMember::Property(p) => {
                             // Only plain `key: value` / shorthand `{ key }` /
@@ -1206,7 +1313,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                         }
                     }
                 }
-                let object = self.ab.alloc_object_assignment_target(SPAN, props, rest);
+                let object = ObjectAssignmentTarget::boxed(SPAN, props, rest, &self.ab);
                 Some(oxc_ast::ast::AssignmentTarget::ObjectAssignmentTarget(
                     object,
                 ))
@@ -1232,10 +1339,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             let binding = self.assignment_target(self.arena.get_expr(a.left))?;
             let init = self.expr_id(a.right)?;
             return Some(
-                self.ab
-                    .assignment_target_maybe_default_assignment_target_with_default(
-                        SPAN, binding, init,
-                    ),
+                AssignmentTargetMaybeDefault::new_assignment_target_with_default(
+                    SPAN, binding, init, &self.ab,
+                ),
             );
         }
         let target = self.assignment_target(expr)?;
@@ -1265,11 +1371,10 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 }
                 _ => return None,
             };
-            let binding = self.ab.identifier_reference(SPAN, self.str(name));
+            let binding = IdentifierReference::new(SPAN, self.str(name), &self.ab);
             return Some(
                 oxc_ast::ast::AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(
-                    self.ab
-                        .alloc_assignment_target_property_identifier(SPAN, binding, init),
+                    AssignmentTargetPropertyIdentifier::boxed(SPAN, binding, init, &self.ab),
                 ),
             );
         }
@@ -1279,21 +1384,20 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         let binding = self.assignment_target_maybe_default(self.arena.get_expr(p.value))?;
         Some(
             oxc_ast::ast::AssignmentTargetProperty::AssignmentTargetPropertyProperty(
-                self.ab
-                    .alloc_assignment_target_property_property(SPAN, key, binding, p.computed),
+                AssignmentTargetPropertyProperty::boxed(SPAN, key, binding, p.computed, &self.ab),
             ),
         )
     }
 
     fn object(&self, o: &JsObjectExpression) -> Option<Expression<'a>> {
-        let mut props = self.ab.vec_with_capacity(o.properties.len());
+        let mut props = ArenaVec::with_capacity_in(o.properties.len(), &self.ab);
         for member in &o.properties {
             match member {
                 JsObjectMember::SpreadElement(id) => {
                     let arg = self.expr_id(*id)?;
-                    props.push(ObjectPropertyKind::SpreadProperty(
-                        self.ab.alloc_spread_element(SPAN, arg),
-                    ));
+                    props.push(ObjectPropertyKind::SpreadProperty(SpreadElement::boxed(
+                        SPAN, arg, &self.ab,
+                    )));
                 }
                 JsObjectMember::Property(p) => {
                     let prop = self.object_property(p)?;
@@ -1301,7 +1405,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 }
             }
         }
-        Some(self.ab.expression_object(SPAN, props))
+        Some(Expression::ObjectExpression(ObjectExpression::boxed(
+            SPAN, props, &self.ab,
+        )))
     }
 
     /// Build a boxed [`ObjectProperty`] from an IR [`JsProperty`].
@@ -1350,7 +1456,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 // A computed key that is structurally an identifier or literal
                 // (`[name]: …` / `[0]: …`): build the key from that expression.
                 JsPropertyKey::Identifier(name) => {
-                    let expr = self.ab.expression_identifier(SPAN, self.str(name));
+                    let expr = Expression::new_identifier(SPAN, self.str(name), &self.ab);
                     PropertyKey::from(expr)
                 }
                 JsPropertyKey::Literal(lit) => {
@@ -1364,17 +1470,25 @@ impl<'a, 'arena> Cx<'a, 'arena> {
 
         let value = self.expr_id(p.value)?;
 
-        Some(
-            self.ab
-                .alloc_object_property(SPAN, kind, key, value, method, p.shorthand, p.computed),
-        )
+        Some(ObjectProperty::boxed(
+            SPAN,
+            kind,
+            key,
+            value,
+            method,
+            p.shorthand,
+            p.computed,
+            &self.ab,
+        ))
     }
 
     fn property_key(&self, key: &JsPropertyKey) -> Option<PropertyKey<'a>> {
         match key {
-            JsPropertyKey::Identifier(name) => {
-                Some(self.ab.property_key_static_identifier(SPAN, self.str(name)))
-            }
+            JsPropertyKey::Identifier(name) => Some(PropertyKey::new_static_identifier(
+                SPAN,
+                self.str(name),
+                &self.ab,
+            )),
             JsPropertyKey::Literal(lit) => {
                 // A literal key is the literal expression in key position.
                 let expr = self.literal(lit)?;
@@ -1394,24 +1508,35 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 // Expression-bodied arrow: the function body is a single
                 // implicit-return expression statement.
                 let expr = self.expr_id(*id)?;
-                let stmt = self.ab.statement_expression(SPAN, expr);
-                let stmts = self.ab.vec1(stmt);
-                (true, self.ab.function_body(SPAN, self.ab.vec(), stmts))
+                let stmt = Statement::ExpressionStatement(ExpressionStatement::boxed(
+                    SPAN, expr, &self.ab,
+                ));
+                let stmts = ArenaVec::from_value_in(stmt, &self.ab);
+                (
+                    true,
+                    FunctionBody::new(SPAN, ArenaVec::new_in(&self.ab), stmts, &self.ab),
+                )
             }
             JsArrowBody::Block(block) => {
                 let stmts = self.statements(&block.body)?;
-                (false, self.ab.function_body(SPAN, self.ab.vec(), stmts))
+                (
+                    false,
+                    FunctionBody::new(SPAN, ArenaVec::new_in(&self.ab), stmts, &self.ab),
+                )
             }
         };
 
-        Some(self.ab.expression_arrow_function(
-            SPAN,
-            is_expr,
-            arrow.is_async,
-            oxc_ast::NONE,
-            params,
-            oxc_ast::NONE,
-            body,
+        Some(Expression::ArrowFunctionExpression(
+            ArrowFunctionExpression::boxed(
+                SPAN,
+                is_expr,
+                arrow.is_async,
+                oxc_ast::NONE,
+                params,
+                oxc_ast::NONE,
+                body,
+                &self.ab,
+            ),
         ))
     }
 
@@ -1429,13 +1554,14 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 let callee = self.expr_id(c.callee)?;
                 let args = self.arguments(&c.arguments)?;
                 let call =
-                    self.ab
-                        .alloc_call_expression(SPAN, callee, oxc_ast::NONE, args, c.optional);
+                    CallExpression::boxed(SPAN, callee, oxc_ast::NONE, args, c.optional, &self.ab);
                 ChainElement::CallExpression(call)
             }
             _ => return None,
         };
-        Some(self.ab.expression_chain(SPAN, element))
+        Some(Expression::ChainExpression(ChainExpression::boxed(
+            SPAN, element, &self.ab,
+        )))
     }
 
     /// Build a function expression. Reuses [`formal_params`] (which bails on
@@ -1444,11 +1570,11 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         let id = func
             .id
             .as_ref()
-            .map(|name| self.ab.binding_identifier(SPAN, self.str(name)));
+            .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
         let params = self.formal_params(&func.params)?;
         let stmts = self.statements(&func.body.body)?;
-        let body = self.ab.function_body(SPAN, self.ab.vec(), stmts);
-        Some(self.ab.expression_function(
+        let body = FunctionBody::new(SPAN, ArenaVec::new_in(&self.ab), stmts, &self.ab);
+        Some(Expression::FunctionExpression(Function::boxed(
             SPAN,
             FunctionType::FunctionExpression,
             id,
@@ -1460,7 +1586,8 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             params,
             oxc_ast::NONE,
             Some(body),
-        ))
+            &self.ab,
+        )))
     }
 
     /// Convert function parameters, handling destructuring patterns and a
@@ -1468,7 +1595,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     /// pattern that cannot be faithfully reproduced, or on a rest param that is
     /// not the last parameter.
     fn formal_params(&self, params: &[JsPattern]) -> Option<oxc_ast::ast::FormalParameters<'a>> {
-        let mut items = self.ab.vec_with_capacity(params.len());
+        let mut items = ArenaVec::with_capacity_in(params.len(), &self.ab);
         let mut rest: Option<oxc_allocator::Box<'a, oxc_ast::ast::FormalParameterRest<'a>>> = None;
         let last = params.len().saturating_sub(1);
         for (i, p) in params.iter().enumerate() {
@@ -1479,19 +1606,20 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                     return None;
                 }
                 let pattern = self.binding_pattern(inner)?;
-                let rest_el = self.ab.binding_rest_element(SPAN, pattern);
-                rest = Some(self.ab.alloc_formal_parameter_rest(
+                let rest_el = BindingRestElement::new(SPAN, pattern, &self.ab);
+                rest = Some(FormalParameterRest::boxed(
                     SPAN,
-                    self.ab.vec(),
+                    ArenaVec::new_in(&self.ab),
                     rest_el,
                     oxc_ast::NONE,
+                    &self.ab,
                 ));
                 continue;
             }
             let pattern = self.binding_pattern(p)?;
-            items.push(self.ab.formal_parameter(
+            items.push(FormalParameter::new(
                 SPAN,
-                self.ab.vec(),
+                ArenaVec::new_in(&self.ab),
                 pattern,
                 oxc_ast::NONE,
                 oxc_ast::NONE,
@@ -1499,24 +1627,26 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 None,
                 false,
                 false,
+                &self.ab,
             ));
         }
-        Some(self.ab.formal_parameters(
+        Some(FormalParameters::new(
             SPAN,
             FormalParameterKind::ArrowFormalParameters,
             items,
             rest,
+            &self.ab,
         ))
     }
 
     /// Convert call/new arguments, supporting spread arguments (`f(...x)`).
     fn arguments(&self, args: &[JsExpr]) -> Option<ArenaVec<'a, Argument<'a>>> {
-        let mut out = self.ab.vec_with_capacity(args.len());
+        let mut out = ArenaVec::with_capacity_in(args.len(), &self.ab);
         for arg in args {
             let argument = match arg {
                 JsExpr::Spread(inner) => {
                     let inner = self.expr_id(*inner)?;
-                    self.ab.argument_spread_element(SPAN, inner)
+                    Argument::new_spread_element(SPAN, inner, &self.ab)
                 }
                 other => Argument::from(self.expr(other)?),
             };
