@@ -62,6 +62,17 @@ jobs:
           echo "Found changeset(s):"
           echo "$added"
 
+      - name: Require consumer changesets for shared-core changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          SKIP: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changeset') }}
+        shell: bash
+        # A single Rust crate (rsvelte_core) is compiled into several separate
+        # npm artifacts (compiler, svelte-check, vite-plugin-svelte-native, …).
+        # Some share no npm dependency edge, so Changesets can't cascade a core
+        # change between them — each must be named explicitly or it ships stale.
+        run: node scripts/release/check-core-consumer-changesets.mjs
+
   fmt:
     name: Format
     runs-on: ubuntu-latest
