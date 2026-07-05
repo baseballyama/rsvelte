@@ -175,7 +175,7 @@ pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'
         state.slot_let_shadows.push(each_shadow);
     }
     // EachBlock body IS an `is_text_first` parent (upstream `clean_nodes`).
-    each_body.extend(build_fragment_body(&node.body, true, state));
+    each_body.extend(build_fragment_body(&node.body, true, false, state));
     if pushed_shadow {
         state.slot_let_shadows.pop();
         state.shadowed_names.pop();
@@ -205,7 +205,7 @@ pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'
         // EachBlock node, so it IS an `is_text_first` parent (upstream
         // `clean_nodes`: `parent.type === 'EachBlock'`) — a text-first fallback
         // gets a leading `<!---->` anchor, same as the loop body.
-        let mut fallback_body = build_fragment_body(fallback, true, state);
+        let mut fallback_body = build_fragment_body(fallback, true, false, state);
         let b = state.b;
         let open_else_push = b.stmt(b.call("$$renderer.push", vec![b.string(BLOCK_OPEN_ELSE)]));
         fallback_body.insert(0, open_else_push);

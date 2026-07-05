@@ -968,9 +968,17 @@ pub fn build_template<'a>(
 /// (root), SnippetBlock, EachBlock, Component / SvelteSelf / SvelteComponent,
 /// SvelteBoundary — and `false` for IfBlock / KeyBlock / AwaitBlock / SvelteHead
 /// / SvelteElement / SvelteFragment / TitleElement bodies.
+/// `reset_namespace` — true when this fragment's parent is a namespace-RESETTING
+/// parent (Root / Component / SnippetBlock / SlotElement). Those run the deep
+/// `check_nodes_for_namespace` (svg/html elements nested inside `{#if}` /
+/// `{#each}` blocks are visible); block-body fragments (`{#if}` / `{#each}` /
+/// `{#key}` / `{#await}` arms) pass `false` and keep the shallow direct-child
+/// inference — mirroring upstream `infer_namespace`, which only runs the deep
+/// check for the reset-parent kinds.
 pub fn build_fragment_body<'a>(
     fragment: &Fragment,
     is_text_first_parent: bool,
+    reset_namespace: bool,
     state: &mut ServerTransformState<'a>,
 ) -> Vec<Statement<'a>> {
     // Fragment-level bodies (root component, block bodies, `<svelte:head>` /
@@ -1031,7 +1039,11 @@ pub fn build_fragment_body<'a>(
     // whitespace text node, emitting a spurious trailing space in the SSR markup
     // (issue #1227). The root component fragment has `state.namespace == "html"`,
     // so its default is unchanged.
-    let fragment_namespace = infer_namespace_from_nodes_owned(&fragment.nodes, state.namespace);
+    let fragment_namespace = if reset_namespace {
+        infer_namespace_reset(&fragment.nodes, state.namespace)
+    } else {
+        infer_namespace_from_nodes_owned(&fragment.nodes, state.namespace)
+    };
     process_children_inner(
         &fragment.nodes,
         None,
@@ -1188,7 +1200,10 @@ pub fn build_fragment_block<'a>(
     is_text_first_parent: bool,
     state: &mut ServerTransformState<'a>,
 ) -> Statement<'a> {
-    let body = build_fragment_body(fragment, is_text_first_parent, state);
+    // Block visitors (IfBlock / EachBlock / KeyBlock / AwaitBlock) are NOT
+    // namespace-resetting parents upstream, so they keep the shallow direct-child
+    // inference (`reset_namespace = false`).
+    let body = build_fragment_body(fragment, is_text_first_parent, false, state);
     state.b.block(body)
 }
 
@@ -1641,6 +1656,150 @@ pub(crate) fn locate_in_source(source: &str, offset: usize) -> (usize, usize) {
 /// html-context fragment to svg — that mirrors upstream, where `infer_namespace`
 /// only runs `check_nodes_for_namespace` when the parent is a
 /// Fragment/Component/SnippetBlock, not an `{#if}` / `{#each}` block.
+/// Deep namespace check — port of upstream `check_nodes_for_namespace`
+/// (utils.js). Walks INTO block bodies (`{#if}` / `{#each}` / `{#await}` /
+/// `{#key}` fragments) but NOT into element children, checking each
+/// `RegularElement` / `SvelteElement`'s static namespace. Runs ONLY for
+/// namespace-resetting parents (Root / Fragment / Component / SnippetBlock /
+/// SlotElement) — mirroring upstream `infer_namespace`, which invokes it just
+/// for those parent kinds, not for `{#if}` / `{#each}` block-body fragments
+/// (those keep the shallow direct-child inference; see #1227).
+///
+/// Returns a definitive `svg`/`mathml`/`html` when the walk resolves one, or
+/// `None` (upstream's `'keep'` / `'maybe_html'`) so the caller falls back to the
+/// shallow direct-child inference (`infer_namespace_from_nodes_owned`), exactly
+/// as upstream falls through to its element loop.
+#[derive(Clone, Copy, PartialEq)]
+enum NsCheck {
+    Keep,
+    MaybeHtml,
+    Svg,
+    Mathml,
+    Html,
+}
+
+fn check_ns_element(svg: bool, mathml: bool, ns: &mut NsCheck) {
+    // 写经 upstream `RegularElement` handler in `check_nodes_for_namespace`.
+    if !svg && !mathml {
+        *ns = NsCheck::Html;
+    } else if *ns == NsCheck::Keep {
+        *ns = if svg { NsCheck::Svg } else { NsCheck::Mathml };
+    }
+}
+
+fn check_ns_walk(node: &TemplateNode, ns: &mut NsCheck) {
+    if *ns == NsCheck::Html {
+        return;
+    }
+    match node {
+        TemplateNode::RegularElement(el) => {
+            // Element metadata carries the analysis-resolved namespace; do NOT
+            // recurse into its children (upstream's RegularElement handler never
+            // calls `next()`).
+            check_ns_element(el.metadata.svg, el.metadata.mathml, ns);
+        }
+        // `<svelte:element>` has no statically-resolved svg/mathml metadata in
+        // rsvelte (upstream reads `node.metadata.svg`, which we cannot recover
+        // here). Treat it as INCONCLUSIVE rather than forcing `html`: forcing
+        // html would wrongly flip a fragment whose namespace comes from
+        // `<svelte:options namespace="svg">` (e.g. `<svelte:element this="svg">`
+        // siblings of a real `<svg>`), keeping whitespace upstream removes. A
+        // real `<svg>` / `<div>` RegularElement sibling still drives the verdict;
+        // absent one, the shallow direct-child fallback inherits the parent
+        // namespace — matching upstream's element loop, which skips SvelteElement.
+        TemplateNode::SvelteElement(_) => {}
+        TemplateNode::Text(t) => {
+            // 写经 upstream Text handler: any non-whitespace text is inconclusive
+            // (`maybe_html`), deferring to the shallow direct-child inference.
+            if !is_svelte_whitespace_only(&t.data) {
+                *ns = NsCheck::MaybeHtml;
+            }
+        }
+        TemplateNode::IfBlock(b) => {
+            for n in &b.consequent.nodes {
+                check_ns_walk(n, ns);
+                if *ns == NsCheck::Html {
+                    return;
+                }
+            }
+            if let Some(alt) = &b.alternate {
+                for n in &alt.nodes {
+                    check_ns_walk(n, ns);
+                    if *ns == NsCheck::Html {
+                        return;
+                    }
+                }
+            }
+        }
+        TemplateNode::EachBlock(b) => {
+            for n in &b.body.nodes {
+                check_ns_walk(n, ns);
+                if *ns == NsCheck::Html {
+                    return;
+                }
+            }
+            if let Some(fallback) = &b.fallback {
+                for n in &fallback.nodes {
+                    check_ns_walk(n, ns);
+                    if *ns == NsCheck::Html {
+                        return;
+                    }
+                }
+            }
+        }
+        TemplateNode::AwaitBlock(b) => {
+            for frag in [b.pending.as_ref(), b.then.as_ref(), b.catch.as_ref()]
+                .into_iter()
+                .flatten()
+            {
+                for n in &frag.nodes {
+                    check_ns_walk(n, ns);
+                    if *ns == NsCheck::Html {
+                        return;
+                    }
+                }
+            }
+        }
+        TemplateNode::KeyBlock(b) => {
+            for n in &b.fragment.nodes {
+                check_ns_walk(n, ns);
+                if *ns == NsCheck::Html {
+                    return;
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn check_nodes_for_namespace(nodes: &[TemplateNode]) -> NsCheck {
+    let mut ns = NsCheck::Keep;
+    for node in nodes {
+        check_ns_walk(node, &mut ns);
+        if ns == NsCheck::Html {
+            return ns;
+        }
+    }
+    ns
+}
+
+/// Infer a fragment's namespace for a namespace-RESETTING parent (Root /
+/// Fragment / Component / SnippetBlock / SlotElement). Runs the deep
+/// `check_nodes_for_namespace` first (which sees svg/html elements nested
+/// inside `{#if}` / `{#each}` blocks); a definitive verdict wins, otherwise
+/// falls back to the shallow direct-child inference. 写经 upstream
+/// `infer_namespace`'s reset-parent branch + element-loop fall-through.
+pub(crate) fn infer_namespace_reset(nodes: &[TemplateNode], parent_namespace: &str) -> String {
+    match check_nodes_for_namespace(nodes) {
+        NsCheck::Svg => "svg".to_string(),
+        NsCheck::Mathml => "mathml".to_string(),
+        NsCheck::Html => "html".to_string(),
+        NsCheck::Keep | NsCheck::MaybeHtml => {
+            infer_namespace_from_nodes_owned(nodes, parent_namespace)
+        }
+    }
+}
+
 pub(crate) fn infer_namespace_from_nodes_owned(
     nodes: &[TemplateNode],
     parent_namespace: &str,

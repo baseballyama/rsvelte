@@ -78,7 +78,7 @@ pub fn visit_snippet_block<'a>(node: &SnippetBlock, state: &mut ServerTransformS
     // Body: render the fragment as a `{ ... }` block, then reuse its statements
     // as the function body.
     // SnippetBlock body IS an `is_text_first` parent (upstream `clean_nodes`).
-    let body_block = super::shared::build_fragment_body(&node.body, true, state);
+    let body_block = super::shared::build_fragment_body(&node.body, true, true, state);
     let fn_body = b.body(body_block);
 
     state.shadowed_names.pop();
