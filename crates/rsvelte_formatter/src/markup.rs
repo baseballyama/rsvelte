@@ -95,7 +95,7 @@ fn is_empty_fragment(fragment: &Fragment) -> bool {
     fragment
         .nodes
         .iter()
-        .all(|n| matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))
+        .all(|n| matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())))
 }
 
 fn collect_node_open_tag_edits(
@@ -1631,9 +1631,13 @@ fn render_single_expression_value(
         let indent_cols = attr_depth * indent_width;
         let line_width = options.js.line_width.value() as usize;
         if !formatted.contains('\n') {
-            // Single-line: check if the full rendered line overflows
-            // (`{` and `}` each count as 1 char around the expression)
-            if indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width {
+            // Single-line: check if the full rendered line `indent + name={value}`
+            // overflows. `prefix` (`name.len() + 2`) already covers `name={`
+            // INCLUDING the opening `{`, so only the closing `}` adds one more
+            // column beyond the value — counting `{` again here would over-report
+            // the width by one and wrongly break a value that fills exactly to the
+            // print width (an 80-column `disabledDates={[…]}` line).
+            if indent_cols + prefix + visual_width(&formatted) + 1 > line_width {
                 if is_shallow_value(inner_src) {
                     // For a shallow expression (call / ternary / binary / logical chain),
                     // first try re-formatting with `extra_lead = prefix`.  If that
