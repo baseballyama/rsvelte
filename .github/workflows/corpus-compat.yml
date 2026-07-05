@@ -1,4 +1,4 @@
-name: corpus-compat
+name: Corpus Compat
 
 # Compiles every .svelte / .svelte.(js|ts) source (including markdown code
 # blocks) from every corpus source repository — sveltejs/svelte, sveltejs/
@@ -116,7 +116,7 @@ on:
       - '.github/workflows/corpus-compat.yml'
 
 concurrency:
-  group: corpus-compat-${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -135,7 +135,7 @@ env:
 
 jobs:
   corpus:
-    name: Corpus compatibility
+    name: Compiler parity
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -202,7 +202,7 @@ jobs:
           # timeout/failure left the cache cold forever and every later run
           # recompiled from scratch and could time out again. Saving on failure
           # preserves the compiled `target/` and breaks that deadlock (mirrors
-          # the same fix in bench.yml).
+          # the same fix in benchmark.yml).
           cache-on-failure: true
 
       - name: Build rsvelte NAPI binding

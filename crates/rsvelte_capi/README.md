@@ -21,7 +21,7 @@ shared library + one header that **any** language with a C FFI can call
 | .NET (C# / F#)    | `[DllImport]` / `LibraryImport`          | applicable             | —       |
 | Swift             | bridging header                          | applicable             | —       |
 
-The CI workflow (`.github/workflows/rsvelte-capi.yml`) runs on Linux,
+The CI workflow (`.github/workflows/capi.yml`) runs on Linux,
 macOS, and Windows: the cargo test suite + the C smoke gate every PR that
 touches the C ABI or the compiler, while the other language smokes run on
 push to `main` and manual dispatch (Zig is temporarily out of CI until

@@ -1,4 +1,4 @@
-name: auto-update-oxfmt
+name: Auto-update oxfmt
 
 # Auto-follow new `oxfmt` npm releases. `oxfmt` is the engine rsvelte delegates
 # inline `<style>` CSS (and standalone md/yaml/toml/html) to, pinned with a

@@ -1,4 +1,4 @@
-name: rsvelte_capi (C ABI)
+name: C ABI
 
 # Tests the C FFI surface on Linux, macOS, and Windows:
 #  - Build the cdylib + verify the committed include/rsvelte.h matches
@@ -22,7 +22,7 @@ on:
       - 'crates/rsvelte_core/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
-      - '.github/workflows/rsvelte-capi.yml'
+      - '.github/workflows/capi.yml'
   pull_request:
     branches: [main]
     paths:
@@ -30,7 +30,7 @@ on:
       - 'crates/rsvelte_core/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
-      - '.github/workflows/rsvelte-capi.yml'
+      - '.github/workflows/capi.yml'
   workflow_dispatch:
 
 concurrency:
@@ -59,34 +59,22 @@ jobs:
   # still runs on push to `main` and on demand, so a Windows-specific ABI
   # regression is caught before the next release. Mirrors CI dropping macOS from
   # its PR test matrix.
-  set-matrix:
-    name: Set capi matrix
-    runs-on: ubuntu-latest
-    timeout-minutes: 1
-    outputs:
-      include: ${{ steps.m.outputs.include }}
-    steps:
-      - id: m
-        shell: bash
-        run: |
-          ubuntu='{"os":"ubuntu-latest","lib":"librsvelte_capi.so","exe_ext":""}'
-          macos='{"os":"macos-latest","lib":"librsvelte_capi.dylib","exe_ext":""}'
-          windows='{"os":"windows-latest","lib":"rsvelte_capi.dll","exe_ext":".exe"}'
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "include=[$ubuntu,$macos]" >> "$GITHUB_OUTPUT"
-          else
-            echo "include=[$ubuntu,$macos,$windows]" >> "$GITHUB_OUTPUT"
-          fi
-
   capi:
-    name: capi (${{ matrix.os }})
-    needs: set-matrix
+    name: C ABI (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
+      # The OS list is computed inline via a parse-time conditional rather than
+      # in a separate `set-matrix` job: that job added a full job's queue +
+      # startup (~1 min) to the serial path before any build could begin. This
+      # expression is evaluated at workflow-parse time so the matrix legs start
+      # immediately (mirrors the `test` job in ci.yml). PRs drop Windows (see the
+      # comment above); pushes and manual runs get all three OSes.
       matrix:
-        include: ${{ fromJSON(needs.set-matrix.outputs.include) }}
+        include: ${{ github.event_name == 'pull_request'
+          && fromJSON('[{"os":"ubuntu-latest","lib":"librsvelte_capi.so","exe_ext":""},{"os":"macos-latest","lib":"librsvelte_capi.dylib","exe_ext":""}]')
+          || fromJSON('[{"os":"ubuntu-latest","lib":"librsvelte_capi.so","exe_ext":""},{"os":"macos-latest","lib":"librsvelte_capi.dylib","exe_ext":""},{"os":"windows-latest","lib":"rsvelte_capi.dll","exe_ext":".exe"}]') }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

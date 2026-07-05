@@ -1,4 +1,4 @@
-name: Release rsvelte_capi
+name: Release C ABI
 
 # Cut a versioned release of the C ABI bindings.
 #
@@ -35,7 +35,7 @@ env:
 
 jobs:
   build:
-    name: build (${{ matrix.triple }})
+    name: Build (${{ matrix.triple }})
     strategy:
       fail-fast: false
       matrix:
