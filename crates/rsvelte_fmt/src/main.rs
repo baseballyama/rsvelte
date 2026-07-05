@@ -16,7 +16,8 @@ use oxc_formatter::JsFormatOptions;
 use oxc_formatter_core::{IndentStyle, IndentWidth, LineWidth};
 use rayon::prelude::*;
 use rsvelte_formatter::{
-    FormatOptions, JsonFormatOptions, JsonVariant, SortOrderSpec, format, format_js_source,
+    CssFormatOptions, CssSingleQuote, CssTrailingCommas, FormatOptions, JsonFormatOptions,
+    JsonVariant, SortOrderSpec, css_variant_from_lang, format, format_css_source, format_js_source,
     format_json_source, reindent,
 };
 
@@ -98,6 +99,15 @@ struct Cli {
     /// an escape hatch if a divergence is ever found.
     #[arg(long)]
     no_native_js: bool,
+
+    /// Format CSS in-process via `oxc_formatter_css` — this covers both embedded
+    /// `<style>` blocks in `.svelte` files and standalone `.css`/`.scss`/`.less`
+    /// files — by delegating to `oxfmt` instead. The in-process path is
+    /// byte-identical (same engine) but avoids the per-block/`per-file` `oxfmt`
+    /// subprocess (and the staging/daemon/cache machinery it needs); this flag is
+    /// an escape hatch if a divergence is ever found.
+    #[arg(long)]
+    no_native_css: bool,
 }
 
 const SVELTE_EXT: &str = "svelte";
@@ -124,6 +134,18 @@ fn is_native_json(p: &Path) -> bool {
     p.extension()
         .and_then(OsStr::to_str)
         .is_some_and(|e| NATIVE_JSON_EXTS.contains(&e))
+}
+
+/// Extensions formatted in-process via `oxc_formatter_css` (the same engine
+/// `oxfmt` uses for these files, so byte-identical) — brace-based CSS dialects
+/// only. `.sass`/`.styl` (indented syntax) aren't handled by `oxc_formatter_css`
+/// and stay delegated to `oxfmt`.
+const NATIVE_CSS_EXTS: &[&str] = &["css", "scss", "less"];
+
+fn is_native_css(p: &Path) -> bool {
+    p.extension()
+        .and_then(OsStr::to_str)
+        .is_some_and(|e| NATIVE_CSS_EXTS.contains(&e))
 }
 
 /// `package.json` needs oxfmt's `sortPackageJson`; never format it natively.
@@ -251,6 +273,11 @@ const OXFMT_EXCLUDE_NATIVE_JS: &[&str] = &[
 /// `sortPackageJson` pass) and any native parse-error fallbacks.
 const OXFMT_EXCLUDE_NATIVE_JSON: &[&str] = &["!**/*.json", "!**/*.jsonc", "!**/*.json5"];
 
+/// oxfmt exclude globs that keep the native-CSS set out of the delegated
+/// directory pass — those are formatted in-process. One per extension in
+/// [`NATIVE_CSS_EXTS`]; only added when the native-CSS path is enabled.
+const OXFMT_EXCLUDE_NATIVE_CSS: &[&str] = &["!**/*.css", "!**/*.scss", "!**/*.less"];
+
 fn main() -> ExitCode {
     match run() {
         Ok(code) => code,
@@ -310,9 +337,10 @@ fn run() -> Result<ExitCode> {
     }
 
     let native_js = !cli.no_native_js;
+    let native_css = !cli.no_native_css;
     let ignore = oxfmt_ignore::SvelteIgnore::from_config(&cwd, &cfg)?;
-    let (svelte, native, native_json, oxfmt_paths) =
-        partition_files(&cli.paths, &ignore, &cwd, native_js)?;
+    let (svelte, native, native_json, native_css_files, oxfmt_paths) =
+        partition_files(&cli.paths, &ignore, &cwd, native_js, native_css)?;
 
     let mode = if cli.check { Mode::Check } else { Mode::Write };
 
@@ -327,39 +355,68 @@ fn run() -> Result<ExitCode> {
     let base_print_width = cli.print_width.or(cfg.print_width).unwrap_or(80);
     let json_resolver = JsonOptionsResolver::new(json_options, base_print_width, &cfg, &cwd);
 
+    // Per-file CSS options resolver (native CSS; overrides + over-width delegate
+    // to oxfmt, mirroring native JSON).
+    let css_options = build_css_options(&cli, &cfg);
+    let css_resolver = CssOptionsResolver::new(css_options, base_print_width, &cfg, &cwd);
+
     // Run the pipelines in parallel: the oxfmt subprocess overlaps with the
-    // in-process Svelte, native-JS, and native-JSON formatters.
+    // in-process Svelte, native-JS, native-JSON, and native-CSS formatters.
     let use_style_cache = !cli.no_style_cache;
     let exclude_native = native_js && !native.is_empty();
     let exclude_native_json = native_js && !native_json.is_empty();
-    let ((svelte_result, native_result), (json_result, oxfmt_result)) = rayon::join(
+    let exclude_native_css = native_css && !native_css_files.is_empty();
+    let (((svelte_result, native_result), (json_result, css_result)), oxfmt_result) = rayon::join(
         || {
             rayon::join(
                 || {
-                    run_svelte_files(
-                        &svelte,
-                        &options,
-                        &cli.oxfmt_bin,
-                        &cfg,
-                        mode,
-                        use_style_cache,
+                    rayon::join(
+                        || {
+                            run_svelte_files(
+                                &svelte,
+                                &options,
+                                &cli.oxfmt_bin,
+                                &cfg,
+                                mode,
+                                use_style_cache,
+                                native_css,
+                            )
+                        },
+                        || run_native_js(&native, &resolver, &cwd, &cli.oxfmt_bin, mode),
                     )
                 },
-                || run_native_js(&native, &resolver, &cwd, &cli.oxfmt_bin, mode),
+                || {
+                    rayon::join(
+                        || {
+                            run_native_json(
+                                &native_json,
+                                &json_resolver,
+                                &cwd,
+                                &cli.oxfmt_bin,
+                                mode,
+                            )
+                        },
+                        || {
+                            run_native_css(
+                                &native_css_files,
+                                &css_resolver,
+                                &cwd,
+                                &cli.oxfmt_bin,
+                                mode,
+                            )
+                        },
+                    )
+                },
             )
         },
         || {
-            rayon::join(
-                || run_native_json(&native_json, &json_resolver, &cwd, &cli.oxfmt_bin, mode),
-                || {
-                    run_oxfmt(
-                        &oxfmt_paths,
-                        &cli.oxfmt_bin,
-                        mode,
-                        exclude_native,
-                        exclude_native_json,
-                    )
-                },
+            run_oxfmt(
+                &oxfmt_paths,
+                &cli.oxfmt_bin,
+                mode,
+                exclude_native,
+                exclude_native_json,
+                exclude_native_css,
             )
         },
     );
@@ -367,8 +424,12 @@ fn run() -> Result<ExitCode> {
     let svelte_status = svelte_result?;
     let native_status = native_result?;
     let json_status = json_result?;
+    let css_status = css_result?;
     let oxfmt_status = oxfmt_result?;
-    let combined = svelte_status.merge(native_status).merge(json_status);
+    let combined = svelte_status
+        .merge(native_status)
+        .merge(json_status)
+        .merge(css_status);
     print_summary(&combined, &oxfmt_status, mode);
     Ok(combine(combined, oxfmt_status, mode))
 }
@@ -479,12 +540,18 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> FormatOptions {
         );
     }
 
+    // Embedded `<style>` blocks are formatted in-process via `oxc_formatter_css`
+    // by default (same engine as `oxfmt`, no subprocess). `--no-native-css`
+    // reverts to spawning `oxfmt`, which the batched Svelte pipeline drives.
+    let style_formatter = if cli.no_native_css {
+        make_oxfmt_style_formatter(cli.oxfmt_bin.clone(), cfg.path.clone())
+    } else {
+        rsvelte_formatter::native_style_formatter(build_css_options(cli, cfg))
+    };
+
     FormatOptions {
         js,
-        style_formatter: Some(make_oxfmt_style_formatter(
-            cli.oxfmt_bin.clone(),
-            cfg.path.clone(),
-        )),
+        style_formatter: Some(style_formatter),
         // `format` derives this per-document from `<script lang="ts">`.
         typescript: false,
         single_attribute_per_line: cfg.single_attribute_per_line.unwrap_or(false),
@@ -523,6 +590,45 @@ fn build_json_options(cli: &Cli, cfg: &OxfmtConfig) -> JsonFormatOptions {
     if let Some(spacing) = cfg.bracket_spacing {
         opts.bracket_spacing = spacing.into();
     }
+    opts
+}
+
+/// The base [`CssFormatOptions`] for the native-CSS path: width/indent/EOL
+/// resolved exactly as the JS/JSON paths, plus `singleQuote` / `trailingComma`
+/// (the only Prettier keys the CSS languages consume). `variant` is set per
+/// file/block by the caller; `line_width` is narrowed per embedded `<style>`
+/// block to its column.
+fn build_css_options(cli: &Cli, cfg: &OxfmtConfig) -> CssFormatOptions {
+    let use_tabs = cli.use_tabs || cfg.use_tabs.unwrap_or(false);
+    let indent_style = if use_tabs {
+        IndentStyle::Tab
+    } else {
+        IndentStyle::Space
+    };
+    let tab_width = cli.tab_width.or(cfg.tab_width).unwrap_or(2);
+    let print_width = cli.print_width.or(cfg.print_width).unwrap_or(80);
+    let indent_width = IndentWidth::try_from(tab_width).unwrap_or_default();
+    let line_width = LineWidth::try_from(print_width).unwrap_or_default();
+
+    let mut opts = CssFormatOptions {
+        indent_style,
+        indent_width,
+        line_width,
+        ..CssFormatOptions::default()
+    };
+    if let Some(eol) = cfg.end_of_line {
+        opts.line_ending = eol;
+    }
+    if let Some(single) = cfg.single_quote {
+        opts.single_quote = CssSingleQuote::from(single);
+    }
+    // Prettier's `trailingComma` reaches only multi-line SCSS maps for CSS:
+    // `none` → no trailing comma, everything else (`all`/`es5`, or the unset
+    // default) → trailing comma. Matches `oxc_formatter_css`'s own default.
+    opts.trailing_commas = match cfg.trailing_comma {
+        Some(oxc_formatter::TrailingCommas::None) => CssTrailingCommas::Never,
+        _ => CssTrailingCommas::Always,
+    };
     opts
 }
 
@@ -637,6 +743,37 @@ fn run_stdin(cli: &Cli, options: &FormatOptions, cfg: &OxfmtConfig) -> Result<Ex
             .write_all(formatted.as_bytes())
             .context("failed to write stdout")?;
         Ok(ExitCode::SUCCESS)
+    } else if !cli.no_native_css && is_native_css(filepath) {
+        // Standalone `.css`/`.scss`/`.less` on stdin: format in-process via
+        // `oxc_formatter_css` (same engine as oxfmt). A parse error defers to
+        // oxfmt so coverage matches delegation exactly.
+        let ext = filepath
+            .extension()
+            .and_then(OsStr::to_str)
+            .unwrap_or("css");
+        let variant = css_variant_from_lang(ext);
+        match format_css_source(&source, variant, &build_css_options(cli, cfg)) {
+            Ok(formatted) => {
+                if cli.check {
+                    return Ok(if formatted == source {
+                        ExitCode::SUCCESS
+                    } else {
+                        ExitCode::from(1)
+                    });
+                }
+                io::stdout()
+                    .write_all(formatted.as_bytes())
+                    .context("failed to write stdout")?;
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(_) => oxfmt_stdin(
+                &cli.oxfmt_bin,
+                cfg.path.as_deref(),
+                filepath,
+                &source,
+                cli.check,
+            ),
+        }
     } else {
         // Pass through to oxfmt via stdin.
         oxfmt_stdin(
@@ -696,15 +833,24 @@ fn oxfmt_stdin(
 /// …) — the same coverage as `oxfmt .` — while a `!**/*.svelte` exclude (added
 /// in [`run_oxfmt`]) keeps the Svelte files for us. Non-`.svelte` file
 /// arguments are passed straight through. See #694.
+#[allow(clippy::type_complexity)]
 fn partition_files(
     roots: &[PathBuf],
     ignore: &oxfmt_ignore::SvelteIgnore,
     cwd: &Path,
     native_js: bool,
-) -> Result<(Vec<PathBuf>, Vec<PathBuf>, Vec<PathBuf>, Vec<PathBuf>)> {
+    native_css: bool,
+) -> Result<(
+    Vec<PathBuf>,
+    Vec<PathBuf>,
+    Vec<PathBuf>,
+    Vec<PathBuf>,
+    Vec<PathBuf>,
+)> {
     let mut svelte = Vec::new();
     let mut native = Vec::new();
     let mut native_json = Vec::new();
+    let mut native_css_files = Vec::new();
     let mut oxfmt_paths = Vec::new();
     for root in roots {
         let meta = std::fs::metadata(root)
@@ -749,6 +895,10 @@ fn partition_files(
                     // JSON (incl. `package.json`) goes to the native-JSON pass;
                     // `package.json` is re-delegated to oxfmt there.
                     native_json.push(entry.into_path());
+                } else if native_css && is_native_css(path) && !ignore.is_ignored(path, false) {
+                    // `.css`/`.scss`/`.less` go to the native-CSS pass; parse
+                    // errors are re-delegated to oxfmt there.
+                    native_css_files.push(entry.into_path());
                 }
             }
             oxfmt_paths.push(root.clone());
@@ -782,11 +932,21 @@ fn partition_files(
             if !ignore.is_ignored(&abs, false) {
                 native_json.push(root.clone());
             }
+        } else if native_css && is_native_css(root) {
+            // Single explicit `.css`/`.scss`/`.less` file — native-CSS pass.
+            let abs = if root.is_absolute() {
+                root.clone()
+            } else {
+                cwd.join(root)
+            };
+            if !ignore.is_ignored(&abs, false) {
+                native_css_files.push(root.clone());
+            }
         } else {
             oxfmt_paths.push(root.clone());
         }
     }
-    Ok((svelte, native, native_json, oxfmt_paths))
+    Ok((svelte, native, native_json, native_css_files, oxfmt_paths))
 }
 
 fn is_svelte(p: &Path) -> bool {
@@ -859,8 +1019,76 @@ fn substitute_style(out: &mut String, placeholder: &str, css: &str) {
     }
 }
 
+/// Format every `.svelte` file in parallel with the in-process native `<style>`
+/// formatter already wired into `options`. No `oxfmt` subprocess is involved, so
+/// there's nothing to batch — each file formats end-to-end (markup + `<script>`
+/// + `<style>`) in one pass. Used whenever native CSS is enabled (the default).
+fn run_svelte_files_native(
+    files: &[PathBuf],
+    options: &FormatOptions,
+    mode: Mode,
+) -> Result<PipelineStatus> {
+    let outcomes: Vec<(PathBuf, NativeOutcome)> = files
+        .par_iter()
+        .map(|path| {
+            let source = match std::fs::read_to_string(path) {
+                Ok(s) => s,
+                Err(e) => {
+                    return (
+                        path.clone(),
+                        NativeOutcome::Error(format!("reading {}: {e}", path.display())),
+                    );
+                }
+            };
+            match format(&source, options) {
+                Ok(out) if out == source => (path.clone(), NativeOutcome::Unchanged),
+                Ok(out) => match mode {
+                    Mode::Write => match std::fs::write(path, &out) {
+                        Ok(()) => (path.clone(), NativeOutcome::Changed),
+                        Err(e) => (
+                            path.clone(),
+                            NativeOutcome::Error(format!("writing {}: {e}", path.display())),
+                        ),
+                    },
+                    Mode::Check => (path.clone(), NativeOutcome::Changed),
+                },
+                Err(e) => (
+                    path.clone(),
+                    NativeOutcome::Error(format!("rsvelte_formatter error: {e}")),
+                ),
+            }
+        })
+        .collect();
+
+    let mut status = PipelineStatus {
+        files_total: files.len(),
+        ..PipelineStatus::default()
+    };
+    for (path, outcome) in outcomes {
+        match outcome {
+            NativeOutcome::Changed => {
+                if matches!(mode, Mode::Check) {
+                    println!("would format {}", path.display());
+                }
+                status.files_changed += 1;
+            }
+            NativeOutcome::Unchanged => {}
+            // The Svelte pass has no oxfmt fallback: a `.svelte` file that fails
+            // to parse is a hard error (there's no other engine that formats it).
+            // `run_svelte_files_native` never yields `Fallback`; it's covered for
+            // exhaustiveness only.
+            NativeOutcome::Error(e) => {
+                eprintln!("rsvelte-fmt: {}: {e}", path.display());
+                status.had_errors = true;
+            }
+            NativeOutcome::Fallback => status.had_errors = true,
+        }
+    }
+    Ok(status)
+}
+
 /// Format every `.svelte` file, batching all their `<style>` bodies into a
-/// single `oxfmt` invocation.
+/// single `oxfmt` invocation. Used only under `--no-native-css`.
 ///
 /// The naive path spawns `oxfmt` once per `<style>` block — and since the
 /// consumer's `oxfmt` is a Node launcher, every spawn pays a fresh Node
@@ -875,7 +1103,16 @@ fn run_svelte_files(
     cfg: &OxfmtConfig,
     mode: Mode,
     use_style_cache: bool,
+    native_css: bool,
 ) -> Result<PipelineStatus> {
+    // Native CSS path: `<style>` bodies format in-process via `options`'
+    // native style callback, so there's no `oxfmt` subprocess to amortize —
+    // format each file directly in parallel, skipping the collect/batch/cache/
+    // daemon machinery entirely (that exists only to batch `oxfmt` spawns).
+    if native_css {
+        return run_svelte_files_native(files, options, mode);
+    }
+
     // ── Pass 1: format in parallel, collecting <style> bodies ──
     let pass1: Vec<Pass1> = files
         .par_iter()
@@ -1405,7 +1642,7 @@ fn run_native_js(
     // counted in `files_total`; a parse-error file the fallback also can't
     // handle surfaces oxfmt's own diagnostics.
     if !fallback.is_empty() {
-        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false)?;
+        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false)?;
         status.files_changed += fb.files_changed;
         status.had_errors |= fb.had_errors;
     }
@@ -1552,7 +1789,148 @@ fn run_native_json(
     // Explicit paths with no native excludes, so oxfmt formats exactly these
     // (and applies `sortPackageJson` to any `package.json`).
     if !fallback.is_empty() {
-        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false)?;
+        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false)?;
+        status.files_changed += fb.files_changed;
+        status.had_errors |= fb.had_errors;
+    }
+
+    Ok(status)
+}
+
+// ─── native CSS pipeline ──────────────────────────────────────────────────
+
+/// Resolves the per-file [`CssFormatOptions`] for the native-CSS path. Like the
+/// native-JSON resolver, a file matched by any `.oxfmtrc` override — or any file
+/// when the base `printWidth` exceeds `oxc_formatter_core`'s max (320) — is
+/// delegated to `oxfmt` rather than risk a mismatch.
+struct CssOptionsResolver {
+    base: CssFormatOptions,
+    /// Base `printWidth` exceeds the native max (320) — can't represent natively.
+    over_width: bool,
+    /// Override glob matchers (rooted at the config dir). Any match → delegate.
+    overrides: Vec<Gitignore>,
+}
+
+impl CssOptionsResolver {
+    fn new(base: CssFormatOptions, base_print_width: u16, cfg: &OxfmtConfig, cwd: &Path) -> Self {
+        let dir = cfg
+            .config_dir()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| cwd.to_path_buf());
+        let overrides = cfg
+            .overrides
+            .iter()
+            .filter_map(|ov| {
+                let mut builder = GitignoreBuilder::new(&dir);
+                for glob in &ov.files {
+                    let _ = builder.add_line(None, glob);
+                }
+                builder.build().ok()
+            })
+            .collect();
+        Self {
+            base,
+            over_width: base_print_width > LINE_WIDTH_MAX,
+            overrides,
+        }
+    }
+
+    /// The native options for `abs_path`, or `None` to delegate it to `oxfmt`.
+    fn for_path(&self, abs_path: &Path) -> Option<CssFormatOptions> {
+        if self.over_width {
+            return None;
+        }
+        if self
+            .overrides
+            .iter()
+            .any(|m| m.matched(abs_path, false).is_ignore())
+        {
+            return None;
+        }
+        Some(self.base)
+    }
+}
+
+/// Format `.css`/`.scss`/`.less` in-process via `oxc_formatter_css` (the same
+/// engine `oxfmt` uses, so byte-identical), in parallel. Files an override
+/// touches and parse errors fall back to a single `oxfmt` invocation so coverage
+/// matches delegation.
+fn run_native_css(
+    files: &[PathBuf],
+    resolver: &CssOptionsResolver,
+    cwd: &Path,
+    oxfmt: &Path,
+    mode: Mode,
+) -> Result<PipelineStatus> {
+    if files.is_empty() {
+        return Ok(PipelineStatus::default());
+    }
+
+    let outcomes: Vec<(PathBuf, NativeOutcome)> = files
+        .par_iter()
+        .map(|path| {
+            let abs = if path.is_absolute() {
+                path.clone()
+            } else {
+                cwd.join(path)
+            };
+            let source = match std::fs::read_to_string(path) {
+                Ok(s) => s,
+                Err(e) => {
+                    return (
+                        path.clone(),
+                        NativeOutcome::Error(format!("reading {}: {e}", path.display())),
+                    );
+                }
+            };
+            let Some(options) = resolver.for_path(&abs) else {
+                return (path.clone(), NativeOutcome::Fallback);
+            };
+            let ext = path.extension().and_then(OsStr::to_str).unwrap_or("css");
+            match format_css_source(&source, css_variant_from_lang(ext), &options) {
+                Ok(out) if out == source => (path.clone(), NativeOutcome::Unchanged),
+                Ok(out) => match mode {
+                    Mode::Write => match std::fs::write(path, &out) {
+                        Ok(()) => (path.clone(), NativeOutcome::Changed),
+                        Err(e) => (
+                            path.clone(),
+                            NativeOutcome::Error(format!("writing {}: {e}", path.display())),
+                        ),
+                    },
+                    Mode::Check => (path.clone(), NativeOutcome::Changed),
+                },
+                // Parse error — defer to the oxfmt fallback.
+                Err(_) => (path.clone(), NativeOutcome::Fallback),
+            }
+        })
+        .collect();
+
+    let mut status = PipelineStatus {
+        files_total: files.len(),
+        ..PipelineStatus::default()
+    };
+    let mut fallback: Vec<PathBuf> = Vec::new();
+    for (path, outcome) in outcomes {
+        match outcome {
+            NativeOutcome::Changed => {
+                if matches!(mode, Mode::Check) {
+                    println!("would format {}", path.display());
+                }
+                status.files_changed += 1;
+            }
+            NativeOutcome::Unchanged => {}
+            NativeOutcome::Fallback => fallback.push(path),
+            NativeOutcome::Error(e) => {
+                eprintln!("rsvelte-fmt: {e}");
+                status.had_errors = true;
+            }
+        }
+    }
+
+    // oxfmt fallback for override-matched + parse-error files. Explicit paths
+    // with no native excludes, so oxfmt formats exactly these.
+    if !fallback.is_empty() {
+        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false)?;
         status.files_changed += fb.files_changed;
         status.had_errors |= fb.had_errors;
     }
@@ -1577,6 +1955,7 @@ fn run_oxfmt(
     mode: Mode,
     exclude_native: bool,
     exclude_native_json: bool,
+    exclude_native_css: bool,
 ) -> Result<PipelineStatus> {
     if paths.is_empty() {
         return Ok(PipelineStatus::default());
@@ -1601,6 +1980,10 @@ fn run_oxfmt(
     // so excluding it from the directory walk here doesn't drop it.
     if exclude_native_json {
         cmd.args(OXFMT_EXCLUDE_NATIVE_JSON);
+    }
+    // Likewise for native CSS (`.css`/`.scss`/`.less`).
+    if exclude_native_css {
+        cmd.args(OXFMT_EXCLUDE_NATIVE_CSS);
     }
     cmd.args(paths);
     cmd.stdout(Stdio::piped()).stderr(Stdio::inherit());

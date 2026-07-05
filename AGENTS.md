@@ -186,6 +186,22 @@ Both need a runnable `oxfmt` (env `FMT_CORPUS_OXFMT` / `OXFMT_BIN`; default
 so any divergence fails CI — remaining gaps are fixed in the formatter, not tolerated.
 `FMT_CORPUS_SHOW=N` raises the printed-failure cap for burndown.
 
+**CSS engine (native, in-process).** As of the `oxc_formatter_css` port, `rsvelte-fmt`
+formats CSS in-process via the Rust `oxc_formatter_css` crate (0.57.0, same git-pinned
+oxc rev as `oxc_formatter`) — the same engine `oxfmt` uses, so byte-identical without a
+subprocess. This covers **both** embedded `<style>` blocks (`rsvelte_formatter::format`'s
+`style_formatter` is wired to `native_style_formatter`) **and** standalone
+`.css`/`.scss`/`.less` files (a native pipeline in `rsvelte_fmt::main`, mirroring native
+JS/JSON: overrides / `printWidth > 320` / parse errors fall back to `oxfmt`). `--no-native-css`
+reverts to the legacy `oxfmt`-subprocess `<style>` path (batch + daemon + on-disk cache
+machinery, now opt-in only). The wasm formatter (`rsvelte_fmt_wasm`) uses the native
+callback too, so `<style>` blocks format in the browser (previously left verbatim, since
+spawning `oxfmt` can't run in wasm). Indented-syntax dialects (`sass`/`stylus`/`.styl`) are
+not brace-based CSS and stay verbatim / delegated. The corpus above still drives its
+oracle-side `<style>` through the `oxfmt` binary by design (to isolate Svelte-structure
+diffs); native-CSS parity is covered by `crates/rsvelte_formatter/tests/css_native.rs` and
+the `native_*` / `no_native_css*` cases in `crates/rsvelte_fmt/tests/cli.rs`.
+
 Status at svelte.dev@`49ee73732aef`, oxfmt 0.53.0, svelte 5.56.2: **Stage 1+2 944/1148**
 (burning down from an initial 726; cleared: mustache-tag indentation, void self-closing,
 final newline, mixed-text re-indentation, block-body text re-indentation), **Stage 3

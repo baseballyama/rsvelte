@@ -6,13 +6,13 @@
 //! `options_json` and the return value are JSON strings, so no bespoke
 //! `wasm_bindgen` struct is needed.
 //!
-//! Note: the `<style>` formatter callback is `None` here. The CLI wires that
-//! up to spawn `oxfmt`, which is a native subprocess and cannot run in a
-//! browser — so `<style>` bodies survive verbatim, matching the CLI's own
-//! WASM limitation.
+//! `<style>` blocks are formatted in-process via `oxc_formatter_css`
+//! ([`rsvelte_formatter::native_style_formatter`]) — the same engine `oxfmt`
+//! uses — which, unlike spawning the `oxfmt` subprocess, runs in the browser.
 
 use rsvelte_formatter::{
-    FormatOptions, IndentStyle, IndentWidth, JsFormatOptions, LineWidth, format,
+    CssFormatOptions, FormatOptions, IndentStyle, IndentWidth, JsFormatOptions, LineWidth, format,
+    native_style_formatter,
 };
 use serde_json::Value;
 use wasm_bindgen::prelude::*;
@@ -85,9 +85,19 @@ fn parse_options(options_json: &str) -> FormatOptions {
         .and_then(rsvelte_formatter::SortOrderSpec::parse)
         .unwrap_or_default();
 
+    // Embedded `<style>` blocks format in-process via `oxc_formatter_css`, at the
+    // same indent / print width as the `<script>` body (the playground exposes no
+    // separate CSS knobs; `singleQuote` etc. stay at their defaults).
+    let css = CssFormatOptions {
+        indent_style: js.indent_style,
+        indent_width: js.indent_width,
+        line_width: js.line_width,
+        ..CssFormatOptions::default()
+    };
+
     FormatOptions {
         js,
-        style_formatter: None,
+        style_formatter: Some(native_style_formatter(css)),
         // `format` re-derives this per-document from `<script lang="ts">`.
         typescript: false,
         single_attribute_per_line: get_bool("singleAttributePerLine").unwrap_or(false),

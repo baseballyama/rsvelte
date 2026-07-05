@@ -1607,6 +1607,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c6901729fa79e91a0913333229e9ca5dc725089d1c363b2f4b4760709dc4a52"
 
 [[package]]
+name = "oxc-css-parser"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c26a7ada942216acafa6d6a10b269b23f5d9b58902ee99898c6d287b196d660c"
+dependencies = [
+ "oxc-css-parser-macro",
+ "smallvec",
+]
+
+[[package]]
+name = "oxc-css-parser-macro"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b840f0d8e8f12de73ef70c0d63108499a36264e71fc3901da94030252d004c7b"
+dependencies = [
+ "heck",
+ "quote 1.0.45",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "oxc-miette"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1783,6 +1804,20 @@ dependencies = [
  "rustc-hash",
  "serde_json",
  "unicode-width 0.2.2",
+]
+
+[[package]]
+name = "oxc_formatter_css"
+version = "0.57.0"
+source = "git+https://github.com/oxc-project/oxc?rev=6ca912513e2b3ef9df173d043c2f501b0532786d#6ca912513e2b3ef9df173d043c2f501b0532786d"
+dependencies = [
+ "cow-utils",
+ "oxc-css-parser",
+ "oxc_allocator",
+ "oxc_diagnostics",
+ "oxc_formatter_core",
+ "oxc_span",
+ "phf 0.14.0",
 ]
 
 [[package]]
@@ -2439,6 +2474,7 @@ dependencies = [
  "oxc_ast",
  "oxc_formatter",
  "oxc_formatter_core",
+ "oxc_formatter_css",
  "oxc_formatter_json",
  "oxc_parser",
  "oxc_span",

@@ -16,6 +16,15 @@
  * surviving byte difference is a real Svelte-structure divergence. The
  * comparison + ratchet lives in fmt-verify.mjs.
  *
+ * The `actual` pass runs rsvelte-fmt with `--no-native-css`: rsvelte-fmt now
+ * formats embedded <style> in-process via `oxc_formatter_css` by default, but
+ * that Rust crate is pinned to an oxc git rev that need not byte-match the npm
+ * `oxfmt` the oracle uses (e.g. long CSS-value wrapping differs). Forcing the
+ * oxfmt-subprocess path keeps *both* sides on the identical oxfmt binary, so the
+ * corpus stays a pure Svelte-structure diff (its stated purpose) rather than a
+ * CSS-engine-version diff. Native-CSS parity is covered by the formatter/CLI
+ * unit tests instead.
+ *
  * The oracle depends only on (svelte sha, svelte.dev sha, oxfmt version, config
  * hash); it is cached and skipped on re-runs unless those change or `--force` is
  * passed. Only the `actual` tree is rebuilt every burn-down iteration (after a
@@ -213,7 +222,19 @@ async function main() {
 			const source = fs.readFileSync(path.join(SOURCES, id), 'utf8');
 			const res = await exec(
 				RSVELTE_FMT_BIN,
-				['--stdin', '--stdin-filepath', stdinName(id), '-c', OXFMT_CONFIG, '--oxfmt-bin', OXFMT_BIN],
+				// `--no-native-css`: format embedded <style> via the oxfmt subprocess
+				// (same binary as the oracle), not the pinned-rev native CSS engine —
+				// see the header comment.
+				[
+					'--stdin',
+					'--stdin-filepath',
+					stdinName(id),
+					'-c',
+					OXFMT_CONFIG,
+					'--oxfmt-bin',
+					OXFMT_BIN,
+					'--no-native-css',
+				],
 				source,
 			);
 			if (res.enoent) fail(`rsvelte-fmt not found at ${RSVELTE_FMT_BIN}`);

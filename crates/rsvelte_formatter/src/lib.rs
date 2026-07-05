@@ -29,6 +29,7 @@ mod reindent;
 mod script;
 mod sort_order;
 mod style;
+mod style_css;
 
 pub use error::FormatError;
 pub use json::{JsonVariant, format_json_source};
@@ -36,10 +37,15 @@ pub use options::{FormatOptions, StyleFormatter};
 pub use script::format_js_source;
 pub use sort_order::SortOrderSpec;
 pub use style::reindent;
+pub use style_css::{
+    CssDialect, CssOptions, SingleQuote as CssSingleQuote, TrailingCommas as CssTrailingCommas,
+    css_variant_from_lang, format_css_source, native_style_formatter,
+};
 
 // Re-exports so consumers don't need to depend on `oxc_formatter` directly.
 pub use oxc_formatter::{JsFormatOptions, SortImportsOptions};
 pub use oxc_formatter_core::{IndentStyle, IndentWidth, LineWidth};
+pub use oxc_formatter_css::CssFormatOptions;
 pub use oxc_formatter_json::JsonFormatOptions;
 
 use rsvelte_core::{ParseOptions, parse};
