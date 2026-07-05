@@ -901,7 +901,8 @@ pub fn server_component_ast<'a>(
     // fragment they already sit at the head of `template_body` (ahead of the
     // rendered template, after the instance body), and for block-nested snippets
     // they stay inside their block body. No extra splice is needed here.
-    let template_body = visitors::shared::build_fragment_body(&ast.fragment, true, &mut state);
+    let template_body =
+        visitors::shared::build_fragment_body(&ast.fragment, true, true, &mut state);
 
     // -- component-bindings settle-loop (upstream lines 178-211) ------------
     // If the component binds to a child (`<Child bind:value={v} />`), legacy

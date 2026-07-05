@@ -572,7 +572,7 @@ fn render_slot_body<'a>(
     };
     let saved_namespace = state.namespace;
     state.namespace = inferred_ns;
-    let body = super::shared::build_fragment_body(&synthetic, is_text_first_parent, state);
+    let body = super::shared::build_fragment_body(&synthetic, is_text_first_parent, true, state);
     state.namespace = saved_namespace;
     body
 }
@@ -714,7 +714,7 @@ fn build_snippet_declaration<'a>(
     }
     state.shadowed_names.push(shadow);
     // SnippetBlock body IS an `is_text_first` parent.
-    let body_block = super::shared::build_fragment_body(&snippet.body, true, state);
+    let body_block = super::shared::build_fragment_body(&snippet.body, true, true, state);
     state.shadowed_names.pop();
     let fn_body = state.b.body(body_block);
     state.b.function_declaration(name, params, fn_body, false)

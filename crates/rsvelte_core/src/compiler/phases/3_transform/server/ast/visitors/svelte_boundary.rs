@@ -245,7 +245,7 @@ fn build_boundary_snippet<'a>(
     }
     let params = b.params(patterns, None);
     // SnippetBlock body IS an `is_text_first` parent.
-    let body_block = super::shared::build_fragment_body(&snippet.body, true, state);
+    let body_block = super::shared::build_fragment_body(&snippet.body, true, true, state);
     let fn_body = state.b.body(body_block);
     state.b.function_declaration(name, params, fn_body, false)
 }

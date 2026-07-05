@@ -128,7 +128,7 @@ pub fn visit_svelte_element<'a>(node: &SvelteDynamicElement, state: &mut ServerT
 
     // -- children -----------------------------------------------------------
     // SvelteElement children are NOT an `is_text_first` parent.
-    let children_body = build_fragment_body(&node.fragment, false, state);
+    let children_body = build_fragment_body(&node.fragment, false, false, state);
     let b = state.b;
     let children_thunk = if children_body.is_empty() {
         None
