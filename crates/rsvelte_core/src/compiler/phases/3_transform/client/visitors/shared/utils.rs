@@ -4869,6 +4869,24 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
         "Identifier" => {
             // Check if identifier is a reactive binding
             if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                // An enclosing `{#each … as <item>[, <index>]}` loop variable shadows
+                // any outer binding of the same name; inside the block it is the loop
+                // variable, not the outer constant. `get_binding` below walks
+                // `self.scope`, which is NOT switched to the each scope during the body
+                // transform, so a shadowed name would resolve to the outer (possibly
+                // non-reactive) binding and wrongly report the text as static. Mirror the
+                // `get_literal_value` each-shadow guard: an each ITEM is always reactive
+                // (matching the `BindingKind::EachItem` rule below); an each INDEX uses
+                // its analyzer-computed reactivity. Innermost context wins (rev()).
+                for c in context.state.each_binding_context.iter().rev() {
+                    if c.item_name == name {
+                        return true;
+                    }
+                    if !c.index_name.is_empty() && c.index_name == name {
+                        return c.index_reactive;
+                    }
+                }
+
                 // Check if identifier has a transform registered (e.g., @const, snippet parameter)
                 // Identifiers with transforms are derived values that need reactive tracking,
                 // BUT only if the transform has is_reactive=true.
