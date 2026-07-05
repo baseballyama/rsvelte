@@ -103,7 +103,7 @@ const { js, css } = compile_client('<h1>Hello {name}</h1>', 'App');
 const ast = JSON.parse(parse_svelte('<h1>Hello</h1>').ast);
 ```
 
-Need the exact `svelte/compiler` surface (`compile`, `compileModule`, `parse`, `preprocess`, `VERSION`) at native speed? That's [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native), the NAPI binding the Vite plugin runs on. One caveat applies to both JS surfaces: function-valued options can't cross the language boundary — see [Compiler option compatibility](#compiler-option-compatibility).
+Need the exact `svelte/compiler` surface (`compile`, `compileModule`, `parse`, `preprocess`, `VERSION`) at native speed? That's [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native), the NAPI binding the Vite plugin runs on. One caveat: function-valued options can't cross the language boundary — see [Compiler option compatibility](#compiler-option-compatibility).
 
 ### Embed in Rust, or call from any language
 
@@ -121,7 +121,7 @@ println!("{}", result.js.code);
 
 The Rust API honours **every** compile option, including `css_hash` and `warning_filter` as real closures.
 
-For everything else there's a stable **C ABI** ([`crates/rsvelte_capi`](crates/rsvelte_capi)): one shared library + one header, JSON in / JSON out, with prebuilt binaries on [GitHub Releases](https://github.com/baseballyama/rsvelte/releases) (`capi-vX.Y.Z` tags) and CI-tested examples for C, Go, Python, Ruby, PHP, Zig, and Java.
+For everything else there's a stable **C ABI** ([`crates/rsvelte_capi`](crates/rsvelte_capi)): one shared library + one header, JSON in / JSON out, with prebuilt binaries on [GitHub Releases](https://github.com/baseballyama/rsvelte/releases) (`capi-vX.Y.Z` tags) and ready-to-run examples for C, Go, Python, Ruby, PHP, Zig, and Java.
 
 ## Packages
 
@@ -163,7 +163,7 @@ rsvelte passes **100% of the in-scope fixtures** of the official Svelte compiler
 What "in-scope" excludes:
 
 - **`migrate` (76 fixtures)** — the Svelte 4 → 5 migrator is intentionally out of scope; rsvelte ports the Svelte 5 compiler, not the migration tool.
-- **4 individually skipped fixtures** — `javascript-comments` (acorn vs OXC comment attachment; legacy AST only, no output impact), `error-mode-warn` (error-mode option not yet wired through the diagnostic pipeline), and two fixtures pending small upstream ports (`async-in-derived`, `css-keyframes-percent`).
+- **A handful of individually skipped fixtures** — most notably `javascript-comments` (acorn vs OXC comment attachment; legacy AST only, no output impact), `error-mode-warn` (skipped via the fixture's `_config.js`), and two fixtures pending small upstream ports (`async-in-derived`, `css-keyframes-percent`). The dashboard lists every skip with its reason.
 
 ### Verified against real-world code, not just fixtures
 
@@ -180,14 +180,14 @@ Each count is a CI **ratchet**: the baselines in [`compat/`](compat) may only sh
 
 ### Compiler option compatibility
 
-The JS surfaces (wasm + NAPI) accept the full `svelte/compiler` options shape, but **function-valued options can't cross the language boundary** — they are accepted (keeping the TypeScript types drop-in) and silently ignored:
+The drop-in JS surface ([`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native), which the Vite plugin uses) and the C ABI accept the full `svelte/compiler` options shape, but **function-valued options can't cross the language boundary** — they are accepted (keeping the TypeScript types drop-in) and silently ignored:
 
 | Option | Workaround |
 |---|---|
 | `cssHash(...) => string` | Falls back to upstream's default `svelte-<hash>` scheme. To force a specific value, pass the rsvelte-specific `cssHashOverride: '<hash>'`. |
 | `warningFilter(warning) => boolean` | All warnings are returned; filter `result.warnings` yourself. |
 
-Every other option matches upstream exactly. The Rust API has no such restriction.
+Every other option matches upstream exactly. The Rust API has no such restriction, and the wasm `@rsvelte/compiler` is unaffected — it exposes a smaller fixed surface with no options object at all.
 
 ## Architecture
 

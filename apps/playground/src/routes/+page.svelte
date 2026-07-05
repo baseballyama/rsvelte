@@ -361,7 +361,7 @@
 		</ul>
 
 		<p class="capi-foot">
-			Smoke-tested per OS on every PR. See the
+			Smoke-tested in CI across Linux, macOS and Windows. See the
 			<a class="link" href="https://github.com/baseballyama/rsvelte/tree/main/crates/rsvelte_capi"
 				><code>crates/rsvelte_capi</code></a
 			> for the full API and per-language quick start.
