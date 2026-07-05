@@ -2,12 +2,19 @@
 "@rsvelte/fmt": patch
 ---
 
-fix(fmt): treat `&nbsp;` as significant content, not blank whitespace
+fix(fmt): preserve `&nbsp;`-only blocks and stop over-breaking exactly-80-col attribute values
 
-The formatter detected insignificant whitespace-only text nodes with
-`str::trim().is_empty()`. Rust's `char::is_whitespace` (used by `trim`) treats
-U+00A0 — the decoded form of `&nbsp;` — as whitespace, so a block body / fragment
-whose only content was `&nbsp;` was wrongly considered empty and collapsed away:
-`{#if a}&nbsp;{/if}` became `{#if a}\n\n{/if}`, silently dropping the
-non-breaking space that prettier / oxfmt preserve. A new shared `is_blank_text`
-helper counts only ASCII whitespace as blank, so `&nbsp;`-only text now survives.
+Two formatter-parity fixes:
+
+- **`&nbsp;` treated as blank whitespace.** The formatter detected insignificant
+  whitespace-only text nodes with `str::trim().is_empty()`, but Rust's
+  `char::is_whitespace` treats U+00A0 (the decoded form of `&nbsp;`) as
+  whitespace, so a block body whose only content was `&nbsp;` was wrongly
+  collapsed: `{#if a}&nbsp;{/if}` became `{#if a}\n\n{/if}`, dropping the
+  non-breaking space. A shared `is_blank_text` helper now counts only ASCII
+  whitespace as blank.
+- **Attribute value over-break at exactly 80 columns.** The single-line overflow
+  guard in `render_single_expression_value` double-counted the opening `{` of
+  `name={value}`, over-reporting the rendered width by one column, so an
+  attribute whose value filled the print width exactly was needlessly expanded
+  onto multiple lines.
