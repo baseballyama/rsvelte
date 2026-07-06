@@ -126,6 +126,30 @@ pub(super) fn detect_decl_rune(init: &OxcExpression) -> Option<DeclRune> {
     }
 }
 
+/// The `$`-prefixed callee name of a rune-shaped call (`$state(…)` → `$state`,
+/// `$state.raw(…)` → `$state`, `$props()` → `$props`), or `None` if `init` is not
+/// a `$…`-callee call. Used to detect the store-rune conflict: when this exact
+/// `$`-prefixed name is a declared binding (an auto-created store subscription,
+/// created because the base store is read as `$state` somewhere), it is a store
+/// read (`$.store_get(state, …)`), NOT the rune — mirroring upstream
+/// `get_global_keypath`, whose `scope.get('$state')` finds that binding. Checking
+/// the PREFIXED name (not the base) is essential: `let props = $props()` binds
+/// `props` but has no `$props` store subscription, so it stays the rune.
+pub(super) fn rune_callee_name<'a>(init: &OxcExpression<'a>) -> Option<&'a str> {
+    let OxcExpression::CallExpression(call) = init else {
+        return None;
+    };
+    let name = match &call.callee {
+        OxcExpression::Identifier(id) => id.name.as_str(),
+        OxcExpression::StaticMemberExpression(m) => match &m.object {
+            OxcExpression::Identifier(obj) => obj.name.as_str(),
+            _ => return None,
+        },
+        _ => return None,
+    };
+    (name.starts_with('$') && name.len() > 1).then_some(name)
+}
+
 /// Build the `$$async_hole` placeholder statement that stands in for a removed
 /// `$inspect(...)` / `$effect(...)` expression statement under
 /// `experimental.async`. The async-body transform (`transform_async_body`)
@@ -349,7 +373,7 @@ fn transform_script<'a>(
                 }
             }
             Statement::VariableDeclaration(vd) => {
-                out.extend(lower_variable_declaration(vd, src, state));
+                out.extend(lower_variable_declaration(vd, src, is_instance, state));
             }
             // INSTANCE-only `ExportNamedDeclaration` override (写经 the per-instance
             // visitor added in `transform-server.js` line ~127): a declaration-less
@@ -366,7 +390,7 @@ fn transform_script<'a>(
                         continue;
                     }
                     Some(oxc_ast::ast::Declaration::VariableDeclaration(vd)) => {
-                        out.extend(lower_variable_declaration(vd, src, state));
+                        out.extend(lower_variable_declaration(vd, src, is_instance, state));
                     }
                     Some(decl) => {
                         // `export function` / `export class` → keep the inner
@@ -1502,6 +1526,7 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
 fn lower_variable_declaration<'a>(
     vd: &oxc_ast::ast::VariableDeclaration,
     src: &str,
+    is_instance: bool,
     state: &mut ServerTransformState<'a>,
 ) -> Vec<Statement<'a>> {
     let b = state.b;
@@ -1523,7 +1548,46 @@ fn lower_variable_declaration<'a>(
         // Per-source-declarator pair accumulator.
         let mut decls: Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)> =
             Vec::new();
-        let rune = d.init.as_ref().and_then(detect_decl_rune);
+        let mut rune = d.init.as_ref().and_then(detect_decl_rune);
+        // Store-rune conflict: `let x = $state()` where the `$state` store
+        // subscription is LEXICALLY VISIBLE at the instance scope is a store
+        // read, not the rune. Upstream's `get_rune` returns null (the auto-created
+        // `$state` store-subscription binding shadows the rune), so the declarator
+        // falls through to the ordinary read-wrap path, which emits
+        // `$.store_get(($$store_subs ??= {}), "$state", state)()`. Nullify the
+        // rune here so the `None` branch below handles it.
+        //
+        // Look up the `$`-PREFIXED callee name (`$state`), not the base `state`,
+        // and require it to be an actual STORE-SUBSCRIPTION binding
+        // (`BindingKind::StoreSub`, created only when the store is really read as
+        // `$state`). This precisely distinguishes the conflict from an ordinary
+        // rune: `let props = $props()` binds `props` but registers no `$props`
+        // store subscription, and `let state = $state(0)` (no `$state` read
+        // anywhere) registers none either — both correctly stay runes. The
+        // ancestor-or-self visibility check excludes a same-named binding in a
+        // DESCENDANT scope surfaced by the intentionally root-polluted scope table.
+        //
+        // INSTANCE-only: store auto-subscriptions exist only in the instance
+        // script, so a module-script `const data = $state({…})` (with an unrelated
+        // module `const state`) stays the rune (`inspect-derived-2`).
+        if is_instance
+            && rune.is_some()
+            && let Some(callee) = d.init.as_ref().and_then(rune_callee_name)
+            && let Some(bidx) = state
+                .analysis
+                .root
+                .get_binding(callee, state.analysis.root.instance_scope_index)
+            && matches!(
+                state.analysis.root.bindings[bidx].kind,
+                BindingKind::StoreSub
+            )
+            && state.analysis.root.is_scope_ancestor_of(
+                state.analysis.root.bindings[bidx].scope_index,
+                state.analysis.root.instance_scope_index,
+            )
+        {
+            rune = None;
+        }
         match rune {
             None => {
                 // Non-rune declarator: re-parse the whole declarator span as a
