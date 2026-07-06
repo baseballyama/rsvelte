@@ -239,6 +239,65 @@ pub(super) fn needs_compound_assignment_parens(expr: &str, _op: &str) -> bool {
 }
 
 /// Find the end of a statement value for client-side transformations.
+/// True if `s` ends with the identifier `kw` on a word boundary (the char before
+/// `kw` is not an identifier char), so `else`/`if` match but `notif` / `myelse`
+/// do not.
+fn ends_with_keyword(s: &str, kw: &str) -> bool {
+    let Some(before) = s.strip_suffix(kw) else {
+        return false;
+    };
+    match before.chars().next_back() {
+        Some(c) => !(c.is_alphanumeric() || c == '_' || c == '$'),
+        None => true,
+    }
+}
+
+/// Given text ending in `)`, return the byte index of the matching `(` (scanning
+/// backward, string-unaware — adequate for the control-header check where the
+/// header parens contain no unbalanced-paren string literals in practice).
+fn matching_open_paren(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    if bytes.last() != Some(&b')') {
+        return None;
+    }
+    let mut depth = 0i32;
+    let mut i = bytes.len();
+    while i > 0 {
+        i -= 1;
+        match bytes[i] {
+            b')' => depth += 1,
+            b'(' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// True if `prefix` ends with a brace-less control-flow header whose body is the
+/// following statement — `if (cond)`, `for (...)`, `while (...)`, `switch (...)`,
+/// `catch (...)`, or the bare keywords `else` / `do`. Used so a depth-0 newline
+/// after such a header does not prematurely end the statement.
+pub(super) fn ends_with_braceless_control_header(prefix: &str) -> bool {
+    let t = prefix.trim_end();
+    if ends_with_keyword(t, "else") || ends_with_keyword(t, "do") {
+        return true;
+    }
+    if t.ends_with(')')
+        && let Some(open) = matching_open_paren(t)
+    {
+        let before = t[..open].trim_end();
+        return ["if", "for", "while", "switch", "catch"]
+            .iter()
+            .any(|kw| ends_with_keyword(before, kw));
+    }
+    false
+}
+
 pub(super) fn find_statement_end_client(s: &str) -> usize {
     let mut depth = 0;
     let mut in_string = false;
@@ -316,6 +375,13 @@ pub(super) fn find_statement_end_client(s: &str) -> usize {
                             | '`'
                     ) {
                         // continuation; keep scanning
+                    } else if ends_with_braceless_control_header(&s[..byte_pos]) {
+                        // A brace-less control-flow header (`if (cond)`, `else`,
+                        // `for (...)`, `while (...)`, `do`) takes the following
+                        // statement as its body — JS does not insert a semicolon
+                        // after it. Keep scanning so `$: if (cond)\n  stmt` stays a
+                        // single statement rather than splitting `stmt` off into a
+                        // separate top-level (unguarded) statement.
                     } else {
                         return byte_pos;
                     }

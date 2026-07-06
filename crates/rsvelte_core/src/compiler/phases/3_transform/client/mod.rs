@@ -5483,7 +5483,21 @@ fn transform_instance_script_for_visitors(
                     || (t.ends_with('+') && !t.ends_with("++"))
             };
 
-            if !trailing_comma && !trailing_operator {
+            // A brace-less control-flow header (`$: if (cond)`, `else`, `for(...)`,
+            // `while(...)`, `do`) whose body is on the FOLLOWING line is not yet a
+            // complete statement — its body statement must be accumulated with it.
+            // Otherwise `$: if (cond)\n\tstmt` splits `stmt` off as a separate
+            // top-level statement, dropping the guard and the reactive wrapper.
+            let ends_with_control_header = {
+                let mut acc = accumulated_lines[..accumulated_lines.len() - 1].join("\n");
+                if !acc.is_empty() {
+                    acc.push('\n');
+                }
+                acc.push_str(trimmed);
+                expression_utils::ends_with_braceless_control_header(&acc)
+            };
+
+            if !trailing_comma && !trailing_operator && !ends_with_control_header {
                 // Before processing, check if the next non-empty line starts with a
                 // continuation token (`.` for method chains, `?`, `:`, `&&`, `||`,
                 // `??` for ternary/logical continuation). Example:
