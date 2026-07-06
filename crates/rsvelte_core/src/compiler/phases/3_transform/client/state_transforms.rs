@@ -1599,8 +1599,11 @@ pub(super) fn transform_legacy_state_declarations(
                 break;
             }
 
-            // First, try to match `keyword varname = value` pattern
-            let pattern_with_init = format!("{} {} = ", keyword, var);
+            // First, try to match `keyword varname = value` pattern. The `=` is
+            // matched WITHOUT a trailing space so an init that begins on the next
+            // line (`let x =\n  init`) is still caught — leading whitespace after
+            // `=` is skipped below before the init is read.
+            let pattern_with_init = format!("{} {} =", keyword, var);
             // Use a loop to find the first match that is NOT inside a for-loop header.
             // For example, in `function foo() { for (let x = 0; ...) {} }`, the `let x = 0`
             // inside the for-loop should be skipped - it's a loop variable, not a state variable.
@@ -1608,11 +1611,20 @@ pub(super) fn transform_legacy_state_declarations(
                 let mut search_offset = 0;
                 while let Some(rel_pos) = result[search_offset..].find(&pattern_with_init) {
                     let pos = search_offset + rel_pos;
+                    let after_raw = &result[pos + pattern_with_init.len()..];
+
+                    // Skip `==` / `=>` — those aren't an assignment `=`.
+                    if after_raw.starts_with('=') || after_raw.starts_with('>') {
+                        search_offset = pos + pattern_with_init.len();
+                        continue;
+                    }
+
+                    // Skip whitespace (incl. newlines) between `=` and the init.
+                    let ws = after_raw.len() - after_raw.trim_start().len();
+                    let after = &after_raw[ws..];
 
                     // Check if already wrapped
-                    if result[pos + pattern_with_init.len()..].starts_with("$.mutable_source(")
-                        || result[pos + pattern_with_init.len()..].starts_with("$.prop(")
-                    {
+                    if after.starts_with("$.mutable_source(") || after.starts_with("$.prop(") {
                         matched = true;
                         break;
                     }
@@ -1628,12 +1640,8 @@ pub(super) fn transform_legacy_state_declarations(
                     }
 
                     // Find the value expression
-                    let after = &result[pos + pattern_with_init.len()..];
                     let expr_end = find_statement_end_client(after);
-                    let expr = after[..expr_end].trim();
-
-                    // Remove trailing semicolon from expr
-                    let expr = expr.trim_end_matches(';').trim();
+                    let expr = after[..expr_end].trim().trim_end_matches(';').trim();
 
                     // Build the replacement
                     let replacement = if immutable {
@@ -1647,7 +1655,7 @@ pub(super) fn transform_legacy_state_declarations(
                         "{}{}{}",
                         &result[..pos],
                         replacement,
-                        &result[pos + pattern_with_init.len() + expr_end..]
+                        &result[pos + pattern_with_init.len() + ws + expr_end..]
                     );
                     matched = true;
                     break;
@@ -1692,7 +1700,15 @@ pub(super) fn transform_legacy_state_declarations(
                     }
                     if let Some(eq) = eq_pos {
                         let after_eq = type_start + eq + 1;
-                        let after = &result[after_eq..];
+                        // Skip whitespace (incl. newlines) between `=` and the
+                        // initializer. `find_statement_end_client` treats a
+                        // leading newline as an ASI statement end, so a declaration
+                        // whose init starts on the NEXT line (`let x: T =\n  init`)
+                        // would otherwise extract an empty expr and orphan the init
+                        // as a dangling statement.
+                        let after_raw = &result[after_eq..];
+                        let ws = after_raw.len() - after_raw.trim_start().len();
+                        let after = &after_raw[ws..];
                         let expr_end = find_statement_end_client(after);
                         let expr = after[..expr_end].trim().trim_end_matches(';').trim();
                         let replacement = if immutable {
@@ -1704,7 +1720,7 @@ pub(super) fn transform_legacy_state_declarations(
                             "{}{}{}",
                             &result[..pos],
                             replacement,
-                            &result[after_eq + expr_end..]
+                            &result[after_eq + ws + expr_end..]
                         );
                         matched = true;
                         break;
