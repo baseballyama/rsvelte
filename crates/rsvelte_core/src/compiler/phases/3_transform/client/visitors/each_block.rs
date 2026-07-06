@@ -1047,6 +1047,14 @@ fn build_declarations(
                     replacement_id: None,
                 },
             );
+        } else {
+            // A non-reactive each item is the bare arrow parameter, so it fully
+            // shadows any outer same-named binding. Drop a stale outer transform
+            // (e.g. a runes prop getter `position → position()`) so a body
+            // reference / `{@const}` reads the item bare instead of calling the
+            // shadowed prop. e.g. `{#each positions as position}{@const [y, x] =
+            // position.split('-')}`.
+            context.state.transform.remove(name);
         }
         // Each item is not a template-kind binding in legacy reactivity;
         // ensure any outer same-named deep_read marker is shadowed.
