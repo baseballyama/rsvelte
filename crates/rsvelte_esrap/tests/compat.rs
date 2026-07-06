@@ -23,6 +23,20 @@ fn plain_js() {
     assert_eq!(print_src("const x = 1;", false), "const x = 1;");
 }
 
+/// A NON-optional call whose callee is an optional chain must parenthesize the
+/// callee (`(a?.b)(c)`), otherwise it would be mis-printed as the optional-chain
+/// call `a?.b(c)`, which short-circuits differently. Mirrors esrap's explicit
+/// `node.callee.type === 'ChainExpression'` wrap rule.
+#[test]
+fn non_optional_call_on_chain_callee_parenthesizes() {
+    assert_eq!(
+        print_src("(instruct?.dataComponent)($$renderer);", false),
+        "(instruct?.dataComponent)($$renderer);"
+    );
+    // A genuinely optional call keeps `?.(` and is not over-parenthesized.
+    assert_eq!(print_src("snippet?.(x);", false), "snippet?.(x);");
+}
+
 #[test]
 fn ts_type_annotation() {
     assert_eq!(

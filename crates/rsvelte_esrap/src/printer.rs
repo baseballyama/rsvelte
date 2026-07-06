@@ -2471,7 +2471,19 @@ impl<'opt> Printer<'opt> {
     }
 
     fn call_expression(&mut self, node: &CallExpression, ctx: &mut Context) {
-        self.child_with_parens(&node.callee, 19, ctx);
+        // esrap's `CallExpression|NewExpression` wrap rule: parenthesize the
+        // callee when it is a ChainExpression — otherwise a NON-optional call on
+        // an optional-chain callee (`(a?.b)(c)`) would be mis-printed as the
+        // optional-chain call `a?.b(c)`, which short-circuits differently. The
+        // precedence path (`< 19`) does not catch this because a ChainExpression
+        // has the same precedence (19) as a call.
+        if matches!(unparen(&node.callee), Expression::ChainExpression(_)) {
+            ctx.write("(");
+            self.print_expression(unparen(&node.callee), ctx);
+            ctx.write(")");
+        } else {
+            self.child_with_parens(&node.callee, 19, ctx);
+        }
         if node.optional {
             ctx.write("?.");
         }
