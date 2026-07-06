@@ -2291,6 +2291,18 @@ fn visit_slot_children(
         );
     let saved_memoizer = std::mem::replace(&mut context.state.memoizer, new_memoizer);
 
+    // Propagate the slot fragment's inferred namespace to the child state so a
+    // NESTED component slot (whose own children are namespace-inconclusive, e.g.
+    // only text + components) inherits it via `infer_namespace`'s
+    // `new_namespace ?? namespace` fallback. Mirrors upstream `Fragment.js`,
+    // which puts the inferred `namespace` on the new child `state.metadata`.
+    // Without this an `<svg>` sibling deep inside one component's slot never
+    // cascades down to a nested component's slot (e.g. `<Card>…<svg/></Card>`
+    // making a `<CardDescription>` fragment `svg`), so it wrongly built a
+    // `$.from_html` template with untrimmed SVG whitespace.
+    let saved_namespace = context.state.metadata.namespace.clone();
+    context.state.metadata.namespace = inferred_ns.to_string();
+
     // Reset template for slot content
     context.state.template =
         crate::compiler::phases::phase3_transform::client::transform_template::Template::new();
@@ -2783,6 +2795,7 @@ fn visit_slot_children(
     context.state.template = saved_template;
     context.state.node = saved_node;
     context.state.is_standalone = saved_is_standalone;
+    context.state.metadata.namespace = saved_namespace;
 
     result
 }
