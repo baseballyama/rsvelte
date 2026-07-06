@@ -4401,6 +4401,30 @@ fn is_expression_defined_json(json_value: &serde_json::Value, context: &Componen
                     {
                         return true;
                     }
+
+                    // For a Normal binding (any `let`/`var`/`const`) whose
+                    // initializer is a `BinaryExpression` (`a + b`) or a
+                    // `TemplateLiteral` — the only two non-mutable shapes upstream
+                    // `scope.evaluate` types as a definite STRING/NUMBER (never
+                    // null/undefined), so `is_defined` holds and no `?? ''` is
+                    // added. (Notably NOT `UpdateExpression`: upstream's evaluate
+                    // has no case for it, so `x++` falls through to UNKNOWN and
+                    // keeps its `?? ''`.) A primitive result cannot be turned
+                    // nullish by a later in-place mutation, so only reassignment
+                    // (`!reassigned`) can invalidate it. Uses the recorded init
+                    // node TYPE directly rather than the `initial_is_defined`
+                    // flag, which is not populated for legacy (non-runes) `let`
+                    // bindings. Fixes e.g. `let key = a.charAt(0) + a.slice(1)`
+                    // reading bare.
+                    if matches!(binding.kind, BindingKind::Normal)
+                        && !binding.reassigned
+                        && binding
+                            .initial_node_type
+                            .as_deref()
+                            .is_some_and(|t| matches!(t, "BinaryExpression" | "TemplateLiteral"))
+                    {
+                        return true;
+                    }
                 }
             }
             false
