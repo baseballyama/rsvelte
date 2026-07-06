@@ -822,6 +822,12 @@ fn transform_client_with_visitors(
             b.kind,
             BindingKind::Prop | BindingKind::BindableProp | BindingKind::RestProp
         )
+        // The synthetic `$$props` / `$$restProps` bindings (declared in legacy
+        // mode so `$$props.x` references are recorded) are RestProp but must NOT
+        // themselves force a `$$props` parameter — mirrors upstream's
+        // `binding.node.name !== '$$props'` guards.
+        && b.name != "$$props"
+        && b.name != "$$restProps"
     });
 
     let is_legacy_component_api =
