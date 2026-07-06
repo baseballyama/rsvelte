@@ -146,6 +146,51 @@ fn each_block_iterable_and_key() {
 }
 
 #[test]
+fn each_key_sequence_and_redundant_parens_are_idempotent() {
+    // A sequence-expression key (`(a, b)`) keeps its own parens inside the
+    // delimiter, matching prettier-plugin-svelte: `((a, b))`. Regression for a
+    // non-convergence bug where the formatter re-parenthesized the sequence but
+    // left the source parens, adding a paren layer (and a stray space) on every
+    // pass so `format --check` never stabilized.
+    let cases: &[(&str, &str)] = &[
+        // sequence key, already double-parenthesized -> unchanged
+        (
+            "{#each items as item, index ((item.id, index))}<p>{item.name}</p>{/each}",
+            "{#each items as item, index ((item.id, index))}",
+        ),
+        // sequence key, single parens -> prettier adds the sequence's own parens
+        (
+            "{#each items as item, index (item.id, index)}<p>{item.name}</p>{/each}",
+            "{#each items as item, index ((item.id, index))}",
+        ),
+        // redundant parens around a non-sequence key -> stripped to one pair
+        (
+            "{#each xs as x ((x.id))}<p>{x}</p>{/each}",
+            "{#each xs as x (x.id)}",
+        ),
+        // extra whitespace before the delimiter -> normalized to one space
+        (
+            "{#each xs as x, i   (i)}<p>{x}</p>{/each}",
+            "{#each xs as x, i (i)}",
+        ),
+        // trailing whitespace inside the header -> trimmed
+        (
+            "{#each xs as x (x.id) }<p>{x}</p>{/each}",
+            "{#each xs as x (x.id)}",
+        ),
+    ];
+    for (src, want_header) in cases {
+        let p1 = fmt(src);
+        assert!(
+            p1.lines().next().unwrap_or("").contains(want_header),
+            "each key header mismatch for `{src}`\nwant: {want_header}\ngot:\n{p1}"
+        );
+        let p2 = fmt(&p1);
+        assert_eq!(p1, p2, "each key formatting not idempotent for `{src}`");
+    }
+}
+
+#[test]
 fn await_block_promise() {
     let out = fmt("{#await fetch( url )}<p>loading</p>{:then data}<p>{ data.value }</p>{/await}");
     assert!(
