@@ -64,7 +64,7 @@ oxc_allocator = "0.138"
 oxc_parser = "0.138"
 oxc_ast = { version = "0.138", features = ["serialize"] }
 oxc_span = "0.138"
-oxc_diagnostics = "0.138"
+oxc_diagnostics = "0.139"
 oxc_codegen = "0.138"
 rsvelte_esrap = { path = "../rsvelte_esrap" }
 oxc_syntax = "0.138"
