@@ -1773,7 +1773,8 @@ fn collect_break_block_non_ws_prefix(
                 let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
                 let indent = out.get(line_start..s).unwrap_or("");
                 let non_ws = !indent.bytes().all(|b| b == b' ' || b == b'\t');
-                if non_ws && indent.ends_with('>') && is_block_display(e.name.as_str()) {
+                let is_simple_gt_prefix = non_ws && indent.trim_start_matches([' ', '\t']) == ">";
+                if is_simple_gt_prefix && is_block_display(e.name.as_str()) {
                     // Extract the whitespace-only portion of the prefix.
                     let ws_indent: &str = {
                         let trim_pos = indent.rfind([' ', '\t']).map_or(0, |i| i + 1);
