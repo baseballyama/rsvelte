@@ -31,7 +31,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { stripBlankLines } from './normalize.mjs';
+import { stripBlankLines, readIf, firstDiffLine } from './normalize.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -81,21 +81,6 @@ if (!NO_FMT) {
 const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8')).filter(
 	(e) => e.kind === 'component'
 );
-
-function readIf(p) {
-	return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null;
-}
-
-function firstDiffLine(a, b) {
-	const al = a.split('\n');
-	const bl = b.split('\n');
-	for (let i = 0; i < Math.max(al.length, bl.length); i++) {
-		if (al[i] !== bl[i]) {
-			return { line: i + 1, expected: (al[i] ?? '<EOF>').slice(0, 120), actual: (bl[i] ?? '<EOF>').slice(0, 120) };
-		}
-	}
-	return null;
-}
 
 const counts = { match: 0, 'error-parity': 0, 'oracle-invalid': 0, 'ts-mismatch': 0, 'error-mismatch': 0, missing: 0 };
 const failures = [];

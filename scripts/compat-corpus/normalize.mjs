@@ -13,6 +13,7 @@
  * ${} nesting) / comment state, and only lines whose newline is outside
  * any multi-line token are eligible for removal.
  */
+import fs from 'node:fs';
 import { parse } from 'acorn';
 
 /**
@@ -267,4 +268,29 @@ export function stripBlankLines(src) {
 		}
 	}
 	return out.join('\n');
+}
+
+/**
+ * Read a file if it exists, else `null`. Shared by every verify/cluster
+ * script that reads optional per-entry output files (`error.json`,
+ * `client.js`, `index.tsx`, …).
+ */
+export function readIf(p) {
+	return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null;
+}
+
+/**
+ * Locate the first line at which two texts diverge, truncated for display.
+ * Returns `null` when the texts are identical. Shared by every verify
+ * script's failure-detail reporting.
+ */
+export function firstDiffLine(a, b) {
+	const al = a.split('\n');
+	const bl = b.split('\n');
+	for (let i = 0; i < Math.max(al.length, bl.length); i++) {
+		if (al[i] !== bl[i]) {
+			return { line: i + 1, expected: (al[i] ?? '<EOF>').slice(0, 120), actual: (bl[i] ?? '<EOF>').slice(0, 120) };
+		}
+	}
+	return null;
 }

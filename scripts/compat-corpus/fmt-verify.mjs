@@ -28,6 +28,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readIf, firstDiffLine } from "./normalize.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -57,25 +58,6 @@ const STRICT = args.includes("--strict");
 function fail(msg) {
   console.error(`[fmt-verify] ${msg}`);
   process.exit(1);
-}
-
-function readIf(p) {
-  return fs.existsSync(p) ? fs.readFileSync(p, "utf8") : null;
-}
-
-function firstDiffLine(a, b) {
-  const al = a.split("\n");
-  const bl = b.split("\n");
-  for (let i = 0; i < Math.max(al.length, bl.length); i++) {
-    if (al[i] !== bl[i]) {
-      return {
-        line: i + 1,
-        expected: (al[i] ?? "<EOF>").slice(0, 120),
-        actual: (bl[i] ?? "<EOF>").slice(0, 120),
-      };
-    }
-  }
-  return null;
 }
 
 if (!fs.existsSync(META_PATH)) {
