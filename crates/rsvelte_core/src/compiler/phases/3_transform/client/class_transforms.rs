@@ -1406,7 +1406,8 @@ pub(super) fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStat
     let value_start = if after_rune.starts_with('(') {
         // Plain form: `$state(`
         rune_start + rune_type.len() + 1
-    } else if let Some(angle_inner) = after_rune.strip_prefix('<') {
+    } else {
+        let angle_inner = after_rune.strip_prefix('<')?;
         // Generic form: `$state<T>(` — find the matching `>` then expect `(`
         let angle_end = find_matching_bracket_angle(angle_inner)?;
         let after_angle = &after_rune[1 + angle_end + 1..]; // skip `<`, inner, `>`
@@ -1414,8 +1415,6 @@ pub(super) fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStat
             return None;
         }
         rune_start + rune_type.len() + 1 + angle_end + 1 + 1 // `<` + inner + `>` + `(`
-    } else {
-        return None;
     };
 
     // Find matching closing paren

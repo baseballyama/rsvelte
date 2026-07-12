@@ -4997,9 +4997,9 @@ fn find_module_script_span(source: &str) -> Option<(usize, usize)> {
     while let Some(rel) = source[search..].find("<script") {
         let tag_start = search + rel;
         // Find the end of the opening tag `>`.
-        let gt = match source[tag_start..].find('>') {
-            Some(g) => tag_start + g,
-            None => return None,
+        let gt = {
+            let g = source[tag_start..].find('>')?;
+            tag_start + g
         };
         let open_tag = &source[tag_start..gt];
         // `module` either as a bare attribute or `context="module"` / `context='module'`.
@@ -5040,9 +5040,9 @@ fn find_instance_script_span(source: &str) -> Option<(usize, usize)> {
     let mut search = 0usize;
     while let Some(rel) = source[search..].find("<script") {
         let tag_start = search + rel;
-        let gt = match source[tag_start..].find('>') {
-            Some(g) => tag_start + g,
-            None => return None,
+        let gt = {
+            let g = source[tag_start..].find('>')?;
+            tag_start + g
         };
         let open_tag = &source[tag_start..gt];
         let is_module = open_tag.contains("context=\"module\"")

@@ -263,11 +263,9 @@ fn wrap_script_open_tag(tag: &str, indent_width: usize) -> Option<String> {
     // Strip the leading `<` and trailing `>`.
     let inner = tag.strip_prefix('<')?.strip_suffix('>')?;
     // Split tag name from attributes. Tag name is everything up to the first space.
-    let (tag_name, rest) = if let Some(sp) = inner.find(' ') {
+    let (tag_name, rest) = {
+        let sp = inner.find(' ')?;
         (&inner[..sp], inner[sp + 1..].trim())
-    } else {
-        // No attributes — nothing to wrap.
-        return None;
     };
     // Parse attributes from the flat string. All values are double-quoted after
     // normalize_open_tag, so we scan respecting quoted spans.

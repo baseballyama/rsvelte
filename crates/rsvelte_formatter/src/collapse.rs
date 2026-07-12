@@ -3559,10 +3559,9 @@ fn try_break_pre_own_attrs(
         return None;
     }
     // Find the open tag end (position right after `>` of the opening tag).
-    let open_end = if let Some(first) = fragment.nodes.first() {
+    let open_end = {
+        let first = fragment.nodes.first()?;
         node_start(first) as usize
-    } else {
-        return None;
     };
     let open = out.get(s..open_end)?;
     // Must be a single-line open tag with at least one attribute.
