@@ -114,7 +114,7 @@ impl Driver<'_> {
             Command::Space => self.needs_space = true,
             Command::Indent => self.current_newline.push_str(self.indent),
             Command::Dedent => {
-                let len = self.current_newline.len() - self.indent.len();
+                let len = self.current_newline.len().saturating_sub(self.indent.len());
                 self.current_newline.truncate(len);
             }
             Command::Str(s) => {
@@ -269,6 +269,21 @@ mod tests {
                 Command::Str(")".into()),
             ]),
             "(x y)"
+        );
+    }
+
+    #[test]
+    fn unbalanced_dedent_does_not_panic() {
+        // A Dedent with no matching Indent (unbalanced buffer) must floor the
+        // newline prefix at 0 rather than underflow-panic on the subtraction.
+        // The prefix (including the leading "\n") collapses to empty.
+        assert_eq!(
+            cmds(vec![
+                Command::Dedent,
+                Command::Newline,
+                Command::Str("x".into()),
+            ]),
+            "x"
         );
     }
 
