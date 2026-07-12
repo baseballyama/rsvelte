@@ -5,9 +5,6 @@
 //!
 //! Corresponds to Svelte's `2-analyze/css/` directory.
 
-// Allow dead code for stub implementations that will be integrated later
-#![allow(dead_code)]
-
 pub mod analyze;
 mod prune;
 mod utils;

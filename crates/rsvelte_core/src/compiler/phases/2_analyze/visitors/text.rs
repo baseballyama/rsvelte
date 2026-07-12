@@ -39,8 +39,3 @@ pub fn visit(text: &Text, context: &mut VisitorContext) -> Result<(), AnalysisEr
 
     Ok(())
 }
-
-/// Alias for visit function.
-pub fn visit_text(text: &Text, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    visit(text, context)
-}

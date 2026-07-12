@@ -46,11 +46,3 @@ pub fn visit(tag: &mut ExpressionTag, context: &mut VisitorContext) -> Result<()
 
     Ok(())
 }
-
-/// Alias for visit function.
-pub fn visit_expression_tag(
-    tag: &mut ExpressionTag,
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    visit(tag, context)
-}

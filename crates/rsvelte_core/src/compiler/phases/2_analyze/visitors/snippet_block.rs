@@ -188,21 +188,6 @@ fn extract_pattern_names_for_expr(expr: &Expression) -> Option<Vec<String>> {
     let json = expr.as_json();
     extract_pattern_names(json)
 }
-
-/// Dispatch to JsNode or JSON version of check_pattern_defaults_hoistable.
-fn check_pattern_defaults_for_expr(
-    expr: &Expression,
-    param_names: &FxHashSet<String>,
-    context: &VisitorContext,
-) -> bool {
-    match expr {
-        Expression::Typed(te) => {
-            check_pattern_defaults_hoistable_node(&te.node, param_names, context)
-        }
-        Expression::Lazy { .. } => panic!("Expression::Lazy must be resolved before analysis"),
-    }
-}
-
 // ── JsNode-based implementations ─────────────────────────────────────────────
 
 /// Check if an expression (as JsNode) only uses hoistable identifiers.
@@ -386,65 +371,6 @@ fn expression_only_uses_params_node(
         _ => false,
     }
 }
-
-/// Extract all names from a pattern (as JsNode).
-fn extract_pattern_names_node(
-    node: &JsNode,
-    arena: &crate::ast::arena::ParseArena,
-) -> Option<Vec<String>> {
-    match node {
-        JsNode::Identifier { name, .. } => Some(vec![name.to_string()]),
-
-        JsNode::ObjectPattern { properties, .. } => {
-            let mut names = Vec::new();
-            for prop in arena.get_js_children(*properties) {
-                match prop {
-                    JsNode::Property { value, .. } => {
-                        // If value is AssignmentPattern, extract from left
-                        let value_node = arena.get_js_node(*value);
-                        let actual = match value_node {
-                            JsNode::AssignmentPattern { left, .. } => arena.get_js_node(*left),
-                            other => other,
-                        };
-                        if let Some(inner_names) = extract_pattern_names_node(actual, arena) {
-                            names.extend(inner_names);
-                        }
-                    }
-                    JsNode::RestElement { argument, .. } => {
-                        if let Some(inner_names) =
-                            extract_pattern_names_node(arena.get_js_node(*argument), arena)
-                        {
-                            names.extend(inner_names);
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            Some(names)
-        }
-
-        JsNode::ArrayPattern { elements, .. } => {
-            let mut names = Vec::new();
-            for e in elements.iter().flatten() {
-                if let Some(inner_names) = extract_pattern_names_node(e, arena) {
-                    names.extend(inner_names);
-                }
-            }
-            Some(names)
-        }
-
-        JsNode::AssignmentPattern { left, .. } => {
-            extract_pattern_names_node(arena.get_js_node(*left), arena)
-        }
-
-        JsNode::RestElement { argument, .. } => {
-            extract_pattern_names_node(arena.get_js_node(*argument), arena)
-        }
-
-        _ => None,
-    }
-}
-
 /// Check if default values inside a destructuring pattern (as JsNode) are hoistable.
 fn check_pattern_defaults_hoistable_node(
     node: &JsNode,
@@ -1345,57 +1271,4 @@ fn expression_only_uses_params(
     } else {
         true
     }
-}
-
-/// Check if default values inside a destructuring pattern are hoistable - JSON version.
-fn check_pattern_defaults_hoistable(
-    val: &serde_json::Value,
-    param_names: &FxHashSet<String>,
-    context: &VisitorContext,
-) -> bool {
-    if let Some(obj) = val.as_object() {
-        let val_type = obj.get("type").and_then(|v| v.as_str());
-        match val_type {
-            Some("ObjectPattern") => {
-                if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
-                    for prop in props {
-                        if let Some(prop_obj) = prop.as_object()
-                            && let Some(value) = prop_obj.get("value")
-                            && !check_pattern_defaults_hoistable(value, param_names, context)
-                        {
-                            return false;
-                        }
-                    }
-                }
-            }
-            Some("ArrayPattern") => {
-                if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
-                    for elem in elements {
-                        if !elem.is_null()
-                            && !check_pattern_defaults_hoistable(elem, param_names, context)
-                        {
-                            return false;
-                        }
-                    }
-                }
-            }
-            Some("AssignmentPattern") => {
-                if let Some(right) = obj.get("right")
-                    && !expression_only_uses_params(right, param_names, context)
-                {
-                    return false;
-                }
-            }
-            _ => {}
-        }
-    }
-    true
-}
-
-/// Alias for visit function.
-pub fn visit_snippet_block(
-    block: &mut SnippetBlock,
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    visit(block, context)
 }

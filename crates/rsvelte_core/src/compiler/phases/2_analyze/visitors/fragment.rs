@@ -22,11 +22,3 @@ pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<
 
     Ok(())
 }
-
-/// Alias for analyze function.
-pub fn visit_fragment(
-    fragment: &mut Fragment,
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    analyze(fragment, context)
-}

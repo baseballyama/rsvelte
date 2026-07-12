@@ -324,37 +324,6 @@ fn get_parent(path: &[super::super::JsPathEntry], at: isize) -> Option<&Value> {
         _ => Some(node),
     }
 }
-
-/// Get the rune name from a CallExpression node.
-///
-/// Wrapper around the phase 3 get_rune implementation that works with JSON values.
-/// Corresponds to `get_rune` in scope.js.
-///
-/// # Arguments
-///
-/// * `node` - The CallExpression node
-/// * `scope` - The current scope
-///
-/// # Returns
-///
-/// The rune name (e.g., "$state", "$derived.by", "$effect.tracking") or None
-fn get_rune_from_json(node: &Value, scope: &Scope) -> Option<String> {
-    // Check if node is a CallExpression
-    if node.get("type").and_then(|t| t.as_str()) != Some("CallExpression") {
-        return None;
-    }
-
-    let callee = node.get("callee")?;
-    let keypath = get_global_keypath(callee, scope)?;
-
-    // Check if it's a valid rune
-    if !super::function::is_rune(&keypath) {
-        return None;
-    }
-
-    Some(keypath)
-}
-
 /// Get the global keypath for an expression (e.g., "$state", "$derived.by", "$effect.tracking").
 ///
 /// Corresponds to `get_global_keypath` in scope.js.
@@ -1515,35 +1484,6 @@ pub fn validate_attribute_name(
 pub fn is_invalid_attribute_name(name: &str) -> bool {
     REGEX_ILLEGAL_ATTRIBUTE_CHARACTER.is_match(name)
 }
-
-/// Extract the identifier name from a parameter node.
-///
-/// Handles simple identifiers and patterns (extracting the first identifier).
-fn extract_identifier_name(param: &Value) -> Option<String> {
-    match param.get("type").and_then(|t| t.as_str()) {
-        Some("Identifier") => param.get("name").and_then(|n| n.as_str()).map(String::from),
-        Some("AssignmentPattern") => {
-            // Default parameter: param = defaultValue
-            if let Some(left) = param.get("left") {
-                extract_identifier_name(left)
-            } else {
-                None
-            }
-        }
-        Some("RestElement") => {
-            // Rest parameter: ...param
-            if let Some(argument) = param.get("argument") {
-                extract_identifier_name(argument)
-            } else {
-                None
-            }
-        }
-        // For object/array destructuring, we don't extract individual names
-        // as they're more complex patterns
-        _ => None,
-    }
-}
-
 /// Collect all identifier names from a pattern (identifier, object, array, rest, assignment).
 /// Used to register local variable declarations that shadow outer scope bindings.
 fn collect_all_identifier_names_from_pattern(pattern: &Value, names: &mut Vec<String>) {
