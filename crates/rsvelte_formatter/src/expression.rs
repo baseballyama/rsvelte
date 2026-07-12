@@ -234,38 +234,63 @@ fn collect_node_edits(
                 push_pattern_at_span(source, ctx, options, edits)?;
             }
             if let Some(key) = &blk.key {
-                push_brace_wrapped_expression(source, key, options, edits)?;
-                // Ensure a space before the key's opening `(`.
-                // prettier-plugin-svelte always emits a space before the key
-                // parens regardless of what appears between the context binding
-                // and the paren (e.g. `, idx`).
-                // Find the `(` immediately before `key.start()` and insert a
-                // space before it if the preceding character is not whitespace.
-                if let Some(key_start) = key.start() {
-                    // The `(` should be the character immediately before the
-                    // key expression start.
-                    let before_key = source.get(..key_start as usize).unwrap_or("");
-                    // Walk backward skipping the key itself to find the `(`.
-                    // In practice `(` is at key_start - 1 but guard with scan.
-                    if let Some(paren_pos) = before_key.rfind('(') {
-                        // Only act when the char before `(` is NOT whitespace
-                        // (meaning there's no space yet).
-                        let before_paren = before_key.get(..paren_pos).unwrap_or("");
-                        let last_char = before_paren.chars().next_back();
-                        if !matches!(last_char, None | Some(' ') | Some('\t')) {
-                            edits.push((paren_pos as u32, paren_pos as u32, " ".to_string()));
+                // The each-key syntax is `(KEY)`. The Svelte AST stores only the
+                // inner KEY expression span; the delimiter parens — and any
+                // redundant parens the source wrote around the key — live OUTSIDE
+                // that span. Reformat the key and re-emit it wrapped in a single
+                // delimiter pair, consuming the source's paren nesting.
+                //
+                // Without this, a parenthesized / sequence key such as
+                // `((a, b))` gains an extra paren layer (and a stray space) on
+                // every pass — the formatter re-parenthesizes the sequence but
+                // never removes the source parens — so it never converges.
+                // prettier-plugin-svelte keeps `((a, b))` (sequence parens +
+                // delimiter) and strips redundant non-sequence parens
+                // (`((x.id))` → `(x.id)`); widening to the outermost source paren
+                // pair (the delimiter) and wrapping the formatted inner key
+                // reproduces both, idempotently.
+                // Locate the outermost delimiter paren pair. The AST key span
+                // excludes the delimiter parens AND any redundant parens the
+                // source wrote around the key, so scan outward over consecutive
+                // `(` / `)` (and horizontal whitespace) to reach the delimiter.
+                let delim = match (key.start(), key.end()) {
+                    (Some(ks), Some(ke)) => find_each_key_delimiter(source, ks, ke),
+                    _ => None,
+                };
+                match delim {
+                    Some((delim_open, delim_close_excl)) => {
+                        // The key AS WRITTEN sits between the delimiter parens
+                        // (redundant inner parens included). Formatting it yields
+                        // the canonical inner form — redundant parens stripped, a
+                        // sequence expression re-parenthesized — which we wrap in a
+                        // single delimiter pair. This matches prettier-plugin-svelte
+                        // (`((a, b))` for a sequence key, `(x.id)` for `((x.id))`)
+                        // and, crucially, is idempotent: without it a sequence /
+                        // parenthesized key gained a paren layer on every pass.
+                        let inner = source
+                            .get(delim_open as usize + 1..delim_close_excl as usize - 1)
+                            .map(str::trim)
+                            .unwrap_or("");
+                        if !inner.is_empty() {
+                            let formatted = format_inline_expression(inner, options)?;
+                            // Normalize the horizontal whitespace before the
+                            // delimiter to a single space — prettier-plugin-svelte
+                            // always emits `… (key)` regardless of the preceding
+                            // context binding (e.g. `, idx`).
+                            let before = source.get(..delim_open as usize).unwrap_or("");
+                            let ws_start = before.trim_end_matches([' ', '\t']).len() as u32;
+                            edits.push((ws_start, delim_close_excl, format!(" ({formatted})")));
+                            // Trim trailing whitespace between the delimiter `)` and
+                            // the header `}` (`{#each arr as x (k) }` → `… (k)}`).
+                            trim_trailing_ws_before_close_brace(source, delim_close_excl, edits);
                         }
                     }
-                }
-                // Trim trailing whitespace after the key's closing `)` before the
-                // header `}` — e.g. `{#each arr as x (k) }` → `{#each arr as x (k)}`.
-                if let Some(key_end) = key.end() {
-                    // The key is wrapped in `(key)` in source; skip past the `)`.
-                    let after_key = source
-                        .get(key_end as usize..)
-                        .and_then(|s| s.find(')').map(|i| key_end + i as u32 + 1));
-                    if let Some(after_paren) = after_key {
-                        trim_trailing_ws_before_close_brace(source, after_paren, edits);
+                    None => {
+                        // Defensive fallback: valid each-key syntax always wraps
+                        // the key in parens, so the delimiter scan normally
+                        // succeeds. If it doesn't, keep the previous best-effort
+                        // formatting rather than dropping the key edit entirely.
+                        push_brace_wrapped_expression(source, key, options, edits)?;
                     }
                 }
             } else if let Some(ctx) = &blk.context {
@@ -929,6 +954,43 @@ fn push_bare_expression(
 
     edits.push((edit_start, edit_end, formatted));
     Ok(edit_end)
+}
+
+/// Locate an each-block key's delimiter paren pair `( … )` around the key
+/// expression span `[inner_start, inner_end)`.
+///
+/// The Svelte AST stores only the inner key expression span; the delimiter
+/// parens — plus any redundant parens the source wrapped around the key — sit
+/// outside it. Walk backward over consecutive `(` (and horizontal whitespace)
+/// to the outermost `(`, and forward over consecutive `)` (and horizontal
+/// whitespace) to the outermost `)`. Returns `(delim_open, delim_close_excl)`
+/// covering the whole `( … )` (both delimiter parens included), or `None` when
+/// no wrapping parens are found (which should not happen for valid each-key
+/// syntax). Only horizontal whitespace is crossed, so a paren on a different
+/// line is left alone.
+fn find_each_key_delimiter(source: &str, inner_start: u32, inner_end: u32) -> Option<(u32, u32)> {
+    let before = source.get(..inner_start as usize)?;
+    let mut open: Option<u32> = None;
+    for (pos, ch) in before.char_indices().rev() {
+        match ch {
+            ' ' | '\t' => {}
+            '(' => open = Some(pos as u32),
+            _ => break,
+        }
+    }
+    let open = open?;
+
+    let after = source.get(inner_end as usize..)?;
+    let mut close_excl: Option<u32> = None;
+    for (i, ch) in after.char_indices() {
+        match ch {
+            ' ' | '\t' => {}
+            ')' => close_excl = Some(inner_end + (i + ch.len_utf8()) as u32),
+            _ => break,
+        }
+    }
+    let close_excl = close_excl?;
+    Some((open, close_excl))
 }
 
 /// If the source has `(` immediately before `inner_start` (possibly with
