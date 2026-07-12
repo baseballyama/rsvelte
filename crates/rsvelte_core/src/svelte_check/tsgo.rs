@@ -146,15 +146,11 @@ pub fn run_tsgo(
 ) -> Result<Vec<RawTsDiagnostic>, TsgoError> {
     let mut cmd = Command::new(&binary.program);
     cmd.args(&binary.args_prefix);
-    cmd.args([
-        "-p",
-        tsconfig_path
-            .to_str()
-            .expect("overlay tsconfig path must be UTF-8"),
-        "--pretty",
-        "false",
-        "--noErrorTruncation",
-    ]);
+    // Pass the tsconfig path as an `OsStr` so a non-UTF-8 path survives
+    // verbatim instead of panicking in `to_str().expect(..)`.
+    cmd.arg("-p");
+    cmd.arg(tsconfig_path);
+    cmd.args(["--pretty", "false", "--noErrorTruncation"]);
     cmd.current_dir(cwd);
     let output = cmd.output().map_err(TsgoError::Spawn)?;
     let stdout = String::from_utf8_lossy(&output.stdout);
