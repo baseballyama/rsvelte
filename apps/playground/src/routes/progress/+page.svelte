@@ -4,6 +4,8 @@
 	import type { TestCase } from '$lib/types/test-results';
 	import SiteNav from '$lib/components/SiteNav.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
+	import Eyebrow from '$lib/components/Eyebrow.svelte';
+	import SectionHead from '$lib/components/SectionHead.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -76,7 +78,7 @@
 
 	{#if data.error}
 		<section class="empty">
-			<p class="eyebrow"><span class="rule"></span>Compatibility · unavailable</p>
+			<Eyebrow marginBottom="1.4rem">Compatibility · unavailable</Eyebrow>
 			<h1>Test results not generated.</h1>
 			<p class="lede">{data.error}</p>
 			<pre class="empty-code"><code
@@ -90,7 +92,7 @@
 		{@const r = data.results}
 
 		<header class="hero">
-			<p class="eyebrow"><span class="rule"></span>Compatibility · live report</p>
+			<Eyebrow marginBottom="1.4rem">Compatibility · live report</Eyebrow>
 
 			<h1 class="title">
 				<span class="ink-svelte">{Math.round(r.summary.percentage)}%</span> of the official
@@ -135,14 +137,19 @@
 		</header>
 
 		<section class="spec">
-			<div class="section-head">
-				<span class="num">01</span>
-				<h2>Every <em>category</em>, verified.</h2>
-				<p class="lede">
-					Click any row to filter the fixture list below. Numbers reflect the official Svelte test
-					fixtures run locally against <code>{r.commit_sha}</code>.
-				</p>
-			</div>
+			<SectionHead
+				num="01"
+				columns={3}
+				padding="clamp(3rem, 7vh, 4.5rem) clamp(1rem, 4vw, 2.5rem) clamp(1.4rem, 3vh, 2rem)"
+			>
+				Every <em>category</em>, verified.
+				{#snippet lede()}
+					<p class="lede">
+						Click any row to filter the fixture list below. Numbers reflect the official Svelte
+						test fixtures run locally against <code>{r.commit_sha}</code>.
+					</p>
+				{/snippet}
+			</SectionHead>
 
 			<div class="spec-list">
 				{#each r.categories as cat, i (cat.id)}
@@ -186,15 +193,20 @@
 		</section>
 
 		<section class="fixtures">
-			<div class="section-head">
-				<span class="num">02</span>
-				<h2>The <em>full</em> fixture list.</h2>
-				{#if selectedCategoryId}
-					<button class="clear-filter" onclick={() => (selectedCategoryId = null)}>
-						<span aria-hidden="true">←</span> Clear filter
-					</button>
-				{/if}
-			</div>
+			<SectionHead
+				num="02"
+				columns={3}
+				padding="clamp(3rem, 7vh, 4.5rem) clamp(1rem, 4vw, 2.5rem) clamp(1.4rem, 3vh, 2rem)"
+			>
+				The <em>full</em> fixture list.
+				{#snippet lede()}
+					{#if selectedCategoryId}
+						<button class="clear-filter" onclick={() => (selectedCategoryId = null)}>
+							<span aria-hidden="true">←</span> Clear filter
+						</button>
+					{/if}
+				{/snippet}
+			</SectionHead>
 
 			<div class="filters">
 				<label class="search">
@@ -286,25 +298,6 @@
 		padding: clamp(3.5rem, 9vh, 5.5rem) clamp(1rem, 4vw, 2.5rem) clamp(2rem, 4vh, 3rem);
 	}
 
-	.eyebrow {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.7rem;
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.75rem;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--rust);
-		margin: 0 0 1.4rem;
-	}
-
-	.eyebrow .rule {
-		display: inline-block;
-		width: 24px;
-		height: 1px;
-		background: var(--rust);
-	}
-
 	.title {
 		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 800;
@@ -392,52 +385,13 @@
 		margin: 0 auto;
 	}
 
-	.section-head {
-		max-width: 1080px;
-		padding: clamp(3rem, 7vh, 4.5rem) clamp(1rem, 4vw, 2.5rem) clamp(1.4rem, 3vh, 2rem);
-		display: grid;
-		grid-template-columns: auto 1fr auto;
-		gap: 0.4rem 1.4rem;
-		align-items: baseline;
-	}
-
-	.section-head .num {
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.7rem;
-		letter-spacing: 0.18em;
-		color: var(--rust);
-		grid-row: 1;
-		grid-column: 1;
-	}
-
-	.section-head h2 {
-		font-family: 'Hanken Grotesk', sans-serif;
-		font-weight: 700;
-		font-size: clamp(1.65rem, 3.2vw, 2.6rem);
-		line-height: 1.1;
-		letter-spacing: -0.022em;
-		margin: 0;
-		color: var(--ink);
-		grid-row: 1;
-		grid-column: 2;
-	}
-
-	.section-head h2 em {
-		font-style: italic;
-		color: var(--svelte);
-		font-weight: 700;
-	}
-
-	.section-head .lede {
-		grid-row: 2;
-		grid-column: 2;
-		margin-top: 0.7rem;
+	.spec .lede {
 		font-size: clamp(1rem, 1.2vw, 1.1rem);
 		color: var(--ink-soft);
 		max-width: 64ch;
 	}
 
-	.section-head .lede code {
+	.spec .lede code {
 		font-size: 0.88em;
 		padding: 0.06em 0.4em;
 		background: var(--paper);
@@ -594,13 +548,7 @@
 		padding-bottom: clamp(4rem, 8vh, 6rem);
 	}
 
-	.fixtures .section-head h2 em {
-		color: var(--svelte);
-	}
-
 	.clear-filter {
-		grid-row: 1;
-		grid-column: 3;
 		justify-self: end;
 		align-self: center;
 		background: transparent;
@@ -963,13 +911,6 @@
 
 	/* RESPONSIVE */
 	@media (max-width: 880px) {
-		.section-head {
-			grid-template-columns: auto 1fr;
-		}
-		.clear-filter {
-			grid-column: 1 / -1;
-			justify-self: start;
-		}
 		.spec-row {
 			grid-template-columns: 1fr auto;
 			gap: 0.4rem 1rem;

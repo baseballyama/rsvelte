@@ -4,6 +4,8 @@
 	import type { BenchmarkTaskResults } from '$lib/types/benchmark';
 	import SiteNav from '$lib/components/SiteNav.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
+	import Eyebrow from '$lib/components/Eyebrow.svelte';
+	import SectionHead from '$lib/components/SectionHead.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -190,7 +192,7 @@
 
 	{#if data.error}
 		<section class="empty">
-			<p class="eyebrow"><span class="rule"></span>Benchmark · unavailable</p>
+			<Eyebrow marginBottom="1.4rem">Benchmark · unavailable</Eyebrow>
 			<h1>No benchmark data yet.</h1>
 			<p class="lede">{data.error}</p>
 			<pre class="empty-code"><code><span class="c-cmt"># From the repo root</span>
@@ -201,9 +203,9 @@
 		{@const r = data.results}
 
 		<header class="hero">
-			<p class="eyebrow">
-				<span class="rule"></span>Across the Svelte toolchain · multi-threaded vs official JS
-			</p>
+			<Eyebrow marginBottom="1.4rem"
+				>Across the Svelte toolchain · multi-threaded vs official JS</Eyebrow
+			>
 
 			<h1 class="title">
 				Up to <span class="ink-svelte">{maxHeadlineSpeedup.toFixed(0)}×</span> faster across the
@@ -357,25 +359,6 @@
 		max-width: 1080px;
 		margin: 0 auto;
 		padding: clamp(3.5rem, 9vh, 5.5rem) clamp(1rem, 4vw, 2.5rem) clamp(2rem, 4vh, 3rem);
-	}
-
-	.eyebrow {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.7rem;
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.75rem;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--rust);
-		margin: 0 0 1.4rem;
-	}
-
-	.eyebrow .rule {
-		display: inline-block;
-		width: 24px;
-		height: 1px;
-		background: var(--rust);
 	}
 
 	.title {
@@ -758,31 +741,6 @@
 		max-width: 1080px;
 		margin: 0 auto;
 		padding: clamp(3.5rem, 7vh, 5rem) clamp(1rem, 4vw, 2.5rem) clamp(4rem, 8vh, 6rem);
-	}
-
-	.section-head {
-		display: grid;
-		grid-template-columns: auto 1fr;
-		gap: 0.4rem 1.4rem;
-		margin-bottom: 1.6rem;
-		align-items: baseline;
-	}
-
-	.section-head .num {
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.7rem;
-		letter-spacing: 0.18em;
-		color: var(--rust);
-	}
-
-	.section-head h2 {
-		font-family: 'Hanken Grotesk', sans-serif;
-		font-weight: 700;
-		font-size: clamp(1.6rem, 3vw, 2.4rem);
-		line-height: 1.1;
-		letter-spacing: -0.022em;
-		margin: 0;
-		color: var(--ink);
 	}
 
 	.diff {

@@ -3,6 +3,7 @@
 	import { GUIDES } from '$lib/docs';
 	import SiteNav from '$lib/components/SiteNav.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
+	import Eyebrow from '$lib/components/Eyebrow.svelte';
 </script>
 
 <svelte:head>
@@ -18,7 +19,9 @@
 
 	<main class="wrap">
 		<header class="head">
-			<p class="eyebrow"><span class="rule"></span>Documentation</p>
+			<Eyebrow gap="0.6rem" fontSize="0.72rem" letterSpacing="0.06em" ruleWidth="20px"
+				>Documentation</Eyebrow
+			>
 			<h1 class="title">Guides</h1>
 			<p class="lede">
 				One guide per core package in the rsvelte toolchain — install, API, examples and flags.
@@ -63,25 +66,6 @@
 		max-width: 64rem;
 		margin: 0 auto;
 		padding: clamp(1.6rem, 4vh, 2.6rem) clamp(1rem, 4vw, 2rem) 3rem;
-	}
-
-	.eyebrow {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.6rem;
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.72rem;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--rust);
-		margin: 0;
-	}
-
-	.eyebrow .rule {
-		display: inline-block;
-		width: 20px;
-		height: 1px;
-		background: var(--rust);
 	}
 
 	.title {
