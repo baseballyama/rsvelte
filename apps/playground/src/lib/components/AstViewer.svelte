@@ -215,16 +215,9 @@
 
 <style>
 	.ast-viewer {
-		/* Inherit the editorial palette from the surrounding page when present,
-		   but fall back to a self-contained cream theme so the component is
-		   legible in isolation. */
-		--ast-bg: var(--bg, #f1e8d6);
-		--ast-ink: var(--ink, #1a1612);
-		--ast-ink-soft: var(--ink-soft, #7a7062);
-		--ast-ink-faint: var(--ink-faint, #b8ab93);
-		--ast-accent: var(--accent, #ff3e00);
-		--ast-accent-deep: var(--accent-deep, #c52f00);
-		--ast-hairline: var(--hairline, rgba(26, 22, 18, 0.16));
+		--ast-ink: var(--ink);
+		--ast-ink-soft: var(--ink-soft);
+		--ast-ink-faint: var(--ink-faint);
 
 		font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 		font-size: 12.5px;
@@ -241,13 +234,13 @@
 	}
 
 	.node.highlighted {
-		background: rgba(255, 62, 0, 0.1);
+		background: color-mix(in srgb, var(--svelte) 10%, transparent);
 		margin: -1px -4px;
 		padding: 1px 4px;
 	}
 
 	.node.highlighted.has-position {
-		box-shadow: inset 2px 0 0 var(--ast-accent);
+		box-shadow: inset 2px 0 0 var(--svelte);
 	}
 
 	.toggle {
@@ -265,7 +258,7 @@
 	}
 
 	.toggle:hover {
-		color: var(--ast-accent);
+		color: var(--svelte);
 	}
 
 	.node-header {
@@ -291,11 +284,11 @@
 	}
 
 	.node-header.clickable:hover {
-		background: rgba(255, 62, 0, 0.12);
+		background: color-mix(in srgb, var(--svelte) 12%, transparent);
 	}
 
 	.preview {
-		color: var(--ast-accent-deep);
+		color: var(--svelte-hover);
 		font-weight: 600;
 		letter-spacing: 0.005em;
 	}
@@ -310,7 +303,7 @@
 
 	.children {
 		margin-left: 14px;
-		border-left: 1px solid var(--ast-hairline);
+		border-left: 1px solid var(--rule);
 		padding-left: 12px;
 	}
 
@@ -319,7 +312,7 @@
 	}
 
 	.key {
-		color: #5a3a8a;
+		color: var(--syntax-key);
 		font-weight: 500;
 	}
 
@@ -328,16 +321,16 @@
 	}
 
 	.primitive.string {
-		color: #7a4520;
+		color: var(--syntax-string);
 	}
 
 	.primitive.number {
-		color: #2e5a3a;
+		color: var(--syntax-number);
 		font-variant-numeric: tabular-nums;
 	}
 
 	.primitive.boolean {
-		color: #5a3a8a;
+		color: var(--syntax-key);
 	}
 
 	.null {
@@ -349,7 +342,7 @@
 		color: var(--ast-ink-soft);
 		text-align: center;
 		padding: 2.5rem 1rem;
-		font-family: 'Fraunces', Georgia, serif;
+		font-family: 'Hanken Grotesk', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
 		font-style: italic;
 		font-size: 1.05rem;
 		letter-spacing: -0.01em;

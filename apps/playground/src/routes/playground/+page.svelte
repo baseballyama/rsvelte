@@ -1000,7 +1000,7 @@
 		align-items: baseline;
 		gap: 0.6rem;
 		padding: 0.4rem 0.8rem;
-		border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
 	}
 
 	.lint-sev {
@@ -1018,13 +1018,13 @@
 	}
 
 	.lint-warning {
-		color: var(--warn, #b58900);
-		background: color-mix(in srgb, var(--warn, #b58900) 14%, transparent);
+		color: var(--warn);
+		background: color-mix(in srgb, var(--warn) 14%, transparent);
 	}
 
 	.lint-loc {
 		flex: none;
-		color: var(--accent, inherit);
+		color: var(--ink-soft);
 		opacity: 0.75;
 		min-width: 3.2rem;
 	}
