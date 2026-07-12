@@ -6315,8 +6315,14 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
             false
         }
 
-        // Arrow/function expressions are "known" (they evaluate to a function)
-        "ArrowFunctionExpression" | "FunctionExpression" => true,
+        // Arrow/function expressions evaluate to a function value, which upstream
+        // `scope.evaluate` reports as NOT known (a `FUNCTION` symbol — `is_known`
+        // is only true for a single *concrete* value). So a function-valued rune
+        // like `const projection = $derived(() => …)` stays reactive, matching the
+        // official compiler. (Function *bindings* are still handled earlier via
+        // `binding.is_function()`, so a reference to `const f = () => {}` is
+        // unaffected.)
+        "ArrowFunctionExpression" | "FunctionExpression" => false,
 
         // Member expressions are generally not known, EXCEPT a non-computed
         // member of a pure global namespace whose members are compile-time
