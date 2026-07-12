@@ -21,6 +21,7 @@ pub mod control_flow;
 pub mod css;
 mod css_scoping;
 pub mod errors;
+mod pattern_ids;
 pub mod scope;
 mod scope_builder;
 mod store_subscriptions;
@@ -1432,7 +1433,7 @@ fn process_legacy_exports(ast: &Root, analysis: &mut ComponentAnalysis) {
                     };
                     let mut identifiers: Vec<String> = Vec::new();
                     if let Some(id_id) = id_id {
-                        extract_identifiers_from_pattern_typed(
+                        pattern_ids::collect_pattern_identifiers(
                             arena.get_js_node(id_id),
                             arena,
                             &mut identifiers,
@@ -1515,50 +1516,6 @@ fn apply_specifier_export(local: &str, exported: &str, analysis: &mut ComponentA
 }
 
 /// Extract identifier names from a typed pattern (handles destructuring).
-fn extract_identifiers_from_pattern_typed(
-    pattern: &crate::ast::typed_expr::JsNode,
-    arena: &crate::ast::arena::ParseArena,
-    out: &mut Vec<String>,
-) {
-    use crate::ast::typed_expr::JsNode;
-    match pattern {
-        JsNode::Identifier { name, .. } => out.push(name.to_string()),
-        JsNode::ObjectPattern { properties, .. } => {
-            for prop in arena.get_js_children(*properties) {
-                match prop {
-                    JsNode::Property { value, .. } => {
-                        extract_identifiers_from_pattern_typed(
-                            arena.get_js_node(*value),
-                            arena,
-                            out,
-                        );
-                    }
-                    JsNode::RestElement { argument, .. } => {
-                        extract_identifiers_from_pattern_typed(
-                            arena.get_js_node(*argument),
-                            arena,
-                            out,
-                        );
-                    }
-                    _ => {}
-                }
-            }
-        }
-        JsNode::ArrayPattern { elements, .. } => {
-            for e in elements.iter().flatten() {
-                extract_identifiers_from_pattern_typed(e, arena, out);
-            }
-        }
-        JsNode::RestElement { argument, .. } => {
-            extract_identifiers_from_pattern_typed(arena.get_js_node(*argument), arena, out);
-        }
-        JsNode::AssignmentPattern { left, .. } => {
-            extract_identifiers_from_pattern_typed(arena.get_js_node(*left), arena, out);
-        }
-        _ => {}
-    }
-}
-
 /// Promote store underlying variables to 'state' if reassigned in legacy mode.
 ///
 /// When a store subscription `$foo` exists and the underlying variable `foo`
@@ -1941,7 +1898,7 @@ fn populate_legacy_dependencies(ast: &Root, analysis: &mut ComponentAnalysis) {
                 assigned_names.push(name);
             }
         } else {
-            extract_each_pattern_identifiers(left, &mut assigned_names);
+            pattern_ids::collect_pattern_identifiers_json(left, &mut assigned_names);
         }
 
         // Find which of these are LegacyReactive bindings
@@ -2468,51 +2425,6 @@ fn extract_param_names(param: &serde_json::Value, names: &mut Vec<String>) {
 }
 
 /// Extract identifier names from a destructuring pattern.
-fn extract_each_pattern_identifiers(node: &serde_json::Value, names: &mut Vec<String>) {
-    let node_type = node.get("type").and_then(|t| t.as_str());
-    match node_type {
-        Some("Identifier") => {
-            if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
-                names.push(name.to_string());
-            }
-        }
-        Some("ObjectPattern") => {
-            if let Some(props) = node.get("properties").and_then(|p| p.as_array()) {
-                for prop in props {
-                    let prop_type = prop.get("type").and_then(|t| t.as_str());
-                    if prop_type == Some("RestElement") {
-                        if let Some(arg) = prop.get("argument") {
-                            extract_each_pattern_identifiers(arg, names);
-                        }
-                    } else if let Some(value) = prop.get("value") {
-                        extract_each_pattern_identifiers(value, names);
-                    }
-                }
-            }
-        }
-        Some("ArrayPattern") => {
-            if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
-                for elem in elements {
-                    if !elem.is_null() {
-                        extract_each_pattern_identifiers(elem, names);
-                    }
-                }
-            }
-        }
-        Some("AssignmentPattern") => {
-            if let Some(left) = node.get("left") {
-                extract_each_pattern_identifiers(left, names);
-            }
-        }
-        Some("RestElement") => {
-            if let Some(arg) = node.get("argument") {
-                extract_each_pattern_identifiers(arg, names);
-            }
-        }
-        _ => {}
-    }
-}
-
 /// Extract identifier names from a destructuring pattern (JsNode version).
 /// Uses JSON fallback for arena-dependent fields to avoid threading ParseArena.
 fn extract_each_pattern_identifiers_node(node: &JsNode, names: &mut Vec<String>) {
@@ -2526,7 +2438,7 @@ fn extract_each_pattern_identifiers_node(node: &JsNode, names: &mut Vec<String>)
         | JsNode::AssignmentPattern { .. }
         | JsNode::RestElement { .. } => {
             let json = node.to_value();
-            extract_each_pattern_identifiers(&json, names);
+            pattern_ids::collect_pattern_identifiers_json(&json, names);
         }
         _ => {}
     }

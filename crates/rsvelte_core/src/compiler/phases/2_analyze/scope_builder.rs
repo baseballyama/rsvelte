@@ -3,6 +3,7 @@
 //! Walks the AST and creates a scope tree with bindings.
 
 use super::errors;
+use super::pattern_ids::{base_identifier_name, collect_pattern_identifiers};
 use super::scope::{Binding, BindingKind, DeclarationKind, Scope, ScopeRoot};
 use super::visitors::shared::utils::validate_identifier_name;
 use crate::ast::arena::{JsNodeId, ParseArena};
@@ -2927,7 +2928,7 @@ impl<'a> ScopeBuilder<'a> {
             }
             JsNode::MemberExpression { object, .. } => {
                 if let Some(name) =
-                    get_node_base_identifier_name(self.arena.get_js_node(*object), self.arena)
+                    base_identifier_name(self.arena.get_js_node(*object), self.arena)
                 {
                     self.updates.push(Update {
                         name,
@@ -2974,7 +2975,7 @@ impl<'a> ScopeBuilder<'a> {
             }
             JsNode::MemberExpression { object, .. } => {
                 if let Some(name) =
-                    get_node_base_identifier_name(self.arena.get_js_node(*object), self.arena)
+                    base_identifier_name(self.arena.get_js_node(*object), self.arena)
                 {
                     self.updates.push(Update {
                         name,
@@ -3758,13 +3759,13 @@ fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>, arena:
     match node {
         JsNode::ArrowFunctionExpression { params, body, .. } => {
             for param in arena.get_js_children(*params) {
-                collect_pattern_names_node(param, names, arena);
+                collect_pattern_identifiers(param, arena, names);
             }
             collect_arrow_param_names_node(arena.get_js_node(*body), names, arena);
         }
         JsNode::FunctionExpression { params, body, .. } => {
             for param in arena.get_js_children(*params) {
-                collect_pattern_names_node(param, names, arena);
+                collect_pattern_identifiers(param, arena, names);
             }
             if let Some(body) = body {
                 collect_arrow_param_names_node(arena.get_js_node(*body), names, arena);
@@ -3895,36 +3896,6 @@ fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>, arena:
     }
 }
 
-/// JsNode version of `collect_pattern_names`.
-fn collect_pattern_names_node(node: &JsNode, names: &mut Vec<String>, arena: &ParseArena) {
-    match node {
-        JsNode::Identifier { name, .. } => {
-            names.push(name.to_string());
-        }
-        JsNode::ObjectPattern { properties, .. } => {
-            for prop in arena.get_js_children(*properties) {
-                if let JsNode::Property { value, .. } = prop {
-                    collect_pattern_names_node(arena.get_js_node(*value), names, arena);
-                } else if let JsNode::RestElement { argument, .. } = prop {
-                    collect_pattern_names_node(arena.get_js_node(*argument), names, arena);
-                }
-            }
-        }
-        JsNode::ArrayPattern { elements, .. } => {
-            for elem in elements.iter().flatten() {
-                collect_pattern_names_node(elem, names, arena);
-            }
-        }
-        JsNode::RestElement { argument, .. } => {
-            collect_pattern_names_node(arena.get_js_node(*argument), names, arena);
-        }
-        JsNode::AssignmentPattern { left, .. } => {
-            collect_pattern_names_node(arena.get_js_node(*left), names, arena);
-        }
-        _ => {}
-    }
-}
-
 /// Get the start position of a JsNode (helper for function_scope_map).
 fn node_start(node: &JsNode) -> Option<u32> {
     match node {
@@ -3947,17 +3918,6 @@ fn node_start(node: &JsNode) -> Option<u32> {
         | JsNode::LogicalExpression { start, .. }
         | JsNode::NewExpression { start, .. }
         | JsNode::TemplateLiteral { start, .. } => Some(*start),
-        _ => None,
-    }
-}
-
-/// Get the base identifier name from a JsNode (walking through member expressions).
-fn get_node_base_identifier_name(node: &JsNode, arena: &ParseArena) -> Option<String> {
-    match node {
-        JsNode::Identifier { name, .. } => Some(name.to_string()),
-        JsNode::MemberExpression { object, .. } => {
-            get_node_base_identifier_name(arena.get_js_node(*object), arena)
-        }
         _ => None,
     }
 }
