@@ -6,6 +6,7 @@ use std::ffi::OsStr;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 
 use anyhow::{Context, Result, anyhow};
@@ -1043,7 +1044,7 @@ fn run_svelte_files_native(
             match format(&source, options) {
                 Ok(out) if out == source => (path.clone(), NativeOutcome::Unchanged),
                 Ok(out) => match mode {
-                    Mode::Write => match std::fs::write(path, &out) {
+                    Mode::Write => match write_atomic(path, &out) {
                         Ok(()) => (path.clone(), NativeOutcome::Changed),
                         Err(e) => (
                             path.clone(),
@@ -1454,6 +1455,38 @@ fn oxfmt_ext(lang: &str) -> &'static str {
     }
 }
 
+/// Write `data` to `path` atomically: stage it in a uniquely-named temp file in
+/// the same directory, then `rename` it into place. A plain `fs::write`
+/// truncates the target up front, so a crash or a concurrent reader can observe
+/// a half-written (or empty) file; the rename swap is atomic and same-directory
+/// (guaranteed same filesystem). Same approach as the `<style>` cache.
+fn write_atomic(path: &Path, data: impl AsRef<[u8]>) -> io::Result<()> {
+    let dir = path.parent().filter(|p| !p.as_os_str().is_empty());
+    let dir = dir.unwrap_or_else(|| Path::new("."));
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy())
+        .unwrap_or_default();
+    let tmp = dir.join(format!(".{name}.rsvelte-fmt-tmp{}", next_tmp_id()));
+    if let Err(e) = std::fs::write(&tmp, data) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    if let Err(e) = std::fs::rename(&tmp, path) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    Ok(())
+}
+
+/// Process-unique temp-file suffix (PID high bits + a monotonic counter) so
+/// concurrent atomic writes never collide on a staging path.
+fn next_tmp_id() -> u64 {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    ((std::process::id() as u64) << 32) | n
+}
+
 /// Write `formatted` back to `path` (write mode) or report it (check mode).
 /// Returns whether the file would change.
 fn apply_output(path: &Path, source: &str, formatted: &str, mode: Mode) -> Result<bool> {
@@ -1462,8 +1495,7 @@ fn apply_output(path: &Path, source: &str, formatted: &str, mode: Mode) -> Resul
     }
     match mode {
         Mode::Write => {
-            std::fs::write(path, formatted)
-                .with_context(|| format!("writing {}", path.display()))?;
+            write_atomic(path, formatted).with_context(|| format!("writing {}", path.display()))?;
             Ok(true)
         }
         Mode::Check => {
@@ -1601,7 +1633,7 @@ fn run_native_js(
             match format_js_source(&source, ext, &opts) {
                 Ok(out) if out == source => (path.clone(), NativeOutcome::Unchanged),
                 Ok(out) => match mode {
-                    Mode::Write => match std::fs::write(path, &out) {
+                    Mode::Write => match write_atomic(path, &out) {
                         Ok(()) => (path.clone(), NativeOutcome::Changed),
                         Err(e) => (
                             path.clone(),
@@ -1748,7 +1780,7 @@ fn run_native_json(
             match format_json_source(&source, json_variant(ext), &options) {
                 Ok(out) if out == source => (path.clone(), NativeOutcome::Unchanged),
                 Ok(out) => match mode {
-                    Mode::Write => match std::fs::write(path, &out) {
+                    Mode::Write => match write_atomic(path, &out) {
                         Ok(()) => (path.clone(), NativeOutcome::Changed),
                         Err(e) => (
                             path.clone(),
@@ -1890,7 +1922,7 @@ fn run_native_css(
             match format_css_source(&source, css_variant_from_lang(ext), &options) {
                 Ok(out) if out == source => (path.clone(), NativeOutcome::Unchanged),
                 Ok(out) => match mode {
-                    Mode::Write => match std::fs::write(path, &out) {
+                    Mode::Write => match write_atomic(path, &out) {
                         Ok(()) => (path.clone(), NativeOutcome::Changed),
                         Err(e) => (
                             path.clone(),
