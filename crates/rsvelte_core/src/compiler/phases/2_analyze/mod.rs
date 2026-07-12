@@ -468,8 +468,7 @@ pub fn analyze_component(
             .get_binding("$$props", instance_scope)
             .is_none()
         {
-            let idx = analysis.root.bindings.len();
-            analysis.root.bindings.push(Binding::with_declaration_kind(
+            let idx = analysis.root.push_binding(Binding::with_declaration_kind(
                 "$$props".to_string(),
                 BindingKind::RestProp,
                 DeclarationKind::Synthetic,
@@ -1753,11 +1752,17 @@ fn collect_each_block_promotions(
                         // bound via `bind:`). Without the kind filter, a `const items`
                         // collection whose item name collides with a `bind:`-reassigned
                         // outer `let` was wrongly promoted to mutable_source.
-                        analysis.root.bindings.iter().any(|binding| {
-                            binding.name == *name
-                                && binding.kind == BindingKind::EachItem
-                                && (binding.reassigned || binding.mutated)
-                        })
+                        analysis
+                            .root
+                            .bindings_by_name
+                            .get(name)
+                            .is_some_and(|idxs| {
+                                idxs.iter().any(|&i| {
+                                    let binding = &analysis.root.bindings[i as usize];
+                                    binding.kind == BindingKind::EachItem
+                                        && (binding.reassigned || binding.mutated)
+                                })
+                            })
                     })
                 } else {
                     false
@@ -1943,11 +1948,11 @@ fn populate_legacy_dependencies(ast: &Root, analysis: &mut ComponentAnalysis) {
         let legacy_reactive_indices: Vec<usize> = assigned_names
             .iter()
             .filter_map(|name| {
-                analysis
-                    .root
-                    .bindings
-                    .iter()
-                    .position(|b| b.name == *name && b.kind == BindingKind::LegacyReactive)
+                analysis.root.bindings_by_name.get(name).and_then(|idxs| {
+                    idxs.iter()
+                        .map(|&i| i as usize)
+                        .find(|&i| analysis.root.bindings[i].kind == BindingKind::LegacyReactive)
+                })
             })
             .collect();
 
@@ -1978,8 +1983,14 @@ fn populate_legacy_dependencies(ast: &Root, analysis: &mut ComponentAnalysis) {
         let dep_indices: Vec<usize> = dep_names
             .iter()
             .filter_map(|name| {
-                // Look up in instance scope (binding index)
-                analysis.root.bindings.iter().position(|b| b.name == *name)
+                // Look up the first-declared binding for this name (mirrors the
+                // first-match semantics of the previous `bindings.iter().position`).
+                analysis
+                    .root
+                    .bindings_by_name
+                    .get(name)
+                    .and_then(|idxs| idxs.first())
+                    .map(|&i| i as usize)
             })
             .collect();
 

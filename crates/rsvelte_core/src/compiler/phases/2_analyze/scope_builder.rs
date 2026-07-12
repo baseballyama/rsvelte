@@ -89,6 +89,10 @@ pub struct ScopeBuilder<'a> {
     /// root.conflicts (so generated template variables like `node_N` avoid them),
     /// but that aren't otherwise tracked as scope declarations.
     nested_declared_names: rustc_hash::FxHashSet<String>,
+    /// Maps binding name -> indices into `bindings`, in push order. Carried over
+    /// verbatim into `ScopeRoot::bindings_by_name` (see `build()`), since
+    /// `self.bindings` also moves verbatim and indices stay 1:1.
+    bindings_by_name: FxHashMap<String, smallvec::SmallVec<[u32; 1]>>,
 }
 
 impl<'a> ScopeBuilder<'a> {
@@ -127,6 +131,7 @@ impl<'a> ScopeBuilder<'a> {
             snippet_scope_indices: rustc_hash::FxHashSet::default(),
             template_expression_params: Vec::new(),
             nested_declared_names: rustc_hash::FxHashSet::default(),
+            bindings_by_name: FxHashMap::default(),
         }
     }
 
@@ -322,6 +327,7 @@ impl<'a> ScopeBuilder<'a> {
                 template_scope_map: self.template_scope_map,
                 snippet_scope_indices: self.snippet_scope_indices,
                 conflicts: std::rc::Rc::new(std::cell::RefCell::new(conflicts)),
+                bindings_by_name: self.bindings_by_name,
             },
             self.validation_errors,
         )
@@ -558,6 +564,10 @@ impl<'a> ScopeBuilder<'a> {
             }
         }
 
+        self.bindings_by_name
+            .entry(binding.name.clone())
+            .or_default()
+            .push(idx as u32);
         self.bindings.push(binding);
         self.scopes[target_scope].declare(name, idx);
         idx

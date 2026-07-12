@@ -414,14 +414,13 @@ pub fn detect_store_subscriptions(
             }
 
             // Create a synthetic StoreSub binding
-            let new_binding_idx = analysis.root.bindings.len();
             let new_binding = Binding::with_declaration_kind(
                 ref_name.clone(),
                 BindingKind::StoreSub,
                 DeclarationKind::Synthetic,
                 0, // Root scope
             );
-            analysis.root.bindings.push(new_binding);
+            let new_binding_idx = analysis.root.push_binding(new_binding);
             analysis
                 .root
                 .scope

@@ -2070,7 +2070,6 @@ pub fn walk_js_expression(
                         // with scope_index = 2, which is > 1 (nested scope).
                         // This ensures $store references inside functions that shadow
                         // the store variable will trigger store_invalid_scoped_subscription.
-                        let temp_binding_idx = context.analysis.root.bindings.len();
                         let temp_binding =
                             crate::compiler::phases::phase2_analyze::Binding::with_declaration_kind(
                                 param_name.clone(),
@@ -2078,7 +2077,7 @@ pub fn walk_js_expression(
                                 crate::compiler::phases::phase2_analyze::DeclarationKind::Param,
                                 context.function_depth + 1, // +1 ensures first level nesting (depth=1) creates scope_index=2
                             );
-                        context.analysis.root.bindings.push(temp_binding);
+                        let temp_binding_idx = context.analysis.root.push_binding(temp_binding);
 
                         // Add to the temporary scope so get_binding() finds it first
                         context.analysis.root.all_scopes[temp_scope_idx]
@@ -2294,14 +2293,13 @@ pub fn walk_js_statement(
                         let mut names = Vec::new();
                         collect_all_identifier_names_from_pattern(id, &mut names);
                         for name in names {
-                            let temp_binding_idx = context.analysis.root.bindings.len();
                             let temp_binding = crate::compiler::phases::phase2_analyze::Binding::with_declaration_kind(
                                 name.clone(),
                                 crate::compiler::phases::phase2_analyze::BindingKind::Normal,
                                 crate::compiler::phases::phase2_analyze::DeclarationKind::Let,
                                 context.function_depth + 1,
                             );
-                            context.analysis.root.bindings.push(temp_binding);
+                            let temp_binding_idx = context.analysis.root.push_binding(temp_binding);
 
                             // Add to the current scope in all_scopes so get_binding()
                             // finds it during scope chain traversal
@@ -3288,7 +3286,6 @@ pub fn walk_js_expression_node(
                 collect_all_identifier_names_from_pattern_node(param, &mut param_names, arena);
 
                 for param_name in param_names {
-                    let temp_binding_idx = context.analysis.root.bindings.len();
                     let temp_binding =
                         crate::compiler::phases::phase2_analyze::Binding::with_declaration_kind(
                             param_name.clone(),
@@ -3296,7 +3293,7 @@ pub fn walk_js_expression_node(
                             crate::compiler::phases::phase2_analyze::DeclarationKind::Param,
                             context.function_depth + 1,
                         );
-                    context.analysis.root.bindings.push(temp_binding);
+                    let temp_binding_idx = context.analysis.root.push_binding(temp_binding);
 
                     context.analysis.root.all_scopes[temp_scope_idx]
                         .declarations
@@ -3477,7 +3474,6 @@ pub fn walk_js_statement_node(
                         arena,
                     );
                     for name in names {
-                        let temp_binding_idx = context.analysis.root.bindings.len();
                         let temp_binding =
                             crate::compiler::phases::phase2_analyze::Binding::with_declaration_kind(
                                 name.clone(),
@@ -3485,7 +3481,7 @@ pub fn walk_js_statement_node(
                                 crate::compiler::phases::phase2_analyze::DeclarationKind::Let,
                                 context.function_depth + 1,
                             );
-                        context.analysis.root.bindings.push(temp_binding);
+                        let temp_binding_idx = context.analysis.root.push_binding(temp_binding);
 
                         if let Some(scope) = context.analysis.root.all_scopes.get_mut(context.scope)
                         {

@@ -50,6 +50,12 @@ pub struct ScopeRoot {
     /// Every `declare()` call adds the name here.
     /// Wrapped in Rc<RefCell<...>> so that Memoizer can share without cloning.
     pub conflicts: Rc<RefCell<FxHashSet<String>>>,
+    /// Maps binding name -> indices into `bindings`, in push order. Every
+    /// `bindings.push(...)` site has a matching entry appended here (see
+    /// `push_binding`), so name-based lookups that would otherwise be an
+    /// O(bindings) linear scan (`bindings.iter().position/any(|b| b.name == ...)`)
+    /// can instead go through this map and scan only same-named entries.
+    pub bindings_by_name: FxHashMap<String, SmallVec<[u32; 1]>>,
 }
 
 impl ScopeRoot {
@@ -65,7 +71,23 @@ impl ScopeRoot {
             template_scope_map: FxHashMap::default(),
             snippet_scope_indices: FxHashSet::default(),
             conflicts: Rc::new(RefCell::new(FxHashSet::default())),
+            bindings_by_name: FxHashMap::default(),
         }
+    }
+
+    /// Push a binding and record its index in `bindings_by_name`, keeping the
+    /// name-lookup index in sync with `bindings`. This is the single insertion
+    /// point for `bindings.push` outside of `ScopeBuilder` (which maintains its
+    /// own copy of the same map during the initial scope-building pass; see
+    /// `ScopeBuilder::declare_binding`).
+    pub fn push_binding(&mut self, binding: Binding) -> usize {
+        let idx = self.bindings.len();
+        self.bindings_by_name
+            .entry(binding.name.clone())
+            .or_default()
+            .push(idx as u32);
+        self.bindings.push(binding);
+        idx
     }
 
     /// Look up a binding by name starting from a specific scope and walking up the parent chain.
