@@ -265,7 +265,7 @@ fn dedent(s: &str) -> String {
     let mut min_indent = usize::MAX;
     for (l, &c) in lines.iter().zip(&cont) {
         if !c && !l.trim().is_empty() {
-            min_indent = min_indent.min(l.len() - l.trim_start().len());
+            min_indent = min_indent.min(leading_ascii_ws(l));
         }
     }
     let min_indent = if min_indent == usize::MAX {
@@ -280,10 +280,19 @@ fn dedent(s: &str) -> String {
         } else if l.trim().is_empty() {
             out.push(String::new());
         } else {
-            out.push(l[min_indent..].to_string());
+            out.push(l.get(min_indent..).unwrap_or(l).to_string());
         }
     }
     out.join("\n")
+}
+
+/// Byte length of a line's leading indentation, counting only ASCII space and
+/// tab. A multi-byte Unicode whitespace char (e.g. U+00A0) never contributes,
+/// so the returned offset always lands on a char boundary — slicing at it can't
+/// split a code point (`str::trim_start` would strip such chars and yield a
+/// byte length that slices mid-character).
+fn leading_ascii_ws(l: &str) -> usize {
+    l.bytes().take_while(|&b| b == b' ' || b == b'\t').count()
 }
 
 /// Prefix every non-empty line of `s` with `indent`, dropping any trailing
@@ -361,4 +370,21 @@ fn detect_lang(css: &StyleSheet) -> String {
         }
     }
     "css".to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::dedent;
+
+    #[test]
+    fn dedent_handles_multibyte_leading_whitespace() {
+        // Line 1 has two ASCII spaces; line 2 has one space then U+00A0 (a
+        // two-byte code point). The old measurement used `str::trim_start`,
+        // which strips the U+00A0 as whitespace, so line 2's indent came back as
+        // three bytes and min_indent as two — and `l[2..]` on line 2 sliced the
+        // middle of U+00A0 and panicked. Counting only ASCII space/tab keeps
+        // min_indent at one, a valid char boundary on both lines.
+        let out = dedent("  a\n \u{a0}b");
+        assert_eq!(out, " a\n\u{a0}b");
+    }
 }

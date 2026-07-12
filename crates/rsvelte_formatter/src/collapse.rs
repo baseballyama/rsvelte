@@ -871,8 +871,19 @@ fn fix_pre_overflow_close_suffix(
 fn apply_edits(src: &str, mut edits: Vec<(u32, u32, String)>) -> String {
     edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
     let mut result = src.to_string();
+    // Guard against overlapping range edits: applying a second edit that
+    // intersects an already-applied one would `replace_range` over shifted
+    // bytes, corrupting the output or panicking on a non-boundary index. Edits
+    // are processed high→low, so the first (higher-start) edit for any overlap
+    // wins and the overlapping one is skipped. Callers avoid emitting overlaps
+    // in the first place; this is a safety net.
+    let mut last_start = u32::MAX;
     for (start, end, text) in edits {
+        if end > last_start {
+            continue;
+        }
         result.replace_range(start as usize..end as usize, &text);
+        last_start = start;
     }
     result
 }
@@ -1872,13 +1883,23 @@ fn collect_break_inline_open_tag(
                         line_width,
                     )
                 {
+                    // A whole-element edit (`edit.1 == e.end`) rewrites the tag
+                    // *and its children* in one span, so a child edit collected
+                    // below would apply against now-stale offsets inside that
+                    // span — corrupting the output or panicking `apply_edits`.
+                    // Skip recursion in that case. An open-tag-only edit
+                    // (`edit.1 < e.end`) leaves the children untouched, so
+                    // recursion into them is still safe.
+                    let whole_element = edit.1 == e.end;
                     edits.push(edit);
-                    // Don't skip recursion: children at higher positions are safe
-                    // because apply_edits processes edits from high→low position.
+                    if whole_element {
+                        continue;
+                    }
                 }
                 collect_break_inline_open_tag(out, &e.fragment, line_width, edits);
             }
             TemplateNode::Component(c) => {
+                let mut whole_element = false;
                 if let Some(edit) = try_break_inline_open_tag(
                     out,
                     c.name.as_str(),
@@ -1888,9 +1909,12 @@ fn collect_break_inline_open_tag(
                     &c.fragment,
                     line_width,
                 ) {
+                    whole_element = edit.1 == c.end;
                     edits.push(edit);
                 }
-                collect_break_inline_open_tag(out, &c.fragment, line_width, edits);
+                if !whole_element {
+                    collect_break_inline_open_tag(out, &c.fragment, line_width, edits);
+                }
             }
             _ => {
                 for child in child_fragments(node) {
@@ -6184,6 +6208,30 @@ mod tests {
             nodes: vec![],
             metadata: FragmentMetadata::default(),
         }
+    }
+
+    #[test]
+    fn apply_edits_skips_overlapping_edit_without_panicking() {
+        // A whole-element edit (0..10) plus a nested child edit (3..6) that it
+        // contains. Processed high→low, the child would replace_range on bytes
+        // already shifted by the outer edit — corrupting output or panicking.
+        // The guard keeps the first (higher-start) edit and drops the overlap.
+        let out = apply_edits(
+            "0123456789",
+            vec![(0, 10, "OUTER".to_string()), (3, 6, "X".to_string())],
+        );
+        // Child (3..6) applies first, then the overlapping outer (0..10) is
+        // skipped — no panic, no corruption.
+        assert_eq!(out, "012X6789");
+    }
+
+    #[test]
+    fn apply_edits_applies_disjoint_edits() {
+        let out = apply_edits(
+            "0123456789",
+            vec![(0, 2, "A".to_string()), (8, 10, "B".to_string())],
+        );
+        assert_eq!(out, "A234567B");
     }
 
     #[test]
