@@ -6155,7 +6155,28 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
                     if binding.is_function() {
                         return true;
                     }
-                    return is_initial_value_literal_or_known(&binding.initial);
+                    if is_initial_value_literal_or_known(&binding.initial) {
+                        return true;
+                    }
+                    // Recurse into a stored non-literal initializer AST (e.g. a
+                    // referenced `const H = a + b`), mirroring upstream `evaluate`
+                    // which always recurses into `binding.initial`. Depth-guarded so
+                    // a (TDZ-invalid but untrusted) cyclic initializer can't loop.
+                    return REACTIVE_INIT_DEPTH.with(|d| {
+                        if d.get() >= 8 {
+                            return false;
+                        }
+                        let Some(ref s) = binding.init_expr_json else {
+                            return false;
+                        };
+                        let Ok(j) = serde_json::from_str::<serde_json::Value>(s) else {
+                            return false;
+                        };
+                        d.set(d.get() + 1);
+                        let known = is_expression_known_json(&j, context);
+                        d.set(d.get() - 1);
+                        known
+                    });
                 }
                 // Unknown identifier - not known (could be a global)
                 false
