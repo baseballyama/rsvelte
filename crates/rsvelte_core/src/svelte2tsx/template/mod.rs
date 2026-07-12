@@ -325,15 +325,6 @@ fn segs_trim_start(segs: &mut Vec<Seg>) {
     }
 }
 
-/// Apply a list of segments to a MagicString, overwriting `[start, end)`
-/// while preserving every `Seg::Src(s, e)` chunk as an unedited region —
-/// the cornerstone of the structured bake. The unedited chunks survive
-/// MagicString's per-character `generate_mappings` pass intact, so
-/// diagnostics inside `<Component a={x} />` resolve to the exact column.
-///
-/// Invariants on `segments` (debug-asserted):
-///   - `Src(s, e)` ranges appear in strictly increasing order.
-///   - Each `Src(s, e)` lies within `[range_start, range_end]`.
 /// Reorder-safe pre-pass for [`emit_segmented_overwrite`], which requires
 /// `Seg::Src` ranges to appear in ascending source order (a MagicString can
 /// only overwrite left-to-right). When a later segment references an earlier
@@ -363,6 +354,15 @@ fn bake_out_of_order_src(segs: Vec<Seg>, source: &str) -> Vec<Seg> {
     out
 }
 
+/// Apply a list of segments to a MagicString, overwriting `[start, end)`
+/// while preserving every `Seg::Src(s, e)` chunk as an unedited region —
+/// the cornerstone of the structured bake. The unedited chunks survive
+/// MagicString's per-character `generate_mappings` pass intact, so
+/// diagnostics inside `<Component a={x} />` resolve to the exact column.
+///
+/// Invariants on `segments` (debug-asserted):
+/// - `Src(s, e)` ranges appear in strictly increasing order.
+/// - Each `Src(s, e)` lies within `[range_start, range_end]`.
 fn emit_segmented_overwrite(
     str: &mut MagicString,
     range_start: u32,
@@ -5802,14 +5802,6 @@ fn is_js_numeric(data: &str) -> bool {
     t.parse::<f64>().is_ok()
 }
 
-/// Structured-bake variant of [`format_attribute_node`]. Wraps every
-/// expression site in `Seg::Src` so the resulting MagicString chunks
-/// retain per-character source-map fidelity.
-///
-/// Applies the same wrapping rules as `format_attribute_node`:
-/// - `is_element` && `data-*` (not `data-sveltekit-*`) → `__sveltets_2_empty({…})`
-/// - `!is_element` && `--*` → `__sveltets_2_cssProp({…})`
-/// (Mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute`.)
 /// SVG attribute names that preserve their original (often camelCase) casing.
 /// Mirrors `htmlxtojsx_v2/svgattributes.ts`.
 const SVG_ATTRIBUTES: &str = "accent-height accumulate additive alignment-baseline allowReorder alphabetic amplitude arabic-form ascent attributeName attributeType autoReverse azimuth baseFrequency baseline-shift baseProfile bbox begin bias by calcMode cap-height class clip clipPathUnits clip-path clip-rule color color-interpolation color-interpolation-filters color-profile color-rendering contentScriptType contentStyleType cursor cx cy d decelerate descent diffuseConstant direction display divisor dominant-baseline dur dx dy edgeMode elevation enable-background end exponent externalResourcesRequired fill fill-opacity fill-rule filter filterRes filterUnits flood-color flood-opacity font-family font-size font-size-adjust font-stretch font-style font-variant font-weight format from fr fx fy g1 g2 glyph-name glyph-orientation-horizontal glyph-orientation-vertical glyphRef gradientTransform gradientUnits hanging height href horiz-adv-x horiz-origin-x id ideographic image-rendering in in2 intercept k k1 k2 k3 k4 kernelMatrix kernelUnitLength kerning keyPoints keySplines keyTimes lang lengthAdjust letter-spacing lighting-color limitingConeAngle local marker-end marker-mid marker-start markerHeight markerUnits markerWidth mask maskContentUnits maskUnits mathematical max media method min mode name numOctaves offset onabort onactivate onbegin onclick onend onerror onfocusin onfocusout onload onmousedown onmousemove onmouseout onmouseover onmouseup onrepeat onresize onscroll onunload opacity operator order orient orientation origin overflow overline-position overline-thickness panose-1 paint-order pathLength patternContentUnits patternTransform patternUnits pointer-events points pointsAtX pointsAtY pointsAtZ preserveAlpha preserveAspectRatio primitiveUnits r radius refX refY rendering-intent repeatCount repeatDur requiredExtensions requiredFeatures restart result rotate rx ry scale seed shape-rendering slope spacing specularConstant specularExponent speed spreadMethod startOffset stdDeviation stemh stemv stitchTiles stop-color stop-opacity strikethrough-position strikethrough-thickness string stroke stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width style surfaceScale systemLanguage tabindex tableValues target targetX targetY text-anchor text-decoration text-rendering textLength to transform type u1 u2 underline-position underline-thickness unicode unicode-bidi unicode-range units-per-em v-alphabetic v-hanging v-ideographic v-mathematical values version vert-adv-y vert-origin-x vert-origin-y viewBox viewTarget visibility width widths word-spacing writing-mode x x-height x1 x2 xChannelSelector xlink:actuate xlink:arcrole xlink:href xlink:role xlink:show xlink:title xlink:type xml:base xml:lang xml:space y y1 y2 yChannelSelector z zoomAndPan";
@@ -5897,6 +5889,15 @@ fn leading_attr_comment_segs(attr_start: u32, source: &str) -> Vec<Seg> {
     })
 }
 
+/// Structured-bake variant of [`format_attribute_node`]. Wraps every
+/// expression site in `Seg::Src` so the resulting MagicString chunks
+/// retain per-character source-map fidelity.
+///
+/// Applies the same wrapping rules as `format_attribute_node`:
+/// - `is_element` && `data-*` (not `data-sveltekit-*`) → `__sveltets_2_empty({…})`
+/// - `!is_element` && `--*` → `__sveltets_2_cssProp({…})`
+///
+/// (Mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute`.)
 fn format_attribute_node_segments(
     node: &AttributeNode,
     source: &str,
@@ -6360,72 +6361,6 @@ fn class_style_directive_seg(attr: &Attribute, source: &str) -> Option<Vec<Seg>>
     Some(out)
 }
 
-/// Structured-bake variant of [`format_class_directive`].
-fn format_class_directive_segments(class: &ClassDirective, source: &str) -> Vec<Seg> {
-    let mut out = Vec::new();
-    segs_push_lit(&mut out, &format!("\"class:{}\":", class.name));
-    if let Some((s, e)) = get_expression_range(&class.expression) {
-        segs_push_src(&mut out, s, e);
-    } else {
-        segs_push_lit(&mut out, get_expression_text(&class.expression, source));
-    }
-    segs_push_lit(&mut out, ",");
-    out
-}
-
-/// Structured-bake variant of [`format_style_directive`].
-fn format_style_directive_segments(style: &StyleDirective, source: &str) -> Vec<Seg> {
-    let mut out = Vec::new();
-    match &style.value {
-        AttributeValue::True(_) => {
-            // Shorthand `style:color` → `"style:color":color,`. The
-            // implicit `color` reference has no source range we can pin
-            // because it's synthesised from the directive name.
-            segs_push_lit(
-                &mut out,
-                &format!("\"style:{}\":{},", style.name, style.name),
-            );
-        }
-        AttributeValue::Expression(expr) => {
-            segs_push_lit(&mut out, &format!("\"style:{}\":", style.name));
-            if let Some((s, e)) = get_expression_range(&expr.expression) {
-                segs_push_src(&mut out, s, e);
-            } else {
-                segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
-            }
-            segs_push_lit(&mut out, ",");
-        }
-        AttributeValue::Sequence(parts) => {
-            segs_push_lit(&mut out, &format!("\"style:{}\":`", style.name));
-            for part in parts {
-                match part {
-                    AttributeValuePart::Text(text) => {
-                        // Escape backslash first so `\n` / `\t` in raw text
-                        // (e.g. a Windows path) stay literal. H-091.
-                        let escaped = text
-                            .raw
-                            .replace('\\', "\\\\")
-                            .replace('`', "\\`")
-                            .replace('$', "\\$");
-                        segs_push_lit(&mut out, &escaped);
-                    }
-                    AttributeValuePart::ExpressionTag(expr) => {
-                        segs_push_lit(&mut out, "${");
-                        if let Some((s, e)) = get_expression_range(&expr.expression) {
-                            segs_push_src(&mut out, s, e);
-                        } else {
-                            segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
-                        }
-                        segs_push_lit(&mut out, "}");
-                    }
-                }
-            }
-            segs_push_lit(&mut out, "`,");
-        }
-    }
-    out
-}
-
 /// Structured-bake variant of the `@attach` tag's inline emission.
 fn format_attach_tag_segments(attach: &AttachTag, source: &str) -> Vec<Seg> {
     let mut out = Vec::new();
@@ -6437,52 +6372,6 @@ fn format_attach_tag_segments(attach: &AttachTag, source: &str) -> Vec<Seg> {
     }
     segs_push_lit(&mut out, ",");
     out
-}
-
-/// Format a slot prop attribute. Unlike regular attributes, slot props
-/// always use the full "key":value format (no shorthand).
-/// `err={err}` → `"err":err,` (not `err,`)
-fn format_slot_prop_node(node: &AttributeNode, source: &str) -> Option<String> {
-    let name = &node.name;
-
-    match &node.value {
-        AttributeValue::True(_) => Some(format!("\"{}\":true,", name)),
-        AttributeValue::Expression(expr) => {
-            let expr_text = get_expression_text(&expr.expression, source);
-            // Always use full "key":value format for slot props
-            Some(format!("\"{}\":{},", name, expr_text))
-        }
-        AttributeValue::Sequence(parts) => {
-            // Same as format_attribute_node for sequences
-            if parts.len() == 1
-                && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
-            {
-                let expr_text = get_expression_text(&expr.expression, source);
-                return Some(format!("\"{}\":{},", name, expr_text));
-            }
-
-            let mut value_parts = Vec::new();
-            for part in parts {
-                match part {
-                    AttributeValuePart::Text(text) => {
-                        // Escape backslash first so `\n` / `\t` in raw text
-                        // (e.g. a Windows path) stay literal. H-091.
-                        let escaped = text
-                            .raw
-                            .replace('\\', "\\\\")
-                            .replace('`', "\\`")
-                            .replace('$', "\\$");
-                        value_parts.push(escaped);
-                    }
-                    AttributeValuePart::ExpressionTag(expr) => {
-                        let expr_text = get_expression_text(&expr.expression, source);
-                        value_parts.push(format!("${{{}}}", expr_text));
-                    }
-                }
-            }
-            Some(format!("\"{}\":`{}`,", name, value_parts.join("")))
-        }
-    }
 }
 
 /// Format a spread attribute: `{...expr}` → `...expr,`, or `{...expr as T}` → `...(expr as T),`.
@@ -6583,9 +6472,8 @@ fn bind_needs_element_var(name: &str) -> bool {
 /// - one-way (clientWidth, …)  → `<expr>= <element_var>.<attr>;`
 /// - one-way-not-on-element    → `<expr>= /** @type {T} */ (null);` (typed null)
 /// - any other `bind:foo`      → keeps the prop, then appends an
-///                                ignored-comments-wrapped
-///                                `() => <expr> = __sveltets_2_any(null);`
-///                                so TS widens the type.
+///   ignored-comments-wrapped `() => <expr> = __sveltets_2_any(null);` so TS
+///   widens the type.
 fn build_bind_directive_suffix(
     attributes: &[Attribute],
     source: &str,
@@ -7265,22 +7153,6 @@ fn build_let_destructure_string(let_directives: &[&LetDirective], source: &str) 
     parts.join("")
 }
 
-/// Check if a component has meaningful children (non-whitespace content).
-fn has_meaningful_children(fragment: &Fragment) -> bool {
-    for node in &fragment.nodes {
-        match node {
-            TemplateNode::Text(text) => {
-                // Check if text contains non-whitespace
-                if text.start < text.end {
-                    return true;
-                }
-            }
-            _ => return true,
-        }
-    }
-    false
-}
-
 /// Get the static `slot="name"` attribute value from an element's attributes.
 /// Returns None if no `slot` attribute is present, or if its value is a dynamic
 /// expression (`slot={foo}`).
@@ -7314,14 +7186,6 @@ fn get_slot_attr_value(attributes: &[Attribute], _source: &str) -> Option<String
         }
     }
     None
-}
-
-/// Count the number of `let:` directives in an attribute list.
-fn count_let_directives(attributes: &[Attribute]) -> usize {
-    attributes
-        .iter()
-        .filter(|attr| matches!(attr, Attribute::LetDirective(_)))
-        .count()
 }
 
 // =============================================================================

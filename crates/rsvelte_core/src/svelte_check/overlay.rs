@@ -428,10 +428,6 @@ fn discover_external_svelte_packages(workspace: &Path, cache_dir: &Path) -> Vec<
     out
 }
 
-/// Emit `.tsx` + `.d.ts` shadows for one external package's `.svelte` files into
-/// its cache mirror, preserving each file's path relative to the package root.
-/// Non-incremental (external packages change rarely and are bounded by the
-/// dependency set).
 /// Symlink `<dst>` → `<src>` (a directory), cross-platform.
 fn symlink_dir(src: &Path, dst: &Path) -> std::io::Result<()> {
     #[cfg(unix)]
@@ -449,6 +445,10 @@ fn symlink_dir(src: &Path, dst: &Path) -> std::io::Result<()> {
     }
 }
 
+/// Emit `.tsx` + `.d.ts` shadows for one external package's `.svelte` files into
+/// its cache mirror, preserving each file's path relative to the package root.
+/// Non-incremental (external packages change rarely and are bounded by the
+/// dependency set).
 fn emit_external_shadows(pkg: &ExternalPackage) -> Result<(), OverlayError> {
     // Mirror the package's own `node_modules` into the shadow dir so the
     // shadow's bare-package imports (`import type { X } from 'sortablejs'`,
@@ -1210,8 +1210,6 @@ fn resolve_root_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
     Vec::new()
 }
 
-/// POSIX-style relative path from `from_dir` to `to_path` (so the
-/// generated tsconfig is consumable on every platform).
 /// If `abs_source` (`…/Foo.svelte`) has a sibling companion module
 /// (`Foo.svelte.ts` or `Foo.svelte.js`), return a module specifier — relative
 /// to the component shadow's directory and ending in `.js` so TS strips it and
@@ -1438,6 +1436,8 @@ fn lexical_relative_posix(from_dir: &Path, to_path: &Path) -> String {
     }
 }
 
+/// POSIX-style relative path from `from_dir` to `to_path` (so the
+/// generated tsconfig is consumable on every platform).
 fn path_relative(from_dir: &Path, to_path: &Path) -> String {
     use std::path::Component;
     let from_abs = from_dir
