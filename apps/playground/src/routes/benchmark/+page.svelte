@@ -261,69 +261,68 @@
 
 			<div class="task-groups">
 				{#each tasksByGroup as group (group.key)}
-				<div class="task-group">
-					<div class="task-group-head">
-						<span class="task-group-title">{group.title}</span>
-						<span class="task-group-sub">{group.sub}</span>
-					</div>
-					<div class="task-grid">
-				{#each group.items as task (task.id)}
-					{@const t = task.data}
-					<article class="task-panel">
-						<header class="task-panel-head">
-							<div class="task-panel-meta">
-								<span class="task-panel-label">{task.label}</span>
-								<span class="task-panel-sub">{task.sub}</span>
-							</div>
-							<span class="task-panel-speedup">
-								<span class="task-panel-speedup-k">multi · </span>
-								<span class="task-panel-speedup-n">
-									{t.speedup.multiThreadVsJs.toFixed(1)}<span class="x">×</span>
-								</span>
-								<span class="task-panel-speedup-sep">·</span>
-								<span class="task-panel-speedup-st">
-									single {t.speedup.singleThreadVsJs.toFixed(1)}×
-								</span>
-							</span>
-						</header>
-						<div class="bars">
-							{#each [
-								{ name: task.baseline, sub: 'JavaScript', dur: t.javascript.durationMs, tone: 'js' },
-								{ name: 'rsvelte / single', sub: 'no parallelism', dur: t.rustSingleThread.durationMs, tone: 'rs' },
-								{ name: 'rsvelte / multi', sub: 'rayon fan-out', dur: t.rustMultiThread.durationMs, tone: 'rm' }
-							] as bar (bar.name)}
-								<div class="bar-row">
-									<div class="bar-meta">
-										<span class="bar-name">{bar.name}</span>
-										<span class="bar-sub">{bar.sub}</span>
-									</div>
-									<div class="bar-graph">
-										<span class="bar-track">
-											<span
-												class="bar-fill bar-{bar.tone}"
-												style="width: {getAnimatedWidth(t, bar.dur)}%;"
-											></span>
+					<div class="task-group">
+						<div class="task-group-head">
+							<span class="task-group-title">{group.title}</span>
+							<span class="task-group-sub">{group.sub}</span>
+						</div>
+						<div class="task-grid">
+							{#each group.items as task (task.id)}
+								{@const t = task.data}
+								<article class="task-panel">
+									<header class="task-panel-head">
+										<div class="task-panel-meta">
+											<span class="task-panel-label">{task.label}</span>
+											<span class="task-panel-sub">{task.sub}</span>
+										</div>
+										<span class="task-panel-speedup">
+											<span class="task-panel-speedup-k">multi · </span>
+											<span class="task-panel-speedup-n">
+												{t.speedup.multiThreadVsJs.toFixed(1)}<span class="x">×</span>
+											</span>
+											<span class="task-panel-speedup-sep">·</span>
+											<span class="task-panel-speedup-st">
+												single {t.speedup.singleThreadVsJs.toFixed(1)}×
+											</span>
 										</span>
-										<span class="bar-time">
-											{formatDuration(getAnimatedTime(bar.dur))}
-										</span>
+									</header>
+									<div class="bars">
+										{#each [
+											{ name: task.baseline, sub: 'JavaScript', dur: t.javascript.durationMs, tone: 'js' },
+											{ name: 'rsvelte / single', sub: 'no parallelism', dur: t.rustSingleThread.durationMs, tone: 'rs' },
+											{ name: 'rsvelte / multi', sub: 'rayon fan-out', dur: t.rustMultiThread.durationMs, tone: 'rm' }
+										] as bar (bar.name)}
+											<div class="bar-row">
+												<div class="bar-meta">
+													<span class="bar-name">{bar.name}</span>
+													<span class="bar-sub">{bar.sub}</span>
+												</div>
+												<div class="bar-graph">
+													<span class="bar-track">
+														<span
+															class="bar-fill bar-{bar.tone}"
+															style="width: {getAnimatedWidth(t, bar.dur)}%;"
+														></span>
+													</span>
+													<span class="bar-time">
+														{formatDuration(getAnimatedTime(bar.dur))}
+													</span>
+												</div>
+											</div>
+										{/each}
 									</div>
-								</div>
+								</article>
 							{/each}
 						</div>
-					</article>
-				{/each}
 					</div>
-				</div>
 				{/each}
 			</div>
 		</section>
 
 		<section class="repro">
-			<div class="section-head">
-				<span class="num">02</span>
-				<h2>Reproduce it yourself.</h2>
-			</div>
+			<SectionHead num="02" padding="0" marginBottom="1.6rem" fontSize="clamp(1.6rem, 3vw, 2.4rem)"
+				>Reproduce it yourself.</SectionHead
+			>
 			<figure class="diff">
 				<figcaption>
 					<span class="diff-file">your-shell</span>
