@@ -402,35 +402,17 @@ pub struct Position {
     pub character: usize,
 }
 
-/// Convert a byte offset in source to a `Position` with line, column, and character.
+/// Resolve a warning/error byte `offset` to a [`Position`] (1-indexed line;
+/// 0-indexed UTF-16 column; UTF-16 character offset — matching JavaScript's
+/// string indexing) using a precomputed [`legacy::Utf8ToUtf16`] table.
 ///
-/// - `line` is 1-indexed
-/// - `column` is 0-indexed (in UTF-16 code units for compatibility with JavaScript)
-/// - `character` is the UTF-16 code unit offset (matching JavaScript's string indexing)
-fn byte_offset_to_position(source: &str, offset: usize) -> Position {
-    let mut offset = offset.min(source.len());
-    // Slicing at a non-UTF-8-boundary byte panics, so rewind an out-of-range or
-    // mid-codepoint offset to the nearest char boundary at or below it.
-    while offset > 0 && !source.is_char_boundary(offset) {
-        offset -= 1;
-    }
-    let before = &source[..offset];
-    let line = before.bytes().filter(|&b| b == b'\n').count() + 1;
-
-    // Calculate UTF-16 code unit offset for the `character` field.
-    // In JavaScript, string indices are UTF-16 code units, so characters
-    // outside the BMP (like emoji) count as 2 units (surrogate pair).
-    let character = before.chars().map(|c| c.len_utf16()).sum::<usize>();
-
-    // Calculate column in UTF-16 code units from last newline
-    let column = match before.rfind('\n') {
-        Some(last_newline) => before[last_newline + 1..]
-            .chars()
-            .map(|c| c.len_utf16())
-            .sum::<usize>(),
-        None => character,
-    };
-
+/// Callers build one `table` per compile and reuse it across every warning, so
+/// the whole warning list shares a single source scan instead of rescanning
+/// from the start for each offset. An out-of-range or mid-codepoint `offset`
+/// resolves to the nearest char boundary at or below it (the table maps every
+/// byte of a multi-byte char to that char's start), so slicing never panics.
+fn warning_position(table: &legacy::Utf8ToUtf16, offset: u32) -> Position {
+    let (line, column, character) = table.position(offset as usize);
     Position {
         line,
         column,
@@ -508,25 +490,13 @@ fn tabs_to_spaces_column(line: &str, column: usize) -> usize {
     }
 }
 
-/// Compile a Svelte component.
+/// Parse phase shared by [`compile`] and [`compile_both`]: the fixed component
+/// parse options plus [`phase1_parse::parse`](phases::phase1_parse::parse).
 ///
-/// This function takes Svelte source code and compiles it into JavaScript.
-/// It follows the three-phase compilation process:
-///
-/// 1. **Parse** - Convert source to AST
-/// 2. **Analyze** - Semantic analysis
-/// 3. **Transform** - Code generation
-///
-/// # Arguments
-///
-/// * `source` - The Svelte component source code
-/// * `options` - Compilation options
-///
-/// # Returns
-///
-/// Returns a `CompileResult` containing the generated JavaScript and CSS.
-pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, CompileError> {
-    // Phase 1: Parse
+/// Returned to the caller so the `Root` is pinned on the caller's stack before
+/// the arena guard is installed — the guard holds a raw pointer to `ast.arena`,
+/// so the `Root` must not move after the guard is created.
+fn parse_component(source: &str) -> Result<crate::ast::Root, CompileError> {
     let parse_options = crate::ParseOptions {
         modern: true,
         loose: false,
@@ -537,31 +507,31 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
         skip_non_css_lang_style: false,
         capture_comments: false,
     };
-    let mut ast = phases::phase1_parse::parse(source, parse_options)?;
+    Ok(phases::phase1_parse::parse(source, parse_options)?)
+}
 
-    // Install the thread-local serialize arena via an RAII guard for the
-    // entire resolve_lazy → strip_ts → analyze → transform pipeline.
-    // The guard restores whatever pointer was set on entry when dropped
-    // (including on `?` early-return and panic unwind), so concurrent
-    // `compile()` calls reusing the same thread can't observe each
-    // other's arenas — and nested `JsNode::to_value` fallbacks to
-    // `DESER_ARENA` can't wipe the outer scope.
-    //
-    // SAFETY: `ast.arena` lives until the end of this function, which
-    // outlives `_arena_guard`.
-    let _arena_guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
-
-    // Resolve lazy expressions (deferred template expressions)
-    // If any expression has a parse error, return it immediately
+/// Front-half shared by [`compile`] and [`compile_both`], run under the caller's
+/// arena guard: resolve lazy expressions, finish deferred script parsing, strip
+/// TypeScript, merge `<svelte:options>` into `options`, and analyze.
+///
+/// Returns the merged options, the analysis, and whether runes mode is active.
+/// The caller owns the arena guard so it spans the following transform pass(es).
+fn prepare_and_analyze(
+    ast: &mut crate::ast::Root,
+    source: &str,
+    mut options: CompileOptions,
+) -> Result<(CompileOptions, ComponentAnalysis, bool), CompileError> {
+    // Resolve lazy expressions (deferred template expressions). If any
+    // expression has a parse error, return it immediately.
     if let Some(parse_err) =
-        phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(&mut ast, source)
+        phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(ast, source)
     {
         return Err(parse_err.into());
     }
 
     // Ensure deferred script parsing is completed before TypeScript removal.
-    // When defer_script_parse is enabled, script content is stored as raw text.
-    // We need to parse it first so remove_typescript_nodes can inspect the AST.
+    // When defer_script_parse is enabled, script content is stored as raw text;
+    // parse it first so remove_typescript_nodes can inspect the AST.
     {
         let line_offsets = phases::phase1_parse::compute_line_offsets(source, false);
         if let Some(ref mut instance) = ast.instance
@@ -587,12 +557,11 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     }
 
     // Remove TypeScript nodes from script content if TypeScript is detected.
-    remove_typescript_from_ast(&mut ast)?;
+    remove_typescript_from_ast(ast)?;
 
-    // Merge parsed <svelte:options> into compile options
+    // Merge parsed <svelte:options> into compile options.
     // Reference: svelte/packages/svelte/src/compiler/index.js
     //   const combined_options = { ...validated, ...parsed_options, customElementOptions };
-    let mut options = options;
     if let Some(ref parsed_options) = ast.options {
         if let Some(pw) = parsed_options.preserve_whitespace {
             options.preserve_whitespace = pw;
@@ -604,10 +573,48 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     }
 
     // Phase 2: Analyze
-    let analysis = phases::phase2_analyze::analyze_component(&mut ast, source, &options)?;
-
+    let analysis = phases::phase2_analyze::analyze_component(ast, source, &options)?;
     // Determine if runes mode was used
     let runes_mode = options.runes.unwrap_or(analysis.runes);
+    Ok((options, analysis, runes_mode))
+}
+
+/// Compile a Svelte component.
+///
+/// This function takes Svelte source code and compiles it into JavaScript.
+/// It follows the three-phase compilation process:
+///
+/// 1. **Parse** - Convert source to AST
+/// 2. **Analyze** - Semantic analysis
+/// 3. **Transform** - Code generation
+///
+/// # Arguments
+///
+/// * `source` - The Svelte component source code
+/// * `options` - Compilation options
+///
+/// # Returns
+///
+/// Returns a `CompileResult` containing the generated JavaScript and CSS.
+pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, CompileError> {
+    // Phase 1: Parse
+    let mut ast = parse_component(source)?;
+
+    // Install the thread-local serialize arena via an RAII guard for the
+    // entire resolve_lazy → strip_ts → analyze → transform pipeline.
+    // The guard restores whatever pointer was set on entry when dropped
+    // (including on `?` early-return and panic unwind), so concurrent
+    // `compile()` calls reusing the same thread can't observe each
+    // other's arenas — and nested `JsNode::to_value` fallbacks to
+    // `DESER_ARENA` can't wipe the outer scope.
+    //
+    // SAFETY: `ast.arena` lives until the end of this function, which
+    // outlives `_arena_guard`.
+    let _arena_guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
+
+    // Front-half (resolve-lazy → strip-ts → options-merge → analyze), shared
+    // with `compile_both` and run under the arena guard above.
+    let (options, analysis, runes_mode) = prepare_and_analyze(&mut ast, source, options)?;
 
     // Phase 3: Transform (pass AST to avoid re-parsing)
     let transform_result =
@@ -640,66 +647,14 @@ pub fn compile_both(
     options: CompileOptions,
 ) -> Result<(CompileResult, CompileResult), CompileError> {
     // Phase 1: Parse (identical to `compile`).
-    let parse_options = crate::ParseOptions {
-        modern: true,
-        loose: false,
-        skip_expression_loc: true,
-        defer_script_parse: true,
-        force_typescript: false,
-        lenient_script: false,
-        skip_non_css_lang_style: false,
-        capture_comments: false,
-    };
-    let mut ast = phases::phase1_parse::parse(source, parse_options)?;
+    let mut ast = parse_component(source)?;
 
     // SAFETY: `ast.arena` lives until the end of this function (see `compile`).
     let _arena_guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
 
-    if let Some(parse_err) =
-        phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(&mut ast, source)
-    {
-        return Err(parse_err.into());
-    }
-
-    {
-        let line_offsets = phases::phase1_parse::compute_line_offsets(source, false);
-        if let Some(ref mut instance) = ast.instance
-            && let Some(parse_err) = phases::phase1_parse::read::script::ensure_script_parsed(
-                &ast.arena,
-                instance,
-                source,
-                &line_offsets,
-            )
-        {
-            return Err(parse_err.into());
-        }
-        if let Some(ref mut module) = ast.module
-            && let Some(parse_err) = phases::phase1_parse::read::script::ensure_script_parsed(
-                &ast.arena,
-                module,
-                source,
-                &line_offsets,
-            )
-        {
-            return Err(parse_err.into());
-        }
-    }
-
-    remove_typescript_from_ast(&mut ast)?;
-
-    let mut options = options;
-    if let Some(ref parsed_options) = ast.options {
-        if let Some(pw) = parsed_options.preserve_whitespace {
-            options.preserve_whitespace = pw;
-        }
-        if parsed_options.css == Some(crate::ast::template::CssOption::Injected) {
-            options.css = CssMode::Injected;
-        }
-    }
-
-    // Phase 2: Analyze — ONCE, shared by both transforms (mode-independent).
-    let analysis = phases::phase2_analyze::analyze_component(&mut ast, source, &options)?;
-    let runes_mode = options.runes.unwrap_or(analysis.runes);
+    // Front-half (resolve-lazy → strip-ts → options-merge → analyze) — analyze
+    // runs ONCE here and is shared by both transforms (it is mode-independent).
+    let (options, analysis, runes_mode) = prepare_and_analyze(&mut ast, source, options)?;
 
     // Phase 3: Transform twice over the shared (ast, analysis).
     let mut client_options = options.clone();
@@ -777,16 +732,15 @@ fn finalize_compile_result(
                 }
                 f_normalized.to_string()
             });
+            // Build the byte→UTF-16 position table once and share it across every
+            // warning, instead of rescanning the source for each offset.
+            let pos_table = legacy::Utf8ToUtf16::new(source);
             transform_result
                 .warnings
                 .into_iter()
                 .map(|w| {
-                    let start_pos = w
-                        .start
-                        .map(|offset| byte_offset_to_position(source, offset as usize));
-                    let end_pos = w
-                        .end
-                        .map(|offset| byte_offset_to_position(source, offset as usize));
+                    let start_pos = w.start.map(|offset| warning_position(&pos_table, offset));
+                    let end_pos = w.end.map(|offset| warning_position(&pos_table, offset));
                     let frame = start_pos
                         .as_ref()
                         .map(|sp| generate_frame(source, sp, end_pos.as_ref()));
@@ -1014,42 +968,42 @@ pub fn compile_module(
             map: None,
         },
         css: None,
-        warnings: analysis
-            .warnings
-            .iter()
-            .map(|w| {
-                let start_pos = w
-                    .start
-                    .map(|offset| byte_offset_to_position(source, offset as usize));
-                let end_pos = w
-                    .end
-                    .map(|offset| byte_offset_to_position(source, offset as usize));
-                let frame = start_pos
-                    .as_ref()
-                    .map(|sp| generate_frame(source, sp, end_pos.as_ref()));
-                let url_suffix = format!("\nhttps://svelte.dev/e/{}", w.code);
-                let message_with_url = if w.message.contains(&url_suffix) {
-                    w.message.clone()
-                } else {
-                    format!("{}{}", w.message, url_suffix)
-                };
-                Warning {
-                    code: w.code.clone(),
-                    message: message_with_url,
-                    filename: options.filename.clone(),
-                    start: start_pos,
-                    end: end_pos,
-                    frame,
-                }
-            })
-            // Apply the public `warning_filter` for module compilation too (H-083).
-            .filter(|w| {
-                options
-                    .warning_filter
-                    .as_ref()
-                    .is_none_or(|filter| filter(w))
-            })
-            .collect(),
+        warnings: {
+            // One shared byte→UTF-16 position table for every module warning.
+            let pos_table = legacy::Utf8ToUtf16::new(source);
+            analysis
+                .warnings
+                .iter()
+                .map(|w| {
+                    let start_pos = w.start.map(|offset| warning_position(&pos_table, offset));
+                    let end_pos = w.end.map(|offset| warning_position(&pos_table, offset));
+                    let frame = start_pos
+                        .as_ref()
+                        .map(|sp| generate_frame(source, sp, end_pos.as_ref()));
+                    let url_suffix = format!("\nhttps://svelte.dev/e/{}", w.code);
+                    let message_with_url = if w.message.contains(&url_suffix) {
+                        w.message.clone()
+                    } else {
+                        format!("{}{}", w.message, url_suffix)
+                    };
+                    Warning {
+                        code: w.code.clone(),
+                        message: message_with_url,
+                        filename: options.filename.clone(),
+                        start: start_pos,
+                        end: end_pos,
+                        frame,
+                    }
+                })
+                // Apply the public `warning_filter` for module compilation too (H-083).
+                .filter(|w| {
+                    options
+                        .warning_filter
+                        .as_ref()
+                        .is_none_or(|filter| filter(w))
+                })
+                .collect()
+        },
         metadata: CompileMetadata { runes: true },
         ast: None,
     })
@@ -1463,18 +1417,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_byte_offset_to_position_clamps_to_char_boundary() {
+    fn test_warning_position_clamps_to_char_boundary() {
         // "é" is two UTF-8 bytes (0xC3 0xA9). An offset landing between them
         // must rewind to the boundary instead of panicking on the slice.
         let source = "aéb";
-        let pos = byte_offset_to_position(source, 2);
+        let table = legacy::Utf8ToUtf16::new(source);
+        let pos = warning_position(&table, 2);
         // Rewound to offset 1 ("a"): one UTF-16 unit consumed.
         assert_eq!(pos.character, 1);
         assert_eq!(pos.column, 1);
         assert_eq!(pos.line, 1);
 
         // Past-the-end offset clamps to the string length.
-        let end = byte_offset_to_position(source, 999);
+        let end = warning_position(&table, 999);
         assert_eq!(end.character, 3);
     }
 

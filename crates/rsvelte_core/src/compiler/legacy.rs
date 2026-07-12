@@ -44,7 +44,10 @@ static REGEX_NOT_WHITESPACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^ 
 /// remap the legacy path already applies, keeping every public AST surface on
 /// svelte/compiler's UTF-16 offsets (#793).
 pub(crate) struct Utf8ToUtf16 {
-    utf16_pos: Vec<usize>,
+    /// One UTF-16 offset per source byte (plus a trailing entry). `u32` rather
+    /// than `usize` because source positions are u32-bounded across the compiler
+    /// — this halves the per-byte table on 64-bit targets.
+    utf16_pos: Vec<u32>,
     /// (byte offset, utf16 offset) for each line start
     line_starts_byte: Vec<usize>,
     line_starts_utf16: Vec<usize>,
@@ -53,7 +56,7 @@ pub(crate) struct Utf8ToUtf16 {
 impl Utf8ToUtf16 {
     pub(crate) fn new(source: &str) -> Self {
         let mut utf16_pos = Vec::with_capacity(source.len() + 1);
-        let mut utf16_idx = 0;
+        let mut utf16_idx = 0usize;
         let mut line_starts_byte = vec![0];
         let mut line_starts_utf16 = vec![0];
         let mut byte_idx = 0;
@@ -62,7 +65,7 @@ impl Utf8ToUtf16 {
             let utf8_len = c.len_utf8();
             let utf16_len = c.len_utf16();
             for _ in 0..utf8_len {
-                utf16_pos.push(utf16_idx);
+                utf16_pos.push(utf16_idx as u32);
             }
             utf16_idx += utf16_len;
             byte_idx += utf8_len;
@@ -72,7 +75,7 @@ impl Utf8ToUtf16 {
                 line_starts_utf16.push(utf16_idx);
             }
         }
-        utf16_pos.push(utf16_idx);
+        utf16_pos.push(utf16_idx as u32);
         Self {
             utf16_pos,
             line_starts_byte,
@@ -82,10 +85,24 @@ impl Utf8ToUtf16 {
 
     pub(crate) fn convert(&self, utf8_pos: usize) -> usize {
         if utf8_pos >= self.utf16_pos.len() {
-            *self.utf16_pos.last().unwrap_or(&0)
+            self.utf16_pos.last().copied().unwrap_or(0) as usize
         } else {
-            self.utf16_pos[utf8_pos]
+            self.utf16_pos[utf8_pos] as usize
         }
+    }
+
+    /// Resolve a UTF-8 byte offset to a `(line, column, character)` triple where
+    /// `line` is 1-based, and `column`/`character` are UTF-16 code-unit offsets
+    /// (column measured from the line start). The precomputed per-byte table +
+    /// binary search over line starts make this O(log lines), so converting many
+    /// warning positions costs O(warnings) rather than O(sum of byte offsets).
+    pub(crate) fn position(&self, byte_offset: usize) -> (usize, usize, usize) {
+        let character = self.convert(byte_offset);
+        // 1-based line = number of line starts at or before the offset; the
+        // first entry is 0, so this is always >= 1.
+        let line = self.line_starts_byte.partition_point(|&s| s <= byte_offset);
+        let column = character - self.line_starts_utf16[line - 1];
+        (line, column, character)
     }
 
     /// Convert a column from byte offset to UTF-16 code unit offset within a line.
@@ -592,19 +609,20 @@ fn convert_if_block(source: &str, if_block: &IfBlock) -> Value {
     let mut else_block = None;
 
     if let Some(ref alternate) = if_block.alternate {
-        let mut nodes = alternate.nodes.clone();
-
-        // Check if this is an else-if chain
-        if nodes.len() == 1
-            && let TemplateNode::IfBlock(inner_if) = &nodes[0]
+        // The child list whose first node gives the ElseBlock start; an else-if
+        // chain unwraps to the inner if's consequent. Borrowed, not cloned — only
+        // the first node's start is read here.
+        let start_nodes: &[TemplateNode] = if alternate.nodes.len() == 1
+            && let TemplateNode::IfBlock(inner_if) = &alternate.nodes[0]
             && inner_if.elseif
         {
-            // Get children from the inner if block's consequent
-            nodes = inner_if.consequent.nodes.clone();
-        }
+            &inner_if.consequent.nodes
+        } else {
+            &alternate.nodes
+        };
 
         let end = find_last_brace_before(source, if_block.end as usize);
-        let start = nodes
+        let start = start_nodes
             .first()
             .map(|n| get_node_start(n) as usize)
             .unwrap_or(end);
