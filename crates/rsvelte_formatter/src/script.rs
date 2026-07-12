@@ -262,13 +262,10 @@ pub(crate) fn format_open_tag(
 fn wrap_script_open_tag(tag: &str, indent_width: usize) -> Option<String> {
     // Strip the leading `<` and trailing `>`.
     let inner = tag.strip_prefix('<')?.strip_suffix('>')?;
-    // Split tag name from attributes. Tag name is everything up to the first space.
-    let (tag_name, rest) = if let Some(sp) = inner.find(' ') {
-        (&inner[..sp], inner[sp + 1..].trim())
-    } else {
-        // No attributes — nothing to wrap.
-        return None;
-    };
+    // Split tag name from attributes. Tag name is everything up to the first
+    // space; without attributes there is nothing to wrap.
+    let sp = inner.find(' ')?;
+    let (tag_name, rest) = (&inner[..sp], inner[sp + 1..].trim());
     // Parse attributes from the flat string. All values are double-quoted after
     // normalize_open_tag, so we scan respecting quoted spans.
     let mut attrs: Vec<String> = Vec::new();
