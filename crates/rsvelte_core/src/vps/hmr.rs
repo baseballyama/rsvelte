@@ -107,13 +107,15 @@ fn extract_script(source: &str, module: bool) -> Option<String> {
 
 /// Decide whether a `<script …>` opening tag's attribute text marks a module
 /// script. Recognises the legacy `context="module"` forms and the Svelte 5
-/// bare `module` attribute (H-094). The bare form is matched as a standalone
-/// token so it isn't confused with `module` appearing inside another
-/// attribute's quoted value.
+/// bare `module` attribute (H-094). Both forms are matched at an attribute
+/// boundary (start-of-string or preceded by whitespace) so a different
+/// attribute name that happens to share the same suffix — e.g.
+/// `data-context="module"` or `module` inside another attribute's quoted
+/// value — isn't mistaken for the real thing.
 fn is_module_script_attrs(tag_attrs: &str) -> bool {
-    if tag_attrs.contains("context=\"module\"")
-        || tag_attrs.contains("context='module'")
-        || tag_attrs.contains("context=module")
+    if contains_at_attr_boundary(tag_attrs, "context=\"module\"")
+        || contains_at_attr_boundary(tag_attrs, "context='module'")
+        || contains_at_attr_boundary(tag_attrs, "context=module")
     {
         return true;
     }
@@ -132,6 +134,21 @@ fn is_module_script_attrs(tag_attrs: &str) -> bool {
             return true;
         }
         from = end;
+    }
+    false
+}
+
+/// Find `needle` in `haystack`, but only accept a match that starts at an
+/// attribute boundary (start-of-string or preceded by whitespace).
+fn contains_at_attr_boundary(haystack: &str, needle: &str) -> bool {
+    let bytes = haystack.as_bytes();
+    let mut from = 0;
+    while let Some(rel) = haystack[from..].find(needle) {
+        let start = from + rel;
+        if start == 0 || bytes[start - 1].is_ascii_whitespace() {
+            return true;
+        }
+        from = start + 1;
     }
     false
 }
@@ -197,6 +214,18 @@ mod tests {
         assert!(!is_module_script_attrs(""));
         assert!(!is_module_script_attrs(" lang=\"ts\""));
         assert!(!is_module_script_attrs(" generics=\"T extends Module\""));
+    }
+
+    #[test]
+    fn context_attribute_requires_a_boundary() {
+        // A differently-named attribute that merely ends in `context="module"`
+        // must not be mistaken for the legacy module-script marker.
+        assert!(!is_module_script_attrs(" data-context=\"module\""));
+        assert!(!is_module_script_attrs(" data-context='module'"));
+        assert!(!is_module_script_attrs(" data-context=module"));
+        // But the real attribute, at a proper boundary, still matches.
+        assert!(is_module_script_attrs(" context=\"module\""));
+        assert!(is_module_script_attrs(" lang=\"ts\" context=\"module\""));
     }
 
     #[test]
