@@ -8,6 +8,7 @@ pub mod comment_directive;
 pub mod consistent_selector_style;
 pub mod derived_has_same_inputs_outputs;
 pub mod scss_selector;
+mod shared;
 // Source-scan "meta" rules: these run only in the native `runner::lint_source`
 // pipeline (they produce `rsvelte_core::svelte_check::Diagnostic` and use the
 // `compile`-based `validator`), never in the wasm `lint` export (which is
