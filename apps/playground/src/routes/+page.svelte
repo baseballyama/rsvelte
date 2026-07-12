@@ -6,6 +6,8 @@
 	import SiteNav from '$lib/components/SiteNav.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
 	import EcoCard from '$lib/components/EcoCard.svelte';
+	import Eyebrow from '$lib/components/Eyebrow.svelte';
+	import SectionHead from '$lib/components/SectionHead.svelte';
 	import { shipped, planned, delegated, counts } from '$lib/ecosystem';
 
 	let bench = $state<BenchmarkResults | null>(null);
@@ -131,7 +133,7 @@
 	<header class="hero">
 		<img class="hero-logo" src="{base}/logo.png" alt="rsvelte" width="96" height="96" />
 
-		<p class="eyebrow"><span class="rule"></span>Svelte ecosystem · written in Rust</p>
+		<Eyebrow marginBottom="1.6rem">Svelte ecosystem · written in Rust</Eyebrow>
 
 		<h1 class="title">
 			The Svelte ecosystem,<br />rewritten in <span class="ink-rust">Rust</span>.
@@ -158,15 +160,16 @@
 	</header>
 
 	<section class="perf" id="performance">
-		<div class="section-head">
-			<span class="num">01</span>
-			<h2>Fast across the <em>whole</em> toolchain.</h2>
-			<p class="lede">
-				Speed is the point. Every tool is benchmarked against its official
-				<code>svelte/*</code> counterpart — same machine, same corpus, full pipeline: parse,
-				analyze, codegen.
-			</p>
-		</div>
+		<SectionHead num="01">
+			Fast across the <em>whole</em> toolchain.
+			{#snippet lede()}
+				<p class="lede">
+					Speed is the point. Every tool is benchmarked against its official
+					<code>svelte/*</code> counterpart — same machine, same corpus, full pipeline: parse,
+					analyze, codegen.
+				</p>
+			{/snippet}
+		</SectionHead>
 
 		<div class="perf-grid">
 			<figure class="bars">
@@ -246,16 +249,17 @@
 	</section>
 
 	<section class="eco" id="ecosystem">
-		<div class="section-head">
-			<span class="num">02</span>
-			<h2>Not just a <em>compiler</em>.</h2>
-			<p class="lede">
-				rsvelte ports the hot path of every common Svelte workflow. {counts.shipped} drop-in
-				packages ship today — each a byte-for-byte replacement for its upstream tool — with
-				{counts.planned} more planned and {counts.delegated} deliberately delegated to the wider
-				<a class="link" href="https://oxc.rs/" target="_blank" rel="noopener">OXC</a> toolchain.
-			</p>
-		</div>
+		<SectionHead num="02">
+			Not just a <em>compiler</em>.
+			{#snippet lede()}
+				<p class="lede">
+					rsvelte ports the hot path of every common Svelte workflow. {counts.shipped} drop-in
+					packages ship today — each a byte-for-byte replacement for its upstream tool — with
+					{counts.planned} more planned and {counts.delegated} deliberately delegated to the wider
+					<a class="link" href="https://oxc.rs/" target="_blank" rel="noopener">OXC</a> toolchain.
+				</p>
+			{/snippet}
+		</SectionHead>
 
 		<h3 class="eco-tier">Shipped <span class="eco-tier-n">· usable today</span></h3>
 		<div class="eco-grid">
@@ -284,15 +288,16 @@
 	</section>
 
 	<section class="dropin">
-		<div class="section-head">
-			<span class="num">03</span>
-			<h2>One import. <em>No flags.</em></h2>
-			<p class="lede">
-				No bundler plugin to rewrite, no compiler flag to flip. The same
-				<code>compile()</code>, <code>parse()</code>, <code>preprocess()</code> — or swap the Vite
-				plugin and leave your <code>vite.config.js</code> untouched.
-			</p>
-		</div>
+		<SectionHead num="03">
+			One import. <em>No flags.</em>
+			{#snippet lede()}
+				<p class="lede">
+					No bundler plugin to rewrite, no compiler flag to flip. The same
+					<code>compile()</code>, <code>parse()</code>, <code>preprocess()</code> — or swap the Vite
+					plugin and leave your <code>vite.config.js</code> untouched.
+				</p>
+			{/snippet}
+		</SectionHead>
 
 		<figure class="diff">
 			<figcaption>
@@ -304,20 +309,21 @@
 	</section>
 
 	<section class="compat">
-		<div class="section-head">
-			<span class="num">04</span>
-			<h2>Verified against the <em>official</em> suite.</h2>
-			<p class="lede">
-				{#if compat}
-					<span class="big-pct">{compat.passed.toLocaleString('en-US')} / {compat.inScope.toLocaleString('en-US')}</span>
-					in-scope fixtures from <code>sveltejs/svelte</code> — {compat.pct.toFixed(1)}%. Full
-					breakdown on the <a class="link" href="{base}/progress">compatibility page</a>.
-				{:else}
-					Every category of the official <code>sveltejs/svelte</code> suite, run locally. Full
-					breakdown on the <a class="link" href="{base}/progress">compatibility page</a>.
-				{/if}
-			</p>
-		</div>
+		<SectionHead num="04">
+			Verified against the <em>official</em> suite.
+			{#snippet lede()}
+				<p class="lede">
+					{#if compat}
+						<span class="big-pct">{compat.passed.toLocaleString('en-US')} / {compat.inScope.toLocaleString('en-US')}</span>
+						in-scope fixtures from <code>sveltejs/svelte</code> — {compat.pct.toFixed(1)}%. Full
+						breakdown on the <a class="link" href="{base}/progress">compatibility page</a>.
+					{:else}
+						Every category of the official <code>sveltejs/svelte</code> suite, run locally. Full
+						breakdown on the <a class="link" href="{base}/progress">compatibility page</a>.
+					{/if}
+				</p>
+			{/snippet}
+		</SectionHead>
 
 		<dl class="spec-list">
 			{#each specs as s, i (s.label)}
@@ -340,14 +346,15 @@
 	</section>
 
 	<section class="capi">
-		<div class="section-head">
-			<span class="num">05</span>
-			<h2>Not just <em>Node.js</em>.</h2>
-			<p class="lede">
-				A stable C ABI ships alongside the NAPI build — one shared library, one header, UTF-8 JSON
-				in/out. Drive the same compiler from any language with a C FFI.
-			</p>
-		</div>
+		<SectionHead num="05">
+			Not just <em>Node.js</em>.
+			{#snippet lede()}
+				<p class="lede">
+					A stable C ABI ships alongside the NAPI build — one shared library, one header, UTF-8
+					JSON in/out. Drive the same compiler from any language with a C FFI.
+				</p>
+			{/snippet}
+		</SectionHead>
 
 		<ul class="capi-langs">
 			<li><span class="capi-tag">C / C++</span><span>include <code>rsvelte.h</code></span></li>
@@ -369,10 +376,7 @@
 	</section>
 
 	<section class="why">
-		<div class="section-head">
-			<span class="num">06</span>
-			<h2>Why it's fast.</h2>
-		</div>
+		<SectionHead num="06">Why it's fast.</SectionHead>
 
 		<div class="why-list">
 			{#each why as w (w.h)}
@@ -413,25 +417,6 @@
 		height: auto;
 		margin: 0 0 1.8rem;
 		border-radius: 16px;
-	}
-
-	.eyebrow {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.7rem;
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.75rem;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--rust);
-		margin: 0 0 1.6rem;
-	}
-
-	.eyebrow .rule {
-		display: inline-block;
-		width: 24px;
-		height: 1px;
-		background: var(--rust);
 	}
 
 	.title {
@@ -545,49 +530,6 @@
 		border-block: 1px solid var(--rule);
 	}
 
-	.perf .section-head,
-	.eco .section-head,
-	.dropin .section-head,
-	.capi .section-head,
-	.compat .section-head,
-	.why .section-head {
-		max-width: 1080px;
-		margin: 0 auto;
-		padding: clamp(3.5rem, 8vh, 5.5rem) clamp(1rem, 4vw, 2.5rem) clamp(1.4rem, 3vh, 2.4rem);
-		display: grid;
-		grid-template-columns: auto 1fr;
-		gap: 0.4rem 1.4rem;
-		align-items: baseline;
-	}
-
-	.section-head .num {
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.7rem;
-		letter-spacing: 0.18em;
-		color: var(--rust);
-		grid-row: 1;
-		grid-column: 1;
-	}
-
-	.section-head h2 {
-		font-family: 'Hanken Grotesk', sans-serif;
-		font-weight: 700;
-		font-size: clamp(1.65rem, 3.2vw, 2.6rem);
-		line-height: 1.1;
-		letter-spacing: -0.022em;
-		margin: 0;
-		color: var(--ink);
-		grid-row: 1;
-		grid-column: 2;
-	}
-
-	.section-head h2 em {
-		font-style: italic;
-		color: var(--svelte);
-		font-weight: 700;
-	}
-
-	.section-head h2 code,
 	.compat .lede code,
 	.perf .lede code {
 		font-family: 'JetBrains Mono', monospace;
@@ -598,12 +540,6 @@
 		border: 1px solid var(--rule);
 		border-radius: 3px;
 		vertical-align: 0.05em;
-	}
-
-	.section-head .lede {
-		grid-row: 2;
-		grid-column: 2;
-		margin-top: 0.7rem;
 	}
 
 	.perf-grid {

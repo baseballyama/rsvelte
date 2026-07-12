@@ -1,7 +1,3 @@
-<script lang="ts">
-	// Compact site-wide footer. Kept identical across all pages.
-</script>
-
 <footer class="foot">
 	<div class="inner">
 		<div class="mark">
