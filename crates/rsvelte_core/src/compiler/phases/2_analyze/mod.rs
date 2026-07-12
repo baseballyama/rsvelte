@@ -3768,9 +3768,25 @@ fn mark_each_block_group_bindings(
 
     // Step 2: Mark contains_group_binding for each blocks that contain bind:group directives.
     // Also assigns unique binding_group_name to each marked EachBlock.
-    // Walk with a mutable stack of ancestor EachBlocks (raw pointers for mutation)
-    let mut ancestor_stack: Vec<*mut crate::ast::template::EachBlock> = Vec::new();
-    mark_group_bindings_in_fragment(fragment, &mut ancestor_stack, analysis);
+    //
+    // Walk with a stack of ancestor EachBlock snapshots (start offset + declared/expression
+    // identifiers). Metadata mutations cannot be applied through the stack while a `&mut`
+    // borrow of the ancestor's own `body` is live during the recursive descent, so matched
+    // assignments are collected into `assignments` (keyed by the each block's `start`) and
+    // written back onto each EachBlock when the traversal unwinds past it.
+    let mut ancestor_stack: Vec<EachAncestor> = Vec::new();
+    let mut assignments: rustc_hash::FxHashMap<u32, String> = rustc_hash::FxHashMap::default();
+    mark_group_bindings_in_fragment(fragment, &mut ancestor_stack, &mut assignments, analysis);
+}
+
+/// Snapshot of an ancestor EachBlock used while marking bind:group directives.
+struct EachAncestor {
+    /// Byte offset of the each block, used as its stable identity key.
+    start: u32,
+    /// Identifiers declared by the each block (context pattern + index variable).
+    declared: Vec<String>,
+    /// Identifiers referenced by the each block's iterated expression.
+    expr_ids: Vec<String>,
 }
 
 /// Phase 1: Assign unique $$index_N names to ALL each blocks in post-order traversal.
@@ -3878,35 +3894,63 @@ fn assign_each_block_indices_in_node(
 
 fn mark_group_bindings_in_fragment(
     fragment: &mut crate::ast::template::Fragment,
-    ancestor_stack: &mut Vec<*mut crate::ast::template::EachBlock>,
+    ancestor_stack: &mut Vec<EachAncestor>,
+    assignments: &mut rustc_hash::FxHashMap<u32, String>,
     analysis: &mut ComponentAnalysis,
 ) {
     for node in &mut fragment.nodes {
-        mark_group_bindings_in_node(node, ancestor_stack, analysis);
+        mark_group_bindings_in_node(node, ancestor_stack, assignments, analysis);
     }
 }
 
 fn mark_group_bindings_in_node(
     node: &mut crate::ast::template::TemplateNode,
-    ancestor_stack: &mut Vec<*mut crate::ast::template::EachBlock>,
+    ancestor_stack: &mut Vec<EachAncestor>,
+    assignments: &mut rustc_hash::FxHashMap<u32, String>,
     analysis: &mut ComponentAnalysis,
 ) {
     use crate::ast::template::{Attribute, TemplateNode};
 
     match node {
         TemplateNode::EachBlock(each) => {
-            // Push this each block onto the ancestor stack
-            let each_ptr: *mut crate::ast::template::EachBlock = &mut **each as *mut _;
-            ancestor_stack.push(each_ptr);
+            // Snapshot the identifiers this each block declares / references, then push it
+            // onto the ancestor stack. We take copies here so no borrow of `each` is held
+            // across the recursive descent into its body.
+            let start = each.start;
+            let mut declared: Vec<String> = Vec::new();
+            if let Some(ref ctx) = each.context {
+                let ctx_node = ctx.as_node();
+                extract_each_pattern_identifiers_node(&ctx_node, &mut declared);
+            }
+            if let Some(ref idx) = each.index {
+                declared.push(idx.to_string());
+            }
+            let mut expr_ids: Vec<String> = Vec::new();
+            let each_expr_node = each.expression.as_node();
+            extract_all_identifiers_from_node(&each_expr_node, &mut expr_ids);
+            ancestor_stack.push(EachAncestor {
+                start,
+                declared,
+                expr_ids,
+            });
 
             // Visit body (and fallback)
-            mark_group_bindings_in_fragment(&mut each.body, ancestor_stack, analysis);
+            mark_group_bindings_in_fragment(&mut each.body, ancestor_stack, assignments, analysis);
             if let Some(ref mut fallback) = each.fallback {
-                mark_group_bindings_in_fragment(fallback, ancestor_stack, analysis);
+                mark_group_bindings_in_fragment(fallback, ancestor_stack, assignments, analysis);
             }
 
             // Pop from ancestor stack
             ancestor_stack.pop();
+
+            // Write back any group-binding assignment recorded for this each block while
+            // descending through its body.
+            if let Some(group_name) = assignments.get(&start) {
+                each.metadata.contains_group_binding = true;
+                if each.metadata.binding_group_name.is_none() {
+                    each.metadata.binding_group_name = Some(group_name.clone());
+                }
+            }
         }
         TemplateNode::RegularElement(el) => {
             // Check attributes for bind:group directives
@@ -3934,36 +3978,19 @@ fn mark_group_bindings_in_node(
                     // KEY INVARIANT: One bind:group expression = ONE binding group.
                     // All ancestor EachBlocks matched for the same bind:group expression share the same group name.
                     // We first collect ALL matched each blocks, then assign ONE group name to all of them.
-                    let mut matched_each_ptrs: Vec<*mut crate::ast::template::EachBlock> =
-                        Vec::new();
+                    let mut matched_each_starts: Vec<u32> = Vec::new();
                     let mut ids_for_matching = ids.clone();
-                    for each_ptr in ancestor_stack.iter().rev() {
-                        // SAFETY: We're the only one with access to this node while
-                        // processing. The raw pointer is valid for the duration of the
-                        // parent call since it came from a mutable reference.
-                        let each = unsafe { &**each_ptr };
-
-                        // Collect all identifiers declared by this each block
-                        // (both the context pattern and the index variable)
-                        let mut declared: Vec<String> = Vec::new();
-                        if let Some(ref ctx) = each.context {
-                            let ctx_node = ctx.as_node();
-                            extract_each_pattern_identifiers_node(&ctx_node, &mut declared);
-                        }
-                        if let Some(ref idx) = each.index {
-                            declared.push(idx.to_string());
-                        }
-
+                    for ancestor in ancestor_stack.iter().rev() {
                         // Check if any of the current binding expression identifiers
                         // are declared by this each block
                         let references: Vec<String> = ids_for_matching
                             .iter()
-                            .filter(|id| declared.contains(id))
+                            .filter(|id| ancestor.declared.contains(id))
                             .cloned()
                             .collect();
 
                         if !references.is_empty() {
-                            matched_each_ptrs.push(*each_ptr);
+                            matched_each_starts.push(ancestor.start);
                             // Remove matched ids.
                             ids_for_matching.retain(|id| !references.contains(id));
                             // Always add the each block's expression identifiers for transitive
@@ -3972,15 +3999,17 @@ fn mark_group_bindings_in_node(
                             // the outer each blocks that declare the inner each's expression
                             // variable (e.g., `list as { id, data }` declaring `data`).
                             // This mirrors the official Svelte compiler's parent_each_blocks logic.
-                            let each_expr_node = each.expression.as_node();
-                            extract_all_identifiers_from_node(
-                                &each_expr_node,
-                                &mut ids_for_matching,
-                            );
+                            // Append with dedup to match the original
+                            // `extract_all_identifiers_from_node` accumulation semantics.
+                            for id in &ancestor.expr_ids {
+                                if !ids_for_matching.contains(id) {
+                                    ids_for_matching.push(id.clone());
+                                }
+                            }
                         }
                     }
 
-                    let any_each_block_matched = !matched_each_ptrs.is_empty();
+                    let any_each_block_matched = !matched_each_starts.is_empty();
 
                     if any_each_block_matched {
                         // Determine the single group name for this bind:group expression.
@@ -3991,17 +4020,8 @@ fn mark_group_bindings_in_node(
                         // to uniquely identify this bind:group expression. This differentiates:
                         // - Two bind:group expressions with same keypath but different each blocks (test 4)
                         // - One bind:group expression that spans multiple ancestor each blocks (test 5)
-                        let starts: Vec<String> = matched_each_ptrs
-                            .iter()
-                            .map(|p| {
-                                // SAFETY: `p` is a `*mut EachBlock` collected from
-                                // `ancestor_stack`, each originating from a live mutable
-                                // reference to an ancestor each block that outlives this
-                                // single-threaded traversal; we only read `start` here.
-                                let e = unsafe { &**p };
-                                e.start.to_string()
-                            })
-                            .collect();
+                        let starts: Vec<String> =
+                            matched_each_starts.iter().map(|s| s.to_string()).collect();
                         let composite_key = format!("{}:{}", keypath, starts.join(","));
 
                         let group_name =
@@ -4021,21 +4041,15 @@ fn mark_group_bindings_in_node(
                                 name
                             };
 
-                        // Assign the SAME group name to ALL matched ancestor EachBlocks
-                        for each_ptr in &matched_each_ptrs {
-                            // SAFETY: `each_ptr` is a `*mut EachBlock` from
-                            // `ancestor_stack`, derived from a live mutable reference to
-                            // an ancestor each block. Traversal is single-threaded and
-                            // each pointer is unique within the stack, so no other live
-                            // alias exists while we write its metadata here.
-                            let each = unsafe { &mut **each_ptr };
-                            each.metadata.contains_group_binding = true;
-                            // Only set if not already set (in case multiple bind:group expressions
-                            // share ancestor each blocks with different group names - each block
-                            // uses its first-assigned group name)
-                            if each.metadata.binding_group_name.is_none() {
-                                each.metadata.binding_group_name = Some(group_name.clone());
-                            }
+                        // Record the SAME group name for ALL matched ancestor EachBlocks.
+                        // The actual metadata write happens when the traversal unwinds past
+                        // each block (see the EachBlock arm). `or_insert` keeps the
+                        // first-assigned group name when multiple bind:group expressions
+                        // share ancestor each blocks with different group names.
+                        for start in &matched_each_starts {
+                            assignments
+                                .entry(*start)
+                                .or_insert_with(|| group_name.clone());
                         }
                     }
 
@@ -4055,7 +4069,12 @@ fn mark_group_bindings_in_node(
             }
 
             // Visit child elements
-            mark_group_bindings_in_fragment(&mut el.fragment, ancestor_stack, analysis);
+            mark_group_bindings_in_fragment(
+                &mut el.fragment,
+                ancestor_stack,
+                assignments,
+                analysis,
+            );
         }
         TemplateNode::Component(comp) => {
             // Components can also have bind:group, e.g. `<RadioButton bind:group={x} />`.
@@ -4069,7 +4088,12 @@ fn mark_group_bindings_in_node(
                     register_standalone_bind_group(bind, analysis);
                 }
             }
-            mark_group_bindings_in_fragment(&mut comp.fragment, ancestor_stack, analysis);
+            mark_group_bindings_in_fragment(
+                &mut comp.fragment,
+                ancestor_stack,
+                assignments,
+                analysis,
+            );
         }
         TemplateNode::SvelteComponent(comp) => {
             for attr in &comp.attributes {
@@ -4079,42 +4103,77 @@ fn mark_group_bindings_in_node(
                     register_standalone_bind_group(bind, analysis);
                 }
             }
-            mark_group_bindings_in_fragment(&mut comp.fragment, ancestor_stack, analysis);
+            mark_group_bindings_in_fragment(
+                &mut comp.fragment,
+                ancestor_stack,
+                assignments,
+                analysis,
+            );
         }
         TemplateNode::SvelteElement(el) => {
-            mark_group_bindings_in_fragment(&mut el.fragment, ancestor_stack, analysis);
+            mark_group_bindings_in_fragment(
+                &mut el.fragment,
+                ancestor_stack,
+                assignments,
+                analysis,
+            );
         }
         TemplateNode::SvelteSelf(s) => {
-            mark_group_bindings_in_fragment(&mut s.fragment, ancestor_stack, analysis);
+            mark_group_bindings_in_fragment(&mut s.fragment, ancestor_stack, assignments, analysis);
         }
         TemplateNode::IfBlock(if_block) => {
-            mark_group_bindings_in_fragment(&mut if_block.consequent, ancestor_stack, analysis);
+            mark_group_bindings_in_fragment(
+                &mut if_block.consequent,
+                ancestor_stack,
+                assignments,
+                analysis,
+            );
             if let Some(ref mut alt) = if_block.alternate {
-                mark_group_bindings_in_fragment(alt, ancestor_stack, analysis);
+                mark_group_bindings_in_fragment(alt, ancestor_stack, assignments, analysis);
             }
         }
         TemplateNode::AwaitBlock(await_block) => {
             if let Some(ref mut pending) = await_block.pending {
-                mark_group_bindings_in_fragment(pending, ancestor_stack, analysis);
+                mark_group_bindings_in_fragment(pending, ancestor_stack, assignments, analysis);
             }
             if let Some(ref mut then) = await_block.then {
-                mark_group_bindings_in_fragment(then, ancestor_stack, analysis);
+                mark_group_bindings_in_fragment(then, ancestor_stack, assignments, analysis);
             }
             if let Some(ref mut catch) = await_block.catch {
-                mark_group_bindings_in_fragment(catch, ancestor_stack, analysis);
+                mark_group_bindings_in_fragment(catch, ancestor_stack, assignments, analysis);
             }
         }
         TemplateNode::KeyBlock(key) => {
-            mark_group_bindings_in_fragment(&mut key.fragment, ancestor_stack, analysis);
+            mark_group_bindings_in_fragment(
+                &mut key.fragment,
+                ancestor_stack,
+                assignments,
+                analysis,
+            );
         }
         TemplateNode::SnippetBlock(snippet) => {
-            mark_group_bindings_in_fragment(&mut snippet.body, ancestor_stack, analysis);
+            mark_group_bindings_in_fragment(
+                &mut snippet.body,
+                ancestor_stack,
+                assignments,
+                analysis,
+            );
         }
         TemplateNode::SvelteHead(head) => {
-            mark_group_bindings_in_fragment(&mut head.fragment, ancestor_stack, analysis);
+            mark_group_bindings_in_fragment(
+                &mut head.fragment,
+                ancestor_stack,
+                assignments,
+                analysis,
+            );
         }
         TemplateNode::SlotElement(slot) => {
-            mark_group_bindings_in_fragment(&mut slot.fragment, ancestor_stack, analysis);
+            mark_group_bindings_in_fragment(
+                &mut slot.fragment,
+                ancestor_stack,
+                assignments,
+                analysis,
+            );
         }
         _ => {}
     }
