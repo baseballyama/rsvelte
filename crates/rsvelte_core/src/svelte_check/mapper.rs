@@ -211,6 +211,10 @@ pub fn map_tsgo_diagnostics(
     // Generated `.tsx` text per shadow, read on demand to test whether a
     // diagnostic falls inside a svelte2tsx `Ωignore` region.
     let mut tsx_texts: HashMap<PathBuf, String> = HashMap::new();
+    // Original kit-source text per source path, read on demand and reused
+    // across every diagnostic on the same file (kit files often produce
+    // many diagnostics — re-reading + re-scanning each was O(n) per diag).
+    let mut kit_texts: HashMap<PathBuf, String> = HashMap::new();
     let mut out: Vec<Diagnostic> = Vec::with_capacity(raw.len());
     // `.svelte` sources whose generated overlay produced a TS1xxx syntax
     // diagnostic, in first-seen order (deduped). Recorded regardless of
@@ -243,7 +247,10 @@ pub fn map_tsgo_diagnostics(
             .or_else(|| by_kit.get(&absolute).copied())
             .or_else(|| by_kit.get(&diag.file).copied());
         if let Some(entry) = kit_match {
-            out.push(map_kit_diagnostic(diag, entry));
+            let original = kit_texts
+                .entry(entry.source_path.clone())
+                .or_insert_with(|| std::fs::read_to_string(&entry.source_path).unwrap_or_default());
+            out.push(map_kit_diagnostic(diag, entry, original));
             continue;
         }
         let entry_match = by_tsx
@@ -347,12 +354,15 @@ pub fn map_tsgo_diagnostics(
 /// same source line". For multi-line insertions (none of which the
 /// current addedCode emits, but the JS reference's `kitType` JSDoc
 /// blocks could) the line table walk keeps things correct.
-fn map_kit_diagnostic(diag: &RawTsDiagnostic, entry: &KitOverlayEntry) -> Diagnostic {
-    let original = std::fs::read_to_string(&entry.source_path).unwrap_or_default();
+fn map_kit_diagnostic(
+    diag: &RawTsDiagnostic,
+    entry: &KitOverlayEntry,
+    original: &str,
+) -> Diagnostic {
     let (orig_line, orig_col) = remap_kit_position(
         diag.line.saturating_sub(1),
         diag.column.saturating_sub(1),
-        &original,
+        original,
         &entry.added_code,
     )
     .unwrap_or((diag.line.saturating_sub(1), diag.column.saturating_sub(1)));
