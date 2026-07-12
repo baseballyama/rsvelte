@@ -244,11 +244,23 @@ pub fn transform_client_module(
 
     // Transform the module source (rune replacements, class fields, etc.)
     let class_transformed = transform_class_fields_client(source);
-    let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
 
-    // Transform destructured assignments where LHS contains state variables (client only).
-    // e.g., `[a, b] = array;` where `a` and `b` are $state() variables becomes:
-    //   ((array) => { var $$array = $.to_array(array, 2); $.set(a, $$array[0], true); $.set(b, $$array[1], true); })(array);
+    // Transform destructured assignments whose LHS contains state variables into
+    // IIFE / sequence form (mirrors upstream `visit_assignment_expression` in
+    // `shared/assignments.js`), e.g.
+    //   `({ issues: raw = [], result } = rhs)` becomes
+    //   `(($$value) => { $.set(raw, $.fallback($$value.issues, () => [], true), true);
+    //                    $.set(result, $$value.result, true); })(rhs)`.
+    // This MUST run on the RAW (pre-read-wrap) source — the same ordering the
+    // instance-script pipeline uses (`transform_instance_script_for_visitors`)
+    // — because it decomposes the destructure pattern into individual `$.set`
+    // targets before `transform_module_script_runes` wraps state *reads* in
+    // `$.get(...)`. Running it afterwards would see the pattern's LHS
+    // identifiers already wrapped (`$.get(raw) = []`), which is invalid.
+    // Handles object / array / rest patterns robustly; the previous
+    // line-based `[a, b] = …` handler only matched array destructures at the
+    // start of a line and left object patterns (and mid-line array patterns)
+    // untransformed. See issue #1438.
     let reactive_state_vars: Vec<String> = analysis
         .root
         .bindings
@@ -262,7 +274,21 @@ pub fn transform_client_module(
         })
         .map(|b| b.name.clone())
         .collect();
-    let transformed = transform_destructured_state_assignments(&transformed, &reactive_state_vars);
+    let class_transformed = if reactive_state_vars.is_empty() {
+        class_transformed
+    } else {
+        // Reset the per-compile `$$array` counter (as the instance-script path
+        // does) so `$.to_array(...)` temp names start at `$$array` and are
+        // deterministic across compiles that reuse this thread.
+        SCRIPT_ARRAY_COUNTER.with(|c| c.set(0));
+        destructure_transforms::transform_destructure_assignments(
+            &class_transformed,
+            &reactive_state_vars,
+            &[],
+        )
+    };
+
+    let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
 
     // The transformed source includes everything (imports + body).
     // We need to split imports from body to avoid duplicate svelte import.
@@ -3766,117 +3792,6 @@ pub(crate) fn transform_module_script_runes(
         result = wrap_state_derived_with_tag(&result);
     }
 
-    result
-}
-
-/// Transform destructured array assignments where the LHS contains state variables.
-///
-/// Converts `[a, b] = expr;` where `a` or `b` are reactive state variables into:
-/// ```js
-/// ((array) => {
-///     var $$array = $.to_array(array, 2);
-///     $.set(a, $$array[0], true);
-///     $.set(b, $$array[1], true);
-/// })(expr);
-/// ```
-///
-/// Non-state variables in the pattern are assigned normally: `c = $$array[N];`
-fn transform_destructured_state_assignments(
-    script: &str,
-    reactive_state_vars: &[String],
-) -> String {
-    if reactive_state_vars.is_empty() {
-        return script.to_string();
-    }
-
-    let mut result = String::new();
-    for line in script.lines() {
-        let trimmed = line.trim();
-        // Look for lines like `[a, b] = expr;` or `[a, b] = expr`
-        if trimmed.starts_with('[') {
-            // Find the matching `]`
-            let mut depth = 0;
-            let mut bracket_end = None;
-            for (i, c) in trimmed.char_indices() {
-                match c {
-                    '[' => depth += 1,
-                    ']' => {
-                        depth -= 1;
-                        if depth == 0 {
-                            bracket_end = Some(i);
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            if let Some(bracket_end) = bracket_end {
-                let pattern = &trimmed[..bracket_end + 1]; // e.g., "[a, b]"
-                let after_pattern = trimmed[bracket_end + 1..].trim();
-                // Must be followed by `= expr` or `= expr;`
-                if let Some(rhs) = after_pattern.strip_prefix('=') {
-                    let rhs = rhs.trim().trim_end_matches(';').trim();
-                    let inner = &pattern[1..pattern.len() - 1]; // strip [ ]
-                    let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
-                    // By the time this runs, the rune pipeline has already wrapped
-                    // state reads, so an LHS target `a` appears as `$.get(a)`.
-                    // Unwrap that to recover the underlying state-var name.
-                    let unwrap_get = |p: &str| -> String {
-                        p.strip_prefix("$.get(")
-                            .and_then(|s| s.strip_suffix(')'))
-                            .map(|s| s.trim().to_string())
-                            .unwrap_or_else(|| p.to_string())
-                    };
-                    // Check if any parts are reactive state vars
-                    let has_state_var = parts
-                        .iter()
-                        .any(|p| reactive_state_vars.iter().any(|v| *v == unwrap_get(p)));
-                    if has_state_var {
-                        // Build the IIFE
-                        let indent: String =
-                            line.chars().take_while(|c| c.is_whitespace()).collect();
-                        let inner_indent = format!("{}\t", indent);
-                        let n = parts.len();
-                        let mut body_lines = Vec::new();
-                        body_lines.push(format!(
-                            "{}var $$array = $.to_array(array, {});",
-                            inner_indent, n
-                        ));
-                        body_lines.push(String::new()); // blank line after var
-                        for (idx, part) in parts.iter().enumerate() {
-                            let name = unwrap_get(part);
-                            if reactive_state_vars.contains(&name) {
-                                body_lines.push(format!(
-                                    "{}$.set({}, $$array[{}], true);",
-                                    inner_indent, name, idx
-                                ));
-                            } else {
-                                body_lines
-                                    .push(format!("{}{} = $$array[{}];", inner_indent, part, idx));
-                            }
-                        }
-                        let _ = writeln!(
-                            result,
-                            "{}((array) => {{\n{}\n{}}})({});",
-                            indent,
-                            body_lines.join("\n"),
-                            indent,
-                            rhs
-                        );
-                        // Add blank line after the IIFE
-                        result.push('\n');
-                        continue;
-                    }
-                }
-            }
-        }
-        result.push_str(line);
-        result.push('\n');
-    }
-    // Remove trailing newline to match original
-    if result.ends_with('\n') && !script.ends_with('\n') {
-        result.pop();
-    }
     result
 }
 
