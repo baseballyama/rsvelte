@@ -98,6 +98,40 @@ fn is_empty_fragment(fragment: &Fragment) -> bool {
         .all(|n| matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())))
 }
 
+/// Emit the open-tag + close-tag rewrite edits for one attribute-bearing
+/// element and recurse into its fragment. `this_expression` is the reactive
+/// `this={X}` slot carried by `<svelte:component>` / `<svelte:element>`; `None`
+/// for every other element.
+#[allow(clippy::too_many_arguments)]
+fn handle_element(
+    source: &str,
+    start: u32,
+    end: u32,
+    name: &str,
+    attributes: &[Attribute],
+    this_expression: Option<&Expression>,
+    fragment: &Fragment,
+    depth: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    let is_empty = is_empty_fragment(fragment);
+    let wrapped = push_open_tag(
+        source,
+        start,
+        name,
+        attributes,
+        this_expression,
+        depth,
+        is_empty,
+        options,
+        edits,
+    )?;
+    push_close_tag(source, end, name, wrapped, depth, is_empty, options, edits);
+    collect_open_tag_edits(source, fragment, depth + 1, options, edits)?;
+    Ok(())
+}
+
 fn collect_node_open_tag_edits(
     source: &str,
     node: &TemplateNode,
@@ -106,155 +140,90 @@ fn collect_node_open_tag_edits(
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
     match node {
-        TemplateNode::RegularElement(elem) => {
-            let is_empty = is_empty_fragment(&elem.fragment);
-            let wrapped = push_open_tag(
-                source,
-                elem.start,
-                elem.name.as_str(),
-                &elem.attributes,
-                None,
-                depth,
-                is_empty,
-                options,
-                edits,
-            )?;
-            push_close_tag(
-                source,
-                elem.end,
-                elem.name.as_str(),
-                wrapped,
-                depth,
-                is_empty,
-                options,
-                edits,
-            );
-            collect_open_tag_edits(source, &elem.fragment, depth + 1, options, edits)?;
-        }
-        TemplateNode::Component(c) => {
-            let is_empty = is_empty_fragment(&c.fragment);
-            let wrapped = push_open_tag(
-                source,
-                c.start,
-                c.name.as_str(),
-                &c.attributes,
-                None,
-                depth,
-                is_empty,
-                options,
-                edits,
-            )?;
-            push_close_tag(
-                source,
-                c.end,
-                c.name.as_str(),
-                wrapped,
-                depth,
-                is_empty,
-                options,
-                edits,
-            );
-            collect_open_tag_edits(source, &c.fragment, depth + 1, options, edits)?;
-        }
-        TemplateNode::TitleElement(t) => {
-            let is_empty = is_empty_fragment(&t.fragment);
-            let wrapped = push_open_tag(
-                source,
-                t.start,
-                t.name.as_str(),
-                &t.attributes,
-                None,
-                depth,
-                is_empty,
-                options,
-                edits,
-            )?;
-            push_close_tag(
-                source,
-                t.end,
-                t.name.as_str(),
-                wrapped,
-                depth,
-                is_empty,
-                options,
-                edits,
-            );
-            collect_open_tag_edits(source, &t.fragment, depth + 1, options, edits)?;
-        }
-        TemplateNode::SlotElement(s) => {
-            let is_empty = is_empty_fragment(&s.fragment);
-            let wrapped = push_open_tag(
-                source,
-                s.start,
-                s.name.as_str(),
-                &s.attributes,
-                None,
-                depth,
-                is_empty,
-                options,
-                edits,
-            )?;
-            push_close_tag(
-                source,
-                s.end,
-                s.name.as_str(),
-                wrapped,
-                depth,
-                is_empty,
-                options,
-                edits,
-            );
-            collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
-        }
+        TemplateNode::RegularElement(elem) => handle_element(
+            source,
+            elem.start,
+            elem.end,
+            elem.name.as_str(),
+            &elem.attributes,
+            None,
+            &elem.fragment,
+            depth,
+            options,
+            edits,
+        )?,
+        TemplateNode::Component(c) => handle_element(
+            source,
+            c.start,
+            c.end,
+            c.name.as_str(),
+            &c.attributes,
+            None,
+            &c.fragment,
+            depth,
+            options,
+            edits,
+        )?,
+        TemplateNode::TitleElement(t) => handle_element(
+            source,
+            t.start,
+            t.end,
+            t.name.as_str(),
+            &t.attributes,
+            None,
+            &t.fragment,
+            depth,
+            options,
+            edits,
+        )?,
+        TemplateNode::SlotElement(s) => handle_element(
+            source,
+            s.start,
+            s.end,
+            s.name.as_str(),
+            &s.attributes,
+            None,
+            &s.fragment,
+            depth,
+            options,
+            edits,
+        )?,
         TemplateNode::SvelteHead(s)
         | TemplateNode::SvelteBody(s)
         | TemplateNode::SvelteDocument(s)
         | TemplateNode::SvelteFragment(s)
         | TemplateNode::SvelteBoundary(s)
         | TemplateNode::SvelteOptions(s)
-        | TemplateNode::SvelteSelf(s) => {
-            let is_empty = is_empty_fragment(&s.fragment);
-            let wrapped = push_open_tag(
-                source,
-                s.start,
-                s.name.as_str(),
-                &s.attributes,
-                None,
-                depth,
-                is_empty,
-                options,
-                edits,
-            )?;
-            push_close_tag(
-                source,
-                s.end,
-                s.name.as_str(),
-                wrapped,
-                depth,
-                is_empty,
-                options,
-                edits,
-            );
-            collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
-        }
+        | TemplateNode::SvelteSelf(s) => handle_element(
+            source,
+            s.start,
+            s.end,
+            s.name.as_str(),
+            &s.attributes,
+            None,
+            &s.fragment,
+            depth,
+            options,
+            edits,
+        )?,
         // prettier-plugin-svelte always emits `<svelte:window />` as self-closing
         // (even when the source uses the paired `<svelte:window></svelte:window>` form).
         // When empty, delete the close tag too; when non-empty (a compiler error),
         // fall through to the normal paired rendering.
         TemplateNode::SvelteWindow(s) => {
             let empty = is_empty_fragment(&s.fragment);
-            let wrapped = push_open_tag(
-                source,
-                s.start,
-                s.name.as_str(),
-                &s.attributes,
-                None,
-                depth,
-                empty,
-                options,
-                edits,
-            )?;
             if empty {
+                push_open_tag(
+                    source,
+                    s.start,
+                    s.name.as_str(),
+                    &s.attributes,
+                    None,
+                    depth,
+                    empty,
+                    options,
+                    edits,
+                )?;
                 // Delete the close tag (replace it with nothing) so that the
                 // self-closing `/>` open tag isn't followed by `</svelte:window>`.
                 if let Some((close_start, close_end)) =
@@ -262,70 +231,46 @@ fn collect_node_open_tag_edits(
                 {
                     edits.push((close_start, close_end, String::new()));
                 }
+                collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
             } else {
-                push_close_tag(
+                handle_element(
                     source,
+                    s.start,
                     s.end,
                     s.name.as_str(),
-                    wrapped,
+                    &s.attributes,
+                    None,
+                    &s.fragment,
                     depth,
-                    empty,
                     options,
                     edits,
-                );
+                )?;
             }
-            collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
         }
-        TemplateNode::SvelteComponent(c) => {
-            let is_empty = is_empty_fragment(&c.fragment);
-            let wrapped = push_open_tag(
-                source,
-                c.start,
-                c.name.as_str(),
-                &c.attributes,
-                Some(&c.expression),
-                depth,
-                is_empty,
-                options,
-                edits,
-            )?;
-            push_close_tag(
-                source,
-                c.end,
-                c.name.as_str(),
-                wrapped,
-                depth,
-                is_empty,
-                options,
-                edits,
-            );
-            collect_open_tag_edits(source, &c.fragment, depth + 1, options, edits)?;
-        }
-        TemplateNode::SvelteElement(e) => {
-            let is_empty = is_empty_fragment(&e.fragment);
-            let wrapped = push_open_tag(
-                source,
-                e.start,
-                e.name.as_str(),
-                &e.attributes,
-                Some(&e.tag),
-                depth,
-                is_empty,
-                options,
-                edits,
-            )?;
-            push_close_tag(
-                source,
-                e.end,
-                e.name.as_str(),
-                wrapped,
-                depth,
-                is_empty,
-                options,
-                edits,
-            );
-            collect_open_tag_edits(source, &e.fragment, depth + 1, options, edits)?;
-        }
+        TemplateNode::SvelteComponent(c) => handle_element(
+            source,
+            c.start,
+            c.end,
+            c.name.as_str(),
+            &c.attributes,
+            Some(&c.expression),
+            &c.fragment,
+            depth,
+            options,
+            edits,
+        )?,
+        TemplateNode::SvelteElement(e) => handle_element(
+            source,
+            e.start,
+            e.end,
+            e.name.as_str(),
+            &e.attributes,
+            Some(&e.tag),
+            &e.fragment,
+            depth,
+            options,
+            edits,
+        )?,
         // Blocks have child fragments but no attributes themselves.
         // Their bodies are conceptually one level deeper than the block.
         TemplateNode::IfBlock(blk) => {
@@ -615,6 +560,48 @@ fn find_any_close_tag_span(source: &str, element_end: u32) -> Option<(u32, u32)>
 /// Returns `true` when the open tag was rendered in the wrapped (multi-line)
 /// shape — the caller threads this into [`push_close_tag`] so the closing `>`
 /// of a whitespace-sensitive inline element can break onto its own line.
+/// One entry in an element's open tag: the `this={…}` slot, an attribute
+/// (index into the element's attribute list), or a comment (index into the
+/// scanned open-tag comments). The interleaving order is computed once by
+/// source position and reused across both render passes.
+enum OpenTagItem {
+    This,
+    Attr(usize),
+    Comment(usize),
+}
+
+/// Render the `this={X}` / `this="X"` slot of `<svelte:component>` /
+/// `<svelte:element>`. Returns `Ok(None)` when the expression has no source
+/// span or cannot be formatted — the caller aborts the open-tag rewrite then.
+fn render_this_attr(
+    source: &str,
+    expr: &Expression,
+    options: &FormatOptions,
+    attr_depth: usize,
+) -> Result<Option<String>, FormatError> {
+    let (Some(expr_start), Some(expr_end)) = (expr.start(), expr.end()) else {
+        return Ok(None);
+    };
+    // Detect `this="string"` — the byte before the expression start is a
+    // quote, meaning the attribute was written as a plain string value rather
+    // than `this={expr}`. Preserve the string form (`this="value"`) rather
+    // than converting to the brace form, which would turn `this="div"` into
+    // `this={div}` (an identifier reference, not a string literal).
+    let prev_byte = source.as_bytes().get(expr_start as usize - 1).copied();
+    let this_attr = if matches!(prev_byte, Some(b'"') | Some(b'\'')) {
+        let raw = source
+            .get(expr_start as usize..expr_end as usize)
+            .unwrap_or("")
+            .trim();
+        format!("this=\"{raw}\"")
+    } else if let Some(formatted) = format_expression_at(source, expr, options, attr_depth)? {
+        format!("this={{{formatted}}}")
+    } else {
+        return Ok(None);
+    };
+    Ok(Some(this_attr))
+}
+
 fn push_open_tag(
     source: &str,
     element_start: u32,
@@ -690,60 +677,64 @@ fn push_open_tag(
                         }
                     })));
 
-    // Build the list of fully-rendered open-tag items (attributes plus any
-    // comments interleaved between them), each tagged with its source
-    // position so the rendering order matches the source. Comments inside an
-    // element's open tag are owned by this rewrite, so they'd be silently
-    // dropped if we rebuilt the tag from the attribute list alone (#685).
-    let mut items: Vec<(u32, String)> = Vec::with_capacity(attributes.len() + 1);
-
     // When the open tag wraps, each attribute renders at `depth + 1` indent, so
     // its value expression must make its wrap decision against a width narrowed
     // by that lead (#795).
     let attr_depth = depth + 1;
 
-    if let Some(expr) = this_expression {
-        let (Some(expr_start), Some(expr_end)) = (expr.start(), expr.end()) else {
-            return Ok(false);
-        };
-        // Detect `this="string"` — the byte before the expression start is a
-        // quote, meaning the attribute was written as a plain string value rather
-        // than `this={expr}`. Preserve the string form (`this="value"`) rather
-        // than converting to the brace form, which would turn `this="div"` into
-        // `this={div}` (an identifier reference, not a string literal).
-        let prev_byte = source.as_bytes().get(expr_start as usize - 1).copied();
-        let this_attr = if matches!(prev_byte, Some(b'"') | Some(b'\'')) {
-            // String attribute: keep as `this="value"`.
-            let raw = source
-                .get(expr_start as usize..expr_end as usize)
-                .unwrap_or("")
-                .trim();
-            format!("this=\"{raw}\"")
-        } else if let Some(formatted) = format_expression_at(source, expr, options, attr_depth)? {
-            format!("this={{{formatted}}}")
-        } else {
-            return Ok(false);
-        };
-        // `this={X}` / `this="X"` is emitted first regardless of source position.
-        items.push((element_start, this_attr));
-    }
+    // `this={X}` / `this="X"` is rendered once (its shape is identical in the
+    // one-line and wrapped passes) and emitted first regardless of source
+    // position.
+    let this_attr = match this_expression {
+        Some(expr) => match render_this_attr(source, expr, options, attr_depth)? {
+            Some(text) => Some(text),
+            None => return Ok(false),
+        },
+        None => None,
+    };
 
-    for attr in attributes {
-        let (attr_start, _) = attribute_span(attr);
-        items.push((
-            attr_start,
-            render_attribute(attr, source, options, attr_depth, false)?,
-        ));
-    }
-
+    // Comments inside an element's open tag are owned by this rewrite, so they'd
+    // be silently dropped if we rebuilt the tag from the attribute list alone
+    // (#685). Scan them once — they are stable across both render passes.
     let comments = collect_open_tag_comments(source, element_start, open_tag_end, attributes);
     let has_line_comment = comments.iter().any(|c| c.is_line);
-    for c in comments {
-        items.push((c.start, c.text));
-    }
 
-    items.sort_by_key(|(start, _)| *start);
-    let rendered_attrs: Vec<String> = items.into_iter().map(|(_, text)| text).collect();
+    // Determine the interleaved order of `this` / attributes / comments by
+    // source position once; the order is identical across both render passes
+    // (only an attribute's rendered text changes when the tag wraps), so the
+    // sort is done a single time here rather than per pass. `this` sits at
+    // `element_start` (the `<`), strictly before every attribute/comment, so it
+    // always sorts first.
+    let mut order: Vec<(u32, OpenTagItem)> =
+        Vec::with_capacity(attributes.len() + comments.len() + 1);
+    if this_attr.is_some() {
+        order.push((element_start, OpenTagItem::This));
+    }
+    for (i, attr) in attributes.iter().enumerate() {
+        order.push((attribute_span(attr).0, OpenTagItem::Attr(i)));
+    }
+    for (i, c) in comments.iter().enumerate() {
+        order.push((c.start, OpenTagItem::Comment(i)));
+    }
+    order.sort_by_key(|(start, _)| *start);
+
+    // Materialize the open-tag items in source order. `wrapped_pass` selects the
+    // attribute rendering: `false` for the one-line probe, `true` once the tag
+    // is known to wrap (each attribute value re-narrowed by its `name={` lead).
+    let render_items = |wrapped_pass: bool| -> Result<Vec<String>, FormatError> {
+        order
+            .iter()
+            .map(|(_, item)| match item {
+                OpenTagItem::This => Ok(this_attr.clone().unwrap_or_default()),
+                OpenTagItem::Attr(i) => {
+                    render_attribute(&attributes[*i], source, options, attr_depth, wrapped_pass)
+                }
+                OpenTagItem::Comment(i) => Ok(comments[*i].text.clone()),
+            })
+            .collect()
+    };
+
+    let rendered_attrs: Vec<String> = render_items(false)?;
 
     let one_liner = render_one_line(tag_name, &rendered_attrs, self_closing);
 
@@ -862,41 +853,7 @@ fn push_open_tag(
     // does. Only the multi-line shape (not `shape_two`, whose attributes stay on
     // one line) needs this; one-line tags keep the inline rendering above.
     let rendered_attrs = if wrapped && !shape_two {
-        let mut items2: Vec<(u32, String)> = Vec::with_capacity(attributes.len() + 1);
-        if let Some(expr) = this_expression {
-            let (Some(expr_start), Some(expr_end)) = (expr.start(), expr.end()) else {
-                return Ok(false);
-            };
-            // Preserve `this="string"` form in the wrapped pass just as in the
-            // one-line pass: detect a quote before the expression span.
-            let prev_byte = source.as_bytes().get(expr_start as usize - 1).copied();
-            let this_attr2 = if matches!(prev_byte, Some(b'"') | Some(b'\'')) {
-                let raw = source
-                    .get(expr_start as usize..expr_end as usize)
-                    .unwrap_or("")
-                    .trim();
-                format!("this=\"{raw}\"")
-            } else if let Some(formatted) = format_expression_at(source, expr, options, attr_depth)?
-            {
-                format!("this={{{formatted}}}")
-            } else {
-                return Ok(false);
-            };
-            items2.push((element_start, this_attr2));
-        }
-        for attr in attributes {
-            let (attr_start, _) = attribute_span(attr);
-            items2.push((
-                attr_start,
-                render_attribute(attr, source, options, attr_depth, true)?,
-            ));
-        }
-        let comments = collect_open_tag_comments(source, element_start, open_tag_end, attributes);
-        for c in comments {
-            items2.push((c.start, c.text));
-        }
-        items2.sort_by_key(|(start, _)| *start);
-        items2.into_iter().map(|(_, text)| text).collect()
+        render_items(true)?
     } else {
         rendered_attrs
     };
