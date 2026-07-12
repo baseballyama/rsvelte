@@ -67,6 +67,11 @@
 		/* Blueprint-grid hairline, used for subtle technical backgrounds. */
 		--grid: #eceff3;
 
+		/* AST/code syntax highlighting (AstViewer, Monaco token map). */
+		--syntax-key: #5a3a8a;
+		--syntax-string: #7a4520;
+		--syntax-number: #2e5a3a;
+
 		color-scheme: light;
 	}
 
@@ -94,6 +99,10 @@
 		--editor-ink: #e6edf3;
 
 		--grid: #1a212a;
+
+		--syntax-key: #b19be0;
+		--syntax-string: #d9a66e;
+		--syntax-number: #8ccc95;
 
 		color-scheme: dark;
 	}
