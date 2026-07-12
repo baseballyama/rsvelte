@@ -1892,129 +1892,15 @@ impl Parser<'_> {
 
         match keyword.as_str() {
             "html" => {
+                // Locate the closing `}` with the JS-lexical-aware scanner so
+                // braces inside strings, template literals, comments, and regex
+                // literals (e.g. `{@html x /* } */ + y}`) do not terminate the
+                // tag early. Mirrors upstream `read_expression`, which parses
+                // with acorn and skips over the same lexical contexts.
                 let expr_start = self.index;
-
-                // Track bracket depth to handle nested braces in expressions
-                // e.g., {@html `foo: ${foo}`} - need to skip the inner `}` in template literal
-                let mut depth: u32 = 1; // We're already inside the opening `{` of the tag
-                while self.index < self.bytes.len() {
-                    let ch = self.bytes[self.index];
-                    match ch {
-                        b'{' => {
-                            depth += 1;
-                            self.index += 1;
-                        }
-                        b'}' => {
-                            depth -= 1;
-                            if depth == 0 {
-                                break;
-                            }
-                            self.index += 1;
-                        }
-                        // Skip string literals to avoid counting braces inside strings
-                        b'"' | b'\'' => {
-                            let quote = ch;
-                            self.index += 1;
-                            while self.index < self.bytes.len() {
-                                let c = self.bytes[self.index];
-                                if c == b'\\' {
-                                    self.index += 2; // skip escape sequence
-                                } else if c == quote {
-                                    break;
-                                } else if c < 0x80 {
-                                    self.index += 1;
-                                } else {
-                                    self.advance();
-                                }
-                            }
-                            if self.index < self.bytes.len() {
-                                self.index += 1; // consume closing quote
-                            }
-                        }
-                        // Skip template literals - they can contain ${...}
-                        b'`' => {
-                            self.index += 1; // consume opening backtick
-                            let mut escaped = false;
-                            while self.index < self.bytes.len() {
-                                let c = self.bytes[self.index];
-                                if escaped {
-                                    escaped = false;
-                                    self.advance();
-                                } else if c == b'\\' {
-                                    escaped = true;
-                                    self.index += 1;
-                                } else if c == b'$'
-                                    && self.index + 1 < self.bytes.len()
-                                    && self.bytes[self.index + 1] == b'{'
-                                {
-                                    // Template literal expression ${...}
-                                    self.index += 2; // consume '${'
-                                    let mut template_depth: u32 = 1;
-                                    while self.index < self.bytes.len() && template_depth > 0 {
-                                        match self.bytes[self.index] {
-                                            b'{' => {
-                                                template_depth += 1;
-                                                self.index += 1;
-                                            }
-                                            b'}' => {
-                                                template_depth -= 1;
-                                                self.index += 1;
-                                            }
-                                            b'`' => {
-                                                // Nested template literal - skip it
-                                                self.index += 1;
-                                                while self.index < self.bytes.len() {
-                                                    let nc = self.bytes[self.index];
-                                                    if nc == b'\\' {
-                                                        self.index += 2;
-                                                    } else if nc == b'`' {
-                                                        self.index += 1;
-                                                        break;
-                                                    } else if nc < 0x80 {
-                                                        self.index += 1;
-                                                    } else {
-                                                        self.advance();
-                                                    }
-                                                }
-                                            }
-                                            b'"' | b'\'' => {
-                                                // Skip strings inside template expression
-                                                let q = self.bytes[self.index];
-                                                self.index += 1;
-                                                while self.index < self.bytes.len() {
-                                                    let sc = self.bytes[self.index];
-                                                    if sc == b'\\' {
-                                                        self.index += 2;
-                                                    } else if sc == q {
-                                                        self.index += 1;
-                                                        break;
-                                                    } else if sc < 0x80 {
-                                                        self.index += 1;
-                                                    } else {
-                                                        self.advance();
-                                                    }
-                                                }
-                                            }
-                                            b if b < 0x80 => self.index += 1,
-                                            _ => self.advance(),
-                                        }
-                                    }
-                                } else if c == b'`' {
-                                    break;
-                                } else if c < 0x80 {
-                                    self.index += 1;
-                                } else {
-                                    self.advance();
-                                }
-                            }
-                            if self.index < self.bytes.len() {
-                                self.index += 1; // consume closing backtick
-                            }
-                        }
-                        b if b < 0x80 => self.index += 1,
-                        _ => self.advance(),
-                    }
-                }
+                let end = find_matching_bracket(self.source, expr_start, '{')
+                    .unwrap_or(self.source.len());
+                self.index = end;
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
 
@@ -2030,43 +1916,14 @@ impl Parser<'_> {
             }
             "render" => {
                 // {@render snippet(...)}
+                // Locate the closing `}` with the JS-lexical-aware scanner so
+                // braces inside strings, comments, and regex literals (e.g.
+                // `{@render foo(/}/g)}`) do not terminate the tag early. Mirrors
+                // upstream `read_expression`.
                 let expr_start = self.index;
-
-                // Track bracket depth to handle nested braces in expressions
-                // e.g., {@render foo({ count })} - need to skip the inner `}` of the object
-                let mut depth = 1; // We're already inside the opening `{` of the tag
-                while !self.is_eof() {
-                    let ch = self.current_char();
-                    match ch {
-                        '{' => depth += 1,
-                        '}' => {
-                            depth -= 1;
-                            if depth == 0 {
-                                break;
-                            }
-                        }
-                        // Skip string literals to avoid counting braces inside strings
-                        '"' | '\'' | '`' => {
-                            let quote = ch;
-                            self.advance();
-                            let mut escaped = false;
-                            while !self.is_eof() {
-                                let c = self.current_char();
-                                if escaped {
-                                    escaped = false;
-                                } else if c == '\\' {
-                                    escaped = true;
-                                } else if c == quote {
-                                    break;
-                                }
-                                self.advance();
-                            }
-                        }
-                        _ => {}
-                    }
-                    self.advance();
-                }
-
+                let end = find_matching_bracket(self.source, expr_start, '{')
+                    .unwrap_or(self.source.len());
+                self.index = end;
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
 
@@ -2089,61 +1946,29 @@ impl Parser<'_> {
             }
             "const" => {
                 // {@const foo = bar}
-                // Note: Must track brace depth for destructuring patterns like { handler } = obj
+                // Locate the closing `}` with the JS-lexical-aware scanner so
+                // braces inside strings, comments, and regex literals (e.g.
+                // `{@const re = /}/}`) do not terminate the tag early, and
+                // destructuring patterns like `{ handler } = obj` nest correctly.
                 self.skip_whitespace();
                 let expr_start = self.index;
-                let mut brace_depth = 0;
-                let mut in_string = false;
-                let mut string_char = '\0';
-                let mut prev_char = '\0';
-
-                while !self.is_eof() {
-                    let c = self.current_char();
-
-                    if in_string {
-                        // Handle escape sequences - backslash escapes the next char
-                        if c == string_char && prev_char != '\\' {
-                            in_string = false;
-                        }
-                        prev_char = c;
-                        self.advance();
-                        continue;
-                    }
-
-                    if c == '"' || c == '\'' || c == '`' {
-                        in_string = true;
-                        string_char = c;
-                        prev_char = c;
-                        self.advance();
-                        continue;
-                    }
-
-                    if c == '{' {
-                        brace_depth += 1;
-                    } else if c == '}' {
-                        if brace_depth == 0 {
-                            // Found the closing brace of the @const tag
-                            break;
-                        }
-                        brace_depth -= 1;
-                    }
-                    prev_char = c;
-                    self.advance();
-                }
+                let end = find_matching_bracket(self.source, expr_start, '{')
+                    .unwrap_or(self.source.len());
+                self.index = end;
                 let expr_content = &self.source[expr_start..self.index];
                 let expr_end = self.index;
                 self.advance(); // consume '}'
 
-                // Check for sequence expression (multiple declarations with comma)
-                // Parse the expression and check if it's a sequence expression
+                // Locate the top-level assignment `=` that splits the pattern
+                // from the initializer. Scan bytes (not a `Vec<char>`):
+                // `first_equals` is later used as a byte index to slice
+                // `trimmed`, so a character index would corrupt a `{@const}`
+                // whose LHS has a multi-byte character (H-131). Every token
+                // examined here is ASCII. A `=` can only appear before the
+                // assignment operator inside a bracketed destructuring default
+                // (depth > 0) or a string, both of which are skipped here, so
+                // the first depth-0 `=` is the assignment.
                 let trimmed = expr_content.trim();
-
-                // Simple check: if there's a comma at top level (outside parentheses/brackets),
-                // and not part of a single assignment, it's invalid
-                // Scan bytes (not a `Vec<char>`): `first_equals` is later used as
-                // a byte index to slice `trimmed`, so a character index would
-                // corrupt a `{@const}` whose LHS has a multi-byte character
-                // (H-131). Every token examined here is ASCII.
                 let mut depth = 0i32;
                 let mut in_string = false;
                 let mut string_char = 0u8;
@@ -2172,7 +1997,7 @@ impl Parser<'_> {
                         depth += 1;
                     } else if c == b')' || c == b']' || c == b'}' {
                         depth -= 1;
-                    } else if c == b'=' && first_equals.is_none() && depth == 0 {
+                    } else if c == b'=' && depth == 0 {
                         // Check it's not ==, ===, !=, !==, <=, >=, =>
                         let next = bytes.get(i + 1).copied().unwrap_or(0);
                         let prev = if i > 0 { bytes[i - 1] } else { 0 };
@@ -2183,15 +2008,7 @@ impl Parser<'_> {
                             && prev != b'>'
                         {
                             first_equals = Some(i);
-                        }
-                    } else if c == b',' && depth == 0 {
-                        // Found top-level comma after the first assignment - this is a sequence expression
-                        if first_equals.is_some() {
-                            return Err(crate::error::ParseError::svelte(
-                                "const_tag_invalid_expression",
-                                "{@const ...} must consist of a single variable declaration",
-                                (expr_start, expr_end),
-                            ));
+                            break;
                         }
                     }
                     i += 1;
@@ -2241,6 +2058,32 @@ impl Parser<'_> {
                         + (trimmed[eq_idx + 1..].len() - trimmed[eq_idx + 1..].trim_start().len());
                     let init_expr = self.parse_js_expression(init_str, init_offset);
 
+                    // Reject a sequence-expression initializer, mirroring
+                    // upstream: `{@const a = (b, c)}` is allowed but
+                    // `{@const a = b, c = d}` is not. A parenthesized sequence
+                    // is permitted, detected (as upstream does) by a `(`
+                    // between the `=` and the parsed initializer's start.
+                    // Deriving this from the parsed `init` — rather than a
+                    // top-level comma byte-scan — keeps commas inside strings,
+                    // comments, and regex literals (e.g. `/a,b/`) from being
+                    // mistaken for a sequence separator.
+                    if init_expr.node_type() == Some("SequenceExpression") {
+                        let paren_before = init_expr
+                            .start()
+                            .map(|s| self.source[init_offset..s as usize].contains('('))
+                            .unwrap_or(false);
+                        if !paren_before {
+                            let err_start =
+                                init_expr.start().map(|s| s as usize).unwrap_or(init_offset);
+                            let err_end = init_expr.end().map(|e| e as usize).unwrap_or(expr_end);
+                            return Err(crate::error::ParseError::svelte(
+                                "const_tag_invalid_expression",
+                                "{@const ...} must consist of a single variable declaration",
+                                (err_start, err_end),
+                            ));
+                        }
+                    }
+
                     // Position just past the initializer text (including any
                     // wrapping parens) but before trailing whitespace — mirrors
                     // upstream's `declarator_end = parser.index` captured right
@@ -2281,22 +2124,16 @@ impl Parser<'_> {
                     // {@debug} - no identifiers (debug all)
                     Vec::new()
                 } else {
-                    // Read expression content up to closing brace
+                    // Read expression content up to the closing brace with the
+                    // JS-lexical-aware scanner so braces inside strings,
+                    // comments, and regex literals (e.g. `{@debug obj["}"]}`)
+                    // do not terminate the tag early. Mirrors upstream
+                    // `read_expression`.
                     let expr_start = self.index;
-                    let mut depth = 1;
-                    while !self.is_eof() && depth > 0 {
-                        let ch = self.current_char();
-                        match ch {
-                            '{' => depth += 1,
-                            '}' => depth -= 1,
-                            _ => {}
-                        }
-                        if depth > 0 {
-                            self.advance();
-                        }
-                    }
-                    let expr_end = self.index;
-                    let expr_content = self.source[expr_start..expr_end].trim();
+                    let end = find_matching_bracket(self.source, expr_start, '{')
+                        .unwrap_or(self.source.len());
+                    self.index = end;
+                    let expr_content = self.source[expr_start..end].trim();
 
                     if expr_content.is_empty() {
                         Vec::new()
