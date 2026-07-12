@@ -6,6 +6,7 @@
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
 	import Eyebrow from '$lib/components/Eyebrow.svelte';
 	import SectionHead from '$lib/components/SectionHead.svelte';
+	import '$lib/styles/terminal-code.css';
 
 	let { data }: { data: PageData } = $props();
 
@@ -772,20 +773,6 @@
 		padding: 1rem 1.2rem;
 		font-size: 0.85rem;
 		line-height: 1.7;
-	}
-
-	.c-cmt {
-		color: var(--ink-faint);
-	}
-
-	.c-prompt {
-		color: var(--svelte);
-		margin-right: 0.5em;
-	}
-
-	.c-flag,
-	.c-op {
-		color: var(--rust);
 	}
 
 	/* EMPTY */

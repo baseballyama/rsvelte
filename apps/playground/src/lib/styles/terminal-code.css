@@ -1,0 +1,15 @@
+/* Token colors for the hand-written terminal-style <pre> snippets
+   (progress / benchmark empty states and the benchmark repro block). */
+.c-cmt {
+	color: var(--ink-faint);
+}
+
+.c-prompt {
+	color: var(--svelte);
+	margin-right: 0.5em;
+}
+
+.c-flag,
+.c-op {
+	color: var(--rust);
+}
