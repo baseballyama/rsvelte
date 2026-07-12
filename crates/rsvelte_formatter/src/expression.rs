@@ -3194,7 +3194,17 @@ fn collapse_expanded_arg_form(multi: &str) -> Option<String> {
         }
     }
     let open_pos = open_pos?;
-    // Insert a space after the opening `(` to produce the `( arg, )` form.
+    // Insert a space after the opening `(` to produce the `( arg )` form, and
+    // DROP the trailing comma OXC bakes into its broken output. This mirrors
+    // prettier-plugin-svelte's `removeLines` (`forceSingleLine`), which strips the
+    // `ifBreak(",")` trailing-comma doc entirely when it collapses the group back
+    // to one line — so the oracle emits `fn( arg )`, not `fn( arg, )`. (OXC's
+    // broken form has the comma as literal text, not an `ifBreak`, so it survives
+    // a naive line-join; we must remove it explicitly.)
+    let joined = joined
+        .strip_suffix(", )")
+        .map(|head| format!("{head} )"))
+        .unwrap_or(joined);
     let mut result = String::with_capacity(joined.len() + 1);
     result.push_str(&joined[..open_pos + 1]);
     result.push(' ');
@@ -3437,13 +3447,26 @@ mod tests {
 
     #[test]
     fn collapse_expanded_arg_form_normal() {
-        // Typical multi-line → collapsed form
+        // Typical multi-line → collapsed form. prettier-plugin-svelte's
+        // `removeLines` strips OXC's trailing comma when it collapses the group,
+        // so the result is `fn( arg )` — space markers, NO trailing comma.
         let multi = "options.filter((opt) =>\n  selectedValues.has(opt.value),\n)";
         let result = collapse_expanded_arg_form(multi);
         assert!(result.is_some(), "expected Some for normal multi-line call");
         let s = result.unwrap();
         assert!(s.contains("( "), "result should have `( ` after open paren");
-        assert!(s.ends_with(", )"), "result should end with `, )`");
+        assert!(
+            s.ends_with(" )"),
+            "result should end with ` )` (no trailing comma)"
+        );
+        assert!(
+            !s.contains(", )"),
+            "result must not keep the `, )` trailing comma"
+        );
+        assert_eq!(
+            s,
+            "options.filter( (opt) => selectedValues.has(opt.value) )"
+        );
     }
 
     #[test]

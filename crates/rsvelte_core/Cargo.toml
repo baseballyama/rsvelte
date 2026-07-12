@@ -76,7 +76,7 @@ oxc_semantic = "0.138"
 oxc_resolver = "11"
 
 # SPIKE: oxc_formatter is publish=false in oxc; pull via git from main HEAD
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "6ca912513e2b3ef9df173d043c2f501b0532786d" }
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "39677ba50d908ea09f6d9e58ded328461212f52a" }
 
 # Error handling
 thiserror = "2.0"
@@ -195,6 +195,16 @@ path = "src/bin/parse_bottleneck.rs"
 [[bin]]
 name = "fastpath_coverage"
 path = "src/bin/fastpath_coverage.rs"
+
+# The svelte-check CLI links `rsvelte_core::svelte_check::*`, which is gated on
+# the `native` feature (see `lib.rs`). Declare that dependency explicitly so
+# cargo skips the bin under any feature resolution that omits `native` (e.g. the
+# `cargo codspeed build` bench graph) instead of trying to build it and failing
+# to link. Default builds enable `native`, so this is a no-op for them.
+[[bin]]
+name = "svelte_check"
+path = "src/bin/svelte_check.rs"
+required-features = ["native"]
 
 [[bench]]
 name = "parser"

@@ -1708,13 +1708,12 @@ fn check_ns_walk(node: &TemplateNode, ns: &mut NsCheck) {
         // absent one, the shallow direct-child fallback inherits the parent
         // namespace — matching upstream's element loop, which skips SvelteElement.
         TemplateNode::SvelteElement(_) => {}
-        TemplateNode::Text(t) => {
-            // 写经 upstream Text handler: any non-whitespace text is inconclusive
-            // (`maybe_html`), deferring to the shallow direct-child inference.
-            if !is_svelte_whitespace_only(&t.data) {
-                *ns = NsCheck::MaybeHtml;
-            }
+        // Mirrors upstream Text handler: any non-whitespace text is inconclusive
+        // (`maybe_html`), deferring to the shallow direct-child inference.
+        TemplateNode::Text(t) if !is_svelte_whitespace_only(&t.data) => {
+            *ns = NsCheck::MaybeHtml;
         }
+        TemplateNode::Text(_) => {}
         TemplateNode::IfBlock(b) => {
             for n in &b.consequent.nodes {
                 check_ns_walk(n, ns);
