@@ -1,5 +1,72 @@
 # @rsvelte/svelte2tsx
 
+## 0.1.22
+
+### Patch Changes
+
+- c3d6b2a: chore(svelte2tsx): shrink module-wide lint allows and fix doc attribution
+
+  Remove the blanket `#[allow(dead_code, doc_lazy_continuation,
+if_same_then_else, unnecessary_unwrap, ...)]` module attributes on the
+  svelte2tsx submodules — only `module_inception` remains (with its own
+  reason), since `svelte2tsx::svelte2tsx` mirrors the upstream package
+  layout. Truly dead helpers are deleted (unused JSON rune-global walkers,
+  `node_start_pos`/`node_end_pos`, unused structured-bake formatters, unused
+  `PropsRuneInfo` fields), `is_some()`-then-`unwrap()` sites become
+  let-chains, identical `if`/`else` arms collapse, and doc comments that had
+  drifted onto the wrong item (`process_instance_script`,
+  `handle_reactive_statement`, `emit_segmented_overwrite`,
+  `format_attribute_node_segments`, overlay's `emit_external_shadows` /
+  `path_relative`) are reattached. No behavior change — the transform output
+  is byte-identical (fixture suite verified).
+
+- bfe6de8: fix(svelte2tsx): bounds-check AST-offset source slices
+
+  The svelte2tsx transform sliced the original source by AST byte offsets in
+  dozens of places with `&source[start as usize..end as usize]` (often with a
+  defensive `.unwrap_or(0)` on an absent offset). When an offset pair is inverted
+  (`start > end`) or reaches past the source length — possible for lazily-parsed
+  or unresolved expressions whose `.start()`/`.end()` are unreliable — the raw
+  slice panics, aborting the whole compile instead of degrading gracefully.
+
+  Consolidate every such AST-offset slice through one helper,
+  `slice_src(source, start, end)`, which returns `source.get(start..end)` and
+  falls back to `""` on an inverted, out-of-bounds, or non-char-boundary range.
+  For any valid range this is exactly `&source[start..end]`, so the transform
+  output is byte-identical (verified against the full 253-fixture svelte2tsx
+  suite); only the panic paths change to an empty slice.
+
+- 10f599f: perf(svelte2tsx): drop the two full-source `to_ascii_lowercase` copies
+
+  `blank_style_content` and the orphan-`<script>` scanner each allocated a
+  lowercased copy of the entire source just to case-insensitively find
+  `<style` / `<script` tag tokens. Replace both with an allocation-free
+  `find_ci` byte scan (`eq_ignore_ascii_case` on the tag-name window),
+  matching the approach the fallback `<style>` scanner already uses. Output
+  is byte-identical (same ASCII case folding, same match positions);
+  verified against the full svelte2tsx fixture suite.
+
+- Updated dependencies [21ab5b1]
+- Updated dependencies [f72487c]
+- Updated dependencies [f66ee48]
+- Updated dependencies [0307bc1]
+- Updated dependencies [8b827ae]
+- Updated dependencies [bc553d3]
+- Updated dependencies [ac25917]
+- Updated dependencies [93eac0b]
+- Updated dependencies [0f346a5]
+- Updated dependencies [c8795c0]
+- Updated dependencies [b7e28b7]
+- Updated dependencies [3e43d67]
+- Updated dependencies [581d520]
+- Updated dependencies [8e38ff1]
+- Updated dependencies [ef9c121]
+- Updated dependencies [277e6cd]
+- Updated dependencies [673b2b0]
+- Updated dependencies [cafca99]
+- Updated dependencies [511cb42]
+  - @rsvelte/compiler@0.7.17
+
 ## 0.1.21
 
 ### Patch Changes

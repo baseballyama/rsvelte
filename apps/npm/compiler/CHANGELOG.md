@@ -1,5 +1,277 @@
 # @rsvelte/compiler
 
+## 0.7.17
+
+### Patch Changes
+
+- 21ab5b1: chore(deps): bump oxc + oxfmt to the 0.58 formatter-paired rev (39677ba)
+
+  Bump every git-pinned oxc crate (`oxc_ast`, `oxc_parser`, `oxc_codegen`,
+  `oxc_span`, `oxc_semantic`, … and the `oxc_formatter*` family) to a single new
+  revision `39677ba50d908ea09f6d9e58ded328461212f52a` — oxc crates `0.138`,
+  `oxc_formatter*` `0.58` — and bump the `oxfmt` npm dependency to `^0.58.0` (root
+  - playground). This rev is the exact oxc commit the `oxfmt` `0.58.0` release was
+    built from, so `rsvelte-fmt`'s in-process `oxc_formatter` engine is byte-identical
+    to the `oxfmt` oracle the formatter-parity gate compares against (fixing a
+    comment-placement divergence, e.g. `: !!value /* … */;`).
+
+  All oxc crates must move to one rev together so rsvelte's AST types unify with
+  `oxc_formatter`'s transitive deps, and the `oxc_formatter` rev must be paired with
+  its matching `oxfmt` npm release; this consolidates the individual Renovate oxc
+  bumps and the `auto-update-oxfmt` bot PR (#1434) into one coherent bump. The bump
+  is compiler-output-neutral — CSR/SSR compile output is byte-identical across the
+  whole compat corpus before and after; no oxc API migration was required.
+
+  Also declares the `svelte_check` bin with `required-features = ["native"]`: it
+  links `rsvelte_core::svelte_check::*` (gated on `native`), so under a feature
+  resolution that omits `native` (e.g. the `cargo codspeed build` bench graph)
+  cargo must skip the bin instead of trying to build it and failing to link.
+  Default builds enable `native`, so this is a no-op for them.
+
+  The oxfmt 0.58 bump also records one new known formatter-parity failure in the
+  ratchet (`compat/corpus/fmt-known-failures.json`): `site-kit/…/SearchBox.svelte`,
+  where rsvelte-fmt over-breaks a TS `as HTMLElement | undefined` union inside a
+  deeply-nested `on…={…}` handler at print-width 80 (its embedded-expression width
+  narrowing makes `oxc_formatter` break a union the oxfmt oracle keeps inline). It
+  is a bounded diagnosis but a non-bounded fix (entangled with the tuned
+  narrow-then-reindent plumbing), tracked as a follow-up burndown item. Four other
+  oxfmt-0.58 CSS/structure divergences on pathological svelte compiler-test fixtures
+  are `oracle-bug` / `invalid-input` exclusions (oxfmt's own `--svelte`-vs-raw CSS
+  path inconsistencies where rsvelte matches the raw path).
+
+- f72487c: fix(analyze): remove aliasing UB from bind:group each-block marking
+
+  `mark_group_bindings_in_node` pushed a `*mut EachBlock` (built from `&mut **each`)
+  onto an ancestor stack and then recursed into `each.body`, keeping a `&mut` borrow
+  of that same each block's `body` field live. When a descendant `bind:group` matched,
+  the code dereferenced the raw pointer — including `&mut **each_ptr` to write
+  `metadata` — while the outer `&mut each.body` was still alive. Under Stacked/Tree
+  Borrows this is undefined behavior (a `&mut` reborrow overlapping a live parent
+  `&mut`). No miscompilation had been observed (single-threaded, the writes only touch
+  `metadata`, and codegen output was correct), but it is UB the optimizer is entitled
+  to exploit.
+
+  Replace the raw pointers with a safe design: the ancestor stack now holds value
+  snapshots (`start` offset + declared/expression identifiers copied up-front, so no
+  borrow of `each` is held across the descent), and matched group-binding assignments
+  are collected into an `FxHashMap<u32, String>` keyed by each block `start`. Each
+  `EachBlock`'s `metadata` is written back when the traversal unwinds past it, once no
+  borrow of its `body` is live. Group-name allocation order and the first-assigned
+  `binding_group_name` semantics are preserved, so compiler output is byte-identical
+  (verified against the full runtime-legacy suite, which covers every `bind:group`
+  inside `{#each}` fixture).
+
+- f66ee48: fix(analyze): preserve component-relative declaration spans and component tag references in binding metadata
+- 0307bc1: fix(transform): keep a brace-less control-flow body with its `$:` header
+
+  The legacy instance-script statement splitter treated a depth-0 newline after a
+  brace-less control-flow header (`$: if (cond)`, `else`, `for (...)`, `while (...)`,
+  `do`) as a statement boundary. So
+
+  ```svelte
+  $: if (object3d)
+  	if$_instance_change(object3d, …)
+  ```
+
+  split the body off as a separate top-level statement: rsvelte emitted the call
+  eagerly and unguarded at component setup, and lowered the header to an empty
+  reactive effect (`if (object3d());`) instead of
+  `$.legacy_pre_effect(…, () => { if (object3d()) if$_instance_change(…); })`.
+
+  Treat a statement whose accumulated text ends with a brace-less control header as
+  incomplete (like a trailing binary operator), so its following body statement is
+  accumulated with it. Add `ends_with_braceless_control_header` (word-boundary
+  keyword match + backward paren match) to `expression_utils`, applied in both the
+  line-accumulation boundary check and `find_statement_end_client`. Removes
+  `svelthree/src/lib/components/Object3D.svelte` from known-failures.client.json.
+
+- 8b827ae: fix(transform): client text interpolation treats binary/template-literal `let` inits as defined (no `?? ''`)
+
+  `is_expression_defined` (the client `?? ''` gate for `{expr}` text
+  interpolations) only skipped the fallback for a `const` binding whose
+  `initial_is_defined` flag was set. That flag is not populated for legacy
+  (non-runes) `let` bindings, so `let key = a.charAt(0) + a.slice(1)` — whose
+  value is always a string — was emitted as `${key ?? ''}` instead of `${key}`.
+
+  Add a binding-type check that mirrors upstream `scope.evaluate`: a Normal
+  binding that is never reassigned and whose initializer is a `BinaryExpression`
+  or `TemplateLiteral` is a definite string/number/boolean and therefore
+  `is_defined`, so no `?? ''` is appended. Reads the recorded init node type
+  directly (independent of the unpopulated flag). Deliberately excludes
+  `UpdateExpression` (`x++`), which upstream's `evaluate` has no case for and
+  thus treats as UNKNOWN — keeping its `?? ''`. Removes
+  `svelte-table/example/example6/ContactButtonComponent.svelte` from
+  known-failures.client.json.
+
+- bc553d3: fix(transform): propagate inferred namespace into nested component slots
+
+  When lowering a component's slot content, the client computed the slot fragment's inferred namespace (used for whitespace trimming) but never stored it on the child state's `metadata.namespace`. So a namespace inferred from an `<svg>` deep in one component's slot did not cascade to a nested component's slot whose own children are namespace-inconclusive (only text + components).
+
+  For `<Card>…<svg/></Card>` with a `<CardDescription>418.2K Visitors <Badge/></CardDescription>` inside, upstream infers `svg` for the `Card` slot and inherits it down (`infer_namespace`'s `new_namespace ?? namespace` fallback) so the `CardDescription` fragment is also `svg`. rsvelte kept `html`, building `$.from_html` with untrimmed SVG whitespace and mismatched `$.sibling` offsets.
+
+  Set `state.metadata.namespace` to the inferred namespace while visiting slot children (save/restore around it), mirroring upstream `Fragment.js`, which puts the inferred `namespace` on the new child `state.metadata`. Removes `shadcn-svelte/…/cards/analytics-card.svelte` from known-failures.client.json.
+
+- ac25917: fix(transform): treat an each-item that shadows an outer binding as reactive
+
+  A text/attribute interpolation whose expression is an `{#each … as item}` loop
+  variable is reactive, so the client codegen must emit a
+  `$.template_effect(() => $.set_text(…))` rather than a one-time `nodeValue`
+  assignment. When the loop variable shadowed a same-named outer binding
+  (`const title = '…'; {#each rows as title}{title}{/each}`),
+  `expression_has_reactive_state` resolved the name to the outer (non-reactive)
+  constant — the transform-side scope is not switched to the each scope during the
+  body walk — and wrongly baked the interpolation as static. Mirror the existing
+  `get_literal_value` each-shadow guard: a name matching an enclosing each ITEM is
+  always reactive, an each INDEX uses its analyzer-computed reactivity. Fixes the
+  flowbite-svelte admin-dashboard CRUD `+page` components (client SSR/CSR).
+
+- 93eac0b: fix(transform): each item shadows an outer same-named prop getter
+
+  A non-reactive `{#each}` item that is a simple identifier is bound as the render
+  arrow's parameter, so it fully shadows any outer binding of the same name. But
+  the client only _inserted_ a transform for the item when it was reactive — a
+  non-reactive item left a stale outer transform in place. When the shadowed name
+  was a runes prop (transform `position → position()`), a body reference or
+  `{@const}` wrongly called the prop getter:
+
+  ```svelte
+  {#each positions as position}
+    {@const [y, x] = position.split('-')}   <!-- was position().split('-') -->
+  {/each}
+  ```
+
+  Remove any outer transform for the item name in the non-reactive branch too,
+  mirroring upstream where the each-item binding shadows the outer scope.
+
+- 0f346a5: fix(esrap): parenthesize an optional-chain callee of a non-optional call
+
+  `rsvelte_esrap` printed a `CallExpression` whose callee is a `ChainExpression`
+  (an optional member) without wrapping parentheses, so a NON-optional call on an
+  optional-chain callee — e.g. a dynamic `<svelte:component this={instruct?.dataComponent} />`
+  lowering to `(instruct?.dataComponent)($$renderer, …)` — was mis-printed as
+  `instruct?.dataComponent($$renderer, …)`. Those differ semantically (the latter
+  short-circuits when `instruct` is nullish) and are not AST-equivalent.
+
+  The callee-precedence check (`< 19`) could not catch it because a
+  `ChainExpression` has the same precedence (19) as a call. Add esrap's explicit
+  `callee.type === 'ChainExpression'` wrap rule so the callee is parenthesized.
+  Removes `powertable/app/src/lib/components/PowerTable.svelte` from
+  known-failures.server.json.
+
+- c8795c0: fix(esrap/napi): defensive printer fixes and compileModule arena leak
+
+  esrap's `Dedent` no longer underflows on unbalanced command streams and template
+  quasis are indexed defensively. The `compileModule` zero-copy NAPI path now uses
+  the same leak-safe `BumpGuard` envelope helper as the component path, so a buffer
+  creation error no longer leaks the bump arena.
+
+- b7e28b7: fix(analyze): record `$$props` references so legacy reactive deps deep-read it
+
+  A legacy reactive expression reading `$$props.x` (e.g. an `{#if $$props.class || underline || cursor}` test) omitted the `$.deep_read_state($$sanitized_props)` dependency from its `build_expression` sequence, so it read `($.deep_read_state(underline()), …)` instead of `($.deep_read_state($$sanitized_props), $.deep_read_state(underline()), …)`.
+
+  The cause was that Phase 2 never declared a `$$props` binding, so `$$props.x` resolved to nothing and no reference was recorded in the expression metadata. Mirror upstream `2-analyze/index.js`, which declares a synthetic `$$props` `rest_prop` binding in the instance scope (non-runes branch) before the walks. The Phase-3 `build_expression` port already deep-reads a `$$props` reference (mapping it to `$$sanitized_props`); it simply never saw one.
+
+  Guard `has_prop_bindings` against the synthetic name so a component with no real props (e.g. a static SVG icon) does not gain a spurious `$$props` parameter — mirroring upstream's `binding.node.name !== '$$props'` checks. `$$restProps` is deliberately left undeclared (its plain-read path already works and binding it would mis-route `$$restProps.x`). Removes `svelte-ux/packages/svelte-ux/src/lib/components/Tooltip.svelte` from known-failures.client.json.
+
+- 3e43d67: fix(transform): client legacy `$.mutable_source` wrapping handles inits on the next line
+
+  The legacy state-declaration transform matched `let x = <init>` with a hardcoded
+  trailing space after `=`, so a declaration whose initializer begins on the
+  following line — e.g. `let selectedDayOfWeek: DayOfWeek =\n  $format.settings…` —
+  did not match the init-bearing pattern. The declarator was mis-wrapped as an
+  empty `$.mutable_source()` and its initializer was orphaned as a dangling
+  statement (`$.mutable_source();\n $format()…;`).
+
+  Match `=` without the trailing space, guard against `==` / `=>`, and skip any
+  whitespace (including newlines) between `=` and the initializer before reading
+  the init expression. Removes
+  `svelte-ux/packages/svelte-ux/src/lib/components/DateRange.svelte` from
+  known-failures.client.json.
+
+- 581d520: fix(parse): harden parser against panics and infinite loops on edge-case input
+
+  `strip_type_annotation` now slices on byte offsets (`{const café: T = e}` no
+  longer panics), the CSS rule loop has a progress guard so `<style>{}</style>`
+  reports `css_expected_identifier` like the official compiler instead of hanging,
+  and selector identifiers accept code points >= 160 (matching the official
+  compiler's treatment of e.g. `×` as a valid type selector).
+
+- 8e38ff1: fix(preprocess): defer the sources/names table clone in sourcemap concat until an entry is actually new
+
+  `MappedCode::concat`'s `merge_tables` helper unconditionally cloned the entire
+  `this_table` slice (`self.map.sources` / `self.map.names`) up front via
+  `this_table.to_vec()`, before checking whether any entry from `other_table` was
+  actually missing. In the common case — every `other_table` entry already
+  present — the caller discards the returned table anyway (it only assigns it
+  back when `changed` is `true`), so the clone was wasted work on every
+  `concat()` call, which runs once per stitched-together `MappedCode` chunk while
+  building a preprocessed file's source map.
+
+  `merge_tables` now only materializes the merged table (via
+  `Option::get_or_insert_with`) the first time an entry is found missing, and
+  returns an empty `Vec` (never read by the caller) when nothing changed. Output
+  is unchanged — this only affects the discarded-on-no-op allocation.
+
+- ef9c121: fix(transform): compile assignments to `$state` that broke SvelteKit remote functions (#1438). A logical compound assignment (`??=`/`||=`/`&&=`) to a private `$state` field inside a method/getter, and an object/nested destructuring assignment to a module-level `$state` variable, were both miscompiled to invalid assignment targets. They now lower to `$.set(...)` matching the official compiler.
+- 277e6cd: fix(transform): server declarator `$state()` is a store read when `$state` is a subscription
+
+  `let x = $state()` in the instance script was always lowered to the `$state`
+  rune (→ `let x = void 0`). When a same-named store is subscribed — e.g. a
+  `state` prop read as `$state` — upstream `get_rune` returns null (the
+  auto-created `$state` store-subscription binding shadows the rune), so the
+  declarator is a store read: `let x = $.store_get(($$store_subs ??= {}),
+"$state", state)()`. Detect that in `lower_variable_declaration` by looking up
+  the `$`-prefixed callee name as a `BindingKind::StoreSub` binding that is
+  lexically visible at (an ancestor-or-self of) the instance scope, gated to the
+  instance script only. Precise enough to leave ordinary runes alone:
+  `let props = $props()` (binds `props`, no `$props` subscription),
+  `let state = $state(0)` (no `$state` read), and a module-script
+  `const data = $state({…})` next to an unrelated `const state` all stay runes.
+
+- 673b2b0: fix(preprocess): harden sourcemap decoding and warning offset handling
+
+  Malformed VLQ continuation runs no longer overflow-panic the decoder (shift is
+  bounded and running state uses wrapping adds), `process_markup` now decodes
+  standard VLQ-string v3 maps through `decode_map` instead of silently dropping
+  them, and `byte_offset_to_position` rewinds mid-codepoint offsets to the nearest
+  char boundary before slicing.
+
+- cafca99: fix(transform): deep infer_namespace for SSR reset-parent fragments
+
+  The server whitespace trimmer decides whether a fragment's inter-node
+  whitespace is removable from its inferred namespace (svg/mathml contexts drop
+  whitespace-only text; html keeps a single space). rsvelte inferred that
+  namespace with a shallow direct-child scan; upstream `infer_namespace`
+  deep-walks into `{#if}` / `{#each}` / `{#await}` / `{#key}` block bodies for
+  namespace-resetting parents (Root / Fragment / Component / SnippetBlock /
+  SlotElement). Porting `check_nodes_for_namespace` fixes two SSR whitespace
+  divergences: `<svg>…</svg> {#if}<p>…{/if}` (keep the space — html found inside
+  the block) and top-level `{#if}svg{/if} {#if}svg{/if}` (drop the space — all svg).
+
+- 511cb42: fix(transform): use byte offsets when slicing instance-script strings
+
+  Several client instance-script string helpers iterated with
+  `chars().enumerate()` (or a collected `Vec<char>`) and then used the resulting
+  char index as a byte offset into the original `&str`. Any non-ASCII byte before
+  the slice point (a non-ASCII identifier, object key, string/type literal — all
+  valid JS/TS/Svelte) pushed the byte offset past a `char` boundary, panicking the
+  compiler with `byte index N is not a char boundary`. Because these helpers run
+  whenever the client instance-script IR is built, the crash was reachable from
+  untrusted `.svelte` input.
+
+  Fixed all five sites to work in byte offsets (`char_indices()` /
+  peekable-iterator neighbor lookups) so e.g. `let { café, b } = $props()`,
+  `let { café: renamed } = $props()`, `let [café = 1] = arr`, and
+  `let x: Café = 0` compile instead of panicking:
+
+  - `props_transforms.rs`: `split_property_key_value`, `split_destructuring_properties`
+  - `destructure_transforms.rs`: `find_top_level_equals` (fixes its 11 byte-slicing callers)
+  - `state_transforms.rs`: `body_references_identifier_in_statements`,
+    `transform_legacy_state_declarations`
+
+  ASCII input is unaffected (char index equals byte index there), so output is
+  byte-for-byte unchanged.
+
 ## 0.7.16
 
 ### Patch Changes

@@ -1,5 +1,74 @@
 # @rsvelte/svelte-check
 
+## 0.3.10
+
+### Patch Changes
+
+- c3d6b2a: chore(svelte2tsx): shrink module-wide lint allows and fix doc attribution
+
+  Remove the blanket `#[allow(dead_code, doc_lazy_continuation,
+if_same_then_else, unnecessary_unwrap, ...)]` module attributes on the
+  svelte2tsx submodules — only `module_inception` remains (with its own
+  reason), since `svelte2tsx::svelte2tsx` mirrors the upstream package
+  layout. Truly dead helpers are deleted (unused JSON rune-global walkers,
+  `node_start_pos`/`node_end_pos`, unused structured-bake formatters, unused
+  `PropsRuneInfo` fields), `is_some()`-then-`unwrap()` sites become
+  let-chains, identical `if`/`else` arms collapse, and doc comments that had
+  drifted onto the wrong item (`process_instance_script`,
+  `handle_reactive_statement`, `emit_segmented_overwrite`,
+  `format_attribute_node_segments`, overlay's `emit_external_shadows` /
+  `path_relative`) are reattached. No behavior change — the transform output
+  is byte-identical (fixture suite verified).
+
+- 52faffa: fix: add NAPI envelope bounds checks and propagate signal death as non-zero exit
+
+  `parse-envelope.js` now applies the same window bounds checks as `envelope.js`
+  (M-012), so a malformed or version-skewed envelope throws instead of silently
+  decoding a truncated AST. The svelte-check launcher now maps a signal-killed
+  native binary to a non-zero exit code (128 + signal) instead of reporting 0,
+  matching the fmt launcher.
+
+- e830dd6: fix(svelte-check): preserve non-ASCII tsconfig content, contain overlay emit paths, accept non-UTF-8 tsconfig paths
+
+  `strip_jsonc_comments` rebuilt retained bytes with `out.push(c as char)`, mangling
+  multi-byte UTF-8 in tsconfig values. It now accumulates raw bytes and converts once
+  at the end. Overlay emit-path joins are routed through a `safe_relative()` helper so
+  a source outside the workspace can no longer produce an absolute join target outside
+  the cache dir, and `run_tsgo` passes the tsconfig path as `OsStr` instead of
+  panicking on non-UTF-8 paths.
+
+- bfe6de8: fix(svelte2tsx): bounds-check AST-offset source slices
+
+  The svelte2tsx transform sliced the original source by AST byte offsets in
+  dozens of places with `&source[start as usize..end as usize]` (often with a
+  defensive `.unwrap_or(0)` on an absent offset). When an offset pair is inverted
+  (`start > end`) or reaches past the source length — possible for lazily-parsed
+  or unresolved expressions whose `.start()`/`.end()` are unreliable — the raw
+  slice panics, aborting the whole compile instead of degrading gracefully.
+
+  Consolidate every such AST-offset slice through one helper,
+  `slice_src(source, start, end)`, which returns `source.get(start..end)` and
+  falls back to `""` on an inverted, out-of-bounds, or non-char-boundary range.
+  For any valid range this is exactly `&source[start..end]`, so the transform
+  output is byte-identical (verified against the full 253-fixture svelte2tsx
+  suite); only the panic paths change to an empty slice.
+
+- 8ef55c0: perf(svelte-check): cache kit source bodies during diagnostic mapping
+
+  Kit diagnostics re-read and re-scanned the kit source file once per diagnostic.
+  The mapper now caches source bodies per run (mirroring the existing tsx cache),
+  and the two per-call regex compilations are hoisted into `LazyLock` statics.
+
+- 10f599f: perf(svelte2tsx): drop the two full-source `to_ascii_lowercase` copies
+
+  `blank_style_content` and the orphan-`<script>` scanner each allocated a
+  lowercased copy of the entire source just to case-insensitively find
+  `<style` / `<script` tag tokens. Replace both with an allocation-free
+  `find_ci` byte scan (`eq_ignore_ascii_case` on the tag-name window),
+  matching the approach the fallback `<style>` scanner already uses. Output
+  is byte-identical (same ASCII case folding, same match positions);
+  verified against the full svelte2tsx fixture suite.
+
 ## 0.3.9
 
 ### Patch Changes
