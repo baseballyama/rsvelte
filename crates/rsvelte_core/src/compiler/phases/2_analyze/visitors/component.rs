@@ -52,7 +52,7 @@ pub fn visit(component: &mut Component, context: &mut VisitorContext) -> Result<
     component.metadata.dynamic = is_dynamic;
 
     if let Some(binding_idx) = binding_idx_opt {
-        let binding = &context.analysis.root.bindings[binding_idx];
+        let binding = &mut context.analysis.root.bindings[binding_idx];
 
         // Update expression metadata
         component.metadata.expression.set_has_state(is_dynamic);
@@ -62,6 +62,15 @@ pub fn visit(component: &mut Component, context: &mut VisitorContext) -> Result<
             .dependencies
             .insert(binding_idx);
         component.metadata.expression.references.insert(binding_idx);
+
+        let reference_start = component.start + 1;
+        binding.add_reference(
+            reference_start,
+            reference_start + base_name.len() as u32,
+            true,
+            false,
+            false,
+        );
 
         // Check if the binding contains state
         if matches!(

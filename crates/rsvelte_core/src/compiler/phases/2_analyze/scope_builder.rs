@@ -1075,10 +1075,8 @@ impl<'a> ScopeBuilder<'a> {
                 };
                 let idx = self.declare_binding(name.to_string(), kind, decl_kind);
                 // Store declaration position for var hoisting analysis.
-                // Add current_script_offset so positions align with the JSON AST
-                // positions used by the visitor phase.
-                self.bindings[idx].declaration_start =
-                    Some(*start + self.current_script_offset as u32);
+                // Typed JsNode positions are already relative to the full component.
+                self.bindings[idx].declaration_start = Some(*start);
                 // Check if initializer is a function expression
                 if let Some(init_id) = init {
                     let init_node = self.arena.get_js_node(init_id);
@@ -1150,7 +1148,7 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Process an import specifier from a typed JsNode.
     fn process_import_specifier_typed(&mut self, node: &JsNode, source_val: &str) {
-        let (name, specifier_type) = match node {
+        let (name, start, specifier_type) = match node {
             JsNode::ImportSpecifier {
                 local, import_kind, ..
             } => {
@@ -1159,24 +1157,24 @@ impl<'a> ScopeBuilder<'a> {
                     return;
                 }
                 let local_node = self.arena.get_js_node(*local);
-                if let JsNode::Identifier { name, .. } = local_node {
-                    (name.to_string(), "ImportSpecifier")
+                if let JsNode::Identifier { name, start, .. } = local_node {
+                    (name.to_string(), *start, "ImportSpecifier")
                 } else {
                     return;
                 }
             }
             JsNode::ImportDefaultSpecifier { local, .. } => {
                 let local_node = self.arena.get_js_node(*local);
-                if let JsNode::Identifier { name, .. } = local_node {
-                    (name.to_string(), "ImportDefaultSpecifier")
+                if let JsNode::Identifier { name, start, .. } = local_node {
+                    (name.to_string(), *start, "ImportDefaultSpecifier")
                 } else {
                     return;
                 }
             }
             JsNode::ImportNamespaceSpecifier { local, .. } => {
                 let local_node = self.arena.get_js_node(*local);
-                if let JsNode::Identifier { name, .. } = local_node {
-                    (name.to_string(), "ImportNamespaceSpecifier")
+                if let JsNode::Identifier { name, start, .. } = local_node {
+                    (name.to_string(), *start, "ImportNamespaceSpecifier")
                 } else {
                     return;
                 }
@@ -1185,6 +1183,7 @@ impl<'a> ScopeBuilder<'a> {
         };
         let binding_idx =
             self.declare_binding(name.clone(), BindingKind::Normal, DeclarationKind::Import);
+        self.bindings[binding_idx].declaration_start = Some(start);
         // Store the ImportDeclaration as a JSON string on binding.initial,
         // matching the official Svelte compiler where binding.initial is the
         // ImportDeclaration AST node.
@@ -2340,26 +2339,36 @@ impl<'a> ScopeBuilder<'a> {
         let source_val = import_decl.source.value.as_str();
         if let Some(specifiers) = &import_decl.specifiers {
             for specifier in specifiers {
-                let (name, specifier_type) = match specifier {
+                let (name, start, specifier_type) = match specifier {
                     oxc_ast::ast::ImportDeclarationSpecifier::ImportSpecifier(spec) => {
                         // Skip per-specifier type imports: `import { type Foo, Bar }`
                         if spec.import_kind == oxc_ast::ast::ImportOrExportKind::Type {
                             continue;
                         }
-                        (spec.local.name.to_string(), "ImportSpecifier")
+                        (
+                            spec.local.name.to_string(),
+                            spec.local.span.start,
+                            "ImportSpecifier",
+                        )
                     }
-                    oxc_ast::ast::ImportDeclarationSpecifier::ImportDefaultSpecifier(spec) => {
-                        (spec.local.name.to_string(), "ImportDefaultSpecifier")
-                    }
-                    oxc_ast::ast::ImportDeclarationSpecifier::ImportNamespaceSpecifier(spec) => {
-                        (spec.local.name.to_string(), "ImportNamespaceSpecifier")
-                    }
+                    oxc_ast::ast::ImportDeclarationSpecifier::ImportDefaultSpecifier(spec) => (
+                        spec.local.name.to_string(),
+                        spec.local.span.start,
+                        "ImportDefaultSpecifier",
+                    ),
+                    oxc_ast::ast::ImportDeclarationSpecifier::ImportNamespaceSpecifier(spec) => (
+                        spec.local.name.to_string(),
+                        spec.local.span.start,
+                        "ImportNamespaceSpecifier",
+                    ),
                 };
                 let binding_idx = self.declare_binding(
                     name.clone(),
                     BindingKind::Normal,
                     DeclarationKind::Import,
                 );
+                self.bindings[binding_idx].declaration_start =
+                    Some(start + self.current_script_offset as u32);
                 // Store the ImportDeclaration as a JSON string on binding.initial,
                 // matching the official Svelte compiler where binding.initial is the
                 // ImportDeclaration AST node. This allows ExpressionStatement visitor
