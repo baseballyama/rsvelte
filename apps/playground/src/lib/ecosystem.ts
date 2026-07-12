@@ -116,20 +116,20 @@ export const shipped: EcoComponent[] = [
 		blurb:
 			'The editor LSP — diagnostics, hover, completion, rename — backed by the rsvelte compiler + svelte2tsx. Ships as the `rsvelte` VS Code extension (Marketplace + Open VSX) and as a standalone package.',
 		note: 'Also published as the `rsvelte` VS Code extension'
+	},
+	{
+		name: 'eslint-plugin-svelte',
+		dropInFor: 'eslint-plugin-svelte',
+		originalUrl: 'https://github.com/sveltejs/eslint-plugin-svelte',
+		status: 'shipped',
+		blurb:
+			'A Rust-native port of the Svelte ESLint rules, driven by the rsvelte AST, verified against a registry-driven compatibility oracle for behaviour + suggestion parity.',
+		note: 'All rules ported · CI-enforced coverage'
 	}
 ];
 
 // ─── Planned / in progress ───────────────────────────────────────────────────
 export const planned: EcoComponent[] = [
-	{
-		name: 'eslint-plugin-svelte',
-		dropInFor: 'eslint-plugin-svelte',
-		originalUrl: 'https://github.com/sveltejs/eslint-plugin-svelte',
-		status: 'planned',
-		blurb:
-			'A Rust-native port of the Svelte ESLint rules, driven by the rsvelte AST. In progress — rules are being ported against a registry-driven compatibility oracle for behaviour + suggestion parity.',
-		note: 'In progress'
-	},
 	{
 		name: 'svelte-preprocess',
 		dropInFor: 'svelte-preprocess',
