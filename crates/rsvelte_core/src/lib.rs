@@ -23,7 +23,8 @@
 // and `rlib` crate-types and a downstream bin links against both copies —
 // cargo issue rust-lang/cargo#6313. The system-allocator fallback for the
 // rlib path is intentional; everything that actually runs in production
-// (the napi/cdylib, the bins) installs jemalloc itself.
+// (the napi/cdylib, the bins) installs its own allocator (mimalloc,
+// preferred; jemalloc as a fallback — see napi.rs).
 
 pub mod ast;
 pub mod compiler;
