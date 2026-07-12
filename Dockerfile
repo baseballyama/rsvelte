@@ -1,5 +1,5 @@
 # Development environment for rsvelte_core
-FROM rust:1.96-bookworm
+FROM rust:1.97-bookworm
 
 # Install Node.js 22.x and pnpm
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
