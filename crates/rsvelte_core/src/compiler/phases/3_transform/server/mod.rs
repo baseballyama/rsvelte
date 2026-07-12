@@ -163,20 +163,26 @@ pub fn transform_server_module(
     Ok(parts.join("\n"))
 }
 
-/// Find the next occurrence of `needle` in `haystack` at or after `from` that
-/// lies in JS code, skipping over string and template literals and over line
-/// and block comments. Returns the byte index of the match start.
+/// Safety cap on the fixed-point iteration for the server-module call rewrites
+/// ([`strip_effects_from_source`] / [`post_process_for_server`]). Every
+/// replacement strictly shrinks or unwraps its match, so real inputs settle in
+/// one or two passes; the cap only guards against pathological nesting.
+const REWRITE_MAX_ITERS: usize = 16;
+
+/// Collect the byte offset of every occurrence of `needle` in `haystack` that
+/// lies in JS code — skipping string / template literals and `//` / `/*`
+/// comments — in a single left-to-right scan. The lexical-aware analogue of
+/// [`memmem::Finder::find_iter`].
 ///
-/// The byte-pattern scanners below operate on raw source, so without this guard
-/// a rune-call-shaped substring inside a string or comment such as
-/// `const a = "$effect.root()"` would be matched and rewritten, corrupting the
-/// literal (issue #447, H-029).
-fn next_code_match(haystack: &str, needle: &str, from: usize) -> Option<usize> {
+/// Without this guard a rune-call-shaped substring inside a string or comment
+/// such as `const a = "$effect.root()"` would be matched and rewritten,
+/// corrupting the literal (issue #447, H-029).
+fn code_match_positions(haystack: &str, needle: &[u8]) -> Vec<usize> {
     let bytes = haystack.as_bytes();
-    let nb = needle.as_bytes();
     let n = bytes.len();
-    if nb.is_empty() {
-        return None;
+    let mut out = Vec::new();
+    if needle.is_empty() {
+        return out;
     }
     let mut i = 0usize;
     while i < n {
@@ -203,12 +209,78 @@ fn next_code_match(haystack: &str, needle: &str, from: usize) -> Option<usize> {
             }
             _ => {}
         }
-        if i >= from && i + nb.len() <= n && &bytes[i..i + nb.len()] == nb {
-            return Some(i);
+        if i + needle.len() <= n && &bytes[i..i + needle.len()] == needle {
+            out.push(i);
         }
         i += 1;
     }
-    None
+    out
+}
+
+/// One collect-and-splice pass over `source` for a paren-call rewrite. For every
+/// match start in `positions` (ascending) not already inside a consumed span,
+/// [`build`] returns `(end, replacement)` — where `end` is the byte offset just
+/// past the region to replace — or `None` to stop scanning (mirroring the
+/// original loops' `break` on an unbalanced paren). The resulting non-overlapping
+/// edits are applied right-to-left in a single rebuild. Returns `None` when
+/// nothing matched.
+fn rewrite_calls_once<F>(source: &str, positions: &[usize], build: &F) -> Option<String>
+where
+    F: Fn(&str, usize) -> Option<(usize, String)>,
+{
+    let mut edits: Vec<(usize, usize, String)> = Vec::new();
+    let mut cursor = 0usize;
+    for &pos in positions {
+        if pos < cursor {
+            continue;
+        }
+        match build(source, pos) {
+            Some((end, replacement)) => {
+                edits.push((pos, end, replacement));
+                cursor = end;
+            }
+            None => break,
+        }
+    }
+    if edits.is_empty() {
+        return None;
+    }
+    // Edits are ascending and non-overlapping by construction, so applying them
+    // in reverse keeps every earlier offset valid without a sort.
+    let mut out = source.to_string();
+    for (start, end, replacement) in edits.iter().rev() {
+        out.replace_range(*start..*end, replacement);
+    }
+    Some(out)
+}
+
+/// Drive [`rewrite_calls_once`] to a fixed point. Positions are recomputed each
+/// pass so an outer call exposed by unwrapping an inner one (e.g.
+/// `$.proxy($.proxy(x))`) is picked up on the next iteration. `lexical` selects
+/// the string/comment-aware [`code_match_positions`] scanner (rune-level source)
+/// versus the raw [`memmem::Finder`] (already-transformed `$.` runtime calls).
+fn rewrite_calls<F>(source: &str, needle: &[u8], lexical: bool, build: F) -> String
+where
+    F: Fn(&str, usize) -> Option<(usize, String)>,
+{
+    let mut current = source.to_string();
+    for _ in 0..REWRITE_MAX_ITERS {
+        let positions = if lexical {
+            code_match_positions(&current, needle)
+        } else {
+            memmem::Finder::new(needle)
+                .find_iter(current.as_bytes())
+                .collect::<Vec<_>>()
+        };
+        if positions.is_empty() {
+            break;
+        }
+        match rewrite_calls_once(&current, &positions, &build) {
+            Some(next) => current = next,
+            None => break,
+        }
+    }
+    current
 }
 
 /// Strip $effect and $effect.root blocks from source code.
@@ -217,97 +289,60 @@ fn next_code_match(haystack: &str, needle: &str, from: usize) -> Option<usize> {
 /// - `$effect(() => { ... })` -> removed entirely (statement-level only)
 /// - `$effect.pre(() => { ... })` -> removed entirely (statement-level only)
 ///
-/// Matching is JS-lexical-aware via [`next_code_match`], so effect-call-shaped
+/// Matching is JS-lexical-aware via [`code_match_positions`], so effect-call-shaped
 /// text inside string literals or comments is left untouched (issue #447, H-029).
 fn strip_effects_from_source(source: &str) -> String {
     use super::client::find_matching_paren;
-    let mut result = source.to_string();
+
+    // Consume the trailing whitespace + optional `;` after a removed statement so
+    // no stray fragment remains.
+    let consume_statement_tail = |s: &str, expr_end: usize| -> usize {
+        let bytes = s.as_bytes();
+        let mut end = expr_end;
+        while end < s.len() && bytes[end].is_ascii_whitespace() {
+            end += 1;
+        }
+        if end < s.len() && bytes[end] == b';' {
+            end += 1;
+        }
+        end
+    };
 
     // `$effect.root(...)` has two upstream lowerings:
     //   - statement position  → removed entirely (ExpressionStatement.js → b.empty)
     //   - expression position  → `() => {}` no-op cleanup fn (CallExpression.js)
-    while let Some(pos) = next_code_match(&result, "$effect.root(", 0) {
+    let result = rewrite_calls(source, b"$effect.root(", true, |s, pos| {
         let call_start = pos + 13; // after "$effect.root("
-        if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-            let expr_end = call_start + content_end + 1; // after closing paren
-            // Statement position when everything from the line start to `pos` is
-            // whitespace (e.g. a bare `$effect.root(...)` in a constructor body).
-            let line_start = result[..pos].rfind('\n').map(|n| n + 1).unwrap_or(0);
-            let is_statement = result[line_start..pos].chars().all(|c| c.is_whitespace());
-            if is_statement {
-                // Consume trailing whitespace + an optional `;` so no stray
-                // `() => {};` remains (mirrors the $effect.pre removal below).
-                let bytes = result.as_bytes();
-                let mut end = expr_end;
-                while end < result.len() && bytes[end].is_ascii_whitespace() {
-                    end += 1;
-                }
-                if end < result.len() && bytes[end] == b';' {
-                    end += 1;
-                }
-                let mut new_result = String::with_capacity(pos + result.len() - end);
-                new_result.push_str(&result[..pos]);
-                new_result.push_str(&result[end..]);
-                result = new_result;
-            } else {
-                let mut new_result = String::with_capacity(pos + 8 + result.len() - expr_end);
-                new_result.push_str(&result[..pos]);
-                new_result.push_str("() => {}");
-                new_result.push_str(&result[expr_end..]);
-                result = new_result;
-            }
+        let content_end = find_matching_paren(&s[call_start..])?;
+        let expr_end = call_start + content_end + 1; // after closing paren
+        // Statement position when everything from the line start to `pos` is
+        // whitespace (e.g. a bare `$effect.root(...)` in a constructor body).
+        let line_start = s[..pos].rfind('\n').map(|n| n + 1).unwrap_or(0);
+        let is_statement = s[line_start..pos].chars().all(|c| c.is_whitespace());
+        if is_statement {
+            Some((consume_statement_tail(s, expr_end), String::new()))
         } else {
-            break;
+            Some((expr_end, "() => {}".to_string()))
         }
-    }
+    });
 
     // Strip $effect.pre(() => { ... }) blocks
-    while let Some(pos) = next_code_match(&result, "$effect.pre(", 0) {
+    let result = rewrite_calls(&result, b"$effect.pre(", true, |s, pos| {
         let call_start = pos + 12;
-        if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-            let expr_end = call_start + content_end + 1;
-            let mut end = expr_end;
-            while end < result.len() && result.as_bytes()[end].is_ascii_whitespace() {
-                end += 1;
-            }
-            if end < result.len() && result.as_bytes()[end] == b';' {
-                end += 1;
-            }
-            let mut new_result = String::with_capacity(pos + result.len() - end);
-            new_result.push_str(&result[..pos]);
-            new_result.push_str(&result[end..]);
-            result = new_result;
-        } else {
-            break;
-        }
-    }
+        let content_end = find_matching_paren(&s[call_start..])?;
+        let expr_end = call_start + content_end + 1;
+        Some((consume_statement_tail(s, expr_end), String::new()))
+    });
 
-    // Strip $effect(() => { ... }) blocks (but not $effect.root/$effect.pre which were already handled)
-    while let Some(pos) = next_code_match(&result, "$effect(", 0) {
-        // Make sure this is not $effect.something (should already be handled above)
-        if pos + 8 < result.len() && result.as_bytes()[pos + 7] == b'.' {
-            break; // shouldn't happen since $effect.root and $effect.pre are already handled
-        }
+    // Strip $effect(() => { ... }) blocks ($effect.root/$effect.pre are already
+    // handled; the `(` in the needle can never precede a `.`, so those forms
+    // never match here).
+    rewrite_calls(&result, b"$effect(", true, |s, pos| {
         let call_start = pos + 8; // after "$effect("
-        if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-            let expr_end = call_start + content_end + 1;
-            let mut end = expr_end;
-            while end < result.len() && result.as_bytes()[end].is_ascii_whitespace() {
-                end += 1;
-            }
-            if end < result.len() && result.as_bytes()[end] == b';' {
-                end += 1;
-            }
-            let mut new_result = String::with_capacity(pos + result.len() - end);
-            new_result.push_str(&result[..pos]);
-            new_result.push_str(&result[end..]);
-            result = new_result;
-        } else {
-            break;
-        }
-    }
-
-    result
+        let content_end = find_matching_paren(&s[call_start..])?;
+        let expr_end = call_start + content_end + 1;
+        Some((consume_statement_tail(s, expr_end), String::new()))
+    })
 }
 
 /// Recompact a state setter value back into a compound assignment.
@@ -426,7 +461,7 @@ fn has_top_level_binary_operator(expr: &str) -> bool {
 /// Replaces client-specific runtime calls with server equivalents.
 fn post_process_for_server(source: &str) -> String {
     use super::client::find_matching_paren;
-    let mut result = source.to_string();
+    let result = source.to_string();
 
     // Collect names declared as `let|const|var X = $.derived(...)` /
     // `$.derived_safe_equal(...)`. On the server, `$.derived(fn)` returns a
@@ -443,197 +478,140 @@ fn post_process_for_server(source: &str) -> String {
     // instead of blindly treating every `this.#x` as callable (issue #907).
     let derived_private_fields = collect_derived_private_fields(&result);
 
-    let finder_effect_root = memmem::Finder::new(b"$.effect_root(");
-    let finder_user_effect = memmem::Finder::new(b"$.user_effect(");
-    let finder_proxy = memmem::Finder::new(b"$.proxy(");
-    let finder_get = memmem::Finder::new(b"$.get(");
-    let finder_set = memmem::Finder::new(b"$.set(");
-    let finder_update = memmem::Finder::new(b"$.update(");
-    let finder_update_pre = memmem::Finder::new(b"$.update_pre(");
-    let finder_state = memmem::Finder::new(b"$.state(");
-
-    // Helper: splice result string efficiently without format!
-    macro_rules! splice {
-        ($result:expr, $before_end:expr, $middle:expr, $after_start:expr) => {{
-            let before = &$result[..$before_end];
-            let after = &$result[$after_start..];
-            let mut new = String::with_capacity(before.len() + $middle.len() + after.len());
-            new.push_str(before);
-            new.push_str($middle);
-            new.push_str(after);
-            new
-        }};
-    }
-
     // Replace $.effect_root(...) with () => {} (no-op cleanup)
-    while let Some(pos) = finder_effect_root.find(result.as_bytes()) {
+    let mut result = rewrite_calls(&result, b"$.effect_root(", false, |s, pos| {
         let call_start = pos + 14;
-        if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-            let expr_end = call_start + content_end + 1;
-            result = splice!(result, pos, "() => {}", expr_end);
-        } else {
-            break;
-        }
-    }
+        let content_end = find_matching_paren(&s[call_start..])?;
+        Some((call_start + content_end + 1, "() => {}".to_string()))
+    });
 
     // Remove $.user_effect(...) calls
-    while let Some(pos) = finder_user_effect.find(result.as_bytes()) {
+    result = rewrite_calls(&result, b"$.user_effect(", false, |s, pos| {
         let call_start = pos + 14;
-        if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-            let expr_end = call_start + content_end + 1;
-            let mut end = expr_end;
-            while end < result.len() && result.as_bytes()[end].is_ascii_whitespace() {
-                end += 1;
-            }
-            if end < result.len() && result.as_bytes()[end] == b';' {
-                end += 1;
-            }
-            result = splice!(result, pos, "", end);
-        } else {
-            break;
+        let content_end = find_matching_paren(&s[call_start..])?;
+        let expr_end = call_start + content_end + 1;
+        let bytes = s.as_bytes();
+        let mut end = expr_end;
+        while end < s.len() && bytes[end].is_ascii_whitespace() {
+            end += 1;
         }
-    }
+        if end < s.len() && bytes[end] == b';' {
+            end += 1;
+        }
+        Some((end, String::new()))
+    });
 
     // Replace $.proxy(x) with just x (no proxying on server)
-    while let Some(pos) = finder_proxy.find(result.as_bytes()) {
+    result = rewrite_calls(&result, b"$.proxy(", false, |s, pos| {
         let call_start = pos + 8;
-        if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-            let content = result[call_start..call_start + content_end].to_string();
-            result = splice!(result, pos, &content, call_start + content_end + 1);
-        } else {
-            break;
-        }
-    }
+        let content_end = find_matching_paren(&s[call_start..])?;
+        let content = s[call_start..call_start + content_end].to_string();
+        Some((call_start + content_end + 1, content))
+    });
 
     // Replace $.get(x) for server modules:
     // - Simple identifiers naming a derived: $.get(x) -> x() (callable signal)
     // - Simple identifiers naming state:     $.get(x) -> x
     // - Member expressions (this.#x):        $.get(this.#x) -> this.#x() (callable in class)
-    while let Some(pos) = finder_get.find(result.as_bytes()) {
+    result = rewrite_calls(&result, b"$.get(", false, |s, pos| {
         let call_start = pos + 6;
-        if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-            let content = result[call_start..call_start + content_end]
-                .trim()
-                .to_string();
-            // Check if it's a member expression (contains '.')
-            if memchr::memchr(b'.', content.as_bytes()).is_some() {
-                // A private `$state` class field is a plain value on the server
-                // (`this.#x`); only derived fields (and other member exprs) read
-                // as a call (`this.#x()`).
-                let plain_state_field = private_field_name(&content)
-                    .is_some_and(|name| !derived_private_fields.contains(name));
-                let replacement = if plain_state_field {
-                    content.clone()
-                } else {
-                    format!("{content}()")
-                };
-                result = splice!(result, pos, &replacement, call_start + content_end + 1);
-            } else if derived_names.contains(content.as_str()) {
-                // Derived simple ident: callable on the server
-                let mut replacement = String::with_capacity(content.len() + 2);
-                replacement.push_str(&content);
-                replacement.push_str("()");
-                result = splice!(result, pos, &replacement, call_start + content_end + 1);
+        let content_end = find_matching_paren(&s[call_start..])?;
+        let content = s[call_start..call_start + content_end].trim().to_string();
+        // Check if it's a member expression (contains '.')
+        let replacement = if memchr::memchr(b'.', content.as_bytes()).is_some() {
+            // A private `$state` class field is a plain value on the server
+            // (`this.#x`); only derived fields (and other member exprs) read
+            // as a call (`this.#x()`).
+            let plain_state_field = private_field_name(&content)
+                .is_some_and(|name| !derived_private_fields.contains(name));
+            if plain_state_field {
+                content
             } else {
-                // Simple identifier (state): just the variable name
-                result = splice!(result, pos, &content, call_start + content_end + 1);
+                format!("{content}()")
             }
+        } else if derived_names.contains(content.as_str()) {
+            // Derived simple ident: callable on the server
+            format!("{content}()")
         } else {
-            break;
-        }
-    }
+            // Simple identifier (state): just the variable name
+            content
+        };
+        Some((call_start + content_end + 1, replacement))
+    });
 
     // Replace $.set(x, v[, flag]) for server modules:
     // - Simple identifiers: $.set(x, v) -> x = v
     // - Member expressions: $.set(this.#x, v) -> this.#x(v)
-    while let Some(pos) = finder_set.find(result.as_bytes()) {
+    result = rewrite_calls(&result, b"$.set(", false, |s, pos| {
         let call_start = pos + 6;
-        if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-            let content = result[call_start..call_start + content_end].to_string();
-            if let Some(comma_pos) = find_first_comma(&content) {
-                let signal = content[..comma_pos].trim();
-                let rest = content[comma_pos + 1..].trim();
-                // Rest might be "value, flag" - take only the value (up to second comma)
-                let value = if let Some(comma2_pos) = find_first_comma(rest) {
-                    rest[..comma2_pos].trim()
-                } else {
-                    rest
-                };
-                if memchr::memchr(b'.', signal.as_bytes()).is_some() {
-                    // A private `$state` class field is a plain value on the
-                    // server, so its assignment stays `this.#x = v`; only derived
-                    // fields (and other member exprs) use the setter-call form
-                    // `this.#x(v)`.
-                    let plain_state_field = private_field_name(signal)
-                        .is_some_and(|name| !derived_private_fields.contains(name));
-                    let replacement = if plain_state_field {
-                        format!("{signal} = {value}")
-                    } else {
-                        format!("{signal}({value})")
-                    };
-                    result = splice!(result, pos, &replacement, call_start + content_end + 1);
-                } else if derived_names.contains(signal) {
-                    // Assignment to a derived binding becomes a setter call on
-                    // the server: `$.set(value, v)` → `value(v)` (the server
-                    // runtime exposes a writable derived as a callable).
-                    let mut replacement = String::with_capacity(signal.len() + 2 + value.len());
-                    replacement.push_str(signal);
-                    replacement.push('(');
-                    replacement.push_str(value);
-                    replacement.push(')');
-                    result = splice!(result, pos, &replacement, call_start + content_end + 1);
-                } else if let Some(compound) = recompact_compound_set(signal, value) {
-                    // Compound assignment recompaction. The shared client
-                    // transform lowered a state compound assignment `s += 1`
-                    // to `$.set(s, $.get(s) + 1)`; by this point the inner
-                    // `$.get(s)` read already collapsed to `s`, so the value
-                    // reads `s + 1`. The upstream server `AssignmentExpression`
-                    // visitor keeps the original compound operator for a plain
-                    // (server-flat) state binding, so fold it back to `s += 1`.
-                    result = splice!(result, pos, &compound, call_start + content_end + 1);
-                } else {
-                    // Simple identifier: assignment form
-                    let mut replacement = String::with_capacity(signal.len() + 3 + value.len());
-                    replacement.push_str(signal);
-                    replacement.push_str(" = ");
-                    replacement.push_str(value);
-                    result = splice!(result, pos, &replacement, call_start + content_end + 1);
-                }
-            } else {
-                break;
-            }
+        let content_end = find_matching_paren(&s[call_start..])?;
+        let content = s[call_start..call_start + content_end].to_string();
+        let comma_pos = find_first_comma(&content)?;
+        let signal = content[..comma_pos].trim();
+        let rest = content[comma_pos + 1..].trim();
+        // Rest might be "value, flag" - take only the value (up to second comma)
+        let value = if let Some(comma2_pos) = find_first_comma(rest) {
+            rest[..comma2_pos].trim()
         } else {
-            break;
-        }
-    }
+            rest
+        };
+        let replacement = if memchr::memchr(b'.', signal.as_bytes()).is_some() {
+            // A private `$state` class field is a plain value on the server, so
+            // its assignment stays `this.#x = v`; only derived fields (and other
+            // member exprs) use the setter-call form `this.#x(v)`.
+            let plain_state_field = private_field_name(signal)
+                .is_some_and(|name| !derived_private_fields.contains(name));
+            if plain_state_field {
+                format!("{signal} = {value}")
+            } else {
+                format!("{signal}({value})")
+            }
+        } else if derived_names.contains(signal) {
+            // Assignment to a derived binding becomes a setter call on the
+            // server: `$.set(value, v)` → `value(v)` (the server runtime exposes
+            // a writable derived as a callable).
+            format!("{signal}({value})")
+        } else if let Some(compound) = recompact_compound_set(signal, value) {
+            // Compound assignment recompaction. The shared client transform
+            // lowered a state compound assignment `s += 1` to
+            // `$.set(s, $.get(s) + 1)`; by this point the inner `$.get(s)` read
+            // already collapsed to `s`, so the value reads `s + 1`. The upstream
+            // server `AssignmentExpression` visitor keeps the original compound
+            // operator for a plain (server-flat) state binding, so fold it back
+            // to `s += 1`.
+            compound
+        } else {
+            // Simple identifier: assignment form
+            format!("{signal} = {value}")
+        };
+        Some((call_start + content_end + 1, replacement))
+    });
 
     // Replace $.update_pre(x) with ++x for server modules.
     // IMPORTANT: Process $.update_pre BEFORE $.update to avoid prefix matching issues.
     // A second argument (`$.update_pre(x, -1)`) is the decrement form (`--x`); any
     // other delta `d` maps to `x += d` (H-031 — previously the raw `x, -1` content
     // was prefixed with `++`, producing invalid `++x, -1`).
-    while let Some(pos) = finder_update_pre.find(result.as_bytes()) {
+    result = rewrite_calls(&result, b"$.update_pre(", false, |s, pos| {
         let call_start = pos + 13;
-        if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-            let content = result[call_start..call_start + content_end].trim();
-            let replacement = build_update_replacement(content, true);
-            result = splice!(result, pos, &replacement, call_start + content_end + 1);
-        } else {
-            break;
-        }
-    }
+        let content_end = find_matching_paren(&s[call_start..])?;
+        let content = s[call_start..call_start + content_end].trim();
+        Some((
+            call_start + content_end + 1,
+            build_update_replacement(content, true),
+        ))
+    });
 
     // Replace $.update(x) with x++ for server modules (and $.update(x, -1) with x--).
-    while let Some(pos) = finder_update.find(result.as_bytes()) {
+    result = rewrite_calls(&result, b"$.update(", false, |s, pos| {
         let call_start = pos + 9;
-        if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-            let content = result[call_start..call_start + content_end].trim();
-            let replacement = build_update_replacement(content, false);
-            result = splice!(result, pos, &replacement, call_start + content_end + 1);
-        } else {
-            break;
-        }
-    }
+        let content_end = find_matching_paren(&s[call_start..])?;
+        let content = s[call_start..call_start + content_end].trim();
+        Some((
+            call_start + content_end + 1,
+            build_update_replacement(content, false),
+        ))
+    });
 
     // NOTE: We intentionally do NOT strip `$.derived(...)` on the server.
     // Upstream svelte's server runtime exposes `$.derived(fn)` as a callable
@@ -645,21 +623,18 @@ fn post_process_for_server(source: &str) -> String {
     // stays `false` even after the form is filled in.
 
     // Replace $.state(x) with just x (no signals on server)
-    while let Some(pos) = finder_state.find(result.as_bytes()) {
+    result = rewrite_calls(&result, b"$.state(", false, |s, pos| {
         let call_start = pos + 8;
-        if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-            let content = result[call_start..call_start + content_end].to_string();
-            let trimmed = content.trim();
-            let value = if trimmed.is_empty() {
-                "void 0"
-            } else {
-                trimmed
-            };
-            result = splice!(result, pos, value, call_start + content_end + 1);
+        let content_end = find_matching_paren(&s[call_start..])?;
+        let content = s[call_start..call_start + content_end].to_string();
+        let trimmed = content.trim();
+        let value = if trimmed.is_empty() {
+            "void 0".to_string()
         } else {
-            break;
-        }
-    }
+            trimmed.to_string()
+        };
+        Some((call_start + content_end + 1, value))
+    });
 
     result
 }
