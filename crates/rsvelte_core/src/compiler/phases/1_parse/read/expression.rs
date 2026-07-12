@@ -6256,6 +6256,18 @@ pub fn parse_program_with_error(
         let all_comments: Vec<_> = result.program.comments.iter().collect();
         let has_comments = !all_comments.is_empty();
 
+        // The per-statement `to_value()` + comment-distribution + harvest pass
+        // below exists solely to populate `ignore_comment_map` from
+        // `svelte-ignore` leading comments. A comment that never contains the
+        // literal `svelte-ignore` can never match, so gate the whole (expensive,
+        // full-tree) slow path on the presence of at least one such comment and
+        // keep every other comment-bearing script on the typed fast path.
+        let has_ignore = all_comments.iter().any(|comment| {
+            let end = (comment.span.end as usize).min(content.len());
+            let start = comment.span.start as usize;
+            start <= end && content[start..end].contains("svelte-ignore")
+        });
+
         // Mirror upstream `parser.root.comments`: forward every comment seen
         // by the script parser so it lands in `Root.comments`.
         for comment in all_comments.iter() {
@@ -6298,7 +6310,7 @@ pub fn parse_program_with_error(
         // above, and codegen re-parses script text, so dropping the Raw wrapping changes no
         // output.
         let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
-        let body: Vec<JsNode> = if has_comments {
+        let body: Vec<JsNode> = if has_comments && has_ignore {
             let mut comment_idx = 0;
             let mut body_nodes: Vec<JsNode> = Vec::with_capacity(program.body.len());
 
@@ -6361,7 +6373,8 @@ pub fn parse_program_with_error(
 
             body_nodes
         } else {
-            // No comments at all - fast path: keep everything as typed JsNode
+            // No comments, or comments but no `svelte-ignore` — fast path: keep
+            // everything as typed JsNode (the harvest pass would find nothing).
             program
                 .body
                 .iter()
