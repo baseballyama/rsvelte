@@ -14,6 +14,8 @@
 //! prefix that a later `Newline` will emit, exactly as upstream mutates its
 //! `current_newline` string.
 
+use std::borrow::Cow;
+
 /// One entry in the command buffer. Strings are literal output; the sentinels
 /// defer whitespace decisions until the next string is emitted.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,8 +32,9 @@ pub enum Command {
     /// Emit a single space before the next string (unless a newline supersedes
     /// it).
     Space,
-    /// Literal output.
-    Str(String),
+    /// Literal output. A `Cow` so static literals (the overwhelming majority of
+    /// writes) borrow with zero allocation, while dynamic text still owns.
+    Str(Cow<'static, str>),
     /// A nested buffer, spliced in place (esrap's nested command arrays).
     Nested(Vec<Command>),
     /// A source-map anchor (1-based line, 0-based column) for a following

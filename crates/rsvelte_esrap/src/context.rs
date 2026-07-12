@@ -8,6 +8,7 @@
 //! sentinels, `append` (splice a child buffer), `measure`, and `empty`.
 
 use crate::command::Command;
+use std::borrow::Cow;
 
 /// Accumulates commands for one syntactic unit. Build a child with
 /// [`Context::child`], fill it, then [`Context::append`] it into the parent.
@@ -61,7 +62,7 @@ impl Context {
 
     /// Append literal `content`. If a newline is already pending in this
     /// context, writing after it makes the context multiline (mirrors esrap).
-    pub fn write(&mut self, content: impl Into<String>) {
+    pub fn write(&mut self, content: impl Into<Cow<'static, str>>) {
         self.commands.push(Command::Str(content.into()));
         if self.has_newline {
             self.multiline = true;
