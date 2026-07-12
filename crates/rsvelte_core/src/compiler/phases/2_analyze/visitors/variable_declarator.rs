@@ -61,20 +61,14 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
                     // (e.g. `let value = $derived.by(() => { const value = $state(0); ... })`).
                     let id_start = path.get("start").and_then(|s| s.as_u64()).map(|s| s as u32);
                     if let Some(name) = path.get("name").and_then(|n| n.as_str())
-                        && let Some(bi) =
-                            id_start
-                                .and_then(|pos| {
-                                    context.analysis.root.bindings_by_name.get(name).and_then(
-                                        |idxs| {
-                                            idxs.iter().map(|&i| i as usize).find(|&i| {
-                                                context.analysis.root.bindings[i].declaration_start
-                                                    == Some(pos)
-                                            })
-                                        },
-                                    )
+                        && let Some(bi) = id_start
+                            .and_then(|pos| {
+                                context.analysis.root.bindings.iter().position(|b| {
+                                    b.name == name && b.declaration_start == Some(pos)
                                 })
-                                .or_else(|| context.analysis.root.get_binding(name, context.scope))
-                                .or_else(|| context.analysis.root.find_binding_any_scope(name))
+                            })
+                            .or_else(|| context.analysis.root.get_binding(name, context.scope))
+                            .or_else(|| context.analysis.root.find_binding_any_scope(name))
                     {
                         let b = &mut context.analysis.root.bindings[bi];
                         // For $derived, always store the argument expression (even non-literals)
@@ -1325,11 +1319,7 @@ fn visit_runes_mode_typed(
                     let bi = context
                         .analysis
                         .root
-                        .bindings
-                        .iter()
-                        .position(|b| {
-                            b.name == path.name && b.declaration_start == Some(path.start)
-                        })
+                        .find_binding_by_declaration_start(&path.name, path.start)
                         .or_else(|| context.analysis.root.get_binding(&path.name, context.scope))
                         .or_else(|| context.analysis.root.find_binding_any_scope(&path.name));
                     if let Some(bi) = bi {
@@ -1360,9 +1350,7 @@ fn visit_runes_mode_typed(
             let binding_idx = context
                 .analysis
                 .root
-                .bindings
-                .iter()
-                .position(|b| b.name == path.name && b.declaration_start == Some(path.start))
+                .find_binding_by_declaration_start(&path.name, path.start)
                 .or_else(|| context.analysis.root.get_binding(&path.name, context.scope))
                 .or_else(|| context.analysis.root.find_binding_any_scope(&path.name));
             if let Some(binding_idx) = binding_idx {

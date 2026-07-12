@@ -147,6 +147,19 @@ impl ScopeRoot {
         false
     }
 
+    /// Look up the first binding (in declaration order) with the given name
+    /// whose `declaration_start` equals `start`. Position-based lookup used to
+    /// disambiguate same-named bindings declared in different (e.g. sibling
+    /// block) scopes. Goes through `bindings_by_name` so only same-named
+    /// bindings are scanned.
+    pub fn find_binding_by_declaration_start(&self, name: &str, start: u32) -> Option<usize> {
+        self.bindings_by_name.get(name).and_then(|idxs| {
+            idxs.iter()
+                .map(|&i| i as usize)
+                .find(|&i| self.bindings[i].declaration_start == Some(start))
+        })
+    }
+
     /// Look up a binding by name, searching all scopes.
     /// This is a fallback method when we don't know the current scope.
     /// It searches all scopes and returns the first match found.
