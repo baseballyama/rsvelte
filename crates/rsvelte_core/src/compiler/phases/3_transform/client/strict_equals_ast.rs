@@ -15,89 +15,30 @@
 //! and template-literal `${...}` interpolation. The OXC parser knows
 //! about all of those — incorrect rewrites just can't happen.
 
-use std::cell::RefCell;
-
-use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::ParseOptions;
-use oxc_span::{GetSpan, SourceType};
+use oxc_span::GetSpan;
 use oxc_syntax::operator::BinaryOperator;
 
-use super::ast_rewrite::{self, Edit};
-
-thread_local! {
-    /// Reuse one OXC allocator per thread across calls; matches the
-    /// pattern used by `ast_state_transform`. Reset between calls
-    /// (the allocator's drop runs in `transform_strict_equals_module_ast`).
-    static MODULE_STRICT_EQ_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
-}
-
-/// AST-based rewrite of `a === b` → `$.strict_equals(a, b)` and
-/// `a !== b` → `!$.strict_equals(a, b)`. Returns `None` if no rewrite
-/// would happen (no `===` / `!==` in the source, or parse failure) so
-/// the caller can keep its `String` allocation.
-///
-/// Designed for module scripts. For component instance scripts the
-/// rewrite already happens inside `ast_state_transform`.
-pub fn transform_strict_equals_module_ast(source: &str, is_ts: bool) -> Option<String> {
-    // Fast probe: no operators → no rewrite.
-    if !contains_strict_op(source) {
-        return None;
-    }
-
-    // Nested `(a === b) === c` needs the outer rewrite to use the
-    // *already-rewritten* inner operand text. The simplest correct
-    // strategy is fixed-point iteration: each pass only rewrites
-    // "leaf" strict-equals binaries (those whose operands no longer
-    // contain `===` / `!==`), then re-parses the result and repeats.
-    // Each iteration strictly reduces the operator count, so this
-    // terminates in O(max nesting depth) passes — typically 1.
-    let mut current: Option<String> = None;
-    loop {
-        let src = current.as_deref().unwrap_or(source);
-        if !contains_strict_op(src) {
-            break;
-        }
-        match single_pass(src, is_ts) {
-            None => break,
-            Some(rewritten) => current = Some(rewritten),
-        }
-    }
-    current
-}
+use super::ast_rewrite::Edit;
 
 fn contains_strict_op(s: &str) -> bool {
     memchr::memmem::find(s.as_bytes(), b"===").is_some()
         || memchr::memmem::find(s.as_bytes(), b"!==").is_some()
 }
 
-/// One parse + collect + apply cycle. Only rewrites strict-equals
-/// binaries whose operands don't *themselves* contain `===` / `!==`;
-/// outer rewrites are deferred to the next iteration so they see the
-/// rewritten inner text. Returns `None` when nothing changed.
-fn single_pass(source: &str, is_ts: bool) -> Option<String> {
-    let source_type = if is_ts {
-        SourceType::ts().with_module(true)
-    } else {
-        SourceType::mjs()
-    };
-    ast_rewrite::rewrite_once(
-        &MODULE_STRICT_EQ_ALLOC,
+/// Collect leaf strict-equals rewrites (`===` / `!==` whose operands
+/// don't themselves contain a strict operator) from a single parse.
+/// Nested cases resolve across fixed-point iterations — the batched
+/// module dev-tail driver drives that loop.
+pub(super) fn collect_strict_equals_edits(program: &Program<'_>, source: &str) -> Vec<Edit> {
+    let mut collector = StrictEqualsCollector {
         source,
-        source_type,
-        ParseOptions::default(),
-        false,
-        |program| {
-            let mut collector = StrictEqualsCollector {
-                source,
-                replacements: Vec::new(),
-            };
-            collector.visit_program(program);
-            collector.replacements
-        },
-    )
+        replacements: Vec::new(),
+    };
+    collector.visit_program(program);
+    collector.replacements
 }
 
 /// Per-call AST visitor: collects `(start, end, replacement_string)`
@@ -155,7 +96,53 @@ impl<'a, 'src> Visit<'a> for StrictEqualsCollector<'src> {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+
+    use oxc_allocator::Allocator;
+    use oxc_parser::ParseOptions;
+    use oxc_span::SourceType;
+
+    use super::super::ast_rewrite;
     use super::*;
+
+    thread_local! {
+        static TEST_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
+    }
+
+    /// Drives `collect_strict_equals_edits` to a fixed point over its own
+    /// parse — mirrors how the batched module dev-tail driver folds it, but
+    /// for the strict-equals rewrite alone so these assertions stay scoped
+    /// to this pass. Each iteration rewrites only leaf binaries; the loop
+    /// re-parses so an outer `(a === b) === c` sees its rewritten operands.
+    fn transform_strict_equals_module_ast(source: &str, is_ts: bool) -> Option<String> {
+        if !contains_strict_op(source) {
+            return None;
+        }
+        let source_type = if is_ts {
+            SourceType::ts().with_module(true)
+        } else {
+            SourceType::mjs()
+        };
+        let mut current: Option<String> = None;
+        loop {
+            let src = current.as_deref().unwrap_or(source);
+            if !contains_strict_op(src) {
+                break;
+            }
+            match ast_rewrite::rewrite_once(
+                &TEST_ALLOC,
+                src,
+                source_type,
+                ParseOptions::default(),
+                false,
+                |program| collect_strict_equals_edits(program, src),
+            ) {
+                None => break,
+                Some(rewritten) => current = Some(rewritten),
+            }
+        }
+        current
+    }
 
     #[test]
     fn rewrites_strict_equality() {

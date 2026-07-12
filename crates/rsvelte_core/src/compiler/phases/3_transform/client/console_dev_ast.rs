@@ -71,16 +71,23 @@ pub fn transform_console_calls_dev_ast(source: &str, is_ts: bool) -> Option<Stri
             },
             ParseOptions::default(),
             false,
-            |program| {
-                let mut collector = ConsoleCollector {
-                    source: src,
-                    replacements: Vec::new(),
-                };
-                collector.visit_program(program);
-                collector.replacements
-            },
+            |program| collect_console_edits(program, src),
         )
     })
+}
+
+/// Collect leaf `console.METHOD(args)` wraps (calls whose arguments
+/// hold no unwrapped nested console call) from a single parse. Nested
+/// cases resolve across fixed-point iterations — the standalone
+/// `transform_console_calls_dev_ast` loop and the batched module
+/// dev-tail driver both drive that loop.
+pub(super) fn collect_console_edits(program: &Program<'_>, source: &str) -> Vec<Edit> {
+    let mut collector = ConsoleCollector {
+        source,
+        replacements: Vec::new(),
+    };
+    collector.visit_program(program);
+    collector.replacements
 }
 
 struct ConsoleCollector<'src> {

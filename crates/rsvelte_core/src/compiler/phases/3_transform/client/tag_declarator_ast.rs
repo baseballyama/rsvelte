@@ -67,14 +67,21 @@ pub fn wrap_state_derived_with_tag_declarators_ast(source: &str, is_ts: bool) ->
         },
         ParseOptions::default(),
         false,
-        |program| {
-            let mut replacements: Vec<Edit> = Vec::new();
-            for stmt in &program.body {
-                walk_statement_for_declarators(stmt, source, &mut replacements);
-            }
-            replacements
-        },
+        |program| collect_tag_declarator_edits(program, source),
     )
+}
+
+/// Collect `$.tag(...)` / `$.tag_proxy(...)` wraps for tag-eligible
+/// declarator initialisers from a single parse. Already-tagged inits
+/// are skipped, so this is idempotent and needs no fixed point of its
+/// own; the batched module dev-tail driver still folds it alongside the
+/// other collectors.
+pub(super) fn collect_tag_declarator_edits(program: &Program<'_>, source: &str) -> Vec<Edit> {
+    let mut replacements: Vec<Edit> = Vec::new();
+    for stmt in &program.body {
+        walk_statement_for_declarators(stmt, source, &mut replacements);
+    }
+    replacements
 }
 
 /// Recursive top-down walk that finds VariableDeclarations anywhere

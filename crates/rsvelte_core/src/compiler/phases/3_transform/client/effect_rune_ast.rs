@@ -51,14 +51,19 @@ pub fn apply_effect_rune_transforms_ast(source: &str, is_ts: bool) -> Option<Str
         },
         ParseOptions::default(),
         false,
-        |program| {
-            let mut collector = EffectRuneCollector {
-                replacements: Vec::new(),
-            };
-            collector.visit_program(program);
-            collector.replacements
-        },
+        collect_effect_rune_edits,
     )
+}
+
+/// Collect `$effect.*` call-expression rewrites from a single parse.
+/// The batched module dev-tail driver folds this to a fixed point
+/// alongside the other dev-mode collectors.
+pub(super) fn collect_effect_rune_edits(program: &Program<'_>) -> Vec<Edit> {
+    let mut collector = EffectRuneCollector {
+        replacements: Vec::new(),
+    };
+    collector.visit_program(program);
+    collector.replacements
 }
 
 struct EffectRuneCollector {
