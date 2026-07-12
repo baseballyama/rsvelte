@@ -436,12 +436,27 @@ fn visit_runes_mode_typed(
                 }
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string_typed(init);
-                // Keep the init AST for an interpolated template literal so
-                // reactive-state evaluation can see through `const url =
-                // `…${KNOWN}…``. Stored separately from `initial` (which feeds
-                // `is_prop_source`).
-                if matches!(init, JsNode::TemplateLiteral { expressions, .. } if !expressions.is_empty())
-                {
+                // Keep the init AST so reactive-state evaluation
+                // (`is_expression_known_json`, a port of upstream
+                // `scope.evaluate(node).is_known`) can constant-fold it and treat
+                // a reference to this binding as non-reactive when the value is
+                // compile-time "known". Without this a `const H = topPadding +
+                // barSize * n` (only non-reactive consts on the RHS) was wrongly
+                // classed reactive, so `<Foo y={H - 40}>` emitted a `$.derived` +
+                // `get y()` where upstream keeps the plain `y: H - 40`. Stored for
+                // the expression kinds the evaluator can actually prove known;
+                // everything else (calls, arrays, objects, …) stays reactive as
+                // before, so this only ever *removes* spurious reactivity.
+                let store_init_json = match init {
+                    JsNode::TemplateLiteral { expressions, .. } => !expressions.is_empty(),
+                    JsNode::BinaryExpression { .. }
+                    | JsNode::UnaryExpression { .. }
+                    | JsNode::ConditionalExpression { .. }
+                    | JsNode::Identifier { .. }
+                    | JsNode::MemberExpression { .. } => true,
+                    _ => false,
+                };
+                if store_init_json {
                     binding.init_expr_json = Some(init.to_json_string());
                 }
                 binding.initial_is_defined = is_expression_defined_typed(init, arena);
@@ -850,6 +865,29 @@ fn visit_non_runes_mode_typed(
             {
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string_typed(init);
+                // Keep the init AST for a constant-foldable initializer so
+                // reactive-state evaluation (`is_expression_known_json`, a port of
+                // upstream `scope.evaluate(node).is_known`) can prove a reference
+                // to this legacy `const`/`let` non-reactive — e.g.
+                // `const path = `M${cx - r},${cy}`` where `cx`/`cy`/`r` are
+                // literal consts stays a plain `<ClipPath {path}>` prop instead of
+                // a spurious `get path()`. Only for a plain (non-destructured) id:
+                // for a destructured binding the value is a property/index access
+                // on the RHS, not the whole RHS, so folding the RHS would be wrong.
+                if id_is_plain_identifier_typed {
+                    let store_init_json = match init {
+                        JsNode::TemplateLiteral { expressions, .. } => !expressions.is_empty(),
+                        JsNode::BinaryExpression { .. }
+                        | JsNode::UnaryExpression { .. }
+                        | JsNode::ConditionalExpression { .. }
+                        | JsNode::Identifier { .. }
+                        | JsNode::MemberExpression { .. } => true,
+                        _ => false,
+                    };
+                    if store_init_json {
+                        binding.init_expr_json = Some(init.to_json_string());
+                    }
+                }
                 // Only propagate `is_defined` when this is a simple binding
                 // (`const x = expr`).  For destructured bindings the runtime
                 // value comes from a property/index access on the RHS, so we

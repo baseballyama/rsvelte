@@ -5305,6 +5305,12 @@ fn transform_complex_selector(
     let mut _previous_was_scoped = false;
     // Track if the previous selector was global-like - determines if we bump specificity after combinator
     let mut previous_was_global_like = false;
+    // Track if the previous relative selector was a standalone `:is(...)` / `:where(...)`.
+    // Upstream does not bump specificity for such a selector (it `continue`s and its
+    // ComplexSelector visitor save/restores the bumped flag), so a *following*
+    // combinator must NOT flip subsequent selectors to `:where()` scoping — e.g.
+    // `:where(A) > :where(B, C)` scopes B/C with a direct class on both sides.
+    let mut previous_was_standalone_is_where = false;
 
     if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
         // Pre-scan: check if ANY RelativeSelector in this ComplexSelector has :global()
@@ -5327,6 +5333,10 @@ fn transform_complex_selector(
         let mut next_is_global = false;
 
         for relative_selector in children {
+            // Whether THIS relative selector is a standalone `:is`/`:where` (set in the
+            // regular-scoped branch below); latched into `previous_was_standalone_is_where`
+            // at the end of the iteration so the next selector's combinator can consult it.
+            let mut cur_is_standalone_is_where = false;
             // Check if this relative selector starts with bare :global (no args)
             let starts_with_bare_global = relative_selector
                 .get("selectors")
@@ -5474,8 +5484,10 @@ fn transform_complex_selector(
                 }
                 // After any combinator, subsequent selectors should use :where() for specificity preservation
                 // UNLESS the previous selector was global-like (like :host) or a :global() selector,
-                // in which case the first real scoped selector should get the direct class
-                if !previous_was_global_like && !seen_global {
+                // in which case the first real scoped selector should get the direct class.
+                // Also skip when the previous selector was a standalone `:is`/`:where`, which
+                // does not bump specificity (so the next selector still gets a direct class).
+                if !previous_was_global_like && !seen_global && !previous_was_standalone_is_where {
                     local_specificity_bumped = true;
                 }
                 // Reset the global-like flag since we've now passed the combinator
@@ -5642,6 +5654,24 @@ fn transform_complex_selector(
                         .iter()
                         .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"));
 
+                    // A *standalone* `:is(...)` / `:where(...)` (the relative selector is
+                    // exactly that one pseudo) does NOT bump specificity itself — upstream
+                    // `continue`s past it without setting `specificity.bumped`, so its inner
+                    // content becomes the first scoping point. When nothing has bumped yet,
+                    // that inner content therefore gets a *direct* class (e.g.
+                    // `:where(.foo)` → `:where(.foo.svelte-hash)`), not `:where(.svelte-hash)`.
+                    // A pseudo like `:has(...)`, or `:is/:where` attached to other selectors
+                    // (`:root:has(...)`, `.foo:is(...)`), is a bump point and keeps `:where`.
+                    let is_standalone_is_where = selectors.len() == 1
+                        && selectors.first().is_some_and(|s| {
+                            s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                                && matches!(
+                                    s.get("name").and_then(|n| n.as_str()),
+                                    Some("is") | Some("where")
+                                )
+                        });
+                    cur_is_standalone_is_where = is_standalone_is_where;
+
                     // Build the selector parts
                     let mut selector_parts = String::new();
                     let mut last_non_pseudo_idx = None;
@@ -5724,7 +5754,8 @@ fn transform_complex_selector(
                         // scoping from parent and doesn't add its own scope - so the
                         // :has() content is the first scoping point.
                         let effective_use_direct = has_global_anywhere
-                            || (has_nesting_selector && !local_specificity_bumped);
+                            || (has_nesting_selector && !local_specificity_bumped)
+                            || (is_standalone_is_where && !local_specificity_bumped);
 
                         selector_parts.push_str(&format_simple_selector_with_scope(
                             sel,
@@ -5763,6 +5794,7 @@ fn transform_complex_selector(
                     }
                 }
             }
+            previous_was_standalone_is_where = cur_is_standalone_is_where;
         }
     }
 
