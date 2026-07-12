@@ -225,19 +225,31 @@ impl Svelte2TsxError {
 /// let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
 /// println!("{}", result.code);
 /// ```
+/// Case-insensitive byte search: position of the first occurrence of
+/// `needle` in `haystack[from..]` (absolute index). ASCII-only folding —
+/// exactly what `to_ascii_lowercase` matching gave, without allocating a
+/// lowercased copy of the whole source.
+fn find_ci(haystack: &[u8], from: usize, needle: &[u8]) -> Option<usize> {
+    if from > haystack.len() {
+        return None;
+    }
+    haystack[from..]
+        .windows(needle.len())
+        .position(|w| w.eq_ignore_ascii_case(needle))
+        .map(|p| from + p)
+}
+
 /// Replace the content of every `<style …>…</style>` with spaces (newlines and
 /// carriage returns preserved) so the parser never CSS-parses it. Works at the
 /// BYTE level so the result is exactly the same length as `source` — every AST
 /// offset still indexes the original source. Case-insensitive on the tag name.
 fn blank_style_content(source: &str) -> String {
     let mut bytes = source.as_bytes().to_vec();
-    let lower = source.to_ascii_lowercase();
-    let lb = lower.as_bytes();
+    let sb = source.as_bytes();
     let mut search = 0usize;
-    while let Some(rel) = lower[search..].find("<style") {
-        let tag_start = search + rel;
+    while let Some(tag_start) = find_ci(sb, search, b"<style") {
         // Must be the `<style` element, not e.g. `<styled`.
-        let after = lb.get(tag_start + 6).copied();
+        let after = sb.get(tag_start + 6).copied();
         if !matches!(
             after,
             Some(b'>') | Some(b' ') | Some(b'\t') | Some(b'\n') | Some(b'\r') | Some(b'/') | None
@@ -245,19 +257,18 @@ fn blank_style_content(source: &str) -> String {
             search = tag_start + 6;
             continue;
         }
-        let Some(gt_rel) = lower[tag_start..].find('>') else {
+        let Some(gt) = find_ci(sb, tag_start, b">") else {
             break;
         };
-        let content_start = tag_start + gt_rel + 1;
+        let content_start = gt + 1;
         // Self-closing `<style/>` → no content to blank.
-        if content_start >= 2 && lb[content_start - 2] == b'/' {
+        if content_start >= 2 && sb[content_start - 2] == b'/' {
             search = content_start;
             continue;
         }
-        let Some(close_rel) = lower[content_start..].find("</style") else {
+        let Some(content_end) = find_ci(sb, content_start, b"</style") else {
             break;
         };
-        let content_end = content_start + close_rel;
         for b in &mut bytes[content_start..content_end] {
             if *b != b'\n' && *b != b'\r' {
                 *b = b' ';
@@ -5370,19 +5381,17 @@ fn find_orphan_scripts(ast: &Root, source: &str) -> Vec<(u32, u32, String)> {
     let mut html_tag_ranges: Vec<(u32, u32)> = Vec::new();
     collect_html_tag_ranges(&ast.fragment, &mut html_tag_ranges);
 
-    // 3. Scan the source for `<script` occurrences.
+    // 3. Scan the source for `<script` occurrences (case-insensitive, without
+    // allocating a lowercased copy of the whole source).
     let bytes = source.as_bytes();
     let mut result: Vec<(u32, u32, String)> = Vec::new();
-    // Lower-case ONCE (not per iteration). ASCII-lowercasing never changes byte
-    // length, so offsets into `source_lower` map 1:1 onto `source`.
-    let source_lower = source.to_ascii_lowercase();
     let mut search: usize = 0;
 
     while search < source.len() {
-        let Some(rel) = source_lower[search..].find("<script") else {
+        let Some(abs) = find_ci(bytes, search, b"<script") else {
             break;
         };
-        let tag_start = (search + rel) as u32;
+        let tag_start = abs as u32;
 
         // Require a proper tag boundary after `<script` (6 bytes for "script").
         let after_pos = tag_start as usize + 7; // skip '<' + "script"
@@ -5421,9 +5430,10 @@ fn find_orphan_scripts(ast: &Root, source: &str) -> Vec<(u32, u32, String)> {
         }
 
         // Find the matching `</script>` (case-insensitive).
-        let Some(close_rel) = source_lower[tag_start as usize..].find("</script>") else {
+        let Some(close_abs) = find_ci(bytes, tag_start as usize, b"</script>") else {
             break; // unterminated — skip
         };
+        let close_rel = close_abs - tag_start as usize;
         let tag_end = tag_start + close_rel as u32 + 9; // 9 = len("</script>")
 
         // Extract the inner content: everything between `>` of the open tag and
