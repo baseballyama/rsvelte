@@ -273,6 +273,26 @@ fn collect_node_edits(
                             .unwrap_or("");
                         if !inner.is_empty() {
                             let formatted = format_inline_expression(inner, options)?;
+                            // `format_inline_expression` keeps the key on one line
+                            // for everything except a method chain OXC breaks with
+                            // hard newlines (e.g. `node.ancestors().map(…).join(…)`),
+                            // which stays multi-line with OXC's own 2-space base
+                            // indent. Those continuation lines must gain the block's
+                            // nesting indent so they align under the `{#each` header
+                            // — mirroring `push_bare_expression` (add `depth *
+                            // indent_width` on top of OXC's 2, yielding
+                            // `(depth + 1) * indent_width`).
+                            let formatted = if formatted.contains('\n') {
+                                let indent_width = options.js.indent_width.value() as usize;
+                                let cont_indent = if options.js.indent_style.is_tab() {
+                                    "\t".repeat(depth)
+                                } else {
+                                    " ".repeat(depth * indent_width)
+                                };
+                                crate::reindent::reindent(&formatted, &cont_indent, true)
+                            } else {
+                                formatted
+                            };
                             // Normalize the horizontal whitespace before the
                             // delimiter to a single space — prettier-plugin-svelte
                             // always emits `… (key)` regardless of the preceding
