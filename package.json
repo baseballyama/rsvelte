@@ -41,6 +41,7 @@
 		"stage-vps-native": "node scripts/release/stage-vps-binaries.mjs",
 		"publish-platform-binaries": "node scripts/release/publish-platform-binaries.mjs",
 		"test:envelope": "node scripts/dev/test-envelope-validation.mjs",
+		"test:parse-envelope": "node scripts/dev/test-parse-envelope-validation.mjs",
 		"test:vps-shim": "node scripts/dev/test-vps-shim.mjs",
 		"test:vps-fixture": "node scripts/dev/test-vps-vite-fixture.mjs",
 		"test:vps": "node scripts/dev/test-vps-shim.mjs && node scripts/dev/test-vps-vite-fixture.mjs",
