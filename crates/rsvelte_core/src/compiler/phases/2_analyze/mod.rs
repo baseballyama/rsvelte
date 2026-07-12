@@ -4738,7 +4738,70 @@ fn collect_identifier_names_in_json(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::arena::SerializeArenaGuard;
+    use crate::compiler::phases::phase1_parse::{ParseOptions, parse};
     use rustc_hash::{FxHashMap, FxHashSet};
+
+    fn analyze(source: &str) -> ComponentAnalysis {
+        let mut ast = parse(
+            source,
+            ParseOptions {
+                defer_script_parse: true,
+                ..ParseOptions::default()
+            },
+        )
+        .unwrap();
+        // SAFETY: `ast` outlives the guard and analysis call.
+        let _guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
+        analyze_component(&mut ast, source, &CompileOptions::default()).unwrap()
+    }
+
+    #[test]
+    fn binding_declaration_positions_are_component_relative() {
+        let source = r#"<script context="module">
+    const from_module = 1;
+</script>
+<script>
+    import Widget, { named as Alias } from './Widget.svelte';
+    import * as Namespace from './namespace';
+    let count = 0;
+</script>
+<Widget />
+"#;
+        let analysis = analyze(source);
+
+        for name in ["from_module", "Widget", "Alias", "Namespace", "count"] {
+            let binding = analysis
+                .root
+                .bindings
+                .iter()
+                .find(|binding| binding.name == name)
+                .unwrap_or_else(|| panic!("missing binding {name}"));
+            assert_eq!(
+                binding.declaration_start,
+                Some(source.find(name).unwrap() as u32)
+            );
+        }
+    }
+
+    #[test]
+    fn component_tag_is_a_template_binding_reference() {
+        let source = "<script>import Widget from './Widget.svelte';</script>\n<Widget />";
+        let analysis = analyze(source);
+        let binding = analysis
+            .root
+            .bindings
+            .iter()
+            .find(|binding| binding.name == "Widget")
+            .expect("missing Widget binding");
+        let start = source.rfind("Widget").unwrap() as u32;
+
+        assert!(binding.references.iter().any(|reference| {
+            reference.start == start
+                && reference.end == start + "Widget".len() as u32
+                && reference.is_template_reference
+        }));
+    }
 
     #[test]
     fn test_order_reactive_statements_simple() {
