@@ -699,20 +699,7 @@ pub fn svelte2tsx(
     // expressions that the Svelte parser did not turn into element/script nodes.
     // Overwriting their range with "" in the MagicString causes any attribute
     // whose source span covers that range to be automatically truncated.
-    let orphan_scripts = find_orphan_scripts(&ast, source);
-    // Remove orphan scripts from the MagicString (must happen BEFORE
-    // process_template_inplace so the overwrite is in place when the template
-    // emits Seg::Src ranges that span the orphan range).
-    for &(s, e, _) in &orphan_scripts {
-        str.overwrite(s, e, "");
-    }
-    // Collect content for injection into $$render() body. Only matters when
-    // there is no top-level instance/module script (the "no script" path below).
-    let embedded_script_content: String = orphan_scripts
-        .iter()
-        .map(|(_, _, content)| content.as_str())
-        .collect::<Vec<_>>()
-        .join("\n");
+    let embedded_script_content = remove_orphan_scripts(&ast, source, &mut str);
 
     // Step 7.5: Slot detection from the AST (NOT a source substring scan — a
     // naive `source.contains("<slot")` matches `<slot>` inside string literals
@@ -724,201 +711,10 @@ pub fn svelte2tsx(
     // Step 7.6: Process <svelte:options> tag as a createElement call
     // The parser stores svelte:options in ast.options (not in fragment.nodes),
     // so we need to handle it separately.
-    if let Some(ref options_node) = ast.options
-        && options_node.start < options_node.end
-    {
-        // Build attribute string from options attributes
-        let mut attrs_parts = Vec::new();
-        let mut has_expression_attr = false;
-        for node in &options_node.attributes {
-            match &node.value {
-                crate::ast::template::AttributeValue::True(_) => {
-                    attrs_parts.push(format!("\"{}\":true,", node.name));
-                }
-                crate::ast::template::AttributeValue::Expression(expr) => {
-                    has_expression_attr = true;
-                    let expr_text = slice_src(
-                        source,
-                        expr.expression.start().unwrap_or(0) as usize,
-                        expr.expression.end().unwrap_or(0) as usize,
-                    );
-                    attrs_parts.push(format!("\"{}\":{},", node.name, expr_text));
-                }
-                // String / mixed attribute, e.g. `<svelte:options customElement="my-el">`
-                // or `namespace="svg"`. Mirror the element-attribute Sequence path
-                // (template/mod.rs::format_attribute_node_segments): a lone expression
-                // stays a bare expression, everything else becomes a template literal.
-                // Reference: language-tools .../htmlxtojsx_v2/nodes/Attribute.ts.
-                crate::ast::template::AttributeValue::Sequence(parts) => {
-                    use crate::ast::template::AttributeValuePart;
-                    if parts.len() == 1
-                        && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
-                    {
-                        has_expression_attr = true;
-                        let expr_text = slice_src(
-                            source,
-                            expr.expression.start().unwrap_or(0) as usize,
-                            expr.expression.end().unwrap_or(0) as usize,
-                        );
-                        attrs_parts.push(format!("\"{}\":{},", node.name, expr_text));
-                    } else {
-                        let mut value = String::from("`");
-                        for part in parts {
-                            match part {
-                                AttributeValuePart::Text(text) => {
-                                    value.push_str(
-                                        &text
-                                            .raw
-                                            .replace('\\', "\\\\")
-                                            .replace('`', "\\`")
-                                            .replace('$', "\\$"),
-                                    );
-                                }
-                                AttributeValuePart::ExpressionTag(expr) => {
-                                    has_expression_attr = true;
-                                    if let (Some(s), Some(e)) =
-                                        (expr.expression.start(), expr.expression.end())
-                                    {
-                                        value.push_str("${");
-                                        value.push_str(slice_src(source, s as usize, e as usize));
-                                        value.push('}');
-                                    }
-                                }
-                            }
-                        }
-                        value.push('`');
-                        attrs_parts.push(format!("\"{}\":{},", node.name, value));
-                    }
-                }
-            }
-        }
-        let attrs_str = if attrs_parts.is_empty() {
-            String::new()
-        } else if has_expression_attr {
-            // Expression attributes: preserve source spacing
-            let extra_spaces =
-                count_tag_to_attr_spaces_in_source("svelte:options", options_node.start, source);
-            format!("{}{}", " ".repeat(extra_spaces + 1), attrs_parts.join(""))
-        } else {
-            // Bare boolean attributes only: no extra spacing
-            attrs_parts.join("")
-        };
-        let replacement = format!(
-            " {{ svelteHTML.createElement(\"svelte:options\", {{{}}});}}",
-            attrs_str
-        );
-        str.overwrite(options_node.start, options_node.end, &replacement);
-    }
+    emit_svelte_options_element(&ast, source, &mut str);
 
     // Step 8: Blank out <style> tag (CSS is not relevant for TSX type checking)
-    //
-    // First blank any style tag the parser captured in ast.css.
-    // Then ALWAYS run the fallback scanner to catch style tags the parser
-    // did not capture (e.g., <style global>, custom attributes).
-    let mut blanked_style_ranges: Vec<(usize, usize)> = Vec::new();
-    if let Some(ref css) = ast.css
-        && css.start < css.end
-    {
-        // Only blank the CSS range when the close tag is well-formed (exact
-        // `</style>` with no whitespace before `>`). When the close tag is
-        // malformed (e.g. `</style   >`), the official svelte2tsx regex does
-        // not match the style tag and it is left as raw text in the output.
-        // Mirror that: skip blanking so the raw `<style>…</style   >` text
-        // appears verbatim in the async template body.
-        let has_proper_style_close = {
-            let slice = slice_src(source, css.start as usize, css.end as usize);
-            slice
-                .as_bytes()
-                .windows(8)
-                .any(|w| w.eq_ignore_ascii_case(b"</style>"))
-        };
-        if has_proper_style_close {
-            // Also blank any trailing whitespace after the style tag
-            let mut blank_end = css.end;
-            let bytes = source.as_bytes();
-            while (blank_end as usize) < bytes.len() {
-                let b = bytes[blank_end as usize];
-                if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-                    blank_end += 1;
-                } else {
-                    break;
-                }
-            }
-            str.overwrite(css.start, blank_end, "");
-            blanked_style_ranges.push((css.start as usize, blank_end as usize));
-        }
-    }
-    {
-        // Fallback: scan source for <style tags that the parser didn't
-        // capture in ast.css (e.g., <style global>, <style lang="...">).
-        // Blank them out by finding the matching </style>.
-        // Exclude positions inside script tags to avoid matching <style>
-        // inside template literals or string content.
-        let script_ranges: Vec<(usize, usize)> = {
-            let mut ranges = Vec::new();
-            if let Some(ref inst) = ast.instance {
-                ranges.push((inst.start as usize, inst.end as usize));
-            }
-            if let Some(ref module) = ast.module {
-                ranges.push((module.start as usize, module.end as usize));
-            }
-            ranges
-        };
-        let is_inside_script =
-            |pos: usize| -> bool { script_ranges.iter().any(|&(s, e)| pos >= s && pos < e) };
-        let is_already_blanked = |pos: usize| -> bool {
-            blanked_style_ranges
-                .iter()
-                .any(|&(s, e)| pos >= s && pos < e)
-        };
-
-        // Direct case-sensitive substring search over the original source.
-        // The previous implementation called `source.to_lowercase()` once
-        // per call, allocating a full copy of the source for case-
-        // insensitive matching. Svelte HTML is lowercase in practice
-        // (the parser only recognises lowercase tags), so the lowercase
-        // copy is unnecessary overhead.
-        let bytes = source.as_bytes();
-        let mut search_from = 0;
-        while let Some(rel) = source[search_from..].find("<style") {
-            let abs_start = search_from + rel;
-            if is_inside_script(abs_start) {
-                search_from = abs_start + 1;
-                continue;
-            }
-            if is_already_blanked(abs_start) {
-                search_from = abs_start + 1;
-                continue;
-            }
-            let after_tag = abs_start + 6;
-            if after_tag < bytes.len() {
-                let next_ch = bytes[after_tag];
-                if (next_ch == b' '
-                    || next_ch == b'>'
-                    || next_ch == b'\n'
-                    || next_ch == b'\r'
-                    || next_ch == b'\t'
-                    || next_ch == b'/')
-                    && let Some(close_off) = source[abs_start..].find("</style>")
-                {
-                    let abs_end = abs_start + close_off + 8; // 8 = len("</style>")
-                    let mut blank_end = abs_end as u32;
-                    while (blank_end as usize) < bytes.len() {
-                        let b = bytes[blank_end as usize];
-                        if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-                            blank_end += 1;
-                        } else {
-                            break;
-                        }
-                    }
-                    str.overwrite(abs_start as u32, blank_end, "");
-                    search_from = abs_end;
-                    continue;
-                }
-            }
-            search_from = abs_start + 1;
-        }
-    }
+    blank_style_tags(&ast, source, &mut str);
 
     // Step 8.5: Detect $$props, $$restProps, $$slots usage in source (before wrapping)
     let uses_dollar_props = source.contains("$$props");
@@ -946,112 +742,8 @@ pub fn svelte2tsx(
     // i.e. the byte position of the `>` of `<script>`. The script-tag overwrite
     // in Step 10 is split there so the moved snippet chunks land between the
     // imports / `;type` block and the `function $$render() {` declaration.
-    let mut hoistable_snippet_ranges: Vec<(u32, u32)> = Vec::new();
-    let mut nonhoistable_snippet_ranges: Vec<(u32, u32)> = Vec::new();
-    {
-        let module_script_present = ast.module.is_some();
-        let has_instance = ast.instance.is_some();
-
-        // Collect every top-level snippet first so we can run a fixed-point
-        // pass over their inter-dependencies (a snippet that references the
-        // name of a non-hoistable snippet is itself non-hoistable).
-        let snippets: Vec<&crate::ast::template::SnippetBlock> = ast
-            .fragment
-            .nodes
-            .iter()
-            .filter_map(|n| {
-                if let crate::ast::template::TemplateNode::SnippetBlock(s) = n {
-                    if s.start < s.end {
-                        Some(s.as_ref())
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let snippet_names: Vec<String> = snippets
-            .iter()
-            .filter_map(|s| {
-                let exp_s = s.expression.start()? as usize;
-                let exp_e = s.expression.end()? as usize;
-                source.get(exp_s..exp_e).map(|s| s.to_string())
-            })
-            .collect();
-        let snippet_name_set: std::collections::HashSet<String> =
-            snippet_names.iter().cloned().collect();
-
-        // Initial blocked set: snippets that directly reference an
-        // instance-script value (or a $store of one).
-        let mut blocked = vec![false; snippets.len()];
-        if module_script_present {
-            for (i, snippet) in snippets.iter().enumerate() {
-                if !is_snippet_module_hoistable(snippet, source, &exported_names) {
-                    blocked[i] = true;
-                }
-            }
-
-            // Fixed-point: a snippet that references the name of a blocked
-            // snippet is itself blocked. Matches the JS reference's `while`
-            // loop in `analyzeSnippets` that grows `disallowed_values`.
-            let mut changed = true;
-            while changed {
-                changed = false;
-                for i in 0..snippets.len() {
-                    if blocked[i] {
-                        continue;
-                    }
-                    let body_start = snippets[i].start as usize;
-                    let body_end = snippets[i].end as usize;
-                    if body_start >= source.len() || body_end > source.len() {
-                        continue;
-                    }
-                    for ident in lexical_identifiers(&source[body_start..body_end]) {
-                        if ident == snippet_names[i] {
-                            continue; // self-reference
-                        }
-                        if snippet_name_set.contains(&ident) {
-                            for (j, name) in snippet_names.iter().enumerate() {
-                                if name == &ident && blocked[j] {
-                                    blocked[i] = true;
-                                    changed = true;
-                                    break;
-                                }
-                            }
-                            if blocked[i] {
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            // No module script => everything stays inside $$render (or stays
-            // put if no instance script exists either).
-            for b in blocked.iter_mut() {
-                *b = true;
-            }
-        }
-
-        for (i, snippet) in snippets.iter().enumerate() {
-            if blocked[i] {
-                nonhoistable_snippet_ranges.push((snippet.start, snippet.end));
-            } else {
-                hoistable_snippet_ranges.push((snippet.start, snippet.end));
-            }
-        }
-
-        // Inside-target moves require an instance script to anchor against.
-        if let Some(instance) = ast.instance.as_ref() {
-            let inside_target = instance.content_offset;
-            for (s, e) in nonhoistable_snippet_ranges.iter() {
-                str.move_range(*s, *e, inside_target);
-            }
-        }
-        let _ = has_instance;
-    }
+    let hoistable_snippet_ranges =
+        hoist_top_level_snippets(&ast, source, &exported_names, &mut str);
 
     // Step 9.5: Collect slot and event information from the template
     let template_info = template::collect_template_info(&ast.fragment, source);
@@ -1127,26 +819,12 @@ pub fn svelte2tsx(
     }
 
     // Build $$props/$$restProps/$$slots declaration text for injection into $$render() header
-    let mut dollar_decls = String::new();
-    if uses_dollar_props {
-        dollar_decls.push_str(" let $$props = __sveltets_2_allPropsType();");
-    }
-    if uses_dollar_rest_props {
-        dollar_decls.push_str(" let $$restProps = __sveltets_2_restPropsType();");
-    }
-    if uses_dollar_slots {
-        // Collect slot names from the template AST for $$slots declaration
-        let slot_names = collect_slot_names_from_ast(&ast.fragment);
-        let slots_obj: Vec<String> = slot_names
-            .iter()
-            .map(|name| format!("'{}': ''", escape_js_single_quoted(name)))
-            .collect();
-        let _ = write!(
-            dollar_decls,
-            " let $$slots = __sveltets_2_slotsType({{{}}});",
-            slots_obj.join(", ")
-        );
-    }
+    let dollar_decls = build_dollar_declarations(
+        &ast,
+        uses_dollar_props,
+        uses_dollar_rest_props,
+        uses_dollar_slots,
+    );
 
     // Detect generics attribute from the script tag (available for component export)
     let mut generics_attribute: Option<String> = None;
@@ -2051,25 +1729,7 @@ pub fn svelte2tsx(
     let component_doc = extract_component_documentation(&ast.fragment);
 
     // Build slots string from template info
-    let slots_str = if template_info.slots.is_empty() {
-        "{}".to_string()
-    } else {
-        let mut slot_parts = Vec::new();
-        for (name, props) in &template_info.slots {
-            let escaped_name = escape_js_single_quoted(name);
-            if props.is_empty() {
-                slot_parts.push(format!("'{}': {{}}", escaped_name));
-            } else {
-                // Slot prop keys (the `props` strings) may also carry hyphens /
-                // spaces / quotes when they come from arbitrary `slot="…"`
-                // attributes; keep them verbatim for now since they're produced
-                // upstream from validated bindings and don't reach this site
-                // with adversarial input in practice. (issue #455, H-092)
-                slot_parts.push(format!("'{}': {{{}}}", escaped_name, props.join(", ")));
-            }
-        }
-        format!("{{{}}}", slot_parts.join(", "))
-    };
+    let slots_str = build_slots_str(&template_info);
 
     // Scan the component for `dispatch("name", …)` call sites of any untyped
     // `createEventDispatcher()` so they surface in the events return. Template
@@ -2099,69 +1759,7 @@ pub fn svelte2tsx(
     }
 
     // Build events string from template info and component events
-    let events_str = if exported_names.has_events_type {
-        "{} as unknown as $$Events".to_string()
-    } else {
-        let mut event_parts = Vec::new();
-        // Official `toDefString` order: typed-dispatcher event typings FIRST,
-        // then bubbled/forwarded events, then untyped-dispatch customEvents.
-        // Add generic event typing from createEventDispatcher<Type>() first.
-        if let Some(ref generic_type) = events.dispatcher_generic_type {
-            event_parts.push(format!(
-                "...__sveltets_2_toEventTypings<{}>()",
-                generic_type
-            ));
-        }
-        // Add element events (forwarded), reducing them exactly like the
-        // official `EventHandler` bubbled-events `Map` (event-handler.ts):
-        //   * an `Element` forward does a plain `set` (OVERWRITE) — collapsing
-        //     duplicate element forwards and clobbering any earlier component
-        //     union for that name;
-        //   * a `Component` forward CONCATS into the existing entry (so each
-        //     forwarding component instance contributes a `unionType` member).
-        // Key insertion order (first occurrence) is preserved. A single value is
-        // emitted plain; multiple values become `__sveltets_2_unionType(...)`.
-        let mut grouped: Vec<(String, Vec<String>)> = Vec::new();
-        for (name, value, kind) in &template_info.element_events {
-            match kind {
-                crate::svelte2tsx::template::ForwardedEventKind::Element => {
-                    if let Some(entry) = grouped.iter_mut().find(|(n, _)| n == name) {
-                        // Plain overwrite (official `set`): a single value.
-                        entry.1 = vec![value.clone()];
-                    } else {
-                        grouped.push((name.clone(), vec![value.clone()]));
-                    }
-                }
-                crate::svelte2tsx::template::ForwardedEventKind::Component => {
-                    if let Some(entry) = grouped.iter_mut().find(|(n, _)| n == name) {
-                        entry.1.push(value.clone());
-                    } else {
-                        grouped.push((name.clone(), vec![value.clone()]));
-                    }
-                }
-            }
-        }
-        for (name, values) in &grouped {
-            if values.len() == 1 {
-                event_parts.push(format!("'{}':{}", name, values[0]));
-            } else {
-                event_parts.push(format!(
-                    "'{}':__sveltets_2_unionType({})",
-                    name,
-                    values.join(", ")
-                ));
-            }
-        }
-        // Add custom events from dispatchers (detected during script processing)
-        for (name, value) in events.get_event_entries() {
-            event_parts.push(format!("'{}': {}", name, value));
-        }
-        if event_parts.is_empty() {
-            "{}".to_string()
-        } else {
-            format!("{{{}}}", event_parts.join(", "))
-        }
-    };
+    let events_str = build_events_str(&exported_names, &template_info, &events);
 
     let mut closing = String::new();
     closing.push_str("};\n");
@@ -2600,6 +2198,475 @@ pub fn svelte2tsx(
         events,
         forward_map,
     })
+}
+
+/// Remove embedded `<script>` tags that are NOT the top-level instance / module
+/// script (they sit inside attribute values or template-literal expressions).
+/// Overwriting their range with `""` truncates any attribute whose source span
+/// covers the range; the joined content is returned for injection into the
+/// `$$render()` body when the file has no top-level script.
+fn remove_orphan_scripts(ast: &Root, source: &str, str: &mut MagicString) -> String {
+    let orphan_scripts = find_orphan_scripts(ast, source);
+    // Remove orphan scripts from the MagicString (must happen BEFORE
+    // process_template_inplace so the overwrite is in place when the template
+    // emits Seg::Src ranges that span the orphan range).
+    for &(s, e, _) in &orphan_scripts {
+        str.overwrite(s, e, "");
+    }
+    // Collect content for injection into $$render() body. Only matters when
+    // there is no top-level instance/module script (the "no script" path below).
+    orphan_scripts
+        .iter()
+        .map(|(_, _, content)| content.as_str())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Emit the `<svelte:options>` tag as a `svelteHTML.createElement(...)` call.
+/// The parser stores svelte:options in `ast.options` (not in `fragment.nodes`),
+/// so it is handled separately.
+fn emit_svelte_options_element(ast: &Root, source: &str, str: &mut MagicString) {
+    let Some(options_node) = ast.options.as_ref() else {
+        return;
+    };
+    if options_node.start >= options_node.end {
+        return;
+    }
+    // Build attribute string from options attributes
+    let mut attrs_parts = Vec::new();
+    let mut has_expression_attr = false;
+    for node in &options_node.attributes {
+        match &node.value {
+            crate::ast::template::AttributeValue::True(_) => {
+                attrs_parts.push(format!("\"{}\":true,", node.name));
+            }
+            crate::ast::template::AttributeValue::Expression(expr) => {
+                has_expression_attr = true;
+                let expr_text = slice_src(
+                    source,
+                    expr.expression.start().unwrap_or(0) as usize,
+                    expr.expression.end().unwrap_or(0) as usize,
+                );
+                attrs_parts.push(format!("\"{}\":{},", node.name, expr_text));
+            }
+            // String / mixed attribute, e.g. `<svelte:options customElement="my-el">`
+            // or `namespace="svg"`. Mirror the element-attribute Sequence path
+            // (template/mod.rs::format_attribute_node_segments): a lone expression
+            // stays a bare expression, everything else becomes a template literal.
+            // Reference: language-tools .../htmlxtojsx_v2/nodes/Attribute.ts.
+            crate::ast::template::AttributeValue::Sequence(parts) => {
+                use crate::ast::template::AttributeValuePart;
+                if parts.len() == 1
+                    && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
+                {
+                    has_expression_attr = true;
+                    let expr_text = slice_src(
+                        source,
+                        expr.expression.start().unwrap_or(0) as usize,
+                        expr.expression.end().unwrap_or(0) as usize,
+                    );
+                    attrs_parts.push(format!("\"{}\":{},", node.name, expr_text));
+                } else {
+                    let mut value = String::from("`");
+                    for part in parts {
+                        match part {
+                            AttributeValuePart::Text(text) => {
+                                value.push_str(
+                                    &text
+                                        .raw
+                                        .replace('\\', "\\\\")
+                                        .replace('`', "\\`")
+                                        .replace('$', "\\$"),
+                                );
+                            }
+                            AttributeValuePart::ExpressionTag(expr) => {
+                                has_expression_attr = true;
+                                if let (Some(s), Some(e)) =
+                                    (expr.expression.start(), expr.expression.end())
+                                {
+                                    value.push_str("${");
+                                    value.push_str(slice_src(source, s as usize, e as usize));
+                                    value.push('}');
+                                }
+                            }
+                        }
+                    }
+                    value.push('`');
+                    attrs_parts.push(format!("\"{}\":{},", node.name, value));
+                }
+            }
+        }
+    }
+    let attrs_str = if attrs_parts.is_empty() {
+        String::new()
+    } else if has_expression_attr {
+        // Expression attributes: preserve source spacing
+        let extra_spaces =
+            count_tag_to_attr_spaces_in_source("svelte:options", options_node.start, source);
+        format!("{}{}", " ".repeat(extra_spaces + 1), attrs_parts.join(""))
+    } else {
+        // Bare boolean attributes only: no extra spacing
+        attrs_parts.join("")
+    };
+    let replacement = format!(
+        " {{ svelteHTML.createElement(\"svelte:options\", {{{}}});}}",
+        attrs_str
+    );
+    str.overwrite(options_node.start, options_node.end, &replacement);
+}
+
+/// Blank out `<style>` tags (CSS is not relevant for TSX type checking). First
+/// blanks any style tag the parser captured in `ast.css`, then always runs a
+/// fallback scanner to catch style tags the parser did not capture (e.g.,
+/// `<style global>`, `<style lang="...">`).
+fn blank_style_tags(ast: &Root, source: &str, str: &mut MagicString) {
+    let mut blanked_style_ranges: Vec<(usize, usize)> = Vec::new();
+    if let Some(ref css) = ast.css
+        && css.start < css.end
+    {
+        // Only blank the CSS range when the close tag is well-formed (exact
+        // `</style>` with no whitespace before `>`). When the close tag is
+        // malformed (e.g. `</style   >`), the official svelte2tsx regex does
+        // not match the style tag and it is left as raw text in the output.
+        // Mirror that: skip blanking so the raw `<style>…</style   >` text
+        // appears verbatim in the async template body.
+        let has_proper_style_close = {
+            let slice = slice_src(source, css.start as usize, css.end as usize);
+            slice
+                .as_bytes()
+                .windows(8)
+                .any(|w| w.eq_ignore_ascii_case(b"</style>"))
+        };
+        if has_proper_style_close {
+            // Also blank any trailing whitespace after the style tag
+            let mut blank_end = css.end;
+            let bytes = source.as_bytes();
+            while (blank_end as usize) < bytes.len() {
+                let b = bytes[blank_end as usize];
+                if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+                    blank_end += 1;
+                } else {
+                    break;
+                }
+            }
+            str.overwrite(css.start, blank_end, "");
+            blanked_style_ranges.push((css.start as usize, blank_end as usize));
+        }
+    }
+    {
+        // Fallback: scan source for <style tags that the parser didn't
+        // capture in ast.css (e.g., <style global>, <style lang="...">).
+        // Blank them out by finding the matching </style>.
+        // Exclude positions inside script tags to avoid matching <style>
+        // inside template literals or string content.
+        let script_ranges: Vec<(usize, usize)> = {
+            let mut ranges = Vec::new();
+            if let Some(ref inst) = ast.instance {
+                ranges.push((inst.start as usize, inst.end as usize));
+            }
+            if let Some(ref module) = ast.module {
+                ranges.push((module.start as usize, module.end as usize));
+            }
+            ranges
+        };
+        let is_inside_script =
+            |pos: usize| -> bool { script_ranges.iter().any(|&(s, e)| pos >= s && pos < e) };
+        let is_already_blanked = |pos: usize| -> bool {
+            blanked_style_ranges
+                .iter()
+                .any(|&(s, e)| pos >= s && pos < e)
+        };
+
+        // Direct case-sensitive substring search over the original source.
+        // The previous implementation called `source.to_lowercase()` once
+        // per call, allocating a full copy of the source for case-
+        // insensitive matching. Svelte HTML is lowercase in practice
+        // (the parser only recognises lowercase tags), so the lowercase
+        // copy is unnecessary overhead.
+        let bytes = source.as_bytes();
+        let mut search_from = 0;
+        while let Some(rel) = source[search_from..].find("<style") {
+            let abs_start = search_from + rel;
+            if is_inside_script(abs_start) {
+                search_from = abs_start + 1;
+                continue;
+            }
+            if is_already_blanked(abs_start) {
+                search_from = abs_start + 1;
+                continue;
+            }
+            let after_tag = abs_start + 6;
+            if after_tag < bytes.len() {
+                let next_ch = bytes[after_tag];
+                if (next_ch == b' '
+                    || next_ch == b'>'
+                    || next_ch == b'\n'
+                    || next_ch == b'\r'
+                    || next_ch == b'\t'
+                    || next_ch == b'/')
+                    && let Some(close_off) = source[abs_start..].find("</style>")
+                {
+                    let abs_end = abs_start + close_off + 8; // 8 = len("</style>")
+                    let mut blank_end = abs_end as u32;
+                    while (blank_end as usize) < bytes.len() {
+                        let b = bytes[blank_end as usize];
+                        if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+                            blank_end += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    str.overwrite(abs_start as u32, blank_end, "");
+                    search_from = abs_end;
+                    continue;
+                }
+            }
+            search_from = abs_start + 1;
+        }
+    }
+}
+
+/// Analyze and relocate top-level `{#snippet}` blocks. Non-hoistable snippets
+/// (those closing over instance-script values, or referencing a non-hoistable
+/// snippet) are moved to the top of the instance script; the returned ranges are
+/// the module-hoistable snippets, which the caller relocates to module scope.
+fn hoist_top_level_snippets(
+    ast: &Root,
+    source: &str,
+    exported_names: &ExportedNames,
+    str: &mut MagicString,
+) -> Vec<(u32, u32)> {
+    let mut hoistable_snippet_ranges: Vec<(u32, u32)> = Vec::new();
+    let mut nonhoistable_snippet_ranges: Vec<(u32, u32)> = Vec::new();
+    let module_script_present = ast.module.is_some();
+
+    // Collect every top-level snippet first so we can run a fixed-point
+    // pass over their inter-dependencies (a snippet that references the
+    // name of a non-hoistable snippet is itself non-hoistable).
+    let snippets: Vec<&crate::ast::template::SnippetBlock> = ast
+        .fragment
+        .nodes
+        .iter()
+        .filter_map(|n| {
+            if let crate::ast::template::TemplateNode::SnippetBlock(s) = n {
+                if s.start < s.end {
+                    Some(s.as_ref())
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let snippet_names: Vec<String> = snippets
+        .iter()
+        .filter_map(|s| {
+            let exp_s = s.expression.start()? as usize;
+            let exp_e = s.expression.end()? as usize;
+            source.get(exp_s..exp_e).map(|s| s.to_string())
+        })
+        .collect();
+    let snippet_name_set: std::collections::HashSet<String> =
+        snippet_names.iter().cloned().collect();
+
+    // Initial blocked set: snippets that directly reference an
+    // instance-script value (or a $store of one).
+    let mut blocked = vec![false; snippets.len()];
+    if module_script_present {
+        for (i, snippet) in snippets.iter().enumerate() {
+            if !is_snippet_module_hoistable(snippet, source, exported_names) {
+                blocked[i] = true;
+            }
+        }
+
+        // Fixed-point: a snippet that references the name of a blocked
+        // snippet is itself blocked. Matches the JS reference's `while`
+        // loop in `analyzeSnippets` that grows `disallowed_values`.
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for i in 0..snippets.len() {
+                if blocked[i] {
+                    continue;
+                }
+                let body_start = snippets[i].start as usize;
+                let body_end = snippets[i].end as usize;
+                if body_start >= source.len() || body_end > source.len() {
+                    continue;
+                }
+                for ident in lexical_identifiers(&source[body_start..body_end]) {
+                    if ident == snippet_names[i] {
+                        continue; // self-reference
+                    }
+                    if snippet_name_set.contains(&ident) {
+                        for (j, name) in snippet_names.iter().enumerate() {
+                            if name == &ident && blocked[j] {
+                                blocked[i] = true;
+                                changed = true;
+                                break;
+                            }
+                        }
+                        if blocked[i] {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        // No module script => everything stays inside $$render (or stays
+        // put if no instance script exists either).
+        for b in blocked.iter_mut() {
+            *b = true;
+        }
+    }
+
+    for (i, snippet) in snippets.iter().enumerate() {
+        if blocked[i] {
+            nonhoistable_snippet_ranges.push((snippet.start, snippet.end));
+        } else {
+            hoistable_snippet_ranges.push((snippet.start, snippet.end));
+        }
+    }
+
+    // Inside-target moves require an instance script to anchor against.
+    if let Some(instance) = ast.instance.as_ref() {
+        let inside_target = instance.content_offset;
+        for (s, e) in nonhoistable_snippet_ranges.iter() {
+            str.move_range(*s, *e, inside_target);
+        }
+    }
+
+    hoistable_snippet_ranges
+}
+
+/// Build the `$$props`/`$$restProps`/`$$slots` declaration text injected into
+/// the `$$render()` header for a component that references those legacy magic
+/// variables.
+fn build_dollar_declarations(
+    ast: &Root,
+    uses_dollar_props: bool,
+    uses_dollar_rest_props: bool,
+    uses_dollar_slots: bool,
+) -> String {
+    let mut dollar_decls = String::new();
+    if uses_dollar_props {
+        dollar_decls.push_str(" let $$props = __sveltets_2_allPropsType();");
+    }
+    if uses_dollar_rest_props {
+        dollar_decls.push_str(" let $$restProps = __sveltets_2_restPropsType();");
+    }
+    if uses_dollar_slots {
+        // Collect slot names from the template AST for $$slots declaration
+        let slot_names = collect_slot_names_from_ast(&ast.fragment);
+        let slots_obj: Vec<String> = slot_names
+            .iter()
+            .map(|name| format!("'{}': ''", escape_js_single_quoted(name)))
+            .collect();
+        let _ = write!(
+            dollar_decls,
+            " let $$slots = __sveltets_2_slotsType({{{}}});",
+            slots_obj.join(", ")
+        );
+    }
+    dollar_decls
+}
+
+/// Build the `slots` object literal for the component export from template info.
+fn build_slots_str(template_info: &template::TemplateInfo) -> String {
+    if template_info.slots.is_empty() {
+        "{}".to_string()
+    } else {
+        let mut slot_parts = Vec::new();
+        for (name, props) in &template_info.slots {
+            let escaped_name = escape_js_single_quoted(name);
+            if props.is_empty() {
+                slot_parts.push(format!("'{}': {{}}", escaped_name));
+            } else {
+                // Slot prop keys (the `props` strings) may also carry hyphens /
+                // spaces / quotes when they come from arbitrary `slot="…"`
+                // attributes; keep them verbatim for now since they're produced
+                // upstream from validated bindings and don't reach this site
+                // with adversarial input in practice. (issue #455, H-092)
+                slot_parts.push(format!("'{}': {{{}}}", escaped_name, props.join(", ")));
+            }
+        }
+        format!("{{{}}}", slot_parts.join(", "))
+    }
+}
+
+/// Build the `events` object literal for the component export from template info
+/// and component events.
+fn build_events_str(
+    exported_names: &ExportedNames,
+    template_info: &template::TemplateInfo,
+    events: &ComponentEvents,
+) -> String {
+    if exported_names.has_events_type {
+        "{} as unknown as $$Events".to_string()
+    } else {
+        let mut event_parts = Vec::new();
+        // Official `toDefString` order: typed-dispatcher event typings FIRST,
+        // then bubbled/forwarded events, then untyped-dispatch customEvents.
+        // Add generic event typing from createEventDispatcher<Type>() first.
+        if let Some(ref generic_type) = events.dispatcher_generic_type {
+            event_parts.push(format!(
+                "...__sveltets_2_toEventTypings<{}>()",
+                generic_type
+            ));
+        }
+        // Add element events (forwarded), reducing them exactly like the
+        // official `EventHandler` bubbled-events `Map` (event-handler.ts):
+        //   * an `Element` forward does a plain `set` (OVERWRITE) — collapsing
+        //     duplicate element forwards and clobbering any earlier component
+        //     union for that name;
+        //   * a `Component` forward CONCATS into the existing entry (so each
+        //     forwarding component instance contributes a `unionType` member).
+        // Key insertion order (first occurrence) is preserved. A single value is
+        // emitted plain; multiple values become `__sveltets_2_unionType(...)`.
+        let mut grouped: Vec<(String, Vec<String>)> = Vec::new();
+        for (name, value, kind) in &template_info.element_events {
+            match kind {
+                crate::svelte2tsx::template::ForwardedEventKind::Element => {
+                    if let Some(entry) = grouped.iter_mut().find(|(n, _)| n == name) {
+                        // Plain overwrite (official `set`): a single value.
+                        entry.1 = vec![value.clone()];
+                    } else {
+                        grouped.push((name.clone(), vec![value.clone()]));
+                    }
+                }
+                crate::svelte2tsx::template::ForwardedEventKind::Component => {
+                    if let Some(entry) = grouped.iter_mut().find(|(n, _)| n == name) {
+                        entry.1.push(value.clone());
+                    } else {
+                        grouped.push((name.clone(), vec![value.clone()]));
+                    }
+                }
+            }
+        }
+        for (name, values) in &grouped {
+            if values.len() == 1 {
+                event_parts.push(format!("'{}':{}", name, values[0]));
+            } else {
+                event_parts.push(format!(
+                    "'{}':__sveltets_2_unionType({})",
+                    name,
+                    values.join(", ")
+                ));
+            }
+        }
+        // Add custom events from dispatchers (detected during script processing)
+        for (name, value) in events.get_event_entries() {
+            event_parts.push(format!("'{}': {}", name, value));
+        }
+        if event_parts.is_empty() {
+            "{}".to_string()
+        } else {
+            format!("{{{}}}", event_parts.join(", "))
+        }
+    }
 }
 
 /// Emit the `__sveltets_Render<T>` + `$$IsomorphicComponent` component export
