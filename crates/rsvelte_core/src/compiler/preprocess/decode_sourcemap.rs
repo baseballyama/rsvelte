@@ -88,7 +88,7 @@ fn decode_vlq_mappings(s: &str) -> Vec<Vec<Vec<i64>>> {
             };
             let mut segment = Vec::with_capacity(deltas.len());
             for (i, d) in deltas.into_iter().enumerate().take(5) {
-                last[i] += d;
+                last[i] = last[i].wrapping_add(d);
                 segment.push(last[i]);
             }
             segments.push(segment);
@@ -130,6 +130,12 @@ fn decode_vlq_segment(s: &str) -> Option<Vec<i64>> {
                 return None;
             }
             let digit = digit as i64;
+            // A well-formed VLQ value fits in 32 bits (7 base-64 groups reach
+            // shift 30); anything past that is malformed. Bail before the shift
+            // rather than let `<< shift` overflow-panic in debug builds.
+            if shift >= 32 {
+                return None;
+            }
             value |= (digit & 31) << shift;
             shift += 5;
             if digit & 32 == 0 {
@@ -170,6 +176,39 @@ mod tests {
         let decoded = decoded.unwrap();
         assert_eq!(decoded.version, Some(3));
         assert_eq!(decoded.sources.len(), 1);
+    }
+
+    #[test]
+    fn test_decode_map_from_vlq_string_json() {
+        // Standard Source Map v3: `mappings` is a base64-VLQ string. The first
+        // segment "AAAA" decodes to [0, 0, 0, 0].
+        let json_map = r#"{
+            "version": 3,
+            "sources": ["input.svelte"],
+            "names": [],
+            "mappings": "AAAA"
+        }"#;
+
+        let processed = Processed {
+            code: "test".to_string(),
+            map: Some(SourceMapInput::Json(json_map.to_string())),
+            dependencies: vec![],
+            attributes: None,
+        };
+
+        let decoded = decode_map(&processed).expect("VLQ string map should decode");
+        assert_eq!(decoded.version, Some(3));
+        assert_eq!(decoded.sources, vec!["input.svelte".to_string()]);
+        assert_eq!(decoded.mappings, vec![vec![vec![0, 0, 0, 0]]]);
+    }
+
+    #[test]
+    fn test_decode_vlq_segment_overlong_returns_none() {
+        // A run of continuation bytes (all high-bit set) would push `shift`
+        // past 32 and overflow-panic the `<< shift` in debug builds. The guard
+        // must bail with `None` instead. 'g' = 32 (continuation bit only).
+        let malicious = "gggggggggggggggggggg";
+        assert!(decode_vlq_segment(malicious).is_none());
     }
 
     #[test]

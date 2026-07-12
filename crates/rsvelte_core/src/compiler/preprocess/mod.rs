@@ -433,14 +433,12 @@ async fn process_markup(
     let processed_opt = process(options).await?;
 
     if let Some(processed) = processed_opt {
-        let map = if let Some(map_input) = processed.map {
-            match map_input {
-                SourceMapInput::Json(json) => serde_json::from_str(&json).ok(),
-                SourceMapInput::Decoded(decoded) => Some(decoded),
-            }
-        } else {
-            None
-        };
+        // Route through `decode_map` so a standard Source Map v3 document with a
+        // VLQ-encoded `mappings` string decodes here too, matching the
+        // script/style paths (`processed_content_to_code`). The previous inline
+        // `serde_json::from_str` only accepted the pre-decoded array form and
+        // silently dropped every VLQ string map.
+        let map = decode_map(&processed);
 
         Ok(SourceUpdate {
             string: Some(processed.code),
@@ -582,5 +580,40 @@ mod tests {
         let result = PreprocessResult::new("test".to_string(), Some("test.svelte".to_string()));
         assert_eq!(result.source, "test");
         assert_eq!(result.file_basename, "test.svelte");
+    }
+
+    #[test]
+    fn test_process_markup_decodes_vlq_string_map() {
+        // A markup preprocessor returning a standard Source Map v3 document
+        // (VLQ-encoded `mappings` string) must have its map decoded, not
+        // silently dropped — matching the script/style paths.
+        let process: MarkupPreprocessorFn = Box::new(|_opts: MarkupPreprocessorOptions| {
+            Box::pin(async {
+                Ok(Some(Processed {
+                    code: "<p>hi</p>".to_string(),
+                    map: Some(SourceMapInput::Json(
+                        r#"{"version":3,"sources":["input.svelte"],"names":[],"mappings":"AAAA"}"#
+                            .to_string(),
+                    )),
+                    dependencies: vec![],
+                    attributes: None,
+                }))
+            })
+        });
+
+        let source = Source {
+            source: "<p>hi</p>".to_string(),
+            get_location: std::sync::Arc::new(|_| Location { line: 0, column: 0 }),
+            file_basename: "input.svelte".to_string(),
+            filename: Some("input.svelte".to_string()),
+        };
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let update = runtime.block_on(process_markup(&process, &source)).unwrap();
+        let map = update.map.expect("VLQ string markup map should decode");
+        assert_eq!(map.mappings, vec![vec![vec![0, 0, 0, 0]]]);
     }
 }

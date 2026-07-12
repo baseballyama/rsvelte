@@ -408,7 +408,12 @@ pub struct Position {
 /// - `column` is 0-indexed (in UTF-16 code units for compatibility with JavaScript)
 /// - `character` is the UTF-16 code unit offset (matching JavaScript's string indexing)
 fn byte_offset_to_position(source: &str, offset: usize) -> Position {
-    let offset = offset.min(source.len());
+    let mut offset = offset.min(source.len());
+    // Slicing at a non-UTF-8-boundary byte panics, so rewind an out-of-range or
+    // mid-codepoint offset to the nearest char boundary at or below it.
+    while offset > 0 && !source.is_char_boundary(offset) {
+        offset -= 1;
+    }
     let before = &source[..offset];
     let line = before.bytes().filter(|&b| b == b'\n').count() + 1;
 
@@ -1456,6 +1461,22 @@ impl std::error::Error for CompileError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_byte_offset_to_position_clamps_to_char_boundary() {
+        // "é" is two UTF-8 bytes (0xC3 0xA9). An offset landing between them
+        // must rewind to the boundary instead of panicking on the slice.
+        let source = "aéb";
+        let pos = byte_offset_to_position(source, 2);
+        // Rewound to offset 1 ("a"): one UTF-16 unit consumed.
+        assert_eq!(pos.character, 1);
+        assert_eq!(pos.column, 1);
+        assert_eq!(pos.line, 1);
+
+        // Past-the-end offset clamps to the string length.
+        let end = byte_offset_to_position(source, 999);
+        assert_eq!(end.character, 3);
+    }
 
     #[test]
     fn test_compile_simple() {
