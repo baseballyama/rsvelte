@@ -30,10 +30,10 @@ const DOCUMENT_SELECTOR = [
 ];
 
 export function activate(context: ExtensionContext): void {
-  // The bundled server lives at dist/server.js, copied next to the extension
+  // The bundled server lives at dist/server.mjs, copied next to the extension
   // bundle by the build (see build.mjs).
   const serverModule = context.asAbsolutePath(
-    path.join("dist", "server.js"),
+    path.join("dist", "server.mjs"),
   );
 
   const serverOptions: ServerOptions = {
