@@ -14,13 +14,20 @@
 //! 2. Update expressions (`q++`, `--q`) are also rewritten to
 //!    `$.update(q)` / `$.update_pre(q[, -1])`.
 //!
-//! Mappings (preserved exactly):
+//! Mappings (preserved exactly). Whether the `, true` proxy flag is
+//! emitted follows upstream `AssignmentExpression.js`:
+//! `needs_proxy = field is $state && is_non_coercive_operator(op) &&
+//! should_proxy(value)`. Only `=` and the *logical* compounds
+//! (`||= &&= ??=`) are non-coercive; arithmetic / bitwise / shift
+//! compounds are coercive and never proxy.
 //!
 //! | Source        | Replacement (proxy-needing $state)         | Replacement (otherwise)             |
 //! |---------------|--------------------------------------------|-------------------------------------|
 //! | `q = expr`    | `$.set(q, expr, true)`                     | `$.set(q, expr)`                    |
-//! | `q += expr`   | `$.set(q, $.get(q) + expr, true)`          | `$.set(q, $.get(q) + expr)`         |
-//! | (incl. `-= *= /= %= **=`)                                                                          |
+//! | `q += expr`   | `$.set(q, $.get(q) + expr)`                | `$.set(q, $.get(q) + expr)`         |
+//! | (incl. coercive `-= *= /= %= **= &= |= ^= <<= >>= >>>=` — never proxy)                             |
+//! | `q ??= expr`  | `$.set(q, $.get(q) ?? expr, true)`         | `$.set(q, $.get(q) ?? expr)`        |
+//! | (incl. logical `||= &&=`; the built value is a LogicalExpression → always proxies for `$state`)   |
 //! | `q++`         | `$.update(q)`                              | `$.update(q)`                       |
 //! | `q--`         | `$.update(q, -1)`                          | `$.update(q, -1)`                   |
 //! | `++q`         | `$.update_pre(q)`                          | `$.update_pre(q)`                   |
@@ -288,6 +295,20 @@ enum Match {
     Other,
 }
 
+/// How a compound assignment operator expands into the `$.set` value,
+/// mirroring upstream `build_assignment_value`.
+#[derive(Clone, Copy)]
+enum Compound {
+    /// Plain `=` — value is the RHS verbatim.
+    None,
+    /// Coercive `+= -= *= /= %= **= &= |= ^= <<= >>= >>>=` — value is
+    /// `$.get(q) <op> rhs` (a binary expression); never proxies.
+    Arith(&'static str),
+    /// Non-coercive `||= &&= ??=` — value is `$.get(q) <op> rhs` (a
+    /// logical expression); proxies for `$state` fields.
+    Logic(&'static str),
+}
+
 impl<'a> PrivateClassAssignCollector<'a> {
     fn classify(&self, text: &str) -> Option<Match> {
         if self.state_qualified.iter().any(|q| q.as_str() == text) {
@@ -313,15 +334,28 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
         };
         let qualified = pf_text;
 
-        let op_str = match expr.operator {
-            AssignmentOperator::Assign => None,
-            AssignmentOperator::Addition => Some("+"),
-            AssignmentOperator::Subtraction => Some("-"),
-            AssignmentOperator::Multiplication => Some("*"),
-            AssignmentOperator::Division => Some("/"),
-            AssignmentOperator::Remainder => Some("%"),
-            AssignmentOperator::Exponential => Some("**"),
-            _ => return,
+        // Classify the compound operator, mirroring upstream
+        // `build_assignment_value` (`utils/ast.js`): `=` uses the RHS
+        // verbatim; `||= &&= ??=` expand to a *logical* expression
+        // `left <op> right`; every other compound (`+= -= … & | << …`)
+        // expands to a *binary* expression `left <op> right`.
+        let compound = match expr.operator {
+            AssignmentOperator::Assign => Compound::None,
+            AssignmentOperator::Addition => Compound::Arith("+"),
+            AssignmentOperator::Subtraction => Compound::Arith("-"),
+            AssignmentOperator::Multiplication => Compound::Arith("*"),
+            AssignmentOperator::Division => Compound::Arith("/"),
+            AssignmentOperator::Remainder => Compound::Arith("%"),
+            AssignmentOperator::Exponential => Compound::Arith("**"),
+            AssignmentOperator::BitwiseAnd => Compound::Arith("&"),
+            AssignmentOperator::BitwiseOR => Compound::Arith("|"),
+            AssignmentOperator::BitwiseXOR => Compound::Arith("^"),
+            AssignmentOperator::ShiftLeft => Compound::Arith("<<"),
+            AssignmentOperator::ShiftRight => Compound::Arith(">>"),
+            AssignmentOperator::ShiftRightZeroFill => Compound::Arith(">>>"),
+            AssignmentOperator::LogicalOr => Compound::Logic("||"),
+            AssignmentOperator::LogicalAnd => Compound::Logic("&&"),
+            AssignmentOperator::LogicalNullish => Compound::Logic("??"),
         };
 
         let rhs_span = expr.right.span();
@@ -329,20 +363,35 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
 
         // Proxy logic mirrors upstream `AssignmentExpression.js` private-state
         // branch: `needs_proxy = field.type === '$state' &&
-        // is_non_coercive_operator(operator) && should_proxy(value, scope)`.
-        // The only non-coercive operator this pass handles is `=` (compound
-        // arithmetic `+= -= *= …` is coercive, so it never proxies); the
-        // logical compound ops are excluded earlier. `should_proxy` is the
-        // scope-aware check that traces an identifier RHS to its binding's
-        // initializer.
+        // is_non_coercive_operator(operator) && should_proxy(value, scope)`
+        // where `value` is the built (and visited) assignment value.
+        // The non-coercive operators are `= || && ??`. Compound arithmetic /
+        // bitwise / shift ops are coercive → never proxy. For `= `, `value`
+        // is the RHS, so `should_proxy` traces it. For the logical ops,
+        // `value` is a `LogicalExpression` (`$.get(q) <op> rhs`), which is
+        // never in `should_proxy`'s no-proxy set, so it always proxies for a
+        // `$state` field.
         let needs_proxy = matches!(kind, Match::State)
-            && op_str.is_none()
-            && should_proxy_with_bindings(&expr.right, self.var_proxy, self.reassigned);
+            && match compound {
+                Compound::None => {
+                    should_proxy_with_bindings(&expr.right, self.var_proxy, self.reassigned)
+                }
+                Compound::Logic(_) => true,
+                Compound::Arith(_) => false,
+            };
 
-        let rewrite = match op_str {
-            None if needs_proxy => format!("$.set({}, {}, true)", qualified, rhs_text),
-            None => format!("$.set({}, {})", qualified, rhs_text),
-            Some(op) => format!(
+        let rewrite = match compound {
+            Compound::None if needs_proxy => format!("$.set({}, {}, true)", qualified, rhs_text),
+            Compound::None => format!("$.set({}, {})", qualified, rhs_text),
+            Compound::Arith(op) => format!(
+                "$.set({}, $.get({}) {} {})",
+                qualified, qualified, op, rhs_text
+            ),
+            Compound::Logic(op) if needs_proxy => format!(
+                "$.set({}, $.get({}) {} {}, true)",
+                qualified, qualified, op, rhs_text
+            ),
+            Compound::Logic(op) => format!(
                 "$.set({}, $.get({}) {} {})",
                 qualified, qualified, op, rhs_text
             ),
@@ -589,12 +638,60 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_compound_left_alone() {
-        // ??=, &&=, ||= not in text version's allowlist
-        assert!(
-            transform_private_class_assign_ast("this.#count ??= 5;", &ssv(&["this.#count"]), &[])
-                .is_none()
+    fn nullish_assign_state_proxies() {
+        // `??=` is non-coercive and the built value is a LogicalExpression,
+        // so a `$state` field always proxies (`, true`). Regression test for
+        // issue #1438 (`??=` was previously left un-rewritten, producing the
+        // invalid `$.get(this.#promise) ??= run()`).
+        let out = transform_private_class_assign_ast(
+            "this.#promise ??= run();",
+            &ssv(&["this.#promise"]),
+            &[],
+        )
+        .unwrap();
+        assert_eq!(
+            out,
+            "$.set(this.#promise, $.get(this.#promise) ?? run(), true);"
         );
+    }
+
+    #[test]
+    fn logical_or_assign_state_proxies() {
+        let out =
+            transform_private_class_assign_ast("this.#x ||= y;", &ssv(&["this.#x"]), &[]).unwrap();
+        assert_eq!(out, "$.set(this.#x, $.get(this.#x) || y, true);");
+    }
+
+    #[test]
+    fn logical_and_assign_state_proxies() {
+        let out =
+            transform_private_class_assign_ast("this.#x &&= y;", &ssv(&["this.#x"]), &[]).unwrap();
+        assert_eq!(out, "$.set(this.#x, $.get(this.#x) && y, true);");
+    }
+
+    #[test]
+    fn logical_assign_other_no_proxy() {
+        // `$derived`/etc. (other_qualified) never proxy — no `, true`.
+        let out =
+            transform_private_class_assign_ast("this.#d ??= y;", &[], &ssv(&["this.#d"])).unwrap();
+        assert_eq!(out, "$.set(this.#d, $.get(this.#d) ?? y);");
+    }
+
+    #[test]
+    fn bitwise_compound_state_no_proxy() {
+        // Bitwise compound (`&=`) is coercive → no proxy, binary expansion.
+        let out =
+            transform_private_class_assign_ast("this.#count &= 3;", &ssv(&["this.#count"]), &[])
+                .unwrap();
+        assert_eq!(out, "$.set(this.#count, $.get(this.#count) & 3);");
+    }
+
+    #[test]
+    fn shift_compound_state_no_proxy() {
+        let out =
+            transform_private_class_assign_ast("this.#count <<= 2;", &ssv(&["this.#count"]), &[])
+                .unwrap();
+        assert_eq!(out, "$.set(this.#count, $.get(this.#count) << 2);");
     }
 
     #[test]

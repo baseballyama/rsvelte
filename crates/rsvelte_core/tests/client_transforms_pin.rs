@@ -48,3 +48,30 @@ fn h026_exponentiation_compound_lowers_correctly() {
     // Pin the lowered shape for the `**=` operator path.
     assert!(out.contains("$.set(x, $.get(x) ** 3)"), "got:\n{out}");
 }
+
+/// Regression for issue #1438: a logical compound assignment (`??=`/`||=`/`&&=`)
+/// to a *private* `$state` field inside a regular method/getter was left
+/// un-rewritten, so the read-wrap pass turned the LHS into `$.get(this.#x)`,
+/// producing the invalid `$.get(this.#x) ??= rhs`. It must lower to
+/// `$.set(this.#x, $.get(this.#x) ?? rhs, true)`, matching the official
+/// compiler. (The `class-private-fields-assignment-shorthand` upstream fixture
+/// only exercises the constructor path, which is compiled separately.)
+#[test]
+fn issue_1438_private_field_nullish_compound_in_method() {
+    let out = client(
+        r#"<script>
+          class Query {
+            #promise = $state(null);
+            get() { return this.#promise ??= run(); }
+          }
+          function run() { return Promise.resolve(1); }
+        </script>
+        <p>{new Query().get()}</p>"#,
+    );
+    assert!(
+        out.contains("$.set(this.#promise, $.get(this.#promise) ?? run(), true)"),
+        "got:\n{out}"
+    );
+    // The buggy shape must be gone.
+    assert!(!out.contains("??= run()"), "invalid `??=` remains:\n{out}");
+}
