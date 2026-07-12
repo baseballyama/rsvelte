@@ -425,18 +425,25 @@ fn transform_client_with_visitors(
             Vec::new()
         };
 
+    // Module-scope `var rest_excludes = new Set([...])` hoists lifted out of the
+    // instance script's `$.rest_props($$props, [...])` calls. Emitted as real
+    // statements at module-body assembly (below) rather than spliced into the
+    // final printed output.
+    let mut rest_excludes_hoists: Vec<(String, String)> = Vec::new();
+
     // Transform the instance script once with the real reactive_import_names.
     // This also determines how many $$array names it consumes (for template generation)
     // and is used for blocker_map computation and the final output.
     let pre_transformed_script = if let Some(instance_script) = &analysis.instance_script_content {
         let raw = &instance_script.raw;
         let _script_start = super::profile::timer_start();
-        let transformed = transform_instance_script_for_visitors(
+        let mut transformed = transform_instance_script_for_visitors(
             raw,
             analysis,
             options.dev,
             &reactive_import_names,
         );
+        rest_excludes_hoists = extract_rest_excludes_hoists(&mut transformed);
         super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
         // Transfer the script's $$array counter to the context state so that the template
         // visitor continues numbering from where the script left off.
@@ -2147,6 +2154,23 @@ fn transform_client_with_visitors(
         }
     }
 
+    // Insert module-scope `var rest_excludes = new Set([...])` hoists lifted from
+    // the instance script's `$.rest_props(...)` calls: immediately before the first
+    // template-factory declaration, or before `export default` when none exists.
+    if !rest_excludes_hoists.is_empty() {
+        let insert_idx = body
+            .iter()
+            .position(|s| is_client_template_factory(&context.arena, s))
+            .or_else(|| body.iter().position(is_export_default_stmt))
+            .unwrap_or(body.len());
+        for (offset, (id, init)) in rest_excludes_hoists.iter().enumerate() {
+            body.insert(
+                insert_idx + offset,
+                JsStatement::Raw(format!("var {} = {};", id, init).into()),
+            );
+        }
+    }
+
     // Create the program
     let program = JsProgram { body };
 
@@ -2187,10 +2211,7 @@ fn transform_client_with_visitors(
         });
         if let Some((code, mappings)) = converted {
             super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
-            return Ok(CodegenResult {
-                code: hoist_rest_excludes(&code),
-                mappings,
-            });
+            return Ok(CodegenResult { code, mappings });
         } else if std::env::var_os("RSVELTE_CLIENT_TO_OXC_DEBUG").is_some() {
             eprintln!(
                 "CLIENT_TO_OXC_FALLBACK {}",
@@ -2201,18 +2222,14 @@ fn transform_client_with_visitors(
 
     if options.enable_sourcemap {
         let r = generate_with_sourcemap(&program, source, &context.arena)
-            .map_err(TransformError::CodeGen)
-            .map(|mut result| {
-                result.code = hoist_rest_excludes(&result.code);
-                result
-            });
+            .map_err(TransformError::CodeGen);
         super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
         r
     } else {
         let code = generate(&program, &context.arena).map_err(TransformError::CodeGen)?;
         super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
         Ok(CodegenResult {
-            code: hoist_rest_excludes(&code),
+            code,
             mappings: vec![],
         })
     }
@@ -2250,38 +2267,43 @@ thread_local! {
         std::cell::RefCell::new(oxc_allocator::Allocator::default());
 }
 
-/// Hoist `$.rest_props($$props, [...])` inline exclude arrays to module-scope
-/// `var rest_excludes_N = new Set([...])` declarations and replace the inline
-/// arrays with identifier references. Mirrors Svelte 5.56.0 #18252.
+fn is_ident_char(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
+}
+
+/// Rewrite `$.rest_props($$props, [<array>])` occurrences in the instance-script
+/// text to `$.rest_props($$props, <id>)`, returning the module-scope hoists as
+/// `(<id>, "new Set([<array>])")` pairs to emit as `var <id> = new Set([...]);`.
 ///
-/// Operates as a post-process pass on the generated source because the
-/// `transform_props_destructuring` text helper emits its `$.rest_props(...)`
-/// shape lazily inside the AST visitor, so the existing AST-level
-/// `state.hoisted` channel is not available at that emission site. Legacy
-/// `$.legacy_rest_props($$sanitized_props, [...])` calls are intentionally
-/// left untouched — that runtime mutates the exclude list in its
-/// `deleteProperty` trap and so cannot share a hoisted Set across instances
-/// (matches the upstream commit's explicit carve-out).
-fn hoist_rest_excludes(code: &str) -> String {
+/// The `transform_props_destructuring` text helper emits the `$.rest_props(...)`
+/// call inline, so the exclude array is lifted here — before codegen — and the
+/// module-scope `var <id> = new Set([...])` declaration is inserted as a real
+/// statement (see the insertion in `transform_client_with_visitors`) rather than
+/// spliced into the final printed output. Mirrors Svelte 5.56.0 #18252. Legacy
+/// `$.legacy_rest_props($$sanitized_props, [...])` calls are intentionally left
+/// untouched — that runtime mutates the exclude list in its `deleteProperty` trap
+/// and so cannot share a hoisted Set across instances (the upstream carve-out).
+/// #18252. Legacy `$.legacy_rest_props(...)` is intentionally untouched (its
+/// runtime mutates the exclude list per instance and cannot share a hoisted Set).
+fn extract_rest_excludes_hoists(code: &mut String) -> Vec<(String, String)> {
     let needle = "$.rest_props($$props, [";
     if !code.contains(needle) {
-        return code.to_string();
+        return Vec::new();
     }
 
-    let bytes = code.as_bytes();
-    let mut hoists: Vec<String> = Vec::new();
+    let mut hoists: Vec<(String, String)> = Vec::new();
     let mut replacements: Vec<(usize, usize, String)> = Vec::new();
     let mut search_start = 0usize;
     let mut counter: usize = 0;
-    // Pre-seed conflicts with any existing `rest_excludes` identifier in the
-    // source so we don't collide with user code or future emission sites.
+    // Pre-seed conflicts with any existing `rest_excludes` identifier so we don't
+    // collide with user code or a second emission site.
     let mut taken: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
     {
+        let bytes = code.as_bytes();
         let mut i = 0usize;
         while let Some(pos) = code[i..].find("rest_excludes") {
             let abs = i + pos;
             let after = abs + "rest_excludes".len();
-            // Capture optional `_N` suffix.
             let mut end = after;
             if end < bytes.len() && bytes[end] == b'_' {
                 end += 1;
@@ -2289,7 +2311,6 @@ fn hoist_rest_excludes(code: &str) -> String {
                     end += 1;
                 }
             }
-            // Only collect when preceded by a non-identifier boundary.
             let prev_ok = abs == 0 || !is_ident_char(bytes[abs - 1]);
             if prev_ok {
                 taken.insert(code[abs..end].to_string());
@@ -2305,15 +2326,13 @@ fn hoist_rest_excludes(code: &str) -> String {
             break;
         };
         let array_close = array_open + 1 + array_close_rel;
-        // Ensure the very next char after ']' is ')' so we know the array is
-        // the second argument and there are no further parts.
-        if bytes.get(array_close + 1).copied() != Some(b')') {
+        // The array must be the sole second argument: the char after ']' is ')'.
+        if code.as_bytes().get(array_close + 1).copied() != Some(b')') {
             search_start = array_close + 1;
             continue;
         }
-        let array_text = &code[array_open..=array_close]; // includes [ ... ]
+        let array_text = code[array_open..=array_close].to_string(); // includes [ ... ]
 
-        // Allocate a unique `rest_excludes[_N]` name.
         let id = loop {
             let candidate = if counter == 0 {
                 "rest_excludes".to_string()
@@ -2327,99 +2346,78 @@ fn hoist_rest_excludes(code: &str) -> String {
             }
         };
 
-        hoists.push(format!("var {} = new Set({});", id, array_text));
-        // Replace the inline `[...]` with the identifier inside the call.
+        hoists.push((id.clone(), format!("new Set({})", array_text)));
         replacements.push((array_open, array_close + 1, id));
         search_start = array_close + 2; // skip past `])`
     }
 
-    if hoists.is_empty() {
-        return code.to_string();
-    }
-
-    // Apply replacements right-to-left to preserve indices.
-    let mut out = code.to_string();
+    // Apply replacements right-to-left to preserve byte offsets.
     for (start, end, id) in replacements.into_iter().rev() {
-        out.replace_range(start..end, &id);
+        code.replace_range(start..end, &id);
     }
 
-    // Inject hoists at module scope, just before the first non-import line.
-    // Upstream lays them out as: imports, then a blank line, then each `var`
-    // on its own line followed by a blank line, then the component function.
-    let injection_point = find_module_scope_injection_point(&out);
-    let mut injection = String::new();
-    for h in &hoists {
-        injection.push_str(h);
-        injection.push_str("\n\n");
+    hoists
+}
+
+/// True when a module-scope statement is a client template-factory declaration —
+/// a `var X = $.from_html(...)` / `$.from_svg(...)` / `$.from_mathml(...)` /
+/// `$.from_tree(...)` / `$.with_script(...)`. The `rest_excludes` hoist is
+/// inserted immediately before the first such statement so it lands right after
+/// the imports / module-script preamble, matching upstream's `state.hoisted`
+/// ordering. A dev-mode `$.add_locations(...)` wrapper is intentionally *not*
+/// matched, so those fall through to the `export default` anchor.
+fn is_client_template_factory(arena: &super::js_ast::JsArena, stmt: &JsStatement) -> bool {
+    fn callee_is_factory(arena: &super::js_ast::JsArena, expr: &JsExpr) -> bool {
+        match expr {
+            JsExpr::Call(call) => match arena.get_expr(call.callee) {
+                JsExpr::Member(m) => {
+                    matches!(arena.get_expr(m.object), JsExpr::Identifier(o) if o == "$")
+                        && matches!(
+                            &m.property,
+                            super::js_ast::nodes::JsMemberProperty::Identifier(p)
+                                if matches!(
+                                    p.as_str(),
+                                    "from_html" | "from_svg" | "from_mathml" | "from_tree" | "with_script"
+                                )
+                        )
+                }
+                _ => false,
+            },
+            _ => false,
+        }
     }
-    out.insert_str(injection_point, &injection);
-    out
+    match stmt {
+        JsStatement::VariableDeclaration(vd) => vd
+            .declarations
+            .first()
+            .and_then(|d| d.init)
+            .is_some_and(|id| callee_is_factory(arena, arena.get_expr(id))),
+        JsStatement::Raw(s) => stmt_text_has_factory(s),
+        JsStatement::RawMapped { code, .. } => stmt_text_has_factory(code),
+        _ => false,
+    }
 }
 
-fn is_ident_char(b: u8) -> bool {
-    b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
-}
-
-/// Find the byte offset at which to inject module-scope hoists. The hoisted
-/// `var rest_excludes = new Set(...)` declarations belong inside the
-/// `state.hoisted` region of the assembled module — after any
-/// custom-element IIFE and module-script preamble, but immediately before the
-/// first `$.from_html` / `$.from_svg` / `$.from_mathml` / `$.from_tree`
-/// template factory declaration so the layout matches upstream's
-/// `state.hoisted.push(...)` ordering.
-///
-/// Search order:
-/// 1. First `var <id> = $.from_html(` / `$.from_svg(` / `$.from_mathml(` /
-///    `$.from_tree(` line at module scope (start of line indentation), insert
-///    before it.
-/// 2. Fall back to start of the line containing the first `export default`.
-/// 3. Final fallback: end of source.
-fn find_module_scope_injection_point(code: &str) -> usize {
-    const FACTORY_NEEDLES: &[&str] = &[
+fn stmt_text_has_factory(s: &str) -> bool {
+    const NEEDLES: &[&str] = &[
         "= $.from_html(",
         "= $.from_svg(",
         "= $.from_mathml(",
         "= $.from_tree(",
-        // `<script>`-bearing templates wrap the factory: `var root =
-        // $.with_script($.from_html(...))`. The inner `= $.from_html(` is preceded
-        // by `(` not `= `, so match the outer `$.with_script(` declaration too —
-        // otherwise the `rest_excludes` hoist lands AFTER this first template
-        // instead of above all of them (upstream emits it right after imports).
         "= $.with_script(",
     ];
-
-    let mut best: Option<usize> = None;
-    for needle in FACTORY_NEEDLES {
-        if let Some(pos) = code.find(needle)
-            && let Some(line_start) = line_start_of(code, pos)
-            && best.is_none_or(|b| line_start < b)
-        {
-            best = Some(line_start);
-        }
-    }
-    if let Some(p) = best {
-        return p;
-    }
-
-    if let Some(pos) = code.find("\nexport default ") {
-        return pos + 1;
-    }
-    if code.starts_with("export default ") {
-        return 0;
-    }
-    code.len()
+    NEEDLES.iter().any(|n| s.contains(n))
 }
 
-fn line_start_of(code: &str, pos: usize) -> Option<usize> {
-    let bytes = code.as_bytes();
-    if pos > bytes.len() {
-        return None;
+/// True when a module-scope statement is the `export default` component. Used as
+/// the fall-through insertion anchor for the `rest_excludes` hoist when no
+/// template factory exists.
+fn is_export_default_stmt(stmt: &JsStatement) -> bool {
+    match stmt {
+        JsStatement::ExportDefault(_) => true,
+        JsStatement::Raw(s) => s.trim_start().starts_with("export default "),
+        _ => false,
     }
-    let mut i = pos;
-    while i > 0 && bytes[i - 1] != b'\n' {
-        i -= 1;
-    }
-    Some(i)
 }
 
 // ============================================================================
