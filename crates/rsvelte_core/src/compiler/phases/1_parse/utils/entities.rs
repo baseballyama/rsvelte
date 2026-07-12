@@ -288,55 +288,6 @@ fn find_longest_named_entity_prefix(name: &str) -> Option<(usize, String)> {
     best
 }
 
-/// Decode legacy entities (without semicolon).
-/// Only a subset of common entities are supported for legacy compatibility.
-fn decode_legacy_entity(name: &str) -> Option<String> {
-    // Legacy entities that browsers accept without semicolon
-    // This list matches the behavior of the `entities` npm package
-    match name {
-        "amp" | "AMP" => Some("&".to_string()),
-        "lt" | "LT" => Some("<".to_string()),
-        "gt" | "GT" => Some(">".to_string()),
-        "quot" | "QUOT" => Some("\"".to_string()),
-        "apos" => Some("'".to_string()),
-        "nbsp" => Some("\u{00A0}".to_string()),
-        "iexcl" => Some("\u{00A1}".to_string()),
-        "cent" => Some("\u{00A2}".to_string()),
-        "pound" => Some("\u{00A3}".to_string()),
-        "curren" => Some("\u{00A4}".to_string()),
-        "yen" => Some("\u{00A5}".to_string()),
-        "brvbar" => Some("\u{00A6}".to_string()),
-        "sect" => Some("\u{00A7}".to_string()),
-        "uml" => Some("\u{00A8}".to_string()),
-        "copy" => Some("\u{00A9}".to_string()),
-        "ordf" => Some("\u{00AA}".to_string()),
-        "laquo" => Some("\u{00AB}".to_string()),
-        "not" => Some("\u{00AC}".to_string()),
-        "shy" => Some("\u{00AD}".to_string()),
-        "reg" => Some("\u{00AE}".to_string()),
-        "macr" => Some("\u{00AF}".to_string()),
-        "deg" => Some("\u{00B0}".to_string()),
-        "plusmn" => Some("\u{00B1}".to_string()),
-        "sup2" => Some("\u{00B2}".to_string()),
-        "sup3" => Some("\u{00B3}".to_string()),
-        "acute" => Some("\u{00B4}".to_string()),
-        "micro" => Some("\u{00B5}".to_string()),
-        "para" => Some("\u{00B6}".to_string()),
-        "middot" => Some("\u{00B7}".to_string()),
-        "cedil" => Some("\u{00B8}".to_string()),
-        "sup1" => Some("\u{00B9}".to_string()),
-        "ordm" => Some("\u{00BA}".to_string()),
-        "raquo" => Some("\u{00BB}".to_string()),
-        "frac14" => Some("\u{00BC}".to_string()),
-        "frac12" => Some("\u{00BD}".to_string()),
-        "frac34" => Some("\u{00BE}".to_string()),
-        "iquest" => Some("\u{00BF}".to_string()),
-        "times" => Some("\u{00D7}".to_string()),
-        "divide" => Some("\u{00F7}".to_string()),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

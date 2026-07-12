@@ -6,11 +6,6 @@
 
 use memchr::{memchr, memmem};
 
-use crate::error::{ParseError, ParseResult};
-use rustc_hash::FxHashMap;
-
-use super::super::parser::Parser;
-
 /// Find the end of a string expression.
 ///
 /// # Arguments
@@ -331,126 +326,6 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
     }
 
     None
-}
-
-/// Match brackets in the parser, handling nested brackets and quoted strings.
-///
-/// # Arguments
-/// * `parser` - The parser instance
-/// * `start` - The starting position (at the opening bracket)
-/// * `brackets` - Optional custom bracket mappings
-///
-/// # Returns
-/// The position after the closing bracket
-///
-/// # Errors
-/// Returns an error if brackets are mismatched or EOF is reached
-#[allow(dead_code)]
-pub fn match_bracket(
-    parser: &Parser,
-    start: usize,
-    brackets: Option<&FxHashMap<char, char>>,
-) -> ParseResult<usize> {
-    let default_brackets: FxHashMap<char, char> = [('{', '}'), ('(', ')'), ('[', ']')]
-        .iter()
-        .cloned()
-        .collect();
-
-    let brackets = brackets.unwrap_or(&default_brackets);
-    let close: Vec<char> = brackets.values().cloned().collect();
-    let mut bracket_stack: Vec<char> = Vec::new();
-
-    let mut i = start;
-    let bytes = parser.source.as_bytes();
-
-    while i < parser.source.len() {
-        let ch = bytes[i] as char;
-        i += 1;
-
-        if ch == '\'' || ch == '"' || ch == '`' {
-            i = match_quote(parser, i, ch)?;
-            continue;
-        }
-
-        if brackets.contains_key(&ch) {
-            bracket_stack.push(ch);
-        } else if close.contains(&ch) {
-            let popped = bracket_stack
-                .pop()
-                .ok_or_else(|| ParseError::UnexpectedToken {
-                    expected: "opening bracket".to_string(),
-                    found: ch.to_string(),
-                    span: (i - 1, i),
-                })?;
-
-            let expected = brackets.get(&popped).ok_or_else(|| ParseError::Generic {
-                message: format!("internal error: unknown bracket '{}'", popped),
-                span: (i - 1, i),
-            })?;
-
-            if ch != *expected {
-                return Err(ParseError::UnexpectedToken {
-                    expected: expected.to_string(),
-                    found: ch.to_string(),
-                    span: (i - 1, i),
-                });
-            }
-
-            if bracket_stack.is_empty() {
-                return Ok(i);
-            }
-        }
-    }
-
-    Err(ParseError::UnexpectedEof {
-        span: (parser.source.len(), parser.source.len()),
-    })
-}
-
-/// Match a quoted string in the parser.
-///
-/// # Arguments
-/// * `parser` - The parser instance
-/// * `start` - The position after the opening quote
-/// * `quote` - The quote character (`'`, `"`, or `` ` ``)
-///
-/// # Returns
-/// The position after the closing quote
-///
-/// # Errors
-/// Returns an error if the string is not terminated
-#[allow(dead_code)]
-fn match_quote(parser: &Parser, start: usize, quote: char) -> ParseResult<usize> {
-    let mut is_escaped = false;
-    let mut i = start;
-    let bytes = parser.source.as_bytes();
-
-    while i < parser.source.len() {
-        let ch = bytes[i] as char;
-        i += 1;
-
-        if is_escaped {
-            is_escaped = false;
-            continue;
-        }
-
-        if ch == quote {
-            return Ok(i);
-        }
-
-        if ch == '\\' {
-            is_escaped = true;
-        }
-
-        if quote == '`' && ch == '$' && i < parser.source.len() && bytes[i] == b'{' {
-            i = match_bracket(parser, i, None)?;
-        }
-    }
-
-    Err(ParseError::Generic {
-        message: "Unterminated string constant".to_string(),
-        span: (start - 1, start),
-    })
 }
 
 #[cfg(test)]

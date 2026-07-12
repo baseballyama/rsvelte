@@ -477,8 +477,6 @@ impl<'a> CssParser<'a> {
         }
         let prelude = self.source[prelude_start..self.index].trim().to_string();
 
-        let _end = self.offset + self.index;
-
         // Check if there's a block
         let block = if self.current_char() == '{' {
             let block_start = self.offset + self.index;
@@ -2303,7 +2301,6 @@ impl<'a> SelectorParser<'a> {
         // Strip trailing whitespace and comments
         let mut end_current = current;
         loop {
-            let _before_len = end_current.len();
             let trimmed = end_current.trim_end();
             end_current = trimmed;
 
