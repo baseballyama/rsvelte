@@ -1114,8 +1114,13 @@ fn is_rule_empty<'a>(rule: &'a Value, ctx: &CssContext<'a>, is_in_global_block: 
                     ctx.parent_preludes.borrow_mut().push(rp);
                 }
 
-                // Check if the nested rule is used
-                let is_used = if let Some(prelude) = child.get("prelude") {
+                // Check if the nested rule is used. A `&`-nested rule inside a
+                // global-selector context is global (its `&` resolves to the
+                // fully-global parent), so it counts as used — mirroring the same
+                // guard in `transform_rule_preserving`.
+                let is_used = if this_is_global_block && rule_selectors_all_nesting(child) {
+                    true
+                } else if let Some(prelude) = child.get("prelude") {
                     check_selector_unused(prelude, ctx) == UnusedStatus::Used
                 } else {
                     true
@@ -1242,6 +1247,59 @@ fn has_nested_rules(block: &Value) -> bool {
     } else {
         false
     }
+}
+
+/// Check if a single complex selector begins with a NestingSelector (`&`) and
+/// contains only global-safe filters on it — i.e. attributes and plain
+/// pseudo-classes/elements, but NO functional pseudo (`:has()` / `:is()` /
+/// `:where()` / `:not()` / `:global()`) whose SELECTOR ARGUMENT must still be
+/// matched against the DOM. So `&[data-placement='inside']` under a global
+/// parent is global (and kept), while `&:has(.unused)` still gets its
+/// `.unused` argument checked (and pruned when it does not match).
+fn complex_selector_starts_with_nesting(complex: &Value) -> bool {
+    let Some(rels) = complex.get("children").and_then(|c| c.as_array()) else {
+        return false;
+    };
+    // Must be a single relative selector (`&…`), no combinators/descendants.
+    let [rel] = rels.as_slice() else {
+        return false;
+    };
+    let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) else {
+        return false;
+    };
+    if selectors
+        .first()
+        .and_then(|s| s.get("type"))
+        .and_then(|t| t.as_str())
+        != Some("NestingSelector")
+    {
+        return false;
+    }
+    // No functional pseudo with a selector argument anywhere in the compound.
+    !selectors.iter().any(|sel| {
+        sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+            && matches!(
+                sel.get("name").and_then(|n| n.as_str()),
+                Some("has") | Some("is") | Some("where") | Some("not") | Some("global")
+            )
+    })
+}
+
+/// Check if EVERY complex selector of a (nested) rule begins with a NestingSelector
+/// (`&`). Such a rule attaches to its parent compound rather than describing a new
+/// scoped subject, so under a fully-global parent it is itself global.
+fn rule_selectors_all_nesting(node: &Value) -> bool {
+    let Some(children) = node
+        .get("prelude")
+        .and_then(|p| p.get("children"))
+        .and_then(|c| c.as_array())
+    else {
+        return false;
+    };
+    if children.is_empty() {
+        return false;
+    }
+    children.iter().all(complex_selector_starts_with_nesting)
 }
 
 /// Check if a rule has local selectors (i.e., selectors that need scoping)
@@ -4150,9 +4208,19 @@ fn transform_rule_preserving<'a>(
         return;
     }
 
-    // Check if the rule is unused (selector doesn't match any template elements)
-    // Skip unused check when inside a bare :global {} block (all selectors are global)
-    if !is_in_bare_global_block && let Some(prelude) = node.get("prelude") {
+    // Check if the rule is unused (selector doesn't match any template elements).
+    // Skip when inside a bare :global {} block (all selectors are global). Also skip
+    // a `&`-nested rule inside a global-selector context (`is_in_global_block`): its
+    // `&` resolves to the fully-global parent (e.g. `:global(:where(.x)) { &[data-y]
+    // { … } }`), so `&[data-y]` is itself global and must not be pruned — mirroring
+    // upstream, which does not prune nested `&` selectors under a `:global(...)`
+    // parent. A *descendant* nested rule (no leading `&`) stays scoped and is still
+    // checked.
+    let skip_as_global_nested = is_in_global_block && rule_selectors_all_nesting(node);
+    if !is_in_bare_global_block
+        && !skip_as_global_nested
+        && let Some(prelude) = node.get("prelude")
+    {
         let unused_status = check_selector_unused(prelude, ctx);
         if unused_status != UnusedStatus::Used {
             if ctx.minify {
@@ -4917,9 +4985,16 @@ fn transform_selector_list(
                 .unwrap_or(0) as usize;
 
             // Check if this individual selector is unused
-            // Skip unused check when inside a bare :global {} block
-            let is_unused =
-                !is_in_bare_global_block && is_complex_selector_unused(complex_selector, ctx);
+            // Skip unused check when inside a bare :global {} block, or when this is a
+            // `&`-nesting selector inside a global-selector context (`&` resolves to
+            // the fully-global parent, so it is itself global — e.g.
+            // `:global(:where(.x)) { &[data-y] { … } }`). See the matching guard in
+            // `transform_rule_preserving`.
+            let global_nested =
+                is_in_global_block && complex_selector_starts_with_nesting(complex_selector);
+            let is_unused = !is_in_bare_global_block
+                && !global_nested
+                && is_complex_selector_unused(complex_selector, ctx);
 
             if !is_unused {
                 all_unused = false;
