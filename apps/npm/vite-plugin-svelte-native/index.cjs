@@ -137,6 +137,8 @@ module.exports.parseEnvelope = binding.parseEnvelope;
 module.exports.decodeParseEnvelope = decodeParseEnvelope;
 // Upstream Svelte version this binding emits code for — used by
 // downstream consumers (the `@rsvelte/vite-plugin-svelte` fork, etc.)
-// for `gte(VERSION, '5.36.0')`-style feature detection. Synced
-// manually against `submodules/svelte/packages/svelte/package.json`.
-module.exports.VERSION = '5.51.3';
+// for `gte(VERSION, '5.36.0')`-style feature detection. Kept in sync
+// with `submodules/svelte/packages/svelte/package.json` by hand; run
+// `node scripts/dev/check-vps-version.mjs` (also wired into CI) to
+// catch drift.
+module.exports.VERSION = '5.56.4';
