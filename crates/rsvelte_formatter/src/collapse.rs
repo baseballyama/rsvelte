@@ -466,20 +466,6 @@ fn reformat_pre_inner(
     // still correct output) whereas under-narrowing leaves space lines too wide,
     // causing incorrect single-line output for lines that overflow at the real column.
     // Use `content_depth * iw` (correct for space lines) as the primary narrowing.
-    // Format the children standalone, but narrowed so a depth-0 layout matches the
-    // breaks at the real `content_depth`.
-    //
-    // Element-direct children of `<pre>` are re-indented with TABS (1 char each)
-    // rather than spaces (`iw` chars each).  The sub-format sees space indentation,
-    // so a line at sub-depth D appears as `D*iw` chars, but in the final output the
-    // tab-indented prefix uses only `D + content_depth` chars (one per tab level).
-    // Using `content_depth * iw` as the narrowing over-narrows for tab lines,
-    // causing hug-overflow on elements that would fit when tab-indented.
-    //
-    // The saving per sub-depth level is `iw - 1` chars (tab = 1 vs space = iw).
-    // We add one level's saving (`iw - 1`) to account for the typical case where
-    // grandchildren at sub-depth 1 (e.g. `<span>` inside `<code>` inside `<pre>`)
-    // are tab-lines in the final output.
     let narrowed = full_width
         .saturating_sub(content_depth)
         .saturating_add(iw - 1)
@@ -1343,8 +1329,7 @@ fn try_fill_run(
                 // normal word-first after the hardlines — don't apply inverted logic.
                 None
             } else {
-                let starts_with_newline = d.starts_with('\n');
-                Some(starts_with_newline)
+                Some(d.starts_with('\n'))
             }
         } else {
             None
@@ -1356,7 +1341,6 @@ fn try_fill_run(
     // edit region by moving s back by 1. This ensures the fill output (which starts
     // with a space from the inverted leading Line) replaces the space rather than
     // doubling it. Only include ONE space (the char immediately before s).
-    let s_before_case_a_adjust = s;
     if matches!(first_text_leading_ws_kind, Some(false)) {
         // Move s back by 1 to include the single leading space in the edit range.
         // This keeps the indent computation correct (the space is already counted
@@ -1365,7 +1349,6 @@ fn try_fill_run(
             s -= 1;
         }
     }
-    let _ = s_before_case_a_adjust; // suppress unused-variable warning
 
     let mut e = node_end(last) as usize;
     if let TemplateNode::Text(t) = last {
@@ -1659,7 +1642,7 @@ fn collect_hug_mixed_non_ws_prefix(
     edits: &mut Vec<(u32, u32, String)>,
 ) {
     for node in &fragment.nodes {
-        let (start, end, children) = match node {
+        let children = match node {
             TemplateNode::RegularElement(e) => {
                 if is_whitespace_preserving(e.name.as_str()) {
                     continue;
@@ -1688,7 +1671,7 @@ fn collect_hug_mixed_non_ws_prefix(
                     edits.push(edit);
                     continue; // edit owns this element, don't recurse
                 }
-                (e.start, e.end, vec![&e.fragment])
+                vec![&e.fragment]
             }
             TemplateNode::Component(c) => {
                 let s = c.start as usize;
@@ -1710,7 +1693,7 @@ fn collect_hug_mixed_non_ws_prefix(
                     edits.push(edit);
                     continue;
                 }
-                (c.start, c.end, vec![&c.fragment])
+                vec![&c.fragment]
             }
             TemplateNode::SlotElement(s) => {
                 let ss = s.start as usize;
@@ -1732,7 +1715,7 @@ fn collect_hug_mixed_non_ws_prefix(
                     edits.push(edit);
                     continue;
                 }
-                (s.start, s.end, vec![&s.fragment])
+                vec![&s.fragment]
             }
             _ => {
                 for child in child_fragments(node) {
@@ -1741,7 +1724,6 @@ fn collect_hug_mixed_non_ws_prefix(
                 continue;
             }
         };
-        let _ = (start, end); // suppress unused warnings
         for child in children {
             collect_hug_mixed_non_ws_prefix(out, child, line_width, options, edits);
         }
@@ -1773,7 +1755,8 @@ fn collect_break_block_non_ws_prefix(
                 let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
                 let indent = out.get(line_start..s).unwrap_or("");
                 let non_ws = !indent.bytes().all(|b| b == b' ' || b == b'\t');
-                if non_ws && indent.ends_with('>') && is_block_display(e.name.as_str()) {
+                let is_simple_gt_prefix = non_ws && indent.trim_start_matches([' ', '\t']) == ">";
+                if is_simple_gt_prefix && is_block_display(e.name.as_str()) {
                     // Extract the whitespace-only portion of the prefix.
                     let ws_indent: &str = {
                         let trim_pos = indent.rfind([' ', '\t']).map_or(0, |i| i + 1);
@@ -5163,8 +5146,6 @@ fn try_fill_mixed(
     (broken != whole).then_some((start, end, broken))
 }
 
-/// Port of prettier-plugin-svelte's `printChildren` for inline (prose) content:
-/// a `Concat` of each text node's `fill(splitTextToDocs)` and each inline
 /// Prepend `leading` (a `Doc::Line` or `Doc::Hardline`) to the outermost
 /// `Doc::Fill` within `doc`. This produces prettier's "inverted" fill
 /// structure `[Line/Hardline, word, Line, word, ...]` for text nodes that

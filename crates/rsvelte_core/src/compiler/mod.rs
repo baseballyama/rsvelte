@@ -862,13 +862,15 @@ pub fn compile_module(
         let (program, parse_error) =
             phases::phase1_parse::read::expression::parse_program_with_error(
                 &arena,
-                source,
-                0, // offset = 0 (source is the entire file)
-                &[],
-                false,        // upstream analyze_module always parses plain JS
-                &[],          // no leading comments
-                0,            // script_tag_start
-                source.len(), // script_tag_end
+                phases::phase1_parse::read::expression::ProgramParseParams {
+                    content: source,
+                    offset: 0, // source is the entire file
+                    line_offsets: &[],
+                    is_typescript: false, // upstream analyze_module always parses plain JS
+                    leading_comments: &[],
+                    script_tag_start: 0,
+                    script_tag_end: source.len(),
+                },
             );
 
         // Mirror upstream acorn's throw-on-error behaviour (js_parse_error).

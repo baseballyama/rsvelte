@@ -10,8 +10,9 @@
 //!
 //! - **Parser backend**: Svelte uses [Acorn](https://github.com/acornjs/acorn) for JavaScript
 //!   parsing, while this implementation uses [OXC](https://oxc.rs/) for better performance.
-//! - **AST conversion**: This module converts OXC's AST to a `serde_json::Value` format
-//!   compatible with Svelte's ESTree-based AST output.
+//! - **AST conversion**: This module converts OXC's AST into this crate's typed,
+//!   arena-allocated `JsNode`/`Expression` representation (ESTree-shaped), not a
+//!   `serde_json::Value`.
 //! - **TypeScript support**: OXC provides native TypeScript support, which is used here
 //!   to parse TypeScript expressions without additional configuration.
 //! - **Line/column tracking**: This implementation computes ESTree-style `loc` fields
@@ -2333,12 +2334,18 @@ pub fn parse_typescript_params(
     // Still failed - try parsing each parameter individually
     {
         let parts = split_top_level_params(content);
+        let mut search_from = 0usize;
         for part in &parts {
             let part = part.trim();
             if part.is_empty() {
                 continue;
             }
             let stripped_part = strip_optional_markers(part);
+            let part_offset_in_content = content[search_from..]
+                .find(part)
+                .map(|p| search_from + p)
+                .unwrap_or(search_from);
+            search_from = part_offset_in_content + part.len();
             let mut single_wrapped = String::with_capacity(stripped_part.content.len() + 9);
             single_wrapped.push('(');
             single_wrapped.push_str(&stripped_part.content);
@@ -2352,7 +2359,6 @@ pub fn parse_typescript_params(
                     && let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression
                     && let Some(param) = arrow.params.items.first()
                 {
-                    let part_offset_in_content = content.find(part).unwrap_or(0);
                     let param_expr = if stripped_part.removed_positions.is_empty() {
                         convert_formal_parameter(arena, param, offset - 1, line_offsets)
                     } else {
@@ -2377,14 +2383,20 @@ pub fn parse_typescript_params(
 
     // Fallback: parse as comma-separated simple identifiers
     if params.is_empty() && !content.trim().is_empty() {
+        let mut search_from = 0usize;
         for part in content.split(',') {
             let part = part.trim();
             if !part.is_empty() {
+                let part_pos = content[search_from..]
+                    .find(part)
+                    .map(|p| search_from + p)
+                    .unwrap_or(search_from);
+                search_from = part_pos + part.len();
                 // Extract just the name (before colon for typed params)
                 let name = part.split(':').next().unwrap_or(part).trim();
                 // Strip optional marker '?' from the end (e.g., "c?" -> "c")
                 let name = name.strip_suffix('?').unwrap_or(name);
-                let part_offset = offset + content.find(part).unwrap_or(0);
+                let part_offset = offset + part_pos;
                 let expr =
                     create_identifier(name, part_offset, part_offset + name.len(), line_offsets);
                 params.push(expr);
@@ -6164,6 +6176,22 @@ fn create_typed_loc_for_script(
     }))
 }
 
+/// Parameters for [`parse_program_with_error`], grouped into a struct to keep
+/// the function signature under clippy's argument-count lint.
+pub struct ProgramParseParams<'a> {
+    pub content: &'a str,
+    pub offset: usize,
+    pub line_offsets: &'a [usize],
+    /// Set to true if the script contains TypeScript.
+    pub is_typescript: bool,
+    /// HTML comments that appeared before the script tag.
+    pub leading_comments: &'a [String],
+    /// Positions for loc calculation (Svelte uses locator(start) for
+    /// loc.start and locator(parser.index) for loc.end).
+    pub script_tag_start: usize,
+    pub script_tag_end: usize,
+}
+
 /// Parse a JavaScript program (script content) and return it as an Expression,
 /// surfacing the first JS parse error as a `js_parse_error` `ParseError`
 /// (mirroring upstream `acorn.parse`, which throws `e.js_parse_error` via
@@ -6171,22 +6199,19 @@ fn create_typed_loc_for_script(
 /// acorn.js). The recovered partial program is still returned so lenient
 /// callers (e.g. the profiling binary) can keep operating on a best-effort
 /// AST.
-///
-/// Set `is_typescript` to true if the script contains TypeScript.
-/// `leading_comments` are HTML comments that appeared before the script tag.
-/// `script_tag_start` and `script_tag_end` are positions for loc calculation
-/// (Svelte uses locator(start) for loc.start and locator(parser.index) for loc.end).
-#[allow(clippy::too_many_arguments)]
 pub fn parse_program_with_error(
     arena: &ParseArena,
-    content: &str,
-    offset: usize,
-    line_offsets: &[usize],
-    is_typescript: bool,
-    leading_comments: &[String],
-    script_tag_start: usize,
-    script_tag_end: usize,
+    params: ProgramParseParams,
 ) -> (Expression, Option<crate::error::ParseError>) {
+    let ProgramParseParams {
+        content,
+        offset,
+        line_offsets,
+        is_typescript,
+        leading_comments,
+        script_tag_start,
+        script_tag_end,
+    } = params;
     with_oxc_allocator(|allocator| {
         let source_type = if is_typescript {
             SourceType::ts()

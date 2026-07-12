@@ -1722,7 +1722,9 @@ fn unary_op(op: &str) -> Option<UnaryOperator> {
 mod tests {
     use super::*;
     use crate::ast::js::Expression as RsExpression;
-    use crate::compiler::phases::phase1_parse::read::expression::parse_program_with_error;
+    use crate::compiler::phases::phase1_parse::read::expression::{
+        ProgramParseParams, parse_program_with_error,
+    };
 
     /// Parse `src` as a JS program with rsvelte's own parser, returning the
     /// `JsNode::Program` and the arena that owns its children.
@@ -1734,8 +1736,18 @@ mod tests {
         // children are resolved via `to_value()` during parsing they need the
         // arena pointer set, mirroring `parse_module_to_estree`.
         let node = crate::ast::arena::with_serialize_arena(&arena, || {
-            let (expr, err) =
-                parse_program_with_error(&arena, src, 0, &line_offsets, false, &[], 0, src.len());
+            let (expr, err) = parse_program_with_error(
+                &arena,
+                ProgramParseParams {
+                    content: src,
+                    offset: 0,
+                    line_offsets: &line_offsets,
+                    is_typescript: false,
+                    leading_comments: &[],
+                    script_tag_start: 0,
+                    script_tag_end: src.len(),
+                },
+            );
             assert!(err.is_none(), "parse error for {src:?}: {err:?}");
             match expr {
                 RsExpression::Typed(te) => te.node,

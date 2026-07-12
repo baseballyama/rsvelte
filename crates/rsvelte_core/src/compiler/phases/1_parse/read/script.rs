@@ -45,13 +45,15 @@ pub fn ensure_script_parsed(
 
     let (program, parse_error) = super::expression::parse_program_with_error(
         arena,
-        &raw,
-        offset,
-        line_offsets,
-        script.is_typescript,
-        &leading_comments,
-        script.start as usize,
-        script.end as usize,
+        super::expression::ProgramParseParams {
+            content: &raw,
+            offset,
+            line_offsets,
+            is_typescript: script.is_typescript,
+            leading_comments: &leading_comments,
+            script_tag_start: script.start as usize,
+            script_tag_end: script.end as usize,
+        },
     );
 
     script.content = program;
@@ -264,13 +266,15 @@ impl Parser<'_> {
             // Eager parsing (default for tests and direct AST comparison)
             let (program, parse_error) = super::super::expression::parse_program_with_error(
                 &self.arena,
-                script_content,
-                content_start,
-                self.expression_line_offsets(),
-                use_typescript,
-                &leading_comments,
-                start,
-                end,
+                super::super::expression::ProgramParseParams {
+                    content: script_content,
+                    offset: content_start,
+                    line_offsets: self.expression_line_offsets(),
+                    is_typescript: use_typescript,
+                    leading_comments: &leading_comments,
+                    script_tag_start: start,
+                    script_tag_end: end,
+                },
             );
             // Upstream acorn throws on the first script parse error, even in
             // loose mode (read/script.js → acorn.js `handle_parse_error`). BUT

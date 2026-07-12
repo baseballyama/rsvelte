@@ -4,6 +4,7 @@
 	import SiteNav from '$lib/components/SiteNav.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
 	import CodeBlock from '$lib/components/CodeBlock.svelte';
+	import Eyebrow from '$lib/components/Eyebrow.svelte';
 
 	interface Props {
 		guide: Guide;
@@ -23,7 +24,9 @@
 		</nav>
 
 		<header class="head">
-			<p class="eyebrow"><span class="rule"></span>{guide.pkg}</p>
+			<Eyebrow gap="0.6rem" fontSize="0.72rem" letterSpacing="0.06em" ruleWidth="20px" uppercase={false}
+				>{guide.pkg}</Eyebrow
+			>
 			<h1 class="title">{guide.title}</h1>
 			<p class="dropin">drop-in for <code>{guide.dropInFor}</code></p>
 			<p class="tagline">{guide.tagline}</p>
@@ -143,24 +146,6 @@
 
 	.crumbs .here {
 		color: var(--ink);
-	}
-
-	.eyebrow {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.6rem;
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.72rem;
-		letter-spacing: 0.06em;
-		color: var(--rust);
-		margin: 0;
-	}
-
-	.eyebrow .rule {
-		display: inline-block;
-		width: 20px;
-		height: 1px;
-		background: var(--rust);
 	}
 
 	.title {

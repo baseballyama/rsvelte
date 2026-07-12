@@ -25,6 +25,7 @@
 	import AstViewer from '$lib/components/AstViewer.svelte';
 	import CodeBlock from '$lib/components/CodeBlock.svelte';
 	import SiteNav from '$lib/components/SiteNav.svelte';
+	import Eyebrow from '$lib/components/Eyebrow.svelte';
 
 	let tool = $state<ToolId>('compiler');
 	let input = $state(DEFAULT_EXAMPLE);
@@ -313,7 +314,9 @@
 
 	<header class="play-head">
 		<div class="play-head-l">
-			<p class="eyebrow"><span class="rule"></span>Live · WASM-compiled</p>
+			<Eyebrow gap="0.6rem" fontSize="0.7rem" letterSpacing="0.1em" ruleWidth="20px"
+				>Live · WASM-compiled</Eyebrow
+			>
 			<h1 class="title">Playground</h1>
 			{#if version}
 				<span class="version">v{version}</span>
@@ -559,7 +562,9 @@
 		<!-- Non-runnable tools: explain why and link the guide + CLI -->
 		<main class="explainer">
 			<div class="explain-card">
-				<p class="eyebrow"><span class="rule"></span>{currentTool.pkg}</p>
+				<Eyebrow gap="0.6rem" fontSize="0.7rem" letterSpacing="0.1em" ruleWidth="20px"
+					>{currentTool.pkg}</Eyebrow
+				>
 				<h2 class="explain-title">{currentTool.label} can't run in a browser</h2>
 				<p class="explain-body">{currentTool.cantRunReason}</p>
 				<div class="explain-actions">
@@ -603,25 +608,6 @@
 		align-items: baseline;
 		gap: 1rem;
 		flex-wrap: wrap;
-	}
-
-	.eyebrow {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.6rem;
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.7rem;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: var(--rust);
-		margin: 0;
-	}
-
-	.eyebrow .rule {
-		display: inline-block;
-		width: 20px;
-		height: 1px;
-		background: var(--rust);
 	}
 
 	.title {

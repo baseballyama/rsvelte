@@ -514,6 +514,22 @@ fn collect_node_edits(
 
 // ─── Splice strategies ──────────────────────────────────────────────────
 
+/// Split `inner` at the boundary just past its leading run of `//` line-comment
+/// lines. Returns `(leading, rest)` where `leading` retains its trailing
+/// newlines (callers trim as needed) and `rest` is everything after the comment
+/// block. When `inner` has no leading `//` comment, `leading` is empty.
+fn split_leading_line_comments(inner: &str) -> (&str, &str) {
+    let mut comment_end = 0;
+    for line in inner.lines() {
+        if line.trim().starts_with("//") {
+            comment_end += line.len() + 1; // +1 for '\n'
+        } else {
+            break;
+        }
+    }
+    inner.split_at(comment_end.min(inner.len()))
+}
+
 /// Replace `{...}` (template-position or attribute-value `ExpressionTag`)
 /// with the formatted expression body wrapped in braces. Collapses any
 /// whitespace inside the braces.
@@ -545,24 +561,15 @@ fn push_expression_tag(
     // the leading comment block, format only the expression-span source, and
     // re-attach the comments.
     if inner.starts_with("//") {
-        // Collect all leading `//`-comment lines.
-        let mut comment_end = 0;
-        for line in inner.lines() {
-            let lt = line.trim();
-            if lt.starts_with("//") {
-                comment_end += line.len() + 1; // +1 for '\n'
-            } else {
-                break;
-            }
-        }
-        let leading_comments = inner[..comment_end.min(inner.len())].trim_end_matches('\n');
+        let (leading, rest) = split_leading_line_comments(inner);
+        let leading_comments = leading.trim_end_matches('\n');
         // Use the AST expression span as the expression source so that
         // trailing comments on the expression node are not included.
         let expr_source =
             if let (Some(es), Some(ee)) = (tag.expression.start(), tag.expression.end()) {
                 source.get(es as usize..ee as usize).unwrap_or("").trim()
             } else {
-                inner[comment_end.min(inner.len())..].trim()
+                rest.trim()
             };
         if expr_source.is_empty() {
             edits.push((tag.start, tag.end, format!("{{{leading_comments}}}")));
@@ -1414,18 +1421,8 @@ pub(crate) fn format_directive_value_extra(
     // comment lines and formats the remaining expression.  Extract the
     // leading comment block, format the rest, and re-attach.
     if inner.starts_with("//") {
-        // Collect all leading `//`-comment lines.
-        let mut comment_end = 0;
-        for line in inner.lines() {
-            let lt = line.trim();
-            if lt.starts_with("//") {
-                comment_end += line.len() + 1; // +1 for '\n'
-            } else {
-                break;
-            }
-        }
-        let leading_comments = &inner[..comment_end.min(inner.len())];
-        let rest = inner[comment_end.min(inner.len())..].trim();
+        let (leading_comments, rest) = split_leading_line_comments(inner);
+        let rest = rest.trim();
         if rest.is_empty() {
             return Ok(Some(leading_comments.trim_end_matches('\n').to_string()));
         }
