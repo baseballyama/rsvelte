@@ -141,4 +141,4 @@ module.exports.decodeParseEnvelope = decodeParseEnvelope;
 // with `submodules/svelte/packages/svelte/package.json` by hand; run
 // `node scripts/dev/check-vps-version.mjs` (also wired into CI) to
 // catch drift.
-module.exports.VERSION = '5.56.3';
+module.exports.VERSION = '5.56.4';
