@@ -112,6 +112,32 @@ pub fn rewrite_once(
     })
 }
 
+/// Run several collectors against a *single* parse of `source`, unioning their
+/// edits before one splice, then drive that to a fixed point. This folds a group
+/// of passes that share a source type and parse options — and whose edits target
+/// disjoint syntax — into one parse per iteration instead of one parse per pass.
+///
+/// `collect` receives the parsed program and the exact text it was parsed from
+/// (so span-derived slices stay valid), and returns the union of every grouped
+/// pass's edits. Splicing uses `innermost_only` + the fixed-point loop so the
+/// rare case of one pass's target nested inside another's — which a single flat
+/// splice cannot represent — still resolves exactly as the equivalent sequential
+/// per-pass application would: the inner edit lands this iteration, the next one
+/// re-parses and re-collects the now-settled outer node.
+pub fn rewrite_batched(
+    arena: &'static LocalKey<RefCell<Allocator>>,
+    source: &str,
+    source_type: SourceType,
+    parse_options: ParseOptions,
+    mut collect: impl FnMut(&Program<'_>, &str) -> Vec<Edit>,
+) -> Option<String> {
+    fixed_point(source, |current| {
+        with_program(arena, current, source_type, parse_options, |program| {
+            splice(current, collect(program, current), true)
+        })
+    })
+}
+
 /// Drive `pass` to a fixed point, capped at [`MAX_FIXED_POINT_ITERS`]. Returns
 /// `Some(rewritten)` if at least one pass changed the source, `None` if the
 /// very first pass was already a no-op. Each call to `pass` re-parses the

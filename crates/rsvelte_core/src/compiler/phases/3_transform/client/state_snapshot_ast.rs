@@ -14,47 +14,24 @@
 //! between wrapping in `$.state(...)` and emitting the raw value.
 //! That plumbing belongs in a follow-up PR.
 
-use std::cell::RefCell;
-
-use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::ParseOptions;
-use oxc_span::{GetSpan, SourceType};
+use oxc_span::GetSpan;
 
-use super::ast_rewrite::{self, Edit};
+use super::ast_rewrite::Edit;
 
-thread_local! {
-    static MODULE_SNAPSHOT_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
-}
-
-/// AST-based rewrite of `$state.snapshot(x)` → `$.snapshot(x)`.
-/// Returns `None` when nothing changed.
-pub fn transform_state_snapshot_ast(source: &str, is_ts: bool) -> Option<String> {
-    // Fast probe — most module scripts don't reference $state.snapshot.
-    memchr::memmem::find(source.as_bytes(), b"$state.snapshot")?;
-
-    ast_rewrite::rewrite_once(
-        &MODULE_SNAPSHOT_ALLOC,
-        source,
-        if is_ts {
-            SourceType::ts().with_module(true)
-        } else {
-            SourceType::mjs()
-        },
-        ParseOptions::default(),
-        false,
-        |program| {
-            let mut collector = SnapshotCollector { spans: Vec::new() };
-            collector.visit_program(program);
-            collector
-                .spans
-                .into_iter()
-                .map(|(start, end)| (start, end, "$.snapshot".to_string()))
-                .collect::<Vec<Edit>>()
-        },
-    )
+/// Collect the `$state.snapshot` → `$.snapshot` callee-swap edits for an
+/// already-parsed program. Shared with the batched module-rune driver so the
+/// snapshot rewrite can ride along on a single parse.
+pub(super) fn collect_snapshot_edits(program: &Program<'_>) -> Vec<Edit> {
+    let mut collector = SnapshotCollector { spans: Vec::new() };
+    collector.visit_program(program);
+    collector
+        .spans
+        .into_iter()
+        .map(|(start, end)| (start, end, "$.snapshot".to_string()))
+        .collect()
 }
 
 struct SnapshotCollector {
@@ -84,7 +61,37 @@ impl<'a> Visit<'a> for SnapshotCollector {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+
+    use oxc_allocator::Allocator;
+    use oxc_parser::ParseOptions;
+    use oxc_span::SourceType;
+
+    use super::super::ast_rewrite;
     use super::*;
+
+    thread_local! {
+        static TEST_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
+    }
+
+    /// Drives `collect_snapshot_edits` in isolation over its own parse — mirrors
+    /// how the batched module-rune driver runs it, but for the snapshot rewrite
+    /// alone so these assertions stay scoped to this pass.
+    fn transform_state_snapshot_ast(source: &str, is_ts: bool) -> Option<String> {
+        memchr::memmem::find(source.as_bytes(), b"$state.snapshot")?;
+        ast_rewrite::rewrite_once(
+            &TEST_ALLOC,
+            source,
+            if is_ts {
+                SourceType::ts().with_module(true)
+            } else {
+                SourceType::mjs()
+            },
+            ParseOptions::default(),
+            false,
+            collect_snapshot_edits,
+        )
+    }
 
     #[test]
     fn rewrites_snapshot_call() {
