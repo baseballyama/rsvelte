@@ -5,7 +5,6 @@
 //!
 //! - Building the output string with proper formatting
 //! - Managing indentation levels
-//! - Tracking source map mappings
 //! - Measuring output length for formatting decisions
 //!
 //! Reference: esrap npm package Context API
@@ -39,9 +38,6 @@ pub struct Context<'a> {
     needs_newline: bool,
     /// Deferred margin flag (like esrap's needs_margin)
     needs_margin: bool,
-    /// Source map mappings (line, column) -> (original_line, original_column)
-    /// TODO: Implement proper source map support
-    mappings: Vec<(usize, usize, usize, usize)>,
 }
 
 impl<'a> Context<'a> {
@@ -60,7 +56,6 @@ impl<'a> Context<'a> {
             source: None,
             needs_newline: false,
             needs_margin: false,
-            mappings: Vec::new(),
         }
     }
 
@@ -75,7 +70,6 @@ impl<'a> Context<'a> {
             source,
             needs_newline: false,
             needs_margin: false,
-            mappings: Vec::new(),
         }
     }
 
@@ -240,24 +234,7 @@ impl<'a> Context<'a> {
             source: self.source,
             needs_newline: false,
             needs_margin: false,
-            mappings: Vec::new(),
         }
-    }
-
-    /// Add a source map location mapping.
-    ///
-    /// This records a mapping from the generated code position to the original source position.
-    /// TODO: Implement proper source map generation.
-    ///
-    /// # Arguments
-    ///
-    /// * `line` - The line number in the original source (1-indexed)
-    /// * `column` - The column number in the original source (0-indexed)
-    pub fn location(&mut self, line: usize, column: usize) {
-        let current_line = self.buffer.lines().count();
-        let current_column = self.buffer.lines().last().map(|l| l.len()).unwrap_or(0);
-        self.mappings
-            .push((current_line, current_column, line, column));
     }
 
     /// Flush any deferred newlines to the buffer.
@@ -287,15 +264,6 @@ impl<'a> Context<'a> {
     /// Returns the complete output buffer as a string slice.
     pub fn as_str(&self) -> &str {
         &self.buffer
-    }
-
-    /// Get the source map as a JSON string.
-    ///
-    /// TODO: Implement proper source map generation using the sourcemap crate.
-    /// For now, returns None.
-    pub fn get_source_map(&self) -> Option<String> {
-        // TODO: Generate proper source map from self.mappings
-        None
     }
 }
 

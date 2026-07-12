@@ -732,43 +732,6 @@ impl EstreeGenerator {
     }
 }
 
-/// Escape a string for use in HTML attributes.
-///
-/// This escapes quotes and special characters for safe attribute values.
-///
-/// # Arguments
-///
-/// * `s` - The string to escape
-///
-/// # Returns
-///
-/// Returns the escaped string.
-#[allow(dead_code)]
-pub fn escape_attribute_value(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-}
-
-/// Escape a string for use in HTML text content.
-///
-/// This escapes HTML special characters.
-///
-/// # Arguments
-///
-/// * `s` - The string to escape
-///
-/// # Returns
-///
-/// Returns the escaped string.
-#[allow(dead_code)]
-pub fn escape_html(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-}
-
 /// Check if expression is a simple identifier matching the given name (for shorthand syntax).
 ///
 /// This is used to determine if directives can use shorthand syntax.
@@ -1317,21 +1280,6 @@ mod tests {
         assert!(is_void_element("INPUT")); // Case insensitive
         assert!(!is_void_element("div"));
         assert!(!is_void_element("span"));
-    }
-
-    #[test]
-    fn test_escape_attribute_value() {
-        assert_eq!(escape_attribute_value("hello"), "hello");
-        assert_eq!(escape_attribute_value("a\"b"), "a&quot;b");
-        assert_eq!(escape_attribute_value("a<b>c"), "a&lt;b&gt;c");
-        assert_eq!(escape_attribute_value("a&b"), "a&amp;b");
-    }
-
-    #[test]
-    fn test_escape_html() {
-        assert_eq!(escape_html("hello"), "hello");
-        assert_eq!(escape_html("a<b>c"), "a&lt;b&gt;c");
-        assert_eq!(escape_html("a&b"), "a&amp;b");
     }
 
     #[test]

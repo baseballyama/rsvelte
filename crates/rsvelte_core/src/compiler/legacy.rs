@@ -950,6 +950,9 @@ fn convert_snippet_block(source: &str, snippet_block: &SnippetBlock) -> Value {
     Value::Object(result)
 }
 
+// Element / InlineComponent / Slot (below) don't carry a `name_loc` in the
+// legacy format, unlike their modern-AST counterparts.
+
 fn convert_regular_element(source: &str, element: &RegularElement) -> Value {
     let path = if element.name.as_str() == "style" {
         vec!["style"]
@@ -962,7 +965,6 @@ fn convert_regular_element(source: &str, element: &RegularElement) -> Value {
     result.insert("start".to_string(), json!(element.start));
     result.insert("end".to_string(), json!(element.end));
     result.insert("name".to_string(), json!(element.name.as_str()));
-    // Legacy format does not include name_loc for elements
     result.insert(
         "attributes".to_string(),
         json!(
@@ -993,7 +995,6 @@ fn convert_component(source: &str, component: &Component) -> Value {
     result.insert("start".to_string(), json!(component.start));
     result.insert("end".to_string(), json!(component.end));
     result.insert("name".to_string(), json!(component.name.as_str()));
-    // Legacy format does not include name_loc for components
     result.insert(
         "attributes".to_string(),
         json!(
@@ -1054,7 +1055,6 @@ fn convert_slot_element(source: &str, slot: &SlotElement) -> Value {
     result.insert("start".to_string(), json!(slot.start));
     result.insert("end".to_string(), json!(slot.end));
     result.insert("name".to_string(), json!(slot.name.as_str()));
-    // Legacy format does not include name_loc for slots
     result.insert(
         "attributes".to_string(),
         json!(
@@ -1685,70 +1685,90 @@ fn convert_let_directive(let_dir: &LetDirective) -> Value {
 
 // Helper functions
 
-fn get_node_start(node: &TemplateNode) -> u32 {
-    match node {
-        TemplateNode::Text(n) => n.start,
-        TemplateNode::Comment(n) => n.start,
-        TemplateNode::ExpressionTag(n) => n.start,
-        TemplateNode::HtmlTag(n) => n.start,
-        TemplateNode::ConstTag(n) => n.start,
-        TemplateNode::DeclarationTag(n) => n.start,
-        TemplateNode::DebugTag(n) => n.start,
-        TemplateNode::RenderTag(n) => n.start,
-        TemplateNode::AttachTag(n) => n.start,
-        TemplateNode::IfBlock(n) => n.start,
-        TemplateNode::EachBlock(n) => n.start,
-        TemplateNode::AwaitBlock(n) => n.start,
-        TemplateNode::KeyBlock(n) => n.start,
-        TemplateNode::SnippetBlock(n) => n.start,
-        TemplateNode::RegularElement(n) => n.start,
-        TemplateNode::Component(n) => n.start,
-        TemplateNode::TitleElement(n) => n.start,
-        TemplateNode::SlotElement(n) => n.start,
-        TemplateNode::SvelteBody(n) => n.start,
-        TemplateNode::SvelteComponent(n) => n.start,
-        TemplateNode::SvelteDocument(n) => n.start,
-        TemplateNode::SvelteElement(n) => n.start,
-        TemplateNode::SvelteFragment(n) => n.start,
-        TemplateNode::SvelteBoundary(n) => n.start,
-        TemplateNode::SvelteHead(n) => n.start,
-        TemplateNode::SvelteOptions(n) => n.start,
-        TemplateNode::SvelteSelf(n) => n.start,
-        TemplateNode::SvelteWindow(n) => n.start,
+/// Common start/end span accessors for `TemplateNode` variants. Replaces a
+/// pair of 28-arm matches (one per accessor) with a single merged-arm
+/// implementation — every variant's inner node carries plain `start`/`end`
+/// fields, and the 8 `Svelte*` variants sharing the `SvelteElement` inner
+/// type merge into one arm each.
+trait Spanned {
+    fn start(&self) -> u32;
+    fn end(&self) -> u32;
+}
+
+impl Spanned for TemplateNode {
+    fn start(&self) -> u32 {
+        match self {
+            TemplateNode::Text(n) => n.start,
+            TemplateNode::Comment(n) => n.start,
+            TemplateNode::ExpressionTag(n) => n.start,
+            TemplateNode::HtmlTag(n) => n.start,
+            TemplateNode::ConstTag(n) => n.start,
+            TemplateNode::DeclarationTag(n) => n.start,
+            TemplateNode::DebugTag(n) => n.start,
+            TemplateNode::RenderTag(n) => n.start,
+            TemplateNode::AttachTag(n) => n.start,
+            TemplateNode::IfBlock(n) => n.start,
+            TemplateNode::EachBlock(n) => n.start,
+            TemplateNode::AwaitBlock(n) => n.start,
+            TemplateNode::KeyBlock(n) => n.start,
+            TemplateNode::SnippetBlock(n) => n.start,
+            TemplateNode::RegularElement(n) => n.start,
+            TemplateNode::Component(n) => n.start,
+            TemplateNode::TitleElement(n) => n.start,
+            TemplateNode::SlotElement(n) => n.start,
+            TemplateNode::SvelteComponent(n) => n.start,
+            TemplateNode::SvelteElement(n) => n.start,
+            TemplateNode::SvelteBody(n)
+            | TemplateNode::SvelteDocument(n)
+            | TemplateNode::SvelteFragment(n)
+            | TemplateNode::SvelteBoundary(n)
+            | TemplateNode::SvelteHead(n)
+            | TemplateNode::SvelteOptions(n)
+            | TemplateNode::SvelteSelf(n)
+            | TemplateNode::SvelteWindow(n) => n.start,
+        }
+    }
+
+    fn end(&self) -> u32 {
+        match self {
+            TemplateNode::Text(n) => n.end,
+            TemplateNode::Comment(n) => n.end,
+            TemplateNode::ExpressionTag(n) => n.end,
+            TemplateNode::HtmlTag(n) => n.end,
+            TemplateNode::ConstTag(n) => n.end,
+            TemplateNode::DeclarationTag(n) => n.end,
+            TemplateNode::DebugTag(n) => n.end,
+            TemplateNode::RenderTag(n) => n.end,
+            TemplateNode::AttachTag(n) => n.end,
+            TemplateNode::IfBlock(n) => n.end,
+            TemplateNode::EachBlock(n) => n.end,
+            TemplateNode::AwaitBlock(n) => n.end,
+            TemplateNode::KeyBlock(n) => n.end,
+            TemplateNode::SnippetBlock(n) => n.end,
+            TemplateNode::RegularElement(n) => n.end,
+            TemplateNode::Component(n) => n.end,
+            TemplateNode::TitleElement(n) => n.end,
+            TemplateNode::SlotElement(n) => n.end,
+            TemplateNode::SvelteComponent(n) => n.end,
+            TemplateNode::SvelteElement(n) => n.end,
+            TemplateNode::SvelteBody(n)
+            | TemplateNode::SvelteDocument(n)
+            | TemplateNode::SvelteFragment(n)
+            | TemplateNode::SvelteBoundary(n)
+            | TemplateNode::SvelteHead(n)
+            | TemplateNode::SvelteOptions(n)
+            | TemplateNode::SvelteSelf(n)
+            | TemplateNode::SvelteWindow(n) => n.end,
+        }
     }
 }
 
+fn get_node_start(node: &TemplateNode) -> u32 {
+    node.start()
+}
+
 fn get_node_end(node: &TemplateNode) -> u32 {
-    match node {
-        TemplateNode::Text(n) => n.end,
-        TemplateNode::Comment(n) => n.end,
-        TemplateNode::ExpressionTag(n) => n.end,
-        TemplateNode::HtmlTag(n) => n.end,
-        TemplateNode::ConstTag(n) => n.end,
-        TemplateNode::DeclarationTag(n) => n.end,
-        TemplateNode::DebugTag(n) => n.end,
-        TemplateNode::RenderTag(n) => n.end,
-        TemplateNode::AttachTag(n) => n.end,
-        TemplateNode::IfBlock(n) => n.end,
-        TemplateNode::EachBlock(n) => n.end,
-        TemplateNode::AwaitBlock(n) => n.end,
-        TemplateNode::KeyBlock(n) => n.end,
-        TemplateNode::SnippetBlock(n) => n.end,
-        TemplateNode::RegularElement(n) => n.end,
-        TemplateNode::Component(n) => n.end,
-        TemplateNode::TitleElement(n) => n.end,
-        TemplateNode::SlotElement(n) => n.end,
-        TemplateNode::SvelteBody(n) => n.end,
-        TemplateNode::SvelteComponent(n) => n.end,
-        TemplateNode::SvelteDocument(n) => n.end,
-        TemplateNode::SvelteElement(n) => n.end,
-        TemplateNode::SvelteFragment(n) => n.end,
-        TemplateNode::SvelteBoundary(n) => n.end,
-        TemplateNode::SvelteHead(n) => n.end,
-        TemplateNode::SvelteOptions(n) => n.end,
-        TemplateNode::SvelteSelf(n) => n.end,
-        TemplateNode::SvelteWindow(n) => n.end,
-    }
+    node.end()
 }
 
 fn find_last_brace_before(source: &str, pos: usize) -> usize {

@@ -115,16 +115,18 @@ impl SynthComment {
     }
 }
 
+/// A callback that returns the synthetic comments to attach to a statement
+/// (esrap's `getLeadingComments` / `getTrailingComments` options).
+pub type CommentCallback<'h> = Box<dyn Fn(&oxc_ast::ast::Statement) -> Vec<SynthComment> + 'h>;
+
 /// Caller hooks that inject synthetic comments around statements, mirroring
 /// esrap's `getLeadingComments` / `getTrailingComments` options. Each callback
 /// receives the statement node and returns the comments to emit (leading
 /// comments precede the node; trailing comments follow it on the same line).
 #[derive(Default)]
 pub struct CommentHooks<'h> {
-    #[allow(clippy::type_complexity)]
-    pub get_leading: Option<Box<dyn Fn(&oxc_ast::ast::Statement) -> Vec<SynthComment> + 'h>>,
-    #[allow(clippy::type_complexity)]
-    pub get_trailing: Option<Box<dyn Fn(&oxc_ast::ast::Statement) -> Vec<SynthComment> + 'h>>,
+    pub get_leading: Option<CommentCallback<'h>>,
+    pub get_trailing: Option<CommentCallback<'h>>,
 }
 
 /// Like [`print_with`], but invokes `hooks` to inject synthetic leading/trailing

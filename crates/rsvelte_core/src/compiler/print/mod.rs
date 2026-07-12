@@ -83,7 +83,8 @@ pub fn print_with_source(
 
         Ok(PrintResult {
             code: context.to_string(),
-            map: context.get_source_map(),
+            // Source map generation for this API isn't implemented yet.
+            map: None,
         })
     })
 }

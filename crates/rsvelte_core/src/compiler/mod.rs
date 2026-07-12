@@ -1543,9 +1543,6 @@ mod tests {
         let result = compile(source, options).unwrap();
         let code = &result.js.code;
 
-        // Print for debugging
-        println!("Generated else-if code:\n{}", code);
-
         // Following official Svelte compiler, else-if is rendered as nested if inside else block
         // Structure:
         // if (value === 1) { <!--[0--> ... } else { <!--[-1--> if (value === 2) { <!--[0--> ... } else { <!--[-1--> ... } <!--]--> } <!--]-->
@@ -1584,9 +1581,6 @@ mod tests {
         };
         let result = compile(source, options).unwrap();
         let code = &result.js.code;
-
-        // Print for debugging
-        println!("Generated code:\n{}", code);
 
         // Verify structure
         assert!(code.contains("if (visible)"), "Should have if statement");
@@ -1628,9 +1622,6 @@ mod tests {
         };
         let result = compile(source, options).unwrap();
         let code = &result.js.code;
-
-        // Print for debugging
-        println!("Generated code with derived:\n{}", code);
 
         // Should contain the expressions before if block
         assert!(
@@ -1675,9 +1666,6 @@ let promise = Promise.resolve(42);
         };
         let result = compile(source, options).unwrap();
         let code = &result.js.code;
-
-        // Print for debugging
-        println!("Generated await code:\n{}", code);
 
         // Should contain $.await call
         assert!(code.contains("$.await("), "Should have $.await call");
@@ -1727,9 +1715,6 @@ export const message = "Hello";
         let result = compile(source, options).unwrap();
         let code = &result.js.code;
 
-        // Print for debugging
-        println!("Generated bind_props code:\n{}", code);
-
         // Should contain $.bind_props() call with message
         assert!(
             code.contains("$.bind_props("),
@@ -1764,9 +1749,6 @@ export function greet(name) {
         };
         let result = compile(source, options).unwrap();
         let code = &result.js.code;
-
-        // Print for debugging
-        println!("Generated bind_props with function export code:\n{}", code);
 
         // Should contain $.bind_props() call
         assert!(
