@@ -63,6 +63,36 @@ pub struct Printer<'opt> {
     hooks: Option<&'opt crate::CommentHooks<'opt>>,
 }
 
+/// esrap's `write_comment`: re-emit a comment, splitting a multi-line block
+/// body across `newline`s so its interior re-indents to the current level. A
+/// free function so the comment-flush loops can hold a `&Cmt` borrowed straight
+/// out of `self.comments` without cloning it.
+fn write_comment(cmt: &Cmt, ctx: &mut Context) {
+    write_comment_parts(cmt.block, &cmt.value, ctx);
+}
+
+/// The body of [`write_comment`], shared with synthetic comments injected via
+/// [`crate::CommentHooks`].
+fn write_comment_parts(block: bool, value: &str, ctx: &mut Context) {
+    if !block {
+        ctx.write(format!("//{value}"));
+        return;
+    }
+    ctx.write("/*");
+    let mut multiline = false;
+    for (i, line) in value.split('\n').enumerate() {
+        if i > 0 {
+            ctx.newline();
+            multiline = true;
+        }
+        ctx.write(line.to_string());
+    }
+    ctx.write("*/");
+    if multiline {
+        ctx.newline();
+    }
+}
+
 /// Byte offsets at which each source line begins (line 1 starts at 0).
 pub fn line_starts(source: &str) -> Vec<u32> {
     let mut starts = vec![0];
@@ -411,7 +441,7 @@ impl<'opt> Printer<'opt> {
     /// source-map anchors for its exact span, so breakpoints land on the keyword.
     fn write_source_keyword(ctx: &mut Context, line: u32, column: u32, keyword: &str) {
         ctx.location(line, column);
-        ctx.write(keyword);
+        ctx.write(keyword.to_string());
         ctx.location(line, column + keyword.len() as u32);
     }
 
@@ -493,34 +523,6 @@ impl<'opt> Printer<'opt> {
 
     // ----- comments ---------------------------------------------------------
 
-    /// esrap's `write_comment`: re-emit a comment, splitting a multi-line block
-    /// body across `newline`s so its interior re-indents to the current level.
-    fn write_comment(&mut self, cmt: &Cmt, ctx: &mut Context) {
-        self.write_comment_parts(cmt.block, &cmt.value, ctx);
-    }
-
-    /// The body of [`Self::write_comment`], shared with synthetic comments
-    /// injected via [`crate::CommentHooks`].
-    fn write_comment_parts(&mut self, block: bool, value: &str, ctx: &mut Context) {
-        if !block {
-            ctx.write(format!("//{value}"));
-            return;
-        }
-        ctx.write("/*");
-        let mut multiline = false;
-        for (i, line) in value.split('\n').enumerate() {
-            if i > 0 {
-                ctx.newline();
-                multiline = true;
-            }
-            ctx.write(line.to_string());
-        }
-        ctx.write("*/");
-        if multiline {
-            ctx.newline();
-        }
-    }
-
     /// esrap's `write_additional_comments`: emit hook-supplied synthetic comments
     /// around a node. Leading comments get a newline (line) or trailing space
     /// (single-line block) after them; trailing comments get a leading space
@@ -535,7 +537,7 @@ impl<'opt> Printer<'opt> {
             if !leading && i == 0 {
                 ctx.write(" ");
             }
-            self.write_comment_parts(c.block, &c.value, ctx);
+            write_comment_parts(c.block, &c.value, ctx);
             if leading {
                 if !c.block {
                     ctx.newline();
@@ -559,7 +561,7 @@ impl<'opt> Printer<'opt> {
     ) {
         let mut first = true;
         while self.comment_index < self.comments.len() {
-            let cmt = self.comments[self.comment_index].clone();
+            let cmt = &self.comments[self.comment_index];
             if cmt.start >= to {
                 break;
             }
@@ -571,7 +573,7 @@ impl<'opt> Printer<'opt> {
                 ctx.newline();
             }
             first = false;
-            self.write_comment(&cmt, ctx);
+            write_comment(cmt, ctx);
             if cmt.end_line < to_line {
                 ctx.newline();
             } else if pad {
@@ -595,15 +597,16 @@ impl<'opt> Printer<'opt> {
     ) -> bool {
         let mut emitted_line_newline = false;
         while self.comment_index < self.comments.len() {
-            let cmt = self.comments[self.comment_index].clone();
+            let cmt = &self.comments[self.comment_index];
             let fits = cmt.start_line == prev_end_line && next.is_none_or(|n| cmt.end < n);
             if !fits {
                 break;
             }
             ctx.write(" ");
-            self.write_comment(&cmt, ctx);
+            write_comment(cmt, ctx);
+            let is_block = cmt.block;
             self.comment_index += 1;
-            if cmt.block {
+            if is_block {
                 continue;
             }
             ctx.newline();
@@ -626,11 +629,9 @@ impl<'opt> Printer<'opt> {
         if synced {
             return;
         }
-        self.comment_index = self
-            .comments
-            .iter()
-            .position(|c| c.start >= node_start)
-            .unwrap_or(self.comments.len());
+        // `comments` is in source order (ascending `start`), so binary-search the
+        // first comment at/after `node_start` instead of a linear scan.
+        self.comment_index = self.comments.partition_point(|c| c.start < node_start);
     }
 
     /// The `_` wildcard's leading flush: emit comments positioned before `node`.
@@ -684,7 +685,7 @@ impl<'opt> Printer<'opt> {
             // esrap writes the separator for every non-final element, and also
             // for a trailing elision (`[a, ,]`): `i < n-1 || !child`.
             if i < n - 1 || node.is_elision {
-                child.write(separator);
+                child.write(separator.to_string());
             }
 
             // `next` boundary for this node's trailing comments: the next node's
@@ -952,7 +953,7 @@ impl<'opt> Printer<'opt> {
                 }
                 if let Some(exported) = &s.exported {
                     ctx.write(" as ");
-                    ctx.write(module_export_name_str(exported));
+                    ctx.write(module_export_name_str(exported).to_string());
                 }
                 ctx.write(" from ");
                 ctx.write(self.string_literal(&s.source));
@@ -962,7 +963,7 @@ impl<'opt> Printer<'opt> {
             Statement::ExportNamedDeclaration(d) => self.export_named_declaration(d, ctx),
             Statement::ExportDefaultDeclaration(d) => self.export_default_declaration(d, ctx),
             Statement::LabeledStatement(s) => {
-                ctx.write(s.label.name.as_str());
+                ctx.write(s.label.name.as_str().to_string());
                 ctx.write(": ");
                 self.print_statement(&s.body, ctx);
             }
@@ -1017,7 +1018,7 @@ impl<'opt> Printer<'opt> {
             }
             Statement::TSNamespaceExportDeclaration(d) => {
                 ctx.write("export as namespace ");
-                ctx.write(d.id.name.as_str());
+                ctx.write(d.id.name.as_str().to_string());
                 ctx.write(";");
             }
         }
@@ -1049,7 +1050,7 @@ impl<'opt> Printer<'opt> {
             ctx.write("type ");
         }
         if let Some(d) = default_spec {
-            ctx.write(d.local.name.as_str());
+            ctx.write(d.local.name.as_str().to_string());
             if namespace_spec.is_some() || !named.is_empty() {
                 ctx.write(", ");
             }
@@ -1092,7 +1093,7 @@ impl<'opt> Printer<'opt> {
         ctx.write(" with { ");
         for (i, attr) in clause.with_entries.iter().enumerate() {
             match &attr.key {
-                ImportAttributeKey::Identifier(id) => ctx.write(id.name.as_str()),
+                ImportAttributeKey::Identifier(id) => ctx.write(id.name.as_str().to_string()),
                 ImportAttributeKey::StringLiteral(s) => ctx.write(self.string_literal(s)),
             }
             ctx.write(": ");
@@ -1118,10 +1119,10 @@ impl<'opt> Printer<'opt> {
         if let Some(name) = imported
             && name != node.local.name.as_str()
         {
-            ctx.write(name);
+            ctx.write(name.to_string());
             ctx.write(" as ");
         }
-        ctx.write(node.local.name.as_str());
+        ctx.write(node.local.name.as_str().to_string());
     }
 
     fn export_named_declaration(&mut self, node: &ExportNamedDeclaration, ctx: &mut Context) {
@@ -1235,10 +1236,10 @@ impl<'opt> Printer<'opt> {
         }
         let local = module_export_name_str(&node.local);
         let exported = module_export_name_str(&node.exported);
-        ctx.write(local);
+        ctx.write(local.to_string());
         if local != exported {
             ctx.write(" as ");
-            ctx.write(exported);
+            ctx.write(exported.to_string());
         }
     }
 
@@ -1299,7 +1300,7 @@ impl<'opt> Printer<'opt> {
             }
         }
         if let Some(id) = &node.id {
-            ctx.write(id.name.as_str());
+            ctx.write(id.name.as_str().to_string());
         }
         if let Some(tp) = &node.type_parameters {
             self.type_parameter_declaration(tp, ctx);
@@ -1345,7 +1346,7 @@ impl<'opt> Printer<'opt> {
         }
         kw.write(ctx, "class ");
         if let Some(id) = &node.id {
-            ctx.write(id.name.as_str());
+            ctx.write(id.name.as_str().to_string());
             if let Some(tp) = &node.type_parameters {
                 self.type_parameter_declaration(tp, ctx);
             }
@@ -2064,7 +2065,7 @@ impl<'opt> Printer<'opt> {
 
     fn binding_pattern(&mut self, pattern: &BindingPattern, ctx: &mut Context) {
         match pattern {
-            BindingPattern::BindingIdentifier(id) => ctx.write(id.name.as_str()),
+            BindingPattern::BindingIdentifier(id) => ctx.write(id.name.as_str().to_string()),
             BindingPattern::AssignmentPattern(a) => {
                 self.binding_pattern(&a.left, ctx);
                 ctx.write(" = ");
@@ -2124,7 +2125,7 @@ impl<'opt> Printer<'opt> {
                 }
                 _ => self.unsupported("ChainElement", ctx),
             },
-            Expression::Identifier(id) => ctx.write(id.name.as_str()),
+            Expression::Identifier(id) => ctx.write(id.name.as_str().to_string()),
             Expression::ThisExpression(_) => ctx.write("this"),
             Expression::BooleanLiteral(b) => ctx.write(if b.value { "true" } else { "false" }),
             Expression::NullLiteral(_) => ctx.write("null"),
@@ -2157,9 +2158,9 @@ impl<'opt> Printer<'opt> {
                 ctx.write(format!("#{}", m.field.name));
             }
             Expression::MetaProperty(m) => {
-                ctx.write(m.meta.name.as_str());
+                ctx.write(m.meta.name.as_str().to_string());
                 ctx.write(".");
-                ctx.write(m.property.name.as_str());
+                ctx.write(m.property.name.as_str().to_string());
             }
             Expression::AwaitExpression(a) => {
                 // esrap's `AwaitExpression`: map `await` to its source span, then
@@ -2184,7 +2185,7 @@ impl<'opt> Printer<'opt> {
                 }
             }
             Expression::RegExpLiteral(r) => match &r.raw {
-                Some(raw) => ctx.write(raw.as_str()),
+                Some(raw) => ctx.write(raw.as_str().to_string()),
                 None => ctx.write(format!("/{}/{}", r.regex.pattern.text, r.regex.flags)),
             },
             Expression::TaggedTemplateExpression(t) => {
@@ -2332,7 +2333,7 @@ impl<'opt> Printer<'opt> {
 
     fn jsx_child(&mut self, child: &JSXChild, ctx: &mut Context) {
         match child {
-            JSXChild::Text(t) => ctx.write(t.value.as_str()),
+            JSXChild::Text(t) => ctx.write(t.value.as_str().to_string()),
             JSXChild::Element(e) => self.jsx_element(e, ctx),
             JSXChild::Fragment(f) => self.jsx_fragment(f, ctx),
             JSXChild::ExpressionContainer(c) => self.jsx_expression_container(c, ctx),
@@ -2364,23 +2365,23 @@ impl<'opt> Printer<'opt> {
 
     fn jsx_attribute_name(&mut self, name: &JSXAttributeName, ctx: &mut Context) {
         match name {
-            JSXAttributeName::Identifier(id) => ctx.write(id.name.as_str()),
+            JSXAttributeName::Identifier(id) => ctx.write(id.name.as_str().to_string()),
             JSXAttributeName::NamespacedName(n) => {
-                ctx.write(n.namespace.name.as_str());
+                ctx.write(n.namespace.name.as_str().to_string());
                 ctx.write(":");
-                ctx.write(n.name.name.as_str());
+                ctx.write(n.name.name.as_str().to_string());
             }
         }
     }
 
     fn jsx_element_name(&mut self, name: &JSXElementName, ctx: &mut Context) {
         match name {
-            JSXElementName::Identifier(id) => ctx.write(id.name.as_str()),
-            JSXElementName::IdentifierReference(id) => ctx.write(id.name.as_str()),
+            JSXElementName::Identifier(id) => ctx.write(id.name.as_str().to_string()),
+            JSXElementName::IdentifierReference(id) => ctx.write(id.name.as_str().to_string()),
             JSXElementName::NamespacedName(n) => {
-                ctx.write(n.namespace.name.as_str());
+                ctx.write(n.namespace.name.as_str().to_string());
                 ctx.write(":");
-                ctx.write(n.name.name.as_str());
+                ctx.write(n.name.name.as_str().to_string());
             }
             JSXElementName::MemberExpression(m) => self.jsx_member_expression(m, ctx),
             JSXElementName::ThisExpression(_) => ctx.write("this"),
@@ -2389,12 +2390,14 @@ impl<'opt> Printer<'opt> {
 
     fn jsx_member_expression(&mut self, node: &JSXMemberExpression, ctx: &mut Context) {
         match &node.object {
-            JSXMemberExpressionObject::IdentifierReference(id) => ctx.write(id.name.as_str()),
+            JSXMemberExpressionObject::IdentifierReference(id) => {
+                ctx.write(id.name.as_str().to_string())
+            }
             JSXMemberExpressionObject::MemberExpression(m) => self.jsx_member_expression(m, ctx),
             JSXMemberExpressionObject::ThisExpression(_) => ctx.write("this"),
         }
         ctx.write(".");
-        ctx.write(node.property.name.as_str());
+        ctx.write(node.property.name.as_str().to_string());
     }
 
     /// Print the object of a member expression, parenthesised per esrap's
@@ -2497,7 +2500,7 @@ impl<'opt> Printer<'opt> {
     fn static_member(&mut self, node: &StaticMemberExpression, ctx: &mut Context) {
         self.member_object_with_parens(&node.object, ctx);
         ctx.write(if node.optional { "?." } else { "." });
-        ctx.write(node.property.name.as_str());
+        ctx.write(node.property.name.as_str().to_string());
     }
 
     fn computed_member(&mut self, node: &ComputedMemberExpression, ctx: &mut Context) {
@@ -2521,7 +2524,9 @@ impl<'opt> Printer<'opt> {
     /// `AssignmentTarget`).
     fn simple_assignment_target(&mut self, target: &SimpleAssignmentTarget, ctx: &mut Context) {
         match target {
-            SimpleAssignmentTarget::AssignmentTargetIdentifier(id) => ctx.write(id.name.as_str()),
+            SimpleAssignmentTarget::AssignmentTargetIdentifier(id) => {
+                ctx.write(id.name.as_str().to_string())
+            }
             SimpleAssignmentTarget::StaticMemberExpression(m) => self.static_member(m, ctx),
             SimpleAssignmentTarget::ComputedMemberExpression(m) => self.computed_member(m, ctx),
             SimpleAssignmentTarget::PrivateFieldExpression(m) => {
@@ -2535,7 +2540,9 @@ impl<'opt> Printer<'opt> {
 
     fn assignment_target(&mut self, target: &AssignmentTarget, ctx: &mut Context) {
         match target {
-            AssignmentTarget::AssignmentTargetIdentifier(id) => ctx.write(id.name.as_str()),
+            AssignmentTarget::AssignmentTargetIdentifier(id) => {
+                ctx.write(id.name.as_str().to_string())
+            }
             AssignmentTarget::StaticMemberExpression(m) => self.static_member(m, ctx),
             AssignmentTarget::ComputedMemberExpression(m) => self.computed_member(m, ctx),
             AssignmentTarget::PrivateFieldExpression(m) => {
@@ -2638,7 +2645,7 @@ impl<'opt> Printer<'opt> {
     fn assignment_target_property(&mut self, prop: &AssignmentTargetProperty, ctx: &mut Context) {
         match prop {
             AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(p) => {
-                ctx.write(p.binding.name.as_str());
+                ctx.write(p.binding.name.as_str().to_string());
                 if let Some(init) = &p.init {
                     ctx.write(" = ");
                     self.print_expression(init, ctx);
@@ -2794,7 +2801,7 @@ impl<'opt> Printer<'opt> {
                 (&prop.key, &prop.value)
             && key.name == val.name
         {
-            ctx.write(val.name.as_str());
+            ctx.write(val.name.as_str().to_string());
             return;
         }
         // Method / accessor shorthand: `key() {}`, `get key() {}`, `*key() {}`.
@@ -2846,7 +2853,7 @@ impl<'opt> Printer<'opt> {
 
     fn property_key(&mut self, key: &PropertyKey, ctx: &mut Context) {
         match key {
-            PropertyKey::StaticIdentifier(id) => ctx.write(id.name.as_str()),
+            PropertyKey::StaticIdentifier(id) => ctx.write(id.name.as_str().to_string()),
             PropertyKey::PrivateIdentifier(id) => ctx.write(format!("#{}", id.name)),
             PropertyKey::StringLiteral(s) => ctx.write(self.string_literal(s)),
             PropertyKey::NumericLiteral(n) => ctx
@@ -2995,7 +3002,7 @@ impl<'opt> Printer<'opt> {
     }
 
     fn type_parameter(&mut self, node: &TSTypeParameter, ctx: &mut Context) {
-        ctx.write(node.name.name.as_str());
+        ctx.write(node.name.name.as_str().to_string());
         if let Some(constraint) = &node.constraint {
             ctx.write(" extends ");
             self.print_type(constraint, ctx);
@@ -3009,11 +3016,11 @@ impl<'opt> Printer<'opt> {
     /// esrap's `TSTypeName` (`IdentifierReference` / `TSQualifiedName`).
     fn print_type_name(&mut self, name: &TSTypeName, ctx: &mut Context) {
         match name {
-            TSTypeName::IdentifierReference(id) => ctx.write(id.name.as_str()),
+            TSTypeName::IdentifierReference(id) => ctx.write(id.name.as_str().to_string()),
             TSTypeName::QualifiedName(q) => {
                 self.print_type_name(&q.left, ctx);
                 ctx.write(".");
-                ctx.write(q.right.name.as_str());
+                ctx.write(q.right.name.as_str().to_string());
             }
             TSTypeName::ThisExpression(_) => ctx.write("this"),
         }
@@ -3089,11 +3096,13 @@ impl<'opt> Printer<'opt> {
                 ctx.write("typeof ");
                 match &t.expr_name {
                     TSTypeQueryExprName::TSImportType(it) => self.import_type(it, ctx),
-                    TSTypeQueryExprName::IdentifierReference(id) => ctx.write(id.name.as_str()),
+                    TSTypeQueryExprName::IdentifierReference(id) => {
+                        ctx.write(id.name.as_str().to_string())
+                    }
                     TSTypeQueryExprName::QualifiedName(q) => {
                         self.print_type_name(&q.left, ctx);
                         ctx.write(".");
-                        ctx.write(q.right.name.as_str());
+                        ctx.write(q.right.name.as_str().to_string());
                     }
                     TSTypeQueryExprName::ThisExpression(_) => ctx.write("this"),
                 }
@@ -3106,7 +3115,7 @@ impl<'opt> Printer<'opt> {
                     ctx.write("asserts ");
                 }
                 match &t.parameter_name {
-                    TSTypePredicateName::Identifier(id) => ctx.write(id.name.as_str()),
+                    TSTypePredicateName::Identifier(id) => ctx.write(id.name.as_str().to_string()),
                     TSTypePredicateName::This(_) => ctx.write("this"),
                 }
                 if let Some(ann) = &t.type_annotation {
@@ -3178,18 +3187,18 @@ impl<'opt> Printer<'opt> {
 
     fn import_type_qualifier(&mut self, q: &TSImportTypeQualifier, ctx: &mut Context) {
         match q {
-            TSImportTypeQualifier::Identifier(id) => ctx.write(id.name.as_str()),
+            TSImportTypeQualifier::Identifier(id) => ctx.write(id.name.as_str().to_string()),
             TSImportTypeQualifier::QualifiedName(qn) => {
                 self.import_type_qualifier(&qn.left, ctx);
                 ctx.write(".");
-                ctx.write(qn.right.name.as_str());
+                ctx.write(qn.right.name.as_str().to_string());
             }
         }
     }
 
     /// esrap's `TSNamedTupleMember`: `label[?]: type`.
     fn named_tuple_member(&mut self, node: &TSNamedTupleMember, ctx: &mut Context) {
-        ctx.write(node.label.name.as_str());
+        ctx.write(node.label.name.as_str().to_string());
         if node.optional {
             ctx.write("?");
         }
@@ -3222,7 +3231,7 @@ impl<'opt> Printer<'opt> {
             ctx.write(mapped_modifier_prefix(readonly, "readonly"));
         }
         ctx.write("[");
-        ctx.write(node.key.name.as_str());
+        ctx.write(node.key.name.as_str().to_string());
         ctx.write(" in ");
         self.print_type(&node.constraint, ctx);
         if let Some(name_type) = &node.name_type {
@@ -3349,7 +3358,7 @@ impl<'opt> Printer<'opt> {
                     if i > 0 {
                         ctx.write(", ");
                     }
-                    ctx.write(param.name.as_str());
+                    ctx.write(param.name.as_str().to_string());
                     self.type_annotation(&param.type_annotation, ctx);
                 }
                 ctx.write("]");
@@ -3409,7 +3418,7 @@ impl<'opt> Printer<'opt> {
             ctx.write("declare ");
         }
         ctx.write("type ");
-        ctx.write(node.id.name.as_str());
+        ctx.write(node.id.name.as_str().to_string());
         if let Some(tp) = &node.type_parameters {
             self.type_parameter_declaration(tp, ctx);
         }
@@ -3423,7 +3432,7 @@ impl<'opt> Printer<'opt> {
             ctx.write("declare ");
         }
         ctx.write("interface ");
-        ctx.write(node.id.name.as_str());
+        ctx.write(node.id.name.as_str().to_string());
         if let Some(tp) = &node.type_parameters {
             self.type_parameter_declaration(tp, ctx);
         }
@@ -3465,7 +3474,7 @@ impl<'opt> Printer<'opt> {
             ctx.write("const ");
         }
         ctx.write("enum ");
-        ctx.write(node.id.name.as_str());
+        ctx.write(node.id.name.as_str().to_string());
         ctx.write(" {");
         ctx.indent();
         ctx.newline();
@@ -3494,7 +3503,7 @@ impl<'opt> Printer<'opt> {
 
     fn enum_member(&mut self, node: &TSEnumMember, ctx: &mut Context) {
         match &node.id {
-            TSEnumMemberName::Identifier(id) => ctx.write(id.name.as_str()),
+            TSEnumMemberName::Identifier(id) => ctx.write(id.name.as_str().to_string()),
             TSEnumMemberName::String(s) => ctx.write(self.string_literal(s)),
             TSEnumMemberName::ComputedString(s) => {
                 ctx.write("[");
@@ -3523,7 +3532,7 @@ impl<'opt> Printer<'opt> {
         };
         ctx.write(kind);
         match &node.id {
-            TSModuleDeclarationName::Identifier(id) => ctx.write(id.name.as_str()),
+            TSModuleDeclarationName::Identifier(id) => ctx.write(id.name.as_str().to_string()),
             TSModuleDeclarationName::StringLiteral(s) => ctx.write(self.string_literal(s)),
         }
         match &node.body {
@@ -3560,7 +3569,7 @@ impl<'opt> Printer<'opt> {
 
     fn import_equals_declaration(&mut self, node: &TSImportEqualsDeclaration, ctx: &mut Context) {
         ctx.write("import ");
-        ctx.write(node.id.name.as_str());
+        ctx.write(node.id.name.as_str().to_string());
         ctx.write(" = ");
         match &node.module_reference {
             TSModuleReference::ExternalModuleReference(r) => {
@@ -3569,12 +3578,12 @@ impl<'opt> Printer<'opt> {
                 ctx.write(");");
             }
             TSModuleReference::IdentifierReference(id) => {
-                ctx.write(id.name.as_str());
+                ctx.write(id.name.as_str().to_string());
             }
             TSModuleReference::QualifiedName(q) => {
                 self.print_type_name(&q.left, ctx);
                 ctx.write(".");
-                ctx.write(q.right.name.as_str());
+                ctx.write(q.right.name.as_str().to_string());
             }
         }
     }
