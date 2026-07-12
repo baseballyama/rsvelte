@@ -2773,6 +2773,20 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             return;
         }
 
+        // Upstream (`Identifier.js`) keeps a rest-prop `rest.X` as-is whenever the
+        // member is a DIRECT operand of an AssignmentExpression — including the RHS,
+        // e.g. `ctx.globalAlpha *= rest.opacity` stays `rest.opacity`, not
+        // `$$props.opacity`. A compound-assign to a REACTIVE identifier LHS — which
+        // desugars the RHS into a `$.set(a, a() <op> rhs)` binary, reparenting it —
+        // was already handled above by the `is_any_state_var` / `is_active_prop_var`
+        // branches (which return), so every assignment reaching here (member LHS or a
+        // non-reactive identifier LHS) keeps the RHS structurally. Walk the LHS to
+        // apply its own transforms, but leave a direct rest-member RHS verbatim.
+        if self.is_rest_prop_direct_member_expr(&expr.right) {
+            walk::walk_assignment_target(self, &expr.left);
+            return;
+        }
+
         // Not a known assignment target - walk normally
         walk::walk_assignment_expression(self, expr);
     }
@@ -3344,6 +3358,17 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// Check if an assignment target is a direct rest-prop member assignment.
     /// Returns true for `rest.x = y` (where rest is a rest-prop and x is a direct property),
     /// but NOT for `rest.x.y = z` (where the inner `rest.x` is not the direct assignment target).
+    /// `expr` is a direct non-computed rest-prop member access (`rest.foo`, where
+    /// `rest` is a bare rest-prop identifier).
+    fn is_rest_prop_direct_member_expr(&self, expr: &Expression<'_>) -> bool {
+        if let Expression::StaticMemberExpression(member) = expr
+            && let Expression::Identifier(obj) = &member.object
+        {
+            return self.is_active_rest_prop(obj.name.as_str());
+        }
+        false
+    }
+
     fn is_rest_prop_direct_member_assignment(&self, target: &AssignmentTarget<'_>) -> bool {
         match target {
             AssignmentTarget::StaticMemberExpression(member) => {
