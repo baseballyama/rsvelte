@@ -335,7 +335,11 @@ jobs:
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
 
       - name: Build rsvelte-lint
-        run: cargo build --release --bin rsvelte-lint
+        # `--profile dist-lint` (release optimization + `panic = "unwind"`) so the
+        # CLI's per-file `catch_unwind` isolation actually holds when a single
+        # corpus file makes the compiler panic — the shared release/dist profiles
+        # use `panic = "abort"`, which would SIGABRT the whole ~12k-file run.
+        run: cargo build --profile dist-lint --bin rsvelte-lint
 
       # The oracle is the pinned real eslint-plugin-svelte; deps install into an
       # isolated package so the comparison never drifts from what users run.

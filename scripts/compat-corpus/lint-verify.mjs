@@ -108,7 +108,7 @@ const MANUAL_EXCLUSIONS = new Set([
 ]);
 
 function findBinary() {
-	for (const profile of ['release', 'debug']) {
+	for (const profile of ['dist-lint', 'release', 'debug']) {
 		const p = path.join(ROOT, 'target', profile, 'rsvelte-lint');
 		if (fs.existsSync(p)) return p;
 	}

@@ -31,6 +31,18 @@ panic = "abort"
 inherits = "release"
 strip = "symbols"
 
+# Distribution profile for the `rsvelte-lint` CLI. It isolates a per-file
+# compiler panic via `catch_unwind` (see `crates/rsvelte_lint/src/main.rs`), a
+# guarantee that only holds when the binary UNWINDS — the shared `release`/`dist`
+# profiles set `panic = "abort"` (smaller/faster), which turns that isolation
+# into an immediate `SIGABRT` for the whole run. This profile keeps dist's
+# optimization + symbol stripping but restores unwinding, so one pathological
+# file can be skipped instead of aborting the entire lint pass. Build the CLI
+# with `--profile dist-lint`.
+[profile.dist-lint]
+inherits = "dist"
+panic = "unwind"
+
 [profile.profiling]
 inherits = "release"
 lto = "thin"          # thin LTO keeps profiling builds within the dev box's RAM

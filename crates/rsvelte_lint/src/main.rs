@@ -179,7 +179,11 @@ fn main() -> ExitCode {
     }
 
     // Lint files in parallel; each file is independent. A panic in the compiler
-    // on one pathological file must not abort the whole run — isolate per file.
+    // on one pathological file is isolated per file by `lint_file_safe` — but
+    // `catch_unwind` only recovers when the binary UNWINDS. The shared
+    // release/dist profiles set `panic = "abort"`, so distribution builds must
+    // use `--profile dist-lint` (release + `panic = "unwind"`) for this
+    // isolation to hold; under an aborting build a panic still ends the run.
     let per_file: Vec<Vec<Diagnostic>> = files
         .par_iter()
         .map(|f| lint_file_safe(f, &config))
@@ -206,7 +210,9 @@ fn main() -> ExitCode {
 }
 
 /// Lint a file, isolating any panic so a single pathological file can't abort
-/// the whole run; the panic surfaces as a diagnostic instead.
+/// the whole run; the panic surfaces as a diagnostic instead. Effective only in
+/// an unwinding build (see `--profile dist-lint`); a `panic = "abort"` build
+/// cannot recover here.
 fn lint_file_safe(file: &Path, config: &LintConfig) -> Vec<Diagnostic> {
     use std::panic::{AssertUnwindSafe, catch_unwind};
     match catch_unwind(AssertUnwindSafe(|| lint_file(file, config))) {
