@@ -182,10 +182,7 @@ pub fn materialize_overlay_with(
 
     let mut entries = Vec::with_capacity(files.len());
     for abs_source in &abs_files {
-        let rel = abs_source
-            .strip_prefix(workspace)
-            .unwrap_or(abs_source)
-            .to_path_buf();
+        let rel = safe_relative(abs_source, workspace);
         let tsx_rel = append_extension(&rel, ".tsx");
         let dts_rel = append_extension(&rel, ".d.ts");
         let tsx_path = emit_dir.join(&tsx_rel);
@@ -469,9 +466,9 @@ fn emit_external_shadows(pkg: &ExternalPackage) -> Result<(), OverlayError> {
         let _ = symlink_dir(&real_nm, &mirror_nm);
     }
     for abs_source in &pkg.svelte_files {
-        let rel = abs_source.strip_prefix(&pkg.real_dir).unwrap_or(abs_source);
-        let tsx_path = pkg.mirror_dir.join(append_extension(rel, ".tsx"));
-        let dts_path = pkg.mirror_dir.join(append_extension(rel, ".d.ts"));
+        let rel = safe_relative(abs_source, &pkg.real_dir);
+        let tsx_path = pkg.mirror_dir.join(append_extension(&rel, ".tsx"));
+        let dts_path = pkg.mirror_dir.join(append_extension(&rel, ".d.ts"));
         if let Some(parent) = tsx_path.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -530,7 +527,7 @@ fn materialize_kit_files(
         } else {
             workspace.join(source)
         };
-        let rel = abs.strip_prefix(workspace).unwrap_or(&abs).to_path_buf();
+        let rel = safe_relative(&abs, workspace);
         let out_path = emit_dir.join(&rel);
         if let Some(parent) = out_path.parent() {
             fs::create_dir_all(parent)?;
@@ -690,6 +687,32 @@ fn append_extension(rel: &Path, extra: &str) -> PathBuf {
     let mut s = rel.as_os_str().to_owned();
     s.push(extra);
     PathBuf::from(s)
+}
+
+/// Rebase `abs` under `base` for use as an emit path, guaranteeing the
+/// result can never escape a subsequent `emit_dir.join(..)`. A plain
+/// `strip_prefix(base).unwrap_or(abs)` returns the *absolute* input when
+/// `abs` is not under `base`, and `Path::join` discards its left operand
+/// on an absolute right operand — so the overlay would write outside its
+/// cache directory. Here we fall back to the bare file name (always
+/// contained) and reject any `..` / root component that survived.
+fn safe_relative(abs: &Path, base: &Path) -> PathBuf {
+    if let Ok(rel) = abs.strip_prefix(base) {
+        let escapes = rel.components().any(|c| {
+            matches!(
+                c,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        });
+        if !rel.as_os_str().is_empty() && !escapes {
+            return rel.to_path_buf();
+        }
+    }
+    abs.file_name()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("__unnamed"))
 }
 
 /// Quick lexical sniff for `<script lang="ts">` so the v0.2 overlay can
@@ -1077,7 +1100,11 @@ fn relative_lexical(from_dir: &Path, to_path: &Path) -> String {
 /// canonically JSONC, but `serde_json` only accepts strict JSON.
 /// Tracks string state so that `"// not a comment"` survives.
 fn strip_jsonc_comments(src: &str) -> String {
-    let mut out = String::with_capacity(src.len());
+    // Scan raw bytes but copy them through verbatim (never `c as char`,
+    // which would mangle any multi-byte UTF-8 sequence). Comment markers
+    // are all ASCII, so byte-level detection is exact; non-ASCII bytes only
+    // ever appear inside string literals or values and pass through intact.
+    let mut out: Vec<u8> = Vec::with_capacity(src.len());
     let bytes = src.as_bytes();
     let mut i = 0;
     let mut in_string = false;
@@ -1085,7 +1112,7 @@ fn strip_jsonc_comments(src: &str) -> String {
     while i < bytes.len() {
         let c = bytes[i];
         if in_string {
-            out.push(c as char);
+            out.push(c);
             if escape {
                 escape = false;
             } else if c == b'\\' {
@@ -1098,7 +1125,7 @@ fn strip_jsonc_comments(src: &str) -> String {
         }
         if c == b'"' {
             in_string = true;
-            out.push(c as char);
+            out.push(c);
             i += 1;
             continue;
         }
@@ -1123,10 +1150,12 @@ fn strip_jsonc_comments(src: &str) -> String {
                 _ => {}
             }
         }
-        out.push(c as char);
+        out.push(c);
         i += 1;
     }
-    out
+    // Every retained byte came unaltered from a valid UTF-8 `&str`, and we
+    // only ever drop whole ASCII comment spans, so the result stays UTF-8.
+    String::from_utf8(out).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
 }
 
 /// Resolve a tsconfig's effective `rootDirs` to absolute paths, following
@@ -1448,6 +1477,30 @@ mod tests {
     use super::*;
     use std::fs;
     use std::io::Write;
+
+    #[test]
+    fn strip_jsonc_comments_preserves_non_ascii() {
+        // A tsconfig with a multi-byte UTF-8 comment and a multi-byte value.
+        // The comment is dropped whole; the string value survives verbatim.
+        let src = "{\n  // コメント — dropped\n  \"paths\": { \"@app/*\": [\"./ソース/*\"] } /* ブロック */\n}\n";
+        let out = strip_jsonc_comments(src);
+        assert!(out.is_char_boundary(out.len()));
+        assert!(
+            out.contains("./ソース/*"),
+            "non-ASCII string value must survive intact: {out}"
+        );
+        assert!(
+            !out.contains("コメント"),
+            "line comment must be stripped: {out}"
+        );
+        assert!(
+            !out.contains("ブロック"),
+            "block comment must be stripped: {out}"
+        );
+        // Result must be valid JSON once comments are gone.
+        let parsed: serde_json::Value = serde_json::from_str(&out).expect("valid JSON after strip");
+        assert_eq!(parsed["paths"]["@app/*"][0], "./ソース/*");
+    }
 
     #[test]
     fn rewrites_kit_types_route_imports_to_colocated_mirror() {
