@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { stripBlankLines } from './normalize.mjs';
+import { stripBlankLines, readIf } from './normalize.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -19,10 +19,6 @@ const args = process.argv.slice(2);
 const SHOW = args.includes('--show') ? args[args.indexOf('--show') + 1] : null;
 
 const report = JSON.parse(fs.readFileSync(path.join(CORPUS, 'report-s2t.json'), 'utf8'));
-
-function readIf(p) {
-	return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null;
-}
 
 // First differing hunk after blank-line normalization; normalized to a signature.
 function diffSignature(exp, act) {
