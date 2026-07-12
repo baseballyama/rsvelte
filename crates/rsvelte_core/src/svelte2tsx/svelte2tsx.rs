@@ -628,21 +628,17 @@ pub fn svelte2tsx(
 
     // Step 7.45: Detect `$state`/`$derived`/`$effect` rune-globals in TEMPLATE expressions.
     //
-    // Official rule (index.ts): `exportedNames.checkGlobalsForRunes(implicitStoreValues.getGlobals())`
-    // — `implicitStoreValues` collects ALL accessed undeclared globals across the entire
-    // component INCLUDING template expressions.  `checkGlobalsForRunes` (ExportedNames.ts
-    // ~line 878–881) sets `hasRunesGlobals = isSvelte5Plus && globals.some(g =>
+    // Official rule: `exportedNames.checkGlobalsForRunes(implicitStoreValues.getGlobals())`
+    // (svelte2tsx/index.ts) — `implicitStoreValues` collects ALL accessed undeclared
+    // globals across the entire component INCLUDING template expressions.
+    // `checkGlobalsForRunes` (svelte2tsx/nodes/ExportedNames.ts ~line 878–881) sets
+    // `hasRunesGlobals = isSvelte5Plus && globals.some(g =>
     // ['$state','$derived','$effect'].includes(g))`.
     //
     // A component with NO `<script>` but with e.g. `aria-current={$state.eager(pathname) === '/'
     // ? 'page' : null}` is therefore RUNES (because `$state` is an undeclared global
     // referenced in the template).  rsvelte's instance-script scanner never runs for
     // template-only components, so we need to walk the template AST here.
-    //
-    // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/index.ts
-    //   `exportedNames.checkGlobalsForRunes(implicitStoreValues.getGlobals())`
-    // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
-    //   `hasRunesGlobals = isSvelte5Plus && globals.some(g => ['$state','$derived','$effect'].includes(g))`
     if detect_rune_global_in_template(&ast, source, &exported_names.instance_value_names) {
         exported_names.set_uses_runes(true);
     }
@@ -785,7 +781,6 @@ pub fn svelte2tsx(
     }
 
     // Step 8: Blank out <style> tag (CSS is not relevant for TSX type checking)
-    //
     //
     // First blank any style tag the parser captured in ast.css.
     // Then ALWAYS run the fallback scanner to catch style tags the parser
@@ -1403,11 +1398,10 @@ pub fn svelte2tsx(
                 };
 
             let ts_component_props_before_render = if exported_names.has_component_props_typedef
-                && exported_names.props_type_text.is_some()
                 && !exported_names.type_already_inserted
                 && !force_inside_render
+                && let Some(type_text) = exported_names.props_type_text.as_ref()
             {
-                let type_text = exported_names.props_type_text.as_ref().unwrap();
                 format!(";type $$ComponentProps =  {};", type_text)
             } else {
                 String::new()
@@ -1426,10 +1420,9 @@ pub fn svelte2tsx(
                 && exported_names.props_type_text.is_some();
             let ts_component_props_inside_render = if (exported_names.type_already_inserted
                 || force_inside_render)
-                && exported_names.props_type_text.is_some()
                 && !inline_type_at_let
+                && let Some(type_text) = exported_names.props_type_text.as_ref()
             {
-                let type_text = exported_names.props_type_text.as_ref().unwrap();
                 if force_inside_render {
                     format!("\n;type $$ComponentProps =  {};", type_text)
                 } else {
@@ -1647,11 +1640,10 @@ pub fn svelte2tsx(
                 };
 
             let ts_component_props_before_render = if exported_names.has_component_props_typedef
-                && exported_names.props_type_text.is_some()
                 && !exported_names.type_already_inserted
                 && !force_inside_render_no_imports
+                && let Some(type_text) = exported_names.props_type_text.as_ref()
             {
-                let type_text = exported_names.props_type_text.as_ref().unwrap();
                 format!("\n;type $$ComponentProps =  {};", type_text)
             } else {
                 String::new()
@@ -1665,10 +1657,9 @@ pub fn svelte2tsx(
                 && exported_names.props_type_text.is_some();
             let ts_component_props_inside_render = if (exported_names.type_already_inserted
                 || force_inside_render_no_imports)
-                && exported_names.props_type_text.is_some()
                 && !inline_type_at_let
+                && let Some(type_text) = exported_names.props_type_text.as_ref()
             {
-                let type_text = exported_names.props_type_text.as_ref().unwrap();
                 if force_inside_render_no_imports {
                     format!("\n;type $$ComponentProps =  {};", type_text)
                 } else {
@@ -2877,76 +2868,6 @@ fn extract_component_documentation(fragment: &crate::ast::template::Fragment) ->
     }
 
     None
-}
-
-/// Get the start position of a template node.
-fn node_start_pos(node: &crate::ast::template::TemplateNode) -> u32 {
-    use crate::ast::template::TemplateNode;
-    match node {
-        TemplateNode::Text(n) => n.start,
-        TemplateNode::Comment(n) => n.start,
-        TemplateNode::RegularElement(n) => n.start,
-        TemplateNode::Component(n) => n.start,
-        TemplateNode::ExpressionTag(n) => n.start,
-        TemplateNode::IfBlock(n) => n.start,
-        TemplateNode::EachBlock(n) => n.start,
-        TemplateNode::AwaitBlock(n) => n.start,
-        TemplateNode::KeyBlock(n) => n.start,
-        TemplateNode::SnippetBlock(n) => n.start,
-        TemplateNode::HtmlTag(n) => n.start,
-        TemplateNode::ConstTag(n) => n.start,
-        TemplateNode::DeclarationTag(n) => n.start,
-        TemplateNode::DebugTag(n) => n.start,
-        TemplateNode::RenderTag(n) => n.start,
-        TemplateNode::AttachTag(n) => n.start,
-        TemplateNode::TitleElement(n) => n.start,
-        TemplateNode::SlotElement(n) => n.start,
-        TemplateNode::SvelteComponent(n) => n.start,
-        TemplateNode::SvelteElement(n) => n.start,
-        TemplateNode::SvelteBody(n)
-        | TemplateNode::SvelteDocument(n)
-        | TemplateNode::SvelteFragment(n)
-        | TemplateNode::SvelteBoundary(n)
-        | TemplateNode::SvelteHead(n)
-        | TemplateNode::SvelteOptions(n)
-        | TemplateNode::SvelteSelf(n)
-        | TemplateNode::SvelteWindow(n) => n.start,
-    }
-}
-
-/// Get the end position of a template node.
-fn node_end_pos(node: &crate::ast::template::TemplateNode) -> u32 {
-    use crate::ast::template::TemplateNode;
-    match node {
-        TemplateNode::Text(n) => n.end,
-        TemplateNode::Comment(n) => n.end,
-        TemplateNode::RegularElement(n) => n.end,
-        TemplateNode::Component(n) => n.end,
-        TemplateNode::ExpressionTag(n) => n.end,
-        TemplateNode::IfBlock(n) => n.end,
-        TemplateNode::EachBlock(n) => n.end,
-        TemplateNode::AwaitBlock(n) => n.end,
-        TemplateNode::KeyBlock(n) => n.end,
-        TemplateNode::SnippetBlock(n) => n.end,
-        TemplateNode::HtmlTag(n) => n.end,
-        TemplateNode::ConstTag(n) => n.end,
-        TemplateNode::DeclarationTag(n) => n.end,
-        TemplateNode::DebugTag(n) => n.end,
-        TemplateNode::RenderTag(n) => n.end,
-        TemplateNode::AttachTag(n) => n.end,
-        TemplateNode::TitleElement(n) => n.end,
-        TemplateNode::SlotElement(n) => n.end,
-        TemplateNode::SvelteComponent(n) => n.end,
-        TemplateNode::SvelteElement(n) => n.end,
-        TemplateNode::SvelteBody(n)
-        | TemplateNode::SvelteDocument(n)
-        | TemplateNode::SvelteFragment(n)
-        | TemplateNode::SvelteBoundary(n)
-        | TemplateNode::SvelteHead(n)
-        | TemplateNode::SvelteOptions(n)
-        | TemplateNode::SvelteSelf(n)
-        | TemplateNode::SvelteWindow(n) => n.end,
-    }
 }
 
 /// Conservative whole-word substring search. Returns `true` when `needle`
@@ -5059,135 +4980,6 @@ fn js_node_references_rune_global(
         // Bare Identifier (e.g. `{$state}` — store auto-subscription) → NOT a rune call.
         // MemberExpression without being called (e.g. `$state.value` as a bare expr) → NOT a rune call.
         // These are legitimate store/object references, not rune invocations.
-        _ => false,
-    }
-}
-
-/// Check whether a JSON callee node directly IS a rune-global call target.
-/// Mirrors `js_callee_is_rune_global` for the `Expression::Value` path.
-fn json_callee_is_rune_global(callee: &serde_json::Value) -> bool {
-    let ty = callee.get("type").and_then(|t| t.as_str()).unwrap_or("");
-    match ty {
-        // Direct call: `$state(x)` — callee is Identifier "$state"
-        "Identifier" => callee
-            .get("name")
-            .and_then(|n| n.as_str())
-            .is_some_and(is_rune_global_name),
-        // Member call: `$state.eager(x)` — callee is MemberExpression { object: Identifier "$state" }
-        "MemberExpression" => callee
-            .get("object")
-            .and_then(|o| {
-                if o.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-                    o.get("name").and_then(|n| n.as_str())
-                } else {
-                    None
-                }
-            })
-            .is_some_and(is_rune_global_name),
-        _ => false,
-    }
-}
-
-/// Walk a JSON-encoded expression AST looking for a rune-global CALL.
-///
-/// This covers the `Expression::Value` variant (legacy / fallback AST path).
-/// Only matches when a rune global is actually invoked (called), not when it
-/// appears as a bare store auto-subscription reference like `{$state}`.
-/// Recurse up to a bounded depth to avoid unbounded recursion.
-///
-/// Extended (mirrors `js_node_references_rune_global`) to recurse into:
-/// - ArrowFunctionExpression / FunctionExpression bodies
-/// - BlockStatement statements
-/// - ExpressionStatement inner expression
-/// - ObjectExpression property values
-/// - ArrayExpression elements
-/// - SequenceExpression sub-expressions
-/// - AwaitExpression / UnaryExpression arguments
-/// - AssignmentExpression right-hand side
-fn json_references_rune_global(v: &serde_json::Value, depth: u8) -> bool {
-    if depth > 20 {
-        return false;
-    }
-    let ty = v.get("type").and_then(|t| t.as_str()).unwrap_or("");
-    match ty {
-        // CallExpression: the callee must be a rune-global target.
-        // Also recurse into arguments to catch `foo($state(x))`.
-        "CallExpression" => {
-            v.get("callee").is_some_and(json_callee_is_rune_global)
-                || v.get("arguments")
-                    .and_then(|a| a.as_array())
-                    .is_some_and(|arr| {
-                        arr.iter()
-                            .any(|arg| json_references_rune_global(arg, depth + 1))
-                    })
-        }
-        "ConditionalExpression" => ["test", "consequent", "alternate"].iter().any(|field| {
-            v.get(*field)
-                .is_some_and(|c| json_references_rune_global(c, depth + 1))
-        }),
-        "BinaryExpression" | "LogicalExpression" => {
-            v.get("left")
-                .is_some_and(|c| json_references_rune_global(c, depth + 1))
-                || v.get("right")
-                    .is_some_and(|c| json_references_rune_global(c, depth + 1))
-        }
-        // Arrow/function bodies: recurse into `body`.
-        "ArrowFunctionExpression" | "FunctionExpression" => v
-            .get("body")
-            .is_some_and(|b| json_references_rune_global(b, depth + 1)),
-        // BlockStatement: recurse into each statement in `body`.
-        "BlockStatement" => v
-            .get("body")
-            .and_then(|b| b.as_array())
-            .is_some_and(|stmts| {
-                stmts
-                    .iter()
-                    .any(|s| json_references_rune_global(s, depth + 1))
-            }),
-        // ExpressionStatement: unwrap to expression field.
-        "ExpressionStatement" => v
-            .get("expression")
-            .is_some_and(|e| json_references_rune_global(e, depth + 1)),
-        // ObjectExpression: recurse into property values.
-        "ObjectExpression" => v
-            .get("properties")
-            .and_then(|p| p.as_array())
-            .is_some_and(|props| {
-                props.iter().any(|prop| {
-                    prop.get("value")
-                        .is_some_and(|val| json_references_rune_global(val, depth + 1))
-                })
-            }),
-        // ArrayExpression: recurse into elements (may contain nulls for elisions).
-        "ArrayExpression" => v
-            .get("elements")
-            .and_then(|e| e.as_array())
-            .is_some_and(|elems| {
-                elems
-                    .iter()
-                    .filter(|e| !e.is_null())
-                    .any(|e| json_references_rune_global(e, depth + 1))
-            }),
-        // SequenceExpression: recurse into each sub-expression.
-        "SequenceExpression" => {
-            v.get("expressions")
-                .and_then(|e| e.as_array())
-                .is_some_and(|exprs| {
-                    exprs
-                        .iter()
-                        .any(|e| json_references_rune_global(e, depth + 1))
-                })
-        }
-        // AwaitExpression / UnaryExpression: recurse into argument.
-        "AwaitExpression" | "UnaryExpression" => v
-            .get("argument")
-            .is_some_and(|a| json_references_rune_global(a, depth + 1)),
-        // AssignmentExpression: check right-hand side.
-        "AssignmentExpression" => v
-            .get("right")
-            .is_some_and(|r| json_references_rune_global(r, depth + 1)),
-        // Bare "Identifier" (`{$state}` store ref), "MemberExpression" without call, etc.
-        // → NOT a rune invocation.
         _ => false,
     }
 }

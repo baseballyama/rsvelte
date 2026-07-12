@@ -936,8 +936,6 @@ struct PropsRuneInfo {
     props_call_end: u32,
     /// Whether the declarator has a TS type annotation
     has_type_annotation: bool,
-    /// Start of the type annotation (after `:`, relative to raw_content)
-    type_annotation_start: Option<u32>,
     /// End of the type annotation (relative to raw_content)
     type_annotation_end: Option<u32>,
     /// Text of the type annotation
@@ -957,9 +955,6 @@ struct PropsRuneInfo {
     /// all other annotated types (TSIndexedAccessType, TSUnionType, etc.) get wrapped
     /// in `$$ComponentProps` — mirrors the official `ts.isTypeReferenceNode` check.
     is_named_type_reference: bool,
-    /// Whether the $props() binding pattern is an identifier (whole-object form),
-    /// e.g. `let props = $props()` rather than a destructuring `let { a } = $props()`.
-    is_identifier_pattern: bool,
     /// Whether the pattern has a rest element (`...rest`)
     has_rest: bool,
     /// Whether the pattern has any non-identifier property keys (mirrors official `withUnknown`).
@@ -987,21 +982,6 @@ struct PropsRuneInfo {
 // Script Processing
 // =============================================================================
 
-/// Process an instance script block (`<script>`).
-///
-/// Extracts:
-/// - Exported variables (props in Svelte 4, or named exports)
-/// - `$props()` usage (Svelte 5 runes)
-/// - Event dispatcher declarations
-/// - Store subscriptions
-///
-/// # Arguments
-///
-/// * `script` - The parsed Script AST node
-/// * `source` - The original source code
-/// * `str` - The MagicString for source manipulation
-/// * `exported_names` - Accumulator for exported names
-/// * `events` - Accumulator for component events
 /// Classify a Svelte component basename for SvelteKit autotype injection.
 ///
 /// Returns:
@@ -1028,6 +1008,13 @@ pub fn classify_kit_route_file(basename: &str) -> Option<bool> {
     }
 }
 
+/// Process an instance script block (`<script>`).
+///
+/// Extracts:
+/// - Exported variables (props in Svelte 4, or named exports)
+/// - `$props()` usage (Svelte 5 runes)
+/// - Event dispatcher declarations
+/// - Store subscriptions
 pub fn process_instance_script(
     script: &Script,
     source: &str,
@@ -3558,17 +3545,6 @@ fn handle_export_named_decl(
     }
 }
 
-/// Handle a reactive labeled statement (`$: ...`).
-///
-/// Transforms reactive declarations and statements according to svelte2tsx conventions:
-///
-/// - `$: x = expr` (new variable) → `let  x = __sveltets_2_invalidate(() => expr)`
-/// - `$: x = expr` (existing var) → `$: x = __sveltets_2_invalidate(() => expr)`
-/// - `$: $store = expr` (store) → `$: $store = __sveltets_2_invalidate(() => expr)`
-/// - `$: ({ a } = expr)` (destructure, new) → `let  { a } = __sveltets_2_invalidate(() => expr)`
-/// - `$: ({ a } = expr)` (destructure, existing) → `$: ({ a } = __sveltets_2_invalidate(() => expr))`
-/// - `$: { ... }` (block) → `;() => {$: { ... }}`
-/// - `$: expr` (expression) → `;() => {$: expr}`
 /// True if a reactive assignment's LHS qualifies for the
 /// `__sveltets_2_invalidate(() => …)` RHS wrap — i.e. it is a plain Identifier,
 /// an object destructuring target, or an array destructuring target. Mirrors
@@ -3584,6 +3560,17 @@ fn is_invalidate_assignment_target(target: &oxc::AssignmentTarget) -> bool {
     )
 }
 
+/// Handle a reactive labeled statement (`$: ...`).
+///
+/// Transforms reactive declarations and statements according to svelte2tsx conventions:
+///
+/// - `$: x = expr` (new variable) → `let  x = __sveltets_2_invalidate(() => expr)`
+/// - `$: x = expr` (existing var) → `$: x = __sveltets_2_invalidate(() => expr)`
+/// - `$: $store = expr` (store) → `$: $store = __sveltets_2_invalidate(() => expr)`
+/// - `$: ({ a } = expr)` (destructure, new) → `let  { a } = __sveltets_2_invalidate(() => expr)`
+/// - `$: ({ a } = expr)` (destructure, existing) → `$: ({ a } = __sveltets_2_invalidate(() => expr))`
+/// - `$: { ... }` (block) → `;() => {$: { ... }}`
+/// - `$: expr` (expression) → `;() => {$: expr}`
 fn handle_reactive_statement(
     labeled: &oxc::LabeledStatement,
     offset: u32,
@@ -4352,20 +4339,8 @@ fn infer_type_from_default(expr: &oxc::Expression, raw_content: &str) -> String 
         oxc::Expression::NumericLiteral(_) => "number".to_string(),
         oxc::Expression::StringLiteral(_) => "string".to_string(),
         oxc::Expression::NullLiteral(_) => "any".to_string(),
-        oxc::Expression::ArrayExpression(arr) => {
-            if arr.elements.is_empty() {
-                "any[]".to_string()
-            } else {
-                "any[]".to_string()
-            }
-        }
-        oxc::Expression::ObjectExpression(obj) => {
-            if obj.properties.is_empty() {
-                "Record<string, any>".to_string()
-            } else {
-                "Record<string, any>".to_string()
-            }
-        }
+        oxc::Expression::ArrayExpression(_) => "any[]".to_string(),
+        oxc::Expression::ObjectExpression(_) => "Record<string, any>".to_string(),
         oxc::Expression::ArrowFunctionExpression(_) | oxc::Expression::FunctionExpression(_) => {
             "Function".to_string()
         }
@@ -4470,7 +4445,6 @@ fn collect_props_rune_info(
     // Also detect if the type is "hoistable" (inline object type vs named type reference)
     let (
         has_type_annotation,
-        type_annotation_start,
         type_annotation_end,
         type_text,
         is_hoistable_type,
@@ -4496,7 +4470,6 @@ fn collect_props_rune_info(
         let colon = ta.span.start;
         (
             true,
-            Some(start),
             Some(end),
             text,
             is_hoistable,
@@ -4504,7 +4477,7 @@ fn collect_props_rune_info(
             Some(colon),
         )
     } else {
-        (false, None, None, None, false, false, None)
+        (false, None, None, false, false, None)
     };
 
     // Detect JSDoc @type comment before the let statement
@@ -4525,7 +4498,6 @@ fn collect_props_rune_info(
     let mut has_unknown_props = false;
     let mut prop_types: Vec<(String, bool, String)> = Vec::new();
     let mut bindable_names: Vec<String> = Vec::new();
-    let is_identifier_pattern = matches!(&declarator.id, oxc::BindingPattern::BindingIdentifier(_));
 
     if let oxc::BindingPattern::ObjectPattern(obj_pat) = &declarator.id {
         has_rest = obj_pat.rest.is_some();
@@ -4601,13 +4573,11 @@ fn collect_props_rune_info(
         destructure_end,
         props_call_end,
         has_type_annotation,
-        type_annotation_start,
         type_annotation_end,
         type_text,
         colon_pos,
         is_hoistable_type,
         is_named_type_reference,
-        is_identifier_pattern,
         jsdoc_type,
         jsdoc_start,
         jsdoc_end,
@@ -4682,88 +4652,6 @@ fn find_matching_brace(text: &str) -> Option<usize> {
         }
     }
     None
-}
-
-/// Extract names from a binding pattern for regular export declarations.
-///
-/// Used for `export let/const` (not $props).
-fn extract_names_from_binding_pattern(
-    pattern: &oxc::BindingPattern,
-    exported_names: &mut ExportedNames,
-    has_default: bool,
-    is_prop: bool,
-) {
-    match pattern {
-        oxc::BindingPattern::BindingIdentifier(id) => {
-            let name = id.name.to_string();
-            exported_names.add(name.clone(), name, has_default, None, is_prop);
-        }
-        oxc::BindingPattern::ObjectPattern(obj_pat) => {
-            for prop in obj_pat.properties.iter() {
-                match &prop.value {
-                    oxc::BindingPattern::AssignmentPattern(assign) => {
-                        extract_names_from_binding_pattern(
-                            &assign.left,
-                            exported_names,
-                            true,
-                            is_prop,
-                        );
-                    }
-                    _ => {
-                        extract_names_from_binding_pattern(
-                            &prop.value,
-                            exported_names,
-                            has_default,
-                            is_prop,
-                        );
-                    }
-                }
-            }
-            // Handle rest element: `{ a, ...rest }` — recurse into `rest`
-            if let Some(rest) = &obj_pat.rest {
-                extract_names_from_binding_pattern(
-                    &rest.argument,
-                    exported_names,
-                    has_default,
-                    is_prop,
-                );
-            }
-        }
-        oxc::BindingPattern::ArrayPattern(arr_pat) => {
-            for el in arr_pat.elements.iter().flatten() {
-                match el {
-                    oxc::BindingPattern::AssignmentPattern(assign) => {
-                        extract_names_from_binding_pattern(
-                            &assign.left,
-                            exported_names,
-                            true,
-                            is_prop,
-                        );
-                    }
-                    _ => {
-                        extract_names_from_binding_pattern(
-                            el,
-                            exported_names,
-                            has_default,
-                            is_prop,
-                        );
-                    }
-                }
-            }
-            // Handle rest element: `[a, ...rest]` — recurse into `rest`
-            if let Some(rest) = &arr_pat.rest {
-                extract_names_from_binding_pattern(
-                    &rest.argument,
-                    exported_names,
-                    has_default,
-                    is_prop,
-                );
-            }
-        }
-        oxc::BindingPattern::AssignmentPattern(assign) => {
-            extract_names_from_binding_pattern(&assign.left, exported_names, true, is_prop);
-        }
-    }
 }
 
 fn extract_names_from_binding_pattern_full(
@@ -4919,25 +4807,6 @@ fn module_export_name_to_string(name: &oxc::ModuleExportName) -> String {
 /// Reserved names that should not be treated as store references.
 const RESERVED_STORE_NAMES: &[&str] = &["$$props", "$$restProps", "$$slots"];
 
-/// Svelte rune names that should not be treated as store references.
-/// When `$state(0)` appears in the source, `state` should NOT be treated as a store.
-const SVELTE_RUNES: &[&str] = &[
-    "$state",
-    "$derived",
-    "$effect",
-    "$props",
-    "$bindable",
-    "$inspect",
-    "$host",
-];
-
-/// Scan the full source for `$identifier` patterns and return the set of
-/// store names (without the `$` prefix).
-///
-/// Excludes:
-/// - Reserved names (`$$props`, `$$restProps`, `$$slots`)
-/// - Member access like `obj.$store` (preceded by `.`)
-/// - String literals like `'$store'` or `"$store"` (preceded by `'` or `"`)
 /// Return the leading `/** … */` JSDoc comment immediately before `before`
 /// (skipping whitespace), or None. Mirrors official `getLastLeadingDoc`.
 fn leading_jsdoc_comment(source: &str, before: usize) -> Option<String> {
