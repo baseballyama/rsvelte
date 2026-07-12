@@ -7,6 +7,7 @@
 use std::path::Path;
 
 use rsvelte_core::ast::arena::with_serialize_arena;
+use rsvelte_core::ast::template::Root;
 use rsvelte_core::{ParseOptions, parse};
 use serde_json::Value;
 
@@ -18,11 +19,45 @@ use crate::rule::{RuleMeta, Severity};
 use crate::script::{ScriptKind, ScriptRule};
 use crate::visitor::{EnabledRule, LintVisitor};
 
+/// The lenient parse options every lint pass uses. `lenient_script: true` keeps
+/// a `<script lang="…">` / invalid-TS block from aborting the parse so the rules
+/// still see the template. Every consumer of a shared [`Root`] MUST parse with
+/// these exact options (the block-lang fallback's success probe depends on it).
+pub(crate) fn lint_parse_options() -> ParseOptions {
+    ParseOptions {
+        lenient_script: true,
+        ..Default::default()
+    }
+}
+
 /// Run every enabled native rule over `source`, returning raw findings. `path`
 /// is the file being linted when known (`None` for in-memory / wasm linting);
 /// filesystem-aware rules (e.g. `svelte/no-companion-module-shadow`) use it and
 /// no-op when it is `None`.
 pub fn run_native_rules(
+    source: &str,
+    filename: &str,
+    config: &LintConfig,
+    path: Option<&Path>,
+) -> Vec<LintDiagnostic> {
+    // Skip the parse entirely when every native rule is off.
+    if all_rules()
+        .iter()
+        .all(|r| config.severity_for(r.meta()) == Severity::Off)
+    {
+        return Vec::new();
+    }
+    let Ok(root) = parse(source, lint_parse_options()) else {
+        return Vec::new();
+    };
+    run_native_rules_on_root(&root, source, filename, config, path)
+}
+
+/// Like [`run_native_rules`] but reuses an already-parsed [`Root`] instead of
+/// parsing again — lets `lint_source` share one parse across the native walk,
+/// the script walk, and the block-lang fallback.
+pub(crate) fn run_native_rules_on_root(
+    root: &Root,
     source: &str,
     filename: &str,
     config: &LintConfig,
@@ -48,21 +83,12 @@ pub fn run_native_rules(
     if enabled.is_empty() {
         return Vec::new();
     }
-    let Ok(root) = parse(
-        source,
-        ParseOptions {
-            lenient_script: true,
-            ..Default::default()
-        },
-    ) else {
-        return Vec::new();
-    };
     let mut ctx = LintContext::new(config, source, filename).with_path(path);
     // Re-install the arena pointer so that `Expression::Typed::as_json()` can
     // resolve arena-indexed children while the visitor walks the template.
     // The pointer was cleared when `parse()` dropped its `SerializeArenaGuard`.
     with_serialize_arena(&root.arena, || {
-        LintVisitor::new(enabled).visit_root(&mut ctx, &root);
+        LintVisitor::new(enabled).visit_root(&mut ctx, root);
     });
     ctx.into_diagnostics()
 }
@@ -155,20 +181,31 @@ pub fn run_script_rules_with_path(
     if enabled.is_empty() {
         return Vec::new();
     }
-    let Ok(root) = parse(
-        source,
-        ParseOptions {
-            lenient_script: true,
-            ..Default::default()
-        },
-    ) else {
+    let Ok(root) = parse(source, lint_parse_options()) else {
         return Vec::new();
     };
+    run_script_rules_on_root(&root, source, filename, config, path)
+}
+
+/// Like [`run_script_rules_with_path`] but reuses an already-parsed [`Root`]
+/// instead of parsing again (shared-parse fast path in `lint_source`).
+pub(crate) fn run_script_rules_on_root(
+    root: &Root,
+    source: &str,
+    filename: &str,
+    config: &LintConfig,
+    path: Option<&Path>,
+) -> Vec<LintDiagnostic> {
+    let rules = all_script_rules();
+    let enabled = enabled_script_rules(&rules, config);
+    if enabled.is_empty() {
+        return Vec::new();
+    }
 
     // Materialise each script program to an owned ESTree JSON value. The
     // serialization MUST run inside the arena scope (the program body resolves
     // arena-indexed children) and BEFORE any out-of-scope `as_json` would cache
-    // an empty body — so we parse fresh here and serialize immediately.
+    // an empty body — so we serialize immediately inside the arena guard.
     let programs: Vec<(ScriptKind, Value)> = with_serialize_arena(&root.arena, || {
         let mut out = Vec::new();
         if let Some(s) = root.instance.as_ref() {

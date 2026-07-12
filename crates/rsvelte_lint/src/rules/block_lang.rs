@@ -488,6 +488,7 @@ pub fn block_lang_source_scan_diagnostics(
     source: &str,
     file: &Path,
     config: &LintConfig,
+    parse_ok: bool,
 ) -> Vec<Diagnostic> {
     let severity = config.resolve_code(META.name, META.default_severity);
     if severity == Severity::Off {
@@ -495,17 +496,12 @@ pub fn block_lang_source_scan_diagnostics(
     }
 
     // Only run when the AST path was skipped — `BlockLang::check_root` already
-    // covers every file the lint engine could parse. The engine parses in
-    // LENIENT mode (`lenient_script: true`), so this guard MUST use the same
-    // mode: a `<style lang="scss">` / `<script lang="…">` block parses leniently
-    // (so `check_root` fires) while a strict `ParseOptions::default()` parse
-    // would fail here — running the source scan on top of `check_root` would
-    // then double-report. Mirror the engine's options exactly.
-    let lenient = rsvelte_core::ParseOptions {
-        lenient_script: true,
-        ..Default::default()
-    };
-    if rsvelte_core::parse(source, lenient).is_ok() {
+    // covers every file the lint engine could parse. `parse_ok` is the result of
+    // the caller's single LENIENT parse (`lenient_script: true`): a
+    // `<style lang="scss">` / `<script lang="…">` block parses leniently (so
+    // `check_root` fires) and running the source scan on top would double-report,
+    // so bail out when the shared parse succeeded.
+    if parse_ok {
         return Vec::new();
     }
 

@@ -8,7 +8,10 @@ use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 
 use crate::config::LintConfig;
 use crate::diagnostic::{LintDiagnostic, TextEdit};
-use crate::engine::{run_native_rules, run_script_rules, run_script_rules_with_path};
+use crate::engine::{
+    lint_parse_options, run_native_rules, run_native_rules_on_root, run_script_rules,
+    run_script_rules_on_root,
+};
 use crate::line_index::LineIndex;
 use crate::suppression::Suppressions;
 
@@ -44,19 +47,28 @@ pub fn lint_source(
             diags
         }
         crate::engine::SourceKind::Svelte => {
+            // Parse the source ONCE (lenient) and share the `Root` across the
+            // native-template walk, the script-AST walk, and the block-lang
+            // fallback's success probe — instead of re-parsing in each. The
+            // validator wrap below still compiles independently (it needs a full
+            // analyze pass), so it keeps its own parse.
+            let parsed = rsvelte_core::parse(source, lint_parse_options()).ok();
+
             // 1. Validator wrap — compiler warnings/errors/a11y (config applied inside).
             let mut diags = crate::validator::validator_diagnostics(source, file, options, config);
 
-            // 2. Native rule engine — single shared DFS over the template AST.
-            for d in run_native_rules(source, &filename, config, Some(file)) {
-                diags.push(d.to_output(file, &line_index));
-            }
+            if let Some(root) = &parsed {
+                // 2. Native rule engine — single shared DFS over the template AST.
+                for d in run_native_rules_on_root(root, source, &filename, config, Some(file)) {
+                    diags.push(d.to_output(file, &line_index));
+                }
 
-            // 2a. Script-AST rules — walk the `<script>` ESTree program(s).
-            // Thread the full path so path-gated rules (e.g. SvelteKit route
-            // file detection) can check whether the file lives under src/routes.
-            for d in run_script_rules_with_path(source, &filename, config, Some(file)) {
-                diags.push(d.to_output(file, &line_index));
+                // 2a. Script-AST rules — walk the `<script>` ESTree program(s).
+                // Thread the full path so path-gated rules (e.g. SvelteKit route
+                // file detection) can check whether the file lives under src/routes.
+                for d in run_script_rules_on_root(root, source, &filename, config, Some(file)) {
+                    diags.push(d.to_output(file, &line_index));
+                }
             }
 
             // 2b. Scope-based rules (Wave 2). No-op until scope rules ship; this
@@ -86,7 +98,12 @@ pub fn lint_source(
             // the normal `check_root` path is skipped. Run a source-scan instead
             // to catch `<script lang="…">` / `<style lang="…">` violations.
             diags.extend(
-                crate::rules::block_lang::block_lang_source_scan_diagnostics(source, file, config),
+                crate::rules::block_lang::block_lang_source_scan_diagnostics(
+                    source,
+                    file,
+                    config,
+                    parsed.is_some(),
+                ),
             );
 
             // 2e. Cross-cutting (template + script) source-scan meta-rules.
@@ -193,13 +210,22 @@ pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<Li
             crate::engine::run_script_rules_module(source, &filename, ts, config)
         }
         crate::engine::SourceKind::Svelte => {
-            let mut d = run_native_rules(source, &filename, config, Some(file));
-            d.extend(run_script_rules_with_path(
-                source,
-                &filename,
-                config,
-                Some(file),
-            ));
+            // Share one lenient parse across the native + script walks.
+            let mut d = match rsvelte_core::parse(source, lint_parse_options()) {
+                Ok(root) => {
+                    let mut d =
+                        run_native_rules_on_root(&root, source, &filename, config, Some(file));
+                    d.extend(run_script_rules_on_root(
+                        &root,
+                        source,
+                        &filename,
+                        config,
+                        Some(file),
+                    ));
+                    d
+                }
+                Err(_) => Vec::new(),
+            };
             d.extend(crate::scope::scope_diagnostics(source, config));
             d
         }
