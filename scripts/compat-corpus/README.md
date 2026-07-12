@@ -279,7 +279,7 @@ against each fixture's expected `*-errors.yaml`; this corpus track is the
 ```bash
 pnpm run lint-corpus:sync             # init eslint-plugin-svelte + svelte-eslint-parser submodules
 pnpm run lint-corpus:oracle-install   # install the pinned real eslint-plugin-svelte (oracle)
-cargo build --release --bin rsvelte-lint
+cargo build --profile dist-lint --bin rsvelte-lint   # `panic = "unwind"` → per-file panic isolation holds
 pnpm run lint-corpus:collect          # gather .svelte sources -> compat/lint-corpus/sources/
 pnpm run lint-corpus:verify           # diff oracle vs rsvelte-lint, ratchet known-failures.json
 # or, all of the above:
