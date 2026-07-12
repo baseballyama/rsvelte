@@ -277,47 +277,63 @@ impl Parser<'_> {
         if !lenient_non_css {
             let trimmed = style_content.trim();
             if !trimmed.is_empty() {
-                // Strip CSS comments to check if there's real content
-                let mut stripped = String::new();
-                let bytes = trimmed.as_bytes();
-                let mut i = 0;
-                let mut segment_start = 0;
-                while i < bytes.len() {
-                    if i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'*' {
-                        // Flush non-comment segment
-                        if segment_start < i {
-                            stripped.push_str(&trimmed[segment_start..i]);
-                        }
-                        // Skip block comment
-                        i += 2;
-                        while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                // Fast path: no block comments present, so there is nothing to
+                // strip and `trimmed` itself already reflects the real content.
+                if !trimmed.contains("/*") {
+                    if !trimmed.contains('{') && !trimmed.contains(';') && !trimmed.starts_with('@')
+                    {
+                        // Non-empty CSS content with no blocks and no at-rules - invalid
+                        let err_pos = content_start + style_content.len();
+                        return Err(crate::error::ParseError::svelte(
+                            "css_expected_identifier",
+                            "Expected a valid CSS identifier",
+                            (err_pos, err_pos),
+                        ));
+                    }
+                } else {
+                    // Strip CSS comments to check if there's real content
+                    let mut stripped = String::new();
+                    let bytes = trimmed.as_bytes();
+                    let mut i = 0;
+                    let mut segment_start = 0;
+                    while i < bytes.len() {
+                        if i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'*' {
+                            // Flush non-comment segment
+                            if segment_start < i {
+                                stripped.push_str(&trimmed[segment_start..i]);
+                            }
+                            // Skip block comment
+                            i += 2;
+                            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/')
+                            {
+                                i += 1;
+                            }
+                            if i + 1 < bytes.len() {
+                                i += 2; // skip */
+                            }
+                            segment_start = i;
+                        } else {
                             i += 1;
                         }
-                        if i + 1 < bytes.len() {
-                            i += 2; // skip */
-                        }
-                        segment_start = i;
-                    } else {
-                        i += 1;
                     }
-                }
-                // Flush remaining segment
-                if segment_start < bytes.len() {
-                    stripped.push_str(&trimmed[segment_start..]);
-                }
-                let stripped = stripped.trim();
-                if !stripped.is_empty()
-                    && !stripped.contains('{')
-                    && !stripped.contains(';')
-                    && !stripped.starts_with('@')
-                {
-                    // Non-empty CSS content with no blocks and no at-rules - invalid
-                    let err_pos = content_start + style_content.len();
-                    return Err(crate::error::ParseError::svelte(
-                        "css_expected_identifier",
-                        "Expected a valid CSS identifier",
-                        (err_pos, err_pos),
-                    ));
+                    // Flush remaining segment
+                    if segment_start < bytes.len() {
+                        stripped.push_str(&trimmed[segment_start..]);
+                    }
+                    let stripped = stripped.trim();
+                    if !stripped.is_empty()
+                        && !stripped.contains('{')
+                        && !stripped.contains(';')
+                        && !stripped.starts_with('@')
+                    {
+                        // Non-empty CSS content with no blocks and no at-rules - invalid
+                        let err_pos = content_start + style_content.len();
+                        return Err(crate::error::ParseError::svelte(
+                            "css_expected_identifier",
+                            "Expected a valid CSS identifier",
+                            (err_pos, err_pos),
+                        ));
+                    }
                 }
             }
         }
