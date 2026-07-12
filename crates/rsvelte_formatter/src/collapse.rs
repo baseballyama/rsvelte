@@ -76,25 +76,6 @@ pub(crate) fn collapse_pure_text_elements(
         tree = t;
     }
 
-    // 1.5-th pass: run a targeted `try_fill_mixed` sweep on block elements whose
-    // mixed inline children were just collapsed by the first pass. Example: a
-    // `<div>` containing `A\n  B\n  <span>\n  C\n  </span>\n  E\n  F` could not
-    // be prose-reflowed in pass 1 because the `<span>` was still multi-line at
-    // that point. After the span's collapse edit the div's content is now
-    // single-line elements surrounded by multi-line text, so a targeted second
-    // fill-mixed sweep can reflow it to `A B\n  <span> C D </span>\n  E F`.
-    // This pass intentionally skips try_collapse / try_hug_mixed so it doesn't
-    // disturb elements that were already correctly hugged by pass 1.
-    let mut edits1b: Vec<(u32, u32, String)> = Vec::new();
-    collect_fill_mixed_only(&result, &tree.fragment, line_width, options, &mut edits1b);
-    if !edits1b.is_empty() {
-        result = apply_edits(&result, edits1b);
-        let Ok(t) = parse(&result, parse_opts) else {
-            return Ok(result);
-        };
-        tree = t;
-    }
-
     // 1.6-th pass: run a targeted `try_collapse` sweep on inline pure-text
     // elements that were revealed by pass 1's block restructuring. Example: a
     // `<li><a href="…"\n  class="…">text</a\n></li>` whose `<a>` was not visited
@@ -1518,113 +1499,6 @@ fn try_fill_run(
         return None;
     }
     (printed != whole).then_some((s as u32, e as u32, printed))
-}
-
-/// Targeted second-pass: only try `try_fill_mixed` on block elements whose
-/// mixed inline children were just collapsed by pass 1. Skips `try_collapse`,
-/// `try_hug_mixed`, and `try_break_content_tag_block` so it does not disturb
-/// elements already correctly laid out by pass 1 (e.g. hugged inline elements
-/// or single-content-tag blocks).
-fn collect_fill_mixed_only(
-    out: &str,
-    fragment: &Fragment,
-    line_width: usize,
-    options: &FormatOptions,
-    edits: &mut Vec<(u32, u32, String)>,
-) {
-    for node in &fragment.nodes {
-        match node {
-            TemplateNode::RegularElement(elem) => {
-                // `<pre>` / `<textarea>` preserve their content verbatim — never
-                // reflow them or recurse into their (whitespace-significant)
-                // descendants.
-                if is_whitespace_preserving(elem.name.as_str()) {
-                    continue;
-                }
-                // Only apply fill-mixed to block-display elements — inline
-                // elements were already handled (or correctly skipped) by pass 1.
-                // The milestone-2 children port takes priority for its gated shape.
-                if is_block_display(elem.name.as_str()) {
-                    if let Some(maybe_edit) = try_children_port(out, node, line_width, options) {
-                        // Claimed by the children port — apply any edit and stop;
-                        // a noop still prevents try_fill_mixed from re-breaking it.
-                        if let Some(edit) = maybe_edit {
-                            edits.push(edit);
-                        }
-                        continue;
-                    }
-                    if let Some(edit) = try_fill_mixed(
-                        out,
-                        elem.name.as_str(),
-                        elem.start,
-                        elem.end,
-                        &elem.fragment,
-                        line_width,
-                        options,
-                    ) {
-                        edits.push(edit);
-                        continue; // edit owns this element, don't recurse
-                    }
-                }
-                collect_fill_mixed_only(out, &elem.fragment, line_width, options, edits);
-            }
-            TemplateNode::Component(c) => {
-                collect_fill_mixed_only(out, &c.fragment, line_width, options, edits);
-            }
-            TemplateNode::TitleElement(t) => {
-                collect_fill_mixed_only(out, &t.fragment, line_width, options, edits);
-            }
-            TemplateNode::SvelteBody(s)
-            | TemplateNode::SvelteDocument(s)
-            | TemplateNode::SvelteFragment(s)
-            | TemplateNode::SvelteBoundary(s)
-            | TemplateNode::SvelteHead(s)
-            | TemplateNode::SvelteOptions(s)
-            | TemplateNode::SvelteSelf(s)
-            | TemplateNode::SvelteWindow(s) => {
-                collect_fill_mixed_only(out, &s.fragment, line_width, options, edits);
-            }
-            TemplateNode::SvelteComponent(c) => {
-                collect_fill_mixed_only(out, &c.fragment, line_width, options, edits);
-            }
-            TemplateNode::SvelteElement(e) => {
-                collect_fill_mixed_only(out, &e.fragment, line_width, options, edits);
-            }
-            TemplateNode::IfBlock(blk) => {
-                collect_fill_mixed_only(out, &blk.consequent, line_width, options, edits);
-                if let Some(alt) = &blk.alternate {
-                    collect_fill_mixed_only(out, alt, line_width, options, edits);
-                }
-            }
-            TemplateNode::EachBlock(blk) => {
-                collect_fill_mixed_only(out, &blk.body, line_width, options, edits);
-                if let Some(fb) = &blk.fallback {
-                    collect_fill_mixed_only(out, fb, line_width, options, edits);
-                }
-            }
-            TemplateNode::AwaitBlock(blk) => {
-                if let Some(f) = &blk.pending {
-                    collect_fill_mixed_only(out, f, line_width, options, edits);
-                }
-                if let Some(f) = &blk.then {
-                    collect_fill_mixed_only(out, f, line_width, options, edits);
-                }
-                if let Some(f) = &blk.catch {
-                    collect_fill_mixed_only(out, f, line_width, options, edits);
-                }
-            }
-            TemplateNode::KeyBlock(blk) => {
-                collect_fill_mixed_only(out, &blk.fragment, line_width, options, edits);
-            }
-            TemplateNode::SnippetBlock(blk) => {
-                collect_fill_mixed_only(out, &blk.body, line_width, options, edits);
-            }
-            TemplateNode::SlotElement(s) => {
-                collect_fill_mixed_only(out, &s.fragment, line_width, options, edits);
-            }
-            _ => {}
-        }
-    }
 }
 
 /// Pass 1.7: targeted `try_hug_mixed` sweep for elements that have a
