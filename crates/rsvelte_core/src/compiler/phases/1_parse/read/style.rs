@@ -413,17 +413,24 @@ impl<'a> CssParser<'a> {
                 continue;
             }
 
+            let index_before = self.index;
+
             // Check for at-rules
             if self.current_char() == '@' {
                 if let Some(rule) = self.parse_atrule() {
                     rules.push(rule);
                 }
-                continue;
+            } else if let Some(rule) = self.parse_rule() {
+                // Parse regular rule
+                rules.push(rule);
             }
 
-            // Parse regular rule
-            if let Some(rule) = self.parse_rule() {
-                rules.push(rule);
+            // Progress guard: if the sub-parser consumed no input (e.g. an empty
+            // selector at a block start like `{}`, where `parse_rule` records
+            // `css_expected_identifier` and returns `None`), stop instead of
+            // spinning forever.
+            if self.index == index_before {
+                break;
             }
         }
 
@@ -598,6 +605,20 @@ impl<'a> CssParser<'a> {
         let selector_text = &self.source[selector_start..selector_end];
 
         if selector_text.trim().is_empty() {
+            // An empty selector at a block start (e.g. `{}`) mirrors the official
+            // `read_selector` → `read_identifier` path, which raises
+            // `css_expected_identifier` at the block-start position.
+            if !self.is_eof() {
+                let pos = self.offset + self.index;
+                record_first_error(
+                    &self.error,
+                    crate::error::ParseError::svelte(
+                        "css_expected_identifier",
+                        "Expected a valid CSS identifier",
+                        (pos, pos),
+                    ),
+                );
+            }
             return None;
         }
 
@@ -1764,6 +1785,19 @@ impl<'a> SelectorParser<'a> {
                 // `-`, `_`, code points >= 160, and `\`-escapes.
                 if let Some(selector) = self.parse_type_selector() {
                     selectors.push(selector);
+                } else {
+                    // An empty identifier here would leave `self.index`
+                    // unchanged and spin the loop; mirror the official
+                    // `read_identifier` empty-identifier error and stop.
+                    if self.error.is_none() {
+                        let pos = self.offset + self.index;
+                        self.error = Some(crate::error::ParseError::svelte(
+                            "css_expected_identifier",
+                            "Expected a valid CSS identifier",
+                            (pos, pos),
+                        ));
+                    }
+                    break;
                 }
             } else if c.is_ascii_digit() || (c == '.' && self.peek_next_char().is_ascii_digit()) {
                 // Percentage selector (used inside @keyframes blocks): `0%`, `33.3%`, `.5%`.
@@ -2770,7 +2804,12 @@ impl<'a> SelectorParser<'a> {
                     // Escape of a single non-hex character (e.g., \. means literal .)
                     self.advance();
                 }
-            } else if c.is_alphanumeric() || c == '-' || c == '_' {
+            } else if c.is_alphanumeric() || c == '-' || c == '_' || (c as u32) >= 160 {
+                // Mirror the official `read_identifier` valid-character set:
+                // `[a-zA-Z0-9_-]` plus every code point >= 160 (CSS treats those
+                // as identifier characters, e.g. `×` is a valid type-selector
+                // name). Without the `>= 160` branch a non-alphanumeric code
+                // point >= 160 yields an empty identifier and spins the caller.
                 self.advance();
             } else {
                 break;
