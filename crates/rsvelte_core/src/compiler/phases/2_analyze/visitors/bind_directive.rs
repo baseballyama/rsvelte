@@ -768,7 +768,6 @@ fn fuzzy_match<'a>(input: &str, candidates: &[&'a str]) -> Option<&'a str> {
 }
 
 /// Calculate Levenshtein distance between two strings.
-#[allow(clippy::needless_range_loop)]
 fn levenshtein_distance(a: &str, b: &str) -> usize {
     let a_len = a.chars().count();
     let b_len = b.chars().count();
@@ -782,27 +781,23 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
 
     let mut matrix = vec![vec![0; b_len + 1]; a_len + 1];
 
-    for i in 0..=a_len {
-        matrix[i][0] = i;
+    for (i, row) in matrix.iter_mut().enumerate() {
+        row[0] = i;
     }
-    for j in 0..=b_len {
-        matrix[0][j] = j;
+    for (j, cell) in matrix[0].iter_mut().enumerate() {
+        *cell = j;
     }
 
     let a_chars: Vec<char> = a.chars().collect();
     let b_chars: Vec<char> = b.chars().collect();
 
-    for i in 1..=a_len {
-        for j in 1..=b_len {
-            let cost = if a_chars[i - 1] == b_chars[j - 1] {
-                0
-            } else {
-                1
-            };
+    for (i, &a_char) in a_chars.iter().enumerate() {
+        for (j, &b_char) in b_chars.iter().enumerate() {
+            let cost = usize::from(a_char != b_char);
 
-            matrix[i][j] = (matrix[i - 1][j] + 1) // deletion
-                .min(matrix[i][j - 1] + 1) // insertion
-                .min(matrix[i - 1][j - 1] + cost); // substitution
+            matrix[i + 1][j + 1] = (matrix[i][j + 1] + 1) // deletion
+                .min(matrix[i + 1][j] + 1) // insertion
+                .min(matrix[i][j] + cost); // substitution
         }
     }
 

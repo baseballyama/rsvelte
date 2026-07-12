@@ -750,8 +750,6 @@ fn collect_dollar_identifiers_pass(
     collect_declared: bool,
     declared: &mut Vec<(String, usize, usize)>,
 ) {
-    // Simple regex-like scanning for $xxx identifiers
-    // We look for $ followed by valid identifier characters
     let chars: Vec<char> = js.chars().collect();
     // Byte offset of each character, so a `StoreRef.position` (consumed
     // downstream as a byte index into the source) stays correct when multi-byte

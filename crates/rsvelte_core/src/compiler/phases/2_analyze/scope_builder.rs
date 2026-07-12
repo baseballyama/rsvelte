@@ -2647,7 +2647,6 @@ impl<'a> ScopeBuilder<'a> {
     /// Track expression updates by walking a JsNode tree directly.
     /// This is the typed equivalent of `track_json_expression_updates` and avoids
     /// the overhead of JSON conversion for template expressions.
-    #[allow(clippy::collapsible_if)]
     fn track_node_expression_updates(&mut self, node: &JsNode) {
         match node {
             JsNode::AssignmentExpression { left, right, .. } => {
@@ -2970,7 +2969,6 @@ impl<'a> ScopeBuilder<'a> {
     }
 
     /// Track statement updates from JsNode (for arrow/function bodies).
-    #[allow(clippy::collapsible_match)]
     fn track_node_statement_updates(&mut self, node: &JsNode) {
         match node {
             JsNode::ExpressionStatement { expression, .. } => {

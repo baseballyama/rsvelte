@@ -2382,23 +2382,24 @@ fn build_sgraph(fragment: &Fragment, analysis: Option<&super::types::ComponentAn
         name: None,
     });
 
-    // (renderer id, callee name or None, kind) collected during the walk;
-    // component "resolved" state tracked separately.
-    let mut renderers: Vec<(usize, Option<String>, bool /* resolved-by-structure */)> = Vec::new();
-    let mut component_direct_snippets: FxHashMap<usize, Vec<usize>> = FxHashMap::default();
-    let mut all_snippets: Vec<usize> = Vec::new();
-    let mut snippets_by_name: FxHashMap<String, Vec<usize>> = FxHashMap::default();
+    /// Accumulators shared across the recursive `add_fragment` walk.
+    #[derive(Default)]
+    struct WalkAccum {
+        /// (renderer id, callee name or None, resolved-by-structure) collected
+        /// during the walk; component "resolved" state tracked separately.
+        renderers: Vec<(usize, Option<String>, bool)>,
+        component_direct_snippets: FxHashMap<usize, Vec<usize>>,
+        all_snippets: Vec<usize>,
+        snippets_by_name: FxHashMap<String, Vec<usize>>,
+    }
+    let mut accum = WalkAccum::default();
 
-    #[allow(clippy::too_many_arguments)]
     fn add_fragment(
         graph: &mut SGraph,
         nodes: &[TemplateNode],
         parent: usize,
         frag_idx: usize,
-        renderers: &mut Vec<(usize, Option<String>, bool)>,
-        component_direct_snippets: &mut FxHashMap<usize, Vec<usize>>,
-        all_snippets: &mut Vec<usize>,
-        snippets_by_name: &mut FxHashMap<String, Vec<usize>>,
+        accum: &mut WalkAccum,
     ) {
         for node in nodes {
             let id = graph.nodes.len();
@@ -2528,31 +2529,22 @@ fn build_sgraph(fragment: &Fragment, analysis: Option<&super::types::ComponentAn
             }
             for (i, cf) in child_fragments.iter().enumerate() {
                 if let Some(f) = cf {
-                    add_fragment(
-                        graph,
-                        &f.nodes,
-                        id,
-                        i,
-                        renderers,
-                        component_direct_snippets,
-                        all_snippets,
-                        snippets_by_name,
-                    );
+                    add_fragment(graph, &f.nodes, id, i, accum);
                 }
             }
 
             // Track snippets and renderers.
             match node {
                 TemplateNode::SnippetBlock(_) => {
-                    all_snippets.push(id);
+                    accum.all_snippets.push(id);
                     if let Some(n) = graph.nodes[id].name.clone() {
-                        snippets_by_name.entry(n).or_default().push(id);
+                        accum.snippets_by_name.entry(n).or_default().push(id);
                     }
                 }
                 TemplateNode::RenderTag(rt) => {
                     let callee = get_render_tag_callee_name(rt);
                     let structurally_resolved = callee.is_some();
-                    renderers.push((id, callee, structurally_resolved));
+                    accum.renderers.push((id, callee, structurally_resolved));
                 }
                 TemplateNode::Component(_)
                 | TemplateNode::SvelteComponent(_)
@@ -2575,9 +2567,9 @@ fn build_sgraph(fragment: &Fragment, analysis: Option<&super::types::ComponentAn
                                     .collect()
                             })
                             .unwrap_or_default();
-                        component_direct_snippets.insert(id, direct);
+                        accum.component_direct_snippets.insert(id, direct);
                     }
-                    renderers.push((id, None, resolved));
+                    accum.renderers.push((id, None, resolved));
                     // Names referenced via `foo={bar}` attributes are resolved
                     // against the snippet name map after the walk (stored in the
                     // otherwise-unused name slot, NUL-separated).
@@ -2590,16 +2582,13 @@ fn build_sgraph(fragment: &Fragment, analysis: Option<&super::types::ComponentAn
         }
     }
 
-    add_fragment(
-        &mut graph,
-        &fragment.nodes,
-        0,
-        0,
-        &mut renderers,
-        &mut component_direct_snippets,
-        &mut all_snippets,
-        &mut snippets_by_name,
-    );
+    add_fragment(&mut graph, &fragment.nodes, 0, 0, &mut accum);
+    let WalkAccum {
+        renderers,
+        component_direct_snippets,
+        all_snippets,
+        snippets_by_name,
+    } = accum;
 
     // Resolve renderer -> snippets, mirroring 2-analyze/index.js lines 846-855:
     // unresolved renderers link to EVERY local snippet; each linked snippet's
@@ -3097,277 +3086,264 @@ fn g_every_is_global(selectors: &[CssRelativeSelector], from: usize, to: usize) 
     selectors[from..to].iter().all(is_relative_selector_global)
 }
 
-/// Port of `apply_selector`. Marks every matched element in `marks`.
-fn g_apply_selector(
-    graph: &SGraph,
-    selectors: &[CssRelativeSelector],
-    from: usize,
-    to: usize,
-    node: usize,
-    dir: Dir,
-    marks: &mut FxHashSet<(u32, u32)>,
-) -> bool {
-    if from >= to {
-        return false;
-    }
-    let idx = if dir == Dir::Forward { from } else { to - 1 };
-    let rel = &selectors[idx];
-    let (rest_from, rest_to) = if dir == Dir::Forward {
-        (from + 1, to)
-    } else {
-        (from, to - 1)
-    };
-
-    let matched = g_relative_might_apply(graph, rel, selectors, node, marks)
-        && g_apply_combinator(graph, rel, selectors, rest_from, rest_to, node, dir, marks);
-
-    if matched {
-        let n = graph.node(node);
-        marks.insert((n.start, n.end));
-    }
-
-    matched
+/// Graph-based selector matcher: the `apply_selector` /
+/// `apply_combinator` / `relative_selector_might_apply_to_node` port family
+/// shares the node graph and the `marks` accumulator through this struct
+/// instead of threading them through every recursive call.
+struct GMatcher<'a> {
+    graph: &'a SGraph,
+    marks: &'a mut FxHashSet<(u32, u32)>,
 }
 
-/// Port of `apply_combinator`.
-#[allow(clippy::too_many_arguments)]
-fn g_apply_combinator(
-    graph: &SGraph,
-    rel: &CssRelativeSelector,
-    selectors: &[CssRelativeSelector],
-    from: usize,
-    to: usize,
-    node: usize,
-    dir: Dir,
-    marks: &mut FxHashSet<(u32, u32)>,
-) -> bool {
-    let combinator: Option<String> = if dir == Dir::Forward {
-        if from < to {
-            selectors[from].combinator.clone()
+impl GMatcher<'_> {
+    /// Port of `apply_selector`. Marks every matched element in `marks`.
+    fn apply_selector(
+        &mut self,
+        selectors: &[CssRelativeSelector],
+        from: usize,
+        to: usize,
+        node: usize,
+        dir: Dir,
+    ) -> bool {
+        if from >= to {
+            return false;
+        }
+        let idx = if dir == Dir::Forward { from } else { to - 1 };
+        let rel = &selectors[idx];
+        let (rest_from, rest_to) = if dir == Dir::Forward {
+            (from + 1, to)
         } else {
-            None
-        }
-    } else {
-        rel.combinator.clone()
-    };
-    let Some(comb) = combinator else {
-        return true;
-    };
+            (from, to - 1)
+        };
 
-    match comb.as_str() {
-        " " | ">" => {
-            let is_adjacent = comb == ">";
-            let parents = if dir == Dir::Forward {
-                g_descendant_elements(graph, node, is_adjacent, &mut FxHashSet::default())
-            } else {
-                g_ancestor_elements(graph, node, is_adjacent, &mut FxHashSet::default())
-            };
-            let mut parent_matched = false;
-            for parent in &parents {
-                if g_apply_selector(graph, selectors, from, to, *parent, dir, marks) {
-                    parent_matched = true;
-                }
-            }
-            parent_matched
-                || (dir == Dir::Backward
-                    && (!is_adjacent || parents.is_empty())
-                    && g_every_is_global(selectors, from, to))
+        let matched = self.relative_might_apply(rel, selectors, node)
+            && self.apply_combinator(rel, selectors, rest_from, rest_to, node, dir);
+
+        if matched {
+            let n = self.graph.node(node);
+            self.marks.insert((n.start, n.end));
         }
-        "+" | "~" => {
-            let siblings = g_possible_element_siblings(
-                graph,
-                node,
-                dir,
-                comb == "+",
-                &mut FxHashSet::default(),
-            );
-            let mut sibling_matched = false;
-            for (sibling, _) in &siblings {
-                let kind = graph.node(*sibling).kind;
-                if matches!(kind, SKind::RenderTag | SKind::Slot | SKind::Component) {
-                    // `{@render foo()}<p>foo</p>` with `:global(.x) + p` is a match
-                    if to - from == 1 && compute_is_global(&selectors[from].selectors) {
+
+        matched
+    }
+
+    /// Port of `apply_combinator`.
+    fn apply_combinator(
+        &mut self,
+        rel: &CssRelativeSelector,
+        selectors: &[CssRelativeSelector],
+        from: usize,
+        to: usize,
+        node: usize,
+        dir: Dir,
+    ) -> bool {
+        let combinator: Option<String> = if dir == Dir::Forward {
+            if from < to {
+                selectors[from].combinator.clone()
+            } else {
+                None
+            }
+        } else {
+            rel.combinator.clone()
+        };
+        let Some(comb) = combinator else {
+            return true;
+        };
+
+        match comb.as_str() {
+            " " | ">" => {
+                let is_adjacent = comb == ">";
+                let parents = if dir == Dir::Forward {
+                    g_descendant_elements(self.graph, node, is_adjacent, &mut FxHashSet::default())
+                } else {
+                    g_ancestor_elements(self.graph, node, is_adjacent, &mut FxHashSet::default())
+                };
+                let mut parent_matched = false;
+                for parent in &parents {
+                    if self.apply_selector(selectors, from, to, *parent, dir) {
+                        parent_matched = true;
+                    }
+                }
+                parent_matched
+                    || (dir == Dir::Backward
+                        && (!is_adjacent || parents.is_empty())
+                        && g_every_is_global(selectors, from, to))
+            }
+            "+" | "~" => {
+                let siblings = g_possible_element_siblings(
+                    self.graph,
+                    node,
+                    dir,
+                    comb == "+",
+                    &mut FxHashSet::default(),
+                );
+                let mut sibling_matched = false;
+                for (sibling, _) in &siblings {
+                    let kind = self.graph.node(*sibling).kind;
+                    if matches!(kind, SKind::RenderTag | SKind::Slot | SKind::Component) {
+                        // `{@render foo()}<p>foo</p>` with `:global(.x) + p` is a match
+                        if to - from == 1 && compute_is_global(&selectors[from].selectors) {
+                            sibling_matched = true;
+                        }
+                    } else if self.apply_selector(selectors, from, to, *sibling, dir) {
                         sibling_matched = true;
                     }
-                } else if g_apply_selector(graph, selectors, from, to, *sibling, dir, marks) {
-                    sibling_matched = true;
                 }
+                sibling_matched
+                    || (dir == Dir::Backward
+                        && g_element_parent(self.graph, node).is_none()
+                        && g_every_is_global(selectors, from, to))
             }
-            sibling_matched
-                || (dir == Dir::Backward
-                    && g_element_parent(graph, node).is_none()
-                    && g_every_is_global(selectors, from, to))
+            _ => true,
         }
-        _ => true,
     }
-}
 
-/// Port of `relative_selector_might_apply_to_node`, covering the `:has`,
-/// `:not`, `:is`/`:where` and `:global(...)` cases with graph-based matching;
-/// plain simple selectors delegate to `element_matches_simple_selectors`.
-fn g_relative_might_apply(
-    graph: &SGraph,
-    rel: &CssRelativeSelector,
-    complex: &[CssRelativeSelector],
-    node: usize,
-    marks: &mut FxHashSet<(u32, u32)>,
-) -> bool {
-    let Some(elem) = graph.node(node).elem.as_ref() else {
-        return false;
-    };
+    /// Port of `relative_selector_might_apply_to_node`, covering the `:has`,
+    /// `:not`, `:is`/`:where` and `:global(...)` cases with graph-based matching;
+    /// plain simple selectors delegate to `element_matches_simple_selectors`.
+    fn relative_might_apply(
+        &mut self,
+        rel: &CssRelativeSelector,
+        complex: &[CssRelativeSelector],
+        node: usize,
+    ) -> bool {
+        let Some(elem) = self.graph.node(node).elem.as_ref() else {
+            return false;
+        };
 
-    for selector in &rel.selectors {
-        match selector {
-            CssSimpleSelector::PseudoClass(name, Some(args)) if name == "has" => {
-                // If this is a :has inside a global selector, include the
-                // element itself, because the global part might match an
-                // element outside the component (e.g. `:root:has(.scoped)`).
-                let include_self = complex.iter().any(is_relative_selector_global)
-                    || complex.iter().any(|r| {
-                        r.selectors.iter().any(|s| {
-                            matches!(s, CssSimpleSelector::PseudoClass(n, a)
+        for selector in &rel.selectors {
+            match selector {
+                CssSimpleSelector::PseudoClass(name, Some(args)) if name == "has" => {
+                    // If this is a :has inside a global selector, include the
+                    // element itself, because the global part might match an
+                    // element outside the component (e.g. `:root:has(.scoped)`).
+                    let include_self = complex.iter().any(is_relative_selector_global)
+                        || complex.iter().any(|r| {
+                            r.selectors.iter().any(|s| {
+                                matches!(s, CssSimpleSelector::PseudoClass(n, a)
                                 if n == "root" || (n == "global" && a.is_some()))
-                        })
-                    });
+                            })
+                        });
 
-                let mut matched = false;
-                for cs in args {
-                    let truncated = truncate_globals(&cs.children);
-                    if truncated.is_empty() {
-                        // it was just a :global(...)
-                        matched = true;
-                        continue;
-                    }
-
-                    if include_self {
-                        let mut sel_inc: Vec<CssRelativeSelector> = truncated.to_vec();
-                        sel_inc[0].combinator = None;
-                        if g_apply_selector(
-                            graph,
-                            &sel_inc,
-                            0,
-                            sel_inc.len(),
-                            node,
-                            Dir::Forward,
-                            marks,
-                        ) {
+                    let mut matched = false;
+                    for cs in args {
+                        let truncated = truncate_globals(&cs.children);
+                        if truncated.is_empty() {
+                            // it was just a :global(...)
                             matched = true;
+                            continue;
                         }
-                    }
 
-                    // `.x:has(.y)` is treated as `.x .y`: prepend a synthetic
-                    // "any" selector representing the element itself.
-                    let mut sel_exc: Vec<CssRelativeSelector> =
-                        Vec::with_capacity(truncated.len() + 1);
-                    sel_exc.push(CssRelativeSelector {
-                        combinator: None,
-                        selectors: Vec::new(),
-                        is_global: false,
-                        is_global_like: false,
-                    });
-                    let mut first = truncated[0].clone();
-                    if first.combinator.is_none() {
-                        first.combinator = Some(" ".to_string());
-                    }
-                    sel_exc.push(first);
-                    sel_exc.extend_from_slice(&truncated[1..]);
-                    if g_apply_selector(
-                        graph,
-                        &sel_exc,
-                        0,
-                        sel_exc.len(),
-                        node,
-                        Dir::Forward,
-                        marks,
-                    ) {
-                        matched = true;
-                    }
-                }
-
-                if !matched {
-                    return false;
-                }
-            }
-            CssSimpleSelector::PseudoClass(name, args) => {
-                if name == "host" || name == "root" {
-                    return false;
-                }
-                if name == "global" {
-                    if let Some(args) = args {
-                        if rel.selectors.len() == 1 {
-                            let Some(cs) = args.first() else {
-                                return true;
-                            };
-                            return g_apply_selector(
-                                graph,
-                                &cs.children,
-                                0,
-                                cs.children.len(),
-                                node,
-                                Dir::Backward,
-                                marks,
-                            );
-                        }
-                        // `:global(...)` among other selectors: potential match.
-                        continue;
-                    }
-                    // bare `:global` — everything beyond it is global
-                    return true;
-                }
-                if name == "not" {
-                    if let Some(args) = args {
-                        for cs in args {
-                            if cs.children.len() > 1 {
-                                // foo:not(bar foo): assume bar is an ancestor of
-                                // foo; scope the element and its ancestors.
-                                let mut el = Some(node);
-                                while let Some(e) = el {
-                                    let n = graph.node(e);
-                                    marks.insert((n.start, n.end));
-                                    el = g_element_parent(graph, e);
-                                }
+                        if include_self {
+                            let mut sel_inc: Vec<CssRelativeSelector> = truncated.to_vec();
+                            sel_inc[0].combinator = None;
+                            if self.apply_selector(&sel_inc, 0, sel_inc.len(), node, Dir::Forward) {
+                                matched = true;
                             }
                         }
-                    }
-                    continue;
-                }
-                if (name == "is" || name == "where") && args.is_some() {
-                    let mut matched = false;
-                    for cs in args.as_ref().unwrap() {
-                        let relative = truncate_globals(&cs.children);
-                        if relative.is_empty()
-                            || g_apply_selector(
-                                graph,
-                                relative,
-                                0,
-                                relative.len(),
-                                node,
-                                Dir::Backward,
-                                marks,
-                            )
-                        {
-                            matched = true;
-                        } else if cs.children.len() > 1 {
-                            // foo :is(bar baz): assume bar is an ancestor of foo
+
+                        // `.x:has(.y)` is treated as `.x .y`: prepend a synthetic
+                        // "any" selector representing the element itself.
+                        let mut sel_exc: Vec<CssRelativeSelector> =
+                            Vec::with_capacity(truncated.len() + 1);
+                        sel_exc.push(CssRelativeSelector {
+                            combinator: None,
+                            selectors: Vec::new(),
+                            is_global: false,
+                            is_global_like: false,
+                        });
+                        let mut first = truncated[0].clone();
+                        if first.combinator.is_none() {
+                            first.combinator = Some(" ".to_string());
+                        }
+                        sel_exc.push(first);
+                        sel_exc.extend_from_slice(&truncated[1..]);
+                        if self.apply_selector(&sel_exc, 0, sel_exc.len(), node, Dir::Forward) {
                             matched = true;
                         }
                     }
+
                     if !matched {
                         return false;
                     }
                 }
-                // other pseudo-classes are a potential match
-            }
-            CssSimpleSelector::PseudoElement | CssSimpleSelector::Nesting => {}
-            simple => {
-                if !element_matches_simple_selectors(elem, std::slice::from_ref(simple)) {
-                    return false;
+                CssSimpleSelector::PseudoClass(name, args) => {
+                    if name == "host" || name == "root" {
+                        return false;
+                    }
+                    if name == "global" {
+                        if let Some(args) = args {
+                            if rel.selectors.len() == 1 {
+                                let Some(cs) = args.first() else {
+                                    return true;
+                                };
+                                return self.apply_selector(
+                                    &cs.children,
+                                    0,
+                                    cs.children.len(),
+                                    node,
+                                    Dir::Backward,
+                                );
+                            }
+                            // `:global(...)` among other selectors: potential match.
+                            continue;
+                        }
+                        // bare `:global` — everything beyond it is global
+                        return true;
+                    }
+                    if name == "not" {
+                        if let Some(args) = args {
+                            for cs in args {
+                                if cs.children.len() > 1 {
+                                    // foo:not(bar foo): assume bar is an ancestor of
+                                    // foo; scope the element and its ancestors.
+                                    let mut el = Some(node);
+                                    while let Some(e) = el {
+                                        let n = self.graph.node(e);
+                                        self.marks.insert((n.start, n.end));
+                                        el = g_element_parent(self.graph, e);
+                                    }
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                    if (name == "is" || name == "where") && args.is_some() {
+                        let mut matched = false;
+                        for cs in args.as_ref().unwrap() {
+                            let relative = truncate_globals(&cs.children);
+                            if relative.is_empty()
+                                || self.apply_selector(
+                                    relative,
+                                    0,
+                                    relative.len(),
+                                    node,
+                                    Dir::Backward,
+                                )
+                            {
+                                matched = true;
+                            } else if cs.children.len() > 1 {
+                                // foo :is(bar baz): assume bar is an ancestor of foo
+                                matched = true;
+                            }
+                        }
+                        if !matched {
+                            return false;
+                        }
+                    }
+                    // other pseudo-classes are a potential match
+                }
+                CssSimpleSelector::PseudoElement | CssSimpleSelector::Nesting => {}
+                simple => {
+                    if !element_matches_simple_selectors(elem, std::slice::from_ref(simple)) {
+                        return false;
+                    }
                 }
             }
         }
-    }
 
-    true
+        true
+    }
 }
 
 /// Whether a complex selector contains a `:has(...)` anywhere.
@@ -3426,9 +3402,13 @@ fn process_graph_selectors(
     }
 
     let graph = build_sgraph(fragment, analysis);
+    let mut matcher = GMatcher {
+        graph: &graph,
+        marks,
+    };
 
-    for id in 0..graph.nodes.len() {
-        if graph.node(id).elem.is_none() {
+    for id in 0..matcher.graph.nodes.len() {
+        if matcher.graph.node(id).elem.is_none() {
             continue;
         }
         for selector in &graph_selectors {
@@ -3436,15 +3416,7 @@ fn process_graph_selectors(
             if effective.is_empty() {
                 continue;
             }
-            g_apply_selector(
-                &graph,
-                effective,
-                0,
-                effective.len(),
-                id,
-                Dir::Backward,
-                marks,
-            );
+            matcher.apply_selector(effective, 0, effective.len(), id, Dir::Backward);
         }
     }
 }
