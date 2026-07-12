@@ -18,6 +18,7 @@ mod expression_utils;
 mod formatting;
 mod legacy_state_member_mutate_ast;
 mod local_assign_ast;
+mod module_dev_tail_ast;
 mod module_state_runes_ast;
 mod private_class_assign_ast;
 mod private_field_assign_ast;
@@ -3707,83 +3708,35 @@ pub(crate) fn transform_module_script_runes(
         .unwrap_or(result);
     }
 
-    // Transform $effect.root(), $effect.pre(), $effect.tracking(), $effect()
-    // These rune calls can appear in module scripts (e.g., inside class constructors).
-    //
-    // AST-based rewrite via `effect_rune_ast::apply_effect_rune_transforms_ast`:
-    // OXC parses the module script, the visitor matches `CallExpression`s whose
-    // callee is `$effect` (bare) or `$effect.<member>`, and swaps the callee for
-    // the runtime equivalent (`$.user_effect`, `$.user_pre_effect`, etc.). The
-    // text-based predecessor blindly rewrote byte patterns regardless of lexical
-    // context, so `let s = "$effect("` would be (incorrectly) rewritten — the
-    // AST visitor descends into none of those positions.
+    // Lower the module script's `$effect` runes and, in dev mode, its
+    // `===`/`!==` → `$.strict_equals(...)`, `console.METHOD(...)` →
+    // `...$.log_if_contains_state(...)` wraps, and `$.state`/`$.derived`/
+    // `$.proxy` declarator `$.tag(...)` wraps — all in a single batched
+    // parse. These passes target lexically disjoint syntax (call callees /
+    // binary operators / console calls / declarator inits), so one parse
+    // feeds every collector instead of re-parsing the whole module script
+    // per pass. The AST visitors descend only into expression positions,
+    // so — unlike the text predecessors — none can be tripped by the same
+    // bytes inside a string / template / regex literal. `dev` gates the
+    // three dev-only collectors exactly as the sequential call sites did.
     {
         let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
-        if let Some(rewritten) = effect_rune_ast::apply_effect_rune_transforms_ast(&result, is_ts) {
-            result = rewritten;
-        }
-    }
-
-    // In dev mode, transform === to $.strict_equals() and !== to !$.strict_equals()
-    // This matches the BinaryExpression visitor from the official Svelte compiler.
-    //
-    // AST-based rewrite via `strict_equals_ast::transform_strict_equals_module_ast`:
-    // OXC parses the module script, the visitor walks every BinaryExpression with
-    // operator `===` / `!==`, and replacements are spliced right-to-left. Replaces
-    // the legacy `transform_strict_equals` text scanner — the text version's
-    // string-literal heuristics (count quotes) were fragile under escaped quotes,
-    // regex literals, line comments, and template-literal interpolation. The AST
-    // path can't make those mistakes because OXC's parser knows the lexical
-    // categories. Falls back to the legacy text version on parse failure (which
-    // shouldn't happen for module scripts that get this far in the pipeline).
-    if dev {
-        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
-        match strict_equals_ast::transform_strict_equals_module_ast(&result, is_ts) {
-            Some(rewritten) => result = rewritten,
-            None => {
-                // None means either no operators to rewrite or a parse
-                // failure; both leave `result` correct as-is. The legacy
-                // text-based pass is no longer wired in; it stays in
-                // `rune_transforms.rs` for the rolling Phase A migration.
-            }
-        }
-    }
-
-    // In dev mode, wrap console.METHOD() calls with $.log_if_contains_state
-    // to detect when state proxies are logged directly.
-    // Reference: CallExpression.js in the official Svelte compiler.
-    //
-    // AST-based rewrite via `console_dev_ast::transform_console_calls_dev_ast`.
-    // The text predecessor used `is_inside_string_literal` (quote counting)
-    // to skip strings, fragile under escaped quotes / regex literals /
-    // template-literal interpolation. The AST visitor descends only into
-    // call positions so it can't make that class of mistake.
-    if dev {
-        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
-        if let Some(rewritten) = console_dev_ast::transform_console_calls_dev_ast(&result, is_ts) {
-            result = rewritten;
-        }
-    }
-
-    // In dev mode, wrap $.state(), $.derived(), and $.proxy() declarations with $.tag()/$.tag_proxy()
-    // This tags signals with their variable names for better debugging with $inspect.trace().
-    //
-    // Three passes, chained idempotently (the text version's
-    // already-tagged guard skips both AST emissions cleanly):
-    // 1. `tag_declarator_ast` — `let/const/var X = $.state(...)` declarators
-    // 2. `tag_class_field_ast` — class `#field = ...` declarations and
-    //    `this.field` / `this.#field` assignments (with originally-public
-    //    label heuristic via paired setter detection)
-    // 3. `wrap_state_derived_with_tag` text fallback for any remaining
-    //    non-declarator shapes (no-op in practice after the two AST
-    //    passes for valid inputs).
-    if dev {
-        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
         if let Some(rewritten) =
-            tag_declarator_ast::wrap_state_derived_with_tag_declarators_ast(&result, is_ts)
+            module_dev_tail_ast::transform_module_dev_tail_ast(&result, dev, is_ts)
         {
             result = rewritten;
         }
+    }
+
+    // In dev mode, wrap class-field `$.state()`/`$.derived()`/`$.proxy()`
+    // declarations with `$.tag()`/`$.tag_proxy()` (class `#field = ...` and
+    // `this.field` / `this.#field` assignments, with an originally-public
+    // label heuristic via paired setter detection), then a text fallback
+    // for any remaining non-declarator shapes (a no-op in practice after
+    // the AST passes for valid inputs). The declarator-level tag pass runs
+    // in the batch above; these two cover the class-field / residual cases
+    // that batch's `tag_declarator` collector intentionally skips.
+    if dev {
         if let Some(rewritten) =
             tag_class_field_ast::wrap_state_derived_with_tag_class_fields_ast(&result)
         {
