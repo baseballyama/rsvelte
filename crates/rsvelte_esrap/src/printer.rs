@@ -1206,7 +1206,11 @@ impl<'opt> Printer<'opt> {
     fn template_literal(&mut self, node: &TemplateLiteral, ctx: &mut Context) {
         ctx.write("`");
         for (i, expr) in node.expressions.iter().enumerate() {
-            let raw = node.quasis[i].value.raw.as_str();
+            let raw = node
+                .quasis
+                .get(i)
+                .map(|q| q.value.raw.as_str())
+                .unwrap_or("");
             ctx.write(format!("{raw}${{"));
             self.print_expression(expr, ctx);
             ctx.write("}");
@@ -3144,7 +3148,7 @@ impl<'opt> Printer<'opt> {
             TSType::TSTemplateLiteralType(t) => {
                 ctx.write("`");
                 for (i, inner) in t.types.iter().enumerate() {
-                    let raw = t.quasis[i].value.raw.as_str();
+                    let raw = t.quasis.get(i).map(|q| q.value.raw.as_str()).unwrap_or("");
                     ctx.write(format!("{raw}${{"));
                     self.print_type(inner, ctx);
                     ctx.write("}");

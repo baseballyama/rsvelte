@@ -1251,30 +1251,22 @@ pub fn napi_compile_envelope(
 //      Step 3 collapses to one Box<Bump> drop. Negligible per call,
 //      but it grows linearly with batch size.
 
-/// Zero-copy variant of {@link napi_compile_envelope}. Allocates the
-/// envelope bytes inside a `bumpalo::Bump`, hands V8 a Buffer view
-/// over the arena, and drops the arena from a finalizer when V8
-/// finalises the Buffer.
+/// Allocate `result`'s packed envelope into a fresh `bumpalo::Bump` and hand V8
+/// a Buffer that borrows the arena, freeing the arena from the Buffer's
+/// finalizer. Shared by both zero-copy entry points so the leak-safe ownership
+/// dance (RAII guard until V8 takes ownership) lives in one place.
 ///
 /// # Safety
 ///
-/// We pass a raw pointer into the bump arena to napi via
-/// `create_buffer_with_borrowed_data`. The arena is leaked via
-/// `Box::into_raw` and only freed inside the finalizer callback,
-/// after V8 has agreed it's done with the buffer. No Rust code
-/// retains the pointer after the call returns.
-#[napi(js_name = "compileEnvelopeZeroCopy")]
-pub fn napi_compile_envelope_zero_copy(
-    env: Env,
-    source: String,
-    options: Option<NapiCompileOptions>,
+/// A raw pointer into the bump arena is passed to napi via
+/// `create_buffer_with_borrowed_data`. The arena is leaked via `Box::into_raw`
+/// and only freed inside the finalizer callback, after V8 has agreed it's done
+/// with the buffer. No Rust code retains the pointer after this returns.
+fn create_zero_copy_envelope(
+    env: &Env,
+    result: &crate::compiler::CompileResult,
 ) -> napi::Result<JsBuffer> {
-    let opts = options_to_compile(options);
-    let result = match rust_compile(&source, opts) {
-        Ok(r) => r,
-        Err(e) => return Err(napi::Error::from_reason(format!("{e:?}"))),
-    };
-    let size = crate::napi_raw::estimate_size(&result);
+    let size = crate::napi_raw::estimate_size(result);
     ensure_envelope_size(size)?;
     let bump = Box::new(bumpalo::Bump::with_capacity(size));
     let bump_ptr: *mut bumpalo::Bump = Box::into_raw(bump);
@@ -1299,7 +1291,7 @@ pub fn napi_compile_envelope_zero_copy(
     // aliased; we re-acquire ownership via Box::from_raw inside the
     // finalizer below.
     let bump_ref: &bumpalo::Bump = unsafe { &*bump_ptr };
-    let slice = crate::napi_raw::encode_into_bump(bump_ref, &result);
+    let slice = crate::napi_raw::encode_into_bump(bump_ref, result);
     let ptr = slice.as_mut_ptr();
     let len = slice.len();
 
@@ -1325,6 +1317,24 @@ pub fn napi_compile_envelope_zero_copy(
     Ok(js_buf_value.into_raw())
 }
 
+/// Zero-copy variant of {@link napi_compile_envelope}. Allocates the
+/// envelope bytes inside a `bumpalo::Bump`, hands V8 a Buffer view
+/// over the arena, and drops the arena from a finalizer when V8
+/// finalises the Buffer.
+#[napi(js_name = "compileEnvelopeZeroCopy")]
+pub fn napi_compile_envelope_zero_copy(
+    env: Env,
+    source: String,
+    options: Option<NapiCompileOptions>,
+) -> napi::Result<JsBuffer> {
+    let opts = options_to_compile(options);
+    let result = match rust_compile(&source, opts) {
+        Ok(r) => r,
+        Err(e) => return Err(napi::Error::from_reason(format!("{e:?}"))),
+    };
+    create_zero_copy_envelope(&env, &result)
+}
+
 /// `compileModule` counterpart of `compileEnvelopeZeroCopy`.
 #[napi(js_name = "compileModuleEnvelopeZeroCopy")]
 pub fn napi_compile_module_envelope_zero_copy(
@@ -1344,30 +1354,7 @@ pub fn napi_compile_module_envelope_zero_copy(
         metadata: crate::compiler::CompileMetadata { runes: true },
         ast: None,
     };
-    let size = crate::napi_raw::estimate_size(&cr);
-    ensure_envelope_size(size)?;
-    let bump = Box::new(bumpalo::Bump::with_capacity(size));
-    let bump_ptr: *mut bumpalo::Bump = Box::into_raw(bump);
-    // SAFETY: `bump_ptr` is freshly leaked from `Box::into_raw` and not aliased;
-    // ownership is re-acquired via `Box::from_raw` in the finalizer below.
-    let bump_ref: &bumpalo::Bump = unsafe { &*bump_ptr };
-    let slice = crate::napi_raw::encode_into_bump(bump_ref, &cr);
-    let ptr = slice.as_mut_ptr();
-    let len = slice.len();
-    // SAFETY: `ptr`/`len` describe a valid slice inside `*bump_ptr`; V8 invokes the
-    // finalizer exactly once on GC, which drops the Box and frees the arena bytes.
-    let js_buf_value = unsafe {
-        env.create_buffer_with_borrowed_data(
-            ptr,
-            len,
-            bump_ptr,
-            |_env, bump_ptr: *mut bumpalo::Bump| {
-                // SAFETY: same pointer as Box::into_raw above, fired once.
-                let _bump: Box<bumpalo::Bump> = Box::from_raw(bump_ptr);
-            },
-        )?
-    };
-    Ok(js_buf_value.into_raw())
+    create_zero_copy_envelope(&env, &cr)
 }
 
 /// `compileModule()` returning the same packed envelope. The envelope
