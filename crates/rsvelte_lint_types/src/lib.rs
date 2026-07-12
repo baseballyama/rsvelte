@@ -19,10 +19,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use corsa_client::api::{
-    ApiMode, ApiSpawnConfig, FileChangeSummary, FileChanges, ProjectSession, TypeHandle,
-    TypeProbeOptions,
-};
+use corsa_client::api::{ApiMode, ApiSpawnConfig, ProjectSession, TypeHandle, TypeProbeOptions};
 use corsa_runtime::block_on;
 use rsvelte_core::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
 use rsvelte_lint::type_backend::{PropMeta, TypeBackend, TypeFacts, TypeId, TypeMeta};
@@ -492,18 +489,4 @@ impl Drop for VirtualFileGuard {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.0);
     }
-}
-
-/// Refresh the session after the virtual document changed on disk. Currently
-/// unused (one document per backend) but kept for the warm-session path.
-#[allow(dead_code)]
-fn refresh_disk(session: &mut ProjectSession, wire: &str) -> Result<(), String> {
-    block_on(
-        session.refresh(Some(FileChanges::Summary(FileChangeSummary {
-            changed: vec![wire.into()],
-            created: Vec::new(),
-            deleted: Vec::new(),
-        }))),
-    )
-    .map_err(|e| format!("refresh failed: {e}"))
 }

@@ -301,7 +301,6 @@ impl NoUselessMustaches {
     /// directive value. `node_start` is the start of the owning attribute /
     /// directive (used to find the `key=` divider). `(first_start, last_end)`
     /// bound the whole value (for the unquoted-wrap insertion points).
-    #[allow(clippy::too_many_arguments)]
     fn check_value_tag(
         &self,
         ctx: &mut LintContext,

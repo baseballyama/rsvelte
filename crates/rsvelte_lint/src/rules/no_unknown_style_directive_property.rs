@@ -13,7 +13,7 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::rules::known_css_properties::KNOWN_CSS_PROPERTIES;
+use crate::rules::data::known_css_properties::KNOWN_CSS_PROPERTIES;
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-unknown-style-directive-property",

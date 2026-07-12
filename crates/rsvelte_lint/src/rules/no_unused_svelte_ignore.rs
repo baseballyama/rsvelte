@@ -369,7 +369,6 @@ fn collect_script_items(
 /// `prefix_len` is the delimiter width (`<!--` = 4, `//` or `/*` = 2);
 /// `comment_start` is the comment token's byte offset, so a code token at offset
 /// `o` within `text` maps to `comment_start + prefix_len + o`.
-#[allow(clippy::too_many_arguments)]
 fn parse_ignore_comment(
     text: &str,
     comment_start: u32,

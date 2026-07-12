@@ -232,7 +232,6 @@ impl Rule for NoTrailingSpaces {
 }
 
 impl NoTrailingSpaces {
-    #[allow(clippy::too_many_arguments)]
     fn check_line(
         &self,
         ctx: &mut LintContext,

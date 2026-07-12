@@ -378,7 +378,6 @@ struct WalkOpts<'a> {
     used_spread: &'a [String],
 }
 
-#[allow(clippy::too_many_arguments)]
 fn walk_unused(
     backend: &mut dyn crate::type_backend::TypeBackend,
     t: TypeId,
@@ -833,7 +832,6 @@ pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagno
 /// Report unused members for a resolved `$props()` declaration form. Shared by
 /// the syntactic ([`diagnostics`]) and type-aware ([`diagnostics_typed`]) paths
 /// — only the source of `members` differs.
-#[allow(clippy::too_many_arguments)]
 fn report_unused(
     form: &PropForm,
     members: &[String],
