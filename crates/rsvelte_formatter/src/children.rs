@@ -16,15 +16,6 @@
 
 use crate::doc::Doc;
 
-/// Whether `name` is an HTML block-level element (prettier-plugin-svelte's
-/// `blockElements` list — the 33 names) under the default
-/// `htmlWhitespaceSensitivity: 'css'`. Delegates to the single canonical list in
-/// [`crate::markup::is_html_block_display_element`] so there is one source of
-/// truth (the markup open-tag layout uses the same set).
-pub(crate) fn is_block_element_name(name: &str) -> bool {
-    crate::markup::is_html_block_display_element(name)
-}
-
 // ── HTML-collapse-whitespace text predicates (port of the `*_RE` helpers) ──
 
 fn is_html_ws(c: char) -> bool {
@@ -156,6 +147,10 @@ fn split_on_ws_runs(text: &str) -> Vec<&str> {
 #[derive(Clone)]
 pub(crate) enum Child {
     Text(String),
+    // Part of prettier's faithful classification and handled throughout
+    // `print_children`, but the current caller (`collapse::node_to_child`)
+    // never emits a block child, so it is only exercised by unit tests.
+    #[allow(dead_code)]
     Block(Doc),
     Inline(Doc),
     Other(Doc),
@@ -606,16 +601,6 @@ mod tests {
     /// `group` wraps (NOT a fill); text children are fills inside it.
     fn render_children(docs: Vec<Doc>, width: usize) -> String {
         print(propagate_breaks(Doc::Group(docs)), width, "  ", 0, 0)
-    }
-
-    #[test]
-    fn block_classification_matches_canonical_list() {
-        assert!(is_block_element_name("div"));
-        assert!(is_block_element_name("p"));
-        assert!(is_block_element_name("ul"));
-        assert!(!is_block_element_name("span"));
-        assert!(!is_block_element_name("a"));
-        assert!(!is_block_element_name("strong"));
     }
 
     #[test]
