@@ -2697,10 +2697,9 @@ fn build_empty_loose_declaration(
 }
 
 fn strip_type_annotation(pattern: &str) -> String {
-    let chars: Vec<char> = pattern.chars().collect();
     let mut depth = 0;
 
-    for (i, &c) in chars.iter().enumerate() {
+    for (i, c) in pattern.char_indices() {
         match c {
             '{' | '[' | '(' => depth += 1,
             '}' | ']' | ')' => depth -= 1,
