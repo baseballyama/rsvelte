@@ -350,24 +350,31 @@ fn last_line_length(s: &str) -> usize {
 /// Merge two tables (sources or names arrays) and return the merged table,
 /// index mapping, and whether values/indices changed.
 ///
+/// `this_table` is only cloned once an entry from `other_table` is actually
+/// missing from it — the common case (every `other_table` entry already
+/// present) skips the clone entirely. The caller only uses the returned
+/// table when `changed` is `true`, so an empty `Vec` is returned otherwise.
+///
 /// Returns: (new_table, idx_map, changed)
 fn merge_tables<T: Clone + Eq>(this_table: &[T], other_table: &[T]) -> (Vec<T>, Vec<usize>, bool) {
-    let mut new_table = this_table.to_vec();
+    let mut new_table: Option<Vec<T>> = None;
     let mut idx_map = Vec::with_capacity(other_table.len());
-    let mut val_changed = false;
 
     for other_val in other_table {
         if let Some(this_idx) = this_table.iter().position(|v| v == other_val) {
             idx_map.push(this_idx);
         } else {
-            let new_idx = new_table.len();
-            new_table.push(other_val.clone());
+            let table = new_table.get_or_insert_with(|| this_table.to_vec());
+            let new_idx = table.len();
+            table.push(other_val.clone());
             idx_map.push(new_idx);
-            val_changed = true;
         }
     }
 
-    (new_table, idx_map, val_changed)
+    match new_table {
+        Some(table) => (table, idx_map, true),
+        None => (Vec::new(), idx_map, false),
+    }
 }
 
 #[cfg(test)]
@@ -409,6 +416,16 @@ mod tests {
         assert_eq!(merged, vec!["a", "b", "c", "d"]);
         assert_eq!(idx_map, vec![1, 3]); // "b" maps to 1, "d" maps to 3
         assert!(changed);
+    }
+
+    #[test]
+    fn test_merge_tables_no_new_entries() {
+        let t1 = vec!["a", "b", "c"];
+        let t2 = vec!["b", "a"];
+        let (_, idx_map, changed) = merge_tables(&t1, &t2);
+
+        assert_eq!(idx_map, vec![1, 0]);
+        assert!(!changed);
     }
 
     fn mapped(string: &str, sources: Vec<String>, mappings: Vec<Vec<Vec<i64>>>) -> MappedCode {
