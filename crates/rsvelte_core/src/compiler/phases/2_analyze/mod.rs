@@ -468,8 +468,7 @@ pub fn analyze_component(
             .get_binding("$$props", instance_scope)
             .is_none()
         {
-            let idx = analysis.root.bindings.len();
-            analysis.root.bindings.push(Binding::with_declaration_kind(
+            let idx = analysis.root.push_binding(Binding::with_declaration_kind(
                 "$$props".to_string(),
                 BindingKind::RestProp,
                 DeclarationKind::Synthetic,
@@ -1753,11 +1752,17 @@ fn collect_each_block_promotions(
                         // bound via `bind:`). Without the kind filter, a `const items`
                         // collection whose item name collides with a `bind:`-reassigned
                         // outer `let` was wrongly promoted to mutable_source.
-                        analysis.root.bindings.iter().any(|binding| {
-                            binding.name == *name
-                                && binding.kind == BindingKind::EachItem
-                                && (binding.reassigned || binding.mutated)
-                        })
+                        analysis
+                            .root
+                            .bindings_by_name
+                            .get(name)
+                            .is_some_and(|idxs| {
+                                idxs.iter().any(|&i| {
+                                    let binding = &analysis.root.bindings[i as usize];
+                                    binding.kind == BindingKind::EachItem
+                                        && (binding.reassigned || binding.mutated)
+                                })
+                            })
                     })
                 } else {
                     false
@@ -1943,11 +1948,11 @@ fn populate_legacy_dependencies(ast: &Root, analysis: &mut ComponentAnalysis) {
         let legacy_reactive_indices: Vec<usize> = assigned_names
             .iter()
             .filter_map(|name| {
-                analysis
-                    .root
-                    .bindings
-                    .iter()
-                    .position(|b| b.name == *name && b.kind == BindingKind::LegacyReactive)
+                analysis.root.bindings_by_name.get(name).and_then(|idxs| {
+                    idxs.iter()
+                        .map(|&i| i as usize)
+                        .find(|&i| analysis.root.bindings[i].kind == BindingKind::LegacyReactive)
+                })
             })
             .collect();
 
@@ -1978,8 +1983,14 @@ fn populate_legacy_dependencies(ast: &Root, analysis: &mut ComponentAnalysis) {
         let dep_indices: Vec<usize> = dep_names
             .iter()
             .filter_map(|name| {
-                // Look up in instance scope (binding index)
-                analysis.root.bindings.iter().position(|b| b.name == *name)
+                // Look up the first-declared binding for this name (mirrors the
+                // first-match semantics of the previous `bindings.iter().position`).
+                analysis
+                    .root
+                    .bindings_by_name
+                    .get(name)
+                    .and_then(|idxs| idxs.first())
+                    .map(|&i| i as usize)
             })
             .collect();
 
@@ -2044,7 +2055,8 @@ fn collect_reactive_statement_dependencies(ast: &Root, analysis: &mut ComponentA
         let mut order: Vec<String> = Vec::new();
         let mut included: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
         let mut path: Vec<&serde_json::Value> = Vec::new();
-        collect_reactive_refs(stmt_body, &mut path, &Vec::new(), &mut order, &mut included);
+        let mut locals: Vec<String> = Vec::new();
+        collect_reactive_refs(stmt_body, &mut path, &mut locals, &mut order, &mut included);
 
         let deps: Vec<String> = order.into_iter().filter(|n| included.contains(n)).collect();
         analysis.reactive_statement_dependencies.push(deps);
@@ -2103,7 +2115,7 @@ fn note_reactive_ref(
 fn collect_reactive_refs<'a>(
     node: &'a serde_json::Value,
     path: &mut Vec<&'a serde_json::Value>,
-    locals: &Vec<String>,
+    locals: &mut Vec<String>,
     order: &mut Vec<String>,
     included: &mut rustc_hash::FxHashSet<String>,
 ) {
@@ -2150,30 +2162,32 @@ fn collect_reactive_refs<'a>(
             path.pop();
         }
         "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration" => {
-            let mut new_locals = locals.clone();
+            let locals_mark = locals.len();
             if let Some(params) = node.get("params").and_then(|p| p.as_array()) {
                 for p in params {
-                    extract_param_names(p, &mut new_locals);
+                    extract_param_names(p, locals);
                 }
             }
             path.push(node);
             if let Some(b) = node.get("body") {
-                collect_reactive_refs(b, path, &new_locals, order, included);
+                collect_reactive_refs(b, path, locals, order, included);
             }
             path.pop();
+            locals.truncate(locals_mark);
         }
         "BlockStatement" => {
-            let mut new_locals = locals.clone();
+            let locals_mark = locals.len();
             if let Some(stmts) = node.get("body").and_then(|b| b.as_array()) {
                 for s in stmts {
-                    collect_block_local_decls(s, &mut new_locals);
+                    collect_block_local_decls(s, locals);
                 }
                 path.push(node);
                 for s in stmts {
-                    collect_reactive_refs(s, path, &new_locals, order, included);
+                    collect_reactive_refs(s, path, locals, order, included);
                 }
                 path.pop();
             }
+            locals.truncate(locals_mark);
         }
         "VariableDeclaration" => {
             path.push(node);
@@ -2189,17 +2203,18 @@ fn collect_reactive_refs<'a>(
             path.pop();
         }
         "ForOfStatement" | "ForInStatement" => {
-            let mut new_locals = locals.clone();
-            if let Some(left) = node.get("left") {
-                collect_block_local_decls(left, &mut new_locals);
-            }
             path.push(node);
             if let Some(right) = node.get("right") {
                 collect_reactive_refs(right, path, locals, order, included);
             }
-            if let Some(b) = node.get("body") {
-                collect_reactive_refs(b, path, &new_locals, order, included);
+            let locals_mark = locals.len();
+            if let Some(left) = node.get("left") {
+                collect_block_local_decls(left, locals);
             }
+            if let Some(b) = node.get("body") {
+                collect_reactive_refs(b, path, locals, order, included);
+            }
+            locals.truncate(locals_mark);
             path.pop();
         }
         "SwitchCase" => {
@@ -2261,7 +2276,7 @@ fn collect_block_local_decls(node: &serde_json::Value, locals: &mut Vec<String>)
 /// Collect all identifier names from a JavaScript expression (recursively).
 /// This is used to find dependencies in the RHS of reactive declarations.
 fn collect_identifiers_from_expr(node: &serde_json::Value, names: &mut Vec<String>) {
-    collect_identifiers_from_expr_with_locals(node, names, &Vec::new());
+    collect_identifiers_from_expr_with_locals(node, names, &mut Vec::new());
 }
 
 /// Collect identifiers from an expression, excluding locally-scoped identifiers.
@@ -2277,7 +2292,7 @@ fn collect_identifiers_from_expr(node: &serde_json::Value, names: &mut Vec<Strin
 fn collect_identifiers_from_expr_with_locals(
     node: &serde_json::Value,
     names: &mut Vec<String>,
-    locals: &Vec<String>,
+    locals: &mut Vec<String>,
 ) {
     let node_type = match node.get("type").and_then(|t| t.as_str()) {
         Some(t) => t,
@@ -2287,8 +2302,8 @@ fn collect_identifiers_from_expr_with_locals(
     match node_type {
         "Identifier" => {
             if let Some(name) = node.get("name").and_then(|n| n.as_str())
-                && !names.contains(&name.to_string())
-                && !locals.contains(&name.to_string())
+                && !names.iter().any(|n| n == name)
+                && !locals.iter().any(|l| l == name)
             {
                 names.push(name.to_string());
             }
@@ -2308,17 +2323,20 @@ fn collect_identifiers_from_expr_with_locals(
             }
         }
         "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration" => {
-            // Extract parameter names to create a new local scope
-            let mut new_locals = locals.clone();
+            // Extend `locals` with the parameter names for the duration of the
+            // body walk, then roll back (push/pop) instead of cloning the
+            // whole outer-scope locals list on every nested function.
+            let locals_mark = locals.len();
             if let Some(params) = node.get("params").and_then(|p| p.as_array()) {
                 for param in params {
-                    extract_param_names(param, &mut new_locals);
+                    extract_param_names(param, locals);
                 }
             }
             // Walk the body with the extended locals list
             if let Some(body) = node.get("body") {
-                collect_identifiers_from_expr_with_locals(body, names, &new_locals);
+                collect_identifiers_from_expr_with_locals(body, names, locals);
             }
+            locals.truncate(locals_mark);
         }
         "Property" | "MethodDefinition" => {
             // For object properties like `{ value: 'hello' }`, the `key` is an Identifier
@@ -2406,7 +2424,7 @@ fn extract_param_names(param: &serde_json::Value, names: &mut Vec<String>) {
     match param_type {
         Some("Identifier") => {
             if let Some(name) = param.get("name").and_then(|n| n.as_str())
-                && !names.contains(&name.to_string())
+                && !names.iter().any(|n| n == name)
             {
                 names.push(name.to_string());
             }
@@ -2656,19 +2674,19 @@ pub fn get_component_name(filename: &str) -> String {
 ///
 /// Returns an error if a circular dependency is detected.
 pub fn order_reactive_statements(
-    unsorted_reactive_declarations: rustc_hash::FxHashMap<String, ReactiveStatement>,
+    mut unsorted_reactive_declarations: rustc_hash::FxHashMap<String, ReactiveStatement>,
 ) -> Result<Vec<(String, ReactiveStatement)>, AnalysisError> {
     use rustc_hash::{FxHashMap, FxHashSet};
 
-    // Build a lookup map: binding_index -> list of (statement_key, ReactiveStatement)
-    let mut lookup: FxHashMap<usize, Vec<(String, ReactiveStatement)>> = FxHashMap::default();
+    // Build a lookup map: binding_index -> statement keys that assign to it.
+    // Stores only the key (not a clone of the whole ReactiveStatement) — the
+    // statement data lives solely in `unsorted_reactive_declarations` and is
+    // moved out exactly once, at the very end, in final dependency order.
+    let mut lookup: FxHashMap<usize, Vec<String>> = FxHashMap::default();
 
     for (key, declaration) in &unsorted_reactive_declarations {
         for &assignment_idx in &declaration.assignments {
-            lookup
-                .entry(assignment_idx)
-                .or_default()
-                .push((key.clone(), declaration.clone()));
+            lookup.entry(assignment_idx).or_default().push(key.clone());
         }
     }
 
@@ -2700,22 +2718,28 @@ pub fn order_reactive_statements(
         return Err(errors::reactive_declaration_cycle(&cycle_str));
     }
 
-    // Build the ordered list using dependency ordering
-    let mut reactive_declarations: Vec<(String, ReactiveStatement)> = Vec::new();
+    // Determine the final key order via dependency-first recursion. Only keys
+    // and the small integer assignment/dependency sets are touched here — the
+    // ReactiveStatement values themselves are moved out of the owning map
+    // afterwards, in this order, so no statement is ever cloned.
+    let mut ordered_keys: Vec<String> = Vec::new();
     let mut added_declarations: FxHashSet<String> = FxHashSet::default();
 
-    // Recursive function to add a declaration and its dependencies
+    // Recursive function to add a declaration's key and its dependencies' keys
     fn add_declaration(
         key: &str,
-        declaration: &ReactiveStatement,
-        reactive_declarations: &mut Vec<(String, ReactiveStatement)>,
+        declarations: &FxHashMap<String, ReactiveStatement>,
+        ordered_keys: &mut Vec<String>,
         added_declarations: &mut FxHashSet<String>,
-        lookup: &FxHashMap<usize, Vec<(String, ReactiveStatement)>>,
+        lookup: &FxHashMap<usize, Vec<String>>,
     ) {
         // If already added, skip
         if added_declarations.contains(key) {
             return;
         }
+        let Some(declaration) = declarations.get(key) else {
+            return;
+        };
 
         // First, add all dependencies (that are not also assignments in this declaration)
         for &dependency_idx in &declaration.dependencies {
@@ -2724,12 +2748,12 @@ pub fn order_reactive_statements(
             }
 
             // Find all statements that assign to this dependency and add them first
-            if let Some(earlier_statements) = lookup.get(&dependency_idx) {
-                for (earlier_key, earlier_decl) in earlier_statements {
+            if let Some(earlier_keys) = lookup.get(&dependency_idx) {
+                for earlier_key in earlier_keys {
                     add_declaration(
                         earlier_key,
-                        earlier_decl,
-                        reactive_declarations,
+                        declarations,
+                        ordered_keys,
                         added_declarations,
                         lookup,
                     );
@@ -2737,21 +2761,31 @@ pub fn order_reactive_statements(
             }
         }
 
-        // Now add this declaration
-        reactive_declarations.push((key.to_string(), declaration.clone()));
+        // Now add this declaration's key
+        ordered_keys.push(key.to_string());
         added_declarations.insert(key.to_string());
     }
 
     // Add all declarations in dependency order
-    for (key, declaration) in &unsorted_reactive_declarations {
+    for key in unsorted_reactive_declarations.keys() {
         add_declaration(
             key,
-            declaration,
-            &mut reactive_declarations,
+            &unsorted_reactive_declarations,
+            &mut ordered_keys,
             &mut added_declarations,
             &lookup,
         );
     }
+
+    // Move each statement out of the owning map in the determined key order.
+    let reactive_declarations: Vec<(String, ReactiveStatement)> = ordered_keys
+        .into_iter()
+        .filter_map(|key| {
+            unsorted_reactive_declarations
+                .remove(&key)
+                .map(|decl| (key, decl))
+        })
+        .collect();
 
     Ok(reactive_declarations)
 }
@@ -4194,7 +4228,7 @@ fn extract_all_identifiers_from_expr(expr: &serde_json::Value, ids: &mut Vec<Str
     match expr_type {
         "Identifier" => {
             if let Some(name) = obj.get("name").and_then(|n| n.as_str())
-                && !ids.contains(&name.to_string())
+                && !ids.iter().any(|i| i == name)
             {
                 ids.push(name.to_string());
             }

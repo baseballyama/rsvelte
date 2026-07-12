@@ -1319,11 +1319,7 @@ fn visit_runes_mode_typed(
                     let bi = context
                         .analysis
                         .root
-                        .bindings
-                        .iter()
-                        .position(|b| {
-                            b.name == path.name && b.declaration_start == Some(path.start)
-                        })
+                        .find_binding_by_declaration_start(&path.name, path.start)
                         .or_else(|| context.analysis.root.get_binding(&path.name, context.scope))
                         .or_else(|| context.analysis.root.find_binding_any_scope(&path.name));
                     if let Some(bi) = bi {
@@ -1354,9 +1350,7 @@ fn visit_runes_mode_typed(
             let binding_idx = context
                 .analysis
                 .root
-                .bindings
-                .iter()
-                .position(|b| b.name == path.name && b.declaration_start == Some(path.start))
+                .find_binding_by_declaration_start(&path.name, path.start)
                 .or_else(|| context.analysis.root.get_binding(&path.name, context.scope))
                 .or_else(|| context.analysis.root.find_binding_any_scope(&path.name));
             if let Some(binding_idx) = binding_idx {
