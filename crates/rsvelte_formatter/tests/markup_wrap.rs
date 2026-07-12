@@ -60,6 +60,16 @@ fn nested_element_uses_deeper_indent_when_wrapped() {
 }
 
 #[test]
+fn inline_else_prefix_is_not_reused_as_indentation() {
+    let src = r#"{#if found}<div>Found</div>{:else}<section class="mx-auto max-w-3xl px-4 py-20 text-center"><h1 class="text-3xl font-bold">Stage not found</h1></section>{/if}"#;
+    let out = fmt_at_width(src, 80);
+
+    rsvelte_core::parse(&out, rsvelte_core::ParseOptions::default())
+        .expect("formatted output should remain valid Svelte");
+    assert_eq!(fmt_at_width(&out, 80), out, "formatting must be idempotent");
+}
+
+#[test]
 fn empty_open_tag_stays_inline_even_with_short_width() {
     // No attributes — never wrap.
     let out = fmt_at_width("<div></div>", 10);
