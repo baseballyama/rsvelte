@@ -938,12 +938,7 @@ impl Parser<'_> {
         };
 
         if closes {
-            // Only allocate CompactString when we actually need the result
-            let mut lower = String::with_capacity(next_tag_str.len());
-            for b in next_tag_str.bytes() {
-                lower.push(b.to_ascii_lowercase() as char);
-            }
-            Some(CompactString::from(lower))
+            Some(CompactString::from(next_tag_str.to_ascii_lowercase()))
         } else {
             None
         }
