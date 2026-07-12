@@ -38,9 +38,9 @@ pub enum Command {
     /// A nested buffer, spliced in place (esrap's nested command arrays).
     Nested(Vec<Command>),
     /// A source-map anchor (1-based line, 0-based column) for a following
-    /// string. Carried through the buffer but not yet consumed — source-map
-    /// emission is a later step; for now it only forces the same pending-newline
-    /// flush a string would, matching upstream ordering.
+    /// string. `Driver::run` consumes it into a [`Segment`] at the current
+    /// generated column (see [`flatten_with_map`]); like a string, it also
+    /// flushes pending whitespace first, matching upstream ordering.
     Location { line: u32, column: u32 },
 }
 
