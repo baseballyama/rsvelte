@@ -23,63 +23,30 @@
 //! the same-shaped bytes inside a string literal, and `BindingPattern`
 //! gives us the variable name directly.
 
-use std::cell::RefCell;
-
-use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::ParseOptions;
-use oxc_span::{GetSpan, SourceType};
+use oxc_span::GetSpan;
 
-use super::ast_rewrite::{self, Edit};
+use super::ast_rewrite::Edit;
 
-thread_local! {
-    static MODULE_STATE_RAW_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
-}
-
-/// AST-based rewrite of `$state.raw(x)` / `$state.frozen(x)`.
-///
-/// `non_reactive_vars` lists the module-level bindings that are
-/// known to never be reassigned — for those the call collapses to
-/// the raw value. Everything else gets wrapped in `$.state(...)`.
-///
-/// Returns `None` when there's nothing to rewrite (no occurrence in
-/// the source, parse failure, or none of the matched calls actually
-/// changed).
-pub fn transform_state_raw_frozen_ast(
+/// Collect the `$state.raw(x)` / `$state.frozen(x)` rewrite edits for an
+/// already-parsed program. Shared with the batched module-rune driver so the
+/// raw/frozen rewrite can ride along on a single parse. `source` must be the
+/// exact text `program` was parsed from (spans index into it).
+pub(super) fn collect_raw_frozen_edits(
+    program: &Program<'_>,
     source: &str,
     non_reactive_vars: &[String],
-    is_ts: bool,
-) -> Option<String> {
-    // Fast probe.
-    if memchr::memmem::find(source.as_bytes(), b"$state.raw").is_none()
-        && memchr::memmem::find(source.as_bytes(), b"$state.frozen").is_none()
-    {
-        return None;
-    }
-
-    ast_rewrite::rewrite_once(
-        &MODULE_STATE_RAW_ALLOC,
+) -> Vec<Edit> {
+    let mut collector = StateRawFrozenCollector {
         source,
-        if is_ts {
-            SourceType::ts().with_module(true)
-        } else {
-            SourceType::mjs()
-        },
-        ParseOptions::default(),
-        false,
-        |program| {
-            let mut collector = StateRawFrozenCollector {
-                source,
-                non_reactive_vars,
-                current_var: None,
-                replacements: Vec::new(),
-            };
-            collector.visit_program(program);
-            collector.replacements
-        },
-    )
+        non_reactive_vars,
+        current_var: None,
+        replacements: Vec::new(),
+    };
+    collector.visit_program(program);
+    collector.replacements
 }
 
 /// Stateful visitor — `current_var` tracks the binding being
@@ -155,7 +122,45 @@ impl<'a, 'src, 'ast> Visit<'ast> for StateRawFrozenCollector<'a, 'src> {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+
+    use oxc_allocator::Allocator;
+    use oxc_parser::ParseOptions;
+    use oxc_span::SourceType;
+
+    use super::super::ast_rewrite;
     use super::*;
+
+    thread_local! {
+        static TEST_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
+    }
+
+    /// Drives `collect_raw_frozen_edits` in isolation over its own parse —
+    /// mirrors how the batched module-rune driver runs it, but for the
+    /// raw/frozen rewrite alone so these assertions stay scoped to this pass.
+    fn transform_state_raw_frozen_ast(
+        source: &str,
+        non_reactive_vars: &[String],
+        is_ts: bool,
+    ) -> Option<String> {
+        if memchr::memmem::find(source.as_bytes(), b"$state.raw").is_none()
+            && memchr::memmem::find(source.as_bytes(), b"$state.frozen").is_none()
+        {
+            return None;
+        }
+        ast_rewrite::rewrite_once(
+            &TEST_ALLOC,
+            source,
+            if is_ts {
+                SourceType::ts().with_module(true)
+            } else {
+                SourceType::mjs()
+            },
+            ParseOptions::default(),
+            false,
+            |program| collect_raw_frozen_edits(program, source, non_reactive_vars),
+        )
+    }
 
     fn nrv(names: &[&str]) -> Vec<String> {
         names.iter().map(|s| s.to_string()).collect()

@@ -30,56 +30,33 @@
 //! The AST visitor descends only into expression positions and
 //! reads the binding name straight off the `BindingIdentifier`.
 
-use std::cell::RefCell;
-
-use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::ParseOptions;
-use oxc_span::{GetSpan, SourceType};
+use oxc_span::GetSpan;
 
-use super::ast_rewrite::{self, Edit};
+use super::ast_rewrite::Edit;
 use super::expression_utils::{collapse_to_single_line, expression_needs_proxy_with_scope};
 
-thread_local! {
-    static MODULE_STATE_CALL_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
-}
-
-/// AST-based rewrite of `$state(value)`.
-///
-/// `non_reactive_vars` lists module-level bindings that are known
-/// never to be reassigned. Returns `None` when nothing changed.
-pub fn transform_state_call_ast(
+/// Collect the bare `$state(value)` rewrite edits for an already-parsed program.
+/// Shared with the batched module-rune driver so the call rewrite can ride along
+/// on a single parse. `source` must be the exact text `program` was parsed from
+/// (spans index into it).
+pub(super) fn collect_state_call_edits(
+    program: &Program<'_>,
     source: &str,
     non_reactive_vars: &[String],
     non_proxy_vars: &[String],
-    is_ts: bool,
-) -> Option<String> {
-    memchr::memmem::find(source.as_bytes(), b"$state")?;
-
-    ast_rewrite::rewrite_once(
-        &MODULE_STATE_CALL_ALLOC,
+) -> Vec<Edit> {
+    let mut collector = StateCallCollector {
         source,
-        if is_ts {
-            SourceType::ts().with_module(true)
-        } else {
-            SourceType::mjs()
-        },
-        ParseOptions::default(),
-        false,
-        |program| {
-            let mut collector = StateCallCollector {
-                source,
-                non_reactive_vars,
-                non_proxy_vars,
-                current_var: None,
-                replacements: Vec::new(),
-            };
-            collector.visit_program(program);
-            collector.replacements
-        },
-    )
+        non_reactive_vars,
+        non_proxy_vars,
+        current_var: None,
+        replacements: Vec::new(),
+    };
+    collector.visit_program(program);
+    collector.replacements
 }
 
 /// Stateful visitor — `current_var` tracks the binding name being
@@ -150,7 +127,42 @@ impl<'a, 'src, 'ast> Visit<'ast> for StateCallCollector<'a, 'src> {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+
+    use oxc_allocator::Allocator;
+    use oxc_parser::ParseOptions;
+    use oxc_span::SourceType;
+
+    use super::super::ast_rewrite;
     use super::*;
+
+    thread_local! {
+        static TEST_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
+    }
+
+    /// Drives `collect_state_call_edits` in isolation over its own parse —
+    /// mirrors how the batched module-rune driver runs it, but for the bare
+    /// `$state(...)` rewrite alone so these assertions stay scoped to this pass.
+    fn transform_state_call_ast(
+        source: &str,
+        non_reactive_vars: &[String],
+        non_proxy_vars: &[String],
+        is_ts: bool,
+    ) -> Option<String> {
+        memchr::memmem::find(source.as_bytes(), b"$state")?;
+        ast_rewrite::rewrite_once(
+            &TEST_ALLOC,
+            source,
+            if is_ts {
+                SourceType::ts().with_module(true)
+            } else {
+                SourceType::mjs()
+            },
+            ParseOptions::default(),
+            false,
+            |program| collect_state_call_edits(program, source, non_reactive_vars, non_proxy_vars),
+        )
+    }
 
     fn nrv(names: &[&str]) -> Vec<String> {
         names.iter().map(|s| s.to_string()).collect()

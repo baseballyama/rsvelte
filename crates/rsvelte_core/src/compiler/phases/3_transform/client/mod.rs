@@ -18,6 +18,7 @@ mod expression_utils;
 mod formatting;
 mod legacy_state_member_mutate_ast;
 mod local_assign_ast;
+mod module_state_runes_ast;
 mod private_class_assign_ast;
 mod private_field_assign_ast;
 mod private_member_mutate_root_ast;
@@ -3438,60 +3439,21 @@ pub(crate) fn transform_module_script_runes(
         .cloned()
         .collect();
 
-    // Transform $state.snapshot(x) to $.snapshot(x).
-    // Module scripts don't need dev-mode handling for state_snapshot_uncloneable.
-    //
-    // AST-based rewrite via `state_snapshot_ast::transform_state_snapshot_ast`.
-    // The text version was `String::replace("$state.snapshot(", "$.snapshot(")`
-    // — rewrites byte patterns regardless of lexical context, so anything inside
-    // a string / template literal got (incorrectly) rewritten too. The AST
-    // visitor descends only into expression positions and can't make that
-    // mistake.
+    // Lower the module script's `$state*` runes in a single batched parse:
+    //   * `$state.snapshot(x)` → `$.snapshot(x)`
+    //   * `$state.raw(x)` / `$state.frozen(x)` → `$.state(x)` or raw value
+    //   * bare `$state(x)`   → `$.state(...)` / `$.proxy(...)` / raw value
+    // These three rewrites target lexically disjoint syntax, so one parse feeds
+    // all three collectors instead of re-parsing the whole module script per
+    // rune. Module scripts don't need dev-mode `state_snapshot_uncloneable`
+    // handling. The AST visitors descend only into expression positions, so —
+    // unlike the text predecessors — none of them can be tripped by the same
+    // bytes inside a string / template / regex literal. On a parse failure the
+    // batch is a no-op and the legacy `$state(` text loop below runs as a
+    // fallback (and, on success, sees no remaining `$state(` and exits).
     {
         let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
-        if let Some(rewritten) = state_snapshot_ast::transform_state_snapshot_ast(&result, is_ts) {
-            result = rewritten;
-        }
-    }
-
-    // Transform $state.raw(x) / $state.frozen(x).
-    // Like $state(), whether we wrap in $.state() depends on whether the variable
-    // is reassigned.  $state.raw/$state.frozen never use $.proxy(), just the raw value
-    // when non-reactive, or $.state(value) when reassigned.
-    //
-    // AST-based rewrite via `state_raw_frozen_ast::transform_state_raw_frozen_ast`.
-    // The text predecessor scanned for `$state.raw(` / `$state.frozen(`, walked
-    // backwards via `extract_var_name_before_rune` to discover the declarator's
-    // identifier, then rewrote in place. That walked-back search was fragile
-    // (any byte pattern matching `$state.raw(` inside a string would trigger it).
-    // The AST visitor knows about strings / templates / regexes and reads the
-    // binding name from the `BindingPattern` directly.
-    {
-        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
-        if let Some(rewritten) = state_raw_frozen_ast::transform_state_raw_frozen_ast(
-            &result,
-            &module_non_reactive_vars,
-            is_ts,
-        ) {
-            result = rewritten;
-        }
-    }
-
-    // Transform $state(x) - handling both reassigned and non-reassigned cases.
-    // Non-reassigned vars get $.proxy() only, reassigned vars get $.state($.proxy()).
-    //
-    // AST-based rewrite via `state_call_ast::transform_state_call_ast`. The
-    // text predecessor scanned for `$state(`, found the close-paren via a
-    // custom brace tracker, walked backwards via `extract_var_name_before_rune`
-    // to discover the binding name, then dispatched on the reactive /
-    // needs-proxy / empty axes. The OXC parser knows about all of the
-    // lexical concerns (strings, templates, regexes, comments) and the
-    // `BindingPattern` gives us the name directly. After the AST helper
-    // runs, the legacy text loop below sees no remaining `$state(` and
-    // exits immediately — idempotent fallback for parse failures.
-    {
-        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
-        if let Some(rewritten) = state_call_ast::transform_state_call_ast(
+        if let Some(rewritten) = module_state_runes_ast::transform_module_state_runes_ast(
             &result,
             &module_non_reactive_vars,
             &module_non_proxy_vars,
