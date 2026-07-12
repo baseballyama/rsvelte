@@ -10,8 +10,9 @@
 //!
 //! - **Parser backend**: Svelte uses [Acorn](https://github.com/acornjs/acorn) for JavaScript
 //!   parsing, while this implementation uses [OXC](https://oxc.rs/) for better performance.
-//! - **AST conversion**: This module converts OXC's AST to a `serde_json::Value` format
-//!   compatible with Svelte's ESTree-based AST output.
+//! - **AST conversion**: This module converts OXC's AST into this crate's typed,
+//!   arena-allocated `JsNode`/`Expression` representation (ESTree-shaped), not a
+//!   `serde_json::Value`.
 //! - **TypeScript support**: OXC provides native TypeScript support, which is used here
 //!   to parse TypeScript expressions without additional configuration.
 //! - **Line/column tracking**: This implementation computes ESTree-style `loc` fields
@@ -6175,6 +6176,22 @@ fn create_typed_loc_for_script(
     }))
 }
 
+/// Parameters for [`parse_program_with_error`], grouped into a struct to keep
+/// the function signature under clippy's argument-count lint.
+pub struct ProgramParseParams<'a> {
+    pub content: &'a str,
+    pub offset: usize,
+    pub line_offsets: &'a [usize],
+    /// Set to true if the script contains TypeScript.
+    pub is_typescript: bool,
+    /// HTML comments that appeared before the script tag.
+    pub leading_comments: &'a [String],
+    /// Positions for loc calculation (Svelte uses locator(start) for
+    /// loc.start and locator(parser.index) for loc.end).
+    pub script_tag_start: usize,
+    pub script_tag_end: usize,
+}
+
 /// Parse a JavaScript program (script content) and return it as an Expression,
 /// surfacing the first JS parse error as a `js_parse_error` `ParseError`
 /// (mirroring upstream `acorn.parse`, which throws `e.js_parse_error` via
@@ -6182,22 +6199,19 @@ fn create_typed_loc_for_script(
 /// acorn.js). The recovered partial program is still returned so lenient
 /// callers (e.g. the profiling binary) can keep operating on a best-effort
 /// AST.
-///
-/// Set `is_typescript` to true if the script contains TypeScript.
-/// `leading_comments` are HTML comments that appeared before the script tag.
-/// `script_tag_start` and `script_tag_end` are positions for loc calculation
-/// (Svelte uses locator(start) for loc.start and locator(parser.index) for loc.end).
-#[allow(clippy::too_many_arguments)]
 pub fn parse_program_with_error(
     arena: &ParseArena,
-    content: &str,
-    offset: usize,
-    line_offsets: &[usize],
-    is_typescript: bool,
-    leading_comments: &[String],
-    script_tag_start: usize,
-    script_tag_end: usize,
+    params: ProgramParseParams,
 ) -> (Expression, Option<crate::error::ParseError>) {
+    let ProgramParseParams {
+        content,
+        offset,
+        line_offsets,
+        is_typescript,
+        leading_comments,
+        script_tag_start,
+        script_tag_end,
+    } = params;
     with_oxc_allocator(|allocator| {
         let source_type = if is_typescript {
             SourceType::ts()

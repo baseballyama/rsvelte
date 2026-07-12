@@ -1751,22 +1751,15 @@ impl Parser<'_> {
             // svelte2tsx mode (`script_ts`, set only by `parse_script_ts`).
             if !self.script_ts {
                 let trimmed = params_content.trim();
-                let chars: Vec<char> = trimmed.chars().collect();
                 let mut depth = 0;
-                for i in 0..chars.len() {
-                    let c = chars[i];
+                for (byte_offset, c) in trimmed.char_indices() {
                     if c == '(' || c == '[' || c == '{' {
                         depth += 1;
                     } else if c == ')' || c == ']' || c == '}' {
                         depth -= 1;
-                    } else if depth == 0
-                        && c == '.'
-                        && i + 2 < chars.len()
-                        && chars[i + 1] == '.'
-                        && chars[i + 2] == '.'
-                    {
+                    } else if depth == 0 && c == '.' && trimmed[byte_offset..].starts_with("...") {
                         // Found rest parameter
-                        let rest_start = params_start + i;
+                        let rest_start = params_start + byte_offset;
                         return Err(crate::error::ParseError::svelte(
                             "snippet_invalid_rest_parameter",
                             "Snippets do not support rest parameters; use an array instead",
@@ -2344,16 +2337,9 @@ impl Parser<'_> {
                     metadata: Default::default(),
                 }))))
             }
-            "attach" => {
-                // Skip to closing brace (attach not fully implemented yet)
-                while !self.is_eof() && self.current_char() != '}' {
-                    self.advance();
-                }
-                self.advance(); // consume '}'
-                Ok(None)
-            }
+            // "attach" (not fully implemented yet) and any unknown special tag
+            // are both skipped verbatim up to the closing brace.
             _ => {
-                // Unknown special tag
                 while !self.is_eof() && self.current_char() != '}' {
                     self.advance();
                 }
@@ -2696,6 +2682,11 @@ fn build_empty_loose_declaration(
     }))
 }
 
+/// Strip a TypeScript type annotation from a destructuring/binding pattern,
+/// returning the pattern text up to (but not including) the top-level `:`.
+/// Bracket depth (`{}` / `[]` / `()`) is tracked so a colon nested inside a
+/// type (e.g. `{ a: string }` or `Record<string, number>`) is not mistaken
+/// for the pattern's own annotation.
 fn strip_type_annotation(pattern: &str) -> String {
     let mut depth = 0;
 
@@ -2715,10 +2706,12 @@ fn strip_type_annotation(pattern: &str) -> String {
     pattern.to_string()
 }
 
-/// Build a `VariableDeclaration` node from a pattern expression and init
-/// expression.
-///
-/// This creates the same JSON structure as the official Svelte compiler:
+/// Build a `VariableDeclaration` JSON node with a caller-supplied kind
+/// (`let` / `const` / `var`) from a pattern expression and init expression.
+/// Mirrors `build_const_variable_declaration` (which is locked to `const`)
+/// and powers both `{@const}` and the `{let x = …}` / `{const x = …}`
+/// declaration-tag emit paths. Produces the same JSON structure as the
+/// official Svelte compiler:
 /// ```json
 /// {
 ///   "type": "VariableDeclaration",
@@ -2730,10 +2723,6 @@ fn strip_type_annotation(pattern: &str) -> String {
 ///   }]
 /// }
 /// ```
-/// Build a `VariableDeclaration` JSON node with a caller-supplied kind
-/// (`let` / `const` / `var`). Mirrors `build_const_variable_declaration`
-/// (which is locked to `const`) and powers both `{@const}` and the new
-/// `{let x = …}` / `{const x = …}` declaration-tag emit paths.
 fn build_kind_variable_declaration(
     arena: &crate::ast::arena::ParseArena,
     pattern: &Expression,
