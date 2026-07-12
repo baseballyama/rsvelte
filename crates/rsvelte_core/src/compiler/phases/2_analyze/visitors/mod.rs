@@ -4,9 +4,6 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/` directory.
 
-// Allow dead code for stub implementations that will be integrated later
-#![allow(dead_code)]
-
 pub mod shared;
 
 // Script visitor
@@ -51,7 +48,6 @@ mod render_tag;
 mod animate_directive;
 mod bind_directive;
 mod class_directive;
-mod let_directive;
 mod on_directive;
 mod style_directive;
 mod transition_directive;
@@ -62,7 +58,6 @@ mod attribute;
 mod spread_attribute;
 
 // JavaScript visitors
-mod arrow_function_expression;
 mod assignment_expression;
 mod await_expression;
 mod call_expression;
@@ -70,7 +65,6 @@ mod class_body;
 mod class_declaration;
 mod export_default_declaration;
 mod export_named_declaration;
-mod export_specifier;
 mod expression_statement;
 mod function_declaration;
 mod function_expression;
@@ -84,19 +78,6 @@ mod property_definition;
 mod template_element;
 mod update_expression;
 mod variable_declarator;
-
-// Re-exports
-pub use await_block::visit_await_block;
-pub use component::visit as visit_component;
-pub use each_block::visit_each_block;
-pub use expression_tag::visit_expression_tag;
-pub use fragment::visit_fragment;
-pub use if_block::visit_if_block;
-pub use key_block::visit_key_block;
-pub use regular_element::visit_regular_element;
-pub use render_tag::visit_render_tag;
-pub use snippet_block::visit_snippet_block;
-pub use text::visit_text;
 
 use super::AnalysisError;
 use super::types::{ComponentAnalysis, CssDomElement, DomStructure, SiblingCertainty};

@@ -812,11 +812,3 @@ fn collect_pickled_awaits_inner_node(
         }
     }
 }
-
-/// Alias for visit function.
-pub fn visit_await_block(
-    block: &mut AwaitBlock,
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    visit(block, context)
-}

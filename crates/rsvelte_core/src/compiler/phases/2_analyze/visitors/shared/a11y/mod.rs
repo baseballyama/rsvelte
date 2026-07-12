@@ -869,37 +869,6 @@ fn has_content(element: &RegularElement) -> bool {
     }
     false
 }
-
-fn match_schema(
-    schema: &RoleRelationConcept,
-    tag_name: &str,
-    attribute_map: &FxHashMap<String, &AttributeNode>,
-) -> bool {
-    if schema.name != tag_name {
-        return false;
-    }
-
-    if let Some(schema_attrs) = &schema.attributes {
-        for schema_attr in schema_attrs {
-            if let Some(attribute) = attribute_map.get(&schema_attr.name) {
-                if let Some(expected_value) = &schema_attr.value {
-                    if let Some(actual_value) = get_static_value(attribute) {
-                        if actual_value != expected_value {
-                            return false;
-                        }
-                    } else {
-                        return false;
-                    }
-                }
-            } else {
-                return false;
-            }
-        }
-    }
-
-    true
-}
-
 fn is_parent(ancestor_names: &[String], elements: &[&str]) -> bool {
     // Check if the immediate parent element name is in the list
     if let Some(parent_name) = ancestor_names.last() {

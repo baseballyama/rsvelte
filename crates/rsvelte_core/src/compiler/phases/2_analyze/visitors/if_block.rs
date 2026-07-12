@@ -131,11 +131,3 @@ fn analyze_test_expression(
 
     Ok(())
 }
-
-/// Alias for visit function.
-pub fn visit_if_block(
-    block: &mut IfBlock,
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    visit(block, context)
-}

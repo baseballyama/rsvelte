@@ -3,11 +3,6 @@
 //! Provides helper functions for CSS analysis.
 //!
 //! Corresponds to Svelte's `2-analyze/css/utils.js`.
-
-/// Sentinel value for unknown CSS values.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Unknown;
-
 /// Returns all parent rules from a rule path; root is last.
 pub fn get_parent_rules<'a>(path: &[&'a serde_json::Value]) -> Vec<&'a serde_json::Value> {
     path.iter()
@@ -336,15 +331,4 @@ fn gather_possible_values(
             values.push(UNKNOWN_MARKER.to_string());
         }
     }
-}
-
-/// True if is `:global` (without arguments).
-pub fn is_global_block_selector(selector: &serde_json::Value) -> bool {
-    if let Some(sel_type) = selector.get("type").and_then(|t| t.as_str())
-        && sel_type == "PseudoClassSelector"
-        && let Some(name) = selector.get("name").and_then(|n| n.as_str())
-    {
-        return name == "global" && selector.get("args").is_none();
-    }
-    false
 }

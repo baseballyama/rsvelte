@@ -78,8 +78,3 @@ fn collect_rule_warnings(rule: &serde_json::Value, warnings: &mut Vec<CssWarning
         }
     }
 }
-
-/// Check if a stylesheet has any unused selectors.
-pub fn has_unused_selectors(stylesheet: &StyleSheet) -> bool {
-    !warn_unused(stylesheet).is_empty()
-}

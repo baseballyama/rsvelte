@@ -6,7 +6,7 @@
 
 use super::VisitorContext;
 use super::shared::utils::validate_assignment_node;
-use crate::ast::template::{AttributeValue, BindDirective, RegularElement, TemplateNode};
+use crate::ast::template::{AttributeValue, BindDirective, RegularElement};
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::binding_properties::BINDING_PROPERTIES;
@@ -40,44 +40,6 @@ pub fn visit_with_svelte_element(
     // Continue with the rest of the validation
     visit_common(directive, context)
 }
-
-/// Visit a bind directive.
-///
-/// Corresponds to the `BindDirective` function in BindDirective.js.
-///
-/// This function validates bind: directives by checking:
-/// - The binding is valid for the parent element type
-/// - Input types are correctly matched with bind:checked/files/group
-/// - Select elements have static `multiple` attributes
-/// - SVG elements don't use bind:offsetWidth
-/// - contenteditable elements have appropriate bindings
-///
-/// # Arguments
-///
-/// * `directive` - The bind directive to analyze
-/// * `context` - The visitor context
-pub fn visit(directive: &BindDirective, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    let parent = context.path.last();
-
-    // Check if parent is a valid element type for bindings
-    if let Some(parent_node) = parent {
-        let parent_name = match parent_node {
-            TemplateNode::RegularElement(el) => Some(el.name.as_str()),
-            TemplateNode::SvelteElement(_) => Some("svelte:element"),
-            TemplateNode::SvelteWindow(_) => Some("svelte:window"),
-            TemplateNode::SvelteDocument(_) => Some("svelte:document"),
-            TemplateNode::SvelteBody(_) => Some("svelte:body"),
-            _ => None,
-        };
-
-        if let Some(parent_name) = parent_name {
-            validate_binding_for_element(&directive.name, parent_name, parent_node, context)?;
-        }
-    }
-
-    visit_common(directive, context)
-}
-
 /// Common validation logic for bind directives.
 fn visit_common(
     directive: &BindDirective,
@@ -403,94 +365,6 @@ pub(super) fn validate_bind_value_for_component(
 
     validate_bind_value_identifier(directive, binding)
 }
-
-/// Validate a binding for a specific element type.
-fn validate_binding_for_element(
-    binding_name: &str,
-    parent_name: &str,
-    parent_node: &TemplateNode,
-    context: &VisitorContext,
-) -> Result<(), AnalysisError> {
-    // Check if binding exists in binding_properties
-    if let Some(property) = BINDING_PROPERTIES.get(binding_name) {
-        // Check valid_elements
-        if let Some(valid_elements) = property.valid_elements
-            && !valid_elements.contains(&parent_name)
-        {
-            let valid_list = valid_elements
-                .iter()
-                .map(|e| format!("`<{e}>`"))
-                .collect::<Vec<_>>()
-                .join(", ");
-
-            return Err(errors::bind_invalid_target(binding_name, &valid_list));
-        }
-
-        // Check invalid_elements
-        if let Some(invalid_elements) = property.invalid_elements
-            && invalid_elements.contains(&parent_name)
-        {
-            let valid_bindings = get_valid_bindings_for_element(parent_name);
-            let message = format!(
-                "Possible bindings for <{}> are {}",
-                parent_name,
-                valid_bindings.join(", ")
-            );
-
-            return Err(errors::bind_invalid_name(binding_name, Some(&message)));
-        }
-
-        // Special validation for <input> elements
-        if parent_name == "input"
-            && binding_name != "this"
-            && let TemplateNode::RegularElement(element) = parent_node
-        {
-            validate_input_binding(binding_name, element, context)?;
-        }
-
-        // Special validation for <select> elements
-        if parent_name == "select"
-            && binding_name != "this"
-            && let TemplateNode::RegularElement(element) = parent_node
-        {
-            validate_select_binding(element)?;
-        }
-
-        // Special validation for SVG elements
-        if binding_name == "offsetWidth" && is_svg(parent_name) {
-            return Err(errors::bind_invalid_target(
-                binding_name,
-                "non-`<svg>` elements. Use `bind:clientWidth` for `<svg>` instead",
-            ));
-        }
-
-        // Validate contenteditable bindings
-        if is_content_editable_binding(binding_name)
-            && let TemplateNode::RegularElement(element) = parent_node
-        {
-            validate_contenteditable_binding(element)?;
-        }
-    } else {
-        // Binding not found - try fuzzy match
-        let match_name = fuzzy_match(binding_name, &get_all_binding_names());
-
-        if let Some(match_name) = match_name
-            && let Some(property) = BINDING_PROPERTIES.get(match_name)
-            && (property.valid_elements.is_none()
-                || property.valid_elements.unwrap().contains(&parent_name))
-        {
-            return Err(errors::bind_invalid_name(
-                binding_name,
-                Some(&format!("Did you mean '{}'?", match_name)),
-            ));
-        }
-
-        return Err(errors::bind_invalid_name(binding_name, None));
-    }
-
-    Ok(())
-}
-
 /// Validate binding for a Svelte special element (svelte:window, svelte:document, svelte:body).
 fn validate_binding_for_svelte_element(
     binding_name: &str,

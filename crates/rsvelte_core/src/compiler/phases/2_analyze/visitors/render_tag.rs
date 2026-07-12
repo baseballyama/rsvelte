@@ -142,15 +142,6 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
 
     Ok(())
 }
-
-/// Alias for visit function.
-pub fn visit_render_tag(
-    tag: &mut RenderTag,
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    visit(tag, context)
-}
-
 /// Check if a binding unambiguously resolves to a specific snippet declaration,
 /// or is external to the current component.
 ///

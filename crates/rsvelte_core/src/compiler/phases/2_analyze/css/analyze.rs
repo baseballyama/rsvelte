@@ -149,35 +149,6 @@ fn analyze_atrule(
     }
     Ok(())
 }
-
-/// Returns true if a keyframe step's prelude contains any Percentage selector.
-/// E.g. `0% { ... }` or `50%, 100% { ... }` returns true, but `from { ... }` does not.
-fn keyframe_rule_has_percentage(prelude: &serde_json::Value) -> bool {
-    // prelude is a SelectorList with children -> Selector with children -> simple selectors
-    let children = match prelude.get("children").and_then(|c| c.as_array()) {
-        Some(c) => c,
-        None => return false,
-    };
-    for selector in children {
-        if let Some(sel_children) = selector.get("children").and_then(|c| c.as_array()) {
-            for simple in sel_children {
-                if simple.get("type").and_then(|t| t.as_str()) == Some("Percentage") {
-                    return true;
-                }
-                // RelativeSelector wraps selectors
-                if let Some(inner) = simple.get("selectors").and_then(|s| s.as_array()) {
-                    for s in inner {
-                        if s.get("type").and_then(|t| t.as_str()) == Some("Percentage") {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    false
-}
-
 /// Check if a simple selector is a `:global` block selector (without args).
 fn is_global_block_selector(simple_selector: &serde_json::Value) -> bool {
     simple_selector.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")

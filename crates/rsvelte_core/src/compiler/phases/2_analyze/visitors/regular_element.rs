@@ -358,35 +358,6 @@ fn get_descendant_reset_by(ancestor_tag: &str) -> Option<&'static [&'static str]
         _ => None,
     }
 }
-
-/// Check if a tag is valid with an ancestor.
-/// Returns an error message if invalid, or None if valid.
-fn is_tag_valid_with_ancestor(child_tag: &str, ancestors: &[String]) -> Option<String> {
-    // Custom elements can be anything
-    if child_tag.contains('-') {
-        return None;
-    }
-
-    let ancestor_tag = ancestors.last()?;
-
-    // Custom elements can be anything
-    if ancestor_tag.contains('-') {
-        return None;
-    }
-
-    // Check descendant rules
-    if let Some(disallowed) = get_disallowed_descendant(ancestor_tag, child_tag)
-        && disallowed.contains(&child_tag)
-    {
-        return Some(format!(
-            "`<{}>` cannot be a descendant of `<{}>`",
-            child_tag, ancestor_tag
-        ));
-    }
-
-    None
-}
-
 /// Create a synthetic attribute for the textarea value.
 ///
 /// Corresponds to `create_attribute` in nodes.js.
@@ -1434,15 +1405,6 @@ pub fn visit(
 
     Ok(())
 }
-
-/// Alias for visit function.
-pub fn visit_regular_element(
-    element: &mut RegularElement,
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    visit(element, context)
-}
-
 /// Extract the root identifier name from a binding expression.
 /// For `selected` -> "selected", for `selected.done` -> "selected",
 /// for `items[0]` -> "items".
@@ -1539,15 +1501,4 @@ fn collect_subtree_component_refs(
         }
     }
     walk(&fragment.nodes, out);
-}
-
-fn extract_binding_root_identifier_json(value: &serde_json::Value) -> Option<String> {
-    match value.get("type").and_then(|t| t.as_str())? {
-        "Identifier" => value.get("name").and_then(|n| n.as_str()).map(String::from),
-        "MemberExpression" => {
-            let object = value.get("object")?;
-            extract_binding_root_identifier_json(object)
-        }
-        _ => None,
-    }
 }

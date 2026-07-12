@@ -78,11 +78,3 @@ pub fn visit(block: &mut KeyBlock, context: &mut VisitorContext) -> Result<(), A
 
     Ok(())
 }
-
-/// Alias for visit function.
-pub fn visit_key_block(
-    block: &mut KeyBlock,
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    visit(block, context)
-}

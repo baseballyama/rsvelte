@@ -231,10 +231,9 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
 /// in default values are properly counted as references. For example, in
 /// `{#each array as { a = default_value_1 }}`, the `default_value_1` identifier
 /// needs to be visited to count as a reference to the outer-scope binding.
-/// Typed-AST equivalent of `walk_pattern_defaults`. Walks the pattern via
-/// arena children and materializes only the default-expression subtrees
-/// (the AssignmentPattern right sides), which is cheaper than the JSON-walk
-/// path for the common no-defaults case.
+/// Walks the pattern via arena children and materializes only the
+/// default-expression subtrees (the AssignmentPattern right sides), which is
+/// cheap for the common no-defaults case.
 fn walk_pattern_defaults_typed(
     pattern: &crate::ast::typed_expr::JsNode,
     arena: &crate::ast::arena::ParseArena,
@@ -268,60 +267,6 @@ fn walk_pattern_defaults_typed(
         }
         JsNode::RestElement { argument, .. } => {
             walk_pattern_defaults_typed(arena.get_js_node(*argument), arena, context)?;
-        }
-        _ => {}
-    }
-    Ok(())
-}
-
-fn walk_pattern_defaults(
-    pattern: &serde_json::Value,
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    let pattern_type = pattern.get("type").and_then(|t| t.as_str());
-    match pattern_type {
-        Some("AssignmentPattern") => {
-            // Walk the left side for nested patterns
-            if let Some(left) = pattern.get("left") {
-                walk_pattern_defaults(left, context)?;
-            }
-            // Walk the default value expression using a lightweight reference-only walker.
-            // We must NOT use walk_js_node here because that would trigger MemberExpression
-            // and CallExpression visitors which incorrectly set needs_context = true.
-            // The official Svelte's EachBlock visitor does NOT visit the context pattern
-            // during analysis — it only visits node.expression, node.body, node.key, and
-            // node.fallback. We only need to count identifier references for the defaults.
-            if let Some(right) = pattern.get("right") {
-                walk_expression_refs_only(right, context);
-            }
-        }
-        Some("ObjectPattern") => {
-            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
-                for prop in properties {
-                    let prop_type = prop.get("type").and_then(|t| t.as_str());
-                    if prop_type == Some("RestElement") {
-                        if let Some(argument) = prop.get("argument") {
-                            walk_pattern_defaults(argument, context)?;
-                        }
-                    } else if let Some(value) = prop.get("value") {
-                        walk_pattern_defaults(value, context)?;
-                    }
-                }
-            }
-        }
-        Some("ArrayPattern") => {
-            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
-                for elem in elements {
-                    if !elem.is_null() {
-                        walk_pattern_defaults(elem, context)?;
-                    }
-                }
-            }
-        }
-        Some("RestElement") => {
-            if let Some(argument) = pattern.get("argument") {
-                walk_pattern_defaults(argument, context)?;
-            }
         }
         _ => {}
     }
@@ -388,54 +333,6 @@ fn walk_expression_children_refs_only(node: &serde_json::Value, context: &mut Vi
     }
 }
 
-/// Extract identifier names from a destructuring pattern.
-///
-/// Corresponds to `extract_identifiers` in utils/ast.js.
-fn extract_identifiers_from_pattern(node: &serde_json::Value, names: &mut Vec<String>) {
-    let node_type = node.get("type").and_then(|t| t.as_str());
-    match node_type {
-        Some("Identifier") => {
-            if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
-                names.push(name.to_string());
-            }
-        }
-        Some("ObjectPattern") => {
-            if let Some(props) = node.get("properties").and_then(|p| p.as_array()) {
-                for prop in props {
-                    let prop_type = prop.get("type").and_then(|t| t.as_str());
-                    if prop_type == Some("RestElement") {
-                        if let Some(arg) = prop.get("argument") {
-                            extract_identifiers_from_pattern(arg, names);
-                        }
-                    } else if let Some(value) = prop.get("value") {
-                        extract_identifiers_from_pattern(value, names);
-                    }
-                }
-            }
-        }
-        Some("ArrayPattern") => {
-            if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
-                for elem in elements {
-                    if !elem.is_null() {
-                        extract_identifiers_from_pattern(elem, names);
-                    }
-                }
-            }
-        }
-        Some("AssignmentPattern") => {
-            if let Some(left) = node.get("left") {
-                extract_identifiers_from_pattern(left, names);
-            }
-        }
-        Some("RestElement") => {
-            if let Some(arg) = node.get("argument") {
-                extract_identifiers_from_pattern(arg, names);
-            }
-        }
-        _ => {}
-    }
-}
-
 /// Collect transitive dependencies for legacy reactivity.
 ///
 /// This function recursively collects all dependencies of a binding,
@@ -461,12 +358,4 @@ fn collect_transitive_dependencies_impl(
             collect_transitive_dependencies_impl(dep_idx, bindings, deps);
         }
     }
-}
-
-/// Alias for visit function.
-pub fn visit_each_block(
-    block: &mut EachBlock,
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    visit(block, context)
 }
