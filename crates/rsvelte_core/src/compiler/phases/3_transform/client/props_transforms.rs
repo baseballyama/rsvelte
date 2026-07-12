@@ -1659,9 +1659,8 @@ pub(super) fn flatten_destructured_let_as_declarators(
 /// Returns None if there's no `:` (simple property like `a` or `a = default`).
 /// Handles nested patterns so `b: { c }` splits into `("b", "{ c }")`.
 pub(super) fn split_property_key_value(prop: &str) -> Option<(&str, &str)> {
-    let chars: Vec<char> = prop.chars().collect();
     let mut depth = 0;
-    for (i, &ch) in chars.iter().enumerate() {
+    for (i, ch) in prop.char_indices() {
         match ch {
             '{' | '[' | '(' => depth += 1,
             '}' | ']' | ')' => depth -= 1,
@@ -1693,14 +1692,13 @@ pub(super) fn split_binding_name_default(s: &str) -> (&str, Option<&str>) {
 
 /// Split destructuring properties/elements by comma, respecting nesting depth.
 pub(super) fn split_destructuring_properties(s: &str) -> Vec<&str> {
-    let chars: Vec<char> = s.chars().collect();
     let mut result = Vec::new();
     let mut depth = 0;
     let mut start = 0;
     let mut in_string = false;
     let mut string_char = ' ';
 
-    for (i, &ch) in chars.iter().enumerate() {
+    for (i, ch) in s.char_indices() {
         if in_string {
             if ch == '\\' {
                 continue;
@@ -3468,8 +3466,29 @@ pub(super) fn split_top_level_args(s: &str) -> Vec<String> {
 #[cfg(test)]
 mod split_declarators_tests {
     use super::{
-        apply_prop_reads_in_prop_default_values, split_declarators, transform_prop_reads_in_expr,
+        apply_prop_reads_in_prop_default_values, split_declarators, split_destructuring_properties,
+        split_property_key_value, transform_prop_reads_in_expr,
     };
+
+    #[test]
+    fn split_property_key_value_handles_non_ascii_key() {
+        // Non-ASCII prop key before the `:` (e.g. `let { café: renamed } = $props()`)
+        // must not panic on a byte/char index mismatch.
+        assert_eq!(
+            split_property_key_value("café: renamed"),
+            Some(("café", "renamed"))
+        );
+        assert_eq!(split_property_key_value("café"), None);
+    }
+
+    #[test]
+    fn split_destructuring_properties_handles_non_ascii() {
+        // `let { café, b } = $props()` — the comma sits past a multi-byte char.
+        assert_eq!(
+            split_destructuring_properties("café, b"),
+            vec!["café", " b"]
+        );
+    }
 
     #[test]
     fn bare_prop_default_stays_a_getter_reference() {

@@ -681,10 +681,9 @@ pub(super) fn body_references_identifier_in_statements(
     // Simple approach: scan for statements at depth 0
     let mut depth = 0;
     let mut start = 0;
-    let chars: Vec<char> = content.chars().collect();
 
-    for i in 0..chars.len() {
-        match chars[i] {
+    for (i, c) in content.char_indices() {
+        match c {
             '(' | '[' | '{' => depth += 1,
             ')' | ']' | '}' if depth > 0 => {
                 depth -= 1;
@@ -1676,18 +1675,16 @@ pub(super) fn transform_legacy_state_declarations(
                 if let Some(pos) = result.find(pat.as_str()) {
                     // Find the `=` that ends the type annotation, respecting nested braces/brackets.
                     let type_start = pos + pat.len();
-                    let chars: Vec<char> = result[type_start..].chars().collect();
                     let mut depth = 0i32;
                     let mut eq_pos: Option<usize> = None;
-                    let mut j = 0;
-                    while j < chars.len() {
-                        let c = chars[j];
+                    let mut iter = result[type_start..].char_indices().peekable();
+                    while let Some((j, c)) = iter.next() {
                         match c {
                             '{' | '[' | '(' | '<' => depth += 1,
                             '}' | ']' | ')' | '>' => depth -= 1,
                             '=' if depth == 0 => {
                                 // Make sure it's not `==` or `=>`
-                                let next = chars.get(j + 1).copied();
+                                let next = iter.peek().map(|&(_, ch)| ch);
                                 if !matches!(next, Some('=') | Some('>')) {
                                     eq_pos = Some(j);
                                     break;
@@ -1696,7 +1693,6 @@ pub(super) fn transform_legacy_state_declarations(
                             ';' | '\n' if depth == 0 => break,
                             _ => {}
                         }
-                        j += 1;
                     }
                     if let Some(eq) = eq_pos {
                         let after_eq = type_start + eq + 1;
@@ -1845,4 +1841,27 @@ pub(super) fn transform_legacy_state_declarations(
     }
 
     result
+}
+
+#[cfg(test)]
+mod non_ascii_tests {
+    use super::{body_references_identifier, transform_legacy_state_declarations};
+    use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
+
+    #[test]
+    fn body_references_identifier_handles_non_ascii_statement() {
+        // A non-ASCII token before a `;`/newline statement boundary must not panic
+        // when scanning statements (byte vs char index).
+        assert!(body_references_identifier("café; return count", "count"));
+        assert!(!body_references_identifier("café; return other", "count"));
+    }
+
+    #[test]
+    fn transform_legacy_state_declarations_handles_non_ascii_type() {
+        // `let x: Café = 0` — the `=` sits past a multi-byte char in the type
+        // annotation; slicing must use byte offsets (no panic).
+        let vars = vec![("x".to_string(), None, DeclarationKind::Let)];
+        let out = transform_legacy_state_declarations("let x: Café = 0", &vars, false);
+        assert!(out.contains("$.mutable_source(0)"), "got: {out}");
+    }
 }
