@@ -2581,7 +2581,7 @@ pub(super) fn transform_props_destructuring(
             // Only $bindable() defaults get proxy-wrapped when should_proxy returns true.
             // Regular prop defaults are NOT proxied.
             // Reference: VariableDeclaration.js lines 80-84
-            let needs_proxy = was_bindable && should_proxy_prop_default(default_value);
+            let needs_proxy = was_bindable && should_proxy_prop_default(default_value, analysis);
             let proxy_wrapped = if needs_proxy {
                 if dev {
                     format!("$.tag_proxy($.proxy({}), '{}')", default_value, local_name)
@@ -3348,7 +3348,38 @@ pub(super) fn all_args_are_literals(args: &str) -> bool {
 /// Returns `false` for values known to be primitives (literals, template literals,
 /// arrow functions, function expressions, unary/binary expressions, `undefined`).
 /// Returns `true` for everything else (identifiers, member expressions, call expressions, etc.).
-fn should_proxy_prop_default(value: &str) -> bool {
+fn should_proxy_prop_default(value: &str, analysis: &ComponentAnalysis) -> bool {
+    let v = value.trim();
+
+    // A bare identifier resolves to its binding's initializer — upstream's
+    // `should_proxy` recurses via `should_proxy(binding.initial, null)` (scope
+    // becomes `null`, so a *nested* identifier is not resolved again) when the
+    // binding is not reassigned, has an initial, and that initial is not a
+    // function/class/import/each/snippet. So `let x = $bindable(DEFAULT_ALPHA)`
+    // where `const DEFAULT_ALPHA = 1` is NOT proxied (its initial is a literal),
+    // while `let x = $bindable(someObj)` where `const someObj = {}` still is.
+    if is_identifier_str(v)
+        && v != "undefined"
+        && let Some(binding) = analysis
+            .root
+            .find_binding_any_scope(v)
+            .and_then(|idx| analysis.root.bindings.get(idx))
+        && !binding.reassigned
+        && !binding.initial_is_function
+        && binding.import_source.is_none()
+        && let Some(ref init) = binding.initial
+    {
+        // Recurse with the resolved initial, but WITHOUT identifier resolution
+        // (mirrors upstream's `scope = null`) so this terminates in one hop.
+        return should_proxy_prop_default_no_ident(init);
+    }
+
+    should_proxy_prop_default_no_ident(v)
+}
+
+/// The non-identifier-resolving core of `should_proxy_prop_default` (upstream
+/// `should_proxy` with `scope === null`): a bare identifier here is proxyable.
+fn should_proxy_prop_default_no_ident(value: &str) -> bool {
     let v = value.trim();
 
     // Empty value means no default
@@ -3391,8 +3422,50 @@ fn should_proxy_prop_default(value: &str) -> bool {
         return false;
     }
 
+    // Binary and unary expressions produce primitives and are NOT proxied
+    // (upstream `should_proxy` lists `UnaryExpression` and `BinaryExpression` in
+    // its early `return false`, but NOT `LogicalExpression` / `ConditionalExpression`,
+    // which stay proxyable). The string checks above only catch some unary forms,
+    // so `devicePixelRatio > 1` used to fall through here and get wrongly wrapped
+    // in `$.proxy(...)` (which then also flipped it to a lazy `PROPS_IS_LAZY_INITIAL`
+    // thunk). Defer to an exact AST classification for the top-level node type.
+    if let Some(false) = prop_default_ast_should_proxy(v) {
+        return false;
+    }
+
     // Everything else could be an object/array/identifier that should be proxied
     true
+}
+
+/// Exact top-level node-type classification for `should_proxy_prop_default`,
+/// mirroring upstream `should_proxy` (`utils.js`): a `BinaryExpression` or
+/// `UnaryExpression` is never proxied, whereas a `LogicalExpression` /
+/// `ConditionalExpression` (and objects/arrays/identifiers/calls) still is.
+/// Returns `Some(false)` when the value parses to a non-proxyable binary/unary
+/// node, otherwise `None` (callers keep their heuristic result).
+fn prop_default_ast_should_proxy(value: &str) -> Option<bool> {
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast::{Expression, Statement};
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    let alloc = Allocator::default();
+    let src = format!("({})", value.trim());
+    let parsed = Parser::new(&alloc, &src, SourceType::mjs()).parse();
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
+        return None;
+    }
+    let Some(Statement::ExpressionStatement(stmt)) = parsed.program.body.first() else {
+        return None;
+    };
+    let mut expr = &stmt.expression;
+    while let Expression::ParenthesizedExpression(p) = expr {
+        expr = &p.expression;
+    }
+    match expr {
+        Expression::BinaryExpression(_) | Expression::UnaryExpression(_) => Some(false),
+        _ => None,
+    }
 }
 
 /// Check if a string is a simple literal value.
