@@ -587,7 +587,10 @@ fn render_this_attr(
     // than `this={expr}`. Preserve the string form (`this="value"`) rather
     // than converting to the brace form, which would turn `this="div"` into
     // `this={div}` (an identifier reference, not a string literal).
-    let prev_byte = source.as_bytes().get(expr_start as usize - 1).copied();
+    let prev_byte = (expr_start as usize)
+        .checked_sub(1)
+        .and_then(|i| source.as_bytes().get(i))
+        .copied();
     let this_attr = if matches!(prev_byte, Some(b'"') | Some(b'\'')) {
         let raw = source
             .get(expr_start as usize..expr_end as usize)
@@ -966,13 +969,12 @@ fn open_tag_name_end(source: &str, element_start: u32) -> usize {
     i
 }
 
-/// HTML void elements — they never have a closing tag and are emitted in the
-/// self-closing ` />` form (matching prettier-plugin-svelte's default).
-/// prettier-plugin-svelte's `blockElements` list (its `isBlockElement`). These
+/// Canonical list of HTML block-display elements (prettier-plugin-svelte's
+/// `blockElements` / `isBlockElement`), shared with the collapse pass. These
 /// elements never hug their start/end (`shouldHugStart` / `shouldHugEnd` return
 /// false), so when their open tag wraps the closing `>` always breaks onto its
 /// own line — even when text content sits directly after it.
-/// Canonical list of HTML block-display elements shared with the collapse pass.
+///
 /// Does NOT include `script` / `style` — those are whitespace-preserving in the
 /// collapse pass (handled by `is_whitespace_preserving`) but count as block
 /// elements here for open-tag layout purposes.
@@ -1021,6 +1023,8 @@ fn is_block_element(tag_name: &str) -> bool {
     is_html_block_display_element(tag_name) || matches!(tag_name, "script" | "style")
 }
 
+/// HTML void elements — they never have a closing tag and are emitted in the
+/// self-closing ` />` form (matching prettier-plugin-svelte's default).
 fn is_void_element(tag_name: &str) -> bool {
     matches!(
         tag_name,
@@ -1756,7 +1760,9 @@ fn render_attribute_node(
         AttributeValue::Sequence(parts)
             if matches!(parts.as_slice(), [AttributeValuePart::ExpressionTag(_)]) =>
         {
-            let AttributeValuePart::ExpressionTag(tag) = &parts[0] else {
+            // The guard already established the single-`ExpressionTag` shape;
+            // re-bind through the same slice pattern so the two stay in sync.
+            let [AttributeValuePart::ExpressionTag(tag)] = parts.as_slice() else {
                 unreachable!()
             };
             let inner_src = expression_tag_inner(tag, source).trim();
@@ -2020,7 +2026,7 @@ fn render_attribute_value_sequence(
                             let total = effective_indent
                                 + lead_cols
                                 + 1
-                                + first_pass.len()
+                                + visual_width(first_pass.as_str())
                                 + 1
                                 + trailing_cols
                                 + 1;

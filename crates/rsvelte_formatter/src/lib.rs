@@ -5,16 +5,11 @@
 //!
 //! - `<script>` / `<script context="module">`: re-parse the body with
 //!   `oxc_parser` and format via `oxc_formatter::Formatter`.
-//! - `<style>`: TODO (verbatim for now).
-//! - markup + `{expr}`: TODO (verbatim for now).
-//!
-//! The current skeleton only handles `<script>` bodies; the rest of the
-//! source is passed through unchanged. Subsequent iterations will add
-//! CSS formatting and markup Doc IR composition.
+//! - `<style>`: formatted via the `oxc_formatter_css` engine (see
+//!   `options::StyleFormatter`).
+//! - markup + `{expr}`: normalized by the `markup` / `expression` passes and
+//!   the `collapse` child-layout pass.
 
-// Milestone-1 `printChildren` port: built and unit-tested, wired into the markup
-// printer in a follow-up (docs/fmt-layout-port-plan.md), so its API is unused for now.
-#[allow(dead_code)]
 mod children;
 mod collapse;
 mod doc;
