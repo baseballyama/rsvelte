@@ -1022,42 +1022,43 @@ fn process_spread_attribute(
         &expression,
     );
 
-    if has_state {
-        // Apply transforms to get the proper reactive expression (e.g., state -> $.get(state))
-        let transformed = super::utils::apply_transforms_to_expression(&expression, context);
+    // Apply transforms to get the proper reactive expression (e.g., state -> $.get(state)).
+    let transformed = super::utils::apply_transforms_to_expression(&expression, context);
 
-        // Use memoizer to potentially wrap in $.derived_safe_equal
-        let memo_id = memoizer.add(
-            transformed.clone(),
-            has_call,
-            has_await,
-            false, // memoize_if_state
-            has_state,
-        );
+    // Mirror upstream `component.js`: the memoizer is consulted for EVERY spread,
+    // so a spread whose expression is a (non-pure) call — `{...getGroupProps()}` —
+    // is hoisted into a `$.derived` even when it reads no state directly. Then
+    // `is_memoized || has_state || has_await` decides whether to thunk.
+    let memo_id = memoizer.add(
+        transformed.clone(),
+        has_call,
+        has_await,
+        false, // memoize_if_state
+        has_state,
+    );
 
-        // Check if memoization happened (memo_id is $N)
-        let is_memoized = if let JsExpr::Identifier(name) = &memo_id {
-            name.starts_with('$') && name.chars().skip(1).all(|c| c.is_ascii_digit())
-        } else {
-            false
-        };
-
-        if is_memoized {
-            // Wrap in thunk with $.get()
-            props_and_spreads.push(PropsEntry::Spread(b::thunk(
-                &context.arena,
-                b::call(
-                    &context.arena,
-                    b::member_path(&context.arena, "$.get"),
-                    vec![memo_id],
-                ),
-            )));
-        } else {
-            // Wrap in thunk for reactivity tracking
-            props_and_spreads.push(PropsEntry::Spread(b::thunk(&context.arena, transformed)));
-        }
+    // Check if memoization happened (memo_id is $N)
+    let is_memoized = if let JsExpr::Identifier(name) = &memo_id {
+        name.starts_with('$') && name.chars().skip(1).all(|c| c.is_ascii_digit())
     } else {
-        // No reactive state - push the expression directly without thunk wrapping
+        false
+    };
+
+    if is_memoized {
+        // Wrap in thunk with $.get()
+        props_and_spreads.push(PropsEntry::Spread(b::thunk(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.get"),
+                vec![memo_id],
+            ),
+        )));
+    } else if has_state || has_await {
+        // Reactive but not memoized: wrap in a thunk for reactivity tracking.
+        props_and_spreads.push(PropsEntry::Spread(b::thunk(&context.arena, transformed)));
+    } else {
+        // Fully static: push the expression directly without thunk wrapping.
         props_and_spreads.push(PropsEntry::Spread(expression));
     }
 }
