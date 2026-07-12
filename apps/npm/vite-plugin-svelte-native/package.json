@@ -24,6 +24,7 @@
   "files": [
     "envelope.js",
     "parse-envelope.js",
+    "lib/bounds-check.js",
     "index.cjs",
     "index.d.ts"
   ],

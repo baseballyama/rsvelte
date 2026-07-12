@@ -12,6 +12,8 @@
 
 'use strict';
 
+const { isWindowOutOfBounds, windowOutOfBoundsMessage } = require('./lib/bounds-check.js');
+
 const MAGIC = 0x31565352; // "RSV1" little-endian
 const VERSION = 1;
 const HEADER_LEN = 60;
@@ -27,10 +29,8 @@ const WARN_HAS_FRAME = 1 << 3;
 
 /**
  * Validate that the byte window `[off, off + len)` lies fully inside a
- * buffer of `bufLen` bytes. The encoder writes offsets/lengths as u32s
- * the decoder otherwise trusts blindly — `buf.toString` / `subarray`
- * silently *clamp* an out-of-range window, so a malformed envelope would
- * decode to truncated data instead of failing loudly. Throw instead (M-012).
+ * buffer of `bufLen` bytes (see `./lib/bounds-check.js` for why this must
+ * throw rather than let `toString`/`subarray` clamp silently — M-012).
  *
  * @param {number} bufLen
  * @param {number} off
@@ -38,11 +38,8 @@ const WARN_HAS_FRAME = 1 << 3;
  * @param {string} label
  */
 function assertWindow(bufLen, off, len, label) {
-	if (off < 0 || len < 0 || off + len > bufLen) {
-		throw new Error(
-			`[rsvelte] envelope ${label} out of bounds ` +
-				`(offset ${off} + length ${len} exceeds buffer of ${bufLen} bytes)`,
-		);
+	if (isWindowOutOfBounds(off, len, bufLen)) {
+		throw new Error(`[rsvelte] envelope ${windowOutOfBoundsMessage(label, off, len, bufLen)}`);
 	}
 }
 

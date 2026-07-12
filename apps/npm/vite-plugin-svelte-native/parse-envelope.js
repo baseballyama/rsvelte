@@ -12,6 +12,8 @@
 
 'use strict';
 
+const { isWindowOutOfBounds, windowOutOfBoundsMessage } = require('./lib/bounds-check.js');
+
 const MAGIC = 0x3156_5052; // "RPV1" little-endian
 const VERSION = 1;
 const HEADER_LEN = 24;
@@ -258,11 +260,9 @@ function readBool(ctx) {
 
 /**
  * Validate that the byte window `[start, start + len)` lies fully inside
- * `ctx.bytes`. The encoder writes lengths as u32s the decoder otherwise
- * trusts blindly — `Buffer.toString` / `Uint8Array.subarray` silently
- * *clamp* an out-of-range window, so a malformed envelope would decode to
- * truncated/misaligned data instead of failing loudly. Throw instead
- * (mirrors envelope.js's `assertWindow`, M-012).
+ * `ctx.bytes` (see `./lib/bounds-check.js`, shared with `envelope.js`'s
+ * `assertWindow`, for why this must throw rather than let
+ * `Buffer.toString`/`Uint8Array.subarray` clamp silently — M-012).
  *
  * @param {object} ctx
  * @param {number} start
@@ -270,10 +270,9 @@ function readBool(ctx) {
  * @param {string} label
  */
 function assertWindow(ctx, start, len, label) {
-	if (start < 0 || len < 0 || start + len > ctx.bytes.byteLength) {
+	if (isWindowOutOfBounds(start, len, ctx.bytes.byteLength)) {
 		throw new EnvelopeError(
-			`parse envelope: ${label} out of bounds ` +
-				`(offset ${start} + length ${len} exceeds buffer of ${ctx.bytes.byteLength} bytes)`,
+			`parse envelope: ${windowOutOfBoundsMessage(label, start, len, ctx.bytes.byteLength)}`,
 		);
 	}
 }
