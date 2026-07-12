@@ -2468,10 +2468,12 @@ impl Parser<'_> {
         // For style and script elements, just get raw content (no expression handling)
         if is_raw_content {
             let content_start = self.index;
-            while !self.is_eof() && !self.match_str(&closing_tag) {
-                self.advance();
-            }
-            let content_end = self.index;
+            let content_end = match memmem::find(&self.bytes[self.index..], closing_tag.as_bytes())
+            {
+                Some(offset) => self.index + offset,
+                None => self.bytes.len(),
+            };
+            self.index = content_end;
             let raw_content = &self.source[content_start..content_end];
 
             // Always add a Text node for style, even if empty
