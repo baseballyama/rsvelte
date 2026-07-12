@@ -2034,12 +2034,13 @@ pub fn walk_js_expression(
             // This is important for detecting scoped store subscriptions
             context.function_depth += 1;
 
-            // Save a snapshot of the declarations map before entering the function scope.
-            // This ensures that both parameter shadowing AND local variable declarations
-            // inside the function body are properly scoped and restored when we exit.
-            // Without this, `const bar = baz` inside a callback would permanently
-            // shadow the outer `bar` binding in the declarations map.
-            let saved_declarations = context.analysis.root.scope.declarations.clone();
+            // Mark the current length of the declarations undo log before entering the
+            // function scope. Parameter shadows and local variable declarations added
+            // inside the body each append a `(name, previous)` entry; on exit we pop
+            // back to this mark to reverse exactly those inserts. Without this cleanup,
+            // `const bar = baz` inside a callback would permanently shadow the outer
+            // `bar` binding in the declarations map.
+            let decl_undo_mark = context.decl_undo_log.len();
 
             // Create a temporary scope in all_scopes for the function parameters.
             // This ensures that parameter names properly shadow bindings from outer
@@ -2086,12 +2087,13 @@ pub fn walk_js_expression(
 
                         // Also add to the root scope declarations for backward compatibility
                         // with $store scoped subscription checks
-                        context
+                        let prev = context
                             .analysis
                             .root
                             .scope
                             .declarations
                             .insert(param_name.clone(), temp_binding_idx);
+                        context.decl_undo_log.push((param_name, prev));
                     }
                 }
             }
@@ -2144,8 +2146,18 @@ pub fn walk_js_expression(
 
             // Restore the declarations map to the state before entering this function scope.
             // This undoes both parameter shadows and any local variable declarations
-            // that were registered inside the function body.
-            context.analysis.root.scope.declarations = saved_declarations;
+            // that were registered inside the function body, in LIFO order.
+            while context.decl_undo_log.len() > decl_undo_mark {
+                let (name, prev) = context.decl_undo_log.pop().unwrap();
+                match prev {
+                    Some(idx) => {
+                        context.analysis.root.scope.declarations.insert(name, idx);
+                    }
+                    None => {
+                        context.analysis.root.scope.declarations.remove(&name);
+                    }
+                }
+            }
 
             // Restore function depth
             context.function_depth -= 1;
@@ -2300,12 +2312,13 @@ pub fn walk_js_statement(
                             }
 
                             // Also add to root scope declarations for backward compatibility
-                            context
+                            let prev = context
                                 .analysis
                                 .root
                                 .scope
                                 .declarations
-                                .insert(name, temp_binding_idx);
+                                .insert(name.clone(), temp_binding_idx);
+                            context.decl_undo_log.push((name, prev));
                         }
                     }
                 }
@@ -3260,7 +3273,7 @@ pub fn walk_js_expression_node(
         } => {
             context.function_depth += 1;
 
-            let saved_declarations = context.analysis.root.scope.declarations.clone();
+            let decl_undo_mark = context.decl_undo_log.len();
 
             let saved_scope = context.scope;
             let temp_scope_idx = context.analysis.root.all_scopes.len();
@@ -3289,12 +3302,13 @@ pub fn walk_js_expression_node(
                         .declarations
                         .insert(param_name.clone(), temp_binding_idx);
 
-                    context
+                    let prev = context
                         .analysis
                         .root
                         .scope
                         .declarations
                         .insert(param_name.clone(), temp_binding_idx);
+                    context.decl_undo_log.push((param_name, prev));
                 }
             }
 
@@ -3333,7 +3347,17 @@ pub fn walk_js_expression_node(
             context.in_template_function = saved_in_template_function;
             context.expression = saved_expression;
             context.scope = saved_scope;
-            context.analysis.root.scope.declarations = saved_declarations;
+            while context.decl_undo_log.len() > decl_undo_mark {
+                let (name, prev) = context.decl_undo_log.pop().unwrap();
+                match prev {
+                    Some(idx) => {
+                        context.analysis.root.scope.declarations.insert(name, idx);
+                    }
+                    None => {
+                        context.analysis.root.scope.declarations.remove(&name);
+                    }
+                }
+            }
             context.function_depth -= 1;
         }
         JsNode::FunctionExpression { body: None, .. }
@@ -3468,12 +3492,13 @@ pub fn walk_js_statement_node(
                             scope.declarations.insert(name.clone(), temp_binding_idx);
                         }
 
-                        context
+                        let prev = context
                             .analysis
                             .root
                             .scope
                             .declarations
-                            .insert(name, temp_binding_idx);
+                            .insert(name.clone(), temp_binding_idx);
+                        context.decl_undo_log.push((name, prev));
                     }
                 }
             }

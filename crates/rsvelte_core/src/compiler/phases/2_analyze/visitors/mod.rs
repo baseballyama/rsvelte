@@ -486,6 +486,13 @@ pub struct VisitorContext<'a> {
     /// Used to prevent `identifier::visit` from setting `has_direct_template_read`
     /// for bind:this references, since bind:this has special non_reactive_update logic.
     pub in_bind_this: bool,
+    /// Undo log of temporary shadowing inserts into `analysis.root.scope.declarations`
+    /// made while walking a function/arrow body. Each entry is `(name, previous)` where
+    /// `previous` is the binding index the name mapped to before the insert (or `None` if
+    /// the name was absent). The function-body walker records a length marker on entry and,
+    /// on exit, pops entries back to that marker in LIFO order to reverse exactly the
+    /// declarations added during that scope — replacing a full clone/restore of the map.
+    pub decl_undo_log: Vec<(String, Option<usize>)>,
 }
 
 /// Type of ancestor that can "own" a slot attribute.
@@ -590,6 +597,7 @@ impl<'a> VisitorContext<'a> {
             current_template_scope: 0,
             in_const_tag: false,
             in_bind_this: false,
+            decl_undo_log: Vec::new(),
         }
     }
 
