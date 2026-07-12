@@ -2,8 +2,10 @@ use oxc_allocator::Allocator;
 use oxc_formatter::format_program;
 use oxc_parser::{ParseOptions as OxcParseOptions, Parser};
 use oxc_span::SourceType;
+use rsvelte_core::ast::arena::try_with_current_serialize_arena;
 use rsvelte_core::ast::js::Expression;
 use rsvelte_core::ast::template::{ExpressionTag, Fragment, TemplateNode};
+use rsvelte_core::ast::typed_expr::JsNode;
 use unicode_width::UnicodeWidthStr;
 
 use crate::error::FormatError;
@@ -658,19 +660,23 @@ fn push_const_tag(
     // keyword (Svelte 5.56.4 `start: start + 2`), so slicing the declaration
     // would wrongly include a leading `const `; the declarator span is exactly
     // `<binding> = <init>`.
-    let decl_json = decl.as_json();
-    let (Some(start), Some(end)) = decl_json
-        .get("declarations")
-        .and_then(|d| d.as_array())
-        .and_then(|d| d.first())
-        .map(|declarator| {
-            (
-                declarator.get("start").and_then(|n| n.as_u64()),
-                declarator.get("end").and_then(|n| n.as_u64()),
-            )
-        })
-        .unwrap_or((None, None))
-    else {
+    // Read the first declarator's span straight from the typed AST. Going
+    // through `decl.as_json()` would serialize the entire `VariableDeclaration`
+    // subtree — including the initializer — just to recover two offsets.
+    let node = decl.as_node();
+    let (Some(start), Some(end)) = (match &*node {
+        JsNode::VariableDeclaration { declarations, .. } => {
+            try_with_current_serialize_arena(|arena| {
+                arena
+                    .get_js_children(*declarations)
+                    .first()
+                    .map(|d| (d.start(), d.end()))
+            })
+            .flatten()
+        }
+        _ => None,
+    })
+    .unwrap_or((None, None)) else {
         return Ok(());
     };
     let slice = source
@@ -938,15 +944,19 @@ fn widen_to_source_parens(source: &str, mut start: u32, mut end: u32) -> Option<
     let mut widened = false;
     loop {
         // Look backward from `start` for `(` through horizontal whitespace only.
+        // The targets — space, tab, `(` — are all ASCII, so a raw reverse byte
+        // scan is safe: any UTF-8 continuation or non-ASCII lead byte falls into
+        // the `_ => break` arm, and a matched byte is a char boundary.
         let before = source.get(..start as usize)?;
-        let chars_before: Vec<(usize, char)> = before.char_indices().collect();
-        // Walk backward, skipping spaces/tabs; stop at anything else.
+        let bytes = before.as_bytes();
         let mut paren_pos: Option<u32> = None;
-        for &(pos, ch) in chars_before.iter().rev() {
-            match ch {
-                ' ' | '\t' => continue,
-                '(' => {
-                    paren_pos = Some(pos as u32);
+        let mut i = bytes.len();
+        while i > 0 {
+            i -= 1;
+            match bytes[i] {
+                b' ' | b'\t' => continue,
+                b'(' => {
+                    paren_pos = Some(i as u32);
                     break;
                 }
                 _ => break,
@@ -2451,42 +2461,13 @@ pub(crate) fn format_pattern_source(
         )));
     }
 
-    // Build a single-line copy of JsFormatOptions for this pattern only.
-    // Setting `expand = Never` plus a very wide `line_width` keeps even
-    // deeply nested destructuring on one line — the multi-line form
-    // would land across a Svelte block header (`{#each as ...}`) and
-    // re-parse incorrectly.
-    let mut single_line = options.js.clone();
-    single_line.line_width =
-        oxc_formatter_core::LineWidth::try_from(u16::MAX).unwrap_or(single_line.line_width);
-    single_line.expand = oxc_formatter::Expand::Never;
-
-    let formatted = format_program(&allocator, &parser_ret.program, single_line, None)
-        .print()
-        .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
-        .into_code();
-
-    // Output shape: `let <pattern> = __rsvelte_fmt_rhs__;\n`. Strip the
-    // leading `let ` and the trailing ` = __rsvelte_fmt_rhs__;` so we
-    // are left with the formatted pattern.
-    let s = formatted.trim_end();
-    let stripped_prefix = s.strip_prefix("let ").unwrap_or(s);
-    let suffix = format!(" = {SENTINEL};");
-    let pattern = stripped_prefix
-        .strip_suffix(&suffix)
-        .unwrap_or(stripped_prefix);
-    let candidate = pattern.trim().to_string();
-
-    // prettier-plugin-svelte preserves the original source representation for
-    // patterns: string-key quotes are kept as-is, computed keys preserve
-    // internal whitespace. OXC normalises all of this (double-quote, strip
-    // quotes from valid-identifier keys, etc.), so we use the source-based
-    // light_normalize_pattern in all cases.
-    //
-    // For the multi-line case OXC hard-wraps regardless of `line_width` /
-    // `expand`; for the single-line case OXC changes quote style.  Either way
-    // the source-normalizing path is more faithful to the oracle.
-    let _ = candidate; // keep the OXC parse/format step for error-detection only
+    // The parse above is the only thing OXC contributes here: it rejects a
+    // malformed pattern. prettier-plugin-svelte preserves the original source
+    // representation for patterns (string-key quotes kept as-is, computed keys
+    // keep their internal whitespace), which OXC would normalise away
+    // (double-quoting, stripping quotes from valid-identifier keys, hard-wrapping
+    // multi-line), so the formatted program is never used — the source-based
+    // `light_normalize_pattern` is more faithful to the oracle.
     Ok(light_normalize_pattern(pattern_source))
 }
 
