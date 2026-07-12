@@ -12,7 +12,7 @@
  */
 
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "fs";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import { join } from "path";
 import { tmpdir } from "os";
 import { parse } from "../../submodules/svelte/packages/svelte/src/compiler/index.js";
@@ -49,8 +49,9 @@ const cleanSvelteAst = JSON.parse(
 console.log("Parsing with Rust...");
 let rustAst;
 try {
-  const rustOutput = execSync(
-    `cargo run --release -- "${inputFile}"`,
+  const rustOutput = execFileSync(
+    "cargo",
+    ["run", "--release", "--", inputFile],
     { encoding: "utf-8", cwd: process.cwd() }
   );
   rustAst = JSON.parse(rustOutput);
