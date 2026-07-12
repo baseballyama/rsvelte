@@ -167,13 +167,15 @@ pub fn run_tsgo(
 /// (and tsgo, which is wire-compatible). Lines look like:
 ///   `path/to/file.ts(line,col): error TSxxxx: message`
 fn parse_diagnostics(output: &str) -> Vec<RawTsDiagnostic> {
-    let re = regex::Regex::new(
-        r"^(?P<file>.+?)\((?P<line>\d+),(?P<col>\d+)\):\s+(?P<sev>error|warning|info)\s+(?P<code>TS\d+):\s+(?P<msg>.*)$",
-    )
-    .expect("static regex compiles");
+    static RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(
+            r"^(?P<file>.+?)\((?P<line>\d+),(?P<col>\d+)\):\s+(?P<sev>error|warning|info)\s+(?P<code>TS\d+):\s+(?P<msg>.*)$",
+        )
+        .expect("static regex compiles")
+    });
     let mut diags = Vec::new();
     for line in output.lines() {
-        if let Some(caps) = re.captures(line) {
+        if let Some(caps) = RE.captures(line) {
             let line_no: u32 = caps["line"].parse().unwrap_or(1);
             let col: u32 = caps["col"].parse().unwrap_or(1);
             diags.push(RawTsDiagnostic {

@@ -666,11 +666,13 @@ fn materialize_kit_types(
 /// basename-keyed rewrite is unambiguous.
 fn rewrite_kit_types_route_imports(text: &str, mirror_dir: &Path) -> String {
     // `import( <q> <maybe-path>/ +layout .js <q> )` → capture quote + basename.
-    let re = regex::Regex::new(
-        r#"import\((['"])(?:[^'"]*/)?(\+(?:layout|page)(?:\.server)?)\.js(['"])\)"#,
-    )
-    .expect("static kit-$types import regex");
-    re.replace_all(text, |caps: &regex::Captures| {
+    static RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(
+            r#"import\((['"])(?:[^'"]*/)?(\+(?:layout|page)(?:\.server)?)\.js(['"])\)"#,
+        )
+        .expect("static kit-$types import regex")
+    });
+    RE.replace_all(text, |caps: &regex::Captures| {
         let quote = &caps[1];
         let base = &caps[2];
         if mirror_dir.join(format!("{base}.ts")).is_file() {
