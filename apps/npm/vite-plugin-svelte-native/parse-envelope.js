@@ -255,10 +255,34 @@ function readU32(ctx) {
 function readBool(ctx) {
 	return readU8(ctx) !== 0;
 }
+
+/**
+ * Validate that the byte window `[start, start + len)` lies fully inside
+ * `ctx.bytes`. The encoder writes lengths as u32s the decoder otherwise
+ * trusts blindly — `Buffer.toString` / `Uint8Array.subarray` silently
+ * *clamp* an out-of-range window, so a malformed envelope would decode to
+ * truncated/misaligned data instead of failing loudly. Throw instead
+ * (mirrors envelope.js's `assertWindow`, M-012).
+ *
+ * @param {object} ctx
+ * @param {number} start
+ * @param {number} len
+ * @param {string} label
+ */
+function assertWindow(ctx, start, len, label) {
+	if (start < 0 || len < 0 || start + len > ctx.bytes.byteLength) {
+		throw new EnvelopeError(
+			`parse envelope: ${label} out of bounds ` +
+				`(offset ${start} + length ${len} exceeds buffer of ${ctx.bytes.byteLength} bytes)`,
+		);
+	}
+}
+
 function readStr(ctx) {
 	const len = readU32(ctx);
 	const start = ctx.pos;
 	const end = start + len;
+	assertWindow(ctx, start, len, 'string');
 	ctx.pos = end;
 	// Branch is monomorphic per envelope: V8 specialises after warmup.
 	return ctx.isBuffer
@@ -289,6 +313,7 @@ function readInlineJson(ctx) {
 	const len = readU32(ctx);
 	const start = ctx.pos;
 	const end = start + len;
+	assertWindow(ctx, start, len, 'inline JSON');
 	ctx.pos = end;
 	if (len === 0) return null;
 	return JSON.parse(
