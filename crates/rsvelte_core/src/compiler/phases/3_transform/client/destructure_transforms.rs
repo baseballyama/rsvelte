@@ -604,15 +604,17 @@ pub(super) fn find_top_level_colon(s: &str) -> Option<usize> {
 
 /// Find the position of a top-level `=` in a string (not `==` or `===`).
 pub(super) fn find_top_level_equals(s: &str) -> Option<usize> {
-    let chars: Vec<char> = s.chars().collect();
     let mut depth = 0;
     let mut in_string: Option<char> = None;
+    let mut prev: Option<char> = None;
+    let mut iter = s.char_indices().peekable();
 
-    for (i, &c) in chars.iter().enumerate() {
+    while let Some((i, c)) = iter.next() {
         if in_string.is_some() {
             if Some(c) == in_string {
                 in_string = None;
             }
+            prev = Some(c);
             continue;
         }
 
@@ -622,17 +624,20 @@ pub(super) fn find_top_level_equals(s: &str) -> Option<usize> {
             ')' | ']' | '}' => depth -= 1,
             '=' if depth == 0 => {
                 // Make sure it's not == or ===
-                if i + 1 < chars.len() && chars[i + 1] == '=' {
+                if iter.peek().map(|&(_, next)| next) == Some('=') {
+                    prev = Some(c);
                     continue;
                 }
                 // Make sure it's not != or <=, >=
-                if i > 0 && matches!(chars[i - 1], '!' | '<' | '>') {
+                if matches!(prev, Some('!') | Some('<') | Some('>')) {
+                    prev = Some(c);
                     continue;
                 }
                 return Some(i);
             }
             _ => {}
         }
+        prev = Some(c);
     }
 
     None
@@ -1668,4 +1673,26 @@ pub(super) fn transform_member_mutations(
         return rewritten;
     }
     line.to_string()
+}
+
+#[cfg(test)]
+mod non_ascii_tests {
+    use super::find_top_level_equals;
+
+    #[test]
+    fn find_top_level_equals_handles_non_ascii_before_equals() {
+        // `let [café = 1] = arr` — the `=` lands past a multi-byte char, so the
+        // returned index must be a byte offset usable for slicing (no panic).
+        let s = "café = 1";
+        let pos = find_top_level_equals(s).expect("should find top-level =");
+        assert_eq!(&s[..pos], "café ");
+        assert_eq!(s[pos + 1..].trim(), "1");
+    }
+
+    #[test]
+    fn find_top_level_equals_skips_not_equals_after_non_ascii() {
+        // `!=` is not a top-level assignment; the preceding-char check must run
+        // against the correct char even when a multi-byte char sits earlier.
+        assert_eq!(find_top_level_equals("café != x"), None);
+    }
 }
