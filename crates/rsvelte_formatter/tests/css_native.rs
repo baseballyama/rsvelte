@@ -45,7 +45,9 @@ fn lang_maps_to_dialect() {
 
 #[test]
 fn parse_error_is_reported() {
-    // An unterminated block is a parse error the caller turns into a verbatim
-    // round-trip (mirroring how oxfmt leaves unparseable CSS in place).
-    assert!(format_css_source(".a{color:", CssDialect::Css, &CssFormatOptions::default()).is_err());
+    // A declaration missing its `:` is a parse error the caller turns into a
+    // verbatim round-trip (mirroring how oxfmt leaves unparseable CSS in place).
+    // (The oxc CSS parser is error-tolerant for some truncations — e.g. `.a{color:`
+    // now parses as an empty value — but a missing colon still fails.)
+    assert!(format_css_source(".a{color", CssDialect::Css, &CssFormatOptions::default()).is_err());
 }

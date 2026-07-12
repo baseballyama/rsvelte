@@ -88,5 +88,25 @@
 		"id": "shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte",
 		"class": "oracle-bug",
 		"reason": "oxfmt produces PLATFORM-DEPENDENT output for this file: on macOS it collapses the overflowing self-closing <ColorIndicator color={value} /> inside <pre> to one line, on Linux it attribute-wraps it. The oracle is thus self-inconsistent across OSes, so byte-parity is undefined (a deterministic formatter cannot match both). Upstream oxfmt cross-platform non-determinism bug. rsvelte deterministically matches the macOS form."
+	},
+	{
+		"id": "svelte/packages/svelte/tests/css/samples/css-vars/input.svelte",
+		"class": "oracle-bug",
+		"reason": "oxfmt's `--svelte` (prettier-plugin-svelte) CSS path double-spaces an empty custom-property value with !important: `--bar: !important;` becomes `--bar:  !important;`. oxfmt's OWN raw-CSS path (which rsvelte drives under --no-native-css) emits a single space, matching rsvelte. The oracle is thus internally inconsistent between its svelte-embedded and standalone CSS formatters; rsvelte is self-consistent with the raw-CSS path."
+	},
+	{
+		"id": "svelte/packages/svelte/tests/css/samples/unicode-identifier/input.svelte",
+		"class": "oracle-bug",
+		"reason": "oxfmt's `--svelte` CSS path emits a single space before `{` after an escaped-unicode selector (`#\\31\\32\\33 {`), while its OWN raw-CSS path emits two (`#\\31\\32\\33  {`) — the same text rsvelte produces under --no-native-css. Oracle is internally inconsistent between its svelte-embedded and standalone CSS formatters; rsvelte matches the raw-CSS path."
+	},
+	{
+		"id": "svelte.dev/apps/svelte.dev/src/routes/docs/[topic]/[...path]/+layout.svelte",
+		"class": "oracle-bug",
+		"reason": "oxfmt's `--svelte` CSS path wraps a deeply-nested `calc((100vw - ... ) )` value differently (opens `(` on its own line) than its OWN raw-CSS path, which rsvelte drives under --no-native-css. This is the 'long CSS-value wrapping differs' inconsistency the corpus fmt.mjs header documents between oxfmt's two CSS code paths; rsvelte is self-consistent with the raw-CSS path."
+	},
+	{
+		"id": "svelte/packages/svelte/tests/parser-modern/samples/css-nth-syntax/input.svelte",
+		"class": "invalid-input",
+		"reason": "The <style> block is a parser-modern EDGE fixture containing genuinely-invalid / svelte-specific CSS (`:global(nav)`, `h1:nth-child(p)`, `h1:nth-of-type(+12)`) that oxfmt's CSS parser rejects with 'invalid An+B syntax'. rsvelte's --no-native-css path forwards the block to that same oxfmt CSS parser, which errors, so rsvelte leaves the source verbatim; oxfmt's `--svelte` path instead tolerates it. Not a valid, formattable stylesheet."
 	}
 ]
