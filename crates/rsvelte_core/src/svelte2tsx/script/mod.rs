@@ -20,6 +20,7 @@ use oxc_span::{GetSpan, SourceType};
 use crate::ast::template::Script;
 
 use super::magic_string::MagicString;
+use super::svelte2tsx::slice_src;
 
 // =============================================================================
 // ExportedNames
@@ -1524,7 +1525,7 @@ pub fn process_instance_script(
 
         // Pass 3: handle reactive statements ($: ...)
         let content_start = script.content_offset as usize;
-        let script_source = &source[script.start as usize..script.end as usize];
+        let script_source = slice_src(source, script.start as usize, script.end as usize);
         let close_tag_offset = script_source
             .rfind("</script>")
             .or_else(|| script_source.rfind("</Script>"))
@@ -3193,7 +3194,7 @@ where
 {
     let content_start = script.content_offset as usize;
     // Find the end of script content: from content_offset to the start of </script>
-    let script_source = &source[script.start as usize..script.end as usize];
+    let script_source = slice_src(source, script.start as usize, script.end as usize);
     let close_tag_offset = script_source
         .rfind("</script>")
         .or_else(|| script_source.rfind("</Script>"))

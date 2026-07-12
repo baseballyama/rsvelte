@@ -13,6 +13,15 @@ use super::magic_string::{GenerateMapOptions, MagicString};
 use super::script::{ComponentEvents, ExportedNames};
 use super::template;
 
+/// Slice `source` by AST byte offsets, returning `""` when the range is absent,
+/// inverted (`start > end`), out of bounds (`end > source.len()`), or not on a
+/// UTF-8 char boundary — instead of panicking. For any valid range this is
+/// exactly `&source[start..end]`, so it is byte-parity-preserving.
+#[inline]
+pub(crate) fn slice_src(source: &str, start: usize, end: usize) -> &str {
+    source.get(start..end).unwrap_or("")
+}
+
 // =============================================================================
 // Options
 // =============================================================================
@@ -294,7 +303,7 @@ fn validate_debug_tag_arguments(ast: &Root, source: &str) -> Result<(), Svelte2T
                 (Some(s), Some(e))
                     if (s as usize) < (e as usize) && (e as usize) <= source.len() =>
                 {
-                    let t = source[s as usize..e as usize].trim();
+                    let t = slice_src(source, s as usize, e as usize).trim();
                     let mut chars = t.chars();
                     match chars.next() {
                         Some(c0) if c0.is_alphabetic() || c0 == '_' || c0 == '$' => {
@@ -403,7 +412,7 @@ fn validate_meta_element_placement(ast: &Root, source: &str) -> Result<(), Svelt
     fn dynamic_element_tag_is_empty(tag: &crate::ast::js::Expression, source: &str) -> bool {
         match (tag.start(), tag.end()) {
             (Some(s), Some(e)) if (s as usize) < (e as usize) && (e as usize) <= source.len() => {
-                source[s as usize..e as usize].trim().is_empty()
+                slice_src(source, s as usize, e as usize).trim().is_empty()
             }
             _ => true,
         }
@@ -603,7 +612,11 @@ pub fn svelte2tsx(
         .instance
         .as_ref()
         .map(|instance| {
-            let tag_text = &source[instance.start as usize..instance.content_offset as usize];
+            let tag_text = slice_src(
+                source,
+                instance.start as usize,
+                instance.content_offset as usize,
+            );
             extract_generics_from_script_tag(tag_text)
         })
         .unwrap_or_default()
@@ -728,8 +741,11 @@ pub fn svelte2tsx(
                 }
                 crate::ast::template::AttributeValue::Expression(expr) => {
                     has_expression_attr = true;
-                    let expr_text = &source[expr.expression.start().unwrap_or(0) as usize
-                        ..expr.expression.end().unwrap_or(0) as usize];
+                    let expr_text = slice_src(
+                        source,
+                        expr.expression.start().unwrap_or(0) as usize,
+                        expr.expression.end().unwrap_or(0) as usize,
+                    );
                     attrs_parts.push(format!("\"{}\":{},", node.name, expr_text));
                 }
                 // String / mixed attribute, e.g. `<svelte:options customElement="my-el">`
@@ -743,8 +759,11 @@ pub fn svelte2tsx(
                         && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
                     {
                         has_expression_attr = true;
-                        let expr_text = &source[expr.expression.start().unwrap_or(0) as usize
-                            ..expr.expression.end().unwrap_or(0) as usize];
+                        let expr_text = slice_src(
+                            source,
+                            expr.expression.start().unwrap_or(0) as usize,
+                            expr.expression.end().unwrap_or(0) as usize,
+                        );
                         attrs_parts.push(format!("\"{}\":{},", node.name, expr_text));
                     } else {
                         let mut value = String::from("`");
@@ -765,7 +784,7 @@ pub fn svelte2tsx(
                                         (expr.expression.start(), expr.expression.end())
                                     {
                                         value.push_str("${");
-                                        value.push_str(&source[s as usize..e as usize]);
+                                        value.push_str(slice_src(source, s as usize, e as usize));
                                         value.push('}');
                                     }
                                 }
@@ -812,7 +831,7 @@ pub fn svelte2tsx(
         // Mirror that: skip blanking so the raw `<style>…</style   >` text
         // appears verbatim in the async template body.
         let has_proper_style_close = {
-            let slice = &source[css.start as usize..css.end as usize];
+            let slice = slice_src(source, css.start as usize, css.end as usize);
             slice
                 .as_bytes()
                 .windows(8)
@@ -1061,7 +1080,7 @@ pub fn svelte2tsx(
     // the no-script path is used. The detection criterion is: the script range
     // does NOT contain the exact ASCII string `</script>` (case-insensitive).
     let has_instance_script = ast.instance.as_ref().is_some_and(|inst| {
-        let slice = &source[inst.start as usize..inst.end as usize];
+        let slice = slice_src(source, inst.start as usize, inst.end as usize);
         slice
             .as_bytes()
             .windows(9)
@@ -1138,7 +1157,11 @@ pub fn svelte2tsx(
     let mut generics_attribute: Option<String> = None;
     if has_instance_script {
         let instance = ast.instance.as_ref().unwrap();
-        let script_tag_text = &source[instance.start as usize..instance.content_offset as usize];
+        let script_tag_text = slice_src(
+            source,
+            instance.start as usize,
+            instance.content_offset as usize,
+        );
         generics_attribute = extract_generics_from_script_tag(script_tag_text);
     }
 
@@ -1159,7 +1182,7 @@ pub fn svelte2tsx(
         // components are Svelte 5 runes-only.
         // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
         //   `isRunes = true when component has TOP-LEVEL AWAIT in the instance script`
-        let raw_content = &source[content_start as usize..content_end as usize];
+        let raw_content = slice_src(source, content_start as usize, content_end as usize);
         // When the instance script failed to parse (lenient svelte2tsx fallback —
         // `instance.raw_content` is non-empty), the script is spliced raw and
         // official does NOT detect its top-level `await` / wrap `$$render` in
@@ -1190,7 +1213,7 @@ pub fn svelte2tsx(
         let async_prefix = if has_top_level_await { "async " } else { "" };
 
         // Detect `generics` attribute on the script tag
-        let script_tag_text = &source[script_start as usize..content_start as usize];
+        let script_tag_text = slice_src(source, script_start as usize, content_start as usize);
         let generics_param = extract_generics_from_script_tag(script_tag_text);
         let use_jsdoc_generics = options.emit_jsdoc && !options.is_ts_file;
         // For JS files emitting JSDoc, the generics live on a `/** @template T */`
@@ -1253,8 +1276,12 @@ pub fn svelte2tsx(
                 // `handleFirstInstanceImport` inserts an extra `\n` either
                 // before a leading multiline comment or before the `import`
                 // keyword.
-                let comments_raw = &source[abs_comments_start as usize..abs_import_start as usize];
-                let import_raw = &source[abs_import_start as usize..abs_end as usize];
+                let comments_raw = slice_src(
+                    source,
+                    abs_comments_start as usize,
+                    abs_import_start as usize,
+                );
+                let import_raw = slice_src(source, abs_import_start as usize, abs_end as usize);
 
                 // Collect leading comment lines while preserving block-comment
                 // interior indentation verbatim.  The JS reference (`moveNode`)
@@ -1315,7 +1342,7 @@ pub fn svelte2tsx(
                 // previous one).
                 if i > 0 {
                     let prev_end = imports[i - 1].2 + content_start;
-                    let between = &source[prev_end as usize..abs_comments_start as usize];
+                    let between = slice_src(source, prev_end as usize, abs_comments_start as usize);
                     let newline_count = between.chars().filter(|&c| c == '\n').count();
                     if newline_count >= 2 {
                         import_text.push('\n');
@@ -1961,7 +1988,7 @@ pub fn svelte2tsx(
         // wrapper closes immediately for module-script-only components.
         let has_non_whitespace_template = ast.fragment.nodes.iter().any(|node| {
             !matches!(node, crate::ast::template::TemplateNode::Text(t)
-                if source[t.start as usize..t.end as usize].chars().all(|c| c.is_whitespace()))
+                if slice_src(source, t.start as usize, t.end as usize).chars().all(|c| c.is_whitespace()))
         });
         if !has_non_whitespace_template && (mod_end as usize) < source.len() {
             let bytes = source.as_bytes();
@@ -3045,7 +3072,7 @@ fn find_instance_imports(
     use oxc_span::SourceType;
 
     let content_start = script.content_offset as usize;
-    let script_source = &source[script.start as usize..script.end as usize];
+    let script_source = slice_src(source, script.start as usize, script.end as usize);
     let close_tag_offset = script_source
         .rfind("</script>")
         .or_else(|| script_source.rfind("</Script>"))
@@ -3383,7 +3410,7 @@ fn is_snippet_module_hoistable(
     if (body_start as usize) >= source.len() || (body_end as usize) > source.len() {
         return true;
     }
-    let body_text = &source[body_start as usize..body_end as usize];
+    let body_text = slice_src(source, body_start as usize, body_end as usize);
 
     // Lexical scan: any identifier in the body that resolves to an
     // instance-script value (and isn't an import or a snippet param) blocks
@@ -5438,7 +5465,7 @@ fn find_orphan_scripts(ast: &Root, source: &str) -> Vec<(u32, u32, String)> {
 
         // Extract the inner content: everything between `>` of the open tag and
         // `<` of `</script>`.
-        let open_gt = source[tag_start as usize..tag_end as usize]
+        let open_gt = slice_src(source, tag_start as usize, tag_end as usize)
             .find('>')
             .map(|p| tag_start as usize + p + 1)
             .unwrap_or(tag_start as usize + 8); // fallback: after "<script>"
