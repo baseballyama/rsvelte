@@ -62,14 +62,17 @@ export function apply(response) {
 #[test]
 fn array_pattern_inside_function_body_lowers_to_set() {
     // The old line-leading text handler missed mid-line array destructures.
+    // The RHS is a plain identifier (`a`), so upstream uses it verbatim as the
+    // IIFE parameter / `$.to_array` base (`should_cache = false`) rather than a
+    // cached `$$value`.
     let src = r#"let count = $state(0);
 let obj = $state({ a: 1 });
 export function arr(a) { [count, obj] = a; }
 "#;
     let out = compile_mod_client(src);
     assert!(
-        out.contains("$.to_array($$value, 2)"),
-        "array destructure must go through $.to_array. Got:\n{out}"
+        out.contains("((a) => {") && out.contains("$.to_array(a, 2)"),
+        "identifier RHS must name the IIFE param after the RHS. Got:\n{out}"
     );
     assert!(
         out.contains("$.set(count, $$array[0], true)")
@@ -79,6 +82,20 @@ export function arr(a) { [count, obj] = a; }
     assert!(
         !out.contains("[$.get(count)"),
         "invalid `$.get(...)` array assignment target remains:\n{out}"
+    );
+}
+
+#[test]
+fn non_identifier_rhs_caches_in_dollar_value() {
+    // A non-identifier RHS (`should_cache = true`) is cached in `$$value`.
+    let src = r#"let count = $state(0);
+let obj = $state({ a: 1 });
+export function arr(o) { [count, obj] = o.pair ?? []; }
+"#;
+    let out = compile_mod_client(src);
+    assert!(
+        out.contains("(($$value) => {") && out.contains("$.to_array($$value, 2)"),
+        "non-identifier RHS must cache in `$$value`. Got:\n{out}"
     );
 }
 

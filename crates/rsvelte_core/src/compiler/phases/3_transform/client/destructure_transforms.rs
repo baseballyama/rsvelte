@@ -1232,11 +1232,15 @@ fn wrap_arrow_body(body: &str) -> String {
 
 /// Generate an IIFE for a destructure assignment.
 ///
-/// For array patterns: `(($$value) => { var $$array = $.to_array($$value, N); target1 = $$array[0]; ... })(rhs)`
+/// For array patterns: `((<p>) => { var $$array = $.to_array(<p>, N); target1 = $$array[0]; ... })(rhs)`
 /// For object patterns: `(($$value) => { target1 = $$value.key1; ... })(rhs)`
 ///
+/// The IIFE parameter `<p>` is the RHS identifier itself when the RHS is a plain
+/// identifier (upstream `should_cache = value.type !== 'Identifier'` is false);
+/// otherwise the RHS is cached in `$$value`.
+///
 /// When `is_standalone` is false (the destructure is part of a larger expression),
-/// `return $$value;` is appended so the IIFE returns the value.
+/// `return <p>;` is appended so the IIFE returns the value.
 pub(super) fn generate_destructure_iife(
     pattern_type: char, // ']' for array, '}' for object
     pattern_str: &str,
@@ -1271,10 +1275,28 @@ pub(super) fn generate_destructure_iife(
             .map(|p| p.trim().starts_with("..."))
             .unwrap_or(false);
 
-        let to_array_args = if has_rest {
-            "$.to_array($$value)".to_string()
+        // Upstream `visit_assignment_expression`: `should_cache = value.type !==
+        // 'Identifier'`. When the RHS is a plain identifier (and won't be
+        // rewritten into a call — see `force_cache_rhs`), it is used verbatim as
+        // both the IIFE parameter and the `$.to_array(...)` base
+        // (`((array) => { var $$array = $.to_array(array, 2); … })(array)`);
+        // otherwise the value is cached in a `$$value` parameter.
+        let rhs_trimmed = rhs_str.trim();
+        let rhs_is_simple_identifier = !rhs_trimmed.is_empty()
+            && rhs_trimmed
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+            && !rhs_trimmed.starts_with(|c: char| c.is_ascii_digit());
+        let param_name = if rhs_is_simple_identifier && !force_cache_rhs {
+            rhs_trimmed
         } else {
-            format!("$.to_array($$value, {})", parts.len())
+            "$$value"
+        };
+
+        let to_array_args = if has_rest {
+            format!("$.to_array({})", param_name)
+        } else {
+            format!("$.to_array({}, {})", param_name, parts.len())
         };
 
         let mut body_lines = Vec::new();
@@ -1339,17 +1361,20 @@ pub(super) fn generate_destructure_iife(
 
         if !is_standalone {
             body_lines.push(String::new()); // blank line before return
-            body_lines.push("\treturn $$value;".to_string());
+            body_lines.push(format!("\treturn {};", param_name));
         }
 
         let body = body_lines.join("\n");
         // When the IIFE body or RHS contains `await`, the arrow must be async
         // and the whole call must be `await`ed. This matches the official Svelte
-        // compiler which generates `await (async ($$value) => { ... })(rhs)`.
+        // compiler which generates `await (async (<param>) => { ... })(rhs)`.
         if code_contains_await(&body) || code_contains_await(rhs_str) {
-            format!("await (async ($$value) => {{\n{}\n}})({})", body, rhs_str)
+            format!(
+                "await (async ({}) => {{\n{}\n}})({})",
+                param_name, body, rhs_str
+            )
         } else {
-            format!("(($$value) => {{\n{}\n}})({})", body, rhs_str)
+            format!("(({}) => {{\n{}\n}})({})", param_name, body, rhs_str)
         }
     } else {
         // Object destructure
