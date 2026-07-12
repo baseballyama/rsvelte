@@ -518,7 +518,6 @@ type Rep = (u32, u32, String);
 /// The core DFS.  We pass `is_same` as mutable state and a `boundary_stack`
 /// to restore it on leave.  The ancestor stack is `&[&Value]` (by reference
 /// from the call stack).
-#[allow(clippy::too_many_arguments)]
 fn verify_node<'a>(
     node: &'a Value,
     func_map: &'a HashMap<String, (&'a Value, HashSet<String>)>,
@@ -717,7 +716,6 @@ fn verify_node<'a>(
 }
 
 /// Entry point for verifying a single body node (reactive stmt body or function body).
-#[allow(clippy::too_many_arguments)]
 fn verify_root<'a>(
     body: &'a Value,
     func_map: &'a HashMap<String, (&'a Value, HashSet<String>)>,

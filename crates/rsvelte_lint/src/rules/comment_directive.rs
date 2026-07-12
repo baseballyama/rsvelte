@@ -336,7 +336,6 @@ fn parse_directives(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn parse_one_comment(
     source: &str,
     li: &LineIndex,

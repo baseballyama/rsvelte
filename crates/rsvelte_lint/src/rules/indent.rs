@@ -979,7 +979,6 @@ fn walk_text_node(
 }
 
 /// Walk a regular element: its opening tag tokens and children.
-#[allow(clippy::too_many_arguments)]
 fn walk_element(
     start: u32,
     end: u32,
@@ -998,7 +997,6 @@ fn walk_element(
 /// Like `walk_element` but with an optional flag to skip walking the children.
 /// Used for inline `<style>`/`<script>` elements whose content follows its own
 /// indentation rules that the template-level indent rule should not enforce.
-#[allow(clippy::too_many_arguments)]
 fn walk_element_maybe_skip_children(
     start: u32,
     end: u32,

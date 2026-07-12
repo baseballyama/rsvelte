@@ -655,7 +655,6 @@ impl Rule for MustacheSpacing {
 impl MustacheSpacing {
     /// Verify a directive value (`name={expr}`): find the `{` before the
     /// expression and the `}` after it; skip shorthands / value-less directives.
-    #[allow(clippy::too_many_arguments)]
     fn verify_directive(
         &self,
         ctx: &mut LintContext,

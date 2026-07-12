@@ -363,7 +363,6 @@ fn is_empty(children: &[TemplateNode]) -> bool {
 }
 
 impl HtmlSelfClosing {
-    #[allow(clippy::too_many_arguments)]
     fn check(
         &self,
         ctx: &mut LintContext,

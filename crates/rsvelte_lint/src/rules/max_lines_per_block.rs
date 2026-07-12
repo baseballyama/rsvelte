@@ -217,7 +217,6 @@ fn opt_bool(opts: Option<&Value>, key: &str) -> bool {
 pub struct MaxLinesPerBlock;
 
 impl MaxLinesPerBlock {
-    #[allow(clippy::too_many_arguments)]
     fn check_block(
         &self,
         ctx: &mut LintContext,
