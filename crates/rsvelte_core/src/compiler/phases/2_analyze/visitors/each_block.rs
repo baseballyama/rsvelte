@@ -388,54 +388,6 @@ fn walk_expression_children_refs_only(node: &serde_json::Value, context: &mut Vi
     }
 }
 
-/// Extract identifier names from a destructuring pattern.
-///
-/// Corresponds to `extract_identifiers` in utils/ast.js.
-fn extract_identifiers_from_pattern(node: &serde_json::Value, names: &mut Vec<String>) {
-    let node_type = node.get("type").and_then(|t| t.as_str());
-    match node_type {
-        Some("Identifier") => {
-            if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
-                names.push(name.to_string());
-            }
-        }
-        Some("ObjectPattern") => {
-            if let Some(props) = node.get("properties").and_then(|p| p.as_array()) {
-                for prop in props {
-                    let prop_type = prop.get("type").and_then(|t| t.as_str());
-                    if prop_type == Some("RestElement") {
-                        if let Some(arg) = prop.get("argument") {
-                            extract_identifiers_from_pattern(arg, names);
-                        }
-                    } else if let Some(value) = prop.get("value") {
-                        extract_identifiers_from_pattern(value, names);
-                    }
-                }
-            }
-        }
-        Some("ArrayPattern") => {
-            if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
-                for elem in elements {
-                    if !elem.is_null() {
-                        extract_identifiers_from_pattern(elem, names);
-                    }
-                }
-            }
-        }
-        Some("AssignmentPattern") => {
-            if let Some(left) = node.get("left") {
-                extract_identifiers_from_pattern(left, names);
-            }
-        }
-        Some("RestElement") => {
-            if let Some(arg) = node.get("argument") {
-                extract_identifiers_from_pattern(arg, names);
-            }
-        }
-        _ => {}
-    }
-}
-
 /// Collect transitive dependencies for legacy reactivity.
 ///
 /// This function recursively collects all dependencies of a binding,

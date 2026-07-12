@@ -6,6 +6,7 @@
 
 use super::super::AnalysisError;
 use super::super::errors;
+use super::super::pattern_ids::base_identifier_name;
 use super::super::warnings;
 use super::VisitorContext;
 use super::attribute;
@@ -1452,23 +1453,7 @@ fn extract_binding_root_identifier(
     arena: &crate::ast::arena::ParseArena,
 ) -> Option<String> {
     let node = expr.as_node();
-    extract_binding_root_identifier_node(&node, arena)
-}
-
-fn extract_binding_root_identifier_node(
-    node: &crate::ast::typed_expr::JsNode,
-    arena: &crate::ast::arena::ParseArena,
-) -> Option<String> {
-    use crate::ast::typed_expr::JsNode;
-    match node {
-        JsNode::Identifier { name, .. } => Some(name.to_string()),
-        JsNode::MemberExpression { object, .. } => {
-            // Recurse through the typed arena instead of materializing the
-            // whole MemberExpression chain into a Value.
-            extract_binding_root_identifier_node(arena.get_js_node(*object), arena)
-        }
-        _ => None,
-    }
+    base_identifier_name(&node, arena)
 }
 
 /// Recursively collect component-tag references within a fragment subtree, in
@@ -1539,15 +1524,4 @@ fn collect_subtree_component_refs(
         }
     }
     walk(&fragment.nodes, out);
-}
-
-fn extract_binding_root_identifier_json(value: &serde_json::Value) -> Option<String> {
-    match value.get("type").and_then(|t| t.as_str())? {
-        "Identifier" => value.get("name").and_then(|n| n.as_str()).map(String::from),
-        "MemberExpression" => {
-            let object = value.get("object")?;
-            extract_binding_root_identifier_json(object)
-        }
-        _ => None,
-    }
 }
