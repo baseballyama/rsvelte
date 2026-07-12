@@ -1,5 +1,53 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.2.7
+
+### Patch Changes
+
+- c8795c0: fix(esrap/napi): defensive printer fixes and compileModule arena leak
+
+  esrap's `Dedent` no longer underflows on unbalanced command streams and template
+  quasis are indexed defensively. The `compileModule` zero-copy NAPI path now uses
+  the same leak-safe `BumpGuard` envelope helper as the component path, so a buffer
+  creation error no longer leaks the bump arena.
+
+- 52faffa: fix: add NAPI envelope bounds checks and propagate signal death as non-zero exit
+
+  `parse-envelope.js` now applies the same window bounds checks as `envelope.js`
+  (M-012), so a malformed or version-skewed envelope throws instead of silently
+  decoding a truncated AST. The svelte-check launcher now maps a signal-killed
+  native binary to a non-zero exit code (128 + signal) instead of reporting 0,
+  matching the fmt launcher.
+
+- 8e38ff1: fix(vite-plugin-svelte-native): require an attribute boundary for legacy `context="module"` detection
+
+  `hmr_diff`'s `is_module_script_attrs` decided whether a `<script …>` opening tag
+  was the legacy module script with a plain `str::contains("context=\"module\"")`
+  (and the `'…'` / unquoted variants). That substring check matched inside any
+  attribute whose name merely _ends_ in `context` — e.g. `<script
+data-context="module">` — misclassifying an ordinary instance script as the
+  module script and corrupting the HMR full-reload/hot-update decision.
+
+  The bare `module` attribute form already required a whitespace/`=`/`/`/`>`
+  boundary on both sides (H-094); the three `context=...` literal checks now get
+  the same treatment via a new `contains_at_attr_boundary` helper, which only
+  accepts a match starting at the beginning of the attribute text or right after
+  whitespace.
+
+- 73724e3: fix(vite-plugin-svelte-native): correct stale VERSION constant and guard against future drift
+
+  `index.cjs` hardcoded `VERSION = '5.51.3'` with a comment claiming it was "synced
+  manually against `submodules/svelte/packages/svelte/package.json`" — the submodule
+  had since moved on to `5.56.3` with nothing catching the mismatch. `VERSION` feeds
+  downstream `gte(VERSION, …)` feature-detection in the `@rsvelte/vite-plugin-svelte`
+  fork, so a stale value would silently misfire once a feature gate crosses a
+  version the two disagree on.
+
+  Updates `VERSION` to `5.56.3` and adds `scripts/dev/check-vps-version.mjs`
+  (`pnpm run check:vps-version`), which compares the exported constant against the
+  submodule's `package.json` and fails loudly on drift. It no-ops when the submodule
+  isn't checked out. A new `vps-version-check` CI job runs it on every PR/push.
+
 ## 0.2.6
 
 ### Patch Changes

@@ -1,5 +1,138 @@
 # @rsvelte/fmt
 
+## 0.5.1
+
+### Patch Changes
+
+- 21ab5b1: chore(deps): bump oxc + oxfmt to the 0.58 formatter-paired rev (39677ba)
+
+  Bump every git-pinned oxc crate (`oxc_ast`, `oxc_parser`, `oxc_codegen`,
+  `oxc_span`, `oxc_semantic`, … and the `oxc_formatter*` family) to a single new
+  revision `39677ba50d908ea09f6d9e58ded328461212f52a` — oxc crates `0.138`,
+  `oxc_formatter*` `0.58` — and bump the `oxfmt` npm dependency to `^0.58.0` (root
+  - playground). This rev is the exact oxc commit the `oxfmt` `0.58.0` release was
+    built from, so `rsvelte-fmt`'s in-process `oxc_formatter` engine is byte-identical
+    to the `oxfmt` oracle the formatter-parity gate compares against (fixing a
+    comment-placement divergence, e.g. `: !!value /* … */;`).
+
+  All oxc crates must move to one rev together so rsvelte's AST types unify with
+  `oxc_formatter`'s transitive deps, and the `oxc_formatter` rev must be paired with
+  its matching `oxfmt` npm release; this consolidates the individual Renovate oxc
+  bumps and the `auto-update-oxfmt` bot PR (#1434) into one coherent bump. The bump
+  is compiler-output-neutral — CSR/SSR compile output is byte-identical across the
+  whole compat corpus before and after; no oxc API migration was required.
+
+  Also declares the `svelte_check` bin with `required-features = ["native"]`: it
+  links `rsvelte_core::svelte_check::*` (gated on `native`), so under a feature
+  resolution that omits `native` (e.g. the `cargo codspeed build` bench graph)
+  cargo must skip the bin instead of trying to build it and failing to link.
+  Default builds enable `native`, so this is a no-op for them.
+
+  The oxfmt 0.58 bump also records one new known formatter-parity failure in the
+  ratchet (`compat/corpus/fmt-known-failures.json`): `site-kit/…/SearchBox.svelte`,
+  where rsvelte-fmt over-breaks a TS `as HTMLElement | undefined` union inside a
+  deeply-nested `on…={…}` handler at print-width 80 (its embedded-expression width
+  narrowing makes `oxc_formatter` break a union the oxfmt oracle keeps inline). It
+  is a bounded diagnosis but a non-bounded fix (entangled with the tuned
+  narrow-then-reindent plumbing), tracked as a follow-up burndown item. Four other
+  oxfmt-0.58 CSS/structure divergences on pathological svelte compiler-test fixtures
+  are `oracle-bug` / `invalid-input` exclusions (oxfmt's own `--svelte`-vs-raw CSS
+  path inconsistencies where rsvelte matches the raw path).
+
+- e005e19: fix(fmt): converge on parenthesized / sequence `{#each}` keys
+
+  An each-block key written as a sequence expression (`{#each xs as x, i ((x.id, i))}`)
+  or with redundant parens (`{#each xs as x ((x.id))}`) never reached a fixed
+  point: the formatter re-parenthesized the inner expression but left the source's
+  own parens in place, so every pass added another paren layer (and a stray space
+  after the delimiter). `rsvelte-fmt --check` therefore failed forever on these
+  files even right after `rsvelte-fmt` wrote them.
+
+  The Svelte AST records only the inner key expression span; the delimiter parens
+  — and any extra parens the source wrote around the key — live outside it, so the
+  previous edit (which replaced just the AST span) could not consume them. The key
+  handling now scans outward to the outermost delimiter paren pair, formats the key
+  as written between those parens, and re-emits it wrapped in a single delimiter
+  pair. This matches prettier-plugin-svelte (`((a, b))` for a sequence key,
+  `(x.id)` for `((x.id))`) and is idempotent.
+
+- 413b603: fix(fmt): write formatted files atomically
+
+  `rsvelte-fmt --write` (and the native JS/JSON/CSS/svelte write paths) replaced
+  each file with a plain `fs::write`, which truncates the target before writing.
+  An interrupted run — a crash, a kill, a full disk — or a tool reading the file
+  mid-write could leave a truncated or empty source file. Every output write now
+  stages the content in a uniquely-named temp file in the same directory and
+  `rename`s it into place (an atomic, same-filesystem swap), matching the approach
+  already used by the `<style>` cache.
+
+- 8a442d8: fix(fmt): measure attribute-value fit by visual width, not byte length
+
+  When deciding whether a wide single-line attribute value fits with its
+  trailing literal on the same line, the width check used the value's byte
+  length instead of its display width. For CJK (and other multi-byte) content
+  the byte count overcounts columns, so the check reported an overflow that
+  does not exist and the value was broken across lines unnecessarily. Use
+  `visual_width` for the value, matching the sibling force-break path.
+
+- f568462: fix(fmt): don't over-break deeply-nested `{@const}` continuation lines
+
+  `format_const_declaration` narrowed the whole declaration body by `lead + 2` to
+  account for the `{@const ` vs `const ` affix delta. That `+2` is only correct for
+  the FIRST line (rendered `{@const …}`); continuation lines (ternary branches, call
+  arguments, …) are re-indented to `lead` with no `{@const` prefix, so the extra `−2`
+  over-constrained them and broke a call/ternary one column too early where the
+  oracle keeps it inline. The body is now formatted at `full − lead` (correct for
+  continuation lines) and, only when the single-line result's real `{@const …}` tag
+  overflows, re-formatted at the tighter `full − lead − 2` — so single-line `{@const}`
+  output is unchanged while nested multi-line bodies wrap where prettier does.
+
+- 6152961: fix(formatter): preserve inline control-flow prefixes
+
+  Follow-up changeset for #1437 (by @mustafa0x, merged with `skip-changeset`).
+  The break-block prefix collector treated any prefix ending in `>` as a wrapped
+  block-display open-tag eligible to be reused as indentation, which misfired on
+  inline control-flow markup such as `{:else}<section …>` — the `>` there closes
+  inline content, not a wrapped open tag. Narrowed the guard to fire only when the
+  prefix (after trimming leading whitespace) is exactly `>`, so a genuine wrapped
+  open-tag continuation is still handled while inline `{:else}<el>` markup is left
+  intact and formatting stays idempotent.
+
+- eff9279: fix(fmt): preserve `&nbsp;`-only blocks and stop over-breaking exactly-80-col attribute values
+
+  Two formatter-parity fixes:
+
+  - **`&nbsp;` treated as blank whitespace.** The formatter detected insignificant
+    whitespace-only text nodes with `str::trim().is_empty()`, but Rust's
+    `char::is_whitespace` treats U+00A0 (the decoded form of `&nbsp;`) as
+    whitespace, so a block body whose only content was `&nbsp;` was wrongly
+    collapsed: `{#if a}&nbsp;{/if}` became `{#if a}\n\n{/if}`, dropping the
+    non-breaking space. A shared `is_blank_text` helper now counts only ASCII
+    whitespace as blank.
+  - **Attribute value over-break at exactly 80 columns.** The single-line overflow
+    guard in `render_single_expression_value` double-counted the opening `{` of
+    `name={value}`, over-reporting the rendered width by one column, so an
+    attribute whose value filled the print width exactly was needlessly expanded
+    onto multiple lines.
+
+- 640eb5d: fix(fmt): stop `<style>` dedent panicking on Unicode-whitespace indent and guard collapse against overlapping edits
+
+  Two formatter robustness fixes:
+
+  - **`<style>` dedent panic on non-ASCII leading whitespace.** `dedent` measured
+    each line's indentation as `line.len() - line.trim_start().len()`, but
+    `str::trim_start` strips multi-byte Unicode whitespace (e.g. U+00A0), so the
+    common-indent offset could land in the middle of a code point and
+    `line[min_indent..]` panicked. Indentation is now counted as leading ASCII
+    space/tab only (always a char boundary), with a `get(..)` fallback.
+  - **Collapse whole-element open-tag break corrupted nested edits.**
+    `collect_break_inline_open_tag` pushed a whole-element edit (rewriting the tag
+    _and_ its children in one span) and then still recursed into the children,
+    whose edits applied against now-stale offsets inside that span — corrupting the
+    output or panicking `apply_edits`. Recursion is now skipped after a
+    whole-element edit, and `apply_edits` drops any edit that overlaps an
+    already-applied one as a safety net.
+
 ## 0.5.0
 
 ### Minor Changes
