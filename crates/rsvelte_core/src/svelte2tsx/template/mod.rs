@@ -19,7 +19,7 @@ use std::fmt::Write as _;
 use indexmap::IndexMap;
 
 use super::magic_string::MagicString;
-use super::svelte2tsx::{Svelte2TsxOptions, SvelteVersion};
+use super::svelte2tsx::{Svelte2TsxOptions, SvelteVersion, slice_src};
 
 // =============================================================================
 // Template context for collecting slot/event information
@@ -224,7 +224,7 @@ fn trim_range(source: &str, mut start: usize, mut end: usize) -> Option<(u32, u3
 /// Get the expression source text from the original source.
 fn get_expression_text<'a>(expr: &crate::ast::js::Expression, source: &'a str) -> &'a str {
     if let Some((start, end)) = get_expression_range(expr) {
-        &source[start as usize..end as usize]
+        slice_src(source, start as usize, end as usize)
     } else {
         ""
     }
@@ -288,7 +288,7 @@ fn segs_to_string(segs: &[Seg], source: &str) -> String {
     for seg in segs {
         match seg {
             Seg::Lit(s) => out.push_str(s),
-            Seg::Src(s, e) => out.push_str(&source[*s as usize..*e as usize]),
+            Seg::Src(s, e) => out.push_str(slice_src(source, *s as usize, *e as usize)),
         }
     }
     out
@@ -2071,7 +2071,7 @@ fn each_collection_extended_end(block: &EachBlock, source: &str, expr_end: u32) 
     if ctx_start <= expr_end || ctx_start as usize > source.len() {
         return expr_end;
     }
-    let region = &source[expr_end as usize..ctx_start as usize];
+    let region = slice_src(source, expr_end as usize, ctx_start as usize);
     // The each separator is the LAST whitespace-bounded `as` before the context;
     // everything before it (after expr_end) is the TS postfix, if any.
     let Some(as_off) = rfind_as_keyword(region) else {
@@ -3196,7 +3196,7 @@ fn handle_regular_element(
     // When `directive_prefix` opened an extra outer block for the action
     // declarations, emit a matching extra `}` to close it.
     let extra_close = if directive_prefix.is_empty() { "" } else { "}" };
-    let is_self_closing_source = source[el.start as usize..el.end as usize]
+    let is_self_closing_source = slice_src(source, el.start as usize, el.end as usize)
         .trim_end()
         .ends_with("/>");
     let is_void = crate::compiler::utils::is_void_element(&el.name);
@@ -3426,7 +3426,7 @@ fn handle_component(
                         let _ = write!(
                             out,
                             "({})({});",
-                            &source[ss as usize..se as usize],
+                            slice_src(source, ss as usize, se as usize),
                             inst_var
                         );
                     } else {
@@ -4067,7 +4067,7 @@ fn handle_named_slot_element(
     // an unrelated earlier `</…>` (e.g. `</script>`), overwriting everything in
     // between. Append the closing braces at `el.end` instead. Mirrors
     // `handle_regular_element`.
-    let is_self_closing_source = source[el.start as usize..el.end as usize]
+    let is_self_closing_source = slice_src(source, el.start as usize, el.end as usize)
         .trim_end()
         .ends_with("/>");
     let is_void = crate::compiler::utils::is_void_element(&el.name);
@@ -4500,7 +4500,7 @@ fn handle_svelte_dynamic_element(
     // closing brace on a single line, mirroring the JS reference's behaviour
     // for void tags.
     let is_self_closing = el.fragment.nodes.is_empty()
-        && (source[el.start as usize..el.end as usize]
+        && (slice_src(source, el.start as usize, el.end as usize)
             .trim_end()
             .ends_with("/>")
             || crate::compiler::utils::is_void_element(&el.name));
@@ -5374,7 +5374,7 @@ fn build_component_props_string(attributes: &[Attribute], source: &str) -> Strin
                     && expr_range.is_some_and(|(s, _)| s == bind.start + "bind:".len() as u32);
                 if is_shorthand {
                     let (s, e) = expr_range.unwrap();
-                    parts.push(format!("{},", &source[s as usize..e as usize]));
+                    parts.push(format!("{},", slice_src(source, s as usize, e as usize)));
                 } else {
                     // Preserve a trailing TS postfix (`bind:value={value as string}`) —
                     // the parser narrows it out of the expression span so we must extend
@@ -5382,7 +5382,7 @@ fn build_component_props_string(attributes: &[Attribute], source: &str) -> Strin
                     // which includes the full TSAsExpression span).
                     let expr_text = if let Some((s, e)) = get_expression_range(&bind.expression) {
                         let extended = extend_expr_end_with_ts_postfix(source, e, bind.end);
-                        &source[s as usize..extended as usize]
+                        slice_src(source, s as usize, extended as usize)
                     } else {
                         get_expression_text(&bind.expression, source)
                     };
@@ -5886,7 +5886,7 @@ fn leading_attr_comment_segs(attr_start: u32, source: &str) -> Vec<Seg> {
         leading.reverse();
         let mut out = Vec::new();
         for (cs, ce) in &leading {
-            let region = &source[cs.saturating_sub(100) as usize..*cs as usize];
+            let region = slice_src(source, cs.saturating_sub(100) as usize, *cs as usize);
             if region.trim_end_matches([' ', '\t']).ends_with('\n') {
                 segs_push_lit(&mut out, "\n");
             }
@@ -6160,7 +6160,7 @@ fn format_spread_attribute_segments(spread: &SpreadAttribute, source: &str) -> O
             segs_push_src(&mut out, s, e);
             // The postfix text (e.g. " as T") is a literal because it's outside
             // the expression's AST span; include it then close the paren.
-            segs_push_lit(&mut out, &source[e as usize..extended as usize]);
+            segs_push_lit(&mut out, slice_src(source, e as usize, extended as usize));
             segs_push_lit(&mut out, "),");
         } else {
             segs_push_lit(&mut out, "...");
@@ -6495,11 +6495,11 @@ fn format_spread_attribute(spread: &SpreadAttribute, source: &str) -> Option<Str
         let extended = extend_expr_end_with_ts_postfix(source, e, spread.end);
         if extended > e {
             // Has TS postfix — wrap in parens so `...expr as T` becomes `...(expr as T)`.
-            let postfix = &source[e as usize..extended as usize];
-            let expr_text = &source[s as usize..e as usize];
+            let postfix = slice_src(source, e as usize, extended as usize);
+            let expr_text = slice_src(source, s as usize, e as usize);
             return Some(format!("...({}{postfix}),", expr_text));
         }
-        let expr_text = &source[s as usize..e as usize];
+        let expr_text = slice_src(source, s as usize, e as usize);
         return Some(format!("...{},", expr_text));
     }
     let expr_text = get_expression_text(&spread.expression, source);
@@ -6514,8 +6514,8 @@ fn format_bind_directive(bind: &BindDirective, source: &str) -> String {
         return format!(
             "\"bind:{}\":__sveltets_2_get_set_binding({},{}),",
             bind.name,
-            &source[gs as usize..ge as usize],
-            &source[ss as usize..se as usize],
+            slice_src(source, gs as usize, ge as usize),
+            slice_src(source, ss as usize, se as usize),
         );
     }
     let expr_text = get_expression_text(&bind.expression, source);
@@ -6631,7 +6631,12 @@ fn bind_directive_suffix_seg(
             if bind.name == "this"
                 && let Some(var) = element_var
             {
-                let _ = write!(out, "({})({});", &source[ss as usize..se as usize], var);
+                let _ = write!(
+                    out,
+                    "({})({});",
+                    slice_src(source, ss as usize, se as usize),
+                    var
+                );
             }
             return out;
         }
@@ -6645,7 +6650,7 @@ fn bind_directive_suffix_seg(
                 let postfix = get_expression_range(&bind.expression)
                     .map(|(_, e)| {
                         let ee = extend_expr_end_with_ts_postfix(source, e, bind.end);
-                        &source[e as usize..ee as usize]
+                        slice_src(source, e as usize, ee as usize)
                     })
                     .unwrap_or("");
                 let _ = write!(out, "{} = {}{};", expr_text, var, postfix);
@@ -6718,7 +6723,7 @@ fn build_element_directive_suffix_segments(
                 let expr = t.expression.as_ref().map(|e| {
                     if let Some((s, ex)) = get_expression_range(e) {
                         let extended = extend_expr_end_with_ts_postfix(source, ex, t.end);
-                        &source[s as usize..extended as usize]
+                        slice_src(source, s as usize, extended as usize)
                     } else {
                         get_expression_text(e, source)
                     }
@@ -6732,7 +6737,7 @@ fn build_element_directive_suffix_segments(
                 let expr = a.expression.as_ref().map(|e| {
                     if let Some((s, ex)) = get_expression_range(e) {
                         let extended = extend_expr_end_with_ts_postfix(source, ex, a.end);
-                        &source[s as usize..extended as usize]
+                        slice_src(source, s as usize, extended as usize)
                     } else {
                         get_expression_text(e, source)
                     }
@@ -6919,7 +6924,7 @@ fn build_directive_prefix_suffix(
                 let expr = use_dir.expression.as_ref().map(|e| {
                     if let Some((s, ex)) = get_expression_range(e) {
                         let extended = extend_expr_end_with_ts_postfix(source, ex, use_dir.end);
-                        &source[s as usize..extended as usize]
+                        slice_src(source, s as usize, extended as usize)
                     } else {
                         get_expression_text(e, source)
                     }
@@ -6946,7 +6951,7 @@ fn build_directive_prefix_suffix(
                 let expr = t.expression.as_ref().map(|e| {
                     if let Some((s, ex)) = get_expression_range(e) {
                         let extended = extend_expr_end_with_ts_postfix(source, ex, t.end);
-                        &source[s as usize..extended as usize]
+                        slice_src(source, s as usize, extended as usize)
                     } else {
                         get_expression_text(e, source)
                     }
@@ -6958,7 +6963,7 @@ fn build_directive_prefix_suffix(
                 let expr = a.expression.as_ref().map(|e| {
                     if let Some((s, ex)) = get_expression_range(e) {
                         let extended = extend_expr_end_with_ts_postfix(source, ex, a.end);
-                        &source[s as usize..extended as usize]
+                        slice_src(source, s as usize, extended as usize)
                     } else {
                         get_expression_text(e, source)
                     }
