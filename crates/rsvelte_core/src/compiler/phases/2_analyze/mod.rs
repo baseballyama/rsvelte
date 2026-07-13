@@ -4711,12 +4711,24 @@ mod tests {
     import Widget, { named as Alias } from './Widget.svelte';
     import * as Namespace from './namespace';
     let count = 0;
+    let { ...rest } = $props();
+    function handle_click() {}
+    class Controller {}
 </script>
 <Widget />
 "#;
         let analysis = analyze(source);
 
-        for name in ["from_module", "Widget", "Alias", "Namespace", "count"] {
+        for name in [
+            "from_module",
+            "Widget",
+            "Alias",
+            "Namespace",
+            "count",
+            "rest",
+            "handle_click",
+            "Controller",
+        ] {
             let binding = analysis
                 .root
                 .bindings
@@ -4726,6 +4738,41 @@ mod tests {
             assert_eq!(
                 binding.declaration_start,
                 Some(source.find(name).unwrap() as u32)
+            );
+        }
+    }
+
+    #[test]
+    fn directive_names_and_spreads_are_template_references() {
+        let source = r#"<script>
+    import { slide } from 'svelte/transition';
+    import { flip } from 'svelte/animate';
+    import action from './action';
+    let { ...rest } = $props();
+</script>
+<div use:action transition:slide {...rest}></div>
+{#each [1] as item (item)}
+    <div animate:flip>{item}</div>
+{/each}
+"#;
+        let analysis = analyze(source);
+
+        for name in ["action", "slide", "rest", "flip"] {
+            let binding = analysis
+                .root
+                .bindings
+                .iter()
+                .find(|binding| binding.name == name)
+                .unwrap_or_else(|| panic!("missing binding {name}"));
+            let start = source.rfind(name).unwrap() as u32;
+            assert!(
+                binding.references.iter().any(|reference| {
+                    reference.start == start
+                        && reference.end == start + name.len() as u32
+                        && reference.is_template_reference
+                }),
+                "missing template reference for {name}: {:?}",
+                binding.references
             );
         }
     }

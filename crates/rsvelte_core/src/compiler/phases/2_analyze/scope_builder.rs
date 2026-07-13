@@ -691,13 +691,14 @@ impl<'a> ScopeBuilder<'a> {
             } => {
                 if let Some(id_ref) = id {
                     let id_node = self.arena.get_js_node(*id_ref);
-                    if let JsNode::Identifier { name, .. } = id_node {
+                    if let JsNode::Identifier { name, start, .. } = id_node {
                         let idx = self.declare_binding(
                             name.to_string(),
                             BindingKind::Normal,
                             DeclarationKind::Function,
                         );
                         self.bindings[idx].initial_is_function = true;
+                        self.bindings[idx].declaration_start = Some(*start);
                     }
                 }
                 let params = *params;
@@ -733,12 +734,13 @@ impl<'a> ScopeBuilder<'a> {
             JsNode::ClassDeclaration { id, body, .. } => {
                 if let Some(id_ref) = id {
                     let id_node = self.arena.get_js_node(*id_ref);
-                    if let JsNode::Identifier { name, .. } = id_node {
-                        self.declare_binding(
+                    if let JsNode::Identifier { name, start, .. } = id_node {
+                        let idx = self.declare_binding(
                             name.to_string(),
                             BindingKind::Normal,
                             DeclarationKind::Let,
                         );
+                        self.bindings[idx].declaration_start = Some(*start);
                     }
                 }
                 // Process class body to find assignments in methods, getters, setters, etc.
@@ -1122,12 +1124,13 @@ impl<'a> ScopeBuilder<'a> {
                             if is_props_init {
                                 // For `let { ...rest } = $props()`, the rest binding must be RestProp
                                 let arg_node = self.arena.get_js_node(*argument);
-                                if let JsNode::Identifier { name, .. } = arg_node {
-                                    self.declare_binding(
+                                if let JsNode::Identifier { name, start, .. } = arg_node {
+                                    let idx = self.declare_binding(
                                         name.to_string(),
                                         BindingKind::RestProp,
                                         decl_kind,
                                     );
+                                    self.bindings[idx].declaration_start = Some(*start);
                                 } else {
                                     self.process_binding_pattern_typed(arg_node, None, decl_kind);
                                 }
@@ -1408,6 +1411,8 @@ impl<'a> ScopeBuilder<'a> {
                         self.declare_binding(name, BindingKind::Normal, DeclarationKind::Function);
                     // Mark as a true JS function (not a snippet block)
                     self.bindings[idx].initial_is_function = true;
+                    self.bindings[idx].declaration_start =
+                        Some(id.span.start + self.current_script_offset as u32);
                 }
                 // Create a new scope for the function body (non-porous: function_depth + 1)
                 let old_scope = self.push_function_scope();
@@ -1437,7 +1442,9 @@ impl<'a> ScopeBuilder<'a> {
                     // Class declarations use 'let' (not 'const') because class names
                     // are mutable bindings. This matches the official Svelte compiler:
                     // scope.declare(node.id, 'normal', 'let', node)
-                    self.declare_binding(name, BindingKind::Normal, DeclarationKind::Let);
+                    let idx = self.declare_binding(name, BindingKind::Normal, DeclarationKind::Let);
+                    self.bindings[idx].declaration_start =
+                        Some(id.span.start + self.current_script_offset as u32);
                 }
                 // Process class body to find assignments in methods, getters, setters, etc.
                 self.process_class_body(&class_decl.body);
@@ -2262,11 +2269,13 @@ impl<'a> ScopeBuilder<'a> {
                         // so that detect_store_subscriptions correctly identifies $props as
                         // a rune (not a store subscription).
                         if let BindingPattern::BindingIdentifier(ident) = &rest.argument {
-                            self.declare_binding(
+                            let idx = self.declare_binding(
                                 ident.name.to_string(),
                                 BindingKind::RestProp,
                                 decl_kind,
                             );
+                            self.bindings[idx].declaration_start =
+                                Some(ident.span.start + self.current_script_offset as u32);
                         } else {
                             self.process_binding_pattern(&rest.argument, &None, decl_kind);
                         }
@@ -2582,10 +2591,17 @@ impl<'a> ScopeBuilder<'a> {
                     self.process_template_expression(&attach_tag.expression);
                 }
                 Attribute::UseDirective(use_dir) => {
+                    self.reference_directive_name(&use_dir.name, use_dir.name_loc);
                     // Process use: directive expression
                     if let Some(ref expression) = use_dir.expression {
                         self.process_template_expression(expression);
                     }
+                }
+                Attribute::TransitionDirective(transition_dir) => {
+                    self.reference_directive_name(&transition_dir.name, transition_dir.name_loc);
+                }
+                Attribute::AnimateDirective(animate_dir) => {
+                    self.reference_directive_name(&animate_dir.name, animate_dir.name_loc);
                 }
                 Attribute::SpreadAttribute(spread) => {
                     // Process spread attribute expression
@@ -2594,6 +2610,25 @@ impl<'a> ScopeBuilder<'a> {
                 _ => {}
             }
         }
+    }
+
+    fn reference_directive_name(
+        &mut self,
+        name: &str,
+        name_loc: Option<crate::ast::span::SourceLocation>,
+    ) {
+        let root_name = name.split('.').next().unwrap_or(name);
+        let Some(binding_idx) = self.find_binding_in_scope_chain(root_name) else {
+            return;
+        };
+        let Some(name_loc) = name_loc else {
+            return;
+        };
+        let start = name_loc.end.character.saturating_sub(name.len() as u32);
+        let end = start + root_name.len() as u32;
+        let binding = &mut self.bindings[binding_idx];
+        binding.add_reference(start, end, true, false, false);
+        binding.has_direct_template_read = true;
     }
 
     /// Process a template expression (from attributes, event handlers, etc.) to track updates.
