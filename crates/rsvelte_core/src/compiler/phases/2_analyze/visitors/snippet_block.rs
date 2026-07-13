@@ -11,7 +11,7 @@ use super::shared::fragment;
 use super::shared::snippets::validate_snippet;
 use super::shared::utils::validate_block_not_empty;
 use crate::ast::js::Expression;
-use crate::ast::template::{SnippetBlock, TemplateNode};
+use crate::ast::template::{ExpressionMetadata, SnippetBlock, TemplateNode};
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -62,6 +62,16 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
     let old_scope = context.scope;
     if let Some(&snippet_scope_idx) = context.analysis.root.template_scope_map.get(&block.start) {
         context.scope = snippet_scope_idx;
+    }
+
+    let mut parameter_metadata = ExpressionMetadata::default();
+    for parameter in &block.parameters {
+        match parameter {
+            Expression::Typed(expression) => {
+                visit_parameter_expressions(&expression.node, context, &mut parameter_metadata)?
+            }
+            Expression::Lazy { .. } => panic!("Expression::Lazy must be resolved before analysis"),
+        }
     }
 
     // Direct children of the snippet body are direct children of a SnippetBlock,
@@ -129,6 +139,54 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
         context.analysis.template.hoisted_snippets.insert(name);
     }
 
+    Ok(())
+}
+
+fn visit_parameter_expressions(
+    node: &JsNode,
+    context: &mut VisitorContext,
+    metadata: &mut ExpressionMetadata,
+) -> Result<(), AnalysisError> {
+    let arena = context.parse_arena;
+    match node {
+        JsNode::AssignmentPattern { left, right, .. } => {
+            super::shared::utils::walk_js_expression_node(
+                arena.get_js_node(*right),
+                context,
+                metadata,
+            )?;
+            visit_parameter_expressions(arena.get_js_node(*left), context, metadata)?;
+        }
+        JsNode::ObjectPattern { properties, .. } => {
+            for property in arena.get_js_children(*properties) {
+                visit_parameter_expressions(property, context, metadata)?;
+            }
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for element in elements.iter().flatten() {
+                visit_parameter_expressions(element, context, metadata)?;
+            }
+        }
+        JsNode::Property {
+            key,
+            value,
+            computed,
+            ..
+        } => {
+            if *computed {
+                super::shared::utils::walk_js_expression_node(
+                    arena.get_js_node(*key),
+                    context,
+                    metadata,
+                )?;
+            }
+            visit_parameter_expressions(arena.get_js_node(*value), context, metadata)?;
+        }
+        JsNode::RestElement { argument, .. } => {
+            visit_parameter_expressions(arena.get_js_node(*argument), context, metadata)?;
+        }
+        _ => {}
+    }
     Ok(())
 }
 

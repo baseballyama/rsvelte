@@ -7,13 +7,19 @@
 use super::super::AnalysisError;
 use super::VisitorContext;
 use super::shared::fragment;
-use crate::ast::template::SvelteElement;
+use crate::ast::template::{Attribute, SvelteElement};
 
 /// Visit a svelte:boundary.
 pub fn visit(
     boundary: &mut SvelteElement,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
+    for attribute in &mut boundary.attributes {
+        if let Attribute::Attribute(attribute) = attribute {
+            super::attribute::visit(attribute, context)?;
+        }
+    }
+
     // Push fragment owner type for const_tag placement validation
     context
         .fragment_owner_stack
