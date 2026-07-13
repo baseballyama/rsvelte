@@ -104,18 +104,20 @@ pub(crate) fn format_script(
         )));
     }
 
-    // Format the body one indent level narrower than the configured width.
-    // The body is formatted at indent 0 here but then nested one level under
-    // `<script>` (`reindent_body` below), so a line that is exactly
-    // `printWidth` wide at indent 0 would overflow once indented. oxfmt formats
-    // the body already nested, so narrowing the width here matches its wrap
-    // decisions and keeps `<script>` bodies identical to oxfmt.
+    // When the body is indented, format it one indent level narrower than the
+    // configured width. A line that is exactly `printWidth` wide at indent 0
+    // would otherwise overflow once re-indented below. With
+    // `svelteIndentScriptAndStyle: false`, the body stays flush and retains the
+    // full configured width.
     let mut js = options.js.clone();
-    let nested_width = js
-        .line_width
-        .value()
-        .saturating_sub(js.indent_width.value() as u16);
-    js.line_width = oxc_formatter_core::LineWidth::try_from(nested_width).unwrap_or(js.line_width);
+    if options.indent_script_and_style {
+        let nested_width = js
+            .line_width
+            .value()
+            .saturating_sub(js.indent_width.value() as u16);
+        js.line_width =
+            oxc_formatter_core::LineWidth::try_from(nested_width).unwrap_or(js.line_width);
+    }
     let formatted = format_program(&allocator, &parser_ret.program, js, None)
         .print()
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
