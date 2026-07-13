@@ -8,6 +8,7 @@ use super::super::AnalysisError;
 use super::super::errors;
 use super::VisitorContext;
 use super::bind_directive;
+use super::on_directive;
 use crate::ast::template::{Attribute, SvelteElement};
 
 /// Visit a svelte:window.
@@ -40,8 +41,8 @@ pub fn visit(
             Attribute::BindDirective(bind) => {
                 bind_directive::visit_with_svelte_element(bind, "svelte:window", context)?;
             }
-            Attribute::OnDirective(_) => {
-                // on: directives are allowed
+            Attribute::OnDirective(on) => {
+                on_directive::visit(on, context)?;
             }
             Attribute::LetDirective(_) => {
                 // let: directives are NOT allowed on svelte:window

@@ -4750,6 +4750,46 @@ mod tests {
     }
 
     #[test]
+    fn legacy_special_element_event_is_a_template_binding_reference() {
+        let source = "<svelte:window on:keydown={handle_keydown} />\n<script>function handle_keydown() {}</script>";
+        let analysis = analyze(source);
+        let binding = analysis
+            .root
+            .bindings
+            .iter()
+            .find(|binding| binding.name == "handle_keydown")
+            .expect("missing handler binding");
+        let start = source.find("handle_keydown").unwrap() as u32;
+
+        assert!(binding.references.iter().any(|reference| {
+            reference.start == start
+                && reference.end == start + "handle_keydown".len() as u32
+                && reference.is_template_reference
+        }));
+    }
+
+    #[test]
+    fn function_parameter_default_records_store_subscription_reference() {
+        let source = r"<script>
+import { writable } from 'svelte/store';
+const search_params = writable({ page: 1 });
+function goto_page(page = $search_params.page) {}
+</script>";
+        let analysis = analyze(source);
+        let binding = analysis
+            .root
+            .bindings
+            .iter()
+            .find(|binding| binding.name == "$search_params")
+            .expect("missing store subscription binding");
+        let start = source.find("$search_params").unwrap() as u32;
+
+        assert!(binding.references.iter().any(|reference| {
+            reference.start == start && reference.end == start + "$search_params".len() as u32
+        }));
+    }
+
+    #[test]
     fn test_order_reactive_statements_simple() {
         // Test case: $: b = a + 1; $: a = 1;
         // Expected order: a first, then b

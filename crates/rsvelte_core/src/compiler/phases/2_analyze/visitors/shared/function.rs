@@ -5,6 +5,61 @@
 //! Corresponds to Svelte's `2-analyze/visitors/shared/function.js`.
 
 use super::super::VisitorContext;
+use crate::ast::arena::IdRange;
+use crate::ast::typed_expr::JsNode;
+use crate::compiler::phases::phase2_analyze::AnalysisError;
+
+/// Visit expressions evaluated while binding function parameters without treating
+/// the parameter declarations themselves as references.
+pub fn visit_parameter_defaults(
+    params: IdRange,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    for param in context.parse_arena.get_js_children(params) {
+        visit_parameter_pattern(param, context)?;
+    }
+    Ok(())
+}
+
+fn visit_parameter_pattern(
+    node: &JsNode,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    let arena = context.parse_arena;
+    match node {
+        JsNode::AssignmentPattern { left, right, .. } => {
+            visit_parameter_pattern(arena.get_js_node(*left), context)?;
+            super::super::script::walk_js_node_typed(arena.get_js_node(*right), context)
+        }
+        JsNode::ObjectPattern { properties, .. } => {
+            for property in arena.get_js_children(*properties) {
+                visit_parameter_pattern(property, context)?;
+            }
+            Ok(())
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for element in elements.iter().flatten() {
+                visit_parameter_pattern(element, context)?;
+            }
+            Ok(())
+        }
+        JsNode::Property {
+            key,
+            value,
+            computed,
+            ..
+        } => {
+            if *computed {
+                super::super::script::walk_js_node_typed(arena.get_js_node(*key), context)?;
+            }
+            visit_parameter_pattern(arena.get_js_node(*value), context)
+        }
+        JsNode::RestElement { argument, .. } => {
+            visit_parameter_pattern(arena.get_js_node(*argument), context)
+        }
+        _ => Ok(()),
+    }
+}
 
 /// Visit a function node (ArrowFunctionExpression, FunctionExpression, or FunctionDeclaration).
 ///

@@ -5,13 +5,17 @@
 //! Corresponds to Svelte's `2-analyze/visitors/FunctionDeclaration.js`.
 
 use super::VisitorContext;
+use super::shared::function::visit_parameter_defaults;
 use super::shared::utils::validate_identifier_name;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit a function declaration (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    if let JsNode::FunctionDeclaration { id, body, .. } = node {
+    if let JsNode::FunctionDeclaration {
+        id, params, body, ..
+    } = node
+    {
         let arena = context.parse_arena;
 
         // In runes mode, validate the function name
@@ -36,13 +40,14 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             context.scope = scope_idx;
         }
 
-        // Visit function body.
-        let result = if let Some(body_id) = body {
+        // Parameter defaults execute in the function scope before the body.
+        let mut result = visit_parameter_defaults(*params, context);
+        if result.is_ok()
+            && let Some(body_id) = body
+        {
             let body_node = arena.get_js_node(*body_id);
-            super::script::walk_js_node_typed(body_node, context)
-        } else {
-            Ok(())
-        };
+            result = super::script::walk_js_node_typed(body_node, context);
+        }
 
         // Decrement function depth and restore scope
         context.function_depth -= 1;
