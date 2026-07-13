@@ -3,6 +3,7 @@
 //! standalone tag (`@html` / `@render` / `@debug` / `@attach`). Markup,
 //! whitespace, attribute order, etc. all stay verbatim.
 
+use oxc_formatter::Semicolons;
 use rsvelte_formatter::{FormatOptions, format};
 
 fn fmt(src: &str) -> String {
@@ -19,6 +20,20 @@ fn attr_expression_value() {
         out.contains("class={foo + 1}"),
         "expected attribute expr formatted:\n{out}"
     );
+}
+
+#[test]
+fn attr_arrow_expression_without_semicolons() {
+    let mut options = FormatOptions::default();
+    options.js.semicolons = Semicolons::AsNeeded;
+
+    let out = format(
+        "<button onclick={() => (open = true)}>Open</button>",
+        &options,
+    )
+    .expect("format ok");
+
+    assert_eq!(out, "<button onclick={() => (open = true)}>Open</button>\n");
 }
 
 #[test]
