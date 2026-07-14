@@ -23,7 +23,7 @@ wasm = ["rsvelte_core/wasm-deps"]
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
 oxc_allocator = "0.138"
 oxc_ast = "0.138"
-oxc_parser = "0.138"
+oxc_parser = "0.140"
 oxc_span = "0.138"
 oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "39677ba50d908ea09f6d9e58ded328461212f52a" }
 oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "39677ba50d908ea09f6d9e58ded328461212f52a" }

@@ -19,7 +19,7 @@ oxc_span = "0.138"
 oxc_syntax = "0.138"
 
 [dev-dependencies]
-oxc_parser = "0.138"
+oxc_parser = "0.140"
 oxc_ast_visit = "0.138"
 
 [lints]
