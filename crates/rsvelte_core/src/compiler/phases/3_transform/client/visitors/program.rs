@@ -150,6 +150,19 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
 
     // Handle store subscriptions, props, and state bindings for all modes
     for (name, binding_idx) in context.state.scope.declarations.clone() {
+        // The flattened root `scope.declarations` map can be polluted by a
+        // same-named binding collapsed from an unrelated scope (e.g. a
+        // `<script module>` function parameter also named `context`), which would
+        // shadow the real instance binding and skip its prop read transform,
+        // leaving template reads as a bare identifier instead of `name()`. Reads in
+        // the instance/template resolve to the instance-scope binding, so prefer it.
+        let binding_idx = context
+            .state
+            .scope_root
+            .all_scopes
+            .get(context.state.scope_root.instance_scope_index)
+            .and_then(|s| s.declarations.get(&name).copied())
+            .unwrap_or(binding_idx);
         if let Some(binding) = context.state.scope_root.bindings.get(binding_idx) {
             // Mark different binding types for transformation
             match binding.kind {

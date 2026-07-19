@@ -2519,8 +2519,28 @@ pub(super) fn transform_props_destructuring(
                     // is NOT a prop source and should NOT get a $.prop() declaration.
                     // Reference: is_prop_source() in utils.js
                     let is_source = if analysis.runes {
-                        // In runes mode, check binding properties
-                        let binding = analysis.root.bindings.iter().find(|b| b.name == local_name);
+                        // In runes mode, check binding properties.
+                        // Resolve to the *prop* binding by kind, not merely by name:
+                        // a same-named binding from another scope (e.g. a module-script
+                        // function parameter `context` sharing the prop's name) can
+                        // otherwise shadow the lookup and hide the prop's `reassigned`
+                        // flag, wrongly demoting a reassigned no-default `$bindable()`
+                        // to a plain `$$props.x` member access. Mirrors upstream's
+                        // scope-based `context.state.scope.get(id.name)` resolution.
+                        let binding = analysis
+                            .root
+                            .bindings
+                            .iter()
+                            .find(|b| {
+                                b.name == local_name
+                                    && matches!(
+                                        b.kind,
+                                        BindingKind::Prop | BindingKind::BindableProp
+                                    )
+                            })
+                            .or_else(|| {
+                                analysis.root.bindings.iter().find(|b| b.name == local_name)
+                            });
                         if let Some(b) = binding {
                             analysis.accessors || b.reassigned || b.initial.is_some() || b.mutated
                         } else {

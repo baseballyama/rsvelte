@@ -472,24 +472,56 @@ fn update_binding_kinds_typed(
 ) -> Result<(), AnalysisError> {
     let arena = context.parse_arena;
     for path in paths {
-        // Svelte 5.53.1 (upstream `0c7f81514` "handle shadowed function names
-        // correctly"): when an inner `const foo = $derived(...)` shadows an
-        // outer `function foo()`, the rune mutation must land on the inner
-        // binding only. Use lexical scoping — walk from `context.scope` up
-        // the parent chain to find the first scope that declares this name.
-        let binding_idx = context
-            .analysis
-            .root
-            .get_binding(path.name.as_str(), context.scope)
-            .or_else(|| {
-                context
-                    .analysis
-                    .root
-                    .scope
-                    .declarations
-                    .get(path.name.as_str())
-                    .copied()
-            });
+        // A `$props()` destructure always declares its bindings in the instance
+        // script scope, so resolve the name there FIRST. `context.scope` for the
+        // declaration is the root scope (0), whose flattened `declarations` map
+        // can be polluted by a same-named binding from another scope (e.g. a
+        // `<script module>` function parameter `context`, collapsed first). Without
+        // this, the prop kind (Prop/RestProp) gets stamped onto that unrelated
+        // binding, leaving the real instance prop `Normal` and breaking prop-source
+        // detection for reassigned no-default `$bindable()` props.
+        let binding_idx = if rune == "$props" {
+            context
+                .analysis
+                .root
+                .all_scopes
+                .get(context.analysis.root.instance_scope_index)
+                .and_then(|s| s.declarations.get(path.name.as_str()).copied())
+                .or_else(|| {
+                    context
+                        .analysis
+                        .root
+                        .get_binding(path.name.as_str(), context.scope)
+                })
+                .or_else(|| {
+                    context
+                        .analysis
+                        .root
+                        .scope
+                        .declarations
+                        .get(path.name.as_str())
+                        .copied()
+                })
+        } else {
+            // Svelte 5.53.1 (upstream `0c7f81514` "handle shadowed function names
+            // correctly"): when an inner `const foo = $derived(...)` shadows an
+            // outer `function foo()`, the rune mutation must land on the inner
+            // binding only. Use lexical scoping — walk from `context.scope` up
+            // the parent chain to find the first scope that declares this name.
+            context
+                .analysis
+                .root
+                .get_binding(path.name.as_str(), context.scope)
+                .or_else(|| {
+                    context
+                        .analysis
+                        .root
+                        .scope
+                        .declarations
+                        .get(path.name.as_str())
+                        .copied()
+                })
+        };
 
         let binding_idx = match binding_idx {
             Some(idx) => idx,
@@ -679,13 +711,32 @@ fn process_props_object_pattern_typed(
         }
         .ok_or_else(errors::props_invalid_pattern)?;
 
-        if let Some(&binding_idx) = context
+        // Resolve the binding declared by this `$props()` destructure. The
+        // destructure lives in the instance script, so look the local name up in
+        // the instance scope FIRST. The flattened `root.scope.declarations` map
+        // can be polluted by a same-named binding from another scope (e.g. a
+        // `<script module>` function parameter also named `context`, collapsed in
+        // first-declared-wins order), which would otherwise make us stamp the
+        // prop kind / initial / bindable metadata onto the wrong binding — leaving
+        // the real instance prop as a plain `Normal` binding and demoting a
+        // reassigned no-default `$bindable()` to a `$$props.x` member access.
+        // Mirrors the same instance-scope preference in `update_binding_kinds_typed`.
+        let prop_binding_idx = context
             .analysis
             .root
-            .scope
-            .declarations
-            .get(value_name.as_str())
-        {
+            .all_scopes
+            .get(context.analysis.root.instance_scope_index)
+            .and_then(|s| s.declarations.get(value_name.as_str()).copied())
+            .or_else(|| {
+                context
+                    .analysis
+                    .root
+                    .scope
+                    .declarations
+                    .get(value_name.as_str())
+                    .copied()
+            });
+        if let Some(binding_idx) = prop_binding_idx {
             let binding = &mut context.analysis.root.bindings[binding_idx];
             binding.prop_alias = Some(alias);
             binding.kind = BindingKind::Prop;
