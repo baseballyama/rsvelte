@@ -5303,8 +5303,6 @@ fn transform_complex_selector(
     let mut seen_global = false;
     // Track if the previous selector was scoped - for specificity bumping decisions
     let mut _previous_was_scoped = false;
-    // Track if the previous selector was global-like - determines if we bump specificity after combinator
-    let mut previous_was_global_like = false;
 
     if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
         // Pre-scan: check if ANY RelativeSelector in this ComplexSelector has :global()
@@ -5472,14 +5470,16 @@ fn transform_complex_selector(
                 } else {
                     let _ = write!(result, " {} ", name);
                 }
-                // After any combinator, subsequent selectors should use :where() for specificity preservation
-                // UNLESS the previous selector was global-like (like :host) or a :global() selector,
-                // in which case the first real scoped selector should get the direct class
-                if !previous_was_global_like && !seen_global {
-                    local_specificity_bumped = true;
-                }
-                // Reset the global-like flag since we've now passed the combinator
-                previous_was_global_like = false;
+                // A combinator by itself must NOT bump specificity. Upstream tracks
+                // the bump solely through actual modifier application (`specificity.bumped`
+                // becomes true only when a scope class is emitted for a compound). Every
+                // real scoped compound below already sets `local_specificity_bumped = true`,
+                // so it persists across the combinator on its own. Forcing a bump here
+                // was wrong when the PREVIOUS relative selector was a skipped standalone
+                // `:where(...)` / `:is(...)` (which emits no modifier): e.g.
+                // `:where(.a) > :where(.b)` must scope `.b` with the DIRECT class
+                // (`:where(.b.svelte)`), not `:where(.b:where(.svelte))`, because no
+                // bump has happened yet. See upstream css/index.js ComplexSelector.
             }
 
             // Get selectors
@@ -5520,7 +5520,6 @@ fn transform_complex_selector(
                     // Global-like selectors don't count as scoped and don't bump specificity
                     // The next scoped selector should get the direct class
                     _previous_was_scoped = false;
-                    previous_was_global_like = true;
                 } else if is_entirely_global {
                     // Handle :global selector - extract :global() content without scoping,
                     // but scope subsequent selectors like :is() with direct class
@@ -5726,6 +5725,32 @@ fn transform_complex_selector(
                         let effective_use_direct = has_global_anywhere
                             || (has_nesting_selector && !local_specificity_bumped);
 
+                        // Upstream sets `specificity.bumped = true` for the WHOLE compound
+                        // BEFORE recursing into its pseudo-class args (`:is/:where/:has/
+                        // :not`) — see css/index.js ComplexSelector, which reaches the
+                        // `specificity.bumped = true` line for every scoped compound EXCEPT
+                        // a standalone length-1 `:is()/:where()` (which `continue`s) and
+                        // nesting compounds. The bump happens even when no textual `.svelte`
+                        // modifier is emitted (e.g. `:root:has(h1)` — `:root` is exempt yet
+                        // still bumps, so the inner `h1` is `:where(.svelte)`). It also
+                        // covers a pseudo appearing before the compound's textual scoping
+                        // point, e.g. `nav:has(a).primary` →
+                        // `nav:has(a:where(.svelte)).primary.svelte`, not `:has(a.svelte)`.
+                        // Standalone `:is()/:where()` compounds keep the raw prior state so
+                        // the first inner selector still gets the direct class.
+                        let is_standalone_is_where = selectors.len() == 1
+                            && selectors.first().is_some_and(|s| {
+                                s.get("type").and_then(|t| t.as_str())
+                                    == Some("PseudoClassSelector")
+                                    && matches!(
+                                        s.get("name").and_then(|n| n.as_str()),
+                                        Some("is") | Some("where")
+                                    )
+                            });
+                        let compound_bumps =
+                            needs_scoping && !has_nesting_selector && !is_standalone_is_where;
+                        let outer_bumped_for_recursion = local_specificity_bumped || compound_bumps;
+
                         selector_parts.push_str(&format_simple_selector_with_scope(
                             sel,
                             selector,
@@ -5734,7 +5759,7 @@ fn transform_complex_selector(
                             0,
                             ctx,
                             effective_use_direct,
-                            local_specificity_bumped,
+                            outer_bumped_for_recursion,
                         ));
 
                         // Add scoping after the last non-pseudo selector
@@ -5756,11 +5781,6 @@ fn transform_complex_selector(
                     result.push_str(&selector_parts);
                     // Mark that this selector was scoped (unless it's a nesting selector)
                     _previous_was_scoped = needs_scoping && !has_nesting_selector;
-                    // When a nesting selector is inside a global block, subsequent selectors
-                    // should use direct class (not :where()) because the & refers to a global parent
-                    if has_nesting_selector && is_in_global_block {
-                        previous_was_global_like = true;
-                    }
                 }
             }
         }
@@ -6118,7 +6138,7 @@ fn transform_is_not_complex_selector(
     css_source: &str,
     pseudo_name: &str,
     ctx: Option<&CssContext>,
-    use_direct_class: bool,
+    _use_direct_class: bool,
     outer_specificity_bumped: bool,
 ) -> String {
     let mut result = String::new();
@@ -6139,11 +6159,20 @@ fn transform_is_not_complex_selector(
         // Per the official Svelte compiler, inner selectors inherit the specificity state
         // from the outer context. When the outer selector has already been scoped
         // (specificity bumped), ALL inner selectors should use :where() for scoping.
-        // When not bumped, the first inner selector gets direct class.
+        // When not bumped, the FIRST inner scoped selector is itself the first scoping
+        // point, so it gets the direct class (`.svelte-hash`) — mirroring upstream's
+        // `modifier = selector; if (specificity.bumped) modifier = :where(modifier)`
+        // where `specificity.bumped` is still false. Subsequent relative selectors then
+        // switch to `:where()` (handled by the `inner_use_direct_class = false` reset at
+        // the end of each iteration). This matters for standalone `:where(.foo)` /
+        // `:is(.foo)` at the top of a rule: `:where(.foo.svelte-hash)`, not
+        // `:where(.foo:where(.svelte-hash))`.
         let mut inner_use_direct_class = if outer_specificity_bumped {
             false // outer already bumped, so inner always uses :where()
         } else {
-            use_direct_class
+            // Not yet bumped: first inner scoped selector gets the direct class.
+            // (`use_direct_class` from a :global context also resolves to direct here.)
+            true
         };
 
         for relative_selector in children {
