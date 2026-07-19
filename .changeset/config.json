@@ -28,6 +28,15 @@
       "@rsvelte/fmt-win32-x64-msvc"
     ],
     [
+      "@rsvelte/compiler",
+      "@rsvelte/lint",
+      "@rsvelte/lint-darwin-arm64",
+      "@rsvelte/lint-darwin-x64",
+      "@rsvelte/lint-linux-arm64-gnu",
+      "@rsvelte/lint-linux-x64-gnu",
+      "@rsvelte/lint-win32-x64-msvc"
+    ],
+    [
       "@rsvelte/language-server",
       "rsvelte-vscode"
     ]

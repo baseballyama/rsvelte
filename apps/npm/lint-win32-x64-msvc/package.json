@@ -1,0 +1,23 @@
+{
+  "name": "@rsvelte/lint-win32-x64-msvc",
+  "version": "0.7.17",
+  "description": "Prebuilt rsvelte-lint binary for win32-x64 (msvc)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baseballyama/rsvelte.git",
+    "directory": "apps/npm/lint-win32-x64-msvc"
+  },
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "rsvelte-lint.exe"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

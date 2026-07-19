@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Publish the platform packages that ship an executable POSIX binary
-// (`@rsvelte/svelte-check-*` and `@rsvelte/fmt-*`) via `npm publish` rather
-// than `pnpm publish`.
+// (`@rsvelte/svelte-check-*`, `@rsvelte/fmt-*` and `@rsvelte/lint-*`) via
+// `npm publish` rather than `pnpm publish`.
 //
 // Why: `pnpm pack` (which `pnpm publish` uses) normalises file modes to 0644,
 // dropping the execute bit even when the source file has +x set. The
@@ -33,6 +33,10 @@ const platformDirs = [
 	'apps/npm/fmt-darwin-x64',
 	'apps/npm/fmt-linux-x64-gnu',
 	'apps/npm/fmt-linux-arm64-gnu',
+	'apps/npm/lint-darwin-arm64',
+	'apps/npm/lint-darwin-x64',
+	'apps/npm/lint-linux-x64-gnu',
+	'apps/npm/lint-linux-arm64-gnu',
 ];
 
 const dryRun = process.argv.includes('--dry-run');

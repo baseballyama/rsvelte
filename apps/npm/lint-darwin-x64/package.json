@@ -1,0 +1,26 @@
+{
+  "name": "@rsvelte/lint-darwin-x64",
+  "version": "0.7.17",
+  "description": "Prebuilt rsvelte-lint binary for darwin-x64",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baseballyama/rsvelte.git",
+    "directory": "apps/npm/lint-darwin-x64"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "rsvelte-lint"
+  ],
+  "scripts": {
+    "prepack": "chmod +x rsvelte-lint"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

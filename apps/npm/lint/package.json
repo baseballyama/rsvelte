@@ -1,0 +1,44 @@
+{
+  "name": "@rsvelte/lint",
+  "version": "0.7.17",
+  "description": "Fast native Svelte linter CLI — compiler warnings/a11y + ESLint-compatible rule engine, powered by Rust",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baseballyama/rsvelte.git",
+    "directory": "apps/npm/lint"
+  },
+  "homepage": "https://github.com/baseballyama/rsvelte/tree/main/apps/npm/lint#readme",
+  "bugs": {
+    "url": "https://github.com/baseballyama/rsvelte/issues"
+  },
+  "keywords": [
+    "svelte",
+    "lint",
+    "linter",
+    "eslint",
+    "cli",
+    "rust"
+  ],
+  "bin": {
+    "rsvelte-lint": "bin/rsvelte-lint"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "files": [
+    "bin/rsvelte-lint",
+    "install.js",
+    "lib/resolve.cjs"
+  ],
+  "optionalDependencies": {
+    "@rsvelte/lint-darwin-arm64": "workspace:^",
+    "@rsvelte/lint-darwin-x64": "workspace:^",
+    "@rsvelte/lint-linux-arm64-gnu": "workspace:^",
+    "@rsvelte/lint-linux-x64-gnu": "workspace:^",
+    "@rsvelte/lint-win32-x64-msvc": "workspace:^"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

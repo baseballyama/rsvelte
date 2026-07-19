@@ -9,6 +9,7 @@
 #   5. @rsvelte/vite-plugin-svelte-native-<5 triples>       (per-platform NAPI .node)
 #   6. @rsvelte/vite-plugin-svelte-native                   (loader; optionalDeps -> 5 triples)
 #   7. @rsvelte/vite-plugin-svelte                          (JS shim; depends on #6)
+#   8. @rsvelte/lint-<5 triples> + @rsvelte/lint            (delegated to publish-lint-local.sh)
 #
 # Versions are taken from the on-disk package.json files — bump those BEFORE
 # running this. The script does not modify any version field.
@@ -175,7 +176,7 @@ log "Pre-flight OK."
 
 log ""
 log "═════════════════════════════════════════════════════════════════════"
-log " Phase 1/6: @rsvelte/compiler"
+log " Phase 1/7: @rsvelte/compiler"
 log "═════════════════════════════════════════════════════════════════════"
 
 step "sync version (apps/npm/compiler/package.json → Cargo.toml/.lock)" \
@@ -201,7 +202,7 @@ publish_if_new pkg
 
 log ""
 log "═════════════════════════════════════════════════════════════════════"
-log " Phase 2/6: @rsvelte/svelte2tsx"
+log " Phase 2/7: @rsvelte/svelte2tsx"
 log "═════════════════════════════════════════════════════════════════════"
 
 publish_if_new apps/npm/svelte2tsx
@@ -212,7 +213,7 @@ publish_if_new apps/npm/svelte2tsx
 
 log ""
 log "═════════════════════════════════════════════════════════════════════"
-log " Phase 3/6: cross-build native binaries (10 builds: 2 crates × 5 triples)"
+log " Phase 3/7: cross-build native binaries (10 builds: 2 crates × 5 triples)"
 log "═════════════════════════════════════════════════════════════════════"
 
 # Build command selector — native cargo for darwin (we're on macOS),
@@ -330,7 +331,7 @@ done
 
 log ""
 log "═════════════════════════════════════════════════════════════════════"
-log " Phase 4/6: @rsvelte/svelte-check (5 platform packages + 1 loader)"
+log " Phase 4/7: @rsvelte/svelte-check (5 platform packages + 1 loader)"
 log "═════════════════════════════════════════════════════════════════════"
 
 for entry in "${TRIPLES[@]}"; do
@@ -346,7 +347,7 @@ publish_if_new apps/npm/svelte-check
 
 log ""
 log "═════════════════════════════════════════════════════════════════════"
-log " Phase 5/6: @rsvelte/vite-plugin-svelte-native (5 + 1)"
+log " Phase 5/7: @rsvelte/vite-plugin-svelte-native (5 + 1)"
 log "═════════════════════════════════════════════════════════════════════"
 
 for entry in "${TRIPLES[@]}"; do
@@ -366,10 +367,27 @@ publish_if_new apps/npm/vite-plugin-svelte-native
 
 log ""
 log "═════════════════════════════════════════════════════════════════════"
-log " Phase 6/6: @rsvelte/vite-plugin-svelte (JS shim)"
+log " Phase 6/7: @rsvelte/vite-plugin-svelte (JS shim)"
 log "═════════════════════════════════════════════════════════════════════"
 
 publish_if_new apps/npm/vite-plugin-svelte
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 7: @rsvelte/lint (5 platform binaries + JS loader)
+# ─────────────────────────────────────────────────────────────────────────────
+# Delegated to the standalone publish-lint-local.sh so the lint family can also
+# be published on its own. It cross-builds the `rsvelte-lint` CLI with the
+# `--profile dist-lint` profile (per-file panic isolation needs unwinding) — a
+# different profile from the `--release` used above — so keeping it self-
+# contained avoids threading a second profile through this script's build_for_target.
+
+log ""
+log "═════════════════════════════════════════════════════════════════════"
+log " Phase 7/7: @rsvelte/lint (5 platform packages + 1 loader)"
+log "═════════════════════════════════════════════════════════════════════"
+
+step "publish @rsvelte/lint family" \
+  bash "$REPO_ROOT/scripts/release/publish-lint-local.sh"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Done
@@ -386,3 +404,4 @@ log "  npm view @rsvelte/svelte2tsx version                 # $(jq -r .version "
 log "  npm view @rsvelte/svelte-check version               # $(jq -r .version "$REPO_ROOT/apps/npm/svelte-check/package.json")"
 log "  npm view @rsvelte/vite-plugin-svelte-native version  # $(jq -r .version "$REPO_ROOT/apps/npm/vite-plugin-svelte-native/package.json")"
 log "  npm view @rsvelte/vite-plugin-svelte version         # $(jq -r .version "$REPO_ROOT/apps/npm/vite-plugin-svelte/package.json")"
+log "  npm view @rsvelte/lint version                       # $(jq -r .version "$REPO_ROOT/apps/npm/lint/package.json")"
