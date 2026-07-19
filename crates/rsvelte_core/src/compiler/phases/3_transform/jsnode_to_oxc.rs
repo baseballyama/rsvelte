@@ -27,7 +27,7 @@
 
 use crate::ast::arena::{IdRange, JsNodeId, ParseArena};
 use crate::ast::typed_expr::{JsNode, LiteralValue};
-use oxc_allocator::{Allocator, Box as ArenaBox, Vec as ArenaVec};
+use oxc_allocator::{Allocator, ArenaBox, ArenaVec};
 use oxc_ast::AstBuilder;
 use oxc_ast::ast::*;
 use oxc_span::SPAN;

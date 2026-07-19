@@ -27,7 +27,7 @@
 
 use super::arena::{ExprId, JsArena};
 use super::nodes::*;
-use oxc_allocator::{Box as ArenaBox, Vec as ArenaVec};
+use oxc_allocator::{ArenaBox, ArenaVec};
 use oxc_ast::AstBuilder;
 use oxc_ast::ast::*;
 use oxc_span::{GetSpanMut, SPAN, Span};

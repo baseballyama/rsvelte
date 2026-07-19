@@ -1912,6 +1912,10 @@ fn format_expr_core(
         .into_code();
 
     let s = formatted.trim_end().trim_end_matches(';').trim_end();
+    // With semicolons set to "as needed", OXC prefixes expression statements
+    // such as arrow functions with an ASI guard. Template expressions are not
+    // statement-position code, so carrying that guard into `{...}` is invalid.
+    let s = s.strip_prefix(';').unwrap_or(s);
 
     let result = if use_const_wrapper {
         // Strip the `const _rsvelte_x_ = ` prefix that was added as a wrapper.
