@@ -5637,6 +5637,32 @@ fn create_store_declarations(store_names: &[&str]) -> String {
     result
 }
 
+/// Remove the self-named rune base (`props` / `state` / `derived`) from a
+/// declarator's store-subscription `matching` set.
+///
+/// Upstream `processInstanceScriptContent.ts`'s `is_rune` check excludes a
+/// `$props()` / `$state(…)` / `$derived(…)` call from store resolution when the
+/// declaration's binding NAME includes the rune base — so `let { …, ...props }:
+/// SomeProps<T> = $props()` must NOT emit `let $props =
+/// __sveltets_2_store_get(props)`. The text-based `$name` scan that feeds
+/// `accessed_stores` cannot see the binding structure (it also stumbles on
+/// generic-argument commas in the type annotation), so the exclusion is applied
+/// here on the AST via `excluded_rune_init`, which — like upstream — inspects
+/// the binding name only, never the type annotation.
+fn exclude_self_named_rune_base(declarator: &oxc::VariableDeclarator, matching: &mut Vec<String>) {
+    let Some(init) = declarator.init.as_ref() else {
+        return;
+    };
+    let Some(call) = excluded_rune_init(init, &declarator.id) else {
+        return;
+    };
+    if let oxc::Expression::Identifier(callee) = &call.callee {
+        // Strip the leading `$`: `$props` -> `props`, etc.
+        let base = &callee.name.as_str()[1..];
+        matching.retain(|n| n != base);
+    }
+}
+
 /// Inject store subscription declarations into the script.
 ///
 /// Scans the full source for `$identifier` references, then finds the
@@ -5679,10 +5705,12 @@ fn inject_store_subscriptions_with_program(
 
                 for declarator in var_decl.declarations.iter() {
                     let names = extract_all_names_from_binding_pattern(&declarator.id);
-                    let matching: Vec<String> = names
+                    let mut matching: Vec<String> = names
                         .into_iter()
                         .filter(|name| accessed_stores.contains(name))
                         .collect();
+
+                    exclude_self_named_rune_base(declarator, &mut matching);
 
                     if !matching.is_empty() {
                         let name_refs: Vec<&str> = matching.iter().map(|s| s.as_str()).collect();
@@ -5709,10 +5737,12 @@ fn inject_store_subscriptions_with_program(
 
                     for declarator in var_decl.declarations.iter() {
                         let names = extract_all_names_from_binding_pattern(&declarator.id);
-                        let matching: Vec<String> = names
+                        let mut matching: Vec<String> = names
                             .into_iter()
                             .filter(|name| accessed_stores.contains(name))
                             .collect();
+
+                        exclude_self_named_rune_base(declarator, &mut matching);
 
                         if !matching.is_empty() {
                             let name_refs: Vec<&str> =
