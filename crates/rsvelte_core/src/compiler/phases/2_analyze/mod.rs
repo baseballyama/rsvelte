@@ -4790,6 +4790,39 @@ function goto_page(page = $search_params.page) {}
     }
 
     #[test]
+    fn function_parameter_bindings_record_declaration_self_reference() {
+        // Every declared binding (VariableDeclarator ids, import specifiers, ...)
+        // gets a reference recorded at its own declaration site — see
+        // `variable_declarator.rs`'s `walk_js_node_typed(id_node, ...)` calls and the
+        // `export_let_unused` "more than 1 reference means used beyond the
+        // declaration" heuristic in this file, which depends on that self-reference
+        // always being present. Function/arrow parameters (bare, destructured object,
+        // destructured array) must get the same self-reference, matching the official
+        // compiler's `context.next()` walk over `node.params` in
+        // `2-analyze/visitors/{FunctionDeclaration,FunctionExpression,ArrowFunctionExpression}.js`.
+        let source = "<script>\nfunction f(aa, {bb}, [cc]) {}\n</script>";
+        let analysis = analyze(source);
+
+        for name in ["aa", "bb", "cc"] {
+            let binding = analysis
+                .root
+                .bindings
+                .iter()
+                .find(|binding| binding.name == name)
+                .unwrap_or_else(|| panic!("missing binding {name}"));
+            let start = source.find(name).unwrap() as u32;
+            assert!(
+                binding
+                    .references
+                    .iter()
+                    .any(|reference| reference.start == start),
+                "expected a self-reference at the declaration site of `{name}`, got {:?}",
+                binding.references
+            );
+        }
+    }
+
+    #[test]
     fn test_order_reactive_statements_simple() {
         // Test case: $: b = a + 1; $: a = 1;
         // Expected order: a first, then b
