@@ -7,7 +7,8 @@
 use super::super::AnalysisError;
 use super::super::errors;
 use super::VisitorContext;
-use crate::ast::template::SvelteElement;
+use super::on_directive;
+use crate::ast::template::{Attribute, SvelteElement};
 
 /// Visit a svelte:body.
 pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
@@ -30,11 +31,14 @@ pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
         ));
     }
 
-    // Regular-attribute handler expressions drive `needs_context` (see
-    // svelte_window for the rationale).
+    // Event expressions on special elements participate in normal reference analysis.
     for attr in &mut body.attributes {
-        if let crate::ast::template::Attribute::Attribute(a) = attr {
-            super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
+        match attr {
+            Attribute::OnDirective(on) => on_directive::visit(on, context)?,
+            Attribute::Attribute(attribute) => {
+                super::attribute::visit_attribute_value_expressions(&mut attribute.value, context)?;
+            }
+            _ => {}
         }
     }
 
