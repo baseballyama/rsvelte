@@ -241,6 +241,11 @@ code blocks are out of scope — both sides format them with oxfmt.)
 
 `migrate` (Svelte 4→5 migrator) remains intentionally out of scope.
 
+`rsvelte_lint` (native Svelte linter: validator/a11y wrap + a full native port
+of `eslint-plugin-svelte`'s rules, `crates/rsvelte_lint`) ships as its own npm
+package, [`@rsvelte/lint`](apps/npm/lint), fixed-versioned with
+`@rsvelte/compiler` in Changesets (see `docs/releasing.md`).
+
 ## Implementation Status
 
 ### Fully passing in compatibility report

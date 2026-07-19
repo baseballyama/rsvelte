@@ -33,10 +33,25 @@ These must be named explicitly whenever the core code they embed changes:
 | `@rsvelte/svelte-check` | core svelte2tsx overlay + parse/analyze | ❌ islanded — **drifts**, this is the one that bit us |
 | `@rsvelte/vite-plugin-svelte-native` | core compile / hmr / preprocess NAPI | ❌ islanded |
 | `@rsvelte/language-server` | `rsvelte_lint` → core | ❌ islanded |
+| `@rsvelte/lint` | core validator/a11y wrap + native rule engine (`rsvelte_lint`) | ✅ fixed-group with `@rsvelte/compiler` |
 
 Packages that **do** cascade (no need to name for a core change, though naming
 is harmless): `@rsvelte/svelte2tsx` → `@rsvelte/compiler`;
 `@rsvelte/vite-plugin-svelte` → `@rsvelte/vite-plugin-svelte-native`.
+
+`@rsvelte/lint` is also islanded by the dependency-graph definition above (its
+`package.json` has no `@rsvelte/*` dependency), but it is placed in the same
+Changesets **`fixed`** group as `@rsvelte/compiler` (`.changeset/config.json`)
+specifically to avoid the svelte-check-style drift: `@rsvelte/compiler` is
+named on nearly every core PR, and a `fixed` group forces every member to the
+same version whenever any one of them gets a changeset — so `@rsvelte/lint`
+is republished in lockstep with `@rsvelte/compiler` without needing to be
+separately named. Because the fixed group closes the drift edge,
+`check-core-consumer-changesets.mjs` intentionally carries **no**
+`crates/rsvelte_lint/**` rule (see the NOTE in that script). The residual gap —
+a PR that touches `rsvelte_lint` code but names neither `@rsvelte/compiler` nor
+`@rsvelte/lint` in its changeset — is not machine-guarded; it falls to ordinary
+changeset review, like any package.
 
 ## The rule
 
