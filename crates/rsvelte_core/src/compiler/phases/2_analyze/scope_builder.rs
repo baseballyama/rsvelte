@@ -3646,6 +3646,17 @@ impl<'a> ScopeBuilder<'a> {
         };
         self.bindings[idx].initial = Some(init.to_json_string());
         self.bindings[idx].initial_is_defined = true;
+        // Mark function-valued `{@const}` bindings so `is_function()` returns
+        // true (mirrors the VariableDeclarator init check). Upstream's
+        // Identifier.js `has_state` computation excludes function bindings, so a
+        // `{@const fn = (e) => …}` passed as a component prop is emitted as a
+        // plain `name: value` init rather than a `get name()` getter.
+        if matches!(
+            init,
+            JsNode::ArrowFunctionExpression { .. } | JsNode::FunctionExpression { .. }
+        ) {
+            self.bindings[idx].initial_is_function = true;
+        }
         // Record the init node type so downstream transforms (e.g. should_proxy)
         // can check whether the initial value is a primitive expression.
         let init_type = Some(init.type_str().to_string());
