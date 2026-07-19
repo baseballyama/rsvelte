@@ -832,7 +832,18 @@ impl<'a> ScopeBuilder<'a> {
                     false
                 };
                 let old_scope = if needs_scope {
-                    Some(self.push_scope())
+                    let old = self.push_scope();
+                    // Register the for-loop's lexical scope (holding the `let`/`const`
+                    // declared in the init) so the Phase-2 visitor can enter it when it
+                    // walks the init/test/update/body — otherwise the loop variable is
+                    // invisible to mutation/reference resolution and an `i++` in the
+                    // update clause mis-resolves to a same-named binding in a sibling
+                    // scope (e.g. a `const i` in a neighbouring arrow), falsely tripping
+                    // `constant_assignment`. Keyed by the for-statement start.
+                    if let Some(fstart) = node.start() {
+                        self.function_scope_map.insert(fstart, self.current_scope);
+                    }
+                    Some(old)
                 } else {
                     None
                 };
@@ -867,7 +878,11 @@ impl<'a> ScopeBuilder<'a> {
                         if kind.as_str() == "let" || kind.as_str() == "const"
                 );
                 let old_scope = if needs_scope {
-                    Some(self.push_scope())
+                    let old = self.push_scope();
+                    if let Some(fstart) = node.start() {
+                        self.function_scope_map.insert(fstart, self.current_scope);
+                    }
+                    Some(old)
                 } else {
                     None
                 };
@@ -890,7 +905,11 @@ impl<'a> ScopeBuilder<'a> {
                         if kind.as_str() == "let" || kind.as_str() == "const"
                 );
                 let old_scope = if needs_scope {
-                    Some(self.push_scope())
+                    let old = self.push_scope();
+                    if let Some(fstart) = node.start() {
+                        self.function_scope_map.insert(fstart, self.current_scope);
+                    }
+                    Some(old)
                 } else {
                     None
                 };

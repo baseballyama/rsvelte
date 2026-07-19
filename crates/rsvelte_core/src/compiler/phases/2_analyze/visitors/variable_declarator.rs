@@ -436,12 +436,12 @@ fn visit_runes_mode_typed(
                 }
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string_typed(init);
-                // Keep the init AST for an interpolated template literal so
-                // reactive-state evaluation can see through `const url =
-                // `…${KNOWN}…``. Stored separately from `initial` (which feeds
-                // `is_prop_source`).
-                if matches!(init, JsNode::TemplateLiteral { expressions, .. } if !expressions.is_empty())
-                {
+                // Keep the init AST for a non-literal but potentially
+                // compile-time-"known" initializer (interpolated template,
+                // arithmetic over constants) so reactive-state evaluation can see
+                // through `const path = `…${KNOWN}…`` / `const h = a + b * n`.
+                // Stored separately from `initial` (which feeds `is_prop_source`).
+                if init_needs_expr_json(init) {
                     binding.init_expr_json = Some(init.to_json_string());
                 }
                 binding.initial_is_defined = is_expression_defined_typed(init, arena);
@@ -850,6 +850,15 @@ fn visit_non_runes_mode_typed(
             {
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string_typed(init);
+                // Keep the init AST for a non-literal but potentially
+                // compile-time-"known" initializer (see `init_needs_expr_json`) —
+                // otherwise a legacy-mode `const` initialised with an interpolated
+                // template or arithmetic over compile-time constants (e.g.
+                // `const h = pad + gap * n`) is treated as reactive and mis-emits
+                // a `get x()` getter for a component prop. Mirrors the runes path.
+                if init_needs_expr_json(init) {
+                    binding.init_expr_json = Some(init.to_json_string());
+                }
                 // Only propagate `is_defined` when this is a simple binding
                 // (`const x = expr`).  For destructured bindings the runtime
                 // value comes from a property/index access on the RHS, so we
@@ -867,4 +876,23 @@ fn visit_non_runes_mode_typed(
     }
 
     Ok(())
+}
+
+/// Whether a variable-declarator initializer should have its AST JSON cached in
+/// `Binding::init_expr_json` for later `scope.evaluate`-style reactivity checks
+/// (`is_expression_known_json` in Phase 3). A plain literal is already captured
+/// by `Binding::initial`, and a function initializer is handled via
+/// `Binding::is_function()`. This covers the remaining non-literal expressions
+/// whose compile-time "known"-ness depends on what they reference — an
+/// interpolated template literal and arithmetic/unary/conditional expressions
+/// over other bindings — so we keep the AST to evaluate against final binding
+/// kinds. Mirrors upstream keeping `binding.initial` for `scope.evaluate`.
+fn init_needs_expr_json(init: &JsNode) -> bool {
+    match init {
+        JsNode::TemplateLiteral { expressions, .. } => !expressions.is_empty(),
+        JsNode::BinaryExpression { .. }
+        | JsNode::UnaryExpression { .. }
+        | JsNode::ConditionalExpression { .. } => true,
+        _ => false,
+    }
 }

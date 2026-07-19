@@ -6294,8 +6294,14 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
             false
         }
 
-        // Arrow/function expressions are "known" (they evaluate to a function)
-        "ArrowFunctionExpression" | "FunctionExpression" => true,
+        // Arrow/function expressions are NOT "known" in the scope.evaluate sense:
+        // upstream evaluates them to the `FUNCTION` symbol, and a symbol value
+        // forces `is_known = false` (scope.js). So a `$derived(() => …)` (a
+        // function-valued derived) stays reactive — its prop must be emitted as a
+        // getter, not inlined by value. A plain `const fn = () => {}` reference is
+        // handled separately by the `binding.is_function()` fast-path above and
+        // never reaches here.
+        "ArrowFunctionExpression" | "FunctionExpression" => false,
 
         // Member expressions are generally not known, EXCEPT a non-computed
         // member of a pure global namespace whose members are compile-time
