@@ -8,19 +8,22 @@ native `rsvelte-lint`, and records every finding that appears on exactly one
 side in `compat/lint-corpus/known-failures.json`. That file may only **shrink** —
 a new divergence fails CI (the `lint-parity` job).
 
-## Real-world-expansion snapshot (238 divergences, to burn down)
+## Real-world-expansion snapshot (238 → 102 divergences, burning down)
 
 Adding the four real-world libraries (3,752 new sources; 5,913 comparable after
 23 oracle-unparseable) re-baselined **238 divergences** (186 FP, 52 FN) into
-`known-failures.json`. They cluster almost entirely into the already-documented
-root causes below — the new corpus is production code, so it re-surfaces the same
-gaps at higher volume rather than novel ones:
+`known-failures.json`. **The largest cluster — `no-top-level-browser-globals`
+(136 FP) — is now resolved (see Cluster G), taking the baseline to 102.** The
+rest cluster almost entirely into the already-documented root causes below — the
+new corpus is production code, so it re-surfaces the same gaps at higher volume
+rather than novel ones:
 
-- **`no-top-level-browser-globals` — 136 FP.** Concrete instance of **Cluster G**'s
-  tail: real code uses common-name globals (`open`, `close`, `name`, `status`, …)
-  that rsvelte's name-based matcher flags but the oracle's scope resolver binds to
-  locals/imports/params. Needs the ESLint-style scope/binding resolver (`scope.rs`
-  `ComponentAnalysis`) before the full `globals.browser` set is comparable.
+- **`no-top-level-browser-globals` — 136 FP → 0 (RESOLVED).** A real oxc-semantic
+  scope resolver (`rsvelte_core::lint_scope` + `rsvelte_lint::scope::ScopeResolver`)
+  now distinguishes a real browser global (`window`) from a local binding
+  (`open` / `top` / `name` / `status`, a prop / import / `let`) that shares its
+  name — in both the `<script>` (`check_program`) and template (`check_root`)
+  paths. See **Cluster G**.
 - **`sort-attributes` — 36 (11 FP / 25 FN).** Mostly attribute-ordering around
   `bind:` / directives and inline `/* eslint … */` custom `order` (**Cluster E**).
 - **`valid-prop-names-in-kit-pages` — 16 FP** and **`no-goto-without-base` — 6 FN.**
@@ -279,35 +282,57 @@ implicit leading attribute (line = element-start line) for counting/grouping.
 The reported attribute stays a real one (index ≥ max ≥ 1), so the `this` span
 isn't needed for the message — only its line for the single-line/grouping math.
 
-## Cluster G — `no-top-level-browser-globals` (RESOLVED at the script level)
+## Cluster G — `no-top-level-browser-globals` (RESOLVED)
 
-**Root cause was a harness misconfiguration, not a rsvelte bug.** The upstream
-rule's `ReferenceTracker` is *scope-based*: it only flags identifiers that ESLint
-resolves to a **declared global**. eslint-plugin-svelte's `flat/base` config
-declares **no** browser globals, and the corpus oracle did not add any, so
-`globalScope.set` contained none of `window`/`document`/`location`/… — the rule
-found zero references and stayed silent on *every* file, making all 66 of
-rsvelte's (correct) findings look like false positives. rsvelte's guard analysis
-(`getGuardChecker*` / `isAvailableLocation` / READ semantics) is faithful: with
-the oracle properly configured, the two engines are byte-identical on the guard
-fixtures (`guards01`–`guards08`, `env01`–`env03`, `test01`–`test03`).
+**Was 136 FP; now 0.** The upstream rule's `ReferenceTracker` is *scope-based*:
+it only flags identifiers ESLint leaves **unresolved** (a real global). rsvelte's
+rule was purely name-based, so any local binding sharing a global's name — a prop
+`let { open = $bindable() }`, an import, a `let top` / `name` / `status` — was
+mis-flagged. On the real-world corpus that produced 136 false positives (127
+`open`, plus `top` / `parent` / `self` / `alert` / `scrollTo`), the single
+largest cluster.
 
-**Fix (landed):** the oracle declares a curated browser-global environment
-(`scripts/compat-corpus/lint-oracle/browser-globals.json`), shared with rsvelte's
-`BROWSER_GLOBALS`, so both engines test the identical environment. The full
-`globals.browser` set (763 names) is intentionally **not** used: it contains
-common identifiers (`name`, `event`, `length`, `status`, `top`, `open`, …) that
-rsvelte's name-based matcher cannot tell apart from local bindings without full
-ESLint-style scope resolution — using it produced 23 false-`name` divergences in
-testing. See `docs/lint-corpus-harness-findings.md`.
+**Fix (landed):** a genuine scope resolver, matching upstream's scope semantics.
 
-**Remaining (≈4 FN, tracked):** `in-template01` shows the rule must also flag
-browser globals used in **template** expressions (`{location.href}`) with
-`{#if browser}` / `{#if !browser}` *SvelteIfBlock* guards. rsvelte's rule is a
-`ScriptRule` (it walks `<script>` programs only), so template-expression
-detection + SvelteIfBlock guard handling is a separate rule extension. The full
-`globals.browser` parity also needs a scope/binding resolver (`scope.rs`
-`ComponentAnalysis`) so common-name globals can be distinguished from locals.
+- **`rsvelte_core::lint_scope::resolve_script_scope`** runs oxc's
+  `SemanticBuilder` over each `<script>` body and returns (a) the byte spans of
+  every identifier that is *not* a global value reference — every binding
+  declaration (incl. `$props()` destructuring names, the dominant case) plus
+  every read that resolves to a local — and (b) the names declared at the
+  component's top level (visible to the template). `rsvelte_lint` depends only on
+  `rsvelte_core`, so the oxc-backed query lives there. Returning *non-globals*
+  (not globals) makes it fail-safe: if a script can't be resolved the sets are
+  empty and the rule degrades to its old name-based behaviour rather than
+  dropping real findings. This is additive to `rsvelte_core` — no compiler
+  output path changed.
+- **`rsvelte_lint::scope::ScopeResolver`** folds both scripts' facts (absolute
+  offsets) and is built once per file at the runner's shared-parse point
+  (`engine::maybe_scope_resolver`, passed into both the template and script rule
+  passes), attached to the `LintContext`, and only when the rule is enabled (an
+  extra oxc pass otherwise).
+- The rule skips a browser-global-named identifier when it is a script local
+  (`check_program`, via span) or a component binding read in a template `{expr}`
+  (`check_root`, via name). Guard analysis (`getGuardChecker*` /
+  `isAvailableLocation`) is unchanged.
+
+Net: 136 divergences cleared, **0 new**, and the `eslint_plugin_oracle` 3-gate
+fixture suite stays byte-exact green. The oracle still uses the curated
+browser-global environment (`scripts/compat-corpus/lint-oracle/browser-globals.json`);
+with real scope resolution the full `globals.browser` set is now theoretically
+comparable, but the curated set already covers every global the corpus exercises.
+
+**Remaining (tracked, not in this cluster):** `in-template01`'s SvelteIfBlock
+`{#if browser}` guard handling for template `{location.href}` reads is an
+orthogonal guard-detection extension to the template path.
+
+**Residual FP classes (review-verified, 0 corpus hits, over-reporting only —
+never FN):** (a) cross-script references — a `<script module>` binding read at
+the top level of the instance script is still flagged, because each script is
+resolved independently; (b) template block locals — an `{#each items as
+location}` context whose name is a browser global is still flagged, because
+`root_binding_names` tracks only root-scope declarations. Both predate this fix
+(the old name-based rule flagged strictly more) and are candidates for a later
+burndown if real code ever hits them.
 
 ## Cluster H — Small / position-precision tail (≈40 divergences)
 

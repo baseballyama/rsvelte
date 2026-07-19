@@ -601,6 +601,15 @@ impl ScriptRule for NoTopLevelBrowserGlobals {
         // We record its node, name, and full ancestor path for guard analysis.
         let mut report_candidates: Vec<(u32, u32, String)> = Vec::new();
 
+        // Script-scope resolver: a bare identifier that resolves to a local
+        // binding (a prop / import / `let` named `open`, `top`, `name`, …) is
+        // NOT a browser global, even though its name matches one. Upstream's
+        // `ReferenceTracker.iterateGlobalReferences` only yields *unresolved*
+        // (global) references, so a shadowed name is skipped entirely — it is
+        // neither a report candidate nor a guard. When no resolver is available
+        // (`None`), fall back to the name-based classification.
+        let resolver = ctx.scope_resolver();
+
         walk_js(program, |node, ancestors| {
             let name: String = match node_type(node) {
                 Some("Identifier") => {
@@ -613,6 +622,13 @@ impl ScriptRule for NoTopLevelBrowserGlobals {
                     // Skip the property side of `globalThis.<global>` (handled by
                     // the MemberExpression branch) and `x.<global>` accesses.
                     if is_member_property(node, ancestors) {
+                        return;
+                    }
+                    // Skip a bare identifier that resolves to a local binding
+                    // (a prop / import / `let` that shadows a global's name).
+                    if let Some((start, end)) = range(node)
+                        && resolver.is_some_and(|r| r.is_script_local(start, end))
+                    {
                         return;
                     }
                     n.to_string()
@@ -821,6 +837,10 @@ fn classify_if_test(
 
 /// Scan a JS expression JSON for browser globals and report any that are found.
 fn check_expr_for_browser_globals(expr_json: &Value, ctx: &mut LintContext) {
+    // A template `{name}` that reads a component binding (prop / import /
+    // top-level declaration) is that local, not the same-named global — skip it.
+    // Copied out before the walk so the closure can still `ctx.report`.
+    let resolver = ctx.scope_resolver();
     walk_js(expr_json, |node, ancestors| {
         let name = match node_type(node) {
             Some("Identifier") => {
@@ -835,6 +855,9 @@ fn check_expr_for_browser_globals(expr_json: &Value, ctx: &mut LintContext) {
                     return;
                 }
                 if is_member_property(node, ancestors) {
+                    return;
+                }
+                if resolver.is_some_and(|r| r.is_component_binding(n)) {
                     return;
                 }
                 n

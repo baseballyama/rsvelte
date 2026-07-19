@@ -16,6 +16,7 @@ use crate::context::LintContext;
 use crate::diagnostic::LintDiagnostic;
 use crate::registry::{all_rules, all_script_rules};
 use crate::rule::{RuleMeta, Severity};
+use crate::scope::ScopeResolver;
 use crate::script::{ScriptKind, ScriptRule};
 use crate::visitor::{EnabledRule, LintVisitor};
 
@@ -50,18 +51,22 @@ pub fn run_native_rules(
     let Ok(root) = parse(source, lint_parse_options()) else {
         return Vec::new();
     };
-    run_native_rules_on_root(&root, source, filename, config, path)
+    let resolver = maybe_scope_resolver(&root, source, config);
+    run_native_rules_on_root(&root, source, filename, config, path, resolver.as_ref())
 }
 
 /// Like [`run_native_rules`] but reuses an already-parsed [`Root`] instead of
 /// parsing again — lets `lint_source` share one parse across the native walk,
-/// the script walk, and the block-lang fallback.
+/// the script walk, and the block-lang fallback. `scope_resolver` is likewise
+/// built once by the caller and shared with the script pass (see
+/// [`maybe_scope_resolver`]).
 pub(crate) fn run_native_rules_on_root(
     root: &Root,
     source: &str,
     filename: &str,
     config: &LintConfig,
     path: Option<&Path>,
+    scope_resolver: Option<&ScopeResolver>,
 ) -> Vec<LintDiagnostic> {
     let rules = all_rules();
     let enabled: Vec<EnabledRule> = rules
@@ -83,7 +88,11 @@ pub(crate) fn run_native_rules_on_root(
     if enabled.is_empty() {
         return Vec::new();
     }
-    let mut ctx = LintContext::new(config, source, filename).with_path(path);
+    // The template browser-globals check uses `scope_resolver` to tell a `{name}`
+    // read of a component binding from the same-named global.
+    let mut ctx = LintContext::new(config, source, filename)
+        .with_path(path)
+        .with_scope_resolver(scope_resolver);
     // Re-install the arena pointer so that `Expression::Typed::as_json()` can
     // resolve arena-indexed children while the visitor walks the template.
     // The pointer was cleared when `parse()` dropped its `SerializeArenaGuard`.
@@ -147,8 +156,11 @@ fn run_over_programs(
     config: &LintConfig,
     enabled: &[EnabledScriptRule<'_>],
     path: Option<&Path>,
+    scope_resolver: Option<&ScopeResolver>,
 ) -> Vec<LintDiagnostic> {
-    let mut ctx = LintContext::new(config, source, filename).with_path(path);
+    let mut ctx = LintContext::new(config, source, filename)
+        .with_path(path)
+        .with_scope_resolver(scope_resolver);
     for (kind, program) in programs {
         for (rule, meta, severity) in enabled {
             ctx.enter_rule(meta, *severity);
@@ -156,6 +168,66 @@ fn run_over_programs(
         }
     }
     ctx.into_diagnostics()
+}
+
+/// The rule that consumes the script-scope resolver. Building the resolver runs
+/// an extra oxc semantic pass, so the engine only pays for it when this rule is
+/// enabled.
+pub(crate) const SCOPE_RESOLVER_RULE: &str = "svelte/no-top-level-browser-globals";
+
+/// Whether any enabled script rule needs the (oxc-semantic-backed) resolver.
+fn needs_scope_resolver(enabled: &[EnabledScriptRule<'_>]) -> bool {
+    enabled
+        .iter()
+        .any(|(_, meta, _)| meta.name == SCOPE_RESOLVER_RULE)
+}
+
+/// Build the scope resolver from a component's `<script>` block(s). Each
+/// script's content body — the Program node's absolute `[start, end)` slice — is
+/// re-parsed with oxc semantic analysis; the resolver records which identifiers
+/// resolve to a local binding (so a name-based rule can exclude locals that
+/// share a global's name) and which names are declared at the component's top
+/// level (visible to the template). Runs inside a serialize-arena guard so the
+/// script Program's `as_json()` span is resolvable.
+pub(crate) fn scope_resolver_for_root(root: &Root, source: &str) -> ScopeResolver {
+    let mut resolver = ScopeResolver::default();
+    with_serialize_arena(&root.arena, || {
+        for (script, is_ts) in [
+            root.instance.as_ref().map(|s| (s, s.is_typescript)),
+            root.module.as_ref().map(|s| (s, s.is_typescript)),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            let program = script.content.as_json();
+            let (Some(start), Some(end)) = (
+                program.get("start").and_then(Value::as_u64),
+                program.get("end").and_then(Value::as_u64),
+            ) else {
+                continue;
+            };
+            let (start, end) = (start as u32, end as u32);
+            if start > end || end as usize > source.len() {
+                continue;
+            }
+            resolver.add_script(&source[start as usize..end as usize], start, is_ts);
+        }
+    });
+    resolver
+}
+
+/// Build the scope resolver for `root` — but only when the rule that consumes it
+/// is enabled, since the build runs an extra oxc semantic pass. Callers that
+/// lint a whole `.svelte` file build this **once** and share the result across
+/// both the native (template) and script passes.
+pub(crate) fn maybe_scope_resolver(
+    root: &Root,
+    source: &str,
+    config: &LintConfig,
+) -> Option<ScopeResolver> {
+    // Mirrors the rule's own `config.severity_for(&META)` (its default is Warn).
+    (config.resolve_code(SCOPE_RESOLVER_RULE, Severity::Warn) != Severity::Off)
+        .then(|| scope_resolver_for_root(root, source))
 }
 
 /// Run every enabled script-AST rule over a Svelte component's `<script>`
@@ -184,17 +256,21 @@ pub fn run_script_rules_with_path(
     let Ok(root) = parse(source, lint_parse_options()) else {
         return Vec::new();
     };
-    run_script_rules_on_root(&root, source, filename, config, path)
+    let resolver = maybe_scope_resolver(&root, source, config);
+    run_script_rules_on_root(&root, source, filename, config, path, resolver.as_ref())
 }
 
 /// Like [`run_script_rules_with_path`] but reuses an already-parsed [`Root`]
 /// instead of parsing again (shared-parse fast path in `lint_source`).
+/// `scope_resolver` is built once by the caller (see [`maybe_scope_resolver`])
+/// and shared with the native pass.
 pub(crate) fn run_script_rules_on_root(
     root: &Root,
     source: &str,
     filename: &str,
     config: &LintConfig,
     path: Option<&Path>,
+    scope_resolver: Option<&ScopeResolver>,
 ) -> Vec<LintDiagnostic> {
     let rules = all_script_rules();
     let enabled = enabled_script_rules(&rules, config);
@@ -219,7 +295,15 @@ pub(crate) fn run_script_rules_on_root(
     if programs.is_empty() {
         return Vec::new();
     }
-    run_over_programs(&programs, source, filename, config, &enabled, path)
+    run_over_programs(
+        &programs,
+        source,
+        filename,
+        config,
+        &enabled,
+        path,
+        scope_resolver,
+    )
 }
 
 /// Run every enabled script-AST rule over a standalone JS/TS **module** file
@@ -240,5 +324,20 @@ pub fn run_script_rules_module(
     }
     let program = rsvelte_core::compiler::phases::parse_module_to_estree(source, is_ts);
     let programs = [(ScriptKind::Module, program)];
-    run_over_programs(&programs, source, filename, config, &enabled, None)
+    // A standalone module is its own scope; the whole file is the script body
+    // (base offset 0).
+    let resolver = needs_scope_resolver(&enabled).then(|| {
+        let mut r = ScopeResolver::default();
+        r.add_script(source, 0, is_ts);
+        r
+    });
+    run_over_programs(
+        &programs,
+        source,
+        filename,
+        config,
+        &enabled,
+        None,
+        resolver.as_ref(),
+    )
 }
