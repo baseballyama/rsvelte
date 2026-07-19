@@ -4,7 +4,9 @@
 //! default exactly the way oxfmt (`prettier-plugin-svelte`) does. See issue
 //! #1057.
 
-use rsvelte_formatter::{FormatOptions, SortOrderSpec, format};
+use rsvelte_formatter::{
+    FormatOptions, IndentWidth, JsFormatOptions, LineWidth, SortOrderSpec, format,
+};
 
 fn fmt(src: &str, opts: &FormatOptions) -> String {
     format(src, opts).expect("format ok")
@@ -91,6 +93,35 @@ fn indent_script_and_style_false_flushes_script_body() {
     };
     let out = fmt("<script>\n  const a = 1;\n</script>", &opts);
     assert_eq!(out, "<script>\nconst a = 1;\n</script>\n");
+}
+
+#[test]
+fn indent_script_and_style_false_keeps_full_print_width() {
+    let opts = FormatOptions {
+        js: JsFormatOptions {
+            indent_width: IndentWidth::try_from(4).expect("valid indent width"),
+            line_width: LineWidth::try_from(100).expect("valid line width"),
+            ..JsFormatOptions::default()
+        },
+        indent_script_and_style: false,
+        ..FormatOptions::default()
+    };
+    let src = r#"<script>
+const metrics = $derived.by(() => {
+    return {
+        recurring_amount:
+            overview.recurring_snapshot?.currencies?.[0]?.committed_monthly_equivalent_display ||
+            'No recurring base yet',
+    }
+})
+</script>"#;
+    let out = fmt(src, &opts);
+    assert!(
+        out.contains(
+            "overview.recurring_snapshot?.currencies?.[0]?.committed_monthly_equivalent_display ||"
+        ),
+        "script body should retain the full configured line width:\n{out}"
+    );
 }
 
 #[test]
