@@ -38,7 +38,7 @@ wasm = ["rsvelte_core/wasm", "dep:wasm-bindgen"]
 [dependencies]
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
 anyhow = "1.0"
-compact_str = { version = "0.9", features = ["serde"] }
+compact_str = { version = "0.10", features = ["serde"] }
 # Minimal regex feature set (see rsvelte_core's regex dep) — only `(?i)`/`\w \s`
 # are used here, so the large Unicode tables are dropped.
 regex = { version = "1.11", default-features = false, features = ["std", "perf", "unicode-perl", "unicode-case"] }

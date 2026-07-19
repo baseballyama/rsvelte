@@ -53,7 +53,7 @@ rayon = { version = "1.10", optional = true }
 
 # Memory efficiency
 bumpalo = { version = "3.16", features = ["collections"] }
-compact_str = { version = "0.9", features = ["serde"] }
+compact_str = { version = "0.10", features = ["serde"] }
 smallvec = { version = "1.13", features = ["serde"] }
 
 # Fast hashing (5-10x faster than std HashMap/HashSet)
