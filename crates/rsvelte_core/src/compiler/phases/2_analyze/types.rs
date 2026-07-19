@@ -916,6 +916,14 @@ fn peel_ts_wrappers<'a>(
 /// arrow / sequence expressions, where dropping the parens can silently change
 /// what the surrounding code means (e.g. `-n ** 2` is a JS syntax error,
 /// `a + b * c` reassociates a `+`). (issue #457, H-125)
+///
+/// `ObjectExpression` / `FunctionExpression` / `ClassExpression` are also NOT
+/// safe: at the start of an expression statement or as an arrow-function body,
+/// `(obj as T)` → `obj` reparses as a block statement, and `(function(){} as T)`
+/// → a function declaration — e.g. `() => ({ a } as T)` must stay
+/// `() => ({ a })`, not become `() => { a }`. esrap re-adds these parens when it
+/// prints from the AST; the text-splice path here has no parent context, so it
+/// keeps the parens (redundant ones are absorbed by downstream normalization).
 fn is_paren_safe_to_drop(expr: &oxc_ast::ast::Expression) -> bool {
     use oxc_ast::ast::Expression as E;
     matches!(
@@ -932,9 +940,6 @@ fn is_paren_safe_to_drop(expr: &oxc_ast::ast::Expression) -> bool {
             | E::ThisExpression(_)
             | E::Super(_)
             | E::ArrayExpression(_)
-            | E::ObjectExpression(_)
-            | E::FunctionExpression(_)
-            | E::ClassExpression(_)
             | E::ParenthesizedExpression(_)
             | E::CallExpression(_)
             | E::NewExpression(_)
