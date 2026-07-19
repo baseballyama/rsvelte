@@ -1892,6 +1892,10 @@ fn transform_client_with_visitors(
     if let Some(non_imports) = module_script_non_imports {
         let class_transformed = transform_class_fields_client(&non_imports);
         let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
+        // Drop module-level comments esrap's no-`loc` top-level Program omits
+        // (leading JSDoc before a kept `export const`, per-field JSDoc that
+        // `strip_typescript` re-emits from a removed `export type`/`interface`).
+        let transformed = strip_module_toplevel_comments(&transformed);
         body.push(JsStatement::Raw(transformed.into()));
     }
 
@@ -2462,6 +2466,84 @@ fn is_export_default_stmt(stmt: &JsStatement) -> bool {
 ///   bar,
 /// } from './module';
 /// ```
+/// Drop module-`<script>`-level comments that the official compiler's esrap
+/// output omits.
+///
+/// The client program's top-level `Program` node is synthetic (no `loc`), so
+/// esrap's `reset_comment_index` fast-forwards the comment cursor past every
+/// comment before the module body is printed. A module comment is therefore
+/// only re-emitted if it is nested inside a `loc`-bearing block that esrap
+/// re-enters via `body()` — i.e. a function or class body. Every other module
+/// comment is dropped: a leading JSDoc before a surviving `export const`, and
+/// the per-field JSDoc that `strip_typescript` re-emits when it removes an
+/// `export type` / `interface` body (that re-emission is correct for the
+/// instance script, whose statements keep their `loc` inside the component
+/// block, but wrong for the module).
+///
+/// Mirror that here for the module non-import content: keep only comments that
+/// fall inside a function/class body span; splice the rest out. Leftover blank
+/// lines are absorbed by downstream normalization. Returns the input unchanged
+/// on a parse failure or when there is nothing to drop.
+pub(crate) fn strip_module_toplevel_comments(src: &str) -> String {
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast::{ClassBody, FunctionBody};
+    use oxc_ast_visit::{Visit, walk};
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    struct BodyCollector {
+        spans: Vec<(u32, u32)>,
+    }
+    impl<'a> Visit<'a> for BodyCollector {
+        fn visit_function_body(&mut self, it: &FunctionBody<'a>) {
+            self.spans.push((it.span.start, it.span.end));
+            walk::walk_function_body(self, it);
+        }
+        fn visit_class_body(&mut self, it: &ClassBody<'a>) {
+            self.spans.push((it.span.start, it.span.end));
+            walk::walk_class_body(self, it);
+        }
+    }
+
+    let allocator = Allocator::default();
+    let ret = Parser::new(&allocator, src, SourceType::mjs()).parse();
+    if !ret.diagnostics.is_empty() || ret.program.comments.is_empty() {
+        return src.to_string();
+    }
+
+    let mut collector = BodyCollector { spans: Vec::new() };
+    collector.visit_program(&ret.program);
+
+    let mut removals: Vec<(usize, usize)> = Vec::new();
+    for c in &ret.program.comments {
+        let (cs, ce) = (c.span.start, c.span.end);
+        let inside = collector
+            .spans
+            .iter()
+            .any(|(bs, be)| cs >= *bs && ce <= *be);
+        if !inside {
+            removals.push((cs as usize, ce as usize));
+        }
+    }
+    if removals.is_empty() {
+        return src.to_string();
+    }
+    removals.sort_by_key(|r| r.0);
+
+    let mut out = String::with_capacity(src.len());
+    let mut pos = 0usize;
+    for (s, e) in removals {
+        if s > pos {
+            out.push_str(&src[pos..s]);
+        }
+        pos = pos.max(e);
+    }
+    if pos < src.len() {
+        out.push_str(&src[pos..]);
+    }
+    out
+}
+
 /// True when `src` contains only line/block comments and whitespace — i.e. no
 /// JS statements. Used to detect a comment-only module `<script module>` body,
 /// which upstream parses to an empty Program and prints as nothing. The scan
@@ -3995,6 +4077,22 @@ fn transform_instance_script_for_visitors(
     // Collect non-reactive shadowed vars to add to non_reactive_state_vars later
     // (non_reactive_state_vars is declared after this loop).
     let mut non_reactive_shadowed_vars: Vec<String> = Vec::new();
+    // A `const $state(...)` binding is normally non-reactive in runes mode (it can
+    // never be locally reassigned, so `is_state_source` is false). But analysis
+    // marks an *exported* binding as `reassigned` (upstream `ExportSpecifier`:
+    // `binding.reassigned = true`), and `accessors` mode likewise forces a source
+    // — in either case the binding IS a state source and must keep its
+    // `$.state(...)` wrapper, so it must not be treated as non-reactive here.
+    let is_reassigned_or_accessor_state = |name: &str| -> bool {
+        analysis.accessors
+            || analysis
+                .root
+                .scope
+                .declarations
+                .get(name)
+                .and_then(|&idx| analysis.root.bindings.get(idx))
+                .is_some_and(|b| b.reassigned)
+    };
     for (var, is_const, is_state) in &local_reactive_vars {
         // Skip top-level bindings - they are already handled by the analysis-based
         // state_vars and non_reactive_state_vars collections above. The text-based
@@ -4006,7 +4104,10 @@ fn transform_instance_script_for_visitors(
             // If it is non-reactive, we should add it to non_reactive_state_vars so the
             // rune transform strips $state() to just the argument, and the AST-based
             // scope-aware transform will handle shadowing correctly.
-            let is_non_reactive_shadowed = analysis.immutable && *is_state && *is_const;
+            let is_non_reactive_shadowed = analysis.immutable
+                && *is_state
+                && *is_const
+                && !is_reassigned_or_accessor_state(var);
             if is_non_reactive_shadowed {
                 non_reactive_shadowed_vars.push(var.clone());
                 // Don't add to shadowed_local_reactive_vars - the AST-based transform
@@ -4028,9 +4129,10 @@ fn transform_instance_script_for_visitors(
         let is_non_reactive = if analysis.immutable && *is_state {
             if *is_const {
                 let state_pattern = format!("const {}", var);
-                script_rest.contains(&format!("{} = $state(", state_pattern))
-                    || script_rest.contains(&format!("{} = $state.raw(", state_pattern))
-                    || script_rest.contains(&format!("{} = $state.frozen(", state_pattern))
+                !is_reassigned_or_accessor_state(var)
+                    && (script_rest.contains(&format!("{} = $state(", state_pattern))
+                        || script_rest.contains(&format!("{} = $state.raw(", state_pattern))
+                        || script_rest.contains(&format!("{} = $state.frozen(", state_pattern)))
             } else {
                 // let/var $state: check if the variable is actually reassigned in the script.
                 // Member mutations (x.foo = ...) do NOT count as reassignment.

@@ -405,6 +405,17 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
             body,
             ..
         } => {
+            // Enter the for-loop's lexical scope (registered by scope_builder when the
+            // init declares `let`/`const`) so the loop variable shadows outer bindings
+            // during mutation/reference resolution — an `i++` in the update clause must
+            // resolve to the loop's own `let i`, not a same-named `const` in a sibling
+            // scope (which would falsely trip `constant_assignment`).
+            let saved_scope = context.scope;
+            if let Some(start) = node.start()
+                && let Some(&scope_idx) = context.analysis.root.function_scope_map.get(&start)
+            {
+                context.scope = scope_idx;
+            }
             if let Some(init) = init {
                 walk_js_node_typed(arena.get_js_node(*init), context)?;
             }
@@ -415,6 +426,7 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
                 walk_js_node_typed(arena.get_js_node(*update), context)?;
             }
             walk_js_node_typed(arena.get_js_node(*body), context)?;
+            context.scope = saved_scope;
             Ok(())
         }
 
@@ -488,9 +500,20 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
         | JsNode::ForInStatement {
             left, right, body, ..
         } => {
-            walk_js_node_typed(arena.get_js_node(*left), context)?;
+            // The iterable (`right`) is evaluated in the enclosing scope, so walk it
+            // first. Then enter the loop's lexical scope (registered by scope_builder
+            // when `left` declares `let`/`const`) for `left`/`body` so the loop binding
+            // resolves within the loop rather than to a same-named sibling binding.
             walk_js_node_typed(arena.get_js_node(*right), context)?;
+            let saved_scope = context.scope;
+            if let Some(start) = node.start()
+                && let Some(&scope_idx) = context.analysis.root.function_scope_map.get(&start)
+            {
+                context.scope = scope_idx;
+            }
+            walk_js_node_typed(arena.get_js_node(*left), context)?;
             walk_js_node_typed(arena.get_js_node(*body), context)?;
+            context.scope = saved_scope;
             Ok(())
         }
 

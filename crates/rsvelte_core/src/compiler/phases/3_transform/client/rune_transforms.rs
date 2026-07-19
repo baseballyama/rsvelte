@@ -712,19 +712,29 @@ pub(super) fn wrap_state_value(member_access: &str, is_raw: bool, is_skip: bool)
     }
 }
 
+/// `member_base` is the base expression used for **member reads** (`base.key`),
+/// while `base_expr` is used for the top-level rest's `$.exclude_from_object`.
+/// They differ only when destructuring `$derived(<rest-prop-binding>)`: a
+/// `let { ssr, …, ...restProps } = $derived(props)` where `props` is
+/// `$.rest_props($$props, …)` reads named members straight from `$$props`
+/// (`member_base = "$$props"`) — mirroring upstream's rest-prop member rewrite —
+/// but keeps `props` for `$.exclude_from_object(props, …)` (the rest must
+/// subtract the already-excluded keys held by `props`). Every other caller and
+/// all nested recursion pass `member_base == base_expr`.
 pub(super) fn process_derived_destructuring_pattern(
     pattern: &str,
     base_expr: &str,
+    member_base: &str,
     declarations: &mut Vec<String>,
     array_counter: &mut usize,
 ) -> Option<()> {
     let pattern = pattern.trim();
     if pattern.starts_with('{') && pattern.ends_with('}') {
         let inner = &pattern[1..pattern.len() - 1];
-        process_derived_object_pattern(inner, base_expr, declarations, array_counter)
+        process_derived_object_pattern(inner, base_expr, member_base, declarations, array_counter)
     } else if pattern.starts_with('[') && pattern.ends_with(']') {
         let inner = &pattern[1..pattern.len() - 1];
-        process_derived_array_pattern(inner, base_expr, declarations, array_counter)
+        process_derived_array_pattern(inner, base_expr, member_base, declarations, array_counter)
     } else {
         None
     }
@@ -733,6 +743,7 @@ pub(super) fn process_derived_destructuring_pattern(
 pub(super) fn process_derived_object_pattern(
     inner: &str,
     base_expr: &str,
+    member_base: &str,
     declarations: &mut Vec<String>,
     array_counter: &mut usize,
 ) -> Option<()> {
@@ -748,7 +759,7 @@ pub(super) fn process_derived_object_pattern(
         if let Some(colon_pos) = find_derived_property_colon(prop) {
             let key = prop[..colon_pos].trim();
             let value_pattern = prop[colon_pos + 1..].trim();
-            let prop_access = format!("{}.{}", base_expr, key);
+            let prop_access = format!("{}.{}", member_base, key);
             if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
                 let (nested_pattern, _default_val) = split_nested_pattern_default(value_pattern);
                 collect_array_helpers_only(nested_pattern, &prop_access, declarations)?;
@@ -803,7 +814,7 @@ pub(super) fn process_derived_object_pattern(
         if let Some(colon_pos) = find_derived_property_colon(prop) {
             let key = prop[..colon_pos].trim();
             let value_pattern = prop[colon_pos + 1..].trim();
-            let prop_access = format!("{}.{}", base_expr, key);
+            let prop_access = format!("{}.{}", member_base, key);
             if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
                 // Handle nested destructuring patterns, possibly with default values
                 // e.g., `measured: { width: w, height: h } = { width: 0, height: 0 }`
@@ -841,13 +852,13 @@ pub(super) fn process_derived_object_pattern(
             if let Some(eq_pos) = find_default_equals(prop) {
                 let name = prop[..eq_pos].trim();
                 let default_val = prop[eq_pos + 1..].trim();
-                let member_access = format!("{}.{}", base_expr, name);
+                let member_access = format!("{}.{}", member_base, name);
                 let fallback = build_fallback_string(&member_access, default_val);
                 declarations.push(format!("{} = $.derived(() => {})", name, fallback));
             } else {
                 declarations.push(format!(
                     "{} = $.derived(() => {}.{})",
-                    prop, base_expr, prop
+                    prop, member_base, prop
                 ));
             }
         }
@@ -1104,7 +1115,12 @@ pub(super) fn get_current_array_var_for_base(_base_expr: &str) -> String {
 
 pub(super) fn process_derived_array_pattern(
     inner: &str,
-    base_expr: &str,
+    // Array destructuring never emits `$.exclude_from_object` (the rest is a
+    // `$.get($$array).slice(i)`), so only `member_base` — the value being
+    // `$.to_array`-ed / indexed — is used; `base_expr` is kept for signature
+    // symmetry with `process_derived_object_pattern`.
+    _base_expr: &str,
+    member_base: &str,
     declarations: &mut Vec<String>,
     _array_counter: &mut usize,
 ) -> Option<()> {
@@ -1127,7 +1143,7 @@ pub(super) fn process_derived_array_pattern(
 
     declarations.push(format!(
         "{} = $.derived(() => $.to_array({}, {}))",
-        array_var, base_expr, element_count
+        array_var, member_base, element_count
     ));
     for (index, element) in elements.iter().enumerate() {
         let element = element.trim();
@@ -1148,6 +1164,7 @@ pub(super) fn process_derived_array_pattern(
             let mut nested_counter = 0;
             process_derived_destructuring_pattern(
                 element,
+                &element_access,
                 &element_access,
                 declarations,
                 &mut nested_counter,

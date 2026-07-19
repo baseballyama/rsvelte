@@ -2060,6 +2060,83 @@ fn ast_expr_is_simple(value: &str, analysis: &ComponentAnalysis) -> Option<bool>
     Some(expr_is_simple(&stmt.expression, analysis))
 }
 
+/// Exact `should_proxy` check via the OXC parser, mirroring upstream's
+/// `should_proxy(node, scope)` in
+/// `packages/svelte/src/compiler/phases/3-transform/client/utils.js`.
+///
+/// Returns `Some(false)` when the top-level node is a value upstream never
+/// proxies (`Literal`, `TemplateLiteral`, arrow/function expression,
+/// `UnaryExpression`, `BinaryExpression`, or the `undefined` identifier),
+/// `Some(true)` otherwise, and `None` when the text cannot be parsed as a single
+/// expression (callers then fall back to the string heuristic).
+///
+/// `analysis` enables upstream's one-level scope recursion: a bare identifier
+/// default resolves to its (non-reassigned, non-function) binding's initial and
+/// that initial's node type decides proxy-ability — e.g. `= DEFAULT_ALPHA` where
+/// `const DEFAULT_ALPHA = 1` is not proxied. Pass `None` to disable recursion (as
+/// upstream does by threading `null` scope on the recursed call), so it is at
+/// most one level deep.
+fn ast_should_proxy(value: &str, analysis: Option<&ComponentAnalysis>) -> Option<bool> {
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast::Statement;
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    let alloc = Allocator::default();
+    // Wrap in parens so an object literal (`{...}`) parses as an expression.
+    let src = format!("({})", value.trim());
+    let parsed = Parser::new(&alloc, &src, SourceType::mjs()).parse();
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
+        return None;
+    }
+    let Some(Statement::ExpressionStatement(stmt)) = parsed.program.body.first() else {
+        return None;
+    };
+    Some(expr_should_proxy(&stmt.expression, analysis))
+}
+
+/// Node-type predicate matching upstream `should_proxy` (`utils.js`), with the
+/// one-level scope recursion when `analysis` is `Some`.
+fn expr_should_proxy(
+    expr: &oxc_ast::ast::Expression,
+    analysis: Option<&ComponentAnalysis>,
+) -> bool {
+    use oxc_ast::ast::Expression;
+    match expr {
+        Expression::ParenthesizedExpression(p) => expr_should_proxy(&p.expression, analysis),
+        Expression::NumericLiteral(_)
+        | Expression::StringLiteral(_)
+        | Expression::BooleanLiteral(_)
+        | Expression::NullLiteral(_)
+        | Expression::BigIntLiteral(_)
+        | Expression::RegExpLiteral(_)
+        | Expression::TemplateLiteral(_)
+        | Expression::ArrowFunctionExpression(_)
+        | Expression::FunctionExpression(_)
+        | Expression::UnaryExpression(_)
+        | Expression::BinaryExpression(_) => false,
+        Expression::Identifier(id) => {
+            if id.name.as_str() == "undefined" {
+                return false;
+            }
+            // Upstream: recurse into a resolvable, non-reassigned, non-function
+            // binding's initial (with a `null` scope, hence at most one level).
+            if let Some(analysis) = analysis
+                && let Some(idx) = analysis.root.find_binding_any_scope(id.name.as_str())
+                && let Some(binding) = analysis.root.bindings.get(idx)
+                && !binding.reassigned
+                && !binding.initial_is_function
+                && let Some(initial) = binding.initial.as_deref()
+            {
+                // `None` disables further identifier recursion (upstream `null` scope).
+                return ast_should_proxy(initial, None).unwrap_or(true);
+            }
+            true
+        }
+        _ => true,
+    }
+}
+
 /// `true` if `name` is a reactive binding that prop-read transforms rewrite into
 /// a getter call (`name` -> `name()`). Such an identifier is therefore NOT a
 /// simple expression: upstream's `is_simple_expression` runs after that rewrite
@@ -2519,8 +2596,28 @@ pub(super) fn transform_props_destructuring(
                     // is NOT a prop source and should NOT get a $.prop() declaration.
                     // Reference: is_prop_source() in utils.js
                     let is_source = if analysis.runes {
-                        // In runes mode, check binding properties
-                        let binding = analysis.root.bindings.iter().find(|b| b.name == local_name);
+                        // In runes mode, check binding properties.
+                        // Resolve to the *prop* binding by kind, not merely by name:
+                        // a same-named binding from another scope (e.g. a module-script
+                        // function parameter `context` sharing the prop's name) can
+                        // otherwise shadow the lookup and hide the prop's `reassigned`
+                        // flag, wrongly demoting a reassigned no-default `$bindable()`
+                        // to a plain `$$props.x` member access. Mirrors upstream's
+                        // scope-based `context.state.scope.get(id.name)` resolution.
+                        let binding = analysis
+                            .root
+                            .bindings
+                            .iter()
+                            .find(|b| {
+                                b.name == local_name
+                                    && matches!(
+                                        b.kind,
+                                        BindingKind::Prop | BindingKind::BindableProp
+                                    )
+                            })
+                            .or_else(|| {
+                                analysis.root.bindings.iter().find(|b| b.name == local_name)
+                            });
                         if let Some(b) = binding {
                             analysis.accessors || b.reassigned || b.initial.is_some() || b.mutated
                         } else {
@@ -2581,7 +2678,7 @@ pub(super) fn transform_props_destructuring(
             // Only $bindable() defaults get proxy-wrapped when should_proxy returns true.
             // Regular prop defaults are NOT proxied.
             // Reference: VariableDeclaration.js lines 80-84
-            let needs_proxy = was_bindable && should_proxy_prop_default(default_value);
+            let needs_proxy = was_bindable && should_proxy_prop_default(default_value, analysis);
             let proxy_wrapped = if needs_proxy {
                 if dev {
                     format!("$.tag_proxy($.proxy({}), '{}')", default_value, local_name)
@@ -3348,7 +3445,13 @@ pub(super) fn all_args_are_literals(args: &str) -> bool {
 /// Returns `false` for values known to be primitives (literals, template literals,
 /// arrow functions, function expressions, unary/binary expressions, `undefined`).
 /// Returns `true` for everything else (identifiers, member expressions, call expressions, etc.).
-fn should_proxy_prop_default(value: &str) -> bool {
+fn should_proxy_prop_default(value: &str, analysis: &ComponentAnalysis) -> bool {
+    // Prefer an exact AST-based check that mirrors upstream `should_proxy`
+    // (node-type dispatch + one-level scope recursion). The string heuristic
+    // below is only a fallback for text that cannot be parsed as an expression.
+    if let Some(result) = ast_should_proxy(value, Some(analysis)) {
+        return result;
+    }
     let v = value.trim();
 
     // Empty value means no default

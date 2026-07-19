@@ -1409,6 +1409,23 @@ fn is_complex_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
 
 /// Implementation of complex selector unused check
 fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
+    // A nested selector whose NestingSelector (`&`) resolves to a GLOBAL parent is
+    // always kept, mirroring upstream's `relative_selector_might_apply_to_node`
+    // NestingSelector branch: it matches when the parent complex selector
+    // `is_global(...)`, so the `&`-anchored selector could apply to elements
+    // outside the component and must not be pruned against this component's local
+    // DOM. Covers `&[data-x]`, `&.foo`, `& .foo` nested under
+    // `:global(:where(.x)) { ... }`. This must run BEFORE the zero-elements bail
+    // below (the `<Text data-placement={…}>` in the corpus renders no scopeable
+    // element in this component, yet the global-anchored rule must survive). A
+    // nested selector with no `&` (an implicit descendant like `.foo`) stays
+    // scoped and is pruned normally; a `&` under a SCOPED parent likewise.
+    if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array())
+        && nesting_resolves_to_global_parent(rel_selectors, ctx)
+    {
+        return false;
+    }
+
     // A non-global selector can never match when the component renders no
     // scopeable elements. Mirrors upstream `prune()`, which only sets
     // `metadata.used` while iterating over `elements`; with zero elements every
@@ -1687,6 +1704,94 @@ fn is_parent_chain_unused(ctx: &CssContext) -> bool {
     }
 
     false
+}
+
+/// Returns `true` when `rel_selectors` contains a NestingSelector (`&`) and the
+/// immediate parent rule's prelude is explicitly `:global(...)`. Mirrors upstream
+/// `is_global`'s NestingSelector recursion into the owner rule: a `&` anchored to
+/// a `:global(...)` parent is a potential global match (it can apply to elements
+/// outside the component) and its rule must be kept.
+///
+/// Note this is intentionally NARROWER than `is_complex_selector_global_like`:
+/// `:root` / `:host` / `view-transition` parents are "global-like" but upstream's
+/// `is_global` returns `false` for them (they are unscopeable, not global), so a
+/// `&`-nested selector under `:root { … }` must still be pruned normally.
+fn nesting_resolves_to_global_parent(rel_selectors: &[Value], ctx: &CssContext) -> bool {
+    let has_nesting = rel_selectors.iter().any(|rel| {
+        rel.get("selectors")
+            .and_then(|s| s.as_array())
+            .is_some_and(|arr| {
+                arr.iter()
+                    .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
+            })
+    });
+    if !has_nesting {
+        return false;
+    }
+
+    // `:has(...)` and sibling combinators (`+` / `~`) prune against the
+    // component's OWN DOM subtree / siblings, which is knowable even when the
+    // `&` subject is global — upstream still prunes `&:has(.unused)` / `& + .x`
+    // under a `:global(...)` parent. Let those fall through to the normal
+    // `is_has_selector_unused` / `is_sibling_combinator_unused` checks by not
+    // force-keeping here. (Plain `&[attr]` / `&.class` / `& .desc` have no such
+    // component-local test and are kept.)
+    for rel in rel_selectors {
+        if let Some(comb) = rel
+            .get("combinator")
+            .and_then(|c| c.get("name"))
+            .and_then(|n| n.as_str())
+            && (comb == "+" || comb == "~")
+        {
+            return false;
+        }
+        if rel
+            .get("selectors")
+            .and_then(|s| s.as_array())
+            .is_some_and(|arr| {
+                arr.iter().any(|s| {
+                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                        && s.get("name").and_then(|n| n.as_str()) == Some("has")
+                })
+            })
+        {
+            return false;
+        }
+    }
+
+    let parent_preludes = ctx.parent_preludes.borrow();
+    let Some(parent) = parent_preludes.last() else {
+        return false;
+    };
+    // The parent is global for `&`-anchoring only if it has a complex selector
+    // whose every relative selector is a `:global(...)` pseudo-class.
+    parent
+        .get("children")
+        .and_then(|c| c.as_array())
+        .is_some_and(|complexes| {
+            complexes.iter().any(|complex| {
+                complex
+                    .get("children")
+                    .and_then(|c| c.as_array())
+                    .is_some_and(|rels| {
+                        !rels.is_empty() && rels.iter().all(relative_selector_is_global_pseudo)
+                    })
+            })
+        })
+}
+
+/// `true` if the relative selector contains a `:global` pseudo-class (with or
+/// without args) — i.e. it is explicitly global, as opposed to merely
+/// "global-like" (`:root` / `:host` / view-transition pseudo-elements).
+fn relative_selector_is_global_pseudo(rel: &Value) -> bool {
+    rel.get("selectors")
+        .and_then(|s| s.as_array())
+        .is_some_and(|arr| {
+            arr.iter().any(|s| {
+                s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                    && s.get("name").and_then(|n| n.as_str()) == Some("global")
+            })
+        })
 }
 
 /// Check if a nested rule's selector with NestingSelector (&) compound is unused.
@@ -5303,8 +5408,6 @@ fn transform_complex_selector(
     let mut seen_global = false;
     // Track if the previous selector was scoped - for specificity bumping decisions
     let mut _previous_was_scoped = false;
-    // Track if the previous selector was global-like - determines if we bump specificity after combinator
-    let mut previous_was_global_like = false;
 
     if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
         // Pre-scan: check if ANY RelativeSelector in this ComplexSelector has :global()
@@ -5472,14 +5575,16 @@ fn transform_complex_selector(
                 } else {
                     let _ = write!(result, " {} ", name);
                 }
-                // After any combinator, subsequent selectors should use :where() for specificity preservation
-                // UNLESS the previous selector was global-like (like :host) or a :global() selector,
-                // in which case the first real scoped selector should get the direct class
-                if !previous_was_global_like && !seen_global {
-                    local_specificity_bumped = true;
-                }
-                // Reset the global-like flag since we've now passed the combinator
-                previous_was_global_like = false;
+                // A combinator by itself must NOT bump specificity. Upstream tracks
+                // the bump solely through actual modifier application (`specificity.bumped`
+                // becomes true only when a scope class is emitted for a compound). Every
+                // real scoped compound below already sets `local_specificity_bumped = true`,
+                // so it persists across the combinator on its own. Forcing a bump here
+                // was wrong when the PREVIOUS relative selector was a skipped standalone
+                // `:where(...)` / `:is(...)` (which emits no modifier): e.g.
+                // `:where(.a) > :where(.b)` must scope `.b` with the DIRECT class
+                // (`:where(.b.svelte)`), not `:where(.b:where(.svelte))`, because no
+                // bump has happened yet. See upstream css/index.js ComplexSelector.
             }
 
             // Get selectors
@@ -5520,7 +5625,6 @@ fn transform_complex_selector(
                     // Global-like selectors don't count as scoped and don't bump specificity
                     // The next scoped selector should get the direct class
                     _previous_was_scoped = false;
-                    previous_was_global_like = true;
                 } else if is_entirely_global {
                     // Handle :global selector - extract :global() content without scoping,
                     // but scope subsequent selectors like :is() with direct class
@@ -5726,6 +5830,32 @@ fn transform_complex_selector(
                         let effective_use_direct = has_global_anywhere
                             || (has_nesting_selector && !local_specificity_bumped);
 
+                        // Upstream sets `specificity.bumped = true` for the WHOLE compound
+                        // BEFORE recursing into its pseudo-class args (`:is/:where/:has/
+                        // :not`) — see css/index.js ComplexSelector, which reaches the
+                        // `specificity.bumped = true` line for every scoped compound EXCEPT
+                        // a standalone length-1 `:is()/:where()` (which `continue`s) and
+                        // nesting compounds. The bump happens even when no textual `.svelte`
+                        // modifier is emitted (e.g. `:root:has(h1)` — `:root` is exempt yet
+                        // still bumps, so the inner `h1` is `:where(.svelte)`). It also
+                        // covers a pseudo appearing before the compound's textual scoping
+                        // point, e.g. `nav:has(a).primary` →
+                        // `nav:has(a:where(.svelte)).primary.svelte`, not `:has(a.svelte)`.
+                        // Standalone `:is()/:where()` compounds keep the raw prior state so
+                        // the first inner selector still gets the direct class.
+                        let is_standalone_is_where = selectors.len() == 1
+                            && selectors.first().is_some_and(|s| {
+                                s.get("type").and_then(|t| t.as_str())
+                                    == Some("PseudoClassSelector")
+                                    && matches!(
+                                        s.get("name").and_then(|n| n.as_str()),
+                                        Some("is") | Some("where")
+                                    )
+                            });
+                        let compound_bumps =
+                            needs_scoping && !has_nesting_selector && !is_standalone_is_where;
+                        let outer_bumped_for_recursion = local_specificity_bumped || compound_bumps;
+
                         selector_parts.push_str(&format_simple_selector_with_scope(
                             sel,
                             selector,
@@ -5734,7 +5864,7 @@ fn transform_complex_selector(
                             0,
                             ctx,
                             effective_use_direct,
-                            local_specificity_bumped,
+                            outer_bumped_for_recursion,
                         ));
 
                         // Add scoping after the last non-pseudo selector
@@ -5756,11 +5886,6 @@ fn transform_complex_selector(
                     result.push_str(&selector_parts);
                     // Mark that this selector was scoped (unless it's a nesting selector)
                     _previous_was_scoped = needs_scoping && !has_nesting_selector;
-                    // When a nesting selector is inside a global block, subsequent selectors
-                    // should use direct class (not :where()) because the & refers to a global parent
-                    if has_nesting_selector && is_in_global_block {
-                        previous_was_global_like = true;
-                    }
                 }
             }
         }
@@ -6118,7 +6243,7 @@ fn transform_is_not_complex_selector(
     css_source: &str,
     pseudo_name: &str,
     ctx: Option<&CssContext>,
-    use_direct_class: bool,
+    _use_direct_class: bool,
     outer_specificity_bumped: bool,
 ) -> String {
     let mut result = String::new();
@@ -6139,11 +6264,20 @@ fn transform_is_not_complex_selector(
         // Per the official Svelte compiler, inner selectors inherit the specificity state
         // from the outer context. When the outer selector has already been scoped
         // (specificity bumped), ALL inner selectors should use :where() for scoping.
-        // When not bumped, the first inner selector gets direct class.
+        // When not bumped, the FIRST inner scoped selector is itself the first scoping
+        // point, so it gets the direct class (`.svelte-hash`) — mirroring upstream's
+        // `modifier = selector; if (specificity.bumped) modifier = :where(modifier)`
+        // where `specificity.bumped` is still false. Subsequent relative selectors then
+        // switch to `:where()` (handled by the `inner_use_direct_class = false` reset at
+        // the end of each iteration). This matters for standalone `:where(.foo)` /
+        // `:is(.foo)` at the top of a rule: `:where(.foo.svelte-hash)`, not
+        // `:where(.foo:where(.svelte-hash))`.
         let mut inner_use_direct_class = if outer_specificity_bumped {
             false // outer already bumped, so inner always uses :where()
         } else {
-            use_direct_class
+            // Not yet bumped: first inner scoped selector gets the direct class.
+            // (`use_direct_class` from a :global context also resolves to direct here.)
+            true
         };
 
         for relative_selector in children {

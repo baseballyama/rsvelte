@@ -4940,6 +4940,14 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                                 crate::compiler::phases::phase2_analyze::scope::BindingKind::Template
                             )
                         {
+                            // A function-valued `{@const}` (`{@const f = (e) => …}`)
+                            // mirrors upstream's `!binding.is_function()` term in
+                            // Identifier.js: reading it is not reactive state, so a
+                            // component prop `onclick={f}` is emitted as a plain
+                            // `onclick: $.get(f)` value rather than a getter.
+                            if binding.is_function() {
+                                return false;
+                            }
                             if let Some(ref initial_str) = binding.initial
                                 && let Ok(initial_json) =
                                     serde_json::from_str::<serde_json::Value>(initial_str)
@@ -5022,6 +5030,12 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                     // E.g., `@const bar = 'world'` → is_known=true (non-reactive)
                     //        `@const doubled = count * 2` → is_known depends on `count`
                     if matches!(binding.kind, BindingKind::Template) {
+                        // Function-valued `{@const}` mirrors upstream's
+                        // `!binding.is_function()` term (see the Template branch
+                        // above): a read of it is not reactive state.
+                        if binding.is_function() {
+                            return false;
+                        }
                         if let Some(ref initial_str) = binding.initial
                             && let Ok(initial_json) =
                                 serde_json::from_str::<serde_json::Value>(initial_str)
@@ -6294,8 +6308,14 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
             false
         }
 
-        // Arrow/function expressions are "known" (they evaluate to a function)
-        "ArrowFunctionExpression" | "FunctionExpression" => true,
+        // Arrow/function expressions are NOT "known" in the scope.evaluate sense:
+        // upstream evaluates them to the `FUNCTION` symbol, and a symbol value
+        // forces `is_known = false` (scope.js). So a `$derived(() => …)` (a
+        // function-valued derived) stays reactive — its prop must be emitted as a
+        // getter, not inlined by value. A plain `const fn = () => {}` reference is
+        // handled separately by the `binding.is_function()` fast-path above and
+        // never reaches here.
+        "ArrowFunctionExpression" | "FunctionExpression" => false,
 
         // Member expressions are generally not known, EXCEPT a non-computed
         // member of a pure global namespace whose members are compile-time

@@ -201,6 +201,13 @@ struct StateVarCollector<'a, 's> {
     read_only_prop_names: FxHashSet<String>,
     /// Rest prop variable names -> `others.x` -> `$$props.x`.
     rest_prop_vars: FxHashSet<String>,
+    /// Start offsets of `rest.x` StaticMemberExpressions that are a DIRECT operand
+    /// of an Assignment/Update expression, so their `rest -> $$props` rewrite must
+    /// be suppressed. Mirrors upstream Identifier.js, which skips the optimization
+    /// when the member access's grandparent is an Assignment/Update expression
+    /// (e.g. `ctx.globalAlpha *= rest.opacity` keeps `rest.opacity`). Populated when
+    /// visiting the parent assignment/update (before the member itself is visited).
+    rest_operand_member_starts: FxHashSet<u32>,
     /// State vars needed for store access pattern (store base is a reactive state var).
     state_vars_for_store: FxHashSet<String>,
     /// Prop vars needed for store access pattern (store base is a prop).
@@ -294,6 +301,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             read_only_props: read_only_props.to_vec(),
             read_only_prop_names,
             rest_prop_vars: rest_prop_set,
+            rest_operand_member_starts: FxHashSet::default(),
             state_vars_for_store: state_set_for_store,
             prop_vars_for_store: prop_set_for_store,
             paren_expr_span: None,
@@ -384,6 +392,21 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// Check if a name is a rest prop variable.
     fn is_active_rest_prop(&self, name: &str) -> bool {
         self.rest_prop_vars.contains(name) && !self.is_shadowed(name)
+    }
+
+    /// If `expr` is a bare single-level `rest.x` StaticMemberExpression on an active
+    /// rest-prop identifier (no parentheses / TS wrappers, non-computed), return the
+    /// member expression's start offset. Used to suppress the `rest -> $$props`
+    /// rewrite when such a member is a direct Assignment/Update operand, mirroring
+    /// upstream's `grand_parent.type !== 'AssignmentExpression' | 'UpdateExpression'`.
+    fn direct_rest_member_operand_start(&self, expr: &Expression<'_>) -> Option<u32> {
+        if let Expression::StaticMemberExpression(member) = expr
+            && let Expression::Identifier(obj) = &member.object
+            && self.is_active_rest_prop(obj.name.as_str())
+        {
+            return Some(member.span.start);
+        }
+        None
     }
 
     /// Get the prop alias for a read-only prop.
@@ -1190,10 +1213,22 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             format!("$.get({})", d_name)
         };
 
+        // When destructuring `$derived(props)` where `props` is a `...rest`
+        // binding (`$.rest_props($$props, …)`), named members read straight from
+        // `$$props` — mirroring upstream's rest-prop member rewrite
+        // (`props.ssr` → `$$props.ssr`) — while the top-level `...rest` element
+        // keeps `props` for `$.exclude_from_object(props, …)`.
+        let member_base = if source_is_identifier && self.is_active_rest_prop(source_orig_trimmed) {
+            "$$props".to_string()
+        } else {
+            base_expr.clone()
+        };
+
         let mut array_counter: usize = 0;
         if process_derived_destructuring_pattern(
             &pattern_text,
             &base_expr,
+            &member_base,
             &mut declarations,
             &mut array_counter,
         )
@@ -1275,6 +1310,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let mut array_counter: usize = 0;
         if process_derived_destructuring_pattern(
             &pattern_text,
+            &base_expr,
             &base_expr,
             &mut declarations,
             &mut array_counter,
@@ -2535,6 +2571,14 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
     // -----------------------------------------------------------------------
 
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
+        // Suppress the `rest.x -> $$props.x` rewrite for a RHS that is itself a bare
+        // single-level `rest.x` member — its grandparent is this assignment, so
+        // upstream keeps `rest.x` (e.g. `ctx.globalAlpha *= rest.opacity`). Recorded
+        // before any child is visited so it is seen when the member is reached.
+        if let Some(start) = self.direct_rest_member_operand_start(&expr.right) {
+            self.rest_operand_member_starts.insert(start);
+        }
+
         // Check if the left side is a simple identifier
         if let AssignmentTarget::AssignmentTargetIdentifier(ident) = &expr.left {
             let name = ident.name.as_str();
@@ -2782,6 +2826,14 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
     // -----------------------------------------------------------------------
 
     fn visit_update_expression(&mut self, expr: &UpdateExpression<'ast>) {
+        // `rest.x++` keeps `rest.x` (member grandparent is the UpdateExpression).
+        if let SimpleAssignmentTarget::StaticMemberExpression(member) = &expr.argument
+            && let Expression::Identifier(obj) = &member.object
+            && self.is_active_rest_prop(obj.name.as_str())
+        {
+            self.rest_operand_member_starts.insert(member.span.start);
+        }
+
         if let SimpleAssignmentTarget::AssignmentTargetIdentifier(ident) = &expr.argument {
             let name = ident.name.as_str();
             let (full_start, full_end) = self.effective_span(expr.span.start, expr.span.end);
@@ -2942,6 +2994,9 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         }
         if let Expression::Identifier(obj) = unwrapped
             && self.is_active_rest_prop(obj.name.as_str())
+            // Suppressed when this `rest.x` is a direct Assignment/Update operand
+            // (upstream keeps `rest.x` there, e.g. `ctx.globalAlpha *= rest.opacity`).
+            && !self.rest_operand_member_starts.contains(&expr.span.start)
         {
             // Replace the entire object span (including wrappers/parens) with $$props
             let obj_start = expr.object.span().start;

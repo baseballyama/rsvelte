@@ -436,12 +436,12 @@ fn visit_runes_mode_typed(
                 }
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string_typed(init);
-                // Keep the init AST for an interpolated template literal so
-                // reactive-state evaluation can see through `const url =
-                // `…${KNOWN}…``. Stored separately from `initial` (which feeds
-                // `is_prop_source`).
-                if matches!(init, JsNode::TemplateLiteral { expressions, .. } if !expressions.is_empty())
-                {
+                // Keep the init AST for a non-literal but potentially
+                // compile-time-"known" initializer (interpolated template,
+                // arithmetic over constants) so reactive-state evaluation can see
+                // through `const path = `…${KNOWN}…`` / `const h = a + b * n`.
+                // Stored separately from `initial` (which feeds `is_prop_source`).
+                if init_needs_expr_json(init) {
                     binding.init_expr_json = Some(init.to_json_string());
                 }
                 binding.initial_is_defined = is_expression_defined_typed(init, arena);
@@ -472,24 +472,56 @@ fn update_binding_kinds_typed(
 ) -> Result<(), AnalysisError> {
     let arena = context.parse_arena;
     for path in paths {
-        // Svelte 5.53.1 (upstream `0c7f81514` "handle shadowed function names
-        // correctly"): when an inner `const foo = $derived(...)` shadows an
-        // outer `function foo()`, the rune mutation must land on the inner
-        // binding only. Use lexical scoping — walk from `context.scope` up
-        // the parent chain to find the first scope that declares this name.
-        let binding_idx = context
-            .analysis
-            .root
-            .get_binding(path.name.as_str(), context.scope)
-            .or_else(|| {
-                context
-                    .analysis
-                    .root
-                    .scope
-                    .declarations
-                    .get(path.name.as_str())
-                    .copied()
-            });
+        // A `$props()` destructure always declares its bindings in the instance
+        // script scope, so resolve the name there FIRST. `context.scope` for the
+        // declaration is the root scope (0), whose flattened `declarations` map
+        // can be polluted by a same-named binding from another scope (e.g. a
+        // `<script module>` function parameter `context`, collapsed first). Without
+        // this, the prop kind (Prop/RestProp) gets stamped onto that unrelated
+        // binding, leaving the real instance prop `Normal` and breaking prop-source
+        // detection for reassigned no-default `$bindable()` props.
+        let binding_idx = if rune == "$props" {
+            context
+                .analysis
+                .root
+                .all_scopes
+                .get(context.analysis.root.instance_scope_index)
+                .and_then(|s| s.declarations.get(path.name.as_str()).copied())
+                .or_else(|| {
+                    context
+                        .analysis
+                        .root
+                        .get_binding(path.name.as_str(), context.scope)
+                })
+                .or_else(|| {
+                    context
+                        .analysis
+                        .root
+                        .scope
+                        .declarations
+                        .get(path.name.as_str())
+                        .copied()
+                })
+        } else {
+            // Svelte 5.53.1 (upstream `0c7f81514` "handle shadowed function names
+            // correctly"): when an inner `const foo = $derived(...)` shadows an
+            // outer `function foo()`, the rune mutation must land on the inner
+            // binding only. Use lexical scoping — walk from `context.scope` up
+            // the parent chain to find the first scope that declares this name.
+            context
+                .analysis
+                .root
+                .get_binding(path.name.as_str(), context.scope)
+                .or_else(|| {
+                    context
+                        .analysis
+                        .root
+                        .scope
+                        .declarations
+                        .get(path.name.as_str())
+                        .copied()
+                })
+        };
 
         let binding_idx = match binding_idx {
             Some(idx) => idx,
@@ -679,13 +711,32 @@ fn process_props_object_pattern_typed(
         }
         .ok_or_else(errors::props_invalid_pattern)?;
 
-        if let Some(&binding_idx) = context
+        // Resolve the binding declared by this `$props()` destructure. The
+        // destructure lives in the instance script, so look the local name up in
+        // the instance scope FIRST. The flattened `root.scope.declarations` map
+        // can be polluted by a same-named binding from another scope (e.g. a
+        // `<script module>` function parameter also named `context`, collapsed in
+        // first-declared-wins order), which would otherwise make us stamp the
+        // prop kind / initial / bindable metadata onto the wrong binding — leaving
+        // the real instance prop as a plain `Normal` binding and demoting a
+        // reassigned no-default `$bindable()` to a `$$props.x` member access.
+        // Mirrors the same instance-scope preference in `update_binding_kinds_typed`.
+        let prop_binding_idx = context
             .analysis
             .root
-            .scope
-            .declarations
-            .get(value_name.as_str())
-        {
+            .all_scopes
+            .get(context.analysis.root.instance_scope_index)
+            .and_then(|s| s.declarations.get(value_name.as_str()).copied())
+            .or_else(|| {
+                context
+                    .analysis
+                    .root
+                    .scope
+                    .declarations
+                    .get(value_name.as_str())
+                    .copied()
+            });
+        if let Some(binding_idx) = prop_binding_idx {
             let binding = &mut context.analysis.root.bindings[binding_idx];
             binding.prop_alias = Some(alias);
             binding.kind = BindingKind::Prop;
@@ -850,6 +901,15 @@ fn visit_non_runes_mode_typed(
             {
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string_typed(init);
+                // Keep the init AST for a non-literal but potentially
+                // compile-time-"known" initializer (see `init_needs_expr_json`) —
+                // otherwise a legacy-mode `const` initialised with an interpolated
+                // template or arithmetic over compile-time constants (e.g.
+                // `const h = pad + gap * n`) is treated as reactive and mis-emits
+                // a `get x()` getter for a component prop. Mirrors the runes path.
+                if init_needs_expr_json(init) {
+                    binding.init_expr_json = Some(init.to_json_string());
+                }
                 // Only propagate `is_defined` when this is a simple binding
                 // (`const x = expr`).  For destructured bindings the runtime
                 // value comes from a property/index access on the RHS, so we
@@ -867,4 +927,23 @@ fn visit_non_runes_mode_typed(
     }
 
     Ok(())
+}
+
+/// Whether a variable-declarator initializer should have its AST JSON cached in
+/// `Binding::init_expr_json` for later `scope.evaluate`-style reactivity checks
+/// (`is_expression_known_json` in Phase 3). A plain literal is already captured
+/// by `Binding::initial`, and a function initializer is handled via
+/// `Binding::is_function()`. This covers the remaining non-literal expressions
+/// whose compile-time "known"-ness depends on what they reference — an
+/// interpolated template literal and arithmetic/unary/conditional expressions
+/// over other bindings — so we keep the AST to evaluate against final binding
+/// kinds. Mirrors upstream keeping `binding.initial` for `scope.evaluate`.
+fn init_needs_expr_json(init: &JsNode) -> bool {
+    match init {
+        JsNode::TemplateLiteral { expressions, .. } => !expressions.is_empty(),
+        JsNode::BinaryExpression { .. }
+        | JsNode::UnaryExpression { .. }
+        | JsNode::ConditionalExpression { .. } => true,
+        _ => false,
+    }
 }

@@ -834,7 +834,18 @@ impl<'a> ScopeBuilder<'a> {
                     false
                 };
                 let old_scope = if needs_scope {
-                    Some(self.push_scope())
+                    let old = self.push_scope();
+                    // Register the for-loop's lexical scope (holding the `let`/`const`
+                    // declared in the init) so the Phase-2 visitor can enter it when it
+                    // walks the init/test/update/body — otherwise the loop variable is
+                    // invisible to mutation/reference resolution and an `i++` in the
+                    // update clause mis-resolves to a same-named binding in a sibling
+                    // scope (e.g. a `const i` in a neighbouring arrow), falsely tripping
+                    // `constant_assignment`. Keyed by the for-statement start.
+                    if let Some(fstart) = node.start() {
+                        self.function_scope_map.insert(fstart, self.current_scope);
+                    }
+                    Some(old)
                 } else {
                     None
                 };
@@ -869,7 +880,11 @@ impl<'a> ScopeBuilder<'a> {
                         if kind.as_str() == "let" || kind.as_str() == "const"
                 );
                 let old_scope = if needs_scope {
-                    Some(self.push_scope())
+                    let old = self.push_scope();
+                    if let Some(fstart) = node.start() {
+                        self.function_scope_map.insert(fstart, self.current_scope);
+                    }
+                    Some(old)
                 } else {
                     None
                 };
@@ -892,7 +907,11 @@ impl<'a> ScopeBuilder<'a> {
                         if kind.as_str() == "let" || kind.as_str() == "const"
                 );
                 let old_scope = if needs_scope {
-                    Some(self.push_scope())
+                    let old = self.push_scope();
+                    if let Some(fstart) = node.start() {
+                        self.function_scope_map.insert(fstart, self.current_scope);
+                    }
+                    Some(old)
                 } else {
                     None
                 };
@@ -3627,6 +3646,17 @@ impl<'a> ScopeBuilder<'a> {
         };
         self.bindings[idx].initial = Some(init.to_json_string());
         self.bindings[idx].initial_is_defined = true;
+        // Mark function-valued `{@const}` bindings so `is_function()` returns
+        // true (mirrors the VariableDeclarator init check). Upstream's
+        // Identifier.js `has_state` computation excludes function bindings, so a
+        // `{@const fn = (e) => …}` passed as a component prop is emitted as a
+        // plain `name: value` init rather than a `get name()` getter.
+        if matches!(
+            init,
+            JsNode::ArrowFunctionExpression { .. } | JsNode::FunctionExpression { .. }
+        ) {
+            self.bindings[idx].initial_is_function = true;
+        }
         // Record the init node type so downstream transforms (e.g. should_proxy)
         // can check whether the initial value is a primitive expression.
         let init_type = Some(init.type_str().to_string());

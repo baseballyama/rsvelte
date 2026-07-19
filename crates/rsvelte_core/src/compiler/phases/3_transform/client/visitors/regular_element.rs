@@ -57,6 +57,7 @@ struct LetDirectiveResult {
         Option<crate::compiler::phases::phase3_transform::client::types::IdentifierTransform>,
     )>,
     saved_transform_deep_read: im::HashMap<String, ()>,
+    saved_shadowed_prop_names: im::HashSet<String>,
 }
 
 fn process_element_let_directives(
@@ -70,6 +71,7 @@ fn process_element_let_directives(
         Option<crate::compiler::phases::phase3_transform::client::types::IdentifierTransform>,
     )> = Vec::new();
     let saved_transform_deep_read = context.state.transform_deep_read.clone();
+    let saved_shadowed_prop_names = context.state.shadowed_prop_names.clone();
 
     for let_dir in let_directives {
         let prop_name = &let_dir.name;
@@ -131,12 +133,20 @@ fn process_element_let_directives(
             );
             // Let directive bindings are template-kind.
             context.state.transform_deep_read.insert(name.clone(), ());
+            // The let: binding shadows any outer same-named prop. Without this,
+            // `convert_identifier` sees the prop binding kind and emits
+            // `$$props.name` directly, bypassing the `$.get(name)` transform we
+            // just registered (mirrors the each-item / snippet-param shadowing in
+            // each_block.rs / snippet_block.rs). e.g. `let { data } = $props()`
+            // outside + `<tbody slot="…" let:data>` must read `$.get(data)`.
+            context.state.shadowed_prop_names.insert(name.clone());
         }
     }
 
     LetDirectiveResult {
         saved_transforms,
         saved_transform_deep_read,
+        saved_shadowed_prop_names,
     }
 }
 
@@ -1582,6 +1592,7 @@ pub fn visit_regular_element(
         }
     }
     context.state.transform_deep_read = let_directive_result.saved_transform_deep_read;
+    context.state.shadowed_prop_names = let_directive_result.saved_shadowed_prop_names;
 
     context.state.template.pop_element();
     TransformResult::None

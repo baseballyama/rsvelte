@@ -434,7 +434,19 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // The Fragment visitor handles template creation and hoisting
     let prev_in_control_flow = context.state.in_control_flow_block;
     context.state.in_control_flow_block = true;
+    // Bump the template nesting level so a `{#snippet}` that is a DIRECT child of
+    // this `{#each}` body (not wrapped in an element) is NOT hoisted to the
+    // component root. `visit_fragment` here passes `is_root_fragment = true` (for
+    // the each block's text-first template handling), which makes the body
+    // fragment inherit this level, so it must already be >= 1. Mirrors upstream's
+    // `context.path.length === 1` check: a snippet inside `{#each}` has
+    // path-length >= 2 and stays local (SnippetBlock.js). Other blocks
+    // ({#if}/{#key}/{#await}) pass `is_root_fragment = false`, which already
+    // forces level 1.
+    let prev_nesting = context.state.template_nesting_level;
+    context.state.template_nesting_level += 1;
     let body_block = visit_fragment(&node.body, context);
+    context.state.template_nesting_level = prev_nesting;
     context.state.in_control_flow_block = prev_in_control_flow;
 
     // Pop the each binding context
@@ -546,7 +558,12 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
     // Add fallback function if present
     if let Some(fallback) = &node.fallback {
+        // Same nesting bump as the body: a `{#snippet}` directly inside the
+        // `{:else}` fallback must stay local, not hoist to the component root.
+        let prev_nesting = context.state.template_nesting_level;
+        context.state.template_nesting_level += 1;
         let fallback_block = visit_fragment(fallback, context);
+        context.state.template_nesting_level = prev_nesting;
         let fallback_fn = b::arrow_block(vec![b::id_pattern("$$anchor")], fallback_block.body);
         each_args.push(fallback_fn);
     }

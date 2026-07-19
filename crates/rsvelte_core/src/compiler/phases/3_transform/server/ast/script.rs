@@ -2019,9 +2019,26 @@ fn extract_derived_paths<'a>(
         }
         BindingPattern::ObjectPattern(obj) => {
             let obj = obj.unbox();
-            let has_rest = obj.rest.is_some();
             // Collect the static key list for the `$.exclude_from_object` rest
-            // (写经 `_extract_paths` ObjectPattern RestElement branch).
+            // (写经 `_extract_paths` ObjectPattern RestElement branch) BEFORE the
+            // property loop consumes `obj.properties`. Upstream pushes every
+            // non-private property key: a non-computed `Identifier`/`Literal`
+            // becomes a string literal; a computed non-static key would become a
+            // `String(key)` call (still a KNOWN GAP here — rare).
+            let exclude_keys: Vec<OxcExpression<'a>> = if obj.rest.is_some() {
+                obj.properties
+                    .iter()
+                    .filter_map(|prop| {
+                        if prop.key.is_identifier() && !prop.computed {
+                            prop.key.name().map(|n| b.string(&n))
+                        } else {
+                            prop.key.static_name().map(|n| b.string(&n))
+                        }
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
             for prop in obj.properties {
                 let base = expression_clone(&expression, state);
                 let is_static = prop.key.is_identifier() && !prop.computed;
@@ -2036,11 +2053,15 @@ fn extract_derived_paths<'a>(
                 extract_derived_paths(prop.value, object_expression, state, paths, inserts);
             }
             if let Some(rest) = obj.rest {
-                // `$.exclude_from_object(<expression>, [<keys>])`. The fixtures
-                // only exercise the no-leading-property `{ ...b }` case, so the
-                // key array is empty; non-empty cases are a KNOWN GAP.
-                let _ = has_rest;
-                let exclude = b.call("$.exclude_from_object", vec![expression, b.array(vec![])]);
+                // `$.exclude_from_object(<expression>, [<keys>])` — 写经 upstream,
+                // now with the collected static property keys.
+                let exclude = b.call(
+                    "$.exclude_from_object",
+                    vec![
+                        expression,
+                        b.array(exclude_keys.into_iter().map(Some).collect()),
+                    ],
+                );
                 extract_derived_paths(rest.unbox().argument, exclude, state, paths, inserts);
             }
         }
@@ -2063,9 +2084,64 @@ fn extract_derived_paths<'a>(
             }
         }
         BindingPattern::AssignmentPattern(asgn) => {
+            // 写经 upstream `_extract_paths` AssignmentPattern branch: the
+            // per-leaf access is wrapped in `$.fallback(expression, default)`
+            // (or a thunked form for non-simple defaults) so the destructuring
+            // default survives into the SSR-derived read.
             let asgn = asgn.unbox();
-            extract_derived_paths(asgn.left, expression, state, paths, inserts);
+            let fallback = build_derived_fallback(b, expression, asgn.right);
+            extract_derived_paths(asgn.left, fallback, state, paths, inserts);
         }
+    }
+}
+
+/// Port of upstream `build_fallback` (`utils/ast.js`): wrap a per-leaf access in
+/// `$.fallback(expression, default)` for a simple default, or
+/// `$.fallback(expression, () => default, true)` for a non-simple one (which the
+/// runtime lazily evaluates). The `await`-flavoured branches upstream handles for
+/// async defaults are a KNOWN GAP (destructuring defaults containing `await` do
+/// not appear in the corpus).
+fn build_derived_fallback<'a>(
+    b: B<'a>,
+    expression: OxcExpression<'a>,
+    default_expr: OxcExpression<'a>,
+) -> OxcExpression<'a> {
+    if oxc_is_simple_expression(&default_expr) {
+        b.call("$.fallback", vec![expression, default_expr])
+    } else {
+        let thunk = b.thunk(default_expr, false);
+        b.call("$.fallback", vec![expression, thunk, b.bool(true)])
+    }
+}
+
+/// Port of upstream `is_simple_expression` (`utils/ast.js`): `Literal` /
+/// `Identifier` / arrow / function, plus recursively-simple `Conditional` /
+/// `Binary` / `Logical` expressions.
+fn oxc_is_simple_expression(expr: &OxcExpression) -> bool {
+    use oxc_ast::ast::Expression;
+    match expr {
+        Expression::ParenthesizedExpression(p) => oxc_is_simple_expression(&p.expression),
+        Expression::NumericLiteral(_)
+        | Expression::StringLiteral(_)
+        | Expression::BooleanLiteral(_)
+        | Expression::NullLiteral(_)
+        | Expression::BigIntLiteral(_)
+        | Expression::RegExpLiteral(_)
+        | Expression::Identifier(_)
+        | Expression::ArrowFunctionExpression(_)
+        | Expression::FunctionExpression(_) => true,
+        Expression::ConditionalExpression(c) => {
+            oxc_is_simple_expression(&c.test)
+                && oxc_is_simple_expression(&c.consequent)
+                && oxc_is_simple_expression(&c.alternate)
+        }
+        Expression::BinaryExpression(bin) => {
+            oxc_is_simple_expression(&bin.left) && oxc_is_simple_expression(&bin.right)
+        }
+        Expression::LogicalExpression(l) => {
+            oxc_is_simple_expression(&l.left) && oxc_is_simple_expression(&l.right)
+        }
+        _ => false,
     }
 }
 
