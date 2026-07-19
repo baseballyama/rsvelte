@@ -5107,12 +5107,15 @@ fn collect_loose_dollar_names_from_script(text: &str) -> HashSet<String> {
 }
 
 fn collect_store_references(source: &str) -> HashSet<String> {
-    collect_store_references_with_shadow(source, &HashMap::new())
+    // No parsed program here (import-only module path): there are no self-named
+    // rune-call callees to exclude, so an empty position set is exact.
+    collect_store_references_with_shadow(source, &HashMap::new(), &HashSet::new())
 }
 
 fn collect_store_references_with_shadow(
     source: &str,
     shadow: &HashMap<String, Vec<(u32, u32)>>,
+    self_named_rune_calls: &HashSet<u32>,
 ) -> HashSet<String> {
     // Hand-rolled byte-level scan. The previous implementation compiled a
     // regex on every call; using `memchr` to jump between `$` bytes is
@@ -5242,13 +5245,16 @@ fn collect_store_references_with_shadow(
             continue;
         }
         // Rune-call exclusion (mirror `processInstanceScriptContent.ts` `is_rune`):
-        // `$props`/`$state`/`$derived` immediately called as `<name> = $state(…)`
-        // is the rune, not a store sub — but ONLY when the declared binding name
-        // includes the rune's base (`let state = $state()` → rune; `let count =
-        // $state()` → still a `state` store access).
+        // a `$props`/`$state`/`$derived` CALL whose declaration binding name
+        // includes the rune base (`let state = $state()` → rune; `let count =
+        // $state()` → still a `state` store access) is the rune, not a store sub.
+        // The precise set of such call callees is precomputed from the AST
+        // (`collect_self_named_rune_call_positions`) so a type annotation with
+        // generic-argument commas can't fool a text scan, and — crucially — only
+        // the CALL occurrence is skipped: a sibling `$state.snapshot(state)`
+        // keeps `state` a store, matching upstream.
         if matches!(full, "$state" | "$props" | "$derived")
-            && next_non_ws_is_paren(bytes, end)
-            && is_self_named_rune_decl(source, bytes, pos, &full[1..])
+            && self_named_rune_calls.contains(&(pos as u32))
         {
             i = end;
             continue;
@@ -5364,75 +5370,6 @@ impl<'a> Visit<'a> for DollarParamShadowCollector {
         self.add_params(&it.params, it.span);
         oxc_ast_visit::walk::walk_arrow_function_expression(self, it);
     }
-}
-
-/// True when the first non-whitespace byte at/after `from` is `(`.
-fn next_non_ws_is_paren(bytes: &[u8], from: usize) -> bool {
-    let mut k = from;
-    while k < bytes.len() && bytes[k].is_ascii_whitespace() {
-        k += 1;
-    }
-    bytes.get(k) == Some(&b'(')
-}
-
-/// Approximates upstream's `ts.isVariableDeclaration(parent.parent) &&
-/// parent.parent.name.getText().includes(text.slice(1))`: walk back from the
-/// rune's `$` over `= ` to the binding pattern, and test whether that binding
-/// text contains the rune base name.
-fn is_self_named_rune_decl(source: &str, bytes: &[u8], dollar_pos: usize, base: &str) -> bool {
-    let mut k = dollar_pos;
-    while k > 0 && bytes[k - 1].is_ascii_whitespace() {
-        k -= 1;
-    }
-    if k == 0 || bytes[k - 1] != b'=' {
-        return false;
-    }
-    let eq = k - 1;
-    // Reject compound/comparison operators (`==`, `<=`, `+=`, …); a plain `=` only.
-    if eq > 0
-        && matches!(
-            bytes[eq - 1],
-            b'=' | b'!'
-                | b'<'
-                | b'>'
-                | b'+'
-                | b'-'
-                | b'*'
-                | b'/'
-                | b'%'
-                | b'&'
-                | b'|'
-                | b'^'
-                | b'~'
-        )
-    {
-        return false;
-    }
-    // Walk back to the declaration boundary, collecting the binding region.
-    let mut start = eq;
-    let mut depth = 0i32;
-    while start > 0 {
-        let c = bytes[start - 1];
-        match c {
-            b'}' | b']' | b')' => depth += 1,
-            b'{' | b'[' | b'(' => {
-                if depth == 0 {
-                    break;
-                }
-                depth -= 1;
-            }
-            b';' | b',' | b'\n' if depth == 0 => break,
-            _ => {}
-        }
-        start -= 1;
-    }
-    let lhs = source[start..eq].trim();
-    let lhs = lhs
-        .strip_prefix("let")
-        .or_else(|| lhs.strip_prefix("const"))
-        .or_else(|| lhs.strip_prefix("var"))
-        .unwrap_or(lhs);
-    lhs.contains(base)
 }
 
 /// Pre-pass: collect EVERY top-level declared binding name in the instance
@@ -5637,30 +5574,43 @@ fn create_store_declarations(store_names: &[&str]) -> String {
     result
 }
 
-/// Remove the self-named rune base (`props` / `state` / `derived`) from a
-/// declarator's store-subscription `matching` set.
+/// Collect the source byte offsets of the `$props` / `$state` / `$derived`
+/// callee identifiers of self-named rune CALLS — a `<binding> = $rune(…)`
+/// whose binding NAME includes the rune base (e.g. `let { …, ...props }:
+/// SomeProps<T> = $props()`). Mirrors upstream `processInstanceScriptContent.ts`
+/// `is_rune`, which inspects the binding name only (never the type annotation)
+/// via the AST and excludes exactly that call occurrence from store resolution.
 ///
-/// Upstream `processInstanceScriptContent.ts`'s `is_rune` check excludes a
-/// `$props()` / `$state(…)` / `$derived(…)` call from store resolution when the
-/// declaration's binding NAME includes the rune base — so `let { …, ...props }:
-/// SomeProps<T> = $props()` must NOT emit `let $props =
-/// __sveltets_2_store_get(props)`. The text-based `$name` scan that feeds
-/// `accessed_stores` cannot see the binding structure (it also stumbles on
-/// generic-argument commas in the type annotation), so the exclusion is applied
-/// here on the AST via `excluded_rune_init`, which — like upstream — inspects
-/// the binding name only, never the type annotation.
-fn exclude_self_named_rune_base(declarator: &oxc::VariableDeclarator, matching: &mut Vec<String>) {
-    let Some(init) = declarator.init.as_ref() else {
-        return;
+/// The text-based `$name` scan then skips only these positions — leaving a
+/// non-call occurrence such as `$state.snapshot(x)` intact, so a genuine
+/// `let state = $state([])` next to `$state.snapshot(state)` still auto-
+/// subscribes exactly as upstream does.
+fn collect_self_named_rune_call_positions(program: &oxc::Program, offset: u32) -> HashSet<u32> {
+    let mut positions = HashSet::new();
+    let mut visit_var_decl = |var_decl: &oxc::VariableDeclaration| {
+        for declarator in var_decl.declarations.iter() {
+            let Some(init) = declarator.init.as_ref() else {
+                continue;
+            };
+            if let Some(call) = excluded_rune_init(init, &declarator.id)
+                && let oxc::Expression::Identifier(callee) = &call.callee
+            {
+                positions.insert(callee.span.start + offset);
+            }
+        }
     };
-    let Some(call) = excluded_rune_init(init, &declarator.id) else {
-        return;
-    };
-    if let oxc::Expression::Identifier(callee) = &call.callee {
-        // Strip the leading `$`: `$props` -> `props`, etc.
-        let base = &callee.name.as_str()[1..];
-        matching.retain(|n| n != base);
+    for stmt in program.body.iter() {
+        match stmt {
+            oxc::Statement::VariableDeclaration(vd) => visit_var_decl(vd),
+            oxc::Statement::ExportNamedDeclaration(ex) => {
+                if let Some(oxc::Declaration::VariableDeclaration(vd)) = &ex.declaration {
+                    visit_var_decl(vd);
+                }
+            }
+            _ => {}
+        }
     }
+    positions
 }
 
 /// Inject store subscription declarations into the script.
@@ -5686,7 +5636,9 @@ fn inject_store_subscriptions_with_program(
     // arrow parameter binding in the instance script (official `resolveStore`
     // scope-chain check). The shadow map is keyed by source byte ranges.
     let shadow = collect_dollar_param_shadow(program, offset);
-    let accessed_stores = collect_store_references_with_shadow(source, &shadow);
+    let self_named_rune_calls = collect_self_named_rune_call_positions(program, offset);
+    let accessed_stores =
+        collect_store_references_with_shadow(source, &shadow, &self_named_rune_calls);
     if accessed_stores.is_empty() {
         return;
     }
@@ -5705,12 +5657,10 @@ fn inject_store_subscriptions_with_program(
 
                 for declarator in var_decl.declarations.iter() {
                     let names = extract_all_names_from_binding_pattern(&declarator.id);
-                    let mut matching: Vec<String> = names
+                    let matching: Vec<String> = names
                         .into_iter()
                         .filter(|name| accessed_stores.contains(name))
                         .collect();
-
-                    exclude_self_named_rune_base(declarator, &mut matching);
 
                     if !matching.is_empty() {
                         let name_refs: Vec<&str> = matching.iter().map(|s| s.as_str()).collect();
@@ -5737,12 +5687,10 @@ fn inject_store_subscriptions_with_program(
 
                     for declarator in var_decl.declarations.iter() {
                         let names = extract_all_names_from_binding_pattern(&declarator.id);
-                        let mut matching: Vec<String> = names
+                        let matching: Vec<String> = names
                             .into_iter()
                             .filter(|name| accessed_stores.contains(name))
                             .collect();
-
-                        exclude_self_named_rune_base(declarator, &mut matching);
 
                         if !matching.is_empty() {
                             let name_refs: Vec<&str> =
@@ -5919,7 +5867,9 @@ fn inject_store_subscriptions_vars_only_with_program(
     source: &str,
     str: &mut MagicString,
 ) {
-    let accessed_stores = collect_store_references(source);
+    let self_named_rune_calls = collect_self_named_rune_call_positions(program, offset);
+    let accessed_stores =
+        collect_store_references_with_shadow(source, &HashMap::new(), &self_named_rune_calls);
     if accessed_stores.is_empty() {
         return;
     }
