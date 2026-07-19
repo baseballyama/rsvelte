@@ -3431,7 +3431,18 @@ fn handle_component(
                         );
                     } else {
                         let expr_text = get_expression_text(&bind.expression, source);
-                        let _ = write!(out, "{} = {};", expr_text, inst_var);
+                        // A trailing TS postfix on the bind expression
+                        // (`bind:this={consolePane as Pane}`) moves onto the RHS
+                        // instance var: `consolePane = $$_inst as Pane;` — same as
+                        // the element `bind:this` path (mirrors Binding.ts
+                        // appending `[end, expression.end]` after the assignment).
+                        let postfix = get_expression_range(&bind.expression)
+                            .map(|(_, e)| {
+                                let ee = extend_expr_end_with_ts_postfix(source, e, bind.end);
+                                slice_src(source, e as usize, ee as usize)
+                            })
+                            .unwrap_or("");
+                        let _ = write!(out, "{} = {}{};", expr_text, inst_var, postfix);
                     }
                     continue;
                 }
@@ -5989,23 +6000,41 @@ fn format_attribute_node_segments(
                     // Preserve a trailing TS postfix the parser narrowed out of
                     // the expression span (`attr={false as true}` → keep
                     // `false as true`, not `false`), same as expression tags.
-                    let e = {
-                        let bytes = source.as_bytes();
-                        let mut c = node.end as usize;
-                        while c > e as usize && bytes[c - 1] != b'}' {
-                            c -= 1;
+                    let bytes = source.as_bytes();
+                    let mut c = node.end as usize;
+                    while c > e as usize && bytes[c - 1] != b'}' {
+                        c -= 1;
+                    }
+                    let close = c.saturating_sub(1);
+                    let tail = source.get(e as usize..close).unwrap_or("").trim_start();
+                    let (s, e) = if close > e as usize
+                        && (tail.starts_with("as ")
+                            || tail.starts_with("satisfies ")
+                            || tail.starts_with('!'))
+                    {
+                        (s, close as u32)
+                    } else if close > e as usize && tail.starts_with(')') && {
+                        let after = tail[1..].trim_start();
+                        after.starts_with("as ")
+                            || after.starts_with("satisfies ")
+                            || after.starts_with('!')
+                    } {
+                        // A redundant-paren-wrapped expression carrying a TS
+                        // postfix (`attr={((e) => {…}) satisfies T}`): the parser
+                        // narrows the span to the inner expression, so widen back
+                        // to the wrapping `(` and forward past the `) satisfies T`
+                        // tail to keep the whole (balanced) cast.
+                        let mut ps = s as usize;
+                        while ps > 0 && bytes[ps - 1].is_ascii_whitespace() {
+                            ps -= 1;
                         }
-                        let close = c.saturating_sub(1);
-                        let tail = source.get(e as usize..close).unwrap_or("").trim_start();
-                        if close > e as usize
-                            && (tail.starts_with("as ")
-                                || tail.starts_with("satisfies ")
-                                || tail.starts_with('!'))
-                        {
-                            close as u32
+                        if ps > 0 && bytes[ps - 1] == b'(' {
+                            ((ps - 1) as u32, close as u32)
                         } else {
-                            e
+                            (s, e)
                         }
+                    } else {
+                        (s, e)
                     };
                     let mut inner: Vec<Seg> = Vec::new();
                     segs_push_lit(&mut inner, &format!("\"{}\":", name));
