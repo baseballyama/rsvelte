@@ -1022,11 +1022,14 @@ fn process_spread_attribute(
         &expression,
     );
 
-    if has_state {
+    // The memoizer memoizes when `has_call || has_await` (independent of state), so a
+    // dynamic call spread like `{...getGroupProps()}` must be lifted into a `$.derived`
+    // even when it references no reactive state.
+    if has_state || has_call || has_await {
         // Apply transforms to get the proper reactive expression (e.g., state -> $.get(state))
         let transformed = super::utils::apply_transforms_to_expression(&expression, context);
 
-        // Use memoizer to potentially wrap in $.derived_safe_equal
+        // Use memoizer to potentially wrap in $.derived / $.derived_safe_equal
         let memo_id = memoizer.add(
             transformed.clone(),
             has_call,
@@ -1057,7 +1060,7 @@ fn process_spread_attribute(
             props_and_spreads.push(PropsEntry::Spread(b::thunk(&context.arena, transformed)));
         }
     } else {
-        // No reactive state - push the expression directly without thunk wrapping
+        // No reactive state, call, or await - push the expression directly without thunk wrapping
         props_and_spreads.push(PropsEntry::Spread(expression));
     }
 }
