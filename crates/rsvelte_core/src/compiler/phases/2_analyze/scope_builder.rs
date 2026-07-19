@@ -2591,17 +2591,45 @@ impl<'a> ScopeBuilder<'a> {
                     self.process_template_expression(&attach_tag.expression);
                 }
                 Attribute::UseDirective(use_dir) => {
-                    self.reference_directive_name(&use_dir.name, use_dir.name_loc);
+                    // "use:".len() == 4
+                    self.reference_directive_name(
+                        &use_dir.name,
+                        use_dir.name_loc,
+                        4,
+                        use_dir.start,
+                        use_dir.end,
+                    );
                     // Process use: directive expression
                     if let Some(ref expression) = use_dir.expression {
                         self.process_template_expression(expression);
                     }
                 }
                 Attribute::TransitionDirective(transition_dir) => {
-                    self.reference_directive_name(&transition_dir.name, transition_dir.name_loc);
+                    // The written keyword ("transition:" / "in:" / "out:") isn't kept
+                    // verbatim on the node, but intro/outro uniquely identify it:
+                    // transition: => (true, true), in: => (true, false), out: => (false, true).
+                    let prefix_len = match (transition_dir.intro, transition_dir.outro) {
+                        (true, true) => 11, // "transition:"
+                        (true, false) => 3, // "in:"
+                        _ => 4,             // "out:"
+                    };
+                    self.reference_directive_name(
+                        &transition_dir.name,
+                        transition_dir.name_loc,
+                        prefix_len,
+                        transition_dir.start,
+                        transition_dir.end,
+                    );
                 }
                 Attribute::AnimateDirective(animate_dir) => {
-                    self.reference_directive_name(&animate_dir.name, animate_dir.name_loc);
+                    // "animate:".len() == 8
+                    self.reference_directive_name(
+                        &animate_dir.name,
+                        animate_dir.name_loc,
+                        8,
+                        animate_dir.start,
+                        animate_dir.end,
+                    );
                 }
                 Attribute::SpreadAttribute(spread) => {
                     // Process spread attribute expression
@@ -2612,20 +2640,46 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
+    /// Register a `use:` / `transition:` / `in:` / `out:` / `animate:` directive
+    /// name as a template reference of the binding it resolves to.
+    ///
+    /// Corresponds to the `SvelteDirective` visitor in Svelte's `scope.js`
+    /// (`state.scope.reference(b.id(node.name.split('.')[0]), path)`), which
+    /// runs unconditionally — the reference must be recorded even when we
+    /// can't compute an exact source span for it (`name_loc` is `None` under
+    /// `skip_expression_loc`, the mode the real `compile()` entry point always
+    /// uses), otherwise `non_reactive_update` / unused-`export let` detection
+    /// silently stop seeing directive-only usages in production compiles.
+    ///
+    /// `prefix_len` is the byte length of the directive keyword the parser
+    /// stripped before `name` (`"use:"` / `"in:"` / `"out:"` / `"transition:"` /
+    /// `"animate:"`) — `name_loc` spans the *whole* raw attribute token
+    /// (keyword + name + any `|modifier`s), so the name's own start is
+    /// `name_loc.start + prefix_len`, not something derived from
+    /// `name_loc.end` (which would land inside a trailing modifier).
     fn reference_directive_name(
         &mut self,
         name: &str,
         name_loc: Option<crate::ast::span::SourceLocation>,
+        prefix_len: u32,
+        fallback_start: u32,
+        fallback_end: u32,
     ) {
         let root_name = name.split('.').next().unwrap_or(name);
         let Some(binding_idx) = self.find_binding_in_scope_chain(root_name) else {
             return;
         };
-        let Some(name_loc) = name_loc else {
-            return;
+        let (start, end) = match name_loc {
+            Some(name_loc) => {
+                let start = name_loc.start.character + prefix_len;
+                (start, start + root_name.len() as u32)
+            }
+            // No location info available (e.g. `skip_expression_loc`): fall back
+            // to the directive's own span rather than dropping the reference —
+            // the exact position only matters for diagnostics/tooling, but the
+            // reference's mere existence drives warning suppression.
+            None => (fallback_start, fallback_end),
         };
-        let start = name_loc.end.character.saturating_sub(name.len() as u32);
-        let end = start + root_name.len() as u32;
         let binding = &mut self.bindings[binding_idx];
         binding.add_reference(start, end, true, false, false);
         binding.has_direct_template_read = true;

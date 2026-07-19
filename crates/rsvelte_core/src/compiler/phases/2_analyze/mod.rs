@@ -4778,6 +4778,77 @@ mod tests {
     }
 
     #[test]
+    fn transition_directive_with_modifier_reference_span_is_the_name_only() {
+        // Regression: `name_loc` on Transition/In/Out/Animate directives spans the
+        // *whole* raw attribute token (keyword + name + `|modifier`s), so the
+        // reference span must be derived from `name_loc.start + prefix_len`, not
+        // from `name_loc.end` (which would land inside a trailing modifier).
+        let source = r#"<script>
+    import { fade } from 'svelte/transition';
+</script>
+<div transition:fade|local></div>
+"#;
+        let analysis = analyze(source);
+        let binding = analysis
+            .root
+            .bindings
+            .iter()
+            .find(|binding| binding.name == "fade")
+            .unwrap();
+        let expected_start = source.rfind("fade").unwrap() as u32;
+        assert!(
+            binding.references.iter().any(|reference| {
+                reference.start == expected_start
+                    && reference.end == expected_start + "fade".len() as u32
+                    && reference.is_template_reference
+            }),
+            "expected a template reference exactly spanning 'fade', got: {:?}",
+            binding.references
+        );
+    }
+
+    #[test]
+    fn directive_name_is_referenced_even_without_expression_loc() {
+        // Regression: the real `compile()` entry point (`parse_component` in
+        // compiler/mod.rs) always parses with `skip_expression_loc: true`, so
+        // directive-name reference tracking must not be gated on `name_loc`
+        // being `Some` — otherwise `use:`/`transition:`/`animate:`-only usages
+        // are invisible to `non_reactive_update` / unused-`export let` checks
+        // in production compiles.
+        let source = r#"<script>
+    let count = $state(0);
+</script>
+<div use:count></div>
+"#;
+        let mut ast = parse(
+            source,
+            ParseOptions {
+                defer_script_parse: true,
+                skip_expression_loc: true,
+                ..ParseOptions::default()
+            },
+        )
+        .unwrap();
+        let _guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
+        let analysis = analyze_component(&mut ast, source, &CompileOptions::default()).unwrap();
+        let binding = analysis
+            .root
+            .bindings
+            .iter()
+            .find(|binding| binding.name == "count")
+            .unwrap();
+        assert!(binding.has_direct_template_read);
+        assert!(
+            binding
+                .references
+                .iter()
+                .any(|reference| reference.is_template_reference),
+            "expected a template reference for `use:count`, got: {:?}",
+            binding.references
+        );
+    }
+
+    #[test]
     fn component_tag_is_a_template_binding_reference() {
         let source = "<script>import Widget from './Widget.svelte';</script>\n<Widget />";
         let analysis = analyze(source);
