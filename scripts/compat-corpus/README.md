@@ -261,23 +261,32 @@ ecosystem coverage, and the weekly submodule bumps are what keep it current.
 
 A third track verifies that the native `rsvelte-lint` produces the **same
 findings** as the real `eslint-plugin-svelte`, over every `.svelte` source in
-the two lint-relevant upstream repos:
+the lint-relevant upstream repos plus the same real-world component libraries
+the compile corpus pins:
 
-| Source | Pin |
-|---|---|
-| [sveltejs/eslint-plugin-svelte](https://github.com/sveltejs/eslint-plugin-svelte) | `submodules/eslint-plugin-svelte` gitlink |
-| [sveltejs/svelte-eslint-parser](https://github.com/sveltejs/svelte-eslint-parser) | `submodules/svelte-eslint-parser` gitlink |
+| Source | Pin | Role |
+|---|---|---|
+| [sveltejs/eslint-plugin-svelte](https://github.com/sveltejs/eslint-plugin-svelte) | `submodules/eslint-plugin-svelte` gitlink | rule fixtures / docs |
+| [sveltejs/svelte-eslint-parser](https://github.com/sveltejs/svelte-eslint-parser) | `submodules/svelte-eslint-parser` gitlink | parser fixtures |
+| [huntabyte/bits-ui](https://github.com/huntabyte/bits-ui) | `submodules/bits-ui` gitlink | real-world |
+| [themesberg/flowbite-svelte](https://github.com/themesberg/flowbite-svelte) | `submodules/flowbite-svelte` gitlink | real-world |
+| [melt-ui/melt-ui](https://github.com/melt-ui/melt-ui) | `submodules/melt-ui` gitlink | real-world |
+| [huntabyte/shadcn-svelte](https://github.com/huntabyte/shadcn-svelte) | `submodules/shadcn-svelte` gitlink | real-world |
 
-Both repos' rule fixtures, parser fixtures, docs snippets and demo components
-exercise exactly the surface the linter must match. (The fixture-level oracle
-in `crates/rsvelte_lint/tests/eslint_plugin_oracle.rs` asserts *exact* parity
-against each fixture's expected `*-errors.yaml`; this corpus track is the
-*real-world* complement — every source linted by both engines, diffed.)
+The two eslint repos' rule/parser fixtures, docs snippets and demo components
+exercise exactly the surface the linter must match; the real-world libraries add
+production-source breadth. Markdown code-block extraction runs only for the
+eslint repos (`markdown: true` in `lint-collect.mjs`) — real-world docs carry
+pseudo-code the parser rejects, matching the compile corpus's `markdown: false`.
+(The fixture-level oracle in `crates/rsvelte_lint/tests/eslint_plugin_oracle.rs`
+asserts *exact* parity against each fixture's expected `*-errors.yaml`; this
+corpus track is the *real-world* complement — every source linted by both
+engines, diffed.)
 
 ### How it works
 
 ```bash
-pnpm run lint-corpus:sync             # init eslint-plugin-svelte + svelte-eslint-parser submodules
+pnpm run lint-corpus:sync             # init the eslint + real-world (bits-ui/flowbite/melt/shadcn) submodules
 pnpm run lint-corpus:oracle-install   # install the pinned real eslint-plugin-svelte (oracle)
 cargo build --profile dist-lint --bin rsvelte-lint   # `panic = "unwind"` → per-file panic isolation holds
 pnpm run lint-corpus:collect          # gather .svelte sources -> compat/lint-corpus/sources/

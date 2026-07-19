@@ -26,13 +26,25 @@ const CORPUS = path.join(ROOT, 'compat/lint-corpus');
 const OUT = path.join(CORPUS, 'sources');
 
 // Repos to harvest, in priority order. `eslint-plugin-svelte` and
-// `svelte-eslint-parser` are the lint-specific additions; svelte + svelte.dev
-// give real-world breadth.
+// `svelte-eslint-parser` are the lint-specific additions (their rule/parser
+// fixtures exercise exactly the surface the linter must match); svelte +
+// svelte.dev give curated breadth; and the real-world component libraries
+// (bits-ui / flowbite-svelte / melt-ui / shadcn-svelte — the same production
+// sources the compile corpus pins) give real-world breadth.
+//
+// `markdown` mirrors corpus-sources.json: extract ```svelte / ```js+`/// file:`
+// fences from `.md` docs only for the curated svelte-docs repos. Real-world
+// projects carry doc tooling and pseudo-code the parser rejects, so their
+// markdown is skipped (matching the compile corpus's `markdown: false`).
 const REPOS = [
-	{ name: 'eslint-plugin-svelte', dir: 'submodules/eslint-plugin-svelte' },
-	{ name: 'svelte-eslint-parser', dir: 'submodules/svelte-eslint-parser' },
-	{ name: 'svelte', dir: 'submodules/svelte' },
-	{ name: 'svelte.dev', dir: 'submodules/svelte.dev' }
+	{ name: 'eslint-plugin-svelte', dir: 'submodules/eslint-plugin-svelte', markdown: true },
+	{ name: 'svelte-eslint-parser', dir: 'submodules/svelte-eslint-parser', markdown: true },
+	{ name: 'svelte', dir: 'submodules/svelte', markdown: true },
+	{ name: 'svelte.dev', dir: 'submodules/svelte.dev', markdown: true },
+	{ name: 'bits-ui', dir: 'submodules/bits-ui', markdown: false },
+	{ name: 'flowbite-svelte', dir: 'submodules/flowbite-svelte', markdown: false },
+	{ name: 'melt-ui', dir: 'submodules/melt-ui', markdown: false },
+	{ name: 'shadcn-svelte', dir: 'submodules/shadcn-svelte', markdown: false }
 ];
 
 /** Recursively list files, skipping junk dirs. */
@@ -120,7 +132,7 @@ function addEntry(repo, relPath, kind, source) {
 	manifest.push({ id, kind });
 }
 
-function collectRepo(repo, dir) {
+function collectRepo(repo, dir, markdown) {
 	if (!fs.existsSync(dir)) {
 		console.log(`[lint-collect] ${repo}: submodule not checked out, skipping (${dir})`);
 		return;
@@ -136,7 +148,7 @@ function collectRepo(repo, dir) {
 		} else if (isSvelteFile(file)) {
 			addEntry(repo, rel, 'component', fs.readFileSync(file, 'utf8'));
 			real++;
-		} else if (file.endsWith('.md')) {
+		} else if (markdown && file.endsWith('.md')) {
 			const snippets = extractFromMarkdown(fs.readFileSync(file, 'utf8'));
 			for (const s of snippets) {
 				const kind = s.ext === '.svelte' ? 'component' : 'module';
@@ -149,9 +161,9 @@ function collectRepo(repo, dir) {
 }
 
 const only = process.argv.slice(2).filter((a) => !a.startsWith('-'));
-for (const { name, dir } of REPOS) {
+for (const { name, dir, markdown } of REPOS) {
 	if (only.length && !only.includes(name)) continue;
-	collectRepo(name, path.join(ROOT, dir));
+	collectRepo(name, path.join(ROOT, dir), markdown);
 }
 
 // Synthetic package.json at the corpus root so the oracle's SvelteKit/Svelte
