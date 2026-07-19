@@ -3995,6 +3995,22 @@ fn transform_instance_script_for_visitors(
     // Collect non-reactive shadowed vars to add to non_reactive_state_vars later
     // (non_reactive_state_vars is declared after this loop).
     let mut non_reactive_shadowed_vars: Vec<String> = Vec::new();
+    // A `const $state(...)` binding is normally non-reactive in runes mode (it can
+    // never be locally reassigned, so `is_state_source` is false). But analysis
+    // marks an *exported* binding as `reassigned` (upstream `ExportSpecifier`:
+    // `binding.reassigned = true`), and `accessors` mode likewise forces a source
+    // — in either case the binding IS a state source and must keep its
+    // `$.state(...)` wrapper, so it must not be treated as non-reactive here.
+    let is_reassigned_or_accessor_state = |name: &str| -> bool {
+        analysis.accessors
+            || analysis
+                .root
+                .scope
+                .declarations
+                .get(name)
+                .and_then(|&idx| analysis.root.bindings.get(idx))
+                .is_some_and(|b| b.reassigned)
+    };
     for (var, is_const, is_state) in &local_reactive_vars {
         // Skip top-level bindings - they are already handled by the analysis-based
         // state_vars and non_reactive_state_vars collections above. The text-based
@@ -4006,7 +4022,10 @@ fn transform_instance_script_for_visitors(
             // If it is non-reactive, we should add it to non_reactive_state_vars so the
             // rune transform strips $state() to just the argument, and the AST-based
             // scope-aware transform will handle shadowing correctly.
-            let is_non_reactive_shadowed = analysis.immutable && *is_state && *is_const;
+            let is_non_reactive_shadowed = analysis.immutable
+                && *is_state
+                && *is_const
+                && !is_reassigned_or_accessor_state(var);
             if is_non_reactive_shadowed {
                 non_reactive_shadowed_vars.push(var.clone());
                 // Don't add to shadowed_local_reactive_vars - the AST-based transform
@@ -4028,9 +4047,10 @@ fn transform_instance_script_for_visitors(
         let is_non_reactive = if analysis.immutable && *is_state {
             if *is_const {
                 let state_pattern = format!("const {}", var);
-                script_rest.contains(&format!("{} = $state(", state_pattern))
-                    || script_rest.contains(&format!("{} = $state.raw(", state_pattern))
-                    || script_rest.contains(&format!("{} = $state.frozen(", state_pattern))
+                !is_reassigned_or_accessor_state(var)
+                    && (script_rest.contains(&format!("{} = $state(", state_pattern))
+                        || script_rest.contains(&format!("{} = $state.raw(", state_pattern))
+                        || script_rest.contains(&format!("{} = $state.frozen(", state_pattern)))
             } else {
                 // let/var $state: check if the variable is actually reassigned in the script.
                 // Member mutations (x.foo = ...) do NOT count as reassignment.
