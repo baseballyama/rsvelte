@@ -891,25 +891,22 @@ impl<'a> EvalCtx<'a> {
             if bindings.len() == 1 {
                 return self.evaluate_binding_initial(bindings[0], depth);
             }
-            // Resolve each same-named binding; only fold when they all agree
-            // on the same known value (safe under shadowing, since the server
-            // generator does not track lexical scopes).
-            let mut agreed: Option<EvalValue> = None;
+            // Multiple same-named bindings in distinct (shadowing) scopes: the
+            // server generator does not track which lexical scope is in effect,
+            // so merge the full value SET of every candidate (union), mirroring
+            // upstream's `Evaluation` value merge. Preserving type markers this
+            // way keeps `is_string()` / `is_defined()` true when *all* branches
+            // agree on a string type (e.g. two `{@const x = a ? '-50%' : '0%'}`
+            // in an `{#if}`/`{:else}`), so reads elide `$.stringify(...)` — even
+            // without a single concrete known value. A concrete value is still
+            // inlined only when every binding agrees on it (`is_known()` stays
+            // true only for a one-element union), and any Unknown / null /
+            // undefined contributor collapses the result to not-defined.
+            let mut merged = Evaluation::new();
             for binding in &bindings {
-                let ev = self.evaluate_binding_initial(binding, depth);
-                let Some(v) = ev.known_value().cloned() else {
-                    return Evaluation::unknown();
-                };
-                match &agreed {
-                    None => agreed = Some(v),
-                    Some(prev) if prev.same(&v) => {}
-                    _ => return Evaluation::unknown(),
-                }
+                merged.extend(self.evaluate_binding_initial(binding, depth));
             }
-            if let Some(v) = agreed {
-                return Evaluation::single(v);
-            }
-            return Evaluation::unknown();
+            return merged;
         }
 
         // No binding in the analysis: fall back to the (scope-managed)
