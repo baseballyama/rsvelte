@@ -25,10 +25,10 @@ oxc_allocator = "0.138"
 oxc_ast = "0.138"
 oxc_parser = "0.138"
 oxc_span = "0.138"
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "39677ba50d908ea09f6d9e58ded328461212f52a" }
-oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "39677ba50d908ea09f6d9e58ded328461212f52a" }
-oxc_formatter_json = { git = "https://github.com/oxc-project/oxc", rev = "39677ba50d908ea09f6d9e58ded328461212f52a" }
-oxc_formatter_css = { git = "https://github.com/oxc-project/oxc", rev = "39677ba50d908ea09f6d9e58ded328461212f52a" }
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "2d4e8d20644e0e7446f0a381894b45ea339a0625" }
+oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "2d4e8d20644e0e7446f0a381894b45ea339a0625" }
+oxc_formatter_json = { git = "https://github.com/oxc-project/oxc", rev = "2d4e8d20644e0e7446f0a381894b45ea339a0625" }
+oxc_formatter_css = { git = "https://github.com/oxc-project/oxc", rev = "2d4e8d20644e0e7446f0a381894b45ea339a0625" }
 thiserror = "2.0"
 unicode-width = "0.2"
 
