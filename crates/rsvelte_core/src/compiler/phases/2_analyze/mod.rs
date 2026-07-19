@@ -4829,6 +4829,8 @@ mod tests {
             },
         )
         .unwrap();
+        // SAFETY: `ast.arena` lives until the end of this function, which
+        // outlives `_guard`.
         let _guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
         let analysis = analyze_component(&mut ast, source, &CompileOptions::default()).unwrap();
         let binding = analysis
