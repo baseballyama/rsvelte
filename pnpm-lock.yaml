@@ -134,7 +134,7 @@ importers:
         version: 0.30.21
       obug:
         specifier: ^2.1.0
-        version: 2.1.3
+        version: 2.1.4
       vitefu:
         specifier: ^1.1.1
         version: 1.1.3(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0))
@@ -1275,6 +1275,10 @@ packages:
     resolution: {integrity: sha512-9miFgM2OFba7hB+pRgvtV84pYTBaoTHohvmIgiRt6dRIzbwEOIaNaP+dIlGs2fNFoB0SeISs0Jz5WFVRid6Xyg==}
     engines: {node: '>=12.20.0'}
 
+  obug@2.1.4:
+    resolution: {integrity: sha512-4a+OsYv9UktOJKE+l1A4OufDgdRF9PifWj+tJnHURo/P+WOxpG4GzUFL9qCalmWauao6ogiG+QvnCovwPoyAWA==}
+    engines: {node: '>=12.20.0'}
+
   outdent@0.5.0:
     resolution: {integrity: sha512-/jHxFIzoMXdqPzTaCpFzAAWhpkSjZPF4Vsn6jAfNpmbH/ymsmd7Qc6VE9BGn0L6YMj6uwpQLxCECpus4ukKS9Q==}
 
@@ -2111,7 +2115,7 @@ snapshots:
   '@sveltejs/vite-plugin-svelte-inspector@5.0.2(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.4)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0)))(svelte@5.56.4)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0))':
     dependencies:
       '@sveltejs/vite-plugin-svelte': 7.1.2(svelte@5.56.4)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0))
-      obug: 2.1.3
+      obug: 2.1.4
       svelte: 5.56.4
       vite: 8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0)
 
@@ -2427,6 +2431,8 @@ snapshots:
     optional: true
 
   obug@2.1.3: {}
+
+  obug@2.1.4: {}
 
   outdent@0.5.0: {}
 
