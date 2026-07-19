@@ -1892,6 +1892,10 @@ fn transform_client_with_visitors(
     if let Some(non_imports) = module_script_non_imports {
         let class_transformed = transform_class_fields_client(&non_imports);
         let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
+        // Drop module-level comments esrap's no-`loc` top-level Program omits
+        // (leading JSDoc before a kept `export const`, per-field JSDoc that
+        // `strip_typescript` re-emits from a removed `export type`/`interface`).
+        let transformed = strip_module_toplevel_comments(&transformed);
         body.push(JsStatement::Raw(transformed.into()));
     }
 
@@ -2462,6 +2466,84 @@ fn is_export_default_stmt(stmt: &JsStatement) -> bool {
 ///   bar,
 /// } from './module';
 /// ```
+/// Drop module-`<script>`-level comments that the official compiler's esrap
+/// output omits.
+///
+/// The client program's top-level `Program` node is synthetic (no `loc`), so
+/// esrap's `reset_comment_index` fast-forwards the comment cursor past every
+/// comment before the module body is printed. A module comment is therefore
+/// only re-emitted if it is nested inside a `loc`-bearing block that esrap
+/// re-enters via `body()` — i.e. a function or class body. Every other module
+/// comment is dropped: a leading JSDoc before a surviving `export const`, and
+/// the per-field JSDoc that `strip_typescript` re-emits when it removes an
+/// `export type` / `interface` body (that re-emission is correct for the
+/// instance script, whose statements keep their `loc` inside the component
+/// block, but wrong for the module).
+///
+/// Mirror that here for the module non-import content: keep only comments that
+/// fall inside a function/class body span; splice the rest out. Leftover blank
+/// lines are absorbed by downstream normalization. Returns the input unchanged
+/// on a parse failure or when there is nothing to drop.
+pub(crate) fn strip_module_toplevel_comments(src: &str) -> String {
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast::{ClassBody, FunctionBody};
+    use oxc_ast_visit::{Visit, walk};
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    struct BodyCollector {
+        spans: Vec<(u32, u32)>,
+    }
+    impl<'a> Visit<'a> for BodyCollector {
+        fn visit_function_body(&mut self, it: &FunctionBody<'a>) {
+            self.spans.push((it.span.start, it.span.end));
+            walk::walk_function_body(self, it);
+        }
+        fn visit_class_body(&mut self, it: &ClassBody<'a>) {
+            self.spans.push((it.span.start, it.span.end));
+            walk::walk_class_body(self, it);
+        }
+    }
+
+    let allocator = Allocator::default();
+    let ret = Parser::new(&allocator, src, SourceType::mjs()).parse();
+    if !ret.diagnostics.is_empty() || ret.program.comments.is_empty() {
+        return src.to_string();
+    }
+
+    let mut collector = BodyCollector { spans: Vec::new() };
+    collector.visit_program(&ret.program);
+
+    let mut removals: Vec<(usize, usize)> = Vec::new();
+    for c in &ret.program.comments {
+        let (cs, ce) = (c.span.start, c.span.end);
+        let inside = collector
+            .spans
+            .iter()
+            .any(|(bs, be)| cs >= *bs && ce <= *be);
+        if !inside {
+            removals.push((cs as usize, ce as usize));
+        }
+    }
+    if removals.is_empty() {
+        return src.to_string();
+    }
+    removals.sort_by_key(|r| r.0);
+
+    let mut out = String::with_capacity(src.len());
+    let mut pos = 0usize;
+    for (s, e) in removals {
+        if s > pos {
+            out.push_str(&src[pos..s]);
+        }
+        pos = pos.max(e);
+    }
+    if pos < src.len() {
+        out.push_str(&src[pos..]);
+    }
+    out
+}
+
 /// True when `src` contains only line/block comments and whitespace — i.e. no
 /// JS statements. Used to detect a comment-only module `<script module>` body,
 /// which upstream parses to an empty Program and prints as nothing. The scan
