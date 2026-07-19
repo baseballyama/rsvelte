@@ -36,6 +36,48 @@ fn attr_arrow_expression_without_semicolons() {
     assert_eq!(out, "<button onclick={() => (open = true)}>Open</button>\n");
 }
 
+/// Beyond the single attribute-value arrow case, the ASI guard OXC emits
+/// under `semicolons: as-needed` can also be triggered by a mustache-tag
+/// call whose leading argument is an arrow function, a `{#each}`/`{#if}`
+/// block header, and non-arrow expressions such as an array literal or a
+/// unary `-`/`+` (see `expression_statement_needs_semicolon` in
+/// `oxc_formatter`). Every shape below is confirmed against
+/// prettier-plugin-svelte with `semi: false`, which never emits the guard
+/// for embedded expressions (they are never in statement position).
+#[test]
+fn asi_guard_stripped_across_expression_positions() {
+    let mut options = FormatOptions::default();
+    options.js.semicolons = Semicolons::AsNeeded;
+
+    let cases: &[(&str, &str)] = &[
+        (
+            "<div>{onClick(() => foo())}</div>",
+            "<div>{onClick(() => foo())}</div>\n",
+        ),
+        (
+            "{#each items as item}<button onclick={() => remove(item)}>x</button>{/each}",
+            "{#each items as item}<button onclick={() => remove(item)}>x</button>{/each}\n",
+        ),
+        (
+            "<div>{[1,2,3].map((x) => x * 2)}</div>",
+            "<div>{[1, 2, 3].map((x) => x * 2)}</div>\n",
+        ),
+        (
+            "{#if (() => cond())()}yes{/if}",
+            "{#if (() => cond())()}yes{/if}\n",
+        ),
+        (
+            "<div data-x={-count}></div>",
+            "<div data-x={-count}></div>\n",
+        ),
+    ];
+
+    for (src, expected) in cases {
+        let out = format(src, &options).expect("format ok");
+        assert_eq!(&out, expected, "mismatch for input: {src}");
+    }
+}
+
 #[test]
 fn attr_sequence_with_interp() {
     let out = fmt("<div class=\"a{ foo +1 }b\"></div>");
