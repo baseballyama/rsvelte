@@ -4711,12 +4711,24 @@ mod tests {
     import Widget, { named as Alias } from './Widget.svelte';
     import * as Namespace from './namespace';
     let count = 0;
+    let { ...rest } = $props();
+    function handle_click() {}
+    class Controller {}
 </script>
 <Widget />
 "#;
         let analysis = analyze(source);
 
-        for name in ["from_module", "Widget", "Alias", "Namespace", "count"] {
+        for name in [
+            "from_module",
+            "Widget",
+            "Alias",
+            "Namespace",
+            "count",
+            "rest",
+            "handle_click",
+            "Controller",
+        ] {
             let binding = analysis
                 .root
                 .bindings
@@ -4728,6 +4740,114 @@ mod tests {
                 Some(source.find(name).unwrap() as u32)
             );
         }
+    }
+
+    #[test]
+    fn directive_names_and_spreads_are_template_references() {
+        let source = r#"<script>
+    import { slide } from 'svelte/transition';
+    import { flip } from 'svelte/animate';
+    import action from './action';
+    let { ...rest } = $props();
+</script>
+<div use:action transition:slide {...rest}></div>
+{#each [1] as item (item)}
+    <div animate:flip>{item}</div>
+{/each}
+"#;
+        let analysis = analyze(source);
+
+        for name in ["action", "slide", "rest", "flip"] {
+            let binding = analysis
+                .root
+                .bindings
+                .iter()
+                .find(|binding| binding.name == name)
+                .unwrap_or_else(|| panic!("missing binding {name}"));
+            let start = source.rfind(name).unwrap() as u32;
+            assert!(
+                binding.references.iter().any(|reference| {
+                    reference.start == start
+                        && reference.end == start + name.len() as u32
+                        && reference.is_template_reference
+                }),
+                "missing template reference for {name}: {:?}",
+                binding.references
+            );
+        }
+    }
+
+    #[test]
+    fn transition_directive_with_modifier_reference_span_is_the_name_only() {
+        // Regression: `name_loc` on Transition/In/Out/Animate directives spans the
+        // *whole* raw attribute token (keyword + name + `|modifier`s), so the
+        // reference span must be derived from `name_loc.start + prefix_len`, not
+        // from `name_loc.end` (which would land inside a trailing modifier).
+        let source = r#"<script>
+    import { fade } from 'svelte/transition';
+</script>
+<div transition:fade|local></div>
+"#;
+        let analysis = analyze(source);
+        let binding = analysis
+            .root
+            .bindings
+            .iter()
+            .find(|binding| binding.name == "fade")
+            .unwrap();
+        let expected_start = source.rfind("fade").unwrap() as u32;
+        assert!(
+            binding.references.iter().any(|reference| {
+                reference.start == expected_start
+                    && reference.end == expected_start + "fade".len() as u32
+                    && reference.is_template_reference
+            }),
+            "expected a template reference exactly spanning 'fade', got: {:?}",
+            binding.references
+        );
+    }
+
+    #[test]
+    fn directive_name_is_referenced_even_without_expression_loc() {
+        // Regression: the real `compile()` entry point (`parse_component` in
+        // compiler/mod.rs) always parses with `skip_expression_loc: true`, so
+        // directive-name reference tracking must not be gated on `name_loc`
+        // being `Some` — otherwise `use:`/`transition:`/`animate:`-only usages
+        // are invisible to `non_reactive_update` / unused-`export let` checks
+        // in production compiles.
+        let source = r#"<script>
+    let count = $state(0);
+</script>
+<div use:count></div>
+"#;
+        let mut ast = parse(
+            source,
+            ParseOptions {
+                defer_script_parse: true,
+                skip_expression_loc: true,
+                ..ParseOptions::default()
+            },
+        )
+        .unwrap();
+        // SAFETY: `ast.arena` lives until the end of this function, which
+        // outlives `_guard`.
+        let _guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
+        let analysis = analyze_component(&mut ast, source, &CompileOptions::default()).unwrap();
+        let binding = analysis
+            .root
+            .bindings
+            .iter()
+            .find(|binding| binding.name == "count")
+            .unwrap();
+        assert!(binding.has_direct_template_read);
+        assert!(
+            binding
+                .references
+                .iter()
+                .any(|reference| reference.is_template_reference),
+            "expected a template reference for `use:count`, got: {:?}",
+            binding.references
+        );
     }
 
     #[test]
