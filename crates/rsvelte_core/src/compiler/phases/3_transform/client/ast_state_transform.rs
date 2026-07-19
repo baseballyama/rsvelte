@@ -1213,10 +1213,22 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             format!("$.get({})", d_name)
         };
 
+        // When destructuring `$derived(props)` where `props` is a `...rest`
+        // binding (`$.rest_props($$props, …)`), named members read straight from
+        // `$$props` — mirroring upstream's rest-prop member rewrite
+        // (`props.ssr` → `$$props.ssr`) — while the top-level `...rest` element
+        // keeps `props` for `$.exclude_from_object(props, …)`.
+        let member_base = if source_is_identifier && self.is_active_rest_prop(source_orig_trimmed) {
+            "$$props".to_string()
+        } else {
+            base_expr.clone()
+        };
+
         let mut array_counter: usize = 0;
         if process_derived_destructuring_pattern(
             &pattern_text,
             &base_expr,
+            &member_base,
             &mut declarations,
             &mut array_counter,
         )
@@ -1298,6 +1310,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let mut array_counter: usize = 0;
         if process_derived_destructuring_pattern(
             &pattern_text,
+            &base_expr,
             &base_expr,
             &mut declarations,
             &mut array_counter,
