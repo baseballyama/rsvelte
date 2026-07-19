@@ -15,7 +15,7 @@
 //! Spans are always the dummy [`oxc_span::SPAN`]: esrap formats structurally,
 //! so spans do not affect comment-free output.
 
-use oxc_allocator::{Box as ArenaBox, Vec as ArenaVec};
+use oxc_allocator::{ArenaBox, ArenaVec};
 use oxc_ast::AstBuilder;
 use oxc_ast::ast::*;
 use oxc_span::{SPAN, Span};
