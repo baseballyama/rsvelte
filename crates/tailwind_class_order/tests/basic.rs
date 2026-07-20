@@ -123,6 +123,16 @@ fn arbitrary_variant_selector_normalized() {
 }
 
 #[test]
+fn compound_functional_roots() {
+    // `grid-cols` / `flex-grow` are their own roots (not `grid` / `flex`), so a
+    // multi-segment value clusters correctly rather than collapsing.
+    check(
+        "grid-cols-[.75fr_1fr] w-4 flex-grow-1 flex",
+        "flex w-4 flex-grow-1 grid-cols-[.75fr_1fr]",
+    );
+}
+
+#[test]
 fn arbitrary_properties() {
     // Ordered by the emitted property's position in GLOBAL_PROPERTY_ORDER;
     // `display` sits with `flex`, a property absent from the list sorts last.

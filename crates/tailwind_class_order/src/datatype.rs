@@ -82,6 +82,10 @@ pub fn infer(inner: &str) -> Option<&'static str> {
     if matches!(v, "top" | "bottom" | "left" | "right" | "center") {
         return Some("position");
     }
+    // A quoted string, e.g. `content-['']` / `content-['x']`.
+    if (v.starts_with('\'') && v.ends_with('\'')) || (v.starts_with('"') && v.ends_with('"')) {
+        return Some("string");
+    }
     None
 }
 

@@ -117,10 +117,10 @@ extracted from the shadcn-svelte, flowbite-svelte and bits-ui corpora:
 
 | metric | result |
 |---|---|
-| **list-level exact match** (whole attribute byte-identical) | **99.6%** (3,792 / 3,806) |
-| token position-level accuracy | 99.6% |
+| **list-level exact match** (whole attribute byte-identical) | **99.8%** (3,799 / 3,806) |
+| token position-level accuracy | 99.7% |
 
-This is after five fidelity passes over the initial 97.9% prototype:
+This is after six fidelity passes over the initial 97.9% prototype:
 
 | pass | what it added | list-level |
 |---|---|---:|
@@ -129,34 +129,32 @@ This is after five fidelity passes over the initial 97.9% prototype:
 | Phase 2 | color / non-color split for arbitrary values | 98.8% |
 | Phase 3 | within-family variant value ordering + container sizes | 99.2% |
 | Phase 4 | `(root, data-type)` anchors + data-type inference (`text-[10px]` = font-size) | 99.5% |
-| Phase 5 | unified variant compare + arbitrary-variant selector normalization | **99.6%** |
+| Phase 5 | unified variant compare + arbitrary-variant selector normalization | 99.6% |
+| Phase 6 | compound functional roots (`grid-cols`), string type, depth-0 modifier `/` | **99.8%** |
 
 A ~200-case subset of the matching corpus lines is committed as
 `tests/corpus_fixture.json` and asserted by `tests/corpus_parity.rs`, so parity
 is locked in-repo without the Node oracle.
 
-### What the remaining ~0.4% needs (the frontier)
+### What the remaining 7 lists need (the frontier)
 
-The 14 residual lists are all niche; none are the "impossible" (JS-config)
-barrier — a custom breakpoint like `3xl:` is treated as unknown by *both* this
-crate and the default-config engine, so those actually match.
+None are the "impossible" (JS-config) barrier — a custom breakpoint like `3xl:`
+is treated as unknown by *both* this crate and the default-config engine, so
+those match. The residue is 2 corpus artifacts plus 5 finicky single-value cases:
 
 | cause | lists | portable? |
 |---|---:|---|
-| Arbitrary value on a **compound-root** functional utility (`grid-cols-[.75fr_1fr]`, `ring-offset-(--color)`) — `utility_root` uses only the first `-` segment, so `grid-cols` collapses into `grid` | ~6 | Yes — needs engine-derived compound roots (`grid-cols`, `grid-rows`, `ring-offset`, …). |
-| Arbitrary values whose data type this crate leaves unclassified (`content-['']` strings, grid track-lists) so they fall back to sibling placement | ~4 | Yes — extend the data-type inference / `(root, type)` probe set. |
-| A legacy alias absent from the sampled table (`flex-grow-1`) and two non-Tailwind literal words the corpus ships as class values | ~3 | Minor — table coverage / corpus quirks. |
-| HTML-entity artifact in source (`[&amp;_svg]`) | 1 | n/a — the source ships an un-decoded `&amp;`. |
+| A source-level HTML-entity artifact (`[&amp;_svg]`) and two non-Tailwind literal words the corpus ships as `class` values (`Serendipity`, `Morning`) | 3 | n/a — corpus quirks, not real classes. |
+| Multi-value arbitrary values (`bg-size-[20px_20px]` size pair, `shadow-[0px_1px_…]` box-shadow list) that carry no single data type | 2 | Yes — model the composite value shapes. |
+| A named thickness gap (`decoration-4`) the table omits, ordered against style siblings, and a CSS-variable arbitrary value (`ring-offset-(--color)`) whose type is unknowable statically | 2 | Partly — the first needs per-utility signatures; the second is inherently ambiguous (`var()` could be any type). |
 
-## Roadmap to full default-config parity
+## Roadmap to the last 7
 
-Phases 1–5 above are **done** (97.9% → 99.6%). Remaining, to close the last 14:
-
-1. **Compound functional roots**: derive the two-segment roots (`grid-cols`,
-   `ring-offset`, `inset-shadow`, …) from the engine so their arbitrary values
-   cluster correctly. Biggest remaining bucket.
-2. **Broaden data-type inference**: classify string / track-list values and add
-   their `(root, type)` anchors.
+Phases 1–6 above are **done** (97.9% → 99.8%). The remaining 5 non-artifact
+lists each need bespoke, low-yield handling (composite value shapes; per-utility
+signatures for named thickness gaps; heuristic typing of `var()` values), and a
+targeted numeric-gap attempt regressed net, so they are deferred rather than
+forced.
 
 Full parity for *arbitrary projects* remains out of scope by construction (see
 the first section); these steps raise fidelity for the **default-config** case

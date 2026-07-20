@@ -197,13 +197,37 @@ fn tables() -> &'static Tables {
     })
 }
 
-/// The utility "root": the leading segment up to the first `-`, keeping any
-/// leading `-` (negative) so `-mt-4` and `mt-4` share the root `mt`.
+/// Multi-segment functional utility roots registered by Tailwind (`grid-cols`,
+/// `ring-offset`, `inset-shadow`, …), one per line. A name resolves to the
+/// longest of these that prefixes it, so `grid-cols-[…]` no longer collapses
+/// into `grid`.
+const FUNCTIONAL_ROOTS: &str = include_str!("../data/functional_roots.txt");
+
+fn compound_roots() -> &'static HashSet<&'static str> {
+    static ROOTS: OnceLock<HashSet<&'static str>> = OnceLock::new();
+    ROOTS.get_or_init(|| FUNCTIONAL_ROOTS.lines().filter(|l| !l.is_empty()).collect())
+}
+
+/// The utility "root". Normally the leading segment up to the first `-` (so
+/// `-mt-4` and `mt-4` share `mt`), but a name that matches a registered
+/// multi-segment functional root resolves to that longer root by longest match
+/// (`grid-cols-2` -> `grid-cols`, not `grid`).
 fn utility_root(name: &str) -> &str {
-    let neg = name.starts_with('-');
-    let body = if neg { &name[1..] } else { name };
-    match body.find('-') {
-        Some(p) => &body[..p],
+    let body = name.strip_prefix('-').unwrap_or(name);
+    let roots = compound_roots();
+    // Bare compound utility (`flex-grow`).
+    if roots.contains(body) {
+        return body;
+    }
+    // Longest multi-segment prefix that is a known root.
+    let dashes: Vec<usize> = body.match_indices('-').map(|(i, _)| i).collect();
+    for &d in dashes.iter().skip(1).rev() {
+        if roots.contains(&body[..d]) {
+            return &body[..d];
+        }
+    }
+    match dashes.first() {
+        Some(&p) => &body[..p],
         None => body,
     }
 }
@@ -314,6 +338,21 @@ fn variant_rank(v: &str, t: &Tables) -> Option<u32> {
     None
 }
 
+/// Byte index of the last modifier `/` (bracket depth 0), or `None`.
+fn modifier_slash(base: &str) -> Option<usize> {
+    let mut depth = 0i32;
+    let mut last = None;
+    for (i, c) in base.char_indices() {
+        match c {
+            '[' | '(' => depth += 1,
+            ']' | ')' => depth -= 1,
+            '/' if depth == 0 => last = Some(i),
+            _ => {}
+        }
+    }
+    last
+}
+
 /// Resolve the intrinsic base order of a token's base segment (variants already
 /// stripped). Handles `!important`, `/opacity` modifiers, arbitrary properties,
 /// arbitrary values, and spacing-scale gaps the sampled table omits verbatim.
@@ -328,8 +367,10 @@ fn base_order(base: &str, t: &Tables) -> Option<BaseOrder> {
 
     // A `/opacity` (or similar) modifier does not change ordering; retry the
     // un-modified stem. The modifier only matters for the candidate tiebreak.
-    let stem = match base.rsplit_once('/') {
-        Some((s, _)) if !s.ends_with(']') && !s.is_empty() => s,
+    // The `/` must be at bracket depth 0 — one inside an arbitrary value
+    // (`[--x:calc(100vw/7.5)]`) is not a modifier.
+    let stem = match modifier_slash(base) {
+        Some(i) if i > 0 => &base[..i],
         _ => base,
     };
     if stem != base
@@ -352,10 +393,12 @@ fn base_order(base: &str, t: &Tables) -> Option<BaseOrder> {
         return Some(anchored_order(anchor));
     }
 
-    // Arbitrary value with a data type that lands at a stable property cluster
-    // for its root (`text-[10px]` = font-size, distinct from the `text-align`
-    // and color siblings that share the `text` root). The anchor is the exact
-    // engine position; the candidate tiebreak orders equal-type values.
+    // An arbitrary value whose data type lands at a stable property cluster for
+    // its root (`text-[10px]` = font-size, distinct from the `text-align` and
+    // color siblings that share `text`). The anchor is the exact engine
+    // position; the candidate tiebreak orders equal-type values. (Named numeric
+    // gaps like `decoration-4` are left to sibling placement — they interleave
+    // among named siblings differently than a bracketed probe.)
     if let Some(b) = stem.find("-[").or_else(|| stem.find("-(")) {
         let root = utility_root(&stem[..b]);
         let inner = &stem[b + 2..stem.len() - 1];
@@ -366,11 +409,9 @@ fn base_order(base: &str, t: &Tables) -> Option<BaseOrder> {
         }
     }
 
-    // Arbitrary value (`w-[10px]`, `h-(--foo)`) — always resolvable in the
-    // default engine — or a numeric spacing/axis value the sampled table simply
-    // omits (`end-9`, `-inset-y-1`). Both are placed among their named
-    // root-siblings; a non-numeric tail (`bg-dark-10`, `text-primary-600`) is
-    // left unknown, matching how the default engine treats custom theme tokens.
+    // Otherwise place it among its named root-siblings; a non-numeric tail
+    // (`bg-dark-10`, `text-primary-600`) is left unknown, matching how the
+    // default engine treats custom theme tokens.
     let placeable = stem.contains("-[") || stem.contains("-(") || has_numeric_tail(stem);
     if placeable && let Some(idx) = place_among_siblings(stem, t) {
         return Some(real_order(idx));
@@ -470,11 +511,12 @@ fn stem_is_color(stem: &str, bracket: Option<usize>) -> bool {
 
 /// True if, after the utility root and any leading single-letter axis segments
 /// (`x`, `y`, `t`, `bl`, …), the tail is a bare numeric spacing value. This
-/// separates spacing/sizing scale members (`end-9`, `inset-y-1`) from custom
-/// color scales (`primary-600`, `dark-10`), which must stay unknown.
+/// separates spacing/sizing scale members (`end-9`, `inset-y-1`, `flex-grow-1`)
+/// from custom color scales (`primary-600`, `dark-10`), which must stay unknown.
 fn has_numeric_tail(stem: &str) -> bool {
     let body = stem.strip_prefix('-').unwrap_or(stem);
-    let Some((_root, mut tail)) = body.split_once('-') else {
+    let root = utility_root(stem);
+    let Some(mut tail) = body.strip_prefix(root).and_then(|t| t.strip_prefix('-')) else {
         return false;
     };
     // Skip an optional Tailwind axis/side segment (`inset-y-1`, `scroll-mt-2`)
