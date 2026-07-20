@@ -5,9 +5,12 @@
   ],
   "packageRules": [
     {
-      "description": "The oxc AST/formatter stack is pinned to a single git rev (synced to the oxfmt release tag by the auto-update-oxfmt workflow) so rsvelte's AST types unify with oxc_formatter's transitive deps. Any per-crate Renovate update — digest OR version — can never pass CI on its own: moving one crate leaves the lockfile with two distinct oxc revs and the Program<'a> types fail to unify (proven by #1497-#1499/#1506-#1507, #1532-#1535, #1539-#1543). The previous digest-only rule with a /^oxc/ regex did not suppress these PRs, so this rule lists the pinned crates explicitly and disables ALL update types for them. The whole stack moves together via the auto-update-oxfmt PR. oxc_resolver is intentionally NOT listed — it is a normal crates.io dep and Renovate should keep updating it.",
-      "matchManagers": ["cargo"],
-      "matchPackageNames": [
+      "description": "The oxc AST/formatter stack is pinned to a single git rev (synced to the oxfmt release tag by the auto-update-oxfmt workflow); per-crate updates can never pass CI. The #1550 explicit matchPackageNames list still did not suppress the PRs (#1563/#1564) because for cargo GIT dependencies Renovate's packageName is the repository URL, not the crate name. Match on depName (crate name) AND on the repo-URL packageName, and disable all update types. oxc_resolver / oxc_sourcemap / oxc-miette / oxc_index stay Renovate-managed (registry deps, deliberately not listed).",
+      "matchManagers": [
+        "cargo"
+      ],
+      "enabled": false,
+      "matchDepNames": [
         "oxc_allocator",
         "oxc_ast",
         "oxc_ast_macros",
@@ -21,12 +24,22 @@
         "oxc_formatter_core",
         "oxc_formatter_css",
         "oxc_formatter_json",
+        "oxc_jsdoc",
         "oxc_parser",
         "oxc_regular_expression",
         "oxc_semantic",
         "oxc_span",
         "oxc_str",
         "oxc_syntax"
+      ]
+    },
+    {
+      "description": "Same suppression keyed on the git-source packageName (cargo git deps resolve packageName to the repo URL).",
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchPackageNames": [
+        "https://github.com/oxc-project/oxc"
       ],
       "enabled": false
     }
