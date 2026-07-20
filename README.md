@@ -200,9 +200,9 @@ On top of the fixture suite, a continuously growing **output-equality corpus** c
 
 | Track | Compared against | Known divergences |
 |---|---|---:|
-| Compiler (CSR + SSR) | `svelte/compiler` | **10** client / **1** server (~99.9% parity) |
+| Compiler (CSR + SSR) | `svelte/compiler` | **8** client / **0** server (~99.9% parity) |
 | `svelte2tsx` | official `svelte2tsx` | **0** |
-| Formatter | `oxfmt` + `prettier-plugin-svelte`, byte-for-byte | **48** |
+| Formatter | `oxfmt` + `prettier-plugin-svelte`, byte-for-byte | **46** |
 | Linter | [`eslint-plugin-svelte`](https://github.com/sveltejs/eslint-plugin-svelte) (compared rules) | **102** |
 
 Each count is a CI **ratchet**: the baselines in [`compat/`](compat) may only shrink, so a new divergence turns CI red and parity can only improve. Normalization (formatting, blank lines) runs on the comparison side only — never inside the compiler — so real differences can't hide. Details: [`scripts/compat-corpus/README.md`](scripts/compat-corpus/README.md).
