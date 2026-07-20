@@ -2028,6 +2028,30 @@ fn render_attribute_value_sequence(
                                 };
                                 if let Some(expanded) = try_expand {
                                     expanded
+                                } else if !first_pass.contains('\n') && is_shallow_value(inner_src)
+                                {
+                                    // The interpolation starts past the print width
+                                    // but its expression is breakable (ternary /
+                                    // binary / logical): the oracle still breaks it
+                                    // at its top-level operator (`{a\n  ? b\n  : c}`).
+                                    // Force the minimal break so it splits instead of
+                                    // overflowing on one line.
+                                    let base_width =
+                                        line_width_val.saturating_sub(effective_indent);
+                                    let expr_len = visual_width(first_pass.as_str());
+                                    let force_extra =
+                                        base_width.saturating_sub(expr_len.saturating_sub(1));
+                                    let forced = format_attribute_value_expression(
+                                        inner_src,
+                                        &opts,
+                                        effective_attr_depth,
+                                        force_extra,
+                                    )?;
+                                    if forced.contains('\n') {
+                                        forced
+                                    } else {
+                                        first_pass
+                                    }
                                 } else {
                                     first_pass
                                 }
