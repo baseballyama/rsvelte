@@ -28,14 +28,12 @@ warn() { echo -e "${YELLOW}[bench]${NC} $*"; }
 ok() { echo -e "${GREEN}[bench]${NC} $*"; }
 err() { echo -e "${RED}[bench]${NC} $*" >&2; }
 
-# Build release binary first
 build_release() {
     log "Building release binary..."
     cargo build --release --bin benchmark_runner 2>&1 | tail -1
     ok "Release build complete."
 }
 
-# Run full JS vs Rust benchmark (run-benchmark.mjs)
 run_full_benchmark() {
     log "Running full JS vs Rust benchmark..."
     build_release
@@ -46,7 +44,6 @@ run_full_benchmark() {
     ok "Results saved to benchmark-results.json"
     echo ""
 
-    # Pretty-print summary
     node -e "
 const r = require('$output_file');
 const fmt = (v) => v.toFixed(1);
@@ -75,7 +72,6 @@ for (const [label, d] of tasks) {
 "
 }
 
-# Run Criterion micro-benchmarks
 run_criterion() {
     log "Running Criterion benchmarks..."
     cargo bench --bench compiler 2>&1
@@ -84,7 +80,6 @@ run_criterion() {
     ok "Criterion benchmarks complete. See target/criterion/ for HTML reports."
 }
 
-# Run profiler on synthetic large file or specified file
 run_profile() {
     local file="${1:-}"
     log "Building profiler..."
@@ -94,7 +89,6 @@ run_profile() {
         log "Profiling: $file"
         "$PROJECT_DIR/target/release/profiler" --file "$file" --iterations 20 --warmup 5
     else
-        # Use a representative large test file
         local test_file
         test_file=$(find "$PROJECT_DIR/svelte/packages/svelte/tests/runtime-runes/samples" \
             -name "input.svelte" -exec wc -c {} + 2>/dev/null | sort -rn | head -2 | tail -1 | awk '{print $2}')
@@ -129,7 +123,6 @@ for i in range(200):
     fi
 }
 
-# Quick benchmark: only single-threaded comparison
 run_quick() {
     log "Running quick single-threaded benchmark..."
     build_release
@@ -168,7 +161,6 @@ console.log('Target: 100x single-threaded for all tasks.');
 "
 }
 
-# Main
 case "${1:-}" in
     --criterion)
         run_criterion

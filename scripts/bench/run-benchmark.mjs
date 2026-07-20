@@ -1,13 +1,9 @@
 #!/usr/bin/env node
 /**
- * Benchmark script that measures JS vs Rust compiler performance.
- * Collects all Svelte test files and compiles them with both compilers.
+ * Benchmark script that measures JS vs Rust compiler performance across
+ * five tasks: compile-client, compile-server, parse, svelte2tsx, svelte-check.
  *
- * Supports five tasks: compile-client, compile-server, parse, svelte2tsx,
- * svelte-check.
- *
- * Designed to run identically on local machines and in CI. The JS
- * baselines (`svelte/compiler`, `svelte2tsx`, `svelte-check`) live in
+ * The JS baselines (`svelte/compiler`, `svelte2tsx`, `svelte-check`) live in
  * submodules and publish their consumable entrypoints as rollup build
  * outputs, not checked-in artefacts — so we bootstrap them on demand
  * below, then dynamic-import once they exist. Already-built outputs are
@@ -54,10 +50,6 @@ function ensureBenchDeps() {
 	// previous package's `dist/`). Walk it explicitly so we don't end up
 	// re-running upstream's recursive `pnpm build` script, which
 	// rebuilds everything and tail-runs a slow `test:sanity` pass.
-	// Each package's own build command differs: svelte2tsx and
-	// svelte-check use rollup, language-server uses tsc — call each
-	// package's defined `pnpm build` for the first two, and rollup
-	// directly for svelte-check (skipping the recursive cd dance).
 	const langPkgs = [
 		{
 			name: 'svelte2tsx',
@@ -126,7 +118,6 @@ try {
 	throw err;
 }
 
-// Test directories containing Svelte files
 const TEST_CATEGORIES = [
 	'parser-modern/samples',
 	'snapshot/samples',
@@ -147,9 +138,6 @@ const TEST_CATEGORIES = [
 const WARMUP_ITERATIONS = Number(process.env.BENCHMARK_WARMUP ?? 1);
 const BENCHMARK_ITERATIONS = Number(process.env.BENCHMARK_ITERATIONS ?? 3);
 
-/**
- * Recursively find all .svelte files in a directory
- */
 function findSvelteFiles(dir, files = []) {
 	if (!existsSync(dir)) return files;
 
@@ -172,9 +160,6 @@ function findSvelteFiles(dir, files = []) {
 	return files;
 }
 
-/**
- * Collect all Svelte test files
- */
 function collectTestFiles() {
 	const files = [];
 
@@ -186,9 +171,6 @@ function collectTestFiles() {
 	return files;
 }
 
-/**
- * Process a single file based on the task
- */
 function processFileJS(file, task) {
 	switch (task) {
 		case 'compile-client':
@@ -212,13 +194,9 @@ function processFileJS(file, task) {
 	}
 }
 
-/**
- * Benchmark JavaScript Svelte compiler
- */
 function benchmarkJavaScript(files, iterations, task) {
 	const times = [];
 
-	// Warmup
 	for (let i = 0; i < WARMUP_ITERATIONS; i++) {
 		for (const file of files) {
 			try {
@@ -229,7 +207,6 @@ function benchmarkJavaScript(files, iterations, task) {
 		}
 	}
 
-	// Benchmark
 	for (let i = 0; i < iterations; i++) {
 		const start = performance.now();
 		for (const file of files) {
@@ -258,7 +235,6 @@ function benchmarkJavaScript(files, iterations, task) {
 async function benchmarkRust(files, singleThread, task, binName = 'benchmark_runner') {
 	const mode = singleThread ? 'single' : 'multi';
 
-	// Create a temp file with all file paths
 	const fileList = files.map((f) => f.path).join('\n');
 	const tempFile = join(__dirname, '../../.benchmark-files.txt');
 	writeFileSync(tempFile, fileList);
@@ -314,7 +290,6 @@ async function benchmarkRust(files, singleThread, task, binName = 'benchmark_run
 			}
 
 			try {
-				// Parse the JSON output
 				const result = JSON.parse(stdout);
 				resolve(result.times);
 			} catch (e) {
@@ -325,9 +300,6 @@ async function benchmarkRust(files, singleThread, task, binName = 'benchmark_run
 	});
 }
 
-/**
- * Get git commit SHA
- */
 function getCommitSha() {
 	try {
 		return execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
@@ -407,9 +379,6 @@ function calculateStats(times, filesCount) {
 	};
 }
 
-/**
- * Run a single benchmark task (compile-client, compile-server, or parse)
- */
 async function runBenchmarkTask(files, task) {
 	const taskLabel = {
 		'compile-client': 'Compile (Client)',
@@ -420,13 +389,11 @@ async function runBenchmarkTask(files, task) {
 
 	console.error(`\n=== ${taskLabel} ===`);
 
-	// JS
 	console.error(`  Benchmarking JavaScript...`);
 	const jsTimes = benchmarkJavaScript(files, BENCHMARK_ITERATIONS, task);
 	const jsStats = calculateStats(jsTimes, files.length);
 	console.error(`    ${jsStats.durationMs.toFixed(2)}ms (${jsStats.throughputFilesPerSec.toFixed(0)} files/sec)`);
 
-	// Rust single-threaded
 	console.error(`  Benchmarking Rust (single-threaded)...`);
 	const rustSingleTimes = await benchmarkRust(files, true, task);
 	const rustSingleStats = calculateStats(rustSingleTimes, files.length);
@@ -434,7 +401,6 @@ async function runBenchmarkTask(files, task) {
 		`    ${rustSingleStats.durationMs.toFixed(2)}ms (${rustSingleStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
 	);
 
-	// Rust multi-threaded
 	console.error(`  Benchmarking Rust (multi-threaded)...`);
 	const rustMultiTimes = await benchmarkRust(files, false, task);
 	const rustMultiStats = calculateStats(rustMultiTimes, files.length);
@@ -469,8 +435,6 @@ function asTaskResults(taskResult) {
 	return { javascript, rustSingleThread, rustMultiThread, speedup };
 }
 
-// ── fmt task ────────────────────────────────────────────────────────────────
-//
 // The `fmt` task pits prettier + prettier-plugin-svelte (the canonical JS
 // Svelte formatter) against rsvelte_formatter over the shared per-file
 // corpus. It needs its own runner because prettier 3's `format()` is async,
@@ -484,7 +448,6 @@ async function benchmarkPrettier(files, iterations) {
 		filepath,
 	});
 
-	// Warmup
 	for (let i = 0; i < WARMUP_ITERATIONS; i++) {
 		for (const file of files) {
 			try {
@@ -551,13 +514,11 @@ async function runFmtTask(files) {
 	};
 }
 
-// ── svelte-check task ──────────────────────────────────────────────────────
-//
 // Unlike the other tasks, svelte-check is a project-wise CLI, not a per-file
 // API. We materialise a synthetic workspace of N `.svelte` files and time each
 // CLI's wall-clock cost end-to-end.
 //
-// IMPORTANT — what this measures and why both sides skip TypeScript checking:
+// What this measures and why both sides skip TypeScript checking:
 // svelte-check's job is split into (1) the *tool's own work* — find files,
 // parse + analyze each `.svelte`, generate the `.tsx` overlay — and (2)
 // delegating semantic type-checking to an *external* TypeScript compiler
@@ -572,11 +533,9 @@ async function runFmtTask(files) {
 //     subprocess), plus `--diagnostic-sources svelte` for parity.
 //   * JS svelte-check: `--diagnostic-sources svelte`. This is the only
 //     supported way to make JS svelte-check skip TS work — it stops the
-//     language-server from registering the TypeScript plugin at all. (Merely
+//     language-server from registering the TypeScript plugin at all. Merely
 //     omitting a tsconfig does NOT skip checking: TS then falls back to a
-//     default inferred config and still semantic-checks every file, which is
-//     why a previous version of this comment — "no tsconfig so both skip TS"
-//     — was wrong on the JS side and produced a meaningless ~1.6x.)
+//     default inferred config and still semantic-checks every file.
 // Multi-threaded numbers come from rsvelte's default rayon fan-out;
 // single-threaded numbers come from forcing `RAYON_NUM_THREADS=1` so the two
 // figures parallel the per-file tasks above.
@@ -652,12 +611,7 @@ async function runSvelteCheckTask() {
 	ensureRsvelteSvelteCheckBuilt();
 	const fixture = makeSvelteCheckFixture(SVELTE_CHECK_FILES);
 	try {
-		// See the task comment above: disable the external TypeScript pass on
-		// BOTH sides so this isolates the tool's own Svelte work (find +
-		// parse + analyze), not the shared `tsc`/`tsgo` subprocess.
-		//   * rsvelte: `--no-type-check` (no overlay + no tsc/tsgo) + svelte-only sources.
-		//   * JS svelte-check: `--diagnostic-sources svelte` (the only flag that
-		//     stops it registering the TypeScript plugin).
+		// Disables the TypeScript pass on both sides — see the comment above.
 		const rsArgs = [
 			'--workspace',
 			fixture,

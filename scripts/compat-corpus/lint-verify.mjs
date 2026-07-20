@@ -78,8 +78,7 @@ const EXCLUDE = new Set([
 // not implement) — the finding-scoped analogue of the per-rule `EXCLUDE` above,
 // NOT a place to hide real divergences. Each entry is a full
 // `<corpus-id>|<+|-><rule>\t<line>:<col>\t<message>` string and MUST carry a
-// documented justification (see docs/lint-corpus-harness-findings.md and
-// docs/upstream-issues.md).
+// documented justification (see compat/lint-corpus/known-failures.md).
 const MANUAL_EXCLUSIONS = new Set([
 	// H4 — `globals` version split on `localStorage`/`navigator`/`sessionStorage`.
 	// The corpus oracle runs eslint-plugin-svelte against globals@16.5, where
@@ -89,7 +88,7 @@ const MANUAL_EXCLUSIONS = new Set([
 	// own fixture suite (the `eslint_plugin_oracle` hard gate) declares
 	// `invalid/test03` expecting exactly this report. The two upstream artefacts
 	// (live globals vs bundled fixtures) disagree; rsvelte matches the
-	// authoritative fixtures. Reported upstream — see the harness-findings doc.
+	// authoritative fixtures. Reported upstream — see compat/lint-corpus/known-failures.md.
 	'eslint-plugin-svelte/docs/rules/no-top-level-browser-globals.md/1.svelte|+svelte/no-top-level-browser-globals\t25:13\tUnexpected top-level browser global variable "localStorage".',
 	'eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/test03-input.svelte|+svelte/no-top-level-browser-globals\t2:12\tUnexpected top-level browser global variable "localStorage".',
 

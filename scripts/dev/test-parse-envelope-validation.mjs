@@ -1,6 +1,6 @@
 // Regression test for the parse-envelope decoder's bounds validation
-// (M-012, same class of check as scripts/dev/test-envelope-validation.mjs
-// for the compile envelope).
+// (same class of check as scripts/dev/test-envelope-validation.mjs, but
+// for the parse envelope instead of the compile envelope).
 //
 // Hand-crafts a minimal valid parse envelope (a single TAG_JSON root node,
 // see `napi_raw_parse.rs` for the wire format) plus deliberately-corrupted

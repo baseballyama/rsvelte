@@ -9,7 +9,7 @@
  * This script is used to generate expected output for comparison with the Rust parser.
  */
 
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync } from "fs";
 import { parse } from "../../submodules/svelte/packages/svelte/src/compiler/index.js";
 
 const args = process.argv.slice(2);
@@ -25,7 +25,6 @@ try {
   const source = readFileSync(inputFile, "utf-8");
   const ast = parse(source, { modern });
 
-  // Remove internal metadata fields for comparison
   const cleanAst = JSON.parse(
     JSON.stringify(ast, (key, value) => {
       if (key === "metadata") return undefined;

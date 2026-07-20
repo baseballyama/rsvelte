@@ -39,9 +39,7 @@ function assert(label, cond, extra = '') {
 	}
 }
 
-// ---------------------------------------------------------------------------
 // 1. compile() — the hot path of the Vite `transform` hook
-// ---------------------------------------------------------------------------
 const compiled = r.compile('<h1>{name}</h1>', {
 	filename: 'Foo.svelte',
 	generate: 'client',
@@ -52,18 +50,14 @@ assert(
 );
 assert('compile() returns source map', compiled?.js?.map != null);
 
-// ---------------------------------------------------------------------------
 // 2. compileModule() — used by the `.svelte.js` / `.svelte.ts` path
-// ---------------------------------------------------------------------------
 const m = r.compileModule('export const x = $state(0);', {
 	filename: 'foo.svelte.js',
 	generate: 'client',
 });
 assert('compileModule() returns js.code', typeof m?.js?.code === 'string');
 
-// ---------------------------------------------------------------------------
 // 3. hmrDiff() — the fast-path HMR optimization the shim can consult
-// ---------------------------------------------------------------------------
 const same = r.hmrDiff('<h1>x</h1>', '<h1>x</h1>');
 assert('hmrDiff() detects unchanged', same?.change === 'unchanged');
 
@@ -84,18 +78,14 @@ assert(
 	JSON.stringify(scriptChange),
 );
 
-// ---------------------------------------------------------------------------
 // 4. resolveId() — used by Vite's `resolveId` hook for `<script src=...>`
-// ---------------------------------------------------------------------------
 const resolved = r.resolveId('./Bar.svelte', '/abs/path/Foo.svelte');
 assert(
 	'resolveId() returns string-or-null for unresolvable importee',
 	typeof resolved === 'string' || resolved === null,
 );
 
-// ---------------------------------------------------------------------------
 // 5. preprocess() — async pipeline; verifies the threadsafe-function bridge
-// ---------------------------------------------------------------------------
 const out = await r.preprocess('<h1>hi</h1>', [
 	{
 		markup: async ({ content }) => ({ code: content.toUpperCase() }),
@@ -107,19 +97,15 @@ assert(
 	out?.code,
 );
 
-// ---------------------------------------------------------------------------
 // 6. VERSION constant — feature detection in the shim
-// ---------------------------------------------------------------------------
 assert(
 	'VERSION exposes upstream Svelte semver',
 	typeof r.VERSION === 'string' && /^\d+\.\d+\.\d+/.test(r.VERSION),
 	r.VERSION,
 );
 
-// ---------------------------------------------------------------------------
 // 7. Standalone parse surfaces — `parse` (JSON), `parseEnvelope` (raw buffer),
-//    and the `decodeParseEnvelope` decoder must all be re-exported (#792).
-// ---------------------------------------------------------------------------
+//    and the `decodeParseEnvelope` decoder must all be re-exported.
 assert('parse() is re-exported', typeof r.parse === 'function');
 assert('parseEnvelope() is re-exported', typeof r.parseEnvelope === 'function');
 assert('decodeParseEnvelope() is re-exported', typeof r.decodeParseEnvelope === 'function');

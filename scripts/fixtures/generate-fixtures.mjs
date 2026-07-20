@@ -17,11 +17,10 @@ import { fileURLToPath } from 'url';
 
 // Import Svelte compiler functions from source (the pinned submodule's
 // `src/compiler`), not the pre-built `compiler/index.js` bundle. The checked-in
-// bundle can lag behind the source — e.g. it still infinite-loops on the
-// `declaration-tag-trailing-slash` error fixture (`{let x = a /`) that the
-// source fixed in #18350 — which would hang fixture generation. The source is
-// the reference rsvelte is ported against, so generating expected output from it
-// is also strictly more correct.
+// bundle can lag behind the source — e.g. it has infinite-looped on error
+// fixtures that the source had already fixed, which would hang fixture
+// generation. The source is also the reference rsvelte is ported against, so
+// generating expected output from it is strictly more correct.
 import {
   parse,
   compile,
@@ -32,7 +31,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
 const SVELTE_TESTS = path.join(ROOT, 'submodules/svelte/packages/svelte/tests');
 
-// Get Svelte commit hash
 function getSvelteCommitHash() {
   return execSync('git rev-parse HEAD', {
     cwd: path.join(ROOT, 'submodules/svelte'),
@@ -40,7 +38,6 @@ function getSvelteCommitHash() {
   }).trim();
 }
 
-// Category definitions with their specific handlers
 const CATEGORIES = {
   'parser-modern': {
     mainFile: 'input.svelte',
@@ -102,7 +99,6 @@ const CATEGORIES = {
   },
 };
 
-// Parse command line arguments
 function parseArgs() {
   const args = process.argv.slice(2);
   const options = {
@@ -127,7 +123,6 @@ function parseArgs() {
   return options;
 }
 
-// Load _config.js from sample directory
 async function loadConfig(sampleDir) {
   const configPath = path.join(sampleDir, '_config.js');
   if (fs.existsSync(configPath)) {
@@ -185,7 +180,6 @@ function parseConfigText(configPath) {
   }
 }
 
-// Clean AST by removing internal metadata
 function cleanAst(ast) {
   return JSON.parse(
     JSON.stringify(ast, (key, value) => {
@@ -194,8 +188,6 @@ function cleanAst(ast) {
     })
   );
 }
-
-// === Category Handlers ===
 
 async function generateParserFixture(sampleDir, outputDir, _config) {
   const inputPath = path.join(sampleDir, 'input.svelte');
@@ -248,7 +240,6 @@ async function generateSnapshotFixture(sampleDir, outputDir, config) {
   }
   const source = fs.readFileSync(inputPath, 'utf-8');
 
-  // Extract sample name from directory path for correct component naming
   const sampleName = path.basename(sampleDir);
 
   const compileOptions = {
@@ -259,7 +250,6 @@ async function generateSnapshotFixture(sampleDir, outputDir, config) {
 
   const results = {};
 
-  // Client compilation
   try {
     const clientResult = compile(source, {
       ...compileOptions,
@@ -277,7 +267,6 @@ async function generateSnapshotFixture(sampleDir, outputDir, config) {
     results.client = { error: e.message };
   }
 
-  // Server compilation
   try {
     const serverResult = compile(source, {
       ...compileOptions,
@@ -293,7 +282,6 @@ async function generateSnapshotFixture(sampleDir, outputDir, config) {
     results.server = { error: e.message };
   }
 
-  // Write outputs
   fs.mkdirSync(outputDir, { recursive: true });
 
   if (results.client?.js) {
@@ -504,11 +492,10 @@ async function generateRuntimeFixture(sampleDir, outputDir, config) {
 
   const source = fs.readFileSync(inputPath, 'utf-8');
 
-  // Determine if this is a runtime-runes test based on the output path
   const isRuntimeRunes = outputDir.includes('/runtime-runes/');
   const isRuntimeLegacy = outputDir.includes('/runtime-legacy/');
 
-  // For runtime-legacy tests, accessors defaults to true (matching official test runner behavior)
+  // For runtime-legacy tests, accessors defaults to true (matching official test runner behavior).
   // See svelte/packages/svelte/tests/runtime-legacy/shared.ts line 224:
   //   accessors: 'accessors' in config ? config.accessors : true
   const accessorsDefault = isRuntimeLegacy
@@ -518,10 +505,9 @@ async function generateRuntimeFixture(sampleDir, outputDir, config) {
   const compileOptions = {
     dev: config.compileOptions?.dev ?? false,
     css: config.compileOptions?.css ?? 'external',
-    // Enable experimental.async for runtime-runes tests
-    // This matches the official Svelte compiler behavior and test configuration
+    // Matches the official test runner: runtime-runes tests compile with
+    // experimental.async enabled.
     ...(isRuntimeRunes ? { experimental: { async: true } } : {}),
-    // Apply accessors default for runtime-legacy tests
     ...(accessorsDefault !== undefined ? { accessors: accessorsDefault } : {}),
     ...config.compileOptions,
   };
@@ -530,7 +516,6 @@ async function generateRuntimeFixture(sampleDir, outputDir, config) {
 
   const results = {};
 
-  // Client compilation
   try {
     const clientResult = compile(source, {
       ...compileOptions,
@@ -546,7 +531,6 @@ async function generateRuntimeFixture(sampleDir, outputDir, config) {
     results.clientError = e.message;
   }
 
-  // Server compilation
   try {
     const serverResult = compile(source, {
       ...compileOptions,
@@ -715,7 +699,6 @@ async function generateSourcemapsFixture(sampleDir, outputDir, config) {
 
   fs.mkdirSync(outputDir, { recursive: true });
 
-  // Client with sourcemap
   try {
     const clientResult = compile(source, {
       ...compileOptions,
@@ -734,7 +717,6 @@ async function generateSourcemapsFixture(sampleDir, outputDir, config) {
     // Skip on error
   }
 
-  // Server with sourcemap
   try {
     const serverResult = compile(source, {
       ...compileOptions,
@@ -761,7 +743,6 @@ async function generateSourcemapsFixture(sampleDir, outputDir, config) {
   return { success: true };
 }
 
-// Normalize warning for JSON output
 function normalizeWarning(w) {
   return {
     code: w.code,
@@ -770,8 +751,6 @@ function normalizeWarning(w) {
     end: w.end,
   };
 }
-
-// === Main Generation Logic ===
 
 async function generateFixtures(options) {
   const commitHash = getSvelteCommitHash();
@@ -788,7 +767,6 @@ async function generateFixtures(options) {
 
   fs.mkdirSync(fixturesDir, { recursive: true });
 
-  // Write manifest
   const manifest = {
     commitHash,
     shortHash,
@@ -866,14 +844,12 @@ async function generateFixtures(options) {
     );
   }
 
-  // Write manifest
   fs.writeFileSync(path.join(fixturesDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
 
   console.log('\nFixture generation complete!');
   console.log(`Manifest written to: ${path.join(fixturesDir, 'manifest.json')}`);
 }
 
-// Run
 const options = parseArgs();
 generateFixtures(options).catch((e) => {
   console.error('Fatal error:', e);

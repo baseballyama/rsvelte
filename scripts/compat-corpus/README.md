@@ -11,6 +11,10 @@ listed in [`corpus-sources.json`](./corpus-sources.json). There is no separate
 shipped source of real-world component libraries are all compiled and verified
 the same way. **To grow the corpus, [add a repository](#adding-a-repository-to-the-corpus).**
 
+The rationale for each baseline / exclusion entry (why a known failure is
+accepted, why an id is excluded) lives in a same-named `.md` beside each JSON in
+`compat/corpus/*.md` and `compat/lint-corpus/known-failures.md`.
+
 | Source | Submodule | Role |
 |---|---|---|
 | [sveltejs/svelte](https://github.com/sveltejs/svelte) | `submodules/svelte` | svelte's own fixtures + the compiler/version pin rsvelte mirrors |
@@ -316,7 +320,7 @@ pnpm run lint-corpus:update            # re-baseline known-failures.json after a
 - **Ratchet** — every finding present on exactly one side is a *divergence*,
   recorded in `compat/lint-corpus/known-failures.json` (tracked). The set may
   only **shrink**: a NEW divergence fails CI; fixed ones are pruned with
-  `--update`. See [docs/lint-corpus-remaining-work.md](../../docs/lint-corpus-remaining-work.md)
+  `--update`. See [compat/lint-corpus/known-failures.md](../../compat/lint-corpus/known-failures.md)
   for the burn-down playbook and the root-cause clusters.
 
 The `lint-parity` job in `.github/workflows/corpus-compat.yml` runs this track

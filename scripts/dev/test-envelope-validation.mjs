@@ -1,4 +1,4 @@
-// Regression test for the envelope decoder's bounds validation (M-012).
+// Regression test for the envelope decoder's bounds validation.
 //
 // Hand-crafts valid and deliberately-corrupted envelopes (no NAPI
 // binding required) and asserts that `decodeEnvelope` / `decodeBatch`
@@ -56,8 +56,6 @@ function assertEq(label, a, b) {
 	if (a === b) ok(label);
 	else fail(label, `${JSON.stringify(a)} !== ${JSON.stringify(b)}`);
 }
-
-// --- builders --------------------------------------------------------------
 
 // Build a v1 envelope. `over` lets a test scribble raw header values
 // over the (otherwise-correct) ones to simulate corruption.
@@ -130,8 +128,6 @@ function buildBatch(payloads, over = {}) {
 	}
 	return buf;
 }
-
-// --- tests -----------------------------------------------------------------
 
 console.log('=== envelope decoder bounds validation (M-012) ===\n');
 

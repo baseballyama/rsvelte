@@ -7,10 +7,9 @@
 // Concretely, `@rsvelte/svelte-check` embeds the same `rsvelte_core` svelte2tsx
 // code that `@rsvelte/svelte2tsx` (via the `@rsvelte/compiler` wasm) exposes,
 // but svelte-check is a self-contained native binary with no dependency on
-// either package. In the 5.56.x cycle this bit us: the 254→0 svelte2tsx
-// corpus-parity fix (#1295) named only `@rsvelte/svelte2tsx`, so the tool was
-// republished with the fix while `@rsvelte/svelte-check` stayed on its stale
-// 0.3.7 build and shipped different diagnostics.
+// either package. A changeset naming only `@rsvelte/svelte2tsx` can therefore
+// republish that package with a fix while `@rsvelte/svelte-check` stays on a
+// stale build and ships different diagnostics.
 //
 // This script maps changed core source directories to the set of npm packages
 // that embed them WITHOUT a cascade edge, and fails if the pending changesets

@@ -28,10 +28,6 @@
 # workspace (checked: `… | sort | uniq -d` is empty), so a single invocation
 # listing every `-p`/`--test` has no cross-crate `--test NAME` ambiguity.
 #
-# Coverage is identical to the previous count-partitioned job: every test that
-# ran before still runs in exactly one shard, and the heavy fan-out suites keep
-# running in their dedicated jobs (see the exclusion list / RUN_FILTER below).
-#
 # Portability: must run on the GitHub macOS runners' stock /bin/bash 3.2, so no
 # `declare -A` / `mapfile` (bash 4+) and no `grep -P` (absent on BSD grep) — the
 # partition is done in awk.

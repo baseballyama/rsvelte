@@ -1,15 +1,11 @@
 #!/usr/bin/env node
-// Wave 3 fixture-level smoke test: mimic what Vite's `transform` hook does
-// when a user authors `import { svelte } from '@rsvelte/vite-plugin-svelte'`
-// in `vite.config.js`. We don't spin up an actual Vite dev server — the
-// shim's plugin lifecycle is tested upstream — but we exercise the
-// real-world payload path:
-//   1. Read a `.svelte` file off disk.
-//   2. Call `compile()` from the NAPI shim with realistic options.
-//   3. Verify the emitted JS imports from `svelte/internal/client` (the
-//      hot path users land on in production builds).
-//   4. Run `preprocess()` with a JS preprocessor group ahead of compile
-//      (the exact two-step pipeline the shim wires together).
+// Wave 3 fixture-level smoke test: mimic what Vite's `transform` hook does when a
+// user authors `import { svelte } from '@rsvelte/vite-plugin-svelte'` in
+// `vite.config.js`. We don't spin up an actual Vite dev server — the shim's
+// plugin lifecycle is tested upstream — but we exercise the real-world
+// payload path (see the numbered steps below): read a `.svelte` file off
+// disk, preprocess it, compile it via the NAPI shim, and verify the emitted
+// JS matches what a real Vite build would see.
 
 import { createRequire } from 'node:module';
 import { existsSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
