@@ -84,10 +84,9 @@ pub struct ParseArena {
     /// owns that range. Non-start offsets are left as `u32::MAX`.
     js_child_range_by_start: UnsafeCell<Vec<u32>>,
     next_js_child_start: UnsafeCell<u32>,
-    /// Bump arena reserved for subsequent migration phases (see
-    /// `docs/bumpalo-migration-plan.md`). Currently unused — Phase 0 adds it
-    /// to ParseArena without changing public APIs so that Phase 1+ have a
-    /// place to allocate from.
+    /// Bump arena reserved for subsequent migration phases. Currently unused —
+    /// Phase 0 adds it to ParseArena without changing public APIs so that
+    /// Phase 1+ have a place to allocate from.
     bump: Bump,
     /// Side table of `leadingComments`/`trailingComments` keyed by a node's
     /// `(start, end)` span. Populated by `JsNode::from_value` when comment

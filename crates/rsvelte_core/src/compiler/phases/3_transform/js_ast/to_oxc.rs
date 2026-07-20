@@ -889,7 +889,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         // comments (esrap places them by source line, which a reassembled program
         // has no unified coordinate for). Falling back to the verbatim string
         // codegen for these preserves the comments exactly. (KNOWN GAP: AST-side
-        // comment preservation, see docs/phase3-server-ast-remaining-work.md.)
+        // comment preservation.)
         if !ret.diagnostics.is_empty() || !ret.program.comments.is_empty() {
             return None;
         }

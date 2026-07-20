@@ -218,12 +218,11 @@ For code-scanning integration, use `--format sarif` with
 
 All 80 `eslint-plugin-svelte` rules are ported natively and validated
 byte-for-byte (message, line, column, autofix output, and editor suggestions)
-against that plugin's own upstream fixtures by a CI-enforced compat oracle —
-see
-[`docs/eslint-rule-port-status.md`](https://github.com/baseballyama/rsvelte/blob/main/docs/eslint-rule-port-status.md)
-for the full status and the handful of fixtures that genuinely need a JS/TS
-tokenizer or type checker (out of scope for the native engine, covered
-separately). The default `recommended` preset runs every rule at its declared
+against that plugin's own upstream fixtures by a CI-enforced compat oracle. The
+authoritative list of ported rules and the handful of fixtures that genuinely
+need a JS/TS tokenizer or type checker (out of scope for the native engine,
+covered separately) is the oracle test registry at
+[`crates/rsvelte_lint/tests/eslint_plugin_oracle.rs`](https://github.com/baseballyama/rsvelte/blob/main/crates/rsvelte_lint/tests/eslint_plugin_oracle.rs). The default `recommended` preset runs every rule at its declared
 default severity: most correctness and style rules default to `warn` (a handful
 — e.g. `no-dupe-else-if-blocks`, `no-dupe-style-properties`,
 `no-object-in-text-mustaches` — to `error`), while all pure-formatting rules

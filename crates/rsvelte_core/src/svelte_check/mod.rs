@@ -5,9 +5,8 @@
 //! tsgo to add TypeScript-level diagnostics. Mirrors the JS reference at
 //! `submodules/language-tools/packages/svelte-check/src/`.
 //!
-//! This v0.1 covers only the Svelte-side diagnostics. tsgo integration is
-//! tracked as the next milestone in `docs/ecosystem-implementation-plan.md`
-//! Wave 2.
+//! This v0.1 covers only the Svelte-side diagnostics. tsgo integration is the
+//! next milestone.
 
 pub mod config;
 pub mod diagnostic;

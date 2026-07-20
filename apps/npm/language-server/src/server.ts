@@ -3,8 +3,7 @@
  * and linter to any LSP client (VS Code, Neovim, …).
  *
  * v1 scope: document formatting (native `rsvelte-fmt`) + push diagnostics
- * (bundled `rsvelte_lint` wasm). Type-checking is intentionally out of scope
- * (see docs/vscode-extension-plan.md).
+ * (bundled `rsvelte_lint` wasm). Type-checking is intentionally out of scope.
  */
 
 import {

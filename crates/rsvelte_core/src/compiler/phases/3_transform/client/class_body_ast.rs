@@ -4,8 +4,7 @@
 //! TEXT edits rather than emitting AST).
 //!
 //! **Status: FOUNDATION / WORK-IN-PROGRESS.** This is the launching point for
-//! the incremental AST `ClassBody` rewrite described in
-//! `docs/phase3-server-ast-remaining-work.md` §6. The entry point is a no-op
+//! the incremental AST `ClassBody` rewrite. The entry point is a no-op
 //! passthrough today (returns `None` so the existing text machinery still runs);
 //! it is filled in step-by-step, each step kept byte-identical via the gate
 //! suites + corpus.
