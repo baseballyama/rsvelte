@@ -13,6 +13,7 @@ mod warn;
 pub use analyze::{analyze_css, extract_css_selector_info};
 pub use prune::prune_css;
 pub use utils::{
-    get_parent_rules, get_possible_values, is_global, is_outer_global, is_unscoped_pseudo_class,
+    get_parent_rules, get_possible_values, get_possible_values_expr, is_global, is_outer_global,
+    is_unscoped_pseudo_class,
 };
 pub use warn::warn_unused;
