@@ -7,14 +7,58 @@ export interface Svelte2TsxOptions {
 	version?: '4' | '5';
 }
 
+/**
+ * The source map returned alongside the generated code. Mirrors the object
+ * produced by magic-string's `SourceMap` (the shape upstream `svelte2tsx`
+ * returns): the standard v3 fields plus `toString()` / `toUrl()`.
+ */
+export interface SourceMap {
+	version: number;
+	file?: string;
+	sources: string[];
+	sourcesContent?: (string | null)[];
+	names: string[];
+	/** VLQ-encoded mappings string. */
+	mappings: string;
+	toString(): string;
+	toUrl(): string;
+}
+
+/**
+ * Names exported from the component. Upstream exposes only `has(name)`; the
+ * `props` / `all` arrays are a backward-compatible rsvelte extension.
+ */
+export interface IExportedNames {
+	has(name: string): boolean;
+	/** rsvelte extension: exported names that are component props, sorted. */
+	props: string[];
+	/** rsvelte extension: every exported name, sorted. */
+	all: string[];
+}
+
+export interface ComponentEvent {
+	name: string;
+	type: string;
+	doc?: string;
+}
+
+/**
+ * @deprecated Use TypeScript's `TypeChecker` to get the type information
+ * instead. This only covers literal typings.
+ */
+export interface ComponentEvents {
+	getAll(): ComponentEvent[];
+}
+
 export interface Svelte2TsxResult {
 	code: string;
-	map: string | null;
-	exportedNames: {
-		props: string[];
-		all: string[];
-	};
-	events: Record<string, unknown>;
+	map: SourceMap | null;
+	exportedNames: IExportedNames;
+	/**
+	 * @deprecated Use TypeScript's `TypeChecker` to get the type information
+	 * instead. This only covers literal typings.
+	 */
+	events: ComponentEvents;
 }
 
 /**

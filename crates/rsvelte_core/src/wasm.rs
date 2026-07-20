@@ -193,12 +193,18 @@ pub fn svelte2tsx(source: &str, options_json: &str) -> String {
                 .iter()
                 .map(|n: &&str| serde_json::Value::String((*n).to_string()))
                 .collect();
+            let events: Vec<serde_json::Value> = result
+                .events
+                .get_api_entries()
+                .into_iter()
+                .map(|(name, ty)| serde_json::json!({ "name": name, "type": ty }))
+                .collect();
             let output = serde_json::json!({
                 "success": true,
                 "code": result.code,
                 "map": result.map,
                 "exportedNames": { "props": props, "all": all },
-                "events": {},
+                "events": events,
             });
             output.to_string()
         }

@@ -65,6 +65,62 @@ export async function initialize(input) {
 	ensureReadySync();
 }
 
+// Base64-encode a string, mirroring magic-string's `SourceMap` (prefers
+// `btoa`, falls back to Node's `Buffer`) so `map.toUrl()` works in browsers.
+function toBase64(str) {
+	if (typeof globalThis !== 'undefined' && typeof globalThis.btoa === 'function') {
+		return globalThis.btoa(unescape(encodeURIComponent(str)));
+	}
+	return Buffer.from(str, 'utf-8').toString('base64');
+}
+
+// Mirror of magic-string's `SourceMap`: the shape `str.generateMap()` returns
+// upstream. Field layout (`version`/`sources`/`names`/`mappings`, plus the
+// optional `file`/`sourcesContent`) matches the object magic-string emits, and
+// `toString()`/`toUrl()` reproduce its methods so tooling that inlines the map
+// keeps working.
+class SourceMap {
+	constructor(props) {
+		this.version = props.version ?? 3;
+		this.file = props.file ?? undefined;
+		this.sources = props.sources ?? [];
+		this.sourcesContent = props.sourcesContent ?? undefined;
+		this.names = props.names ?? [];
+		this.mappings = props.mappings ?? '';
+	}
+
+	toString() {
+		return JSON.stringify(this);
+	}
+
+	toUrl() {
+		return 'data:application/json;charset=utf-8;base64,' + toBase64(this.toString());
+	}
+}
+
+// Wrap the wasm `exportedNames` payload in the upstream `IExportedNames` shape
+// (a `has(name)` predicate over every exported name). The `props`/`all` arrays
+// are retained as a backward-compatible rsvelte extension.
+function wrapExportedNames(exportedNames) {
+	const all = Array.isArray(exportedNames?.all) ? exportedNames.all : [];
+	const props = Array.isArray(exportedNames?.props) ? exportedNames.props : [];
+	const set = new Set(all);
+	return {
+		has: (name) => set.has(name),
+		props,
+		all,
+	};
+}
+
+// Wrap the wasm `events` payload in the upstream `ComponentEvents` shape
+// (`getAll()` returning `{ name, type, doc? }[]`).
+function wrapEvents(events) {
+	const entries = Array.isArray(events) ? events : [];
+	return {
+		getAll: () => entries,
+	};
+}
+
 /**
  * Convert a Svelte component to TypeScript/TSX.
  *
@@ -81,12 +137,7 @@ export async function initialize(input) {
  *   namespace?: 'html' | 'svg' | 'mathml',
  *   version?: '4' | '5',
  * }} [options]
- * @returns {{
- *   code: string,
- *   map: string | null,
- *   exportedNames: { props: string[], all: string[] },
- *   events: Record<string, unknown>,
- * }}
+ * @returns {import('./index.d.ts').Svelte2TsxResult}
  */
 export function svelte2tsx(source, options = {}) {
 	ensureReadySync();
@@ -95,11 +146,16 @@ export function svelte2tsx(source, options = {}) {
 	if (parsed.success === false) {
 		throw new Error(parsed.error || 'svelte2tsx failed');
 	}
+	// `map` crosses the wasm boundary as a JSON string (or null in `dts` mode).
+	let map = null;
+	if (parsed.map != null) {
+		map = new SourceMap(typeof parsed.map === 'string' ? JSON.parse(parsed.map) : parsed.map);
+	}
 	return {
 		code: parsed.code,
-		map: parsed.map ?? null,
-		exportedNames: parsed.exportedNames,
-		events: parsed.events ?? {},
+		map,
+		exportedNames: wrapExportedNames(parsed.exportedNames),
+		events: wrapEvents(parsed.events),
 	};
 }
 
