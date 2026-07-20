@@ -103,3 +103,19 @@ fn collapse_hug_mixed_uses_tab_indent() {
         "collapse with tab indent should not produce space-indented lines:\n{out:?}"
     );
 }
+
+/// A block body keeps an inline-level child hugged to the following text only
+/// while that child prints flat. The fit test must measure display width, not
+/// char count: this `<Icon>` is 57 chars but 97 columns wide, so it breaks and
+/// the run must break with it. No corpus file mixes full-width text with this
+/// shape, so assert it here.
+#[test]
+fn block_body_inline_child_fit_uses_display_width() {
+    let el = format!("<Icon title=\"{}\" />", "日".repeat(40));
+    let src = format!("<div>\n  {{#if v}}\n    {el} {{label}}\n  {{/if}}\n</div>\n");
+    let out = format(&src, &FormatOptions::default()).expect("format ok");
+    assert!(
+        !out.contains("/> {label}"),
+        "expected the wide Icon to break away from the trailing text:\n{out}"
+    );
+}

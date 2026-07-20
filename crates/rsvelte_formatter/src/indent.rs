@@ -16,6 +16,7 @@
 
 use oxc_formatter::JsFormatOptions;
 use rsvelte_core::ast::template::{Fragment, IfBlock, TemplateNode};
+use unicode_width::UnicodeWidthStr;
 
 use crate::error::FormatError;
 use crate::options::FormatOptions;
@@ -118,11 +119,10 @@ fn collect_indent_edits_inner(
         // Used for block bodies: only split inline spaces when such a sibling
         // is present. Without one (fragment is only ExpressionTags + ws),
         // the space is prose-sensitive and stays on one line.
-        let flat_budget = options.js.line_width.value() as usize;
         let has_non_expression_block_child = fragment.nodes.iter().any(|n| {
             is_indent_provoking(n)
                 && !matches!(n, TemplateNode::ExpressionTag(_))
-                && !is_inline_level_node(n, source, child_indent.chars().count(), flat_budget)
+                && !is_inline_level_node(n, source, child_indent.width(), options)
         });
 
         // prettier-plugin-svelte's `forceBreakContent`: when any child is a
@@ -739,19 +739,28 @@ fn is_inline_level_node(
     node: &TemplateNode,
     source: &str,
     indent_width: usize,
-    line_width: usize,
+    options: &FormatOptions,
 ) -> bool {
-    let (start, end) = match node {
-        TemplateNode::Component(c) => (c.start, c.end),
+    let (start, end, attr_count) = match node {
+        TemplateNode::Component(c) => (c.start, c.end, c.attributes.len()),
         TemplateNode::RegularElement(e) if !is_prettier_block_element(e.name.as_str()) => {
-            (e.start, e.end)
+            (e.start, e.end, e.attributes.len())
         }
         _ => return false,
     };
+    // `singleAttributePerLine` breaks every attribute of a multi-attribute tag
+    // regardless of width, so such an element is never flat.
+    if options.single_attribute_per_line && attr_count > 1 {
+        return false;
+    }
     // An element that cannot print flat breaks its own open tag, and prettier
-    // propagates that break to the whole children run.
+    // propagates that break to the whole children run. This is a source-width
+    // test: it does not model an attribute value that the JS printer expands on
+    // its own (a non-empty block statement in a handler), which stays flat here
+    // and breaks later.
     let flat = source.get(start as usize..end as usize).unwrap_or("");
-    !flat.contains('\n') && indent_width + flat.chars().count() <= line_width
+    let line_width = options.js.line_width.value() as usize;
+    !flat.contains('\n') && indent_width + flat.width() <= line_width
 }
 
 fn is_indent_provoking(node: &TemplateNode) -> bool {
