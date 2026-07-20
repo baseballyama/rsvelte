@@ -4903,7 +4903,15 @@ fn try_children_port(
         .any(|n| matches!(n, TemplateNode::Text(_)));
     // The element-only run is additionally barred inside `<pre>` content, where
     // prettier's `isPreTagContent` suppresses element layout entirely.
-    if !has_non_text || (!has_prose_word && (has_any_text || in_pre_content())) {
+    // A run of flow blocks separated only by whitespace (`<svg>` wrapping a lone
+    // `{#if}`) has no prose for the fill path to own either.
+    let block_run = has_any_text
+        && fragment.nodes.iter().all(|n| match n {
+            TemplateNode::Text(t) => t.data.split_whitespace().next().is_none(),
+            TemplateNode::IfBlock(_) => true,
+            _ => false,
+        });
+    if !has_non_text || (!has_prose_word && ((has_any_text && !block_run) || in_pre_content())) {
         return None;
     }
 
