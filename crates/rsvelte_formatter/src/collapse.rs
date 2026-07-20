@@ -432,6 +432,12 @@ fn reformat_pre_inner(
     let inner_end = elem.start as usize + close_rel;
     let raw_inner = out.get(inner_start..inner_end)?;
 
+    // Element-direct whitespace inside `<pre>` is preserved verbatim by oxfmt, so
+    // it only becomes tabs when the SOURCE indented with tabs. A `<pre>` whose
+    // body is space-indented keeps spaces throughout (block-tag lines included),
+    // so don't regenerate its element-direct lines as tabs.
+    let pre_uses_tabs = raw_inner.lines().any(|l| l.starts_with('\t'));
+
     let iw = options.js.indent_width.value() as usize;
     let full_width = options.js.line_width.value() as usize;
     // Format the children standalone, but narrowed so a depth-0 layout matches the
@@ -549,7 +555,7 @@ fn reformat_pre_inner(
             if !trimmed.is_empty() {
                 let spaces = line.len() - trimmed.len();
                 let real_depth = spaces / iw + content_depth;
-                if tab_lines.contains(&offset) {
+                if pre_uses_tabs && tab_lines.contains(&offset) {
                     for _ in 0..real_depth {
                         result.push('\t');
                     }
@@ -569,8 +575,14 @@ fn reformat_pre_inner(
     // follows on the same line — no trailing `\n<indent>` needed.
     if !hugged {
         result.push('\n');
-        for _ in 0..content_depth.saturating_sub(1) {
-            result.push('\t');
+        if pre_uses_tabs {
+            for _ in 0..content_depth.saturating_sub(1) {
+                result.push('\t');
+            }
+        } else {
+            for _ in 0..content_depth.saturating_sub(1) * iw {
+                result.push(' ');
+            }
         }
     }
 
