@@ -687,6 +687,36 @@ mod tests {
         })
     }
 
+    fn self_closing_el(name: &str, attrs: Vec<&str>) -> Doc {
+        let mut parts = Vec::new();
+        for a in attrs {
+            parts.push(Doc::Line);
+            parts.push(Doc::Text(a.to_string()));
+        }
+        build_element_doc(ElementLayout {
+            name: name.to_string(),
+            attrs: Doc::Concat(parts),
+            children: Vec::new(),
+            is_inline: true,
+            self_closing: true,
+        })
+    }
+
+    #[test]
+    fn self_closing_element_keeps_its_slash_flat() {
+        // The `line` trailer is the space in `<path … />`; a softline would emit
+        // `<path …/>`, one byte off the oracle.
+        let doc = self_closing_el("path", vec![r#"d="M1 2""#]);
+        assert_eq!(render_el(doc, 80), r#"<path d="M1 2" />"#);
+    }
+
+    #[test]
+    fn self_closing_element_breaks_attrs_and_dedents_slash() {
+        let doc = self_closing_el("path", vec![r#"fill-rule="evenodd""#, r#"d="M1 2""#]);
+        let expected = "<path\n  fill-rule=\"evenodd\"\n  d=\"M1 2\"\n/>";
+        assert_eq!(render_el(doc, 24), expected);
+    }
+
     #[test]
     fn inline_element_hugs_text_on_one_line() {
         // <a>here</a> — inline, no surrounding whitespace → hug both.
