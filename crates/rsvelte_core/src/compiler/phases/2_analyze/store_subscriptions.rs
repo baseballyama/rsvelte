@@ -534,6 +534,10 @@ fn arrow_body_range(chars: &[char], from: usize) -> (usize, usize) {
     (s, m)
 }
 
+fn is_js_whitespace(c: char) -> bool {
+    matches!(c, ' ' | '\t' | '\n' | '\r')
+}
+
 /// If the `$xxx` ident at `[ident_start, ident_end)` is a function/arrow
 /// parameter (including inside array/object destructuring), return the char-index
 /// range `[start, end)` of that arrow's BODY — the lexical scope in which the
@@ -547,9 +551,10 @@ fn dollar_param_body_range(
 ) -> Option<(usize, usize)> {
     let len = chars.len();
 
-    // Skip whitespace after the ident.
+    // Skip whitespace after the ident. Newlines count: a destructured param list
+    // often spans multiple lines (`([\n\t$a,\n\t$b\n]) => …`).
     let mut j = ident_end;
-    while j < len && (chars[j] == ' ' || chars[j] == '\t') {
+    while j < len && is_js_whitespace(chars[j]) {
         j += 1;
     }
 
@@ -563,7 +568,7 @@ fn dollar_param_body_range(
     // by one of `) , ] }`, and the enclosing `(...)` is followed by `=>`.
     if ident_start > 0 {
         let mut k = ident_start as isize - 1;
-        while k >= 0 && (chars[k as usize] == ' ' || chars[k as usize] == '\t') {
+        while k >= 0 && is_js_whitespace(chars[k as usize]) {
             k -= 1;
         }
         let preceded_ok = k >= 0 && matches!(chars[k as usize], '(' | ',' | '[' | '{');
@@ -579,7 +584,7 @@ fn dollar_param_body_range(
                     ')' => {
                         if paren_depth == 0 {
                             let mut n = m + 1;
-                            while n < len && (chars[n] == ' ' || chars[n] == '\t') {
+                            while n < len && is_js_whitespace(chars[n]) {
                                 n += 1;
                             }
                             if n + 1 < len && chars[n] == '=' && chars[n + 1] == '>' {
@@ -627,11 +632,14 @@ fn is_dollar_ident_object_property_key(
             return false;
         }
         // Exclude a ternary consequent: `cond ? $x : y`. Walk back over
-        // whitespace (incl. newlines, for multi-line ternaries) from the
+        // whitespace (incl. newlines, for multi-line ternaries) and any leading
+        // unary-only prefix operators (`!`/`~`, e.g. `cond ? !$x : y`) from the
         // identifier; a leading `?` means this is the `then` branch of a
         // conditional expression, not a property key.
         let mut k = ident_start as isize - 1;
-        while k >= 0 && chars[k as usize].is_whitespace() {
+        while k >= 0
+            && (chars[k as usize].is_whitespace() || matches!(chars[k as usize], '!' | '~'))
+        {
             k -= 1;
         }
         if k >= 0 && chars[k as usize] == '?' {
@@ -1476,6 +1484,61 @@ mod tests {
                 "$y".to_string(),
                 "$x".to_string(),
             ],
+        );
+    }
+
+    /// A `$name` destructuring parameter spread across multiple lines
+    /// (`derived([...], ([\n  $a,\n  $b\n]) => …)`) is a local binding, not a
+    /// store subscription — the same as the single-line `([$a]) =>` case. The
+    /// param whitespace scan must skip newlines to recognize it (LayerCake's
+    /// `extents_d` derived). The param name (and body references that resolve to
+    /// it) must never surface as a top-level subscription.
+    #[test]
+    fn test_multiline_destructure_params_not_store_subs() {
+        let source = r#"<script>
+    import { derived, writable } from 'svelte/store';
+    export let flatData = [];
+    export let xDomain = undefined;
+    const _a = writable(1);
+    const extents_d = derived(
+        [_a],
+        ([
+            $flatData,
+            $xDomain
+        ]) => {
+            return [$flatData, $xDomain];
+        }
+    );
+</script>
+<p>{$extents_d}</p>
+"#;
+        let order = store_sub_order(source);
+        assert!(
+            !order.contains(&"$flatData".to_string()),
+            "`$flatData` is only a multi-line destructuring param: {order:?}"
+        );
+        assert!(
+            !order.contains(&"$xDomain".to_string()),
+            "`$xDomain` is only a multi-line destructuring param: {order:?}"
+        );
+        assert!(order.contains(&"$extents_d".to_string()));
+    }
+
+    /// A store in a ternary consequent behind a unary operator
+    /// (`cond ? !$store : y`) must be detected — the `!` must not stop the
+    /// ternary-consequent exclusion so that `$store :` is misread as a property
+    /// key (svelte-ux `AppLayout`: `$: x = BROWSER ? !$mdScreen : false`).
+    #[test]
+    fn test_ternary_consequent_unary_store_subscription_detected() {
+        let source = r#"<script>
+    import { mdScreen } from 'x';
+    $: temporaryDrawer = true ? !$mdScreen : false;
+</script>
+<p>{temporaryDrawer}</p>
+"#;
+        assert!(
+            store_sub_order(source).contains(&"$mdScreen".to_string()),
+            "ternary consequent `? !$mdScreen :` should be detected as a store"
         );
     }
 
