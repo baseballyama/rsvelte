@@ -4,8 +4,6 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/EachBlock.js`.
 
-use indexmap::IndexSet;
-
 use super::super::{AnalysisError, Binding, BindingKind, errors};
 use super::shared::fragment;
 use super::shared::utils::{
@@ -342,7 +340,7 @@ fn walk_expression_children_refs_only(node: &serde_json::Value, context: &mut Vi
 fn collect_transitive_dependencies_impl(
     binding_idx: usize,
     bindings: &[Binding],
-    deps: &mut IndexSet<usize>,
+    deps: &mut crate::ast::template::BindingIndexSet,
 ) {
     if deps.contains(&binding_idx) {
         return;
