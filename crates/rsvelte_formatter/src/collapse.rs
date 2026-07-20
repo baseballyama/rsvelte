@@ -453,7 +453,8 @@ fn reformat_pre_inner(
         .max(20);
     let mut sub_opts = options.clone();
     sub_opts.js.line_width = oxc_formatter_core::LineWidth::try_from(narrowed as u16).ok()?;
-    let formatted = crate::format(raw_inner.trim_matches(['\n', '\r']), &sub_opts).ok()?;
+    let formatted =
+        with_pre_content(|| crate::format(raw_inner.trim_matches(['\n', '\r']), &sub_opts)).ok()?;
     let formatted = formatted.trim_end_matches('\n');
     if formatted.is_empty() {
         return None;
@@ -3134,6 +3135,25 @@ fn is_block_display(tag: &str) -> bool {
     crate::markup::is_html_block_display_element(tag)
 }
 
+thread_local! {
+    /// Set while [`reformat_pre_inner`] re-enters [`crate::format`] on a `<pre>`
+    /// body. The sub-document has no `<pre>` ancestor of its own, so passes that
+    /// must honour prettier's `isPreTagContent` read this instead.
+    static IN_PRE_CONTENT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+fn in_pre_content() -> bool {
+    IN_PRE_CONTENT.with(std::cell::Cell::get)
+}
+
+/// Run `f` with [`IN_PRE_CONTENT`] set, restoring the previous value afterwards.
+fn with_pre_content<T>(f: impl FnOnce() -> T) -> T {
+    let prev = IN_PRE_CONTENT.replace(true);
+    let out = f();
+    IN_PRE_CONTENT.set(prev);
+    out
+}
+
 fn is_whitespace_preserving(tag: &str) -> bool {
     // `pre` / `textarea` preserve whitespace; `script` / `style` carry raw
     // JS/CSS already formatted by their dedicated passes (oxfmt). None of these
@@ -4723,13 +4743,16 @@ fn try_children_port(
     let (s, ee) = (start as usize, end as usize);
     let whole = out.get(s..ee)?;
 
-    // Gate: at least one prose text word AND at least one non-text child (mixed
-    // content). Pure-text elements are `try_collapse`'s job. (A pure-text inline
-    // element with an overflowing open tag — `<a href="…long…">REPL</a>` — was
-    // tried as "cut 4" but cleared 0 corpus files: every close-`>` cluster file is
-    // multi-diff and also needs element-only + close-`>` + expression fixes, so the
-    // gate stays at mixed content.) Per-child convertibility is enforced by
-    // `node_to_child` in the build loop below.
+    // Gate: at least one non-text child, plus EITHER at least one prose text word
+    // (mixed content) OR no text nodes at all (an element-only children run such as
+    // `<a><span>…</span><span>…</span></a>`). Pure-text elements are
+    // `try_collapse`'s job, and the in-between shape — element children separated by
+    // whitespace-only text — stays out because its separator handling is the
+    // `try_fill_mixed` prose path. (A pure-text inline element with an overflowing
+    // open tag — `<a href="…long…">REPL</a>` — was tried as "cut 4" but cleared 0
+    // corpus files: every close-`>` cluster file is multi-diff and also needs
+    // element-only + close-`>` + expression fixes.) Per-child convertibility is
+    // enforced by `node_to_child` in the build loop below.
     let has_prose_word = fragment
         .nodes
         .iter()
@@ -4738,7 +4761,13 @@ fn try_children_port(
         .nodes
         .iter()
         .any(|n| !matches!(n, TemplateNode::Text(_)));
-    if !has_prose_word || !has_non_text {
+    let has_any_text = fragment
+        .nodes
+        .iter()
+        .any(|n| matches!(n, TemplateNode::Text(_)));
+    // The element-only run is additionally barred inside `<pre>` content, where
+    // prettier's `isPreTagContent` suppresses element layout entirely.
+    if !has_non_text || (!has_prose_word && (has_any_text || in_pre_content())) {
         return None;
     }
 
