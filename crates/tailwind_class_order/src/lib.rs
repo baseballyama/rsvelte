@@ -5,7 +5,7 @@
 //! `getClassOrder`) produces for a project using the stock, zero-config
 //! Tailwind setup (`@import "tailwindcss";` with no `@plugin`, no custom
 //! `@utility`, and only the default theme). It intentionally does **not**
-//! run any Tailwind/JS engine — it sorts from three embedded tables that were
+//! run any Tailwind/JS engine — it sorts from embedded tables that were
 //! extracted once from the real engine (see `README.md` and `data/`).
 //!
 //! # Scope
@@ -13,7 +13,9 @@
 //! Faithful for: named default utilities (incl. negatives, `/opacity`
 //! modifiers, `!important`), the default variants (pseudo-classes, responsive
 //! breakpoints, `dark`, `group-*`/`peer-*`/`data-*`/`aria-*`/`has-*` families,
-//! arbitrary `[&…]` variants), and arbitrary *values* (`w-[10px]`).
+//! arbitrary `[&…]` variants) including within-family value ordering and
+//! container-query sizes, arbitrary properties (`[content-visibility:auto]`),
+//! and arbitrary *values* (`w-[10px]`, `text-[#fff]`).
 //!
 //! Out of scope (returns the class as "unknown", preserved first, exactly as
 //! the default-config engine also would): anything introduced by a JS
@@ -346,7 +348,7 @@ fn base_order(base: &str, t: &Tables) -> Option<BaseOrder> {
 /// sibling whose name still sorts before it, else the first sibling. For a root
 /// whose siblings mix color and non-color members (`text-red-500` vs `text-sm`),
 /// the candidate is matched only against siblings of its own kind, so an
-/// arbitrary value lands in the correct CSS-property cluster.
+/// arbitrary value lands in the correct color / non-color cluster.
 fn place_among_siblings(stem: &str, t: &Tables) -> Option<u32> {
     let bracket = stem.find("-[").or_else(|| stem.find("-("));
     let root = utility_root(bracket.map_or(stem, |b| &stem[..b]));
