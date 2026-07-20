@@ -14,7 +14,7 @@ compiler-behaviour gap; attempts to fix them are regression-prone against the
 8000+ passing entries (several have been reverted after wide blowups), so they are
 accepted until an upstream-faithful port lands.
 
-## Client (`known-failures.client.json`, 10 entries)
+## Client (`known-failures.client.json`, 9 entries)
 
 - **`layercake/.../LayerCake.svelte`** — store-getter declaration **ordering**
   (`const $X = () => $.store_get(...)`) differs, plus a derived store called as
@@ -37,9 +37,6 @@ accepted until an upstream-faithful port lands.
   rsvelte keeps them. Caused by child-component elements + `{...restProps}` spread
   over-matching (`attribute_matches` returns true on any spread). High CSS-fixture
   regression risk.
-- **`svelte-table/example/Example2.svelte`** — `?? ''` wrongly added to a
-  `${cond ? … : ""}` whose branches are all strings; a legacy `let iconAsc = "↑"`
-  (string-literal init) is not treated as defined.
 - **`svelte-table/src/SvelteTable.svelte`** — two `$.get(col)` reads for each-item
   `col` missing inside `$.invalidate_inner_signals` (from a `bind:value` key
   `filterSelections()[col.key]`). The exact condition making `col` reactive is

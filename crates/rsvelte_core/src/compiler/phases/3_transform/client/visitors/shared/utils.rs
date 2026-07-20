@@ -3476,7 +3476,7 @@ pub fn build_template_chunk(
                         }
                     } else {
                         // Value was transformed. Check the built expression.
-                        is_js_expr_defined(&value, &context.arena)
+                        is_js_expr_defined(&value, &context.arena, context)
                     };
 
                     // Add ?? '' where necessary (only if not guaranteed to be defined)
@@ -4263,13 +4263,20 @@ fn is_known_defined_global_call(keypath: &str) -> bool {
 pub(crate) fn is_js_expr_defined(
     expr: &JsExpr,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    context: &ComponentContext,
 ) -> bool {
     match expr {
         JsExpr::Literal(lit) => match lit {
             JsLiteral::Null | JsLiteral::Undefined => false,
             _ => true, // String, Number, Boolean are always defined
         },
-        JsExpr::Identifier(_) => false, // Could be undefined
+        // Upstream `scope.evaluate` resolves identifiers through the scope even
+        // on the built (transformed) AST: a non-reactive binding that survives
+        // transformation as a bare identifier (reactive reads become `$.get(x)`
+        // CallExpressions instead) still resolves to its binding's evaluation.
+        // Mirror that so e.g. `cond ? iconAsc : iconDesc` (legacy string lets)
+        // reads bare. Synthetic memo ids (`$0`) have no binding → false.
+        JsExpr::Identifier(name) => identifier_is_defined(name, context),
         JsExpr::Call(call) => {
             // Upstream `scope.evaluate` knows the global `Math.*` / `Number` /
             // `Number.*` / `String` / `String.from*` / `BigInt` functions return
@@ -4286,12 +4293,12 @@ pub(crate) fn is_js_expr_defined(
         JsExpr::Unary(u) => !matches!(u.operator, JsUnaryOp::Void),
         JsExpr::Logical(log) => {
             // Check both sides
-            is_js_expr_defined(arena.get_expr(log.left), arena)
-                && is_js_expr_defined(arena.get_expr(log.right), arena)
+            is_js_expr_defined(arena.get_expr(log.left), arena, context)
+                && is_js_expr_defined(arena.get_expr(log.right), arena, context)
         }
         JsExpr::Conditional(cond) => {
-            is_js_expr_defined(arena.get_expr(cond.consequent), arena)
-                && is_js_expr_defined(arena.get_expr(cond.alternate), arena)
+            is_js_expr_defined(arena.get_expr(cond.consequent), arena, context)
+                && is_js_expr_defined(arena.get_expr(cond.alternate), arena, context)
         }
         JsExpr::Raw(s) => {
             // Raw expressions that are string/number literals are defined.
@@ -4307,10 +4314,123 @@ pub(crate) fn is_js_expr_defined(
             // A sequence expression evaluates to its last element
             seq.expressions
                 .last()
-                .is_some_and(|e| is_js_expr_defined(e, arena))
+                .is_some_and(|e| is_js_expr_defined(e, arena, context))
         }
         _ => false,
     }
+}
+
+/// Resolve a bare identifier to its binding and decide whether upstream's
+/// `scope.evaluate(<identifier>).is_defined` would hold. Shared by the
+/// original-expression path (`is_expression_defined_json`) and the
+/// transformed-value path (`is_js_expr_defined`): upstream's `scope.evaluate`
+/// resolves identifiers through the scope in BOTH cases, so a non-reactive
+/// binding that survives transformation as a bare identifier (e.g. a legacy
+/// `let iconAsc = "↑"` inside a `cond ? iconAsc : iconDesc`) must resolve the
+/// same way whether it appears at the top level or nested in a built expression.
+fn identifier_is_defined(name: &str, context: &ComponentContext) -> bool {
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+    // Special identifiers
+    if name == "undefined" {
+        return false;
+    }
+
+    // First, check if there's a transform with is_defined flag
+    // This is how we track EachIndex within each block scope
+    if let Some(transform) = context.state.transform.get(name)
+        && transform.is_defined
+    {
+        return true;
+    }
+
+    // `const uid = $props.id()` always evaluates to a string.
+    // Upstream's scope.evaluate resolves the const binding's initial
+    // `$props.id()` to STRING (scope.js `case '$props.id'`), so
+    // `is_defined` is true and no `?? ''` is appended.
+    if context.state.analysis.props_id.as_deref() == Some(name) {
+        return true;
+    }
+
+    // Check the binding
+    if let Some(binding) = context.state.get_binding(name) {
+        // EachIndex is always a number, never null/undefined
+        if matches!(binding.kind, BindingKind::EachIndex) {
+            return true;
+        }
+        // A template-scoped DeclarationTag / ConstTag binding
+        // (`{const after_async = number + 1}`) is defined when its
+        // initializer is a statically-non-nullish shape. Upstream's
+        // `is_defined` walks `binding.initial`; mirror that with the
+        // recorded `initial_node_type` so e.g. `after_async`
+        // (BinaryExpression) reads bare while `number`
+        // (AwaitExpression) keeps `?? ''`.
+        if matches!(binding.kind, BindingKind::Template)
+            && binding.initial_is_defined
+            && let Some(ref ity) = binding.initial_node_type
+            && matches!(
+                ity.as_str(),
+                "BinaryExpression"
+                    | "UpdateExpression"
+                    | "ArrayExpression"
+                    | "ObjectExpression"
+                    | "TemplateLiteral"
+            )
+        {
+            return true;
+        }
+        // For Normal const bindings with defined initial value
+        if matches!(binding.kind, BindingKind::Normal)
+            && !binding.reassigned
+            && matches!(
+                binding.declaration_kind,
+                crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Const
+            )
+            && binding.initial_is_defined
+        {
+            return true;
+        }
+
+        // For a Normal binding (any `let`/`var`/`const`) whose
+        // initializer is a `BinaryExpression` (`a + b`) or a
+        // `TemplateLiteral` — the only two non-mutable shapes upstream
+        // `scope.evaluate` types as a definite STRING/NUMBER (never
+        // null/undefined), so `is_defined` holds and no `?? ''` is
+        // added. (Notably NOT `UpdateExpression`: upstream's evaluate
+        // has no case for it, so `x++` falls through to UNKNOWN and
+        // keeps its `?? ''`.) A primitive result cannot be turned
+        // nullish by a later in-place mutation, so only reassignment
+        // (`!reassigned`) can invalidate it. Uses the recorded init
+        // node TYPE directly rather than the `initial_is_defined`
+        // flag, which is not populated for legacy (non-runes) `let`
+        // bindings. Fixes e.g. `let key = a.charAt(0) + a.slice(1)`
+        // reading bare.
+        if matches!(binding.kind, BindingKind::Normal)
+            && !binding.reassigned
+            && binding
+                .initial_node_type
+                .as_deref()
+                .is_some_and(|t| matches!(t, "BinaryExpression" | "TemplateLiteral"))
+        {
+            return true;
+        }
+
+        // A non-updated `let`/`var`/`const x = <primitive literal>`
+        // (e.g. legacy `let iconAsc = "↑"`): upstream's scope.evaluate
+        // resolves the binding's Literal initial to a defined primitive
+        // (`!binding.updated && binding.initial !== null && !is_prop`),
+        // so a template `${x}` reads bare. Only a `null` literal is
+        // undefined (`undefined` is an Identifier, handled above).
+        if matches!(binding.kind, BindingKind::Normal)
+            && !binding.is_updated()
+            && binding.initial_node_type.as_deref() == Some("Literal")
+            && binding.initial.as_deref() != Some("null")
+            && binding.initial.is_some()
+        {
+            return true;
+        }
+    }
+    false
 }
 
 /// Check if an expression is guaranteed to be defined (non-null/undefined).
@@ -4330,8 +4450,6 @@ pub(crate) fn is_expression_defined(
 
 /// Internal helper for checking if a JSON expression is defined.
 fn is_expression_defined_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
-    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-
     let Some(obj) = json_value.as_object() else {
         return false;
     };
@@ -4340,95 +4458,10 @@ fn is_expression_defined_json(json_value: &serde_json::Value, context: &Componen
     };
 
     match expr_type {
-        "Identifier" => {
-            if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                // Special identifiers
-                if name == "undefined" {
-                    return false;
-                }
-
-                // First, check if there's a transform with is_defined flag
-                // This is how we track EachIndex within each block scope
-                if let Some(transform) = context.state.transform.get(name)
-                    && transform.is_defined
-                {
-                    return true;
-                }
-
-                // `const uid = $props.id()` always evaluates to a string.
-                // Upstream's scope.evaluate resolves the const binding's initial
-                // `$props.id()` to STRING (scope.js `case '$props.id'`), so
-                // `is_defined` is true and no `?? ''` is appended.
-                if context.state.analysis.props_id.as_deref() == Some(name) {
-                    return true;
-                }
-
-                // Check the binding
-                if let Some(binding) = context.state.get_binding(name) {
-                    // EachIndex is always a number, never null/undefined
-                    if matches!(binding.kind, BindingKind::EachIndex) {
-                        return true;
-                    }
-                    // A template-scoped DeclarationTag / ConstTag binding
-                    // (`{const after_async = number + 1}`) is defined when its
-                    // initializer is a statically-non-nullish shape. Upstream's
-                    // `is_defined` walks `binding.initial`; mirror that with the
-                    // recorded `initial_node_type` so e.g. `after_async`
-                    // (BinaryExpression) reads bare while `number`
-                    // (AwaitExpression) keeps `?? ''`.
-                    if matches!(binding.kind, BindingKind::Template)
-                        && binding.initial_is_defined
-                        && let Some(ref ity) = binding.initial_node_type
-                        && matches!(
-                            ity.as_str(),
-                            "BinaryExpression"
-                                | "UpdateExpression"
-                                | "ArrayExpression"
-                                | "ObjectExpression"
-                                | "TemplateLiteral"
-                        )
-                    {
-                        return true;
-                    }
-                    // For Normal const bindings with defined initial value
-                    if matches!(binding.kind, BindingKind::Normal)
-                        && !binding.reassigned
-                        && matches!(
-                            binding.declaration_kind,
-                            crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Const
-                        )
-                        && binding.initial_is_defined
-                    {
-                        return true;
-                    }
-
-                    // For a Normal binding (any `let`/`var`/`const`) whose
-                    // initializer is a `BinaryExpression` (`a + b`) or a
-                    // `TemplateLiteral` — the only two non-mutable shapes upstream
-                    // `scope.evaluate` types as a definite STRING/NUMBER (never
-                    // null/undefined), so `is_defined` holds and no `?? ''` is
-                    // added. (Notably NOT `UpdateExpression`: upstream's evaluate
-                    // has no case for it, so `x++` falls through to UNKNOWN and
-                    // keeps its `?? ''`.) A primitive result cannot be turned
-                    // nullish by a later in-place mutation, so only reassignment
-                    // (`!reassigned`) can invalidate it. Uses the recorded init
-                    // node TYPE directly rather than the `initial_is_defined`
-                    // flag, which is not populated for legacy (non-runes) `let`
-                    // bindings. Fixes e.g. `let key = a.charAt(0) + a.slice(1)`
-                    // reading bare.
-                    if matches!(binding.kind, BindingKind::Normal)
-                        && !binding.reassigned
-                        && binding
-                            .initial_node_type
-                            .as_deref()
-                            .is_some_and(|t| matches!(t, "BinaryExpression" | "TemplateLiteral"))
-                    {
-                        return true;
-                    }
-                }
-            }
-            false
-        }
+        "Identifier" => obj
+            .get("name")
+            .and_then(|v| v.as_str())
+            .is_some_and(|name| identifier_is_defined(name, context)),
         "Literal" => {
             // Literals are defined unless they're null/undefined
             if let Some(value) = obj.get("value") {
@@ -4940,14 +4973,6 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                                 crate::compiler::phases::phase2_analyze::scope::BindingKind::Template
                             )
                         {
-                            // A function-valued `{@const}` (`{@const f = (e) => …}`)
-                            // mirrors upstream's `!binding.is_function()` term in
-                            // Identifier.js: reading it is not reactive state, so a
-                            // component prop `onclick={f}` is emitted as a plain
-                            // `onclick: $.get(f)` value rather than a getter.
-                            if binding.is_function() {
-                                return false;
-                            }
                             if let Some(ref initial_str) = binding.initial
                                 && let Ok(initial_json) =
                                     serde_json::from_str::<serde_json::Value>(initial_str)
@@ -5030,12 +5055,6 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                     // E.g., `@const bar = 'world'` → is_known=true (non-reactive)
                     //        `@const doubled = count * 2` → is_known depends on `count`
                     if matches!(binding.kind, BindingKind::Template) {
-                        // Function-valued `{@const}` mirrors upstream's
-                        // `!binding.is_function()` term (see the Template branch
-                        // above): a read of it is not reactive state.
-                        if binding.is_function() {
-                            return false;
-                        }
                         if let Some(ref initial_str) = binding.initial
                             && let Ok(initial_json) =
                                 serde_json::from_str::<serde_json::Value>(initial_str)
@@ -6308,14 +6327,8 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
             false
         }
 
-        // Arrow/function expressions are NOT "known" in the scope.evaluate sense:
-        // upstream evaluates them to the `FUNCTION` symbol, and a symbol value
-        // forces `is_known = false` (scope.js). So a `$derived(() => …)` (a
-        // function-valued derived) stays reactive — its prop must be emitted as a
-        // getter, not inlined by value. A plain `const fn = () => {}` reference is
-        // handled separately by the `binding.is_function()` fast-path above and
-        // never reaches here.
-        "ArrowFunctionExpression" | "FunctionExpression" => false,
+        // Arrow/function expressions are "known" (they evaluate to a function)
+        "ArrowFunctionExpression" | "FunctionExpression" => true,
 
         // Member expressions are generally not known, EXCEPT a non-computed
         // member of a pure global namespace whose members are compile-time
