@@ -389,6 +389,9 @@ pub(crate) struct ElementLayout {
     pub children: Vec<Child>,
     /// `isInlineElement(node)` — a `RegularElement` whose name is not block.
     pub is_inline: bool,
+    /// The non-`isEmpty` half of prettier's `isSelfClosingTag`: the source closed
+    /// the tag itself (`didSelfClose`) or the name is in `selfClosingTags`.
+    pub self_closing: bool,
 }
 
 /// Build the Doc for a regular element, porting the element case of
@@ -403,11 +406,25 @@ pub(crate) fn build_element_doc(el: ElementLayout) -> Doc {
         attrs,
         children,
         is_inline,
+        self_closing,
     } = el;
 
     let is_empty = children
         .iter()
         .all(|c| matches!(c.text(), Some(t) if is_empty_raw(t)));
+
+    // isSelfClosingTag — returns before any hug decision, so `<path … />` keeps
+    // its own `/>` instead of being rebuilt as an open/close pair. The trailing
+    // separator is `dedent(line)`, not softline: flat, that space is the one in
+    // `<path … />`.
+    if is_empty && self_closing {
+        return Doc::Group(vec![
+            Doc::Text(format!("<{name}")),
+            Doc::Indent(vec![Doc::Group(vec![attrs, Doc::Dedent(vec![Doc::Line])])]),
+            Doc::Text("/>".into()),
+        ]);
+    }
+
     let hug_start = should_hug_start(is_inline, &children);
     let hug_end = should_hug_end(is_inline, &children);
 
@@ -666,7 +683,38 @@ mod tests {
             attrs: Doc::Text(String::new()),
             children,
             is_inline,
+            self_closing: false,
         })
+    }
+
+    fn self_closing_el(name: &str, attrs: Vec<&str>) -> Doc {
+        let mut parts = Vec::new();
+        for a in attrs {
+            parts.push(Doc::Line);
+            parts.push(Doc::Text(a.to_string()));
+        }
+        build_element_doc(ElementLayout {
+            name: name.to_string(),
+            attrs: Doc::Concat(parts),
+            children: Vec::new(),
+            is_inline: true,
+            self_closing: true,
+        })
+    }
+
+    #[test]
+    fn self_closing_element_keeps_its_slash_flat() {
+        // The `line` trailer is the space in `<path … />`; a softline would emit
+        // `<path …/>`, one byte off the oracle.
+        let doc = self_closing_el("path", vec![r#"d="M1 2""#]);
+        assert_eq!(render_el(doc, 80), r#"<path d="M1 2" />"#);
+    }
+
+    #[test]
+    fn self_closing_element_breaks_attrs_and_dedents_slash() {
+        let doc = self_closing_el("path", vec![r#"fill-rule="evenodd""#, r#"d="M1 2""#]);
+        let expected = "<path\n  fill-rule=\"evenodd\"\n  d=\"M1 2\"\n/>";
+        assert_eq!(render_el(doc, 24), expected);
     }
 
     #[test]
@@ -733,6 +781,7 @@ mod tests {
                 Child::Text(" Only show states starting with 'T'".into()),
             ],
             is_inline: true,
+            self_closing: false,
         });
         let expected = "<label class=\"rounded p-1\"\n  ><input type=\"checkbox\" bind:checked={filterStates} /> Only show states starting\n  with 'T'</label\n>";
         assert_eq!(render_el(doc, 80), expected);
@@ -755,6 +804,7 @@ mod tests {
                 Child::Text(" no rows to display".into()),
             ],
             is_inline: false,
+            self_closing: false,
         });
         let printed = print(propagate_breaks(doc), 80, "  ", 1, 2);
         let expected = "<div slot=\"noResults\">\n    This is a custom text that<br /> will be shown when there are<br /> no rows to\n    display\n  </div>";
@@ -780,6 +830,7 @@ mod tests {
                 Child::Other(Doc::Text("{item.time_ago}".into())),
             ],
             is_inline: false,
+            self_closing: false,
         });
         // Nested one level (p at indent 2 → content indent 4).
         let printed = print(propagate_breaks(doc), 80, "  ", 1, 2);
@@ -805,6 +856,7 @@ mod tests {
             ]),
             children: vec![Child::Text("Sapper".into())],
             is_inline: true,
+            self_closing: false,
         });
         let strong = build_element_doc(ElementLayout {
             name: "strong".into(),
@@ -815,6 +867,7 @@ mod tests {
                 Child::Text(" user:".into()),
             ],
             is_inline: true,
+            self_closing: false,
         });
         let printed = print(propagate_breaks(strong), 80, "  ", 1, 2);
         let expected = "<strong\n    >Notice for <a href=\"https://sapper.svelte.dev/\" target=\"_blank\">Sapper</a> user:</strong\n  >";
@@ -837,6 +890,7 @@ mod tests {
             ]),
             children: vec![Child::Text("Sapper".into())],
             is_inline: true,
+            self_closing: false,
         });
         let strong = build_element_doc(ElementLayout {
             name: "strong".into(),
@@ -847,6 +901,7 @@ mod tests {
                 Child::Text(" user:".into()),
             ],
             is_inline: true,
+            self_closing: false,
         });
         let div = build_element_doc(ElementLayout {
             name: "div".into(),
@@ -859,6 +914,7 @@ mod tests {
                 Child::Text(" You may need to install the component as a devDependency:".into()),
             ],
             is_inline: false,
+            self_closing: false,
         });
         let printed = print(propagate_breaks(div), 80, "  ", 0, 0);
         let expected = "<div class=\"shadow-sm p-3 mb-3 rounded\">\n  <strong\n    >Notice for <a href=\"https://sapper.svelte.dev/\" target=\"_blank\">Sapper</a> user:</strong\n  > You may need to install the component as a devDependency:\n</div>";

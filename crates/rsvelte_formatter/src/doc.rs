@@ -82,7 +82,7 @@ pub(crate) fn print(
     while let Some((ind, mode, d)) = cmds.pop() {
         match d {
             Doc::Text(s) => {
-                pos += s.width();
+                pos += text_width(&s);
                 out.push_str(&s);
             }
             Doc::Concat(ps) => {
@@ -112,9 +112,7 @@ pub(crate) fn print(
                 } else {
                     trim_trailing_blanks(&mut out);
                     out.push('\n');
-                    let pad = unit.repeat(ind);
-                    out.push_str(&pad);
-                    pos = pad.width();
+                    pos = push_indent(&mut out, unit, ind);
                 }
             }
             Doc::Literalline => {
@@ -125,21 +123,20 @@ pub(crate) fn print(
             }
             Doc::RawExpr { flat, broken } => {
                 if mode == Mode::Flat || broken.len() <= 1 {
-                    pos += flat.width();
+                    pos += text_width(&flat);
                     out.push_str(&flat);
                 } else {
-                    let pad = unit.repeat(ind);
                     let mut lines = broken.into_iter();
                     if let Some(first) = lines.next() {
-                        pos += first.width();
+                        pos += text_width(&first);
                         out.push_str(&first);
                     }
                     for line in lines {
                         trim_trailing_blanks(&mut out);
                         out.push('\n');
-                        out.push_str(&pad);
+                        let pad_width = push_indent(&mut out, unit, ind);
                         out.push_str(&line);
-                        pos = pad.width() + line.width();
+                        pos = pad_width + text_width(&line);
                     }
                 }
             }
@@ -161,43 +158,31 @@ pub(crate) fn print(
                 if ps.is_empty() {
                     continue;
                 }
-                let content = ps[0].clone();
                 // Fill measures locally (a content item / a content–sep–content
                 // pair), NOT the whole rest of the document — otherwise a large
                 // sibling after the fill (an element) would make every word
-                // "not fit" and break the prose one word per line.
-                let content_fits = fits(
-                    width as isize - pos as isize,
-                    &[],
-                    std::slice::from_ref(&content),
-                );
-                if ps.len() == 1 {
+                // "not fit" and break the prose one word per line. Both
+                // measurements borrow from `ps`, so the items are only moved out
+                // afterwards.
+                let remaining = width as isize - pos as isize;
+                let content_fits = fits(remaining, &[], &ps[..1]);
+                if ps.len() <= 2 {
                     let m = if content_fits {
                         Mode::Flat
                     } else {
                         Mode::Break
                     };
-                    cmds.push((ind, m, content));
+                    for p in ps.into_iter().rev() {
+                        cmds.push((ind, m, p));
+                    }
                     continue;
                 }
-                let ws = ps[1].clone();
-                if ps.len() == 2 {
-                    let m = if content_fits {
-                        Mode::Flat
-                    } else {
-                        Mode::Break
-                    };
-                    cmds.push((ind, m, ws));
-                    cmds.push((ind, m, content));
-                    continue;
-                }
+                // The content–separator–content triple is contiguous, so it can be
+                // measured in place.
+                let pair_fits = fits(remaining, &[], &ps[..3]);
                 let rest = Doc::Fill(ps.split_off(2));
-                let second = match &rest {
-                    Doc::Fill(rp) => rp[0].clone(),
-                    _ => unreachable!(),
-                };
-                let pair = vec![content.clone(), ws.clone(), second];
-                let pair_fits = fits(width as isize - pos as isize, &[], &pair);
+                let ws = ps.pop().expect("fill separator");
+                let content = ps.pop().expect("fill content");
                 cmds.push((ind, mode, rest));
                 if pair_fits {
                     cmds.push((ind, Mode::Flat, ws));
@@ -221,7 +206,10 @@ pub(crate) fn print(
 /// only charged when a following string is emitted (so a trailing `line` costs
 /// nothing), and a hard/break line ends the measurement successfully.
 fn fits(mut remaining: isize, rest_stack: &[(usize, Mode, Doc)], next: &[Doc]) -> bool {
-    let mut local: Vec<(Mode, Doc)> = next.iter().rev().map(|d| (Mode::Flat, d.clone())).collect();
+    // Measurement never mutates the tree, so the whole walk borrows: cloning a
+    // `Doc` here would deep-copy the entire measured subtree (and every entry
+    // pulled off `rest_stack`) on every group, which dominated `print`.
+    let mut local: Vec<(Mode, &Doc)> = next.iter().rev().map(|d| (Mode::Flat, d)).collect();
     let mut rest_idx = rest_stack.len();
     let mut has_pending_space = false;
 
@@ -237,7 +225,7 @@ fn fits(mut remaining: isize, rest_stack: &[(usize, Mode, Doc)], next: &[Doc]) -
                 }
                 rest_idx -= 1;
                 let (_, m, dd) = &rest_stack[rest_idx];
-                (*m, dd.clone())
+                (*m, dd)
             }
         };
         match d {
@@ -247,7 +235,7 @@ fn fits(mut remaining: isize, rest_stack: &[(usize, Mode, Doc)], next: &[Doc]) -
                         remaining -= 1;
                         has_pending_space = false;
                     }
-                    remaining -= s.width() as isize;
+                    remaining -= text_width(s) as isize;
                 }
             }
             // A pre-formatted interpolation is measured by its flat width: the
@@ -259,7 +247,7 @@ fn fits(mut remaining: isize, rest_stack: &[(usize, Mode, Doc)], next: &[Doc]) -
                         remaining -= 1;
                         has_pending_space = false;
                     }
-                    remaining -= flat.width() as isize;
+                    remaining -= text_width(flat) as isize;
                 }
             }
             Doc::Concat(ps)
@@ -267,14 +255,14 @@ fn fits(mut remaining: isize, rest_stack: &[(usize, Mode, Doc)], next: &[Doc]) -
             | Doc::Dedent(ps)
             | Doc::Group(ps)
             | Doc::Fill(ps) => {
-                for p in ps.into_iter().rev() {
+                for p in ps.iter().rev() {
                     local.push((mode, p));
                 }
             }
             Doc::ForcedGroup(ps) => {
                 // A forced-break group: its contents render in break mode, so its
                 // first line break ends the (successful) measurement.
-                for p in ps.into_iter().rev() {
+                for p in ps.iter().rev() {
                     local.push((Mode::Break, p));
                 }
             }
@@ -299,6 +287,27 @@ fn fits(mut remaining: isize, rest_stack: &[(usize, Mode, Doc)], next: &[Doc]) -
             }
         }
     }
+}
+
+/// Display width of `s`, with a fast path for the printable-ASCII case that
+/// dominates markup (where one byte is exactly one column). Anything outside
+/// `0x20..0x7f` — control characters, which [`UnicodeWidthStr::width`] counts as
+/// zero, and every non-ASCII scalar — falls back to the full computation.
+fn text_width(s: &str) -> usize {
+    if s.bytes().all(|b| (0x20..0x7f).contains(&b)) {
+        s.len()
+    } else {
+        s.width()
+    }
+}
+
+/// Append `level` copies of `unit` without materialising an intermediate
+/// `String` (this runs on every emitted line break).
+fn push_indent(out: &mut String, unit: &str, level: usize) -> usize {
+    for _ in 0..level {
+        out.push_str(unit);
+    }
+    text_width(unit) * level
 }
 
 fn trim_trailing_blanks(out: &mut String) {
@@ -331,7 +340,11 @@ pub(crate) fn propagate_breaks(doc: Doc) -> Doc {
             // A RawExpr has a flat form, so it never forces the enclosing group
             // to break (the fill/group decides per-position).
             Doc::RawExpr { .. } => (doc, false),
-            Doc::Hardline | Doc::Literalline | Doc::BreakParent => (doc, true),
+            Doc::Hardline | Doc::Literalline => (doc, true),
+            // Consumed here: once the enclosing groups are forced, a surviving
+            // sentinel would reach `fits` through the rest stack and wrongly veto
+            // a LATER sibling's group, which prettier's `fits` never does.
+            Doc::BreakParent => (Doc::Text(String::new()), true),
             Doc::Concat(ps) => {
                 let (ps, f) = map_children(ps);
                 (Doc::Concat(ps), f)

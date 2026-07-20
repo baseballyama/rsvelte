@@ -162,8 +162,11 @@ pub(crate) fn collapse_pure_text_elements(
     // suppresses recursion into it.
     let mut edits2: Vec<(u32, u32, String)> = Vec::new();
     collect_content_tag_breaks(&result, &tree.fragment, line_width, options, &mut edits2);
+    // `tree` is the AST of `result` unless this last pass edited the text.
+    let mut tree_is_current = true;
     if !edits2.is_empty() {
         result = apply_edits(&result, edits2);
+        tree_is_current = false;
     }
 
     // Final children-port pass: re-assert the faithful prettier-plugin-svelte
@@ -172,9 +175,15 @@ pub(crate) fn collapse_pure_text_elements(
     // children port owns, so they can re-break an already-correct (intentionally
     // overflowing) prose line — e.g. break an inline `<a>`'s open tag on a 93-col
     // line that the port deliberately keeps whole. Running the port LAST gives it
-    // the final word: it re-parses, rebuilds the element from the AST, and emits a
-    // corrected edit (or a no-op when the layout is already right).
-    if let Ok(root_cp) = parse(&result, parse_opts) {
+    // the final word: it rebuilds each element from the AST and emits a corrected
+    // edit (or a no-op when the layout is already right). It only needs to
+    // re-parse when the pass above actually rewrote the text — otherwise `tree`
+    // still describes `result` exactly, and a fresh parse would rebuild an
+    // identical AST.
+    let reparsed = (!tree_is_current)
+        .then(|| parse(&result, parse_opts).ok())
+        .flatten();
+    if let Some(root_cp) = reparsed.as_ref().or(tree_is_current.then_some(&tree)) {
         let mut edits_cp: Vec<(u32, u32, String)> = Vec::new();
         collect_children_port_only(
             &result,
@@ -453,7 +462,8 @@ fn reformat_pre_inner(
         .max(20);
     let mut sub_opts = options.clone();
     sub_opts.js.line_width = oxc_formatter_core::LineWidth::try_from(narrowed as u16).ok()?;
-    let formatted = crate::format(raw_inner.trim_matches(['\n', '\r']), &sub_opts).ok()?;
+    let formatted =
+        with_pre_content(|| crate::format(raw_inner.trim_matches(['\n', '\r']), &sub_opts)).ok()?;
     let formatted = formatted.trim_end_matches('\n');
     if formatted.is_empty() {
         return None;
@@ -3134,6 +3144,33 @@ fn is_block_display(tag: &str) -> bool {
     crate::markup::is_html_block_display_element(tag)
 }
 
+thread_local! {
+    /// Set while [`reformat_pre_inner`] re-enters [`crate::format`] on a `<pre>`
+    /// body. That sub-document has no `<pre>` ancestor of its own, so a pass that
+    /// needs prettier's `isPreTagContent` answer reads this flag instead.
+    static IN_PRE_CONTENT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+fn in_pre_content() -> bool {
+    IN_PRE_CONTENT.with(std::cell::Cell::get)
+}
+
+/// Restores [`IN_PRE_CONTENT`] on drop, so an unwind out of the re-entrant
+/// format cannot strand the flag set on a pooled worker thread.
+struct PreContentGuard(bool);
+
+impl Drop for PreContentGuard {
+    fn drop(&mut self) {
+        IN_PRE_CONTENT.set(self.0);
+    }
+}
+
+/// Run `f` with [`IN_PRE_CONTENT`] set, restoring the previous value afterwards.
+fn with_pre_content<T>(f: impl FnOnce() -> T) -> T {
+    let _guard = PreContentGuard(IN_PRE_CONTENT.replace(true));
+    f()
+}
+
 fn is_whitespace_preserving(tag: &str) -> bool {
     // `pre` / `textarea` preserve whitespace; `script` / `style` carry raw
     // JS/CSS already formatted by their dedicated passes (oxfmt). None of these
@@ -4590,7 +4627,11 @@ fn collect_children_port_only(
 /// (NOT the approximate `element_doc`, which over-breaks inline content). Returns
 /// `None` for any node the cut doesn't yet support (block / inline-block element,
 /// component, comment, flow block) so the whole port bails.
-fn node_to_child(out: &str, node: &TemplateNode) -> Option<crate::children::Child> {
+fn node_to_child(
+    out: &str,
+    node: &TemplateNode,
+    line_width: usize,
+) -> Option<crate::children::Child> {
     use crate::children::Child;
     use crate::doc::Doc;
     match node {
@@ -4613,7 +4654,9 @@ fn node_to_child(out: &str, node: &TemplateNode) -> Option<crate::children::Chil
                 && !is_inline_block(ve.name.as_str())
                 && !is_whitespace_preserving(ve.name.as_str()) =>
         {
-            Some(Child::Inline(build_inline_element_doc(out, ve)?))
+            Some(Child::Inline(build_inline_element_doc(
+                out, ve, line_width,
+            )?))
         }
         // Cut 3: mustache atoms (`{expr}`, `{@html …}`). prettier-plugin-svelte's
         // `isInlineElement` requires `type === 'RegularElement'`, so a MustacheTag
@@ -4631,8 +4674,152 @@ fn node_to_child(out: &str, node: &TemplateNode) -> Option<crate::children::Chil
             }
             Some(Child::Other(Doc::Text(span.to_string())))
         }
+        // Flow blocks. `isBlockElement` requires `type === 'RegularElement'`, so
+        // these are NOT block children — like a mustache they go through
+        // `printChildren`'s `else` branch and are pushed bare. Their own print is
+        // `group([def, breakParent])`, so they force every enclosing group to break
+        // even when the whole element would fit on one line.
+        TemplateNode::IfBlock(blk) => Some(Child::Other(build_if_block_doc(out, blk, line_width)?)),
+        TemplateNode::EachBlock(blk) => {
+            let mut branches: Vec<&Fragment> = vec![&blk.body];
+            branches.extend(blk.fallback.as_ref());
+            Some(Child::Other(build_simple_block_doc(
+                out, blk.start, blk.end, &branches, line_width,
+            )?))
+        }
+        TemplateNode::KeyBlock(blk) => Some(Child::Other(build_simple_block_doc(
+            out,
+            blk.start,
+            blk.end,
+            &[&blk.fragment],
+            line_width,
+        )?)),
         _ => None,
     }
+}
+
+/// The content bounds of a flow-block branch: from just past the `}` that closes
+/// its opening tag to the `{` that opens the next one (`{:else…}` / `{/if}`).
+/// Mirrors prettier's `lastIndexOf('}', firstChild.start)` probe, which exists
+/// because the AST swallows whitespace between the tag and its first child.
+fn block_branch_bounds(out: &str, frag: &Fragment) -> Option<(usize, usize)> {
+    let first = frag.nodes.first()?;
+    let last = frag.nodes.last()?;
+    let start = out[..node_start(first) as usize].rfind('}')? + 1;
+    let last_end = node_end(last) as usize;
+    let end = last_end + out[last_end..].find('{')?;
+    (start <= end).then_some((start, end))
+}
+
+/// prettier-plugin-svelte's `printSvelteBlockChildren`:
+/// `[indent([startline, group(printChildren(…))]), endline]`.
+///
+/// `startline` / `endline` are dropped when the branch's tag hugs its first /
+/// last child (`checkWhitespaceAtStartOfSvelteBlock` → `'none'`), which is what
+/// keeps `{#if a}x{/if}` flat. Otherwise prettier picks `line` or `hardline`, but
+/// the enclosing block group always carries a `breakParent`, so both render as a
+/// newline and a hardline stands in for either.
+fn build_block_branch_doc(
+    out: &str,
+    frag: &Fragment,
+    start: usize,
+    end: usize,
+    line_width: usize,
+) -> Option<Vec<crate::doc::Doc>> {
+    use crate::children::Child;
+    use crate::doc::Doc;
+    let raw = out.get(start..end)?;
+    let hug_start = !raw.starts_with(|c: char| c.is_ascii_whitespace());
+    let hug_end = !raw.ends_with(|c: char| c.is_ascii_whitespace());
+
+    let mut children: Vec<Child> = Vec::with_capacity(frag.nodes.len());
+    for n in &frag.nodes {
+        children.push(node_to_child(out, n, line_width)?);
+    }
+    // The branch tag owns its own outer whitespace, so trim it off the edge text
+    // children (prettier's `trimTextNodeLeft` / `trimTextNodeRight`).
+    if let Some(Child::Text(t)) = children.first_mut() {
+        *t = t.trim_start().to_string();
+    }
+    if let Some(Child::Text(t)) = children.last_mut() {
+        *t = t.trim_end().to_string();
+    }
+
+    let mut inner: Vec<Doc> = Vec::new();
+    if !hug_start {
+        inner.push(Doc::Hardline);
+    }
+    inner.push(Doc::Group(crate::children::print_children(children)));
+    let mut parts = vec![Doc::Indent(inner)];
+    if !hug_end {
+        parts.push(Doc::Hardline);
+    }
+    Some(parts)
+}
+
+/// Build an `{#if}` chain's Doc, mirroring prettier's `IfBlock` print plus
+/// `printIfBlockAlternate`: `group([def, breakParent])`. svelte desugars
+/// `{:else if}` into an alternate whose sole child is an `elseif` IfBlock, so the
+/// chain is walked iteratively (each branch tag is the verbatim source between
+/// the previous branch's content and the next one's).
+fn build_if_block_doc(
+    out: &str,
+    blk: &rsvelte_core::ast::template::IfBlock,
+    line_width: usize,
+) -> Option<crate::doc::Doc> {
+    use crate::doc::Doc;
+    let mut parts: Vec<Doc> = Vec::new();
+    let mut cur = blk;
+    let mut tok_start = blk.start as usize;
+    loop {
+        let (cs, ce) = block_branch_bounds(out, &cur.consequent)?;
+        parts.push(Doc::Text(out.get(tok_start..cs)?.to_string()));
+        parts.extend(build_block_branch_doc(
+            out,
+            &cur.consequent,
+            cs,
+            ce,
+            line_width,
+        )?);
+        tok_start = ce;
+        let Some(alt) = &cur.alternate else { break };
+        match crate::indent::else_if_branch(alt) {
+            Some(chained) => cur = chained,
+            None => {
+                let (as_, ae) = block_branch_bounds(out, alt)?;
+                parts.push(Doc::Text(out.get(tok_start..as_)?.to_string()));
+                parts.extend(build_block_branch_doc(out, alt, as_, ae, line_width)?);
+                tok_start = ae;
+                break;
+            }
+        }
+    }
+    parts.push(Doc::Text(out.get(tok_start..blk.end as usize)?.to_string()));
+    Some(Doc::Group(vec![Doc::Concat(parts), Doc::BreakParent]))
+}
+
+/// Build the Doc for a flow block whose branches don't chain (`{#each}` with its
+/// optional `{:else}` fallback, `{#key}`). Same `group([def, breakParent])` shape
+/// as [`build_if_block_doc`]; each branch tag is the verbatim source between the
+/// previous branch's content and the next one's.
+fn build_simple_block_doc(
+    out: &str,
+    start: u32,
+    end: u32,
+    branches: &[&Fragment],
+    line_width: usize,
+) -> Option<crate::doc::Doc> {
+    use crate::doc::Doc;
+    let mut parts: Vec<Doc> = Vec::new();
+    let mut tok_start = start as usize;
+    for frag in branches {
+        let (cs, ce) = block_branch_bounds(out, frag)?;
+        parts.push(Doc::Text(out.get(tok_start..cs)?.to_string()));
+        parts.extend(build_block_branch_doc(out, frag, cs, ce, line_width)?);
+        tok_start = ce;
+    }
+    parts.push(Doc::Text(out.get(tok_start..end as usize)?.to_string()));
+    Some(Doc::Group(vec![Doc::Concat(parts), Doc::BreakParent]))
 }
 
 /// Build the faithful `children::build_element_doc` Doc for an inline
@@ -4641,18 +4828,20 @@ fn node_to_child(out: &str, node: &TemplateNode) -> Option<crate::children::Chil
 fn build_inline_element_doc(
     out: &str,
     e: &rsvelte_core::ast::template::RegularElement,
+    line_width: usize,
 ) -> Option<crate::doc::Doc> {
     use crate::children::{Child, ElementLayout, build_element_doc};
     let attrs = build_attrs_concat(out, &e.attributes)?;
     let mut children: Vec<Child> = Vec::with_capacity(e.fragment.nodes.len());
     for n in &e.fragment.nodes {
-        children.push(node_to_child(out, n)?);
+        children.push(node_to_child(out, n, line_width)?);
     }
     Some(build_element_doc(ElementLayout {
         name: e.name.to_string(),
         attrs,
         children,
         is_inline: !is_block_display(e.name.as_str()),
+        self_closing: did_self_close(out, e.end) || is_html_void_element(e.name.as_str()),
     }))
 }
 
@@ -4723,13 +4912,16 @@ fn try_children_port(
     let (s, ee) = (start as usize, end as usize);
     let whole = out.get(s..ee)?;
 
-    // Gate: at least one prose text word AND at least one non-text child (mixed
-    // content). Pure-text elements are `try_collapse`'s job. (A pure-text inline
-    // element with an overflowing open tag — `<a href="…long…">REPL</a>` — was
-    // tried as "cut 4" but cleared 0 corpus files: every close-`>` cluster file is
-    // multi-diff and also needs element-only + close-`>` + expression fixes, so the
-    // gate stays at mixed content.) Per-child convertibility is enforced by
-    // `node_to_child` in the build loop below.
+    // Gate: at least one non-text child, plus EITHER at least one prose text word
+    // (mixed content) OR no text nodes at all (an element-only children run such as
+    // `<a><span>…</span><span>…</span></a>`). Pure-text elements are
+    // `try_collapse`'s job, and the in-between shape — element children separated by
+    // whitespace-only text — stays out because its separator handling is the
+    // `try_fill_mixed` prose path. (A pure-text inline element with an overflowing
+    // open tag — `<a href="…long…">REPL</a>` — was tried as "cut 4" but cleared 0
+    // corpus files: every close-`>` cluster file is multi-diff and also needs
+    // element-only + close-`>` + expression fixes.) Per-child convertibility is
+    // enforced by `node_to_child` in the build loop below.
     let has_prose_word = fragment
         .nodes
         .iter()
@@ -4738,7 +4930,21 @@ fn try_children_port(
         .nodes
         .iter()
         .any(|n| !matches!(n, TemplateNode::Text(_)));
-    if !has_prose_word || !has_non_text {
+    let has_any_text = fragment
+        .nodes
+        .iter()
+        .any(|n| matches!(n, TemplateNode::Text(_)));
+    // The element-only run is additionally barred inside `<pre>` content, where
+    // prettier's `isPreTagContent` suppresses element layout entirely.
+    // A run of flow blocks separated only by whitespace (`<svg>` wrapping a lone
+    // `{#if}`) has no prose for the fill path to own either.
+    let block_run = has_any_text
+        && fragment.nodes.iter().all(|n| match n {
+            TemplateNode::Text(t) => t.data.split_whitespace().next().is_none(),
+            TemplateNode::IfBlock(_) => true,
+            _ => false,
+        });
+    if !has_non_text || (!has_prose_word && ((has_any_text && !block_run) || in_pre_content())) {
         return None;
     }
 
@@ -4774,13 +4980,17 @@ fn try_children_port(
     let attrs = build_attrs_concat(out, &e.attributes)?;
     let mut children: Vec<Child> = Vec::with_capacity(fragment.nodes.len());
     for n in &fragment.nodes {
-        children.push(node_to_child(out, n)?);
+        children.push(node_to_child(out, n, line_width)?);
     }
     let doc = build_element_doc(ElementLayout {
         name: tag.to_string(),
         attrs,
         children,
         is_inline,
+        // Inert at this call site — the gate above requires a non-text child, so
+        // `is_empty` is never true here. Only the recursive descent into children
+        // (`build_inline_element_doc`) reaches the self-closing branch.
+        self_closing: did_self_close(out, end) || is_html_void_element(tag),
     });
     let doc = crate::doc::propagate_breaks(doc);
     let printed = crate::doc::print(doc, line_width, unit.as_str(), base_level, start_col);
@@ -6015,6 +6225,12 @@ pub(crate) fn template_node_span(node: &TemplateNode) -> (u32, u32) {
     }
 }
 
+/// prettier's `didSelfClose`: the element's own source closed the tag, so
+/// `<div />` stays self-closed instead of becoming `<div></div>`.
+fn did_self_close(out: &str, end: u32) -> bool {
+    end >= 2 && out.as_bytes().get(end as usize - 2) == Some(&b'/')
+}
+
 /// HTML void elements — elements that can never have children and always use
 /// the self-closing `/>` form. Their output cursor after printing is
 /// well-defined regardless of attribute wrapping, unlike content elements
@@ -6043,6 +6259,13 @@ fn is_html_void_element(tag: &str) -> bool {
 mod tests {
     use super::*;
     use rsvelte_core::ast::template::{FragmentMetadata, FragmentType, Text};
+
+    #[test]
+    fn pre_content_flag_is_restored_after_a_panic() {
+        let caught = std::panic::catch_unwind(|| with_pre_content(|| panic!("boom")));
+        assert!(caught.is_err());
+        assert!(!in_pre_content());
+    }
 
     fn make_fragment_with_text(data: &str) -> Fragment {
         Fragment {
