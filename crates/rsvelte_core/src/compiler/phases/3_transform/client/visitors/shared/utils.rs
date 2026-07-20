@@ -3646,10 +3646,23 @@ pub(crate) fn get_literal_value(
     expr: &crate::ast::js::Expression,
     context: &ComponentContext,
 ) -> Option<Option<String>> {
-    use crate::ast::typed_expr::LiteralValue;
+    get_literal_value_json(expr.as_json(), context)
+}
 
+/// Constant-folding evaluator, working on the already-materialized JSON for the
+/// expression.
+///
+/// Recursion stays on `&Value` deliberately: the caller always has the child's
+/// JSON in hand, so descending does not clone the subtree, rebuild a typed
+/// `Expression` from it, and then serialize that copy again on the next level —
+/// which is what the previous `serde_json::from_value::<Expression>(x.clone())`
+/// hops did, once per nesting level.
+fn get_literal_value_json(
+    jv: &serde_json::Value,
+    context: &ComponentContext,
+) -> Option<Option<String>> {
     {
-        let expr_type = expr.node_type()?;
+        let expr_type = jv.get("type").and_then(|t| t.as_str())?;
 
         // Upstream `build_template_chunk` memoizes the expression FIRST
         // (`memoizer.add` replaces any `has_call` / `has_await` chunk with an
@@ -3672,35 +3685,37 @@ pub(crate) fn get_literal_value(
                 | "MemberExpression"
                 | "SequenceExpression"
                 | "ChainExpression"
-        ) {
-            let jv = expr.as_json();
-            if has_call_json(jv, context) {
-                return None;
-            }
+        ) && has_call_json(jv, context)
+        {
+            return None;
         }
 
         match expr_type {
             "Literal" => {
-                let node = expr.as_node();
-                match &*node {
-                    crate::ast::typed_expr::JsNode::Literal { value, .. } => match value {
-                        LiteralValue::String(s) => Some(Some(s.to_string())),
-                        LiteralValue::Number(n) => {
-                            if n.fract() == 0.0 {
-                                Some(Some(format!("{}", *n as i64)))
-                            } else {
-                                Some(Some(n.to_string()))
-                            }
+                // A regex literal serializes its `value` as `{}`, so the pattern
+                // and flags have to come from the `regex` entry.
+                if let Some(regex) = jv.get("regex") {
+                    let pattern = regex.get("pattern").and_then(|p| p.as_str())?;
+                    let flags = regex.get("flags").and_then(|f| f.as_str())?;
+                    return Some(Some(format!("/{}/{}", pattern, flags)));
+                }
+                match jv.get("value")? {
+                    serde_json::Value::String(s) => Some(Some(s.clone())),
+                    serde_json::Value::Number(n) => {
+                        let n = n.as_f64()?;
+                        if n.fract() == 0.0 {
+                            Some(Some(format!("{}", n as i64)))
+                        } else {
+                            Some(Some(n.to_string()))
                         }
-                        LiteralValue::Bool(b_val) => Some(Some(b_val.to_string())),
-                        LiteralValue::Null => Some(None),
-                        LiteralValue::Regex(r) => Some(Some(format!("/{}/{}", r.pattern, r.flags))),
-                    },
+                    }
+                    serde_json::Value::Bool(b_val) => Some(Some(b_val.to_string())),
+                    serde_json::Value::Null => Some(None),
                     _ => None,
                 }
             }
             "Identifier" => {
-                let name = expr.name()?;
+                let name = jv.get("name").and_then(|n| n.as_str())?;
                 if name == "undefined" {
                     return Some(None);
                 }
@@ -3884,7 +3899,7 @@ pub(crate) fn get_literal_value(
                                 && let Ok(parsed_expr) =
                                     serde_json::from_str::<crate::ast::js::Expression>(init)
                             {
-                                return get_literal_value(&parsed_expr, context);
+                                return get_literal_value_json(parsed_expr.as_json(), context);
                             }
                         }
                         None
@@ -3896,16 +3911,13 @@ pub(crate) fn get_literal_value(
             | "BinaryExpression"
             | "UnaryExpression"
             | "ConditionalExpression" => {
-                // These complex branches need JSON access for deep traversal
-                let json_value = expr.as_json();
-                let obj = json_value.as_object()?;
+                let obj = jv.as_object()?;
                 get_literal_value_complex(expr_type, obj, context)
             }
             "TemplateLiteral" => {
                 // Template literal with no expressions -> plain string
                 // Template literal with expressions -> try to fold each expression
-                let json_value = expr.as_json();
-                let obj = json_value.as_object()?;
+                let obj = jv.as_object()?;
                 let quasis = obj.get("quasis").and_then(|q| q.as_array())?;
                 let expressions = obj.get("expressions").and_then(|e| e.as_array())?;
 
@@ -3956,8 +3968,6 @@ fn get_literal_value_complex(
     obj: &serde_json::Map<String, serde_json::Value>,
     context: &ComponentContext,
 ) -> Option<Option<String>> {
-    use crate::ast::js::Expression;
-
     match expr_type {
         "LogicalExpression" => {
             // Handle ?? (nullish coalescing) operator
@@ -3967,9 +3977,8 @@ fn get_literal_value_complex(
             }
 
             let left = obj.get("left")?;
-            let left_expr = serde_json::from_value::<Expression>(left.clone()).ok()?;
 
-            match get_literal_value(&left_expr, context) {
+            match get_literal_value_json(left, context) {
                 Some(Some(val)) => {
                     // Left side has non-null value, return it
                     Some(Some(val))
@@ -3977,8 +3986,7 @@ fn get_literal_value_complex(
                 Some(None) => {
                     // Left side is null/undefined, evaluate right side
                     let right = obj.get("right")?;
-                    let right_expr = serde_json::from_value::<Expression>(right.clone()).ok()?;
-                    get_literal_value(&right_expr, context)
+                    get_literal_value_json(right, context)
                 }
                 None => {
                     // Left side cannot be evaluated at compile time
@@ -4012,8 +4020,7 @@ fn get_literal_value_complex(
                     // Evaluate all arguments
                     let mut arg_values: Vec<f64> = Vec::new();
                     for arg in args {
-                        let arg_expr = serde_json::from_value::<Expression>(arg.clone()).ok()?;
-                        let arg_val = get_literal_value(&arg_expr, context)??;
+                        let arg_val = get_literal_value_json(arg, context)??;
                         let num = arg_val.parse::<f64>().ok()?;
                         arg_values.push(num);
                     }
@@ -4046,10 +4053,8 @@ fn get_literal_value_complex(
                     let args = obj.get("arguments").and_then(|a| a.as_array());
                     if let Some(args) = args
                         && let Some(first_arg) = args.first()
-                        && let Ok(arg_expr) =
-                            serde_json::from_value::<Expression>(first_arg.clone())
                     {
-                        return get_literal_value(&arg_expr, context);
+                        return get_literal_value_json(first_arg, context);
                     }
                     return Some(None); // no arg → undefined
                 }
@@ -4065,10 +4070,8 @@ fn get_literal_value_complex(
                     let args = obj.get("arguments").and_then(|a| a.as_array());
                     if let Some(args) = args
                         && let Some(first_arg) = args.first()
-                        && let Ok(arg_expr) =
-                            serde_json::from_value::<Expression>(first_arg.clone())
                     {
-                        return get_literal_value(&arg_expr, context);
+                        return get_literal_value_json(first_arg, context);
                     }
                     return Some(None); // no arg → undefined
                 }
@@ -4079,11 +4082,9 @@ fn get_literal_value_complex(
             let operator = obj.get("operator").and_then(|v| v.as_str())?;
             let left = obj.get("left")?;
             let right = obj.get("right")?;
-            let left_expr = serde_json::from_value::<Expression>(left.clone()).ok()?;
-            let right_expr = serde_json::from_value::<Expression>(right.clone()).ok()?;
 
-            let left_val = get_literal_value(&left_expr, context)?;
-            let right_val = get_literal_value(&right_expr, context)?;
+            let left_val = get_literal_value_json(left, context)?;
+            let right_val = get_literal_value_json(right, context)?;
 
             // Try numeric comparison first
             let left_num = left_val.as_ref().and_then(|s| s.parse::<f64>().ok());
@@ -4137,8 +4138,7 @@ fn get_literal_value_complex(
         "UnaryExpression" => {
             let operator = obj.get("operator").and_then(|v| v.as_str())?;
             let argument = obj.get("argument")?;
-            let arg_expr = serde_json::from_value::<Expression>(argument.clone()).ok()?;
-            let arg_val = get_literal_value(&arg_expr, context)?;
+            let arg_val = get_literal_value_json(argument, context)?;
 
             match operator {
                 "!" => {
@@ -4197,8 +4197,7 @@ fn get_literal_value_complex(
             // only the chosen branch (upstream scope.js `ConditionalExpression`
             // case: evaluate the test; if known, use the matching branch).
             let test = obj.get("test")?;
-            let test_expr = serde_json::from_value::<Expression>(test.clone()).ok()?;
-            let test_val = get_literal_value(&test_expr, context)?;
+            let test_val = get_literal_value_json(test, context)?;
             let truthy = match test_val.as_deref() {
                 None => false, // null / undefined
                 Some("") | Some("false") => false,
@@ -4212,8 +4211,7 @@ fn get_literal_value_complex(
             } else {
                 obj.get("alternate")?
             };
-            let branch_expr = serde_json::from_value::<Expression>(branch.clone()).ok()?;
-            get_literal_value(&branch_expr, context)
+            get_literal_value_json(branch, context)
         }
         _ => None,
     }
@@ -6212,10 +6210,7 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
                 return false;
             };
             // Try to fold the test to a constant via get_literal_value.
-            use crate::ast::js::Expression;
-            let test_known = serde_json::from_value::<Expression>(test.clone())
-                .ok()
-                .and_then(|test_expr| get_literal_value(&test_expr, context));
+            let test_known = get_literal_value_json(test, context);
             match test_known {
                 Some(test_val) => {
                     // Test is a known constant — only the taken branch needs to be known.
@@ -6237,12 +6232,8 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
                     // Test is unknown — result is known only if both branches yield the
                     // SAME single compile-time value (mirrors upstream values.size === 1
                     // after adding both branches' values to the set).
-                    let c_val = serde_json::from_value::<Expression>(consequent.clone())
-                        .ok()
-                        .and_then(|e| get_literal_value(&e, context));
-                    let a_val = serde_json::from_value::<Expression>(alternate.clone())
-                        .ok()
-                        .and_then(|e| get_literal_value(&e, context));
+                    let c_val = get_literal_value_json(consequent, context);
+                    let a_val = get_literal_value_json(alternate, context);
                     match (c_val, a_val) {
                         (Some(c), Some(a)) => c == a,
                         _ => false,
