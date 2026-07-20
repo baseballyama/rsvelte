@@ -60,7 +60,34 @@ impl Default for KitFilesSettings {
 /// re-exports) are intentionally unsupported; users with those configs
 /// should rely on defaults.
 pub fn load_kit_files_settings(workspace: &Path) -> KitFilesSettings {
+    load_kit_files_settings_with_config(workspace, None)
+}
+
+/// Like [`load_kit_files_settings`], but when `config` is `Some` the
+/// `kit.files` settings are read from that exact file instead of the
+/// discovered `svelte.config.*`. Mirrors the JS reference's `--config`.
+/// `kit.files` only ever lives in a Svelte config, so a `vite.config.*`
+/// override yields defaults.
+pub fn load_kit_files_settings_with_config(
+    workspace: &Path,
+    config: Option<&Path>,
+) -> KitFilesSettings {
     let mut settings = KitFilesSettings::default();
+
+    if let Some(path) = config {
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
+        if name.starts_with("vite.config") {
+            return settings;
+        }
+        if let Ok(source) = std::fs::read_to_string(path) {
+            parse_kit_files_source(&source, &mut settings);
+        }
+        return settings;
+    }
+
     for ext in &["js", "cjs", "mjs"] {
         let candidate = workspace.join(format!("svelte.config.{ext}"));
         if !candidate.is_file() {
@@ -69,16 +96,19 @@ pub fn load_kit_files_settings(workspace: &Path) -> KitFilesSettings {
         let Ok(source) = std::fs::read_to_string(&candidate) else {
             continue;
         };
-        let allocator = Allocator::default();
-        let parser = OxcParser::new(&allocator, &source, SourceType::default());
-        let result = parser.parse();
-        let body = &result.program.body;
-        for stmt in body {
-            extract_kit_files_from_stmt(stmt, &mut settings);
-        }
+        parse_kit_files_source(&source, &mut settings);
         break;
     }
     settings
+}
+
+fn parse_kit_files_source(source: &str, settings: &mut KitFilesSettings) {
+    let allocator = Allocator::default();
+    let parser = OxcParser::new(&allocator, source, SourceType::default());
+    let result = parser.parse();
+    for stmt in &result.program.body {
+        extract_kit_files_from_stmt(stmt, settings);
+    }
 }
 
 fn extract_kit_files_from_stmt(stmt: &oxc::Statement, settings: &mut KitFilesSettings) {

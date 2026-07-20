@@ -76,7 +76,7 @@ npx rsvelte-check --watch --incremental
 npx rsvelte-check --no-type-check # Svelte diagnostics only
 ```
 
-Every upstream flag works (`--output machine`, `--fail-on-warnings`, `--compiler-warnings`, …), plus rsvelte-specific ones — see [`@rsvelte/svelte-check`](apps/npm/svelte-check) or `npx rsvelte-check --help`.
+Every upstream flag is accepted (`--output`, `--fail-on-warnings`, `--compiler-warnings`, `--threshold`, `--no-tsconfig`, `--config`, `--preserveWatchOutput`, …), plus rsvelte-specific ones — see the [upstream flag compatibility table](apps/npm/svelte-check#upstream-flag-compatibility) or `npx rsvelte-check --help`.
 
 ### Format (`rsvelte-fmt`)
 
