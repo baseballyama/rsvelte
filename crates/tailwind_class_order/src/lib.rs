@@ -54,6 +54,10 @@ const PROPERTY_ANCHOR: &str = include_str!("../data/property_anchor.txt");
 /// (`text-sm`) so an arbitrary value lands in the correct fingerprint cluster.
 const COLOR_FAMILIES: &str = include_str!("../data/color_families.txt");
 
+/// The default theme's container-query breakpoints in ascending size order, so
+/// `@xl` sorts before `@5xl` by size rather than by string.
+const CONTAINER_SIZES: &str = include_str!("../data/container_sizes.txt");
+
 /// Base order key. Named utilities land on even values `2*index`; an arbitrary
 /// property anchored before real utility `a` lands on the odd `2*a - 1`, so it
 /// sorts strictly between real `a-1` and real `a` without colliding with either.
@@ -85,6 +89,8 @@ struct Tables {
     /// roots whose siblings mix color and non-color members (`text`, `bg`, …),
     /// where an arbitrary value must be matched to the right sub-cluster.
     mixed_roots: HashSet<&'static str>,
+    /// container-query breakpoint name -> size rank (`@xl` before `@5xl`).
+    container_order: HashMap<&'static str, u32>,
     /// variant family label -> rank
     variant: HashMap<&'static str, u32>,
     /// rank assigned to arbitrary `[&…]` variants (sorts after all named ones)
@@ -139,6 +145,13 @@ fn tables() -> &'static Tables {
             }
         }
 
+        let container_order: HashMap<&str, u32> = CONTAINER_SIZES
+            .lines()
+            .filter(|l| !l.is_empty())
+            .enumerate()
+            .map(|(i, name)| (name, i as u32))
+            .collect();
+
         let mut variant = HashMap::new();
         let mut n = 0u32;
         for (i, label) in VARIANT_ROOTS.lines().filter(|l| !l.is_empty()).enumerate() {
@@ -154,6 +167,7 @@ fn tables() -> &'static Tables {
             real_count,
             color_families,
             mixed_roots,
+            container_order,
             variant,
             arbitrary_variant_rank: n + 1,
         }
@@ -179,9 +193,15 @@ fn utility_root(name: &str) -> &str {
 enum Key {
     Unknown,
     Known {
-        /// variant ranks, sorted descending — compared lexicographically this
-        /// reproduces Tailwind's OR-of-bitmask variant ordering.
+        /// variant family ranks, sorted descending — compared lexicographically
+        /// this reproduces Tailwind's OR-of-bitmask variant ordering.
         variants: Vec<u32>,
+        /// per-variant value keys, in the same descending-rank order. Used only
+        /// when the rank lists are equal (same families): within a family the
+        /// engine orders by value — a named value (`data-active`) before an
+        /// arbitrary one (`data-[x]`), then by candidate string. This dominates
+        /// the base order.
+        variant_values: Vec<(bool, String)>,
         /// intrinsic utility order
         base: BaseOrder,
     },
@@ -441,10 +461,12 @@ fn has_numeric_tail(stem: &str) -> bool {
 fn key_for(token: &str, t: &Tables) -> Key {
     let (variants, base) = split_variants(token);
 
-    let mut vranks = Vec::with_capacity(variants.len());
+    // Pair each variant with its family rank and a value key `(is_arbitrary,
+    // string)`. `is_arbitrary` puts a named value before an arbitrary one.
+    let mut entries: Vec<(u32, bool, String)> = Vec::with_capacity(variants.len());
     for v in variants {
         match variant_rank(v, t) {
-            Some(r) => vranks.push(r),
+            Some(r) => entries.push((r, v.contains('['), variant_value_key(v, t))),
             None => return Key::Unknown,
         }
     }
@@ -452,11 +474,15 @@ fn key_for(token: &str, t: &Tables) -> Key {
         return Key::Unknown;
     };
 
-    // Descending sort makes lexicographic comparison equivalent to comparing
-    // the OR-ed variant bitmask by magnitude.
-    vranks.sort_unstable_by(|a, b| b.cmp(a));
+    // Descending by rank makes lexicographic comparison of the rank list
+    // equivalent to comparing the OR-ed variant bitmask by magnitude; within an
+    // equal rank the value key gives a stable, engine-matching order.
+    entries.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| (a.1, &a.2).cmp(&(b.1, &b.2))));
+    let variants = entries.iter().map(|e| e.0).collect();
+    let variant_values = entries.into_iter().map(|e| (e.1, e.2)).collect();
     Key::Known {
-        variants: vranks,
+        variants,
+        variant_values,
         base,
     }
 }
@@ -473,18 +499,49 @@ fn cmp_keys(a: &Key, ta: &str, b: &Key, tb: &str) -> Ordering {
         (
             Key::Known {
                 variants: va,
+                variant_values: wa,
                 base: ba,
             },
             Key::Known {
                 variants: vb,
+                variant_values: wb,
                 base: bb,
             },
         ) => va
             .iter()
             .cmp(vb.iter())
+            .then_with(|| cmp_variant_values(wa, wb))
             .then_with(|| ba.cmp(bb))
             .then_with(|| compare::compare(ta, tb)),
     }
+}
+
+/// The string used to order two variants of the same family by value. Usually
+/// the variant itself (compared numerically-aware), but a named container query
+/// (`@xl`, `@5xl/name`) is keyed by its breakpoint's size rank so it orders by
+/// size, not lexically.
+fn variant_value_key(v: &str, t: &Tables) -> String {
+    if let Some(rest) = v.strip_prefix('@')
+        && !rest.starts_with('[')
+    {
+        let name = rest.split('/').next().unwrap_or(rest);
+        if let Some(&rank) = t.container_order.get(name) {
+            return format!("{rank:04}");
+        }
+    }
+    v.to_owned()
+}
+
+/// Compare two aligned variant-value lists: a named value before an arbitrary
+/// one, then by numeric-aware candidate string.
+fn cmp_variant_values(a: &[(bool, String)], b: &[(bool, String)]) -> Ordering {
+    for ((aa, av), (ba, bv)) in a.iter().zip(b.iter()) {
+        let ord = aa.cmp(ba).then_with(|| compare::compare(av, bv));
+        if ord != Ordering::Equal {
+            return ord;
+        }
+    }
+    a.len().cmp(&b.len())
 }
 
 /// Sort a single list of Tailwind class tokens into Tailwind's canonical order

@@ -44,6 +44,25 @@ fn variant_order() {
 }
 
 #[test]
+fn within_family_variant_value_order() {
+    // A named value sorts before an arbitrary one; named values then order by
+    // candidate. This dominates the base order.
+    check(
+        "data-[state=open]:flex data-active:flex data-[foo=bar]:flex",
+        "data-active:flex data-[foo=bar]:flex data-[state=open]:flex",
+    );
+    check(
+        "has-data-line-numbers:p-0 has-data-[slot=tabs]:p-2 has-data-highlighted-line:px-0",
+        "has-data-highlighted-line:px-0 has-data-line-numbers:p-0 has-data-[slot=tabs]:p-2",
+    );
+    // Named container queries order by breakpoint size, not string.
+    check(
+        "@5xl/main:grid-cols-4 @xl/main:grid-cols-2",
+        "@xl/main:grid-cols-2 @5xl/main:grid-cols-4",
+    );
+}
+
+#[test]
 fn stacked_variants() {
     check(
         "dark:hover:flex hover:flex dark:flex hover:dark:flex md:hover:flex hover:md:flex",
