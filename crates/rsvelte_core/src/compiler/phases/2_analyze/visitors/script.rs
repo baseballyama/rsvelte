@@ -41,9 +41,17 @@ pub fn visit_script_expr(
                 let saved_ignores = std::mem::take(&mut context.script_ignore_comments);
                 context.script_ignore_comments = ignore_comment_map.iter().cloned().collect();
 
-                // Fast path: push a lazily-computed Value for js_path, then walk body typed
-                let program_value = te.as_json();
-                context.js_path.push(super::JsPathEntry::new(program_value));
+                // Push the Program as a TYPED js_path entry, like every other node
+                // the walker pushes below. `as_json()` here used to materialize the
+                // entire program into a `serde_json::Value` up front, on every script
+                // walk, purely to occupy `js_path[0]` — which consumers only read the
+                // type off of. `JsPathEntry::TypedNode` answers `get_type_str()` from
+                // the `JsNode` directly and falls back to the same `to_value()` lazily
+                // if a consumer really needs the Value, so the observable path is
+                // unchanged.
+                context
+                    .js_path
+                    .push(super::JsPathEntry::new_typed(&te.node));
 
                 let arena = context.parse_arena;
                 let mut result = Ok(());
