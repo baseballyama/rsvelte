@@ -32,9 +32,7 @@ TRIPLES=(
   "win32-x64-msvc:x86_64-pc-windows-msvc"
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Helpers
-# ─────────────────────────────────────────────────────────────────────────────
 
 log()  { printf '\033[1;34m[publish-all]\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31m[publish-all]\033[0m %s\n' "$*" >&2; exit 1; }
@@ -67,9 +65,7 @@ publish_if_new() {
   (cd "$dir" && pnpm publish --access public --no-git-checks)
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Pre-flight
-# ─────────────────────────────────────────────────────────────────────────────
 
 log "Pre-flight checks…"
 
@@ -170,9 +166,7 @@ fi
 
 log "Pre-flight OK."
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Phase 1: @rsvelte/compiler (WASM)
-# ─────────────────────────────────────────────────────────────────────────────
 
 log ""
 log "═════════════════════════════════════════════════════════════════════"
@@ -196,9 +190,7 @@ fi
 
 publish_if_new pkg
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Phase 2: @rsvelte/svelte2tsx (pure JS)
-# ─────────────────────────────────────────────────────────────────────────────
 
 log ""
 log "═════════════════════════════════════════════════════════════════════"
@@ -207,9 +199,7 @@ log "═════════════════════════
 
 publish_if_new apps/npm/svelte2tsx
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Phase 3: build native binaries for 5 triples (svelte-check + vps-native)
-# ─────────────────────────────────────────────────────────────────────────────
 
 log ""
 log "═════════════════════════════════════════════════════════════════════"
@@ -325,9 +315,7 @@ for entry in "${TRIPLES[@]}"; do
   fi
 done
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Phase 4: publish svelte-check (platforms first, then loader)
-# ─────────────────────────────────────────────────────────────────────────────
 
 log ""
 log "═════════════════════════════════════════════════════════════════════"
@@ -341,9 +329,7 @@ done
 
 publish_if_new apps/npm/svelte-check
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Phase 5: publish vps-native (platforms first, then loader)
-# ─────────────────────────────────────────────────────────────────────────────
 
 log ""
 log "═════════════════════════════════════════════════════════════════════"
@@ -357,9 +343,7 @@ done
 
 publish_if_new apps/npm/vite-plugin-svelte-native
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Phase 6: @rsvelte/vite-plugin-svelte (JS shim)
-# ─────────────────────────────────────────────────────────────────────────────
 # The shim is a normal workspace package (apps/npm/vite-plugin-svelte). It is a
 # pure-ESM package with no build step, and its `@rsvelte/vite-plugin-svelte-native`
 # dependency uses `workspace:^`, which `pnpm publish` rewrites to the concrete
@@ -372,9 +356,7 @@ log "═════════════════════════
 
 publish_if_new apps/npm/vite-plugin-svelte
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Phase 7: @rsvelte/lint (5 platform binaries + JS loader)
-# ─────────────────────────────────────────────────────────────────────────────
 # Delegated to the standalone publish-lint-local.sh so the lint family can also
 # be published on its own. It cross-builds the `rsvelte-lint` CLI with the
 # `--profile dist-lint` profile (per-file panic isolation needs unwinding) — a
@@ -389,9 +371,7 @@ log "═════════════════════════
 step "publish @rsvelte/lint family" \
   bash "$REPO_ROOT/scripts/release/publish-lint-local.sh"
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Done
-# ─────────────────────────────────────────────────────────────────────────────
 
 log ""
 log "═════════════════════════════════════════════════════════════════════"

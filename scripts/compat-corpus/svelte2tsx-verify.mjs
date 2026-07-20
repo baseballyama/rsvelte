@@ -51,8 +51,6 @@ const BASELINE_PATH = path.resolve(
 	args.indexOf('--baseline') !== -1 ? args[args.indexOf('--baseline') + 1] : 'svelte2tsx-known-failures.json',
 );
 
-// ---- oxfmt normalization ---------------------------------------------------
-
 if (!NO_FMT) {
 	const emptyIgnore = path.join(CORPUS, '.oxfmt-ignore-nothing');
 	fs.writeFileSync(emptyIgnore, '');
@@ -75,8 +73,6 @@ if (!NO_FMT) {
 		}
 	}
 }
-
-// ---- comparison --------------------------------------------------------------
 
 const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8')).filter(
 	(e) => e.kind === 'component'

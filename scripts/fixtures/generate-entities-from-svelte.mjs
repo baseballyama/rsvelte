@@ -14,49 +14,39 @@ import { readFileSync, writeFileSync } from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Read Svelte's entities.js
 const entitiesPath = join(__dirname, '../../submodules/svelte/packages/svelte/src/compiler/phases/1-parse/utils/entities.js');
 const entitiesModule = await import(entitiesPath);
 const entities = entitiesModule.default;
 
-// Convert entities object to sorted array
-// Use a Map to avoid duplicates (prefer semicolon version if both exist)
+// Use a Map to avoid duplicates (prefer semicolon version if both exist).
 const entityMap = new Map();
-// Track entities that appear WITHOUT a semicolon in the source (legacy entities)
+// Entities that explicitly appear without a semicolon in the source are the
+// "legacy" entities that can be decoded without a trailing semicolon.
 const legacyEntityMap = new Map();
 
 for (const [name, codepoint] of Object.entries(entities)) {
-    // Remove & prefix if present
     const cleanName = name.startsWith('&') ? name.slice(1) : name;
-    // Remove ; suffix if present
     const finalName = cleanName.endsWith(';') ? cleanName.slice(0, -1) : cleanName;
-
-    // Convert single codepoint to array for consistency
     const codepoints = Array.isArray(codepoint) ? codepoint : [codepoint];
 
-    // Only add if not already present, or if this is a semicolon version
     if (!entityMap.has(finalName) || cleanName.endsWith(';')) {
         entityMap.set(finalName, codepoints);
     }
 
-    // Track entities that explicitly appear without a semicolon in the source
-    // These are the "legacy" entities that can be decoded without a trailing semicolon
     if (!cleanName.endsWith(';')) {
         legacyEntityMap.set(finalName, codepoints);
     }
 }
 
-// Convert map to array
 const processed = Array.from(entityMap.entries()).map(([name, codepoints]) => ({ name, codepoints }));
 
-// Sort for binary search - use byte-wise comparison (same as Rust's Ord for &str)
+// Sort for binary search - use byte-wise comparison (same as Rust's Ord for &str).
 processed.sort((a, b) => {
     if (a.name < b.name) return -1;
     if (a.name > b.name) return 1;
     return 0;
 });
 
-// Convert legacy (no-semicolon) entities to sorted array
 const processedLegacy = Array.from(legacyEntityMap.entries()).map(([name, codepoints]) => ({ name, codepoints }));
 processedLegacy.sort((a, b) => {
     if (a.name < b.name) return -1;
@@ -64,7 +54,6 @@ processedLegacy.sort((a, b) => {
     return 0;
 });
 
-// Generate Rust code
 const rustCode = `//! Auto-generated HTML entity data from Svelte compiler.
 //! Source: submodules/svelte/packages/svelte/src/compiler/phases/1-parse/utils/entities.js
 //!
@@ -188,7 +177,6 @@ mod tests {
 }
 `;
 
-// Write to file
 const outputPath = join(__dirname, '../../src/compiler/phases/1_parse/utils/entities_data.rs');
 writeFileSync(outputPath, rustCode);
 

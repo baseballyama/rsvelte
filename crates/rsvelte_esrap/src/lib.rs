@@ -6,10 +6,9 @@
 //! The official Svelte compiler builds an ESTree and prints it once with esrap.
 //! rsvelte's Phase 3 instead generates JS by string surgery — splicing edits
 //! into source text across hundreds of passes — which is both the root cause of
-//! a class of formatting divergences and, per `docs/phase3-perf-baseline.md`,
-//! ~68% of client-transform time. The durable fix is the same architecture
-//! upstream uses: build an output AST and print it once. This crate is that
-//! printer (plan: `docs/phase3-ast-refactor-plan.md`, step 0).
+//! a class of formatting divergences and a large share of client-transform time.
+//! The durable fix is the same architecture upstream uses: build an output AST
+//! and print it once. This crate is that printer.
 //!
 //! ## Model
 //!

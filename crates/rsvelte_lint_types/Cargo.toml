@@ -8,8 +8,7 @@
 # root workspace would break `cargo build` / CI for everyone who cannot clone
 # that private submodule. Isolating it keeps the default build and CI 100%
 # corsa-free; this crate is built/tested only locally, where corsa-bind +
-# typescript-go are available. This is the Wave-3 "gated spike" of
-# docs/svelte-lint-design.md made runnable.
+# typescript-go are available. This is the Wave-3 "gated spike" made runnable.
 #
 # Because it is a separate workspace root, it must re-declare the workspace keys
 # the path-dep crates (rsvelte_core / rsvelte_lint) reference via

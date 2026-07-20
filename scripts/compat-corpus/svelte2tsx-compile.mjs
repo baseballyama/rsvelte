@@ -47,7 +47,7 @@ function assertSvelteVersionMatches() {
 	const submoduleVersion = JSON.parse(fs.readFileSync(SVELTE_PKG, 'utf8')).version;
 	const required = createRequire(OFFICIAL);
 	const resolvedVersion = required('svelte/compiler').VERSION;
-	const minor = (v) => String(v).split('.').slice(0, 2).join('.'); // major.minor
+	const minor = (v) => String(v).split('.').slice(0, 2).join('.');
 	// A different major OR minor changes which syntax svelte2tsx accepts and the
 	// shape of the parsed AST, so the oracle would be wrong — fail loudly. A
 	// patch-only difference rarely affects svelte2tsx output, so warn but allow.
@@ -89,11 +89,8 @@ function isTsFile(source) {
 	return /<script\b[^>]*\blang\s*=\s*(["'])(ts|typescript)\1/i.test(source);
 }
 
-// ---------------------------------------------------------------------------
-// worker mode: convert manifest[start..end) and print `IDX <i>` before each
+// Worker mode: convert manifest[start..end) and print `IDX <i>` before each
 // entry so the parent can pinpoint a crash.
-// ---------------------------------------------------------------------------
-
 if (args.includes('--worker')) {
 	const start = Number(argValue('--start', '0'));
 	const end = Number(argValue('--end', String(manifest.length)));
@@ -137,10 +134,7 @@ if (args.includes('--worker')) {
 	process.exit(0);
 }
 
-// ---------------------------------------------------------------------------
-// parent mode
-// ---------------------------------------------------------------------------
-
+// Parent mode.
 if (!fs.existsSync(BINDING)) {
 	console.error(`[s2t-compile] rsvelte NAPI binding missing at ${BINDING}`);
 	console.error('  build: cargo build --release --features napi --lib');

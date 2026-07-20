@@ -30,7 +30,6 @@ TAG="svelte@${VERSION}"
 echo "=== Upgrading Svelte to ${VERSION} ==="
 echo ""
 
-# Step 1: Checkout submodule
 echo "[1/6] Checking out svelte submodule to ${TAG}..."
 cd "${ROOT}/submodules/svelte"
 git fetch --tags
@@ -39,7 +38,6 @@ COMMIT_HASH=$(git rev-parse --short HEAD)
 echo "  -> Commit: ${COMMIT_HASH}"
 cd "${ROOT}"
 
-# Step 2: Build the Svelte compiler from source
 # IMPORTANT: compiler/index.js is in .gitignore and NOT tracked by git.
 # Without this step, the old compiled version remains and fixtures will be wrong.
 echo ""
@@ -51,7 +49,6 @@ pnpm build
 cd "${ROOT}"
 echo "  -> compiler/index.js rebuilt"
 
-# Step 3: Regenerate fixtures
 echo ""
 echo "[3/6] Regenerating test fixtures..."
 if [ -n "${DOCKER:-}" ] || command -v docker &>/dev/null && docker ps &>/dev/null; then
@@ -60,7 +57,6 @@ else
     npm run generate-fixtures -- --force
 fi
 
-# Step 4: Run compatibility report
 echo ""
 echo "[4/6] Running compatibility report..."
 if [ -n "${DOCKER:-}" ] || command -v docker &>/dev/null && docker ps &>/dev/null; then
@@ -69,7 +65,6 @@ else
     npm run compatibility-report
 fi
 
-# Step 5: Update docs
 echo ""
 echo "[5/6] Updating documentation..."
 if [ -n "${DOCKER:-}" ] || command -v docker &>/dev/null && docker ps &>/dev/null; then
@@ -78,7 +73,6 @@ else
     npm run update-docs
 fi
 
-# Step 6: Update docs site preview runtime version + rsvelte shim version
 echo ""
 echo "[6/6] Updating docs preview runtime to ${VERSION}..."
 PREVIEW_FILE="${ROOT}/apps/playground/src/lib/preview.ts"

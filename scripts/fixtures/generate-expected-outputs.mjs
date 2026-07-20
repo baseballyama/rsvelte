@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * Generates expected compiler outputs for all test samples.
- * This runs the official Svelte compiler and saves the output to JSON.
+ * Regenerates the tracked `apps/playground/static/expected-outputs.json` that
+ * the `test_reporter` binary reads as its official-compiler baseline. Writes the
+ * JSON to stdout, so redirect it:
+ *   node scripts/fixtures/generate-expected-outputs.mjs > apps/playground/static/expected-outputs.json
  */
 
 import pkg from '../../submodules/svelte/packages/svelte/compiler/index.js';

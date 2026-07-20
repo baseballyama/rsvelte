@@ -21,7 +21,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '../..');
 
-// Get Svelte commit hash
 function getSvelteCommitHash() {
 	try {
 		const result = execSync('git rev-parse HEAD', {
@@ -64,7 +63,6 @@ function getSvelteVersion() {
 	}
 }
 
-// Get the compatibility report path
 function getReportPath() {
 	const args = process.argv.slice(2);
 	const reportIndex = args.indexOf('--report');
@@ -79,7 +77,6 @@ function getReportPath() {
 	return path.join(rootDir, 'fixtures', shortHash, 'compatibility-report.json');
 }
 
-// Load compatibility report
 function loadReport(reportPath) {
 	if (!fs.existsSync(reportPath)) {
 		console.error(`Error: Report not found at ${reportPath}`);
@@ -110,7 +107,6 @@ const CATEGORY_CONFIG = {
 	migrate: { name: 'Migrate', order: 15 }
 };
 
-// Generate README compatibility table
 function generateReadmeTable(report) {
 	const categories = Object.entries(report.categories)
 		.map(([id, data]) => ({
@@ -182,8 +178,6 @@ function updateSvelteTargetMarker(content, version, commitHash) {
 	return content;
 }
 
-// Update README.md
-//
 // We only touch the <!-- svelte-target-version --> marker block so the
 // displayed Svelte version stays in sync with the submodule pointer. The
 // compatibility table itself is maintained manually because it carries
@@ -205,7 +199,6 @@ function updateReadme(_report) {
 	}
 }
 
-// Convert to test-results.json format (for docs site)
 function generateTestResults(report) {
 	const categories = Object.entries(report.categories)
 		.map(([id, data]) => ({
@@ -253,12 +246,10 @@ function generateTestResults(report) {
 	};
 }
 
-// Update docs test-results.json
 function updateTestResults(report) {
 	const testResultsPath = path.join(rootDir, 'apps', 'playground', 'static', 'test-results.json');
 	const testResults = generateTestResults(report);
 
-	// Ensure directory exists
 	const dir = path.dirname(testResultsPath);
 	if (!fs.existsSync(dir)) {
 		fs.mkdirSync(dir, { recursive: true });
@@ -291,7 +282,6 @@ function checkReadmeInSync(_report) {
 	console.log(`README.md Svelte target marker is in sync (v${version} @ ${commit.slice(0, 12)})`);
 }
 
-// Main
 function main() {
 	const args = process.argv.slice(2);
 	const checkMode = args.includes('--check');

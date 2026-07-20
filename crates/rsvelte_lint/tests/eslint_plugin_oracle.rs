@@ -245,7 +245,7 @@ const SKIP: &[&str] = &[
     // type-resolution cases (extends / intersection / nested). The remaining
     // options-origin edge cases (`checkImportedTypes` symbol-origin,
     // `ignore*-patterns`, `index-signature` message, `custom-config-combination`)
-    // are tracked as follow-ups in docs/svelte-lint-design.md.
+    // are tracked as follow-ups.
     "no-unused-props/invalid/extends-unused",
     "no-unused-props/invalid/generic-props-unused",
     "no-unused-props/invalid/ignore-external-type",

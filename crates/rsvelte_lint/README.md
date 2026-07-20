@@ -1,9 +1,9 @@
 # rsvelte_lint
 
 A fast, native Svelte linter built directly on the [rsvelte](../../) compiler —
-no second ESTree parse, no Node.js in the hot path. See
-[`docs/svelte-lint-design.md`](../../docs/svelte-lint-design.md) for the full
-architecture & decision record.
+no second ESTree parse, no Node.js in the hot path. The set of ported
+`eslint-plugin-svelte` rules is the registry in the exact-fixture oracle test
+([`tests/eslint_plugin_oracle.rs`](./tests/eslint_plugin_oracle.rs)).
 
 > **Using this from a JS/TS project?** Install the prebuilt
 > [`@rsvelte/lint`](../../apps/npm/lint) npm package instead of building this

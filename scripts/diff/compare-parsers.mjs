@@ -25,7 +25,6 @@ if (!inputFile) {
   process.exit(1);
 }
 
-// Parse with Svelte
 console.log("Parsing with Svelte...");
 const source = readFileSync(inputFile, "utf-8");
 
@@ -37,7 +36,6 @@ try {
   process.exit(1);
 }
 
-// Clean metadata for comparison
 const cleanSvelteAst = JSON.parse(
   JSON.stringify(svelteAst, (key, value) => {
     if (key === "metadata") return undefined;
@@ -45,7 +43,6 @@ const cleanSvelteAst = JSON.parse(
   })
 );
 
-// Parse with Rust
 console.log("Parsing with Rust...");
 let rustAst;
 try {
@@ -60,7 +57,6 @@ try {
   process.exit(1);
 }
 
-// Compare
 const svelteJson = JSON.stringify(cleanSvelteAst, null, 2);
 const rustJson = JSON.stringify(rustAst, null, 2);
 
@@ -69,7 +65,6 @@ if (svelteJson === rustJson) {
 } else {
   console.log("\n❌ ASTs differ!");
 
-  // Write both outputs for comparison
   const tempDir = mkdtempSync(join(tmpdir(), "svelte-compare-"));
   const sveltePath = join(tempDir, "svelte.json");
   const rustPath = join(tempDir, "rust.json");

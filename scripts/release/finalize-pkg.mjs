@@ -10,12 +10,11 @@
 // The version is the changeset-managed `apps/npm/compiler/package.json`
 // version — the single source of truth. We force it here rather than trusting
 // whatever wasm-pack derived from the built crate's `Cargo.toml`, because the
-// built crate is decoupled from the published package's version: when the
-// build switched from `rsvelte_core` to `rsvelte_lint` (#724), wasm-pack
-// started stamping `pkg/package.json` with `rsvelte_lint`'s crate version
-// (`0.1.0`) instead of the release version. That shipped `@rsvelte/compiler`
-// as `0.1.0`, which npm rejected as already-published (E403) and crashed the
-// changesets publish. Owning the version here keeps the published tarball
+// built crate is decoupled from the published package's version: if the wasm
+// build ever targets a different crate, wasm-pack stamps `pkg/package.json`
+// with that crate's own `Cargo.toml` version instead of the release version,
+// which npm rejects as already-published (E403) and crashes the changesets
+// publish. Owning the version here keeps the published tarball
 // correct no matter which crate the wasm build targets, and is also what
 // `workspace:^` consumers (e.g. `@rsvelte/svelte2tsx`) read when pnpm rewrites
 // their dependency range at publish time.

@@ -75,10 +75,7 @@ const CUT_LINE_RE = /^\s*\/\/ ---cut(?:-before|-after)?---\s*\n?/gm;
 // snippets do not exist (only in md front matter, which we never include).
 function stripDiffMarkers(source) {
 	return source
-		.replace(/---([^ ]|[^ ][^]*?[^ ])---/g, (m, inner, offset, str) => {
-			// keep a genuine frontmatter-style fence (line consisting solely of ---)
-			return '';
-		})
+		.replace(/---([^ ]|[^ ][^]*?[^ ])---/g, () => '')
 		.replace(/\+\+\+([^ ]|[^ ][^]*?[^ ])\+\+\+/g, '$1')
 		.replace(/:::([^ ]|[^ ][^]*?[^ ])::::?/g, '$1');
 }

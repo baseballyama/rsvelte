@@ -1,5 +1,5 @@
 //! Faithful port of prettier-plugin-svelte's `printChildren` child-layout
-//! algorithm (milestone 1 of `docs/fmt-layout-port-plan.md`).
+//! algorithm.
 //!
 //! This module is the **algorithm core**, decoupled from rsvelte's AST: callers
 //! (the markup printer, milestone 2) classify each child into [`Child`] and

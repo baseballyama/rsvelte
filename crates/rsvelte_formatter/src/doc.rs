@@ -12,8 +12,8 @@ use unicode_width::UnicodeWidthStr;
 
 // Several variants below (`Literalline`, `ForcedGroup`, `Dedent`, `BreakParent`)
 // and `propagate_breaks` are the IR scaffolding for the prettier-plugin-svelte
-// child-layout port (see docs/fmt-layout-port-plan.md); they are exercised by
-// unit tests here and consumed by the markup child-printer in the next milestone.
+// child-layout port; they are exercised by unit tests here and consumed by the
+// markup child-printer.
 #[derive(Clone)]
 #[allow(dead_code)]
 pub(crate) enum Doc {

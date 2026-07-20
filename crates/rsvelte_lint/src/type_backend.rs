@@ -1,7 +1,7 @@
 //! The type-aware seam: a backend-agnostic interface a rule uses to query
 //! TypeScript type facts at a position in the component.
 //!
-//! This module is the boundary described in `docs/svelte-lint-design.md` §B.
+//! This module is the boundary between rule logic and type resolution.
 //! The **rule logic** that consumes type information lives in `rsvelte_lint`
 //! (and is unit-tested against a mock backend, see the tests in the type-aware
 //! rule modules), while the **real type resolution** — svelte2tsx generation, a

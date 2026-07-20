@@ -20,9 +20,10 @@
  * Each lists the entry ids whose output diverges for that target. Verification
  * exits non-zero only when a (id, target) pair NOT in its baseline fails (a
  * regression) — known failures are tolerated and burned down over time (see
- * docs/corpus-remaining-work.md). When previously-known failures now pass, a
- * reminder to shrink the relevant baseline is printed (use --update-baseline to
- * rewrite both files from current results).
+ * compat/corpus/known-failures.md for the root-cause writeup of each entry).
+ * When previously-known failures now pass, a reminder to shrink the relevant
+ * baseline is printed (use --update-baseline to rewrite both files from
+ * current results).
  *
  * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline] [--strict]
  */
@@ -235,7 +236,7 @@ if (regressions.length) {
 }
 
 if (failures.length) {
-	console.log(`\n[verify] ✅ no regressions (client ${clientFails.size}, server ${serverFails.size} known failures remain — see docs/corpus-remaining-work.md)`);
+	console.log(`\n[verify] ✅ no regressions (client ${clientFails.size}, server ${serverFails.size} known failures remain — see compat/corpus/known-failures.md)`);
 } else {
 	console.log('\n[verify] ✅ all corpus outputs identical after normalization');
 }
