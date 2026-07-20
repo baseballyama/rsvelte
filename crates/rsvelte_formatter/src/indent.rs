@@ -118,10 +118,12 @@ fn collect_indent_edits_inner(
         // Used for block bodies: only split inline spaces when such a sibling
         // is present. Without one (fragment is only ExpressionTags + ws),
         // the space is prose-sensitive and stays on one line.
-        let has_non_expression_block_child = fragment
-            .nodes
-            .iter()
-            .any(|n| is_indent_provoking(n) && !matches!(n, TemplateNode::ExpressionTag(_)));
+        let flat_budget = options.js.line_width.value() as usize;
+        let has_non_expression_block_child = fragment.nodes.iter().any(|n| {
+            is_indent_provoking(n)
+                && !matches!(n, TemplateNode::ExpressionTag(_))
+                && !is_inline_level_node(n, source, child_indent.chars().count(), flat_budget)
+        });
 
         // prettier-plugin-svelte's `forceBreakContent`: when any child is a
         // block-display HTML element AND there are multiple non-whitespace
@@ -729,6 +731,27 @@ fn open_tag_is_multiline(source: &str, elem_start: u32, fragment: &Fragment) -> 
     source
         .get(elem_start as usize..first_start as usize)
         .is_some_and(|s| s.contains('\n'))
+}
+
+/// Inline-level template nodes: a Component, or a non-block HTML element.
+/// A space next to one of these is prose glue, not a child separator.
+fn is_inline_level_node(
+    node: &TemplateNode,
+    source: &str,
+    indent_width: usize,
+    line_width: usize,
+) -> bool {
+    let (start, end) = match node {
+        TemplateNode::Component(c) => (c.start, c.end),
+        TemplateNode::RegularElement(e) if !is_prettier_block_element(e.name.as_str()) => {
+            (e.start, e.end)
+        }
+        _ => return false,
+    };
+    // An element that cannot print flat breaks its own open tag, and prettier
+    // propagates that break to the whole children run.
+    let flat = source.get(start as usize..end as usize).unwrap_or("");
+    !flat.contains('\n') && indent_width + flat.chars().count() <= line_width
 }
 
 fn is_indent_provoking(node: &TemplateNode) -> bool {
