@@ -1,0 +1,802 @@
+[
+{
+"input": "bg-muted/40 dark:bg-background border-foreground/5 hover:border-foreground/10 group relative block h-[150px] w-full overflow-hidden rounded-xl border transition-all select-none",
+"expected": "bg-muted/40 dark:bg-background border-foreground/5 hover:border-foreground/10 group relative block h-[150px] w-full overflow-hidden rounded-xl border transition-all select-none"
+},
+{
+"input": "hover:bg-muted-foreground/15 focus:bg-muted-foreground/15 focus-visible:bg-muted-foreground/15 active:bg-muted-foreground/15 data-[active=true]:bg-muted-foreground/15 rounded-none ps-(--index) whitespace-nowrap",
+"expected": "hover:bg-muted-foreground/15 focus:bg-muted-foreground/15 focus-visible:bg-muted-foreground/15 active:bg-muted-foreground/15 data-[active=true]:bg-muted-foreground/15 rounded-none ps-(--index) whitespace-nowrap"
+},
+{
+"input": "after:bg-border relative z-20 hidden w-3 bg-transparent p-0 after:absolute after:end-0 after:top-1/2 after:h-8 after:w-[6px] after:-translate-x-px after:-translate-y-1/2 after:rounded-full after:transition-all after:hover:h-10 md:block",
+"expected": "after:bg-border relative z-20 hidden w-3 bg-transparent p-0 after:absolute after:end-0 after:top-1/2 after:h-8 after:w-[6px] after:-translate-x-px after:-translate-y-1/2 after:rounded-full after:transition-all after:hover:h-10 md:block"
+},
+{
+"input": "hover:bg-muted-foreground/15 focus:bg-muted-foreground/15 focus-visible:bg-muted-foreground/15 active:bg-muted-foreground/15 data-[active=true]:bg-muted-foreground/15 flex min-w-0 items-center rounded-none ps-(--index)",
+"expected": "hover:bg-muted-foreground/15 focus:bg-muted-foreground/15 focus-visible:bg-muted-foreground/15 active:bg-muted-foreground/15 data-[active=true]:bg-muted-foreground/15 flex min-w-0 items-center rounded-none ps-(--index)"
+},
+{
+"input": "hover:bg-accent/50 flex items-start gap-3 rounded-lg border p-3 has-[[aria-checked=true]]:border-blue-600 has-[[aria-checked=true]]:bg-blue-50 dark:has-[[aria-checked=true]]:border-blue-900 dark:has-[[aria-checked=true]]:bg-blue-950",
+"expected": "hover:bg-accent/50 flex items-start gap-3 rounded-lg border p-3 has-[[aria-checked=true]]:border-blue-600 has-[[aria-checked=true]]:bg-blue-50 dark:has-[[aria-checked=true]]:border-blue-900 dark:has-[[aria-checked=true]]:bg-blue-950"
+},
+{
+"input": "bg-muted/40 dark:bg-background border-foreground/5 hover:border-foreground/10 group relative block h-[150px] w-full select-none overflow-hidden rounded-xl border transition-all",
+"expected": "bg-muted/40 dark:bg-background border-foreground/5 hover:border-foreground/10 group relative block h-[150px] w-full overflow-hidden rounded-xl border transition-all select-none"
+},
+{
+"input": "cursor-pointer text-indigo-950/30 transition data-[state=active]:text-indigo-950 data-[state=inactive]:hover:text-indigo-950",
+"expected": "cursor-pointer text-indigo-950/30 transition data-[state=active]:text-indigo-950 data-[state=inactive]:hover:text-indigo-950"
+},
+{
+"input": "bg-background-alt text-foreground/60 hover:bg-muted data-[state=on]:bg-foreground data-[state=on]:text-background active:data-[state=on]:bg-dark-10 inline-flex size-6 cursor-pointer items-center justify-center rounded-[7px] transition-all active:scale-[0.98] lg:size-8  dark:bg-white dark:text-[#808080] dark:data-[state=on]:bg-[#18181B] dark:data-[state=on]:text-white",
+"expected": "bg-background-alt text-foreground/60 hover:bg-muted data-[state=on]:bg-foreground data-[state=on]:text-background active:data-[state=on]:bg-dark-10 inline-flex size-6 cursor-pointer items-center justify-center rounded-[7px] transition-all active:scale-[0.98] lg:size-8 dark:bg-white dark:text-[#808080] dark:data-[state=on]:bg-[#18181B] dark:data-[state=on]:text-white"
+},
+{
+"input": "bg-background-alt text-foreground/60 hover:bg-muted data-[state=on]:bg-foreground data-[state=on]:text-background active:data-[state=on]:bg-dark-10 inline-flex size-6 cursor-pointer items-center justify-center rounded-[7px] transition-all active:scale-[0.98] lg:size-8 dark:bg-white dark:text-[#808080] dark:data-[state=on]:bg-[#18181B] dark:data-[state=on]:text-white",
+"expected": "bg-background-alt text-foreground/60 hover:bg-muted data-[state=on]:bg-foreground data-[state=on]:text-background active:data-[state=on]:bg-dark-10 inline-flex size-6 cursor-pointer items-center justify-center rounded-[7px] transition-all active:scale-[0.98] lg:size-8 dark:bg-white dark:text-[#808080] dark:data-[state=on]:bg-[#18181B] dark:data-[state=on]:text-white"
+},
+{
+"input": "bg-background-alt text-foreground/60 hover:bg-muted data-[state=on]:bg-foreground  data-[state=on]:text-background active:data-[state=on]:bg-dark-10 inline-flex size-6 cursor-pointer items-center justify-center rounded-[7px] transition-all active:scale-[0.98] lg:size-8 dark:bg-white dark:text-[#808080] dark:data-[state=on]:bg-[#18181B] dark:data-[state=on]:text-white",
+"expected": "bg-background-alt text-foreground/60 hover:bg-muted data-[state=on]:bg-foreground data-[state=on]:text-background active:data-[state=on]:bg-dark-10 inline-flex size-6 cursor-pointer items-center justify-center rounded-[7px] transition-all active:scale-[0.98] lg:size-8 dark:bg-white dark:text-[#808080] dark:data-[state=on]:bg-[#18181B] dark:data-[state=on]:text-white"
+},
+{
+"input": "rounded-input bg-dark text-background\n\tshadow-mini hover:bg-dark/95 focus-visible:ring-foreground focus-visible:ring-offset-background focus-visible:outline-hidden\n\tinline-flex h-12 select-none items-center justify-center whitespace-nowrap px-[21px] text-[15px] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98]",
+"expected": "rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 focus-visible:ring-foreground focus-visible:ring-offset-background inline-flex h-12 items-center justify-center px-[21px] text-[15px] font-semibold whitespace-nowrap transition-colors select-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden active:scale-[0.98]"
+},
+{
+"input": "rounded-input bg-dark text-background\n\t\t\t\tshadow-mini hover:bg-dark/95 focus-visible:ring-foreground focus-visible:ring-offset-background focus-visible:outline-hidden\n\t\t\t\tinline-flex h-12 select-none items-center justify-center whitespace-nowrap px-[21px] text-[15px] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98]",
+"expected": "rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 focus-visible:ring-foreground focus-visible:ring-offset-background inline-flex h-12 items-center justify-center px-[21px] text-[15px] font-semibold whitespace-nowrap transition-colors select-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden active:scale-[0.98]"
+},
+{
+"input": "rounded-input bg-dark text-background\n\tshadow-mini hover:bg-dark/95 inline-flex h-12 select-none\n\titems-center justify-center whitespace-nowrap px-[21px] text-[15px] font-semibold transition-all active:scale-[0.98]",
+"expected": "rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 inline-flex h-12 items-center justify-center px-[21px] text-[15px] font-semibold whitespace-nowrap transition-all select-none active:scale-[0.98]"
+},
+{
+"input": "h-input rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 focus-visible:ring-dark focus-visible:ring-offset-background focus-visible:outline-hidden inline-flex w-full items-center justify-center text-[15px] font-semibold transition-all focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98]",
+"expected": "h-input rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 focus-visible:ring-dark focus-visible:ring-offset-background inline-flex w-full items-center justify-center text-[15px] font-semibold transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden active:scale-[0.98]"
+},
+{
+"input": "rounded-9px text-foreground/70 hover:bg-muted hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground inline-flex size-8 items-center justify-center transition-colors",
+"expected": "rounded-9px text-foreground/70 hover:bg-muted hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground inline-flex size-8 items-center justify-center transition-colors"
+},
+{
+"input": "rounded-9px text-foreground/80 hover:bg-muted data-[state=open]:bg-muted inline-flex h-9 items-center px-3 text-sm font-medium transition-colors",
+"expected": "rounded-9px text-foreground/80 hover:bg-muted data-[state=open]:bg-muted inline-flex h-9 items-center px-3 text-sm font-medium transition-colors"
+},
+{
+"input": "border-dark-10 text-foreground shadow-mini hover:bg-foreground/5 inline-flex h-8 flex-1 select-none items-center justify-center whitespace-nowrap rounded-md border px-[17px] text-xs font-medium transition-all active:scale-[0.98]",
+"expected": "border-dark-10 text-foreground shadow-mini hover:bg-foreground/5 inline-flex h-8 flex-1 items-center justify-center rounded-md border px-[17px] text-xs font-medium whitespace-nowrap transition-all select-none active:scale-[0.98]"
+},
+{
+"input": "rounded-9px bg-background-alt text-foreground/60 hover:bg-muted active:bg-dark-10 data-[state=on]:bg-muted data-[state=on]:text-foreground/80 active:data-[state=on]:bg-dark-10 inline-flex size-10 items-center justify-center transition-all active:scale-[0.98]",
+"expected": "rounded-9px bg-background-alt text-foreground/60 hover:bg-muted active:bg-dark-10 data-[state=on]:bg-muted data-[state=on]:text-foreground/80 active:data-[state=on]:bg-dark-10 inline-flex size-10 items-center justify-center transition-all active:scale-[0.98]"
+},
+{
+"input": "rounded-9px text-foreground/80 hover:bg-muted active:bg-dark-10 inline-flex items-center justify-center  px-3 py-2 text-sm font-medium transition-all active:scale-[0.98]",
+"expected": "rounded-9px text-foreground/80 hover:bg-muted active:bg-dark-10 inline-flex items-center justify-center px-3 py-2 text-sm font-medium transition-all active:scale-[0.98]"
+},
+{
+"input": "rounded-9px bg-background text-foreground/80 ring-dark ring-offset-background shadow-mini hover:bg-muted focus-visible:ring-dark focus-visible:ring-offset-background focus-visible:outline-hidden active:bg-dark-10 inline-flex h-8 shrink-0 items-center justify-center px-3 text-xs font-medium transition-all focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98]",
+"expected": "rounded-9px bg-background text-foreground/80 ring-dark ring-offset-background shadow-mini hover:bg-muted focus-visible:ring-dark focus-visible:ring-offset-background active:bg-dark-10 inline-flex h-8 shrink-0 items-center justify-center px-3 text-xs font-medium transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden active:scale-[0.98]"
+},
+{
+"input": "rounded-input bg-dark\n\ttext-background shadow-mini hover:bg-dark/95 inline-flex h-10 select-none items-center justify-center whitespace-nowrap px-[21px] text-[15px] font-medium transition-all hover:cursor-pointer active:scale-[0.98]",
+"expected": "rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 inline-flex h-10 items-center justify-center px-[21px] text-[15px] font-medium whitespace-nowrap transition-all select-none hover:cursor-pointer active:scale-[0.98]"
+},
+{
+"input": "text-foreground/60 hover:bg-muted active:bg-dark-10 ml-auto inline-flex size-8 items-center justify-center rounded-[5px] transition-all",
+"expected": "text-foreground/60 hover:bg-muted active:bg-dark-10 ml-auto inline-flex size-8 items-center justify-center rounded-[5px] transition-all"
+},
+{
+"input": "rounded-input bg-dark text-background\n\t  shadow-mini hover:bg-dark/95 focus-visible:ring-foreground focus-visible:ring-offset-background focus-visible:outline-hidden\n\t  inline-flex h-12 items-center justify-center whitespace-nowrap px-[21px] text-[15px] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98]",
+"expected": "rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 focus-visible:ring-foreground focus-visible:ring-offset-background inline-flex h-12 items-center justify-center px-[21px] text-[15px] font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden active:scale-[0.98]"
+},
+{
+"input": "h-input rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 focus-visible:ring-dark focus-visible:ring-offset-background focus-visible:outline-hidden inline-flex items-center justify-center px-[50px] text-[15px] font-semibold focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98]",
+"expected": "h-input rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 focus-visible:ring-dark focus-visible:ring-offset-background inline-flex items-center justify-center px-[50px] text-[15px] font-semibold focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden active:scale-[0.98]"
+},
+{
+"input": "rounded-input bg-dark text-background\n\tshadow-mini hover:bg-dark/95 focus-visible:ring-foreground focus-visible:ring-offset-background focus-visible:outline-hidden inline-flex\n\th-12 select-none items-center justify-center whitespace-nowrap px-[21px] text-[15px] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98]",
+"expected": "rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 focus-visible:ring-foreground focus-visible:ring-offset-background inline-flex h-12 items-center justify-center px-[21px] text-[15px] font-semibold whitespace-nowrap transition-colors select-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden active:scale-[0.98]"
+},
+{
+"input": "rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 inline-flex h-10 select-none items-center justify-center whitespace-nowrap px-[21px] text-sm font-medium transition-all hover:cursor-pointer active:scale-[0.98]",
+"expected": "rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 inline-flex h-10 items-center justify-center px-[21px] text-sm font-medium whitespace-nowrap transition-all select-none hover:cursor-pointer active:scale-[0.98]"
+},
+{
+"input": "rounded-input bg-dark text-background\n\tshadow-mini hover:bg-dark/95 focus-visible:ring-foreground focus-visible:ring-offset-background focus-visible:outline-hidden\n\tinline-flex h-12 items-center justify-center whitespace-nowrap px-[21px] text-[15px] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98]",
+"expected": "rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 focus-visible:ring-foreground focus-visible:ring-offset-background inline-flex h-12 items-center justify-center px-[21px] text-[15px] font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden active:scale-[0.98]"
+},
+{
+"input": "rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 inline-flex\n\th-12 items-center justify-center px-[21px] text-[15px]\n\tfont-semibold active:scale-[0.98] active:transition-all",
+"expected": "rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 inline-flex h-12 items-center justify-center px-[21px] text-[15px] font-semibold active:scale-[0.98] active:transition-all"
+},
+{
+"input": "data-active:text-foreground data-active:bg-black/5 dark:data-active:bg-white/10 dark:data-active:text-white/100 rounded-[40px] px-[0.9em] pb-[0.4em] pt-[0.3em] text-sm font-medium leading-none tracking-[0.01em] transition hover:bg-black/5 dark:text-white/50 dark:hover:bg-white/10",
+"expected": "data-active:text-foreground rounded-[40px] px-[0.9em] pt-[0.3em] pb-[0.4em] text-sm leading-none font-medium tracking-[0.01em] transition hover:bg-black/5 data-active:bg-black/5 dark:text-white/50 dark:hover:bg-white/10 dark:data-active:bg-white/10 dark:data-active:text-white/100"
+},
+{
+"input": "rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 inline-flex\n        h-10 items-center justify-center px-5 text-[14px]\n        font-semibold active:scale-[0.98] active:transition-all",
+"expected": "rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 inline-flex h-10 items-center justify-center px-5 text-[14px] font-semibold active:scale-[0.98] active:transition-all"
+},
+{
+"input": "rounded-input bg-dark shadow-mini hover:bg-dark/95 inline-flex h-10\n        items-center justify-center\n        px-3 active:scale-[0.98] active:transition-all dark:bg-white",
+"expected": "rounded-input bg-dark shadow-mini hover:bg-dark/95 inline-flex h-10 items-center justify-center px-3 active:scale-[0.98] active:transition-all dark:bg-white"
+},
+{
+"input": "absolute -top-12 -right-12 h-32 w-32 rounded-full bg-[#FFD4B2] opacity-10 blur-[50px] transition-opacity group-hover:opacity-20",
+"expected": "absolute -top-12 -right-12 h-32 w-32 rounded-full bg-[#FFD4B2] opacity-10 blur-[50px] transition-opacity group-hover:opacity-20"
+},
+{
+"input": "absolute -bottom-12 -left-12 h-32 w-32 rounded-full bg-[#CBA6F7] opacity-10 blur-[50px] transition-opacity group-hover:opacity-20",
+"expected": "absolute -bottom-12 -left-12 h-32 w-32 rounded-full bg-[#CBA6F7] opacity-10 blur-[50px] transition-opacity group-hover:opacity-20"
+},
+{
+"input": "from-code/70 to-code text-muted-foreground absolute inset-x-0 -bottom-2 flex h-20 items-center justify-center rounded-b-lg bg-gradient-to-b text-sm group-data-[state=open]/collapsible:hidden",
+"expected": "from-code/70 to-code text-muted-foreground absolute inset-x-0 -bottom-2 flex h-20 items-center justify-center rounded-b-lg bg-gradient-to-b text-sm group-data-[state=open]/collapsible:hidden"
+},
+{
+"input": "size-7 shrink-0 rounded-md p-0 hover:bg-zinc-700 hover:text-white focus:bg-zinc-700 focus:text-white focus-visible:bg-zinc-700 focus-visible:text-white active:bg-zinc-700 active:text-white data-[active=true]:bg-zinc-700 data-[active=true]:text-white [&>svg]:size-3",
+"expected": "size-7 shrink-0 rounded-md p-0 hover:bg-zinc-700 hover:text-white focus:bg-zinc-700 focus:text-white focus-visible:bg-zinc-700 focus-visible:text-white active:bg-zinc-700 active:text-white data-[active=true]:bg-zinc-700 data-[active=true]:text-white [&>svg]:size-3"
+},
+{
+"input": "bg-muted/60 dark:bg-background border-foreground/5 hover:border-foreground/10 group relative flex w-full items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 transition-all select-none xl:hidden",
+"expected": "bg-muted/60 dark:bg-background border-foreground/5 hover:border-foreground/10 group relative flex w-full items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 transition-all select-none xl:hidden"
+},
+{
+"input": "absolute -top-8 -right-8 h-24 w-24 rounded-full bg-[#FFD4B2] opacity-10 blur-2xl transition-opacity group-hover:opacity-20",
+"expected": "absolute -top-8 -right-8 h-24 w-24 rounded-full bg-[#FFD4B2] opacity-10 blur-2xl transition-opacity group-hover:opacity-20"
+},
+{
+"input": "absolute -bottom-8 -left-8 h-24 w-24 rounded-full bg-[#CBA6F7] opacity-10 blur-2xl transition-opacity group-hover:opacity-20",
+"expected": "absolute -bottom-8 -left-8 h-24 w-24 rounded-full bg-[#CBA6F7] opacity-10 blur-2xl transition-opacity group-hover:opacity-20"
+},
+{
+"input": "text-foreground hover:bg-muted dark:text-foreground h-6 rounded-[6px] border bg-transparent px-2 text-xs shadow-none",
+"expected": "text-foreground hover:bg-muted dark:text-foreground h-6 rounded-[6px] border bg-transparent px-2 text-xs shadow-none"
+},
+{
+"input": "group relative flex aspect-[3/1] w-full flex-1 cursor-pointer flex-col gap-2 text-(--text) sm:aspect-[2/3] sm:h-auto sm:w-auto [&>svg]:absolute [&>svg]:end-4 [&>svg]:top-4 [&>svg]:z-10 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:opacity-0 [&>svg]:transition-opacity",
+"expected": "group relative flex aspect-[3/1] w-full flex-1 cursor-pointer flex-col gap-2 text-(--text) sm:aspect-[2/3] sm:h-auto sm:w-auto [&>svg]:absolute [&>svg]:end-4 [&>svg]:top-4 [&>svg]:z-10 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:opacity-0 [&>svg]:transition-opacity"
+},
+{
+"input": "text-muted-foreground group-hover:text-foreground group-data-[last-copied=true]:text-primary font-mono text-xs tabular-nums transition-colors sm:hidden xl:flex",
+"expected": "text-muted-foreground group-hover:text-foreground group-data-[last-copied=true]:text-primary font-mono text-xs tabular-nums transition-colors sm:hidden xl:flex"
+},
+{
+"input": "text-muted-foreground group-hover:text-foreground group-data-[last-copied=true]:text-primary hidden font-mono text-xs tabular-nums transition-colors sm:flex xl:hidden",
+"expected": "text-muted-foreground group-hover:text-foreground group-data-[last-copied=true]:text-primary hidden font-mono text-xs tabular-nums transition-colors sm:flex xl:hidden"
+},
+{
+"input": "group-has-data-[slot=designer]/layout:fixed:max-w-none 3xl:fixed:container flex h-(--header-height) items-center **:data-[slot=separator]:h-4!",
+"expected": "group-has-data-[slot=designer]/layout:fixed:max-w-none 3xl:fixed:container flex h-(--header-height) items-center **:data-[slot=separator]:h-4!"
+},
+{
+"input": "text-muted-foreground hover:text-primary data-[active=true]:text-primary flex h-7 items-center justify-center px-4 text-center text-base font-medium transition-colors",
+"expected": "text-muted-foreground hover:text-primary data-[active=true]:text-primary flex h-7 items-center justify-center px-4 text-center text-base font-medium transition-colors"
+},
+{
+"input": "text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=1]:ps-4 data-[depth=2]:ps-6",
+"expected": "text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=1]:ps-4 data-[depth=2]:ps-6"
+},
+{
+"input": "border-foreground/10 bg-muted/50 h-[calc(--spacing(13.5))] w-[140px] touch-manipulation justify-between rounded-xl border select-none focus-visible:border-transparent focus-visible:ring-1 sm:rounded-lg md:w-full md:rounded-lg md:border-transparent md:bg-transparent md:pr-3.5! md:pl-2!",
+"expected": "border-foreground/10 bg-muted/50 h-[calc(--spacing(13.5))] w-[140px] touch-manipulation justify-between rounded-xl border select-none focus-visible:border-transparent focus-visible:ring-1 sm:rounded-lg md:w-full md:rounded-lg md:border-transparent md:bg-transparent md:pr-3.5! md:pl-2!"
+},
+{
+"input": "text-muted-foreground hover:text-primary data-[active=true]:text-primary flex h-7 cursor-pointer items-center justify-center px-4 text-center text-base font-medium capitalize transition-colors hover:no-underline",
+"expected": "text-muted-foreground hover:text-primary data-[active=true]:text-primary flex h-7 cursor-pointer items-center justify-center px-4 text-center text-base font-medium capitalize transition-colors hover:no-underline"
+},
+{
+"input": "bg-secondary group/buttons relative flex rounded-lg *:data-[slot=button]:focus-visible:relative *:data-[slot=button]:focus-visible:z-10",
+"expected": "bg-secondary group/buttons relative flex rounded-lg *:data-[slot=button]:focus-visible:relative *:data-[slot=button]:focus-visible:z-10"
+},
+{
+"input": "bg-background relative aspect-[4/2.5] overflow-hidden rounded-lg border md:aspect-auto md:rounded-xl",
+"expected": "bg-background relative aspect-[4/2.5] overflow-hidden rounded-lg border md:aspect-auto md:rounded-xl"
+},
+{
+"input": "bg-code text-code-foreground me-3.5 flex overflow-hidden rounded-xl border group-data-[view=preview]/block-view-wrapper:hidden md:h-(--height)",
+"expected": "bg-code text-code-foreground me-3.5 flex overflow-hidden rounded-xl border group-data-[view=preview]/block-view-wrapper:hidden md:h-(--height)"
+},
+{
+"input": "relative aspect-[4/2.5] w-full overflow-hidden rounded-md border md:-mx-4",
+"expected": "relative aspect-[4/2.5] w-full overflow-hidden rounded-md border md:-mx-4"
+},
+{
+"input": "text-foreground hover:bg-muted dark:text-foreground h-6 w-6 rounded-[6px] bg-transparent shadow-none [&_svg]:h-3 [&_svg]:w-3",
+"expected": "text-foreground hover:bg-muted dark:text-foreground h-6 w-6 rounded-[6px] bg-transparent shadow-none [&_svg]:h-3 [&_svg]:w-3"
+},
+{
+"input": "gap-1.5 overflow-hidden !px-3 !py-1.5 transition-all duration-100 ease-linear group-has-data-[state=checked]/field-label:!px-2",
+"expected": "gap-1.5 overflow-hidden !px-3 !py-1.5 transition-all duration-100 ease-linear group-has-data-[state=checked]/field-label:!px-2"
+},
+{
+"input": "bg-code text-code-foreground flex h-(--height) overflow-hidden rounded-xl border group-data-[view=preview]/block-view-wrapper:hidden",
+"expected": "bg-code text-code-foreground flex h-(--height) overflow-hidden rounded-xl border group-data-[view=preview]/block-view-wrapper:hidden"
+},
+{
+"input": "data-[active=true]:bg-muted/50 relative z-30 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-start even:border-s sm:border-s sm:border-t-0 sm:px-8 sm:py-6",
+"expected": "data-[active=true]:bg-muted/50 relative z-30 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-start even:border-s sm:border-s sm:border-t-0 sm:px-8 sm:py-6"
+},
+{
+"input": "group/label text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-sm",
+"expected": "group/label text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-sm"
+},
+{
+"input": "flex w-40 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate @[767px]/card:hidden",
+"expected": "flex w-40 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate @[767px]/card:hidden"
+},
+{
+"input": "hover:bg-input/30 focus-visible:bg-background dark:hover:bg-input/30 dark:focus-visible:bg-input/30 h-8 w-16 border-transparent bg-transparent text-end shadow-none focus-visible:border dark:bg-transparent",
+"expected": "hover:bg-input/30 focus-visible:bg-background dark:hover:bg-input/30 dark:focus-visible:bg-input/30 h-8 w-16 border-transparent bg-transparent text-end shadow-none focus-visible:border dark:bg-transparent"
+},
+{
+"input": "**:data-[slot=badge]:bg-muted-foreground/30 hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:px-1 @4xl/main:flex",
+"expected": "**:data-[slot=badge]:bg-muted-foreground/30 hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:px-1 @4xl/main:flex"
+},
+{
+"input": "flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)",
+"expected": "flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)"
+},
+{
+"input": "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear",
+"expected": "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
+},
+{
+"input": "*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4",
+"expected": "*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4"
+},
+{
+"input": "flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12",
+"expected": "flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12"
+},
+{
+"input": "group/label text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground w-full text-sm",
+"expected": "group/label text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground w-full text-sm"
+},
+{
+"input": "group/calendar-item border-sidebar-border text-sidebar-primary-foreground data-[active=true]:border-sidebar-primary data-[active=true]:bg-sidebar-primary flex aspect-square size-4 shrink-0 items-center justify-center rounded-sm border",
+"expected": "group/calendar-item border-sidebar-border text-sidebar-primary-foreground data-[active=true]:border-sidebar-primary data-[active=true]:bg-sidebar-primary flex aspect-square size-4 shrink-0 items-center justify-center rounded-sm border"
+},
+{
+"input": "group/calendar-item border-sidebar-border text-sidebar-primary-foreground data-[active=true]:border-sidebar-primary data-[active=true]:bg-sidebar-primary flex aspect-square size-4 shrink-0 items-center justify-center rounded-xs border",
+"expected": "group/calendar-item border-sidebar-border text-sidebar-primary-foreground data-[active=true]:border-sidebar-primary data-[active=true]:bg-sidebar-primary flex aspect-square size-4 shrink-0 items-center justify-center rounded-xs border"
+},
+{
+"input": "flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12",
+"expected": "flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12"
+},
+{
+"input": "cn-drawer-handle bg-muted mx-auto hidden shrink-0 group-data-[vaul-drawer-direction=bottom]/drawer-content:block",
+"expected": "cn-drawer-handle bg-muted mx-auto hidden shrink-0 group-data-[vaul-drawer-direction=bottom]/drawer-content:block"
+},
+{
+"input": "cn-scroll-area-viewport focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1",
+"expected": "cn-scroll-area-viewport focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1"
+},
+{
+"input": "cn-command-item-indicator ml-auto opacity-0 group-has-[[data-slot=command-shortcut]]/command-item:hidden group-data-[checked=true]/command-item:opacity-100",
+"expected": "cn-command-item-indicator ml-auto opacity-0 group-has-[[data-slot=command-shortcut]]/command-item:hidden group-data-[checked=true]/command-item:opacity-100"
+},
+{
+"input": "flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12",
+"expected": "flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12"
+},
+{
+"input": "border-input bg-background aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 flex min-h-9 w-64 cursor-pointer flex-wrap items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm shadow-xs transition-colors focus-within:ring-[3px] focus-within:ring-offset-2 aria-invalid:ring-[3px]",
+"expected": "border-input bg-background aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 flex min-h-9 w-64 cursor-pointer flex-wrap items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm shadow-xs transition-colors focus-within:ring-[3px] focus-within:ring-offset-2 aria-invalid:ring-[3px]"
+},
+{
+"input": "text-muted-foreground hover:text-foreground text-[0.8rem] no-underline transition-colors",
+"expected": "text-muted-foreground hover:text-foreground text-[0.8rem] no-underline transition-colors"
+},
+{
+"input": "bg-surface text-surface-foreground hover:bg-surface/80 flex w-full flex-col rounded-xl px-4 py-3 transition-colors",
+"expected": "bg-surface text-surface-foreground hover:bg-surface/80 flex w-full flex-col rounded-xl px-4 py-3 transition-colors"
+},
+{
+"input": "bg-background/90 sticky top-0 z-10 flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)",
+"expected": "bg-background/90 sticky top-0 z-10 flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)"
+},
+{
+"input": "grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4",
+"expected": "grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4"
+},
+{
+"input": "flex aspect-[2/1.2] w-full items-center justify-center rounded-t-xl bg-neutral-950 text-center text-neutral-100 sm:aspect-2/1",
+"expected": "flex aspect-[2/1.2] w-full items-center justify-center rounded-t-xl bg-neutral-950 text-center text-neutral-100 sm:aspect-2/1"
+},
+{
+"input": "text-foreground *:[svg]:text-foreground! pointer-events-none absolute top-1/2 right-4 flex size-4 -translate-y-1/2 items-center justify-center text-base select-none",
+"expected": "text-foreground *:[svg]:text-foreground! pointer-events-none absolute top-1/2 right-4 flex size-4 -translate-y-1/2 items-center justify-center text-base select-none"
+},
+{
+"input": "text-muted-foreground hover:text-foreground data-[active=true]:bg-accent data-[active=true]:text-accent-foreground h-7 min-w-8 cursor-pointer rounded-lg px-2.5 text-xs font-medium transition-colors",
+"expected": "text-muted-foreground hover:text-foreground data-[active=true]:bg-accent data-[active=true]:text-accent-foreground h-7 min-w-8 cursor-pointer rounded-lg px-2.5 text-xs font-medium transition-colors"
+},
+{
+"input": "h-[40px] border-b p-2 leading-[40px] text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800",
+"expected": "h-[40px] border-b p-2 leading-[40px] text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800"
+},
+{
+"input": "absolute right-0 bottom-0 left-0 rounded-b-lg bg-gradient-to-t from-black/70 to-transparent p-3 text-white opacity-0 transition-opacity group-hover:opacity-100",
+"expected": "absolute right-0 bottom-0 left-0 rounded-b-lg bg-gradient-to-t from-black/70 to-transparent p-3 text-white opacity-0 transition-opacity group-hover:opacity-100"
+},
+{
+"input": "absolute top-6 left-1/2 w-[calc(100%-2rem)] -translate-x-1/2 rounded-lg border border-gray-100 bg-white shadow-xs lg:max-w-7xl dark:border-gray-600 dark:bg-gray-700",
+"expected": "absolute top-6 left-1/2 w-[calc(100%-2rem)] -translate-x-1/2 rounded-lg border border-gray-100 bg-white shadow-xs lg:max-w-7xl dark:border-gray-600 dark:bg-gray-700"
+},
+{
+"input": "flex w-full max-w-[272px] flex-col items-start gap-4 rounded-lg text-gray-400 hover:bg-gray-50 lg:px-8 lg:py-6 dark:hover:bg-gray-800",
+"expected": "flex w-full max-w-[272px] flex-col items-start gap-4 rounded-lg text-gray-400 hover:bg-gray-50 lg:px-8 lg:py-6 dark:hover:bg-gray-800"
+},
+{
+"input": "border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-900/30 dark:text-primary-400 dark:hover:bg-primary-900/50 inline-flex w-fit items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium",
+"expected": "border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-900/30 dark:text-primary-400 dark:hover:bg-primary-900/50 inline-flex w-fit items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium"
+},
+{
+"input": "group/pininput text-foreground flex items-center has-[:disabled]:opacity-30",
+"expected": "group/pininput text-foreground flex items-center has-[:disabled]:opacity-30"
+},
+{
+"input": "rounded-b-card text-foreground-alt bg-background hover:bg-muted/15 hover:text-foreground flex w-full items-center justify-center border-2 border-t-0 py-3 text-sm font-medium transition-colors duration-100",
+"expected": "rounded-b-card text-foreground-alt bg-background hover:bg-muted/15 hover:text-foreground flex w-full items-center justify-center border-2 border-t-0 py-3 text-sm font-medium transition-colors duration-100"
+},
+{
+"input": "bg-muted/60 dark:bg-background border-foreground/5 hover:border-foreground/10 group relative flex w-full select-none items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 transition-all xl:hidden",
+"expected": "bg-muted/60 dark:bg-background border-foreground/5 hover:border-foreground/10 group relative flex w-full items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 transition-all select-none xl:hidden"
+},
+{
+"input": "absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[#FFD4B2] opacity-10 blur-[40px] transition-opacity group-hover:opacity-20",
+"expected": "absolute -top-8 -right-8 h-24 w-24 rounded-full bg-[#FFD4B2] opacity-10 blur-[40px] transition-opacity group-hover:opacity-20"
+},
+{
+"input": "absolute -bottom-8 -left-8 h-24 w-24 rounded-full bg-[#CBA6F7] opacity-10 blur-[40px] transition-opacity group-hover:opacity-20",
+"expected": "absolute -bottom-8 -left-8 h-24 w-24 rounded-full bg-[#CBA6F7] opacity-10 blur-[40px] transition-opacity group-hover:opacity-20"
+},
+{
+"input": "border-input text-foreground hover:bg-muted inline-flex size-8 select-none items-center justify-center rounded-r-md border text-sm font-medium active:scale-[0.98]",
+"expected": "border-input text-foreground hover:bg-muted inline-flex size-8 items-center justify-center rounded-r-md border text-sm font-medium select-none active:scale-[0.98]"
+},
+{
+"input": "absolute -right-12 -top-12 h-32 w-32 rounded-full bg-[#FFD4B2] opacity-10 blur-[50px] transition-opacity group-hover:opacity-20",
+"expected": "absolute -top-12 -right-12 h-32 w-32 rounded-full bg-[#FFD4B2] opacity-10 blur-[50px] transition-opacity group-hover:opacity-20"
+},
+{
+"input": "text-foreground/30 group-hover:text-foreground size-[18px]",
+"expected": "text-foreground/30 group-hover:text-foreground size-[18px]"
+},
+{
+"input": "bg-muted text-muted-foreground ring-offset-background hover:bg-dark-10 focus-visible:ring-foreground focus-visible:ring-offset-background focus-visible:outline-hidden relative hidden h-10 items-center justify-between gap-3 whitespace-nowrap rounded-[9px] px-3 text-sm font-normal transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 sm:inline-flex sm:w-72",
+"expected": "bg-muted text-muted-foreground ring-offset-background hover:bg-dark-10 focus-visible:ring-foreground focus-visible:ring-offset-background relative hidden h-10 items-center justify-between gap-3 rounded-[9px] px-3 text-sm font-normal whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden sm:inline-flex sm:w-72"
+},
+{
+"input": "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/80",
+"expected": "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/80"
+},
+{
+"input": "focus-override h-input bg-background placeholder:text-foreground-alt/50 focus:outline-hidden inline-flex w-full touch-manipulation truncate rounded-xl px-4 text-base transition-colors focus:ring-0 data-[empty=false]:rounded-b-none data-[empty=false]:border-b",
+"expected": "focus-override h-input bg-background placeholder:text-foreground-alt/50 inline-flex w-full touch-manipulation truncate rounded-xl px-4 text-base transition-colors focus:ring-0 focus:outline-hidden data-[empty=false]:rounded-b-none data-[empty=false]:border-b"
+},
+{
+"input": "hover:bg-muted/50 text-foreground-alt hover:text-foreground flex h-8 select-none items-center gap-1.5 rounded-md rounded-r-none border border-r-0 px-2 py-1.5 text-xs font-semibold leading-none no-underline group-hover:no-underline",
+"expected": "hover:bg-muted/50 text-foreground-alt hover:text-foreground flex h-8 items-center gap-1.5 rounded-md rounded-r-none border border-r-0 px-2 py-1.5 text-xs leading-none font-semibold no-underline select-none group-hover:no-underline"
+},
+{
+"input": "hover:bg-dark-10 data-[state=visible]:animate-in data-[state=hidden]:animate-out data-[state=hidden]:fade-out-0 data-[state=visible]:fade-in-0 flex w-2.5 touch-none select-none rounded-full border-l border-l-transparent bg-transparent p-px transition-all duration-200 hover:w-3",
+"expected": "hover:bg-dark-10 data-[state=visible]:animate-in data-[state=hidden]:animate-out data-[state=hidden]:fade-out-0 data-[state=visible]:fade-in-0 flex w-2.5 touch-none rounded-full border-l border-l-transparent bg-transparent p-px transition-all duration-200 select-none hover:w-3"
+},
+{
+"input": "border-border-input bg-background placeholder:text-foreground-alt/50 inline-flex h-[27px] w-full cursor-pointer select-none items-center rounded-[5px] border px-2 pr-1 text-[8px] transition-colors lg:h-[37px] lg:rounded-[9px] lg:px-3 lg:pr-2 lg:text-sm dark:border-[#18181B2B] dark:bg-white dark:text-[#171717]",
+"expected": "border-border-input bg-background placeholder:text-foreground-alt/50 inline-flex h-[27px] w-full cursor-pointer items-center rounded-[5px] border px-2 pr-1 text-[8px] transition-colors select-none lg:h-[37px] lg:rounded-[9px] lg:px-3 lg:pr-2 lg:text-sm dark:border-[#18181B2B] dark:bg-white dark:text-[#171717]"
+},
+{
+"input": "outer relative h-12 w-3 rounded-[35px] bg-[#000231]/10 lg:h-16 lg:w-4",
+"expected": "outer relative h-12 w-3 rounded-[35px] bg-[#000231]/10 lg:h-16 lg:w-4"
+},
+{
+"input": "text-muted-foreground text-[9px] font-medium lg:text-[12px] dark:text-[#171717]/50",
+"expected": "text-muted-foreground text-[9px] font-medium lg:text-[12px] dark:text-[#171717]/50"
+},
+{
+"input": "focus-visible  text-a-foreground border-border-input shadow-mini hover:bg-muted focus-visible:ring-foreground focus-visible:ring-offset-background inline-flex size-6 cursor-pointer select-none items-center justify-center rounded-[7px] border bg-white text-sm font-medium focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98] lg:size-8 dark:border-[#D8D8D8] dark:shadow-[0px_0.8px_0px_0.8px_rgba(0,_0,_0,_0.04)] dark:hover:bg-white",
+"expected": "focus-visible text-a-foreground border-border-input shadow-mini hover:bg-muted focus-visible:ring-foreground focus-visible:ring-offset-background inline-flex size-6 cursor-pointer items-center justify-center rounded-[7px] border bg-white text-sm font-medium select-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98] lg:size-8 dark:border-[#D8D8D8] dark:shadow-[0px_0.8px_0px_0.8px_rgba(0,_0,_0,_0.04)] dark:hover:bg-white"
+},
+{
+"input": "bg-dark/10 relative h-[6px] w-full grow overflow-hidden rounded-full lg:h-2",
+"expected": "bg-dark/10 relative h-[6px] w-full grow overflow-hidden rounded-full lg:h-2"
+},
+{
+"input": "bg-background relative mx-auto mt-3 aspect-square w-[115px] rounded-[50%] sm:w-10/12 lg:mt-[5px] lg:w-[189px] dark:bg-white",
+"expected": "bg-background relative mx-auto mt-3 aspect-square w-[115px] rounded-[50%] sm:w-10/12 lg:mt-[5px] lg:w-[189px] dark:bg-white"
+},
+{
+"input": "rounded-card-sm absolute left-1/2 top-2.5 h-4 w-[5px] -translate-x-1/2 bg-rose-500 lg:h-[26px] lg:w-2",
+"expected": "rounded-card-sm absolute top-2.5 left-1/2 h-4 w-[5px] -translate-x-1/2 bg-rose-500 lg:h-[26px] lg:w-2"
+},
+{
+"input": "data-active:text-foreground data-active:bg-white dark:data-active:text-[#171717] group flex select-none items-center rounded-[25px] bg-[#31343e] px-1 text-[8px] text-white/70 lg:px-2 lg:text-[11px]",
+"expected": "data-active:text-foreground group flex items-center rounded-[25px] bg-[#31343e] px-1 text-[8px] text-white/70 select-none data-active:bg-white lg:px-2 lg:text-[11px] dark:data-active:text-[#171717]"
+},
+{
+"input": "rounded-button text-foreground-alt hover:text-foreground-alt/80 focus-visible:ring-foreground focus-visible:ring-offset-background focus-visible:outline-hidden inline-flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-offset-2",
+"expected": "rounded-button text-foreground-alt hover:text-foreground-alt/80 focus-visible:ring-foreground focus-visible:ring-offset-background inline-flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden"
+},
+{
+"input": "mr-2 px-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 md:hidden [&_svg]:size-6",
+"expected": "mr-2 px-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 md:hidden [&_svg]:size-6"
+},
+{
+"input": "bg-background/90 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 h-(--bits-popover-content-available-height) w-(--bits-popover-content-available-width) origin-(--bits-popover-content-transform-origin) z-50 pr-0 backdrop-blur",
+"expected": "bg-background/90 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 h-(--bits-popover-content-available-height) w-(--bits-popover-content-available-width) origin-(--bits-popover-content-transform-origin) pr-0 backdrop-blur"
+},
+{
+"input": "text-foreground/95 dark:data-[active=true]:text-accent px-5 py-1.5 text-[22px] font-normal data-[active=true]:font-semibold dark:font-medium dark:data-[active=true]:font-medium",
+"expected": "text-foreground/95 dark:data-[active=true]:text-accent px-5 py-1.5 text-[22px] font-normal data-[active=true]:font-semibold dark:font-medium dark:data-[active=true]:font-medium"
+},
+{
+"input": "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-nested:hidden fixed inset-0 z-50 bg-black/80 transition-opacity duration-200",
+"expected": "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/80 transition-opacity duration-200 data-nested:hidden"
+},
+{
+"input": "border-border-input bg-background hover:border-dark-40 data-[state=checked]:border-foreground data-[state=checked]:border-6 data-disabled:pointer-events-none size-5 shrink-0 cursor-default rounded-full border transition-all duration-100 ease-in-out",
+"expected": "border-border-input bg-background hover:border-dark-40 data-[state=checked]:border-foreground size-5 shrink-0 cursor-default rounded-full border transition-all duration-100 ease-in-out data-disabled:pointer-events-none data-[state=checked]:border-6"
+},
+{
+"input": "hover:bg-dark-10 disabled:text-muted-foreground mr-[25px] inline-flex size-10 items-center justify-center rounded-[9px] bg-transparent active:scale-[0.98] disabled:cursor-not-allowed hover:disabled:bg-transparent",
+"expected": "hover:bg-dark-10 disabled:text-muted-foreground mr-[25px] inline-flex size-10 items-center justify-center rounded-[9px] bg-transparent active:scale-[0.98] disabled:cursor-not-allowed hover:disabled:bg-transparent"
+},
+{
+"input": "hover:bg-dark-10 data-selected:bg-foreground data-selected:text-background inline-flex size-10 select-none items-center justify-center rounded-[9px] bg-transparent text-[15px] font-medium active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 hover:disabled:bg-transparent",
+"expected": "hover:bg-dark-10 data-selected:bg-foreground data-selected:text-background inline-flex size-10 items-center justify-center rounded-[9px] bg-transparent text-[15px] font-medium select-none active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 hover:disabled:bg-transparent"
+},
+{
+"input": "hover:bg-dark-10 disabled:text-muted-foreground ml-[29px] inline-flex size-10 items-center justify-center rounded-[9px] bg-transparent active:scale-[0.98] disabled:cursor-not-allowed hover:disabled:bg-transparent",
+"expected": "hover:bg-dark-10 disabled:text-muted-foreground ml-[29px] inline-flex size-10 items-center justify-center rounded-[9px] bg-transparent active:scale-[0.98] disabled:cursor-not-allowed hover:disabled:bg-transparent"
+},
+{
+"input": "h-input rounded-input border-border-input bg-background text-foreground focus-within:border-border-input-hover focus-within:shadow-date-field-focus hover:border-border-input-hover data-invalid:border-destructive flex w-full select-none items-center border px-2 py-3 text-sm tracking-[0.01em]",
+"expected": "h-input rounded-input border-border-input bg-background text-foreground focus-within:border-border-input-hover focus-within:shadow-date-field-focus hover:border-border-input-hover data-invalid:border-destructive flex w-full items-center border px-2 py-3 text-sm tracking-[0.01em] select-none"
+},
+{
+"input": "rounded-5px hover:bg-muted focus:bg-muted focus:text-foreground aria-[valuetext=Empty]:text-muted-foreground data-invalid:text-destructive focus-visible:ring-0! focus-visible:ring-offset-0! px-1 py-1",
+"expected": "rounded-5px hover:bg-muted focus:bg-muted focus:text-foreground aria-[valuetext=Empty]:text-muted-foreground data-invalid:text-destructive px-1 py-1 focus-visible:ring-0! focus-visible:ring-offset-0!"
+},
+{
+"input": "hover:text-accent-foreground focus:bg-muted focus:text-accent-foreground data-[state=open]:shadow-mini dark:hover:bg-muted dark:data-[state=open]:bg-muted focus:outline-hidden group inline-flex h-8 w-max items-center justify-center rounded-[7px] bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:bg-white disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-white",
+"expected": "hover:text-accent-foreground focus:bg-muted focus:text-accent-foreground data-[state=open]:shadow-mini dark:hover:bg-muted dark:data-[state=open]:bg-muted group inline-flex h-8 w-max items-center justify-center rounded-[7px] bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:bg-white focus:outline-hidden disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-white"
+},
+{
+"input": "rounded-9px bg-background-alt hover:bg-muted inline-flex size-10 items-center justify-center active:scale-[0.98]",
+"expected": "rounded-9px bg-background-alt hover:bg-muted inline-flex size-10 items-center justify-center active:scale-[0.98]"
+},
+{
+"input": "border-muted bg-foreground data-[state=unchecked]:border-border-input data-[state=unchecked]:bg-background data-[state=unchecked]:hover:border-dark-40 peer inline-flex size-[25px] items-center justify-center rounded-md border transition-all duration-150 ease-in-out active:scale-[0.98]",
+"expected": "border-muted bg-foreground data-[state=unchecked]:border-border-input data-[state=unchecked]:bg-background data-[state=unchecked]:hover:border-dark-40 peer inline-flex size-[25px] items-center justify-center rounded-md border transition-all duration-150 ease-in-out active:scale-[0.98]"
+},
+{
+"input": "bg-muted hover:bg-dark-10 data-[state=visible]:animate-in data-[state=hidden]:animate-out data-[state=hidden]:fade-out-0 data-[state=visible]:fade-in-0 flex w-2.5 touch-none select-none rounded-full border-l border-l-transparent p-px transition-all duration-200 hover:w-3",
+"expected": "bg-muted hover:bg-dark-10 data-[state=visible]:animate-in data-[state=hidden]:animate-out data-[state=hidden]:fade-out-0 data-[state=visible]:fade-in-0 flex w-2.5 touch-none rounded-full border-l border-l-transparent p-px transition-all duration-200 select-none hover:w-3"
+},
+{
+"input": "mx-0! mt-0 flex min-w-0 flex-1 flex-col rounded-xl border-none",
+"expected": "mx-0! mt-0 flex min-w-0 flex-1 flex-col rounded-xl border-none"
+},
+{
+"input": "after:border-border relative aspect-square w-full rounded-lg bg-(--color) after:absolute after:inset-0 after:rounded-lg after:border after:mix-blend-darken dark:after:mix-blend-lighten",
+"expected": "after:border-border relative aspect-square w-full rounded-lg bg-(--color) after:absolute after:inset-0 after:rounded-lg after:border after:mix-blend-darken dark:after:mix-blend-lighten"
+},
+{
+"input": "bg-muted-foreground/15 h-4 w-20 rounded-md",
+"expected": "bg-muted-foreground/15 h-4 w-20 rounded-md"
+},
+{
+"input": "flex gap-3",
+"expected": "flex gap-3"
+},
+{
+"input": "block w-full cursor-pointer px-3 py-2 text-left hover:bg-gray-100",
+"expected": "block w-full cursor-pointer px-3 py-2 text-left hover:bg-gray-100"
+},
+{
+"input": "text-primary-700 dark:text-primary-500 inline-flex items-center rounded-lg p-2 font-medium hover:bg-gray-100 dark:hover:bg-gray-700",
+"expected": "text-primary-700 dark:text-primary-500 inline-flex items-center rounded-lg p-2 font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+},
+{
+"input": "relative hidden dark:block",
+"expected": "relative hidden dark:block"
+},
+{
+"input": "rounded-input border-dark-10 bg-background shadow-popover outline-hidden flex items-center gap-2 border px-2.5 py-1.5",
+"expected": "rounded-input border-dark-10 bg-background shadow-popover flex items-center gap-2 border px-2.5 py-1.5 outline-hidden"
+},
+{
+"input": "rounded-card-lg bg-background shadow-popover data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 outline-hidden fixed left-[50%] top-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 border p-7 sm:max-w-lg md:w-full",
+"expected": "rounded-card-lg bg-background shadow-popover data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 border p-7 outline-hidden sm:max-w-lg md:w-full"
+},
+{
+"input": "mt-3 h-[120px]",
+"expected": "mt-3 h-[120px]"
+},
+{
+"input": "flex items-center gap-4",
+"expected": "flex items-center gap-4"
+},
+{
+"input": "inline-flex h-8 items-center justify-center rounded-e-lg bg-gray-100 px-1 hover:bg-gray-200 focus:ring-2 focus:ring-gray-200 focus:outline-hidden dark:bg-gray-600 dark:hover:bg-gray-800 dark:focus:ring-gray-800",
+"expected": "inline-flex h-8 items-center justify-center rounded-e-lg bg-gray-100 px-1 hover:bg-gray-200 focus:ring-2 focus:ring-gray-200 focus:outline-hidden dark:bg-gray-600 dark:hover:bg-gray-800 dark:focus:ring-gray-800"
+},
+{
+"input": "mb-4 flex items-center text-lg font-medium text-teal-500",
+"expected": "mb-4 flex items-center text-lg font-medium text-teal-500"
+},
+{
+"input": "flex flex-col items-center justify-center rounded-tr-lg border-b border-gray-200 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-800",
+"expected": "flex flex-col items-center justify-center rounded-tr-lg border-b border-gray-200 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-800"
+},
+{
+"input": "flex aspect-[2/0.5] w-full items-center justify-center rounded-lg border text-sm",
+"expected": "flex aspect-[2/0.5] w-full items-center justify-center rounded-lg border text-sm"
+},
+{
+"input": "text-foreground/85 max-h-[200px] min-w-full p-0 text-left text-sm leading-relaxed",
+"expected": "text-foreground/85 max-h-[200px] min-w-full p-0 text-left text-sm leading-relaxed"
+},
+{
+"input": "text-xs text-gray-500 dark:text-gray-400",
+"expected": "text-xs text-gray-500 dark:text-gray-400"
+},
+{
+"input": "text-xl font-bold text-gray-900 dark:text-white",
+"expected": "text-xl font-bold text-gray-900 dark:text-white"
+},
+{
+"input": "relative h-full w-full overflow-y-auto pt-[70px] lg:ml-64",
+"expected": "relative h-full w-full overflow-y-auto pt-[70px] lg:ml-64"
+},
+{
+"input": "flex items-center divide-x-2 divide-gray-500 rtl:divide-x-reverse dark:divide-gray-700",
+"expected": "flex items-center divide-x-2 divide-gray-500 rtl:divide-x-reverse dark:divide-gray-700"
+},
+{
+"input": "m-0 grid list-none gap-x-2.5 p-3 sm:w-[600px] sm:grid-flow-col sm:grid-rows-3 sm:p-[22px]",
+"expected": "m-0 grid list-none gap-x-2.5 p-3 sm:w-[600px] sm:grid-flow-col sm:grid-rows-3 sm:p-[22px]"
+},
+{
+"input": "text-muted-foreground rounded-button bg-muted px-2.5 py-1.5 text-xs font-medium",
+"expected": "text-muted-foreground rounded-button bg-muted px-2.5 py-1.5 text-xs font-medium"
+},
+{
+"input": "mb-3 max-w-sm text-gray-600 dark:text-gray-400",
+"expected": "mb-3 max-w-sm text-gray-600 dark:text-gray-400"
+},
+{
+"input": "cursor-pointer rounded-lg bg-gray-50 p-4 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600",
+"expected": "cursor-pointer rounded-lg bg-gray-50 p-4 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600"
+},
+{
+"input": "p-4 font-normal",
+"expected": "p-4 font-normal"
+},
+{
+"input": "flex items-center px-4",
+"expected": "flex items-center px-4"
+},
+{
+"input": "flex flex-col place-items-end md:flex-row md:gap-2",
+"expected": "flex flex-col place-items-end md:flex-row md:gap-2"
+},
+{
+"input": "text-primary-500 bg-primary-100 dark:bg-primary-800 dark:text-primary-200 h-6 w-6",
+"expected": "text-primary-500 bg-primary-100 dark:bg-primary-800 dark:text-primary-200 h-6 w-6"
+},
+{
+"input": "flex-none justify-end",
+"expected": "flex-none justify-end"
+},
+{
+"input": "size-8 rounded object-cover grayscale",
+"expected": "size-8 rounded object-cover grayscale"
+},
+{
+"input": "text-primary-700 dark:text-primary-500 ms-auto text-sm hover:underline",
+"expected": "text-primary-700 dark:text-primary-500 ms-auto text-sm hover:underline"
+},
+{
+"input": "flex flex-col",
+"expected": "flex flex-col"
+},
+{
+"input": "py-4 shadow-none",
+"expected": "py-4 shadow-none"
+},
+{
+"input": "bg-muted-foreground/15 h-3 w-24 rounded-md",
+"expected": "bg-muted-foreground/15 h-3 w-24 rounded-md"
+},
+{
+"input": "hover:text-primary-700 absolute start-0 bottom-0 w-full border-t border-gray-200 bg-gray-100 px-5 py-2.5 text-sm font-medium text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white",
+"expected": "hover:text-primary-700 absolute start-0 bottom-0 w-full border-t border-gray-200 bg-gray-100 px-5 py-2.5 text-sm font-medium text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+},
+{
+"input": "flex h-0.5 w-full bg-gray-200 dark:bg-gray-700",
+"expected": "flex h-0.5 w-full bg-gray-200 dark:bg-gray-700"
+},
+{
+"input": "data-[accent=bold]:fill-foreground fill-muted-foreground/30",
+"expected": "data-[accent=bold]:fill-foreground fill-muted-foreground/30"
+},
+{
+"input": "flex min-h-full! flex-col border-e",
+"expected": "flex min-h-full! flex-col border-e"
+},
+{
+"input": "my-2 text-sm leading-7",
+"expected": "my-2 text-sm leading-7"
+},
+{
+"input": "data-[state=open]:bg-accent size-7",
+"expected": "data-[state=open]:bg-accent size-7"
+},
+{
+"input": "bg-border relative top-[70%] size-2.5 rotate-[45deg] rounded-tl-[2px]",
+"expected": "bg-border relative top-[70%] size-2.5 rotate-[45deg] rounded-tl-[2px]"
+},
+{
+"input": "space-y-1 font-medium dark:text-white",
+"expected": "space-y-1 font-medium dark:text-white"
+},
+{
+"input": "scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight transition-colors first:mt-0",
+"expected": "scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight transition-colors first:mt-0"
+},
+{
+"input": "divide-border border-muted bg-background flex h-full w-full flex-col divide-y self-start overflow-hidden rounded-xl border",
+"expected": "divide-border border-muted bg-background flex h-full w-full flex-col divide-y self-start overflow-hidden rounded-xl border"
+},
+{
+"input": "bg-muted relative rounded px-[0.3rem] py-[0.2rem] font-mono text-sm",
+"expected": "bg-muted relative rounded px-[0.3rem] py-[0.2rem] font-mono text-sm"
+},
+{
+"input": "flex flex-col justify-start text-left",
+"expected": "flex flex-col justify-start text-left"
+},
+{
+"input": "flex min-h-[200px] flex-col gap-4 pb-12",
+"expected": "flex min-h-[200px] flex-col gap-4 pb-12"
+},
+{
+"input": "text-foreground font-mono font-medium tabular-nums",
+"expected": "text-foreground font-mono font-medium tabular-nums"
+},
+{
+"input": "mx-auto h-8 w-8",
+"expected": "mx-auto h-8 w-8"
+},
+{
+"input": "w-full items-center justify-center",
+"expected": "w-full items-center justify-center"
+},
+{
+"input": "px-6 py-4 font-medium whitespace-nowrap text-gray-900 dark:text-white",
+"expected": "px-6 py-4 font-medium whitespace-nowrap text-gray-900 dark:text-white"
+},
+{
+"input": "focus-override border-muted bg-background shadow-popover focus-visible:outline-hidden z-50 w-full max-w-[220px] rounded-xl border px-1 py-1.5",
+"expected": "focus-override border-muted bg-background shadow-popover z-50 w-full max-w-[220px] rounded-xl border px-1 py-1.5 focus-visible:outline-hidden"
+},
+{
+"input": "text-muted-foreground text-xs uppercase",
+"expected": "text-muted-foreground text-xs uppercase"
+},
+{
+"input": "text-muted-foreground text-xs",
+"expected": "text-muted-foreground text-xs"
+},
+{
+"input": "p-4 pb-0",
+"expected": "p-4 pb-0"
+},
+{
+"input": "mb-4 text-4xl font-bold text-gray-900 dark:text-white",
+"expected": "mb-4 text-4xl font-bold text-gray-900 dark:text-white"
+},
+{
+"input": "h-[200px] w-full",
+"expected": "h-[200px] w-full"
+},
+{
+"input": "border-dark-10 bg-background shadow-popover data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--bits-popover-content-transform-origin) z-50 w-full max-w-[328px] rounded-[12px] border p-4",
+"expected": "border-dark-10 bg-background shadow-popover data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 w-full max-w-[328px] origin-(--bits-popover-content-transform-origin) rounded-[12px] border p-4"
+},
+{
+"input": "mb-2 text-center text-lg font-semibold tracking-tight",
+"expected": "mb-2 text-center text-lg font-semibold tracking-tight"
+},
+{
+"input": "h-px w-full rounded-none",
+"expected": "h-px w-full rounded-none"
+},
+{
+"input": "h-[140px] w-full rounded-xl md:h-[262px] dark:hidden",
+"expected": "h-[140px] w-full rounded-xl md:h-[262px] dark:hidden"
+},
+{
+"input": "hidden md:block lg:hidden",
+"expected": "hidden md:block lg:hidden"
+},
+{
+"input": "text-primary-600 hover:text-primary-600 dark:text-primary-500 dark:hover:text-primary-700 inline-flex items-center text-sm font-medium hover:underline",
+"expected": "text-primary-600 hover:text-primary-600 dark:text-primary-500 dark:hover:text-primary-700 inline-flex items-center text-sm font-medium hover:underline"
+},
+{
+"input": "cn-sidebar-inner flex size-full flex-col",
+"expected": "cn-sidebar-inner flex size-full flex-col"
+},
+{
+"input": "hover:text-primary-600 dark:hover:text-primary-500 hover:underline",
+"expected": "hover:text-primary-600 dark:hover:text-primary-500 hover:underline"
+},
+{
+"input": "mt-1 w-96 focus:outline-none",
+"expected": "mt-1 w-96 focus:outline-none"
+},
+{
+"input": "text-2xl leading-none font-light",
+"expected": "text-2xl leading-none font-light"
+},
+{
+"input": "bg-muted rounded px-1 py-0.5 text-xs",
+"expected": "bg-muted rounded px-1 py-0.5 text-xs"
+},
+{
+"input": "h-full overflow-auto bg-black p-4 font-mono text-sm text-gray-300",
+"expected": "h-full overflow-auto bg-black p-4 font-mono text-sm text-gray-300"
+},
+{
+"input": "ms-1 h-2 w-2",
+"expected": "ms-1 h-2 w-2"
+},
+{
+"input": "relative z-10 flex h-full flex-col justify-between p-3.5",
+"expected": "relative z-10 flex h-full flex-col justify-between p-3.5"
+},
+{
+"input": "mb-2 text-gray-500 dark:text-gray-400",
+"expected": "mb-2 text-gray-500 dark:text-gray-400"
+},
+{
+"input": "block text-sm text-gray-900 dark:text-white",
+"expected": "block text-sm text-gray-900 dark:text-white"
+},
+{
+"input": "flex items-center justify-end space-x-2 pt-4",
+"expected": "flex items-center justify-end space-x-2 pt-4"
+},
+{
+"input": "rounded-card border-muted bg-background-alt shadow-card w-[390px] border p-3",
+"expected": "rounded-card border-muted bg-background-alt shadow-card w-[390px] border p-3"
+},
+{
+"input": "mt-4 justify-center sm:flex sm:justify-start md:mt-5",
+"expected": "mt-4 justify-center sm:flex sm:justify-start md:mt-5"
+},
+{
+"input": "ms-3 text-sm font-normal",
+"expected": "ms-3 text-sm font-normal"
+},
+{
+"input": "my-4 ps-2.5 text-sm font-semibold tracking-wide text-gray-900 uppercase dark:text-white",
+"expected": "my-4 ps-2.5 text-sm font-semibold tracking-wide text-gray-900 uppercase dark:text-white"
+},
+{
+"input": "h-3 w-32 rounded-md",
+"expected": "h-3 w-32 rounded-md"
+},
+{
+"input": "w-60 space-y-1 p-3",
+"expected": "w-60 space-y-1 p-3"
+}
+]

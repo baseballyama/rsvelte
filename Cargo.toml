@@ -9,6 +9,7 @@ members = [
     "crates/rsvelte_formatter",
     "crates/rsvelte_lint",
     "crates/rsvelte_preprocess",
+    "crates/tailwind_class_order",
 ]
 
 [profile.release]
