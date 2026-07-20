@@ -628,6 +628,12 @@ jobs:
       - name: Build core wasm (web target) for oxlint-plugin
         run: pnpm run build:wasm:core
 
+      # @rsvelte/svelte2tsx wraps the same web-target wasm (pkg/). Its test's
+      # `pretest` links @rsvelte/compiler at pkg/, then asserts the public
+      # `svelte2tsx()` is synchronous (matching upstream).
+      - name: Run @rsvelte/svelte2tsx tests (sync API)
+        run: pnpm --filter @rsvelte/svelte2tsx run test
+
       - name: Generate oxlint-plugin recommended config
         run: pnpm run build:oxlint-plugin
 
