@@ -4808,6 +4808,7 @@ fn build_inline_element_doc(
         attrs,
         children,
         is_inline: !is_block_display(e.name.as_str()),
+        self_closing: did_self_close(out, e.end) || is_html_void_element(e.name.as_str()),
     }))
 }
 
@@ -4945,6 +4946,7 @@ fn try_children_port(
         attrs,
         children,
         is_inline,
+        self_closing: did_self_close(out, end) || is_html_void_element(tag),
     });
     let doc = crate::doc::propagate_breaks(doc);
     let printed = crate::doc::print(doc, line_width, unit.as_str(), base_level, start_col);
@@ -6183,6 +6185,12 @@ pub(crate) fn template_node_span(node: &TemplateNode) -> (u32, u32) {
 /// the self-closing `/>` form. Their output cursor after printing is
 /// well-defined regardless of attribute wrapping, unlike content elements
 /// (e.g. `<code>`) whose hugged close tag may end up on an indented line.
+/// prettier's `didSelfClose`: the element's own source closed the tag, so
+/// `<div />` stays self-closed instead of becoming `<div></div>`.
+fn did_self_close(out: &str, end: u32) -> bool {
+    end >= 2 && out.as_bytes().get(end as usize - 2) == Some(&b'/')
+}
+
 fn is_html_void_element(tag: &str) -> bool {
     matches!(
         tag,
