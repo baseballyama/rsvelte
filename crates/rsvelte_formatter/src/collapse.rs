@@ -3137,8 +3137,8 @@ fn is_block_display(tag: &str) -> bool {
 
 thread_local! {
     /// Set while [`reformat_pre_inner`] re-enters [`crate::format`] on a `<pre>`
-    /// body. The sub-document has no `<pre>` ancestor of its own, so passes that
-    /// must honour prettier's `isPreTagContent` read this instead.
+    /// body. That sub-document has no `<pre>` ancestor of its own, so a pass that
+    /// needs prettier's `isPreTagContent` answer reads this flag instead.
     static IN_PRE_CONTENT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
@@ -3146,12 +3146,20 @@ fn in_pre_content() -> bool {
     IN_PRE_CONTENT.with(std::cell::Cell::get)
 }
 
+/// Restores [`IN_PRE_CONTENT`] on drop, so an unwind out of the re-entrant
+/// format cannot strand the flag set on a pooled worker thread.
+struct PreContentGuard(bool);
+
+impl Drop for PreContentGuard {
+    fn drop(&mut self) {
+        IN_PRE_CONTENT.set(self.0);
+    }
+}
+
 /// Run `f` with [`IN_PRE_CONTENT`] set, restoring the previous value afterwards.
 fn with_pre_content<T>(f: impl FnOnce() -> T) -> T {
-    let prev = IN_PRE_CONTENT.replace(true);
-    let out = f();
-    IN_PRE_CONTENT.set(prev);
-    out
+    let _guard = PreContentGuard(IN_PRE_CONTENT.replace(true));
+    f()
 }
 
 fn is_whitespace_preserving(tag: &str) -> bool {
@@ -6199,6 +6207,13 @@ fn is_html_void_element(tag: &str) -> bool {
 mod tests {
     use super::*;
     use rsvelte_core::ast::template::{FragmentMetadata, FragmentType, Text};
+
+    #[test]
+    fn pre_content_flag_is_restored_after_a_panic() {
+        let caught = std::panic::catch_unwind(|| with_pre_content(|| panic!("boom")));
+        assert!(caught.is_err());
+        assert!(!in_pre_content());
+    }
 
     fn make_fragment_with_text(data: &str) -> Fragment {
         Fragment {
