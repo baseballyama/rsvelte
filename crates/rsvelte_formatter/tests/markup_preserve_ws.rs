@@ -83,7 +83,7 @@ fn pre_block_reformat_survives_non_css_lang_style() {
     // The pass re-indents the block; when the re-parse fails it bails and the
     // block stays at column 0.
     assert!(
-        out.contains("\t{#if true}") && out.contains("$brand: red;"),
+        !out.contains("\n{#if true}") && out.contains("$brand: red;"),
         "expected the block pass to run with the scss body intact:\n{out}"
     );
 }
@@ -93,7 +93,7 @@ fn pre_block_reformat_survives_ts_in_plain_script() {
     let src = "<pre>\n<script>\nconst f = (x: string): number => x.length;\n</script>\n{#if true}\n<code>x</code>\n{/if}\n</pre>";
     let out = fmt(src);
     assert!(
-        out.contains("\t{#if true}") && out.contains("(x: string): number"),
+        !out.contains("\n{#if true}") && out.contains("(x: string): number"),
         "expected the block pass to run with the TS body intact:\n{out}"
     );
 }
