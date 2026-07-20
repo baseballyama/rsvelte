@@ -273,6 +273,24 @@ fn collect_node_edits(
                             .unwrap_or("");
                         if !inner.is_empty() {
                             let formatted = format_inline_expression(inner, options)?;
+                            // A long key that OXC broke as a method chain
+                            // (`(node\n  .ancestors()\n  …)`) comes back at OXC's own
+                            // indent-0 continuation column; push its continuation
+                            // lines out to the block's depth so they align under the
+                            // key, mirroring the each-iterable path. reindent adds the
+                            // prefix ON TOP of OXC's 2-space indent, so `depth`
+                            // indent-levels yields `(depth+1)`-level continuations.
+                            let formatted = if formatted.contains('\n') {
+                                let indent_width = options.js.indent_width.value() as usize;
+                                let cont_indent = if options.js.indent_style.is_tab() {
+                                    "\t".repeat(depth)
+                                } else {
+                                    " ".repeat(depth * indent_width)
+                                };
+                                crate::reindent::reindent(&formatted, &cont_indent, true)
+                            } else {
+                                formatted
+                            };
                             // Normalize the horizontal whitespace before the
                             // delimiter to a single space — prettier-plugin-svelte
                             // always emits `… (key)` regardless of the preceding
