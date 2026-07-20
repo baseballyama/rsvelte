@@ -4669,8 +4669,7 @@ fn node_to_child(
         // these are NOT block children — like a mustache they go through
         // `printChildren`'s `else` branch and are pushed bare. Their own print is
         // `group([def, breakParent])`, so they force every enclosing group to break
-        // even when the whole element would fit on one line. The body is carried
-        // verbatim (it was laid out by the earlier passes at this same indent).
+        // even when the whole element would fit on one line.
         TemplateNode::IfBlock(blk) => Some(Child::Other(build_if_block_doc(out, blk, line_width)?)),
         TemplateNode::EachBlock(blk) => {
             let mut branches: Vec<&Fragment> = vec![&blk.body];
@@ -4679,19 +4678,13 @@ fn node_to_child(
                 out, blk.start, blk.end, &branches, line_width,
             )?))
         }
-        TemplateNode::KeyBlock(_) => {
-            let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
-            // Carrying the body verbatim also freezes it: claiming the parent
-            // suppresses the passes that would still have broken something inside.
-            // Only accept a body that has already settled — every line fits.
-            if span.lines().skip(1).any(|l| l.width() > line_width) {
-                return None;
-            }
-            Some(Child::Other(Doc::Concat(vec![
-                Doc::Text(span.to_string()),
-                Doc::BreakParent,
-            ])))
-        }
+        TemplateNode::KeyBlock(blk) => Some(Child::Other(build_simple_block_doc(
+            out,
+            blk.start,
+            blk.end,
+            &[&blk.fragment],
+            line_width,
+        )?)),
         _ => None,
     }
 }
