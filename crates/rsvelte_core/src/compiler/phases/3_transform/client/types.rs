@@ -15,7 +15,6 @@ use crate::compiler::phases::phase3_transform::client::transform_template::Templ
 use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use im::{HashMap as ImHashMap, HashSet as ImHashSet};
-use indexmap::IndexSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::{Cell, RefCell};
 use std::fmt::Write as _;
@@ -3299,7 +3298,7 @@ pub struct ExpressionMetadata {
     /// need to be read for dependency tracking (matching the official Svelte
     /// compiler's `metadata.references`).
     /// Uses IndexSet to preserve insertion order (matching JavaScript Set behavior).
-    pub references: IndexSet<usize>,
+    pub references: crate::ast::template::BindingIndexSet,
 }
 
 impl ExpressionMetadata {

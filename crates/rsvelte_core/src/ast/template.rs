@@ -5,6 +5,9 @@
 
 use compact_str::CompactString;
 use indexmap::IndexSet;
+
+/// Binding-index sets are keyed by `usize`; the default SipHash is needless here.
+pub type BindingIndexSet = IndexSet<usize, rustc_hash::FxBuildHasher>;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -367,7 +370,7 @@ pub struct EachBlockMetadata {
     pub expression: ExpressionMetadata,
     /// Transitive dependencies (for legacy reactivity).
     /// Uses IndexSet to preserve insertion order (matching JavaScript Set behavior).
-    pub transitive_deps: IndexSet<usize>,
+    pub transitive_deps: BindingIndexSet,
     /// Whether the each block is controlled (has explicit key tracking)
     #[serde(default)]
     pub is_controlled: bool,
@@ -1227,10 +1230,10 @@ pub struct ExpressionMetadata {
     /// Bindings that this expression depends on (indices into analysis bindings).
     /// Uses IndexSet to preserve insertion order (matching JavaScript Set behavior),
     /// which determines the order of dependency tracking in invalidate_inner_signals().
-    pub dependencies: IndexSet<usize>,
+    pub dependencies: BindingIndexSet,
     /// Bindings that this expression references (indices into analysis bindings).
     /// Uses IndexSet to preserve insertion order (matching JavaScript Set behavior).
-    pub references: IndexSet<usize>,
+    pub references: BindingIndexSet,
 }
 
 impl ExpressionMetadata {
@@ -1374,9 +1377,9 @@ impl<'de> Deserialize<'de> for ExpressionMetadata {
             #[serde(default)]
             has_assignment: bool,
             #[serde(default)]
-            dependencies: IndexSet<usize>,
+            dependencies: BindingIndexSet,
             #[serde(default)]
-            references: IndexSet<usize>,
+            references: BindingIndexSet,
         }
 
         let helper = ExpressionMetadataHelper::deserialize(deserializer)?;
