@@ -31,7 +31,7 @@
 mod compare;
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
 /// The intrinsic (variant-less) order of every named default utility, one per
@@ -48,6 +48,11 @@ const VARIANT_ROOTS: &str = include_str!("../data/variant_roots_order.txt");
 /// Mirrors Tailwind's `GLOBAL_PROPERTY_ORDER`; the special `--` row is the
 /// anchor shared by custom-property declarations (`[--foo:bar]`).
 const PROPERTY_ANCHOR: &str = include_str!("../data/property_anchor.txt");
+
+/// The default theme's color-family namespace (`red`, `blue`, …), one per line.
+/// Used to tell a color utility (`text-red-500`) from a same-root non-color one
+/// (`text-sm`) so an arbitrary value lands in the correct fingerprint cluster.
+const COLOR_FAMILIES: &str = include_str!("../data/color_families.txt");
 
 /// Base order key. Named utilities land on even values `2*index`; an arbitrary
 /// property anchored before real utility `a` lands on the odd `2*a - 1`, so it
@@ -75,6 +80,11 @@ struct Tables {
     /// total number of named utilities; the anchor for a property absent from
     /// `GLOBAL_PROPERTY_ORDER`, which the engine sorts after all known ones.
     real_count: u32,
+    /// default theme color families (`red`, `blue`, …)
+    color_families: HashSet<&'static str>,
+    /// roots whose siblings mix color and non-color members (`text`, `bg`, …),
+    /// where an arbitrary value must be matched to the right sub-cluster.
+    mixed_roots: HashSet<&'static str>,
     /// variant family label -> rank
     variant: HashMap<&'static str, u32>,
     /// rank assigned to arbitrary `[&…]` variants (sorts after all named ones)
@@ -109,6 +119,26 @@ fn tables() -> &'static Tables {
             }
         }
 
+        let color_families: HashSet<&str> =
+            COLOR_FAMILIES.lines().filter(|l| !l.is_empty()).collect();
+
+        // A root is "mixed" when it has both a color and a non-color sibling.
+        let mut mixed_roots = HashSet::new();
+        for (root, siblings) in &root_siblings {
+            let mut has_color = false;
+            let mut has_plain = false;
+            for &(name, _) in siblings {
+                if is_named_color_utility(name, root, &color_families) {
+                    has_color = true;
+                } else {
+                    has_plain = true;
+                }
+            }
+            if has_color && has_plain {
+                mixed_roots.insert(*root);
+            }
+        }
+
         let mut variant = HashMap::new();
         let mut n = 0u32;
         for (i, label) in VARIANT_ROOTS.lines().filter(|l| !l.is_empty()).enumerate() {
@@ -122,6 +152,8 @@ fn tables() -> &'static Tables {
             property_anchor,
             custom_property_anchor,
             real_count,
+            color_families,
+            mixed_roots,
             variant,
             arbitrary_variant_rank: n + 1,
         }
@@ -291,20 +323,92 @@ fn base_order(base: &str, t: &Tables) -> Option<BaseOrder> {
 }
 
 /// Find the index a value should inherit among its root-siblings: the last
-/// sibling whose name still sorts before it, else the first sibling.
+/// sibling whose name still sorts before it, else the first sibling. For a root
+/// whose siblings mix color and non-color members (`text-red-500` vs `text-sm`),
+/// the candidate is matched only against siblings of its own kind, so an
+/// arbitrary value lands in the correct CSS-property cluster.
 fn place_among_siblings(stem: &str, t: &Tables) -> Option<u32> {
     let bracket = stem.find("-[").or_else(|| stem.find("-("));
     let root = utility_root(bracket.map_or(stem, |b| &stem[..b]));
     let siblings = t.root_siblings.get(root)?;
-    let mut idx = siblings.first().map(|&(_, i)| i)?;
+
+    let color_filter = if t.mixed_roots.contains(root) {
+        Some(stem_is_color(stem, bracket))
+    } else {
+        None
+    };
+    let matches = |name: &str| match color_filter {
+        Some(want) => is_named_color_utility(name, root, &t.color_families) == want,
+        None => true,
+    };
+
+    let mut idx = None;
+    let mut first = None;
     for &(name, i) in siblings {
+        if !matches(name) {
+            continue;
+        }
+        first.get_or_insert(i);
         if compare::compare(name, stem) == Ordering::Less {
-            idx = i;
+            idx = Some(i);
         } else {
             break;
         }
     }
-    Some(idx)
+    idx.or(first).or_else(|| siblings.first().map(|&(_, i)| i))
+}
+
+/// Whether a named utility of the given root carries a theme color, i.e. its
+/// value segment names a color family (`text-red-500`) or a color keyword.
+fn is_named_color_utility(name: &str, root: &str, families: &HashSet<&str>) -> bool {
+    let body = name.strip_prefix('-').unwrap_or(name);
+    let Some(value) = body.strip_prefix(root).and_then(|v| v.strip_prefix('-')) else {
+        return false;
+    };
+    let first = value.split('-').next().unwrap_or(value);
+    families.contains(first)
+        || matches!(
+            value,
+            "transparent" | "current" | "inherit" | "black" | "white"
+        )
+}
+
+/// Whether an arbitrary value denotes a color, ported from Tailwind's data-type
+/// inference: an explicit `color:` hint, a CSS color function/hex, a color
+/// keyword, or a `--color-*` theme reference. A `length:`/`number:`/… hint or
+/// any other value is non-color.
+fn stem_is_color(stem: &str, bracket: Option<usize>) -> bool {
+    let Some(b) = bracket else {
+        // A bare numeric/spacing gap (`end-9`) is never a color.
+        return false;
+    };
+    let inner = stem[b + 2..]
+        .strip_suffix([']', ')'])
+        .unwrap_or(&stem[b + 2..]);
+    if let Some((hint, _)) = inner.split_once(':')
+        && !hint.starts_with("--")
+    {
+        return hint == "color";
+    }
+    let v = inner.trim();
+    v.starts_with('#')
+        || v.starts_with("var(--color-")
+        || matches!(v, "currentColor" | "transparent")
+        || [
+            "rgb(",
+            "rgba(",
+            "hsl(",
+            "hsla(",
+            "hwb(",
+            "lab(",
+            "lch(",
+            "oklab(",
+            "oklch(",
+            "color(",
+            "color-mix(",
+        ]
+        .iter()
+        .any(|f| v.starts_with(f))
 }
 
 /// True if, after the utility root and any leading single-letter axis segments
