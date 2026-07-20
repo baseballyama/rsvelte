@@ -52,9 +52,19 @@ pub mod runner;
 #[cfg(feature = "native")]
 pub mod validator;
 
+// Engine-only JSON diagnostic API shared by the wasm + NAPI out-of-process
+// bindings (so both return byte-identical JSON).
+#[cfg(any(feature = "wasm", feature = "napi"))]
+pub mod json_api;
+
 // Browser build: the rule engine compiled to wasm for the playground.
 #[cfg(feature = "wasm")]
 pub mod wasm;
+
+// Native addon: the rule engine as a Node `.node` (NAPI) for the
+// native-first path in `@rsvelte/oxlint-plugin`.
+#[cfg(feature = "napi")]
+pub mod napi;
 
 pub use config::LintConfig;
 pub use diagnostic::{Fix, LintDiagnostic, Suggestion, TextEdit};

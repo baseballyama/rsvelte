@@ -1,0 +1,60 @@
+{
+  "name": "@rsvelte/oxlint-plugin",
+  "version": "0.1.0",
+  "description": "Run rsvelte's Svelte lint + compiler/a11y diagnostics as oxlint rules, in one pass",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baseballyama/rsvelte.git",
+    "directory": "apps/npm/oxlint-plugin"
+  },
+  "homepage": "https://github.com/baseballyama/rsvelte/tree/main/apps/npm/oxlint-plugin#readme",
+  "bugs": {
+    "url": "https://github.com/baseballyama/rsvelte/issues"
+  },
+  "keywords": [
+    "svelte",
+    "oxlint",
+    "oxlint-plugin",
+    "lint",
+    "rsvelte"
+  ],
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    },
+    "./recommended": "./recommended.json",
+    "./recommended.json": "./recommended.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "src",
+    "recommended.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node scripts/generate-configs.mjs"
+  },
+  "dependencies": {
+    "@rsvelte/compiler": "workspace:^"
+  },
+  "optionalDependencies": {
+    "@rsvelte/lint-darwin-arm64": "workspace:^",
+    "@rsvelte/lint-darwin-x64": "workspace:^",
+    "@rsvelte/lint-linux-arm64-gnu": "workspace:^",
+    "@rsvelte/lint-linux-x64-gnu": "workspace:^",
+    "@rsvelte/lint-win32-x64-msvc": "workspace:^"
+  },
+  "devDependencies": {
+    "oxlint": "1.64.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

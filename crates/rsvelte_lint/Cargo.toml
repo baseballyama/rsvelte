@@ -34,6 +34,12 @@ eslint-import = [
 # Browser build: the svelte_check-free rule engine compiled to wasm for the
 # playground, alongside rsvelte_core's compiler wasm exports.
 wasm = ["rsvelte_core/wasm", "dep:wasm-bindgen"]
+# Native Node addon (`.node`): the same svelte_check-free rule engine exposed via
+# NAPI, shipped inside the `@rsvelte/lint-<triple>` packages as
+# `rsvelte_lint.node` and loaded native-first by `@rsvelte/oxlint-plugin`. Reuses
+# rsvelte_core's `native` backend (proven, no wasm-bindgen); the cdylib uses the
+# system allocator, so it is dlopen-safe with no TLS setup.
+napi = ["rsvelte_core/native", "dep:napi", "dep:napi-derive", "dep:napi-build"]
 
 [dependencies]
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
@@ -60,6 +66,17 @@ oxc_span = { version = "0.139", optional = true }
 
 # wasm-only.
 wasm-bindgen = { version = "0.2", optional = true }
+
+# napi-only (the `.node` addon). Same major versions as rsvelte_core so cargo
+# unifies the shared `napi` build cleanly; only the sync string exports here are
+# used, so a minimal feature set suffices.
+napi = { version = "3", default-features = false, features = ["napi9"], optional = true }
+napi-derive = { version = "3", optional = true }
+
+[build-dependencies]
+# napi-only: sets the cdylib link args (e.g. macOS `-undefined dynamic_lookup`)
+# so the `.node` addon resolves Node's symbols at load time. Gated in build.rs.
+napi-build = { version = "2", optional = true }
 
 [dev-dependencies]
 serde_json = "1.0"

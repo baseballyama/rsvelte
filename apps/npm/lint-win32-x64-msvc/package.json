@@ -15,7 +15,8 @@
     "x64"
   ],
   "files": [
-    "rsvelte-lint.exe"
+    "rsvelte-lint.exe",
+    "rsvelte_lint.node"
   ],
   "publishConfig": {
     "access": "public"

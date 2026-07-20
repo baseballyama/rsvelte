@@ -117,6 +117,16 @@ fn is_valid_code(code: &str) -> bool {
     VALID_WARNING_CODES.contains(&code)
 }
 
+/// The full set of compiler/validator/a11y warning codes rsvelte can emit.
+///
+/// This is the single source of truth consumed by external tooling (e.g. the
+/// `@rsvelte/oxlint-plugin` rule catalog) to enumerate the diagnostic ids that
+/// come from the compiler warning wrap rather than from a native lint
+/// [`RuleMeta`](crate::compiler) rule.
+pub fn valid_warning_codes() -> &'static [&'static str] {
+    VALID_WARNING_CODES
+}
+
 /// Map of legacy warning codes to new codes.
 /// Corresponds to `replacements` in Svelte's extract_svelte_ignore.js.
 fn get_replacement(code: &str) -> Option<&'static str> {
