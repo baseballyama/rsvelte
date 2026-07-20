@@ -35,11 +35,15 @@ const result = svelte2tsx(source, {
   version: '5',
 });
 
-console.log(result.code);          // TSX source
-console.log(result.map);           // source map (string | null)
-console.log(result.exportedNames); // { props: ['name'], all: [...] }
-console.log(result.events);        // { eventName: type, ... }
+console.log(result.code);                 // TSX source
+console.log(result.map.mappings);         // source map (magic-string SourceMap object | null)
+console.log(result.exportedNames.has('name')); // true
+console.log(result.events.getAll());      // [{ name, type }, ...]
 ```
+
+The result object matches the upstream `svelte2tsx` surface: `map` is a
+magic-string-style `SourceMap` object, `exportedNames` exposes `has(name)`, and
+`events` exposes `getAll()`.
 
 ## API
 
@@ -67,14 +71,44 @@ interface Svelte2TsxOptions {
 interface Svelte2TsxResult {
   /** Generated TSX source. */
   code: string;
-  /** Source map (v3 JSON, as a string), or `null` if not produced. */
-  map: string | null;
-  /** Names exported by the component — `props` is the prop list, `all` is everything. */
-  exportedNames: { props: string[]; all: string[] };
-  /** Inferred event-handler types — `{ eventName: type }`. */
-  events: Record<string, unknown>;
+  /** magic-string-style v3 source map (with `toString()` / `toUrl()`), or `null` in `dts` mode. */
+  map: SourceMap | null;
+  /** Exported names. `has(name)` matches upstream; `props`/`all` are an rsvelte extension. */
+  exportedNames: IExportedNames;
+  /** @deprecated Component events — `getAll()` returns `{ name, type, doc? }[]`. */
+  events: ComponentEvents;
+}
+
+interface SourceMap {
+  version: number;
+  file?: string;
+  sources: string[];
+  sourcesContent?: (string | null)[];
+  names: string[];
+  mappings: string;
+  toString(): string;
+  toUrl(): string;
+}
+
+interface IExportedNames {
+  has(name: string): boolean;
+  props: string[]; // rsvelte extension
+  all: string[];   // rsvelte extension
+}
+
+interface ComponentEvents {
+  getAll(): { name: string; type: string; doc?: string }[];
 }
 ```
+
+> **Note on `events`.** Like upstream, `events` is deprecated — prefer TypeScript's
+> `TypeChecker` for event types. `getAll()` returns entries sorted by name with
+> `type` approximated as `CustomEvent<detail>` (`CustomEvent<any>` when the detail
+> type is unknown); the optional `doc` (JSDoc) field is not populated. It covers
+> events dispatched via an **untyped** `createEventDispatcher()` and forwarded
+> events; the individual event names of a **typed** dispatcher
+> (`createEventDispatcher<{ … }>()`) are passed through as a TS type expression
+> in the generated code rather than enumerated, so they are not listed here.
 
 `svelte2tsx()` is **synchronous**, matching the upstream package — a drop-in call. On Node the WebAssembly module self-initialises (via `initSync` + `fs.readFileSync`) on the first call; subsequent calls have no init cost. Existing `await svelte2tsx(...)` code keeps working unchanged, since awaiting a plain value returns it.
 

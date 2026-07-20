@@ -922,6 +922,26 @@ impl ComponentEvents {
             .map(|name| (name.clone(), "__sveltets_2_customEvent".to_string()))
             .collect()
     }
+
+    /// Entries for the public `events.getAll()` API surface: `(name, type)`
+    /// where `type` mirrors upstream's `CustomEvent<detail>` (or
+    /// `CustomEvent<any>` when the detail type is unknown). Sorted by name for
+    /// determinism; the deprecated `doc` field is not tracked.
+    pub fn get_api_entries(&self) -> Vec<(String, String)> {
+        let mut entries: Vec<(String, String)> = self
+            .events
+            .iter()
+            .map(|(name, info)| {
+                let ty = match &info.detail_type {
+                    Some(detail) => format!("CustomEvent<{detail}>"),
+                    None => "CustomEvent<any>".to_string(),
+                };
+                (name.clone(), ty)
+            })
+            .collect();
+        entries.sort_by(|a, b| a.0.cmp(&b.0));
+        entries
+    }
 }
 
 /// Position info for $props() typedef generation, collected during OXC walk.
