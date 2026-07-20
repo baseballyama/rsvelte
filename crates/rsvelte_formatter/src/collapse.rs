@@ -4709,6 +4709,7 @@ fn node_to_child(
         {
             Some(Child::Block(build_inline_element_doc(out, ve, line_width)?))
         }
+        TemplateNode::Component(c) => Some(Child::Other(build_component_doc(out, c, line_width)?)),
         // Cut 3: mustache atoms (`{expr}`, `{@html …}`). prettier-plugin-svelte's
         // `isInlineElement` requires `type === 'RegularElement'`, so a MustacheTag
         // is NOT inline — it goes through `printChildren`'s `else` branch: pushed
@@ -4893,6 +4894,32 @@ fn build_inline_element_doc(
         children,
         is_inline: !is_block_display(e.name.as_str()),
         self_closing: did_self_close(out, e.end) || is_html_void_element(e.name.as_str()),
+    }))
+}
+
+/// Component doc for [`node_to_child`]. prettier's `isInlineElement` /
+/// `isBlockElement` both require `type === 'RegularElement'`, so a Component is
+/// neither — `printChildren` pushes it bare, which is `Child::Other`.
+fn build_component_doc(
+    out: &str,
+    c: &rsvelte_core::ast::template::Component,
+    line_width: usize,
+) -> Option<crate::doc::Doc> {
+    use crate::children::{Child, ElementLayout, build_element_doc};
+    let attrs = build_attrs_concat(out, &c.attributes)?;
+    let mut children: Vec<Child> = Vec::with_capacity(c.fragment.nodes.len());
+    for n in &c.fragment.nodes {
+        children.push(node_to_child(out, n, line_width)?);
+    }
+    Some(build_element_doc(ElementLayout {
+        name: c.name.to_string(),
+        attrs,
+        children,
+        // `is_inline` gates hugging, not the child classification: prettier's
+        // `shouldHugStart`/`End` only bail for block elements, and a Component is
+        // never one.
+        is_inline: true,
+        self_closing: did_self_close(out, c.end),
     }))
 }
 
