@@ -70,6 +70,25 @@ fn arbitrary_values() {
 }
 
 #[test]
+fn arbitrary_properties() {
+    // Ordered by the emitted property's position in GLOBAL_PROPERTY_ORDER;
+    // `display` sits with `flex`, a property absent from the list sorts last.
+    check(
+        "[content-visibility:auto] flex text-red-500 [display:flex]",
+        "[display:flex] flex text-red-500 [content-visibility:auto]",
+    );
+    // Custom properties share one slot, then order by name.
+    check(
+        "[--foo:bar] flex [--abc:1] p-4",
+        "flex p-4 [--abc:1] [--foo:bar]",
+    );
+    check(
+        "[scrollbar-width:none] [content-visibility:auto] flex",
+        "flex [scrollbar-width:none] [content-visibility:auto]",
+    );
+}
+
+#[test]
 fn unknown_classes_kept_first_stable() {
     // Custom (non-default) classes are unknown; kept ahead in input order.
     check(

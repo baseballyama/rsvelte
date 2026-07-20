@@ -43,12 +43,38 @@ const DEFAULT_ORDER: &str = include_str!("../data/default_order.txt");
 /// `root-*` label (`group-*`, `data-*`, `@container-named`, …).
 const VARIANT_ROOTS: &str = include_str!("../data/variant_roots_order.txt");
 
+/// `property<TAB>anchor` per line: for an arbitrary property `[prop:val]`, the
+/// number of named utilities that sort before it (its position among reals).
+/// Mirrors Tailwind's `GLOBAL_PROPERTY_ORDER`; the special `--` row is the
+/// anchor shared by custom-property declarations (`[--foo:bar]`).
+const PROPERTY_ANCHOR: &str = include_str!("../data/property_anchor.txt");
+
+/// Base order key. Named utilities land on even values `2*index`; an arbitrary
+/// property anchored before real utility `a` lands on the odd `2*a - 1`, so it
+/// sorts strictly between real `a-1` and real `a` without colliding with either.
+type BaseOrder = i64;
+
+fn real_order(index: u32) -> BaseOrder {
+    2 * index as i64
+}
+
+fn anchored_order(anchor: u32) -> BaseOrder {
+    2 * anchor as i64 - 1
+}
+
 struct Tables {
     /// utility name -> intrinsic order index (exact, one per named utility)
     base: HashMap<&'static str, u32>,
     /// utility root (`w`, `bg`, `text`, …) -> its named members in table order,
     /// used to place arbitrary values (`w-[10px]`) among their siblings.
     root_siblings: HashMap<&'static str, Vec<(&'static str, u32)>>,
+    /// CSS property name -> anchor (named utilities sorting before `[prop:…]`).
+    property_anchor: HashMap<&'static str, u32>,
+    /// anchor shared by custom-property declarations (`[--foo:bar]`).
+    custom_property_anchor: u32,
+    /// total number of named utilities; the anchor for a property absent from
+    /// `GLOBAL_PROPERTY_ORDER`, which the engine sorts after all known ones.
+    real_count: u32,
     /// variant family label -> rank
     variant: HashMap<&'static str, u32>,
     /// rank assigned to arbitrary `[&…]` variants (sorts after all named ones)
@@ -60,6 +86,7 @@ fn tables() -> &'static Tables {
     TABLES.get_or_init(|| {
         let mut base = HashMap::new();
         let mut root_siblings: HashMap<&'static str, Vec<(&'static str, u32)>> = HashMap::new();
+        let mut real_count = 0u32;
         for (i, name) in DEFAULT_ORDER.lines().filter(|l| !l.is_empty()).enumerate() {
             let idx = i as u32;
             base.insert(name, idx);
@@ -67,6 +94,19 @@ fn tables() -> &'static Tables {
                 .entry(utility_root(name))
                 .or_default()
                 .push((name, idx));
+            real_count = idx + 1;
+        }
+
+        let mut property_anchor = HashMap::new();
+        let mut custom_property_anchor = real_count;
+        for line in PROPERTY_ANCHOR.lines().filter(|l| !l.is_empty()) {
+            let (prop, anchor) = line.split_once('\t').expect("property\\tanchor");
+            let anchor: u32 = anchor.parse().expect("numeric anchor");
+            if prop == "--" {
+                custom_property_anchor = anchor;
+            } else {
+                property_anchor.insert(prop, anchor);
+            }
         }
 
         let mut variant = HashMap::new();
@@ -79,6 +119,9 @@ fn tables() -> &'static Tables {
         Tables {
             base,
             root_siblings,
+            property_anchor,
+            custom_property_anchor,
+            real_count,
             variant,
             arbitrary_variant_rank: n + 1,
         }
@@ -108,7 +151,7 @@ enum Key {
         /// reproduces Tailwind's OR-of-bitmask variant ordering.
         variants: Vec<u32>,
         /// intrinsic utility order
-        base: u32,
+        base: BaseOrder,
     },
 }
 
@@ -197,15 +240,15 @@ fn variant_rank(v: &str, t: &Tables) -> Option<u32> {
 }
 
 /// Resolve the intrinsic base order of a token's base segment (variants already
-/// stripped). Handles `!important`, `/opacity` modifiers, arbitrary values, and
-/// spacing-scale gaps that the sampled default table does not list verbatim.
-fn base_order(base: &str, t: &Tables) -> Option<u32> {
+/// stripped). Handles `!important`, `/opacity` modifiers, arbitrary properties,
+/// arbitrary values, and spacing-scale gaps the sampled table omits verbatim.
+fn base_order(base: &str, t: &Tables) -> Option<BaseOrder> {
     // Strip `!important` markers (leading `!` in v3/v4, trailing `!` in v4).
     let base = base.strip_prefix('!').unwrap_or(base);
     let base = base.strip_suffix('!').unwrap_or(base);
 
     if let Some(&idx) = t.base.get(base) {
-        return Some(idx);
+        return Some(real_order(idx));
     }
 
     // A `/opacity` (or similar) modifier does not change ordering; retry the
@@ -217,13 +260,21 @@ fn base_order(base: &str, t: &Tables) -> Option<u32> {
     if stem != base
         && let Some(&idx) = t.base.get(stem)
     {
-        return Some(idx);
+        return Some(real_order(idx));
     }
 
-    // Arbitrary property, e.g. `[color:red]` — not modelled from the static
-    // tables (would need the CSS property-order list); treat as unknown.
-    if stem.starts_with('[') {
-        return None;
+    // Arbitrary property, e.g. `[content-visibility:auto]`, `[--foo:bar]`. It
+    // sorts at its emitted property's position in `GLOBAL_PROPERTY_ORDER`;
+    // custom properties share one slot; a property absent from the list sorts
+    // after all known ones. The value only feeds the candidate tiebreak.
+    if let Some(inner) = stem.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+        let prop = inner.split_once(':')?.0.trim();
+        let anchor = if prop.starts_with("--") {
+            t.custom_property_anchor
+        } else {
+            t.property_anchor.get(prop).copied().unwrap_or(t.real_count)
+        };
+        return Some(anchored_order(anchor));
     }
 
     // Arbitrary value (`w-[10px]`, `h-(--foo)`) — always resolvable in the
@@ -233,7 +284,7 @@ fn base_order(base: &str, t: &Tables) -> Option<u32> {
     // left unknown, matching how the default engine treats custom theme tokens.
     let placeable = stem.contains("-[") || stem.contains("-(") || has_numeric_tail(stem);
     if placeable && let Some(idx) = place_among_siblings(stem, t) {
-        return Some(idx);
+        return Some(real_order(idx));
     }
 
     None
