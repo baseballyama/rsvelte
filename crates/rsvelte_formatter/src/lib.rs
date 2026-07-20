@@ -28,7 +28,7 @@ mod style_css;
 
 pub use error::FormatError;
 pub use json::{JsonVariant, format_json_source};
-pub use options::{FormatOptions, StyleFormatter};
+pub use options::{ClassSorter, FormatOptions, StyleFormatter};
 pub use script::format_js_source;
 pub use sort_order::SortOrderSpec;
 pub use style::reindent;

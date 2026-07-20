@@ -21,6 +21,7 @@ path = "src/bin/fmt_benchmark_runner.rs"
 
 [dependencies]
 rsvelte_formatter = { path = "../rsvelte_formatter" }
+tailwind_class_order = { path = "../tailwind_class_order" }
 oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "2d4e8d20644e0e7446f0a381894b45ea339a0625" }
 oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "2d4e8d20644e0e7446f0a381894b45ea339a0625" }
 clap = { version = "4.5", features = ["derive"] }

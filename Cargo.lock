@@ -2435,6 +2435,7 @@ dependencies = [
  "rayon",
  "rsvelte_formatter",
  "serde_json",
+ "tailwind_class_order",
  "walkdir",
 ]
 
@@ -2867,6 +2868,14 @@ dependencies = [
  "proc-macro2 1.0.106",
  "quote 1.0.46",
  "syn 2.0.118",
+]
+
+[[package]]
+name = "tailwind_class_order"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -26,6 +26,7 @@ mod config;
 mod daemon;
 mod oxfmt_ignore;
 mod style_cache;
+mod tailwind;
 use config::OxfmtConfig;
 use style_cache::StyleCache;
 
@@ -531,15 +532,24 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> FormatOptions {
         None => SortOrderSpec::default(),
     };
 
-    // `sortTailwindcss` orders class names by the project's tailwind stylesheet —
-    // a layer rsvelte-fmt does not reimplement. Warn instead of silently
-    // dropping it, since a missing re-sort is invisible in the diff (#1057).
-    if cfg.sort_tailwindcss {
-        eprintln!(
-            "rsvelte-fmt: warning: `sortTailwindcss` is not supported; Tailwind class ordering \
-             in markup is left unchanged. Run `oxfmt` if you need class sorting."
-        );
-    }
+    // `sortTailwindcss` orders class names by the project's tailwind stylesheet.
+    // We reproduce it natively only for a stock, zero-config Tailwind setup — the
+    // one case a pure-Rust sorter matches byte-for-byte. A custom stylesheet /
+    // config depends on the JS engine, so we warn and leave classes unchanged
+    // (a missing re-sort is invisible in the diff, #1057).
+    let (class_sorter, class_attributes) =
+        match tailwind::decide(cfg.sort_tailwindcss.as_ref(), cfg.path.as_deref()) {
+            tailwind::Decision::Sort { sorter, attributes } => (Some(sorter), attributes),
+            tailwind::Decision::Skip { reason } => {
+                eprintln!(
+                    "rsvelte-fmt: warning: `sortTailwindcss` left unapplied — {reason}. Native \
+                     sorting only covers a default `@import \"tailwindcss\";` setup; run `oxfmt` \
+                     for a custom Tailwind config."
+                );
+                (None, Vec::new())
+            }
+            tailwind::Decision::Off => (None, Vec::new()),
+        };
 
     // Embedded `<style>` blocks are formatted in-process via `oxc_formatter_css`
     // by default (same engine as `oxfmt`, no subprocess). `--no-native-css`
@@ -560,6 +570,8 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> FormatOptions {
         indent_script_and_style: cfg.svelte_indent_script_and_style.unwrap_or(true),
         sort_order,
         bracket_same_line: cfg.bracket_same_line.unwrap_or(false),
+        class_sorter,
+        class_attributes,
     }
 }
 

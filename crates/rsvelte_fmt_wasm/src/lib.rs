@@ -105,5 +105,7 @@ fn parse_options(options_json: &str) -> FormatOptions {
         allow_shorthand: svelte_bool("allowShorthand").unwrap_or(true),
         indent_script_and_style: svelte_bool("indentScriptAndStyle").unwrap_or(true),
         sort_order,
+        class_sorter: None,
+        class_attributes: Vec::new(),
     }
 }
