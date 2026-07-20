@@ -1092,6 +1092,13 @@ fn render_multi_line(
         // attribute column by `render_attribute_value_sequence`.)
         if is_string_value_attr(a) {
             out.push_str(a);
+        } else if is_verbatim_interpolation_value(a) {
+            // An interpolation-led string value (`viewBox="{a}\n    {b}\n    {c}"`)
+            // whose newlines all sit BETWEEN interpolations (brace-depth 0) is
+            // literal HTML text — prettier-plugin-svelte keeps its interior
+            // whitespace verbatim, so re-indenting the continuation lines would
+            // double-count the source indentation.
+            out.push_str(a);
         } else if a.starts_with("/*") {
             // Block comment sourced verbatim from the open-tag region: its
             // interior lines already carry the original source indentation
@@ -1151,6 +1158,51 @@ fn is_string_value_attr(a: &str) -> bool {
         Some((_, value)) => value.starts_with('"') && !value.starts_with("\"{"),
         None => false,
     }
+}
+
+/// Whether a rendered interpolation-led string value (`name="{…}…"`) is one
+/// whose newlines are *all* literal HTML text — i.e. every newline sits at
+/// brace-depth 0 (between interpolations), not inside a wrapped `{expr}`. Such a
+/// value is emitted verbatim so its source whitespace is preserved (prettier
+/// keeps multi-line string attribute values literal). Values with no newline, or
+/// where any newline is a wrapped interpolation's continuation line (brace-depth
+/// > 0), return false so the normal re-indent path runs.
+fn is_verbatim_interpolation_value(a: &str) -> bool {
+    let Some((_, value)) = a.split_once('=') else {
+        return false;
+    };
+    if !value.starts_with("\"{") {
+        return false;
+    }
+    let mut depth: i32 = 0;
+    let mut quote: Option<u8> = None;
+    let mut saw_newline_at_depth0 = false;
+    for &b in value.as_bytes() {
+        match quote {
+            // Inside a JS string literal within an interpolation: only its own
+            // closing delimiter matters (braces/newlines there are not structural).
+            Some(q) => {
+                if b == q {
+                    quote = None;
+                }
+            }
+            None => match b {
+                b'\'' | b'"' | b'`' if depth > 0 => quote = Some(b),
+                b'{' => depth += 1,
+                b'}' => depth -= 1,
+                b'\n' => {
+                    if depth > 0 {
+                        // A newline inside `{…}` is a wrapped interpolation's
+                        // continuation — it needs re-indenting, not verbatim.
+                        return false;
+                    }
+                    saw_newline_at_depth0 = true;
+                }
+                _ => {}
+            },
+        }
+    }
+    saw_newline_at_depth0
 }
 
 /// Re-indent an expression-led attribute (`class="{expr}\nraw-text…"`).
