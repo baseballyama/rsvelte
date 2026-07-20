@@ -4672,7 +4672,14 @@ fn node_to_child(
         // even when the whole element would fit on one line. The body is carried
         // verbatim (it was laid out by the earlier passes at this same indent).
         TemplateNode::IfBlock(blk) => Some(Child::Other(build_if_block_doc(out, blk, line_width)?)),
-        TemplateNode::EachBlock(_) | TemplateNode::KeyBlock(_) => {
+        TemplateNode::EachBlock(blk) => {
+            let mut branches: Vec<&Fragment> = vec![&blk.body];
+            branches.extend(blk.fallback.as_ref());
+            Some(Child::Other(build_simple_block_doc(
+                out, blk.start, blk.end, &branches, line_width,
+            )?))
+        }
+        TemplateNode::KeyBlock(_) => {
             let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
             // Carrying the body verbatim also freezes it: claiming the parent
             // suppresses the passes that would still have broken something inside.
@@ -4786,6 +4793,30 @@ fn build_if_block_doc(
         }
     }
     parts.push(Doc::Text(out.get(tok_start..blk.end as usize)?.to_string()));
+    Some(Doc::Group(vec![Doc::Concat(parts), Doc::BreakParent]))
+}
+
+/// Build the Doc for a flow block whose branches don't chain (`{#each}` with its
+/// optional `{:else}` fallback, `{#key}`). Same `group([def, breakParent])` shape
+/// as [`build_if_block_doc`]; each branch tag is the verbatim source between the
+/// previous branch's content and the next one's.
+fn build_simple_block_doc(
+    out: &str,
+    start: u32,
+    end: u32,
+    branches: &[&Fragment],
+    line_width: usize,
+) -> Option<crate::doc::Doc> {
+    use crate::doc::Doc;
+    let mut parts: Vec<Doc> = Vec::new();
+    let mut tok_start = start as usize;
+    for frag in branches {
+        let (cs, ce) = block_branch_bounds(out, frag)?;
+        parts.push(Doc::Text(out.get(tok_start..cs)?.to_string()));
+        parts.extend(build_block_branch_doc(out, frag, cs, ce, line_width)?);
+        tok_start = ce;
+    }
+    parts.push(Doc::Text(out.get(tok_start..end as usize)?.to_string()));
     Some(Doc::Group(vec![Doc::Concat(parts), Doc::BreakParent]))
 }
 
