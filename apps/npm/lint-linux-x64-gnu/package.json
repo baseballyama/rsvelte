@@ -1,0 +1,29 @@
+{
+  "name": "@rsvelte/lint-linux-x64-gnu",
+  "version": "0.7.17",
+  "description": "Prebuilt rsvelte-lint binary for linux-x64 (glibc)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baseballyama/rsvelte.git",
+    "directory": "apps/npm/lint-linux-x64-gnu"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "files": [
+    "rsvelte-lint"
+  ],
+  "scripts": {
+    "prepack": "chmod +x rsvelte-lint"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

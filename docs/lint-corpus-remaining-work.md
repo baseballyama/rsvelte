@@ -1,11 +1,43 @@
 # Lint-corpus burn-down playbook
 
 The lint-parity corpus (`scripts/compat-corpus/lint-verify.mjs`) lints every
-`.svelte` source in `eslint-plugin-svelte` + `svelte-eslint-parser` with both
-the real `eslint-plugin-svelte` (oracle) and the native `rsvelte-lint`, and
-records every finding that appears on exactly one side in
-`compat/lint-corpus/known-failures.json`. That file may only **shrink** — a new
-divergence fails CI (the `lint-parity` job).
+`.svelte` source in `eslint-plugin-svelte` + `svelte-eslint-parser` **and the
+real-world component libraries bits-ui / flowbite-svelte / melt-ui /
+shadcn-svelte** with both the real `eslint-plugin-svelte` (oracle) and the
+native `rsvelte-lint`, and records every finding that appears on exactly one
+side in `compat/lint-corpus/known-failures.json`. That file may only **shrink** —
+a new divergence fails CI (the `lint-parity` job).
+
+## Real-world-expansion snapshot (238 divergences, to burn down)
+
+Adding the four real-world libraries (3,752 new sources; 5,913 comparable after
+23 oracle-unparseable) re-baselined **238 divergences** (186 FP, 52 FN) into
+`known-failures.json`. They cluster almost entirely into the already-documented
+root causes below — the new corpus is production code, so it re-surfaces the same
+gaps at higher volume rather than novel ones:
+
+- **`no-top-level-browser-globals` — 136 FP.** Concrete instance of **Cluster G**'s
+  tail: real code uses common-name globals (`open`, `close`, `name`, `status`, …)
+  that rsvelte's name-based matcher flags but the oracle's scope resolver binds to
+  locals/imports/params. Needs the ESLint-style scope/binding resolver (`scope.rs`
+  `ComponentAnalysis`) before the full `globals.browser` set is comparable.
+- **`sort-attributes` — 36 (11 FP / 25 FN).** Mostly attribute-ordering around
+  `bind:` / directives and inline `/* eslint … */` custom `order` (**Cluster E**).
+- **`valid-prop-names-in-kit-pages` — 16 FP** and **`no-goto-without-base` — 6 FN.**
+  **Cluster D** — SvelteKit route-file-type gating + `resolve()`/base-path handling
+  on real `src/routes/+page.svelte` files.
+- **`prefer-const` — 13 (12 FN)** and **`no-target-blank` — 7 FN.** **Cluster H**
+  small per-rule tail (TS `let`, `{@const}`, template-attribute reassignment scan).
+- **`shorthand-directive` — 11 FP / `shorthand-attribute` — 7 FP.** rsvelte proposes
+  the shorthand where the oracle stays silent (e.g. `bind:value={value}` /
+  `prop={prop}` span/equality edge cases) — a bounded rule fix.
+- **Singletons:** `experimental-require-slot-types` (2 FP),
+  `prefer-svelte-reactivity` (2 FN, Cluster C), `prefer-destructured-store-props`
+  (2 FP).
+
+By repo: bits-ui 110, flowbite-svelte 75, shadcn-svelte 48, melt-ui 5. None
+require a fix to land the expansion — the ratchet holds at 238 and may only
+shrink; each cluster is a self-contained follow-up per the playbook below.
 
 This doc is the burn-down plan for the remaining divergences, grouped by
 root-cause cluster so the backlog can be worked one cluster at a time. Counts

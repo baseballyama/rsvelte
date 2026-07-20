@@ -1,0 +1,64 @@
+#!/usr/bin/env node
+// Fallback launcher for the @rsvelte/lint CLI.
+//
+// On a normal install the `postinstall` script (`install.js`) replaces THIS
+// file with a copy of the platform-native `rsvelte-lint` binary, so the
+// consumer runs the native binary directly with no Node startup cost. This JS
+// launcher only runs when `postinstall` didn't (e.g. `--ignore-scripts`, or a
+// package manager that gates build scripts): it resolves the right
+// `@rsvelte/lint-<triple>` binary and execs it — correct, just paying one Node
+// cold start per invocation.
+//
+// Unlike @rsvelte/fmt this launcher has nothing extra to wire up: the linter is
+// self-contained (no oxfmt delegation, no runtime sidecar). It just resolves
+// the platform binary and forwards argv/stdio.
+
+const { spawnSync } = require('node:child_process');
+const {
+	platformPackage,
+	resolvePlatformBinary,
+	ensureExecutable,
+} = require('../lib/resolve.cjs');
+
+const binPath = resolvePlatformBinary();
+if (!binPath) {
+	const { triple, pkgName } = platformPackage();
+	if (!triple) {
+		console.error(
+			`[@rsvelte/lint] Unsupported platform: ${process.platform}-${process.arch}.\n` +
+				`Open an issue at https://github.com/baseballyama/rsvelte/issues if you'd like this platform supported.`,
+		);
+	} else {
+		console.error(
+			`[@rsvelte/lint] Couldn't find the platform binary "${pkgName}".\n` +
+				`This usually means npm/pnpm skipped the optional dependency for your platform.\n` +
+				`Try reinstalling: npm install --include=optional ${pkgName}`,
+		);
+	}
+	process.exit(1);
+}
+
+// `pnpm pack` normalises file modes to 0644, dropping the execute bit. Re-apply
+// +x best-effort right before spawn so the binary can actually run.
+ensureExecutable(binPath);
+
+const result = spawnSync(binPath, process.argv.slice(2), {
+	stdio: 'inherit',
+	windowsHide: true,
+});
+
+if (result.error) {
+	console.error(`[@rsvelte/lint] Failed to exec ${binPath}: ${result.error.message}`);
+	process.exit(1);
+}
+
+// If the native binary was killed by a signal (e.g. SIGABRT from a Rust
+// panic), `result.status` is null and `result.signal` holds the signal name.
+// Returning `status ?? 0` would mask the crash as a clean exit 0; propagate
+// signal terminations as the conventional 128 + signal-number exit code.
+if (result.signal) {
+	const signum = require('node:os').constants.signals[result.signal];
+	console.error(`[@rsvelte/lint] ${binPath} was terminated by ${result.signal}.`);
+	process.exit(typeof signum === 'number' ? 128 + signum : 1);
+}
+process.exit(result.status ?? 0);

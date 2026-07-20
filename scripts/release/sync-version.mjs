@@ -15,7 +15,11 @@
 //   mirror both crates so the in-wasm version exports don't drift.)
 //   `crates/rsvelte_lint` was added here after #724 switched `build:wasm:core`
 //   from `rsvelte_core` to `rsvelte_lint`; without it `lint_version()` reported
-//   a stale `0.1.0`.
+//   a stale `0.1.0`. The native `@rsvelte/lint` CLI (also built from
+//   `crates/rsvelte_lint`, reporting `--version` from `CARGO_PKG_VERSION`) needs
+//   no separate mapping: it shares a `fixed` changeset group with
+//   `@rsvelte/compiler` (see `.changeset/config.json`), so it always bumps to the
+//   same version this rule already mirrors into the `rsvelte_lint` crate.
 // - `@rsvelte/fmt` ← `crates/rsvelte_fmt`: the `rsvelte-fmt` binary reports its
 //   version from `env!("CARGO_PKG_VERSION")` (clap `#[command(version)]`).
 //   Without this sync the crate stayed at `0.1.0` no matter how many releases

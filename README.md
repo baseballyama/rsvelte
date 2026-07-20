@@ -90,6 +90,18 @@ npx rsvelte-fmt --check src/  # CI gate: exit 1 if anything would change
 
 See [`@rsvelte/fmt`](apps/npm/fmt) for all flags, stdin/editor integration, and configuration.
 
+### Lint (`rsvelte-lint`)
+
+A native Svelte linter that surfaces the compiler's own validator/a11y diagnostics plus a Rust port of [`eslint-plugin-svelte`](https://github.com/sveltejs/eslint-plugin-svelte)'s rules, designed to run alongside ESLint rather than replace it:
+
+```bash
+npm install -D @rsvelte/lint
+npx rsvelte-lint src/                 # lint a directory
+npx rsvelte-lint --fix src/           # autofix in place
+```
+
+See [`@rsvelte/lint`](apps/npm/lint) for configuration, ESLint config import (`--config-from-eslint`), and CI output formats (`--format sarif`, `--format github-actions`).
+
 ### Compile from JavaScript
 
 [`@rsvelte/compiler`](apps/npm/compiler) ships the compiler as WebAssembly — it runs anywhere Node or a browser does:
@@ -132,6 +144,7 @@ All npm packages ship under the `@rsvelte` scope.
 | [`@rsvelte/vite-plugin-svelte`](apps/npm/vite-plugin-svelte) | [`@sveltejs/vite-plugin-svelte`](https://github.com/sveltejs/vite-plugin-svelte) |
 | [`@rsvelte/svelte-check`](apps/npm/svelte-check) | [`svelte-check`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) CLI |
 | [`@rsvelte/fmt`](apps/npm/fmt) | `prettier` + [`prettier-plugin-svelte`](https://github.com/sveltejs/prettier-plugin-svelte) |
+| [`@rsvelte/lint`](apps/npm/lint) | [`eslint`](https://eslint.org) + [`eslint-plugin-svelte`](https://github.com/sveltejs/eslint-plugin-svelte) |
 | [`@rsvelte/svelte2tsx`](apps/npm/svelte2tsx) | [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx) |
 | [`@rsvelte/compiler`](apps/npm/compiler) | [`svelte/compiler`](https://svelte.dev/docs/svelte/svelte-compiler), as WebAssembly |
 | [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native) | `svelte/compiler`, as a native NAPI binding |

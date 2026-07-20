@@ -317,8 +317,12 @@ jobs:
         with:
           submodules: false
 
-      - name: Checkout eslint-plugin-svelte + svelte-eslint-parser submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/eslint-plugin-svelte submodules/svelte-eslint-parser
+      - name: Checkout lint-corpus submodules (shallow)
+        # eslint-plugin-svelte + svelte-eslint-parser supply the rule/parser
+        # fixtures; the real-world component libraries (bits-ui / flowbite-svelte
+        # / melt-ui / shadcn-svelte — the same pins the compile corpus uses) add
+        # production-source breadth.
+        run: git submodule update --init --depth 1 submodules/eslint-plugin-svelte submodules/svelte-eslint-parser submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -347,7 +351,7 @@ jobs:
         run: npm --prefix scripts/compat-corpus/lint-oracle install --no-package-lock
 
       - name: Collect lint corpus
-        run: node scripts/compat-corpus/lint-collect.mjs eslint-plugin-svelte svelte-eslint-parser
+        run: node scripts/compat-corpus/lint-collect.mjs eslint-plugin-svelte svelte-eslint-parser bits-ui flowbite-svelte melt-ui shadcn-svelte
 
       - name: Verify lint parity (ratchet against known-failures.json)
         run: node scripts/compat-corpus/lint-verify.mjs

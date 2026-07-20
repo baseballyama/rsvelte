@@ -49,6 +49,11 @@ target
 # local dev run of the postinstall clobbering the JS launcher / leaving a sidecar)
 /apps/npm/fmt/bin/rsvelte-fmt.runtime.json
 
+# rsvelte-lint platform binaries (staged into per-platform npm packages by the
+# release workflow; never committed)
+/apps/npm/lint-*/rsvelte-lint
+/apps/npm/lint-*/rsvelte-lint.exe
+
 # Playwright MCP
 .playwright-mcp/
 

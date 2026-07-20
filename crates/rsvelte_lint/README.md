@@ -5,6 +5,19 @@ no second ESTree parse, no Node.js in the hot path. See
 [`docs/svelte-lint-design.md`](../../docs/svelte-lint-design.md) for the full
 architecture & decision record.
 
+> **Using this from a JS/TS project?** Install the prebuilt
+> [`@rsvelte/lint`](../../apps/npm/lint) npm package instead of building this
+> crate from source:
+>
+> ```bash
+> npm install -D @rsvelte/lint
+> npx rsvelte-lint src/
+> ```
+>
+> See [`apps/npm/lint`](../../apps/npm/lint) for the full CLI/config reference.
+> The rest of this README covers running/developing the crate directly with
+> Cargo.
+
 It combines two diagnostic sources:
 
 1. **Validator wrap** — the rsvelte compiler already emits ~70 warning codes,

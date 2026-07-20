@@ -18,7 +18,7 @@ use rsvelte_lint::{LintConfig, LintFormat, fix_source, lint_file, presets, rende
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Parser, Debug)]
-#[command(name = "rsvelte-lint", about = "Fast native Svelte linter")]
+#[command(name = "rsvelte-lint", about = "Fast native Svelte linter", version = VERSION)]
 struct Cli {
     /// Files or directories to lint. Directories are searched for `.svelte`.
     paths: Vec<PathBuf>,
