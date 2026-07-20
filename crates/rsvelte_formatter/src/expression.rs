@@ -273,24 +273,11 @@ fn collect_node_edits(
                             .unwrap_or("");
                         if !inner.is_empty() {
                             let formatted = format_inline_expression(inner, options)?;
-                            // A long key that OXC broke as a method chain
-                            // (`(node\n  .ancestors()\n  …)`) comes back at OXC's own
-                            // indent-0 continuation column; push its continuation
-                            // lines out to the block's depth so they align under the
-                            // key, mirroring the each-iterable path. reindent adds the
-                            // prefix ON TOP of OXC's 2-space indent, so `depth`
-                            // indent-levels yields `(depth+1)`-level continuations.
-                            let formatted = if formatted.contains('\n') {
-                                let indent_width = options.js.indent_width.value() as usize;
-                                let cont_indent = if options.js.indent_style.is_tab() {
-                                    "\t".repeat(depth)
-                                } else {
-                                    " ".repeat(depth * indent_width)
-                                };
-                                crate::reindent::reindent(&formatted, &cont_indent, true)
-                            } else {
-                                formatted
-                            };
+                            // A long key OXC broke as a method chain is reindented to
+                            // the block depth, mirroring the each-iterable path.
+                            let formatted =
+                                reindent_header_method_chain(&formatted, depth, options)
+                                    .unwrap_or(formatted);
                             // Normalize the horizontal whitespace before the
                             // delimiter to a single space — prettier-plugin-svelte
                             // always emits `… (key)` regardless of the preceding
@@ -803,6 +790,32 @@ fn push_brace_wrapped_expression(
     Ok(())
 }
 
+/// Push a block-header expression that OXC broke as a *method chain*
+/// (`node\n  .a()\n  .b()`) out to the block's depth. Returns `None` when
+/// `formatted` is single-line, ends its first line at a logical operator, or was
+/// not broken as a method chain — the cases the caller keeps as-is. reindent
+/// prepends the prefix ON TOP of OXC's own 2-space indent, so `depth` levels
+/// yields `(depth+1)`-level continuations.
+fn reindent_header_method_chain(
+    formatted: &str,
+    depth: usize,
+    options: &FormatOptions,
+) -> Option<String> {
+    if !formatted.contains('\n')
+        || first_line_ends_with_logical_op(formatted.lines().next().unwrap_or(""))
+        || !is_method_chain_break(formatted)
+    {
+        return None;
+    }
+    let indent_width = options.js.indent_width.value() as usize;
+    let cont_indent = if options.js.indent_style.is_tab() {
+        "\t".repeat(depth)
+    } else {
+        " ".repeat(depth * indent_width)
+    };
+    Some(crate::reindent::reindent(formatted, &cont_indent, true))
+}
+
 /// Splice just the bare expression span — preserves whatever surrounds it
 /// in the source. Used for block-header expressions (`{#if EXPR}`,
 /// `{#each EXPR as ...}`, etc.) where the `{` is followed by a Svelte
@@ -914,29 +927,11 @@ fn push_bare_expression(
                 multi
             }
         };
-        if multi.contains('\n')
-                && !first_line_ends_with_logical_op(multi.lines().next().unwrap_or(""))
-                // prettier-plugin-svelte's `forceSingleLine: true` (removeLines) collapses
-                // non-hard line breaks produced by OXC back to a single line.  OXC uses
-                // "soft" breaks (argument wrapping) for call-expression arguments, which
-                // prettier's removeLines removes, keeping the expression single-line.
-                // For method chain call expressions (`call().method()`), the break form
-                // uses hard line breaks between chain parts (starting each continuation
-                // line with `.`), which removeLines keeps — so the oracle DOES break those.
-                // Only accept the multi-line form when OXC broke it as a method chain
-                // (i.e. at least one continuation line starts with `.` after trimming).
-                && is_method_chain_break(&multi)
-        {
-            // reindent prepends the prefix to each continuation line ON TOP of
-            // OXC's own 2-space indent, so we pass `depth * indent_width` (not
-            // `(depth+1) * indent_width`).  The result is:
-            //   OXC indent (2) + prefix (depth*2) = (depth+1)*2 — correct.
-            let cont_indent = if options.js.indent_style.is_tab() {
-                "\t".repeat(depth)
-            } else {
-                " ".repeat(depth * indent_width)
-            };
-            crate::reindent::reindent(&multi, &cont_indent, true)
+        // Only accept a method-chain break (hard `.`-led continuation lines,
+        // which prettier's removeLines keeps); OXC's soft argument-wrap breaks are
+        // collapsed back to one line by the oracle.
+        if let Some(reindented) = reindent_header_method_chain(&multi, depth, options) {
+            reindented
         } else if multi.contains('\n')
             && !first_line_ends_with_logical_op(multi.lines().next().unwrap_or(""))
         {

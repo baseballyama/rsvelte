@@ -1093,11 +1093,8 @@ fn render_multi_line(
         if is_string_value_attr(a) {
             out.push_str(a);
         } else if is_verbatim_interpolation_value(a) {
-            // An interpolation-led string value (`viewBox="{a}\n    {b}\n    {c}"`)
-            // whose newlines all sit BETWEEN interpolations (brace-depth 0) is
-            // literal HTML text — prettier-plugin-svelte keeps its interior
-            // whitespace verbatim, so re-indenting the continuation lines would
-            // double-count the source indentation.
+            // Interior whitespace between interpolations is literal HTML the oracle
+            // keeps verbatim; re-indenting it would double-count the source indent.
             out.push_str(a);
         } else if a.starts_with("/*") {
             // Block comment sourced verbatim from the open-tag region: its
@@ -1160,13 +1157,11 @@ fn is_string_value_attr(a: &str) -> bool {
     }
 }
 
-/// Whether a rendered interpolation-led string value (`name="{…}…"`) is one
-/// whose newlines are *all* literal HTML text — i.e. every newline sits at
-/// brace-depth 0 (between interpolations), not inside a wrapped `{expr}`. Such a
-/// value is emitted verbatim so its source whitespace is preserved (prettier
-/// keeps multi-line string attribute values literal). Values with no newline, or
-/// where any newline is a wrapped interpolation's continuation line (brace-depth
-/// > 0), return false so the normal re-indent path runs.
+/// Whether an interpolation-led string value (`name="{…}…"`) has newlines that
+/// are *all* literal HTML text (brace-depth 0, between interpolations) rather
+/// than a wrapped `{expr}` continuation — so it can be emitted verbatim to
+/// preserve source whitespace. False for no-newline values or any newline inside
+/// `{…}` (brace-depth > 0), which take the re-indent path.
 fn is_verbatim_interpolation_value(a: &str) -> bool {
     let Some((_, value)) = a.split_once('=') else {
         return false;
@@ -1176,13 +1171,18 @@ fn is_verbatim_interpolation_value(a: &str) -> bool {
     }
     let mut depth: i32 = 0;
     let mut quote: Option<u8> = None;
+    let mut escaped = false;
     let mut saw_newline_at_depth0 = false;
     for &b in value.as_bytes() {
         match quote {
-            // Inside a JS string literal within an interpolation: only its own
-            // closing delimiter matters (braces/newlines there are not structural).
+            // Inside a JS string literal: only its own *unescaped* closing
+            // delimiter ends it; braces/newlines there are not structural.
             Some(q) => {
-                if b == q {
+                if escaped {
+                    escaped = false;
+                } else if b == b'\\' {
+                    escaped = true;
+                } else if b == q {
                     quote = None;
                 }
             }
@@ -1190,14 +1190,10 @@ fn is_verbatim_interpolation_value(a: &str) -> bool {
                 b'\'' | b'"' | b'`' if depth > 0 => quote = Some(b),
                 b'{' => depth += 1,
                 b'}' => depth -= 1,
-                b'\n' => {
-                    if depth > 0 {
-                        // A newline inside `{…}` is a wrapped interpolation's
-                        // continuation — it needs re-indenting, not verbatim.
-                        return false;
-                    }
-                    saw_newline_at_depth0 = true;
-                }
+                // Inside `{…}` a newline is a wrapped continuation (re-indent);
+                // at depth 0 it is literal text (verbatim).
+                b'\n' if depth > 0 => return false,
+                b'\n' => saw_newline_at_depth0 = true,
                 _ => {}
             },
         }
@@ -1551,6 +1547,13 @@ fn render_attribute(
     }
 }
 
+/// `extra_lead` that narrows an expression to `inline_len - 1` columns — the
+/// minimal width that forces OXC to break it at its top-level operator while
+/// leaving inner content the widest budget.
+fn minimal_break_extra(base_width: usize, inline_len: usize) -> usize {
+    base_width.saturating_sub(inline_len) + 1
+}
+
 /// Return the source text of an `ExpressionTag`'s inner expression, without
 /// the surrounding `{`/`}`.
 ///
@@ -1752,15 +1755,10 @@ fn render_single_expression_value(
             if first_line.ends_with('{') || first_line.ends_with('[') || first_line.ends_with('(') {
                 formatted
             } else {
-                // First line ends at an operator or similar break point. The
-                // `name={` prefix only legitimately narrows the FIRST line (the
-                // one carrying the prefix); continuation lines sit at the
-                // attribute indent and were already measured correctly by the
-                // indent-only pass. Re-format with `prefix` as extra_lead, but
-                // only adopt it when it actually changes the first line —
-                // otherwise keep the indent-only result so nested interiors
-                // (e.g. an expanded object inside a ternary branch) aren't
-                // over-narrowed and wrongly broken.
+                // The `name={` prefix only narrows the FIRST line; continuation
+                // lines sit at the attribute indent (already measured). Adopt the
+                // prefix-narrowed result only when it changes the first line, else
+                // keep the indent-only one so nested interiors aren't over-broken.
                 let prefixed =
                     format_attribute_value_expression(inner_src, options, attr_depth, prefix)?;
                 let prefixed_first = prefixed.lines().next().unwrap_or("").trim_end();
@@ -2080,19 +2078,16 @@ fn render_attribute_value_sequence(
                                 };
                                 if let Some(expanded) = try_expand {
                                     expanded
-                                } else if !first_pass.contains('\n') && is_shallow_value(inner_src)
-                                {
-                                    // The interpolation starts past the print width
-                                    // but its expression is breakable (ternary /
-                                    // binary / logical): the oracle still breaks it
-                                    // at its top-level operator (`{a\n  ? b\n  : c}`).
-                                    // Force the minimal break so it splits instead of
-                                    // overflowing on one line.
+                                } else if !first_pass.contains('\n') {
+                                    // Past-width but breakable (the outer guard already
+                                    // ensured `is_shallow_value`): force the minimal
+                                    // break so the oracle's top-level split happens.
                                     let base_width =
                                         line_width_val.saturating_sub(effective_indent);
-                                    let expr_len = visual_width(first_pass.as_str());
-                                    let force_extra =
-                                        base_width.saturating_sub(expr_len.saturating_sub(1));
+                                    let force_extra = minimal_break_extra(
+                                        base_width,
+                                        visual_width(first_pass.as_str()),
+                                    );
                                     let forced = format_attribute_value_expression(
                                         inner_src,
                                         &opts,
@@ -2155,8 +2150,10 @@ fn render_attribute_value_sequence(
                                     // continuation line.
                                     let base_width =
                                         line_width_val.saturating_sub(effective_indent);
-                                    let expr_len = visual_width(first_pass.as_str());
-                                    let force_extra = base_width.saturating_sub(expr_len) + 1;
+                                    let force_extra = minimal_break_extra(
+                                        base_width,
+                                        visual_width(first_pass.as_str()),
+                                    );
                                     let forced = format_attribute_value_expression(
                                         inner_src,
                                         &opts,
@@ -2340,13 +2337,9 @@ fn render_directive_value_narrow(
             // leaves the body exactly one indent level of room, preventing
             // over-narrow breakage of nested object / array arguments.
             let indent_width = options.js.indent_width.value() as usize;
-            // An expression-bodied arrow (`(e) => cond && fn(e)`) whose one-line
-            // form overflows must split after `=>` with the body on the next line.
-            // `prefix - indent_width` yields `narrowed = inline_len`, which fits the
-            // arrow exactly and fails to break it (off by one). Use the minimal-break
-            // width `inline_len - 1` so the arrow splits after `=>` while the body
-            // keeps the widest budget — the same formula the non-directive arrow
-            // path uses.
+            // An expression-bodied arrow must split after `=>`; `prefix -
+            // indent_width` yields `narrowed = inline_len` (fits exactly, off by
+            // one), so use the minimal-break width instead.
             let is_expr_arrow = formatted.contains("=>")
                 && formatted
                     .split_once("=>")
@@ -2355,7 +2348,7 @@ fn render_directive_value_narrow(
                 prefix + 1
             } else if is_expr_arrow {
                 let base_width = line_width.saturating_sub(indent_cols);
-                base_width.saturating_sub(visual_width(&formatted)) + 1
+                minimal_break_extra(base_width, visual_width(&formatted))
             } else {
                 prefix.saturating_sub(indent_width)
             };
