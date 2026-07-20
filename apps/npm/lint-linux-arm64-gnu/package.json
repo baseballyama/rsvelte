@@ -18,7 +18,8 @@
     "glibc"
   ],
   "files": [
-    "rsvelte-lint"
+    "rsvelte-lint",
+    "rsvelte_lint.node"
   ],
   "scripts": {
     "prepack": "chmod +x rsvelte-lint"

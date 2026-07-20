@@ -104,19 +104,24 @@ log "Pre-flight OK."
 
 # ─── Cross-build ─────────────────────────────────────────────────────────────
 
-# Build rsvelte-lint for one target with the dist-lint profile. Native cargo
-# for darwin (we're on macOS), zigbuild for Linux, xwin for Windows MSVC.
+# Build rsvelte-lint (CLI bin + NAPI `.node` addon) for one target with the
+# dist-lint profile. Native cargo for darwin (we're on macOS), zigbuild for
+# Linux, xwin for Windows MSVC. The addon uses `--features napi --lib
+# -p rsvelte_lint` (scoped so `--features napi` doesn't also touch rsvelte_core).
 build_lint_for_target() {
   local target="$1"
   case "$target" in
     *-apple-darwin)
       cargo build --profile dist-lint --bin rsvelte-lint --target="$target"
+      cargo build --profile dist-lint --features napi --lib -p rsvelte_lint --target="$target"
       ;;
     x86_64-pc-windows-msvc)
       cargo xwin build --profile dist-lint --bin rsvelte-lint --target="$target"
+      cargo xwin build --profile dist-lint --features napi --lib -p rsvelte_lint --target="$target"
       ;;
     *-unknown-linux-gnu)
       cargo zigbuild --profile dist-lint --bin rsvelte-lint --target="$target"
+      cargo zigbuild --profile dist-lint --features napi --lib -p rsvelte_lint --target="$target"
       ;;
     *)
       die "unsupported cross target: $target"
@@ -152,13 +157,18 @@ for entry in "${TRIPLES[@]}"; do
   build_lint_for_target "$target"
 
   case "$target" in
-    *-pc-windows-msvc) src="rsvelte-lint.exe"; dest_name="rsvelte-lint.exe" ;;
-    *)                 src="rsvelte-lint";     dest_name="rsvelte-lint" ;;
+    *-pc-windows-msvc) src="rsvelte-lint.exe"; dest_name="rsvelte-lint.exe"; dylib="rsvelte_lint.dll" ;;
+    *-apple-darwin)    src="rsvelte-lint";     dest_name="rsvelte-lint";     dylib="librsvelte_lint.dylib" ;;
+    *)                 src="rsvelte-lint";     dest_name="rsvelte-lint";     dylib="librsvelte_lint.so" ;;
   esac
   dest="$lint_dir/$dest_name"
   cp "target/$target/dist-lint/$src" "$dest"
   [[ "$dest_name" == *.exe ]] || chmod 755 "$dest"
   log "  staged $dest ($(stat -f %z "$dest" 2>/dev/null || stat -c %s "$dest") bytes)"
+  # NAPI addon (dlopen'd, not exec'd — no +x needed).
+  node_dest="$lint_dir/rsvelte_lint.node"
+  cp "target/$target/dist-lint/$dylib" "$node_dest"
+  log "  staged $node_dest ($(stat -f %z "$node_dest" 2>/dev/null || stat -c %s "$node_dest") bytes)"
 done
 
 # ─── Publish ─────────────────────────────────────────────────────────────────

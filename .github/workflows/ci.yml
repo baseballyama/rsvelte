@@ -622,6 +622,29 @@ jobs:
       - name: Build lint wasm (nodejs target)
         run: pnpm run build:wasm:lint-node
 
+      # @rsvelte/oxlint-plugin runs on the web-target wasm published as
+      # @rsvelte/compiler (pkg/). Build it, regenerate the plugin's recommended
+      # config from the live rule catalog, then run the oxlint E2E.
+      - name: Build core wasm (web target) for oxlint-plugin
+        run: pnpm run build:wasm:core
+
+      - name: Generate oxlint-plugin recommended config
+        run: pnpm run build:oxlint-plugin
+
+      # recommended.json is generated from the live rule catalog but committed
+      # (it ships in the npm package without a build step). Fail if the
+      # committed copy has drifted from the catalog.
+      - name: Check oxlint-plugin recommended config is in sync
+        run: git diff --exit-code apps/npm/oxlint-plugin/recommended.json
+
+      # Build the native NAPI addon for the host triple so the plugin's
+      # native-first engine path is exercised (the E2E asserts `engine=native`).
+      - name: Build rsvelte-lint NAPI addon (host)
+        run: pnpm run build:lint-native
+
+      - name: Run oxlint-plugin E2E (native + wasm paths)
+        run: pnpm run test:oxlint-plugin
+
       - name: Build native rsvelte-fmt
         run: cargo build -p rsvelte_fmt --bin rsvelte-fmt
 
