@@ -331,7 +331,11 @@ pub(crate) fn propagate_breaks(doc: Doc) -> Doc {
             // A RawExpr has a flat form, so it never forces the enclosing group
             // to break (the fill/group decides per-position).
             Doc::RawExpr { .. } => (doc, false),
-            Doc::Hardline | Doc::Literalline | Doc::BreakParent => (doc, true),
+            Doc::Hardline | Doc::Literalline => (doc, true),
+            // Consumed here: once the enclosing groups are forced, a surviving
+            // sentinel would reach `fits` through the rest stack and wrongly veto
+            // a LATER sibling's group, which prettier's `fits` never does.
+            Doc::BreakParent => (Doc::Text(String::new()), true),
             Doc::Concat(ps) => {
                 let (ps, f) = map_children(ps);
                 (Doc::Concat(ps), f)

@@ -4663,7 +4663,8 @@ fn node_to_child(
         // `group([def, breakParent])`, so they force every enclosing group to break
         // even when the whole element would fit on one line. The body is carried
         // verbatim (it was laid out by the earlier passes at this same indent).
-        TemplateNode::IfBlock(_) | TemplateNode::EachBlock(_) | TemplateNode::KeyBlock(_) => {
+        TemplateNode::IfBlock(blk) => Some(Child::Other(build_if_block_doc(out, blk, line_width)?)),
+        TemplateNode::EachBlock(_) | TemplateNode::KeyBlock(_) => {
             let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
             // Carrying the body verbatim also freezes it: claiming the parent
             // suppresses the passes that would still have broken something inside.
@@ -4678,6 +4679,106 @@ fn node_to_child(
         }
         _ => None,
     }
+}
+
+/// The content bounds of a flow-block branch: from just past the `}` that closes
+/// its opening tag to the `{` that opens the next one (`{:else…}` / `{/if}`).
+/// Mirrors prettier's `lastIndexOf('}', firstChild.start)` probe, which exists
+/// because the AST swallows whitespace between the tag and its first child.
+fn block_branch_bounds(out: &str, frag: &Fragment) -> Option<(usize, usize)> {
+    let first = frag.nodes.first()?;
+    let last = frag.nodes.last()?;
+    let start = out[..node_start(first) as usize].rfind('}')? + 1;
+    let last_end = node_end(last) as usize;
+    let end = last_end + out[last_end..].find('{')?;
+    (start <= end).then_some((start, end))
+}
+
+/// prettier-plugin-svelte's `printSvelteBlockChildren`:
+/// `[indent([startline, group(printChildren(…))]), endline]`.
+///
+/// `startline` / `endline` are dropped when the branch's tag hugs its first /
+/// last child (`checkWhitespaceAtStartOfSvelteBlock` → `'none'`), which is what
+/// keeps `{#if a}x{/if}` flat. Otherwise prettier picks `line` or `hardline`, but
+/// the enclosing block group always carries a `breakParent`, so both render as a
+/// newline and a hardline stands in for either.
+fn build_block_branch_doc(
+    out: &str,
+    frag: &Fragment,
+    start: usize,
+    end: usize,
+    line_width: usize,
+) -> Option<Vec<crate::doc::Doc>> {
+    use crate::children::Child;
+    use crate::doc::Doc;
+    let raw = out.get(start..end)?;
+    let hug_start = !raw.starts_with(|c: char| c.is_ascii_whitespace());
+    let hug_end = !raw.ends_with(|c: char| c.is_ascii_whitespace());
+
+    let mut children: Vec<Child> = Vec::with_capacity(frag.nodes.len());
+    for n in &frag.nodes {
+        children.push(node_to_child(out, n, line_width)?);
+    }
+    // The branch tag owns its own outer whitespace, so trim it off the edge text
+    // children (prettier's `trimTextNodeLeft` / `trimTextNodeRight`).
+    if let Some(Child::Text(t)) = children.first_mut() {
+        *t = t.trim_start().to_string();
+    }
+    if let Some(Child::Text(t)) = children.last_mut() {
+        *t = t.trim_end().to_string();
+    }
+
+    let mut inner: Vec<Doc> = Vec::new();
+    if !hug_start {
+        inner.push(Doc::Hardline);
+    }
+    inner.push(Doc::Group(crate::children::print_children(children)));
+    let mut parts = vec![Doc::Indent(inner)];
+    if !hug_end {
+        parts.push(Doc::Hardline);
+    }
+    Some(parts)
+}
+
+/// Build an `{#if}` chain's Doc, mirroring prettier's `IfBlock` print plus
+/// `printIfBlockAlternate`: `group([def, breakParent])`. svelte desugars
+/// `{:else if}` into an alternate whose sole child is an `elseif` IfBlock, so the
+/// chain is walked iteratively (each branch tag is the verbatim source between
+/// the previous branch's content and the next one's).
+fn build_if_block_doc(
+    out: &str,
+    blk: &rsvelte_core::ast::template::IfBlock,
+    line_width: usize,
+) -> Option<crate::doc::Doc> {
+    use crate::doc::Doc;
+    let mut parts: Vec<Doc> = Vec::new();
+    let mut cur = blk;
+    let mut tok_start = blk.start as usize;
+    loop {
+        let (cs, ce) = block_branch_bounds(out, &cur.consequent)?;
+        parts.push(Doc::Text(out.get(tok_start..cs)?.to_string()));
+        parts.extend(build_block_branch_doc(
+            out,
+            &cur.consequent,
+            cs,
+            ce,
+            line_width,
+        )?);
+        tok_start = ce;
+        let Some(alt) = &cur.alternate else { break };
+        match crate::indent::else_if_branch(alt) {
+            Some(chained) => cur = chained,
+            None => {
+                let (as_, ae) = block_branch_bounds(out, alt)?;
+                parts.push(Doc::Text(out.get(tok_start..as_)?.to_string()));
+                parts.extend(build_block_branch_doc(out, alt, as_, ae, line_width)?);
+                tok_start = ae;
+                break;
+            }
+        }
+    }
+    parts.push(Doc::Text(out.get(tok_start..blk.end as usize)?.to_string()));
+    Some(Doc::Group(vec![Doc::Concat(parts), Doc::BreakParent]))
 }
 
 /// Build the faithful `children::build_element_doc` Doc for an inline
