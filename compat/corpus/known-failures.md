@@ -14,12 +14,8 @@ compiler-behaviour gap; attempts to fix them are regression-prone against the
 8000+ passing entries (several have been reverted after wide blowups), so they are
 accepted until an upstream-faithful port lands.
 
-## Client (`known-failures.client.json`, 10 entries)
+## Client (`known-failures.client.json`, 8 entries)
 
-- **`layercake/.../LayerCake.svelte`** — store-getter declaration **ordering**
-  (`const $X = () => $.store_get(...)`) differs, plus a derived store called as
-  `flatData()` where svelte emits a bare `box_d`. Store subscription
-  ordering/classification.
 - **`melt-ui/.../SpatialMenuNavTest.svelte`** — two causes: (a) a proxy argument in
   `$.set(highlighted, id, true)` where `id` is an inner-scope TemplateLiteral const
   not admitted to `non_proxy_vars` (the `name_occurrences==1` heuristic bails on
@@ -44,8 +40,6 @@ accepted until an upstream-faithful port lands.
   `col` missing inside `$.invalidate_inner_signals` (from a `bind:value` key
   `filterSelections()[col.key]`). The exact condition making `col` reactive is
   unresolved.
-- **`svelte-ux/.../AppLayout.svelte`** — same store-getter ordering/classification
-  class as LayerCake (this id is also the sole server entry).
 - **`svelte-ux/.../Button.svelte`** — an `$.event('click', …)` wrapped in
   `$.effect(() => $.event(…))` where svelte emits it bare in after_update; spread +
   action-with-event placement (~25-node difference).
@@ -54,11 +48,9 @@ accepted until an upstream-faithful port lands.
   `onChange: $.get(onChange)`. svelte's rule is `has_state ? getter : init`;
   rsvelte's `has_state` is true for a legacy prop where svelte's is false.
 
-## Server (`known-failures.server.json`, 1 entry)
+## Server (`known-failures.server.json`, 0 entries)
 
-- **`svelte-ux/.../AppLayout.svelte`** — the SSR half of the same store-getter
-  ordering/classification divergence (it is in both baselines, so it is the
-  client/server intersection).
+No accepted server-side divergences remain.
 
 ## General hard-cluster root causes (why fixes are deferred)
 
