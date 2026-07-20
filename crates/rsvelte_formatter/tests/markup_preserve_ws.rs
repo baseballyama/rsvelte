@@ -71,3 +71,29 @@ fn non_pre_element_still_reindents() {
     let out = fmt("<div>\n<p>x</p>\n</div>");
     assert_eq!(out, "<div>\n  <p>x</p>\n</div>");
 }
+
+/// The `<pre>`-with-a-block pass re-parses its own sub-format output. That
+/// re-parse must use the same options `format` uses, or it fails and the pass
+/// silently leaves the body unformatted. Neither case is reachable from the
+/// corpus, so assert both here.
+#[test]
+fn pre_block_reformat_survives_non_css_lang_style() {
+    let src = "<pre>\n<style lang=\"scss\">\n$brand: red;\n.a { color: $brand; }\n</style>\n{#if true}\n<code>x</code>\n{/if}\n</pre>";
+    let out = fmt(src);
+    // The pass re-indents the block; when the re-parse fails it bails and the
+    // block stays at column 0.
+    assert!(
+        !out.contains("\n{#if true}") && out.contains("$brand: red;"),
+        "expected the block pass to run with the scss body intact:\n{out}"
+    );
+}
+
+#[test]
+fn pre_block_reformat_survives_ts_in_plain_script() {
+    let src = "<pre>\n<script>\nconst f = (x: string): number => x.length;\n</script>\n{#if true}\n<code>x</code>\n{/if}\n</pre>";
+    let out = fmt(src);
+    assert!(
+        !out.contains("\n{#if true}") && out.contains("(x: string): number"),
+        "expected the block pass to run with the TS body intact:\n{out}"
+    );
+}

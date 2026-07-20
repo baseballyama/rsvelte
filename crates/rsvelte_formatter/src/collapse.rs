@@ -35,6 +35,27 @@ fn indent_config(options: &FormatOptions) -> (String, usize) {
     (unit, width)
 }
 
+/// Re-parse formatter output the way `crate::format` parses its input. A
+/// non-CSS `<style lang>` body is not CSS, and TS emitted into a plain
+/// `<script>` needs the same force-TS retry the main parse uses — without both,
+/// the parse fails and the caller silently skips its whole pass.
+fn parse_formatted(formatted: &str) -> Option<rsvelte_core::ast::template::Root> {
+    let opts = ParseOptions {
+        skip_non_css_lang_style: true,
+        ..ParseOptions::default()
+    };
+    parse(formatted, opts).ok().or_else(|| {
+        parse(
+            formatted,
+            ParseOptions {
+                force_typescript: true,
+                ..opts
+            },
+        )
+        .ok()
+    })
+}
+
 pub(crate) fn collapse_pure_text_elements(
     out: &str,
     options: &FormatOptions,
@@ -48,9 +69,12 @@ pub(crate) fn collapse_pure_text_elements(
     // Re-parse the formatted output in the same dialect the document was formatted
     // in. A TS document (incl. one that reached TS via the formatter's force-TS
     // fallback) emits TS, so a JS-only re-parse would fail and silently skip
-    // collapse; forcing TS here keeps collapse working for those files.
+    // collapse; forcing TS here keeps collapse working for those files. The same
+    // applies to a non-CSS `<style lang>` body, which the main parse skips rather
+    // than aborting on — the re-parse must skip it too or collapse never runs.
     let parse_opts = ParseOptions {
         force_typescript: options.typescript,
+        skip_non_css_lang_style: true,
         ..ParseOptions::default()
     };
     let Ok(root) = parse(out, parse_opts) else {
@@ -481,7 +505,7 @@ fn reformat_pre_inner(
     // — overflow-breaking Sub-case A doesn't apply here since we're at narrowed
     // width and the outer re-indent will shift everything anyway).
     let formatted = {
-        let sub_root_pre = parse(formatted, ParseOptions::default()).ok()?;
+        let sub_root_pre = parse_formatted(formatted)?;
         let pre_fix_edits = fix_pre_child_hug_only(formatted, &sub_root_pre.fragment);
         if pre_fix_edits.is_empty() {
             formatted.to_string()
@@ -534,7 +558,7 @@ fn reformat_pre_inner(
 
     // Determine which line-starts in `formatted` are element-direct whitespace
     // (→ tabs). Everything else stays spaces.
-    let sub_root = parse(formatted, ParseOptions::default()).ok()?;
+    let sub_root = parse_formatted(formatted)?;
     let mut tab_lines: HashSet<usize> = HashSet::new();
     collect_pre_tab_lines(formatted, &sub_root.fragment, true, &mut tab_lines);
 
@@ -900,9 +924,7 @@ fn fix_pre_hugged_first_line(
     if prefix_col.saturating_add(first_line_end) <= full_width {
         return None;
     }
-    let Ok(sub_root) = parse(formatted, ParseOptions::default()) else {
-        return None;
-    };
+    let sub_root = parse_formatted(formatted)?;
     let mut edits: Vec<(usize, usize, String)> = Vec::new();
     collect_pre_first_line_hug_breaks(
         formatted,
@@ -2307,7 +2329,11 @@ fn collect(
     );
     let in_consumed_run =
         |start: u32, end: u32| consumed.iter().any(|&(s, e)| s <= start && end <= e);
-    for node in &fragment.nodes {
+    for (node_idx, node) in fragment.nodes.iter().enumerate() {
+        // A `<!-- prettier-ignore -->`d node and its whole subtree stay verbatim.
+        if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, node_idx) {
+            continue;
+        }
         match node {
             TemplateNode::RegularElement(elem) => {
                 if is_whitespace_preserving(elem.name.as_str()) {
@@ -4610,7 +4636,11 @@ fn collect_children_port_only(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
-    for node in &fragment.nodes {
+    for (i, node) in fragment.nodes.iter().enumerate() {
+        // A `<!-- prettier-ignore -->`d node and its whole subtree stay verbatim.
+        if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, i) {
+            continue;
+        }
         // Never descend into whitespace-preserving subtrees (`<pre>`,
         // `<textarea>`, `<script>`, `<style>`) — their content is verbatim, so a
         // pure-text inline element inside (`<pre>…<span>C\nD</span>…`) must NOT be
@@ -4670,6 +4700,16 @@ fn node_to_child(
                 out, ve, line_width,
             )?))
         }
+        // Block-display element (`<div>`, `<h1>`, `<ul>`, …). prettier classifies
+        // these as block children: `print_children` puts each on its own line and
+        // forces the parent to break (`forceBreakContent`).
+        TemplateNode::RegularElement(ve)
+            if is_block_display(ve.name.as_str())
+                && !is_whitespace_preserving(ve.name.as_str()) =>
+        {
+            Some(Child::Block(build_inline_element_doc(out, ve, line_width)?))
+        }
+        TemplateNode::Component(c) => Some(Child::Other(build_component_doc(out, c, line_width)?)),
         // Cut 3: mustache atoms (`{expr}`, `{@html …}`). prettier-plugin-svelte's
         // `isInlineElement` requires `type === 'RegularElement'`, so a MustacheTag
         // is NOT inline — it goes through `printChildren`'s `else` branch: pushed
@@ -4857,6 +4897,32 @@ fn build_inline_element_doc(
     }))
 }
 
+/// Component doc for [`node_to_child`]. prettier's `isInlineElement` /
+/// `isBlockElement` both require `type === 'RegularElement'`, so a Component is
+/// neither — `printChildren` pushes it bare, which is `Child::Other`.
+fn build_component_doc(
+    out: &str,
+    c: &rsvelte_core::ast::template::Component,
+    line_width: usize,
+) -> Option<crate::doc::Doc> {
+    use crate::children::{Child, ElementLayout, build_element_doc};
+    let attrs = build_attrs_concat(out, &c.attributes)?;
+    let mut children: Vec<Child> = Vec::with_capacity(c.fragment.nodes.len());
+    for n in &c.fragment.nodes {
+        children.push(node_to_child(out, n, line_width)?);
+    }
+    Some(build_element_doc(ElementLayout {
+        name: c.name.to_string(),
+        attrs,
+        children,
+        // `is_inline` gates hugging, not the child classification: prettier's
+        // `shouldHugStart`/`End` only bail for block elements, and a Component is
+        // never one.
+        is_inline: true,
+        self_closing: did_self_close(out, c.end),
+    }))
+}
+
 /// Build the `attrs` Doc for [`crate::children::ElementLayout`] — the inner
 /// attribute concat that `build_element_doc` places inside
 /// `<name` + `Indent(Group([attrs, opener_trailing]))`. Mirrors prettier's
@@ -4969,19 +5035,23 @@ fn try_children_port(
         return None;
     }
 
-    // The element must start at the beginning of its (whitespace-only) line so the
-    // base indent level is well-defined.
+    // The base indent level comes from the line's leading whitespace run. A
+    // prose prefix (`.<span …>`) is allowed — the element's real column is
+    // tracked separately by `start_col`. A prefix ending at a `>` or `}` is a
+    // hug/glue boundary owned by another pass, so leave those alone.
     let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
-    let indent = out.get(line_start..s)?;
-    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+    let full_prefix = out.get(line_start..s)?;
+    let ws_len = full_prefix
+        .bytes()
+        .take_while(|&b| b == b' ' || b == b'\t')
+        .count();
+    let indent = full_prefix.get(..ws_len)?;
+    if full_prefix[ws_len..].ends_with(['>', '}']) {
         return None;
     }
     let (unit, width) = indent_config(options);
     let base_level = if options.js.indent_style.is_tab() {
-        indent
-            .bytes()
-            .take_while(|&b| b == b' ' || b == b'\t')
-            .count()
+        ws_len
     } else {
         indent.width() / width
     };
