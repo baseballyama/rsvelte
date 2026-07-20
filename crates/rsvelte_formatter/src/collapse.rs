@@ -2329,7 +2329,11 @@ fn collect(
     );
     let in_consumed_run =
         |start: u32, end: u32| consumed.iter().any(|&(s, e)| s <= start && end <= e);
-    for node in &fragment.nodes {
+    for (node_idx, node) in fragment.nodes.iter().enumerate() {
+        // A `<!-- prettier-ignore -->`d node and its whole subtree stay verbatim.
+        if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, node_idx) {
+            continue;
+        }
         match node {
             TemplateNode::RegularElement(elem) => {
                 if is_whitespace_preserving(elem.name.as_str()) {
@@ -4632,7 +4636,11 @@ fn collect_children_port_only(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
-    for node in &fragment.nodes {
+    for (i, node) in fragment.nodes.iter().enumerate() {
+        // A `<!-- prettier-ignore -->`d node and its whole subtree stay verbatim.
+        if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, i) {
+            continue;
+        }
         // Never descend into whitespace-preserving subtrees (`<pre>`,
         // `<textarea>`, `<script>`, `<style>`) — their content is verbatim, so a
         // pure-text inline element inside (`<pre>…<span>C\nD</span>…`) must NOT be
@@ -4691,6 +4699,15 @@ fn node_to_child(
             Some(Child::Inline(build_inline_element_doc(
                 out, ve, line_width,
             )?))
+        }
+        // Block-display element (`<div>`, `<h1>`, `<ul>`, …). prettier classifies
+        // these as block children: `print_children` puts each on its own line and
+        // forces the parent to break (`forceBreakContent`).
+        TemplateNode::RegularElement(ve)
+            if is_block_display(ve.name.as_str())
+                && !is_whitespace_preserving(ve.name.as_str()) =>
+        {
+            Some(Child::Block(build_inline_element_doc(out, ve, line_width)?))
         }
         // Cut 3: mustache atoms (`{expr}`, `{@html …}`). prettier-plugin-svelte's
         // `isInlineElement` requires `type === 'RegularElement'`, so a MustacheTag
