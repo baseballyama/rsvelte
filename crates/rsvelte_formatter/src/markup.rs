@@ -1700,9 +1700,23 @@ fn render_single_expression_value(
             if first_line.ends_with('{') || first_line.ends_with('[') || first_line.ends_with('(') {
                 formatted
             } else {
-                // First line ends at an operator or similar break point — the
-                // narrower width (with extra_lead) matches prettier's break placement.
-                format_attribute_value_expression(inner_src, options, attr_depth, prefix)?
+                // First line ends at an operator or similar break point. The
+                // `name={` prefix only legitimately narrows the FIRST line (the
+                // one carrying the prefix); continuation lines sit at the
+                // attribute indent and were already measured correctly by the
+                // indent-only pass. Re-format with `prefix` as extra_lead, but
+                // only adopt it when it actually changes the first line —
+                // otherwise keep the indent-only result so nested interiors
+                // (e.g. an expanded object inside a ternary branch) aren't
+                // over-narrowed and wrongly broken.
+                let prefixed =
+                    format_attribute_value_expression(inner_src, options, attr_depth, prefix)?;
+                let prefixed_first = prefixed.lines().next().unwrap_or("").trim_end();
+                if prefixed_first == first_line {
+                    formatted
+                } else {
+                    prefixed
+                }
             }
         } else {
             formatted
