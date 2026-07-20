@@ -35,6 +35,27 @@ fn indent_config(options: &FormatOptions) -> (String, usize) {
     (unit, width)
 }
 
+/// Re-parse formatter output the way `crate::format` parses its input. A
+/// non-CSS `<style lang>` body is not CSS, and TS emitted into a plain
+/// `<script>` needs the same force-TS retry the main parse uses — without both,
+/// the parse fails and the caller silently skips its whole pass.
+fn parse_formatted(formatted: &str) -> Option<rsvelte_core::ast::template::Root> {
+    let opts = ParseOptions {
+        skip_non_css_lang_style: true,
+        ..ParseOptions::default()
+    };
+    parse(formatted, opts).ok().or_else(|| {
+        parse(
+            formatted,
+            ParseOptions {
+                force_typescript: true,
+                ..opts
+            },
+        )
+        .ok()
+    })
+}
+
 pub(crate) fn collapse_pure_text_elements(
     out: &str,
     options: &FormatOptions,
@@ -484,7 +505,7 @@ fn reformat_pre_inner(
     // — overflow-breaking Sub-case A doesn't apply here since we're at narrowed
     // width and the outer re-indent will shift everything anyway).
     let formatted = {
-        let sub_root_pre = parse(formatted, ParseOptions::default()).ok()?;
+        let sub_root_pre = parse_formatted(formatted)?;
         let pre_fix_edits = fix_pre_child_hug_only(formatted, &sub_root_pre.fragment);
         if pre_fix_edits.is_empty() {
             formatted.to_string()
@@ -537,7 +558,7 @@ fn reformat_pre_inner(
 
     // Determine which line-starts in `formatted` are element-direct whitespace
     // (→ tabs). Everything else stays spaces.
-    let sub_root = parse(formatted, ParseOptions::default()).ok()?;
+    let sub_root = parse_formatted(formatted)?;
     let mut tab_lines: HashSet<usize> = HashSet::new();
     collect_pre_tab_lines(formatted, &sub_root.fragment, true, &mut tab_lines);
 
@@ -903,9 +924,7 @@ fn fix_pre_hugged_first_line(
     if prefix_col.saturating_add(first_line_end) <= full_width {
         return None;
     }
-    let Ok(sub_root) = parse(formatted, ParseOptions::default()) else {
-        return None;
-    };
+    let sub_root = parse_formatted(formatted)?;
     let mut edits: Vec<(usize, usize, String)> = Vec::new();
     collect_pre_first_line_hug_breaks(
         formatted,
