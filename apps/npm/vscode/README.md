@@ -15,7 +15,11 @@ and launches it over stdio.
   warnings + a11y + native rules). No extra install — the linter ships inside
   the extension as wasm.
 
-Type-checking is out of scope for now; use
+That's the full feature set — hover, completion, go-to-definition, rename,
+find-references, and TypeScript diagnostics are **not** provided (this is a
+formatter + linter, not a full language server). Those wait on
+[tsgo](https://github.com/microsoft/typescript-go)'s `tsserver` mode landing
+upstream; until then, use
 [`@rsvelte/svelte-check`](https://www.npmjs.com/package/@rsvelte/svelte-check)
 for batch type-checking.
 

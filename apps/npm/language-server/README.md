@@ -20,9 +20,12 @@ toolchain.
   engine (compiled to wasm, vendored in the package — no extra install). Runs on
   open, on change (300 ms debounced), and on save.
 
-Type-checking is intentionally out of scope for v1 (use
+That's the full v1 surface — hover, completion, go-to-definition, rename,
+find-references, and TypeScript diagnostics are **not** implemented. Those
+wait on [tsgo](https://github.com/microsoft/typescript-go)'s `tsserver` mode
+landing upstream; until then, use
 [`@rsvelte/svelte-check`](https://www.npmjs.com/package/@rsvelte/svelte-check)
-as a batch checker).
+as a batch type-checker.
 
 ## Settings
 

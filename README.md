@@ -27,7 +27,7 @@ The native JS toolchain growing around OXC — `oxlint`, `oxfmt`, [Rolldown](htt
 
 rsvelte fixes that at the source: it ports the compiler — and the ecosystem hot paths around it (`svelte2tsx`, `svelte-check`, `vite-plugin-svelte`, formatting) — to Rust on top of OXC's parser, codegen, and semantic stack. The end goal is upstream integration, so `oxlint` can lint `.svelte`, `oxfmt` can format it, Rolldown can bundle it, and `tsgo` can type-check it — all without a JS compiler hop.
 
-Until then, the `@rsvelte/*` packages are **drop-in replacements** you can use today. They double as the correctness proof: every release is verified against the official tools, byte for byte.
+Until then, the `@rsvelte/*` packages let you use rsvelte today: the compiler, the Vite plugin, `svelte-check`, and `svelte2tsx` are drop-in replacements for their JS counterparts, verified byte-for-byte on every release. `@rsvelte/fmt` and `@rsvelte/lint` target output/behaviour parity as fast complements rather than configuration-compatible replacements, and `@rsvelte/language-server` currently covers formatting and lint diagnostics only — see [Packages](#packages) for what each one does and doesn't cover.
 
 ## Quick start
 
@@ -139,16 +139,16 @@ For everything else there's a stable **C ABI** ([`crates/rsvelte_capi`](crates/r
 
 All npm packages ship under the `@rsvelte` scope.
 
-| Package | Drop-in for |
+| Package | Compares to |
 |---|---|
-| [`@rsvelte/vite-plugin-svelte`](apps/npm/vite-plugin-svelte) | [`@sveltejs/vite-plugin-svelte`](https://github.com/sveltejs/vite-plugin-svelte) |
-| [`@rsvelte/svelte-check`](apps/npm/svelte-check) | [`svelte-check`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) CLI |
-| [`@rsvelte/fmt`](apps/npm/fmt) | `prettier` + [`prettier-plugin-svelte`](https://github.com/sveltejs/prettier-plugin-svelte) |
-| [`@rsvelte/lint`](apps/npm/lint) | [`eslint`](https://eslint.org) + [`eslint-plugin-svelte`](https://github.com/sveltejs/eslint-plugin-svelte) |
-| [`@rsvelte/svelte2tsx`](apps/npm/svelte2tsx) | [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx) |
-| [`@rsvelte/compiler`](apps/npm/compiler) | [`svelte/compiler`](https://svelte.dev/docs/svelte/svelte-compiler), as WebAssembly |
-| [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native) | `svelte/compiler`, as a native NAPI binding |
-| [`@rsvelte/language-server`](apps/npm/language-server) | [`svelte-language-server`](https://github.com/sveltejs/language-tools/tree/master/packages/language-server) |
+| [`@rsvelte/vite-plugin-svelte`](apps/npm/vite-plugin-svelte) | [`@sveltejs/vite-plugin-svelte`](https://github.com/sveltejs/vite-plugin-svelte) — drop-in fork, same public API |
+| [`@rsvelte/svelte-check`](apps/npm/svelte-check) | [`svelte-check`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) CLI — drop-in replacement |
+| [`@rsvelte/fmt`](apps/npm/fmt) | `prettier` + [`prettier-plugin-svelte`](https://github.com/sveltejs/prettier-plugin-svelte) — targets output parity, not a configuration-compatible drop-in (reads `.oxfmtrc`, not `.prettierrc`; no Tailwind class sorting) |
+| [`@rsvelte/lint`](apps/npm/lint) | [`eslint`](https://eslint.org) + [`eslint-plugin-svelte`](https://github.com/sveltejs/eslint-plugin-svelte) — a complement designed to run alongside ESLint today, not yet a replacement |
+| [`@rsvelte/svelte2tsx`](apps/npm/svelte2tsx) | [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx) — drop-in replacement |
+| [`@rsvelte/compiler`](apps/npm/compiler) | [`svelte/compiler`](https://svelte.dev/docs/svelte/svelte-compiler), as WebAssembly — drop-in replacement |
+| [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native) | `svelte/compiler`, as a native NAPI binding — drop-in replacement |
+| [`@rsvelte/language-server`](apps/npm/language-server) | [`svelte-language-server`](https://github.com/sveltejs/language-tools/tree/master/packages/language-server) — formatting + lint diagnostics only; no hover, completion, definition, rename, references, or TypeScript diagnostics (waits on tsgo's `tsserver` mode; use `@rsvelte/svelte-check` for type-checking) |
 | [`rsvelte-vscode`](apps/npm/vscode) | The `rsvelte` VS Code extension ([Marketplace](https://marketplace.visualstudio.com/items?itemName=baseballyama.rsvelte-vscode)) |
 
 ## Performance
@@ -184,10 +184,10 @@ On top of the fixture suite, a continuously growing **output-equality corpus** c
 
 | Track | Compared against | Known divergences |
 |---|---|---:|
-| Compiler (CSR + SSR) | `svelte/compiler` | **22** (~99.8% parity) |
+| Compiler (CSR + SSR) | `svelte/compiler` | **10** client / **1** server (~99.9% parity) |
 | `svelte2tsx` | official `svelte2tsx` | **0** |
-| Formatter | `oxfmt` + `prettier-plugin-svelte`, byte-for-byte | **74** |
-| Linter | [`eslint-plugin-svelte`](https://github.com/sveltejs/eslint-plugin-svelte) (compared rules) | **0** |
+| Formatter | `oxfmt` + `prettier-plugin-svelte`, byte-for-byte | **48** |
+| Linter | [`eslint-plugin-svelte`](https://github.com/sveltejs/eslint-plugin-svelte) (compared rules) | **102** |
 
 Each count is a CI **ratchet**: the baselines in [`compat/`](compat) may only shrink, so a new divergence turns CI red and parity can only improve. Normalization (formatting, blank lines) runs on the comparison side only — never inside the compiler — so real differences can't hide. Details: [`scripts/compat-corpus/README.md`](scripts/compat-corpus/README.md).
 
