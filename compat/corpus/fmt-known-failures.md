@@ -5,7 +5,7 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: 48 entries**, concentrated in real-world corpus repos
+**Current baseline: 46 entries**, concentrated in real-world corpus repos
 (layercake, svelte-ux, layerchart, cmsaasstarter, date-picker-svelte, and a long
 tail). Oracle-bug / invalid-input / migrate cases are NOT here — those are
 permanently excluded in `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`).
@@ -106,14 +106,18 @@ fill is genuinely context-dependent and not hand-characterizable without the
 full lookahead algorithm. Fix belongs in rsvelte — the `Fill`/prose layout
 port.
 
-## Cluster 6 — `<pre>` embedded block-tag reindent (2)
+## Cluster 6 — `<pre>` embedded block-tag reindent (0, resolved)
 
 Inside a literal `<pre>` whose body mixes raw text with a Svelte block tag
-(`{#if …}…{/if}` wrapping a `<code>` child), the oracle reindents the block
-tag's own lines (tabs → spaces, depth-normalized) while leaving the literal
-text verbatim; rsvelte's `<pre>` handling emits the source's raw tabs
-unchanged. `reformat_pre_inner` is string surgery with no Doc IR (flagged
-fragile). Fix belongs in rsvelte — rewriting the `<pre>` path on the Doc IR.
+(`{#if …}…{/if}` wrapping a `<code>` child), `reformat_pre_inner` regenerates
+element-direct indentation as **tabs**, on the assumption that oxfmt preserves
+the source's element-direct whitespace as tabs. That assumption only holds when
+the source actually indented with tabs — a space-indented `<pre>` body is kept
+verbatim as spaces by oxfmt, so regenerating its block-tag lines as tabs
+diverged. Fixed by gating tab regeneration on whether the `<pre>` body's source
+indentation uses tabs at all (`pre_uses_tabs`); a space-indented body now stays
+spaces throughout. Cleared `svelte-calendar/…/Code.svelte` and
+`svelte-calendar/…/JSONEditor.svelte`.
 
 ## Cluster 7 — oxc paren / type-annotation divergence (2)
 

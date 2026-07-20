@@ -29,8 +29,6 @@
 	"svar-core/svelte/demos/common/Index.svelte",
 	"svar-core/svelte/src/components/calendar/Panel.svelte",
 	"svelte-calendar/src/lib/components/Popover.svelte",
-	"svelte-calendar/src/lib/docs/Code.svelte",
-	"svelte-calendar/src/lib/docs/JSONEditor.svelte",
 	"svelte-fa/src/routes/components/ui/docs-code.svelte",
 	"svelte-form-builder/src/lib/FormBuilder.svelte",
 	"svelte-maplibre/src/site/components/CodeBlock.svelte",
