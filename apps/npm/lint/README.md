@@ -237,6 +237,11 @@ See [Install](#install) above.
 
 ## See also
 
+- [`@rsvelte/oxlint-plugin`](../oxlint-plugin) — the same diagnostics as an
+  [`oxlint`](https://oxc.rs/docs/guide/usage/linter) plugin, if you'd rather run
+  one linter over JS/TS and Svelte together. Note the current limits of oxlint's
+  `.svelte` support (script-less files, markup diagnostic positions) — this CLI
+  is the faithful one.
 - [`@rsvelte/fmt`](../fmt) — the sibling Rust-powered formatter for `.svelte` +
   JS/TS/CSS.
 - [`@rsvelte/svelte-check`](../svelte-check) — type-checking CLI.
