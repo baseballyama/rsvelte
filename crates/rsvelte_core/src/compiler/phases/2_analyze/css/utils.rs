@@ -78,6 +78,38 @@ const UNKNOWN_MARKER: &str = "__UNKNOWN__";
 /// Returns `Some(Vec<String>)` if we can determine all possible values.
 ///
 /// This is used for class attribute analysis to determine which classes might be used.
+/// `get_possible_values` for a template expression, skipping the JSON
+/// materialization when the node type alone settles the answer.
+///
+/// `gather_possible_values` only inspects `Literal`, `ConditionalExpression`,
+/// `LogicalExpression`, `BinaryExpression`, `TemplateLiteral`,
+/// `TSAsExpression`, and — for a class attribute only — `ArrayExpression` and
+/// `ObjectExpression`. Everything else falls to its `_` arm, which marks the
+/// value unknown and makes `get_possible_values` return `None`. A bare
+/// `Identifier` (`class={cls}`, the common dynamic case) is in that group, so
+/// serializing the expression first is wasted work.
+pub fn get_possible_values_expr(
+    expr: &crate::ast::js::Expression,
+    is_class: bool,
+) -> Option<Vec<String>> {
+    if let Some(node_type) = expr.node_type() {
+        let inspected = matches!(
+            node_type,
+            "Literal"
+                | "ConditionalExpression"
+                | "LogicalExpression"
+                | "BinaryExpression"
+                | "TemplateLiteral"
+                | "TSAsExpression"
+        ) || (is_class
+            && matches!(node_type, "ArrayExpression" | "ObjectExpression"));
+        if !inspected {
+            return None;
+        }
+    }
+    get_possible_values(expr.as_json(), is_class)
+}
+
 pub fn get_possible_values(chunk: &serde_json::Value, is_class: bool) -> Option<Vec<String>> {
     let mut values = Vec::new();
     let chunk_type = chunk.get("type").and_then(|t| t.as_str());

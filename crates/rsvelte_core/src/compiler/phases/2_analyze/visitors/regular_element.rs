@@ -484,10 +484,9 @@ pub fn visit(
                                     }
                                 }
                                 AttributeValuePart::ExpressionTag(expr_tag) => {
-                                    let expr_json = expr_tag.expression.as_json();
-                                    use super::super::css::get_possible_values;
+                                    use super::super::css::get_possible_values_expr;
                                     if let Some(possible_vals) =
-                                        get_possible_values(expr_json, false)
+                                        get_possible_values_expr(&expr_tag.expression, false)
                                     {
                                         if possible_vals.len() > 20 {
                                             // Too many combinations, bail out
@@ -526,9 +525,10 @@ pub fn visit(
                     // Expression or other dynamic value
                     // Try to statically determine the value for CSS attribute selector matching
                     if let AttributeValue::Expression(expr_tag) = &attr_node.value {
-                        let expr_json = expr_tag.expression.as_json();
-                        use super::super::css::get_possible_values;
-                        if let Some(possible_values) = get_possible_values(expr_json, false) {
+                        use super::super::css::get_possible_values_expr;
+                        if let Some(possible_values) =
+                            get_possible_values_expr(&expr_tag.expression, false)
+                        {
                             // We can determine the possible values statically
                             for value in &possible_values {
                                 static_attributes
@@ -562,9 +562,8 @@ pub fn visit(
                                         Some(vec![text.data.to_string()])
                                     }
                                     AttributeValuePart::ExpressionTag(expr_tag) => {
-                                        let expr_json = expr_tag.expression.as_json();
-                                        use super::super::css::get_possible_values;
-                                        get_possible_values(expr_json, true)
+                                        use super::super::css::get_possible_values_expr;
+                                        get_possible_values_expr(&expr_tag.expression, true)
                                     }
                                 };
 
@@ -670,9 +669,10 @@ pub fn visit(
                         AttributeValue::Expression(expr_tag) => {
                             // Expression as attribute value: class={{ ... }}
                             // Use the cached JSON view of the expression to analyze it
-                            let expr_json = expr_tag.expression.as_json();
-                            use super::super::css::get_possible_values;
-                            if let Some(possible_values) = get_possible_values(expr_json, true) {
+                            use super::super::css::get_possible_values_expr;
+                            if let Some(possible_values) =
+                                get_possible_values_expr(&expr_tag.expression, true)
+                            {
                                 // We can statically determine the classes
                                 for value in &possible_values {
                                     for class_name in value.split_whitespace() {
