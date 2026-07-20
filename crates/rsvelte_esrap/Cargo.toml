@@ -13,14 +13,14 @@ keywords = ["svelte", "compiler", "esrap", "printer"]
 crate-type = ["rlib"]
 
 [dependencies]
-oxc_allocator = "0.138"
-oxc_ast = "0.138"
-oxc_span = "0.138"
-oxc_syntax = "0.138"
+oxc_allocator = "0.139"
+oxc_ast = "0.139"
+oxc_span = "0.139"
+oxc_syntax = "0.139"
 
 [dev-dependencies]
-oxc_parser = "0.138"
-oxc_ast_visit = "0.138"
+oxc_parser = "0.139"
+oxc_ast_visit = "0.139"
 
 [lints]
 workspace = true
