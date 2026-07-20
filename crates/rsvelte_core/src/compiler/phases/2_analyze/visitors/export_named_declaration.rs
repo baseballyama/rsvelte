@@ -5,176 +5,60 @@
 //! Corresponds to Svelte's `2-analyze/visitors/ExportNamedDeclaration.js`.
 
 use super::VisitorContext;
+use crate::ast::arena::ParseArena;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::errors;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase2_analyze::types::Export;
-use serde_json::Value;
 
 /// Mark identifiers from a pattern as bindable props (for legacy `export let`).
-fn mark_identifiers_as_bindable_props(pattern: Option<&Value>, context: &mut VisitorContext) {
-    let pattern = match pattern {
-        Some(p) => p,
-        None => return,
-    };
-
-    let pattern_type = pattern.get("type").and_then(|t| t.as_str());
-
-    match pattern_type {
-        Some("Identifier") => {
-            if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
-                // Find and update the binding to be a bindable prop
-                if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)
-                    && let Some(binding) = context.analysis.root.bindings.get_mut(binding_idx)
-                {
-                    binding.kind = BindingKind::BindableProp;
-                }
-            }
+fn mark_identifiers_as_bindable_props(
+    pattern: &JsNode,
+    arena: &ParseArena,
+    context: &mut VisitorContext,
+) {
+    for name in super::shared::utils::extract_identifiers_node(pattern, arena) {
+        if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name.as_str())
+            && let Some(binding) = context.analysis.root.bindings.get_mut(binding_idx)
+        {
+            binding.kind = BindingKind::BindableProp;
         }
-        Some("ObjectPattern") => {
-            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
-                for prop in properties {
-                    let prop_type = prop.get("type").and_then(|t| t.as_str());
-                    if prop_type == Some("Property") {
-                        mark_identifiers_as_bindable_props(prop.get("value"), context);
-                    } else if prop_type == Some("RestElement") {
-                        mark_identifiers_as_bindable_props(prop.get("argument"), context);
-                    }
-                }
-            }
-        }
-        Some("ArrayPattern") => {
-            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
-                for elem in elements {
-                    if !elem.is_null() {
-                        mark_identifiers_as_bindable_props(Some(elem), context);
-                    }
-                }
-            }
-        }
-        Some("RestElement") => {
-            mark_identifiers_as_bindable_props(pattern.get("argument"), context);
-        }
-        Some("AssignmentPattern") => {
-            mark_identifiers_as_bindable_props(pattern.get("left"), context);
-        }
-        _ => {}
     }
 }
 
-/// Extract identifiers from a pattern (Identifier, ObjectPattern, ArrayPattern)
-/// and add them to exports.
-fn extract_identifiers_and_add_exports(pattern: Option<&Value>, context: &mut VisitorContext) {
-    let pattern = match pattern {
-        Some(p) => p,
-        None => return,
-    };
-
-    let pattern_type = pattern.get("type").and_then(|t| t.as_str());
-
-    match pattern_type {
-        Some("Identifier") => {
-            if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
-                context.analysis.exports.push(Export {
-                    name: name.to_string(),
-                    alias: None,
-                });
-            }
-        }
-        Some("ObjectPattern") => {
-            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
-                for prop in properties {
-                    let prop_type = prop.get("type").and_then(|t| t.as_str());
-                    if prop_type == Some("Property") {
-                        extract_identifiers_and_add_exports(prop.get("value"), context);
-                    } else if prop_type == Some("RestElement") {
-                        extract_identifiers_and_add_exports(prop.get("argument"), context);
-                    }
-                }
-            }
-        }
-        Some("ArrayPattern") => {
-            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
-                for elem in elements {
-                    if !elem.is_null() {
-                        extract_identifiers_and_add_exports(Some(elem), context);
-                    }
-                }
-            }
-        }
-        Some("RestElement") => {
-            extract_identifiers_and_add_exports(pattern.get("argument"), context);
-        }
-        Some("AssignmentPattern") => {
-            extract_identifiers_and_add_exports(pattern.get("left"), context);
-        }
-        _ => {}
+/// Extract identifiers from a pattern and add them to exports.
+fn extract_identifiers_and_add_exports(
+    pattern: &JsNode,
+    arena: &ParseArena,
+    context: &mut VisitorContext,
+) {
+    for name in super::shared::utils::extract_identifiers_node(pattern, arena) {
+        context.analysis.exports.push(Export { name, alias: None });
     }
 }
 
 /// Check export bindings for invalid derived or reassigned state exports.
 /// This applies to both instance and module scripts.
 fn check_export_bindings(
-    pattern: Option<&Value>,
+    pattern: &JsNode,
+    arena: &ParseArena,
     context: &VisitorContext,
 ) -> Result<(), AnalysisError> {
-    let pattern = match pattern {
-        Some(p) => p,
-        None => return Ok(()),
-    };
+    for name in super::shared::utils::extract_identifiers_node(pattern, arena) {
+        if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name.as_str()) {
+            let binding = &context.analysis.root.bindings[binding_idx];
 
-    let pattern_type = pattern.get("type").and_then(|t| t.as_str());
+            if binding.kind == BindingKind::Derived {
+                return Err(errors::derived_invalid_export());
+            }
 
-    match pattern_type {
-        Some("Identifier") => {
-            if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
-                // Look up the binding
-                if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name) {
-                    let binding = &context.analysis.root.bindings[binding_idx];
-
-                    // Cannot export derived state
-                    if binding.kind == BindingKind::Derived {
-                        return Err(errors::derived_invalid_export());
-                    }
-
-                    // Cannot export reassigned state
-                    if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
-                        && binding.reassigned
-                    {
-                        return Err(errors::state_invalid_export());
-                    }
-                }
+            if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
+                && binding.reassigned
+            {
+                return Err(errors::state_invalid_export());
             }
         }
-        Some("ObjectPattern") => {
-            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
-                for prop in properties {
-                    let prop_type = prop.get("type").and_then(|t| t.as_str());
-                    if prop_type == Some("Property") {
-                        check_export_bindings(prop.get("value"), context)?;
-                    } else if prop_type == Some("RestElement") {
-                        check_export_bindings(prop.get("argument"), context)?;
-                    }
-                }
-            }
-        }
-        Some("ArrayPattern") => {
-            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
-                for elem in elements {
-                    if !elem.is_null() {
-                        check_export_bindings(Some(elem), context)?;
-                    }
-                }
-            }
-        }
-        Some("RestElement") => {
-            check_export_bindings(pattern.get("argument"), context)?;
-        }
-        Some("AssignmentPattern") => {
-            check_export_bindings(pattern.get("left"), context)?;
-        }
-        _ => {}
     }
 
     Ok(())
@@ -182,9 +66,7 @@ fn check_export_bindings(
 
 /// Typed visitor for ExportNamedDeclaration.
 ///
-/// Handles specifiers using typed pattern matching (specifiers are always properly typed).
-/// For declaration-based operations, resolves the declaration node and handles both typed
-/// variants and Raw(Value) fallbacks (since the parser wraps declarations as Raw).
+/// Handles both specifiers and declarations using typed pattern matching.
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     if let JsNode::ExportNamedDeclaration {
         declaration,
@@ -307,22 +189,17 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             }
         }
 
-        // For declaration-based operations, convert the declaration node to a
-        // `Value` for the legacy export-handling logic below.
-        let decl_value: Option<std::borrow::Cow<'_, Value>> = declaration
-            .map(|decl_id| std::borrow::Cow::Owned(arena.get_js_node(decl_id).to_value()));
+        let decl_node = declaration.map(|decl_id| arena.get_js_node(decl_id));
 
         // In runes mode, handle export declarations - only for instance script
         if context.analysis.runes
             && context.ast_type == super::AstType::Instance
-            && let Some(ref declaration_val) = decl_value
+            && let Some(decl) = decl_node
         {
-            let decl_type = declaration_val.get("type").and_then(|t| t.as_str());
-
-            match decl_type {
-                Some("FunctionDeclaration") => {
-                    if let Some(id) = declaration_val.get("id")
-                        && let Some(name) = id.get("name").and_then(|n| n.as_str())
+            match decl {
+                JsNode::FunctionDeclaration { id, .. } | JsNode::ClassDeclaration { id, .. } => {
+                    if let Some(id) = id
+                        && let JsNode::Identifier { name, .. } = arena.get_js_node(*id)
                     {
                         context.analysis.exports.push(Export {
                             name: name.to_string(),
@@ -330,30 +207,22 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                         });
                     }
                 }
-                Some("ClassDeclaration") => {
-                    if let Some(id) = declaration_val.get("id")
-                        && let Some(name) = id.get("name").and_then(|n| n.as_str())
-                    {
-                        context.analysis.exports.push(Export {
-                            name: name.to_string(),
-                            alias: None,
-                        });
-                    }
-                }
-                Some("VariableDeclaration") => {
-                    let kind = declaration_val.get("kind").and_then(|k| k.as_str());
-
-                    if kind == Some("let") {
+                JsNode::VariableDeclaration {
+                    kind, declarations, ..
+                } => {
+                    if kind == "let" {
                         return Err(errors::legacy_export_invalid());
                     }
 
-                    if kind == Some("const")
-                        && let Some(declarators) = declaration_val
-                            .get("declarations")
-                            .and_then(|d| d.as_array())
-                    {
-                        for declarator in declarators {
-                            extract_identifiers_and_add_exports(declarator.get("id"), context);
+                    if kind == "const" {
+                        for declarator in arena.get_js_children(*declarations) {
+                            if let JsNode::VariableDeclarator { id, .. } = declarator {
+                                extract_identifiers_and_add_exports(
+                                    arena.get_js_node(*id),
+                                    arena,
+                                    context,
+                                );
+                            }
                         }
                     }
                 }
@@ -364,23 +233,17 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         // In legacy mode, `export let` creates bindable props
         if !context.analysis.runes
             && context.ast_type == super::AstType::Instance
-            && let Some(ref declaration_val) = decl_value
+            && let Some(JsNode::VariableDeclaration {
+                kind, declarations, ..
+            }) = decl_node
+            && kind == "let"
         {
-            let decl_type = declaration_val.get("type").and_then(|t| t.as_str());
-
-            if decl_type == Some("VariableDeclaration") {
-                let kind = declaration_val.get("kind").and_then(|k| k.as_str());
-                if kind == Some("let")
-                    && let Some(declarators) = declaration_val
-                        .get("declarations")
-                        .and_then(|d| d.as_array())
-                {
-                    for declarator in declarators {
-                        mark_identifiers_as_bindable_props(declarator.get("id"), context);
-                    }
-                    context.analysis.needs_props = true;
+            for declarator in arena.get_js_children(*declarations) {
+                if let JsNode::VariableDeclarator { id, .. } = declarator {
+                    mark_identifiers_as_bindable_props(arena.get_js_node(*id), arena, context);
                 }
             }
+            context.analysis.needs_props = true;
         }
 
         // Also handle `export { x }` specifiers in legacy mode
@@ -423,9 +286,8 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         }
 
         // Walk into the declaration
-        if let Some(decl_id) = declaration {
-            let decl_node = arena.get_js_node(*decl_id);
-            super::script::walk_js_node_typed(decl_node, context)?;
+        if let Some(decl) = decl_node {
+            super::script::walk_js_node_typed(decl, context)?;
         }
 
         // Check for invalid state/derived exports in VariableDeclarations.
@@ -433,14 +295,11 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         // calls `context.next()` first, so errors raised while visiting children
         // (e.g. `experimental_async` for `export const a = $derived(await ...)`)
         // take precedence over `derived_invalid_export` / `state_invalid_export`.
-        if let Some(ref declaration_val) = decl_value
-            && declaration_val.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
-            && let Some(declarators) = declaration_val
-                .get("declarations")
-                .and_then(|d| d.as_array())
-        {
-            for declarator in declarators {
-                check_export_bindings(declarator.get("id"), context)?;
+        if let Some(JsNode::VariableDeclaration { declarations, .. }) = decl_node {
+            for declarator in arena.get_js_children(*declarations) {
+                if let JsNode::VariableDeclarator { id, .. } = declarator {
+                    check_export_bindings(arena.get_js_node(*id), arena, context)?;
+                }
             }
         }
     }
