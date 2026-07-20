@@ -4991,19 +4991,23 @@ fn try_children_port(
         return None;
     }
 
-    // The element must start at the beginning of its (whitespace-only) line so the
-    // base indent level is well-defined.
+    // The base indent level comes from the line's leading whitespace run. A
+    // prose prefix (`.<span …>`) is allowed — the element's real column is
+    // tracked separately by `start_col`. A prefix ending at a `>` or `}` is a
+    // hug/glue boundary owned by another pass, so leave those alone.
     let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
-    let indent = out.get(line_start..s)?;
-    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+    let full_prefix = out.get(line_start..s)?;
+    let ws_len = full_prefix
+        .bytes()
+        .take_while(|&b| b == b' ' || b == b'\t')
+        .count();
+    let indent = full_prefix.get(..ws_len)?;
+    if full_prefix[ws_len..].ends_with(['>', '}']) {
         return None;
     }
     let (unit, width) = indent_config(options);
     let base_level = if options.js.indent_style.is_tab() {
-        indent
-            .bytes()
-            .take_while(|&b| b == b' ' || b == b'\t')
-            .count()
+        ws_len
     } else {
         indent.width() / width
     };
