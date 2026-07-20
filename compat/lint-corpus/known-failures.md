@@ -11,29 +11,32 @@ The exact-fixture oracle gate (`crates/rsvelte_lint/tests/eslint_plugin_oracle.r
 is the authoritative behaviour check and must stay 100%; this corpus is the
 real-world volume check.
 
-## Current baseline: 238 divergences (186 FP, 52 FN)
+## Current baseline: 102 divergences (50 FP, 52 FN)
 
-Added by the real-world-library expansion (3,752 new sources). These are genuine
-rsvelte gaps, but each is a self-contained follow-up, not a novel class — production
-code re-surfaces the already-known clusters at higher volume:
+The former largest cluster — `no-top-level-browser-globals` (136 FP) — is now
+resolved: an oxc-semantic scope resolver (`rsvelte_core::lint_scope` +
+`rsvelte_lint::scope::ScopeResolver`) distinguishes a real browser global
+(`window`) from a local binding that shares its name (`open` / `top` / `name` /
+`status` — a prop / import / `let`) in both the `<script>` and template paths.
+That dropped the baseline from 238 to 102.
 
-- **`no-top-level-browser-globals` — 136 FP.** Real code uses common-name globals
-  (`open`, `close`, `name`, `status`, …) that rsvelte's name-based matcher flags but
-  the oracle's scope resolver binds to locals/imports/params. Needs an ESLint-style
-  scope/binding resolver before the full `globals.browser` set is comparable.
+The remainder are genuine rsvelte gaps, each a self-contained follow-up rather
+than a novel class — production code re-surfaces the already-known clusters at
+higher volume:
+
 - **`sort-attributes` — 36 (11 FP / 25 FN).** Attribute ordering around
   `bind:`/directives and inline `/* eslint … */` custom `order`.
 - **`valid-prop-names-in-kit-pages` (16 FP) / `no-goto-without-base` (6 FN).**
   SvelteKit route-file-type gating + `resolve()`/base-path handling on real
   `src/routes/+page.svelte` files.
-- **`prefer-const` (13, 12 FN) / `no-target-blank` (7 FN).** Small per-rule tail (TS
-  `let`, `{@const}`, template-attribute reassignment scan).
+- **`prefer-const` (13 — 12 FN / 1 FP) / `no-target-blank` (7 FN).** Small per-rule
+  tail (TS `let`, `{@const}`, template-attribute reassignment scan).
 - **`shorthand-directive` (11 FP) / `shorthand-attribute` (7 FP).** rsvelte proposes
   the shorthand where the oracle stays silent — a bounded rule fix.
 - **Singletons:** `experimental-require-slot-types` (2 FP),
   `prefer-svelte-reactivity` (2 FN), `prefer-destructured-store-props` (2 FP).
 
-By repo: bits-ui 110, flowbite-svelte 75, shadcn-svelte 48, melt-ui 5.
+By repo: flowbite-svelte 53, shadcn-svelte 26, bits-ui 23 (melt-ui 0).
 
 ## Harness-config decisions (NOT rsvelte bugs)
 
@@ -45,8 +48,10 @@ the comparison is meaningful. rsvelte's rule logic was correct throughout.
   was a silent no-op on every file. The oracle now declares a **curated**
   browser-global set (`scripts/compat-corpus/lint-oracle/browser-globals.json`),
   shared with rsvelte's `BROWSER_GLOBALS`. The full `globals.browser` (763 names) is
-  intentionally avoided — its common identifiers (`name`, `event`, `length`, …)
-  cannot be told from locals without full scope resolution.
+  intentionally avoided — the curated set already covers every global the corpus
+  exercises, and keeping it small keeps the oracle environment auditable. (rsvelte
+  now resolves scope for this rule — see the baseline note above — so common names
+  like `open`/`name` are no longer mis-flagged when they are locals.)
 - **ES/Web-API globals must be declared** for the other ReferenceTracker rules
   (`infinite-reactive-loop` tracks `setTimeout`/`setInterval`/`queueMicrotask`;
   `prefer-svelte-reactivity` tracks `new Date/Map/Set/URL/URLSearchParams`). The
