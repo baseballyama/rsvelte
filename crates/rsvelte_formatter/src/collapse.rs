@@ -162,8 +162,11 @@ pub(crate) fn collapse_pure_text_elements(
     // suppresses recursion into it.
     let mut edits2: Vec<(u32, u32, String)> = Vec::new();
     collect_content_tag_breaks(&result, &tree.fragment, line_width, options, &mut edits2);
+    // `tree` is the AST of `result` unless this last pass edited the text.
+    let mut tree_is_current = true;
     if !edits2.is_empty() {
         result = apply_edits(&result, edits2);
+        tree_is_current = false;
     }
 
     // Final children-port pass: re-assert the faithful prettier-plugin-svelte
@@ -172,9 +175,15 @@ pub(crate) fn collapse_pure_text_elements(
     // children port owns, so they can re-break an already-correct (intentionally
     // overflowing) prose line — e.g. break an inline `<a>`'s open tag on a 93-col
     // line that the port deliberately keeps whole. Running the port LAST gives it
-    // the final word: it re-parses, rebuilds the element from the AST, and emits a
-    // corrected edit (or a no-op when the layout is already right).
-    if let Ok(root_cp) = parse(&result, parse_opts) {
+    // the final word: it rebuilds each element from the AST and emits a corrected
+    // edit (or a no-op when the layout is already right). It only needs to
+    // re-parse when the pass above actually rewrote the text — otherwise `tree`
+    // still describes `result` exactly, and a fresh parse would rebuild an
+    // identical AST.
+    let reparsed = (!tree_is_current)
+        .then(|| parse(&result, parse_opts).ok())
+        .flatten();
+    if let Some(root_cp) = reparsed.as_ref().or(tree_is_current.then_some(&tree)) {
         let mut edits_cp: Vec<(u32, u32, String)> = Vec::new();
         collect_children_port_only(
             &result,
