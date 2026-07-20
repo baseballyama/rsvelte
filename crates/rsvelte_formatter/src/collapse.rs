@@ -4610,7 +4610,11 @@ fn collect_children_port_only(
 /// (NOT the approximate `element_doc`, which over-breaks inline content). Returns
 /// `None` for any node the cut doesn't yet support (block / inline-block element,
 /// component, comment, flow block) so the whole port bails.
-fn node_to_child(out: &str, node: &TemplateNode) -> Option<crate::children::Child> {
+fn node_to_child(
+    out: &str,
+    node: &TemplateNode,
+    line_width: usize,
+) -> Option<crate::children::Child> {
     use crate::children::Child;
     use crate::doc::Doc;
     match node {
@@ -4633,7 +4637,9 @@ fn node_to_child(out: &str, node: &TemplateNode) -> Option<crate::children::Chil
                 && !is_inline_block(ve.name.as_str())
                 && !is_whitespace_preserving(ve.name.as_str()) =>
         {
-            Some(Child::Inline(build_inline_element_doc(out, ve)?))
+            Some(Child::Inline(build_inline_element_doc(
+                out, ve, line_width,
+            )?))
         }
         // Cut 3: mustache atoms (`{expr}`, `{@html …}`). prettier-plugin-svelte's
         // `isInlineElement` requires `type === 'RegularElement'`, so a MustacheTag
@@ -4651,6 +4657,25 @@ fn node_to_child(out: &str, node: &TemplateNode) -> Option<crate::children::Chil
             }
             Some(Child::Other(Doc::Text(span.to_string())))
         }
+        // Flow blocks. `isBlockElement` requires `type === 'RegularElement'`, so
+        // these are NOT block children — like a mustache they go through
+        // `printChildren`'s `else` branch and are pushed bare. Their own print is
+        // `group([def, breakParent])`, so they force every enclosing group to break
+        // even when the whole element would fit on one line. The body is carried
+        // verbatim (it was laid out by the earlier passes at this same indent).
+        TemplateNode::IfBlock(_) | TemplateNode::EachBlock(_) | TemplateNode::KeyBlock(_) => {
+            let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
+            // Carrying the body verbatim also freezes it: claiming the parent
+            // suppresses the passes that would still have broken something inside.
+            // Only accept a body that has already settled — every line fits.
+            if span.lines().skip(1).any(|l| l.width() > line_width) {
+                return None;
+            }
+            Some(Child::Other(Doc::Concat(vec![
+                Doc::Text(span.to_string()),
+                Doc::BreakParent,
+            ])))
+        }
         _ => None,
     }
 }
@@ -4661,12 +4686,13 @@ fn node_to_child(out: &str, node: &TemplateNode) -> Option<crate::children::Chil
 fn build_inline_element_doc(
     out: &str,
     e: &rsvelte_core::ast::template::RegularElement,
+    line_width: usize,
 ) -> Option<crate::doc::Doc> {
     use crate::children::{Child, ElementLayout, build_element_doc};
     let attrs = build_attrs_concat(out, &e.attributes)?;
     let mut children: Vec<Child> = Vec::with_capacity(e.fragment.nodes.len());
     for n in &e.fragment.nodes {
-        children.push(node_to_child(out, n)?);
+        children.push(node_to_child(out, n, line_width)?);
     }
     Some(build_element_doc(ElementLayout {
         name: e.name.to_string(),
@@ -4803,7 +4829,7 @@ fn try_children_port(
     let attrs = build_attrs_concat(out, &e.attributes)?;
     let mut children: Vec<Child> = Vec::with_capacity(fragment.nodes.len());
     for n in &fragment.nodes {
-        children.push(node_to_child(out, n)?);
+        children.push(node_to_child(out, n, line_width)?);
     }
     let doc = build_element_doc(ElementLayout {
         name: tag.to_string(),
