@@ -4674,8 +4674,780 @@ fn collect_identifier_names_from_expression(
     expr: &crate::ast::js::Expression,
     out: &mut rustc_hash::FxHashSet<String>,
 ) {
+    if let Some(node) = expr.try_as_node_ref()
+        && crate::ast::arena::try_with_current_serialize_arena(|arena| {
+            collect_identifier_names_in_node(node, arena, out);
+        })
+        .is_some()
+    {
+        return;
+    }
     let json = expr.as_json();
     collect_identifier_names_in_json(json, out);
+}
+
+/// Typed equivalent of `collect_identifier_names_in_json`, walking the arena
+/// instead of a materialized `serde_json::Value`.
+///
+/// The JSON walker is generic — it iterates whatever fields serialization
+/// happened to emit — so this one has to name the children itself. To keep that
+/// enumeration honest, the `match` below has **no `_` arm** and **no `..` in any
+/// pattern**: adding a variant, or a field to a variant, is a compile error
+/// rather than a silently missed identifier.
+///
+/// Fields deliberately not descended into, each equivalent to what the JSON
+/// walker does:
+/// - `type_annotation` (`Identifier` / `ObjectPattern` / `ArrayPattern`) and the
+///   whole `TS*` family: serialized as `TSTypeAnnotation` & friends, which the
+///   JSON walker drops on its `starts_with("TS")` guard.
+/// - comments (attached to every node by serialization, plus `Program`'s
+///   `leading_comments` / `trailing_comments`): comment objects carry only
+///   `type` / `start` / `end` / `value`, never an `Identifier`.
+/// - the name slots the JSON walker skips explicitly: specifier
+///   `imported` / `exported`, non-computed `property` / `key`, function and
+///   class `id`, declarator `id`, and statement `label`.
+fn collect_identifier_names_in_node(
+    node: &JsNode,
+    arena: &ParseArena,
+    out: &mut rustc_hash::FxHashSet<String>,
+) {
+    use crate::ast::arena::{IdRange, JsNodeId};
+
+    let walk = |id: JsNodeId, out: &mut rustc_hash::FxHashSet<String>| {
+        collect_identifier_names_in_node(arena.get_js_node(id), arena, out);
+    };
+    let walk_opt = |id: &Option<JsNodeId>, out: &mut rustc_hash::FxHashSet<String>| {
+        if let Some(id) = id {
+            collect_identifier_names_in_node(arena.get_js_node(*id), arena, out);
+        }
+    };
+    let walk_range = |range: IdRange, out: &mut rustc_hash::FxHashSet<String>| {
+        for child in arena.get_js_children(range) {
+            collect_identifier_names_in_node(child, arena, out);
+        }
+    };
+    // `ArrayExpression` / `ArrayPattern` hold their elements inline (holes are
+    // `None`) rather than by arena id.
+    let walk_inline = |elements: &Vec<Option<JsNode>>, out: &mut rustc_hash::FxHashSet<String>| {
+        for element in elements.iter().flatten() {
+            collect_identifier_names_in_node(element, arena, out);
+        }
+    };
+
+    match node {
+        JsNode::Identifier {
+            start: _,
+            end: _,
+            loc: _,
+            name,
+            type_annotation: _,
+        } => {
+            if !out.contains(name.as_str()) {
+                out.insert(name.to_string());
+            }
+        }
+
+        // Not an `Identifier` node, so the JSON walker never collects it.
+        JsNode::PrivateIdentifier {
+            start: _,
+            end: _,
+            loc: _,
+            name: _,
+        } => {}
+
+        JsNode::Literal {
+            start: _,
+            end: _,
+            loc: _,
+            value: _,
+            raw: _,
+            regex: _,
+        } => {}
+
+        JsNode::BinaryExpression {
+            start: _,
+            end: _,
+            loc: _,
+            left,
+            operator: _,
+            right,
+        }
+        | JsNode::LogicalExpression {
+            start: _,
+            end: _,
+            loc: _,
+            left,
+            operator: _,
+            right,
+        }
+        | JsNode::AssignmentPattern {
+            start: _,
+            end: _,
+            loc: _,
+            left,
+            right,
+        } => {
+            walk(*left, out);
+            walk(*right, out);
+        }
+
+        JsNode::AssignmentExpression {
+            start: _,
+            end: _,
+            loc: _,
+            operator: _,
+            left,
+            right,
+        } => {
+            walk(*left, out);
+            walk(*right, out);
+        }
+
+        JsNode::UnaryExpression {
+            start: _,
+            end: _,
+            loc: _,
+            operator: _,
+            prefix: _,
+            argument,
+        }
+        | JsNode::UpdateExpression {
+            start: _,
+            end: _,
+            loc: _,
+            operator: _,
+            prefix: _,
+            argument,
+        } => walk(*argument, out),
+
+        JsNode::ConditionalExpression {
+            start: _,
+            end: _,
+            loc: _,
+            test,
+            consequent,
+            alternate,
+        } => {
+            walk(*test, out);
+            walk(*consequent, out);
+            walk(*alternate, out);
+        }
+
+        JsNode::CallExpression {
+            start: _,
+            end: _,
+            loc: _,
+            callee,
+            arguments,
+            optional: _,
+        } => {
+            walk(*callee, out);
+            walk_range(*arguments, out);
+        }
+
+        JsNode::NewExpression {
+            start: _,
+            end: _,
+            loc: _,
+            callee,
+            arguments,
+        } => {
+            walk(*callee, out);
+            walk_range(*arguments, out);
+        }
+
+        // A non-computed `property` is a name slot, not a reference.
+        JsNode::MemberExpression {
+            start: _,
+            end: _,
+            loc: _,
+            object,
+            property,
+            computed,
+            optional: _,
+        } => {
+            walk(*object, out);
+            if *computed {
+                walk(*property, out);
+            }
+        }
+
+        JsNode::FunctionExpression {
+            start: _,
+            end: _,
+            loc: _,
+            id: _,
+            params,
+            body,
+            generator: _,
+            r#async: _,
+            expression: _,
+        } => {
+            walk_range(*params, out);
+            walk_opt(body, out);
+        }
+
+        JsNode::FunctionDeclaration {
+            start: _,
+            end: _,
+            loc: _,
+            id: _,
+            params,
+            body,
+            generator: _,
+            r#async: _,
+        } => {
+            walk_range(*params, out);
+            walk_opt(body, out);
+        }
+
+        JsNode::ArrowFunctionExpression {
+            start: _,
+            end: _,
+            loc: _,
+            id: _,
+            params,
+            body,
+            expression: _,
+            generator: _,
+            r#async: _,
+        } => {
+            walk_range(*params, out);
+            walk(*body, out);
+        }
+
+        JsNode::ClassExpression {
+            start: _,
+            end: _,
+            loc: _,
+            id: _,
+            super_class,
+            body,
+        } => {
+            walk_opt(super_class, out);
+            walk(*body, out);
+        }
+
+        JsNode::ClassDeclaration {
+            start: _,
+            end: _,
+            loc: _,
+            id: _,
+            super_class,
+            body,
+            declare: _,
+            r#abstract: _,
+            implements: _,
+            decorators,
+        } => {
+            walk_opt(super_class, out);
+            walk(*body, out);
+            walk_range(*decorators, out);
+        }
+
+        JsNode::SequenceExpression {
+            start: _,
+            end: _,
+            loc: _,
+            expressions,
+        } => walk_range(*expressions, out),
+
+        JsNode::ArrayExpression {
+            start: _,
+            end: _,
+            loc: _,
+            elements,
+        } => walk_inline(elements, out),
+
+        JsNode::ObjectExpression {
+            start: _,
+            end: _,
+            loc: _,
+            properties,
+        } => walk_range(*properties, out),
+
+        JsNode::TemplateLiteral {
+            start: _,
+            end: _,
+            loc: _,
+            quasis,
+            expressions,
+        } => {
+            walk_range(*quasis, out);
+            walk_range(*expressions, out);
+        }
+
+        JsNode::TaggedTemplateExpression {
+            start: _,
+            end: _,
+            loc: _,
+            tag,
+            quasi,
+        } => {
+            walk(*tag, out);
+            walk(*quasi, out);
+        }
+
+        JsNode::TemplateElement {
+            start: _,
+            end: _,
+            loc: _,
+            tail: _,
+            value: _,
+        } => {}
+
+        JsNode::ThisExpression {
+            start: _,
+            end: _,
+            loc: _,
+        }
+        | JsNode::Super {
+            start: _,
+            end: _,
+            loc: _,
+        }
+        | JsNode::EmptyStatement {
+            start: _,
+            end: _,
+            loc: _,
+        }
+        | JsNode::DebuggerStatement {
+            start: _,
+            end: _,
+            loc: _,
+        }
+        | JsNode::Decorator {
+            start: _,
+            end: _,
+            loc: _,
+        } => {}
+
+        JsNode::ImportExpression {
+            start: _,
+            end: _,
+            loc: _,
+            source,
+        } => walk(*source, out),
+
+        JsNode::AwaitExpression {
+            start: _,
+            end: _,
+            loc: _,
+            argument,
+        }
+        | JsNode::ThrowStatement {
+            start: _,
+            end: _,
+            loc: _,
+            argument,
+        }
+        | JsNode::SpreadElement {
+            start: _,
+            end: _,
+            loc: _,
+            argument,
+        }
+        | JsNode::RestElement {
+            start: _,
+            end: _,
+            loc: _,
+            argument,
+        } => walk(*argument, out),
+
+        JsNode::YieldExpression {
+            start: _,
+            end: _,
+            loc: _,
+            delegate: _,
+            argument,
+        }
+        | JsNode::ReturnStatement {
+            start: _,
+            end: _,
+            loc: _,
+            argument,
+        } => walk_opt(argument, out),
+
+        JsNode::ChainExpression {
+            start: _,
+            end: _,
+            loc: _,
+            expression,
+        }
+        | JsNode::ExpressionStatement {
+            start: _,
+            end: _,
+            loc: _,
+            expression,
+        } => walk(*expression, out),
+
+        JsNode::MetaProperty {
+            start: _,
+            end: _,
+            loc: _,
+            meta,
+            property,
+        } => {
+            walk(*meta, out);
+            walk(*property, out);
+        }
+
+        JsNode::ObjectPattern {
+            start: _,
+            end: _,
+            loc: _,
+            properties,
+            type_annotation: _,
+        } => walk_range(*properties, out),
+
+        JsNode::ArrayPattern {
+            start: _,
+            end: _,
+            loc: _,
+            elements,
+            type_annotation: _,
+        } => walk_inline(elements, out),
+
+        // A non-computed `key` is a name slot, not a reference.
+        JsNode::Property {
+            start: _,
+            end: _,
+            loc: _,
+            key,
+            value,
+            kind: _,
+            method: _,
+            shorthand: _,
+            computed,
+        } => {
+            if *computed {
+                walk(*key, out);
+            }
+            walk(*value, out);
+        }
+
+        JsNode::MethodDefinition {
+            start: _,
+            end: _,
+            loc: _,
+            key,
+            value,
+            kind: _,
+            r#static: _,
+            computed,
+        } => {
+            if *computed {
+                walk(*key, out);
+            }
+            walk(*value, out);
+        }
+
+        JsNode::PropertyDefinition {
+            start: _,
+            end: _,
+            loc: _,
+            key,
+            value,
+            r#static: _,
+            computed,
+            accessor: _,
+        } => {
+            if *computed {
+                walk(*key, out);
+            }
+            walk_opt(value, out);
+        }
+
+        JsNode::Program {
+            start: _,
+            end: _,
+            loc: _,
+            body,
+            source_type: _,
+            leading_comments: _,
+            trailing_comments: _,
+            ignore_comment_map: _,
+        }
+        | JsNode::BlockStatement {
+            start: _,
+            end: _,
+            loc: _,
+            body,
+        }
+        | JsNode::ClassBody {
+            start: _,
+            end: _,
+            loc: _,
+            body,
+        }
+        | JsNode::StaticBlock {
+            start: _,
+            end: _,
+            loc: _,
+            body,
+        } => walk_range(*body, out),
+
+        JsNode::VariableDeclaration {
+            start: _,
+            end: _,
+            loc: _,
+            declarations,
+            kind: _,
+            declare: _,
+        } => walk_range(*declarations, out),
+
+        JsNode::VariableDeclarator {
+            start: _,
+            end: _,
+            loc: _,
+            id: _,
+            init,
+        } => walk_opt(init, out),
+
+        JsNode::IfStatement {
+            start: _,
+            end: _,
+            loc: _,
+            test,
+            consequent,
+            alternate,
+        } => {
+            walk(*test, out);
+            walk(*consequent, out);
+            walk_opt(alternate, out);
+        }
+
+        JsNode::ForStatement {
+            start: _,
+            end: _,
+            loc: _,
+            init,
+            test,
+            update,
+            body,
+        } => {
+            walk_opt(init, out);
+            walk_opt(test, out);
+            walk_opt(update, out);
+            walk(*body, out);
+        }
+
+        JsNode::ForOfStatement {
+            start: _,
+            end: _,
+            loc: _,
+            r#await: _,
+            left,
+            right,
+            body,
+        } => {
+            walk(*left, out);
+            walk(*right, out);
+            walk(*body, out);
+        }
+
+        JsNode::ForInStatement {
+            start: _,
+            end: _,
+            loc: _,
+            left,
+            right,
+            body,
+        } => {
+            walk(*left, out);
+            walk(*right, out);
+            walk(*body, out);
+        }
+
+        JsNode::WhileStatement {
+            start: _,
+            end: _,
+            loc: _,
+            test,
+            body,
+        }
+        | JsNode::DoWhileStatement {
+            start: _,
+            end: _,
+            loc: _,
+            test,
+            body,
+        } => {
+            walk(*test, out);
+            walk(*body, out);
+        }
+
+        JsNode::TryStatement {
+            start: _,
+            end: _,
+            loc: _,
+            block,
+            handler,
+            finalizer,
+        } => {
+            walk(*block, out);
+            walk_opt(handler, out);
+            walk_opt(finalizer, out);
+        }
+
+        JsNode::CatchClause {
+            start: _,
+            end: _,
+            loc: _,
+            param,
+            body,
+        } => {
+            walk_opt(param, out);
+            walk(*body, out);
+        }
+
+        JsNode::SwitchStatement {
+            start: _,
+            end: _,
+            loc: _,
+            discriminant,
+            cases,
+        } => {
+            walk(*discriminant, out);
+            walk_range(*cases, out);
+        }
+
+        JsNode::SwitchCase {
+            start: _,
+            end: _,
+            loc: _,
+            test,
+            consequent,
+        } => {
+            walk_opt(test, out);
+            walk_range(*consequent, out);
+        }
+
+        // Labels are not identifier references.
+        JsNode::LabeledStatement {
+            start: _,
+            end: _,
+            loc: _,
+            label: _,
+            body,
+        } => walk(*body, out),
+
+        JsNode::BreakStatement {
+            start: _,
+            end: _,
+            loc: _,
+            label: _,
+        }
+        | JsNode::ContinueStatement {
+            start: _,
+            end: _,
+            loc: _,
+            label: _,
+        } => {}
+
+        JsNode::ImportDeclaration {
+            start: _,
+            end: _,
+            loc: _,
+            specifiers,
+            source,
+            import_kind: _,
+            attributes,
+        } => {
+            walk_range(*specifiers, out);
+            walk(*source, out);
+            walk_range(*attributes, out);
+        }
+
+        // `imported` is the name in the exporting module, not a local reference.
+        JsNode::ImportSpecifier {
+            start: _,
+            end: _,
+            loc: _,
+            imported: _,
+            local,
+            import_kind: _,
+        } => walk(*local, out),
+
+        JsNode::ImportDefaultSpecifier {
+            start: _,
+            end: _,
+            loc: _,
+            local,
+        }
+        | JsNode::ImportNamespaceSpecifier {
+            start: _,
+            end: _,
+            loc: _,
+            local,
+        } => walk(*local, out),
+
+        JsNode::ExportNamedDeclaration {
+            start: _,
+            end: _,
+            loc: _,
+            declaration,
+            specifiers,
+            source,
+            export_kind: _,
+            attributes,
+        } => {
+            walk_opt(declaration, out);
+            walk_range(*specifiers, out);
+            walk_opt(source, out);
+            walk_range(*attributes, out);
+        }
+
+        JsNode::ExportDefaultDeclaration {
+            start: _,
+            end: _,
+            loc: _,
+            declaration,
+        } => walk(*declaration, out),
+
+        // `exported` is the name in the importing module, not a local reference.
+        JsNode::ExportSpecifier {
+            start: _,
+            end: _,
+            loc: _,
+            local,
+            exported: _,
+            export_kind: _,
+        } => walk(*local, out),
+
+        // Type-space nodes: dropped by the JSON walker's `starts_with("TS")` guard.
+        JsNode::TSTypeAnnotation {
+            start: _,
+            end: _,
+            loc: _,
+            type_annotation: _,
+        } => {}
+        JsNode::TSEnumDeclaration {
+            start: _,
+            end: _,
+            loc: _,
+        }
+        | JsNode::TSParameterProperty {
+            start: _,
+            end: _,
+            loc: _,
+        } => {}
+        JsNode::TSModuleDeclaration {
+            start: _,
+            end: _,
+            loc: _,
+            body: _,
+        } => {}
+
+        JsNode::Comment {
+            start: _,
+            end: _,
+            comment_type: _,
+            value: _,
+        } => {}
+
+        JsNode::Null => {}
+    }
 }
 
 fn collect_identifier_names_in_json(

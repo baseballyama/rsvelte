@@ -734,8 +734,26 @@ fn collect_dollar_identifiers_from_js_with_context(
     // space. A param `$x` only suppresses references inside its own arrow body
     // `[start, end)`; a `let/const/var $x` declaration spans the whole script.
     let mut declared: Vec<(String, usize, usize)> = Vec::new();
-    collect_dollar_identifiers_pass(js, base_offset, refs, in_module, true, &mut declared);
-    collect_dollar_identifiers_pass(js, base_offset, refs, in_module, false, &mut declared);
+    // Both passes scan the same text, so decode it once.
+    let chars: Vec<char> = js.chars().collect();
+    collect_dollar_identifiers_pass(
+        js,
+        &chars,
+        base_offset,
+        refs,
+        in_module,
+        true,
+        &mut declared,
+    );
+    collect_dollar_identifiers_pass(
+        js,
+        &chars,
+        base_offset,
+        refs,
+        in_module,
+        false,
+        &mut declared,
+    );
 }
 
 /// One scan over `js`. With `collect_declared` set, only fills `declared`
@@ -743,17 +761,23 @@ fn collect_dollar_identifiers_from_js_with_context(
 /// skipping declared names.
 fn collect_dollar_identifiers_pass(
     js: &str,
+    chars: &[char],
     base_offset: usize,
     refs: &mut Vec<StoreRef>,
     in_module: bool,
     collect_declared: bool,
     declared: &mut Vec<(String, usize, usize)>,
 ) {
-    let chars: Vec<char> = js.chars().collect();
     // Byte offset of each character, so a `StoreRef.position` (consumed
     // downstream as a byte index into the source) stays correct when multi-byte
-    // characters precede the reference (M-005).
-    let char_byte_offsets: Vec<usize> = js.char_indices().map(|(b, _)| b).collect();
+    // characters precede the reference (M-005). Only the reference-collecting
+    // pass reads it, and only a non-ASCII script needs it at all — otherwise a
+    // char index already is the byte offset.
+    let char_byte_offsets: Option<Vec<usize>> = if collect_declared || js.is_ascii() {
+        None
+    } else {
+        Some(js.char_indices().map(|(b, _)| b).collect())
+    };
     let len = chars.len();
     let mut i = 0;
     let mut in_string: Option<char> = None; // track if inside a string literal
@@ -897,8 +921,8 @@ fn collect_dollar_identifiers_pass(
                 // Only add if we have more than just $
                 // (bare $ detection is handled separately via proper AST analysis)
                 if ident.len() > 1 {
-                    let param_range = dollar_param_body_range(&chars, ident_start, i);
-                    let is_var_decl = is_dollar_ident_variable_declaration(&chars, ident_start);
+                    let param_range = dollar_param_body_range(chars, ident_start, i);
+                    let is_var_decl = is_dollar_ident_variable_declaration(chars, ident_start);
                     let is_declaration = param_range.is_some() || is_var_decl;
                     if collect_declared {
                         if let Some((bs, be)) = param_range {
@@ -915,16 +939,18 @@ fn collect_dollar_identifiers_pass(
                         && !declared
                             .iter()
                             .any(|(n, s, e)| n == &ident && ident_start >= *s && ident_start < *e)
-                        && !is_dollar_ident_object_property_key(&chars, ident_start, i)
-                        && !is_dollar_ident_type_declaration(&chars, ident_start)
+                        && !is_dollar_ident_object_property_key(chars, ident_start, i)
+                        && !is_dollar_ident_type_declaration(chars, ident_start)
                     {
+                        let byte_offset = match &char_byte_offsets {
+                            Some(offsets) => offsets.get(ident_start).copied(),
+                            // ASCII: char index == byte index, with the same
+                            // in-bounds condition the offset table would apply.
+                            None => (ident_start < len).then_some(ident_start),
+                        };
                         refs.push(StoreRef {
                             name: ident,
-                            position: base_offset
-                                + char_byte_offsets
-                                    .get(ident_start)
-                                    .copied()
-                                    .unwrap_or(js.len()),
+                            position: base_offset + byte_offset.unwrap_or(js.len()),
                             in_module,
                         });
                     }
