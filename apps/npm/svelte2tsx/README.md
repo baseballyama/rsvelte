@@ -29,7 +29,7 @@ const source = `
 <h1>Hello, {name}!</h1>
 `;
 
-const result = await svelte2tsx(source, {
+const result = svelte2tsx(source, {
   filename: 'Hello.svelte',
   isTsFile: true,
   version: '5',
@@ -47,7 +47,7 @@ console.log(result.events);        // { eventName: type, ... }
 function svelte2tsx(
   source: string,
   options?: Svelte2TsxOptions
-): Promise<Svelte2TsxResult>;
+): Svelte2TsxResult;
 
 interface Svelte2TsxOptions {
   /** Source filename used in the generated TSX `// @filename:` directive and source maps. */
@@ -76,7 +76,20 @@ interface Svelte2TsxResult {
 }
 ```
 
-The async signature differs slightly from the upstream package, which is synchronous. The async-ness exists purely so we can lazily initialise the WebAssembly module on first call. On subsequent calls it resolves immediately.
+`svelte2tsx()` is **synchronous**, matching the upstream package — a drop-in call. On Node the WebAssembly module self-initialises (via `initSync` + `fs.readFileSync`) on the first call; subsequent calls have no init cost. Existing `await svelte2tsx(...)` code keeps working unchanged, since awaiting a plain value returns it.
+
+### Browsers / bundlers without `node:fs`
+
+The synchronous self-init reads the `.wasm` from disk, which needs Node. Where that isn't available, initialise the module once up front and then call `svelte2tsx()` synchronously:
+
+```js
+import { svelte2tsx, initialize } from '@rsvelte/svelte2tsx';
+
+// Provide the wasm bytes or a compiled WebAssembly.Module for your environment.
+await initialize({ module_or_path: wasmBytes });
+
+const result = svelte2tsx(source, { version: '5' });
+```
 
 ## When to use this
 

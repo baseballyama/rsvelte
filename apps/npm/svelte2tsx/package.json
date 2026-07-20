@@ -20,6 +20,10 @@
     "wasm"
   ],
   "type": "module",
+  "scripts": {
+    "pretest": "node test/link-compiler.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  },
   "main": "./index.js",
   "types": "./index.d.ts",
   "exports": {
