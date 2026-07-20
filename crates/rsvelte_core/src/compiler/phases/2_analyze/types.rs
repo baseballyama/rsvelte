@@ -1784,10 +1784,6 @@ pub struct ComponentAnalysis {
     /// Whether dev mode is enabled (needed for $inspect.trace handling)
     pub dev: bool,
 
-    /// Class bodies with their state fields (for class body analysis)
-    /// Maps from class body node (JSON) to state fields by name
-    pub classes: FxHashMap<String, FxHashMap<String, StateField>>,
-
     /// Reactive statements ($: statements) in legacy mode
     /// Maps from the labeled statement node (JSON string) to its analysis
     pub reactive_statements: FxHashMap<String, ReactiveStatement>,
@@ -1953,7 +1949,6 @@ impl ComponentAnalysis {
             filename_hash,
             tracing: false,
             dev: options.dev,
-            classes: FxHashMap::default(),
             reactive_statements: FxHashMap::default(),
             reactive_statement_dependencies: Vec::new(),
             immutable: options.immutable,
@@ -2311,14 +2306,8 @@ pub struct EventDirectiveInfo {
 /// A state field in a class (using $state, $state.raw, $derived, $derived.by).
 #[derive(Debug, Clone)]
 pub struct StateField {
-    /// The type of rune used ($state, $state.raw, $derived, $derived.by)
-    pub rune_type: String,
     /// The field node (PropertyDefinition or AssignmentExpression in JS)
     pub node: serde_json::Value,
-    /// The private identifier key
-    pub key: serde_json::Value,
-    /// The call expression value ($state(...), etc.)
-    pub value: serde_json::Value,
 }
 
 /// CSS analysis result.

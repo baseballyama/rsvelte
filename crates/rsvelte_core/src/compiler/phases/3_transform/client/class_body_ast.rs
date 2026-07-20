@@ -10,7 +10,7 @@
 //! suites + corpus.
 //!
 //! ## Target algorithm (写经 client `ClassBody.js`)
-//! For each `$state` / `$derived` class field in `analysis.classes`:
+//! For each `$state` / `$derived` class field found by the `ClassBody` visitor:
 //! - **PUBLIC** `x = $state(v)` → backing private `#x = $.state(v)` **plus**
 //!   `get x() { return $.get(this.#x); }` and
 //!   `set x(value) { $.set(this.#x, value, should_proxy && true); }`. Reads/writes
