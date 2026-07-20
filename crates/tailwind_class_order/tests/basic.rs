@@ -89,6 +89,40 @@ fn arbitrary_values() {
 }
 
 #[test]
+fn arbitrary_value_data_type_clusters() {
+    // A length arbitrary value is a font-size and sorts after text-align /
+    // font-family and the named font sizes (which carry more declarations).
+    check(
+        "text-[10px] font-mono text-center text-sm",
+        "text-center font-mono text-sm text-[10px]",
+    );
+    // A color arbitrary value joins the color cluster instead.
+    check(
+        "text-[#fff] text-red-500 text-sm",
+        "text-sm text-[#fff] text-red-500",
+    );
+}
+
+#[test]
+fn variant_value_beats_extra_variant() {
+    // The differing data value decides even though one class carries an extra
+    // `hover:` variant.
+    check(
+        "data-[selected=true]:flex data-[selected=false]:hover:flex",
+        "data-[selected=false]:hover:flex data-[selected=true]:flex",
+    );
+}
+
+#[test]
+fn arbitrary_variant_selector_normalized() {
+    // `_` decodes to a space before comparing, so `& div>button` < `&>div>div`.
+    check(
+        "[&>div>div]:flex [&_div>button]:flex",
+        "[&_div>button]:flex [&>div>div]:flex",
+    );
+}
+
+#[test]
 fn arbitrary_properties() {
     // Ordered by the emitted property's position in GLOBAL_PROPERTY_ORDER;
     // `display` sits with `flex`, a property absent from the list sorts last.

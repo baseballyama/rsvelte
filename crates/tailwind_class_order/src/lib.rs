@@ -31,6 +31,7 @@
 //! that callback directly without a Node worker for default-config projects.
 
 mod compare;
+mod datatype;
 
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
@@ -59,6 +60,14 @@ const COLOR_FAMILIES: &str = include_str!("../data/color_families.txt");
 /// The default theme's container-query breakpoints in ascending size order, so
 /// `@xl` sorts before `@5xl` by size rather than by string.
 const CONTAINER_SIZES: &str = include_str!("../data/container_sizes.txt");
+
+/// `root<TAB>data-type<TAB>anchor` per line: for a functional utility whose
+/// arbitrary value of a given CSS data type lands at a *stable* position among
+/// the named utilities (`text-[10px]` = font-size, distinct from `text-center`),
+/// the number of named utilities that sort before it. Only combinations that do
+/// not interleave value-by-value are listed; the rest fall back to sibling
+/// placement. Probed from the engine per data type.
+const TYPE_ANCHOR: &str = include_str!("../data/type_anchor.txt");
 
 /// Base order key. Named utilities land on even values `2*index`; an arbitrary
 /// property anchored before real utility `a` lands on the odd `2*a - 1`, so it
@@ -93,6 +102,9 @@ struct Tables {
     mixed_roots: HashSet<&'static str>,
     /// container-query breakpoint name -> size rank (`@xl` before `@5xl`).
     container_order: HashMap<&'static str, u32>,
+    /// (root, data-type) -> anchor for arbitrary values that sort at a stable
+    /// property cluster (`(text, length)` = font-size, `(text, color)` = color).
+    type_anchor: HashMap<(&'static str, &'static str), u32>,
     /// variant family label -> rank
     variant: HashMap<&'static str, u32>,
     /// rank assigned to arbitrary `[&…]` variants (sorts after all named ones)
@@ -154,6 +166,14 @@ fn tables() -> &'static Tables {
             .map(|(i, name)| (name, i as u32))
             .collect();
 
+        let mut type_anchor = HashMap::new();
+        for line in TYPE_ANCHOR.lines().filter(|l| !l.is_empty()) {
+            let mut it = line.split('\t');
+            if let (Some(root), Some(ty), Some(anchor)) = (it.next(), it.next(), it.next()) {
+                type_anchor.insert((root, ty), anchor.parse().expect("numeric anchor"));
+            }
+        }
+
         let mut variant = HashMap::new();
         let mut n = 0u32;
         for (i, label) in VARIANT_ROOTS.lines().filter(|l| !l.is_empty()).enumerate() {
@@ -170,6 +190,7 @@ fn tables() -> &'static Tables {
             color_families,
             mixed_roots,
             container_order,
+            type_anchor,
             variant,
             arbitrary_variant_rank: n + 1,
         }
@@ -195,15 +216,15 @@ fn utility_root(name: &str) -> &str {
 enum Key {
     Unknown,
     Known {
-        /// variant family ranks, sorted descending — compared lexicographically
-        /// this reproduces Tailwind's OR-of-bitmask variant ordering.
-        variants: Vec<u32>,
-        /// per-variant value keys, in the same descending-rank order. Used only
-        /// when the rank lists are equal (same families): within a family the
-        /// engine orders by value — a named value (`data-active`) before an
-        /// arbitrary one (`data-[x]`), then by candidate string. This dominates
-        /// the base order.
-        variant_values: Vec<(bool, String)>,
+        /// The class's variants as `(family_rank, is_arbitrary_value, value)`,
+        /// sorted by rank descending. Compared position by position: a higher
+        /// family rank sorts later (equivalent to Tailwind's OR-of-bitmask
+        /// magnitude), and at an equal rank — the same family — a named value
+        /// sorts before an arbitrary one, then by candidate. Because value is
+        /// weighed at each position before the length difference, a differing
+        /// value (`data-[selected=false]` vs `=true`) decides even when one
+        /// class carries an extra variant. This dominates the base order.
+        variants: Vec<(u32, bool, String)>,
         /// intrinsic utility order
         base: BaseOrder,
     },
@@ -329,6 +350,20 @@ fn base_order(base: &str, t: &Tables) -> Option<BaseOrder> {
             t.property_anchor.get(prop).copied().unwrap_or(t.real_count)
         };
         return Some(anchored_order(anchor));
+    }
+
+    // Arbitrary value with a data type that lands at a stable property cluster
+    // for its root (`text-[10px]` = font-size, distinct from the `text-align`
+    // and color siblings that share the `text` root). The anchor is the exact
+    // engine position; the candidate tiebreak orders equal-type values.
+    if let Some(b) = stem.find("-[").or_else(|| stem.find("-(")) {
+        let root = utility_root(&stem[..b]);
+        let inner = &stem[b + 2..stem.len() - 1];
+        if let Some(ty) = datatype::infer(inner)
+            && let Some(&anchor) = t.type_anchor.get(&(root, ty))
+        {
+            return Some(anchored_order(anchor));
+        }
     }
 
     // Arbitrary value (`w-[10px]`, `h-(--foo)`) — always resolvable in the
@@ -476,15 +511,11 @@ fn key_for(token: &str, t: &Tables) -> Key {
         return Key::Unknown;
     };
 
-    // Descending by rank makes lexicographic comparison of the rank list
-    // equivalent to comparing the OR-ed variant bitmask by magnitude; within an
-    // equal rank the value key gives a stable, engine-matching order.
+    // Descending by rank; ties (same family stacked) ordered by value so the
+    // list is deterministic.
     entries.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| (a.1, &a.2).cmp(&(b.1, &b.2))));
-    let variants = entries.iter().map(|e| e.0).collect();
-    let variant_values = entries.into_iter().map(|e| (e.1, e.2)).collect();
     Key::Known {
-        variants,
-        variant_values,
+        variants: entries,
         base,
     }
 }
@@ -501,27 +532,41 @@ fn cmp_keys(a: &Key, ta: &str, b: &Key, tb: &str) -> Ordering {
         (
             Key::Known {
                 variants: va,
-                variant_values: wa,
                 base: ba,
             },
             Key::Known {
                 variants: vb,
-                variant_values: wb,
                 base: bb,
             },
-        ) => va
-            .iter()
-            .cmp(vb.iter())
-            .then_with(|| cmp_variant_values(wa, wb))
+        ) => cmp_variants(va, vb)
             .then_with(|| ba.cmp(bb))
             .then_with(|| compare::compare(ta, tb)),
     }
 }
 
+/// Compare two rank-descending variant lists position by position: a higher
+/// family rank sorts later (bitmask magnitude), and at an equal rank the value
+/// decides (named before arbitrary, then candidate) — weighed before the length
+/// difference, so a differing value outranks an extra variant.
+fn cmp_variants(a: &[(u32, bool, String)], b: &[(u32, bool, String)]) -> Ordering {
+    for ((ra, aa, av), (rb, ab, bv)) in a.iter().zip(b.iter()) {
+        let ord = ra
+            .cmp(rb)
+            .then_with(|| aa.cmp(ab))
+            .then_with(|| compare::compare(av, bv));
+        if ord != Ordering::Equal {
+            return ord;
+        }
+    }
+    a.len().cmp(&b.len())
+}
+
 /// The string used to order two variants of the same family by value. Usually
-/// the variant itself (compared numerically-aware), but a named container query
-/// (`@xl`, `@5xl/name`) is keyed by its breakpoint's size rank so it orders by
-/// size, not lexically.
+/// the variant itself (compared numerically-aware), with two exceptions:
+/// a named container query (`@xl`, `@5xl/name`) is keyed by its breakpoint's
+/// size rank so it orders by size not lexically; and an arbitrary variant
+/// selector (`[&_div>button]`) is keyed by its inner selector with Tailwind's
+/// `_`→space normalization, so `& div>button` sorts before `&>div>div`.
 fn variant_value_key(v: &str, t: &Tables) -> String {
     if let Some(rest) = v.strip_prefix('@')
         && !rest.starts_with('[')
@@ -531,19 +576,29 @@ fn variant_value_key(v: &str, t: &Tables) -> String {
             return format!("{rank:04}");
         }
     }
+    if let Some(inner) = v.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+        return normalize_arbitrary_selector(inner);
+    }
     v.to_owned()
 }
 
-/// Compare two aligned variant-value lists: a named value before an arbitrary
-/// one, then by numeric-aware candidate string.
-fn cmp_variant_values(a: &[(bool, String)], b: &[(bool, String)]) -> Ordering {
-    for ((aa, av), (ba, bv)) in a.iter().zip(b.iter()) {
-        let ord = aa.cmp(ba).then_with(|| compare::compare(av, bv));
-        if ord != Ordering::Equal {
-            return ord;
+/// Tailwind decodes an arbitrary selector by turning an unescaped `_` into a
+/// space (an escaped `\_` becomes a literal underscore). The decoded form is
+/// what the engine compares, so `[&_svg]` orders as `& svg`.
+fn normalize_arbitrary_selector(inner: &str) -> String {
+    let mut out = String::with_capacity(inner.len());
+    let mut chars = inner.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' if chars.peek() == Some(&'_') => {
+                chars.next();
+                out.push('_');
+            }
+            '_' => out.push(' '),
+            other => out.push(other),
         }
     }
-    a.len().cmp(&b.len())
+    out
 }
 
 /// Sort a single list of Tailwind class tokens into Tailwind's canonical order
