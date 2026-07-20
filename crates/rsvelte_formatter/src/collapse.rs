@@ -48,9 +48,12 @@ pub(crate) fn collapse_pure_text_elements(
     // Re-parse the formatted output in the same dialect the document was formatted
     // in. A TS document (incl. one that reached TS via the formatter's force-TS
     // fallback) emits TS, so a JS-only re-parse would fail and silently skip
-    // collapse; forcing TS here keeps collapse working for those files.
+    // collapse; forcing TS here keeps collapse working for those files. The same
+    // applies to a non-CSS `<style lang>` body, which the main parse skips rather
+    // than aborting on — the re-parse must skip it too or collapse never runs.
     let parse_opts = ParseOptions {
         force_typescript: options.typescript,
+        skip_non_css_lang_style: true,
         ..ParseOptions::default()
     };
     let Ok(root) = parse(out, parse_opts) else {
