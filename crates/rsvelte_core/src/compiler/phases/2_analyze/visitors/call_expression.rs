@@ -120,9 +120,9 @@ fn get_global_keypath(node: &Value, context: &VisitorContext) -> Option<String> 
 /// // get_parent(context, 2) returns Program
 /// // get_parent(context, 3) returns None
 /// ```
-fn get_parent<'a>(context: &'a VisitorContext, offset: usize) -> Option<&'a Value> {
+fn get_parent<'a>(context: &'a VisitorContext, offset: usize) -> Option<&'a super::JsPathEntry> {
     let index = context.js_path.len().checked_sub(offset + 1)?;
-    context.js_path.get(index).map(|entry| &**entry)
+    context.js_path.get(index)
 }
 
 /// Check if $bindable is in a valid placement.
@@ -152,7 +152,7 @@ fn is_bindable_valid_placement(context: &VisitorContext) -> bool {
         None => return false,
     };
 
-    if parent.get("type").and_then(|t| t.as_str()) != Some("AssignmentPattern") {
+    if parent.get_type_str() != Some("AssignmentPattern") {
         return false;
     }
 
@@ -163,7 +163,7 @@ fn is_bindable_valid_placement(context: &VisitorContext) -> bool {
         None => return false,
     };
 
-    let gp_type = grandparent.get("type").and_then(|t| t.as_str());
+    let gp_type = grandparent.get_type_str();
 
     // If grandparent is Property, skip it and look at the next ancestor
     if gp_type == Some("Property") {
@@ -172,7 +172,7 @@ fn is_bindable_valid_placement(context: &VisitorContext) -> bool {
             Some(p) => p,
             None => return false,
         };
-        let next_type = next_ancestor.get("type").and_then(|t| t.as_str());
+        let next_type = next_ancestor.get_type_str();
         if !matches!(next_type, Some("ObjectPattern") | Some("ArrayPattern")) {
             return false;
         }
@@ -187,12 +187,12 @@ fn is_bindable_valid_placement(context: &VisitorContext) -> bool {
         None => return false,
     };
 
-    if var_declarator.get("type").and_then(|t| t.as_str()) != Some("VariableDeclarator") {
+    if var_declarator.get_type_str() != Some("VariableDeclarator") {
         return false;
     }
 
     // Check that VariableDeclarator init is $props()
-    if let Some(init) = var_declarator.get("init") {
+    if let Some(init) = var_declarator.as_value().get("init") {
         let rune = get_rune(init, context);
         return rune.as_deref() == Some("$props");
     }
@@ -227,7 +227,7 @@ fn is_props_valid_placement(context: &VisitorContext) -> bool {
         None => return false,
     };
 
-    if parent.get("type").and_then(|t| t.as_str()) != Some("VariableDeclarator") {
+    if parent.get_type_str() != Some("VariableDeclarator") {
         return false;
     }
 
@@ -243,7 +243,7 @@ fn is_props_valid_placement(context: &VisitorContext) -> bool {
             None => return false,
         };
 
-        let ancestor_type = ancestor.get("type").and_then(|t| t.as_str());
+        let ancestor_type = ancestor.get_type_str();
 
         match ancestor_type {
             Some("Program") => {
@@ -303,12 +303,12 @@ fn is_props_id_valid_placement(context: &VisitorContext) -> bool {
         None => return false,
     };
 
-    if parent.get("type").and_then(|t| t.as_str()) != Some("VariableDeclarator") {
+    if parent.get_type_str() != Some("VariableDeclarator") {
         return false;
     }
 
     // The id field of VariableDeclarator must be an Identifier (not ObjectPattern or ArrayPattern)
-    if let Some(id) = parent.get("id") {
+    if let Some(id) = parent.as_value().get("id") {
         let id_type = id.get("type").and_then(|t| t.as_str());
         if id_type != Some("Identifier") {
             return false;
@@ -325,7 +325,7 @@ fn is_props_id_valid_placement(context: &VisitorContext) -> bool {
             None => return false,
         };
 
-        let ancestor_type = ancestor.get("type").and_then(|t| t.as_str());
+        let ancestor_type = ancestor.get_type_str();
 
         match ancestor_type {
             Some("Program") => {
@@ -397,7 +397,7 @@ fn is_state_or_derived_valid_placement(context: &VisitorContext) -> bool {
         None => return false,
     };
 
-    let parent_type = parent.get("type").and_then(|t| t.as_str());
+    let parent_type = parent.get_type_str();
 
     match parent_type {
         Some("VariableDeclarator") => {
@@ -417,20 +417,14 @@ fn is_state_or_derived_valid_placement(context: &VisitorContext) -> bool {
 
         Some("PropertyDefinition") => {
             // Must be non-static and non-computed
-            let is_static = parent
-                .get("static")
-                .and_then(|s| s.as_bool())
-                .unwrap_or(false);
-            let is_computed = parent
-                .get("computed")
-                .and_then(|c| c.as_bool())
-                .unwrap_or(false);
+            let is_static = parent.get_field_bool("static").unwrap_or(false);
+            let is_computed = parent.get_field_bool("computed").unwrap_or(false);
             !is_static && !is_computed
         }
 
         Some("AssignmentExpression") => {
             // Check if this is a valid class property assignment at constructor root
-            is_class_property_assignment_at_constructor_root(parent, context)
+            is_class_property_assignment_at_constructor_root(parent.as_value(), context)
         }
 
         _ => false,
@@ -463,11 +457,11 @@ fn is_class_property_assignment_at_constructor_root(
         None => return false,
     };
 
-    if parent_5.get("type").and_then(|t| t.as_str()) != Some("MethodDefinition") {
+    if parent_5.get_type_str() != Some("MethodDefinition") {
         return false;
     }
 
-    if parent_5.get("kind").and_then(|k| k.as_str()) != Some("constructor") {
+    if parent_5.get_field_str("kind") != Some("constructor") {
         return false;
     }
 
@@ -527,7 +521,7 @@ fn is_effect_valid_placement(context: &VisitorContext) -> bool {
         None => return false,
     };
 
-    parent.get("type").and_then(|t| t.as_str()) == Some("ExpressionStatement")
+    parent.get_type_str() == Some("ExpressionStatement")
 }
 
 /// Check if $inspect.trace is in a valid placement.
@@ -556,7 +550,7 @@ fn is_inspect_trace_valid_placement(context: &VisitorContext) -> bool {
         None => return false,
     };
 
-    if parent.get("type").and_then(|t| t.as_str()) != Some("ExpressionStatement") {
+    if parent.get_type_str() != Some("ExpressionStatement") {
         return false;
     }
 
@@ -566,7 +560,7 @@ fn is_inspect_trace_valid_placement(context: &VisitorContext) -> bool {
         None => return false,
     };
 
-    if grandparent.get("type").and_then(|t| t.as_str()) != Some("BlockStatement") {
+    if grandparent.get_type_str() != Some("BlockStatement") {
         return false;
     }
 
@@ -576,7 +570,7 @@ fn is_inspect_trace_valid_placement(context: &VisitorContext) -> bool {
         None => return false,
     };
 
-    let fn_type = fn_node.get("type").and_then(|t| t.as_str());
+    let fn_type = fn_node.get_type_str();
     if !matches!(
         fn_type,
         Some("FunctionDeclaration") | Some("FunctionExpression") | Some("ArrowFunctionExpression")
@@ -586,11 +580,14 @@ fn is_inspect_trace_valid_placement(context: &VisitorContext) -> bool {
 
     // Check it's the first statement in the block by comparing source positions:
     // distinct AST nodes have distinct `start` offsets within a single parse.
-    if let Some(body) = grandparent.get("body").and_then(|b| b.as_array())
+    if let Some(body) = grandparent
+        .as_value()
+        .get("body")
+        .and_then(|b| b.as_array())
         && let Some(first) = body.first()
     {
         let first_start = first.get("start").and_then(|s| s.as_u64());
-        let parent_start = parent.get("start").and_then(|s| s.as_u64());
+        let parent_start = parent.get_field_u64("start");
         return first_start.is_some() && first_start == parent_start;
     }
 
@@ -709,6 +706,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             // Get parent VariableDeclarator to extract id name
             if let Some(parent) = get_parent(context, 1)
                 && let Some(id_name) = parent
+                    .as_value()
                     .get("id")
                     .and_then(|id| id.get("name"))
                     .and_then(|n| n.as_str())

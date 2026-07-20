@@ -61,12 +61,18 @@ pub(crate) fn validate_template_await(context: &VisitorContext) -> Result<(), An
 fn has_shadowing_declaration_in_path(js_path: &[super::super::JsPathEntry], name: &str) -> bool {
     // Walk the path from innermost to outermost
     for node in js_path.iter().rev() {
-        let node_type = node.get("type").and_then(|t| t.as_str());
+        let node_type = node.get_type_str();
 
         match node_type {
             Some("FunctionDeclaration")
             | Some("FunctionExpression")
             | Some("ArrowFunctionExpression") => {
+                // Only a function ancestor is materialized here (its body/params are
+                // needed to detect a shadowing declaration); non-function ancestors
+                // never leave the cheap `get_type_str()` path above, so the common
+                // path (Program / VariableDeclaration / CallExpression …) is not
+                // serialized into a `serde_json::Value` just to read its type.
+                let node = node.as_value();
                 // Check if this function declares a variable with the given name
                 if let Some(body) = node.get("body")
                     && has_variable_declaration(body, name)
@@ -304,7 +310,7 @@ fn get_name(node: &Value) -> Option<String> {
 /// # Returns
 ///
 /// The parent node at the given index, skipping TypeScript wrapper nodes
-fn get_parent(path: &[super::super::JsPathEntry], at: isize) -> Option<&Value> {
+fn get_parent(path: &[super::super::JsPathEntry], at: isize) -> Option<&super::super::JsPathEntry> {
     let len = path.len() as isize;
     let index = if at < 0 { len + at } else { at };
 
@@ -315,7 +321,7 @@ fn get_parent(path: &[super::super::JsPathEntry], at: isize) -> Option<&Value> {
     let node = &path[index as usize];
 
     // Skip TypeScript wrapper nodes
-    match node.get("type").and_then(|t| t.as_str()) {
+    match node.get_type_str() {
         Some("TSNonNullExpression") | Some("TSAsExpression") => {
             // Get the next node in the appropriate direction
             let next_index = if at < 0 { at - 1 } else { at + 1 };
@@ -504,7 +510,7 @@ pub fn validate_assignment(
             while i > 0 {
                 i -= 1;
                 let parent = &context.js_path[i];
-                let parent_type = parent.get("type").and_then(|t| t.as_str());
+                let parent_type = parent.get_type_str();
 
                 if matches!(
                     parent_type,
@@ -514,9 +520,8 @@ pub fn validate_assignment(
                 ) {
                     // Get the grandparent
                     if let Some(grandparent) = get_parent(&context.js_path, (i as isize) - 1)
-                        && grandparent.get("type").and_then(|t| t.as_str())
-                            == Some("MethodDefinition")
-                        && grandparent.get("kind").and_then(|k| k.as_str()) == Some("constructor")
+                        && grandparent.get_type_str() == Some("MethodDefinition")
+                        && grandparent.get_field_str("kind") == Some("constructor")
                     {
                         // We're in a constructor - check if assignment is before field declaration
                         let node_start = argument.get("start").and_then(|s| s.as_u64());
@@ -2741,7 +2746,7 @@ pub fn validate_assignment_node(
             while i > 0 {
                 i -= 1;
                 let parent = &context.js_path[i];
-                let parent_type = parent.get("type").and_then(|t| t.as_str());
+                let parent_type = parent.get_type_str();
 
                 if matches!(
                     parent_type,
@@ -2750,9 +2755,8 @@ pub fn validate_assignment_node(
                         | Some("ArrowFunctionExpression")
                 ) {
                     if let Some(grandparent) = get_parent(&context.js_path, (i as isize) - 1)
-                        && grandparent.get("type").and_then(|t| t.as_str())
-                            == Some("MethodDefinition")
-                        && grandparent.get("kind").and_then(|k| k.as_str()) == Some("constructor")
+                        && grandparent.get_type_str() == Some("MethodDefinition")
+                        && grandparent.get_field_str("kind") == Some("constructor")
                     {
                         let node_start = argument.start();
                         let field_start = field

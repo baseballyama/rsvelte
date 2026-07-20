@@ -4191,23 +4191,95 @@ fn extract_all_identifiers_from_expr(expr: &serde_json::Value, ids: &mut Vec<Str
 
 /// Extract ALL identifier names from a JsNode expression.
 /// JsNode version of `extract_all_identifiers_from_expr`.
-/// Uses JSON fallback for complex nodes with arena-dependent fields.
+///
+/// Walks the typed tree directly through the thread-local parse arena
+/// (installed for the duration of analysis via `SerializeArenaGuard`), so the
+/// common `{#each}` / `bind:group` expression shapes no longer serialize the
+/// whole subtree into a `serde_json::Value` just to collect names. Falls back
+/// to the JSON walk only when no arena is active (e.g. isolated unit tests),
+/// which keeps the result byte-identical.
 fn extract_all_identifiers_from_node(node: &JsNode, ids: &mut Vec<String>) {
+    // Identifier is the base case and needs no arena.
+    if let JsNode::Identifier { name, .. } = node {
+        let name_str = name.as_str();
+        if !ids.iter().any(|i| i == name_str) {
+            ids.push(name_str.to_string());
+        }
+        return;
+    }
+
+    let walked = crate::ast::arena::try_with_current_serialize_arena(|arena| {
+        extract_all_identifiers_from_node_arena(node, arena, ids);
+    });
+
+    if walked.is_none() {
+        // No arena in scope — fall back to the JSON walk for compound nodes.
+        match node {
+            JsNode::MemberExpression { .. }
+            | JsNode::CallExpression { .. }
+            | JsNode::BinaryExpression { .. }
+            | JsNode::LogicalExpression { .. }
+            | JsNode::ConditionalExpression { .. } => {
+                let json = node.to_value();
+                extract_all_identifiers_from_expr(&json, ids);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Arena-backed recursion for `extract_all_identifiers_from_node`. Mirrors the
+/// field-by-field traversal of `extract_all_identifiers_from_expr` exactly:
+/// only MemberExpression (object always; property only when computed),
+/// CallExpression (callee + arguments), Binary/LogicalExpression (left + right)
+/// and ConditionalExpression (test + consequent + alternate) descend; every
+/// other node type is a no-op, matching the JSON walker's `_ => {}`.
+fn extract_all_identifiers_from_node_arena(
+    node: &JsNode,
+    arena: &ParseArena,
+    ids: &mut Vec<String>,
+) {
     match node {
         JsNode::Identifier { name, .. } => {
-            let name_str = name.to_string();
-            if !ids.contains(&name_str) {
-                ids.push(name_str);
+            let name_str = name.as_str();
+            if !ids.iter().any(|i| i == name_str) {
+                ids.push(name_str.to_string());
             }
         }
-        // For nodes with JsNodeId/IdRange children, fall back to JSON
-        JsNode::MemberExpression { .. }
-        | JsNode::CallExpression { .. }
-        | JsNode::BinaryExpression { .. }
-        | JsNode::LogicalExpression { .. }
-        | JsNode::ConditionalExpression { .. } => {
-            let json = node.to_value();
-            extract_all_identifiers_from_expr(&json, ids);
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            extract_all_identifiers_from_node_arena(arena.get_js_node(*object), arena, ids);
+            // Only extract computed property identifiers (e.g., [index] in arr[index])
+            if *computed {
+                extract_all_identifiers_from_node_arena(arena.get_js_node(*property), arena, ids);
+            }
+        }
+        JsNode::CallExpression {
+            callee, arguments, ..
+        } => {
+            extract_all_identifiers_from_node_arena(arena.get_js_node(*callee), arena, ids);
+            for arg in arena.get_js_children(*arguments) {
+                extract_all_identifiers_from_node_arena(arg, arena, ids);
+            }
+        }
+        JsNode::BinaryExpression { left, right, .. }
+        | JsNode::LogicalExpression { left, right, .. } => {
+            extract_all_identifiers_from_node_arena(arena.get_js_node(*left), arena, ids);
+            extract_all_identifiers_from_node_arena(arena.get_js_node(*right), arena, ids);
+        }
+        JsNode::ConditionalExpression {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            extract_all_identifiers_from_node_arena(arena.get_js_node(*test), arena, ids);
+            extract_all_identifiers_from_node_arena(arena.get_js_node(*consequent), arena, ids);
+            extract_all_identifiers_from_node_arena(arena.get_js_node(*alternate), arena, ids);
         }
         _ => {}
     }
