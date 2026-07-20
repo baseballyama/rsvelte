@@ -58,7 +58,11 @@ pub(crate) fn validate_template_await(context: &VisitorContext) -> Result<(), An
 /// nodes and checks if their bodies contain a VariableDeclaration with the given name.
 ///
 /// This is used to detect if a component-level constant is being shadowed by a local variable.
-fn has_shadowing_declaration_in_path(js_path: &[super::super::JsPathEntry], name: &str) -> bool {
+fn has_shadowing_declaration_in_path(
+    js_path: &[super::super::JsPathEntry],
+    name: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
     // Walk the path from innermost to outermost
     for node in js_path.iter().rev() {
         let node_type = node.get_type_str();
@@ -67,19 +71,23 @@ fn has_shadowing_declaration_in_path(js_path: &[super::super::JsPathEntry], name
             Some("FunctionDeclaration")
             | Some("FunctionExpression")
             | Some("ArrowFunctionExpression") => {
-                // Only a function ancestor is materialized here (its body/params are
-                // needed to detect a shadowing declaration); non-function ancestors
-                // never leave the cheap `get_type_str()` path above, so the common
-                // path (Program / VariableDeclaration / CallExpression …) is not
-                // serialized into a `serde_json::Value` just to read its type.
+                // Non-function ancestors never leave the cheap `get_type_str()`
+                // path above; a function ancestor resolves its body and params
+                // through the arena, so it is not serialized into a
+                // `serde_json::Value` either.
+                if let Some(js_node) = node.as_js_node() {
+                    if function_declares_name_node(js_node, name, arena) {
+                        return true;
+                    }
+                    continue;
+                }
+                // JSON fallback for `Borrowed` / `Owned` entries.
                 let node = node.as_value();
-                // Check if this function declares a variable with the given name
                 if let Some(body) = node.get("body")
                     && has_variable_declaration(body, name)
                 {
                     return true;
                 }
-                // Also check function parameters
                 if let Some(params) = node.get("params").and_then(|p| p.as_array()) {
                     for param in params {
                         if param_declares_name(param, name) {
@@ -92,6 +100,161 @@ fn has_shadowing_declaration_in_path(js_path: &[super::super::JsPathEntry], name
         }
     }
     false
+}
+
+/// Typed mirror of the function-ancestor check above: body first, then params.
+fn function_declares_name_node(
+    func: &JsNode,
+    name: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    let (params, body) = match func {
+        JsNode::FunctionDeclaration { params, body, .. }
+        | JsNode::FunctionExpression { params, body, .. } => (*params, *body),
+        JsNode::ArrowFunctionExpression { params, body, .. } => (*params, Some(*body)),
+        _ => return false,
+    };
+
+    if let Some(body) = body
+        && has_variable_declaration_node(arena.get_js_node(body), name, arena)
+    {
+        return true;
+    }
+    for param in arena.get_js_children(params) {
+        if pattern_declares_name_node(param, name, arena) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Typed mirror of `has_variable_declaration`: only a block body can declare
+/// anything (an arrow with an expression body cannot).
+fn has_variable_declaration_node(
+    body: &JsNode,
+    name: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    match body {
+        JsNode::BlockStatement { body, .. } => arena
+            .get_js_children(*body)
+            .iter()
+            .any(|stmt| statement_declares_name_node(stmt, name, arena)),
+        _ => false,
+    }
+}
+
+/// Typed mirror of `statement_declares_name`.
+///
+/// The JSON version reaches only the fields named below, so this one does too —
+/// notably it does NOT look at a `for` statement's `init` or a `for…of`/`for…in`
+/// `left`, which means `for (let x = …)` does not count as a shadowing
+/// declaration. That is existing behaviour and is preserved deliberately.
+fn statement_declares_name_node(
+    stmt: &JsNode,
+    name: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    let walk = |id: crate::ast::arena::JsNodeId| {
+        statement_declares_name_node(arena.get_js_node(id), name, arena)
+    };
+    let walk_opt = |id: &Option<crate::ast::arena::JsNodeId>| id.is_some_and(&walk);
+
+    match stmt {
+        // Only `let` / `var` shadow; `const` does not.
+        JsNode::VariableDeclaration {
+            declarations, kind, ..
+        } => {
+            (kind.as_str() == "let" || kind.as_str() == "var")
+                && arena.get_js_children(*declarations).iter().any(|decl| {
+                    matches!(decl, JsNode::VariableDeclarator { id, .. }
+                        if pattern_declares_name_node(arena.get_js_node(*id), name, arena))
+                })
+        }
+
+        // A named function declaration binds its own name, but its body is a
+        // different scope and is not descended into.
+        JsNode::FunctionDeclaration { id, .. } => id.is_some_and(|id| {
+            matches!(arena.get_js_node(id), JsNode::Identifier { name: n, .. } if n.as_str() == name)
+        }),
+
+        JsNode::BlockStatement { body, .. } => arena
+            .get_js_children(*body)
+            .iter()
+            .any(|s| statement_declares_name_node(s, name, arena)),
+
+        JsNode::IfStatement {
+            consequent,
+            alternate,
+            ..
+        } => walk(*consequent) || walk_opt(alternate),
+
+        JsNode::ForStatement { body, .. }
+        | JsNode::ForInStatement { body, .. }
+        | JsNode::ForOfStatement { body, .. }
+        | JsNode::WhileStatement { body, .. }
+        | JsNode::DoWhileStatement { body, .. } => walk(*body),
+
+        JsNode::TryStatement {
+            block,
+            handler,
+            finalizer,
+            ..
+        } => {
+            if walk(*block) {
+                return true;
+            }
+            if let Some(handler) = handler
+                && let JsNode::CatchClause { body, .. } = arena.get_js_node(*handler)
+                && walk(*body)
+            {
+                return true;
+            }
+            walk_opt(finalizer)
+        }
+
+        JsNode::SwitchStatement { cases, .. } => {
+            arena.get_js_children(*cases).iter().any(|case| {
+                matches!(case, JsNode::SwitchCase { consequent, .. }
+                    if arena
+                        .get_js_children(*consequent)
+                        .iter()
+                        .any(|s| statement_declares_name_node(s, name, arena)))
+            })
+        }
+
+        _ => false,
+    }
+}
+
+/// Typed mirror of `pattern_declares_name`.
+fn pattern_declares_name_node(
+    pattern: &JsNode,
+    name: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    match pattern {
+        JsNode::Identifier { name: n, .. } => n.as_str() == name,
+        // Only a `Property`'s value is inspected, matching the JSON version's
+        // `prop.get("value")` (a `{ ...rest }` entry has no `value` key).
+        JsNode::ObjectPattern { properties, .. } => {
+            arena.get_js_children(*properties).iter().any(|prop| {
+                matches!(prop, JsNode::Property { value, .. }
+                    if pattern_declares_name_node(arena.get_js_node(*value), name, arena))
+            })
+        }
+        JsNode::ArrayPattern { elements, .. } => elements
+            .iter()
+            .flatten()
+            .any(|elem| pattern_declares_name_node(elem, name, arena)),
+        JsNode::AssignmentPattern { left, .. } => {
+            pattern_declares_name_node(arena.get_js_node(*left), name, arena)
+        }
+        JsNode::RestElement { argument, .. } => {
+            pattern_declares_name_node(arena.get_js_node(*argument), name, arena)
+        }
+        _ => false,
+    }
 }
 
 /// Check if a function body (BlockStatement or Expression) declares a variable with the given name.
@@ -635,8 +798,11 @@ pub fn validate_no_const_assignment(
                         // by looking for variable declarations in ancestor function bodies.
                         // This handles cases where a const in an outer function is shadowed by
                         // a let/var in a nested loop within the current function.
-                        let has_local_shadowing =
-                            has_shadowing_declaration_in_path(&context.js_path, name);
+                        let has_local_shadowing = has_shadowing_declaration_in_path(
+                            &context.js_path,
+                            name,
+                            context.parse_arena,
+                        );
                         if has_local_shadowing {
                             // Skip validation - there's a local variable that shadows the const
                             return Ok(());
@@ -2642,8 +2808,11 @@ pub fn validate_no_const_assignment_node(
                 }
 
                 if context.function_depth > 1 {
-                    let has_local_shadowing =
-                        has_shadowing_declaration_in_path(&context.js_path, name);
+                    let has_local_shadowing = has_shadowing_declaration_in_path(
+                        &context.js_path,
+                        name,
+                        context.parse_arena,
+                    );
                     if has_local_shadowing {
                         return Ok(());
                     }
