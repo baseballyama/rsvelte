@@ -38,6 +38,46 @@ impl OutputFormat {
     }
 }
 
+/// Diagnostic display threshold — mirrors the JS reference's
+/// `--threshold` (`getThreshold` in `options.ts` + `createFilter` in
+/// `index.ts`). It filters which diagnostics are *printed*; it never
+/// changes the error/warning counts or the exit code, which the JS
+/// reference always computes from the unfiltered diagnostic set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Threshold {
+    /// Print warnings and errors (the JS default).
+    #[default]
+    Warning,
+    /// Print errors only.
+    Error,
+}
+
+impl Threshold {
+    /// The JS reference only accepts `warning` / `error`; anything else
+    /// warns and falls back to `warning`. `parse` returns `None` for the
+    /// unknown case so the caller can emit that warning.
+    pub fn parse(s: &str) -> Option<Self> {
+        Some(match s {
+            "warning" => Threshold::Warning,
+            "error" => Threshold::Error,
+            _ => return None,
+        })
+    }
+
+    /// Whether a diagnostic of `severity` should be displayed. `error`
+    /// keeps only errors; `warning` keeps errors and warnings (dropping
+    /// info/hint, matching the JS `createFilter`).
+    pub fn includes(self, severity: DiagnosticSeverity) -> bool {
+        match self {
+            Threshold::Error => severity == DiagnosticSeverity::Error,
+            Threshold::Warning => matches!(
+                severity,
+                DiagnosticSeverity::Error | DiagnosticSeverity::Warning
+            ),
+        }
+    }
+}
+
 /// Write a single diagnostic to `out` in the chosen format.
 pub fn write_diagnostic(
     out: &mut String,
@@ -290,6 +330,25 @@ mod tests {
             out.starts_with("::error file=sub%2Cdir/Foo.svelte,line=1,col=2::"),
             "comma in path not escaped: {out}"
         );
+    }
+
+    #[test]
+    fn threshold_parses_and_filters_like_the_js_reference() {
+        assert_eq!(Threshold::parse("warning"), Some(Threshold::Warning));
+        assert_eq!(Threshold::parse("error"), Some(Threshold::Error));
+        assert_eq!(Threshold::parse("hint"), None);
+        assert_eq!(Threshold::default(), Threshold::Warning);
+
+        // `error` keeps only errors.
+        assert!(Threshold::Error.includes(DiagnosticSeverity::Error));
+        assert!(!Threshold::Error.includes(DiagnosticSeverity::Warning));
+        assert!(!Threshold::Error.includes(DiagnosticSeverity::Info));
+
+        // `warning` keeps errors + warnings, drops info/hint.
+        assert!(Threshold::Warning.includes(DiagnosticSeverity::Error));
+        assert!(Threshold::Warning.includes(DiagnosticSeverity::Warning));
+        assert!(!Threshold::Warning.includes(DiagnosticSeverity::Info));
+        assert!(!Threshold::Warning.includes(DiagnosticSeverity::Hint));
     }
 
     #[test]

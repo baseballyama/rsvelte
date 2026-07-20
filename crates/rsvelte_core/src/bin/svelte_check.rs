@@ -34,7 +34,7 @@ use std::collections::{HashMap, HashSet};
 
 use clap::Parser;
 use rsvelte_core::svelte_check::{
-    OutputFormat, RunOptions, run,
+    OutputFormat, RunOptions, Threshold, run,
     runner::{DiagnosticSource, WarningOverride},
     watch::{WatchOptions, run_watch},
     writers::write_diagnostic,
@@ -78,11 +78,30 @@ struct Cli {
     #[arg(long = "tsconfig")]
     tsconfig: Option<PathBuf>,
 
+    /// Only check the Svelte files under the workspace and ignore any
+    /// project tsconfig/jsconfig (no `--tsconfig` extends, no discovery).
+    /// Mirrors the JS reference's `--no-tsconfig`.
+    #[arg(long = "no-tsconfig", default_value_t = false)]
+    no_tsconfig: bool,
+
+    /// Path to a non-standard `svelte.config.*` / `vite.config.*` whose
+    /// diagnostic-relevant `compilerOptions` (and `kit.files`) should be
+    /// used instead of discovering a config under the workspace. Mirrors
+    /// the JS reference's `--config`.
+    #[arg(long = "config")]
+    config: Option<PathBuf>,
+
     /// Prefer Microsoft's native `tsgo` over the stock `tsc` when
     /// type-checking the overlay. Without this flag type-checking still
     /// runs, using `tsc`. (`tsgo` falls back to `tsc` and vice-versa if
-    /// the preferred binary isn't installed.)
-    #[arg(long = "tsgo", default_value_t = false)]
+    /// the preferred binary isn't installed.) `--tsgo-experimental-api`
+    /// is accepted as an alias — rsvelte has a single native tsgo
+    /// backend, so the experimental in-process API has no separate mode.
+    #[arg(
+        long = "tsgo",
+        alias = "tsgo-experimental-api",
+        default_value_t = false
+    )]
     tsgo: bool,
 
     /// Skip the TypeScript type-checking pass entirely and report only
@@ -117,9 +136,32 @@ struct Cli {
     watch: bool,
 
     /// In `--watch` mode, do NOT clear the terminal between runs.
-    /// Mirrors `--preserveWatchOutput` in the JS reference / tsc.
-    #[arg(long = "preserve-watch-output", default_value_t = false)]
+    /// Mirrors `--preserveWatchOutput` in the JS reference / tsc. The
+    /// hyphenated `--preserve-watch-output` is kept as an alias.
+    #[arg(
+        long = "preserveWatchOutput",
+        alias = "preserve-watch-output",
+        default_value_t = false
+    )]
     preserve_watch_output: bool,
+
+    /// Filter the diagnostics that are printed: `error` shows only
+    /// errors, `warning` (the default) shows warnings and errors. Does
+    /// not affect the error/warning counts or the exit code. Mirrors the
+    /// JS reference's `--threshold`.
+    #[arg(long = "threshold", default_value = "warning")]
+    threshold: String,
+
+    /// Force-enable color output. Accepted for JS-CLI compatibility;
+    /// rsvelte-check does not currently colorize its output, so this is a
+    /// no-op.
+    #[arg(long = "color", default_value_t = false)]
+    color: bool,
+
+    /// Force-disable color output. Accepted for JS-CLI compatibility;
+    /// no-op (rsvelte-check output is already un-colorized).
+    #[arg(long = "no-color", default_value_t = false)]
+    no_color: bool,
 }
 
 fn main() -> ExitCode {
@@ -150,6 +192,40 @@ fn main() -> ExitCode {
         })
         .unwrap_or_default();
 
+    // `--color` / `--no-color` are accepted for JS-CLI compatibility but
+    // have no effect (output is already un-colorized).
+    let _ = (cli.color, cli.no_color);
+
+    let threshold = match Threshold::parse(&cli.threshold) {
+        Some(t) => t,
+        None => {
+            eprintln!(
+                "Invalid threshold \"{}\", using \"warning\" instead",
+                cli.threshold
+            );
+            Threshold::default()
+        }
+    };
+
+    // `--config` names an explicit config file; the JS reference errors
+    // when the path doesn't exist rather than silently discovering one.
+    if let Some(config) = cli.config.as_deref() {
+        let abs = if config.is_absolute() {
+            config.to_path_buf()
+        } else {
+            workspace.join(config)
+        };
+        if !abs.exists() {
+            eprintln!("Could not find config file at {}", config.display());
+            return ExitCode::from(2);
+        }
+    }
+
+    // `--no-tsconfig` means "use no project tsconfig": ignore `--tsconfig`
+    // and never extend/discover one. Mirrors the JS reference, where the
+    // two are mutually exclusive.
+    let tsconfig = if cli.no_tsconfig { None } else { cli.tsconfig };
+
     let compiler_warnings = parse_compiler_warnings(cli.compiler_warnings.as_deref());
     let diagnostic_sources = parse_diagnostic_sources(cli.diagnostic_sources.as_deref());
 
@@ -161,12 +237,13 @@ fn main() -> ExitCode {
         ignore,
         fail_on_warnings: cli.fail_on_warnings,
         emit_overlay: cli.emit_overlay,
-        tsconfig: cli.tsconfig,
+        tsconfig,
         type_check,
         prefer_tsgo: cli.tsgo,
         compiler_warnings,
         diagnostic_sources,
         incremental: cli.incremental,
+        config: cli.config.clone(),
     };
 
     if cli.watch {
@@ -179,7 +256,7 @@ fn main() -> ExitCode {
         // practice: SIGINT). Failure here only happens when the OS
         // notify backend can't be initialised.
         if let Err(err) = run_watch(options, watch_opts, |run_result| {
-            print_run(run_result, &workspace_for_print, format);
+            print_run(run_result, &workspace_for_print, format, threshold);
         }) {
             eprintln!("rsvelte-check: watch mode failed to start: {err}");
             return ExitCode::from(2);
@@ -198,7 +275,7 @@ fn main() -> ExitCode {
                 workspace.display()
             );
         }
-        print_run(&result, &workspace, format);
+        print_run(&result, &workspace, format, threshold);
         ExitCode::from(result.exit_code(cli.fail_on_warnings) as u8)
     }
 }
@@ -207,9 +284,16 @@ fn print_run(
     result: &rsvelte_core::svelte_check::runner::RunResult,
     workspace: &Path,
     format: OutputFormat,
+    threshold: Threshold,
 ) {
     let mut out = String::new();
     for diag in &result.diagnostics {
+        // The threshold filters only what is *printed*; the summary and
+        // exit code are always computed from the full diagnostic set,
+        // matching the JS reference.
+        if !threshold.includes(diag.severity) {
+            continue;
+        }
         write_diagnostic(&mut out, diag, workspace, format);
     }
     if matches!(format, OutputFormat::Human | OutputFormat::HumanVerbose) {

@@ -97,7 +97,45 @@ const VITE_CONFIG_CANDIDATES: &[&str] = &[
 /// `svelte.config.js` entirely, so step 2 is skipped and only the inline
 /// `sveltekit({...})` options apply over the defaults.
 pub fn load_compiler_options(workspace: &Path) -> CompilerOptionsSettings {
+    load_compiler_options_with_config(workspace, None)
+}
+
+/// Like [`load_compiler_options`], but when `config` is `Some` the
+/// diagnostic-relevant `compilerOptions` are read from that exact file
+/// instead of discovering `svelte.config.*` / `vite.config.*` under the
+/// workspace. Mirrors the JS reference's `--config` flag, which points at
+/// a non-standard `svelte.config` / `vite.config` location. The file is
+/// classified by name: a `vite.config.*` is parsed for the inline
+/// `svelte()` / `sveltekit()` plugin options, anything else as a Svelte
+/// config.
+pub fn load_compiler_options_with_config(
+    workspace: &Path,
+    config: Option<&Path>,
+) -> CompilerOptionsSettings {
     let mut settings = CompilerOptionsSettings::default();
+
+    if let Some(path) = config {
+        let Ok(source) = std::fs::read_to_string(path) else {
+            return settings;
+        };
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
+        let is_ts = name.ends_with(".ts") || name.ends_with(".mts") || name.ends_with(".cts");
+        let source_type = if is_ts {
+            SourceType::ts()
+        } else {
+            SourceType::default()
+        };
+        let kind = if name.starts_with("vite.config") {
+            ConfigKind::Vite
+        } else {
+            ConfigKind::Svelte
+        };
+        parse_config(&source, source_type, kind, &mut settings);
+        return settings;
+    }
 
     // Read the vite.config once: it both decides whether svelte.config is
     // consulted (the `sveltekit()` inline-config case) and may itself

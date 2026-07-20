@@ -11,9 +11,9 @@ use std::path::{Path, PathBuf};
 
 use crate::compiler::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
 
-use super::config::{CompilerOptionsSettings, load_compiler_options};
+use super::config::{CompilerOptionsSettings, load_compiler_options_with_config};
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
-use super::kit_file::load_kit_files_settings;
+use super::kit_file::load_kit_files_settings_with_config;
 use super::manifest::{
     self, CachedDiagnostics, SerializableDiagnostic, WarningCache, current_stats,
 };
@@ -98,6 +98,11 @@ pub struct RunOptions {
     /// source `(mtime_ms, size)` hasn't changed since the previous run.
     /// Mirrors the JS reference's `--incremental` flag.
     pub incremental: bool,
+    /// Explicit `svelte.config.*` / `vite.config.*` path whose
+    /// diagnostic-relevant `compilerOptions` (and `kit.files`) override
+    /// workspace discovery. `None` = discover under the workspace.
+    /// Mirrors the JS reference's `--config`.
+    pub config: Option<PathBuf>,
 }
 
 impl Default for RunOptions {
@@ -113,6 +118,7 @@ impl Default for RunOptions {
             compiler_warnings: HashMap::new(),
             diagnostic_sources: None,
             incremental: false,
+            config: None,
         }
     }
 }
@@ -157,11 +163,13 @@ impl RunResult {
 /// and collect the resulting diagnostics. tsgo / svelte2tsx integration
 /// will plug in here in a follow-up.
 pub fn run(options: &RunOptions) -> RunResult {
-    let kit_settings = load_kit_files_settings(&options.workspace);
+    let kit_settings =
+        load_kit_files_settings_with_config(&options.workspace, options.config.as_deref());
     // `compilerOptions` that influence diagnostics (e.g. `experimental.async`),
     // resolved from both `svelte.config.*` and the `vite.config.*` Svelte
-    // plugin call (issue #1034).
-    let compiler_opts = load_compiler_options(&options.workspace);
+    // plugin call (issue #1034). `--config` overrides that discovery.
+    let compiler_opts =
+        load_compiler_options_with_config(&options.workspace, options.config.as_deref());
     let relevant = find_relevant_files(&options.workspace, &options.ignore, &kit_settings);
     let files = relevant.svelte;
     let kit_files = relevant.kit;

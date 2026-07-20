@@ -62,12 +62,38 @@ Add it to your `package.json`:
 | `--tsgo` | Prefer [tsgo](https://github.com/microsoft/typescript-go) over `tsc` as the TypeScript backend (each falls back to the other if missing). |
 | `--no-type-check` | Skip TypeScript entirely — Svelte compiler / A11y / CSS diagnostics only. |
 | `--tsconfig <path>` | Base `tsconfig.json` for the overlay to `extends`. |
+| `--no-tsconfig` | Ignore any project tsconfig/jsconfig (no `--tsconfig` extends, no discovery) — check only the Svelte files. |
+| `--config <path>` | Use a non-standard `svelte.config.*` / `vite.config.*` path for the diagnostic-relevant `compilerOptions` (and `kit.files`) instead of discovering one under the workspace. |
 | `--emit-overlay` | Materialise `.tsx` shadow files + an overlay tsconfig under `<workspace>/.svelte-check/` without running a type-checker. Useful for inspecting what gets handed to TS. |
 | `--compiler-warnings <list>` | Per-code overrides, e.g. `--compiler-warnings css-unused-selector:ignore,a11y-no-noninteractive-element-to-interactive-role:error`. |
 | `--diagnostic-sources <list>` | Restrict output to any subset of `svelte`, `ts` / `js`, `css`. |
+| `--threshold <level>` | Filter the diagnostics that are *printed*: `error` shows only errors, `warning` (default) shows warnings and errors. Counts and exit code are unaffected. |
 | `--incremental` | Reuse `<workspace>/.svelte-check/manifest.json` between runs — unchanged files skip the overlay regeneration step. |
 | `--watch` | Stay alive and re-check on file changes. Composes with `--incremental`. |
-| `--preserve-watch-output` | In watch mode, don't clear the terminal between runs. |
+| `--preserveWatchOutput` | In watch mode, don't clear the terminal between runs. (`--preserve-watch-output` is accepted as an alias.) |
+
+### Upstream flag compatibility
+
+`rsvelte-check` accepts every flag the official `svelte-check` CLI exposes. Names match upstream, with two exceptions noted below.
+
+| Upstream flag | rsvelte-check | Notes |
+|---|---|---|
+| `--workspace` | ✅ | |
+| `--output` | ✅ | Plus the rsvelte-only `github-actions` format. |
+| `--watch` | ✅ | |
+| `--preserveWatchOutput` | ✅ | Canonical name; `--preserve-watch-output` kept as an alias. |
+| `--incremental` | ✅ | |
+| `--tsgo` | ✅ | |
+| `--tsgo-experimental-api` | ✅ (alias) | rsvelte has a single native `tsgo` backend, so this behaves exactly like `--tsgo`. |
+| `--tsconfig` | ✅ | |
+| `--config` | ✅ | Overrides the config source for the diagnostic-relevant `compilerOptions` / `kit.files`. |
+| `--no-tsconfig` | ✅ | |
+| `--ignore` | ✅ | Always active as a walker skip-list (rsvelte does not gate it behind `--no-tsconfig`). |
+| `--fail-on-warnings` | ✅ | |
+| `--compiler-warnings` | ✅ | |
+| `--diagnostic-sources` | ✅ | |
+| `--threshold` | ✅ | |
+| `--color` / `--no-color` | ✅ (no-op) | Accepted for compatibility; rsvelte-check output is not colorized. |
 
 Run `rsvelte-check --help` for the authoritative list.
 

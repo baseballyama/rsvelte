@@ -23,4 +23,4 @@ pub mod writers;
 pub use diagnostic::{Diagnostic, DiagnosticSeverity};
 pub use runner::{RunOptions, RunResult, run};
 pub use walker::find_svelte_files;
-pub use writers::OutputFormat;
+pub use writers::{OutputFormat, Threshold};
