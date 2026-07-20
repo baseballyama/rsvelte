@@ -102,6 +102,21 @@ npx rsvelte-lint --fix src/           # autofix in place
 
 See [`@rsvelte/lint`](apps/npm/lint) for configuration, ESLint config import (`--config-from-eslint`), and CI output formats (`--format sarif`, `--format github-actions`).
 
+Already on [`oxlint`](https://oxc.rs/docs/guide/usage/linter)? The same diagnostics can ride along in oxlint's own pass, so `.svelte` files stop being a blind spot in a single-linter setup:
+
+```bash
+npm install -D @rsvelte/oxlint-plugin oxlint
+```
+
+```json
+{
+  "jsPlugins": ["@rsvelte/oxlint-plugin"],
+  "extends": ["./node_modules/@rsvelte/oxlint-plugin/recommended.json"]
+}
+```
+
+Rules land under `svelte/*` ids, so oxlint config controls their severity like any other rule. See [`@rsvelte/oxlint-plugin`](apps/npm/oxlint-plugin) for the current limits of oxlint's `.svelte` support — script-less components and markup diagnostic positions are where the standalone CLI is still more faithful.
+
 ### Compile from JavaScript
 
 [`@rsvelte/compiler`](apps/npm/compiler) ships the compiler as WebAssembly — it runs anywhere Node or a browser does:
@@ -145,6 +160,7 @@ All npm packages ship under the `@rsvelte` scope.
 | [`@rsvelte/svelte-check`](apps/npm/svelte-check) | [`svelte-check`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) CLI — drop-in replacement |
 | [`@rsvelte/fmt`](apps/npm/fmt) | `prettier` + [`prettier-plugin-svelte`](https://github.com/sveltejs/prettier-plugin-svelte) — targets output parity, not a configuration-compatible drop-in (reads `.oxfmtrc`, not `.prettierrc`; no Tailwind class sorting) |
 | [`@rsvelte/lint`](apps/npm/lint) | [`eslint`](https://eslint.org) + [`eslint-plugin-svelte`](https://github.com/sveltejs/eslint-plugin-svelte) — a complement designed to run alongside ESLint today, not yet a replacement |
+| [`@rsvelte/oxlint-plugin`](apps/npm/oxlint-plugin) | the same rules as an [`oxlint`](https://oxc.rs/docs/guide/usage/linter) plugin — bounded by oxlint's alpha `.svelte` support (no script-less components; markup diagnostics anchor at the script head), so `@rsvelte/lint` stays the faithful path |
 | [`@rsvelte/svelte2tsx`](apps/npm/svelte2tsx) | [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx) — drop-in replacement |
 | [`@rsvelte/compiler`](apps/npm/compiler) | [`svelte/compiler`](https://svelte.dev/docs/svelte/svelte-compiler), as WebAssembly — drop-in replacement |
 | [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native) | `svelte/compiler`, as a native NAPI binding — drop-in replacement |
