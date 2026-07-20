@@ -2264,8 +2264,22 @@ fn render_directive_value_narrow(
             // leaves the body exactly one indent level of room, preventing
             // over-narrow breakage of nested object / array arguments.
             let indent_width = options.js.indent_width.value() as usize;
+            // An expression-bodied arrow (`(e) => cond && fn(e)`) whose one-line
+            // form overflows must split after `=>` with the body on the next line.
+            // `prefix - indent_width` yields `narrowed = inline_len`, which fits the
+            // arrow exactly and fails to break it (off by one). Use the minimal-break
+            // width `inline_len - 1` so the arrow splits after `=>` while the body
+            // keeps the widest budget — the same formula the non-directive arrow
+            // path uses.
+            let is_expr_arrow = formatted.contains("=>")
+                && formatted
+                    .split_once("=>")
+                    .is_some_and(|(_, body)| !body.trim_start().starts_with('{'));
             let extra_lead = if is_shallow_value(&formatted) {
                 prefix + 1
+            } else if is_expr_arrow {
+                let base_width = line_width.saturating_sub(indent_cols);
+                base_width.saturating_sub(visual_width(&formatted)) + 1
             } else {
                 prefix.saturating_sub(indent_width)
             };
