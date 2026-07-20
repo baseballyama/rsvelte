@@ -29,6 +29,11 @@ pub struct LintContext<'a> {
     /// that inspect sibling files on disk (e.g.
     /// `svelte/no-companion-module-shadow`) must no-op when this is `None`.
     path: Option<&'a Path>,
+    /// Script-scope resolver (oxc-semantic-backed), built once per file by the
+    /// engine and borrowed here. `None` when no resolver was built (e.g. the
+    /// rule that needs it is disabled). Rules use it to distinguish a real
+    /// global reference from a local binding that shares a global's name.
+    scope_resolver: Option<&'a crate::scope::ScopeResolver>,
 }
 
 impl<'a> LintContext<'a> {
@@ -41,6 +46,7 @@ impl<'a> LintContext<'a> {
             source,
             filename,
             path: None,
+            scope_resolver: None,
         }
     }
 
@@ -49,6 +55,20 @@ impl<'a> LintContext<'a> {
     pub fn with_path(mut self, path: Option<&'a Path>) -> Self {
         self.path = path;
         self
+    }
+
+    /// Attach the script-scope resolver (builder style). Left `None` by default.
+    pub fn with_scope_resolver(
+        mut self,
+        resolver: Option<&'a crate::scope::ScopeResolver>,
+    ) -> Self {
+        self.scope_resolver = resolver;
+        self
+    }
+
+    /// The script-scope resolver for this file, when one was built.
+    pub fn scope_resolver(&self) -> Option<&'a crate::scope::ScopeResolver> {
+        self.scope_resolver
     }
 
     /// The path of the file being linted, when known. `None` for in-memory /

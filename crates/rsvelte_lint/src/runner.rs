@@ -9,8 +9,8 @@ use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 use crate::config::LintConfig;
 use crate::diagnostic::{LintDiagnostic, TextEdit};
 use crate::engine::{
-    lint_parse_options, run_native_rules, run_native_rules_on_root, run_script_rules,
-    run_script_rules_on_root,
+    lint_parse_options, maybe_scope_resolver, run_native_rules, run_native_rules_on_root,
+    run_script_rules, run_script_rules_on_root,
 };
 use crate::line_index::LineIndex;
 use crate::suppression::Suppressions;
@@ -58,15 +58,34 @@ pub fn lint_source(
             let mut diags = crate::validator::validator_diagnostics(source, file, options, config);
 
             if let Some(root) = &parsed {
+                // Build the oxc-semantic scope resolver ONCE (when the rule that
+                // needs it is on) and share it across both the native (template)
+                // and script passes, so the semantic build isn't paid twice.
+                let resolver = maybe_scope_resolver(root, source, config);
+
                 // 2. Native rule engine — single shared DFS over the template AST.
-                for d in run_native_rules_on_root(root, source, &filename, config, Some(file)) {
+                for d in run_native_rules_on_root(
+                    root,
+                    source,
+                    &filename,
+                    config,
+                    Some(file),
+                    resolver.as_ref(),
+                ) {
                     diags.push(d.to_output(file, &line_index));
                 }
 
                 // 2a. Script-AST rules — walk the `<script>` ESTree program(s).
                 // Thread the full path so path-gated rules (e.g. SvelteKit route
                 // file detection) can check whether the file lives under src/routes.
-                for d in run_script_rules_on_root(root, source, &filename, config, Some(file)) {
+                for d in run_script_rules_on_root(
+                    root,
+                    source,
+                    &filename,
+                    config,
+                    Some(file),
+                    resolver.as_ref(),
+                ) {
                     diags.push(d.to_output(file, &line_index));
                 }
             }
@@ -213,14 +232,23 @@ pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<Li
             // Share one lenient parse across the native + script walks.
             let mut d = match rsvelte_core::parse(source, lint_parse_options()) {
                 Ok(root) => {
-                    let mut d =
-                        run_native_rules_on_root(&root, source, &filename, config, Some(file));
+                    // Build the scope resolver once, share it across both passes.
+                    let resolver = maybe_scope_resolver(&root, source, config);
+                    let mut d = run_native_rules_on_root(
+                        &root,
+                        source,
+                        &filename,
+                        config,
+                        Some(file),
+                        resolver.as_ref(),
+                    );
                     d.extend(run_script_rules_on_root(
                         &root,
                         source,
                         &filename,
                         config,
                         Some(file),
+                        resolver.as_ref(),
                     ));
                     d
                 }

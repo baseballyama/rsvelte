@@ -29,6 +29,7 @@
 pub mod ast;
 pub mod compiler;
 pub mod error;
+pub mod lint_scope;
 pub mod svelte2tsx;
 #[cfg(feature = "native")]
 pub mod svelte_check;

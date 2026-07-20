@@ -29,6 +29,8 @@
 //! deliverable; porting the plugin's scope rules onto this is the validated next
 //! increment.
 
+use std::collections::HashSet;
+
 use rsvelte_core::ParseOptions;
 use rsvelte_core::compiler::CompileOptions;
 use rsvelte_core::compiler::ComponentAnalysis;
@@ -39,6 +41,71 @@ use crate::config::LintConfig;
 use crate::context::LintContext;
 use crate::diagnostic::LintDiagnostic;
 use crate::rule::{RuleMeta, Severity};
+
+/// Script-scope resolver for the native linter.
+///
+/// A name-based rule (`no-top-level-browser-globals`) cannot, on its own, tell
+/// a real browser global (`window`) from a local binding — a prop, import, or
+/// `let` named `open` / `top` / `name` / `status` — that merely shares a
+/// global's name. This resolver answers that by running oxc semantic analysis
+/// over the file's `<script>`(s) (via
+/// [`rsvelte_core::lint_scope::resolve_script_scope`]) and recording:
+///
+/// - the absolute byte spans of identifiers that are **not global references**
+///   (declarations + reads that resolve to a local) — for the script rule
+///   ([`is_script_local`](Self::is_script_local)); and
+/// - the set of **top-level binding names** (props / imports / top-level
+///   declarations) visible to the template — for the template rule
+///   ([`is_component_binding`](Self::is_component_binding)).
+///
+/// A rule then treats a matching browser-global name as a shadowed local and
+/// skips it — exactly what upstream's scope-based `ReferenceTracker` does by
+/// only iterating unresolved (global) references.
+///
+/// Both records are fail-safe: if a script can't be resolved they are empty,
+/// nothing is treated as a local, and the rule degrades to its old name-based
+/// behaviour rather than dropping real findings.
+///
+/// It is built once per file at the engine's shared-parse point and attached to
+/// the [`LintContext`], so every rule pass shares the single semantic build.
+#[derive(Default)]
+pub struct ScopeResolver {
+    /// Absolute byte spans of identifiers that are not global references
+    /// (declarations + resolved reads), across the file's script(s).
+    local_spans: HashSet<(u32, u32)>,
+    /// Names declared at the top level of the file's script(s) — the bindings a
+    /// template `{expr}` can read.
+    binding_names: HashSet<String>,
+}
+
+impl ScopeResolver {
+    /// Fold one script's scope facts into the resolver. `src` is the isolated
+    /// script body, `base` its absolute start offset in the file, and `is_ts`
+    /// its language (so TS scripts parse as TS).
+    pub fn add_script(&mut self, src: &str, base: u32, is_ts: bool) {
+        let scope = rsvelte_core::lint_scope::resolve_script_scope(src, is_ts);
+        for (s, e) in scope.non_global_spans {
+            self.local_spans.insert((s + base, e + base));
+        }
+        self.binding_names.extend(scope.root_binding_names);
+    }
+
+    /// Whether the identifier reference at absolute `[start, end)` is *not* a
+    /// global (a declaration or a read resolving to a local binding). `false`
+    /// for an unresolved global reference — and also `false` when the resolver
+    /// has no record of it, so a caller that skips only on `true` degrades
+    /// safely to name-based behaviour.
+    pub fn is_script_local(&self, start: u32, end: u32) -> bool {
+        self.local_spans.contains(&(start, end))
+    }
+
+    /// Whether `name` is declared at the top level of the component's
+    /// script(s) — i.e. a template `{name}` reads that binding rather than a
+    /// global of the same name.
+    pub fn is_component_binding(&self, name: &str) -> bool {
+        self.binding_names.contains(name)
+    }
+}
 
 /// A rule that inspects the component's bindings rather than the template tree.
 #[allow(unused_variables)]
