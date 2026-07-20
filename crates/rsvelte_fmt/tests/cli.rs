@@ -1356,6 +1356,104 @@ fn explicit_oxfmt_bin_overrides_sidecar() {
     );
 }
 
+/// `sortTailwindcss` with a stock `@import "tailwindcss";` stylesheet sorts the
+/// static `class` attribute natively.
+#[test]
+fn sort_tailwindcss_default_config_sorts_classes() {
+    let dir = tempdir();
+    std::fs::write(dir.join("app.css"), "@import \"tailwindcss\";\n").unwrap();
+    let cfg = dir.join(".oxfmtrc.json");
+    std::fs::write(
+        &cfg,
+        r#"{ "sortTailwindcss": { "stylesheet": "./app.css" } }"#,
+    )
+    .unwrap();
+
+    let (stdout, stderr, code) = run_stdin(
+        "<div class=\"p-4 m-2 flex\"></div>\n",
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            dir.join("x.svelte").to_str().unwrap(),
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "stderr: {stderr}");
+    assert!(
+        stdout.contains("class=\"m-2 flex p-4\""),
+        "classes should be sorted:\n{stdout}"
+    );
+    assert!(
+        !stderr.contains("warning"),
+        "no warning expected for a default setup:\n{stderr}"
+    );
+}
+
+/// A value with `{expr}` interpolation is not statically known, so it is left
+/// untouched even with sorting on.
+#[test]
+fn sort_tailwindcss_leaves_dynamic_class_untouched() {
+    let dir = tempdir();
+    std::fs::write(dir.join("app.css"), "@import \"tailwindcss\";\n").unwrap();
+    let cfg = dir.join(".oxfmtrc.json");
+    std::fs::write(&cfg, r#"{ "sortTailwindcss": true }"#).unwrap();
+
+    let (stdout, _stderr, code) = run_stdin(
+        "<div class=\"p-4 m-2 {x} flex\"></div>\n",
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            dir.join("x.svelte").to_str().unwrap(),
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0);
+    assert!(
+        stdout.contains("class=\"p-4 m-2 {x} flex\""),
+        "interpolated class value must be left as-is:\n{stdout}"
+    );
+}
+
+/// A custom stylesheet (here with a `@plugin`) is not reproducible natively, so
+/// the CLI warns and leaves classes unsorted.
+#[test]
+fn sort_tailwindcss_custom_config_warns_and_skips() {
+    let dir = tempdir();
+    std::fs::write(
+        dir.join("app.css"),
+        "@import \"tailwindcss\";\n@plugin \"@tailwindcss/typography\";\n",
+    )
+    .unwrap();
+    let cfg = dir.join(".oxfmtrc.json");
+    std::fs::write(
+        &cfg,
+        r#"{ "sortTailwindcss": { "stylesheet": "./app.css" } }"#,
+    )
+    .unwrap();
+
+    let (stdout, stderr, code) = run_stdin(
+        "<div class=\"p-4 m-2 flex\"></div>\n",
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            dir.join("x.svelte").to_str().unwrap(),
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0);
+    assert!(
+        stdout.contains("class=\"p-4 m-2 flex\""),
+        "classes must be left unsorted for a custom setup:\n{stdout}"
+    );
+    assert!(
+        stderr.contains("sortTailwindcss") && stderr.contains("left unapplied"),
+        "expected a skip warning:\n{stderr}"
+    );
+}
+
 fn tempdir() -> PathBuf {
     let mut dir = std::env::temp_dir();
     dir.push(format!(

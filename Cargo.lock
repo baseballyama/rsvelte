@@ -2435,6 +2435,7 @@ dependencies = [
  "rayon",
  "rsvelte_formatter",
  "serde_json",
+ "tailwind_class_order",
  "walkdir",
 ]
 

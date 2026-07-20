@@ -117,54 +117,59 @@ extracted from the shadcn-svelte, flowbite-svelte and bits-ui corpora:
 
 | metric | result |
 |---|---|
-| **list-level exact match** (whole attribute byte-identical) | **99.2%** (3,777 / 3,806) |
-| token position-level accuracy | 99.5% |
+| **list-level exact match** (whole attribute byte-identical) | **99.6%** (3,792 / 3,806) |
+| token position-level accuracy | 99.6% |
 
-This is after three fidelity passes over the initial 97.9% prototype:
+This is after five fidelity passes over the initial 97.9% prototype:
 
 | pass | what it added | list-level |
 |---|---|---:|
 | baseline | variant bitmask + base order + candidate compare | 97.9% |
 | Phase 1 | arbitrary properties via `GLOBAL_PROPERTY_ORDER` | 98.5% |
 | Phase 2 | color / non-color split for arbitrary values | 98.8% |
-| Phase 3 | within-family variant value ordering + container sizes | **99.2%** |
+| Phase 3 | within-family variant value ordering + container sizes | 99.2% |
+| Phase 4 | `(root, data-type)` anchors + data-type inference (`text-[10px]` = font-size) | 99.5% |
+| Phase 5 | unified variant compare + arbitrary-variant selector normalization | **99.6%** |
 
 A ~200-case subset of the matching corpus lines is committed as
 `tests/corpus_fixture.json` and asserted by `tests/corpus_parity.rs`, so parity
 is locked in-repo without the Node oracle.
 
-### What the remaining ~0.8% needs (the frontier)
+### What the remaining ~0.4% needs (the frontier)
+
+The 14 residual lists are all niche; none are the "impossible" (JS-config)
+barrier — a custom breakpoint like `3xl:` is treated as unknown by *both* this
+crate and the default-config engine, so those actually match.
 
 | cause | lists | portable? |
 |---|---:|---|
-| Arbitrary **value** under a multi-fingerprint root — the color split is not fine enough (`text-[10px]` font-size vs `text-align`, `bg` image/size/position) | 19 | Yes — needs a per-utility CSS-property signature (+ declaration count) and a port of Tailwind's data-type inference, so an arbitrary value joins its exact property cluster rather than just color/non-color. |
-| Stacked-variant value interaction and arbitrary-variant selector ordering (`[&_div>button]` vs `[&>div>div]`) | 9 | Yes — needs the full `Variants.compare` recursion (value order can cross a variant-count boundary; selectors are normalized). |
-| HTML-entity artifacts in source (`[&amp;_svg]`) | 1 | n/a — corpus quirk (the source ships an un-decoded entity). |
+| Arbitrary value on a **compound-root** functional utility (`grid-cols-[.75fr_1fr]`, `ring-offset-(--color)`) — `utility_root` uses only the first `-` segment, so `grid-cols` collapses into `grid` | ~6 | Yes — needs engine-derived compound roots (`grid-cols`, `grid-rows`, `ring-offset`, …). |
+| Arbitrary values whose data type this crate leaves unclassified (`content-['']` strings, grid track-lists) so they fall back to sibling placement | ~4 | Yes — extend the data-type inference / `(root, type)` probe set. |
+| A legacy alias absent from the sampled table (`flex-grow-1`) and two non-Tailwind literal words the corpus ships as class values | ~3 | Minor — table coverage / corpus quirks. |
+| HTML-entity artifact in source (`[&amp;_svg]`) | 1 | n/a — the source ships an un-decoded `&amp;`. |
 
-The color/non-color split (Phase 2) resolves the common multi-fingerprint case;
-the residue is finer intra-root fingerprints (font-size vs text-align, background
-image vs size vs position) that need real per-utility property signatures.
+## Roadmap to full default-config parity
 
-## Roadmap to a higher-fidelity default-config sorter
+Phases 1–5 above are **done** (97.9% → 99.6%). Remaining, to close the last 14:
 
-Phases 1–3 above are **done**. Remaining:
-
-1. **Per-utility property signatures**: generate `name → (property list, declaration
-   count)` for every utility (via `candidatesToCss`) and port Tailwind's
-   `infer-data-type.ts`, so an arbitrary value is placed by its exact emitted
-   property + declaration count rather than the color/non-color approximation.
-   ~1 day. Recovers most of the remaining ~19 arbitrary-value lists.
-2. **Full `Variants.compare`**: the current value ordering is faithful for a
-   single family; the recursion for stacked variants of mixed families and
-   normalized arbitrary selectors closes the last ~9 lists. ~1 day.
-3. **Wire into `rsvelte-fmt`**: back oxc's `TailwindCallback` with this crate when
-   the project uses a default config; keep the Node oracle as the fallback for
-   custom configs. Gated behind detecting a stock setup. Not started — deferred
-   until the fidelity is confirmed acceptable for wiring.
+1. **Compound functional roots**: derive the two-segment roots (`grid-cols`,
+   `ring-offset`, `inset-shadow`, …) from the engine so their arbitrary values
+   cluster correctly. Biggest remaining bucket.
+2. **Broaden data-type inference**: classify string / track-list values and add
+   their `(root, type)` anchors.
 
 Full parity for *arbitrary projects* remains out of scope by construction (see
 the first section); these steps raise fidelity for the **default-config** case
 that a large share of real projects — and every Tailwind playground — use.
+
+## rsvelte-fmt integration
+
+`@rsvelte/fmt`'s `sortTailwindcss` is backed by this crate. The CLI sorts
+natively only when it detects a stock, zero-config Tailwind v4 stylesheet
+(`@import "tailwindcss";` with no `@plugin` / `@utility` / `@custom-variant` /
+`@theme` / `@config` and no v3 `tailwind.config.js`); any custom setup warns and
+leaves classes unchanged, since its order depends on the JS engine. See
+`crates/rsvelte_fmt/src/tailwind.rs`.
 
 ## License
 

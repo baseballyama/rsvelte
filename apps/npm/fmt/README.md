@@ -125,11 +125,20 @@ The following `.oxfmtrc` keys also drive `.svelte` formatting, matching
 | `svelte.indentScriptAndStyle` | `true` | Indent the body of `<script>` / `<style>` one level under its tag; `false` keeps it flush |
 | `svelte.sortOrder` | `options-scripts-markup-styles` | Print order of the top-level sections (any permutation of `options`/`scripts`/`markup`/`styles`, or `none` to keep source order) |
 
-`sortTailwindcss` is **not** supported — its ordering depends on the project's
-Tailwind stylesheet, which `rsvelte-fmt` does not reimplement. When it is set,
-`rsvelte-fmt` prints a warning and leaves class names unchanged (rather than
-silently dropping the option); run `oxfmt` directly if you need Tailwind class
-sorting.
+`sortTailwindcss` sorts the classes in static `class` attributes (the value must
+be a plain string — values with `{expr}` interpolation are left untouched). It is
+supported **only for a stock, zero-config Tailwind v4 setup**: a stylesheet that
+is essentially `@import "tailwindcss";` with no `@plugin`, `@utility`,
+`@custom-variant`, `@theme`, or `@config`, and no v3 `tailwind.config.js`. That
+is the one case a pure-Rust sorter reproduces byte-for-byte, because Tailwind's
+order otherwise depends on the project's compiled CSS (which needs the JS engine).
+
+`rsvelte-fmt` resolves the stylesheet from `sortTailwindcss.stylesheet` (or a
+conventional entry like `src/app.css`) and inspects it. If it is a default setup,
+classes are sorted natively; otherwise `rsvelte-fmt` prints a warning naming the
+reason and leaves class names unchanged — run `oxfmt` directly for a custom
+Tailwind config. The `attributes` option is honored (default `["class"]`);
+`functions` (e.g. `cn(...)`) are not, since those wrap non-static expressions.
 
 ## CLI flags
 

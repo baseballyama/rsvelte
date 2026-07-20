@@ -1840,6 +1840,20 @@ fn render_attribute_node(
             )
         }
         AttributeValue::Sequence(parts) => {
+            // Tailwind class sort: a fully static value (no `{expr}`) of a
+            // configured class attribute is reordered before printing. Values
+            // with interpolation are left to the normal path — their class list
+            // isn't statically known.
+            if let Some(sorter) = &options.class_sorter
+                && options
+                    .class_attributes
+                    .iter()
+                    .any(|a| a == node.name.as_str())
+                && let Some(raw) = static_attribute_text(parts)
+            {
+                return Ok(format!("{}=\"{}\"", node.name, sorter(&raw)));
+            }
+
             // Columns before the value body on the first line: `name="`.
             let name_prefix = visual_width(node.name.as_str()) + 2;
             let body = render_attribute_value_sequence(
@@ -1853,6 +1867,19 @@ fn render_attribute_node(
             Ok(format!("{}=\"{}\"", node.name, body))
         }
     }
+}
+
+/// The raw text of a fully static attribute value (every part is literal text,
+/// no `{expr}`), or `None` if it contains interpolation.
+fn static_attribute_text(parts: &[AttributeValuePart]) -> Option<String> {
+    let mut out = String::new();
+    for part in parts {
+        match part {
+            AttributeValuePart::Text(t) => out.push_str(t.raw.as_str()),
+            AttributeValuePart::ExpressionTag(_) => return None,
+        }
+    }
+    Some(out)
 }
 
 fn render_attribute_value_for_directive(

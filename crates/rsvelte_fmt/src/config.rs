@@ -71,11 +71,12 @@ pub struct OxfmtConfig {
     /// The raw `sortImports` value (`true` / `false` / an object). Built into
     /// [`SortImportsOptions`] by [`OxfmtConfig::sort_imports_options`].
     pub sort_imports: Option<serde_json::Value>,
-    /// Whether `sortTailwindcss` was set. rsvelte-fmt cannot reproduce the
-    /// tailwind class ordering faithfully (it depends on the project's tailwind
-    /// stylesheet/config), so the CLI emits a warning when this is present
-    /// rather than silently dropping it.
-    pub sort_tailwindcss: bool,
+    /// The raw `sortTailwindcss` value (`true` / an object with
+    /// `stylesheet` / `config` / `attributes` / `functions`). rsvelte-fmt can
+    /// reproduce the ordering natively only for a stock, zero-config Tailwind
+    /// setup (see the CLI's default-config detection); for a custom
+    /// stylesheet/config it warns and leaves classes unsorted.
+    pub sort_tailwindcss: Option<serde_json::Value>,
 }
 
 /// One `.oxfmtrc` `overrides` entry: globs + the option subset they apply.
@@ -332,7 +333,7 @@ fn parse_object(map: &serde_json::Map<String, serde_json::Value>) -> OxfmtConfig
         _ => None,
     };
 
-    cfg.sort_tailwindcss = map.contains_key("sortTailwindcss");
+    cfg.sort_tailwindcss = map.get("sortTailwindcss").cloned();
 
     cfg.ignore_patterns = map
         .get("ignorePatterns")
@@ -605,8 +606,8 @@ mod tests {
     #[test]
     fn sort_tailwindcss_presence_is_tracked() {
         let cfg = parse(r#"{ "sortTailwindcss": { "functions": ["cn"] } }"#);
-        assert!(cfg.sort_tailwindcss);
+        assert!(cfg.sort_tailwindcss.is_some());
         let cfg2 = parse(r#"{ "singleQuote": true }"#);
-        assert!(!cfg2.sort_tailwindcss);
+        assert!(cfg2.sort_tailwindcss.is_none());
     }
 }

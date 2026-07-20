@@ -60,7 +60,26 @@ pub struct FormatOptions {
     /// multi-line open tag is kept on the same line as the last attribute
     /// instead of dropping to its own line. Default `false`.
     pub bracket_same_line: bool,
+
+    /// Optional Tailwind class sorter (oxfmt's `sortTailwindcss`). When set, the
+    /// value of every **static** attribute named in [`Self::class_attributes`]
+    /// is passed through this callback (a space-separated class list in, sorted
+    /// list out). Values containing `{expr}` interpolation are left untouched.
+    ///
+    /// The `rsvelte-fmt` CLI only wires this up when the project is detected to
+    /// use a stock, zero-config Tailwind setup — the one case a pure-Rust sorter
+    /// can reproduce byte-for-byte (see the CLI's default-config detection).
+    pub class_sorter: Option<ClassSorter>,
+
+    /// Attribute names whose static value [`Self::class_sorter`] sorts. Empty by
+    /// default; the CLI sets it from `sortTailwindcss.attributes` (default
+    /// `["class"]`).
+    pub class_attributes: Vec<String>,
 }
+
+/// Callback that sorts a space-separated class attribute value. See
+/// [`FormatOptions::class_sorter`].
+pub type ClassSorter = Arc<dyn Fn(&str) -> String + Send + Sync + 'static>;
 
 /// Callback used to format the body of a `<style>` block: `(css, lang, width)`.
 /// `width` is the print width the CSS should be formatted at — the global print
@@ -81,6 +100,8 @@ impl FormatOptions {
             indent_script_and_style: true,
             sort_order: crate::sort_order::SortOrderSpec::default(),
             bracket_same_line: false,
+            class_sorter: None,
+            class_attributes: Vec::new(),
         }
     }
 
@@ -111,6 +132,11 @@ impl std::fmt::Debug for FormatOptions {
             .field("indent_script_and_style", &self.indent_script_and_style)
             .field("sort_order", &self.sort_order)
             .field("bracket_same_line", &self.bracket_same_line)
+            .field(
+                "class_sorter",
+                &self.class_sorter.as_ref().map(|_| "<callback>"),
+            )
+            .field("class_attributes", &self.class_attributes)
             .finish()
     }
 }
