@@ -5417,6 +5417,13 @@ fn text_preceded_by_close_tag(out: &str, text_start: usize) -> bool {
     if !before.ends_with('>') {
         return false;
     }
+    // A self-closing tag (`<Code … />`) is a preceding SIBLING, so — like a close
+    // tag — the text after it is not the parent's first child and prettier does
+    // NOT trim its leading whitespace. `splitTextToDocs` then keeps the leading
+    // linebreak as a hardline (Case B).
+    if before.ends_with("/>") {
+        return true;
+    }
     // Search backwards (at most 512 bytes) for the matching `<`.
     // Ensure search_start is on a valid UTF-8 char boundary.
     let mut search_start = before.len().saturating_sub(512);
@@ -6481,6 +6488,30 @@ mod tests {
     fn fragment_has_prose_word_empty_fragment() {
         let fragment = make_empty_fragment();
         assert!(!fragment_has_prose_word(&fragment));
+    }
+
+    #[test]
+    fn text_after_self_closing_tag_is_not_first_child() {
+        // A text node after a self-closing sibling (`<Code … />`) is not the
+        // parent's first child, so prettier does not trim its leading linebreak —
+        // `splitTextToDocs` keeps the leading hardline (the inverted, last-word-
+        // overflow-tolerant fill). The gate must recognise the `/>` prefix.
+        let out = "<Code />\nThen add";
+        assert!(text_preceded_by_close_tag(out, 8));
+    }
+
+    #[test]
+    fn text_after_close_tag_is_not_first_child() {
+        let out = "</code>\ntext";
+        assert!(text_preceded_by_close_tag(out, 7));
+    }
+
+    #[test]
+    fn text_after_open_tag_is_first_child() {
+        // First child of `<p>` — prettier trims the leading whitespace, so this
+        // must NOT take the inverted-fill (Case B) path.
+        let out = "<p>\ntext";
+        assert!(!text_preceded_by_close_tag(out, 3));
     }
 
     #[test]
