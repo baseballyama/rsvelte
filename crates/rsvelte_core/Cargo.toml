@@ -214,11 +214,8 @@ harness = false
 name = "compiler"
 harness = false
 
-# wasm-opt (Binaryen) is the single largest WASM size win (≈15–40%). `-Oz`
-# optimizes the produced `.wasm` for size; this only affects the wasm-pack
-# release build shipped as @rsvelte/compiler, not native artifacts.
-[package.metadata.wasm-pack.profile.release]
-wasm-opt = ['-Oz']
+# wasm-pack reads `package.metadata.wasm-pack` only from the crate passed to
+# `wasm-pack build`, so the wasm-opt config lives in rsvelte_lint / rsvelte_fmt_wasm.
 
 [lints]
 workspace = true
