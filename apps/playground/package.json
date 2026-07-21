@@ -18,7 +18,7 @@
 	},
 	"dependencies": {
 		"@monaco-editor/loader": "^1.7.0",
-		"monaco-editor": "^0.55.1"
+		"monaco-editor": "^0.56.0"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-static": "^3.0.8",
