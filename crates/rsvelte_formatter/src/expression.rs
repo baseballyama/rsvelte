@@ -2029,6 +2029,33 @@ pub(crate) fn format_attribute_value_expression(
     format_expr_core(expr_source, options, line_width, false)
 }
 
+/// Format an attribute / directive value expression at an explicit print
+/// `width` (in columns), formatted at column 0 (no reindent). Used by the
+/// whole-value Doc model (`crate::markup`) to produce an interpolation's `flat`
+/// form (at the widest line OXC allows) and its `broken` form (at the width
+/// that forces the break the enclosing group already decided on).
+pub(crate) fn format_attribute_value_expression_at_width(
+    expr_source: &str,
+    options: &FormatOptions,
+    width: usize,
+) -> Result<String, FormatError> {
+    let lw = oxc_formatter_core::LineWidth::try_from(width.max(1) as u16)
+        .unwrap_or(options.js.line_width);
+    format_expr_core(expr_source, options, lw, false)
+}
+
+/// Format an attribute / directive value expression onto a single line,
+/// regardless of length — the `RawExpr` flat variant for the whole-value Doc
+/// model. Formats at the widest line OXC allows so a long ternary / member
+/// chain does not split.
+pub(crate) fn format_attribute_value_expression_flat(
+    expr_source: &str,
+    options: &FormatOptions,
+) -> Result<String, FormatError> {
+    let wide = oxc_formatter_core::LineWidth::MAX as usize;
+    format_attribute_value_expression_at_width(expr_source, options, wide)
+}
+
 /// Format a block-header expression (`{#if cond}`, `{#each items …}`) onto a
 /// single line. prettier-plugin-svelte never breaks a block tag's expression
 /// across lines regardless of width, so format at the widest line the

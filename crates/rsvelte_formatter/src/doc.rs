@@ -75,9 +75,37 @@ pub(crate) fn print(
     base_indent: usize,
     start_col: usize,
 ) -> String {
+    print_with_root_mode(doc, width, unit, base_indent, start_col, Mode::Break)
+}
+
+/// Like [`print`] but starts the root command in `Flat` mode. Used by the
+/// whole-value attribute Doc (`crate::markup`): the value has no enclosing
+/// breaking group, so its literal chunks and inter-chunk whitespace must be
+/// measured/printed flat (a trailing `fill` separator does not short-circuit an
+/// interpolation group's `fits` look-ahead through the value's tail). Inner
+/// `Group`s (interpolations) still measure and break independently, and inner
+/// `Fill`s still break locally — both ignore the root mode.
+pub(crate) fn print_flat_root(
+    doc: Doc,
+    width: usize,
+    unit: &str,
+    base_indent: usize,
+    start_col: usize,
+) -> String {
+    print_with_root_mode(doc, width, unit, base_indent, start_col, Mode::Flat)
+}
+
+fn print_with_root_mode(
+    doc: Doc,
+    width: usize,
+    unit: &str,
+    base_indent: usize,
+    start_col: usize,
+    root_mode: Mode,
+) -> String {
     let mut out = String::new();
     let mut pos = start_col;
-    let mut cmds: Vec<(usize, Mode, Doc)> = vec![(base_indent, Mode::Break, doc)];
+    let mut cmds: Vec<(usize, Mode, Doc)> = vec![(base_indent, root_mode, doc)];
 
     while let Some((ind, mode, d)) = cmds.pop() {
         match d {
