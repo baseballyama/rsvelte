@@ -36,6 +36,10 @@ export interface BenchmarkResults extends BenchmarkTaskResults {
 	// Optional — older JSON files don't have this field.
 	runner?: RunnerInfo;
 	testFilesCount: number;
+	// Corpus files dropped because the official compiler rejects them — the
+	// Svelte test suite ships deliberate error cases. Optional: older JSON
+	// snapshots predate the filter and measured the unfiltered corpus.
+	excludedFilesCount?: number;
 	// The top-level `BenchmarkTaskResults` fields are the client/CSR compile.
 	// `compileServer` is the SSR compile. Optional — older JSON snapshots
 	// predate the SSR task.
