@@ -27,6 +27,7 @@ mod daemon;
 mod oxfmt_ignore;
 mod style_cache;
 mod tailwind;
+mod ts_config;
 use config::OxfmtConfig;
 use style_cache::StyleCache;
 
@@ -324,7 +325,7 @@ fn run() -> Result<ExitCode> {
         .filter(|_| cli.stdin)
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| cwd.clone());
-    let cfg = OxfmtConfig::resolve(cli.config.as_deref(), &config_start);
+    let cfg = OxfmtConfig::resolve(cli.config.as_deref(), &config_start).map_err(|e| anyhow!(e))?;
 
     let options = build_format_options(&cli, &cfg);
 
@@ -555,7 +556,7 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> FormatOptions {
     // by default (same engine as `oxfmt`, no subprocess). `--no-native-css`
     // reverts to spawning `oxfmt`, which the batched Svelte pipeline drives.
     let style_formatter = if cli.no_native_css {
-        make_oxfmt_style_formatter(cli.oxfmt_bin.clone(), cfg.path.clone())
+        make_oxfmt_style_formatter(cli.oxfmt_bin.clone(), cfg.oxfmt_arg_path.clone())
     } else {
         rsvelte_formatter::native_style_formatter(build_css_options(cli, cfg))
     };
@@ -781,7 +782,7 @@ fn run_stdin(cli: &Cli, options: &FormatOptions, cfg: &OxfmtConfig) -> Result<Ex
             }
             Err(_) => oxfmt_stdin(
                 &cli.oxfmt_bin,
-                cfg.path.as_deref(),
+                cfg.oxfmt_arg_path.as_deref(),
                 filepath,
                 &source,
                 cli.check,
@@ -791,7 +792,7 @@ fn run_stdin(cli: &Cli, options: &FormatOptions, cfg: &OxfmtConfig) -> Result<Ex
         // Pass through to oxfmt via stdin.
         oxfmt_stdin(
             &cli.oxfmt_bin,
-            cfg.path.as_deref(),
+            cfg.oxfmt_arg_path.as_deref(),
             filepath,
             &source,
             cli.check,
@@ -1154,13 +1155,18 @@ fn run_svelte_files(
     // dominant cost on a real tree (#703). Only cache misses are sent to the
     // single batched oxfmt call; freshly-formatted misses are then stored.
     let cache = if use_style_cache && !slot_css.is_empty() {
-        StyleCache::new(oxfmt, cfg.path.as_deref())
+        StyleCache::new(oxfmt, cfg.oxfmt_arg_path.as_deref())
     } else {
         None
     };
 
-    let formatted_css = format_styles_cached(oxfmt, cfg.path.as_deref(), &slot_css, cache.as_ref())
-        .context("formatting <style> blocks via oxfmt")?;
+    let formatted_css = format_styles_cached(
+        oxfmt,
+        cfg.oxfmt_arg_path.as_deref(),
+        &slot_css,
+        cache.as_ref(),
+    )
+    .context("formatting <style> blocks via oxfmt")?;
 
     // file_idx → (local_idx → formatted css)
     let mut per_file: Vec<Vec<String>> = vec![Vec::new(); pass1.len()];

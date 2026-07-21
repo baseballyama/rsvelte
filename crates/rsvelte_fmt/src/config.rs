@@ -1,5 +1,6 @@
-//! Resolve the project's oxfmt config (`.oxfmtrc.json` / `.oxfmtrc.jsonc`) and
-//! apply it to the inline `<script>` / `<style>` formatting paths.
+//! Resolve the project's oxfmt config (`.oxfmtrc.json` / `.oxfmtrc.jsonc` /
+//! `oxfmt.config.ts` / `oxfmt.config.mts`) and apply it to the inline
+//! `<script>` / `<style>` formatting paths.
 //!
 //! Standalone files delegated to `oxfmt` already discover `.oxfmtrc` from the
 //! working directory, but inline `<script>` blocks are formatted in-process by
@@ -12,9 +13,13 @@
 //! nearest config file (the same place oxfmt looks for `--stdin-filepath`),
 //! parse the keys `oxc_formatter` can honor, and layer them onto the JS options
 //! used for inline `<script>`. The resolved path is also handed to every child
-//! `oxfmt` invocation via `-c` so inline `<style>` blocks use it too.
+//! `oxfmt` invocation via `-c` so inline `<style>` blocks use it too — except a
+//! TS config, where [`OxfmtConfig::oxfmt_arg_path`] hands over a materialized
+//! `.oxfmtrc.json` instead, since the pure-Rust `oxfmt` CLI can't evaluate
+//! `.ts`/`.mts` itself (see [`crate::ts_config`]).
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use oxc_formatter::{
     ArrowParentheses, JsFormatOptions, QuoteProperties, QuoteStyle, Semicolons, SortImportsOptions,
@@ -22,18 +27,41 @@ use oxc_formatter::{
 };
 use oxc_formatter_core::{IndentStyle, IndentWidth, LineEnding, LineWidth};
 
-/// Config file names oxfmt recognises, in the order it prefers them.
-const CONFIG_NAMES: &[&str] = &[".oxfmtrc.json", ".oxfmtrc.jsonc"];
+use crate::ts_config;
+
+/// Config file names oxfmt recognises, in the order it prefers them:
+/// JSON, then JSONC, then the JS/TS names (mirrors oxc_config's
+/// `ConfigDiscovery::config_file_names` — `apps/oxfmt/src/core/config/mod.rs`
+/// upstream). A directory holding more than one of these is a conflict oxfmt
+/// itself refuses to resolve; we mirror that by erroring instead of silently
+/// picking one (see [`find_upward`]).
+const CONFIG_NAMES: &[&str] = &[
+    ".oxfmtrc.json",
+    ".oxfmtrc.jsonc",
+    "oxfmt.config.ts",
+    "oxfmt.config.mts",
+];
 
 /// The subset of `.oxfmtrc` keys that affect JS/TS formatting and that
 /// `oxc_formatter` can honor. Every field is `Option` so an absent key leaves
 /// the corresponding `JsFormatOptions` value untouched.
 #[derive(Debug, Default, Clone)]
 pub struct OxfmtConfig {
-    /// Path the config was read from. Passed to child `oxfmt` invocations via
-    /// `-c` so inline `<style>` blocks (staged in a temp dir, out of reach of
-    /// oxfmt's own cwd-based discovery) pick up the same settings.
+    /// Path the config was read from — a `.oxfmtrc.json`/`.jsonc`,
+    /// `oxfmt.config.ts`/`.mts`, or an explicit `--config` path. Used as the
+    /// directory basis for resolving `ignorePatterns` / `overrides` globs and
+    /// Tailwind's `sortTailwindcss` base dir ([`Self::config_dir`]), and for
+    /// cheap "did the config change" checks. **Not** what gets forwarded to
+    /// child `oxfmt` invocations — use [`Self::oxfmt_arg_path`] for that.
     pub path: Option<PathBuf>,
+    /// The path to force via child `oxfmt` invocations' `-c` flag. Equal to
+    /// [`Self::path`] for a JSON/JSONC config; for a TS/MTS config it is a
+    /// temp file holding the statically-evaluated config serialized as JSON,
+    /// because the pure-Rust `oxfmt` CLI errors on a `.ts`/`.mts` `-c` path
+    /// (it has no embedded JS runtime to evaluate one — see
+    /// [`crate::ts_config`]). Materializing it once here means rsvelte's own
+    /// evaluation and oxfmt's own semantics can never disagree.
+    pub oxfmt_arg_path: Option<PathBuf>,
     pub single_quote: Option<bool>,
     pub semi: Option<bool>,
     pub trailing_comma: Option<TrailingCommas>,
@@ -93,28 +121,72 @@ impl OxfmtConfig {
     /// nearest config file searching upward from `start` (the working
     /// directory). Returns an empty config (everything `None`) when no file is
     /// found, so callers can apply it unconditionally.
-    pub fn resolve(explicit: Option<&Path>, start: &Path) -> Self {
+    ///
+    /// Errors only for a TS/MTS config (unreadable, unparsable, or containing
+    /// a dynamic expression the static evaluator can't run — see
+    /// [`crate::ts_config`]) or a directory holding more than one recognised
+    /// config file. A JSON/JSONC config keeps the historical "best effort"
+    /// policy: a read failure warns and falls back to defaults rather than
+    /// aborting the whole run.
+    pub fn resolve(explicit: Option<&Path>, start: &Path) -> Result<Self, String> {
         let path = match explicit {
             Some(p) => Some(p.to_path_buf()),
-            None => find_upward(start),
+            None => find_upward(start)?,
         };
         let Some(path) = path else {
-            return Self::default();
+            return Ok(Self::default());
         };
+
+        if ts_config::is_ts_config_path(&path) {
+            return Self::resolve_ts(path);
+        }
+
         match std::fs::read_to_string(&path) {
             Ok(src) => {
                 let mut cfg = parse(&src);
+                cfg.oxfmt_arg_path = Some(path.clone());
                 cfg.path = Some(path);
-                cfg
+                Ok(cfg)
             }
             Err(e) => {
                 eprintln!(
                     "rsvelte-fmt: warning: could not read config {}: {e}",
                     path.display()
                 );
-                Self::default()
+                Ok(Self::default())
             }
         }
+    }
+
+    /// Load and statically evaluate an `oxfmt.config.ts`/`.mts` file: read +
+    /// parse + evaluate to JSON ([`crate::ts_config::evaluate`]), map the
+    /// result onto the same option struct a `.oxfmtrc.json` would produce via
+    /// [`parse_object`], and materialize the evaluated value into a temp
+    /// `.oxfmtrc.json` for [`Self::oxfmt_arg_path`] — child `oxfmt`
+    /// invocations can't evaluate `.ts`/`.mts` themselves. Unlike JSON's
+    /// read-failure fallback to defaults, any failure here (I/O, parse, or an
+    /// unsupported dynamic expression) is a hard error: choosing a TS config
+    /// is deliberate, so silently dropping it would be worse than failing.
+    fn resolve_ts(path: PathBuf) -> Result<Self, String> {
+        let src = std::fs::read_to_string(&path)
+            .map_err(|e| format!("could not read config {}: {e}", path.display()))?;
+        let value = ts_config::evaluate(&src, &path)?;
+        let serde_json::Value::Object(ref map) = value else {
+            return Err(format!(
+                "{}: the default export must be an object",
+                path.display()
+            ));
+        };
+        let mut cfg = parse_object(map);
+        let json = serde_json::to_vec(&value).map_err(|e| {
+            format!(
+                "{}: failed to serialize the evaluated config: {e}",
+                path.display()
+            )
+        })?;
+        cfg.oxfmt_arg_path = Some(materialize_json_config(&json)?);
+        cfg.path = Some(path);
+        Ok(cfg)
     }
 
     /// Layer the config's JS-affecting keys onto `js`. Indent / line-width are
@@ -232,22 +304,59 @@ impl OxfmtConfig {
 /// Search `start` and each ancestor directory for the first recognised config
 /// file. `start` may be a file or a directory; only directory components are
 /// inspected.
-fn find_upward(start: &Path) -> Option<PathBuf> {
+///
+/// Mirrors oxfmt's own `ConfigDiscovery`: a single directory holding more
+/// than one recognised config file (e.g. both `.oxfmtrc.json` and
+/// `oxfmt.config.ts`) is a conflict oxfmt refuses to resolve — see
+/// `crates/oxc_config/src/discovery.rs`'s `ConfigConflict` upstream — so we
+/// error the same way instead of silently picking one by `CONFIG_NAMES`
+/// order. A directory with exactly one match still wins over its ancestors,
+/// regardless of which name matched.
+fn find_upward(start: &Path) -> Result<Option<PathBuf>, String> {
     let mut dir: Option<&Path> = if start.is_dir() {
         Some(start)
     } else {
         start.parent()
     };
     while let Some(d) = dir {
-        for name in CONFIG_NAMES {
-            let candidate = d.join(name);
-            if candidate.is_file() {
-                return Some(candidate);
+        let found: Vec<&str> = CONFIG_NAMES
+            .iter()
+            .copied()
+            .filter(|name| d.join(name).is_file())
+            .collect();
+        match found.as_slice() {
+            [] => {}
+            [name] => return Ok(Some(d.join(name))),
+            multiple => {
+                return Err(format!(
+                    "multiple oxfmt config files found in {}: {}. Only one is allowed per \
+                     directory — delete one of them.",
+                    d.display(),
+                    multiple.join(", ")
+                ));
             }
         }
         dir = d.parent();
     }
-    None
+    Ok(None)
+}
+
+/// Write a statically-evaluated TS config's JSON bytes to a temp file, so it
+/// can be forced onto child `oxfmt` invocations via `-c` at the same
+/// semantics rsvelte-fmt itself resolved (see [`OxfmtConfig::resolve_ts`] and
+/// [`OxfmtConfig::oxfmt_arg_path`]). The filename is unique per call (not just
+/// per-process) so concurrent resolutions in one process — as in the test
+/// suite, which runs tests in threads sharing a pid — never collide.
+fn materialize_json_config(json: &[u8]) -> Result<PathBuf, String> {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let id = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("rsvelte-fmt-config-{}-{id}", std::process::id()));
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("failed to create temp config dir {}: {e}", dir.display()))?;
+    let path = dir.join(".oxfmtrc.json");
+    std::fs::write(&path, json)
+        .map_err(|e| format!("failed to write temp config {}: {e}", path.display()))?;
+    Ok(path)
 }
 
 /// Parse an `.oxfmtrc` document (JSON or JSONC) into an [`OxfmtConfig`].
@@ -609,5 +718,136 @@ mod tests {
         assert!(cfg.sort_tailwindcss.is_some());
         let cfg2 = parse(r#"{ "singleQuote": true }"#);
         assert!(cfg2.sort_tailwindcss.is_none());
+    }
+
+    fn workspace(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "rsvelte_fmt_config_{tag}_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos(),
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn resolve_discovers_oxfmt_config_ts() {
+        let dir = workspace("ts_discover");
+        std::fs::write(
+            dir.join("oxfmt.config.ts"),
+            "export default { singleQuote: true, printWidth: 100 };",
+        )
+        .unwrap();
+
+        let cfg = OxfmtConfig::resolve(None, &dir).expect("resolves");
+        assert_eq!(cfg.single_quote, Some(true));
+        assert_eq!(cfg.print_width, Some(100));
+        assert_eq!(
+            cfg.path.as_deref(),
+            Some(dir.join("oxfmt.config.ts").as_path())
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn resolve_discovers_oxfmt_config_mts() {
+        let dir = workspace("mts_discover");
+        std::fs::write(
+            dir.join("oxfmt.config.mts"),
+            "export default { semi: false };",
+        )
+        .unwrap();
+
+        let cfg = OxfmtConfig::resolve(None, &dir).expect("resolves");
+        assert_eq!(cfg.semi, Some(false));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn resolve_ts_config_materializes_a_json_arg_path_distinct_from_the_source() {
+        let dir = workspace("ts_materialize");
+        std::fs::write(
+            dir.join("oxfmt.config.ts"),
+            "export default { singleQuote: true, sortTailwindcss: { functions: [\"cn\"] } };",
+        )
+        .unwrap();
+
+        let cfg = OxfmtConfig::resolve(None, &dir).expect("resolves");
+        let arg_path = cfg.oxfmt_arg_path.as_deref().expect("arg path set");
+        // The path forced onto child `oxfmt` invocations must not be the
+        // `.ts` source itself (the pure-Rust CLI can't evaluate TS) — it must
+        // be a materialized JSON file carrying the same evaluated config.
+        assert_ne!(arg_path, cfg.path.as_deref().unwrap());
+        assert_eq!(arg_path.extension().and_then(|e| e.to_str()), Some("json"));
+        let materialized: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(arg_path).unwrap()).unwrap();
+        assert_eq!(materialized["singleQuote"], serde_json::json!(true));
+        assert_eq!(
+            materialized["sortTailwindcss"]["functions"],
+            serde_json::json!(["cn"])
+        );
+        // `config_dir()` (ignorePatterns / overrides / tailwind base dir) must
+        // stay at the original `oxfmt.config.ts` directory, not the temp dir
+        // the materialized JSON lives in.
+        assert_eq!(cfg.config_dir(), Some(dir.as_path()));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn resolve_json_config_keeps_arg_path_equal_to_source_path() {
+        let dir = workspace("json_arg_path");
+        let path = dir.join(".oxfmtrc.json");
+        std::fs::write(&path, r#"{ "singleQuote": true }"#).unwrap();
+
+        let cfg = OxfmtConfig::resolve(None, &dir).expect("resolves");
+        assert_eq!(cfg.oxfmt_arg_path.as_deref(), Some(path.as_path()));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn resolve_errors_on_conflicting_config_files_in_the_same_directory() {
+        let dir = workspace("conflict");
+        std::fs::write(dir.join(".oxfmtrc.json"), r#"{ "singleQuote": true }"#).unwrap();
+        std::fs::write(
+            dir.join("oxfmt.config.ts"),
+            "export default { semi: true };",
+        )
+        .unwrap();
+
+        let err = OxfmtConfig::resolve(None, &dir).unwrap_err();
+        assert!(
+            err.contains("Multiple") || err.contains("multiple"),
+            "{err}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn resolve_propagates_a_dynamic_ts_config_as_a_hard_error() {
+        let dir = workspace("ts_dynamic_error");
+        std::fs::write(
+            dir.join("oxfmt.config.ts"),
+            "export default { printWidth: computeWidth() };",
+        )
+        .unwrap();
+
+        let err = OxfmtConfig::resolve(None, &dir).unwrap_err();
+        assert!(err.contains("statically"), "{err}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn resolve_explicit_config_flag_accepts_a_ts_path() {
+        let dir = workspace("ts_explicit");
+        let path = dir.join("custom.oxfmt.config.ts");
+        std::fs::write(&path, "export default { printWidth: 60 };").unwrap();
+
+        let cfg = OxfmtConfig::resolve(Some(&path), &dir).expect("resolves");
+        assert_eq!(cfg.print_width, Some(60));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
