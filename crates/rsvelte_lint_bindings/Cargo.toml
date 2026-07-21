@@ -26,6 +26,10 @@ crate-type = ["cdylib"]
 test = false
 doctest = false
 bench = false
+# The shared `name = "rsvelte_lint"` would make `cargo doc` emit this crate's
+# rustdoc to the same path as the `rsvelte_lint` rlib's docs (a hard error).
+# This is a thin binding wrapper with no docs worth publishing, so opt it out.
+doc = false
 
 [features]
 # Browser build (playground): the rule engine plus rsvelte_core's compiler +
