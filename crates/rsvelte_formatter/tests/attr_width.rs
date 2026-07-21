@@ -142,7 +142,9 @@ fn multi_breakable_value_breaks_first_when_later_cannot_absorb() {
     let out = fmt80(src);
     assert!(
         out.contains("class=\"lc-vector {isFilled\n")
-            && out.contains("\n    : 'lc-vector-stroked'} {typeof className === 'string' ? className : ''}\""),
+            && out.contains(
+                "\n    : 'lc-vector-stroked'} {typeof className === 'string' ? className : ''}\""
+            ),
         "first breakable ternary should break, second stays flat:\n{out}"
     );
     let twice = fmt80(&out);
