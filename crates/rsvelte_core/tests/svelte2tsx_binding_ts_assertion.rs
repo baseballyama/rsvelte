@@ -110,3 +110,39 @@ fn nested_assertion_only_outermost_is_stripped() {
         "only the outermost assertion should be stripped:\n{out}"
     );
 }
+
+// ── follow-up: prefix `<T>x` cast and `f<T>` instantiation binding targets ──
+// Both compile as valid Svelte bindings; the assertion/type-args must be
+// stripped from the setter LHS, not just trailing postfix forms.
+
+#[test]
+fn element_binding_type_assertion_prefix_strips_from_setter() {
+    let out = to_tsx(
+        "<script lang=\"ts\">let x = 0;</script>\
+         <input bind:value={<number>x} />",
+    );
+    assert!(
+        out.contains("() => x = __sveltets_2_any(null)"),
+        "setter should strip the leading `<number>` cast (bare `x`):\n{out}"
+    );
+    assert!(
+        !out.contains("<number>x = __sveltets_2_any(null)"),
+        "prefix cast leaked into the setter LHS:\n{out}"
+    );
+}
+
+#[test]
+fn element_binding_instantiation_strips_from_setter() {
+    let out = to_tsx(
+        "<script lang=\"ts\">let f: any;</script>\
+         <input bind:value={f<number>} />",
+    );
+    assert!(
+        out.contains("() => f = __sveltets_2_any(null)"),
+        "setter should strip the trailing `<number>` type args (bare `f`):\n{out}"
+    );
+    assert!(
+        !out.contains("f<number> = __sveltets_2_any(null)"),
+        "instantiation type args leaked into the setter LHS:\n{out}"
+    );
+}

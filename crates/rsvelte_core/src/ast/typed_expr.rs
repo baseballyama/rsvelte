@@ -680,6 +680,24 @@ pub enum JsNode {
         loc: Option<Box<Loc>>,
         expression: JsNodeId,
     },
+    // Old-style cast `<T>x`. svelte/compiler serializes `typeAnnotation` BEFORE
+    // `expression` (see the Serialize impl).
+    TSTypeAssertion {
+        start: u32,
+        end: u32,
+        loc: Option<Box<Loc>>,
+        expression: JsNodeId,
+        type_annotation: Box<Value>,
+    },
+    // Explicit type-argument instantiation `f<T>`. Carries `type_arguments`
+    // (a `TSTypeParameterInstantiation` type node) rather than a single type.
+    TSInstantiationExpression {
+        start: u32,
+        end: u32,
+        loc: Option<Box<Loc>>,
+        expression: JsNodeId,
+        type_arguments: Box<Value>,
+    },
     // Comment (used in Program.comments array, type is "Line" or "Block")
     Comment {
         start: u32,
@@ -2126,6 +2144,41 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
+            JsNode::TSTypeAssertion {
+                start,
+                end,
+                loc,
+                expression,
+                type_annotation,
+            } => {
+                let mut map = serializer.serialize_map(None)?;
+                map.serialize_entry("type", "TSTypeAssertion")?;
+                map.serialize_entry("start", start)?;
+                map.serialize_entry("end", end)?;
+                ser_loc!(map, loc);
+                // svelte/compiler emits `typeAnnotation` before `expression` here.
+                map.serialize_entry("typeAnnotation", type_annotation.as_ref())?;
+                ser_node!(map, "expression", expression);
+                ser_comments!(map, *start, *end);
+                map.end()
+            }
+            JsNode::TSInstantiationExpression {
+                start,
+                end,
+                loc,
+                expression,
+                type_arguments,
+            } => {
+                let mut map = serializer.serialize_map(None)?;
+                map.serialize_entry("type", "TSInstantiationExpression")?;
+                map.serialize_entry("start", start)?;
+                map.serialize_entry("end", end)?;
+                ser_loc!(map, loc);
+                ser_node!(map, "expression", expression);
+                map.serialize_entry("typeArguments", type_arguments.as_ref())?;
+                ser_comments!(map, *start, *end);
+                map.end()
+            }
             JsNode::Comment {
                 start,
                 end,
@@ -2859,6 +2912,24 @@ impl JsNode {
                         loc,
                         expression: convert_child(obj, "expression"),
                     },
+                    "TSTypeAssertion" => JsNode::TSTypeAssertion {
+                        start,
+                        end,
+                        loc,
+                        expression: convert_child(obj, "expression"),
+                        type_annotation: Box::new(
+                            obj.get("typeAnnotation").cloned().unwrap_or(Value::Null),
+                        ),
+                    },
+                    "TSInstantiationExpression" => JsNode::TSInstantiationExpression {
+                        start,
+                        end,
+                        loc,
+                        expression: convert_child(obj, "expression"),
+                        type_arguments: Box::new(
+                            obj.get("typeArguments").cloned().unwrap_or(Value::Null),
+                        ),
+                    },
                     "Line" | "Block" => JsNode::Comment {
                         start,
                         end,
@@ -2960,6 +3031,8 @@ impl JsNode {
             JsNode::TSAsExpression { .. } => Some("TSAsExpression"),
             JsNode::TSSatisfiesExpression { .. } => Some("TSSatisfiesExpression"),
             JsNode::TSNonNullExpression { .. } => Some("TSNonNullExpression"),
+            JsNode::TSTypeAssertion { .. } => Some("TSTypeAssertion"),
+            JsNode::TSInstantiationExpression { .. } => Some("TSInstantiationExpression"),
             JsNode::Comment { comment_type, .. } => Some(comment_type.as_str()),
             JsNode::Null => None,
         }
@@ -3631,6 +3704,8 @@ impl JsNode {
             | JsNode::TSAsExpression { start, .. }
             | JsNode::TSSatisfiesExpression { start, .. }
             | JsNode::TSNonNullExpression { start, .. }
+            | JsNode::TSTypeAssertion { start, .. }
+            | JsNode::TSInstantiationExpression { start, .. }
             | JsNode::Comment { start, .. } => *start,
             JsNode::Null => 0,
         }
@@ -3715,6 +3790,8 @@ impl JsNode {
             | JsNode::TSAsExpression { end, .. }
             | JsNode::TSSatisfiesExpression { end, .. }
             | JsNode::TSNonNullExpression { end, .. }
+            | JsNode::TSTypeAssertion { end, .. }
+            | JsNode::TSInstantiationExpression { end, .. }
             | JsNode::Comment { end, .. } => *end,
             JsNode::Null => 0,
         }
@@ -3801,6 +3878,8 @@ impl JsNode {
             JsNode::TSAsExpression { .. } => "TSAsExpression",
             JsNode::TSSatisfiesExpression { .. } => "TSSatisfiesExpression",
             JsNode::TSNonNullExpression { .. } => "TSNonNullExpression",
+            JsNode::TSTypeAssertion { .. } => "TSTypeAssertion",
+            JsNode::TSInstantiationExpression { .. } => "TSInstantiationExpression",
             JsNode::Comment { .. } => "Comment",
             JsNode::Null => "Null",
         }
