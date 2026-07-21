@@ -3525,7 +3525,9 @@ fn js_node_check_features(
         // is opaque and carries no references).
         JsNode::TSAsExpression { expression, .. }
         | JsNode::TSSatisfiesExpression { expression, .. }
-        | JsNode::TSNonNullExpression { expression, .. } => walk_id!(*expression),
+        | JsNode::TSNonNullExpression { expression, .. }
+        | JsNode::TSTypeAssertion { expression, .. }
+        | JsNode::TSInstantiationExpression { expression, .. } => walk_id!(*expression),
     }
 
     shadowed.truncate(shadow_base);
@@ -5470,6 +5472,20 @@ fn collect_identifier_names_in_node(
             end: _,
             loc: _,
             expression,
+        }
+        | JsNode::TSTypeAssertion {
+            start: _,
+            end: _,
+            loc: _,
+            expression,
+            type_annotation: _,
+        }
+        | JsNode::TSInstantiationExpression {
+            start: _,
+            end: _,
+            loc: _,
+            expression,
+            type_arguments: _,
         } => walk(*expression, out),
 
         JsNode::Comment {

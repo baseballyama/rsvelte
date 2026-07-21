@@ -1063,7 +1063,8 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             // ClassBody member variants we do not reproduce here) and any other
             // variant not explicitly handled above (the CRITICAL RULE). The TS
             // assertion wrappers (`TSAsExpression` / `TSSatisfiesExpression` /
-            // `TSNonNullExpression`) are erased by `remove_typescript_nodes`
+            // `TSNonNullExpression` / `TSTypeAssertion` / `TSInstantiationExpression`)
+            // are erased by `remove_typescript_nodes`
             // before transform, so they never reach here; if one somehow did,
             // `None` is the correct, safe answer — it falls back to the text
             // printer rather than emitting wrong code.

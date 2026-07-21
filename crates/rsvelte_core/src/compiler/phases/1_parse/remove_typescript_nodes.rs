@@ -581,14 +581,20 @@ pub fn remove_typescript_nodes_typed(
             remove_this_param_typed(node, arena);
         }
 
-        // Unwrap TS assertion wrappers (`x as T` / `x satisfies T` / `x!`),
-        // replacing the wrapper with its inner expression and continuing the
-        // strip into it. Mirrors upstream `context.visit(node.expression)`.
-        Some("TSAsExpression") | Some("TSSatisfiesExpression") | Some("TSNonNullExpression") => {
+        // Unwrap TS assertion wrappers (`x as T` / `x satisfies T` / `x!` /
+        // `<T>x` / `x<T>`), replacing the wrapper with its inner expression and
+        // continuing the strip into it. Mirrors upstream `context.visit(node.expression)`.
+        Some("TSAsExpression")
+        | Some("TSSatisfiesExpression")
+        | Some("TSNonNullExpression")
+        | Some("TSTypeAssertion")
+        | Some("TSInstantiationExpression") => {
             let inner_id = match node {
                 JsNode::TSAsExpression { expression, .. }
                 | JsNode::TSSatisfiesExpression { expression, .. }
-                | JsNode::TSNonNullExpression { expression, .. } => *expression,
+                | JsNode::TSNonNullExpression { expression, .. }
+                | JsNode::TSTypeAssertion { expression, .. }
+                | JsNode::TSInstantiationExpression { expression, .. } => *expression,
                 _ => unreachable!("node_type matched a TS assertion variant"),
             };
             *node = arena.get_js_node(inner_id).clone();
