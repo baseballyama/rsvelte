@@ -3519,6 +3519,13 @@ fn js_node_check_features(
             type_annotation, ..
         } => walk_id!(*type_annotation),
         JsNode::TSModuleDeclaration { body, .. } => walk_opt_id!(body),
+        // Defensive: `remove_typescript_from_ast` unwraps these assertion
+        // wrappers before analyze runs, so they are never actually reached here.
+        // If one ever did, walk the inner expression (the `typeAnnotation` blob
+        // is opaque and carries no references).
+        JsNode::TSAsExpression { expression, .. }
+        | JsNode::TSSatisfiesExpression { expression, .. }
+        | JsNode::TSNonNullExpression { expression, .. } => walk_id!(*expression),
     }
 
     shadowed.truncate(shadow_base);
@@ -5438,6 +5445,32 @@ fn collect_identifier_names_in_node(
             loc: _,
             body: _,
         } => {}
+
+        // Defensive: `remove_typescript_from_ast` unwraps these assertion
+        // wrappers before analyze runs, so they are never actually reached here.
+        // If one ever did, the inner `expression` carries real identifier
+        // references, so walk it (the `typeAnnotation` blob is type-space and
+        // dropped).
+        JsNode::TSAsExpression {
+            start: _,
+            end: _,
+            loc: _,
+            expression,
+            type_annotation: _,
+        }
+        | JsNode::TSSatisfiesExpression {
+            start: _,
+            end: _,
+            loc: _,
+            expression,
+            type_annotation: _,
+        }
+        | JsNode::TSNonNullExpression {
+            start: _,
+            end: _,
+            loc: _,
+            expression,
+        } => walk(*expression, out),
 
         JsNode::Comment {
             start: _,
