@@ -2,7 +2,19 @@
 
 This directory is the **changesets version anchor** for the `@rsvelte/compiler` npm package. It contains no runtime code.
 
-The actual published artifact is built by `wasm-pack` into the repo-root `pkg/` directory. When `pnpm publish` runs against this workspace package, the `publishConfig.directory` field redirects it to pack and upload `pkg/`. Right before publish, `scripts/release/finalize-pkg.mjs` rewrites `pkg/package.json`'s `name` from the Cargo crate name (`rsvelte_lint`) to the scoped npm name (`@rsvelte/compiler`), and copies this directory's `README.md` into `pkg/README.md` so the published package documents the compiler (not the linter crate whose README `wasm-pack` would otherwise copy).
+The actual published artifact is built by `wasm-pack` into the repo-root `pkg/` directory. When `pnpm publish` runs against this workspace package, the `publishConfig.directory` field redirects it to pack and upload `pkg/`. Right before publish, `scripts/release/finalize-pkg.mjs` rewrites `pkg/package.json`'s `name` from the Cargo crate name (`rsvelte_lint`) to the scoped npm name (`@rsvelte/compiler`), overrides the `description` (wasm-pack copies the linter crate's description), synthesises an `exports` map, and copies this directory's `README.md` into `pkg/README.md` so the published package documents the compiler (not the linter crate whose README `wasm-pack` would otherwise copy).
+
+## The stable `./wasm` subpath
+
+wasm-pack names its artifacts after the built crate (`rsvelte_lint.js`, `rsvelte_lint_bg.wasm`). Those filenames are **not** a public contract — the built crate has already changed once (`rsvelte_core_*` → `rsvelte_lint_*`), which broke every consumer that read the wasm bytes via a crate-named deep import (`@rsvelte/compiler/rsvelte_core_bg.wasm`).
+
+`finalize-pkg.mjs` therefore adds an `exports` map with a stable alias:
+
+- `@rsvelte/compiler` — the JS glue (default import), unchanged.
+- **`@rsvelte/compiler/wasm`** — the wasm bytes. Consumers that `initSync` the module (e.g. `svelte-shaker`, this repo's `@rsvelte/oxlint-plugin`) should resolve this path; it is invariant across crate/file renames.
+- `@rsvelte/compiler/*` — a passthrough so the crate-named deep imports that predate the `exports` map keep resolving (adding `exports` otherwise makes them fail).
+
+The script asserts every concrete `exports` target exists in `pkg/`, so a future crate rename fails the release loudly instead of publishing a map that points at missing files.
 
 Why split it this way:
 
