@@ -49,6 +49,23 @@ const OXFMT_CONFIG =
   process.env.OXFMT_CONFIG || path.join(__dirname, 'fmt-corpus.oxfmtrc.json');
 const CONCURRENCY = Number(process.env.OXFMT_CONCURRENCY || 8);
 
+// Ids the corpus permanently excludes because the oxfmt oracle itself is buggy
+// or the input is invalid — the same list `scripts/compat-corpus/fmt-verify.mjs`
+// honors. The svelte.dev-scoped ones (prefix `svelte.dev/`) must be dropped here
+// too, otherwise the byte-exact `svelte_dev_corpus.rs` gate re-introduces them
+// (e.g. oxfmt's `--svelte` CSS path wraps a nested `calc()` differently from its
+// own raw-CSS path — an oracle inconsistency, not an rsvelte bug).
+const EXCLUDED_PATH = path.join(ROOT, 'compatibility', 'fmt-oracle-excluded.json');
+const EXCLUDED_REL = new Set(
+  (fs.existsSync(EXCLUDED_PATH)
+    ? JSON.parse(fs.readFileSync(EXCLUDED_PATH, 'utf8'))
+    : []
+  )
+    .map((e) => e.id)
+    .filter((id) => id.startsWith('svelte.dev/'))
+    .map((id) => id.slice('svelte.dev/'.length)),
+);
+
 const SKIP_DIRS = new Set([
   'node_modules',
   '.git',
@@ -249,6 +266,11 @@ async function main() {
   await pool(svelteFiles, async (absPath) => {
     const rel = path.relative(SVELTE_DEV, absPath).split(path.sep).join('/');
     const id = `files/${rel}`;
+    if (EXCLUDED_REL.has(rel)) {
+      skips.push({ id, reason: 'oracle-excluded (fmt-oracle-excluded.json)' });
+      if (VERBOSE) console.log(`  skip ${id}: oracle-excluded`);
+      return;
+    }
     const source = fs.readFileSync(absPath, 'utf8');
     const res = await runOxfmt(source, path.basename(absPath));
     if (!res.ok) {
