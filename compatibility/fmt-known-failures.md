@@ -5,48 +5,46 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: 40 entries**, concentrated in real-world corpus repos
+**Current baseline: 37 entries**, concentrated in real-world corpus repos
 (layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail). Oracle-bug /
 invalid-input / migrate cases are NOT here — those are permanently excluded in
 `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every entry here was
 individually diffed against its oracle to confirm the cluster it belongs to;
 none is a guess from file-name pattern-matching.
 
-## Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (14)
+## Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (11)
 
 The most common failure. Prettier prints whitespace-sensitive inline elements
-(`<a>`, `<span>`, `<title>`, SVG `<path>`, a `<pre><code>` pair, small inline
-components like `<Icon>`/`<Kbd>`) with a dangling close bracket — `</tag` +
-softline + `>` — and hug-breaks a long open tag so its `>` (and the first
-child) lands on its own line. rsvelte's `children.rs` port (`build_element_doc`)
-has since been widened to cover element-only children runs, `{#if}`/`{#each}`/
-`{#key}` flow-block children, whitespace-separated flow-block children, a
-prose prefix immediately before a claimed element (`.<span …>`), and
-Component children, and self-closing tags are printed correctly (no more
-`<path … />` corrupted into `<path …></path>`). The remaining 14 entries are
-the shapes those widening steps did not reach: runs of SVG `<path>` siblings
-inside deeper nesting, `<pre><code class="…">` open-tag hugging, `<a>`/`<span>`/
-`<title>` dangling-close and hug decisions that still fall through to the
-compact fallback (or, in the opposite direction, get wrongly applied to a
-short inline child/component that would fit compact), an `{:else if}` branch
-picking the wrong side of a title/element dangle, and a long self-closing
-component tag (`<Icon data={...} class="..." />`) that should hug-break its
-attributes but doesn't. Fix belongs in rsvelte — continuing to widen the
-`children.rs` Doc-IR gate.
+(`<a>`, `<span>`, `<title>`, a `<pre><code>` pair, small inline components
+like `<Icon>`/`<Kbd>`) with a dangling close bracket — `</tag` + softline +
+`>` — and hug-breaks a long open tag so its `>` (and the first child) lands on
+its own line. rsvelte's `children.rs` port (`build_element_doc`) has since
+been widened to cover element-only children runs, `{#if}`/`{#each}`/`{#key}`
+flow-block children, whitespace-separated flow-block children, a prose prefix
+immediately before a claimed element (`.<span …>`), and Component children;
+self-closing tags print correctly (no more `<path … />` corrupted into
+`<path …></path>`); a `<pre>` child's close `>` now dangles when its open tag
+breaks; and an empty `<textarea>`'s open-tag `>` now dangles when the glued
+last line would overflow the print width. The remaining 11 entries are the
+shapes those widening steps did not reach: an `<a>`/`<span>` dangling-close
+that falls through to the compact fallback (3 ids — `</div></a>`, a
+`<span>…</span>` pair, and an `<a>…</Blockquote` pair), an `<a>` hug decision
+that breaks the wrong node (a wrapping `{item.name || ...}` expression
+instead of the tag itself, 1 id), `<pre><code class="…">` open-tag hugging in
+two different shapes (a raw pair, 2 ids, and a `<pre>` whose own attribute
+wrongly hug-breaks instead of its `<code>` child, 1 id), an `{:else if}`
+branch picking the wrong side of a title/element dangle (2 ids, same shape),
+a long self-closing component tag (`<Icon data={...} class="..." />`) that
+should hug-break its attributes but doesn't (1 id), and — in the opposite
+direction — a short `<a>` kept compact by rsvelte that the oracle still
+breaks onto its own lines (1 id, entangled with Clusters 2 and 5). Fix
+belongs in rsvelte — continuing to widen the `children.rs` Doc-IR gate.
 
 The remaining port-bail leaf causes are down to `RenderTag` (1 causal id, 95
 files at risk) and `Other` (2 causal ids, 42 files at risk) — both too
 low-yield relative to their blast radius to keep chasing (see the Methodology
 notes on causal-to-PASS attrition), so further blind bail-hunting in
-`children.rs` is paused for now. The next-highest-signal shape instead is a
-**multi-line open tag that should dangle its close but doesn't**: once an
-attribute value breaks across several lines, the closing `>` should land on
-its own line rather than staying flush against the last attribute line —
-`svelte-ux/.../Code.svelte`'s `<code class={cls(...)}` and `cmsaasstarter/
-.../contact_us/+page.svelte`'s `<textarea class="...">` both stop on exactly
-this shape. `<textarea>` is whitespace-preserving and excluded from the
-children port entirely, though, so it will need its own code path rather than
-a widened gate.
+`children.rs` is paused for now.
 
 ## Cluster 2 — multi-interpolation break-point selection in attribute/style/directive values (9)
 
@@ -172,6 +170,24 @@ baseline that is pure CSS formatting, not HTML/JS layout. Fix belongs in
   source indentation actually uses tabs (`pre_uses_tabs`); a space-indented
   body now stays spaces throughout. Cleared `svelte-calendar/.../Code.svelte`
   and `svelte-calendar/.../JSONEditor.svelte`.
+- **`<pre>` child close-dangle.** A `<code class={…}>text</code>` inside a
+  `<pre>` whose own open tag is broken onto its own line kept its close tag
+  glued (`</code>`) while the oracle dangles it (`</code\n>`), matching
+  prettier's `shouldHugEnd`. Fixed by moving the close `>` onto its own line,
+  one indent level shallower than the open tag's `>`, whenever the last
+  content character is whitespace-sensitive text touching the close tag.
+  Cleared `svelte-ux/.../Code.svelte` and `svelte-maplibre/.../CodeBlock.svelte`.
+- **Empty `<textarea>` open-tag dangle is width-driven, not categorical.** An
+  empty `<textarea …>` whose open tag wraps across lines glued its `>` to the
+  last attribute line even when the oracle dangles it onto its own line.
+  `<textarea>` is inline-block, so prettier's `shouldHugStart && shouldHugEnd`
+  branch *can* dangle the `>` — but only when the glued last line
+  (`{indent}{last attr}></textarea>`) would exceed the print width; when it
+  fits, it stays glued. `<pre>` is a block element and always glues instead,
+  so it is unaffected. Fixed by rendering the glued form, measuring its last
+  line plus the `</textarea>` close width, and keeping the glued form only
+  when that fits — dangling otherwise. Cleared `cmsaasstarter/.../
+  contact_us/+page.svelte`.
 
 ## Multiple clusters per id
 
@@ -299,6 +315,31 @@ the diff).
   `prettier-ignore` — the guard is doing its job on both traversals. Still,
   it's exactly the kind of regression to check for first the next time the
   port's claim range widens.
+- **A categorical-looking oracle behavior can secretly be width-driven —
+  sweep the width axis before classifying it as binary.** An empty
+  `<textarea>`'s wrapped-open-tag dangle looked categorical: every hand-picked
+  repro and edge probe dangled the `>`. Wiring it as "always dangle when
+  wrapped" passed those probes but regressed 6 new files (short-attribute
+  empty textareas in flowbite, shadcn, svar-core, and svelte-ux) where the
+  oracle glues instead. Re-characterizing by sweeping the glued last line's
+  length from 40 to 76 columns (38/38 byte-exact against the oracle at every
+  point) found the real rule: glue while the last line
+  (`{indent}{last attr}></textarea>`) fits the print width, dangle only once
+  it overflows. Two lessons stack here: (a) isolated repros passing is not
+  the same signal as a full-gate run passing, again; (b) for any hug/dangle
+  choice that looks like a two-way switch, sweep the width boundary before
+  assuming it's categorical — a plausible "always X" story can be a "X below
+  a threshold" story that just never got measured against the edge.
+- **Element-category and hug/glue-within-the-category are two separate
+  layers — don't conflate them.** Whether an element is even a hug
+  *candidate* is categorical: prettier's `shouldHugStart` bails outright for
+  block-display elements (`<pre>` always glues, never dangles), while
+  inline-block elements like `<textarea>` remain hug candidates. But *within*
+  that hug-candidate category, whether the candidate actually glues or
+  dangles is not categorical — it's the print-width sweep above. Getting this
+  two-layer structure backwards (treating the inner width decision as if it
+  were the same kind of switch as the outer category bail) is what produced
+  the width-driven-textarea surprise.
 
 ## Cross-platform baseline rule (critical)
 
