@@ -1,7 +1,6 @@
 [
 	"melt-ui/packages/melt/src/lib/builders/tests/SpatialMenuNavTest.svelte",
 	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelComponentSpecific/PropertyPanelChoiceCheckboxRadioSpecific.svelte",
-	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelComponentSpecific/Table/TableColumnSpecific.svelte",
 	"svelte-sonner/src/lib/Toaster.svelte",
 	"svelte-table/example/Example2.svelte",
 	"svelte-table/src/SvelteTable.svelte"
