@@ -1,0 +1,66 @@
+[package]
+name = "rsvelte_lint_bindings"
+version = "0.8.0"
+edition = "2024"
+rust-version = "1.90"
+description = "cdylib bindings (wasm playground + Node NAPI addon) for the rsvelte linter engine"
+license = "MIT"
+publish = false
+
+[lib]
+# cdylib only: this crate exists so that `rsvelte_lint` can stay a pure rlib. A
+# package that emits both a cdylib and an rlib writes both artifacts to unhashed
+# `deps/lib<name>.{so,rlib}` paths, so the two profile variants cargo builds
+# (`panic = "abort"` for bins, forced unwind for test/bench units) clobber each
+# other — cargo issue rust-lang/cargo#6313.
+#
+# `name = "rsvelte_lint"` keeps the emitted artifacts byte-for-byte what the
+# release + playground tooling already hard-codes: `rsvelte_lint.js` /
+# `rsvelte_lint_bg.wasm` (wasm) and `librsvelte_lint.{dylib,so}` /
+# `rsvelte_lint.dll` → `rsvelte_lint.node` (NAPI).
+name = "rsvelte_lint"
+crate-type = ["cdylib"]
+# A test/doc harness for a cdylib is an executable that imports the wasm/napi
+# host symbols, which only resolve once the module is loaded — so a
+# workspace-wide `cargo test` would fail to link it.
+test = false
+doctest = false
+bench = false
+# The shared `name = "rsvelte_lint"` would make `cargo doc` emit this crate's
+# rustdoc to the same path as the `rsvelte_lint` rlib's docs (a hard error).
+# This is a thin binding wrapper with no docs worth publishing, so opt it out.
+doc = false
+
+[features]
+# Browser build (playground): the rule engine plus rsvelte_core's compiler +
+# svelte2tsx wasm exports, linked transitively so a single wasm module serves the
+# whole playground.
+wasm = ["rsvelte_core/wasm", "dep:wasm-bindgen"]
+# Native Node addon (`.node`): the same engine exposed via NAPI, on rsvelte_core's
+# native backend. No `#[global_allocator]` is installed, so the addon is
+# dlopen-safe on the system allocator with no TLS setup.
+napi = ["rsvelte_core/native", "dep:napi", "dep:napi-derive", "dep:napi-build"]
+
+[dependencies]
+rsvelte_lint = { path = "../rsvelte_lint", default-features = false }
+rsvelte_core = { path = "../rsvelte_core", default-features = false }
+
+# wasm-only.
+wasm-bindgen = { version = "0.2", optional = true }
+
+# napi-only (the `.node` addon). Minimal feature set — only sync string exports.
+napi = { version = "3", default-features = false, features = ["napi9"], optional = true }
+napi-derive = { version = "3", optional = true }
+
+[build-dependencies]
+# napi-only: sets the cdylib link args (e.g. macOS `-undefined dynamic_lookup`)
+# so the `.node` addon resolves Node's symbols at load time.
+napi-build = { version = "2", optional = true }
+
+[lints]
+workspace = true
+
+# rustc can emit a second wasm table (reference-types); wasm-opt's default MVP
+# feature set rejects that, so the feature must be enabled explicitly.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ['-Oz', '--enable-reference-types']

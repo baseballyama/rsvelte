@@ -2476,9 +2476,6 @@ dependencies = [
  "anyhow",
  "clap",
  "compact_str 0.10.0",
- "napi",
- "napi-build",
- "napi-derive",
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",
@@ -2491,6 +2488,17 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "walkdir",
+]
+
+[[package]]
+name = "rsvelte_lint_bindings"
+version = "0.8.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "rsvelte_core",
+ "rsvelte_lint",
  "wasm-bindgen",
 ]
 

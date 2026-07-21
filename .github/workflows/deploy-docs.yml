@@ -74,10 +74,10 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build WASM (compiler + svelte2tsx + lint)
-        # Built from rsvelte_lint, which links rsvelte_core's compiler +
+        # Built from rsvelte_lint_bindings, which links rsvelte_core's compiler +
         # svelte2tsx wasm exports transitively and adds the `lint` export that
         # powers the playground's Lint tab.
-        run: wasm-pack build crates/rsvelte_lint --out-dir ../../pkg --target web --no-default-features --features wasm
+        run: wasm-pack build crates/rsvelte_lint_bindings --out-dir ../../pkg --target web --no-default-features --features wasm
 
       - name: Build WASM (formatter)
         # Powers the playground's `fmt` tool. Separate crate (rsvelte_fmt_wasm)

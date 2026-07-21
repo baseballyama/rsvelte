@@ -50,13 +50,14 @@ const RULES = [
     prefix: 'crates/rsvelte_core/src/svelte_check/',
     requires: ['@rsvelte/svelte-check'],
   },
-  // NOTE: `crates/rsvelte_lint/**` is intentionally NOT listed. That crate is
-  // compiled into two separate artifacts — the `@rsvelte/compiler` wasm
-  // (`build:wasm:core`) and the native `@rsvelte/lint` CLI — but those two
-  // packages share a `fixed` changeset group (`.changeset/config.json`), so
-  // naming EITHER one bumps BOTH. There is therefore no islanded-drift edge to
-  // guard here: the fixed group cascades the version, unlike the svelte2tsx /
-  // svelte-check pair above which live in different groups.
+  // NOTE: `crates/rsvelte_lint/**` and `crates/rsvelte_lint_bindings/**` are
+  // intentionally NOT listed. Their code ships in two separate artifacts — the
+  // `@rsvelte/compiler` wasm (`build:wasm:core`, built from the bindings crate)
+  // and the native `@rsvelte/lint` CLI — but those two packages share a `fixed`
+  // changeset group (`.changeset/config.json`), so naming EITHER one bumps BOTH.
+  // There is therefore no islanded-drift edge to guard here: the fixed group
+  // cascades the version, unlike the svelte2tsx / svelte-check pair above which
+  // live in different groups.
 ];
 
 function sh(cmd) {
