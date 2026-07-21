@@ -26,6 +26,24 @@ The package is a `wasm-pack` (`--target web`) module — the WebAssembly binary
 ships with the package, so it runs anywhere WebAssembly does (modern browsers,
 Node.js, Deno, Bun) with no native binaries and no `optionalDependencies`.
 
+If you need the raw `.wasm` bytes yourself (for example to drive the synchronous
+`initSync` on Node), import them from the stable **`@rsvelte/compiler/wasm`**
+subpath rather than the internal artifact filename:
+
+```js
+import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+import { initSync } from '@rsvelte/compiler';
+
+const require = createRequire(import.meta.url);
+const bytes = readFileSync(require.resolve('@rsvelte/compiler/wasm'));
+initSync({ module: bytes });
+```
+
+`@rsvelte/compiler/wasm` is the supported path for the wasm binary and stays
+stable across releases; the on-disk filename is an internal build detail and may
+change.
+
 ## Usage
 
 ```js
