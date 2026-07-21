@@ -173,16 +173,20 @@ Multi-threaded rsvelte vs. the official JavaScript tool, same machine, same corp
 
 | Task | JS baseline | Rust (1 thread) | Rust (multi) | Multi vs JS |
 |---|---:|---:|---:|---:|
-| Compile — client (full pipeline) | 547.1 ms | 190.7 ms | 31.3 ms | **17.5×** |
-| Compile — server (SSR) | 462.9 ms | 109.8 ms | 15.2 ms | **30.5×** |
-| Parse only | 126.0 ms | 7.8 ms | 2.1 ms | **60.7×** |
-| `svelte2tsx` | 205.9 ms | 77.3 ms | 10.8 ms | **19.1×** |
-| Format (vs prettier-plugin-svelte) | 2,442.1 ms | 102.4 ms | 26.4 ms | **92.6×** |
-| `svelte-check` (500-file workspace) | 869.9 ms | 43.9 ms | 20.5 ms | **42.5×** |
+| Compile — client (full pipeline) | 519.5 ms | 187.6 ms | 25.5 ms | **20.4×** |
+| Compile — server (SSR) | 451.5 ms | 106.3 ms | 15.7 ms | **28.8×** |
+| Parse only | 127.2 ms | 7.3 ms | 1.7 ms | **75.7×** |
+| `svelte2tsx` | 206.0 ms | 76.3 ms | 11.4 ms | **18.1×** |
+| Format (vs prettier-plugin-svelte) | 2,320.6 ms | 99.5 ms | 23.0 ms | **101.0×** |
+| `svelte-check` (500-file workspace) | 828.5 ms | 44.7 ms | 14.7 ms | **56.5×** |
 
-The corpus is Svelte's own test suite, restricted to the files the official compiler accepts: 453 of
-3,857 are deliberately invalid (validator and runes error cases) and would otherwise measure how fast
-each compiler throws.
+The corpus is Svelte's own test suite, restricted to the 3,404 of 3,857 files the official compiler
+accepts under the benchmark's options — otherwise the numbers would partly measure how fast each
+compiler throws. Of the 453 excluded, 286 are valid sources that merely need `experimental.async`
+(which the benchmark does not enable) and 167 are deliberately invalid error-case fixtures.
+
+Because the corpus is Svelte's test suite, files are small (~236 bytes on average) and the numbers
+are dominated by per-file fixed costs rather than throughput on realistic components.
 
 Live numbers, charts, and reproduction steps: [benchmark page](https://baseballyama.github.io/rsvelte/benchmark), or `pnpm run generate-benchmark` locally. A single-threaded 100× compile speedup remains an explicit goal — current numbers are a snapshot, not a ceiling.
 
