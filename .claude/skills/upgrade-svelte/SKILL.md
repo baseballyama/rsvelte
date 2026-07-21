@@ -228,8 +228,8 @@ All tests must pass.
 
 ```bash
 # Build NAPI binding
-cargo build --release --features napi --lib
-cp target/release/librsvelte_core.dylib svelte/rsvelte.darwin-arm64.node
+cargo build --release -p rsvelte_napi --lib
+cp target/release/librsvelte_napi.dylib svelte/rsvelte.darwin-arm64.node
 
 # Run official Svelte test suite with rsvelte
 cd svelte
@@ -296,8 +296,8 @@ cargo test --release <test_name> -- --nocapture
 cargo test --release
 
 # NAPI build
-cargo build --release --features napi --lib
-cp target/release/librsvelte_core.dylib svelte/rsvelte.darwin-arm64.node
+cargo build --release -p rsvelte_napi --lib
+cp target/release/librsvelte_napi.dylib svelte/rsvelte.darwin-arm64.node
 
 # Vitest
 cd svelte && USE_RSVELTE=true npx vitest run packages/svelte/tests/runtime-runes/test.ts packages/svelte/tests/runtime-legacy/test.ts

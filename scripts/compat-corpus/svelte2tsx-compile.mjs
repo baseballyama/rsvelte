@@ -137,7 +137,7 @@ if (args.includes('--worker')) {
 // Parent mode.
 if (!fs.existsSync(BINDING)) {
 	console.error(`[s2t-compile] rsvelte NAPI binding missing at ${BINDING}`);
-	console.error('  build: cargo build --release --features napi --lib');
+	console.error('  build: cargo build --release -p rsvelte_napi --lib');
 	console.error('  stage: cp target/release/librsvelte_core.{dylib,so} .corpus-cache/rsvelte.node');
 	process.exit(1);
 }

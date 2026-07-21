@@ -17,14 +17,11 @@
 //! ```
 
 // `#[global_allocator]` deliberately lives in each binary entry point
-// (src/main.rs, src/bin/*.rs) and in the napi cdylib root (src/napi.rs)
-// rather than here. Defining it in the lib root causes a duplicate
-// `#[global_allocator]` symbol when the lib is built with both `cdylib`
-// and `rlib` crate-types and a downstream bin links against both copies —
-// cargo issue rust-lang/cargo#6313. The system-allocator fallback for the
-// rlib path is intentional; everything that actually runs in production
-// (the napi/cdylib, the bins) installs its own allocator (mimalloc,
-// preferred; jemalloc as a fallback — see napi.rs).
+// (src/main.rs, src/bin/*.rs) and in the `rsvelte_napi` cdylib root rather
+// than here, so that linking this rlib never imposes an allocator on the
+// consumer. The system-allocator fallback for the rlib path is intentional;
+// everything that runs in production installs its own allocator (mimalloc
+// preferred, jemalloc as a fallback).
 
 pub mod ast;
 pub mod compiler;
@@ -35,11 +32,9 @@ pub mod svelte2tsx;
 pub mod svelte_check;
 pub mod vps;
 
-#[cfg(feature = "napi")]
-pub mod napi;
-// The raw-transfer envelope is needed regardless of the `napi` feature so
-// that unit tests and any future non-NAPI consumers (the WASM build, for
-// example) can exercise the encoder.
+// The raw-transfer envelope stays in this crate (rather than in `rsvelte_napi`)
+// so unit tests and non-NAPI consumers such as the WASM build can exercise the
+// encoder.
 pub mod napi_raw;
 pub mod napi_raw_parse;
 

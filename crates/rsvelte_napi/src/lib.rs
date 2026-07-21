@@ -49,11 +49,11 @@ use napi::{Env, JsBuffer};
 use napi_derive::napi;
 use serde_json::Value;
 
-use crate::compiler::{
+use rsvelte_core::compiler::{
     CompileOptions, CssMode, ExperimentalOptions, GenerateMode, ModuleCompileOptions, Namespace,
     compile as rust_compile, compile_module as rust_compile_module,
 };
-use crate::svelte2tsx::{
+use rsvelte_core::svelte2tsx::{
     Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion,
     svelte2tsx as rust_svelte2tsx,
 };
@@ -62,7 +62,7 @@ use crate::svelte2tsx::{
 /// Serialise compiler warnings into the JSON shape the official
 /// `svelte/compiler` output uses (`code`, `message`, `filename`, `start`, `end`,
 /// `position`, `frame`).
-fn warnings_to_json(warnings: &[crate::compiler::Warning]) -> Vec<Value> {
+fn warnings_to_json(warnings: &[rsvelte_core::compiler::Warning]) -> Vec<Value> {
     warnings
         .iter()
         .map(|w| {
@@ -131,7 +131,7 @@ pub struct NapiParseOptions {
 /// and the matching `decodeParseEnvelope` JS decoder.
 #[napi(js_name = "parse")]
 pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Result<String> {
-    use crate::compiler::phases::phase1_parse::{ParseOptions, parse as rust_parse};
+    use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse as rust_parse};
 
     let parse_options = ParseOptions {
         skip_expression_loc: options
@@ -147,7 +147,7 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
         Ok(ast) => {
             // Serialize within the AST's arena so `JsNodeId`s in the
             // Serialize impls resolve (mirrors `wasm::parse_svelte`).
-            crate::ast::arena::with_serialize_arena(&ast.arena, || {
+            rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
                 // Spans are UTF-16 code-unit offsets to match svelte/compiler
                 // (#793). ASCII source needs no remap — keep the fast path.
                 if source.is_ascii() {
@@ -156,8 +156,8 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
                 }
                 let mut value = serde_json::to_value(&ast)
                     .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))?;
-                let conv = crate::compiler::legacy::Utf8ToUtf16::new(&source);
-                crate::compiler::legacy::convert_positions_to_utf16(&mut value, &conv);
+                let conv = rsvelte_core::compiler::legacy::Utf8ToUtf16::new(&source);
+                rsvelte_core::compiler::legacy::convert_positions_to_utf16(&mut value, &conv);
                 serde_json::to_string(&value)
                     .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))
             })
@@ -177,7 +177,7 @@ pub fn napi_parse_envelope(
     source: String,
     options: Option<NapiParseOptions>,
 ) -> napi::Result<Buffer> {
-    use crate::compiler::phases::phase1_parse::{ParseOptions, parse as rust_parse};
+    use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse as rust_parse};
 
     let parse_options = ParseOptions {
         skip_expression_loc: options
@@ -199,8 +199,9 @@ pub fn napi_parse_envelope(
     // pre-sized arena + finalizer plumbing outweighs the saved
     // `Vec::reserve` calls for envelopes that fit in a single growth
     // step.
-    let buf =
-        crate::napi_raw_parse::encode_root_to_vec_with_flags(&ast, &source, skip_loc, skip_css);
+    let buf = rsvelte_core::napi_raw_parse::encode_root_to_vec_with_flags(
+        &ast, &source, skip_loc, skip_css,
+    );
     Ok(buf.into())
 }
 
@@ -404,20 +405,20 @@ impl NapiCompileOptions {
             && let Some(v) = compat.component_api
         {
             opts.compatibility.component_api = if v == 4 {
-                crate::compiler::ComponentApi::V4
+                rsvelte_core::compiler::ComponentApi::V4
             } else {
-                crate::compiler::ComponentApi::V5
+                rsvelte_core::compiler::ComponentApi::V5
             };
         }
         if let Some(hash_override) = self.css_hash_override {
             opts.css_hash = Some(std::sync::Arc::new(
-                move |_: &crate::compiler::CssHashInput| hash_override.clone(),
+                move |_: &rsvelte_core::compiler::CssHashInput| hash_override.clone(),
             ));
         }
         if let Some(v) = self.fragments.as_deref() {
             opts.fragments = match v {
-                "tree" => crate::compiler::FragmentMode::Tree,
-                _ => crate::compiler::FragmentMode::Html,
+                "tree" => rsvelte_core::compiler::FragmentMode::Tree,
+                _ => rsvelte_core::compiler::FragmentMode::Html,
             };
         }
         opts
@@ -604,7 +605,7 @@ fn parse_svelte2tsx_options(options: &Value) -> Svelte2TsxOptions {
 // vite-plugin-svelte (Wave 3) NAPI surface
 // =============================================================================
 
-use crate::vps::{ResolveOptions, hmr_diff as rust_hmr_diff, resolve_id as rust_resolve_id};
+use rsvelte_core::vps::{ResolveOptions, hmr_diff as rust_hmr_diff, resolve_id as rust_resolve_id};
 
 /// Diff two `.svelte` source versions. Returns `{ change, instanceChanged,
 /// moduleChanged }` so the JS shim can decide between Vite's hot-update
@@ -614,9 +615,9 @@ use crate::vps::{ResolveOptions, hmr_diff as rust_hmr_diff, resolve_id as rust_r
 pub fn napi_hmr_diff(prev: String, curr: String) -> napi::Result<Value> {
     let diff = rust_hmr_diff(&prev, &curr);
     let kind = match diff.change {
-        crate::vps::HmrChange::HotUpdate => "hot-update",
-        crate::vps::HmrChange::FullReload => "full-reload",
-        crate::vps::HmrChange::Unchanged => "unchanged",
+        rsvelte_core::vps::HmrChange::HotUpdate => "hot-update",
+        rsvelte_core::vps::HmrChange::FullReload => "full-reload",
+        rsvelte_core::vps::HmrChange::Unchanged => "unchanged",
     };
     Ok(serde_json::json!({
         "change": kind,
@@ -687,7 +688,7 @@ pub fn napi_preprocess(
 
     env.execute_tokio_future(
         async move {
-            crate::compiler::preprocess::preprocess(source, rust_groups, filename)
+            rsvelte_core::compiler::preprocess::preprocess(source, rust_groups, filename)
                 .await
                 .map_err(|e| napi::Error::from_reason(format!("{e}")))
         },
@@ -696,14 +697,14 @@ pub fn napi_preprocess(
 }
 
 mod preprocess_bridge {
-    use crate::compiler::preprocess::types::{
+    use napi::Status;
+    use napi::bindgen_prelude::{FromNapiValue, Object, Promise};
+    use napi::threadsafe_function::ThreadsafeFunction;
+    use rsvelte_core::compiler::preprocess::types::{
         AttributeValue as RsAttrValue, MarkupPreprocessorFn, MarkupPreprocessorOptions,
         PreprocessError, PreprocessorFn, PreprocessorGroup, PreprocessorOptions,
         PreprocessorResult, Processed, SimpleDecodedMap, SourceMapInput,
     };
-    use napi::Status;
-    use napi::bindgen_prelude::{FromNapiValue, Object, Promise};
-    use napi::threadsafe_function::ThreadsafeFunction;
     use rustc_hash::FxHashMap;
     use serde_json::Value;
 
@@ -1157,7 +1158,7 @@ pub fn napi_compile_module_buffers(
     }
 }
 
-fn warning_to_napi(w: crate::compiler::Warning) -> NapiWarning {
+fn warning_to_napi(w: rsvelte_core::compiler::Warning) -> NapiWarning {
     NapiWarning {
         code: w.code,
         message: w.message,
@@ -1168,7 +1169,7 @@ fn warning_to_napi(w: crate::compiler::Warning) -> NapiWarning {
     }
 }
 
-fn position_to_napi(p: crate::compiler::Position) -> NapiPosition {
+fn position_to_napi(p: rsvelte_core::compiler::Position) -> NapiPosition {
     NapiPosition {
         line: p.line as u32,
         column: p.column as u32,
@@ -1181,7 +1182,7 @@ fn position_to_napi(p: crate::compiler::Position) -> NapiPosition {
 // =============================================================================
 //
 // `compileEnvelope` packs the entire `CompileResult` into one
-// fixed-layout byte buffer (`crate::napi_raw`) and hands it to V8 as
+// fixed-layout byte buffer (`rsvelte_core::napi_raw`) and hands it to V8 as
 // a single `Buffer`. The JS shim's `decodeEnvelope` slices fields
 // out on demand — no `serde_json` on the boundary, no V8 object tree
 // construction for the warning array unless the caller actually
@@ -1198,17 +1199,17 @@ fn position_to_napi(p: crate::compiler::Position) -> NapiPosition {
 /// buffer (M-012).
 #[inline]
 fn ensure_envelope_size(size: usize) -> napi::Result<()> {
-    crate::napi_raw::check_envelope_size(size).map_err(|size| {
+    rsvelte_core::napi_raw::check_envelope_size(size).map_err(|size| {
         napi::Error::from_reason(format!(
             "rsvelte: compiled output is {size} bytes, exceeding the \
              {max}-byte envelope limit (header offsets are u32)",
-            max = crate::napi_raw::MAX_ENVELOPE_SIZE
+            max = rsvelte_core::napi_raw::MAX_ENVELOPE_SIZE
         ))
     })
 }
 
 /// `compile()` returning a single packed envelope buffer.
-/// See `crate::napi_raw` for the byte-level format.
+/// See `rsvelte_core::napi_raw` for the byte-level format.
 #[napi(js_name = "compileEnvelope")]
 pub fn napi_compile_envelope(
     source: String,
@@ -1217,8 +1218,8 @@ pub fn napi_compile_envelope(
     let opts = options_to_compile(options);
     match rust_compile(&source, opts) {
         Ok(result) => {
-            ensure_envelope_size(crate::napi_raw::estimate_size(&result))?;
-            Ok(Buffer::from(crate::napi_raw::encode_to_vec(&result)))
+            ensure_envelope_size(rsvelte_core::napi_raw::estimate_size(&result))?;
+            Ok(Buffer::from(rsvelte_core::napi_raw::encode_to_vec(&result)))
         }
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
     }
@@ -1264,9 +1265,9 @@ pub fn napi_compile_envelope(
 /// with the buffer. No Rust code retains the pointer after this returns.
 fn create_zero_copy_envelope(
     env: &Env,
-    result: &crate::compiler::CompileResult,
+    result: &rsvelte_core::compiler::CompileResult,
 ) -> napi::Result<JsBuffer> {
-    let size = crate::napi_raw::estimate_size(result);
+    let size = rsvelte_core::napi_raw::estimate_size(result);
     ensure_envelope_size(size)?;
     let bump = Box::new(bumpalo::Bump::with_capacity(size));
     let bump_ptr: *mut bumpalo::Bump = Box::into_raw(bump);
@@ -1291,7 +1292,7 @@ fn create_zero_copy_envelope(
     // aliased; we re-acquire ownership via Box::from_raw inside the
     // finalizer below.
     let bump_ref: &bumpalo::Bump = unsafe { &*bump_ptr };
-    let slice = crate::napi_raw::encode_into_bump(bump_ref, result);
+    let slice = rsvelte_core::napi_raw::encode_into_bump(bump_ref, result);
     let ptr = slice.as_mut_ptr();
     let len = slice.len();
 
@@ -1347,11 +1348,11 @@ pub fn napi_compile_module_envelope_zero_copy(
         Ok(r) => r,
         Err(e) => return Err(napi::Error::from_reason(format!("{e:?}"))),
     };
-    let cr = crate::compiler::CompileResult {
+    let cr = rsvelte_core::compiler::CompileResult {
         js: result.js,
         css: None,
         warnings: Vec::new(),
-        metadata: crate::compiler::CompileMetadata { runes: true },
+        metadata: rsvelte_core::compiler::CompileMetadata { runes: true },
         ast: None,
     };
     create_zero_copy_envelope(&env, &cr)
@@ -1372,15 +1373,15 @@ pub fn napi_compile_module_envelope(
             // the envelope encoder expects. Module compiles never produce
             // CSS or warnings, and runes mode is always on, so the
             // resulting envelope is the minimal js-only form.
-            let cr = crate::compiler::CompileResult {
+            let cr = rsvelte_core::compiler::CompileResult {
                 js: result.js,
                 css: None,
                 warnings: Vec::new(),
-                metadata: crate::compiler::CompileMetadata { runes: true },
+                metadata: rsvelte_core::compiler::CompileMetadata { runes: true },
                 ast: None,
             };
-            ensure_envelope_size(crate::napi_raw::estimate_size(&cr))?;
-            Ok(Buffer::from(crate::napi_raw::encode_to_vec(&cr)))
+            ensure_envelope_size(rsvelte_core::napi_raw::estimate_size(&cr))?;
+            Ok(Buffer::from(rsvelte_core::napi_raw::encode_to_vec(&cr)))
         }
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
     }
@@ -1391,9 +1392,9 @@ pub fn napi_compile_module_envelope(
 // =============================================================================
 //
 // `compileBatch([{source, options}, …])` hands the whole worklist to
-// `crate::compiler::compile_batch`, which uses rayon to compile in
+// `rsvelte_core::compiler::compile_batch`, which uses rayon to compile in
 // parallel, and packs the resulting `Result<CompileResult, _>`s into
-// one batch envelope (`crate::napi_raw::encode_batch_to_vec`). One
+// one batch envelope (`rsvelte_core::napi_raw::encode_batch_to_vec`). One
 // `napi_create_external_buffer` per call regardless of N — the
 // per-file boundary cost goes from O(N) to O(1).
 //
@@ -1418,18 +1419,18 @@ pub fn napi_compile_batch(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer
     // pure (no NAPI touchpoint) so it could in principle run in
     // parallel, but the per-call work is trivial and this keeps the
     // rayon stage focused on the actual compile.
-    let parsed: Vec<(String, crate::compiler::CompileOptions)> = inputs
+    let parsed: Vec<(String, rsvelte_core::compiler::CompileOptions)> = inputs
         .into_iter()
         .map(|item| (item.source, options_to_compile(item.options)))
         .collect();
 
     // Compile in parallel. `compile_batch` takes `&[(&str, CompileOptions)]`,
     // so we materialise the borrowed view once.
-    let borrowed: Vec<(&str, crate::compiler::CompileOptions)> = parsed
+    let borrowed: Vec<(&str, rsvelte_core::compiler::CompileOptions)> = parsed
         .iter()
         .map(|(s, o)| (s.as_str(), o.clone()))
         .collect();
-    let results = crate::compiler::compile_batch(&borrowed);
+    let results = rsvelte_core::compiler::compile_batch(&borrowed);
 
     // Build the BatchEntry view over the results so the encoder can
     // walk them without taking ownership. Error messages format
@@ -1442,17 +1443,21 @@ pub fn napi_compile_batch(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer
         })
         .collect();
 
-    let entries: Vec<crate::napi_raw::BatchEntry<'_>> = results
+    let entries: Vec<rsvelte_core::napi_raw::BatchEntry<'_>> = results
         .iter()
         .zip(err_strings.iter())
         .map(|(r, e)| match r {
-            Ok(cr) => crate::napi_raw::BatchEntry::Ok(cr),
-            Err(_) => crate::napi_raw::BatchEntry::Err(e.as_deref().unwrap_or("unknown error")),
+            Ok(cr) => rsvelte_core::napi_raw::BatchEntry::Ok(cr),
+            Err(_) => {
+                rsvelte_core::napi_raw::BatchEntry::Err(e.as_deref().unwrap_or("unknown error"))
+            }
         })
         .collect();
 
-    ensure_envelope_size(crate::napi_raw::estimate_batch_size(&entries))?;
-    Ok(Buffer::from(crate::napi_raw::encode_batch_to_vec(&entries)))
+    ensure_envelope_size(rsvelte_core::napi_raw::estimate_batch_size(&entries))?;
+    Ok(Buffer::from(rsvelte_core::napi_raw::encode_batch_to_vec(
+        &entries,
+    )))
 }
 
 // =============================================================================
@@ -1493,8 +1498,8 @@ impl Task for CompileEnvelopeTask {
         // small and we only pay it once per call.
         let result = rust_compile(&self.source, self.options.clone())
             .map_err(|e| napi::Error::from_reason(format!("{e:?}")))?;
-        ensure_envelope_size(crate::napi_raw::estimate_size(&result))?;
-        Ok(crate::napi_raw::encode_to_vec(&result))
+        ensure_envelope_size(rsvelte_core::napi_raw::estimate_size(&result))?;
+        Ok(rsvelte_core::napi_raw::encode_to_vec(&result))
     }
 
     fn resolve(&mut self, _env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
@@ -1532,7 +1537,7 @@ impl Task for CompileBatchTask {
             .iter()
             .map(|(s, o)| (s.as_str(), o.clone()))
             .collect();
-        let results = crate::compiler::compile_batch(&borrowed);
+        let results = rsvelte_core::compiler::compile_batch(&borrowed);
         let err_strings: Vec<Option<String>> = results
             .iter()
             .map(|r| match r {
@@ -1540,16 +1545,18 @@ impl Task for CompileBatchTask {
                 Err(e) => Some(format!("{e:?}")),
             })
             .collect();
-        let entries: Vec<crate::napi_raw::BatchEntry<'_>> = results
+        let entries: Vec<rsvelte_core::napi_raw::BatchEntry<'_>> = results
             .iter()
             .zip(err_strings.iter())
             .map(|(r, e)| match r {
-                Ok(cr) => crate::napi_raw::BatchEntry::Ok(cr),
-                Err(_) => crate::napi_raw::BatchEntry::Err(e.as_deref().unwrap_or("unknown error")),
+                Ok(cr) => rsvelte_core::napi_raw::BatchEntry::Ok(cr),
+                Err(_) => {
+                    rsvelte_core::napi_raw::BatchEntry::Err(e.as_deref().unwrap_or("unknown error"))
+                }
             })
             .collect();
-        ensure_envelope_size(crate::napi_raw::estimate_batch_size(&entries))?;
-        Ok(crate::napi_raw::encode_batch_to_vec(&entries))
+        ensure_envelope_size(rsvelte_core::napi_raw::estimate_batch_size(&entries))?;
+        Ok(rsvelte_core::napi_raw::encode_batch_to_vec(&entries))
     }
 
     fn resolve(&mut self, _env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {

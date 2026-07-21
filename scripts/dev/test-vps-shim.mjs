@@ -7,7 +7,7 @@
 // guard that runs in CI by exercising the NAPI surface directly.
 //
 // Run: `node scripts/dev/test-vps-shim.mjs` (after `cargo build --release
-// --features napi --lib` and `cp target/release/librsvelte_core.dylib
+// --features napi --lib` and `cp target/release/librsvelte_napi.dylib
 // apps/npm/vite-plugin-svelte-native-<triple>/rsvelte.node`).
 
 import { createRequire } from 'node:module';

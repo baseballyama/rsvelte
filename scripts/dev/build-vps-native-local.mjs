@@ -18,26 +18,26 @@ let triple;
 let dylib;
 if (platform === 'darwin' && arch === 'arm64') {
 	triple = 'darwin-arm64';
-	dylib = 'librsvelte_core.dylib';
+	dylib = 'librsvelte_napi.dylib';
 } else if (platform === 'darwin' && arch === 'x64') {
 	triple = 'darwin-x64';
-	dylib = 'librsvelte_core.dylib';
+	dylib = 'librsvelte_napi.dylib';
 } else if (platform === 'linux' && arch === 'x64') {
 	triple = 'linux-x64-gnu';
-	dylib = 'librsvelte_core.so';
+	dylib = 'librsvelte_napi.so';
 } else if (platform === 'linux' && arch === 'arm64') {
 	triple = 'linux-arm64-gnu';
-	dylib = 'librsvelte_core.so';
+	dylib = 'librsvelte_napi.so';
 } else if (platform === 'win32' && arch === 'x64') {
 	triple = 'win32-x64-msvc';
-	dylib = 'rsvelte_core.dll';
+	dylib = 'rsvelte_napi.dll';
 } else {
 	console.error(`[build-vps-native] unsupported platform ${platform}/${arch}`);
 	process.exit(2);
 }
 
 console.log(`[build-vps-native] building NAPI cdylib for ${triple}…`);
-execSync('cargo build --release --features napi --lib', {
+execSync('cargo build --release -p rsvelte_napi --lib', {
 	cwd: repoRoot,
 	stdio: 'inherit',
 });

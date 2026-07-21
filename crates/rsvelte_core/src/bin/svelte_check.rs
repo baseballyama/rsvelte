@@ -3,14 +3,10 @@
 //! TypeScript type errors. Type-checking runs by default via `tsc`
 //! (or `tsgo` with `--tsgo`); pass `--no-type-check` for Svelte-only.
 
-// Use jemalloc as the global allocator for better multi-threaded
-// performance. Defined per-bin rather than once in the lib because the lib
-// is built as both rlib and cdylib, and a lib-level `#[global_allocator]`
-// is duplicated across both outputs at link time — cargo issue
-// rust-lang/cargo#6313.
+// Defined per-bin rather than once in the lib so that linking the `rsvelte_core`
+// rlib never imposes an allocator on the consumer.
 #[cfg(all(
     feature = "mimalloc-alloc",
-    not(feature = "napi"),
     not(target_arch = "wasm32"),
     not(target_os = "windows")
 ))]
@@ -20,7 +16,6 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 #[cfg(all(
     feature = "jemalloc",
     not(feature = "mimalloc-alloc"),
-    not(feature = "napi"),
     not(target_arch = "wasm32"),
     not(target_os = "windows")
 ))]

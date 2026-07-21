@@ -6,7 +6,6 @@
 
 #[cfg(all(
     feature = "mimalloc-alloc",
-    not(feature = "napi"),
     not(target_arch = "wasm32"),
     not(target_os = "windows")
 ))]
@@ -16,7 +15,6 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 #[cfg(all(
     feature = "jemalloc",
     not(feature = "mimalloc-alloc"),
-    not(feature = "napi"),
     not(target_arch = "wasm32"),
     not(target_os = "windows")
 ))]

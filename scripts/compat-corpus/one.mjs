@@ -10,8 +10,8 @@
  *   svelte.dev/apps/svelte.dev/content/docs/svelte/02-runes/04-$effect.md/1.svelte
  *
  * --raw skips oxfmt normalization. Requires a staged NAPI binding at
- * .corpus-cache/rsvelte.node (cargo build --release --features napi --lib,
- * then cp target/release/librsvelte_core.dylib .corpus-cache/rsvelte.node).
+ * .corpus-cache/rsvelte.node (cargo build --release -p rsvelte_napi --lib,
+ * then cp target/release/librsvelte_napi.dylib .corpus-cache/rsvelte.node).
  */
 
 import fs from 'node:fs';

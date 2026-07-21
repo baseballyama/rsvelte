@@ -10,24 +10,20 @@ homepage = "https://github.com/baseballyama/rsvelte"
 keywords = ["svelte", "compiler", "wasm"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+# rlib only. Emitting a cdylib here too would write unhashed
+# `deps/librsvelte_core.{so,rlib}`, letting cargo's two profile variants clobber
+# each other and letting this crate's bins link the cdylib instead of the rlib
+# (rust-lang/cargo#6313). The NAPI cdylib lives in `rsvelte_napi`.
+crate-type = ["rlib"]
 
 [features]
 default = ["native"]
-# `mimalloc-alloc` is included so the NAPI cdylib + profiling bins default to
-# mimalloc, which A/B-measured ~11% faster than jemalloc on the compile workload
-# (mold itself links mimalloc for the same allocation-bound reason). jemalloc is
-# kept available for comparison.
+# `mimalloc-alloc` is included so the profiling bins default to mimalloc, which
+# A/B-measured ~11% faster than jemalloc on the compile workload (mold itself
+# links mimalloc for the same allocation-bound reason). jemalloc is kept
+# available for comparison.
 native = ["rayon", "miette/fancy", "jemalloc", "mimalloc-alloc"]
 trace-fastpath = []
-# `napi` opts the cdylib into the NAPI build. When the cdylib gets
-# dlopen'd by Node (post-program-start), jemalloc's default
-# initial-exec TLS model can exhaust the static TLS reserve on Linux —
-# producing "cannot allocate memory in static TLS block" at load time.
-# Pull in the `disable_initial_exec_tls` feature transitively so the
-# NAPI build is always dlopen-safe. The `?` makes it a no-op when
-# jemalloc is disabled (e.g. `--no-default-features --features napi`).
-napi = ["dep:napi", "dep:napi-derive", "dep:napi-build", "tikv-jemallocator?/disable_initial_exec_tls"]
 jemalloc = ["dep:tikv-jemallocator"]
 # Profiling-only: use mimalloc instead of jemalloc in the profiling bins (A/B).
 mimalloc-alloc = ["dep:mimalloc"]
@@ -119,9 +115,6 @@ clap = { version = "4.5", features = ["derive"] }
 # Time
 chrono = "0.4"
 
-# N-API support (optional)
-napi = { version = "3", default-features = false, features = ["napi9", "serde-json", "async", "tokio_rt", "compat-mode"], optional = true }
-napi-derive = { version = "3", optional = true }
 
 # WASM support (optional)
 wasm-bindgen = { version = "0.2", optional = true }
@@ -134,16 +127,9 @@ oxc_ast_visit = "0.139"
 # Better multi-threaded memory allocator (optional, Unix/Mac only)
 [target.'cfg(all(not(windows), not(target_arch = "wasm32")))'.dependencies]
 tikv-jemallocator = { version = "0.7", optional = true }
-# mimalloc: production allocator (mold itself links mimalloc). `local_dynamic_tls`
-# builds mimalloc with the local-dynamic TLS model instead of the default
-# initial-exec one — required so the NAPI cdylib can be `dlopen`'d by Node on
-# Linux without "cannot allocate memory in static TLS block" (the same class of
-# issue jemalloc's `disable_initial_exec_tls` solved).
+# mimalloc: production allocator (mold itself links mimalloc).
 mimalloc = { version = "0.1", optional = true, features = ["local_dynamic_tls"] }
 pprof = { version = "0.15", default-features = false, optional = true }
-
-[build-dependencies]
-napi-build = { version = "2", optional = true }
 
 [dev-dependencies]
 # Testing
