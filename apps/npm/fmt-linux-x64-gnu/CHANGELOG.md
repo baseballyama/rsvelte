@@ -1,5 +1,7 @@
 # @rsvelte/fmt-linux-x64-gnu
 
+## 0.6.2
+
 ## 0.6.1
 
 ## 0.6.0
