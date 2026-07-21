@@ -4540,6 +4540,44 @@ fn try_hug_mixed(
             format!("</{tag}\n{ws_indent}>")
         };
         let simple = format!("{onb}\n{inner_indent}>{raw}{close_form}");
+        // When the hugged inner line `>{raw}</{tag}` overflows, break an inner
+        // component's attributes via the Doc IR. The measured group carries the close
+        // tag `</tag` (prettier's `group(['>', body, '</tag'])`) so the printer's fits
+        // lookahead counts its width — otherwise a child whose own attrs fit but
+        // overflow once the close tag is appended never breaks.
+        let inner_line = inner_indent.width() + 1 + raw.width() + 2 + tag.width();
+        if !raw_trail_ws_only
+            && inner_line > line_width
+            && !raw.contains('\n')
+            && let Some(body) = build_children_doc(out, fragment)
+        {
+            let base_level = if options.js.indent_style.is_tab() {
+                inner_indent
+                    .bytes()
+                    .take_while(|&b| b == b' ' || b == b'\t')
+                    .count()
+            } else {
+                inner_indent.width() / indent_width_hm
+            };
+            let measured = crate::doc::Doc::Group(vec![
+                crate::doc::Doc::Text(">".to_string()),
+                body,
+                crate::doc::Doc::Text(format!("</{tag}")),
+            ]);
+            let printed_full = crate::doc::print(
+                measured,
+                line_width,
+                indent_unit_hm.as_str(),
+                base_level,
+                inner_indent.width(),
+            );
+            if printed_full.contains('\n') {
+                let result2 = format!("{onb}\n{inner_indent}{printed_full}\n{ws_indent}>");
+                if result2 != whole {
+                    return Some((start, end, result2));
+                }
+            }
+        }
         if simple != whole {
             return Some((start, end, simple));
         }
@@ -6466,5 +6504,50 @@ mod tests {
         assert!(!is_block_display("span"));
         assert!(!is_block_display("a"));
         assert!(!is_block_display("strong"));
+    }
+
+    #[test]
+    fn hug_close_tag_width_drives_inner_component_break() {
+        use crate::doc::{Doc, print};
+
+        // Mirrors build_self_closing_component_doc's structure for
+        // `<Icon data={TrashIcon} class="text-surface-content/50" />`.
+        let icon = || {
+            Doc::Group(vec![
+                Doc::Text("<Icon".to_string()),
+                Doc::Indent(vec![Doc::Group(vec![
+                    Doc::Line,
+                    Doc::Text("data={TrashIcon}".to_string()),
+                    Doc::Line,
+                    Doc::Text("class=\"text-surface-content/50\"".to_string()),
+                    Doc::Dedent(vec![Doc::Line]),
+                ])]),
+                Doc::Text("/>".to_string()),
+            ])
+        };
+        let body = || Doc::Concat(vec![Doc::Text("Clear ".to_string()), icon()]);
+
+        // Body alone from col 15 ends at 78 <= 80: the Icon must stay flat.
+        let a = print(body(), 80, "  ", 7, 15);
+        assert_eq!(
+            a,
+            "Clear <Icon data={TrashIcon} class=\"text-surface-content/50\" />"
+        );
+
+        // With the close tag inside the measured group (prettier's
+        // group(['>', body, '</tag'])) the same body overflows (86 > 80), so the
+        // fits lookahead must break the Icon's attributes.
+        let measured = Doc::Group(vec![
+            Doc::Text(">".to_string()),
+            body(),
+            Doc::Text("</button".to_string()),
+        ]);
+        let b = print(measured, 80, "  ", 7, 14);
+        let expected = "\
+>Clear <Icon
+                data={TrashIcon}
+                class=\"text-surface-content/50\"
+              /></button";
+        assert_eq!(b, expected);
     }
 }
