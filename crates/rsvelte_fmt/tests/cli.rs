@@ -1851,6 +1851,60 @@ fn sort_tailwindcss_custom_config_warns_and_skips() {
     );
 }
 
+/// #1636: an empty directory (no files at all, so not even `oxfmt`'s own
+/// delegated share has a target) must exit like real `oxfmt` does when it
+/// hits "no target file" unsuppressed — exit 2 with its exact message — not a
+/// false success. `--oxfmt-bin true` proves the fix never even reaches the
+/// `oxfmt` subprocess: `true` would report nothing either way, but if it were
+/// invoked at all the point of the fix (short-circuiting before the pipelines
+/// run) would be defeated.
+#[test]
+fn empty_directory_exits_two_with_oxfmt_message() {
+    let dir = tempdir();
+
+    let out = Command::new(bin())
+        .current_dir(&dir)
+        .args(["--oxfmt-bin", "true"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+
+    assert_eq!(out.status.code(), Some(2), "empty directory must exit 2");
+    assert!(out.stdout.is_empty(), "stdout:\n{:?}", out.stdout);
+    assert_eq!(
+        String::from_utf8(out.stderr).unwrap(),
+        "Expected at least one target file. All matched files may have been excluded by ignore rules.\n",
+    );
+}
+
+/// Same as `empty_directory_exits_two_with_oxfmt_message`, but with `--check`
+/// — the no-match error takes priority over `--check`'s own "would reformat"
+/// exit-1 convention, matching oxfmt (which also exits 2, not 1, here).
+#[test]
+fn empty_directory_check_exits_two_with_oxfmt_message() {
+    let dir = tempdir();
+
+    let out = Command::new(bin())
+        .current_dir(&dir)
+        .args(["--check", "--oxfmt-bin", "true"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "empty directory must exit 2 even under --check"
+    );
+    assert!(out.stdout.is_empty(), "stdout:\n{:?}", out.stdout);
+    assert_eq!(
+        String::from_utf8(out.stderr).unwrap(),
+        "Expected at least one target file. All matched files may have been excluded by ignore rules.\n",
+    );
+}
+
 fn tempdir() -> PathBuf {
     let mut dir = std::env::temp_dir();
     dir.push(format!(
