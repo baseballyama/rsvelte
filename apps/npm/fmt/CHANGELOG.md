@@ -1,5 +1,185 @@
 # @rsvelte/fmt
 
+## 0.6.0
+
+### Minor Changes
+
+- 36df68d: feat(fmt): native `sortTailwindcss` for default-config Tailwind projects
+
+  `rsvelte-fmt` now sorts the classes in static `class` attributes when
+  `sortTailwindcss` is configured **and** the project uses a stock, zero-config
+  Tailwind v4 setup (`@import "tailwindcss";` with no `@plugin` / `@utility` /
+  `@custom-variant` / `@theme` / `@config` and no v3 `tailwind.config.js`). The
+  sort is a pure-Rust port of `prettier-plugin-tailwindcss` / Tailwind v4
+  `getClassOrder` (new `tailwind_class_order` crate), so no Node/Tailwind engine is
+  spawned; it matches the real sorter on 99.8% of a 3,806-attribute real-world
+  corpus.
+
+  For a custom stylesheet/config — where the order depends on the JS engine and
+  cannot be reproduced faithfully — `rsvelte-fmt` prints a warning naming the
+  reason and leaves classes unchanged (previously it always warned). Values with
+  `{expr}` interpolation are never touched. The `attributes` option is honored
+  (default `["class"]`).
+
+### Patch Changes
+
+- d864f54: fix(formatter): correct attribute-value and each-key break widths
+
+  Five width/layout divergences from prettier-plugin-svelte, each found by the
+  formatter-parity corpus (baseline 74 → 55 known failures, 0 regressions across
+  12,657 components):
+
+  - **Nested attribute-value interiors were over-narrowed.** A multi-line shallow
+    attribute value was re-formatted at the print width minus the full `name={`
+    prefix, but that prefix only shifts the first line — deeply nested interiors
+    broke earlier than the oracle. The prefix-narrowed pass is now adopted only
+    when it actually changes the first line.
+  - **Expression-bodied arrow directive values never broke.** The overflow width
+    for `on:keypress={(e) => cond && fn(e)}` was computed as
+    `prefix - indent_width`, which equals the arrow's own one-line length, so the
+    break was never triggered. It now uses the minimal-break width.
+  - **An interpolation starting at or past the print width stayed inline.** A
+    trailing `{cond ? a : b}` in a long `class="…"` is now broken when its
+    expression is breakable; atoms are unaffected.
+  - **Interpolation-led multi-line string values were re-indented.** Newlines that
+    all sit between interpolations (`viewBox="{a}\n {b}\n {c}"`) are literal HTML
+    and are now emitted verbatim.
+  - **A broken `{#each … (key)}` method chain landed at the wrong column.** Such a
+    key is now reindented to the block depth, sharing the each-iterable path's
+    method-chain gate so expanded-call-argument keys keep their own form.
+
+- 08370ce: fix(formatter): keep self-closing tags self-closed and widen the children port
+
+  `build_element_doc` had no self-closing branch, so every empty element it printed
+  came out as `<path …></path>`. A corruption guard caught the rewrite and threw the
+  port's whole layout away, which is why SVG-bearing elements silently fell back to
+  the compact string path instead of prettier's hug/dangle form. prettier's
+  `isSelfClosingTag` branch is now ported (including its `dedent(line)` trailer, so
+  `/>` keeps its leading space when flat), and `didSelfClose` is read from the text
+  rather than approximated, so `<div />` and `<div></div>` stay distinct.
+
+  Alongside it, the children-port gate accepts three more shapes — element-only
+  child runs, flow-block children, and whitespace-separated flow-block children —
+  and `{#if}` / `{#each}` / `{#key}` bodies are built as Docs instead of being
+  carried verbatim, which retires the "body already fits" freeze heuristic that
+  previously stood in for real layout.
+
+  Two independent printer bugs surfaced and were fixed on the way:
+
+  - `fits` returned false whenever a `Doc::BreakParent` reached it via the rest
+    stack, vetoing a following sibling's group even though the enclosing group was
+    already broken. prettier's `fits` has no such case; `propagate_breaks` now
+    consumes the sentinel.
+  - `with_pre_content` restored its thread-local by hand, so a panic inside the
+    re-entrant `<pre>` format left the flag set. Since callers run `format` under
+    `catch_unwind` on rayon workers, that silently suppressed the port for every
+    later file on the same worker. It is an RAII guard now, with a regression test.
+
+- 9c40765: fix(formatter): honour prettier-ignore in collapse, and fix two pass-skipping bugs
+
+  Three correctness fixes, plus the children-port work that exposed the first two:
+
+  - **`collapse` never consulted `prettier-ignore`.** `indent`, `markup` and
+    `expression` all did; collapse alone reformatted content the author had marked
+    as off-limits. It stayed hidden because the port bailed on block-display
+    children before reaching such content. Both collapse traversals needed the
+    guard — adding it to one was not enough.
+  - **The collapse re-parse skipped whole files.** It re-parses its own output, but
+    its `ParseOptions` omitted `skip_non_css_lang_style`, which the main parse
+    sets. A `<style lang="sass">` block therefore failed that re-parse and the
+    entire collapse post-pass — every hug, dangle and children-port pass — was
+    silently skipped for the file. Three further `ParseOptions` sites in the
+    `<pre>` sub-parse path had the same drift, including a missing
+    plain-then-TypeScript retry; a `<pre>` containing a top-level plain `<script>`
+    with TypeScript syntax reproduced that one.
+  - **Inline-level children broke a block body's spaces.** The oracle only converts
+    a block body's inline spaces to newlines for block-display children:
+    `<Icon /> {label}`, `<br /> {label}` and `<input /> <Icon />` all stay on one
+    line. The fit test now measures display width rather than counting chars, so a
+    full-width character is not costed at half a column.
+
+  The children port also reaches two node kinds it previously discarded:
+  block-display elements (as `Child::Block`, the variant `print_children` already
+  implemented but nothing ever emitted) and Components (as `Child::Other`, pushed
+  bare — prettier's `isInlineElement`/`isBlockElement` both require a
+  RegularElement, so a Component is neither, but hugging still applies to it since
+  only block elements suppress it). An element preceded by prose on its own line is
+  no longer rejected for not starting the line.
+
+- 7756cc0: fix(formatter): keep space indentation inside space-indented `<pre>` bodies
+
+  `reformat_pre_inner` regenerated element-direct lines inside `<pre>` with tabs
+  unconditionally, but oxfmt preserves `<pre>` bodies verbatim — tabs are only
+  correct when the source itself was tab-indented. Block-tag lines (e.g. `{#if}`)
+  inside a space-indented `<pre>` now keep spaces, including the closing-tag line.
+  Formatter-parity baseline shrinks 48 → 46.
+
+- 11018b6: fix(formatter): restore the collapse child-breaking passes retired as "dead" in #1505
+
+  #1505 removed collapse passes 1.6–1.95 and the final children-port sweep on the
+  premise that they were dead code. They were not: every one of those passes is
+  load-bearing for real corpus components, so their removal regressed the
+  formatter-parity corpus — 11 components that had matched the `oxfmt(svelte: true)`
+  oracle byte-for-byte began diverging, all in the same family of "the element
+  should break its children / open tag onto their own lines but rsvelte keeps them
+  inline" (e.g. `<button …> Add Day </button>` staying on one line, a `<Span>` open
+  tag not breaking on an overflowing prose line, an SVG `<clipPath>`/`<rect>` pair
+  not hugging, a Component block child `<div>` not breaking, a `<script></script>`
+  sibling of an `{@html}` not breaking).
+
+  Each retired pass is required by at least one of those regressions:
+
+  - 1.6 `try_collapse` sweep — inline pure-text elements revealed by pass-1
+    restructuring (card-air / calendar-test / ListGroup).
+  - 1.7 `hug_mixed` non-ws-prefix sweep — SVG child hug (flowbite Microsoft icon).
+  - 1.8 block-break non-ws-prefix — Component block child (svelte print `formatting`).
+  - 1.9 break-inline-open-tag — overflowing inline/component open tags
+    (TextDecoration / Underline / html-tag-script-2).
+  - final children-port sweep — faithful prettier-plugin-svelte layout for its
+    gated shapes (svelte-maplibre radio labels).
+
+  Restoring `collapse.rs` to its pre-#1505 state returns the formatter to the last
+  green parity state and re-fixes all 11 regressions. This intentionally reverts
+  #1505 in full: the passes cannot be separated at whole-pass granularity (each is
+  needed by a regression), so a partial keep would either leave regressions or
+  require new per-shape guards that belong to a dedicated formatter-layout change,
+  not a regression fix.
+
+  No compiler-output change; formatter output only.
+
+- 3958a1c: fix(fmt): preserve full print width for `<script>` bodies when `svelteIndentScriptAndStyle` is disabled
+
+  `format_script` always narrowed the configured `printWidth` by one indent
+  level before formatting the `<script>` body, on the assumption that the body
+  would subsequently be re-indented one level under the `<script>` tag. That
+  assumption only holds when `svelteIndentScriptAndStyle` (default `true`) is
+  enabled; with it disabled the body is spliced back in flush at column 0, so
+  narrowing the width was wrong and caused lines that fit the real configured
+  width to wrap unnecessarily. The width is now only narrowed when
+  `indent_script_and_style` is `true`, matching the already-correct general
+  pattern used by `format_nested_script` and the `<style>` formatting paths
+  (`format_nested_style` / `collect_style_edit`), which derive the width
+  narrowing from the body's actual indent rather than assuming a fixed one
+  level.
+
+- 3819f3d: fix(formatter): strip ASI guard from template expressions
+
+  `oxc_formatter` inserts a leading `;` before an expression statement whose
+  formatted text begins with `(`, `[`, `` ` ``, a template literal, or certain
+  other tokens, when `semicolons` is set to `"as-needed"` — a defensive ASI
+  (automatic semicolon insertion) guard so the line stays safe if concatenated
+  after a semicolon-less statement. Every embedded `{expr}` (mustache values,
+  attribute/directive values, block headers such as `{#if}`/`{#each}`) is
+  internally parsed and printed as a synthetic expression statement so it can
+  be run through `oxc_formatter`, so with `semi: false` that guard leaked into
+  the output: `onclick={() => doSomething()}` was formatted as the invalid
+  `onclick={;() => doSomething()}`.
+
+  Template expressions are never in statement position, so the guard is never
+  meaningful there — it is now stripped from the formatted text before
+  splicing it back into the template. Matches `oxfmt`/`prettier-plugin-svelte`,
+  which never emit the guard for embedded expressions.
+
 ## 0.5.1
 
 ### Patch Changes
