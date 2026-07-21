@@ -7,15 +7,25 @@
 //! via Node's CJS/ESM interop, treats a CommonJS `module.exports` the same as
 //! an ESM `export default` (both surface as the imported module's `.default`;
 //! see oxfmt's `apps/shared/src-js/js_config/index.ts`). We instead parse the
-//! file with `oxc_parser` and statically evaluate the object literal behind
-//! `export default {...}`, `module.exports = {...}`,
-//! `export default defineConfig({...})` /
-//! `module.exports = defineConfig({...})`, or a local `const` re-export
-//! (`const config = {...}; export default config;` /
-//! `module.exports = config;`). Which dialect a file uses is read from its
-//! *content*, not its extension — see [`source_type_for`]. `defineConfig` is
-//! oxfmt's identity function (see its `src-js/index.ts`), so unwrapping the
-//! call and evaluating its argument is equivalent to evaluating what it
+//! file with `oxc_parser` and statically evaluate the object literal behind,
+//! in priority order:
+//! 1. `export default {...}` (ESM).
+//! 2. `module.exports = {...}` (a full CommonJS replacement).
+//! 3. One or more `exports.foo = ...` / `exports["foo"] = ...` property
+//!    assignments (CommonJS's incremental form), accumulated in source order
+//!    with later assignments to the same key overwriting earlier ones —
+//!    exactly how Node would execute them. Only consulted when neither of the
+//!    above is present; see [`evaluate`] for why a file mixing
+//!    `module.exports = ...` with `exports.foo = ...` doesn't need
+//!    finer-grained handling.
+//!
+//! `export default defineConfig({...})` / `module.exports =
+//! defineConfig({...})`, and a local `const` re-export (`const config =
+//! {...}; export default config;` / `module.exports = config;`) are also
+//! recognized wherever forms 1–2 are. Which dialect a file uses is read from
+//! its *content*, not its extension — see [`source_type_for`]. `defineConfig`
+//! is oxfmt's identity function (see its `src-js/index.ts`), so unwrapping
+//! the call and evaluating its argument is equivalent to evaluating what it
 //! returns.
 //!
 //! `.oxfmtrc.json`'s policy is to silently ignore whatever it can't parse — a
@@ -23,9 +33,8 @@
 //! an implicitly-discovered file. A JS/TS config is a deliberate, explicit
 //! choice, so here the opposite policy applies: anything not statically
 //! resolvable (a call other than `defineConfig`, a reference to something
-//! other than a local `const`, a spread, a computed key, an individual
-//! `exports.foo = ...` assignment, …) is a hard error rather than a silent
-//! partial read.
+//! other than a local `const`, a spread, a computed key, …) is a hard error
+//! rather than a silent partial read.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -111,33 +120,68 @@ pub fn evaluate(source: &str, path: &Path) -> Result<serde_json::Value, String> 
         }
     }
 
+    // Priority 1–2: a full replacement — ESM `export default` or CJS
+    // `module.exports = ...` — wins outright over any individual
+    // `exports.foo = ...` assignment in the same file.
     let default_expr = ret.program.body.iter().find_map(|stmt| match stmt {
         oxc::Statement::ExportDefaultDeclaration(export) => export.declaration.as_expression(),
         oxc::Statement::ExpressionStatement(es) => module_exports_rhs(&es.expression),
         _ => None,
     });
-    let Some(default_expr) = default_expr else {
-        return Err(format!(
-            "{}: expected a default export (`export default {{...}}`, \
-             `module.exports = {{...}}`, or one of those wrapped in `defineConfig(...)`)",
-            path.display()
-        ));
-    };
+    if let Some(default_expr) = default_expr {
+        return eval_expr(default_expr, &locals, 0).map_err(|reason| dynamic_error(path, reason));
+    }
 
-    eval_expr(default_expr, &locals, 0).map_err(|reason| {
-        format!(
-            "{}: {reason}\nrsvelte-fmt evaluates JS/TS oxfmt configs statically; dynamic \
-             expressions are not supported. Use .oxfmtrc.json/.oxfmtrc.jsonc instead.",
-            path.display()
-        )
-    })
+    // Priority 3: no replacement found — fall back to accumulating individual
+    // `exports.foo = ...` property assignments, CommonJS's incremental form.
+    // Simplification: in real Node execution, a `module.exports = ...`
+    // reassignment would make every *subsequent* `exports.foo = ...` a no-op
+    // on a *different* object (while every prior one remains effective on the
+    // original, now-discarded `exports`); we don't model that ordering nuance
+    // — since the branch above already claims the whole file whenever
+    // `module.exports = ...` is present at all, this loop is only ever
+    // reached when it's absent, so no such intermixing can occur here.
+    let exports_props: Vec<(&str, &oxc::Expression)> = ret
+        .program
+        .body
+        .iter()
+        .filter_map(|stmt| match stmt {
+            oxc::Statement::ExpressionStatement(es) => exports_property_assignment(&es.expression),
+            _ => None,
+        })
+        .collect();
+    if !exports_props.is_empty() {
+        let mut map = serde_json::Map::with_capacity(exports_props.len());
+        for (name, value_expr) in exports_props {
+            let value =
+                eval_expr(value_expr, &locals, 0).map_err(|reason| dynamic_error(path, reason))?;
+            // Later assignments to the same key overwrite earlier ones, same
+            // as re-running `exports.foo = ...` in source order would.
+            map.insert(name.to_string(), value);
+        }
+        return Ok(serde_json::Value::Object(map));
+    }
+
+    Err(format!(
+        "{}: expected a default export (`export default {{...}}`, `module.exports = {{...}}`, \
+         `exports.foo = ...` property assignments, or one of those wrapped in `defineConfig(...)`)",
+        path.display()
+    ))
 }
 
-/// Recognize `module.exports = <rhs>;` (CommonJS's equivalent of an ESM
-/// default export — see the module docs) and return `<rhs>`. An individual
-/// `exports.foo = ...` property assignment does *not* match: statically
-/// tracking incremental mutations to the exports object is unsupported
-/// dynamic behavior, same as any other partial/indirect assignment.
+/// Wrap an [`eval_expr`] failure with the shared "static evaluation only"
+/// explanation, prefixed with `path` so the message points at the config.
+fn dynamic_error(path: &Path, reason: String) -> String {
+    format!(
+        "{}: {reason}\nrsvelte-fmt evaluates JS/TS oxfmt configs statically; dynamic \
+         expressions are not supported. Use .oxfmtrc.json/.oxfmtrc.jsonc instead.",
+        path.display()
+    )
+}
+
+/// Recognize `module.exports = <rhs>;` (a full CommonJS replacement,
+/// equivalent to an ESM default export — see the module docs) and return
+/// `<rhs>`.
 fn module_exports_rhs<'s, 'a>(expr: &'s oxc::Expression<'a>) -> Option<&'s oxc::Expression<'a>> {
     let oxc::Expression::AssignmentExpression(assign) = expr else {
         return None;
@@ -145,16 +189,47 @@ fn module_exports_rhs<'s, 'a>(expr: &'s oxc::Expression<'a>) -> Option<&'s oxc::
     let is_module_exports = matches!(
         &assign.left,
         oxc::AssignmentTarget::StaticMemberExpression(member)
-            if member.property.name.as_str() == "exports"
-                && matches!(
-                    &member.object,
-                    oxc::Expression::Identifier(id) if id.name.as_str() == "module"
-                )
+            if member.property.name.as_str() == "exports" && is_bare_identifier(&member.object, "module")
     );
     if !is_module_exports {
         return None;
     }
     Some(&assign.right)
+}
+
+/// Recognize an individual `exports.foo = <rhs>;` or `exports["foo"] =
+/// <rhs>;` property assignment (CommonJS's incremental export form, as
+/// opposed to a full `module.exports = {...}` replacement — see the module
+/// docs) and return `(property name, rhs)`.
+fn exports_property_assignment<'s, 'a>(
+    expr: &'s oxc::Expression<'a>,
+) -> Option<(&'s str, &'s oxc::Expression<'a>)> {
+    let oxc::Expression::AssignmentExpression(assign) = expr else {
+        return None;
+    };
+    let name = match &assign.left {
+        oxc::AssignmentTarget::StaticMemberExpression(member)
+            if is_bare_identifier(&member.object, "exports") =>
+        {
+            member.property.name.as_str()
+        }
+        oxc::AssignmentTarget::ComputedMemberExpression(member)
+            if is_bare_identifier(&member.object, "exports") =>
+        {
+            match &member.expression {
+                oxc::Expression::StringLiteral(s) => s.value.as_str(),
+                _ => return None,
+            }
+        }
+        _ => return None,
+    };
+    Some((name, &assign.right))
+}
+
+/// `true` when `expr` is the bare identifier `name` (e.g. the `module` in
+/// `module.exports`, or the `exports` in `exports.foo`).
+fn is_bare_identifier(expr: &oxc::Expression, name: &str) -> bool {
+    matches!(expr, oxc::Expression::Identifier(id) if id.name.as_str() == name)
 }
 
 fn eval_expr<'s, 'a>(
@@ -515,12 +590,65 @@ mod tests {
     }
 
     #[test]
-    fn individual_exports_property_assignment_is_an_error() {
-        let err = eval_at(
+    fn individual_exports_property_assignments_accumulate() {
+        let v = eval_at(
             "exports.singleQuote = true;\nexports.semi = false;",
             "oxfmt.config.cjs",
         )
-        .unwrap_err();
-        assert!(err.contains("default export"), "unexpected error: {err}");
+        .unwrap();
+        assert_eq!(v["singleQuote"], serde_json::json!(true));
+        assert_eq!(v["semi"], serde_json::json!(false));
+    }
+
+    #[test]
+    fn later_exports_property_assignment_overwrites_earlier_same_key() {
+        let v = eval_at(
+            "exports.printWidth = 80;\nexports.printWidth = 100;",
+            "oxfmt.config.cjs",
+        )
+        .unwrap();
+        assert_eq!(v["printWidth"], serde_json::json!(100));
+    }
+
+    #[test]
+    fn exports_computed_string_key_is_accepted() {
+        let v = eval_at("exports[\"semi\"] = false;", "oxfmt.config.cjs").unwrap();
+        assert_eq!(v["semi"], serde_json::json!(false));
+    }
+
+    #[test]
+    fn exports_property_assignments_use_normal_evaluation_rules() {
+        // defineConfig unwrapping and local `const` references work the same
+        // as they do for a full `export default` / `module.exports =`.
+        let v = eval_at(
+            "import { defineConfig } from \"oxfmt\";\n\
+             const width = 100;\n\
+             exports.printWidth = defineConfig(width);\n\
+             exports.semi = true;",
+            "oxfmt.config.cjs",
+        )
+        .unwrap();
+        assert_eq!(v["printWidth"], serde_json::json!(100));
+        assert_eq!(v["semi"], serde_json::json!(true));
+    }
+
+    #[test]
+    fn module_exports_assignment_takes_priority_over_exports_property_assignments() {
+        // A full `module.exports = ...` replacement wins outright — any
+        // `exports.foo = ...` in the same file is ignored entirely (see the
+        // `evaluate` doc comment for why the ordering nuance isn't modeled).
+        let v = eval_at(
+            "exports.semi = true;\nmodule.exports = { semi: false };",
+            "oxfmt.config.cjs",
+        )
+        .unwrap();
+        assert_eq!(v["semi"], serde_json::json!(false));
+        assert!(v.get("printWidth").is_none());
+    }
+
+    #[test]
+    fn dynamic_exports_property_value_is_an_error() {
+        let err = eval_at("exports.printWidth = computeWidth();", "oxfmt.config.cjs").unwrap_err();
+        assert!(err.contains("statically"), "unexpected error: {err}");
     }
 }

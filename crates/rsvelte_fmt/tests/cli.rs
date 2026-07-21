@@ -447,6 +447,34 @@ fn inline_script_respects_explicit_cjs_config() {
     );
 }
 
+/// `--config foo.cjs` using the incremental `exports.foo = ...` style (as
+/// opposed to a full `module.exports = {...}` replacement) must also drive
+/// inline `<script>` formatting — real Node honors this form too, so
+/// rsvelte-fmt's static evaluator accumulates it into an object.
+#[test]
+fn inline_script_respects_explicit_cjs_config_exports_property_style() {
+    let dir = tempdir();
+    let cfg = dir.join("oxfmt.config.cjs");
+    std::fs::write(&cfg, "exports.singleQuote = true;\nexports.semi = false;").unwrap();
+
+    let (stdout, stderr, code) = run_stdin(
+        "<script>const x = \"hello\"</script>\n",
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            "x.svelte",
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "stderr:\n{stderr}");
+    assert!(
+        stdout.contains("const x = 'hello'\n"),
+        "expected single quotes (exports.singleQuote) and no trailing semicolon \
+         (exports.semi = false):\n{stdout}"
+    );
+}
+
 /// `--config foo.js` must accept either dialect the file happens to use —
 /// oxfmt (via Node's CJS/ESM interop) decides by content, not extension, so
 /// rsvelte-fmt's static evaluator must too. This covers the ESM form; the CJS
