@@ -2185,6 +2185,7 @@ fn render_attribute_value_sequence(
     let value_starts_with_text =
         matches!(parts.first(), Some(AttributeValuePart::Text(t)) if !t.data.is_empty());
     let mut out = String::new();
+    let mut any_expr_wrapped = false;
     for (i, part) in parts.iter().enumerate() {
         match part {
             AttributeValuePart::Text(t) => {
@@ -2463,6 +2464,7 @@ fn render_attribute_value_sequence(
                     } else {
                         formatted
                     };
+                    any_expr_wrapped |= formatted.contains('\n');
                     out.push('{');
                     out.push_str(&formatted);
                     out.push('}');
@@ -2470,7 +2472,95 @@ fn render_attribute_value_sequence(
             }
         }
     }
+    // An interpolation-led value with a wrapped `{expr}` takes the whole-value
+    // re-indent path in `render_multi_line`, which prepends the attribute indent
+    // to every line. The literal whitespace BETWEEN interpolations still carries
+    // its SOURCE indentation, so that re-indent would double-indent such a line.
+    // Normalise it away (prettier reflows inter-interpolation whitespace to the
+    // attribute column); the downstream re-indent then lands it at exactly the
+    // attribute indent. Values without a wrapped expression stay verbatim.
+    if any_expr_wrapped && out.starts_with('{') {
+        out = normalize_interpolation_value_indent(&out);
+    }
     Ok(out)
+}
+
+/// Strip the leading horizontal whitespace after a brace-depth-0 newline in an
+/// interpolation-led attribute value body (`{expr}…{expr}`) **only when that
+/// whitespace runs straight into the next interpolation `{`** — i.e. it is
+/// purely structural whitespace between two interpolations. The downstream
+/// whole-value re-indent re-establishes the attribute indent, so this source
+/// indentation must not be carried through (it would be added on top), and
+/// prettier reflows such inter-interpolation whitespace to the attribute column.
+///
+/// Depth-0 lines that carry literal content (`class="{expr}\n\tfoo bar"`) are
+/// left verbatim — that is HTML attribute text whose interior whitespace is
+/// significant and which the oracle preserves as-is. Lines inside `{…}` —
+/// wrapped expression continuations formatted at column 0 — always keep their
+/// relative indent. String / template-literal content is skipped so its braces
+/// aren't miscounted and its interior newlines (multi-line template quasi) are
+/// left verbatim. The brace/quote scanning mirrors
+/// [`is_verbatim_interpolation_value`], so the verbatim-vs-re-indent decision
+/// and this normalisation agree on depth.
+fn normalize_interpolation_value_indent(value: &str) -> String {
+    let chars: Vec<char> = value.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(value.len());
+    let mut depth: i32 = 0;
+    let mut quote: Option<char> = None;
+    let mut escaped = false;
+    let mut i = 0;
+    while i < n {
+        let ch = chars[i];
+        match quote {
+            Some(q) => {
+                out.push(ch);
+                if escaped {
+                    escaped = false;
+                } else if ch == '\\' {
+                    escaped = true;
+                } else if ch == q {
+                    quote = None;
+                }
+                i += 1;
+            }
+            None => match ch {
+                '\'' | '"' | '`' if depth > 0 => {
+                    quote = Some(ch);
+                    out.push(ch);
+                    i += 1;
+                }
+                '{' => {
+                    depth += 1;
+                    out.push(ch);
+                    i += 1;
+                }
+                '}' => {
+                    depth -= 1;
+                    out.push(ch);
+                    i += 1;
+                }
+                '\n' if depth == 0 => {
+                    out.push(ch);
+                    i += 1;
+                    // Look past horizontal whitespace: strip it only if the next
+                    // non-whitespace character opens another interpolation.
+                    let mut j = i;
+                    while j < n && (chars[j] == ' ' || chars[j] == '\t') {
+                        j += 1;
+                    }
+                    if j < n && chars[j] == '{' {
+                        i = j;
+                    }
+                }
+                _ => {
+                    out.push(ch);
+                    i += 1;
+                }
+            },
+        }
+    }
+    out
 }
 
 fn render_spread(
@@ -2615,4 +2705,49 @@ fn format_expression_at(
     Ok(Some(format_attribute_value_expression(
         raw, options, attr_depth, 0,
     )?))
+}
+
+#[cfg(test)]
+mod normalize_tests {
+    use super::normalize_interpolation_value_indent;
+
+    #[test]
+    fn strips_structural_whitespace_before_next_interpolation() {
+        // Whitespace between two interpolations is reflowed by the downstream
+        // re-indent, so its source indentation is removed here.
+        assert_eq!(
+            normalize_interpolation_value_indent("{a}\n      {b}"),
+            "{a}\n{b}"
+        );
+    }
+
+    #[test]
+    fn keeps_literal_text_line_verbatim() {
+        // A depth-0 line carrying literal content (not another interpolation) is
+        // significant HTML attribute text and must be left untouched.
+        assert_eq!(
+            normalize_interpolation_value_indent("{a}\n      foo bar"),
+            "{a}\n      foo bar"
+        );
+    }
+
+    #[test]
+    fn does_not_touch_wrapped_expression_continuations() {
+        // Newlines inside `{…}` (a wrapped expression, depth > 0) are the
+        // formatter's own relative indent and are preserved as-is.
+        assert_eq!(
+            normalize_interpolation_value_indent("{a\n  ? b\n  : c}\n  {d}"),
+            "{a\n  ? b\n  : c}\n{d}"
+        );
+    }
+
+    #[test]
+    fn ignores_braces_inside_strings() {
+        // A `{` inside a JS string literal is not an interpolation boundary, so
+        // brace depth stays correct and the following literal line is kept.
+        assert_eq!(
+            normalize_interpolation_value_indent("{x ?? '{'}\n      foo"),
+            "{x ?? '{'}\n      foo"
+        );
+    }
 }

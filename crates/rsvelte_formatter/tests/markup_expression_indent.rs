@@ -107,3 +107,41 @@ fn content_expression_wrap_is_idempotent() {
         "wrapped content expression not idempotent:\n{once}"
     );
 }
+
+// An attribute value made of TWO wrapped interpolations separated by structural
+// whitespace (`style:x="{ternary}\n  {ternary}"`) must open the second
+// interpolation at the attribute indent, not double-indented against the source
+// whitespace. Regression guard for the Cluster 7 nested-ternary reindent bug.
+#[test]
+fn multi_interpolation_value_second_opens_at_attr_indent() {
+    let src = concat!(
+        "<div\n",
+        "  style:transform-origin=\"{verticalAnchor === 'middle'\n",
+        "    ? 'center'\n",
+        "    : verticalAnchor === 'end'\n",
+        "      ? 'bottom'\n",
+        "      : 'top'}\n",
+        "  {textAnchor === 'middle' ? 'center' : textAnchor === 'end' ? 'right' : 'left'}\"\n",
+        ">x</div>\n",
+    );
+    let expected = concat!(
+        "<div\n",
+        "  style:transform-origin=\"{verticalAnchor === 'middle'\n",
+        "    ? 'center'\n",
+        "    : verticalAnchor === 'end'\n",
+        "      ? 'bottom'\n",
+        "      : 'top'}\n",
+        "  {textAnchor === 'middle'\n",
+        "    ? 'center'\n",
+        "    : textAnchor === 'end'\n",
+        "      ? 'right'\n",
+        "      : 'left'}\"\n",
+        ">\n",
+        "  x\n",
+        "</div>\n",
+    );
+    let once = fmt_at_width(src, 80);
+    assert_eq!(once, expected, "multi-interpolation value indent:\n{once}");
+    let twice = fmt_at_width(&once, 80);
+    assert_eq!(once, twice, "not idempotent:\n{once}");
+}
