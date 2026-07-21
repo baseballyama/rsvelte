@@ -451,6 +451,45 @@ mod tests {
         );
     }
 
+    // Two interpolation groups L and T, adjacent; T is either breakable or not.
+    // Locks the whole-value attribute model's break-point rule: whether the
+    // LEADING interpolation stays flat depends on whether the TRAILING one can
+    // break — because `fits`, measuring the trailing group in the inherited
+    // Break mode, charges a *breakable* RawExpr only up to its first line
+    // (`broken[0]`) and then short-circuits, but a *non-breakable* one
+    // (`broken.len() == 1`) by its full flat width.
+    fn two_interps(t_breakable: bool) -> Doc {
+        let l = Doc::Group(vec![Doc::RawExpr {
+            flat: "{a1}".into(),
+            broken: vec!["{a1".into(), "z}".into()],
+        }]);
+        let t = Doc::Group(vec![Doc::RawExpr {
+            flat: "{bbbbbb}".into(),
+            broken: if t_breakable {
+                vec!["{bb".into(), "bbb}".into()]
+            } else {
+                vec!["{bbbbbb}".into()]
+            },
+        }]);
+        Doc::Concat(vec![l, Doc::Text(" ".into()), t])
+    }
+
+    #[test]
+    fn fits_break_mode_short_circuits_a_breakable_trailing_raw_expr() {
+        // width 8 = `{a1}`(4) + ` `(1) + T's first broken line `{bb`(3). Because
+        // T is breakable, L's `fits` reaches T's break and succeeds, so L stays
+        // flat and T breaks on its own (it does not fit flat at its column).
+        assert_eq!(p(two_interps(true), 8), "{a1} {bb\nbbb}");
+    }
+
+    #[test]
+    fn fits_flat_measures_an_unbreakable_trailing_raw_expr_full_width() {
+        // Same width 8, but T is unbreakable (`broken.len() == 1`), so `fits`
+        // charges its FULL flat width (`{bbbbbb}` = 8). L can no longer fit up to
+        // a later break, so L breaks and T prints flat on the continuation line.
+        assert_eq!(p(two_interps(false), 8), "{a1\nz} {bbbbbb}");
+    }
+
     #[test]
     fn literalline_emits_raw_newline_no_indent() {
         let doc = Doc::Indent(vec![Doc::Concat(vec![
