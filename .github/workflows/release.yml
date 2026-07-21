@@ -107,8 +107,9 @@ jobs:
           sudo apt-get install -y ${{ matrix.apt }}
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.96.0
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry + target
@@ -168,8 +169,9 @@ jobs:
           sudo apt-get install -y ${{ matrix.apt }}
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.96.0
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry + target
@@ -230,8 +232,9 @@ jobs:
           sudo apt-get install -y ${{ matrix.apt }}
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.96.0
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry + target
@@ -292,8 +295,9 @@ jobs:
           sudo apt-get install -y ${{ matrix.apt }}
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.96.0
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry + target
@@ -359,8 +363,9 @@ jobs:
           fetch-depth: 0
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.96.0
           targets: wasm32-unknown-unknown
 
       - name: Cache cargo registry + target
