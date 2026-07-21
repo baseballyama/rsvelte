@@ -14,7 +14,7 @@ compiler-behaviour gap; attempts to fix them are regression-prone against the
 8000+ passing entries (several have been reverted after wide blowups), so they are
 accepted until an upstream-faithful port lands.
 
-## Client (`known-failures.client.json`, 8 entries)
+## Client (`known-failures.client.json`, 4 entries)
 
 - **`melt-ui/.../SpatialMenuNavTest.svelte`** — two causes: (a) a proxy argument in
   `$.set(highlighted, id, true)` where `id` is an inner-scope TemplateLiteral const
@@ -22,11 +22,6 @@ accepted until an upstream-faithful port lands.
   multi-occurrence names); (b) `${cols ?? ''}` — svelte keeps the `?? ''`, rsvelte
   elides it (scope.evaluate treats a prop member as defined where svelte keeps it
   UNKNOWN).
-- **`svelte-form-builder/.../PropertyPanelChoiceCheckboxRadioSpecific.svelte`** —
-  reactive assignment lowered to a SequenceExpression (`(field(...), true), ...`)
-  vs a bare CallExpression (~114-node difference).
-- **`svelte-form-builder/.../Table/TableColumnSpecific.svelte`** — divergence around
-  `let column = $.mutable_source()` (~39-node difference).
 - **`svelte-sonner/.../Toaster.svelte`** — JS now matches; remaining divergence is
   **CSS unused-selector pruning**: svelte prunes selectors like
   `[data-sonner-toast][data-styled='true'] [data-description]` as unused while
@@ -40,13 +35,6 @@ accepted until an upstream-faithful port lands.
   `col` missing inside `$.invalidate_inner_signals` (from a `bind:value` key
   `filterSelections()[col.key]`). The exact condition making `col` reactive is
   unresolved.
-- **`svelte-ux/.../Button.svelte`** — an `$.event('click', …)` wrapped in
-  `$.effect(() => $.event(…))` where svelte emits it bare in after_update; spread +
-  action-with-event placement (~25-node difference).
-- **`svelte-ux/.../MultiSelect.svelte`** — a component prop emitted as a getter
-  (`get onChange(){ return $.get(onChange); }`) where svelte emits plain
-  `onChange: $.get(onChange)`. svelte's rule is `has_state ? getter : init`;
-  rsvelte's `has_state` is true for a legacy prop where svelte's is false.
 
 ## Server (`known-failures.server.json`, 0 entries)
 
@@ -65,6 +53,5 @@ against the full corpus + byte-exact runtime/ssr/css suites before landing):
 - **each-item reactivity wrapping** (function-depth `has_external_dependencies`
   check) — a prior attempt caused ~498 regressions.
 - **`$derived` currying** (`yScale()(tick)`) — reverted twice; do not retry naively.
-- **legacy prop `has_state` analysis** driving getter-vs-plain component-prop shape.
 - **store/runes name-conflict resolution** — two independent sub-bugs that must land
   together and distinguish getter-vs-user-call by context.

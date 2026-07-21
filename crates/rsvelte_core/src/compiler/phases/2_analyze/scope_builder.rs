@@ -229,7 +229,16 @@ impl<'a> ScopeBuilder<'a> {
         //
         // Example: let { foo } = (() => { const foo = ...; return { foo }; })();
         // The outer `let foo` should be found, not the inner `const foo`.
-        for i in 1..self.scopes.len() {
+        //
+        // Scope creation order is not depth order: module-script inner-function
+        // scopes are created before the instance scope, so the instance scope's
+        // top-level declarations must be inserted first or a same-named function
+        // parameter in the module script would shadow them.
+        let instance_idx = self.instance_scope_index;
+        let instance_first = std::iter::once(instance_idx)
+            .filter(|&i| i != 0)
+            .chain((1..self.scopes.len()).filter(move |&i| i != instance_idx));
+        for i in instance_first {
             // Split to get simultaneous mutable access to scopes[0] and scopes[i]
             let (first, rest) = self.scopes.split_at_mut(1);
             let root = &mut first[0];
