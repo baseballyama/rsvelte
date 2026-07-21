@@ -75,37 +75,9 @@ pub(crate) fn print(
     base_indent: usize,
     start_col: usize,
 ) -> String {
-    print_with_root_mode(doc, width, unit, base_indent, start_col, Mode::Break)
-}
-
-/// Like [`print`] but starts the root command in `Flat` mode. Used by the
-/// whole-value attribute Doc (`crate::markup`): the value has no enclosing
-/// breaking group, so its literal chunks and inter-chunk whitespace must be
-/// measured/printed flat (a trailing `fill` separator does not short-circuit an
-/// interpolation group's `fits` look-ahead through the value's tail). Inner
-/// `Group`s (interpolations) still measure and break independently, and inner
-/// `Fill`s still break locally — both ignore the root mode.
-pub(crate) fn print_flat_root(
-    doc: Doc,
-    width: usize,
-    unit: &str,
-    base_indent: usize,
-    start_col: usize,
-) -> String {
-    print_with_root_mode(doc, width, unit, base_indent, start_col, Mode::Flat)
-}
-
-fn print_with_root_mode(
-    doc: Doc,
-    width: usize,
-    unit: &str,
-    base_indent: usize,
-    start_col: usize,
-    root_mode: Mode,
-) -> String {
     let mut out = String::new();
     let mut pos = start_col;
-    let mut cmds: Vec<(usize, Mode, Doc)> = vec![(base_indent, root_mode, doc)];
+    let mut cmds: Vec<(usize, Mode, Doc)> = vec![(base_indent, Mode::Break, doc)];
 
     while let Some((ind, mode, d)) = cmds.pop() {
         match d {
@@ -266,10 +238,26 @@ fn fits(mut remaining: isize, rest_stack: &[(usize, Mode, Doc)], next: &[Doc]) -
                     remaining -= text_width(s) as isize;
                 }
             }
-            // A pre-formatted interpolation is measured by its flat width: the
-            // fill decides whether to keep it inline (flat) or break it based on
-            // whether that flat form fits at the current column.
-            Doc::RawExpr { flat, .. } => {
+            // A pre-formatted interpolation. In `Flat` mode it is measured by
+            // its flat width. In `Break` mode, a *breakable* one (`broken` has
+            // 2+ lines) behaves like a prettier group with an internal line: it
+            // charges only up to its first break (`broken[0]`) and then the
+            // break ends the measurement — so an interpolation earlier in the
+            // value stays flat whenever this later one can break to absorb the
+            // overflow. (`fits` measures the rest with the modes the commands
+            // were pushed in; the value's interpolation groups sit in `Break`
+            // mode when the attribute's open tag has wrapped.)
+            Doc::RawExpr { flat, broken } => {
+                if mode == Mode::Break && broken.len() > 1 {
+                    let head = &broken[0];
+                    if !head.is_empty() {
+                        if has_pending_space {
+                            remaining -= 1;
+                        }
+                        remaining -= text_width(head) as isize;
+                    }
+                    return remaining >= 0;
+                }
                 if !flat.is_empty() {
                     if has_pending_space {
                         remaining -= 1;

@@ -33,7 +33,7 @@ use rsvelte_core::ast::template::{
 };
 use unicode_width::UnicodeWidthStr;
 
-use crate::doc::{Doc, print_flat_root, propagate_breaks};
+use crate::doc::{Doc, print as doc_print, propagate_breaks};
 use crate::error::FormatError;
 use crate::expression::{
     expand_obj_arg_call, format_attribute_value_expression,
@@ -1893,6 +1893,7 @@ fn render_attribute_node(
                 attr_depth,
                 name_prefix,
                 narrow_value,
+                true,
             )?;
             Ok(format!("{}=\"{}\"", node.name, body))
         }
@@ -1979,6 +1980,8 @@ fn render_attribute_value_for_directive(
                 }
             }
             // Directive value body starts after `style:name="`: prefix + the `"`.
+            // `regular_attr = false`: directive text prints as a `fill`, so it
+            // stays on the legacy path (not the whole-value Doc model).
             let body = render_attribute_value_sequence(
                 parts,
                 source,
@@ -1986,69 +1989,46 @@ fn render_attribute_value_for_directive(
                 attr_depth,
                 prefix + 1,
                 narrow_value,
+                false,
             )?;
             Ok(format!("\"{body}\""))
         }
     }
 }
 
-/// HTML whitespace (`[\t\n\f\r ]`), matching prettier-plugin-svelte's
-/// `splitTextToDocs` / `printWhitespace` splitters.
-fn is_attr_ws(c: char) -> bool {
-    matches!(c, '\t' | '\n' | '\x0c' | '\r' | ' ')
-}
-
-/// Build the Doc for one literal-text chunk of a quoted attribute value, plus
-/// its flat visual width. The text is emitted flat and non-breaking, with each
-/// whitespace run collapsed to a single space (prettier's `splitTextToDocs` /
-/// `printWhitespace` collapse) — in the single-breakable-interpolation values
-/// this path handles, the oracle never breaks the literal text (it overflows
-/// and the sole breakable interpolation breaks instead), so the text carries no
-/// `line` break points.
+/// Build the Doc for one literal-text chunk of a REGULAR quoted attribute
+/// value, plus its flat visual width. prettier-plugin-svelte emits regular
+/// attribute-value text VERBATIM (unlike element-children text, it is not run
+/// through `splitTextToDocs` / `printWhitespace`, so it carries no `line` break
+/// points) — confirmed by dumping the printer's Doc. So the chunk is a single
+/// non-breaking `Text`; all breaking happens inside the interpolation groups.
+/// (Style-directive values differ — their text IS a `fill` — and are excluded
+/// from this path.)
 fn attr_text_chunk_doc(raw: &str) -> (Doc, usize) {
-    if raw.is_empty() {
-        return (Doc::Text(String::new()), 0);
-    }
-    let has_lead = raw.starts_with(is_attr_ws);
-    let has_trail = raw.ends_with(is_attr_ws);
-    let words: Vec<&str> = raw.split(is_attr_ws).filter(|w| !w.is_empty()).collect();
-    if words.is_empty() {
-        // Whitespace-only separator → one flat space.
-        return (Doc::Text(" ".into()), 1);
-    }
-    let mut text = String::new();
-    if has_lead {
-        text.push(' ');
-    }
-    text.push_str(&words.join(" "));
-    if has_trail {
-        text.push(' ');
-    }
-    let width = visual_width(&text);
-    (Doc::Text(text), width)
+    (Doc::Text(raw.to_string()), visual_width(raw))
 }
 
-/// Whole-value Doc model for a quoted attribute / directive value: format the
+/// Whole-value Doc model for a REGULAR quoted attribute value: format the
 /// entire value as one measured Doc (literal text verbatim, each `{expr}`
-/// interpolation a `group([RawExpr])` whose break decision measures its full
-/// trailing tail) so the oracle's break-point selection — the leftmost
-/// breakable interpolation that overflows breaks, at its true column — is
-/// reproduced instead of the legacy per-interpolation width estimate that
-/// counts trailing interpolations as zero width.
+/// interpolation a `group([RawExpr])`) and print it in Break mode. The engine's
+/// `fits` measures a trailing *breakable* interpolation only up to its first
+/// break point (mirroring prettier's group-with-softline), so which
+/// interpolation breaks matches prettier-plugin-svelte's greedy left-to-right
+/// layout: an earlier interpolation stays flat whenever a later one can break
+/// to absorb the overflow, and breaks only when everything after it up to the
+/// first later break point still overflows.
 ///
 /// Returns `None` (fall through to the legacy string path) when the value is
 /// not eligible:
-///  - fewer than two interpolations (commit-1 gate);
+///  - fewer than two interpolations;
 ///  - any literal text spanning multiple source lines (a multi-line string
 ///    value — Cluster 7, handled by the legacy reindent path);
-///  - not exactly one *breakable* interpolation. With a single breakable
-///    interpolation (every other one a simple identifier / unbreakable
-///    expression), *which* interpolation breaks is unambiguous, so the Doc
-///    layout matches the oracle. With two or more breakable interpolations the
-///    oracle's choice of which to break (and whether to keep an earlier one
-///    flat while a later break absorbs the overflow) is a greedy line-fill
-///    decision this per-interpolation-group model does not yet reproduce, so
-///    those values stay on the legacy path.
+///  - a breakable interpolation with a block-bodied expansion (object / array /
+///    arrow, or a call whose broken first line ends with `(` / `{` / `[`) —
+///    its continuation lines sit at the attribute indent with full width, not
+///    the +2 relative indent this RawExpr model assumes;
+///  - no breakable interpolation at all (the value can only render flat, and
+///    the legacy path's flat output is authoritative).
 fn render_value_sequence_doc(
     parts: &[AttributeValuePart],
     source: &str,
@@ -2118,17 +2098,19 @@ fn render_value_sequence_doc(
                 let broken = if broken_inner.contains('\n') {
                     breakable_count += 1;
                     // A block-bodied breakable value — an object / array / arrow
-                    // literal (`is_shallow_value` false) or a call that expands
+                    // literal (`is_shallow_value` false), or a call that expands
                     // its argument list into a bracket block (first line ends
-                    // with an opening `(` / `{` / `[`) — keeps its continuation
-                    // lines at the attribute indent with full width, not the +2
-                    // relative indent this RawExpr model assumes. Leave those to
-                    // the legacy path.
+                    // with an opening `(` / `{`) — keeps its continuation lines
+                    // at the attribute indent with full width, not the +2
+                    // relative indent this RawExpr model assumes, and OXC may
+                    // over-expand it at the forced-break width. Leave those to
+                    // the legacy path. A computed member access (`x[y]`, first
+                    // line ends with `[`) is NOT block-bodied — it breaks cleanly
+                    // as `x[` / `  y` / `]`, so it is allowed.
                     let first_line = broken_inner.lines().next().unwrap_or("").trim_end();
                     if !is_shallow_value(inner)
                         || first_line.ends_with('(')
                         || first_line.ends_with('{')
-                        || first_line.ends_with('[')
                     {
                         return Ok(None);
                     }
@@ -2149,15 +2131,23 @@ fn render_value_sequence_doc(
         }
     }
 
-    if breakable_count != 1 {
+    // Nothing breakable → the value can only render flat; leave it to the
+    // legacy path (whose flat output is authoritative) rather than risk a
+    // subtle divergence.
+    if breakable_count == 0 {
         return Ok(None);
     }
 
     // Reserve one column for the closing `"` (always the last character on the
-    // value's final line when the open tag wraps).
+    // value's final line when the open tag wraps). Printed in Break mode (the
+    // open tag has wrapped): verbatim text stays put, and each interpolation
+    // group breaks or stays flat via `fits`, which measures a trailing
+    // *breakable* interpolation only up to its first break — so an earlier
+    // interpolation stays flat whenever a later one can absorb the overflow,
+    // matching prettier-plugin-svelte.
     let width = line_width.saturating_sub(1);
     let unit = indent_str(1, &options.js);
-    let out = print_flat_root(
+    let out = doc_print(
         propagate_breaks(Doc::Concat(docs)),
         width,
         &unit,
@@ -2174,11 +2164,14 @@ fn render_attribute_value_sequence(
     attr_depth: usize,
     name_prefix: usize,
     narrow_value: bool,
+    regular_attr: bool,
 ) -> Result<String, FormatError> {
-    // Whole-value Doc model (multi-interpolation values), used only once the
-    // open tag is known to wrap — the single-line pass renders flat anyway, and
-    // the wrapped pass is where break-point selection matters.
+    // Whole-value Doc model, used only once the open tag is known to wrap (the
+    // single-line pass renders flat anyway) and only for REGULAR attributes —
+    // style/other directive values print their text as a prettier `fill` (a
+    // different break structure), so they stay on the legacy path.
     if narrow_value
+        && regular_attr
         && let Some(body) =
             render_value_sequence_doc(parts, source, options, attr_depth, name_prefix)?
     {

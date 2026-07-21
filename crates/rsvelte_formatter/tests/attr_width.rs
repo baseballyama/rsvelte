@@ -105,7 +105,10 @@ fn multi_interp_value_is_idempotent() {
     let src = "<div class=\"wx-calendar {part !== 'normal' && part !== 'both' ? 'wx-part' : ''} {css}\">x</div>\n";
     let once = fmt80(src);
     let twice = fmt80(&once);
-    assert_eq!(once, twice, "multi-interp Doc-model wrap is not idempotent:\n{once}");
+    assert_eq!(
+        once, twice,
+        "multi-interp Doc-model wrap is not idempotent:\n{once}"
+    );
 }
 
 #[test]
@@ -122,5 +125,42 @@ fn multi_interp_transform_breaks_first_binary() {
         "first breakable interpolation should break at its binary operator:\n{out}"
     );
     let twice = fmt_w(&out, 72);
-    assert_eq!(out, twice, "transform multi-interp wrap is not idempotent:\n{out}");
+    assert_eq!(
+        out, twice,
+        "transform multi-interp wrap is not idempotent:\n{out}"
+    );
+}
+
+#[test]
+fn multi_breakable_value_breaks_first_when_later_cannot_absorb() {
+    // Two breakable interpolations (both ternaries): the first is long enough
+    // that keeping it flat would overflow before the second could break, so the
+    // FIRST breaks and the second stays flat on the continuation line — the
+    // whole-value Doc model's `fits` measures a trailing breakable interpolation
+    // only up to its first break. (Cluster 2: layerchart Vector.base shape.)
+    let src = "<div class=\"lc-vector {isFilled ? 'lc-vector-filled' : 'lc-vector-stroked'} {typeof className === 'string' ? className : ''}\">x</div>\n";
+    let out = fmt80(src);
+    assert!(
+        out.contains("class=\"lc-vector {isFilled\n")
+            && out.contains("\n    : 'lc-vector-stroked'} {typeof className === 'string' ? className : ''}\""),
+        "first breakable ternary should break, second stays flat:\n{out}"
+    );
+    let twice = fmt80(&out);
+    assert_eq!(out, twice, "multi-breakable wrap is not idempotent:\n{out}");
+}
+
+#[test]
+fn multi_breakable_value_keeps_first_flat_when_later_absorbs() {
+    // A short breakable interpolation followed by a long one: the first stays
+    // flat because the later one can break to absorb the overflow (its first
+    // break point is reached within the width). Only the later interpolation
+    // breaks — the greedy left-to-right layout prettier-plugin-svelte produces.
+    let src = "<div class=\"{a[b]} then some filler text here {reallyLongName[anotherLongIndexName]}\">x</div>\n";
+    let out = fmt_w(src, 60);
+    assert!(
+        out.contains("class=\"{a[b]} then some filler text here {reallyLongName[\n"),
+        "earlier breakable interpolation should stay flat while the later one breaks:\n{out}"
+    );
+    let twice = fmt_w(&out, 60);
+    assert_eq!(out, twice, "later-absorbs wrap is not idempotent:\n{out}");
 }
