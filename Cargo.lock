@@ -2376,9 +2376,6 @@ dependencies = [
  "memchr",
  "miette",
  "mimalloc",
- "napi",
- "napi-build",
- "napi-derive",
  "notify",
  "oxc_allocator",
  "oxc_ast",
@@ -2491,6 +2488,21 @@ dependencies = [
  "serde_yaml",
  "walkdir",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "rsvelte_napi"
+version = "0.8.0"
+dependencies = [
+ "bumpalo",
+ "mimalloc",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "rsvelte_core",
+ "rustc-hash",
+ "serde_json",
+ "tikv-jemallocator",
 ]
 
 [[package]]

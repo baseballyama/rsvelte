@@ -331,7 +331,7 @@ cargo build --release --bin canonicalize_js
 ```
 
 `build-rsvelte.sh` の挙動:
-- `cargo build --release --features napi --lib`
+- `cargo build --release -p rsvelte_napi --lib`
 - プラットフォームに応じた `.node` ファイル名を計算
 - `svelte/${NODE_NAME}` と `${TARGET_PATH}/.rsvelte/${NODE_NAME}` の両方にコピー
 

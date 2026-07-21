@@ -1,8 +1,4 @@
 fn main() {
-    println!("cargo::rustc-check-cfg=cfg(feature, values(\"napi\"))");
-    #[cfg(feature = "napi")]
-    napi_build::setup();
-
     // Read the Svelte version from the submodule's package.json
     // so that the generated code can include the correct version string.
     // The submodule lives at the workspace root (two levels above this

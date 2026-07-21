@@ -23,12 +23,8 @@
 // faster than jemalloc on this allocation-bound workload (mold links mimalloc
 // for the same reason); the previous bench used the system allocator and so
 // understated neither — it simply measured a different allocator than ships.
-// `not(feature = "napi")` mirrors the bin entry points: under `--all-features`
-// (CI clippy) the `napi` feature compiles napi.rs's `#[global_allocator]` into the
-// rlib this bench links, so the bench must not register a second one.
 #[cfg(all(
     feature = "mimalloc-alloc",
-    not(feature = "napi"),
     not(target_arch = "wasm32"),
     not(target_os = "windows")
 ))]

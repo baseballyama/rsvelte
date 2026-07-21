@@ -25,10 +25,10 @@ esac
 
 cd "$ROOT"
 
-echo "[build-rsvelte] cargo build --release --features napi --lib"
-cargo build --release --features napi --lib
+echo "[build-rsvelte] cargo build --release -p rsvelte_napi --lib"
+cargo build --release -p rsvelte_napi --lib
 
-SRC="target/release/librsvelte_core.${EXT}"
+SRC="target/release/librsvelte_napi.${EXT}"
 if [ ! -f "$SRC" ]; then
   echo "[build-rsvelte] ERROR: build output not found: $SRC" >&2
   exit 1

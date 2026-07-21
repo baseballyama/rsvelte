@@ -207,9 +207,9 @@ jobs:
 
       - name: Build rsvelte NAPI binding
         run: |
-          cargo build --release --features napi --lib
+          cargo build --release -p rsvelte_napi --lib
           mkdir -p .corpus-cache
-          cp target/release/librsvelte_core.so .corpus-cache/rsvelte.node
+          cp target/release/librsvelte_napi.so .corpus-cache/rsvelte.node
 
       - name: Collect corpus
         run: node scripts/compat-corpus/collect.mjs

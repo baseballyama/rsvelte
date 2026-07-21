@@ -2,14 +2,10 @@
 //! Usage: canonicalize_and_compare `<file1>` `<file2>`
 //! Exits 0 if semantically equal, 1 if different, prints first diff.
 
-// Use jemalloc as the global allocator for better multi-threaded
-// performance. Defined per-bin rather than once in the lib because the lib
-// is built as both rlib and cdylib, and a lib-level `#[global_allocator]`
-// is duplicated across both outputs at link time — cargo issue
-// rust-lang/cargo#6313.
+// Defined per-bin rather than once in the lib so that linking the `rsvelte_core`
+// rlib never imposes an allocator on the consumer.
 #[cfg(all(
     feature = "jemalloc",
-    not(feature = "napi"),
     not(target_arch = "wasm32"),
     not(target_os = "windows")
 ))]

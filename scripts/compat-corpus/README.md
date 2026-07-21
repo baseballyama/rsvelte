@@ -115,8 +115,8 @@ itself never spends cycles on cosmetic output massaging (rsvelte targets
 pnpm run corpus:sync        # init/update every corpus source submodule
 
 # build + stage the rsvelte NAPI binding
-cargo build --release --features napi --lib
-cp target/release/librsvelte_core.dylib .corpus-cache/rsvelte.node   # .so on Linux
+cargo build --release -p rsvelte_napi --lib
+cp target/release/librsvelte_napi.dylib .corpus-cache/rsvelte.node   # .so on Linux
 
 pnpm run corpus             # sync + collect + compile + verify
 ```

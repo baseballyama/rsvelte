@@ -1,0 +1,51 @@
+[package]
+name = "rsvelte_napi"
+version = "0.8.0"
+edition = "2024"
+rust-version = "1.90"
+description = "Node.js N-API bindings for the rsvelte Svelte compiler"
+license = "MIT"
+repository = "https://github.com/baseballyama/rsvelte"
+homepage = "https://github.com/baseballyama/rsvelte"
+publish = false
+
+[lib]
+# cdylib only: this crate exists so that `rsvelte_core` can stay a pure rlib.
+# A package that emits both a cdylib and an rlib writes both artifacts to
+# unhashed `deps/lib<name>.{so,rlib}` paths, so the two profile variants cargo
+# builds (`panic = "abort"` for bins, forced unwind for test/bench units)
+# clobber each other — cargo issue rust-lang/cargo#6313.
+crate-type = ["cdylib"]
+# A test/doc harness for this crate would be an executable, and the `napi_*`
+# symbols it imports only resolve when Node dlopen's the addon — so a
+# workspace-wide `cargo test` would fail to link it.
+test = false
+doctest = false
+bench = false
+
+[features]
+default = ["mimalloc-alloc"]
+# jemalloc's default initial-exec TLS model exhausts Linux's static TLS reserve
+# when Node dlopen's this addon after program start.
+jemalloc = ["dep:tikv-jemallocator", "tikv-jemallocator?/disable_initial_exec_tls"]
+mimalloc-alloc = ["dep:mimalloc"]
+
+[dependencies]
+rsvelte_core = { path = "../rsvelte_core", default-features = false, features = ["native"] }
+napi = { version = "3", default-features = false, features = ["napi9", "serde-json", "async", "tokio_rt", "compat-mode"] }
+napi-derive = "3"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+rustc-hash = "2.0"
+bumpalo = { version = "3.16", features = ["collections"] }
+
+[target.'cfg(all(not(windows), not(target_arch = "wasm32")))'.dependencies]
+tikv-jemallocator = { version = "0.7", optional = true }
+# `local_dynamic_tls` builds mimalloc with the local-dynamic TLS model, required
+# so Node can dlopen this addon on Linux.
+mimalloc = { version = "0.1", optional = true, features = ["local_dynamic_tls"] }
+
+[build-dependencies]
+napi-build = "2"
+
+[lints]
+workspace = true

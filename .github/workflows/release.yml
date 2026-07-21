@@ -151,11 +151,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, dylib: librsvelte_core.dylib }
-          - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, dylib: librsvelte_core.dylib }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, dylib: librsvelte_core.so }
-          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, dylib: librsvelte_core.so, apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
-          - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, dylib: rsvelte_core.dll }
+          - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, dylib: librsvelte_napi.dylib }
+          - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, dylib: librsvelte_napi.dylib }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, dylib: librsvelte_napi.so }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, dylib: librsvelte_napi.so, apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, dylib: rsvelte_napi.dll }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
@@ -187,7 +187,7 @@ jobs:
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
           CC_aarch64_unknown_linux_gnu: ${{ matrix.linker }}
-        run: cargo build --profile dist --features napi --lib --target ${{ matrix.target }}
+        run: cargo build --profile dist -p rsvelte_napi --lib --target ${{ matrix.target }}
 
       - name: Stage .node binary
         shell: bash

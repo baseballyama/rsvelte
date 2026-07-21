@@ -367,8 +367,8 @@ ls ~/.cargo/registry/src/*/oxc_ast-*/src/
 ### 7.4 NAPI 経由のエンドツーエンド検証
 
 ```bash
-cargo build --release --features napi --lib
-cp target/release/librsvelte_core.dylib svelte/rsvelte.darwin-arm64.node
+cargo build --release -p rsvelte_napi --lib
+cp target/release/librsvelte_napi.dylib svelte/rsvelte.darwin-arm64.node
 cd svelte && USE_RSVELTE=true npx vitest run \
   packages/svelte/tests/runtime-runes/test.ts \
   packages/svelte/tests/runtime-legacy/test.ts

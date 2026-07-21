@@ -65,15 +65,11 @@ jobs:
       - name: Run criterion
         # ONE `cargo bench` invocation that compiles *and* measures.
         #
-        # A split (`--no-run` build step + a separate run step) double-compiles
-        # the workspace crates: `rsvelte_core` is a `cdylib`+`rlib`, and
-        # building it for its own benches alongside the `rsvelte_formatter`
-        # bench (which depends on it) produces an "output filename collision"
-        # on `librsvelte_core.{so,rlib}`. That collision makes the unit's
-        # fingerprint ambiguous, so a *second* `cargo bench` re-compiles the
-        # local crates from scratch (~13 min) instead of reusing the first
-        # build's output. A single invocation builds once, then runs — paying
-        # that compile only once and roughly halving the job wall-clock.
+        # A split (`--no-run` build step + a separate run step) re-resolves the
+        # unit graph twice, which has historically re-compiled the local crates
+        # from scratch (~13 min) rather than reusing the first build's output.
+        # A single invocation builds once, then runs — paying that compile only
+        # once and roughly halving the job wall-clock.
         #
         # `--save-baseline pr` saves results so a follow-up job (or the next
         # commit) can diff against this baseline with `--baseline pr`.
