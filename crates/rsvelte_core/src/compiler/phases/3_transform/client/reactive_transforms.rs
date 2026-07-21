@@ -283,6 +283,7 @@ pub(super) fn transform_reactive_statement(
     // text scan is no longer consulted.
     dep_names: &[String],
     _analysis: &ComponentAnalysis,
+    prop_invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> String {
     let trimmed = statement.trim();
 
@@ -460,7 +461,7 @@ pub(super) fn transform_reactive_statement(
                 &temp,
                 prop_assignment_transform_vars,
                 &[],
-                &rustc_hash::FxHashMap::default(),
+                prop_invalidate_bodies,
             );
             // Wrap state-var member mutations (`obj.a.b = x`) in `$.mutate(obj, …)`.
             // The keyword branch (a `$: if (cond) X = rhs` reactive statement) was
@@ -500,7 +501,7 @@ pub(super) fn transform_reactive_statement(
                 &temp,
                 prop_assignment_transform_vars,
                 &[],
-                &rustc_hash::FxHashMap::default(),
+                prop_invalidate_bodies,
             );
             let temp = transform_state_member_mutations(&temp, state_vars, non_reactive_state_vars);
             let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
@@ -545,7 +546,7 @@ pub(super) fn transform_reactive_statement(
                     &transformed_rhs,
                     prop_assignment_transform_vars,
                     &[],
-                    &rustc_hash::FxHashMap::default(),
+                    prop_invalidate_bodies,
                 );
                 let transformed_rhs = wrap_state_vars_in_expr(
                     &transformed_rhs,
@@ -701,7 +702,7 @@ pub(super) fn transform_reactive_statement(
             &temp,
             prop_assignment_transform_vars,
             &[],
-            &rustc_hash::FxHashMap::default(),
+            prop_invalidate_bodies,
         );
         // Transform state member-expression mutations (e.g., `object[key] = []`)
         // to `$.mutate(object, $.get(object)[key] = [])`. Must run before wrap_state_vars_in_expr

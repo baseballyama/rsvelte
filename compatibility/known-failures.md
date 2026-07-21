@@ -14,7 +14,7 @@ compiler-behaviour gap; attempts to fix them are regression-prone against the
 8000+ passing entries (several have been reverted after wide blowups), so they are
 accepted until an upstream-faithful port lands.
 
-## Client (`known-failures.client.json`, 5 entries)
+## Client (`known-failures.client.json`, 4 entries)
 
 - **`melt-ui/.../SpatialMenuNavTest.svelte`** — two causes: (a) a proxy argument in
   `$.set(highlighted, id, true)` where `id` is an inner-scope TemplateLiteral const
@@ -22,9 +22,6 @@ accepted until an upstream-faithful port lands.
   multi-occurrence names); (b) `${cols ?? ''}` — svelte keeps the `?? ''`, rsvelte
   elides it (scope.evaluate treats a prop member as defined where svelte keeps it
   UNKNOWN).
-- **`svelte-form-builder/.../PropertyPanelChoiceCheckboxRadioSpecific.svelte`** —
-  reactive assignment lowered to a SequenceExpression (`(field(...), true), ...`)
-  vs a bare CallExpression (~114-node difference).
 - **`svelte-sonner/.../Toaster.svelte`** — JS now matches; remaining divergence is
   **CSS unused-selector pruning**: svelte prunes selectors like
   `[data-sonner-toast][data-styled='true'] [data-description]` as unused while

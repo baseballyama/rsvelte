@@ -4799,6 +4799,7 @@ fn transform_instance_script_for_visitors(
                 &var_state_vars,
                 dep_names,
                 analysis,
+                &prop_invalidate_bodies,
             );
             // Also apply state assignment transformations to the reactive statement body
             // This handles cases like: `$: selected ? component = Sub : component = banana`
