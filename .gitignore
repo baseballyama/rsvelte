@@ -95,7 +95,7 @@ language-tools
 # verify-svelte-compat: per-target ephemeral data. The whole directory
 # is regenerated on demand (each target is a clone of an external repo
 # the skill bisects against), so nothing inside it should be tracked.
-compat/verify-svelte-compat/
+compatibility/verify-svelte-compat/
 
 # Tool / review scratch artefacts. None of these are inputs to a build;
 # they're outputs of local tooling (benchmarks, profilers, code-review
@@ -127,26 +127,26 @@ artifacts/
 
 # Corpus-compat pipeline (generated; see scripts/compat-corpus/)
 .corpus-cache/
-compat/corpus/sources/
-compat/corpus/expected/
-compat/corpus/actual/
-compat/corpus/expected-s2t/
-compat/corpus/actual-s2t/
-compat/corpus/manifest.json
-compat/corpus/report.json
-compat/corpus/report-s2t.json
+compatibility/sources/
+compatibility/expected/
+compatibility/actual/
+compatibility/expected-s2t/
+compatibility/actual-s2t/
+compatibility/manifest.json
+compatibility/report.json
+compatibility/report-s2t.json
 
-# Lint-compat pipeline (generated; known-failures.json is tracked)
-compat/lint-corpus/sources/
-compat/lint-corpus/manifest.json
-compat/lint-corpus/.rules.json
-compat/lint-corpus/.rsvelte-lint.json
+# Lint-compat pipeline (generated; lint-known-failures.json is tracked)
+compatibility/lint-sources/
+compatibility/lint-manifest.json
+compatibility/.lint-rules.json
+compatibility/.lint-rsvelte-lint.json
 scripts/compat-corpus/lint-oracle/node_modules/
 scripts/compat-corpus/lint-oracle/package-lock.json
-compat/corpus/.oxfmt-ignore-nothing
+compatibility/.oxfmt-ignore-nothing
 # fmt-parity stage (generated; the fmt-known-failures.json ratchet is checked in)
-compat/corpus/fmt/
-compat/corpus/fmt-report.json
+compatibility/fmt/
+compatibility/fmt-report.json
 
 # Dedicated CARGO_TARGET_DIRs used during Phase-3 corpus burndown (never commit)
 /target-ast/

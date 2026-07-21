@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Cluster corpus verification failures (compat/corpus/report.json) by diff
+ * Cluster corpus verification failures (compatibility/report.json) by diff
  * signature so fixes can be attacked by root cause, biggest first.
  *
  * Usage: node scripts/compat-corpus/cluster.mjs [--show <signature-prefix>]
@@ -13,7 +13,7 @@ import { stripBlankLines, readIf } from './normalize.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const CORPUS = path.join(ROOT, 'compat/corpus');
+const CORPUS = path.join(ROOT, 'compatibility');
 
 const args = process.argv.slice(2);
 const SHOW = args.includes('--show') ? args[args.indexOf('--show') + 1] : null;

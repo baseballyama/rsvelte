@@ -6,9 +6,9 @@
  * manifest (real files + ```svelte markdown blocks, from both sveltejs/svelte
  * and sveltejs/svelte.dev):
  *
- *   compat/corpus/fmt/oracle/<id>   oxfmt with `svelte: true` (prettier-plugin-svelte
+ *   compatibility/fmt/oracle/<id>   oxfmt with `svelte: true` (prettier-plugin-svelte
  *                                   for the Svelte structure + oxc for embedded JS/CSS)
- *   compat/corpus/fmt/actual/<id>   rsvelte-fmt (rsvelte_formatter for the structure,
+ *   compatibility/fmt/actual/<id>   rsvelte-fmt (rsvelte_formatter for the structure,
  *                                   oxfmt for embedded <style>) — the exact same layering,
  *                                   so a diff isolates rsvelte's Svelte-structure formatting.
  *
@@ -54,7 +54,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const CORPUS = path.join(ROOT, 'compat/corpus');
+const CORPUS = path.join(ROOT, 'compatibility');
 const SOURCES = path.join(CORPUS, 'sources');
 const FMT = path.join(CORPUS, 'fmt');
 const ORACLE = path.join(FMT, 'oracle');

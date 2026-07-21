@@ -19,7 +19,7 @@ name: Corpus Compat
 # The fmt-parity job additionally formats every .svelte component with both
 # rsvelte-fmt and the oxfmt(`svelte: true`) oracle (prettier-plugin-svelte for
 # the structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
-# requires byte-identical output, ratcheted by compat/corpus/fmt-known-failures.json.
+# requires byte-identical output, ratcheted by compatibility/fmt-known-failures.json.
 
 on:
   workflow_dispatch:
@@ -30,7 +30,7 @@ on:
       - 'scripts/compat-corpus/**'
       - 'scripts/fixtures/fmt-corpus.oxfmtrc.json'
       - 'pnpm-lock.yaml'
-      - 'compat/corpus/**'
+      - 'compatibility/**'
       - 'submodules/svelte'
       - 'submodules/svelte.dev'
       - 'submodules/language-tools'
@@ -75,7 +75,7 @@ on:
       - 'scripts/compat-corpus/**'
       - 'scripts/fixtures/fmt-corpus.oxfmtrc.json'
       - 'pnpm-lock.yaml'
-      - 'compat/corpus/**'
+      - 'compatibility/**'
       - 'submodules/svelte'
       - 'submodules/svelte.dev'
       - 'submodules/language-tools'
@@ -232,9 +232,9 @@ jobs:
         with:
           name: corpus-report
           path: |
-            compat/corpus/report.json
-            compat/corpus/report-s2t.json
-            compat/corpus/manifest.json
+            compatibility/report.json
+            compatibility/report-s2t.json
+            compatibility/manifest.json
           if-no-files-found: ignore
           retention-days: 14
 
@@ -287,8 +287,8 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            compat/corpus/fmt/oracle
-            compat/corpus/fmt/meta.json
+            compatibility/fmt/oracle
+            compatibility/fmt/meta.json
           key: corpus-fmt-oracle-v1-${{ runner.os }}-${{ steps.pins.outputs.sources }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json', 'pnpm-lock.yaml') }}
 
       - name: Build fmt trees (oracle cached, actual via rsvelte-fmt)
@@ -303,8 +303,8 @@ jobs:
         with:
           name: corpus-fmt-report
           path: |
-            compat/corpus/fmt-report.json
-            compat/corpus/fmt/meta.json
+            compatibility/fmt-report.json
+            compatibility/fmt/meta.json
           if-no-files-found: ignore
           retention-days: 14
 
@@ -353,5 +353,5 @@ jobs:
       - name: Collect lint corpus
         run: node scripts/compat-corpus/lint-collect.mjs eslint-plugin-svelte svelte-eslint-parser bits-ui flowbite-svelte melt-ui shadcn-svelte
 
-      - name: Verify lint parity (ratchet against known-failures.json)
+      - name: Verify lint parity (ratchet against lint-known-failures.json)
         run: node scripts/compat-corpus/lint-verify.mjs

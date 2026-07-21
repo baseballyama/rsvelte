@@ -6,13 +6,13 @@
  * is a formatter, so its output must match exactly; there is no AST-equivalence
  * fallback (that belongs to the compile-output corpus, not here).
  *
- * Ratchet: compat/corpus/fmt-known-failures.json (checked in) lists the ids
+ * Ratchet: compatibility/fmt-known-failures.json (checked in) lists the ids
  * that still diverge. Verification exits non-zero only when an id NOT in the
  * baseline diverges (a regression). Known failures are tolerated and burned
  * down over time; when a known failure now passes, a reminder to shrink the
  * baseline is printed (use --update-baseline to rewrite it).
  *
- * Oracle exclusions: compat/corpus/fmt-oracle-excluded.json lists ids that are
+ * Oracle exclusions: compatibility/fmt-oracle-excluded.json lists ids that are
  * permanently excluded from the parity set because either (a) the oracle output
  * is itself wrong/corrupt (oracle-bug), (b) the input is invalid and rsvelte
  * correctly rejects it (invalid-input), or (c) the fixture is from the
@@ -32,7 +32,7 @@ import { readIf, firstDiffLine } from "./normalize.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
-const CORPUS = path.join(ROOT, "compat/corpus");
+const CORPUS = path.join(ROOT, "compatibility");
 const FMT = path.join(CORPUS, "fmt");
 const ORACLE = path.join(FMT, "oracle");
 const ACTUAL = path.join(FMT, "actual");
@@ -144,7 +144,7 @@ fs.writeFileSync(REPORT_PATH, JSON.stringify(report, null, "\t") + "\n");
 console.log("\n[fmt-verify] results:");
 console.log(`  included  ${included.length}`);
 console.log(
-  `  excluded  ${excluded}  (oracle-bug / invalid-input / migrate — see compat/corpus/fmt-oracle-excluded.json)`,
+  `  excluded  ${excluded}  (oracle-bug / invalid-input / migrate — see compatibility/fmt-oracle-excluded.json)`,
 );
 console.log(`  matched   ${matched}`);
 console.log(`  failed    ${failures.length}`);

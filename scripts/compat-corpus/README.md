@@ -12,8 +12,8 @@ shipped source of real-world component libraries are all compiled and verified
 the same way. **To grow the corpus, [add a repository](#adding-a-repository-to-the-corpus).**
 
 The rationale for each baseline / exclusion entry (why a known failure is
-accepted, why an id is excluded) lives in a same-named `.md` beside each JSON in
-`compat/corpus/*.md` and `compat/lint-corpus/known-failures.md`.
+accepted, why an id is excluded) lives in a same-named `.md` beside each JSON
+in [`compatibility/`](../../compatibility/).
 
 | Source | Submodule | Role |
 |---|---|---|
@@ -99,7 +99,7 @@ itself never spends cycles on cosmetic output massaging (rsvelte targets
    collapsed to a single space (static template text, nested template
    literals, and comments are untouched), after which oxfmt converges
    both sides to the identical single-line form.
-2. **oxfmt** (`compat/corpus/.oxfmtrc.json`, `objectWrap: collapse`) —
+2. **oxfmt** (`compatibility/.oxfmtrc.json`, `objectWrap: collapse`) —
    canonicalizes quotes, wrapping, indentation.
 3. **blank-line stripping** (`normalize.mjs`) — the official compiler
    prints through esrap, which re-derives blank lines from its own layout
@@ -121,18 +121,18 @@ cp target/release/librsvelte_core.dylib .corpus-cache/rsvelte.node   # .so on Li
 pnpm run corpus             # sync + collect + compile + verify
 ```
 
-Pipeline stages (all idempotent, everything under `compat/corpus/` except
+Pipeline stages (all idempotent, everything under `compatibility/` except
 `sources.json` and `.oxfmtrc.json` is generated and gitignored):
 
-1. `collect.mjs` — gathers sources into `compat/corpus/sources/` + `manifest.json`
+1. `collect.mjs` — gathers sources into `compatibility/sources/` + `manifest.json`
 2. `compile.mjs` — dual-compiles every entry for client + server into
-   `compat/corpus/{expected,actual}/<id>/{client.js,server.js,client.css,error.json}`.
+   `compatibility/{expected,actual}/<id>/{client.js,server.js,client.css,error.json}`.
    Sharded across worker processes; a Rust panic is recorded as a `rust_panic`
    error for that entry instead of killing the run.
 3. `verify.mjs` — oxfmt-normalizes both trees, byte-compares, writes `report.json`,
    and ratchets each target independently against
-   `compat/corpus/known-failures.client.json` (CSR) and
-   `compat/corpus/known-failures.server.json` (SSR) — both checked in, both may
+   `compatibility/known-failures.client.json` (CSR) and
+   `compatibility/known-failures.server.json` (SSR) — both checked in, both may
    only shrink. Exits non-zero only on a **regression** (a `(id, target)` pair
    that diverges but is absent from that target's baseline).
    `--update-baseline` rewrites both files from the current run.
@@ -164,16 +164,16 @@ pnpm run corpus:fmt-parity                      # collect + fmt + fmt-verify
 Stages:
 
 1. `fmt.mjs` — builds two trees over the manifest's `component` entries:
-   - `compat/corpus/fmt/oracle/<id>` — oxfmt(`svelte: true`). Depends only on
+   - `compatibility/fmt/oracle/<id>` — oxfmt(`svelte: true`). Depends only on
      the pins + oxfmt version + oracle config, so it is **cached** (`fmt/meta.json`)
      and skipped on re-runs unless those change or `--force` is passed. Entries
      oxfmt rejects (or whose embedded code it can't parse) are excluded — they
      aren't valid, formattable Svelte.
-   - `compat/corpus/fmt/actual/<id>` — rsvelte-fmt (`--stdin`, column-aware
+   - `compatibility/fmt/actual/<id>` — rsvelte-fmt (`--stdin`, column-aware
      `<style>` narrowing). Rebuilt every iteration; restrict to a subset with
      `--actual --only <ids-file>` for tight burn-down.
 2. `fmt-verify.mjs` — byte-compares, writes `fmt-report.json`, ratchets against
-   `compat/corpus/fmt-known-failures.json` (checked in; may only shrink). Exits
+   `compatibility/fmt-known-failures.json` (checked in; may only shrink). Exits
    non-zero only on a **regression** (a divergence not in the baseline).
 
 Burn-down helpers:
@@ -225,12 +225,12 @@ part of the contract. Normalization is just oxfmt + blank-line stripping.
 Pipeline stages (mirroring the compiler ones):
 
 1. `svelte2tsx-compile.mjs` — converts every component into
-   `compat/corpus/{expected-s2t,actual-s2t}/<id>/index.tsx` (or `error.json`
+   `compatibility/{expected-s2t,actual-s2t}/<id>/index.tsx` (or `error.json`
    on rejection). Worker-sharded; an rsvelte panic is recorded as an error for
    that entry instead of killing the run.
 2. `svelte2tsx-verify.mjs` — oxfmt-normalizes both trees, byte-compares, writes
    `report-s2t.json`, and ratchets against
-   `compat/corpus/svelte2tsx-known-failures.json` (checked in; may only shrink).
+   `compatibility/svelte2tsx-known-failures.json` (checked in; may only shrink).
 3. `svelte2tsx-cluster.mjs` — groups failures by diff signature for burn-down.
 
 ```bash
@@ -293,11 +293,11 @@ engines, diffed.)
 pnpm run lint-corpus:sync             # init the eslint + real-world (bits-ui/flowbite/melt/shadcn) submodules
 pnpm run lint-corpus:oracle-install   # install the pinned real eslint-plugin-svelte (oracle)
 cargo build --profile dist-lint --bin rsvelte-lint   # `panic = "unwind"` → per-file panic isolation holds
-pnpm run lint-corpus:collect          # gather .svelte sources -> compat/lint-corpus/sources/
-pnpm run lint-corpus:verify           # diff oracle vs rsvelte-lint, ratchet known-failures.json
+pnpm run lint-corpus:collect          # gather .svelte sources -> compatibility/lint-sources/
+pnpm run lint-corpus:verify           # diff oracle vs rsvelte-lint, ratchet lint-known-failures.json
 # or, all of the above:
 pnpm run lint-corpus                   # sync + install + collect + verify
-pnpm run lint-corpus:update            # re-baseline known-failures.json after a fix
+pnpm run lint-corpus:update            # re-baseline lint-known-failures.json after a fix
 ```
 
 - **Oracle** (`lint-oracle/`) — an isolated package pinning the same
@@ -318,9 +318,9 @@ pnpm run lint-corpus:update            # re-baseline known-failures.json after a
   SvelteKit 2 project — matching `rsvelte-lint`, which fires the
   SvelteKit-conditional rules unconditionally.
 - **Ratchet** — every finding present on exactly one side is a *divergence*,
-  recorded in `compat/lint-corpus/known-failures.json` (tracked). The set may
+  recorded in `compatibility/lint-known-failures.json` (tracked). The set may
   only **shrink**: a NEW divergence fails CI; fixed ones are pruned with
-  `--update`. See [compat/lint-corpus/known-failures.md](../../compat/lint-corpus/known-failures.md)
+  `--update`. See [compatibility/lint-known-failures.md](../../compatibility/lint-known-failures.md)
   for the burn-down playbook and the root-cause clusters.
 
 The `lint-parity` job in `.github/workflows/corpus-compat.yml` runs this track

@@ -4,8 +4,8 @@
  * official `svelte2tsx` (from submodules/language-tools) and rsvelte's port
  * (NAPI binding), writing the outputs to:
  *
- *   compat/corpus/expected-s2t/<id>/index.tsx   (official svelte2tsx)
- *   compat/corpus/actual-s2t/<id>/index.tsx     (rsvelte svelte2tsx)
+ *   compatibility/expected-s2t/<id>/index.tsx   (official svelte2tsx)
+ *   compatibility/actual-s2t/<id>/index.tsx     (rsvelte svelte2tsx)
  *
  * svelte2tsx only processes Svelte *components*, so `.svelte.(js|ts)` module
  * entries (kind === 'module') are skipped. Files the official tool rejects are
@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const CORPUS = path.join(ROOT, 'compat/corpus');
+const CORPUS = path.join(ROOT, 'compatibility');
 const EXPECTED = path.join(CORPUS, 'expected-s2t');
 const ACTUAL = path.join(CORPUS, 'actual-s2t');
 const OFFICIAL = path.join(ROOT, 'submodules/language-tools/packages/svelte2tsx/index.js');

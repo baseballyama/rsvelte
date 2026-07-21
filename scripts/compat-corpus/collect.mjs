@@ -2,7 +2,7 @@
 /**
  * Collect every .svelte / .svelte.js / .svelte.ts source (including code
  * blocks inside markdown files) from every repository listed in
- * `corpus-sources.json` into `compat/corpus/sources/`.
+ * `corpus-sources.json` into `compatibility/sources/`.
  *
  * The corpus is a single flat set of source repositories (all git submodules):
  * sveltejs/svelte + sveltejs/svelte.dev provide svelte's own fixtures and the
@@ -31,7 +31,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const CORPUS = path.join(ROOT, 'compat/corpus');
+const CORPUS = path.join(ROOT, 'compatibility');
 const OUT = path.join(CORPUS, 'sources');
 
 // The corpus source repositories — all git submodules. Each entry: { path, id,
