@@ -34,6 +34,19 @@
       ]
     },
     {
+      "description": "The lint oracle must stay on the TypeScript major that @typescript-eslint/parser still declares as a peer (>=4.8.4 <6.1.0); a v7 bump makes `npm install` fail ERESOLVE and takes the whole Lint parity job down.",
+      "matchFileNames": [
+        "scripts/compat-corpus/lint-oracle/package.json"
+      ],
+      "matchDepNames": [
+        "typescript"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Same suppression keyed on the git-source packageName (cargo git deps resolve packageName to the repo URL).",
       "matchManagers": [
         "cargo"
