@@ -3,6 +3,21 @@
   "extends": [
     "config:recommended"
   ],
+  "customManagers": [
+    {
+      "description": "The Rust toolchain is pinned by an explicit `toolchain: X.Y.Z` input on every dtolnay/rust-toolchain step (see .github/workflows/*.yml). This tracks that single version string across all workflows so Renovate raises one PR to bump them together. The dtolnay action SHA itself is tracked by the standard github-actions manager via the `# master` comment.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/.+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "toolchain: (?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "rust",
+      "packageNameTemplate": "rust-lang/rust",
+      "datasourceTemplate": "github-releases"
+    }
+  ],
   "packageRules": [
     {
       "description": "The oxc AST/formatter stack is pinned to a single git rev (synced to the oxfmt release tag by the auto-update-oxfmt workflow); per-crate updates can never pass CI. The #1550 explicit matchPackageNames list still did not suppress the PRs (#1563/#1564) because for cargo GIT dependencies Renovate's packageName is the repository URL, not the crate name. Match on depName (crate name) AND on the repo-URL packageName, and disable all update types. oxc_resolver / oxc_sourcemap / oxc-miette / oxc_index stay Renovate-managed (registry deps, deliberately not listed).",

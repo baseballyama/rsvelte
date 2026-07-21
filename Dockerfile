@@ -1,5 +1,7 @@
 # Development environment for rsvelte_core
-FROM rust:1.97-bookworm
+# Pinned Rust toolchain — keep in sync with the CI pin (dtolnay `toolchain:`
+# input in .github/workflows/*.yml). Both are Renovate-managed.
+FROM rust:1.96.0-bookworm
 
 # Install Node.js 22.x and pnpm
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
@@ -11,10 +13,10 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
 # Install wasm-pack for WASM builds
 RUN curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-# Install Rust nightly for edition 2024 support
-# Note: edition 2024 and rust-version 1.90 require nightly as of early 2025
-RUN rustup default nightly \
-    && rustup component add rustfmt clippy
+# Install rustfmt/clippy components and the wasm target for WASM builds.
+# The toolchain version itself is fixed by the base image tag above.
+RUN rustup component add rustfmt clippy \
+    && rustup target add wasm32-unknown-unknown
 
 # Install additional development tools
 RUN apt-get update && apt-get install -y \
