@@ -55,11 +55,12 @@ flowbite-svelte / melt-ui / shadcn-svelte, all pinned as submodules and listed i
 `scripts/compat-corpus/corpus-sources.json` — is compiled with both the official compiler and
 rsvelte for CSR **and** SSR. Outputs must be byte-identical after comparison-side normalization
 (oxfmt + blank-line stripping — never compiler post-passes). To grow the corpus, add a submodule
-plus a line to `corpus-sources.json`. CI ratchet: `compat/corpus/known-failures.{client,server}.json`
-may only shrink, and each remaining failure is justified in `compat/corpus/known-failures.md`. The
-same directory holds two sibling shrink-only ratchets, each with per-entry justification in a paired
-`.md`: the formatter-parity gate (`fmt-known-failures.json` / `fmt-oracle-excluded.json`) and the
-svelte2tsx output-parity gate (`svelte2tsx-known-failures.json`). See
+plus a line to `corpus-sources.json`. CI ratchet: `compatibility/known-failures.{client,server}.json`
+may only shrink, and each remaining failure is justified in `compatibility/known-failures.md`. The
+same directory holds three sibling shrink-only ratchets, each with per-entry justification in a paired
+`.md`: the formatter-parity gate (`fmt-known-failures.json` / `fmt-oracle-excluded.json`), the
+svelte2tsx output-parity gate (`svelte2tsx-known-failures.json`), and the lint output-parity gate
+(`lint-known-failures.json`). See
 [scripts/compat-corpus/README.md](scripts/compat-corpus/README.md).
 
 ## Implementation Principles
@@ -197,7 +198,7 @@ absent. **Hard gate, no baseline tolerance:** any divergence fails CI.
 `rsvelte_lint` (native Svelte linter: validator/a11y wrap + a native port of
 `eslint-plugin-svelte`'s rules, `crates/rsvelte_lint`) ships as its own npm package,
 [`@rsvelte/lint`](apps/npm/lint), fixed-versioned with `@rsvelte/compiler` via Changesets.
-Its real-world parity corpus ratchet lives at `compat/lint-corpus/`.
+Its real-world parity corpus ratchet lives at `compatibility/lint-known-failures.json`.
 
 ## Quick Reference
 

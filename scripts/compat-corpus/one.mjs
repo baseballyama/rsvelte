@@ -6,7 +6,7 @@
  * Usage:
  *   node scripts/compat-corpus/one.mjs <corpus-id-or-file> [--target client|server] [--raw]
  *
- * <corpus-id> is a path under compat/corpus/sources/, e.g.
+ * <corpus-id> is a path under compatibility/sources/, e.g.
  *   svelte.dev/apps/svelte.dev/content/docs/svelte/02-runes/04-$effect.md/1.svelte
  *
  * --raw skips oxfmt normalization. Requires a staged NAPI binding at
@@ -25,7 +25,7 @@ import { flattenTemplateHoles, stripBlankLines } from './normalize.mjs';
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const CORPUS = path.join(ROOT, 'compat/corpus');
+const CORPUS = path.join(ROOT, 'compatibility');
 
 const args = process.argv.slice(2);
 const input = args.find((a) => !a.startsWith('--'));

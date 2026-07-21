@@ -10,7 +10,7 @@
  *      rule universe both linters implement (minus a small unsupported set).
  *
  * Any finding present on exactly one side is a *divergence*. The set of
- * currently-accepted divergences lives in `compat/lint-corpus/known-failures.json`
+ * currently-accepted divergences lives in `compatibility/lint-known-failures.json`
  * and may only SHRINK: a NEW divergence fails the run (CI gate); divergences
  * that disappear are pruned with `--update`.
  *
@@ -27,10 +27,10 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const CORPUS = path.join(ROOT, 'compat/lint-corpus');
-const SOURCES = path.join(CORPUS, 'sources');
+const CORPUS = path.join(ROOT, 'compatibility');
+const SOURCES = path.join(CORPUS, 'lint-sources');
 const ORACLE_DIR = path.join(__dirname, 'lint-oracle');
-const KNOWN = path.join(CORPUS, 'known-failures.json');
+const KNOWN = path.join(CORPUS, 'lint-known-failures.json');
 
 const args = process.argv.slice(2);
 const UPDATE = args.includes('--update');
@@ -78,7 +78,7 @@ const EXCLUDE = new Set([
 // not implement) — the finding-scoped analogue of the per-rule `EXCLUDE` above,
 // NOT a place to hide real divergences. Each entry is a full
 // `<corpus-id>|<+|-><rule>\t<line>:<col>\t<message>` string and MUST carry a
-// documented justification (see compat/lint-corpus/known-failures.md).
+// documented justification (see compatibility/lint-known-failures.md).
 const MANUAL_EXCLUSIONS = new Set([
 	// H4 — `globals` version split on `localStorage`/`navigator`/`sessionStorage`.
 	// The corpus oracle runs eslint-plugin-svelte against globals@16.5, where
@@ -88,7 +88,7 @@ const MANUAL_EXCLUSIONS = new Set([
 	// own fixture suite (the `eslint_plugin_oracle` hard gate) declares
 	// `invalid/test03` expecting exactly this report. The two upstream artefacts
 	// (live globals vs bundled fixtures) disagree; rsvelte matches the
-	// authoritative fixtures. Reported upstream — see compat/lint-corpus/known-failures.md.
+	// authoritative fixtures. Reported upstream — see compatibility/lint-known-failures.md.
 	'eslint-plugin-svelte/docs/rules/no-top-level-browser-globals.md/1.svelte|+svelte/no-top-level-browser-globals\t25:13\tUnexpected top-level browser global variable "localStorage".',
 	'eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/test03-input.svelte|+svelte/no-top-level-browser-globals\t2:12\tUnexpected top-level browser global variable "localStorage".',
 
@@ -142,7 +142,7 @@ function ruleUniverse(bin) {
 }
 
 function corpusFiles() {
-	const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8'));
+	const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'lint-manifest.json'), 'utf8'));
 	return manifest
 		.filter((e) => e.kind === 'component')
 		.map((e) => path.join(SOURCES, e.id))
@@ -153,7 +153,7 @@ function corpusFiles() {
 const key = (ruleId, line, col, message) => `${ruleId}\t${line}:${col}\t${message}`;
 
 function runOracle(files, universe) {
-	const rulesFile = path.join(CORPUS, '.rules.json');
+	const rulesFile = path.join(CORPUS, '.lint-rules.json');
 	fs.writeFileSync(rulesFile, JSON.stringify(universe));
 	const out = execFileSync('node', ['lint-oracle/run.mjs', '--rules', rulesFile, '--stdin'], {
 		cwd: __dirname,
@@ -179,7 +179,7 @@ function runOracle(files, universe) {
 
 function runRsvelte(files, universe) {
 	const cfg = { extends: ['none'], rules: Object.fromEntries(universe.map((id) => [id, 'warn'])) };
-	const cfgFile = path.join(CORPUS, '.rsvelte-lint.json');
+	const cfgFile = path.join(CORPUS, '.lint-rsvelte-lint.json');
 	fs.writeFileSync(cfgFile, JSON.stringify(cfg));
 	const bin = findBinary();
 	let out;

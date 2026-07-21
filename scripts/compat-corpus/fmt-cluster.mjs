@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Group formatter-parity failures by a normalized first-diff signature so the
- * burn-down can attack whole classes at once. Reads compat/corpus/fmt-report.json
+ * burn-down can attack whole classes at once. Reads compatibility/fmt-report.json
  * (written by fmt-verify.mjs) and the oracle/actual trees.
  *
  * Usage:
@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const CORPUS = path.join(ROOT, 'compat/corpus');
+const CORPUS = path.join(ROOT, 'compatibility');
 
 const args = process.argv.slice(2);
 const SHOW = args.includes('--show') ? args[args.indexOf('--show') + 1] : undefined;

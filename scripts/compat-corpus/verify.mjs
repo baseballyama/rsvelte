@@ -11,16 +11,16 @@
  *   - js-mismatch / css-mismatch / error-mismatch (rsvelte errs where official
  *     compiles, or vice versa)
  *
- * Writes compat/corpus/report.json.
+ * Writes compatibility/report.json.
  *
  * Ratchet baselines (checked in), one per target so CSR and SSR are tracked
  * independently:
- *   - compat/corpus/known-failures.client.json  (CSR / client target)
- *   - compat/corpus/known-failures.server.json  (SSR / server target)
+ *   - compatibility/known-failures.client.json  (CSR / client target)
+ *   - compatibility/known-failures.server.json  (SSR / server target)
  * Each lists the entry ids whose output diverges for that target. Verification
  * exits non-zero only when a (id, target) pair NOT in its baseline fails (a
  * regression) — known failures are tolerated and burned down over time (see
- * compat/corpus/known-failures.md for the root-cause writeup of each entry).
+ * compatibility/known-failures.md for the root-cause writeup of each entry).
  * When previously-known failures now pass, a reminder to shrink the relevant
  * baseline is printed (use --update-baseline to rewrite both files from
  * current results).
@@ -36,7 +36,7 @@ import { flattenTemplateHoles, stripBlankLines, astEquivalent, readIf, firstDiff
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const CORPUS = path.join(ROOT, 'compat/corpus');
+const CORPUS = path.join(ROOT, 'compatibility');
 const EXPECTED = path.join(CORPUS, 'expected');
 const ACTUAL = path.join(CORPUS, 'actual');
 
@@ -236,7 +236,7 @@ if (regressions.length) {
 }
 
 if (failures.length) {
-	console.log(`\n[verify] ✅ no regressions (client ${clientFails.size}, server ${serverFails.size} known failures remain — see compat/corpus/known-failures.md)`);
+	console.log(`\n[verify] ✅ no regressions (client ${clientFails.size}, server ${serverFails.size} known failures remain — see compatibility/known-failures.md)`);
 } else {
 	console.log('\n[verify] ✅ all corpus outputs identical after normalization');
 }
