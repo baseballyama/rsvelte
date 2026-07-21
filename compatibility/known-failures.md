@@ -14,7 +14,7 @@ compiler-behaviour gap; attempts to fix them are regression-prone against the
 8000+ passing entries (several have been reverted after wide blowups), so they are
 accepted until an upstream-faithful port lands.
 
-## Client (`known-failures.client.json`, 7 entries)
+## Client (`known-failures.client.json`, 6 entries)
 
 - **`melt-ui/.../SpatialMenuNavTest.svelte`** — two causes: (a) a proxy argument in
   `$.set(highlighted, id, true)` where `id` is an inner-scope TemplateLiteral const
@@ -40,10 +40,6 @@ accepted until an upstream-faithful port lands.
   `col` missing inside `$.invalidate_inner_signals` (from a `bind:value` key
   `filterSelections()[col.key]`). The exact condition making `col` reactive is
   unresolved.
-- **`svelte-ux/.../MultiSelect.svelte`** — a component prop emitted as a getter
-  (`get onChange(){ return $.get(onChange); }`) where svelte emits plain
-  `onChange: $.get(onChange)`. svelte's rule is `has_state ? getter : init`;
-  rsvelte's `has_state` is true for a legacy prop where svelte's is false.
 
 ## Server (`known-failures.server.json`, 0 entries)
 
@@ -62,6 +58,5 @@ against the full corpus + byte-exact runtime/ssr/css suites before landing):
 - **each-item reactivity wrapping** (function-depth `has_external_dependencies`
   check) — a prior attempt caused ~498 regressions.
 - **`$derived` currying** (`yScale()(tick)`) — reverted twice; do not retry naively.
-- **legacy prop `has_state` analysis** driving getter-vs-plain component-prop shape.
 - **store/runes name-conflict resolution** — two independent sub-bugs that must land
   together and distinguish getter-vs-user-call by context.

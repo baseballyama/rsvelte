@@ -4920,23 +4920,48 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                 // For Derived bindings, skip this early return and fall through to the
                 // detailed binding kind check below.
                 if let Some(transform) = context.state.transform.get(name) {
+                    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+                    // Resolve the binding this reference actually refers to. `get_binding`
+                    // walks the root-scope-polluted map, which prefers an OUTER same-named
+                    // binding; when an in-scope `{@const}` shadows it, that resolves to the
+                    // outer binding instead of the `{@const}`. `transform_deep_read` marks a
+                    // `{@const}` (Template) whose transform is currently active, so in that
+                    // case re-resolve to the shadowing Template binding to check its kind.
+                    let resolved = {
+                        let direct = context.state.get_binding(name);
+                        let is_shadowed_normal = direct
+                            .is_some_and(|b| matches!(b.kind, BindingKind::Normal))
+                            && context.state.transform_deep_read.contains_key(name);
+                        if is_shadowed_normal {
+                            context
+                                .state
+                                .scope_root
+                                .bindings_by_name
+                                .get(name)
+                                .and_then(|idxs| {
+                                    idxs.iter().rev().find_map(|&i| {
+                                        let b =
+                                            context.state.scope_root.bindings.get(i as usize)?;
+                                        matches!(b.kind, BindingKind::Template).then_some(b)
+                                    })
+                                })
+                                .or(direct)
+                        } else {
+                            direct
+                        }
+                    };
+
                     // Check if this is a Derived binding - if so, skip the early return
                     // and fall through to the detailed binding kind check below.
-                    let is_derived = context.state.get_binding(name).is_some_and(|b| {
-                        matches!(
-                            b.kind,
-                            crate::compiler::phases::phase2_analyze::scope::BindingKind::Derived
-                        )
-                    });
+                    let is_derived =
+                        resolved.is_some_and(|b| matches!(b.kind, BindingKind::Derived));
                     if !is_derived {
                         // For Template bindings (@const), check if the initial value is known
                         // instead of blindly using transform.is_reactive.
                         // This matches the official Svelte compiler's scope.evaluate() behavior.
-                        if let Some(binding) = context.state.get_binding(name)
-                            && matches!(
-                                binding.kind,
-                                crate::compiler::phases::phase2_analyze::scope::BindingKind::Template
-                            )
+                        if let Some(binding) = resolved
+                            && matches!(binding.kind, BindingKind::Template)
                         {
                             // A function-valued `{@const}` (`{@const f = (e) => …}`)
                             // mirrors upstream's `!binding.is_function()` term in
