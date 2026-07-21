@@ -19,16 +19,16 @@ importers:
         version: 0.28.1
       oxfmt:
         specifier: ^0.59.0
-        version: 0.59.0(svelte@5.56.6)
+        version: 0.59.0(svelte@5.56.7)
       prettier:
         specifier: ^3.9.4
         version: 3.9.5
       prettier-plugin-svelte:
         specifier: ^4.1.0
-        version: 4.1.1(prettier@3.9.5)(svelte@5.56.6)
+        version: 4.1.1(prettier@3.9.5)(svelte@5.56.7)
       svelte:
         specifier: ^5.56.4
-        version: 5.56.6
+        version: 5.56.7
 
   apps/npm/compiler:
     publishDirectory: ../../../pkg
@@ -179,7 +179,7 @@ importers:
         version: link:../vite-plugin-svelte-native
       '@sveltejs/vite-plugin-svelte-inspector':
         specifier: ^5.0.0
-        version: 5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.6)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0)))(svelte@5.56.6)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0))
+        version: 5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.7)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0)))(svelte@5.56.7)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0))
       deepmerge:
         specifier: ^4.3.1
         version: 4.3.1
@@ -201,7 +201,7 @@ importers:
         version: 1.101.0
       svelte:
         specifier: ^5.56.4
-        version: 5.56.6
+        version: 5.56.7
       vite:
         specifier: ^8.0.0
         version: 8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0)
@@ -1233,6 +1233,14 @@ packages:
       '@typescript-eslint/types':
         optional: true
 
+  esrap@2.3.0:
+    resolution: {integrity: sha512-GQ/7RN8uOtEfNpzZzBMTzW9JBcX42oaSVtPzdF+6cEL8pqIL094iUpr9jzYGn4O4P/1S60dJ6izyT8F4LYARng==}
+    peerDependencies:
+      '@typescript-eslint/types': ^8.2.0
+    peerDependenciesMeta:
+      '@typescript-eslint/types':
+        optional: true
+
   extendable-error@0.1.7:
     resolution: {integrity: sha512-UOiS2in6/Q0FK0R0q6UY9vYpQ21mr/Qn1KOnte7vsACuNJf514WvCCUHSRCPcgjPT2bAhNIJdlE6bVap1GKmeg==}
 
@@ -1643,6 +1651,10 @@ packages:
 
   svelte@5.56.6:
     resolution: {integrity: sha512-p4HDLDogGHKRKCrgckQHNs5PEfXkju6JI5jTywueaKJI5hAdjPohEhRtQ0M1SWC/+TA73SPln+r7srr+7e4nZA==}
+    engines: {node: '>=18'}
+
+  svelte@5.56.7:
+    resolution: {integrity: sha512-5qERUZX80oQj6XrDMUmD2Uhd/cIpCPDWWKBK3ZHmyRUC9apPyamWM8xMo31mbWsIQxwG2hVoSnOJ/EcnhVkkzQ==}
     engines: {node: '>=18'}
 
   term-size@2.2.1:
@@ -2350,20 +2362,20 @@ snapshots:
     dependencies:
       acorn: 8.17.0
 
-  '@sveltejs/vite-plugin-svelte-inspector@5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.6)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0)))(svelte@5.56.6)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0))':
+  '@sveltejs/vite-plugin-svelte-inspector@5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.7)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0)))(svelte@5.56.7)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0))':
     dependencies:
-      '@sveltejs/vite-plugin-svelte': 6.2.4(svelte@5.56.6)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0))
+      '@sveltejs/vite-plugin-svelte': 6.2.4(svelte@5.56.7)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0))
       obug: 2.1.4
-      svelte: 5.56.6
+      svelte: 5.56.7
       vite: 8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0)
 
-  '@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.6)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0))':
+  '@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.7)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0))':
     dependencies:
-      '@sveltejs/vite-plugin-svelte-inspector': 5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.6)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0)))(svelte@5.56.6)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0))
+      '@sveltejs/vite-plugin-svelte-inspector': 5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.7)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0)))(svelte@5.56.7)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0))
       deepmerge: 4.3.1
       magic-string: 0.30.21
       obug: 2.1.4
-      svelte: 5.56.6
+      svelte: 5.56.7
       vite: 8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0)
       vitefu: 1.1.3(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0))
 
@@ -2487,6 +2499,11 @@ snapshots:
   esprima@4.0.1: {}
 
   esrap@2.2.13:
+    dependencies:
+      '@jridgewell/sourcemap-codec': 1.5.5
+    optional: true
+
+  esrap@2.3.0:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
@@ -2698,7 +2715,7 @@ snapshots:
       '@oxfmt/binding-win32-x64-msvc': 0.53.0
       svelte: 5.56.6
 
-  oxfmt@0.59.0(svelte@5.56.6):
+  oxfmt@0.59.0(svelte@5.56.7):
     dependencies:
       tinypool: 2.1.0
     optionalDependencies:
@@ -2721,7 +2738,7 @@ snapshots:
       '@oxfmt/binding-win32-arm64-msvc': 0.59.0
       '@oxfmt/binding-win32-ia32-msvc': 0.59.0
       '@oxfmt/binding-win32-x64-msvc': 0.59.0
-      svelte: 5.56.6
+      svelte: 5.56.7
 
   oxlint@1.74.0:
     optionalDependencies:
@@ -2785,10 +2802,10 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  prettier-plugin-svelte@4.1.1(prettier@3.9.5)(svelte@5.56.6):
+  prettier-plugin-svelte@4.1.1(prettier@3.9.5)(svelte@5.56.7):
     dependencies:
       prettier: 3.9.5
-      svelte: 5.56.6
+      svelte: 5.56.7
 
   prettier@2.8.8: {}
 
@@ -2887,6 +2904,28 @@ snapshots:
       devalue: 5.8.1
       esm-env: 1.2.2
       esrap: 2.2.13
+      is-reference: 3.0.3
+      locate-character: 3.0.0
+      magic-string: 0.30.21
+      zimmerframe: 1.1.4
+    transitivePeerDependencies:
+      - '@typescript-eslint/types'
+    optional: true
+
+  svelte@5.56.7:
+    dependencies:
+      '@jridgewell/remapping': 2.3.5
+      '@jridgewell/sourcemap-codec': 1.5.5
+      '@sveltejs/acorn-typescript': 1.0.11(acorn@8.17.0)
+      '@types/estree': 1.0.9
+      '@types/trusted-types': 2.0.7
+      acorn: 8.17.0
+      aria-query: 5.3.1
+      axobject-query: 4.1.0
+      clsx: 2.1.1
+      devalue: 5.8.1
+      esm-env: 1.2.2
+      esrap: 2.3.0
       is-reference: 3.0.3
       locate-character: 3.0.0
       magic-string: 0.30.21
