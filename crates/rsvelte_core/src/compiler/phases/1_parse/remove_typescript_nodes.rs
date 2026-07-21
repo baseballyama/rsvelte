@@ -417,11 +417,15 @@ fn visit_children(node: &mut JsonValue, path: &[&str]) -> Result<(), ParseError>
 //     etc. — falls back to `JsNode::Raw(Value)`. So for any `JsNode::Raw` we
 //     simply delegate to the existing Value mutator, which handles that whole
 //     subtree with the exact same semantics (including errors).
-//   * TS expression wrappers (`as`/`satisfies`/`!`/`<T>`/instantiation) are
-//     already unwrapped at parse time, and the typed enum has no
-//     `returnType`/`accessibility`/`readonly`/… fields, so there is nothing to
-//     strip there.
-//   * The only TS cases that CAN reach a typed node are: type-only
+//   * The `as`/`satisfies`/`!` assertion wrappers are PRESERVED at parse time
+//     (so `parse()` output mirrors svelte/compiler) and unwrapped here — the
+//     `TSAsExpression`/`TSSatisfiesExpression`/`TSNonNullExpression` arm below
+//     replaces each wrapper with its inner expression, mirroring upstream's
+//     `context.visit(node.expression)`. (`<T>x` type assertions and `f<T>`
+//     instantiation expressions are still unwrapped at parse time, so they never
+//     reach here.) The typed enum has no `returnType`/`accessibility`/`readonly`/…
+//     fields, so there is nothing else to strip.
+//   * The other TS cases that CAN reach a typed node are: type-only
 //     import/export (whole or per-specifier), `declare` variable declarations,
 //     `TSEnumDeclaration`, and `TSModuleDeclaration` (namespace) — handled
 //     structurally below.
@@ -577,6 +581,23 @@ pub fn remove_typescript_nodes_typed(
             remove_this_param_typed(node, arena);
         }
 
+        // Unwrap TS assertion wrappers (`x as T` / `x satisfies T` / `x!`),
+        // replacing the wrapper with its inner expression and continuing the
+        // strip into it. Mirrors upstream `context.visit(node.expression)`.
+        Some("TSAsExpression") | Some("TSSatisfiesExpression") | Some("TSNonNullExpression") => {
+            let inner_id = match node {
+                JsNode::TSAsExpression { expression, .. }
+                | JsNode::TSSatisfiesExpression { expression, .. }
+                | JsNode::TSNonNullExpression { expression, .. } => *expression,
+                _ => unreachable!("node_type matched a TS assertion variant"),
+            };
+            *node = arena.get_js_node(inner_id).clone();
+            return remove_typescript_nodes_typed(node, arena);
+        }
+
+        // Every node needing structural rewriting is handled above; the rest just
+        // recurse. The TS assertion wrappers can never fall through here — the
+        // arm above returns early for them.
         _ => {}
     }
 
