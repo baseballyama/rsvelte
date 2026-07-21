@@ -33,8 +33,9 @@
 //! an implicitly-discovered file. A JS/TS config is a deliberate, explicit
 //! choice, so here the opposite policy applies: anything not statically
 //! resolvable (a call other than `defineConfig`, a reference to something
-//! other than a local `const`, a spread, a computed key, …) is a hard error
-//! rather than a silent partial read.
+//! other than a local `const`, a spread, a computed key, a dynamic
+//! `exports[<expr>]` key, a `module.exports.<prop> = ...` mutation, …) is a
+//! hard error rather than a silent partial read.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -141,15 +142,21 @@ pub fn evaluate(source: &str, path: &Path) -> Result<serde_json::Value, String> 
     // — since the branch above already claims the whole file whenever
     // `module.exports = ...` is present at all, this loop is only ever
     // reached when it's absent, so no such intermixing can occur here.
-    let exports_props: Vec<(&str, &oxc::Expression)> = ret
-        .program
-        .body
-        .iter()
-        .filter_map(|stmt| match stmt {
-            oxc::Statement::ExpressionStatement(es) => exports_property_assignment(&es.expression),
-            _ => None,
-        })
-        .collect();
+    let mut exports_props: Vec<(&str, &oxc::Expression)> = Vec::new();
+    for stmt in &ret.program.body {
+        let oxc::Statement::ExpressionStatement(es) = stmt else {
+            continue;
+        };
+        match exports_property_assignment(&es.expression) {
+            Some(Ok(pair)) => exports_props.push(pair),
+            // An assignment that *targets* the exports object but can't be
+            // resolved statically (a dynamic `exports[<expr>]` key, or
+            // `module.exports.foo = ...`) is a hard error, never a silent
+            // drop — dropping it would diverge from oxfmt, which honors it.
+            Some(Err(reason)) => return Err(dynamic_error(path, reason)),
+            None => {}
+        }
+    }
     if !exports_props.is_empty() {
         let mut map = serde_json::Map::with_capacity(exports_props.len());
         for (name, value_expr) in exports_props {
@@ -197,39 +204,69 @@ fn module_exports_rhs<'s, 'a>(expr: &'s oxc::Expression<'a>) -> Option<&'s oxc::
     Some(&assign.right)
 }
 
-/// Recognize an individual `exports.foo = <rhs>;` or `exports["foo"] =
-/// <rhs>;` property assignment (CommonJS's incremental export form, as
-/// opposed to a full `module.exports = {...}` replacement — see the module
-/// docs) and return `(property name, rhs)`.
+/// Classify an expression statement as a CommonJS incremental export:
+///
+/// - `None` — not an assignment to the `exports` object at all (an unrelated
+///   statement to skip).
+/// - `Some(Ok((name, rhs)))` — a statically resolvable `exports.foo = ...` or
+///   `exports["foo"] = ...` we can accumulate.
+/// - `Some(Err(reason))` — an assignment that *targets* the exports object but
+///   in a form we can't resolve statically (a dynamic `exports[<expr>]` key,
+///   or `module.exports.foo = ...` mutating the default object). Surfaced as a
+///   hard error rather than a silent drop, so the result can't diverge from
+///   oxfmt (which honors these), matching how every other dynamic form is
+///   rejected.
 fn exports_property_assignment<'s, 'a>(
     expr: &'s oxc::Expression<'a>,
-) -> Option<(&'s str, &'s oxc::Expression<'a>)> {
+) -> Option<Result<(&'s str, &'s oxc::Expression<'a>), String>> {
     let oxc::Expression::AssignmentExpression(assign) = expr else {
         return None;
     };
-    let name = match &assign.left {
+    match &assign.left {
         oxc::AssignmentTarget::StaticMemberExpression(member)
             if is_bare_identifier(&member.object, "exports") =>
         {
-            member.property.name.as_str()
+            Some(Ok((member.property.name.as_str(), &assign.right)))
         }
         oxc::AssignmentTarget::ComputedMemberExpression(member)
             if is_bare_identifier(&member.object, "exports") =>
         {
             match &member.expression {
-                oxc::Expression::StringLiteral(s) => s.value.as_str(),
-                _ => return None,
+                oxc::Expression::StringLiteral(s) => Some(Ok((s.value.as_str(), &assign.right))),
+                _ => Some(Err(
+                    "a dynamic `exports[<expr>] = ...` key is not statically resolvable; use a \
+                     string-literal key or a full `module.exports = {...}`"
+                        .to_string(),
+                )),
             }
         }
-        _ => return None,
-    };
-    Some((name, &assign.right))
+        oxc::AssignmentTarget::StaticMemberExpression(member)
+            if is_module_exports_expr(&member.object) =>
+        {
+            Some(Err(
+                "`module.exports.<prop> = ...` is not statically resolvable; assign a full \
+                 `module.exports = {...}` object instead"
+                    .to_string(),
+            ))
+        }
+        _ => None,
+    }
 }
 
 /// `true` when `expr` is the bare identifier `name` (e.g. the `module` in
 /// `module.exports`, or the `exports` in `exports.foo`).
 fn is_bare_identifier(expr: &oxc::Expression, name: &str) -> bool {
     matches!(expr, oxc::Expression::Identifier(id) if id.name.as_str() == name)
+}
+
+/// `true` when `expr` is the member expression `module.exports` (the object
+/// side of a `module.exports.<prop> = ...` mutation).
+fn is_module_exports_expr(expr: &oxc::Expression) -> bool {
+    matches!(
+        expr,
+        oxc::Expression::StaticMemberExpression(m)
+            if m.property.name.as_str() == "exports" && is_bare_identifier(&m.object, "module")
+    )
 }
 
 fn eval_expr<'s, 'a>(
@@ -649,6 +686,37 @@ mod tests {
     #[test]
     fn dynamic_exports_property_value_is_an_error() {
         let err = eval_at("exports.printWidth = computeWidth();", "oxfmt.config.cjs").unwrap_err();
+        assert!(err.contains("statically"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn dynamic_exports_computed_key_is_an_error() {
+        // A non-string-literal computed key can't be resolved statically. It
+        // must be a hard error, not silently skipped.
+        let err = eval_at("exports[computeKey()] = 100;", "oxfmt.config.cjs").unwrap_err();
+        assert!(err.contains("statically"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn dynamic_exports_computed_key_mixed_with_static_is_an_error() {
+        // Regression: a dynamic `exports[<expr>]` key must not be silently
+        // dropped just because a sibling static `exports.foo = ...` succeeds —
+        // that would return a partial config diverging from oxfmt.
+        let err = eval_at(
+            "exports.semi = false;\nexports[computeKey()] = true;",
+            "oxfmt.config.cjs",
+        )
+        .unwrap_err();
+        assert!(err.contains("statically"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn module_exports_member_mutation_is_an_error() {
+        // `module.exports.foo = ...` (mutating the default object rather than
+        // replacing it) isn't a full replacement nor a bare `exports.foo`, so
+        // it errors with a message pointing at the supported form.
+        let err = eval_at("module.exports.semi = false;", "oxfmt.config.cjs").unwrap_err();
+        assert!(err.contains("module.exports"), "unexpected error: {err}");
         assert!(err.contains("statically"), "unexpected error: {err}");
     }
 }
