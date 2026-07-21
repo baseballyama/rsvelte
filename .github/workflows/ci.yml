@@ -544,13 +544,24 @@ jobs:
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - name: Install oxfmt for the formatter parity corpus
-        # Isolated install (see the matching step in the `test` job) — provides
-        # the oxfmt oracle binary used to generate and check the corpus.
+        # Isolated install (avoids a full monorepo `pnpm install`) that provides
+        # the oxfmt oracle binary used to generate and check the corpus. The
+        # oxfmt / svelte versions are derived from the workspace package.json
+        # caret ranges — the same ranges pnpm resolves in the lockfile-backed
+        # `corpus-compat` Formatter-parity job — so `auto-update-oxfmt` and
+        # `auto-update-svelte` (which bump those ranges) keep this in sync
+        # automatically. Never hardcode a version here: a hardcoded pin silently
+        # drifts from package.json (it did — a stale oxfmt@0.53.0 made this job's
+        # oracle expect a layout newer oxfmt no longer emits).
         run: |
+          set -euo pipefail
+          OXFMT_RANGE=$(node -p "require('./package.json').devDependencies.oxfmt")
+          SVELTE_RANGE=$(node -p "require('./package.json').devDependencies.svelte")
+          echo "resolving oxfmt@$OXFMT_RANGE svelte@$SVELTE_RANGE"
           mkdir -p "$RUNNER_TEMP/fmt-oracle"
           cd "$RUNNER_TEMP/fmt-oracle"
           npm init -y >/dev/null
-          npm i --ignore-scripts oxfmt@0.53.0 svelte@5.56.2
+          npm i --ignore-scripts "oxfmt@$OXFMT_RANGE" "svelte@$SVELTE_RANGE"
           ./node_modules/.bin/oxfmt --version
 
       - name: Resolve svelte.dev submodule SHA
@@ -562,7 +573,11 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: fixtures/fmt-corpus
-          key: fmt-corpus-v1-${{ runner.os }}-${{ steps.svelte-dev-sha.outputs.sha }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json') }}
+          # Includes package.json + pnpm-lock.yaml so the cached oracle is busted
+          # whenever the derived oxfmt / svelte versions change (a version-less
+          # key left a stale 0.53 oracle cached after the pin drifted). The `v2`
+          # bump force-invalidates the pre-fix caches.
+          key: fmt-corpus-v2-${{ runner.os }}-${{ steps.svelte-dev-sha.outputs.sha }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json', 'package.json', 'pnpm-lock.yaml') }}
 
       - name: Generate formatter parity corpus
         run: pnpm run generate-fmt-corpus
