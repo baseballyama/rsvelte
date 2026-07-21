@@ -1,5 +1,290 @@
 # @rsvelte/compiler
 
+## 0.8.0
+
+### Minor Changes
+
+- cc81ec5: feat(oxlint-plugin): run rsvelte's Svelte diagnostics as oxlint rules
+
+  New package `@rsvelte/oxlint-plugin` — an oxlint JS plugin that folds rsvelte's
+  Svelte diagnostics (the native eslint-plugin-svelte rule ports plus the
+  compiler / validator / a11y warning wrap) into oxlint's single pass and report,
+  under the `svelte/` namespace. Add `"jsPlugins": ["@rsvelte/oxlint-plugin"]` (and
+  `extends` the bundled `recommended.json`) to `.oxlintrc.json` and Svelte issues
+  show up alongside oxlint's JS/TS rules. Requires oxlint ≥ 1.64.
+
+  The engine is native-first with a wasm fallback: the plugin loads the prebuilt
+  `rsvelte_lint.node` (NAPI) from the per-platform `@rsvelte/lint-<triple>`
+  packages when available, and falls back to the `@rsvelte/compiler` wasm engine
+  otherwise — both return byte-identical diagnostics. `RSVELTE_OXLINT_ENGINE=native|wasm`
+  forces one engine. The `@rsvelte/lint-<triple>` packages now ship the
+  `rsvelte_lint.node` addon alongside the `rsvelte-lint` CLI (via a new
+  `rsvelte_lint` `napi` cargo feature).
+
+  Script-block diagnostics map to accurate positions; markup/style diagnostics are
+  surfaced at the top of the `<script>` block with their real location in the
+  message (an oxlint alpha `.svelte` limitation). Scriptless components are not
+  visited by oxlint and so are not linted — see the package README.
+
+  To back it, `@rsvelte/compiler` (and the native addon) gain a `lint_rules()`
+  export returning the full catalog of diagnostic ids the linter can emit (native
+  rule ids + the compiler/validator/a11y warning codes), so the plugin registers
+  its rule set and generates its recommended config directly from the engine. The
+  existing `lint()` export is unchanged.
+
+### Patch Changes
+
+- 54509fe: feat(svelte2tsx): result object matches upstream (`map` SourceMap, `exportedNames.has`, `events.getAll`)
+
+  The `svelte2tsx()` result now mirrors the official
+  [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx)
+  `SvelteCompiledToTsx` shape:
+
+  - **`map`** is now a magic-string-style `SourceMap` **object** (`version`,
+    `sources`, `sourcesContent`, `names`, `mappings`, plus `toString()` /
+    `toUrl()`) instead of a JSON string. In `dts` mode it stays `null`.
+  - **`exportedNames`** now exposes `has(name): boolean` (upstream
+    `IExportedNames`). The existing `props` / `all` arrays are kept as a
+    backward-compatible rsvelte extension.
+  - **`events`** now exposes `getAll(): { name, type, doc? }[]` (upstream
+    `ComponentEvents`, which is `@deprecated`) instead of a plain record. Types
+    are approximated as `CustomEvent<detail>` / `CustomEvent<any>`; the optional
+    `doc` (JSDoc) field is not populated.
+
+  The `map` string → object change folds into the same unreleased `0.2.0` as the
+  synchronous-API change, so it stays a single minor bump.
+
+- 4ea4b44: fix(analyzer): visit special events and parameter defaults
+
+  Two analyzer gaps left references unrecorded, which could feed incorrect
+  warnings/eliminations downstream:
+
+  - **`on:` directives on `<svelte:window>` / `<svelte:document>` / `<svelte:body>`**
+    were parsed but never walked, so an expression like
+    `<svelte:window on:keydown={handle_keydown} />` never recorded a reference to
+    `handle_keydown`. These special elements now route their `on:` directives
+    through the same `on_directive` visitor regular elements use, matching the
+    official compiler's generic `context.next()` walk in `SvelteWindow.js` /
+    `SvelteDocument.js` / `SvelteBody.js`.
+  - **Function/arrow parameter patterns** (`function f(a, {b} = c, [...d]) {}`)
+    were never visited at all, so identifiers referenced only in a default value
+    — e.g. a store subscription in `function goto_page(page = $search_params.page) {}`
+    — were invisible to the analyzer. `FunctionDeclaration` / `FunctionExpression`
+    / `ArrowFunctionExpression` now walk `params` through the existing generic
+    typed walker (`walk_js_node_typed`) before the body, mirroring upstream's
+    `context.next()` over the whole function node. This also restores the
+    self-reference every other declaration site already gets (see
+    `variable_declarator.rs`), which `export_let_unused`'s "more than one
+    reference" heuristic depends on for other binding kinds.
+
+- 6665d53: fix(analyze): preserve function, class, rest-prop, and directive binding metadata
+- fa0e9ff: fix(transform): a function-valued `{@const}` passed as a component prop is not a getter
+
+  Upstream's `Identifier.js` `has_state` computation excludes function
+  bindings (`!binding.is_function()`), so a `{@const fn = (e) => …}` read as
+  a component prop is emitted as a plain value rather than a getter:
+
+  ```js
+  // {#each items as item}
+  //   {@const onItemEnter = (e) => { … }}
+  //   <Path onpointerenter={onItemEnter} />
+  C($$anchor, { onpointerenter: $.get(onItemEnter) }); // was: get onpointerenter() { … }
+  ```
+
+  Two gaps caused rsvelte to wrap it in a getter: the analyzer's
+  `set_const_tag_initial` never set `initial_is_function` for a `{@const}`
+  whose initializer is an arrow/function expression (so `is_function()`
+  returned `false`), and the client `expression_has_reactive_state`
+  Template branches checked only `is_expression_known_json`, missing the
+  `!binding.is_function()` term. Both now mirror upstream.
+
+- fa0e9ff: fix(transform): align CSS scope-class specificity bumping with the official compiler
+
+  The scoping-class placement inside `:is()` / `:where()` / `:has()` / `:not()`
+  now follows upstream `css/index.js`'s single `specificity.bumped` rule instead
+  of ad-hoc heuristics. Three cases were wrong:
+
+  - A standalone `:where(.foo)` (or `:is(.foo)`) at the top of a rule scoped its
+    inner selector with a redundant `:where()` wrapper —
+    `:where(.foo:where(.svelte-x))` instead of `:where(.foo.svelte-x)` — because
+    the first scoping point must use the direct class, not `:where()`.
+  - A combinator by itself forced a specificity bump, so `:where(.a) > :where(.b)`
+    produced `:where(.b:where(.svelte-x))` when the preceding relative selector
+    emitted no modifier. The bump now comes solely from actual modifier
+    application, matching upstream.
+  - A pseudo-class arg in a compound that IS scoped elsewhere
+    (`nav:has(a).primary`, `:root:has(h1)`) must see the compound as already
+    bumped, so its inner selector is `:where(.svelte-x)` — upstream bumps the whole
+    compound before recursing into its pseudo args, even when no textual modifier
+    is emitted (`:root` is exempt yet still bumps).
+
+  Fixes real-world `<style>` blocks that wrap top-level rules in `:where(...)`
+  (e.g. layerchart tooltip / layer / legend components).
+
+- add48ed: fix(deps): update compact_str to 0.10
+
+  Dependency-only bump of `compact_str` (0.9 → 0.10), the inline string type used
+  throughout the compiler's AST. No API or output changes; ships in the compiled
+  native binaries, hence a patch release.
+
+- fa0e9ff: fix(transform): destructuring `$derived(props)` of a rest binding reads members from `$$props`
+
+  When a second destructuring reads from a `...rest` binding via
+  `$derived(...)`, upstream's rest-prop member rewrite turns each named
+  member read `props.X` into `$$props.X`, while the top-level `...rest`
+  element keeps `props` for `$.exclude_from_object(props, …)`:
+
+  ```js
+  // let { ChartChildren, ...props } = $props();
+  // let { ssr = false, width, ...restProps } = $derived(props);
+  let ssr = $.derived(() => $.fallback($$props.ssr, false)), // was: props.ssr
+    width = $.derived(() => $$props.width),                  // was: props.width
+    restProps = $.derived(() => $.exclude_from_object(props, ["ssr", "width", …]));
+  ```
+
+  The client `$derived` destructuring helpers now thread a separate
+  `member_base` (the `$$props` source of the rest binding) for member reads,
+  keeping `base_expr` (`props`) for the rest exclude.
+
+- fa0e9ff: fix(transform): a `let:` directive shadows an outer same-named prop
+
+  A `let:` directive on a slotted element (e.g. `<tbody slot="data" let:data>`)
+  registers a `$.get(data)` read transform for the derived slot binding, but
+  `convert_identifier` resolves a `Prop`/`BindableProp` binding straight to
+  `$$props.name` unless the name is in `shadowed_prop_names` — so when the `let:`
+  name collided with an outer `let { data } = $props()` prop, reads inside the
+  slot body wrongly emitted `$$props.data` instead of `$.get(data)`.
+
+  `process_element_let_directives` now adds each `let:` binding name to
+  `shadowed_prop_names` for the duration of the element's children (restored
+  afterwards), mirroring the each-item / snippet-parameter shadowing already done
+  in `each_block.rs` / `snippet_block.rs`.
+
+- 87f178e: fix(parse): scan `{@html/@render/@const/@debug}` bodies with find_matching_bracket
+
+  The `{@html}`, `{@render}`, `{@const}` and `{@debug}` special tags each carried
+  their own bespoke brace-depth loop to locate the closing `}`. Those loops
+  handled some JavaScript lexical contexts but not all — none skipped comments or
+  regex literals, and `{@debug}` skipped nothing at all — so a `}` inside a
+  comment or regex (and, for `{@debug}`, a string) terminated the tag early and
+  mis-parsed the rest of the template. All four now route through the shared
+  `find_matching_bracket`, which skips strings, template literals, comments, and
+  regex literals exactly like upstream's `read_expression`. This brings several
+  cases into line with the official compiler:
+
+  - `{@html x /* } */ + y}` — brace in a block comment
+  - `{@render foo(/}/g)}` — brace in a regex literal
+  - `{@const re = /}/}` — brace in a regex literal
+  - `{@debug foo /* } */}` — brace in a block comment
+
+  The `{@const}` sequence-expression guard (`{@const a = b, c = d}` is rejected,
+  `{@const a = (b, c)}` is allowed) is now derived from the parsed initializer's
+  node type, mirroring upstream's `init.type === 'SequenceExpression'` check,
+  instead of a top-level comma byte-scan. This stops a comma inside a regex,
+  string, or comment (e.g. `{@const x = /a,b/.test(y)}`) from being mistaken for a
+  sequence separator and wrongly rejected.
+
+  No change to the output of any existing fixture; the parser now additionally
+  accepts the inputs the official compiler accepts. Net ~160 fewer lines in
+  `state/tag.rs`.
+
+- fa0e9ff: fix(transform): keep `rest.x` (not `$$props.x`) when it is an assignment/update operand
+
+  Upstream `Identifier.js` skips the runes rest-prop read optimization
+  (`rest.x` → `$$props.x`) when the member access's grandparent is an
+  Assignment or Update expression — covering BOTH operands. The client
+  AST state transform only excluded the direct LHS, so a single-level
+  `rest.x` used as a RHS was rewritten:
+
+  ```js
+  // let { children, ...rest } = $props()
+  ctx.globalAlpha *= rest.opacity; // was: *= $$props.opacity
+  img.crossOrigin = rest.crossOrigin; // was: = $$props.crossOrigin
+  ```
+
+  The rewrite is now suppressed for a bare single-level `rest.x` that is a
+  direct operand of an assignment (either side) or an update expression,
+  while deeper accesses (`rest.x.y`) still inline as before.
+
+- fa0e9ff: fix(transform): SSR elides `$.stringify(...)` for a string-typed `{@const}` declared in multiple scopes
+
+  The server template-chunk builder skips `$.stringify(...)` when
+  `scope.evaluate(expr)` proves the value is a defined string. When the same
+  `{@const}` name is declared in several branches (e.g. an `{#if}`/`{:else}`
+  pair, each a string-typed ternary), the server generator — which does not
+  track lexical scope — saw multiple same-named bindings and returned
+  `unknown` unless they agreed on a single concrete value, wrongly wrapping
+  string reads in `$.stringify(...)`:
+
+  ```js
+  // {@const translateX = a === 'middle' ? '-50%' : '0%'}  (in {#if} and {:else})
+  transform: `translate(${translateX}, …)`; // was: translate(${$.stringify(translateX)}, …)
+  ```
+
+  The multi-binding path now merges the full value set (union) of every
+  candidate, mirroring upstream's `Evaluation` merge, so `is_string` /
+  `is_defined` stay true when all branches agree on a string type.
+
+- a3dae82: fix(compiler): faithful `$`-store auto-subscription classification for two edge cases
+
+  Two lexical-scope heuristics in the store-subscription detector diverged from
+  upstream's scope analysis:
+
+  - Destructured arrow parameters spanning multiple lines
+    (`([\n  $a,\n  $b\n]) => …`, e.g. LayerCake's `derived` callbacks) were not
+    recognized as local bindings because the param-detection whitespace scan
+    stopped at the newline before the delimiter. Those names were wrongly emitted
+    as store getters (`const $a = () => $.store_get(a(), …)`) and reordered the
+    emitted getter block.
+  - A store reference in a ternary consequent behind a unary operator
+    (`cond ? !$store : x`) was misclassified as an object property key, so no
+    store getter was emitted at all.
+
+  Both now match the official compiler; the LayerCake and svelte-ux `AppLayout`
+  corpus entries compile byte-identically for CSR and SSR.
+
+- fa0e9ff: fix(svelte2tsx): keep TS casts on component `bind:this` and on paren-wrapped attribute expressions
+
+  Two TSX-parity gaps surfaced by real-world components:
+
+  - A component `bind:this={x as T}` dropped the trailing TS postfix — emitting
+    `x = $$_inst;` instead of `x = $$_inst as T;`. The element `bind:this` path
+    already moved the postfix onto the RHS var; the component path now does the
+    same (layerchart playground `bind:this={consolePane as Pane}`).
+
+  - An attribute expression whose value is a redundantly-parenthesized cast —
+    `on…={((e) => { … }) satisfies Handler<T>}` — lost both the wrapping parens
+    and the `satisfies …` tail, because the parser narrows the span to the inner
+    arrow and the postfix scan only looked for `as`/`satisfies`/`!` _directly_
+    after the span (here the tail starts with `)`). The attribute baker now widens
+    the span back to the wrapping `(` and forward past the `) satisfies T` tail
+    (layerchart Arc/Arc.base `ontouchmove`).
+
+- fa0e9ff: fix(svelte2tsx): a type-annotated `$props()`/`$state()`/`$derived()` self-named rune is not a store subscription
+
+  Upstream's `is_rune` check excludes a `$props()`/`$state()`/`$derived()` call
+  from store resolution when the declaration's binding NAME includes the rune
+  base (`parent.parent.name.getText().includes(base)`), using the binding node
+  only — never the type annotation. rsvelte's store-subscription pass relied on
+  a text scan that walked backwards over the whole `let … = ` region, so a
+  generic type annotation broke it:
+
+  ```ts
+  // let { …, ...props }: ChartChildrenBaseProps<TData, XScale, YScale> = $props();
+  //                                             ^^^^^^ generic-arg commas
+  ```
+
+  The backward scan stopped at the first `<…, …>` comma, never saw the `props`
+  binding, and so emitted a spurious `let $props = __sveltets_2_store_get(props)`
+  (wrapped in `Ωignore` markers) — diverging from the official svelte2tsx TSX
+  (layerchart Chart/ChartChildren `.base`/`.canvas`/`.html`/`.svg`/`.svelte`,
+  ChartCore). The store-injection pass now applies the exclusion on the AST via
+  the existing `excluded_rune_init` helper (binding-name only, like upstream),
+  dropping the self-named rune base before emitting subscriptions.
+
+- 685a96e: fix(analyze): record references from Svelte boundary handlers and snippet parameter defaults
+- fd4572e: `svelte/no-top-level-browser-globals` now uses real scope resolution (oxc_semantic) instead of name matching: local bindings that share a browser global's name — `let { open = $bindable() }` props, imports, `let top` — are no longer falsely flagged, in both `<script>` and template expressions. Fail-safe: unresolvable scripts fall back to the previous behaviour.
+
 ## 0.7.17
 
 ### Patch Changes

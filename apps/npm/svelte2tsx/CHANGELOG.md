@@ -1,5 +1,86 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.0
+
+### Minor Changes
+
+- 54509fe: feat(svelte2tsx): result object matches upstream (`map` SourceMap, `exportedNames.has`, `events.getAll`)
+
+  The `svelte2tsx()` result now mirrors the official
+  [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx)
+  `SvelteCompiledToTsx` shape:
+
+  - **`map`** is now a magic-string-style `SourceMap` **object** (`version`,
+    `sources`, `sourcesContent`, `names`, `mappings`, plus `toString()` /
+    `toUrl()`) instead of a JSON string. In `dts` mode it stays `null`.
+  - **`exportedNames`** now exposes `has(name): boolean` (upstream
+    `IExportedNames`). The existing `props` / `all` arrays are kept as a
+    backward-compatible rsvelte extension.
+  - **`events`** now exposes `getAll(): { name, type, doc? }[]` (upstream
+    `ComponentEvents`, which is `@deprecated`) instead of a plain record. Types
+    are approximated as `CustomEvent<detail>` / `CustomEvent<any>`; the optional
+    `doc` (JSDoc) field is not populated.
+
+  The `map` string → object change folds into the same unreleased `0.2.0` as the
+  synchronous-API change, so it stays a single minor bump.
+
+- 255c6f7: feat(svelte2tsx): synchronous API matching upstream (drop-in `svelte2tsx()`)
+
+  `svelte2tsx()` is now **synchronous**, exactly like the official
+  [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx)
+  — it returns the result object directly instead of a `Promise`. The previous
+  async signature existed only to lazily initialise the WebAssembly module; the
+  `@rsvelte/compiler` wasm bundle already exports `initSync`, so on Node the module
+  now self-initialises synchronously (`initSync` + `fs.readFileSync`) on the first
+  call, with no init cost thereafter.
+
+  Existing `const r = await svelte2tsx(...)` code keeps working unchanged (awaiting
+  a plain value returns it); only code that chained `.then()`/`.catch()` on the
+  result needs updating — hence a minor bump.
+
+  For browsers or bundlers without a synchronous `node:fs`, a new
+  `initialize(input?)` async export pre-loads the wasm (pass the bytes or a
+  compiled `WebAssembly.Module`); after `await initialize(...)`, `svelte2tsx()` can
+  be called synchronously.
+
+### Patch Changes
+
+- ff0fc86: refactor(svelte2tsx): extract svelte2tsx() entry-point steps into helpers
+
+  The `svelte2tsx()` entry point had grown to ~2000 lines with several cohesive
+  processing steps inlined into the body. This splits the mechanically-separable
+  ones out into private helper functions with no behavior change:
+
+  - `remove_orphan_scripts` — blank embedded `<script>` tags and collect their content
+  - `emit_svelte_options_element` — emit `<svelte:options>` as a `createElement` call
+  - `blank_style_tags` — blank `<style>` blocks (parsed + fallback scan)
+  - `hoist_top_level_snippets` — analyze/relocate top-level `{#snippet}` blocks
+  - `build_dollar_declarations` — build `$$props`/`$$restProps`/`$$slots` decls
+  - `build_slots_str` / `build_events_str` — build the component-export slots/events literals
+
+  Pure code motion: the generated TSX, source maps, and errors are byte-identical
+  (verified against the full svelte2tsx fixture suite — the same 8 pre-existing
+  known failures, no regressions).
+
+- Updated dependencies [cc81ec5]
+- Updated dependencies [54509fe]
+- Updated dependencies [4ea4b44]
+- Updated dependencies [6665d53]
+- Updated dependencies [fa0e9ff]
+- Updated dependencies [fa0e9ff]
+- Updated dependencies [add48ed]
+- Updated dependencies [fa0e9ff]
+- Updated dependencies [fa0e9ff]
+- Updated dependencies [87f178e]
+- Updated dependencies [fa0e9ff]
+- Updated dependencies [fa0e9ff]
+- Updated dependencies [a3dae82]
+- Updated dependencies [fa0e9ff]
+- Updated dependencies [fa0e9ff]
+- Updated dependencies [685a96e]
+- Updated dependencies [fd4572e]
+  - @rsvelte/compiler@0.8.0
+
 ## 0.1.22
 
 ### Patch Changes

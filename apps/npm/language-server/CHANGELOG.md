@@ -1,5 +1,11 @@
 # @rsvelte/language-server
 
+## 0.2.1
+
+### Patch Changes
+
+- fd4572e: `svelte/no-top-level-browser-globals` now uses real scope resolution (oxc_semantic) instead of name matching: local bindings that share a browser global's name — `let { open = $bindable() }` props, imports, `let top` — are no longer falsely flagged, in both `<script>` and template expressions. Fail-safe: unresolvable scripts fall back to the previous behaviour.
+
 ## 0.2.0
 
 ### Minor Changes

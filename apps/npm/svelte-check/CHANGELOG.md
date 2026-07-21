@@ -1,5 +1,35 @@
 # @rsvelte/svelte-check
 
+## 0.4.0
+
+### Minor Changes
+
+- 9522b0d: feat(svelte-check): upstream CLI flag parity — `--config`, `--no-tsconfig`, `--threshold`, `--preserveWatchOutput`
+
+  - `--config <path>`: use an explicit `svelte.config.*` / `vite.config.*` instead of discovery; a missing path exits with code 2, matching the JS reference.
+  - `--no-tsconfig`: check only the Svelte files under the workspace, ignoring any project tsconfig/jsconfig.
+  - `--threshold error|warning`: filter which diagnostics are printed; counts and the exit code stay computed from the unfiltered set, matching the JS reference.
+  - `--preserveWatchOutput` is now the canonical spelling (the hyphenated `--preserve-watch-output` remains as an alias), and `--tsgo-experimental-api` is accepted as an alias of `--tsgo`. `--color` / `--no-color` are accepted for CLI compatibility (output is un-colorized either way).
+
+### Patch Changes
+
+- ff0fc86: refactor(svelte2tsx): extract svelte2tsx() entry-point steps into helpers
+
+  The `svelte2tsx()` entry point had grown to ~2000 lines with several cohesive
+  processing steps inlined into the body. This splits the mechanically-separable
+  ones out into private helper functions with no behavior change:
+
+  - `remove_orphan_scripts` — blank embedded `<script>` tags and collect their content
+  - `emit_svelte_options_element` — emit `<svelte:options>` as a `createElement` call
+  - `blank_style_tags` — blank `<style>` blocks (parsed + fallback scan)
+  - `hoist_top_level_snippets` — analyze/relocate top-level `{#snippet}` blocks
+  - `build_dollar_declarations` — build `$$props`/`$$restProps`/`$$slots` decls
+  - `build_slots_str` / `build_events_str` — build the component-export slots/events literals
+
+  Pure code motion: the generated TSX, source maps, and errors are byte-identical
+  (verified against the full svelte2tsx fixture suite — the same 8 pre-existing
+  known failures, no regressions).
+
 ## 0.3.10
 
 ### Patch Changes

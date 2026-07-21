@@ -1,6 +1,6 @@
 {
   "name": "rsvelte-vscode",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "displayName": "rsvelte",
   "description": "Rust-powered Svelte formatting and linting for VS Code (rsvelte-fmt + rsvelte_lint)",
@@ -23,7 +23,11 @@
     "rust",
     "language-server"
   ],
-  "categories": ["Formatters", "Linters", "Programming Languages"],
+  "categories": [
+    "Formatters",
+    "Linters",
+    "Programming Languages"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },
