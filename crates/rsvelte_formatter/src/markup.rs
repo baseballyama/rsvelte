@@ -861,6 +861,32 @@ fn push_open_tag(
         rendered_attrs
     };
 
+    // An empty `<textarea>` glues its `>` to the last attribute line by default
+    // (`hug_open`), but prettier's empty `shouldHugStart && shouldHugEnd` branch
+    // dangles the `>` onto its own line (`…"`\n`></textarea>`) when the glued
+    // last line — `{indent}{last attr}></textarea>` — would exceed the print
+    // width. (`<pre>` is a block element and always glues, so it is untouched.)
+    // Detect that by rendering the glued form and measuring its last line plus
+    // the `</textarea>` close width. `shape_two` handles the single-attribute
+    // on-tag-line shape separately, so this only applies on the wrapped path.
+    let hug_open = if empty_element && tag_name == "textarea" && wrapped && !shape_two && hug_open {
+        let glued = render_multi_line(
+            tag_name,
+            &rendered_attrs,
+            self_closing,
+            depth,
+            &options.js,
+            true,
+            options.bracket_same_line,
+        );
+        let last_line = glued.rsplit('\n').next().unwrap_or("");
+        let close_width = tag_name.len() + 3; // "</" + name + ">"
+        // Keep gluing (hug_open = true) only when it fits; otherwise dangle.
+        visual_width(last_line) + close_width <= line_width
+    } else {
+        hug_open
+    };
+
     let rendered = if shape_two {
         // `one_liner` ends in `>`; drop it and put the `>` on the next line.
         let outer_indent = indent_str(depth, &options.js);
