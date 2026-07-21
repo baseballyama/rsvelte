@@ -24,6 +24,13 @@ rsvelte_formatter = { path = "../rsvelte_formatter" }
 tailwind_class_order = { path = "../tailwind_class_order" }
 oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "2d4e8d20644e0e7446f0a381894b45ea339a0625" }
 oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "2d4e8d20644e0e7446f0a381894b45ea339a0625" }
+# Static evaluation of `oxfmt.config.ts` / `.mts` (see src/ts_config.rs) — no
+# embedded JS runtime here, so the config is parsed and interpreted directly
+# instead of `import()`-ed like oxfmt's own NAPI build does.
+oxc_allocator = { git = "https://github.com/oxc-project/oxc", rev = "2d4e8d20644e0e7446f0a381894b45ea339a0625" }
+oxc_ast = { git = "https://github.com/oxc-project/oxc", rev = "2d4e8d20644e0e7446f0a381894b45ea339a0625" }
+oxc_parser = { git = "https://github.com/oxc-project/oxc", rev = "2d4e8d20644e0e7446f0a381894b45ea339a0625" }
+oxc_span = { git = "https://github.com/oxc-project/oxc", rev = "2d4e8d20644e0e7446f0a381894b45ea339a0625" }
 clap = { version = "4.5", features = ["derive"] }
 walkdir = "2.5"
 rayon = "1.10"
