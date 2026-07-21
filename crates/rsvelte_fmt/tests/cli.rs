@@ -418,6 +418,90 @@ fn conflicting_json_and_ts_configs_in_one_directory_is_an_error() {
     );
 }
 
+/// An explicit `--config foo.cjs` must be accepted and its `module.exports =
+/// {...}` (CommonJS's equivalent of an ESM default export) statically
+/// evaluated, mirroring oxfmt's own `is_js_config_path` accepting
+/// `.js`/`.mjs`/`.cjs` (not just `.ts`/`.mts`) for an explicit `--config`.
+/// Auto-discovery still only ever finds `oxfmt.config.ts`/`.mts`, so this
+/// requires an explicit flag.
+#[test]
+fn inline_script_respects_explicit_cjs_config() {
+    let dir = tempdir();
+    let cfg = dir.join("oxfmt.config.cjs");
+    std::fs::write(&cfg, "module.exports = { singleQuote: true };").unwrap();
+
+    let (stdout, stderr, code) = run_stdin(
+        "<script>const x = \"hello\"</script>\n",
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            "x.svelte",
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "stderr:\n{stderr}");
+    assert!(
+        stdout.contains("const x = 'hello';"),
+        "expected single quotes from oxfmt.config.cjs:\n{stdout}"
+    );
+}
+
+/// `--config foo.cjs` using the incremental `exports.foo = ...` style (as
+/// opposed to a full `module.exports = {...}` replacement) must also drive
+/// inline `<script>` formatting — real Node honors this form too, so
+/// rsvelte-fmt's static evaluator accumulates it into an object.
+#[test]
+fn inline_script_respects_explicit_cjs_config_exports_property_style() {
+    let dir = tempdir();
+    let cfg = dir.join("oxfmt.config.cjs");
+    std::fs::write(&cfg, "exports.singleQuote = true;\nexports.semi = false;").unwrap();
+
+    let (stdout, stderr, code) = run_stdin(
+        "<script>const x = \"hello\"</script>\n",
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            "x.svelte",
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "stderr:\n{stderr}");
+    assert!(
+        stdout.contains("const x = 'hello'\n"),
+        "expected single quotes (exports.singleQuote) and no trailing semicolon \
+         (exports.semi = false):\n{stdout}"
+    );
+}
+
+/// `--config foo.js` must accept either dialect the file happens to use —
+/// oxfmt (via Node's CJS/ESM interop) decides by content, not extension, so
+/// rsvelte-fmt's static evaluator must too. This covers the ESM form; the CJS
+/// form is covered by `ts_config::tests::js_extension_accepts_commonjs_module_exports`.
+#[test]
+fn inline_script_respects_explicit_js_config_esm_form() {
+    let dir = tempdir();
+    let cfg = dir.join("oxfmt.config.js");
+    std::fs::write(&cfg, "export default { semi: false };").unwrap();
+
+    let (stdout, stderr, code) = run_stdin(
+        "<script>const x = 1</script>\n",
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            "x.svelte",
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "stderr:\n{stderr}");
+    assert!(
+        stdout.contains("const x = 1\n"),
+        "expected no trailing semicolon from `semi: false`:\n{stdout}"
+    );
+}
+
 /// Fake oxfmt that proves the `-c` flag it receives is a *materialized JSON*
 /// file, never the `oxfmt.config.ts` source: it `JSON.parse`s whatever `-c`
 /// points at (which throws on non-JSON, e.g. if the `.ts` path leaked
