@@ -6235,7 +6235,10 @@ fn get_expression_end_stripping_ts(expr: &crate::ast::js::Expression, source: &s
     let ty = expr.node_type()?;
     if !matches!(
         ty,
-        "TSAsExpression" | "TSSatisfiesExpression" | "TSNonNullExpression"
+        "TSAsExpression"
+            | "TSSatisfiesExpression"
+            | "TSNonNullExpression"
+            | "TSInstantiationExpression"
     ) {
         return Some(end);
     }
@@ -6255,6 +6258,36 @@ fn get_expression_end_stripping_ts(expr: &crate::ast::js::Expression, source: &s
         }
         while i > s && bytes[i - 1].is_ascii_whitespace() {
             i -= 1;
+        }
+        return Some(i as u32);
+    }
+    if ty == "TSInstantiationExpression" {
+        // `f<T>`: strip the trailing `<…>` type-argument list. Scan back from the
+        // closing `>` balancing nested `<…>` to its matching `<`; the inner
+        // expression ends just before it.
+        let mut i = e;
+        while i > s && bytes[i - 1].is_ascii_whitespace() {
+            i -= 1;
+        }
+        if i > s && bytes[i - 1] == b'>' {
+            let mut depth: i32 = 0;
+            while i > s {
+                match bytes[i - 1] {
+                    b'>' => depth += 1,
+                    b'<' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            i -= 1;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+                i -= 1;
+            }
+            while i > s && bytes[i - 1].is_ascii_whitespace() {
+                i -= 1;
+            }
         }
         return Some(i as u32);
     }
@@ -6312,14 +6345,56 @@ fn get_expression_end_stripping_ts(expr: &crate::ast::js::Expression, source: &s
     }
 }
 
-/// Source text of a binding assignment LHS: the expression with any trailing TS
-/// assertion stripped (mirrors `[expr.start, getEnd(expr)]` upstream).
+/// Start offset of an expression, stripping a leading TS `<T>` type-assertion
+/// prefix (`TSTypeAssertion`). For `<T>x` the assignable inner expression begins
+/// after the closing `>`; every other expression keeps its own start.
+fn get_expression_start_stripping_ts(
+    expr: &crate::ast::js::Expression,
+    source: &str,
+) -> Option<u32> {
+    let (start, end) = get_expression_range(expr)?;
+    if expr.node_type()? != "TSTypeAssertion" {
+        return Some(start);
+    }
+    let bytes = source.as_bytes();
+    let (s, e) = (start as usize, end as usize);
+    if e > source.len() || s >= e || bytes[s] != b'<' {
+        return Some(start);
+    }
+    // Balance the leading `<…>` (nested generics included), then skip whitespace.
+    let mut i = s;
+    let mut depth: i32 = 0;
+    while i < e {
+        match bytes[i] {
+            b'<' => depth += 1,
+            b'>' => {
+                depth -= 1;
+                if depth == 0 {
+                    i += 1;
+                    break;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    while i < e && bytes[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    Some(i as u32)
+}
+
+/// Source text of a binding assignment LHS: the expression with any TS assertion
+/// stripped (mirrors `[getStart(expr), getEnd(expr)]` upstream). A trailing
+/// postfix (`as T` / `satisfies T` / `!` / `<T>` type args) is trimmed from the
+/// end and a leading `<T>` type-assertion prefix from the start, so a cast never
+/// lands on the assignment target.
 fn get_binding_lhs_text<'a>(expr: &crate::ast::js::Expression, source: &'a str) -> &'a str {
     match (
-        get_expression_range(expr),
+        get_expression_start_stripping_ts(expr, source),
         get_expression_end_stripping_ts(expr, source),
     ) {
-        (Some((start, _)), Some(ge)) => slice_src(source, start as usize, ge as usize),
+        (Some(start), Some(ge)) if start <= ge => slice_src(source, start as usize, ge as usize),
         _ => get_expression_text(expr, source),
     }
 }
