@@ -5,14 +5,14 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: 32 entries**, concentrated in real-world corpus repos
+**Current baseline: 30 entries**, concentrated in real-world corpus repos
 (layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail). Oracle-bug /
 invalid-input / migrate cases are NOT here — those are permanently excluded in
 `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every entry here was
 individually diffed against its oracle to confirm the cluster it belongs to;
 none is a guess from file-name pattern-matching.
 
-## Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (11)
+## Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (10)
 
 The most common failure. Prettier prints whitespace-sensitive inline elements
 (`<a>`, `<span>`, `<title>`, a `<pre><code>` pair, small inline components
@@ -25,20 +25,21 @@ immediately before a claimed element (`.<span …>`), and Component children;
 self-closing tags print correctly (no more `<path … />` corrupted into
 `<path …></path>`); a `<pre>` child's close `>` now dangles when its open tag
 breaks; and an empty `<textarea>`'s open-tag `>` now dangles when the glued
-last line would overflow the print width. The remaining 11 entries are the
-shapes those widening steps did not reach: an `<a>`/`<span>` dangling-close
-that falls through to the compact fallback (3 ids — `</div></a>`, a
-`<span>…</span>` pair, and an `<a>…</Blockquote` pair), an `<a>` hug decision
-that breaks the wrong node (a wrapping `{item.name || ...}` expression
-instead of the tag itself, 1 id), `<pre><code class="…">` open-tag hugging in
-two different shapes (a raw pair, 2 ids, and a `<pre>` whose own attribute
-wrongly hug-breaks instead of its `<code>` child, 1 id), an `{:else if}`
-branch picking the wrong side of a title/element dangle (2 ids, same shape),
-a long self-closing component tag (`<Icon data={...} class="..." />`) that
-should hug-break its attributes but doesn't (1 id), and — in the opposite
-direction — a short `<a>` kept compact by rsvelte that the oracle still
-breaks onto its own lines (1 id, entangled with Clusters 2 and 5). Fix
-belongs in rsvelte — continuing to widen the `children.rs` Doc-IR gate.
+last line would overflow the print width; and a hugged content line's close
+tag now participates in the width measurement, so an inner self-closing
+component's attributes break where the oracle breaks them. The remaining 10
+entries are the shapes those widening steps did not reach: an `<a>`/`<span>`
+dangling-close that falls through to the compact fallback (3 ids —
+`</div></a>`, a `<span>…</span>` pair, and an `<a>…</Blockquote` pair), an
+`<a>` hug decision that breaks the wrong node (a wrapping
+`{item.name || ...}` expression instead of the tag itself, 1 id),
+`<pre><code class="…">` open-tag hugging in two different shapes (a raw pair,
+2 ids, and a `<pre>` whose own attribute wrongly hug-breaks instead of its
+`<code>` child, 1 id), an `{:else if}` branch picking the wrong side of a
+title/element dangle (2 ids, same shape), and — in the opposite direction — a
+short `<a>` kept compact by rsvelte that the oracle still breaks onto its own
+lines (1 id, entangled with Clusters 2 and 5). Fix belongs in rsvelte —
+continuing to widen the `children.rs` Doc-IR gate.
 
 The remaining port-bail leaf causes are down to `RenderTag` (1 causal id, 95
 files at risk) and `Other` (2 causal ids, 42 files at risk) — both too
@@ -165,17 +166,6 @@ on one line in the oracle but oxc expands it to a leading-`|` multi-line union.
 String-surgery paren/type stripping is forbidden by project rule. Fix belongs
 in `oxc_formatter` (expression-position parens, union-type layout).
 
-## Cluster 7 — multi-line attribute-value continuation reindent (1)
-
-A `style:`/`style=` value that spans multiple raw-text lines *and* contains a
-broken multi-line expression (a nested ternary) on the same value needs
-brace-depth-aware per-line reindent; the current logic only handles the
-all-verbatim case, so a continuation line that should track the ternary's
-indent instead gets double-indented against the raw-text depth. Fix belongs in
-rsvelte — `render_attribute_value_sequence`; tractable but deferred, since it
-touches the same brace-depth-aware reindent machinery as the (now-resolved)
-`<pre>` block-tag reindent fix below.
-
 ## Cluster 8 — CSS declaration reindent, native engine (1)
 
 A `<style>` block declaration whose value spans multiple lines and mixes a
@@ -191,6 +181,33 @@ baseline that is pure CSS formatting, not HTML/JS layout. Fix belongs in
 
 ## Resolved
 
+- **Cluster 7 — multi-line attribute-value continuation reindent (solved,
+  last entry cleared).** A `style:` value made of multiple interpolations
+  where at least one wraps (two nested ternaries in `style:transform-origin`)
+  took the whole-value re-indent path, which prepends the attribute indent to
+  every line — but the literal whitespace *between* interpolations still
+  carried its source indentation, so the second interpolation's opening line
+  was double-indented. Prettier normalizes inter-interpolation whitespace to
+  the attribute indent (verified empirically at several source indents).
+  Fixed at the assembly site (`normalize_interpolation_value_indent`): a
+  depth-0 newline's horizontal whitespace is stripped only when the next
+  content is the next interpolation's `{`; literal-text lines keep their
+  source indentation verbatim (an unconditional strip regressed melt-ui's
+  `tree.svelte`, whose class value has tab-indented literal lines the oracle
+  preserves). Not fixed in the shared `reindent` scanner, which treats `"` as
+  a JS-string opener — adding markup brace-depth there would shift semantics
+  shared with script/expression callers. Cleared
+  `layerchart/.../Text/Text.html.svelte`.
+- **Hugged content line's close tag excluded from width measurement.** When a
+  multi-line open tag's hugged content line (`>{content}</tag`) overflowed,
+  the Doc-IR reformat printed the body alone and string-glued `>` and
+  `</tag` afterwards, so the printer's fits lookahead never charged the close
+  tag's width — an inner `<Icon … />` whose attributes fit on their own but
+  overflow once `</button` is appended never broke. Now printed as prettier's
+  `group(['>', body, '</tag'])` (the same structure as the faithful port in
+  `children.rs`) with the dangling `>` appended after; body columns are
+  unchanged, so layouts that fit stay byte-identical. Cleared
+  `layerchart/docs/.../playground/+page.svelte`.
 - **`<pre>` embedded block-tag reindent.** Inside a literal `<pre>` whose body
   mixed raw text with a Svelte block tag (`{#if …}…{/if}` wrapping a `<code>`
   child), `reformat_pre_inner` regenerated the block tag's own indentation as
@@ -304,7 +321,8 @@ the diff).
   and it rescues zero ids. That gate blocks no fixable id.
 - **Relaxing `build_attrs_concat`'s multi-line-attribute bail**: rescues zero
   ids — for every id that hits it, the multi-line attribute is the *symptom*
-  (their real divergences are Cluster 2 and Cluster 7), not the cause.
+  (their real divergences are Cluster 2 and the since-resolved Cluster 7),
+  not the cause.
 - **Estimating trailing-interpolation width** (Cluster 2) — fixed `svar-core`
   Panel but regressed `Legend`, `BarStack`, a `docs-[topic]` fixture, and
   `unused-selector-string-concat`.
