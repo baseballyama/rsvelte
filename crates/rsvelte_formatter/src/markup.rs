@@ -33,8 +33,12 @@ use rsvelte_core::ast::template::{
 };
 use unicode_width::UnicodeWidthStr;
 
+use crate::doc::{Doc, print as doc_print, propagate_breaks};
 use crate::error::FormatError;
-use crate::expression::{expand_obj_arg_call, format_attribute_value_expression};
+use crate::expression::{
+    expand_obj_arg_call, format_attribute_value_expression,
+    format_attribute_value_expression_at_width, format_attribute_value_expression_flat,
+};
 use crate::indent::else_if_branch;
 use crate::options::FormatOptions;
 
@@ -1889,6 +1893,7 @@ fn render_attribute_node(
                 attr_depth,
                 name_prefix,
                 narrow_value,
+                true,
             )?;
             Ok(format!("{}=\"{}\"", node.name, body))
         }
@@ -1975,6 +1980,8 @@ fn render_attribute_value_for_directive(
                 }
             }
             // Directive value body starts after `style:name="`: prefix + the `"`.
+            // `regular_attr = false`: directive text prints as a `fill`, so it
+            // stays on the legacy path (not the whole-value Doc model).
             let body = render_attribute_value_sequence(
                 parts,
                 source,
@@ -1982,10 +1989,172 @@ fn render_attribute_value_for_directive(
                 attr_depth,
                 prefix + 1,
                 narrow_value,
+                false,
             )?;
             Ok(format!("\"{body}\""))
         }
     }
+}
+
+/// Build the Doc for one literal-text chunk of a REGULAR quoted attribute
+/// value, plus its flat visual width. prettier-plugin-svelte emits regular
+/// attribute-value text VERBATIM (unlike element-children text, it is not run
+/// through `splitTextToDocs` / `printWhitespace`, so it carries no `line` break
+/// points) — confirmed by dumping the printer's Doc. So the chunk is a single
+/// non-breaking `Text`; all breaking happens inside the interpolation groups.
+/// (Style-directive values differ — their text IS a `fill` — and are excluded
+/// from this path.)
+fn attr_text_chunk_doc(raw: &str) -> (Doc, usize) {
+    (Doc::Text(raw.to_string()), visual_width(raw))
+}
+
+/// Whole-value Doc model for a REGULAR quoted attribute value: format the
+/// entire value as one measured Doc (literal text verbatim, each `{expr}`
+/// interpolation a `group([RawExpr])`) and print it in Break mode. The engine's
+/// `fits` measures a trailing *breakable* interpolation only up to its first
+/// break point (mirroring prettier's group-with-softline), so which
+/// interpolation breaks matches prettier-plugin-svelte's greedy left-to-right
+/// layout: an earlier interpolation stays flat whenever a later one can break
+/// to absorb the overflow, and breaks only when everything after it up to the
+/// first later break point still overflows.
+///
+/// Returns `None` (fall through to the legacy string path) when the value is
+/// not eligible:
+///  - fewer than two interpolations;
+///  - any literal text spanning multiple source lines (a multi-line string
+///    value — Cluster 7, handled by the legacy reindent path);
+///  - a breakable interpolation with a block-bodied expansion (object / array /
+///    arrow, or a call whose broken first line ends with `(` / `{` / `[`) —
+///    its continuation lines sit at the attribute indent with full width, not
+///    the +2 relative indent this RawExpr model assumes;
+///  - no breakable interpolation at all (the value can only render flat, and
+///    the legacy path's flat output is authoritative).
+fn render_value_sequence_doc(
+    parts: &[AttributeValuePart],
+    source: &str,
+    options: &FormatOptions,
+    attr_depth: usize,
+    name_prefix: usize,
+) -> Result<Option<String>, FormatError> {
+    let interp_count = parts
+        .iter()
+        .filter(|p| matches!(p, AttributeValuePart::ExpressionTag(_)))
+        .count();
+    if interp_count < 2 {
+        return Ok(None);
+    }
+    if parts
+        .iter()
+        .any(|p| matches!(p, AttributeValuePart::Text(t) if t.raw.contains('\n')))
+    {
+        return Ok(None);
+    }
+
+    let indent_width = options.js.indent_width.value() as usize;
+    let indent_cols = attr_depth * indent_width;
+    let line_width = options.js.line_width.value() as usize;
+    let start_col = indent_cols + name_prefix;
+
+    // Embedded string literals prefer single quotes so they don't clash with
+    // the `"` delimiter (`{x ?? ''}`), matching the legacy path.
+    let mut opts_sq = options.clone();
+    opts_sq.js.quote_style = QuoteStyle::Single;
+
+    let mut docs: Vec<Doc> = Vec::with_capacity(parts.len());
+    let mut breakable_count = 0usize;
+    // Running flat column, so each interpolation's `broken` form is formatted at
+    // its true (all-preceding-flat) start column.
+    let mut col = start_col;
+    for part in parts {
+        match part {
+            AttributeValuePart::Text(t) => {
+                let (doc, w) = attr_text_chunk_doc(t.raw.as_str());
+                docs.push(doc);
+                col += w;
+            }
+            AttributeValuePart::ExpressionTag(tag) => {
+                let inner = expression_tag_inner(tag, source).trim();
+                if inner.is_empty() {
+                    docs.push(Doc::Text("{}".into()));
+                    col += 2;
+                    continue;
+                }
+                let flat_inner = format_attribute_value_expression_flat(inner, &opts_sq)?;
+                let flat = format!("{{{flat_inner}}}");
+                let flat_w = visual_width(&flat);
+                // The enclosing group decides *whether* this interpolation
+                // breaks (measuring its trailing tail); the `broken` form only
+                // supplies the *shape*. Force the break at the narrower of (a)
+                // the real width available at this column and (b) one column
+                // under the flat form (guarantees at least the top-level
+                // operator splits even when the overflow is trailing-caused).
+                let flat_inner_w = visual_width(&flat_inner);
+                let broken_width = line_width
+                    .saturating_sub(col)
+                    .min(flat_inner_w.saturating_sub(1))
+                    .max(1);
+                let broken_inner =
+                    format_attribute_value_expression_at_width(inner, &opts_sq, broken_width)?;
+                let broken = if broken_inner.contains('\n') {
+                    breakable_count += 1;
+                    // A block-bodied breakable value — an object / array / arrow
+                    // literal (`is_shallow_value` false), or a call that expands
+                    // its argument list into a bracket block (first line ends
+                    // with an opening `(` / `{`) — keeps its continuation lines
+                    // at the attribute indent with full width, not the +2
+                    // relative indent this RawExpr model assumes, and OXC may
+                    // over-expand it at the forced-break width. Leave those to
+                    // the legacy path. A computed member access (`x[y]`, first
+                    // line ends with `[`) is NOT block-bodied — it breaks cleanly
+                    // as `x[` / `  y` / `]`, so it is allowed.
+                    let first_line = broken_inner.lines().next().unwrap_or("").trim_end();
+                    if !is_shallow_value(inner)
+                        || first_line.ends_with('(')
+                        || first_line.ends_with('{')
+                    {
+                        return Ok(None);
+                    }
+                    let mut lines: Vec<String> =
+                        broken_inner.split('\n').map(str::to_string).collect();
+                    let first = std::mem::take(&mut lines[0]);
+                    lines[0] = format!("{{{first}");
+                    let li = lines.len() - 1;
+                    let last = std::mem::take(&mut lines[li]);
+                    lines[li] = format!("{last}}}");
+                    lines
+                } else {
+                    vec![flat.clone()]
+                };
+                docs.push(Doc::Group(vec![Doc::RawExpr { flat, broken }]));
+                col += flat_w;
+            }
+        }
+    }
+
+    // Nothing breakable → the value can only render flat; leave it to the
+    // legacy path (whose flat output is authoritative) rather than risk a
+    // subtle divergence.
+    if breakable_count == 0 {
+        return Ok(None);
+    }
+
+    // Reserve one column for the closing `"` (always the last character on the
+    // value's final line when the open tag wraps). Printed in Break mode (the
+    // open tag has wrapped): verbatim text stays put, and each interpolation
+    // group breaks or stays flat via `fits`, which measures a trailing
+    // *breakable* interpolation only up to its first break — so an earlier
+    // interpolation stays flat whenever a later one can absorb the overflow,
+    // matching prettier-plugin-svelte.
+    let width = line_width.saturating_sub(1);
+    let unit = indent_str(1, &options.js);
+    let out = doc_print(
+        propagate_breaks(Doc::Concat(docs)),
+        width,
+        &unit,
+        attr_depth,
+        start_col,
+    );
+    Ok(Some(out))
 }
 
 fn render_attribute_value_sequence(
@@ -1995,7 +2164,19 @@ fn render_attribute_value_sequence(
     attr_depth: usize,
     name_prefix: usize,
     narrow_value: bool,
+    regular_attr: bool,
 ) -> Result<String, FormatError> {
+    // Whole-value Doc model, used only once the open tag is known to wrap (the
+    // single-line pass renders flat anyway) and only for REGULAR attributes —
+    // style/other directive values print their text as a prettier `fill` (a
+    // different break structure), so they stay on the legacy path.
+    if narrow_value
+        && regular_attr
+        && let Some(body) =
+            render_value_sequence_doc(parts, source, options, attr_depth, name_prefix)?
+    {
+        return Ok(body);
+    }
     // When the value starts with literal text (`"bg: {expr}"`), render_multi_line
     // treats it as a verbatim string and does NOT re-indent it, so a wrapped
     // interpolation's continuation lines must be re-indented here. When the value

@@ -5,7 +5,7 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: 37 entries**, concentrated in real-world corpus repos
+**Current baseline: 32 entries**, concentrated in real-world corpus repos
 (layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail). Oracle-bug /
 invalid-input / migrate cases are NOT here — those are permanently excluded in
 `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every entry here was
@@ -46,39 +46,71 @@ low-yield relative to their blast radius to keep chasing (see the Methodology
 notes on causal-to-PASS attrition), so further blind bail-hunting in
 `children.rs` is paused for now.
 
-## Cluster 2 — multi-interpolation break-point selection in attribute/style/directive values (9)
+## Cluster 2 — attribute/style/directive value break-point selection (5)
 
-A quoted attribute, `style:`/`style=`, or directive (`bind:`) value with one or
-more separate `{…}` interpolations overflows the line, and the oracle picks a
-specific interpolation (and a specific point inside it — often a binary
-operator) to break at, or wraps the whole value between the enclosing braces,
-while rsvelte's per-interpolation width model picks a different interpolation,
-a different point inside the right one, or fails to break at all where the
-oracle does. An attempted fix (estimating trailing-interpolation width) fixed
-one file (`svar-core` calendar `Panel.svelte` — still failing today for the
-"doesn't break at all" variant of this same bug) but regressed four others
-(`Legend`, `BarStack`, a `docs-[topic]` fixture, `unused-selector-string-concat`)
-— reverted. Fix belongs in rsvelte — a whole-value Doc model for quoted
-attribute/style/directive values (format the entire value as one Doc instead
-of per-interpolation narrowing).
+A quoted attribute or directive value with one or more `{…}` interpolations
+overflows the line, and the oracle's break-point choice differs from
+rsvelte's. Most of this cluster's former members are now handled by a
+whole-value Doc model (see Resolved): the value's literal text prints
+verbatim, and each interpolation is a `group([RawExpr{flat, broken}])` whose
+break decision is measured through the *whole remaining tail* — not just its
+own width — reproducing prettier's own greedy, left-to-right break-point
+choice. The 5 remaining ids split into two distinct blockers:
 
-## Cluster 3 — embedded-JS member-chain / call-argument break-point divergence (5)
+`style:` **directive** values are not yet routed through that model — their
+text is a real `fill` structure in the oracle (unlike a regular attribute's
+verbatim text), a deliberately different shape the new model doesn't cover
+yet — so `layercake/.../AxisY.percent-range.html.svelte` and
+`AxisYRight.percent-range.html.svelte` still show the original symptom:
+trailing interpolations are counted at zero absorbed width, so the model
+breaks an earlier interpolation the oracle keeps flat inside a deeply nested
+`calc(...)` expression.
 
-A single JS expression inside one interpolation (`a?.b?.c`, `a.b.c`,
-`x ?? 'default'`, or a call like `isNodeVisible(a, b)`) needs to break, and
-oxc's chosen break point differs from what the oracle emits in the same
-context — e.g. the oracle breaks `session\n?.user?.email` (head, then rest)
-where standalone oxc breaks `session?.user\n?.email`, the oracle keeps a
-`{#if long-call(…)}` header on one line entirely where oxc breaks the call
-arguments (and resets to the wrong indent depth relative to the surrounding
-template), or a plain member chain (`$page.error.message`, `api.rest_props.name`)
-breaks one property earlier or later than the oracle. One entry
-(`svelte-form-builder/FormBuilder.svelte`) shows the same divergence repeated
-many times inside one multi-line `style="…"` value, each `?.`/`??` chain
-choosing a different break point than the oracle. This is oxc's member-chain /
-call-argument merge heuristic disagreeing with the oracle's context, not a
-width-narrowing problem. Fix belongs in `oxc_formatter` (member-chain and
-call-argument printing).
+The rest sit on the new model's own remaining limitation. `RawExpr` is a
+*pre-formatted, uniformly-narrowed string* — it cannot give an interior
+subexpression the full, indent-position-correct budget it would get if
+formatted live at its actual column. `powertable/.../PowerTable.svelte`'s
+`placeholder` attribute and `svelte-calendar/.../Popover.svelte`'s `style=`
+attribute now select the *same* break point as the oracle — the new model
+genuinely improved them — but the continuation line lands at the wrong
+indent, because the narrowed pre-format doesn't know the column it will
+eventually print at. `cmsaasstarter/.../delete_account/+page.svelte`'s
+single-interpolation `message=` attribute is not currently routed through
+the new model at all (an attempt to widen the gate to that shape was
+reverted — see Proven net-negative), but the experiment confirmed its
+break-point choice is downstream of the same narrow-width limitation, so its
+current diff still shows the un-routed symptom rather than the indent
+symptom.
+
+The RawExpr model has captured everything reachable within its architecture;
+what remains needs printing-time nested-expression formatting. Fix belongs
+in rsvelte — give each interpolation a *live* Doc subtree (formatted at its
+real indent) instead of a pre-narrowed string, so a nested subexpression can
+measure against its true column.
+
+## Cluster 3 — embedded-JS member-chain / call-argument break-point divergence (4)
+
+A single JS expression inside one interpolation (`a.b.c`, `x ?? 'default'`,
+or a call like `isNodeVisible(a, b)`) needs to break, and oxc's chosen break
+point differs from what the oracle emits in the same context — e.g. a plain
+member chain (`$page.error.message`, `api.rest_props.name`) breaks one
+property earlier/later or one level deeper than the oracle, or the oracle
+keeps a `{#if long-call(…)}` header on one line entirely where oxc breaks the
+call arguments (and resets to the wrong indent depth relative to the
+surrounding template). One entry (`svelte-form-builder/FormBuilder.svelte`)
+shows the same divergence repeated many times inside one multi-line
+`style="…"` value, each `?.`/`??` chain choosing a different break point than
+the oracle. This is oxc's member-chain / call-argument merge heuristic
+disagreeing with the oracle's context, not a width-narrowing problem —
+unlike the single-interpolation attribute shapes now filed under Cluster 2,
+these divergences persist unchanged after the new attribute-value Doc model
+landed — `$page.error.message` sits in a `<pre>` tag's element content (an
+expression tag, never routed through any attribute-value model), and
+`api.rest_props.name`'s `href` attribute still shows the exact same
+break-depth mismatch it always did, so the new model either doesn't reach it
+or reaches it without changing the outcome. The divergence is
+oxc_formatter's own internal choice, not a width-narrowing problem. Fix
+belongs in `oxc_formatter` (member-chain and call-argument printing).
 
 ## Cluster 4 — inline `{expr} {expr}` hug/join collapse (1)
 
@@ -188,24 +220,51 @@ baseline that is pure CSS formatting, not HTML/JS layout. Fix belongs in
   line plus the `</textarea>` close width, and keeping the glued form only
   when that fits — dangling otherwise. Cleared `cmsaasstarter/.../
   contact_us/+page.svelte`.
+- **Whole-value Doc model for attribute break-point selection.** The legacy
+  per-interpolation width model counted a trailing interpolation as zero
+  width, so it picked the wrong interpolation (or none) to break whenever a
+  later interpolation could have absorbed the overflow. Replaced with a
+  model matching prettier's own Doc structure: a regular attribute's literal
+  text prints verbatim (not a `fill` — that's for element children, not
+  attribute values), and each interpolation is a `group([RawExpr{flat,
+  broken}])` measured through the whole remaining tail. This makes prettier's
+  greedy, left-to-right break-point selection an *emergent* property of the
+  engine's `fits` semantics rather than something hand-simulated: in Break
+  mode, `fits` measuring a breakable group in the rest charges only its
+  first broken line and short-circuits, so an earlier interpolation stays
+  flat whenever a later one can break to absorb the overflow, and only
+  breaks when everything up to the first later break point still overflows.
+  Block-bodied breakable interpolations (object/array/arrow, or a call whose
+  broken first line ends with `(`/`{`) still fall back to the legacy path; a
+  computed member (`x[y]`) is allowed. `style:` directive values stay on the
+  legacy path (see Cluster 2). Cleared `svar-core` calendar `Panel.svelte`,
+  `layerchart/.../Chord/ticks.svelte`, `layerchart/.../Vector.base.svelte`,
+  `svelte-splitpanes/.../Button.svelte`, and `layercake/.../AxisRadial.svelte`.
 
 ## Multiple clusters per id
 
 Several ids carry divergences from two or more clusters at once, so fixing one
-cluster alone leaves them failing: `layercake/_components/AxisRadial.svelte`
-needs both Cluster 2 (attribute break-point) and Cluster 1 (the tag's dangle
-shifts once the attribute breaks correctly); `powertable/.../PowerTable.svelte`
-needs Cluster 2 (two placeholder-attribute interpolations), Cluster 1 (an
-open-tag hug), and Cluster 3 (a directive value's break decision) in the same
-file; `svelte-ux/.../Gooey/+page.svelte` needs Cluster 1, Cluster 2, and
-Cluster 5 together. Each id above is filed under its dominant/
-first-encountered divergence. `svelte-ux/routes/+page.svelte` used to belong
-on this list too (Cluster 5 plus a wrongly hug-broken `<Kbd>` component) —
-widening the children port to convert Component children resolved the
-`<Kbd>` half, leaving it a pure single-cluster (Cluster 5) entry now, which is
-itself a useful data point: a fix aimed at one cluster can silently collapse
-an entangled id down to a different, single-cluster one instead of a
-straight PASS.
+cluster alone leaves them failing: `powertable/.../PowerTable.svelte` needs
+Cluster 2 (a `placeholder` attribute now break-point-correct but wrong-indent
+under the new attribute-value Doc model), Cluster 1 (an open-tag hug), and a
+directive-value break decision (`bind:checked={...}`, unrouted by the new
+model, same shape as Cluster 2's un-routed `delete_account` case) in the same
+file; `svelte-ux/.../Gooey/+page.svelte` needs Cluster 1, Cluster 2 (a
+`style:transform` directive value, un-routed, same legacy symptom as
+AxisY/AxisYRight), and Cluster 5 together; `layerchart/.../Treemap/
+stacked-zoom.svelte` needs Cluster 3 (its dominant `{#if isNodeVisible(…)}`
+header divergence) and now also Cluster 2 (a `value=` attribute that broke at
+the oracle's exact point but landed at the wrong indent — the new model
+reaching a file whose primary failure is elsewhere). Each id above is filed
+under its dominant/first-encountered divergence. `svelte-ux/routes/+page.svelte`
+used to belong on this list too (Cluster 5 plus a wrongly hug-broken `<Kbd>`
+component) — widening the children port to convert Component children
+resolved the `<Kbd>` half, leaving it a pure single-cluster (Cluster 5) entry
+now, which is itself a useful data point: a fix aimed at one cluster can
+silently collapse an entangled id down to a different, single-cluster one
+instead of a straight PASS. `layercake/_components/AxisRadial.svelte` used to
+be on this list too (Cluster 2 plus Cluster 1); it's now fully resolved (see
+Resolved), another instance of the same pattern.
 
 Two ids improved without reaching PASS from that same fix, worth recording
 even though they don't change the count: `layerchart/LineChart/
@@ -249,6 +308,13 @@ the diff).
 - **Estimating trailing-interpolation width** (Cluster 2) — fixed `svar-core`
   Panel but regressed `Legend`, `BarStack`, a `docs-[topic]` fixture, and
   `unused-selector-string-concat`.
+- **Widening the whole-value Doc model's gate to single-interpolation +
+  surrounding-text attributes** (targeting `cmsaasstarter/.../delete_account`
+  specifically) — rerouted 9 files, regressed 6, fixed 0. The target itself
+  stayed FAIL: its break-point choice is downstream of the same RawExpr
+  narrow-width limitation the model can't yet solve (see Cluster 2), so
+  routing it through the model doesn't help without also fixing that
+  limitation. Reverted.
 
 ## Methodology notes
 
@@ -340,6 +406,35 @@ the diff).
   two-layer structure backwards (treating the inner width decision as if it
   were the same kind of switch as the outer category bail) is what produced
   the width-driven-textarea surprise.
+- **A structural-sounding explanation can be a misdiagnosis for a much
+  simpler width-driven one.** A `style:transform="translate({a}px,
+  calc(...))"` value breaking at the `px,` boundary looked like it needed
+  CSS-aware breaking (recognizing `calc(...)` or the `px` unit as a
+  structural boundary). It doesn't: the same shape with a *short*
+  interpolation stays on one line even at 90 columns. The break is plain
+  column-driven space-fill — a long interpolation pushes the following
+  content past the print width, nothing CSS-specific about it. Don't reach
+  for a domain-specific (CSS/JS-aware) explanation before checking whether a
+  narrower, general mechanism (width) already accounts for the behavior.
+- **Dump the oracle's own Doc, don't just probe its input/output.**
+  `prettier.__debug.printToDoc` renders prettier-plugin-svelte's actual
+  intermediate Doc tree for a given source. Two false assumptions about
+  attribute-value formatting — that their text goes through the same `fill`
+  element children use, and that a trailing interpolation is measured at its
+  full flat width — were both resolved by one Doc dump, faster than any
+  number of input/output-only probes could have narrowed them down.
+- **A pre-formatted string can only ever have one width — that's a real
+  architectural limit, not a tuning problem.** Representing an interpolation
+  as `RawExpr{flat, broken}` (two pre-rendered strings chosen between by a
+  group) works when the interpolation's ideal width doesn't depend on where
+  it ends up printing. It breaks down when a nested subexpression needs its
+  *own* full print-width budget at its actual indent (an outer binary
+  operator might get a narrow budget while a nested `(a && b)` two levels in
+  needs the full 80 columns from its own indent) — the pre-formatted string
+  was narrowed once, uniformly, and can't un-narrow a piece of itself for a
+  deeper context. This is a general limitation of the RawExpr representation,
+  not specific to the shapes it was first found in: any interpolation with a
+  sufficiently nested subexpression can hit it, regular attributes included.
 
 ## Cross-platform baseline rule (critical)
 
