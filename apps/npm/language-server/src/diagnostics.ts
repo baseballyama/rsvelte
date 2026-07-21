@@ -2,7 +2,7 @@
  * Conversion from rsvelte_lint's wasm JSON output to LSP `Diagnostic`s.
  *
  * The wasm `lint(source, filename)` export returns a JSON array of entries
- * (see `crates/rsvelte_lint/src/wasm.rs`):
+ * (see `crates/rsvelte_lint_bindings/src/wasm.rs`):
  *
  *   { "severity": "error"|"warning", "line": 1, "column": 0,
  *     "endLine": 1, "endColumn": 5, "code": "...", "message": "..." }

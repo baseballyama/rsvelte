@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // `wasm-pack build` writes `pkg/package.json` based on the Cargo crate it
-// builds (currently `rsvelte_lint`, which re-exports the `rsvelte_core`
-// compiler wasm exports — see `crates/rsvelte_lint/src/wasm.rs`). We publish
-// under the scoped npm name `@rsvelte/compiler`, so we overlay the npm-side
-// metadata (and the user-facing README, since wasm-pack copies the linter
-// crate's README into `pkg/`) here after the wasm build completes and before
+// builds (currently `rsvelte_lint_bindings`, whose `[lib] name = "rsvelte_lint"`
+// keeps the glue named `rsvelte_lint.{js,_bg.wasm}`; it re-exports the
+// `rsvelte_core` compiler wasm exports — see
+// `crates/rsvelte_lint_bindings/src/wasm.rs`). We publish under the scoped npm
+// name `@rsvelte/compiler`, so we overlay the npm-side metadata (and the
+// user-facing README) here after the wasm build completes and before
 // `pnpm publish` reads it.
 //
 // We also synthesise an `exports` map so consumers get a *stable* subpath to

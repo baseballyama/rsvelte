@@ -7,8 +7,8 @@
 //
 // Uses `--profile dist-lint` (not `dist`): panic = "unwind", so napi-rs can
 // convert a per-file compiler panic into a JS exception instead of aborting the
-// whole oxlint run. `-p rsvelte_lint` keeps `--features napi` scoped to this
-// crate (rsvelte_core also defines a `napi` feature).
+// whole oxlint run. The NAPI cdylib lives in `rsvelte_lint_bindings`; its `[lib]
+// name = "rsvelte_lint"` keeps the emitted dylib named `librsvelte_lint.*`.
 
 import { execSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
@@ -42,7 +42,7 @@ if (platform === 'darwin' && arch === 'arm64') {
 }
 
 console.log(`[build-lint-native] building NAPI cdylib for ${triple}…`);
-execSync('cargo build --profile dist-lint --features napi --lib -p rsvelte_lint', {
+execSync('cargo build --profile dist-lint --features napi --lib -p rsvelte_lint_bindings', {
 	cwd: repoRoot,
 	stdio: 'inherit',
 });
