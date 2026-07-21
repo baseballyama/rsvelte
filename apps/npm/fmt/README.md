@@ -74,15 +74,21 @@ npm install -D oxfmt
 ## Usage
 
 ```bash
+# Format the current directory in place (no path = cwd, like `oxfmt`)
+npx rsvelte-fmt
+
 # Format everything under src/ in place
 npx rsvelte-fmt src/
 
 # Check mode — exits non-zero if anything would change (CI gate)
-npx rsvelte-fmt --check src/
+npx rsvelte-fmt --check
 
 # Editor / stdin mode
 cat App.svelte | npx rsvelte-fmt --stdin --stdin-filepath App.svelte
 ```
+
+When no path is given, `rsvelte-fmt` formats the current directory — matching
+`oxfmt`, where the path argument is optional and defaults to the cwd.
 
 Add it to your `package.json`:
 
