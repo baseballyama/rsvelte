@@ -2458,6 +2458,7 @@ dependencies = [
  "codspeed-criterion-compat",
  "oxc_allocator",
  "oxc_ast",
+ "oxc_ast_visit",
  "oxc_formatter",
  "oxc_formatter_core",
  "oxc_formatter_css",
