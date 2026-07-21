@@ -121,16 +121,89 @@ fn write_mode_updates_svelte_file_on_disk() {
     assert!(after.contains("let x = 1 + 2;"), "{after}");
 }
 
+/// With no path argument, `rsvelte-fmt` formats the current directory in place
+/// (write is the default), matching `oxfmt`'s "if not provided, current working
+/// directory is used" behavior (#1432).
 #[test]
-fn no_paths_errors_helpfully() {
+fn no_paths_defaults_to_cwd_and_writes() {
+    let dir = tempdir();
+    let file = dir.join("App.svelte");
+    std::fs::write(&file, "<script>let x=1+2</script>").unwrap();
+
     let out = Command::new(bin())
-        .stderr(Stdio::piped())
+        .current_dir(&dir)
+        .args(["--oxfmt-bin", "true"])
         .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .output()
         .unwrap();
-    assert_ne!(out.status.code(), Some(0));
-    let stderr = String::from_utf8(out.stderr).unwrap();
-    assert!(stderr.contains("no paths given"), "stderr:\n{stderr}");
+    assert_eq!(out.status.code(), Some(0), "should default to cwd + write");
+
+    let after = std::fs::read_to_string(&file).unwrap();
+    assert!(after.contains("let x = 1 + 2;"), "{after}");
+}
+
+/// `--check` with no path checks the current directory and never writes, exiting
+/// non-zero when a file would be reformatted — same as `oxfmt --check`.
+#[test]
+fn no_paths_check_does_not_write() {
+    let dir = tempdir();
+    let file = dir.join("App.svelte");
+    std::fs::write(&file, "<script>let x=1+2</script>").unwrap();
+
+    let out = Command::new(bin())
+        .current_dir(&dir)
+        .args(["--check", "--oxfmt-bin", "true"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "unformatted cwd must fail --check"
+    );
+
+    let after = std::fs::read_to_string(&file).unwrap();
+    assert_eq!(
+        after, "<script>let x=1+2</script>",
+        "--check must not write"
+    );
+}
+
+/// The cwd default applies only to the file-walk path: `--stdin` still reads
+/// stdin and leaves on-disk files untouched even with no path argument.
+#[test]
+fn stdin_ignores_cwd_default() {
+    let dir = tempdir();
+    let file = dir.join("App.svelte");
+    std::fs::write(&file, "<script>let x=1+2</script>").unwrap();
+
+    let mut child = Command::new(bin())
+        .current_dir(&dir)
+        .args(["--stdin", "--stdin-filepath", "In.svelte"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(b"<script>let y=3+4</script>\n<p>{ y }</p>")
+        .unwrap();
+    let out = child.wait_with_output().unwrap();
+    assert_eq!(out.status.code(), Some(0));
+
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("let y = 3 + 4;"), "stdout:\n{stdout}");
+    // The on-disk file must be left untouched — stdin mode doesn't walk the cwd.
+    let after = std::fs::read_to_string(&file).unwrap();
+    assert_eq!(
+        after, "<script>let x=1+2</script>",
+        "stdin must not touch cwd"
+    );
 }
 
 /// Batched `<style>` delegation: every `.svelte` file's `<style>` body is

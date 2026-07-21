@@ -39,7 +39,8 @@ struct Cli {
     /// process; every other path is delegated to `oxfmt`, so directories cover
     /// the full oxfmt-supported set (`.ts`/`.js`/`.css`/`.json` and also
     /// `.md`/`.yaml`/`.toml`/`.html`, etc.) — the same files `oxfmt .` would
-    /// format. See #694.
+    /// format. When omitted, the current directory is formatted (matching
+    /// `oxfmt`). See #694.
     paths: Vec<PathBuf>,
 
     /// Write formatted output back to source files. Default when paths
@@ -333,10 +334,10 @@ fn run() -> Result<ExitCode> {
         return run_stdin(&cli, &options, &cfg);
     }
 
+    // No paths given (and not stdin mode): default to the current directory,
+    // matching `oxfmt`, which formats the cwd when no PATH is provided.
     if cli.paths.is_empty() {
-        return Err(anyhow!(
-            "no paths given — pass files/directories or use --stdin --stdin-filepath PATH"
-        ));
+        cli.paths.push(PathBuf::from("."));
     }
 
     let native_js = !cli.no_native_js;

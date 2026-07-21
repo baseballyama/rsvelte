@@ -84,8 +84,9 @@ One Rust CLI that formats `.svelte` in-process and routes `.js` / `.ts` / `.css`
 
 ```bash
 npm install -D @rsvelte/fmt oxfmt
-npx rsvelte-fmt src/          # format in place
-npx rsvelte-fmt --check src/  # CI gate: exit 1 if anything would change
+npx rsvelte-fmt             # format the current directory in place (no path = cwd)
+npx rsvelte-fmt src/        # format a specific path in place
+npx rsvelte-fmt --check     # CI gate: exit 1 if anything would change
 ```
 
 See [`@rsvelte/fmt`](apps/npm/fmt) for all flags, stdin/editor integration, and configuration.
