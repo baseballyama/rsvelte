@@ -85,3 +85,8 @@ serde_yaml = "0.9"
 
 [lints]
 workspace = true
+
+# rustc can emit a second wasm table (reference-types); wasm-opt's default MVP
+# feature set rejects that, so the feature must be enabled explicitly.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ['-Oz', '--enable-reference-types']
