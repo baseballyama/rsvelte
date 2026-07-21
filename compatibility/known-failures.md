@@ -14,7 +14,7 @@ compiler-behaviour gap; attempts to fix them are regression-prone against the
 8000+ passing entries (several have been reverted after wide blowups), so they are
 accepted until an upstream-faithful port lands.
 
-## Client (`known-failures.client.json`, 8 entries)
+## Client (`known-failures.client.json`, 7 entries)
 
 - **`melt-ui/.../SpatialMenuNavTest.svelte`** — two causes: (a) a proxy argument in
   `$.set(highlighted, id, true)` where `id` is an inner-scope TemplateLiteral const
@@ -40,9 +40,6 @@ accepted until an upstream-faithful port lands.
   `col` missing inside `$.invalidate_inner_signals` (from a `bind:value` key
   `filterSelections()[col.key]`). The exact condition making `col` reactive is
   unresolved.
-- **`svelte-ux/.../Button.svelte`** — an `$.event('click', …)` wrapped in
-  `$.effect(() => $.event(…))` where svelte emits it bare in after_update; spread +
-  action-with-event placement (~25-node difference).
 - **`svelte-ux/.../MultiSelect.svelte`** — a component prop emitted as a getter
   (`get onChange(){ return $.get(onChange); }`) where svelte emits plain
   `onChange: $.get(onChange)`. svelte's rule is `has_state ? getter : init`;

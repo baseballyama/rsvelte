@@ -5,6 +5,5 @@
 	"svelte-sonner/src/lib/Toaster.svelte",
 	"svelte-table/example/Example2.svelte",
 	"svelte-table/src/SvelteTable.svelte",
-	"svelte-ux/packages/svelte-ux/src/lib/components/Button.svelte",
 	"svelte-ux/packages/svelte-ux/src/lib/components/MultiSelect.svelte"
 ]
