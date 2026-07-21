@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/fmt-win32-x64-msvc",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Prebuilt rsvelte-fmt binary for win32-x64 (msvc)",
   "license": "MIT",
   "repository": {
