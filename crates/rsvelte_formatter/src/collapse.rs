@@ -3671,9 +3671,9 @@ fn try_fix_pre_child_open_tags(
     for node in &fragment.nodes {
         // Handle both RegularElement and Component — both can appear as direct
         // children of `<pre>` and need the same open-tag `>` placement fix.
-        let (child_start, child_end, child_fragment) = match node {
-            TemplateNode::RegularElement(e) => (e.start, e.end, &e.fragment),
-            TemplateNode::Component(c) => (c.start, c.end, &c.fragment),
+        let (child_start, child_end, child_fragment, child_name) = match node {
+            TemplateNode::RegularElement(e) => (e.start, e.end, &e.fragment, e.name.as_str()),
+            TemplateNode::Component(c) => (c.start, c.end, &c.fragment, c.name.as_str()),
             _ => continue,
         };
         let cs = child_start as usize;
@@ -3718,11 +3718,18 @@ fn try_fix_pre_child_open_tags(
             // for the inner "attr" indent) so it aligns under the child's attrs
             // in the standard multi-line open-tag shape.
             let gt_indent = " ".repeat(pre_indent_col + 2 * iw);
+            // When the open tag is broken onto its own line, prettier's
+            // `shouldHugEnd` also dangles the close `>` onto its own line
+            // (`</code\n{indent}>`) whenever the last content char is
+            // whitespace-sensitive text touching the close tag — one indent
+            // level shallower than the open `>` (mirroring `push_close_tag`).
+            let content_and_close = &out[open_end..ce];
+            let tail = dangle_pre_child_close(content_and_close, child_name, pre_indent_col + iw);
             let result = format!(
                 "{}\n{}>{}",
                 &out[cs..open_end - 1],
                 gt_indent,
-                &out[open_end..ce],
+                tail.as_deref().unwrap_or(content_and_close),
             );
             if result != whole {
                 edits.push((child_start, child_end, result));
@@ -3762,6 +3769,31 @@ fn try_fix_pre_child_open_tags(
         }
     }
     edits
+}
+
+/// When a `<pre>`/`<textarea>` child element's open tag has been broken onto
+/// its own line, prettier's `shouldHugEnd` dangles the close `>` onto its own
+/// line too — but only when the last content char is whitespace-sensitive text
+/// touching the close tag (non-whitespace, and not the `>` of a nested child
+/// close tag), matching [`crate::markup`]'s `hug_close`. `content_and_close` is
+/// the child's content followed by its `</name>` close tag; returns the rewritten
+/// span with `</name>` replaced by `</name\n{close_indent spaces}>`, or `None`
+/// when the shape doesn't qualify.
+fn dangle_pre_child_close(
+    content_and_close: &str,
+    tag_name: &str,
+    close_indent: usize,
+) -> Option<String> {
+    let close_lit = format!("</{tag_name}>");
+    let content = content_and_close.strip_suffix(&close_lit)?;
+    let last = content.chars().next_back()?;
+    if last.is_ascii_whitespace() || last == '>' {
+        return None;
+    }
+    Some(format!(
+        "{content}</{tag_name}\n{}>",
+        " ".repeat(close_indent)
+    ))
 }
 
 /// Hug-break the single inline-element body of a block (`{#each …}<span>…</span>{/each}`)
