@@ -169,15 +169,20 @@ All npm packages ship under the `@rsvelte` scope.
 
 ## Performance
 
-Multi-threaded rsvelte vs. the official JavaScript tool, same machine, same corpus (3,854 real `.svelte` files; Apple M1 Pro, 10-core; 10 iterations after 3 warmup):
+Multi-threaded rsvelte vs. the official JavaScript tool, same machine, same corpus (3,404 real `.svelte` files; Apple M4 Pro, 12-core; 10 iterations after 3 warmup):
 
 | Task | JS baseline | Rust (1 thread) | Rust (multi) | Multi vs JS |
 |---|---:|---:|---:|---:|
-| Compile — full pipeline | 990.9 ms | 564.4 ms | 74.7 ms | **13.3×** |
-| Parse only | 246.6 ms | 11.9 ms | 2.2 ms | **112.8×** |
-| `svelte2tsx` | 389.2 ms | 171.6 ms | 21.9 ms | **17.8×** |
-| Format (vs prettier-plugin-svelte) | 4,316.7 ms | 233.0 ms | 37.8 ms | **114.2×** |
-| `svelte-check` (500-file workspace) | 1,335.0 ms | 76.2 ms | 18.7 ms | **71.3×** |
+| Compile — client (full pipeline) | 547.1 ms | 190.7 ms | 31.3 ms | **17.5×** |
+| Compile — server (SSR) | 462.9 ms | 109.8 ms | 15.2 ms | **30.5×** |
+| Parse only | 126.0 ms | 7.8 ms | 2.1 ms | **60.7×** |
+| `svelte2tsx` | 205.9 ms | 77.3 ms | 10.8 ms | **19.1×** |
+| Format (vs prettier-plugin-svelte) | 2,442.1 ms | 102.4 ms | 26.4 ms | **92.6×** |
+| `svelte-check` (500-file workspace) | 869.9 ms | 43.9 ms | 20.5 ms | **42.5×** |
+
+The corpus is Svelte's own test suite, restricted to the files the official compiler accepts: 453 of
+3,857 are deliberately invalid (validator and runes error cases) and would otherwise measure how fast
+each compiler throws.
 
 Live numbers, charts, and reproduction steps: [benchmark page](https://baseballyama.github.io/rsvelte/benchmark), or `pnpm run generate-benchmark` locally. A single-threaded 100× compile speedup remains an explicit goal — current numbers are a snapshot, not a ceiling.
 
