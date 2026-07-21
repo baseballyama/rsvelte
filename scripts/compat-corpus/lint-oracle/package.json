@@ -8,7 +8,7 @@
     "eslint-plugin-svelte": "3.20.0",
     "svelte": "^5.56.0",
     "svelte-eslint-parser": "^1.7.0",
-    "typescript": "^6.0.0",
+    "typescript": "^7.0.0",
     "@typescript-eslint/parser": "^8.48.1"
   }
 }
