@@ -1,7 +1,9 @@
 use oxc_allocator::Allocator;
+use oxc_ast::ast::{Program, TSAsExpression, TSSatisfiesExpression, TSType};
+use oxc_ast_visit::{Visit, walk};
 use oxc_formatter::format_program;
 use oxc_parser::{ParseOptions as OxcParseOptions, Parser};
-use oxc_span::SourceType;
+use oxc_span::{GetSpan, SourceType};
 use rsvelte_core::ast::arena::try_with_current_serialize_arena;
 use rsvelte_core::ast::js::Expression;
 use rsvelte_core::ast::template::{ExpressionTag, Fragment, TemplateNode};
@@ -1924,6 +1926,28 @@ fn format_expr_core(
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
         .into_code();
 
+    // Template-position `x as A | B` / `x satisfies A | B`: oxc ties the union's
+    // leading-`|` break to the `as`/`satisfies` annotation break, so once the
+    // annotation moves to its own line the union always expands. The oxfmt
+    // oracle formats template expressions with prettier's estree printer, which
+    // keeps the union flat on the annotation line when it fits (only `<script>`
+    // blocks — a separate `format_program` path — share oxc's behaviour). No
+    // print width reaches that layout in oxc, so reflow the flat form here when
+    // the flat line fits. The proper fix is a separate-group `as` layout in
+    // oxc_formatter upstream.
+    //
+    // Skipped on the const-wrapper (await) path: there oxc lays out at
+    // `line_width + 20` and the wrapper prefix is stripped afterwards, so the
+    // reflow's column/budget measurement would not match the final output — an
+    // `as`-union inside a template `await` expression is vanishingly rare, so
+    // leaving oxc's form is the safe choice.
+    let formatted = if !use_const_wrapper && program_has_as_or_satisfies_union(&parser_ret.program)
+    {
+        reflow_flat_as_satisfies_unions(&formatted, line_width.value() as usize, source_type)
+    } else {
+        formatted
+    };
+
     let s = formatted.trim_end().trim_end_matches(';').trim_end();
     // With semicolons set to "as needed", OXC prefixes expression statements
     // such as arrow functions with an ASI guard. Template expressions are not
@@ -1979,6 +2003,193 @@ fn format_expr_core(
         }
     };
     Ok(result)
+}
+
+/// AST gate for [`reflow_flat_as_satisfies_unions`]: does the program contain
+/// any `x as A | B` / `x satisfies A | B` whose annotation is a ≥2-member union?
+/// Only such expressions produce oxc's leading-`|` layout that the reflow
+/// targets, so the (structural, non-node-mapped) string pass runs only when the
+/// AST confirms the construct genuinely exists.
+fn program_has_as_or_satisfies_union(program: &Program<'_>) -> bool {
+    struct Finder {
+        found: bool,
+    }
+    impl<'a> Visit<'a> for Finder {
+        fn visit_ts_as_expression(&mut self, expr: &TSAsExpression<'a>) {
+            self.found |= is_multi_member_union(&expr.type_annotation);
+            walk::walk_ts_as_expression(self, expr);
+        }
+        fn visit_ts_satisfies_expression(&mut self, expr: &TSSatisfiesExpression<'a>) {
+            self.found |= is_multi_member_union(&expr.type_annotation);
+            walk::walk_ts_satisfies_expression(self, expr);
+        }
+    }
+    let mut finder = Finder { found: false };
+    finder.visit_program(program);
+    finder.found
+}
+
+fn is_multi_member_union(ty: &TSType<'_>) -> bool {
+    matches!(ty, TSType::TSUnionType(u) if u.types.len() >= 2)
+}
+
+/// Collapse oxc's leading-`|` union expansion back onto the `as`/`satisfies`
+/// annotation line when the flat form fits, reproducing prettier's `as`-layout
+/// (the oxfmt oracle for template expressions).
+///
+/// Robustness: a leading-`|` line run is only reflowed when it lies inside the
+/// span of a real `as`/`satisfies` union type annotation, found by **re-parsing
+/// the formatted text** and reading each annotation node's span directly. This
+/// prevents rewriting look-alike `| `-prefixed lines that are actually the body
+/// of a multi-line template literal or block comment sharing the expression with
+/// a genuine `as`-union sibling — the string/comment content is not a type node,
+/// so no union span covers it. Runs with a multi-line member (the union span
+/// then extends past the last collected `| ` line) or whose flat form overflows
+/// `budget` are left expanded, matching the oracle for long unions.
+fn reflow_flat_as_satisfies_unions(
+    formatted: &str,
+    budget: usize,
+    source_type: SourceType,
+) -> String {
+    let union_spans = as_satisfies_union_spans(formatted, source_type);
+    if union_spans.is_empty() {
+        return formatted.to_string();
+    }
+
+    let lines: Vec<&str> = formatted.split('\n').collect();
+    // Byte offset of the start of each line (lines were split on '\n').
+    let mut line_start = Vec::with_capacity(lines.len());
+    let mut acc = 0usize;
+    for l in &lines {
+        line_start.push(acc);
+        acc += l.len() + 1;
+    }
+
+    let covered_by_union = |start: usize, end: usize| {
+        union_spans
+            .iter()
+            .any(|&(us, ue)| us >= start && us <= end && ue >= start && ue <= end)
+    };
+
+    let mut out: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        let anchored = {
+            let t = line.trim_end();
+            t.ends_with(" as") || t.ends_with(" satisfies")
+        };
+        if anchored
+            && let Some((flat_line, consumed)) =
+                try_flatten_union_block(&lines, &line_start, i + 1, budget, &covered_by_union)
+        {
+            out.push(line.to_string());
+            out.push(flat_line);
+            i += 1 + consumed;
+            continue;
+        }
+        out.push(line.to_string());
+        i += 1;
+    }
+    out.join("\n")
+}
+
+/// Re-parse the formatted text and collect the byte spans (into `formatted`) of
+/// every `as`/`satisfies` node's ≥2-member union type annotation.
+fn as_satisfies_union_spans(formatted: &str, source_type: SourceType) -> Vec<(usize, usize)> {
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, formatted, source_type)
+        .with_options(formatter_parse_options())
+        .parse();
+    if !parsed.diagnostics.is_empty() {
+        return Vec::new();
+    }
+    struct Collector {
+        spans: Vec<(usize, usize)>,
+    }
+    impl<'a> Visit<'a> for Collector {
+        fn visit_ts_as_expression(&mut self, expr: &TSAsExpression<'a>) {
+            if is_multi_member_union(&expr.type_annotation) {
+                let s = expr.type_annotation.span();
+                self.spans.push((s.start as usize, s.end as usize));
+            }
+            walk::walk_ts_as_expression(self, expr);
+        }
+        fn visit_ts_satisfies_expression(&mut self, expr: &TSSatisfiesExpression<'a>) {
+            if is_multi_member_union(&expr.type_annotation) {
+                let s = expr.type_annotation.span();
+                self.spans.push((s.start as usize, s.end as usize));
+            }
+            walk::walk_ts_satisfies_expression(self, expr);
+        }
+    }
+    let mut c = Collector { spans: Vec::new() };
+    c.visit_program(&parsed.program);
+    c.spans
+}
+
+/// Try to read a leading-`|` union block starting at line `start`. On success
+/// returns the single flattened line and how many source lines it consumed.
+fn try_flatten_union_block(
+    lines: &[&str],
+    line_start: &[usize],
+    start: usize,
+    budget: usize,
+    covered_by_union: &impl Fn(usize, usize) -> bool,
+) -> Option<(String, usize)> {
+    let first = lines.get(start)?;
+    let w = first.len() - first.trim_start().len();
+    let indent = &first[..w];
+    if !first[w..].starts_with("| ") {
+        return None;
+    }
+
+    let mut members: Vec<&str> = Vec::new();
+    let mut n = 0;
+    while let Some(l) = lines.get(start + n) {
+        let lw = l.len() - l.trim_start().len();
+        if lw == w && l[lw..].starts_with("| ") {
+            members.push(&l[lw + 2..]);
+            n += 1;
+        } else {
+            break;
+        }
+    }
+    // A union has ≥2 members; a single `| X` line is not the shape we reflow.
+    if members.len() < 2 {
+        return None;
+    }
+    // The collected `| ` lines must fall inside one real union type annotation
+    // span — otherwise this is a look-alike inside a template literal / comment.
+    // The union span starts on the first member line and ends on the last.
+    let last = start + n - 1;
+    let block_start = line_start[start];
+    let block_end = line_start[last] + lines[last].len();
+    if !covered_by_union(block_start, block_end) {
+        return None;
+    }
+    // A deeper following line means the last member broke across lines — keep the
+    // whole block expanded (the oracle does too).
+    if let Some(next) = lines.get(start + n)
+        && !next.trim().is_empty()
+        && next.len() - next.trim_start().len() > w
+    {
+        return None;
+    }
+    // A member that opens a block/call/generic is itself multi-line: don't flatten.
+    if members
+        .iter()
+        .any(|m| matches!(m.trim_end().chars().last(), Some('{' | '(' | '[' | '<')))
+    {
+        return None;
+    }
+
+    let flat_body = members.join(" | ");
+    let flat_line = format!("{indent}{flat_body}");
+    if UnicodeWidthStr::width(flat_line.as_str()) > budget {
+        return None;
+    }
+    Some((flat_line, n))
 }
 
 /// Format an attribute / directive value expression (`bind:value={ … }`) at

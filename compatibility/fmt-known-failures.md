@@ -5,7 +5,7 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: 28 entries**, concentrated in real-world corpus repos
+**Current baseline: 27 entries**, concentrated in real-world corpus repos
 (layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail). Oracle-bug /
 invalid-input / migrate cases are NOT here — those are permanently excluded in
 `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every entry here was
@@ -183,15 +183,31 @@ member:
 Re-diagnosing the remaining 5 with full corpus instrumentation (rather than a
 diff read) would be needed before attempting further fixes.
 
-## Cluster 6 — oxc paren / type-annotation divergence (2)
+## Cluster 6 — oxc paren / type-annotation divergence (1)
 
-The oracle's prettier-plugin-svelte layer omits parens or type-annotation
-formatting that oxc's `NeedsParentheses` / union-type printer adds: `{@const
-y = a = item.n}` stays unparenthesized in the oracle but oxc parenthesizes the
-inner assignment (`(a = item.n)`); a `… as HTMLElement | undefined` union stays
-on one line in the oracle but oxc expands it to a leading-`|` multi-line union.
-String-surgery paren/type stripping is forbidden by project rule. Fix belongs
-in `oxc_formatter` (expression-position parens, union-type layout).
+The oracle's prettier-plugin-svelte layer omits parens that oxc's
+`NeedsParentheses` printer adds: `{@const y = a = item.n}` stays
+unparenthesized in the oracle but oxc parenthesizes the inner assignment
+(`(a = item.n)`). String-surgery paren stripping is forbidden by project rule.
+Fix belongs in `oxc_formatter` (expression-position parens).
+
+The former second member of this cluster — a `… as HTMLElement | undefined`
+union that the oracle keeps flat while oxc expands it to a leading-`|`
+multi-line union — is now resolved for template expressions (see Resolved).
+The confirmed mechanism (three repro experiments in the PR for #1484): the
+oxfmt oracle formats **template-position** expressions (attribute values,
+mustaches) with prettier's estree printer, whose `as`/`satisfies` layout is
+`group([expr, " as", indent([line, group(type)])])` — a break after the
+operator that keeps the union's own group flat when it fits. oxc ties the
+union's leading-`|` separator into a single group, so once the annotation
+breaks the union *always* expands, and **no print width reaches the
+oracle's layout** (width tuning is not the lever — the divergence reproduces
+at markup depth 0). `<script>` blocks are unaffected because oxfmt formats
+those with oxc on *both* sides (they agree on leading-`|`), and rsvelte
+formats `<script>` through the separate `format_program` path. The principled
+upstream fix is still a separate-group `as` layout in `oxc_formatter`; until
+that lands, rsvelte reproduces prettier's layout for template expressions only
+(see Resolved).
 
 ## Cluster 8 — CSS declaration reindent, native engine (1)
 
@@ -208,6 +224,24 @@ baseline that is pure CSS formatting, not HTML/JS layout. Fix belongs in
 
 ## Resolved
 
+- **Template-position `as`/`satisfies` union kept flat (Cluster 6, union
+  member).** oxc expands `x as A | B` to a leading-`|` multi-line union
+  whenever the annotation breaks; the oxfmt oracle formats template
+  expressions with prettier's estree printer, which keeps the union flat on
+  the annotation line when it fits (`… as\n  A | B`) — a layout oxc reaches at
+  no print width. Fixed template-side only, in `format_expr_core`
+  (`crate::expression`): an AST gate (`oxc_ast_visit::Visit`) confirms the
+  formatted program contains an `as`/`satisfies` node with a ≥2-member
+  `TSUnionType`, then a structural pass collapses each broken union block —
+  a line ending in the `as`/`satisfies` token directly followed by a run of
+  same-indent `| ` member lines — back onto the annotation line when the flat
+  form fits the (already depth-narrowed) budget. Blocks whose members span
+  multiple lines, or whose flat form overflows, are left expanded (matching
+  the oracle for long unions). `<script>` blocks are untouched — they format
+  through the separate `format_program` path and agree with the oracle on
+  oxc's leading-`|`. The proper upstream fix (a separate-group `as` layout in
+  `oxc_formatter`) is unchanged as the eventual target. Cleared
+  `svelte.dev/packages/site-kit/src/lib/search/SearchBox.svelte`.
 - **Cluster 7 — multi-line attribute-value continuation reindent (solved,
   last entry cleared).** A `style:` value made of multiple interpolations
   where at least one wraps (two nested ternaries in `style:transform-origin`)
