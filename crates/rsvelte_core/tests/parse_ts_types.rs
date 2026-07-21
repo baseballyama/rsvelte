@@ -154,3 +154,172 @@ fn no_typescript_unknown_stub_for_modelled_types() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// #1645: TypeScript assertion expressions must be preserved in the parse AST
+// (svelte/compiler keeps them; the compiler strips them before transform).
+// ---------------------------------------------------------------------------
+
+/// Ordered keys of an object node (serde_json `preserve_order` is enabled, so
+/// this reflects serialization order — i.e. the field order svelte emits).
+fn keys_of(node: &Value) -> Vec<&str> {
+    node.as_object()
+        .map(|m| m.keys().map(String::as_str).collect())
+        .unwrap_or_default()
+}
+
+#[test]
+fn ts_as_const_preserved_in_script_declaration() {
+    let src = "<script lang=\"ts\">const x = 'chips' as const;</script>";
+    let ast = parse_to_json(src);
+    let as_expr = find_node(&ast, "TSAsExpression").expect("TSAsExpression must be preserved");
+
+    // expression is the inner literal `'chips'`.
+    assert_eq!(
+        as_expr.pointer("/expression/type").and_then(Value::as_str),
+        Some("Literal")
+    );
+    assert_eq!(
+        as_expr.pointer("/expression/value").and_then(Value::as_str),
+        Some("chips")
+    );
+    // typeAnnotation is `TSTypeReference` naming `const`.
+    assert_eq!(
+        as_expr
+            .pointer("/typeAnnotation/type")
+            .and_then(Value::as_str),
+        Some("TSTypeReference")
+    );
+    assert_eq!(
+        as_expr
+            .pointer("/typeAnnotation/typeName/name")
+            .and_then(Value::as_str),
+        Some("const")
+    );
+}
+
+#[test]
+fn ts_as_const_preserved_in_inline_expression_tag() {
+    let src = "<script lang=\"ts\"></script><Child p={'chips' as const} />";
+    let ast = parse_to_json(src);
+    let as_expr = find_node(&ast, "TSAsExpression").expect("TSAsExpression must be preserved");
+    assert_eq!(
+        as_expr.pointer("/expression/type").and_then(Value::as_str),
+        Some("Literal")
+    );
+    assert_eq!(
+        as_expr.pointer("/expression/value").and_then(Value::as_str),
+        Some("chips")
+    );
+    assert_eq!(
+        as_expr
+            .pointer("/typeAnnotation/typeName/name")
+            .and_then(Value::as_str),
+        Some("const")
+    );
+}
+
+#[test]
+fn ts_satisfies_expression_preserved() {
+    let src = "<script lang=\"ts\">const z = obj satisfies Foo;</script>";
+    let ast = parse_to_json(src);
+    let n =
+        find_node(&ast, "TSSatisfiesExpression").expect("TSSatisfiesExpression must be preserved");
+    assert_eq!(
+        n.pointer("/expression/name").and_then(Value::as_str),
+        Some("obj")
+    );
+    assert_eq!(
+        n.pointer("/typeAnnotation/typeName/name")
+            .and_then(Value::as_str),
+        Some("Foo")
+    );
+}
+
+#[test]
+fn ts_non_null_expression_preserved_as_member_object() {
+    // `obj!.prop` — the MemberExpression object is a TSNonNullExpression.
+    let src = "<script lang=\"ts\">let v = obj!.prop;</script>";
+    let ast = parse_to_json(src);
+    let member = find_node(&ast, "MemberExpression").expect("MemberExpression");
+    assert_eq!(
+        member.pointer("/object/type").and_then(Value::as_str),
+        Some("TSNonNullExpression")
+    );
+    assert_eq!(
+        member
+            .pointer("/object/expression/name")
+            .and_then(Value::as_str),
+        Some("obj")
+    );
+    // No typeAnnotation on a non-null assertion.
+    let nn = member.get("object").unwrap();
+    assert!(!keys_of(nn).contains(&"typeAnnotation"));
+}
+
+#[test]
+fn ts_type_assertion_emits_type_annotation_before_expression() {
+    // `<Foo>d` — svelte/compiler emits `typeAnnotation` BEFORE `expression`.
+    let src = "<script lang=\"ts\">let c = (<Foo>d);</script>";
+    let ast = parse_to_json(src);
+    let n = find_node(&ast, "TSTypeAssertion").expect("TSTypeAssertion must be preserved");
+    assert_eq!(
+        n.pointer("/expression/name").and_then(Value::as_str),
+        Some("d")
+    );
+    assert_eq!(
+        n.pointer("/typeAnnotation/typeName/name")
+            .and_then(Value::as_str),
+        Some("Foo")
+    );
+    let keys = keys_of(n);
+    let ta = keys
+        .iter()
+        .position(|k| *k == "typeAnnotation")
+        .expect("has typeAnnotation");
+    let ex = keys
+        .iter()
+        .position(|k| *k == "expression")
+        .expect("has expression");
+    assert!(
+        ta < ex,
+        "typeAnnotation must be serialized before expression, keys: {keys:?}"
+    );
+}
+
+#[test]
+fn ts_instantiation_expression_preserved() {
+    let src = "<script lang=\"ts\">const e = f<number>;</script>";
+    let ast = parse_to_json(src);
+    let n = find_node(&ast, "TSInstantiationExpression")
+        .expect("TSInstantiationExpression must be preserved");
+    assert_eq!(
+        n.pointer("/expression/name").and_then(Value::as_str),
+        Some("f")
+    );
+    assert_eq!(
+        n.pointer("/typeArguments/type").and_then(Value::as_str),
+        Some("TSTypeParameterInstantiation")
+    );
+}
+
+#[test]
+fn arrow_handler_parameters_have_real_spans() {
+    // Fast-path mustache/attribute arrow parameters must carry real spans
+    // (svelte/compiler assigns them; rsvelte previously used `Identifier[0,0]`).
+    let src = "<button onclick={(color, e) => handle(color, e)}>x</button>";
+    let ast = parse_to_json(src);
+    let arrow = find_node(&ast, "ArrowFunctionExpression").expect("arrow");
+    let params = arrow
+        .get("params")
+        .and_then(Value::as_array)
+        .expect("params");
+    assert_eq!(params.len(), 2);
+    // `color` occupies columns 18..23, `e` columns 25..26 (matches svelte/compiler).
+    assert_eq!(params[0].get("name").and_then(Value::as_str), Some("color"));
+    assert_eq!(params[0].get("start").and_then(Value::as_u64), Some(18));
+    assert_eq!(params[0].get("end").and_then(Value::as_u64), Some(23));
+    assert_eq!(params[1].get("name").and_then(Value::as_str), Some("e"));
+    assert_eq!(params[1].get("start").and_then(Value::as_u64), Some(25));
+    assert_eq!(params[1].get("end").and_then(Value::as_u64), Some(26));
+}

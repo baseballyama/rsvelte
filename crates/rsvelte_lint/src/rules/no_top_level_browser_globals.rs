@@ -204,10 +204,25 @@ fn in_function(ancestors: &[&Value]) -> bool {
 }
 
 /// Whether the ancestor chain places the node inside a TS type annotation.
+///
+/// TS *expression* wrappers (`x as T`, `x!`, `<T>x`, `x satisfies T`,
+/// `x<T>`) are values, not type annotations — their `expression` child is
+/// ordinary code — so they must not count here (only their `typeAnnotation` /
+/// `typeArguments` subtrees, which are themselves real `TS…` type nodes, do).
 fn in_type_annotation(ancestors: &[&Value]) -> bool {
-    ancestors
-        .iter()
-        .any(|n| node_type(n).is_some_and(|t| t.starts_with("TS")))
+    ancestors.iter().any(|n| {
+        node_type(n).is_some_and(|t| {
+            t.starts_with("TS")
+                && !matches!(
+                    t,
+                    "TSAsExpression"
+                        | "TSSatisfiesExpression"
+                        | "TSNonNullExpression"
+                        | "TSTypeAssertion"
+                        | "TSInstantiationExpression"
+                )
+        })
+    })
 }
 
 /// Whether all execution paths of a statement end in a jump

@@ -842,9 +842,7 @@ fn visit_typed_children(node: &mut JsNode, arena: &ParseArena) -> Result<(), Par
         JsNode::BinaryExpression { left, right, .. }
         | JsNode::LogicalExpression { left, right, .. }
         | JsNode::AssignmentExpression { left, right, .. }
-        | JsNode::AssignmentPattern { left, right, .. }
-        | JsNode::ForOfStatement { left, right, .. }
-        | JsNode::ForInStatement { left, right, .. } => {
+        | JsNode::AssignmentPattern { left, right, .. } => {
             let (l, r) = (*left, *right);
             rec_id!(l);
             rec_id!(r);
@@ -1016,6 +1014,17 @@ fn visit_typed_children(node: &mut JsNode, arena: &ParseArena) -> Result<(), Par
             rec_opt!(i);
             rec_opt!(t);
             rec_opt!(u);
+            rec_id!(b);
+        }
+        JsNode::ForOfStatement {
+            left, right, body, ..
+        }
+        | JsNode::ForInStatement {
+            left, right, body, ..
+        } => {
+            let (l, r, b) = (*left, *right, *body);
+            rec_id!(l);
+            rec_id!(r);
             rec_id!(b);
         }
         JsNode::WhileStatement { test, body, .. } | JsNode::DoWhileStatement { test, body, .. } => {

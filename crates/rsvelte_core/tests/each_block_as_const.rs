@@ -37,11 +37,14 @@ fn each_block_with_as_const_alias() {
         out.contains(r#""name":"tab""#),
         "alias should be `tab`, got:\n{out}"
     );
-    // The stray `const` should NOT appear as an identifier — it would mean
-    // the alias was parsed as `const as tab`.
+    // The scanner splits at the RIGHT-most ` as `, so the iterable is
+    // `['a', 'b'] as const` and the alias is `tab` (not `const as tab`). The
+    // trailing `as const` is kept as a `TSAsExpression` — svelte/compiler
+    // preserves TS wrappers in the parse output and strips them only at compile
+    // time — so `const` now appears solely as the cast's type-reference name.
     assert!(
-        !out.contains(r#""name":"const""#),
-        "`const` should not be parsed as an alias identifier:\n{out}"
+        out.contains("TSAsExpression"),
+        "the trailing `as const` cast should be preserved as a TSAsExpression:\n{out}"
     );
 }
 
