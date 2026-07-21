@@ -5,7 +5,7 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: 30 entries**, concentrated in real-world corpus repos
+**Current baseline: 28 entries**, concentrated in real-world corpus repos
 (layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail). Oracle-bug /
 invalid-input / migrate cases are NOT here — those are permanently excluded in
 `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every entry here was
@@ -130,7 +130,7 @@ text/element context, not on bare adjacency — but the actual fix location is
 unknown pending further investigation. Several targeted fixes were attempted
 and are proven net-negative (see below).
 
-## Cluster 5 — prose fill / text wrap (7)
+## Cluster 5 — prose fill / text wrap (5)
 
 A long mixed text run (plain prose, or prose interleaved with inline elements,
 `{@render …}`/other call-bearing expression tags, or adjacent
@@ -143,18 +143,45 @@ proven net-negative (fixed 4 prose cases, broke 48) — the oracle's fill is
 genuinely context-dependent and not hand-characterizable without the full
 lookahead algorithm. Fix belongs in rsvelte — the `Fill`/prose layout port.
 
-This bucket is diagnosis-based, not mechanism-confirmed for every member: one
-former member (`layerchart` `BarChart/sparkbar-within-a-paragraph.svelte`) sat
-here purely because its whole-file diff looked like a prose-wrap mismatch,
-until widening the children port to convert Component children (an unrelated,
-Cluster-1-adjacent fix) made it pass outright — the "prose" diff was actually
-downstream of an unclaimed Component child. Its sibling file
-(`LineChart/sparkline-within-a-paragraph.svelte`, same paragraph-plus-component
-shape) improved from the same fix but still fails on a genuine residual
-word-wrap divergence, confirming that shape can carry both a port gap and a
-real Cluster 5 issue at once. Whether the remaining 7 are all pure fill
-problems is unconfirmed — re-diagnosing them needs a corpus run, not a diff
-read, and is not required to finish this baseline update.
+Two entries were resolved by fixing a `splitTextToDocs`-parity gap (see
+Resolved): whether a text run's leading whitespace is trimmed depends on
+whether it sits at the parent's first-child position. When trimmed (first
+child), prettier's fill list is word-first (`[word, line, word, …]`) and the
+overflowing word wraps normally; when not trimmed, the list is
+hardline-first (`[hardline, word, line, word, …]`), which lets the last word
+before the line boundary overflow rather than wrap. `collapse.rs`'s
+`text_preceded_by_close_tag` only recognized a preceding `</tag>` as a
+not-first-child signal, so text right after a self-closing sibling
+(`<Code … />`) was wrongly treated as first-child and wrapped early.
+
+This bucket is diagnosis-based, not mechanism-confirmed for every remaining
+member:
+
+- `svelte-ux/.../routes/+page.svelte` and `powertable/.../+layout.svelte` fail
+  in the *opposite* direction: rsvelte's finalized fill carries a spurious
+  extra leading hardline (`[hardline, "installs", …]`) where the oracle is
+  word-first (`["installs", …, hardline]`), so rsvelte tolerates an overflow
+  the oracle wraps. The extra hardline traces to neither `split_text_to_docs`
+  (`collapse.rs` and `children.rs`, both instrumented) nor `try_fill_run`
+  (not even called for the `<li>` body in question) — it is reconstructed by
+  a later collapse pass, after an inline `<code>`/`<b>` hug-breaks across
+  multiple lines, in a multi-pass interaction that hasn't been safely
+  isolated. High risk to touch blind; left open.
+- `layerchart/.../LineChart/perf-wide-data-processed.svelte` and
+  `layerchart/.../docs/examples/+page.svelte` diverge on the trailing text
+  *after* a multi-line expression tag (`{format(...)}` /
+  `{@render scrollingValue(...)}`): the oracle builds an inverted fill
+  (`[line, "data", line, "points"]`, word-as-separator) that glues the first
+  trailing word to the `)}` line, while rsvelte's word-first fill wraps it
+  onto its own line. Distinct nested-fill mechanism from the two above.
+- `sveltestrap/.../Popover.stories.svelte` is not a pure fill problem: the
+  prose inside a `<Popover>` component doesn't reflow at all (no width
+  wrapping happens), i.e. the children-port claim for Component-child prose
+  is incomplete — adjacent to Cluster 1 rather than a genuine Cluster 5
+  divergence, but left here as the dominant symptom in the whole-file diff.
+
+Re-diagnosing the remaining 5 with full corpus instrumentation (rather than a
+diff read) would be needed before attempting further fixes.
 
 ## Cluster 6 — oxc paren / type-annotation divergence (2)
 
@@ -333,6 +360,22 @@ the diff).
   narrow-width limitation the model can't yet solve (see Cluster 2), so
   routing it through the model doesn't help without also fixing that
   limitation. Reverted.
+- **`splitTextToDocs` first-child parity for self-closing siblings (Cluster
+  5).** Prettier's fill list shape for a text run depends on whether its
+  leading whitespace was trimmed, which in turn depends on whether the text
+  sits at its parent's first-child position: trimmed (first child) yields a
+  word-first fill list where the overflowing word wraps; untrimmed (not
+  first child) yields a hardline-first fill list where the last word before
+  the boundary is allowed to overflow instead. `collapse.rs`'s
+  `text_preceded_by_close_tag` recognized only a preceding `</tag>` as the
+  not-first-child signal, so text immediately after a self-closing sibling
+  (`<Code … />`) was misclassified as first-child and wrapped early instead
+  of overflowing like the oracle. Fixed by also recognizing a `/>` prefix as
+  a not-first-child signal. Three unit tests added; reverting the fix
+  reproduces the test failures; 0 regressions across the 12,657-file corpus.
+  Cleared `smelte/src/routes/index.svelte` and
+  `layerchart/docs/.../LineChart/sparkline-within-a-paragraph.svelte`
+  (commit 6d57221c, PR #1651).
 
 ## Methodology notes
 
