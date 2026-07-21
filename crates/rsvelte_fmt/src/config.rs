@@ -14,9 +14,11 @@
 //! parse the keys `oxc_formatter` can honor, and layer them onto the JS options
 //! used for inline `<script>`. The resolved path is also handed to every child
 //! `oxfmt` invocation via `-c` so inline `<style>` blocks use it too — except a
-//! TS config, where [`OxfmtConfig::oxfmt_arg_path`] hands over a materialized
-//! `.oxfmtrc.json` instead, since the pure-Rust `oxfmt` CLI can't evaluate
-//! `.ts`/`.mts` itself (see [`crate::ts_config`]).
+//! JS/TS config (`oxfmt.config.ts`/`.mts` via discovery, or any of
+//! `.js`/`.mjs`/`.cjs`/`.ts`/`.cts`/`.mts` via an explicit `--config`, matching
+//! oxfmt's own `is_js_config_path`), where [`OxfmtConfig::oxfmt_arg_path`]
+//! hands over a materialized `.oxfmtrc.json` instead, since the pure-Rust
+//! `oxfmt` CLI can't evaluate JS/TS itself (see [`crate::ts_config`]).
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -48,19 +50,20 @@ const CONFIG_NAMES: &[&str] = &[
 #[derive(Debug, Default, Clone)]
 pub struct OxfmtConfig {
     /// Path the config was read from — a `.oxfmtrc.json`/`.jsonc`,
-    /// `oxfmt.config.ts`/`.mts`, or an explicit `--config` path. Used as the
-    /// directory basis for resolving `ignorePatterns` / `overrides` globs and
+    /// `oxfmt.config.ts`/`.mts`, or an explicit `--config` path (which may
+    /// additionally be `.js`/`.mjs`/`.cjs`/`.cts`). Used as the directory
+    /// basis for resolving `ignorePatterns` / `overrides` globs and
     /// Tailwind's `sortTailwindcss` base dir ([`Self::config_dir`]), and for
     /// cheap "did the config change" checks. **Not** what gets forwarded to
     /// child `oxfmt` invocations — use [`Self::oxfmt_arg_path`] for that.
     pub path: Option<PathBuf>,
     /// The path to force via child `oxfmt` invocations' `-c` flag. Equal to
-    /// [`Self::path`] for a JSON/JSONC config; for a TS/MTS config it is a
+    /// [`Self::path`] for a JSON/JSONC config; for a JS/TS config it is a
     /// temp file holding the statically-evaluated config serialized as JSON,
-    /// because the pure-Rust `oxfmt` CLI errors on a `.ts`/`.mts` `-c` path
-    /// (it has no embedded JS runtime to evaluate one — see
-    /// [`crate::ts_config`]). Materializing it once here means rsvelte's own
-    /// evaluation and oxfmt's own semantics can never disagree.
+    /// because the pure-Rust `oxfmt` CLI errors on a JS/TS `-c` path (it has
+    /// no embedded JS runtime to evaluate one — see [`crate::ts_config`]).
+    /// Materializing it once here means rsvelte's own evaluation and oxfmt's
+    /// own semantics can never disagree.
     pub oxfmt_arg_path: Option<PathBuf>,
     pub single_quote: Option<bool>,
     pub semi: Option<bool>,
@@ -122,7 +125,7 @@ impl OxfmtConfig {
     /// directory). Returns an empty config (everything `None`) when no file is
     /// found, so callers can apply it unconditionally.
     ///
-    /// Errors only for a TS/MTS config (unreadable, unparsable, or containing
+    /// Errors only for a JS/TS config (unreadable, unparsable, or containing
     /// a dynamic expression the static evaluator can't run — see
     /// [`crate::ts_config`]) or a directory holding more than one recognised
     /// config file. A JSON/JSONC config keeps the historical "best effort"
@@ -137,8 +140,8 @@ impl OxfmtConfig {
             return Ok(Self::default());
         };
 
-        if ts_config::is_ts_config_path(&path) {
-            return Self::resolve_ts(path);
+        if ts_config::is_js_config_path(&path) {
+            return Self::resolve_js(path);
         }
 
         match std::fs::read_to_string(&path) {
@@ -158,16 +161,18 @@ impl OxfmtConfig {
         }
     }
 
-    /// Load and statically evaluate an `oxfmt.config.ts`/`.mts` file: read +
-    /// parse + evaluate to JSON ([`crate::ts_config::evaluate`]), map the
-    /// result onto the same option struct a `.oxfmtrc.json` would produce via
-    /// [`parse_object`], and materialize the evaluated value into a temp
-    /// `.oxfmtrc.json` for [`Self::oxfmt_arg_path`] — child `oxfmt`
-    /// invocations can't evaluate `.ts`/`.mts` themselves. Unlike JSON's
-    /// read-failure fallback to defaults, any failure here (I/O, parse, or an
-    /// unsupported dynamic expression) is a hard error: choosing a TS config
-    /// is deliberate, so silently dropping it would be worse than failing.
-    fn resolve_ts(path: PathBuf) -> Result<Self, String> {
+    /// Load and statically evaluate a JS/TS config file (`oxfmt.config.ts`/
+    /// `.mts` via discovery, or any of `.js`/`.mjs`/`.cjs`/`.ts`/`.cts`/`.mts`
+    /// via an explicit `--config`): read + parse + evaluate to JSON
+    /// ([`crate::ts_config::evaluate`]), map the result onto the same option
+    /// struct a `.oxfmtrc.json` would produce via [`parse_object`], and
+    /// materialize the evaluated value into a temp `.oxfmtrc.json` for
+    /// [`Self::oxfmt_arg_path`] — child `oxfmt` invocations can't evaluate
+    /// JS/TS themselves. Unlike JSON's read-failure fallback to defaults, any
+    /// failure here (I/O, parse, or an unsupported dynamic expression) is a
+    /// hard error: choosing a JS/TS config is deliberate, so silently
+    /// dropping it would be worse than failing.
+    fn resolve_js(path: PathBuf) -> Result<Self, String> {
         let src = std::fs::read_to_string(&path)
             .map_err(|e| format!("could not read config {}: {e}", path.display()))?;
         let value = ts_config::evaluate(&src, &path)?;
@@ -341,9 +346,9 @@ fn find_upward(start: &Path) -> Result<Option<PathBuf>, String> {
     Ok(None)
 }
 
-/// Write a statically-evaluated TS config's JSON bytes to a temp file, so it
-/// can be forced onto child `oxfmt` invocations via `-c` at the same
-/// semantics rsvelte-fmt itself resolved (see [`OxfmtConfig::resolve_ts`] and
+/// Write a statically-evaluated JS/TS config's JSON bytes to a temp file, so
+/// it can be forced onto child `oxfmt` invocations via `-c` at the same
+/// semantics rsvelte-fmt itself resolved (see [`OxfmtConfig::resolve_js`] and
 /// [`OxfmtConfig::oxfmt_arg_path`]). The filename is unique per call (not just
 /// per-process) so concurrent resolutions in one process — as in the test
 /// suite, which runs tests in threads sharing a pid — never collide.
