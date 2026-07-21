@@ -1852,15 +1852,25 @@ fn sort_tailwindcss_custom_config_warns_and_skips() {
 }
 
 fn tempdir() -> PathBuf {
+    // PID + timestamp alone can collide: libtest runs this file's tests on a
+    // shared thread pool, so many threads call this within the same PID at
+    // near-identical instants, and some hosts' clocks don't resolve down to a
+    // true unique nanosecond under that load. `create_dir_all` masks a
+    // collision (it happily "succeeds" on an existing dir), so two tests would
+    // silently share one directory and stomp each other's files. The atomic
+    // counter makes each call unique regardless of clock resolution.
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let mut dir = std::env::temp_dir();
     dir.push(format!(
-        "rsvelte_fmt_test_{}_{}",
+        "rsvelte_fmt_test_{}_{}_{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos(),
+        seq,
     ));
-    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::create_dir(&dir).unwrap_or_else(|e| panic!("tempdir collision at {dir:?}: {e}"));
     dir
 }
