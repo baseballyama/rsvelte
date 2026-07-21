@@ -343,16 +343,25 @@ fn run() -> Result<ExitCode> {
     let native_js = !cli.no_native_js;
     let native_css = !cli.no_native_css;
     let ignore = oxfmt_ignore::SvelteIgnore::from_config(&cwd, &cfg)?;
-    let (svelte, native, native_json, native_css_files, oxfmt_paths, saw_any_file) =
+    let (svelte, native, native_json, native_css_files, oxfmt_paths) =
         partition_files(&cli.paths, &ignore, &cwd, native_js, native_css)?;
 
-    // Nothing exists under any given path — not even for `oxfmt`'s own
-    // delegated share, so there is nothing to run. Match oxfmt's own
-    // unsuppressed "no target file" error/exit code instead of running
-    // `oxfmt` with our always-on `--no-error-on-unmatched-pattern` (needed so
-    // a Svelte-only or CSS-only tree is a legitimate no-op for it) and
-    // reporting a false success (#1636).
-    if !saw_any_file {
+    // Whether every in-process pass (Svelte, native JS/JSON/CSS) found
+    // nothing at all. When true, `oxfmt`'s own delegated share is the only
+    // remaining source of truth for whether anything exists to format, so it
+    // must be allowed to error for real instead of being unconditionally
+    // suppressed (see `run_oxfmt`'s `suppress_unmatched`) — replicating
+    // oxfmt's own ignore + extension matching here would be a fragile
+    // duplication of logic that already lives in the `oxfmt` binary itself.
+    let in_process_empty = svelte.is_empty()
+        && native.is_empty()
+        && native_json.is_empty()
+        && native_css_files.is_empty();
+
+    // Nothing was even handed to `oxfmt` (every path was an explicit file
+    // that turned out to be ignored), so no subprocess will run to report the
+    // error itself — report it the same way oxfmt would.
+    if in_process_empty && oxfmt_paths.is_empty() {
         eprintln!(
             "Expected at least one target file. All matched files may have been excluded by ignore rules."
         );
@@ -434,6 +443,13 @@ fn run() -> Result<ExitCode> {
                 exclude_native,
                 exclude_native_json,
                 exclude_native_css,
+                // A Svelte-only or CSS-only tree legitimately leaves oxfmt's
+                // own share empty, so suppress its unmatched-pattern error —
+                // but not when every in-process pass is *also* empty: oxfmt
+                // is then the only thing that can tell (via its own ignore
+                // rules and supported-extension set) whether anything really
+                // exists to format, so it must be allowed to error for real.
+                !in_process_empty,
             )
         },
     );
@@ -447,6 +463,14 @@ fn run() -> Result<ExitCode> {
         .merge(native_status)
         .merge(json_status)
         .merge(css_status);
+
+    // oxfmt ran unsuppressed above and genuinely found nothing — its own
+    // "no target file" message already went to stderr (inherited), so don't
+    // also print our summary line; just propagate the error exit code.
+    if in_process_empty && oxfmt_status.had_errors {
+        return Ok(combine(combined, oxfmt_status, mode));
+    }
+
     print_summary(&combined, &oxfmt_status, mode);
     Ok(combine(combined, oxfmt_status, mode))
 }
@@ -874,18 +898,12 @@ fn partition_files(
     Vec<PathBuf>,
     Vec<PathBuf>,
     Vec<PathBuf>,
-    bool,
 )> {
     let mut svelte = Vec::new();
     let mut native = Vec::new();
     let mut native_json = Vec::new();
     let mut native_css_files = Vec::new();
     let mut oxfmt_paths = Vec::new();
-    // Whether any real file was found under `roots` at all, independent of
-    // extension/category or ignore filtering — a directory that walks to zero
-    // file entries can never yield a target for `oxfmt` either, however it's
-    // invoked (see the no-match check in `run`, #1636).
-    let mut saw_any_file = false;
     for root in roots {
         let meta = std::fs::metadata(root)
             .with_context(|| format!("reading {} — no such file or directory", root.display()))?;
@@ -921,7 +939,6 @@ fn partition_files(
                 if !entry.file_type().is_some_and(|ft| ft.is_file()) {
                     continue;
                 }
-                saw_any_file = true;
                 if is_svelte(path) && !ignore.is_ignored(path, false) {
                     svelte.push(entry.into_path());
                 } else if native_js && is_native_js(path) && !ignore.is_ignored(path, false) {
@@ -937,63 +954,51 @@ fn partition_files(
                 }
             }
             oxfmt_paths.push(root.clone());
-        } else {
-            // A single explicit path only reaches here once `metadata` above
-            // has confirmed it exists as a file.
-            saw_any_file = true;
-            if is_svelte(root) {
-                // Single explicit `.svelte` file — apply the same ignore rules.
-                let abs = if root.is_absolute() {
-                    root.clone()
-                } else {
-                    cwd.join(root)
-                };
-                if !ignore.is_ignored(&abs, false) {
-                    svelte.push(root.clone());
-                }
-            } else if native_js && is_native_js(root) {
-                // Single explicit `.ts`/`.js` file — native pass (same ignore rules).
-                let abs = if root.is_absolute() {
-                    root.clone()
-                } else {
-                    cwd.join(root)
-                };
-                if !ignore.is_ignored(&abs, false) {
-                    native.push(root.clone());
-                }
-            } else if native_js && is_native_json(root) {
-                // Single explicit `.json`/`.jsonc` file — native-JSON pass.
-                let abs = if root.is_absolute() {
-                    root.clone()
-                } else {
-                    cwd.join(root)
-                };
-                if !ignore.is_ignored(&abs, false) {
-                    native_json.push(root.clone());
-                }
-            } else if native_css && is_native_css(root) {
-                // Single explicit `.css`/`.scss`/`.less` file — native-CSS pass.
-                let abs = if root.is_absolute() {
-                    root.clone()
-                } else {
-                    cwd.join(root)
-                };
-                if !ignore.is_ignored(&abs, false) {
-                    native_css_files.push(root.clone());
-                }
+        } else if is_svelte(root) {
+            // Single explicit `.svelte` file — apply the same ignore rules.
+            let abs = if root.is_absolute() {
+                root.clone()
             } else {
-                oxfmt_paths.push(root.clone());
+                cwd.join(root)
+            };
+            if !ignore.is_ignored(&abs, false) {
+                svelte.push(root.clone());
             }
+        } else if native_js && is_native_js(root) {
+            // Single explicit `.ts`/`.js` file — native pass (same ignore rules).
+            let abs = if root.is_absolute() {
+                root.clone()
+            } else {
+                cwd.join(root)
+            };
+            if !ignore.is_ignored(&abs, false) {
+                native.push(root.clone());
+            }
+        } else if native_js && is_native_json(root) {
+            // Single explicit `.json`/`.jsonc` file — native-JSON pass.
+            let abs = if root.is_absolute() {
+                root.clone()
+            } else {
+                cwd.join(root)
+            };
+            if !ignore.is_ignored(&abs, false) {
+                native_json.push(root.clone());
+            }
+        } else if native_css && is_native_css(root) {
+            // Single explicit `.css`/`.scss`/`.less` file — native-CSS pass.
+            let abs = if root.is_absolute() {
+                root.clone()
+            } else {
+                cwd.join(root)
+            };
+            if !ignore.is_ignored(&abs, false) {
+                native_css_files.push(root.clone());
+            }
+        } else {
+            oxfmt_paths.push(root.clone());
         }
     }
-    Ok((
-        svelte,
-        native,
-        native_json,
-        native_css_files,
-        oxfmt_paths,
-        saw_any_file,
-    ))
+    Ok((svelte, native, native_json, native_css_files, oxfmt_paths))
 }
 
 fn is_svelte(p: &Path) -> bool {
@@ -1725,7 +1730,7 @@ fn run_native_js(
     // counted in `files_total`; a parse-error file the fallback also can't
     // handle surfaces oxfmt's own diagnostics.
     if !fallback.is_empty() {
-        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false)?;
+        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false, true)?;
         status.files_changed += fb.files_changed;
         status.had_errors |= fb.had_errors;
     }
@@ -1872,7 +1877,7 @@ fn run_native_json(
     // Explicit paths with no native excludes, so oxfmt formats exactly these
     // (and applies `sortPackageJson` to any `package.json`).
     if !fallback.is_empty() {
-        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false)?;
+        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false, true)?;
         status.files_changed += fb.files_changed;
         status.had_errors |= fb.had_errors;
     }
@@ -2013,7 +2018,7 @@ fn run_native_css(
     // oxfmt fallback for override-matched + parse-error files. Explicit paths
     // with no native excludes, so oxfmt formats exactly these.
     if !fallback.is_empty() {
-        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false)?;
+        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false, true)?;
         status.files_changed += fb.files_changed;
         status.had_errors |= fb.had_errors;
     }
@@ -2026,9 +2031,13 @@ fn run_native_css(
 /// Delegate every non-`.svelte` path to a single `oxfmt` invocation.
 ///
 /// `paths` are the user's directory / file inputs verbatim; a `!**/*.svelte`
-/// exclude keeps Svelte files for the in-process pass, and
-/// `--no-error-on-unmatched-pattern` makes a tree with only `.svelte` files a
-/// clean no-op rather than an error. oxfmt's informational summary
+/// exclude keeps Svelte files for the in-process pass. `suppress_unmatched`
+/// adds `--no-error-on-unmatched-pattern`, which makes a tree with only
+/// `.svelte` files (or whichever set an in-process pass already handled) a
+/// clean no-op rather than an error; callers pass `false` when oxfmt's own
+/// share is the last remaining source of truth for whether anything exists to
+/// format at all, so it must be allowed to error for real (see the
+/// `in_process_empty` check in `run`). oxfmt's informational summary
 /// ("Finished … on N files", "Format issues found in above N files") goes to
 /// stdout; we capture it to recover file counts for our own summary, then
 /// forward it. Warnings/errors on stderr stay inherited.
@@ -2039,6 +2048,7 @@ fn run_oxfmt(
     exclude_native: bool,
     exclude_native_json: bool,
     exclude_native_css: bool,
+    suppress_unmatched: bool,
 ) -> Result<PipelineStatus> {
     if paths.is_empty() {
         return Ok(PipelineStatus::default());
@@ -2051,7 +2061,9 @@ fn run_oxfmt(
             cmd.arg("--check");
         }
     }
-    cmd.arg("--no-error-on-unmatched-pattern");
+    if suppress_unmatched {
+        cmd.arg("--no-error-on-unmatched-pattern");
+    }
     cmd.arg(OXFMT_EXCLUDE_SVELTE);
     // When the native `.ts`/`.js` path handled those files in-process, keep
     // oxfmt from re-formatting them in directory walks.
