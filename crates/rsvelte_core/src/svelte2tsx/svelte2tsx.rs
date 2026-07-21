@@ -571,7 +571,21 @@ pub fn svelte2tsx(
         skip_non_css_lang_style: false,
         capture_comments: false,
     };
-    let ast = phase1_parse::parse_script_ts(&parse_source, parse_options)?;
+    let mut ast = phase1_parse::parse_script_ts(&parse_source, parse_options)?;
+
+    // Template expressions keep TS assertion wrappers (`x as T`, `x!`,
+    // `x satisfies T`, …) in the parse AST, matching svelte/compiler. The
+    // template lowering below — like phase-3 transform — is written against the
+    // stripped form (e.g. `bind:this={el as T}` relies on the binding
+    // expression's span ending before the cast so the cast moves onto the RHS),
+    // so remove the wrappers from the fragment first. Scripts are re-parsed
+    // TS-aware separately, so only the fragment needs this.
+    {
+        // SAFETY: `ast.arena` lives until the end of this function, outliving the guard.
+        let _arena_guard =
+            unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
+        crate::compiler::strip_ts_from_fragment(&mut ast.fragment)?;
+    }
 
     // svelte rejects `{@debug expr}` whose arguments are not plain identifiers
     // (`{@debug user.firstname}` / `{@debug a[0]}`) at PARSE time. rsvelte does

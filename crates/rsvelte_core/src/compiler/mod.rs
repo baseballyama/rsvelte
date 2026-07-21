@@ -1129,7 +1129,11 @@ fn strip_ts_from_expression(
 }
 
 /// Strip TypeScript annotations from all Expression nodes in a Fragment.
-fn strip_ts_from_fragment(
+///
+/// Exposed for svelte2tsx: its template lowering consumes the parse AST and,
+/// like phase-3 transform, expects TS assertion wrappers already removed.
+/// Requires a `SerializeArenaGuard` installed for the fragment's arena.
+pub(crate) fn strip_ts_from_fragment(
     fragment: &mut crate::ast::template::Fragment,
 ) -> Result<(), crate::error::ParseError> {
     for node in &mut fragment.nodes {
