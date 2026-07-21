@@ -155,6 +155,11 @@ const JS_NULL = 0xca;
 // 0xcb was the former whole-node JS_RAW_JSON escape (removed — TS type
 // annotations now ride a per-node trailer; see readOptTypeAnnotation).
 const JS_TS_PARAMETER_PROPERTY = 0xcc;
+const JS_TS_AS_EXPRESSION = 0xcd;
+const JS_TS_SATISFIES_EXPRESSION = 0xce;
+const JS_TS_NON_NULL_EXPRESSION = 0xcf;
+const JS_TS_TYPE_ASSERTION = 0xd0;
+const JS_TS_INSTANTIATION_EXPRESSION = 0xd1;
 
 // LiteralValue inner tag (within a JS_LITERAL payload).
 const LV_NULL = 0;
@@ -483,6 +488,16 @@ function readNodeBody(ctx, tag, start, end) {
 			return readJsImportExpression(ctx, start, end);
 		case JS_AWAIT_EXPRESSION:
 			return readJsAwaitExpression(ctx, start, end);
+		case JS_TS_AS_EXPRESSION:
+			return readJsTSAsExpression(ctx, start, end);
+		case JS_TS_SATISFIES_EXPRESSION:
+			return readJsTSSatisfiesExpression(ctx, start, end);
+		case JS_TS_NON_NULL_EXPRESSION:
+			return readJsTSNonNullExpression(ctx, start, end);
+		case JS_TS_TYPE_ASSERTION:
+			return readJsTSTypeAssertion(ctx, start, end);
+		case JS_TS_INSTANTIATION_EXPRESSION:
+			return readJsTSInstantiationExpression(ctx, start, end);
 		case JS_YIELD_EXPRESSION:
 			return readJsYieldExpression(ctx, start, end);
 		case JS_CHAIN_EXPRESSION:
@@ -952,6 +967,60 @@ function readJsAwaitExpression(ctx, start, end) {
 	const node = { type: 'AwaitExpression', start, end };
 	if (loc !== null) node.loc = loc;
 	node.argument = argument;
+	return node;
+}
+
+function readJsTSAsExpression(ctx, start, end) {
+	const loc = readTypedLoc(ctx);
+	const expression = readNode(ctx);
+	const typeAnnotation = readOptTypeAnnotation(ctx);
+	const node = { type: 'TSAsExpression', start, end };
+	if (loc !== null) node.loc = loc;
+	node.expression = expression;
+	if (typeAnnotation !== null) node.typeAnnotation = typeAnnotation;
+	return node;
+}
+
+function readJsTSSatisfiesExpression(ctx, start, end) {
+	const loc = readTypedLoc(ctx);
+	const expression = readNode(ctx);
+	const typeAnnotation = readOptTypeAnnotation(ctx);
+	const node = { type: 'TSSatisfiesExpression', start, end };
+	if (loc !== null) node.loc = loc;
+	node.expression = expression;
+	if (typeAnnotation !== null) node.typeAnnotation = typeAnnotation;
+	return node;
+}
+
+function readJsTSNonNullExpression(ctx, start, end) {
+	const loc = readTypedLoc(ctx);
+	const expression = readNode(ctx);
+	const node = { type: 'TSNonNullExpression', start, end };
+	if (loc !== null) node.loc = loc;
+	node.expression = expression;
+	return node;
+}
+
+function readJsTSTypeAssertion(ctx, start, end) {
+	const loc = readTypedLoc(ctx);
+	const expression = readNode(ctx);
+	const typeAnnotation = readOptTypeAnnotation(ctx);
+	const node = { type: 'TSTypeAssertion', start, end };
+	if (loc !== null) node.loc = loc;
+	// svelte/compiler emits `typeAnnotation` before `expression` here.
+	if (typeAnnotation !== null) node.typeAnnotation = typeAnnotation;
+	node.expression = expression;
+	return node;
+}
+
+function readJsTSInstantiationExpression(ctx, start, end) {
+	const loc = readTypedLoc(ctx);
+	const expression = readNode(ctx);
+	const typeArguments = readOptTypeAnnotation(ctx);
+	const node = { type: 'TSInstantiationExpression', start, end };
+	if (loc !== null) node.loc = loc;
+	node.expression = expression;
+	if (typeArguments !== null) node.typeArguments = typeArguments;
 	return node;
 }
 

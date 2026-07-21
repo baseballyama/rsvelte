@@ -479,6 +479,19 @@ fn typed_empty_statement(node: &JsNode) -> JsNode {
     }
 }
 
+/// Inner `expression` child id of a TS assertion wrapper node.
+#[inline]
+fn ts_wrapper_expression_id(node: &JsNode) -> Option<JsNodeId> {
+    match node {
+        JsNode::TSAsExpression { expression, .. }
+        | JsNode::TSSatisfiesExpression { expression, .. }
+        | JsNode::TSNonNullExpression { expression, .. }
+        | JsNode::TSTypeAssertion { expression, .. }
+        | JsNode::TSInstantiationExpression { expression, .. } => Some(*expression),
+        _ => None,
+    }
+}
+
 /// Typed entry point. Mirrors [`remove_typescript_nodes`] but operates directly
 /// on the arena-backed typed tree.
 pub fn remove_typescript_nodes_typed(
@@ -575,6 +588,23 @@ pub fn remove_typescript_nodes_typed(
         // typed function never actually carries a `this` param.)
         Some("FunctionExpression") | Some("FunctionDeclaration") => {
             remove_this_param_typed(node, arena);
+        }
+
+        // TS assertion wrappers (`as`/`satisfies`/`!`/`<T>`/instantiation): the
+        // parser keeps them for `parse()` fidelity; here we unwrap to the inner
+        // expression (mirrors upstream `remove_typescript_nodes`), then re-run the
+        // strip on the replacement (it may itself be another TS wrapper, e.g.
+        // `x! as const`).
+        Some("TSAsExpression")
+        | Some("TSSatisfiesExpression")
+        | Some("TSNonNullExpression")
+        | Some("TSTypeAssertion")
+        | Some("TSInstantiationExpression") => {
+            let inner_id = ts_wrapper_expression_id(node);
+            if let Some(inner_id) = inner_id {
+                *node = arena.get_js_node(inner_id).clone();
+                return remove_typescript_nodes_typed(node, arena);
+            }
         }
 
         _ => {}

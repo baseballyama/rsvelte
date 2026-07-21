@@ -3233,6 +3233,16 @@ fn js_node_check_features(
             walk_id!(*argument);
         }
 
+        // TS assertion wrappers are stripped before analyze; walk the inner
+        // expression defensively so a stray wrapper never hides a feature.
+        JsNode::TSAsExpression { expression, .. }
+        | JsNode::TSSatisfiesExpression { expression, .. }
+        | JsNode::TSNonNullExpression { expression, .. }
+        | JsNode::TSTypeAssertion { expression, .. }
+        | JsNode::TSInstantiationExpression { expression, .. } => {
+            walk_id!(*expression);
+        }
+
         JsNode::ConditionalExpression {
             test,
             consequent,
@@ -4819,6 +4829,13 @@ fn collect_identifier_names_in_node(
             prefix: _,
             argument,
         } => walk(*argument, out),
+
+        // TS assertion wrappers: collect identifiers from the inner expression.
+        JsNode::TSAsExpression { expression, .. }
+        | JsNode::TSSatisfiesExpression { expression, .. }
+        | JsNode::TSNonNullExpression { expression, .. }
+        | JsNode::TSTypeAssertion { expression, .. }
+        | JsNode::TSInstantiationExpression { expression, .. } => walk(*expression, out),
 
         JsNode::ConditionalExpression {
             start: _,
