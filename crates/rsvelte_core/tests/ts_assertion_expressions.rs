@@ -181,3 +181,30 @@ fn satisfies_and_non_null_are_erased_at_codegen() {
         );
     }
 }
+
+/// Regression: a TS assertion nested in a `for…of` / `for…in` loop body (a child
+/// position `visit_typed_children` previously did not recurse into) must still be
+/// stripped — otherwise codegen emits an `/* Unknown: TSAsExpression */` stub.
+#[test]
+fn as_cast_inside_for_of_body_is_erased() {
+    let source = "<script lang=\"ts\"></script>\
+        <button onclick={(e) => {\n\
+        \tfor (const el of document.querySelectorAll('x')) {\n\
+        \t\t(el as HTMLDetailsElement).open = false;\n\
+        \t}\n\
+        \tfor (const k in e) {\n\
+        \t\tconsole.log((k as string).length);\n\
+        \t}\n\
+        }}>x</button>";
+
+    for code in [ssr_code(source), client_code(source)] {
+        assert!(
+            !code.contains("Unknown: TS"),
+            "TS assertion leaked into codegen output:\n{code}"
+        );
+        assert!(
+            !code.contains(" as HTMLDetailsElement"),
+            "`as` cast leaked into codegen output:\n{code}"
+        );
+    }
+}

@@ -203,11 +203,24 @@ fn in_function(ancestors: &[&Value]) -> bool {
     })
 }
 
-/// Whether the ancestor chain places the node inside a TS type annotation.
+/// Whether the ancestor chain places the node inside a TS *type* annotation.
+///
+/// `TSAsExpression` / `TSSatisfiesExpression` / `TSNonNullExpression` are
+/// value-space assertion wrappers (`x as T`, `x satisfies T`, `x!`) whose
+/// `expression` child is a real value reference — they must NOT count as a type
+/// annotation, or a browser global like the `window` in `(window as any)` would
+/// be silently skipped. Only genuine type-space `TS*` nodes (the `typeAnnotation`
+/// side, e.g. `TSTypeReference`) do.
 fn in_type_annotation(ancestors: &[&Value]) -> bool {
-    ancestors
-        .iter()
-        .any(|n| node_type(n).is_some_and(|t| t.starts_with("TS")))
+    ancestors.iter().any(|n| {
+        node_type(n).is_some_and(|t| {
+            t.starts_with("TS")
+                && !matches!(
+                    t,
+                    "TSAsExpression" | "TSSatisfiesExpression" | "TSNonNullExpression"
+                )
+        })
+    })
 }
 
 /// Whether all execution paths of a statement end in a jump
