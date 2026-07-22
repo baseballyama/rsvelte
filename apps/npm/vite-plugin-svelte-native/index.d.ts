@@ -54,7 +54,7 @@ export interface CompileOptions {
 		hash: (input: string) => string;
 		css: string;
 		name: string;
-		filename: string | undefined;
+		filename: string;
 	}) => string;
 	/**
 	 * Pre-computed constant CSS scope hash. Escape hatch for callers (e.g.

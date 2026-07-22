@@ -92,22 +92,20 @@ function hash(str) {
 }
 
 // Wrap a user `cssHash({ hash, css, name, filename }) => string` into the
-// `(name, filename, css) => Promise<string | null>` shape the NAPI callback
-// bridge expects. It must never reject: a rejected Promise crossing the NAPI
-// boundary can crash V8 during threadsafe-function teardown, so recoverable
-// failures resolve to `null` (Rust then falls back to the default hash).
+// `(name, filename, css) => Promise<{ value } | { error }>` shape the NAPI
+// callback bridge expects. It must never reject: a rejected Promise crossing the
+// NAPI boundary can crash V8 during threadsafe-function teardown. A thrown error
+// is carried as `{ error }` so Rust propagates it as a compile failure (matching
+// upstream, where a cssHash exception aborts compilation); a non-string return is
+// `{ value: null }`, which Rust maps to the default hash. `filename` is passed
+// through as-is (Svelte's '(unknown)' default included).
 function makeCssHashCallback(userCssHash) {
 	return async (name, filename, css) => {
 		try {
-			const result = await userCssHash({
-				hash,
-				css,
-				name,
-				filename: filename === '(unknown)' ? undefined : filename,
-			});
-			return typeof result === 'string' ? result : null;
-		} catch {
-			return null;
+			const result = await userCssHash({ hash, css, name, filename });
+			return { value: typeof result === 'string' ? result : null };
+		} catch (err) {
+			return { error: err instanceof Error ? err.message : String(err) };
 		}
 	};
 }
@@ -165,9 +163,21 @@ function compileModule(source, options) {
 // exactly once. The returned array is the same length as the input;
 // each slot is either a `CompileResult` or an `Error` (parse
 // failures don't abort the whole batch).
+// Batch compilation runs on rayon workers with no JS event loop to service a
+// callback, so a dynamic cssHash can't be bridged here — reject it explicitly
+// rather than silently dropping it, matching the synchronous `compile`.
+function assertNoDynamicCssHash(options) {
+	if (typeof options?.cssHash === 'function') {
+		throw new Error(
+			'[@rsvelte/vite-plugin-svelte-native] A dynamic `cssHash` function is not supported in compileBatch; compile such files individually with `compileAsync`.',
+		);
+	}
+}
+
 function compileBatch(inputs) {
 	const filters = [];
 	const prepared = inputs.map((input, i) => {
+		assertNoDynamicCssHash(input.options);
 		const { options, warningFilter } = prepareCompileOptions(input.options);
 		if (warningFilter) filters[i] = warningFilter;
 		return options === input.options ? input : { source: input.source, options };
@@ -205,6 +215,7 @@ async function compileAsync(source, options) {
 async function compileBatchAsync(inputs) {
 	const filters = [];
 	const prepared = inputs.map((input, i) => {
+		assertNoDynamicCssHash(input.options);
 		const { options, warningFilter } = prepareCompileOptions(input.options);
 		if (warningFilter) filters[i] = warningFilter;
 		return options === input.options ? input : { source: input.source, options };
