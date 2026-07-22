@@ -14,7 +14,7 @@ compiler-behaviour gap; attempts to fix them are regression-prone against the
 8000+ passing entries (several have been reverted after wide blowups), so they are
 accepted until an upstream-faithful port lands.
 
-## Client (`known-failures.client.json`, 3 entries)
+## Client (`known-failures.client.json`, 2 entries)
 
 - **`melt-ui/.../SpatialMenuNavTest.svelte`** — two causes: (a) a proxy argument in
   `$.set(highlighted, id, true)` where `id` is an inner-scope TemplateLiteral const
@@ -28,9 +28,6 @@ accepted until an upstream-faithful port lands.
   rsvelte keeps them. Caused by child-component elements + `{...restProps}` spread
   over-matching (`attribute_matches` returns true on any spread). High CSS-fixture
   regression risk.
-- **`svelte-table/example/Example2.svelte`** — `?? ''` wrongly added to a
-  `${cond ? … : ""}` whose branches are all strings; a legacy `let iconAsc = "↑"`
-  (string-literal init) is not treated as defined.
 
 ## Server (`known-failures.server.json`, 0 entries)
 

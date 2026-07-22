@@ -1,5 +1,4 @@
 [
 	"melt-ui/packages/melt/src/lib/builders/tests/SpatialMenuNavTest.svelte",
-	"svelte-sonner/src/lib/Toaster.svelte",
-	"svelte-table/example/Example2.svelte"
+	"svelte-sonner/src/lib/Toaster.svelte"
 ]
