@@ -261,6 +261,112 @@ pub fn napi_compile(source: String, options: Option<NapiCompileOptions>) -> napi
     }
 }
 
+/// Serialize a `CompileResult` into the JSON shape the sync `compile`
+/// entry returns. Shared by the callback-bridge entry below.
+fn compile_result_to_json(result: rsvelte_core::compiler::CompileResult) -> Value {
+    let js_obj = serde_json::json!({
+        "code": result.js.code,
+        "map": result.js.map.as_deref().map(|m| serde_json::from_str::<Value>(m).unwrap_or(Value::Null)).unwrap_or(Value::Null),
+    });
+    let css_obj = result.css.map(|c| {
+        serde_json::json!({
+            "code": c.code,
+            "map": c.map.as_deref().map(|m| serde_json::from_str::<Value>(m).unwrap_or(Value::Null)).unwrap_or(Value::Null),
+            "hasGlobal": c.has_global,
+        })
+    });
+    serde_json::json!({
+        "js": js_obj,
+        "css": css_obj,
+        "warnings": warnings_to_json(&result.warnings),
+        "metadata": { "runes": result.metadata.runes },
+        "ast": Value::Null,
+    })
+}
+
+/// Compile a Svelte component with a dynamic `cssHash` callback.
+///
+/// A `cssHash` function depends on the component's CSS, so it can't be
+/// pre-resolved at the JS boundary like `customElement`/`css`/`runes`.
+/// This async entry bridges the JS callback into the compiler through a
+/// `ThreadsafeFunction`: the compile runs under `block_in_place` on a
+/// libuv worker so the JS thread stays free to service the callback,
+/// which the bridge awaits with `block_on`. Callers that don't pass a
+/// `cssHash` function keep using the sync `compile` path — this entry
+/// adds no overhead there.
+#[napi(js_name = "compileWithCssHash")]
+pub async fn napi_compile_with_css_hash(
+    source: String,
+    options: Option<NapiCompileOptions>,
+    #[napi(
+        ts_arg_type = "(name: string, filename: string, css: string) => Promise<string | null>"
+    )]
+    css_hash: css_hash_bridge::JsCssHashCb,
+) -> napi::Result<Value> {
+    let mut opts = options_to_compile(options);
+    let handle: css_hash_bridge::Handle =
+        std::sync::Arc::new(std::sync::RwLock::new(Some(css_hash)));
+    opts.css_hash = Some(css_hash_bridge::build(std::sync::Arc::clone(&handle)));
+
+    let result = napi::tokio::task::block_in_place(|| rust_compile(&source, opts));
+
+    // Drop the TSFN while V8 handles are still valid (see oxfmt's cleanup note).
+    let _ = handle.write().unwrap().take();
+
+    match result {
+        Ok(r) => Ok(compile_result_to_json(r)),
+        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+    }
+}
+
+mod css_hash_bridge {
+    use napi::Status;
+    use napi::bindgen_prelude::{FnArgs, Promise, block_on};
+    use napi::threadsafe_function::ThreadsafeFunction;
+    use rsvelte_core::compiler::{CssHashFn, CssHashInput};
+    use std::sync::{Arc, RwLock};
+
+    // (name, filename, css) in; the sorted scope-class string (or null) out.
+    // `CalleeHandled = false` so the callback receives the args directly.
+    pub(super) type JsCssHashCb = ThreadsafeFunction<
+        FnArgs<(String, String, String)>,
+        Promise<Option<String>>,
+        FnArgs<(String, String, String)>,
+        Status,
+        false,
+    >;
+
+    pub(super) type Handle = Arc<RwLock<Option<JsCssHashCb>>>;
+
+    pub(super) fn build(handle: Handle) -> CssHashFn {
+        Arc::new(move |input: &CssHashInput| -> String {
+            let guard = handle.read().unwrap();
+            let Some(cb) = guard.as_ref() else {
+                return default_hash(&input.css);
+            };
+            let args = FnArgs::from((
+                input.name.clone(),
+                input.filename.clone(),
+                input.css.clone(),
+            ));
+            let hashed = block_on(async {
+                match cb.call_async(args).await {
+                    Ok(promise) => promise.await.ok().flatten(),
+                    Err(_) => None,
+                }
+            });
+            drop(guard);
+            // JS never rejects (it resolves `null` on error); fall back to the
+            // compiler's default `svelte-<hash(css)>` on a null / internal failure.
+            hashed.unwrap_or_else(|| default_hash(&input.css))
+        })
+    }
+
+    fn default_hash(css: &str) -> String {
+        rsvelte_core::compiler::phases::phase3_transform::css::generate_css_hash(css)
+    }
+}
+
 // =============================================================================
 // Typed compile-options surface (replaces serde_json::Value-driven parsing)
 // =============================================================================
