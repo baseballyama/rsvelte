@@ -750,7 +750,11 @@ fn resolve_js_class_sorter(
 fn js_sort_env() -> Option<tailwind_sidecar::SidecarEnv> {
     let script = tailwind_sidecar_script()?;
     let node = oxfmt_node().unwrap_or_else(|| PathBuf::from("node"));
-    node_runnable(&node).then_some(tailwind_sidecar::SidecarEnv { node, script })
+    node_runnable(&node).then_some(tailwind_sidecar::SidecarEnv {
+        node,
+        script,
+        timeout: tailwind_sidecar::DEFAULT_TIMEOUT,
+    })
 }
 
 /// Whether `node --version` runs — so a missing Node yields a Node-specific
