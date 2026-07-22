@@ -236,14 +236,17 @@ pub fn run(options: &RunOptions) -> RunResult {
     // the workspace root are dropped.
     drop_out_of_workspace_diagnostics(&mut result.diagnostics, &options.workspace);
 
-    apply_filters(&mut result.diagnostics, options);
-
     // Honor `compilerOptions.warningFilter` — a JS predicate the native compiler
-    // can't run — via a one-shot Node sidecar. Applied last, over the fully
-    // resolved warning set, which is equivalent to Svelte's emit-time filter
-    // because it's a pure per-warning predicate (#1666). Zero cost when the
-    // config declares no function `warningFilter`.
+    // can't run — via a one-shot Node sidecar. This is equivalent to Svelte's
+    // emit-time filter because it's a pure per-warning predicate (#1666). It must
+    // run BEFORE `apply_filters`: the official order is filter-then-promote (the
+    // compiler applies `warningFilter` during `compile()`, and svelte-check's
+    // `--compiler-warnings` `ignore`/`error` handling happens afterwards), so a
+    // warning the filter rejects must be gone before a `code:error` override
+    // could promote it. Zero cost when no function `warningFilter` is declared.
     apply_warning_filter(&mut result.diagnostics, options);
+
+    apply_filters(&mut result.diagnostics, options);
 
     result
 }
@@ -258,10 +261,14 @@ fn apply_warning_filter(diagnostics: &mut Vec<Diagnostic>, options: &RunOptions)
         return;
     };
     let Some(env) = super::warning_filter::SidecarEnv::from_env() else {
-        eprintln!(
-            "rsvelte-check: warning: `compilerOptions.warningFilter` is set but could not be \
-             evaluated (no Node sidecar available). All warnings are shown."
-        );
+        // Once per process, so `--watch` doesn't re-print it on every rebuild.
+        static NO_NODE_NOTE: std::sync::Once = std::sync::Once::new();
+        NO_NODE_NOTE.call_once(|| {
+            eprintln!(
+                "rsvelte-check: warning: `compilerOptions.warningFilter` is set but could not be \
+                 evaluated (no Node sidecar available). All warnings are shown."
+            );
+        });
         return;
     };
     super::warning_filter::apply(&env, &config_path, diagnostics);

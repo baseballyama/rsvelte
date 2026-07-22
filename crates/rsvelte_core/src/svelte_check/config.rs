@@ -376,9 +376,11 @@ fn extract_compiler_options(obj: &oxc::ObjectExpression, settings: &mut Compiler
 /// after actually loading the config.
 ///
 /// Only `svelte.config.*` is considered (matching where the official
-/// svelte-check reads `compilerOptions.warningFilter`); a `vite.config.*`
-/// carrying the filter inside a plugin call is not loaded standalone.
-/// Returns `None` when no such file/property is found.
+/// svelte-check reads `compilerOptions.warningFilter`). A `warningFilter` passed
+/// inline to the `svelte()` / `sveltekit()` plugin in `vite.config.*` is
+/// intentionally NOT supported: unlike the scalar options, importing a
+/// `vite.config.*` standalone in the sidecar would drag in the whole Vite plugin
+/// graph. Returns `None` when no such file/property is found.
 pub fn warning_filter_config_path(workspace: &Path, config: Option<&Path>) -> Option<PathBuf> {
     // `--config` wins when it names a Svelte config; a vite.config is not a
     // standalone-importable source of `warningFilter`.

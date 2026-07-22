@@ -68,7 +68,10 @@ async function main() {
 
 	const keep = warnings.map((warning) => {
 		try {
-			return filter(warning) !== false;
+			// Match Svelte's `if (!warning_filter(warning)) return;` — a *truthiness*
+			// test, so any falsy return (`undefined`/`0`/`''`/`null`/`NaN`) drops the
+			// warning, not only a strict `false`.
+			return Boolean(filter(warning));
 		} catch {
 			// A throwing predicate keeps the warning rather than dropping it.
 			return true;

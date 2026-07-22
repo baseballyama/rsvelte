@@ -90,11 +90,15 @@ pub fn apply(env: &SidecarEnv, config_path: &Path, diagnostics: &mut Vec<Diagnos
         .map(|&i| warning_json(&diagnostics[i]))
         .collect();
     let Some(keep) = run_sidecar(env, config_path, &warnings) else {
-        eprintln!(
-            "rsvelte-check: warning: `compilerOptions.warningFilter` left unapplied — the Node \
-             sidecar could not evaluate it (is Node available and the config importable?). All \
-             warnings are shown."
-        );
+        // Once per process, so `--watch` doesn't re-print it on every rebuild.
+        static FAILED_NOTE: std::sync::Once = std::sync::Once::new();
+        FAILED_NOTE.call_once(|| {
+            eprintln!(
+                "rsvelte-check: warning: `compilerOptions.warningFilter` left unapplied — the Node \
+                 sidecar could not evaluate it (is Node available and the config importable?). All \
+                 warnings are shown."
+            );
+        });
         return;
     };
 
@@ -232,25 +236,13 @@ fn node_runnable(node: &Path) -> bool {
         .unwrap_or(false)
 }
 
+// Only the pure, Node-free logic is unit-tested here so the `--lib` test-unit CI
+// job stays runnable without a Node interpreter. The Node-backed `apply()`
+// behaviour (sidecar spawn, timeout, protocol) is covered in the integration
+// suite `tests/svelte_check_warning_filter.rs`, whose CI job installs Node.
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::svelte_check::diagnostic::{Position, Range};
-    use std::sync::atomic::{AtomicU32, Ordering};
-
-    fn warn(code: &str) -> Diagnostic {
-        Diagnostic {
-            file: PathBuf::from("Foo.svelte"),
-            severity: DiagnosticSeverity::Warning,
-            code: Some(code.into()),
-            message: "msg".into(),
-            range: Some(Range {
-                start: Position { line: 1, column: 0 },
-                end: Position { line: 1, column: 4 },
-            }),
-            source: "svelte",
-        }
-    }
 
     #[test]
     fn extract_framed_picks_payload_out_of_noise() {
@@ -266,109 +258,5 @@ mod tests {
     fn extract_framed_absent_marker_is_none() {
         assert_eq!(extract_framed(b"no markers here"), None);
         assert_eq!(extract_framed(RESP_MARKER), None);
-    }
-
-    fn node() -> Option<PathBuf> {
-        let node = PathBuf::from("node");
-        node_runnable(&node).then_some(node)
-    }
-
-    /// Write `body` to a unique temp `.mjs` and build a `SidecarEnv`.
-    fn env_with_script(node: PathBuf, body: &str, timeout: Duration) -> (SidecarEnv, PathBuf) {
-        static N: AtomicU32 = AtomicU32::new(0);
-        let script = std::env::temp_dir().join(format!(
-            "rsvelte-wf-sidecar-test-{}-{}.mjs",
-            std::process::id(),
-            N.fetch_add(1, Ordering::Relaxed)
-        ));
-        std::fs::write(&script, body).unwrap();
-        (
-            SidecarEnv {
-                node,
-                script: script.clone(),
-                timeout,
-            },
-            script,
-        )
-    }
-
-    /// A fake sidecar that keeps warnings whose `code` isn't "drop_me",
-    /// exercising the real framed request/response protocol end-to-end.
-    const FAKE_SIDECAR: &str = r#"
-        const M = '\x00<<rsvelte-warning-filter>>\x00';
-        let data = '';
-        process.stdin.setEncoding('utf8');
-        process.stdin.on('data', (c) => (data += c));
-        process.stdin.on('end', () => {
-            const req = JSON.parse(data);
-            const keep = req.warnings.map((w) => w.code !== 'drop_me');
-            process.stdout.write(M + JSON.stringify({ ok: true, keep }) + M);
-        });
-    "#;
-
-    #[test]
-    fn drops_rejected_warning_keeps_others() {
-        let Some(node) = node() else { return };
-        let (env, script) = env_with_script(node, FAKE_SIDECAR, DEFAULT_TIMEOUT);
-        let mut diags = vec![warn("drop_me"), warn("keep_me")];
-        apply(&env, Path::new("svelte.config.js"), &mut diags);
-        let codes: Vec<_> = diags.iter().map(|d| d.code.clone().unwrap()).collect();
-        assert_eq!(codes, vec!["keep_me".to_string()]);
-        let _ = std::fs::remove_file(script);
-    }
-
-    #[test]
-    fn hung_sidecar_times_out_and_keeps_all() {
-        let Some(node) = node() else { return };
-        let (env, script) = env_with_script(
-            node,
-            "setInterval(() => {}, 1000);",
-            Duration::from_millis(200),
-        );
-        let mut diags = vec![warn("a"), warn("b")];
-        apply(&env, Path::new("svelte.config.js"), &mut diags);
-        assert_eq!(diags.len(), 2, "a timeout must keep every warning");
-        let _ = std::fs::remove_file(script);
-    }
-
-    #[test]
-    fn malformed_response_keeps_all() {
-        let Some(node) = node() else { return };
-        let (env, script) = env_with_script(
-            node,
-            "process.stdout.write('not framed json');",
-            DEFAULT_TIMEOUT,
-        );
-        let mut diags = vec![warn("a")];
-        apply(&env, Path::new("svelte.config.js"), &mut diags);
-        assert_eq!(diags.len(), 1);
-        let _ = std::fs::remove_file(script);
-    }
-
-    #[test]
-    fn non_svelte_and_error_diagnostics_are_untouched() {
-        let Some(node) = node() else { return };
-        // Even a filter that drops everything must not remove errors / ts diags.
-        let sidecar = r#"
-            const M = '\x00<<rsvelte-warning-filter>>\x00';
-            let data = '';
-            process.stdin.setEncoding('utf8');
-            process.stdin.on('data', (c) => (data += c));
-            process.stdin.on('end', () => {
-                const req = JSON.parse(data);
-                process.stdout.write(M + JSON.stringify({ ok: true, keep: req.warnings.map(() => false) }) + M);
-            });
-        "#;
-        let (env, script) = env_with_script(node, sidecar, DEFAULT_TIMEOUT);
-        let mut err = warn("x");
-        err.severity = DiagnosticSeverity::Error;
-        let mut ts = warn("y");
-        ts.source = "ts";
-        let mut diags = vec![warn("droppable"), err, ts];
-        apply(&env, Path::new("svelte.config.js"), &mut diags);
-        // Only the single svelte warning is removed.
-        assert_eq!(diags.len(), 2);
-        assert!(diags.iter().all(|d| d.code.as_deref() != Some("droppable")));
-        let _ = std::fs::remove_file(script);
     }
 }

@@ -14,6 +14,10 @@
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
+use std::time::Duration;
+
+use rsvelte_core::svelte_check::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
+use rsvelte_core::svelte_check::warning_filter::{DEFAULT_TIMEOUT, SidecarEnv, apply};
 
 fn bin() -> &'static str {
     env!("CARGO_BIN_EXE_svelte_check")
@@ -98,6 +102,35 @@ fn function_warning_filter_drops_matching_warning() {
     assert!(
         !stdout.contains("Unused CSS selector"),
         "warningFilter should drop the css_unused_selector warning; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("0 errors and 0 warnings"),
+        "the dropped warning must not be counted; got:\n{stdout}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn falsy_non_false_return_drops_warning() {
+    if !node_available() {
+        return;
+    }
+    // Svelte uses a truthiness test (`if (!warning_filter(w)) return;`), so a
+    // predicate returning `undefined` (falsy, but not strictly `false`) must
+    // drop the warning — not keep it.
+    let dir = workspace("falsy");
+    write(&dir, "Warn.svelte", WARN_ONLY);
+    write(
+        &dir,
+        "svelte.config.js",
+        "export default { compilerOptions: { warningFilter: (w) => (w.code === 'css_unused_selector' ? undefined : true) } };",
+    );
+
+    let out = run_with_sidecar(&dir, &["--no-type-check"]);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        !stdout.contains("Unused CSS selector"),
+        "a falsy (undefined) return must drop the warning; got:\n{stdout}"
     );
     assert!(
         stdout.contains("0 errors and 0 warnings"),
@@ -202,4 +235,169 @@ fn broken_config_fails_open() {
         "a config that fails to import must fail open; got:\n{stdout}"
     );
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn warning_filter_wins_over_compiler_warnings_error_promotion() {
+    if !node_available() {
+        return;
+    }
+    // A warning the filter rejects must be *gone* before `--compiler-warnings
+    // code:error` could promote it — matching the official filter-then-promote
+    // order. Without the fix the rejected warning would surface as an ERROR and
+    // flip the exit code.
+    let dir = workspace("filter_then_promote");
+    write(&dir, "Warn.svelte", WARN_ONLY);
+    write(
+        &dir,
+        "svelte.config.js",
+        "export default { compilerOptions: { warningFilter: (w) => w.code !== 'css_unused_selector' } };",
+    );
+
+    let out = run_with_sidecar(
+        &dir,
+        &[
+            "--no-type-check",
+            "--compiler-warnings",
+            "css_unused_selector:error",
+        ],
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        !stdout.contains("Unused CSS selector"),
+        "a filtered warning must not be promoted to an error; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("0 errors and 0 warnings"),
+        "the filtered warning must not be counted as an error; got:\n{stdout}"
+    );
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "a filtered-away warning must not flip the exit code via error promotion"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ── `warning_filter::apply()` protocol coverage ─────────────────────────────
+// These drive the Rust sidecar runner directly against fake Node scripts, so
+// they need a Node interpreter — hence they live in this integration suite (its
+// CI job installs Node) rather than in the `--lib` unit tests.
+
+fn node_bin() -> Option<PathBuf> {
+    node_available().then(|| PathBuf::from("node"))
+}
+
+fn warn(code: &str) -> Diagnostic {
+    Diagnostic {
+        file: PathBuf::from("Foo.svelte"),
+        severity: DiagnosticSeverity::Warning,
+        code: Some(code.into()),
+        message: "msg".into(),
+        range: Some(Range {
+            start: Position { line: 1, column: 0 },
+            end: Position { line: 1, column: 4 },
+        }),
+        source: "svelte",
+    }
+}
+
+/// Write `body` to a unique temp `.mjs` and build a `SidecarEnv` around it.
+fn env_with_script(node: PathBuf, body: &str, timeout: Duration) -> (SidecarEnv, PathBuf) {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    static N: AtomicU32 = AtomicU32::new(0);
+    let script = std::env::temp_dir().join(format!(
+        "rsvelte-wf-sidecar-test-{}-{}.mjs",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    ));
+    std::fs::write(&script, body).unwrap();
+    (
+        SidecarEnv {
+            node,
+            script: script.clone(),
+            timeout,
+        },
+        script,
+    )
+}
+
+/// A fake sidecar that keeps warnings whose `code` isn't "drop_me",
+/// exercising the real framed request/response protocol end-to-end.
+const FAKE_SIDECAR: &str = r#"
+    const M = '\x00<<rsvelte-warning-filter>>\x00';
+    let data = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', (c) => (data += c));
+    process.stdin.on('end', () => {
+        const req = JSON.parse(data);
+        const keep = req.warnings.map((w) => w.code !== 'drop_me');
+        process.stdout.write(M + JSON.stringify({ ok: true, keep }) + M);
+    });
+"#;
+
+#[test]
+fn apply_drops_rejected_warning_keeps_others() {
+    let Some(node) = node_bin() else { return };
+    let (env, script) = env_with_script(node, FAKE_SIDECAR, DEFAULT_TIMEOUT);
+    let mut diags = vec![warn("drop_me"), warn("keep_me")];
+    apply(&env, Path::new("svelte.config.js"), &mut diags);
+    let codes: Vec<_> = diags.iter().map(|d| d.code.clone().unwrap()).collect();
+    assert_eq!(codes, vec!["keep_me".to_string()]);
+    let _ = std::fs::remove_file(script);
+}
+
+#[test]
+fn apply_hung_sidecar_times_out_and_keeps_all() {
+    let Some(node) = node_bin() else { return };
+    let (env, script) = env_with_script(
+        node,
+        "setInterval(() => {}, 1000);",
+        Duration::from_millis(200),
+    );
+    let mut diags = vec![warn("a"), warn("b")];
+    apply(&env, Path::new("svelte.config.js"), &mut diags);
+    assert_eq!(diags.len(), 2, "a timeout must keep every warning");
+    let _ = std::fs::remove_file(script);
+}
+
+#[test]
+fn apply_malformed_response_keeps_all() {
+    let Some(node) = node_bin() else { return };
+    let (env, script) = env_with_script(
+        node,
+        "process.stdout.write('not framed json');",
+        DEFAULT_TIMEOUT,
+    );
+    let mut diags = vec![warn("a")];
+    apply(&env, Path::new("svelte.config.js"), &mut diags);
+    assert_eq!(diags.len(), 1);
+    let _ = std::fs::remove_file(script);
+}
+
+#[test]
+fn apply_leaves_non_svelte_and_error_diagnostics_untouched() {
+    let Some(node) = node_bin() else { return };
+    // Even a filter that drops everything must not remove errors / ts diags.
+    let sidecar = r#"
+        const M = '\x00<<rsvelte-warning-filter>>\x00';
+        let data = '';
+        process.stdin.setEncoding('utf8');
+        process.stdin.on('data', (c) => (data += c));
+        process.stdin.on('end', () => {
+            const req = JSON.parse(data);
+            process.stdout.write(M + JSON.stringify({ ok: true, keep: req.warnings.map(() => false) }) + M);
+        });
+    "#;
+    let (env, script) = env_with_script(node, sidecar, DEFAULT_TIMEOUT);
+    let mut err = warn("x");
+    err.severity = DiagnosticSeverity::Error;
+    let mut ts = warn("y");
+    ts.source = "ts";
+    let mut diags = vec![warn("droppable"), err, ts];
+    apply(&env, Path::new("svelte.config.js"), &mut diags);
+    // Only the single svelte warning is removed.
+    assert_eq!(diags.len(), 2);
+    assert!(diags.iter().all(|d| d.code.as_deref() != Some("droppable")));
+    let _ = std::fs::remove_file(script);
 }
