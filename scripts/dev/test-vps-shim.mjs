@@ -124,5 +124,61 @@ assert(
 	`${decodedAst?.type} vs ${parsedAst?.type}`,
 );
 
+// 8. Lenient compiler options — `runes` accepts any JS value (mirroring the
+//    upstream `parametric` validator, so tooling passing `null`/`undefined`/a
+//    number never crashes the compile), and a wrong-typed option is rejected
+//    with the upstream "Invalid compiler option" message rather than a raw
+//    N-API "Failed to convert napi value" error.
+const runesSrc = '<h1>{name}</h1>';
+for (const [runes, expected] of [
+	[true, true],
+	[false, false],
+	[1, true],
+	['true', true],
+	[null, false],
+	[undefined, false],
+]) {
+	let ok = true;
+	let meta;
+	try {
+		meta = r.compile(runesSrc, { filename: 'A.svelte', generate: 'client', runes })?.metadata
+			?.runes;
+	} catch {
+		ok = false;
+	}
+	assert(
+		`compile() accepts runes=${JSON.stringify(runes)} (runes mode ${expected})`,
+		ok && meta === expected,
+		`ok=${ok} meta=${JSON.stringify(meta)}`,
+	);
+}
+
+function compileError(options) {
+	try {
+		r.compile('<h1>x</h1>', { filename: 'A.svelte', generate: 'client', ...options });
+		return null;
+	} catch (e) {
+		return e.message;
+	}
+}
+for (const [label, options, needle] of [
+	['dev', { dev: 1 }, 'dev should be true or false'],
+	['namespace', { namespace: 2 }, 'namespace should be one of'],
+	['css', { css: 3 }, 'css should be either'],
+	['experimental.async', { experimental: { async: 1 } }, 'experimental.async should be true or false'],
+	[
+		'compatibility.componentApi',
+		{ compatibility: { componentApi: '4' } },
+		'componentApi should be either',
+	],
+]) {
+	const msg = compileError(options);
+	assert(
+		`compile() rejects invalid ${label} with the upstream message`,
+		msg != null && msg.startsWith('Invalid compiler option') && msg.includes(needle),
+		msg,
+	);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
