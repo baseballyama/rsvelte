@@ -4974,7 +4974,13 @@ fn node_to_child(
         // together and only the inter-item spaces break. (Mapping to `Child::Inline`
         // — a `group([line, …])` — broke `label:` from `{value}`; verified against
         // prettier's own `printDocToString` that the bare-atom structure matches.)
-        TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_) => {
+        // `{@render …}` is likewise a bare mustache atom in prettier-plugin-svelte
+        // (a RenderTag is not a `RegularElement`, so `isInlineElement` is false and
+        // it goes through `printChildren`'s `else` branch, pushed bare). Treating it
+        // like an expression tag lets an element run containing `{@render}` (e.g. a
+        // `<title>{@render title()}</title>` inside an `{#if}`) be claimed by the
+        // port instead of bailing to the approximate legacy layout.
+        TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_) | TemplateNode::RenderTag(_) => {
             let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
             if span.contains('\n') {
                 return None;
@@ -5274,10 +5280,26 @@ fn try_children_port(
     let block_run = has_any_text
         && fragment.nodes.iter().all(|n| match n {
             TemplateNode::Text(t) => t.data.split_whitespace().next().is_none(),
-            TemplateNode::IfBlock(_) => true,
+            // Bare atoms that `node_to_child` converts and that print one-per-line
+            // in a whitespace-separated block run (e.g. an `<svg>` body holding an
+            // `{#if}` next to a `{@render children()}`).
+            TemplateNode::IfBlock(_) | TemplateNode::RenderTag(_) => true,
             _ => false,
         });
     if !has_non_text || (!has_prose_word && ((has_any_text && !block_run) || in_pre_content())) {
+        return None;
+    }
+    // A `{@render …}` inside PROSE (mixed with text words) needs the fill path's
+    // breakable-call-arg treatment; the port renders it as a verbatim single-line
+    // atom, which would leave an overflowing render call unbroken. Leave those to
+    // `try_fill_mixed`. In a block run (no prose word) the render tag prints on its
+    // own line, so the port owns it.
+    if has_prose_word
+        && fragment
+            .nodes
+            .iter()
+            .any(|n| matches!(n, TemplateNode::RenderTag(_)))
+    {
         return None;
     }
 

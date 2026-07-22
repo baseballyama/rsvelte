@@ -382,3 +382,17 @@ fn void_element_stays_flat_when_it_fits() {
     let expected = "<div>\n  Short line.<br />\n  Next.\n</div>";
     assert_eq!(out, expected, "fitting void <br /> stays flat:\n{out}");
 }
+
+#[test]
+fn else_if_branch_dangles_the_first_title_close() {
+    // `{#if}<title>{@render title()}</title>{:else if}<title>…</title>{/if}` inside
+    // an `<svg>` (with a sibling `{@render children()}` making the body a block
+    // run): the first `<title>`'s close `>` dangles because its group, measured
+    // with the trailing `{:else if}` branch, overflows — the port must claim the
+    // `<svg>` (RenderTag support + block-run gate) instead of bailing to the
+    // legacy layout that wrongly wraps at the second title.
+    let src = "<svg>\n  {#if typeof title === \"function\"}<title>{@render title()}</title>{:else if titleText}<title>{titleText}</title>{/if}\n  {@render children?.()}\n</svg>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<svg>\n  {#if typeof title === \"function\"}<title>{@render title()}</title\n    >{:else if titleText}<title>{titleText}</title>{/if}\n  {@render children?.()}\n</svg>";
+    assert_eq!(out, expected, "first title close must dangle:\n{out}");
+}
