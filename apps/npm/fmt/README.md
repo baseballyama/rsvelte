@@ -161,6 +161,17 @@ selects the sorter:
 With the default `auto`, an existing oxfmt `sortTailwindcss` config works
 unchanged.
 
+Notes:
+
+- Under `auto`, the choice between native and JS relies on a heuristic that
+  detects a stock stylesheet. If it ever misclassifies your setup, set
+  `strategy: "js"` to force the exact oxfmt oracle for every file.
+- The Node sidecar path bundles `prettier-plugin-tailwindcss` as a dependency of
+  `@rsvelte/fmt` (a few MB), installed for all users even if they never enable
+  `sortTailwindcss`. Because it is a Prettier plugin, some package managers may
+  print a Prettier peer-dependency warning at install time; it is harmless —
+  `rsvelte-fmt` uses only the plugin's sorter API, not Prettier itself.
+
 ## CLI flags
 
 | Flag | Default | Effect |
