@@ -240,7 +240,11 @@ async function compileSvelte(options, { filename, code }, statsCollection) {
 			}
 		: compileOptions;
 	const endStat = statsCollection?.start(filename);
-	const compiled = svelte.compile(finalCode, finalCompileOptions);
+	// A dynamic cssHash function only works through the async callback bridge.
+	const compiled =
+		typeof finalCompileOptions.cssHash === 'function'
+			? await svelte.compileAsync(finalCode, finalCompileOptions)
+			: svelte.compile(finalCode, finalCompileOptions);
 	if (endStat) {
 		endStat();
 	}
