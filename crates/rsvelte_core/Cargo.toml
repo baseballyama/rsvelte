@@ -31,7 +31,7 @@ pprof = ["dep:pprof"]
 # `wasm` exports this crate's own `#[wasm_bindgen]` surface (the `wasm`
 # module — `parse_svelte`, `compile_client`, `svelte2tsx`, …) and is what
 # `pkg/` is built with.
-wasm = ["wasm-deps"]
+wasm = ["wasm-deps", "dep:js-sys"]
 # `wasm-deps` pulls only the wasm-bindgen toolchain + the wasm `getrandom`
 # backend, *without* enabling the `wasm` bindings module. Downstream wasm
 # crates (e.g. `rsvelte_fmt_wasm`) depend on `rsvelte_core` with this
@@ -118,6 +118,9 @@ chrono = "0.4"
 
 # WASM support (optional)
 wasm-bindgen = { version = "0.2", optional = true }
+# wasm-only: reading JS option objects and bridging JS callbacks (`cssHash`,
+# `warningFilter`) for the compiler's function-form compile options.
+js-sys = { version = "0.3", optional = true }
 console_error_panic_hook = { version = "0.1", optional = true }
 getrandom = { version = "0.4", optional = true }
 lazy_static = "1.5.0"

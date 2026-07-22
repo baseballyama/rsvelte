@@ -2369,3 +2369,177 @@ fn sort_tailwindcss_js_plugin_unresolvable_falls_back() {
         "expected a fallback warning:\n{stderr}"
     );
 }
+
+// ─── sortTailwindcss functions (cn()/cva() call arguments) ─────────────────
+
+/// `functions` sorts Tailwind classes inside a configured wrapper call in a
+/// `<script>` body and in a `class={…}` mustache, on the native default-config
+/// path (no Node needed). An unmatched function, a `class:` directive, and a
+/// standalone `{expr}` are left untouched.
+#[test]
+fn sort_tailwindcss_functions_native() {
+    let dir = tempdir();
+    std::fs::write(dir.join("app.css"), "@import \"tailwindcss\";\n").unwrap();
+    let cfg = dir.join(".oxfmtrc.json");
+    std::fs::write(
+        &cfg,
+        r#"{ "sortTailwindcss": { "stylesheet": "./app.css", "functions": ["cn"] } }"#,
+    )
+    .unwrap();
+
+    let src = "<script>\n  const a = cn(\"p-4 m-2 flex\");\n  const b = notcn(\"p-4 m-2 flex\");\n</script>\n\n<div class={cn(\"p-4 m-2 flex\")}></div>\n<div class:foo={cn(\"p-4 m-2 flex\")}></div>\n<p>{cn(\"p-4 m-2 flex\")}</p>\n";
+    let (stdout, stderr, code) = run_stdin(
+        src,
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            dir.join("x.svelte").to_str().unwrap(),
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "stderr: {stderr}");
+    assert!(!stderr.contains("warning"), "unexpected warning:\n{stderr}");
+    // Matched call in the script and in the class mustache are sorted.
+    assert!(
+        stdout.contains("const a = cn(\"m-2 flex p-4\");"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("class={cn(\"m-2 flex p-4\")}"), "{stdout}");
+    // Unmatched call, `class:` directive, and standalone `{expr}` are untouched.
+    assert!(
+        stdout.contains("const b = notcn(\"p-4 m-2 flex\");"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("class:foo={cn(\"p-4 m-2 flex\")}"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("<p>{cn(\"p-4 m-2 flex\")}</p>"), "{stdout}");
+}
+
+/// Without `functions`, a `<script>` `cn(...)` call is left alone, but a
+/// `class={…}` mustache is still sorted (the mustache sort is not
+/// function-gated — it mirrors oxfmt's `transformSvelte`).
+#[test]
+fn sort_tailwindcss_no_functions_leaves_script_calls() {
+    let dir = tempdir();
+    std::fs::write(dir.join("app.css"), "@import \"tailwindcss\";\n").unwrap();
+    let cfg = dir.join(".oxfmtrc.json");
+    std::fs::write(
+        &cfg,
+        r#"{ "sortTailwindcss": { "stylesheet": "./app.css" } }"#,
+    )
+    .unwrap();
+
+    let src = "<script>\n  const a = cn(\"p-4 m-2 flex\");\n</script>\n\n<div class={cn(\"p-4 m-2 flex\")}></div>\n";
+    let (stdout, stderr, code) = run_stdin(
+        src,
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            dir.join("x.svelte").to_str().unwrap(),
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "stderr: {stderr}");
+    assert!(
+        stdout.contains("const a = cn(\"p-4 m-2 flex\");"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("class={cn(\"m-2 flex p-4\")}"), "{stdout}");
+}
+
+/// A parity oracle that lets the caller supply the full `sortTailwindcss` config
+/// (so `functions` can be injected), unlike `oxfmt_oracle`.
+#[cfg(unix)]
+fn oxfmt_oracle_cfg(dir: &Path, oxfmt: &Path, svelte_src: &str, sort_cfg: &str) -> String {
+    let file = dir.join("src/Oracle.svelte");
+    std::fs::write(&file, svelte_src).unwrap();
+    let cfg = dir.join("oxfmt.oracle.json");
+    std::fs::write(
+        &cfg,
+        format!(r#"{{ "svelte": true, "sortTailwindcss": {sort_cfg} }}"#),
+    )
+    .unwrap();
+    let status = Command::new(oxfmt)
+        .current_dir(dir)
+        .args([
+            "--write",
+            "--config",
+            cfg.to_str().unwrap(),
+            file.to_str().unwrap(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success(), "oxfmt oracle failed");
+    std::fs::read_to_string(&file).unwrap()
+}
+
+/// `functions` on the native default-config path is byte-identical to the oxfmt
+/// oracle, for both a `<script>` call and a `class={…}` mustache.
+#[cfg(unix)]
+#[test]
+fn sort_tailwindcss_functions_native_matches_oxfmt() {
+    let Some((dir, _sidecar, oxfmt)) = tw_fixture("@import \"tailwindcss\";\n") else {
+        eprintln!("[tw-js] no Tailwind env / oxfmt; skipping.");
+        return;
+    };
+    let svelte_src = "<script>\n  const a = cn(\"text-lg p-8 m-4\");\n  const b = cn(`text-lg p-8 m-4 ${x}`);\n  const c = cn(`text-lg p-8 m-4${x}flex m-2 p-4`);\n</script>\n\n<div class={cn(\"text-lg p-8 m-4\")}></div>\n<div class={`text-lg p-8 m-4 ${x} flex m-2 p-4`}></div>\n<p>{cn(\"text-lg p-8 m-4\")}</p>\n";
+    let sort_cfg = r#"{ "stylesheet": "./src/app.css", "functions": ["cn"] }"#;
+    let oracle = oxfmt_oracle_cfg(&dir, &oxfmt, svelte_src, sort_cfg);
+
+    let cfg = dir.join("rsvelte.oxfmtrc.json");
+    std::fs::write(&cfg, format!(r#"{{ "sortTailwindcss": {sort_cfg} }}"#)).unwrap();
+    let (stdout, stderr, code) = run_stdin_in(
+        svelte_src,
+        &dir,
+        &[],
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            dir.join("src/Foo.svelte").to_str().unwrap(),
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "stderr: {stderr}");
+    assert!(!stderr.contains("warning"), "unexpected warning:\n{stderr}");
+    assert_eq!(stdout, oracle, "must match the oxfmt oracle byte-for-byte");
+}
+
+/// `functions` through the JS sidecar (a custom `@theme`/`@utility` config) is
+/// byte-identical to the oxfmt oracle in a `<script>` call and a mustache.
+#[cfg(unix)]
+#[test]
+fn sort_tailwindcss_functions_js_matches_oxfmt() {
+    let css = "@import \"tailwindcss\";\n@theme {\n  --color-brand: #1a2b3c;\n}\n@utility tab-4 {\n  tab-size: 4;\n}\n";
+    let Some((dir, sidecar, oxfmt)) = tw_fixture(css) else {
+        eprintln!("[tw-js] no Tailwind env / oxfmt; skipping.");
+        return;
+    };
+    let svelte_src = "<script>\n  const a = cn(\"text-brand p-4 tab-4 flex m-2\");\n  const b = cn(`text-brand p-4 tab-4 ${x} flex m-2`);\n</script>\n\n<div class={cn(\"text-brand p-4 tab-4 flex m-2\")}></div>\n<div class={`text-brand p-4 tab-4 ${x} flex m-2`}></div>\n";
+    let sort_cfg = r#"{ "stylesheet": "./src/app.css", "functions": ["cn"] }"#;
+    let oracle = oxfmt_oracle_cfg(&dir, &oxfmt, svelte_src, sort_cfg);
+
+    let cfg = dir.join("rsvelte.oxfmtrc.json");
+    std::fs::write(&cfg, format!(r#"{{ "sortTailwindcss": {sort_cfg} }}"#)).unwrap();
+    let (stdout, stderr, code) = run_stdin_in(
+        svelte_src,
+        &dir,
+        &[("RSVELTE_FMT_TAILWIND_SIDECAR", sidecar.as_path())],
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            dir.join("src/Foo.svelte").to_str().unwrap(),
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "stderr: {stderr}");
+    assert!(!stderr.contains("warning"), "unexpected warning:\n{stderr}");
+    assert_eq!(stdout, oracle, "must match the oxfmt oracle byte-for-byte");
+}

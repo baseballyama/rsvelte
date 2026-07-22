@@ -403,6 +403,9 @@ pub enum JsNode {
         body: Option<JsNodeId>,
         generator: bool,
         r#async: bool,
+        // Always `false`: acorn only ever sets `expression: true` on arrow function
+        // bodies without a block; declarations always have a block body.
+        expression: bool,
     },
     ClassDeclaration {
         start: u32,
@@ -1497,6 +1500,7 @@ impl Serialize for JsNode {
                 body,
                 generator,
                 r#async,
+                expression,
             } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "FunctionDeclaration")?;
@@ -1504,6 +1508,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_opt_node!(map, "id", id);
+                map.serialize_entry("expression", expression)?;
                 map.serialize_entry("generator", generator)?;
                 map.serialize_entry("async", r#async)?;
                 ser_children!(map, "params", params);
@@ -2653,6 +2658,7 @@ impl JsNode {
                         body: convert_optional_child(obj, "body"),
                         generator: get_bool(obj, "generator"),
                         r#async: get_bool(obj, "async"),
+                        expression: get_bool(obj, "expression"),
                     },
                     "ClassDeclaration" => JsNode::ClassDeclaration {
                         start,

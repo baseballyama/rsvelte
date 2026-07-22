@@ -27,7 +27,7 @@
 //! to defaults. This matches the existing `load_kit_files_settings`
 //! contract in `kit_file.rs`.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast as oxc;
@@ -364,6 +364,94 @@ fn extract_compiler_options(obj: &oxc::ObjectExpression, settings: &mut Compiler
     }
 }
 
+/// Locate the Svelte config file (`svelte.config.*`, or the `--config`
+/// path when it names a Svelte config) whose `compilerOptions` statically
+/// declares a **function** `warningFilter`.
+///
+/// `warningFilter` is a JS predicate the native compiler can't evaluate, so
+/// the CLI hands this file to a Node sidecar that imports it and applies the
+/// real function to the collected warnings. This is a cheap static probe —
+/// it only confirms a function-shaped `warningFilter` is present so a project
+/// without one never spawns Node; the sidecar re-checks `typeof === 'function'`
+/// after actually loading the config.
+///
+/// Only `svelte.config.*` is considered (matching where the official
+/// svelte-check reads `compilerOptions.warningFilter`). A `warningFilter` passed
+/// inline to the `svelte()` / `sveltekit()` plugin in `vite.config.*` is
+/// intentionally NOT supported: unlike the scalar options, importing a
+/// `vite.config.*` standalone in the sidecar would drag in the whole Vite plugin
+/// graph. Returns `None` when no such file/property is found.
+pub fn warning_filter_config_path(workspace: &Path, config: Option<&Path>) -> Option<PathBuf> {
+    // `--config` wins when it names a Svelte config; a vite.config is not a
+    // standalone-importable source of `warningFilter`.
+    if let Some(path) = config {
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
+        if name.starts_with("vite.config") {
+            return None;
+        }
+        return declares_function_warning_filter(path).then(|| path.to_path_buf());
+    }
+    for name in SVELTE_CONFIG_CANDIDATES {
+        let candidate = workspace.join(name);
+        if candidate.is_file() && declares_function_warning_filter(&candidate) {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
+/// Whether `path`'s exported config object has a `compilerOptions.warningFilter`
+/// whose value is statically function-shaped (an arrow/function expression, or
+/// a reference like an identifier / call / member that could resolve to one).
+fn declares_function_warning_filter(path: &Path) -> bool {
+    let Ok(source) = std::fs::read_to_string(path) else {
+        return false;
+    };
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default();
+    let is_ts = name.ends_with(".ts") || name.ends_with(".mts") || name.ends_with(".cts");
+    let source_type = if is_ts {
+        SourceType::ts()
+    } else {
+        SourceType::default()
+    };
+    let allocator = Allocator::default();
+    let parser = OxcParser::new(&allocator, &source, source_type);
+    let result = parser.parse();
+    result.program.body.iter().any(|stmt| {
+        config_object_from_stmt(stmt)
+            .and_then(|obj| lookup_property(obj, "compilerOptions"))
+            .and_then(|co| match co {
+                oxc::Expression::ObjectExpression(co) => lookup_property(co, "warningFilter"),
+                _ => None,
+            })
+            .is_some_and(is_function_shaped)
+    })
+}
+
+/// Conservatively classify an expression as "could be a function". Literal
+/// non-functions (a boolean, a plain object, …) are excluded so they never
+/// trigger a needless Node spawn; anything referential is accepted and the
+/// sidecar makes the final `typeof` call.
+fn is_function_shaped(expr: &oxc::Expression) -> bool {
+    matches!(
+        expr,
+        oxc::Expression::ArrowFunctionExpression(_)
+            | oxc::Expression::FunctionExpression(_)
+            | oxc::Expression::Identifier(_)
+            | oxc::Expression::CallExpression(_)
+            | oxc::Expression::StaticMemberExpression(_)
+            | oxc::Expression::ComputedMemberExpression(_)
+            | oxc::Expression::ParenthesizedExpression(_)
+            | oxc::Expression::ConditionalExpression(_)
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -637,6 +725,72 @@ mod tests {
         );
         let s = load_compiler_options(&dir);
         assert!(s.experimental_async);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn detects_function_warning_filter_in_svelte_config() {
+        let dir = workspace("wf_present");
+        write(
+            &dir,
+            "svelte.config.js",
+            "export default { compilerOptions: { warningFilter: (w) => w.code !== 'a11y_x' } };",
+        );
+        assert_eq!(
+            warning_filter_config_path(&dir, None),
+            Some(dir.join("svelte.config.js"))
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn detects_identifier_warning_filter() {
+        let dir = workspace("wf_ident");
+        write(
+            &dir,
+            "svelte.config.js",
+            "import { filter } from './f.js';\nexport default { compilerOptions: { warningFilter: filter } };",
+        );
+        assert_eq!(
+            warning_filter_config_path(&dir, None),
+            Some(dir.join("svelte.config.js"))
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn no_warning_filter_returns_none() {
+        let dir = workspace("wf_absent");
+        write(
+            &dir,
+            "svelte.config.js",
+            "export default { compilerOptions: { runes: true } };",
+        );
+        assert_eq!(warning_filter_config_path(&dir, None), None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn non_function_warning_filter_ignored() {
+        // A misconfigured non-function value must not trigger a Node spawn.
+        let dir = workspace("wf_nonfn");
+        write(
+            &dir,
+            "svelte.config.js",
+            "export default { compilerOptions: { warningFilter: true } };",
+        );
+        assert_eq!(warning_filter_config_path(&dir, None), None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn vite_config_is_not_a_warning_filter_source() {
+        let dir = workspace("wf_vite");
+        write(&dir, "vite.config.ts", "export default { plugins: [] };");
+        assert_eq!(
+            warning_filter_config_path(&dir, Some(&dir.join("vite.config.ts"))),
+            None
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 

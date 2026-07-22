@@ -3693,6 +3693,25 @@ fn try_break_pre_own_attrs(
     if column + whole.width() <= line_width {
         return None;
     }
+    // Prefer breaking a child element's open tag over the `<pre>`'s own attrs:
+    // prettier keeps `<pre class="…">` glued and dangles the inner `<code
+    // class="…">`'s `>` (handled by case 3). Defer whenever a direct child
+    // element has a single-line open tag with attributes to break.
+    let has_breakable_child = fragment.nodes.iter().any(|n| {
+        let (cs, cfrag) = match n {
+            TemplateNode::RegularElement(el) => (el.start as usize, &el.fragment),
+            TemplateNode::Component(c) => (c.start as usize, &c.fragment),
+            _ => return false,
+        };
+        let Some(child_open_end) = cfrag.nodes.first().map(|f| node_start(f) as usize) else {
+            return false;
+        };
+        out.get(cs..child_open_end)
+            .is_some_and(|open| !open.contains('\n') && open.contains(' ') && open.ends_with('>'))
+    });
+    if has_breakable_child {
+        return None;
+    }
     // Find the open tag end (position right after `>` of the opening tag).
     let open_end = node_start(fragment.nodes.first()?) as usize;
     let open = out.get(s..open_end)?;
@@ -3889,8 +3908,13 @@ fn try_fix_pre_child_open_tags(
                 .find('\n')
                 .map_or(out.len(), |i| open_end + i);
             let line = &out[line_start..line_nl];
-            if line.width() <= line_width {
-                continue; // fits on one line — no action needed
+            // Prettier dangles a `<pre>` child's open `>` when the child spans
+            // multiple lines (its content has a newline) OR the glued open-tag
+            // line overflows — a short single-line child (`<code class="x">y</code>`)
+            // stays glued.
+            let content_multiline = out.get(open_end..ce).is_some_and(|c| c.contains('\n'));
+            if line.width() <= line_width && !content_multiline {
+                continue; // fits on one line and single-line content — no action
             }
             // Drop `>` to a new indented line.  The indent sits two levels
             // deeper than `<pre>`'s own indent (one for the child element, one
@@ -3929,9 +3953,17 @@ fn try_fix_pre_child_open_tags(
                 // The line before `>` must consist entirely of spaces (the
                 // indent for the non-hug `>` placement). `open_tag_only` ends
                 // with `>` (guarded above), so strip it.
-                if after_last_nl
-                    .strip_suffix('>')
-                    .is_some_and(|s| s.bytes().all(|b| b == b' '))
+                // Re-hug the `>` to the last attribute only when the attributes
+                // themselves are broken across lines (the `<code` opener is alone
+                // on the first line). When the attrs all sit on the opener line and
+                // only the `>` was dropped (`<code class="…"\n    >`), prettier keeps
+                // the `>` dangling — the short-open, multi-line-content shape — so
+                // leave it alone.
+                let attrs_multiline = open_tag_only[..last_nl].contains('\n');
+                if attrs_multiline
+                    && after_last_nl
+                        .strip_suffix('>')
+                        .is_some_and(|s| s.bytes().all(|b| b == b' '))
                 {
                     // Move `>` to hug the last attribute line (remove the
                     // `\n{spaces}` before `>`). Keep the whitespace between
@@ -4979,7 +5011,13 @@ fn node_to_child(
         // together and only the inter-item spaces break. (Mapping to `Child::Inline`
         // — a `group([line, …])` — broke `label:` from `{value}`; verified against
         // prettier's own `printDocToString` that the bare-atom structure matches.)
-        TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_) => {
+        // `{@render …}` is likewise a bare mustache atom in prettier-plugin-svelte
+        // (a RenderTag is not a `RegularElement`, so `isInlineElement` is false and
+        // it goes through `printChildren`'s `else` branch, pushed bare). Treating it
+        // like an expression tag lets an element run containing `{@render}` (e.g. a
+        // `<title>{@render title()}</title>` inside an `{#if}`) be claimed by the
+        // port instead of bailing to the approximate legacy layout.
+        TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_) | TemplateNode::RenderTag(_) => {
             let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
             if span.contains('\n') {
                 return None;
@@ -5281,10 +5319,26 @@ fn try_children_port(
     let block_run = has_any_text
         && fragment.nodes.iter().all(|n| match n {
             TemplateNode::Text(t) => t.data.split_whitespace().next().is_none(),
-            TemplateNode::IfBlock(_) => true,
+            // Bare atoms that `node_to_child` converts and that print one-per-line
+            // in a whitespace-separated block run (e.g. an `<svg>` body holding an
+            // `{#if}` next to a `{@render children()}`).
+            TemplateNode::IfBlock(_) | TemplateNode::RenderTag(_) => true,
             _ => false,
         });
     if !has_non_text || (!has_prose_word && ((has_any_text && !block_run) || in_pre_content())) {
+        return None;
+    }
+    // A `{@render …}` inside PROSE (mixed with text words) needs the fill path's
+    // breakable-call-arg treatment; the port renders it as a verbatim single-line
+    // atom, which would leave an overflowing render call unbroken. Leave those to
+    // `try_fill_mixed`. In a block run (no prose word) the render tag prints on its
+    // own line, so the port owns it.
+    if has_prose_word
+        && fragment
+            .nodes
+            .iter()
+            .any(|n| matches!(n, TemplateNode::RenderTag(_)))
+    {
         return None;
     }
 

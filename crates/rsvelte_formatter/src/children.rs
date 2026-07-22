@@ -429,8 +429,9 @@ fn bracket_same_line() -> bool {
 /// Build the Doc for a regular element, porting the element case of
 /// prettier-plugin-svelte's `print` (the `shouldHugStart`/`shouldHugEnd`
 /// four-case assembly). Assumes the corpus oracle config: a supported language
-/// and not `<pre>`-content (so `canOmitSoftlineBeforeClosingTag` is always
-/// false). `bracketSameLine` is honoured via [`bracket_same_line`].
+/// and not `<pre>`-content. `bracketSameLine` is honoured via
+/// [`bracket_same_line`], and `canOmitSoftlineBeforeClosingTag` via
+/// `can_omit_softline`.
 pub(crate) fn build_element_doc(el: ElementLayout) -> Doc {
     let ElementLayout {
         name,
@@ -442,25 +443,23 @@ pub(crate) fn build_element_doc(el: ElementLayout) -> Doc {
     } = el;
 
     let bracket_same_line = bracket_same_line();
-    // prettier's `isEmpty = children.every(isEmptyTextNode)` counts whitespace-only
-    // text children as empty. rsvelte's earlier passes can leave a whitespace-only
-    // text child inside a source-empty element (e.g. a wrapped-open-tag empty
-    // `<span>`), which must still be treated as empty so it takes the hug layout.
-    // Gated to `bracketSameLine`: the default path keeps the stricter truly-empty
-    // test to avoid disturbing the validated `bracketSameLine = false` corpus.
-    let is_empty = if bracket_same_line {
-        children
-            .iter()
-            .all(|c| matches!(c.text(), Some(t) if is_only_ws(t)))
+    // Whitespace-only children count as empty (prettier's `isEmpty`): a
+    // whitespace-only inline body prints as a single `line` (`<i> </i>`), a
+    // block one collapses away — either way it is NOT the two-sided separator
+    // layout that a real body takes.
+    let is_empty = children
+        .iter()
+        .all(|c| matches!(c.text(), Some(t) if is_only_ws(t)));
+    // Under `bracketSameLine`, a source-empty element must take the hug layout, so
+    // drop any whitespace-only child an earlier pass left inside it (so
+    // `should_hug_*` and the empty `body` see no content, matching prettier, whose
+    // empty source element has no children at all). Gated to `bracketSameLine` so
+    // the default path keeps upstream's non-clearing behaviour untouched.
+    let children = if is_empty && bracket_same_line {
+        Vec::new()
     } else {
         children
-            .iter()
-            .all(|c| matches!(c.text(), Some(t) if is_empty_raw(t)))
     };
-    // An empty element ignores its children in every branch below; drop any
-    // whitespace-only child so `should_hug_*` and the empty `body` see no content
-    // (matching prettier, whose empty source element has no children at all).
-    let children = if is_empty { Vec::new() } else { children };
     // canOmitSoftlineBeforeClosingTag(node, path, options) — false unless
     // `bracketSameLine` is on; then it drops the softline before a hugged
     // element's closing `>` when the element doesn't hug the next node (or is the
@@ -785,6 +784,22 @@ mod tests {
             self_closing: true,
             omit_softline_allowed: false,
         })
+    }
+
+    #[test]
+    fn inline_element_with_whitespace_only_body_prints_single_space() {
+        // `<i> </i>` — a whitespace-only body is empty (prettier's `isEmpty`) and
+        // prints as one `line`, not two separator lines. The pre-fix bug trimmed
+        // the lone space from both ends and emitted `>  </i>` (two spaces).
+        let doc = el("i", vec![Child::Text(" ".into())], true);
+        assert_eq!(render_el(doc, 80), "<i> </i>");
+    }
+
+    #[test]
+    fn block_element_with_whitespace_only_body_collapses() {
+        // A block element's whitespace-only body collapses to nothing.
+        let doc = el("div", vec![Child::Text(" ".into())], false);
+        assert_eq!(render_el(doc, 80), "<div></div>");
     }
 
     #[test]

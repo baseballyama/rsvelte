@@ -71,13 +71,14 @@ enum Class {
 
 /// Decide how to handle `sortTailwindcss` for a config. `config_path` is the
 /// `.oxfmtrc` path, used to resolve relative stylesheet paths and to look for a
-/// sibling v3 JS config. `js_available` is whether a Node sidecar can run; when
-/// `false`, cases that need JS fall back to warn+skip (or native for a stock
-/// config under `strategy: "js"`).
+/// sibling v3 JS config. `js_available` probes whether a Node sidecar can run;
+/// it is called *only* when a branch actually needs JS, so a stock config never
+/// pays for the Node probe. When it reports `false`, cases that need JS fall
+/// back to warn+skip (or native for a stock config under `strategy: "js"`).
 pub fn decide(
     sort_tailwindcss: Option<&serde_json::Value>,
     config_path: Option<&Path>,
-    js_available: bool,
+    js_available: impl FnOnce() -> bool,
 ) -> Decision {
     let Some(value) = sort_tailwindcss else {
         return Decision::Off;
@@ -130,7 +131,7 @@ pub fn decide(
         ),
 
         (Strategy::Js, Class::Default { stylesheet }) => {
-            if js_available {
+            if js_available() {
                 Decision::SortViaJs {
                     filepath,
                     stylesheet_path: Some(stylesheet),
@@ -172,7 +173,7 @@ fn native_sort(attributes: Vec<String>) -> Decision {
 
 #[allow(clippy::too_many_arguments)]
 fn sort_via_js_or_skip(
-    js_available: bool,
+    js_available: impl FnOnce() -> bool,
     filepath: PathBuf,
     stylesheet_path: Option<PathBuf>,
     config_path: Option<PathBuf>,
@@ -181,7 +182,7 @@ fn sort_via_js_or_skip(
     preserve_duplicates: bool,
     detect_reason: String,
 ) -> Decision {
-    if js_available {
+    if js_available() {
         Decision::SortViaJs {
             filepath,
             stylesheet_path,
@@ -278,6 +279,20 @@ fn attribute_names(value: &serde_json::Value) -> Vec<String> {
         names.push("class".into());
     }
     names
+}
+
+/// `sortTailwindcss.functions` — wrapper call names (`cn`, `cva`, …) whose class
+/// arguments are sorted in `<script>` bodies. Empty when unset (oxfmt's default).
+pub fn function_names(sort_tailwindcss: Option<&serde_json::Value>) -> Vec<String> {
+    sort_tailwindcss
+        .and_then(|v| v.get("functions"))
+        .and_then(serde_json::Value::as_array)
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(str::to_owned))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn find_v3_config(dir: &Path) -> Option<String> {

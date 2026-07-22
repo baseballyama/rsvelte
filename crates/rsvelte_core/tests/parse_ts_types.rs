@@ -146,6 +146,10 @@ fn no_typescript_unknown_stub_for_modelled_types() {
         "<script lang=\"ts\">\n  let x: { a: number } = y;\n</script>",
         "<script lang=\"ts\">\n  let x: string | number = y;\n</script>",
         "<script lang=\"ts\">\n  let x: string[] = y;\n</script>",
+        "<script lang=\"ts\">\n  let x: string | (() => void);\n</script>",
+        "<script lang=\"ts\">\n  let x: string & (() => void);\n</script>",
+        "<script lang=\"ts\">\n  let x: new (a: string) => Foo;\n</script>",
+        "<script lang=\"ts\">\n  let x = 1 as (() => void);\n</script>",
     ] {
         let ast = parse_to_json(src);
         assert!(
@@ -153,4 +157,191 @@ fn no_typescript_unknown_stub_for_modelled_types() {
             "no TSUnknownKeyword stub expected for: {src}"
         );
     }
+}
+
+// ---- #1660: TSFunctionType / TSConstructorType inside a type annotation ---
+
+#[test]
+fn function_type_inside_union_is_preserved() {
+    // The exact repro from #1660: a TSFunctionType member of a union used to
+    // collapse to a members-less `TSUnknownKeyword` stub.
+    let src = "<script lang=\"ts\">\n  let x: string | (() => void);\n</script>";
+    let ast = parse_to_json(src);
+    let union = find_node(&ast, "TSUnionType").expect("TSUnionType must be present");
+    let types = union
+        .get("types")
+        .and_then(|t| t.as_array())
+        .expect("union must have a types array");
+    assert_eq!(types.len(), 2);
+    assert_eq!(type_of(&types[0]), Some("TSStringKeyword"));
+
+    let paren = &types[1];
+    assert_eq!(type_of(paren), Some("TSParenthesizedType"));
+    let func = paren
+        .get("typeAnnotation")
+        .expect("TSParenthesizedType must carry typeAnnotation");
+    assert_eq!(type_of(func), Some("TSFunctionType"));
+    assert_eq!(
+        func.get("parameters").and_then(|p| p.as_array()),
+        Some(&vec![])
+    );
+    assert_eq!(
+        func.pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSVoidKeyword")
+    );
+}
+
+#[test]
+fn function_type_inside_intersection_is_preserved() {
+    let src = "<script lang=\"ts\">\n  let x: string & (() => void);\n</script>";
+    let ast = parse_to_json(src);
+    let inter = find_node(&ast, "TSIntersectionType").expect("TSIntersectionType must be present");
+    let types = inter
+        .get("types")
+        .and_then(|t| t.as_array())
+        .expect("intersection must have a types array");
+    assert_eq!(
+        types[1]
+            .pointer("/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSFunctionType")
+    );
+}
+
+#[test]
+fn function_type_via_as_assertion_is_preserved() {
+    // #1648 started preserving the `TSAsExpression` wrapper; its `typeAnnotation`
+    // routes through the same `convert_ts_type` this fix touches.
+    let src = "<script lang=\"ts\">\n  let x = 1 as (() => void);\n</script>";
+    let ast = parse_to_json(src);
+    let as_expr = find_node(&ast, "TSAsExpression").expect("TSAsExpression must be present");
+    assert_eq!(
+        as_expr
+            .pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSFunctionType")
+    );
+}
+
+#[test]
+fn function_type_parameters_and_return_type() {
+    let src = "<script lang=\"ts\">\n  let y: (a: string, b?: number) => void;\n</script>";
+    let ast = parse_to_json(src);
+    let func = find_node(&ast, "TSFunctionType").expect("TSFunctionType must be present");
+
+    let params = func
+        .get("parameters")
+        .and_then(|p| p.as_array())
+        .expect("parameters array must be present");
+    assert_eq!(params.len(), 2);
+
+    let a = &params[0];
+    assert_eq!(a.pointer("/name").and_then(|v| v.as_str()), Some("a"));
+    assert!(a.get("optional").is_none());
+    assert_eq!(
+        a.pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSStringKeyword")
+    );
+
+    let b = &params[1];
+    assert_eq!(b.pointer("/name").and_then(|v| v.as_str()), Some("b"));
+    // NOTE: svelte/compiler emits `optional: true` here (the `?` marker), but
+    // rsvelte currently drops it for *every* function/arrow parameter — not
+    // specific to TSFunctionType — because `JsNode::Identifier` has no
+    // `optional` field to round-trip it through the typed AST. Out of scope
+    // for #1660; tracked separately.
+    assert!(b.get("optional").is_none());
+    assert_eq!(
+        b.pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSNumberKeyword")
+    );
+
+    assert_eq!(
+        func.pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSVoidKeyword")
+    );
+}
+
+#[test]
+fn function_type_generics_and_rest_parameter() {
+    let src = "<script lang=\"ts\">\n  let f: <T>(a: T, ...rest: T[]) => T;\n</script>";
+    let ast = parse_to_json(src);
+    let func = find_node(&ast, "TSFunctionType").expect("TSFunctionType must be present");
+
+    assert_eq!(
+        func.pointer("/typeParameters/type")
+            .and_then(|v| v.as_str()),
+        Some("TSTypeParameterDeclaration")
+    );
+    assert_eq!(
+        func.pointer("/typeParameters/params/0/name")
+            .and_then(|v| v.as_str()),
+        Some("T")
+    );
+
+    let params = func
+        .get("parameters")
+        .and_then(|p| p.as_array())
+        .expect("parameters array must be present");
+    assert_eq!(params.len(), 2);
+    assert_eq!(type_of(&params[0]), Some("Identifier"));
+
+    let rest = &params[1];
+    assert_eq!(type_of(rest), Some("RestElement"));
+    assert_eq!(
+        rest.pointer("/argument/name").and_then(|v| v.as_str()),
+        Some("rest")
+    );
+    assert_eq!(
+        rest.pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSArrayType")
+    );
+}
+
+#[test]
+fn function_type_this_parameter_is_prepended() {
+    let src = "<script lang=\"ts\">\n  let h: (this: Foo, a: number) => void;\n</script>";
+    let ast = parse_to_json(src);
+    let func = find_node(&ast, "TSFunctionType").expect("TSFunctionType must be present");
+    let params = func
+        .get("parameters")
+        .and_then(|p| p.as_array())
+        .expect("parameters array must be present");
+    assert_eq!(params.len(), 2);
+    assert_eq!(
+        params[0].pointer("/name").and_then(|v| v.as_str()),
+        Some("this")
+    );
+    assert_eq!(
+        params[0]
+            .pointer("/typeAnnotation/typeAnnotation/typeName/name")
+            .and_then(|v| v.as_str()),
+        Some("Foo")
+    );
+    assert_eq!(
+        params[1].pointer("/name").and_then(|v| v.as_str()),
+        Some("a")
+    );
+}
+
+#[test]
+fn constructor_type_is_preserved() {
+    let src = "<script lang=\"ts\">\n  let z: new (a: string) => Foo;\n</script>";
+    let ast = parse_to_json(src);
+    let ctor = find_node(&ast, "TSConstructorType").expect("TSConstructorType must be present");
+    assert_eq!(ctor.get("abstract"), Some(&Value::Bool(false)));
+    assert_eq!(
+        ctor.pointer("/parameters/0/name").and_then(|v| v.as_str()),
+        Some("a")
+    );
+    assert_eq!(
+        ctor.pointer("/typeAnnotation/typeAnnotation/typeName/name")
+            .and_then(|v| v.as_str()),
+        Some("Foo")
+    );
 }
