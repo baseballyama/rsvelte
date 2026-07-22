@@ -382,3 +382,44 @@ fn void_element_stays_flat_when_it_fits() {
     let expected = "<div>\n  Short line.<br />\n  Next.\n</div>";
     assert_eq!(out, expected, "fitting void <br /> stays flat:\n{out}");
 }
+
+#[test]
+fn else_if_branch_dangles_the_first_title_close() {
+    // `{#if}<title>{@render title()}</title>{:else if}<title>…</title>{/if}` inside
+    // an `<svg>` (with a sibling `{@render children()}` making the body a block
+    // run): the first `<title>`'s close `>` dangles because its group, measured
+    // with the trailing `{:else if}` branch, overflows — the port must claim the
+    // `<svg>` (RenderTag support + block-run gate) instead of bailing to the
+    // legacy layout that wrongly wraps at the second title.
+    let src = "<svg>\n  {#if typeof title === \"function\"}<title>{@render title()}</title>{:else if titleText}<title>{titleText}</title>{/if}\n  {@render children?.()}\n</svg>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<svg>\n  {#if typeof title === \"function\"}<title>{@render title()}</title\n    >{:else if titleText}<title>{titleText}</title>{/if}\n  {@render children?.()}\n</svg>";
+    assert_eq!(out, expected, "first title close must dangle:\n{out}");
+}
+
+#[test]
+fn pre_child_open_tag_dangles_on_multiline_content() {
+    // A `<pre>` child (`<code class="x">`) whose content spans multiple lines
+    // dangles its open `>` onto its own line, even when the glued open-tag line
+    // would fit — prettier's whitespace-sensitive `<pre>` child layout. (A
+    // single-line short child stays glued.)
+    let src = "<pre><code class=\"language-bash\">line1\nline2</code></pre>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<pre><code class=\"language-bash\"\n    >line1\nline2</code\n  ></pre>";
+    assert_eq!(out, expected, "pre child open tag must dangle:\n{out}");
+}
+
+#[test]
+fn pre_with_attr_child_breaks_the_child_not_its_own_attrs() {
+    // An overflowing `<pre class="…"><code class="…">…</code></pre>` breaks the
+    // inner `<code>`'s open tag (dangling its `>`), keeping `<pre class="…">`
+    // glued — prettier breaks the innermost element first. The pre must NOT break
+    // its own `class` attribute onto a new line.
+    let src = "<div>\n  <pre class=\"mb-0\"><code class=\"language-javascriptxxxxxxxxxxxxx\">short content here</code></pre>\n</div>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<div>\n  <pre class=\"mb-0\"><code class=\"language-javascriptxxxxxxxxxxxxx\"\n      >short content here</code\n    ></pre>\n</div>";
+    assert_eq!(
+        out, expected,
+        "pre must break its code child, not its own attrs:\n{out}"
+    );
+}

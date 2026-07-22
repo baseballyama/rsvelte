@@ -409,9 +409,17 @@ pub(crate) fn build_element_doc(el: ElementLayout) -> Doc {
         self_closing,
     } = el;
 
+    // Whitespace-only children count as empty (prettier's `isEmpty`): a
+    // whitespace-only inline body prints as a single `line` (`<i> </i>`), a
+    // block one collapses away — either way it is NOT the two-sided
+    // separator layout that a real body takes.
+    // Whitespace-only children count as empty (prettier's `isEmpty`): a
+    // whitespace-only inline body prints as a single `line` (`<i> </i>`), a
+    // block one collapses away — either way it is NOT the two-sided
+    // separator layout that a real body takes.
     let is_empty = children
         .iter()
-        .all(|c| matches!(c.text(), Some(t) if is_empty_raw(t)));
+        .all(|c| matches!(c.text(), Some(t) if is_only_ws(t)));
 
     // isSelfClosingTag — returns before any hug decision, so `<path … />` keeps
     // its own `/>` instead of being rebuilt as an open/close pair. The trailing
@@ -700,6 +708,22 @@ mod tests {
             is_inline: true,
             self_closing: true,
         })
+    }
+
+    #[test]
+    fn inline_element_with_whitespace_only_body_prints_single_space() {
+        // `<i> </i>` — a whitespace-only body is empty (prettier's `isEmpty`) and
+        // prints as one `line`, not two separator lines. The pre-fix bug trimmed
+        // the lone space from both ends and emitted `>  </i>` (two spaces).
+        let doc = el("i", vec![Child::Text(" ".into())], true);
+        assert_eq!(render_el(doc, 80), "<i> </i>");
+    }
+
+    #[test]
+    fn block_element_with_whitespace_only_body_collapses() {
+        // A block element's whitespace-only body collapses to nothing.
+        let doc = el("div", vec![Child::Text(" ".into())], false);
+        assert_eq!(render_el(doc, 80), "<div></div>");
     }
 
     #[test]
