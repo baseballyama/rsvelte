@@ -132,19 +132,34 @@ The following `.oxfmtrc` keys also drive `.svelte` formatting, matching
 | `svelte.sortOrder` | `options-scripts-markup-styles` | Print order of the top-level sections (any permutation of `options`/`scripts`/`markup`/`styles`, or `none` to keep source order) |
 
 `sortTailwindcss` sorts the classes in static `class` attributes (the value must
-be a plain string — values with `{expr}` interpolation are left untouched). It is
-supported **only for a stock, zero-config Tailwind v4 setup**: a stylesheet that
-is essentially `@import "tailwindcss";` with no `@plugin`, `@utility`,
-`@custom-variant`, `@theme`, or `@config`, and no v3 `tailwind.config.js`. That
-is the one case a pure-Rust sorter reproduces byte-for-byte, because Tailwind's
-order otherwise depends on the project's compiled CSS (which needs the JS engine).
+be a plain string — values with `{expr}` interpolation are left untouched).
 
-`rsvelte-fmt` resolves the stylesheet from `sortTailwindcss.stylesheet` (or a
-conventional entry like `src/app.css`) and inspects it. If it is a default setup,
-classes are sorted natively; otherwise `rsvelte-fmt` prints a warning naming the
-reason and leaves class names unchanged — run `oxfmt` directly for a custom
-Tailwind config. The `attributes` option is honored (default `["class"]`);
-`functions` (e.g. `cn(...)`) are not, since those wrap non-static expressions.
+A **stock, zero-config Tailwind v4 setup** — a stylesheet that is essentially
+`@import "tailwindcss";` with no `@plugin`, `@utility`, `@custom-variant`,
+`@theme`, or `@config`, and no v3 `tailwind.config.js` — is sorted **natively**
+in Rust, byte-for-byte, with no subprocess.
+
+A **custom config** (any of the above) changes the class order in ways that
+depend on the project's compiled CSS, so `rsvelte-fmt` shells out to a one-shot
+Node sidecar running the real `prettier-plugin-tailwindcss` — the same plugin
+(and API) `oxfmt` uses — resolving your project's `tailwindcss` and producing the
+same order `oxfmt` would. This needs a Node interpreter (the one recorded at
+install time) and the bundled plugin; if either is unavailable, `rsvelte-fmt`
+prints a warning and leaves class names unchanged rather than reorder them
+wrongly. The `attributes` option is honored (default `["class"]`); `functions`
+(e.g. `cn(...)`) are not yet supported on either path.
+
+`sortTailwindcss.strategy` (an **rsvelte-only extension**, not an oxfmt key)
+selects the sorter:
+
+| `strategy` | Behavior |
+|---|---|
+| `auto` (default) | Stock config → native Rust; custom config → Node/JS oracle |
+| `native` | Always pure-Rust; a custom config warns and is left unsorted |
+| `js` | Always the Node/JS oracle, even for a stock config (bypasses the native sorter's rare edge cases) |
+
+With the default `auto`, an existing oxfmt `sortTailwindcss` config works
+unchanged.
 
 ## CLI flags
 
