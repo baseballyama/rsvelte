@@ -116,6 +116,38 @@ fn non_null_as_member_object_preserves_wrapper() {
     );
 }
 
+#[test]
+fn non_null_mid_optional_chain_preserves_wrapper() {
+    // `a?.b!.c` — the `!` applies to the *middle* of the chain (`a?.b`), so the
+    // non-null wrapper is the object of the outer `.c` member, and its inner
+    // expression is the optional `a?.b` member. svelte/compiler keeps the whole
+    // `TSNonNullExpression` inside the `ChainExpression`; rsvelte's chain-element
+    // path must not unwrap it.
+    let source = "<script lang=\"ts\">let a: any = {};\nlet x = a?.b!.c;</script>";
+    let ast = parse_to_value(source);
+    let chain = find_node(&ast, "ChainExpression").expect("ChainExpression");
+    // Outer member is `.c` (non-optional); its object is the non-null wrapper.
+    assert_eq!(
+        chain
+            .pointer("/expression/object/type")
+            .and_then(Value::as_str),
+        Some("TSNonNullExpression")
+    );
+    // The wrapper's inner expression is the optional `a?.b` member.
+    assert_eq!(
+        chain
+            .pointer("/expression/object/expression/type")
+            .and_then(Value::as_str),
+        Some("MemberExpression")
+    );
+    assert_eq!(
+        chain
+            .pointer("/expression/object/expression/optional")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+}
+
 // ── parse-shape: template expression tag ───────────────────────────────────
 
 #[test]
@@ -177,6 +209,18 @@ fn type_assertion_and_instantiation_erased_from_codegen() {
 #[test]
 fn non_null_in_chain_erased_from_codegen() {
     let source = "<script lang=\"ts\">let a = { b: 1 };</script>{a!?.b}";
+    for code in [client_code(source), server_code(source)] {
+        assert!(
+            !code.contains("Unknown:"),
+            "TS wrapper leaked into codegen:\n{code}"
+        );
+    }
+}
+
+#[test]
+fn non_null_mid_chain_erased_from_codegen() {
+    // `a?.b!.c` (non-null in the middle of an optional chain) must strip cleanly.
+    let source = "<script lang=\"ts\">let a: any = { b: { c: 1 } };</script>{a?.b!.c}";
     for code in [client_code(source), server_code(source)] {
         assert!(
             !code.contains("Unknown:"),
