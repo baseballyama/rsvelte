@@ -39,8 +39,8 @@ importers:
         specifier: '*'
         version: 0.53.0(svelte@5.56.7)
       prettier-plugin-tailwindcss:
-        specifier: 0.0.0-insiders.2b6f3c2
-        version: 0.0.0-insiders.2b6f3c2(prettier-plugin-svelte@4.1.1(prettier@3.9.5)(svelte@5.56.7))(prettier@3.9.5)
+        specifier: 0.8.1
+        version: 0.8.1(prettier-plugin-svelte@4.1.1(prettier@3.9.5)(svelte@5.56.7))(prettier@3.9.5)
     optionalDependencies:
       '@rsvelte/fmt-darwin-arm64':
         specifier: workspace:^
@@ -1680,8 +1680,8 @@ packages:
       prettier: ^3.0.0
       svelte: ^5.0.0
 
-  prettier-plugin-tailwindcss@0.0.0-insiders.2b6f3c2:
-    resolution: {integrity: sha512-bAwh6xzGCT0NvJUenof34s+JME2Fl7wRvUYUE8fEOGl41QgJGAEHWtjlgWC3p3bbPfx3O2ykNcvN1GFoDTM86g==}
+  prettier-plugin-tailwindcss@0.8.1:
+    resolution: {integrity: sha512-iaFMYqDsE4ffdDkn5qup0j5f2aCEBFZrdrZnvu9QKTlWx/iGPeQ4HHu7b7fCPMxeo9nwQBiOAh2nSypdFYWJkw==}
     engines: {node: '>=20.19'}
     peerDependencies:
       '@ianvs/prettier-plugin-sort-imports': '*'
@@ -3035,7 +3035,7 @@ snapshots:
       prettier: 3.9.5
       svelte: 5.56.7
 
-  prettier-plugin-tailwindcss@0.0.0-insiders.2b6f3c2(prettier-plugin-svelte@4.1.1(prettier@3.9.5)(svelte@5.56.7))(prettier@3.9.5):
+  prettier-plugin-tailwindcss@0.8.1(prettier-plugin-svelte@4.1.1(prettier@3.9.5)(svelte@5.56.7))(prettier@3.9.5):
     dependencies:
       prettier: 3.9.5
     optionalDependencies:
