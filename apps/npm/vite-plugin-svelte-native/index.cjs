@@ -51,6 +51,54 @@ try {
 	);
 }
 
+// Resolve the function-form compile options the NAPI boundary can't accept.
+// `customElement` / `css` / `runes` may be `(({ filename }) => value)` in the
+// upstream Svelte contract; they depend only on `filename`, so we evaluate them
+// once here and hand the plain value to Rust. `warningFilter` is returned to the
+// caller so it can post-filter the warnings array (warnings never affect codegen,
+// so filtering after compile is equivalent to Svelte's emit-time filter).
+//
+// A dynamic `cssHash` function needs the Rust→JS callback bridge and is handled
+// separately by `compileWithCssHash`; constant hashes go through `cssHashOverride`.
+//
+// Fast path: when none of these fields are functions the original object is
+// returned untouched — no clone, no allocation, zero overhead for the hot path.
+function prepareCompileOptions(options) {
+	if (options == null) return { options, warningFilter: undefined };
+	const { customElement, css, runes, warningFilter } = options;
+	const hasParametric =
+		typeof customElement === 'function' ||
+		typeof css === 'function' ||
+		typeof runes === 'function';
+	const hasWarningFilter = typeof warningFilter === 'function';
+	if (!hasParametric && !hasWarningFilter) {
+		return { options, warningFilter: undefined };
+	}
+	const meta = { filename: options.filename };
+	const resolved = { ...options };
+	if (typeof customElement === 'function') resolved.customElement = customElement(meta);
+	if (typeof css === 'function') resolved.css = css(meta);
+	if (typeof runes === 'function') resolved.runes = runes(meta);
+	if (hasWarningFilter) delete resolved.warningFilter;
+	return { options: resolved, warningFilter: hasWarningFilter ? warningFilter : undefined };
+}
+
+function applyWarningFilter(result, warningFilter) {
+	if (!warningFilter || result == null) return result;
+	const warnings = result.warnings;
+	if (Array.isArray(warnings) && warnings.length) {
+		// `warnings` is a lazy getter on the envelope-decoded result; redefine it
+		// as a plain data property so the filtered array replaces the accessor.
+		Object.defineProperty(result, 'warnings', {
+			value: warnings.filter((warning) => warningFilter(warning)),
+			writable: true,
+			enumerable: true,
+			configurable: true,
+		});
+	}
+	return result;
+}
+
 // `compile` / `compileModule` are wrapped to route through the
 // raw-transfer envelope (`compileEnvelope`): the Rust side hands us
 // one `Buffer`, the JS side lazy-decodes only the fields the caller
@@ -62,11 +110,16 @@ try {
 // directly. The legacy JSON path is preserved as `compileLegacy` for
 // parity testing and as an escape hatch.
 function compile(source, options) {
-	return decodeEnvelope(binding.compileEnvelope(source, options));
+	const { options: resolved, warningFilter } = prepareCompileOptions(options);
+	return applyWarningFilter(decodeEnvelope(binding.compileEnvelope(source, resolved)), warningFilter);
 }
 
 function compileModule(source, options) {
-	return decodeEnvelope(binding.compileModuleEnvelope(source, options));
+	const { options: resolved, warningFilter } = prepareCompileOptions(options);
+	return applyWarningFilter(
+		decodeEnvelope(binding.compileModuleEnvelope(source, resolved)),
+		warningFilter,
+	);
 }
 
 // `compileBatch([{source, options}, …])` compiles N files in
@@ -75,7 +128,17 @@ function compileModule(source, options) {
 // each slot is either a `CompileResult` or an `Error` (parse
 // failures don't abort the whole batch).
 function compileBatch(inputs) {
-	return decodeBatch(binding.compileBatch(inputs));
+	const filters = [];
+	const prepared = inputs.map((input, i) => {
+		const { options, warningFilter } = prepareCompileOptions(input.options);
+		if (warningFilter) filters[i] = warningFilter;
+		return options === input.options ? input : { source: input.source, options };
+	});
+	const results = decodeBatch(binding.compileBatch(prepared));
+	if (filters.length) {
+		results.forEach((result, i) => applyWarningFilter(result, filters[i]));
+	}
+	return results;
 }
 
 // `compileAsync` / `compileBatchAsync` release the JS event loop
@@ -84,11 +147,25 @@ function compileBatch(inputs) {
 // (Vite middleware, SSR pre-render) — the await yields control
 // instead of blocking V8.
 async function compileAsync(source, options) {
-	return decodeEnvelope(await binding.compileEnvelopeAsync(source, options));
+	const { options: resolved, warningFilter } = prepareCompileOptions(options);
+	return applyWarningFilter(
+		decodeEnvelope(await binding.compileEnvelopeAsync(source, resolved)),
+		warningFilter,
+	);
 }
 
 async function compileBatchAsync(inputs) {
-	return decodeBatch(await binding.compileBatchAsync(inputs));
+	const filters = [];
+	const prepared = inputs.map((input, i) => {
+		const { options, warningFilter } = prepareCompileOptions(input.options);
+		if (warningFilter) filters[i] = warningFilter;
+		return options === input.options ? input : { source: input.source, options };
+	});
+	const results = decodeBatch(await binding.compileBatchAsync(prepared));
+	if (filters.length) {
+		results.forEach((result, i) => applyWarningFilter(result, filters[i]));
+	}
+	return results;
 }
 
 // Re-export every NAPI function as its own named binding so node's

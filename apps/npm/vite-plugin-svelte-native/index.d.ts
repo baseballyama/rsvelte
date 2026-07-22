@@ -22,29 +22,53 @@ export interface CompileOptions {
 	rootDir?: string;
 	/** Component identifier hint. */
 	name?: string;
-	/** Compile as a custom element. */
-	customElement?: boolean;
+	/**
+	 * Compile as a custom element. A function form `({ filename }) => boolean`
+	 * is evaluated once at the binding boundary.
+	 */
+	customElement?: boolean | ((meta: { filename: string | undefined }) => boolean);
 	/** Generate `accessors`. */
 	accessors?: boolean;
 	/** HTML namespace. */
 	namespace?: 'html' | 'svg' | 'mathml';
 	/** Hint that bindings are immutable. */
 	immutable?: boolean;
-	/** Output CSS injected into the bundle or as an external asset. */
-	css?: 'injected' | 'external';
-	/** Custom hash function for CSS scoping — currently honored as a string-mapper. */
+	/**
+	 * Output CSS injected into the bundle or as an external asset. A function
+	 * form `({ filename }) => 'injected' | 'external'` is evaluated once at the
+	 * binding boundary.
+	 */
+	css?:
+		| 'injected'
+		| 'external'
+		| ((meta: { filename: string | undefined }) => 'injected' | 'external');
+	/**
+	 * Custom hash function for CSS scoping. Called once per component with the
+	 * component's CSS; the returned string becomes the scope class. Bridged into
+	 * the compiler via a threadsafe callback (`compileWithCssHash`).
+	 */
 	cssHash?: (args: {
 		hash: (input: string) => string;
 		css: string;
 		name: string;
 		filename: string | undefined;
 	}) => string;
+	/**
+	 * Pre-computed constant CSS scope hash. Escape hatch for callers (e.g.
+	 * `@rsvelte/vite-plugin-svelte`'s HMR path) that already know the hash and
+	 * want to skip the `cssHash` callback bridge entirely.
+	 */
+	cssHashOverride?: string;
 	/** Preserve HTML comments in output. */
 	preserveComments?: boolean;
 	/** Preserve whitespace in the template. */
 	preserveWhitespace?: boolean;
-	/** Force runes mode (`true`), legacy (`false`), or auto-detect (`undefined`). */
-	runes?: boolean;
+	/**
+	 * Force runes mode (`true`), legacy (`false`), or auto-detect (`undefined`).
+	 * A function form `({ filename }) => boolean | undefined` is evaluated once
+	 * at the binding boundary.
+	 */
+	runes?: boolean | ((meta: { filename: string | undefined }) => boolean | undefined);
 	/** Disclose the compiler version in the output banner. */
 	discloseVersion?: boolean;
 	/** Source-map options (forwarded through magic-string). */
@@ -70,6 +94,7 @@ export interface ModuleCompileOptions {
 	generate?: 'client' | 'server' | false;
 	filename?: string;
 	rootDir?: string;
+	/** Filter compiler warnings (applied to the returned `warnings` array). */
 	warningFilter?: (warning: Warning) => boolean;
 }
 
