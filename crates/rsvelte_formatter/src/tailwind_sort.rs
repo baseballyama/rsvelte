@@ -4,18 +4,20 @@
 //! Two positions mirror what oxfmt's `.svelte` pipeline sorts (verified against
 //! the real `oxfmt` + `prettier-plugin-tailwindcss` oracle):
 //!
-//!   1. `<script>` bodies — string / no-substitution template literals inside a
+//!   1. `<script>` bodies — string and template literals inside a
 //!      `CallExpression` whose callee is a bare identifier in `functions`. The
 //!      descent stops at a nested `CallExpression`, so `cn(a, notcn("…"))` sorts
 //!      only `a`; a nested call is sorted only if its own callee matches.
-//!   2. `class` (and configured `attributes`) mustache values — *every* string /
-//!      no-substitution template literal in the expression, regardless of any
-//!      enclosing call. This mirrors the plugin's `transformSvelte`, which is not
-//!      function-gated.
+//!   2. `class` (and configured `attributes`) mustache values — *every* string
+//!      and template literal in the expression, regardless of any enclosing call.
+//!      This mirrors the plugin's `transformSvelte`, which is not function-gated.
 //!
-//! Only the literal's inner tokens are reordered (via the shared class sorter, so
-//! the native and JS-sidecar paths both apply). The surrounding source is
-//! re-parsed and re-printed unchanged, keeping quote/format decisions with oxc.
+//! Template literals with `${…}` are sorted per static quasi; the token abutting
+//! an interpolation is pinned so `cn(\`flex m-2 ${x}\`)` keeps its structure.
+//!
+//! Only class tokens are reordered (via the shared class sorter, so the native
+//! and JS-sidecar paths both apply). The surrounding source is re-parsed and
+//! re-printed unchanged, keeping quote/format decisions with oxc.
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{CallExpression, Expression, StringLiteral, TemplateLiteral};
@@ -23,7 +25,7 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_parser::{ParseOptions, Parser};
 use oxc_span::{GetSpan, SourceType};
 
-use crate::options::FormatOptions;
+use crate::options::{ClassSorter, FormatOptions};
 
 /// Rewrite Tailwind class literals inside `functions` calls in a `<script>` body.
 /// Returns the rewritten body when anything changed, else `None`.
@@ -69,28 +71,37 @@ fn rewrite(src: &str, wrap: bool, sort_all: bool, options: &FormatOptions) -> Op
         functions: &options.tailwind_functions,
         sort_all,
         call_matched: Vec::new(),
-        spans: Vec::new(),
+        edits: Vec::new(),
     };
     collector.visit_program(&parsed.program);
-    if collector.spans.is_empty() {
+    if collector.edits.is_empty() {
         return None;
     }
 
     // Apply right-to-left so earlier byte offsets stay valid.
-    let mut spans = collector.spans;
-    spans.sort_unstable_by_key(|s| std::cmp::Reverse(s.0));
+    let mut edits = collector.edits;
+    edits.sort_unstable_by_key(|e| std::cmp::Reverse(e.start()));
     let mut out = buf.clone();
     let mut changed = false;
-    for (start, end) in spans {
-        let (start, end) = (start as usize, end as usize);
-        // The literal span includes its delimiters (`"`, `'`, or `` ` ``).
-        let quote = &out[start..start + 1];
-        let inner = &out[start + 1..end - 1];
-        let sorted = sorter(inner);
-        if sorted == inner {
+    for edit in edits {
+        let (start, end) = (edit.start() as usize, edit.end() as usize);
+        let replacement = match edit {
+            Edit::StringLit { .. } => {
+                // The span includes its delimiters (`"` or `'`); sort the inner.
+                let quote = &out[start..start + 1];
+                let inner = &out[start + 1..end - 1];
+                format!("{quote}{}{quote}", sorter(inner))
+            }
+            // A template quasi span is the raw text between delimiters.
+            Edit::Quasi {
+                ignore_first,
+                ignore_last,
+                ..
+            } => sort_quasi(&out[start..end], ignore_first, ignore_last, sorter),
+        };
+        if replacement == out[start..end] {
             continue;
         }
-        let replacement = format!("{quote}{sorted}{quote}");
         out.replace_range(start..end, &replacement);
         changed = true;
     }
@@ -106,6 +117,62 @@ fn rewrite(src: &str, wrap: bool, sort_all: bool, options: &FormatOptions) -> Op
     }
 }
 
+/// One literal to rewrite in the source buffer.
+enum Edit {
+    /// A string literal; `start..end` spans the quotes.
+    StringLit { start: u32, end: u32 },
+    /// A template quasi; `start..end` spans the raw text (no delimiters).
+    /// `ignore_first` / `ignore_last` pin the boundary token that abuts a `${…}`,
+    /// mirroring `prettier-plugin-tailwindcss`'s `sortClasses`.
+    Quasi {
+        start: u32,
+        end: u32,
+        ignore_first: bool,
+        ignore_last: bool,
+    },
+}
+
+impl Edit {
+    fn start(&self) -> u32 {
+        match self {
+            Edit::StringLit { start, .. } | Edit::Quasi { start, .. } => *start,
+        }
+    }
+    fn end(&self) -> u32 {
+        match self {
+            Edit::StringLit { end, .. } | Edit::Quasi { end, .. } => *end,
+        }
+    }
+}
+
+/// Sort one template quasi's class tokens, pinning the boundary token adjacent to
+/// a `${…}` (`ignore_first` / `ignore_last`) and preserving the quasi's leading /
+/// trailing whitespace — the separators between a class and the interpolation.
+fn sort_quasi(raw: &str, ignore_first: bool, ignore_last: bool, sorter: &ClassSorter) -> String {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return raw.to_string();
+    }
+    let lead = &raw[..raw.len() - raw.trim_start().len()];
+    let trail = &raw[raw.trim_end().len()..];
+
+    let mut tokens: Vec<&str> = trimmed.split_whitespace().collect();
+    let pinned_first = (ignore_first && !tokens.is_empty()).then(|| tokens.remove(0));
+    let pinned_last = (ignore_last && !tokens.is_empty()).then(|| tokens.pop().unwrap());
+
+    let mut parts: Vec<String> = Vec::new();
+    if let Some(f) = pinned_first {
+        parts.push(f.to_string());
+    }
+    if !tokens.is_empty() {
+        parts.push(sorter(&tokens.join(" ")));
+    }
+    if let Some(l) = pinned_last {
+        parts.push(l.to_string());
+    }
+    format!("{lead}{}{trail}", parts.join(" "))
+}
+
 struct Collector<'f> {
     functions: &'f [String],
     /// `true` = sort every literal (class-attribute mode); `false` = only inside a
@@ -113,7 +180,7 @@ struct Collector<'f> {
     sort_all: bool,
     /// Match state of each enclosing `CallExpression`; the innermost decides.
     call_matched: Vec<bool>,
-    spans: Vec<(u32, u32)>,
+    edits: Vec<Edit>,
 }
 
 impl Collector<'_> {
@@ -136,17 +203,37 @@ impl<'a> Visit<'a> for Collector<'_> {
     fn visit_string_literal(&mut self, lit: &StringLiteral<'a>) {
         if self.should_sort() {
             let span = lit.span();
-            self.spans.push((span.start, span.end));
+            self.edits.push(Edit::StringLit {
+                start: span.start,
+                end: span.end,
+            });
         }
     }
 
     fn visit_template_literal(&mut self, tpl: &TemplateLiteral<'a>) {
-        // Only a substitution-free `` `…` `` is a plain class list. Templates with
-        // `${…}` are left to their `${}` expressions, which are still walked.
-        if self.should_sort() && tpl.expressions.is_empty() && tpl.quasis.len() == 1 {
-            let span = tpl.span();
-            self.spans.push((span.start, span.end));
+        if self.should_sort() {
+            // Sort each quasi's static text; the token abutting a `${…}` is pinned
+            // so it stays contiguous with the interpolation (`cn(\`a ${x}b c\`)`).
+            let exprs = tpl.expressions.len();
+            for (i, quasi) in tpl.quasis.iter().enumerate() {
+                let raw = quasi.value.raw.as_str();
+                self.edits.push(Edit::Quasi {
+                    start: quasi.span.start,
+                    end: quasi.span.end,
+                    ignore_first: i > 0 && !starts_with_ws(raw),
+                    ignore_last: i < exprs && !ends_with_ws(raw),
+                });
+            }
         }
+        // Still walk the `${…}` expressions to reach nested calls.
         walk::walk_template_literal(self, tpl);
     }
+}
+
+fn starts_with_ws(s: &str) -> bool {
+    s.chars().next().is_some_and(char::is_whitespace)
+}
+
+fn ends_with_ws(s: &str) -> bool {
+    s.chars().next_back().is_some_and(char::is_whitespace)
 }

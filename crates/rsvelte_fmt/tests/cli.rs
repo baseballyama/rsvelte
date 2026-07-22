@@ -2488,7 +2488,7 @@ fn sort_tailwindcss_functions_native_matches_oxfmt() {
         eprintln!("[tw-js] no Tailwind env / oxfmt; skipping.");
         return;
     };
-    let svelte_src = "<script>\n  const a = cn(\"text-lg p-8 m-4\");\n</script>\n\n<div class={cn(\"text-lg p-8 m-4\")}></div>\n<p>{cn(\"text-lg p-8 m-4\")}</p>\n";
+    let svelte_src = "<script>\n  const a = cn(\"text-lg p-8 m-4\");\n  const b = cn(`text-lg p-8 m-4 ${x}`);\n  const c = cn(`text-lg p-8 m-4${x}flex m-2 p-4`);\n</script>\n\n<div class={cn(\"text-lg p-8 m-4\")}></div>\n<div class={`text-lg p-8 m-4 ${x} flex m-2 p-4`}></div>\n<p>{cn(\"text-lg p-8 m-4\")}</p>\n";
     let sort_cfg = r#"{ "stylesheet": "./src/app.css", "functions": ["cn"] }"#;
     let oracle = oxfmt_oracle_cfg(&dir, &oxfmt, svelte_src, sort_cfg);
 
@@ -2521,7 +2521,7 @@ fn sort_tailwindcss_functions_js_matches_oxfmt() {
         eprintln!("[tw-js] no Tailwind env / oxfmt; skipping.");
         return;
     };
-    let svelte_src = "<script>\n  const a = cn(\"text-brand p-4 tab-4 flex m-2\");\n</script>\n\n<div class={cn(\"text-brand p-4 tab-4 flex m-2\")}></div>\n";
+    let svelte_src = "<script>\n  const a = cn(\"text-brand p-4 tab-4 flex m-2\");\n  const b = cn(`text-brand p-4 tab-4 ${x} flex m-2`);\n</script>\n\n<div class={cn(\"text-brand p-4 tab-4 flex m-2\")}></div>\n<div class={`text-brand p-4 tab-4 ${x} flex m-2`}></div>\n";
     let sort_cfg = r#"{ "stylesheet": "./src/app.css", "functions": ["cn"] }"#;
     let oracle = oxfmt_oracle_cfg(&dir, &oxfmt, svelte_src, sort_cfg);
 

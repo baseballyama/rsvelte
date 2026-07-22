@@ -22,8 +22,12 @@ against `oxfmt` + `prettier-plugin-tailwindcss`):
   the plugin's `transformSvelte`, which is not function-gated. `class:` directives
   and standalone `{expr}` mustaches are left untouched.
 
+Template literals with `${…}` interpolations are sorted per static quasi; the
+token abutting an interpolation is pinned (`cn(\`flex m-2 ${x}\`)` keeps its
+structure), matching `prettier-plugin-tailwindcss`.
+
 Sorting routes through the same class sorter as static attributes, so the native
 (zero-config) and Node-sidecar (custom-config) paths both apply. The default path
 stays untouched when `functions` is unset, and the fmt-parity corpus gate (sort
-off) is unaffected. Substitution-bearing template literals and mixed
-static-plus-`{expr}` class values remain out of scope.
+off) is unaffected. Mixed static-plus-`{expr}` class attribute values remain out
+of scope.

@@ -85,12 +85,57 @@ fn script_sorts_plain_template_literal() {
 }
 
 #[test]
-fn script_leaves_substitution_template_untouched() {
+fn script_sorts_substitution_template_quasi() {
     let out = fmt(
         "<script>\n  const a = cn(`b a ${x}`);\n</script>\n",
         &["cn"],
     );
-    assert!(out.contains("cn(`b a ${x}`)"), "{out}");
+    assert!(out.contains("cn(`a b ${x}`)"), "{out}");
+}
+
+#[test]
+fn script_pins_token_abutting_interpolation() {
+    // No whitespace at the `${…}` boundary pins the abutting token: `b` stays
+    // last in quasi 0 (`c a b` → `a c b`) and `f` stays first in quasi 1
+    // (`f e d` → `f d e`).
+    let out = fmt(
+        "<script>\n  const a = cn(`c a b${x}f e d`);\n</script>\n",
+        &["cn"],
+    );
+    assert!(out.contains("cn(`a c b${x}f d e`)"), "{out}");
+}
+
+#[test]
+fn script_sorts_each_quasi_with_boundary_whitespace() {
+    let out = fmt(
+        "<script>\n  const a = cn(`c a b ${x} f e d`);\n</script>\n",
+        &["cn"],
+    );
+    assert!(out.contains("cn(`a b c ${x} d e f`)"), "{out}");
+}
+
+#[test]
+fn script_sorts_multi_substitution_template() {
+    let out = fmt(
+        "<script>\n  const a = cn(`c a ${x} f e ${y} i g`);\n</script>\n",
+        &["cn"],
+    );
+    assert!(out.contains("cn(`a c ${x} e f ${y} g i`)"), "{out}");
+}
+
+#[test]
+fn script_unmatched_substitution_template_is_untouched() {
+    let out = fmt(
+        "<script>\n  const a = notcn(`b a ${x}`);\n</script>\n",
+        &["cn"],
+    );
+    assert!(out.contains("notcn(`b a ${x}`)"), "{out}");
+}
+
+#[test]
+fn class_mustache_sorts_substitution_template() {
+    let out = fmt("<div class={`c a b ${x}`}></div>\n", &[]);
+    assert!(out.contains("class={`a b c ${x}`}"), "{out}");
 }
 
 #[test]
