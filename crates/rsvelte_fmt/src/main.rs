@@ -2,12 +2,13 @@
 //! tree. `.svelte` files go through [`rsvelte_formatter`]; every other file
 //! is delegated to a child `oxfmt` process. Both pipelines run in parallel.
 
+use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use anyhow::{Context, Result, anyhow};
 use clap::Parser;
@@ -17,9 +18,9 @@ use oxc_formatter::JsFormatOptions;
 use oxc_formatter_core::{IndentStyle, IndentWidth, LineWidth};
 use rayon::prelude::*;
 use rsvelte_formatter::{
-    CssFormatOptions, CssSingleQuote, CssTrailingCommas, FormatOptions, JsonFormatOptions,
-    JsonVariant, SortOrderSpec, css_variant_from_lang, format, format_css_source, format_js_source,
-    format_json_source, reindent,
+    ClassSorter, CssFormatOptions, CssSingleQuote, CssTrailingCommas, FormatOptions,
+    JsonFormatOptions, JsonVariant, SortOrderSpec, css_variant_from_lang, format,
+    format_css_source, format_js_source, format_json_source, reindent,
 };
 
 mod config;
@@ -27,6 +28,7 @@ mod daemon;
 mod oxfmt_ignore;
 mod style_cache;
 mod tailwind;
+mod tailwind_sidecar;
 mod ts_config;
 use config::OxfmtConfig;
 use style_cache::StyleCache;
@@ -328,10 +330,10 @@ fn run() -> Result<ExitCode> {
         .unwrap_or_else(|| cwd.clone());
     let cfg = OxfmtConfig::resolve(cli.config.as_deref(), &config_start).map_err(|e| anyhow!(e))?;
 
-    let options = build_format_options(&cli, &cfg);
+    let (mut options, pending_js) = build_format_options(&cli, &cfg, js_sort_env());
 
     if cli.stdin {
-        return run_stdin(&cli, &options, &cfg);
+        return run_stdin(&cli, &options, &cfg, pending_js.as_ref());
     }
 
     // No paths given (and not stdin mode): default to the current directory,
@@ -345,6 +347,15 @@ fn run() -> Result<ExitCode> {
     let ignore = oxfmt_ignore::SvelteIgnore::from_config(&cwd, &cfg)?;
     let (svelte, native, native_json, native_css_files, oxfmt_paths) =
         partition_files(&cli.paths, &ignore, &cwd, native_js, native_css)?;
+
+    // Custom Tailwind config (`SortViaJs`): collect every class string across the
+    // `.svelte` files, sort them in one sidecar call, and install a map-backed
+    // sorter for the real formatting pass below. Only `.svelte` files carry the
+    // class sorter, so nothing else needs the collection pass.
+    if let Some(pending) = &pending_js {
+        let classes = collect_svelte_classes(&svelte, &options);
+        options.class_sorter = resolve_js_class_sorter(pending, classes);
+    }
 
     // Whether every in-process pass (Svelte, native JS/JSON/CSS) found
     // nothing at all. When true, `oxfmt`'s own delegated share is the only
@@ -533,7 +544,11 @@ fn combine(a: PipelineStatus, b: PipelineStatus, mode: Mode) -> ExitCode {
 /// keys that exist in both places (`--print-width`/`--tab-width`/`--use-tabs`):
 /// CLI flag > `.oxfmtrc` > built-in default. Keys with no CLI equivalent
 /// (`singleQuote`, `semi`, `trailingComma`, …) come straight from `.oxfmtrc`.
-fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> FormatOptions {
+fn build_format_options(
+    cli: &Cli,
+    cfg: &OxfmtConfig,
+    js_env: Option<tailwind_sidecar::SidecarEnv>,
+) -> (FormatOptions, Option<PendingJsSort>) {
     let use_tabs = cli.use_tabs || cfg.use_tabs.unwrap_or(false);
     let indent_style = if use_tabs {
         IndentStyle::Tab
@@ -572,23 +587,43 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> FormatOptions {
     };
 
     // `sortTailwindcss` orders class names by the project's tailwind stylesheet.
-    // We reproduce it natively only for a stock, zero-config Tailwind setup — the
-    // one case a pure-Rust sorter matches byte-for-byte. A custom stylesheet /
-    // config depends on the JS engine, so we warn and leave classes unchanged
-    // (a missing re-sort is invisible in the diff, #1057).
-    let (class_sorter, class_attributes) =
-        match tailwind::decide(cfg.sort_tailwindcss.as_ref(), cfg.path.as_deref()) {
-            tailwind::Decision::Sort { sorter, attributes } => (Some(sorter), attributes),
-            tailwind::Decision::Skip { reason } => {
-                eprintln!(
-                    "rsvelte-fmt: warning: `sortTailwindcss` left unapplied — {reason}. Native \
-                     sorting only covers a default `@import \"tailwindcss\";` setup; run `oxfmt` \
-                     for a custom Tailwind config."
-                );
-                (None, Vec::new())
-            }
-            tailwind::Decision::Off => (None, Vec::new()),
-        };
+    // A stock, zero-config setup sorts natively (byte-for-byte). A custom
+    // stylesheet / config is delegated to a Node sidecar running the real
+    // `prettier-plugin-tailwindcss` (see `PendingJsSort`); the sort itself is
+    // resolved later, once every class string across the run is collected. With
+    // no Node available we warn and leave classes unchanged.
+    let js_available = js_env.is_some();
+    let (class_sorter, class_attributes, pending_js) = match tailwind::decide(
+        cfg.sort_tailwindcss.as_ref(),
+        cfg.path.as_deref(),
+        js_available,
+    ) {
+        tailwind::Decision::Sort { sorter, attributes } => (Some(sorter), attributes, None),
+        tailwind::Decision::SortViaJs {
+            filepath,
+            stylesheet_path,
+            config_path,
+            attributes,
+            preserve_whitespace,
+            preserve_duplicates,
+        } => (
+            None,
+            attributes,
+            Some(PendingJsSort {
+                env: js_env.expect("js_available implies an env"),
+                filepath,
+                stylesheet_path,
+                config_path,
+                preserve_whitespace,
+                preserve_duplicates,
+            }),
+        ),
+        tailwind::Decision::Skip { reason } => {
+            eprintln!("rsvelte-fmt: warning: `sortTailwindcss` left unapplied — {reason}.");
+            (None, Vec::new(), None)
+        }
+        tailwind::Decision::Off => (None, Vec::new(), None),
+    };
 
     // Embedded `<style>` blocks are formatted in-process via `oxc_formatter_css`
     // by default (same engine as `oxfmt`, no subprocess). `--no-native-css`
@@ -599,7 +634,7 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> FormatOptions {
         rsvelte_formatter::native_style_formatter(build_css_options(cli, cfg))
     };
 
-    FormatOptions {
+    let options = FormatOptions {
         js,
         style_formatter: Some(style_formatter),
         // `format` derives this per-document from `<script lang="ts">`.
@@ -611,7 +646,128 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> FormatOptions {
         bracket_same_line: cfg.bracket_same_line.unwrap_or(false),
         class_sorter,
         class_attributes,
+    };
+    (options, pending_js)
+}
+
+/// A resolved custom-Tailwind `sortTailwindcss` awaiting its one sidecar call.
+/// Held until every class string across the run is collected, so the Node
+/// sidecar runs exactly once for the whole batch.
+struct PendingJsSort {
+    env: tailwind_sidecar::SidecarEnv,
+    filepath: PathBuf,
+    stylesheet_path: Option<PathBuf>,
+    config_path: Option<PathBuf>,
+    preserve_whitespace: bool,
+    preserve_duplicates: bool,
+}
+
+impl PendingJsSort {
+    /// Sort `classes` (deduped) via the sidecar into an `orig -> sorted` map.
+    /// `None` on any sidecar failure, so the caller leaves classes untouched.
+    fn resolve(&self, classes: Vec<String>) -> Option<HashMap<String, String>> {
+        let req = tailwind_sidecar::SortRequest {
+            filepath: &self.filepath,
+            stylesheet_path: self.stylesheet_path.as_deref(),
+            config_path: self.config_path.as_deref(),
+            preserve_whitespace: self.preserve_whitespace,
+            preserve_duplicates: self.preserve_duplicates,
+            classes: classes.clone(),
+        };
+        let sorted = tailwind_sidecar::sort(&self.env, &req)?;
+        Some(classes.into_iter().zip(sorted).collect())
     }
+}
+
+/// A class sorter that records every value it sees (returning it unchanged), for
+/// the collection pass that gathers all class strings before the sidecar call.
+fn collecting_sorter(sink: Arc<Mutex<HashSet<String>>>) -> ClassSorter {
+    Arc::new(move |s: &str| {
+        sink.lock()
+            .expect("class sink poisoned")
+            .insert(s.to_string());
+        s.to_string()
+    })
+}
+
+/// A class sorter backed by a resolved `orig -> sorted` map; an unseen value
+/// (e.g. a sidecar miss) is returned unchanged.
+fn map_sorter(map: Arc<HashMap<String, String>>) -> ClassSorter {
+    Arc::new(move |s: &str| map.get(s).cloned().unwrap_or_else(|| s.to_string()))
+}
+
+/// Format `source` with a collecting class sorter, returning the set of static
+/// class-attribute values it contains. Style formatting is skipped — only the
+/// class strings matter here.
+fn collect_source_classes(source: &str, options: &FormatOptions) -> HashSet<String> {
+    let sink: Arc<Mutex<HashSet<String>>> = Arc::default();
+    let mut opts = options.clone();
+    opts.class_sorter = Some(collecting_sorter(sink.clone()));
+    opts.style_formatter = None;
+    let _ = format(source, &opts);
+    Arc::try_unwrap(sink)
+        .map(|m| m.into_inner().expect("class sink poisoned"))
+        .unwrap_or_else(|arc| arc.lock().expect("class sink poisoned").clone())
+}
+
+/// Collect every static class-attribute value across `files` in parallel, for
+/// the single batched sidecar sort.
+fn collect_svelte_classes(files: &[PathBuf], options: &FormatOptions) -> HashSet<String> {
+    let sink: Arc<Mutex<HashSet<String>>> = Arc::default();
+    let mut opts = options.clone();
+    opts.class_sorter = Some(collecting_sorter(sink.clone()));
+    opts.style_formatter = None;
+    files.par_iter().for_each(|path| {
+        if let Ok(source) = std::fs::read_to_string(path) {
+            let _ = format(&source, &opts);
+        }
+    });
+    Arc::try_unwrap(sink)
+        .map(|m| m.into_inner().expect("class sink poisoned"))
+        .unwrap_or_else(|arc| arc.lock().expect("class sink poisoned").clone())
+}
+
+/// Resolve the JS class sorter for a batch: collect all class strings, run the
+/// sidecar once, and return a map-backed sorter. On sidecar failure, warns once
+/// and returns `None` so classes are left unsorted (never wrongly reordered).
+fn resolve_js_class_sorter(
+    pending: &PendingJsSort,
+    classes: HashSet<String>,
+) -> Option<ClassSorter> {
+    if classes.is_empty() {
+        return None;
+    }
+    match pending.resolve(classes.into_iter().collect()) {
+        Some(map) => Some(map_sorter(Arc::new(map))),
+        None => {
+            eprintln!(
+                "rsvelte-fmt: warning: `sortTailwindcss` left unapplied — the Node sidecar could \
+                 not sort classes (is prettier-plugin-tailwindcss installed?)."
+            );
+            None
+        }
+    }
+}
+
+/// Locate the Tailwind sidecar Node environment. `None` disables the JS sort
+/// path (a custom Tailwind config then warns and skips).
+fn js_sort_env() -> Option<tailwind_sidecar::SidecarEnv> {
+    let script = tailwind_sidecar_script()?;
+    let node = oxfmt_node().unwrap_or_else(|| PathBuf::from("node"));
+    Some(tailwind_sidecar::SidecarEnv { node, script })
+}
+
+/// The `tailwind-sort.mjs` sidecar: `RSVELTE_FMT_TAILWIND_SIDECAR` when set
+/// (tests / overrides), else `lib/tailwind-sort.mjs` beside the installed
+/// `bin/rsvelte-fmt`.
+fn tailwind_sidecar_script() -> Option<PathBuf> {
+    if let Some(p) = std::env::var_os("RSVELTE_FMT_TAILWIND_SIDECAR") {
+        let p = PathBuf::from(p);
+        return p.is_file().then_some(p);
+    }
+    let exe = std::env::current_exe().ok()?;
+    let script = exe.parent()?.parent()?.join("lib/tailwind-sort.mjs");
+    script.is_file().then_some(script)
 }
 
 /// The base [`JsonFormatOptions`] for the native-JSON path: width/indent/EOL
@@ -770,7 +926,12 @@ fn make_oxfmt_style_formatter(
 
 // ─── stdin path ─────────────────────────────────────────────────────────
 
-fn run_stdin(cli: &Cli, options: &FormatOptions, cfg: &OxfmtConfig) -> Result<ExitCode> {
+fn run_stdin(
+    cli: &Cli,
+    options: &FormatOptions,
+    cfg: &OxfmtConfig,
+    pending_js: Option<&PendingJsSort>,
+) -> Result<ExitCode> {
     let filepath = cli
         .stdin_filepath
         .as_ref()
@@ -782,6 +943,19 @@ fn run_stdin(cli: &Cli, options: &FormatOptions, cfg: &OxfmtConfig) -> Result<Ex
         .context("failed to read stdin")?;
 
     if is_svelte(filepath) {
+        // Custom Tailwind config: collect this source's class strings, sort them
+        // in one sidecar call, then format with the resolved map-backed sorter.
+        let owned_options;
+        let options = match pending_js {
+            Some(pending) => {
+                let classes = collect_source_classes(&source, options);
+                let mut opts = options.clone();
+                opts.class_sorter = resolve_js_class_sorter(pending, classes);
+                owned_options = opts;
+                &owned_options
+            }
+            None => options,
+        };
         let formatted =
             format(&source, options).map_err(|e| anyhow!("rsvelte_formatter error: {e}"))?;
         if cli.check {
