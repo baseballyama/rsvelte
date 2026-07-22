@@ -5,7 +5,7 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: 27 entries**, concentrated in real-world corpus repos
+**Current baseline: 22 entries**, concentrated in real-world corpus repos
 (layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail). Oracle-bug /
 invalid-input / migrate cases are NOT here — those are permanently excluded in
 `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every entry here was
@@ -47,7 +47,7 @@ low-yield relative to their blast radius to keep chasing (see the Methodology
 notes on causal-to-PASS attrition), so further blind bail-hunting in
 `children.rs` is paused for now.
 
-## Cluster 2 — attribute/style/directive value break-point selection (5)
+## Cluster 2 — attribute/style/directive value break-point selection (4)
 
 A quoted attribute or directive value with one or more `{…}` interpolations
 overflows the line, and the oracle's break-point choice differs from
@@ -56,7 +56,7 @@ whole-value Doc model (see Resolved): the value's literal text prints
 verbatim, and each interpolation is a `group([RawExpr{flat, broken}])` whose
 break decision is measured through the *whole remaining tail* — not just its
 own width — reproducing prettier's own greedy, left-to-right break-point
-choice. The 5 remaining ids split into two distinct blockers:
+choice. The 4 remaining ids split into two distinct blockers:
 
 `style:` **directive** values are not yet routed through that model — their
 text is a real `fill` structure in the oracle (unlike a regular attribute's
@@ -67,15 +67,14 @@ trailing interpolations are counted at zero absorbed width, so the model
 breaks an earlier interpolation the oracle keeps flat inside a deeply nested
 `calc(...)` expression.
 
-The rest sit on the new model's own remaining limitation. `RawExpr` is a
-*pre-formatted, uniformly-narrowed string* — it cannot give an interior
-subexpression the full, indent-position-correct budget it would get if
-formatted live at its actual column. `powertable/.../PowerTable.svelte`'s
-`placeholder` attribute and `svelte-calendar/.../Popover.svelte`'s `style=`
-attribute now select the *same* break point as the oracle — the new model
-genuinely improved them — but the continuation line lands at the wrong
-indent, because the narrowed pre-format doesn't know the column it will
-eventually print at. `cmsaasstarter/.../delete_account/+page.svelte`'s
+The wrong-indent half of this cluster turned out to be a double-indent bug,
+not the RawExpr width limitation, and is now fixed (see Resolved): the model
+baked the absolute attribute indent into continuation lines while the
+open-tag assembly re-indents interpolation-led values a second time. That
+cleared `svelte-calendar/.../Popover.svelte` outright and resolved
+`powertable/.../PowerTable.svelte`'s `placeholder` half (the id keeps
+failing on its other clusters — see Multiple clusters per id).
+`cmsaasstarter/.../delete_account/+page.svelte`'s
 single-interpolation `message=` attribute is not currently routed through
 the new model at all (an attempt to widen the gate to that shape was
 reverted — see Proven net-negative), but the experiment confirmed its
@@ -89,16 +88,15 @@ in rsvelte — give each interpolation a *live* Doc subtree (formatted at its
 real indent) instead of a pre-narrowed string, so a nested subexpression can
 measure against its true column.
 
-## Cluster 3 — embedded-JS member-chain / call-argument break-point divergence (4)
+## Cluster 3 — embedded-JS member-chain / call-argument break-point divergence (3)
 
-A single JS expression inside one interpolation (`a.b.c`, `x ?? 'default'`,
-or a call like `isNodeVisible(a, b)`) needs to break, and oxc's chosen break
-point differs from what the oracle emits in the same context — e.g. a plain
-member chain (`$page.error.message`, `api.rest_props.name`) breaks one
-property earlier/later or one level deeper than the oracle, or the oracle
-keeps a `{#if long-call(…)}` header on one line entirely where oxc breaks the
-call arguments (and resets to the wrong indent depth relative to the
-surrounding template). One entry (`svelte-form-builder/FormBuilder.svelte`)
+A single JS expression inside one interpolation (`a.b.c`, `x ?? 'default'`)
+needs to break, and oxc's chosen break point differs from what the oracle
+emits in the same context — e.g. a plain member chain (`$page.error.message`,
+`api.rest_props.name`) breaks one property earlier/later or one level deeper
+than the oracle. (The block-header variant — a `{#if long-call(…)}` header the
+oracle keeps on one line entirely — is resolved, see Resolved.) One entry
+(`svelte-form-builder/FormBuilder.svelte`)
 shows the same divergence repeated many times inside one multi-line
 `style="…"` value, each `?.`/`??` chain choosing a different break point than
 the oracle. This is oxc's member-chain / call-argument merge heuristic
@@ -130,29 +128,43 @@ text/element context, not on bare adjacency — but the actual fix location is
 unknown pending further investigation. Several targeted fixes were attempted
 and are proven net-negative (see below).
 
-## Cluster 5 — prose fill / text wrap (5)
+## Cluster 5 — prose fill / text wrap (2)
 
 A long mixed text run (plain prose, or prose interleaved with inline elements,
 `{@render …}`/other call-bearing expression tags, or adjacent
 attribute/directive values) is word-wrapped at the print width by the oracle's
 `fill` algorithm with `pair_fits` lookahead, and rsvelte either wraps a word
-early, fails to fill a block-child text run at all, mis-attaches a trailing
-word to the wrong line after a multi-line call inside an expression tag, or
-keeps a run compact that the oracle wraps. Dropping `pair_fits` globally is
+early, fails to fill a block-child text run at all, or keeps a run compact
+that the oracle wraps. (The "mis-attached trailing word after a multi-line
+call inside an expression tag" symptom formerly listed here is resolved —
+see Resolved.) Dropping `pair_fits` globally is
 proven net-negative (fixed 4 prose cases, broke 48) — the oracle's fill is
 genuinely context-dependent and not hand-characterizable without the full
 lookahead algorithm. Fix belongs in rsvelte — the `Fill`/prose layout port.
 
-Two entries were resolved by fixing a `splitTextToDocs`-parity gap (see
-Resolved): whether a text run's leading whitespace is trimmed depends on
-whether it sits at the parent's first-child position. When trimmed (first
-child), prettier's fill list is word-first (`[word, line, word, …]`) and the
-overflowing word wraps normally; when not trimmed, the list is
-hardline-first (`[hardline, word, line, word, …]`), which lets the last word
-before the line boundary overflow rather than wrap. `collapse.rs`'s
-`text_preceded_by_close_tag` only recognized a preceding `</tag>` as a
-not-first-child signal, so text right after a self-closing sibling
-(`<Code … />`) was wrongly treated as first-child and wrapped early.
+Three entries were resolved by fixing two distinct bugs (see Resolved).
+First, a `splitTextToDocs`-parity gap: whether a text run's leading
+whitespace is trimmed depends on whether it sits at the parent's first-child
+position. When trimmed (first child), prettier's fill list is word-first
+(`[word, line, word, …]`) and the overflowing word wraps normally; when not
+trimmed, the list is hardline-first (`[hardline, word, line, word, …]`),
+which lets the last word before the line boundary overflow rather than wrap.
+`collapse.rs`'s `text_preceded_by_close_tag` only recognized a preceding
+`</tag>` as a not-first-child signal, so text right after a self-closing
+sibling (`<Code … />`) was wrongly treated as first-child and wrapped early.
+Second, an over-eager bail in `try_fill_run`: a `run.len()==1 && Text &&
+!whole.contains('\n')` guard skipped reflow for single-text-node runs
+entirely, even when the text overflowed the print width and had already
+passed the flat-fit check — prettier's fill always wraps an overflowing
+single-node run, so the guard's justifying example (a *mixed*, `run.len()>1`
+run that stays flat at 86 columns) didn't actually license it. Removing the
+11-line guard fixed `sveltestrap/.../Popover.stories.svelte`, whose prose
+sits inside a `<Popover>` component with a block sibling (`<div
+slot="title">`) — that block sibling makes the element-level mixed-fill path
+bail, so the whole prose run reaches `try_fill_run` as a single text node,
+where the guard was blocking it. (An earlier read of this id as a
+children-port Component-child gap was a misdiagnosis from the whole-file
+diff shape, not the true mechanism.)
 
 This bucket is diagnosis-based, not mechanism-confirmed for every remaining
 member:
@@ -161,26 +173,39 @@ member:
   in the *opposite* direction: rsvelte's finalized fill carries a spurious
   extra leading hardline (`[hardline, "installs", …]`) where the oracle is
   word-first (`["installs", …, hardline]`), so rsvelte tolerates an overflow
-  the oracle wraps. The extra hardline traces to neither `split_text_to_docs`
-  (`collapse.rs` and `children.rs`, both instrumented) nor `try_fill_run`
-  (not even called for the `<li>` body in question) — it is reconstructed by
-  a later collapse pass, after an inline `<code>`/`<b>` hug-breaks across
-  multiple lines, in a multi-pass interaction that hasn't been safely
-  isolated. High risk to touch blind; left open.
+  the oracle wraps. The mechanism is now confirmed as a multi-pass artifact:
+  an earlier pass (indent/hug) hug-breaks an inline `<code>`/`<b>` sibling
+  across multiple lines, which moves the following prose to the start of a
+  new line in that pass's *intermediate* output; the children-port pass then
+  re-derives the text's leading-whitespace classification from that
+  intermediate output, sees what looks like a genuine line-starting newline,
+  and (correctly, given that input) attaches a leading Hardline via
+  `split_text_to_docs` — producing the inverted, overflow-tolerant fill. The
+  oracle never sees this: it builds its fill directly from the *original*
+  source, where the prose sits on the same line as the inline element, so it
+  stays word-first. Fixing this needs the children-port's whitespace
+  classification to distinguish a pass-introduced line break from a
+  source-original one — a multi-pass architecture change, still high risk;
+  left open.
 - `layerchart/.../LineChart/perf-wide-data-processed.svelte` and
   `layerchart/.../docs/examples/+page.svelte` diverge on the trailing text
   *after* a multi-line expression tag (`{format(...)}` /
-  `{@render scrollingValue(...)}`): the oracle builds an inverted fill
-  (`[line, "data", line, "points"]`, word-as-separator) that glues the first
-  trailing word to the `)}` line, while rsvelte's word-first fill wraps it
-  onto its own line. Distinct nested-fill mechanism from the two above.
-- `sveltestrap/.../Popover.stories.svelte` is not a pure fill problem: the
-  prose inside a `<Popover>` component doesn't reflow at all (no width
-  wrapping happens), i.e. the children-port claim for Component-child prose
-  is incomplete — adjacent to Cluster 1 rather than a genuine Cluster 5
-  divergence, but left here as the dominant symptom in the whole-file diff.
+  `{@render scrollingValue(...)}`); each hits a different bail on the way to
+  the same symptom. `perf-wide-data-processed.svelte`'s `{format(...)}` is
+  already multi-line in the source and trips `build_children_doc_nodes`'s
+  `if span.contains('\n') { return None }` bail, so the entire surrounding
+  run is never reflowed. `routes/docs/examples/+page.svelte`'s `{@render
+  scrollingValue(...)}` is instead emitted as an unbreakable verbatim Text
+  atom, so it stays flat and overflows rather than breaking. The trailing
+  text's own `split_text_to_docs(_, false, true)` call is confirmed correct
+  — it already produces the oracle's inverted fill
+  (`[line, "data", line, "points"]`, word-as-separator gluing the first
+  trailing word to the `)}` line) when reached. Both ids need the same
+  underlying infrastructure: a breakable Doc representation for expression
+  tags (a `RawExpr{flat, broken}`-equivalent), the same direction as Cluster
+  2's live-Doc-subtree work.
 
-Re-diagnosing the remaining 5 with full corpus instrumentation (rather than a
+Re-diagnosing the remaining 4 with full corpus instrumentation (rather than a
 diff read) would be needed before attempting further fixes.
 
 ## Cluster 6 — oxc paren / type-annotation divergence (1)
@@ -215,15 +240,58 @@ A `<style>` block declaration whose value spans multiple lines and mixes a
 comment with several `repeating-linear-gradient(...)` calls
 (`background-image: /* comment */ repeating-linear-gradient(…), /* comment */
 repeating-linear-gradient(…), …`) gets both its leading comment and its
-continuation-argument lines indented differently by the native
-`oxc_formatter_css` engine than by the oracle — a stray space+tab mix on the
-comment line, and a 2-space-narrower indent on every subsequent
-`repeating-linear-gradient` argument line. This is the one entry in the
-baseline that is pure CSS formatting, not HTML/JS layout. Fix belongs in
-`oxc_formatter_css` (multi-value declaration indent tracking).
+continuation-argument lines indented differently than by the oracle — a
+stray space+tab mix on the comment line, and a 2-space-narrower indent on
+every subsequent `repeating-linear-gradient` argument line. Root cause
+(byte-level reproduction of both pipelines, minimal repro with identical
+input): this is NOT an `oxc_formatter_css` indent-tracking bug but a
+**mode difference in oxfmt itself** — its svelte-embedded mode preserves a
+multi-line function value's interior lines verbatim (1:1 tab→space mapping
+of the source's uneven indents), while its standalone CSS mode (the only
+mode rsvelte's dedent→format→reindent wrapper can use) parses the function
+and normalizes the arguments to one canonical level. The comment-line
+whitespace mix is a secondary rsvelte dedent artifact, but fixing it alone
+cannot clear the entry while the mode difference remains. Unfixable in-repo;
+a root fix would need oxfmt's standalone path to preserve multi-line
+function-value interiors verbatim (high blast radius upstream). This is the
+one entry in the baseline that is pure CSS formatting, not HTML/JS layout.
 
 ## Resolved
 
+- **Prose expression/render tag breaks its call arguments in place (Cluster
+  5, 2 ids).** A long call inside an expression/render tag in prose was
+  treated as an atomic fill word, so rsvelte wrapped at the word boundary
+  before it instead of breaking the call's arguments and gluing the next
+  word to the `)}` line. A `printToDoc` dump showed prettier builds such a
+  paragraph as fill + expression-tag concat + fill — the tag sits outside
+  the fill with its own call-arguments group, so the fill never measures it.
+  Element-body prose (`try_fill_mixed`) now represents multi-line content
+  tags as a breakable flat/broken doc inside the run; all other call sites
+  keep the atomic behavior. Cleared `layerchart/.../LineChart/
+  perf-wide-data-processed.svelte` and `layerchart/.../docs/examples/
+  +page.svelte`.
+- **Block-header call expressions forced onto one line (Cluster 3, the
+  `{#if long-call(…)}` variant).** prettier-plugin-svelte reprints block
+  headers with `removeLines`, which keeps a group's baked `shouldBreak` — a
+  `shouldExpandLastArg` call joins with inner spaces (`fn( a, b )`), every
+  other call without them. rsvelte formatted the header at `LineWidth::MAX`,
+  but oxc still expands hug-eligible-last-arg calls at MAX width, and the
+  multi-line result skipped the single-line path entirely, splicing the raw
+  expansion at the wrong indent. `collapse_block_header_expanded_call` folds
+  the flat-args expanded form back (structural gate: fires only when oxc
+  refuses flat at MAX width; curried `)(` inner lines bail). Resolved the
+  Cluster 3 half of `stacked-zoom.svelte`.
+- **Interpolation-led attribute value continuation double-indent (Cluster
+  2's wrong-indent half).** The whole-value Doc model baked the absolute
+  attribute indent into continuation lines, but the open-tag assembly
+  re-indents interpolation-led values (`value="{…}"`) a second time —
+  text-led values (`class="text {…}"`) are kept verbatim — so a wrapped
+  interpolation's continuation landed at double the intended column
+  (28+26=54). The model's base indent now matches `is_string_value_attr`'s
+  split: absolute for text-led, relative for interpolation-led; break-point
+  selection unchanged. Cleared `svelte-calendar/.../Popover.svelte` and the
+  Cluster 2 half of `stacked-zoom.svelte` (completing that id's PASS), and
+  resolved `PowerTable.svelte`'s `placeholder` half.
 - **Template-position `as`/`satisfies` union kept flat (Cluster 6, union
   member).** oxc expands `x as A | B` to a leading-`|` multi-line union
   whenever the annotation breaks; the oxfmt oracle formats template
@@ -323,17 +391,15 @@ baseline that is pure CSS formatting, not HTML/JS layout. Fix belongs in
 
 Several ids carry divergences from two or more clusters at once, so fixing one
 cluster alone leaves them failing: `powertable/.../PowerTable.svelte` needs
-Cluster 2 (a `placeholder` attribute now break-point-correct but wrong-indent
-under the new attribute-value Doc model), Cluster 1 (an open-tag hug), and a
-directive-value break decision (`bind:checked={...}`, unrouted by the new
-model, same shape as Cluster 2's un-routed `delete_account` case) in the same
-file; `svelte-ux/.../Gooey/+page.svelte` needs Cluster 1, Cluster 2 (a
+Cluster 1 (an open-tag hug) and a directive-value break decision
+(`bind:checked={...}`, unrouted by the new model, same shape as Cluster 2's
+un-routed `delete_account` case) in the same file — its former Cluster 2
+`placeholder` wrong-indent half was resolved by the double-indent fix;
+`svelte-ux/.../Gooey/+page.svelte` needs Cluster 1, Cluster 2 (a
 `style:transform` directive value, un-routed, same legacy symptom as
-AxisY/AxisYRight), and Cluster 5 together; `layerchart/.../Treemap/
-stacked-zoom.svelte` needs Cluster 3 (its dominant `{#if isNodeVisible(…)}`
-header divergence) and now also Cluster 2 (a `value=` attribute that broke at
-the oracle's exact point but landed at the wrong indent — the new model
-reaching a file whose primary failure is elsewhere). Each id above is filed
+AxisY/AxisYRight), and Cluster 5 together. `layerchart/.../Treemap/
+stacked-zoom.svelte` used to sit here (Cluster 3 block-header + Cluster 2
+wrong-indent) — both halves are now resolved and the id passes. Each id above is filed
 under its dominant/first-encountered divergence. `svelte-ux/routes/+page.svelte`
 used to belong on this list too (Cluster 5 plus a wrongly hug-broken `<Kbd>`
 component) — widening the children port to convert Component children
@@ -410,6 +476,21 @@ the diff).
   Cleared `smelte/src/routes/index.svelte` and
   `layerchart/docs/.../LineChart/sparkline-within-a-paragraph.svelte`
   (commit 6d57221c, PR #1651).
+- **`try_fill_run`'s single-text-node bail was over-eager (Cluster 5).** A
+  `run.len()==1 && Text && !whole.contains('\n')` guard skipped reflow for
+  any single-node text run, on the assumption (correct for a *mixed*,
+  `run.len()>1` run) that such a run should stay flat. For a lone text node
+  that had already passed the flat-fit check and still overflowed, prettier's
+  fill always wraps it — the guard was blocking exactly the case it should
+  have let through. This was reached whenever a preceding element-level bail
+  (e.g. a block sibling forcing the mixed-fill path to give up) pushed a long
+  prose run down to `try_fill_run` as a single node. Fixed by removing the
+  guard (11 lines); unit tests added, reverting reproduces the failures, 0
+  regressions across the corpus. This id was previously (mis)diagnosed as a
+  children-port Component-child gap from its whole-file diff shape; the
+  actual mechanism is the fill-layer bail above. Cleared
+  `sveltestrap/src/Popover/Popover.stories.svelte` (commit d12da203, PR
+  #1663).
 
 ## Methodology notes
 

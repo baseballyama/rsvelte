@@ -166,3 +166,27 @@ fn multi_breakable_value_keeps_first_flat_when_later_absorbs() {
     let twice = fmt_w(&out, 60);
     assert_eq!(out, twice, "later-absorbs wrap is not idempotent:\n{out}");
 }
+
+#[test]
+fn interp_led_value_continuation_indents_relative_to_attr_column() {
+    // An INTERPOLATION-led quoted value (`value="{…}"`, not text-led) whose
+    // second interpolation breaks, on a DEEPLY NESTED element. Unlike a text-led
+    // value (emitted verbatim), an interp-led value is re-indented by the open-tag
+    // assembly, so the whole-value Doc model must emit its continuation RELATIVE to
+    // the attribute line. The broken interpolation's continuation must land at
+    // `attr_indent + 2` (10 spaces here), NOT `2*attr_indent + 2`. (layerchart
+    // Treemap/stacked-zoom `value=` shape, Cluster 2.)
+    let src = "<div>\n  <div>\n    <div>\n      <Text longAttributeToForceWrap=\"yes\" value=\"{node.data.name} ({node.children?.length ?? defaultFallbackNumber})\" />\n    </div>\n  </div>\n</div>\n";
+    let out = fmt80(src);
+    assert!(
+        out.contains(
+            "        value=\"{node.data.name} ({node.children?.length ??\n          defaultFallbackNumber})\""
+        ),
+        "interp-led value continuation must indent to attr_indent + 2 (10sp), not doubled:\n{out}"
+    );
+    let twice = fmt80(&out);
+    assert_eq!(
+        out, twice,
+        "interp-led continuation wrap is not idempotent:\n{out}"
+    );
+}

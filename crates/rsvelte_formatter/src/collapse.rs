@@ -1440,7 +1440,8 @@ fn try_fill_run(
     // correctly breaks at the first word that doesn't fit, so multi-line
     // sources get the right reflowed layout.
     let use_word_first = whole.contains('\n');
-    let content_doc = build_children_doc_nodes(out, run, allow_elem_expr_collapse, use_word_first)?;
+    let content_doc =
+        build_children_doc_nodes(out, run, allow_elem_expr_collapse, use_word_first, None)?;
     // Prepend a leading Line/Hardline to the fill doc to produce prettier's
     // "inverted" fill structure when the first text node had leading whitespace.
     // This matches prettier-plugin-svelte's `splitTextToDocs` which places a `line`
@@ -1494,17 +1495,6 @@ fn try_fill_run(
     // If the prefix was non-whitespace and NOT a recognized close-tag prefix
     // (`>` or `> `), we cannot safely compute base_level for multi-line reflow.
     if non_ws_prefix && !is_close_tag_prefix {
-        return None;
-    }
-    // A pure-text run (no inline elements) that is already on a single line
-    // (no `\n` in `whole`) should not be broken — prettier does not aggressively
-    // re-wrap prose that the indent pass placed on one line, even when it slightly
-    // overflows (e.g. a `<strong>Code suggestions</strong> validated … before you
-    // merge.` run that reaches 86 cols). Only reflow pure-text single-node runs
-    // that are already single-line; multi-node runs (with inline elements) that
-    // span multiple lines in the formatted output are still reflowed normally.
-    // Note: `run` was rebound above to `run[lo..hi]` (whitespace-only edges trimmed).
-    if run.len() == 1 && matches!(run[0], TemplateNode::Text(_)) && !whole.contains('\n') {
         return None;
     }
     let printed_raw = crate::doc::print(
@@ -5224,8 +5214,10 @@ fn try_fill_mixed(
     // Build the prettier content doc (a Concat of per-text-node fills with the
     // inline elements as hug groups in between — a port of prettier-plugin-svelte's
     // `printChildren`) and print it. This reproduces the prose fill + in-place
-    // inline-element hug-break exactly.
-    let content_doc = build_children_doc(out, fragment)?;
+    // inline-element hug-break exactly. Options are threaded so a breakable
+    // content/render tag (`{call(…)}`) participates in the fill as a
+    // `group([RawExpr])` and glues the following word to its closing `)}`.
+    let content_doc = build_children_doc_nodes(out, &fragment.nodes, false, false, Some(options))?;
     let base_level = if options.js.indent_style.is_tab() {
         inner_indent
             .bytes()
@@ -5444,7 +5436,70 @@ fn text_preceded_by_close_tag(out: &str, text_start: usize) -> bool {
 /// fresh line (a `hardline`). The first child's leading and last child's trailing
 /// whitespace are dropped (the element wrapper owns that newline).
 fn build_children_doc(out: &str, fragment: &Fragment) -> Option<crate::doc::Doc> {
-    build_children_doc_nodes(out, &fragment.nodes, false, false)
+    build_children_doc_nodes(out, &fragment.nodes, false, false, None)
+}
+
+/// Build a breakable `group([RawExpr{flat, broken}])` for a content-level tag
+/// (`{expr}` / `{@render …}`) so it participates in a prose fill exactly like
+/// prettier-plugin-svelte: the tag's own group decides flat-vs-broken via `fits`,
+/// and a trailing prose word glues to the closing `)}` (through the following
+/// fill's leading `line`) instead of dropping to a fresh line. Returns `None`
+/// when the tag can't be flattened or doesn't break into an argument block — the
+/// caller then keeps the atomic-text path.
+fn content_tag_breakable_doc(
+    out: &str,
+    node: &TemplateNode,
+    options: &FormatOptions,
+) -> Option<crate::doc::Doc> {
+    use crate::doc::Doc;
+    let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
+    let (prefix, expr_src): (&str, &str) = match node {
+        TemplateNode::ExpressionTag(_) => ("", span.strip_prefix('{')?.strip_suffix('}')?.trim()),
+        TemplateNode::RenderTag(t) => {
+            let (Some(s), Some(e)) = (t.expression.start(), t.expression.end()) else {
+                return None;
+            };
+            ("@render ", out.get(s as usize..e as usize)?.trim())
+        }
+        _ => return None,
+    };
+    if expr_src.is_empty() {
+        return None;
+    }
+    // Canonical flat inner (one line). Bail if it can't be flattened.
+    let flat_inner =
+        crate::expression::reformat_content_at_width(expr_src, options, u16::MAX as usize, 0)
+            .ok()?;
+    if flat_inner.contains('\n') {
+        return None;
+    }
+    // Keep the flat form byte-verbatim when the tag is already single-line in the
+    // formatted output (no drift); reconstruct it only for an already-broken tag.
+    let flat = if span.contains('\n') {
+        format!("{{{prefix}{flat_inner}}}")
+    } else {
+        span.to_string()
+    };
+    // Broken shape: force just the outermost break (one column under the flat
+    // inner width, mirroring `try_break_inline_content_tag`); continuation lines
+    // carry oxc's own relative indent measured from column 0, which the `RawExpr`
+    // printer offsets by the current indent level.
+    let width = UnicodeWidthStr::width(flat_inner.as_str())
+        .saturating_sub(1)
+        .max(1);
+    let broken_inner =
+        crate::expression::reformat_content_at_width(expr_src, options, width, 0).ok()?;
+    if !broken_inner.contains('\n') {
+        return None;
+    }
+    let mut lines: Vec<String> = broken_inner.split('\n').map(str::to_string).collect();
+    let last = lines.len() - 1;
+    lines[0] = format!("{{{prefix}{}", lines[0]);
+    lines[last] = format!("{}}}", lines[last]);
+    Some(Doc::Group(vec![Doc::RawExpr {
+        flat,
+        broken: lines,
+    }]))
 }
 
 // `use_word_first`: when true, a trailing text node that follows a non-void
@@ -5455,6 +5510,7 @@ fn build_children_doc_nodes(
     nodes: &[TemplateNode],
     allow_elem_expr_collapse: bool,
     use_word_first: bool,
+    options: Option<&FormatOptions>,
 ) -> Option<crate::doc::Doc> {
     use crate::doc::Doc;
     let n = nodes.len();
@@ -5652,6 +5708,21 @@ fn build_children_doc_nodes(
                 ws_prev = false;
             }
             other => {
+                // A breakable content/render tag joins the fill as `group([RawExpr])`
+                // (prettier's fill+tag+fill); gated on a caller threading options.
+                if let Some(opts) = options
+                    && matches!(
+                        other,
+                        TemplateNode::ExpressionTag(_) | TemplateNode::RenderTag(_)
+                    )
+                    && let Some(doc) = content_tag_breakable_doc(out, other, opts)
+                {
+                    // `ws_prev` is only raised before an inline *element*, never
+                    // before a content tag, so the tag is always pushed bare.
+                    docs.push(doc);
+                    ws_prev = false;
+                    continue;
+                }
                 // Expression tag / html tag / component / … : verbatim atom.
                 // For Components with text content (`<A href="/">text</A>`), try
                 // the same hug-doc treatment as RegularElement so the open tag can
