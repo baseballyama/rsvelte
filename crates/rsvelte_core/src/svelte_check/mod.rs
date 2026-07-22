@@ -17,6 +17,7 @@ pub mod overlay;
 pub mod runner;
 pub mod tsgo;
 pub mod walker;
+pub mod warning_filter;
 pub mod watch;
 pub mod writers;
 

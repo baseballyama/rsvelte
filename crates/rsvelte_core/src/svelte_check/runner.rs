@@ -11,7 +11,9 @@ use std::path::{Path, PathBuf};
 
 use crate::compiler::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
 
-use super::config::{CompilerOptionsSettings, load_compiler_options_with_config};
+use super::config::{
+    CompilerOptionsSettings, load_compiler_options_with_config, warning_filter_config_path,
+};
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
 use super::kit_file::load_kit_files_settings_with_config;
 use super::manifest::{
@@ -236,7 +238,33 @@ pub fn run(options: &RunOptions) -> RunResult {
 
     apply_filters(&mut result.diagnostics, options);
 
+    // Honor `compilerOptions.warningFilter` — a JS predicate the native compiler
+    // can't run — via a one-shot Node sidecar. Applied last, over the fully
+    // resolved warning set, which is equivalent to Svelte's emit-time filter
+    // because it's a pure per-warning predicate (#1666). Zero cost when the
+    // config declares no function `warningFilter`.
+    apply_warning_filter(&mut result.diagnostics, options);
+
     result
+}
+
+/// Run the project's function `warningFilter` over the collected Svelte warnings
+/// through the Node sidecar, when both a filter is declared and the sidecar is
+/// available. A no-op otherwise (and a fail-open on any sidecar error).
+fn apply_warning_filter(diagnostics: &mut Vec<Diagnostic>, options: &RunOptions) {
+    let Some(config_path) =
+        warning_filter_config_path(&options.workspace, options.config.as_deref())
+    else {
+        return;
+    };
+    let Some(env) = super::warning_filter::SidecarEnv::from_env() else {
+        eprintln!(
+            "rsvelte-check: warning: `compilerOptions.warningFilter` is set but could not be \
+             evaluated (no Node sidecar available). All warnings are shown."
+        );
+        return;
+    };
+    super::warning_filter::apply(&env, &config_path, diagnostics);
 }
 
 /// Drop diagnostics whose file lives outside the checked workspace root.
