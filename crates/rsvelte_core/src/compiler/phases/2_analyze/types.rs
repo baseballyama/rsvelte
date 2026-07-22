@@ -2457,6 +2457,9 @@ pub struct CssDomElement {
     /// Whether this element has a dynamic tag name (svelte:element)
     /// When true, any type selector matches this element
     pub is_dynamic_tag: bool,
+    /// Whether this element sits inside a `{#snippet}` declaration — its real
+    /// DOM ancestors are the render sites, not its lexical `parent_idx`.
+    pub in_snippet: bool,
     /// Whether this element can be immediately preceded by an opaque boundary
     /// (slot, render tag, component) - used for :global(X) + Y detection
     pub prev_is_opaque_boundary: bool,

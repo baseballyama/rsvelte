@@ -120,6 +120,10 @@ pub fn visit(
         has_content: !element.fragment.nodes.is_empty(),
         has_opaque_content: false, // Dynamic element, conservatively handled via is_dynamic_tag
         is_dynamic_tag: true,
+        in_snippet: context
+            .fragment_owner_stack
+            .iter()
+            .any(|o| matches!(o, super::FragmentOwnerType::SnippetBlock(..))),
         prev_is_opaque_boundary: false,
         prev_has_opaque_boundary: false,
     };
