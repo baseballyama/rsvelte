@@ -901,6 +901,52 @@ jobs:
         env:
           RUSTDOCFLAGS: -Dwarnings
 
+  # Builds the NAPI addon for the host triple and runs the vite-plugin-svelte
+  # native smoke test, which exercises the JS-function compile options
+  # (customElement/css/runes, warningFilter, cssHash) end-to-end through the shim.
+  vps-shim:
+    name: VPS native shim smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      # rsvelte_core's build.rs reads the Svelte version string from the submodule.
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.97.1
+
+      - name: Setup mold linker
+        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          shared-key: vps-shim
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build NAPI addon (host)
+        run: pnpm run build:vps-native
+
+      - name: Run vite-plugin-svelte native shim smoke test
+        run: pnpm run test:vps-shim
+
   vps-version-check:
     name: VPS native VERSION drift check
     runs-on: ubuntu-latest
