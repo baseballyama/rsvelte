@@ -860,20 +860,24 @@ fn push_bare_expression(
     let suffix_len = compute_header_suffix_len(source, end as usize);
     // First format inline (single-line) to get the canonical expression text.
     let formatted = format_inline_expression(slice, options)?;
-    // prettier-plugin-svelte uses `forceSingleLine: true` (internally `removeLines`)
-    // for block-header expressions like `{#each}`, `{#if}`, etc.  This means all
-    // non-hard line breaks in the formatted expression doc are replaced by spaces,
-    // producing a single-line result even for wide array/object literals.
-    //
-    // OXC's formatter (unlike prettier) always breaks arrays/objects of significant
-    // width into multiple lines, even with `Expand::Never` and `LineWidth::MAX`.
-    // When the source expression is an array or object literal with no newlines,
-    // collapse the multi-line OXC output back to a single line to match oracle.
-    let formatted = if formatted.contains('\n')
-        && starts_with_array_or_object_literal(slice)
-        && !slice.contains('\n')
-    {
-        collapse_multiline_to_single_line(&formatted)
+    // prettier-plugin-svelte forces block-header expressions onto one line
+    // (`forceSingleLine`/`removeLines`). OXC breaks some expressions across lines
+    // even at `LineWidth::MAX` — wide array/object literals, and calls whose last
+    // argument is huggable (prettier's shouldExpandLastArg, printed as
+    // `allArgsBrokenOut`). When the source is single-line, collapse OXC's
+    // multi-line result back to one line so a block header is never emitted broken.
+    let formatted = if formatted.contains('\n') && !slice.contains('\n') {
+        if starts_with_array_or_object_literal(slice) {
+            // Array/object literal: prettier keeps it flat with no added spaces.
+            collapse_multiline_to_single_line(&formatted)
+        } else if let Some(collapsed) = collapse_block_header_expanded_call(&formatted) {
+            // A call OXC expanded because its last arg is huggable. prettier's
+            // `removeLines` collapses the `allArgsBrokenOut` layout to one line but
+            // keeps the expanded-arg spacing: `fn( a, b )`.
+            collapsed
+        } else {
+            formatted
+        }
     } else {
         formatted
     };
@@ -3467,6 +3471,93 @@ fn collapse_expanded_arg_form(multi: &str) -> Option<String> {
     Some(result)
 }
 
+/// Collapse OXC's `LineWidth::MAX` "expanded call" layout back to prettier's
+/// single-line block-header form, WITH expanded-arg spacing.
+///
+/// `format_inline_expression` (LineWidth::MAX) only breaks a call across lines
+/// when OXC unconditionally expands it — the same shape prettier bakes as
+/// `allArgsBrokenOut` under shouldExpandLastArg. prettier-plugin-svelte's
+/// `removeLines` then collapses that layout to one line, turning the `line`
+/// separators into spaces and dropping the trailing comma: `callee( a, b )`.
+///
+/// The gate rests on the empirical MAX-break ⟺ shouldExpandLastArg correlation
+/// (a call reaches this path only when OXC unconditionally expands it); should a
+/// future oxc update break that correlation, the fmt corpus output-equality gate
+/// is the safety net that catches it.
+///
+/// Accepts only the "flat arguments" shape: the first line ends with `(`, the
+/// last line is `)` alone, and every intervening line is one complete top-level
+/// argument (bracket depth returns to the argument-list level at the line
+/// boundary). Returns `None` otherwise (e.g. an argument's own object/array broke
+/// across further lines, or a curried `)(` closes the argument list mid-region) so
+/// the caller keeps the multi-line output unchanged.
+///
+/// Exclusive with [`collapse_expanded_arg_form`], which handles the complementary
+/// shape where the first line does NOT end with `(` (an argument hugged onto the
+/// first line, e.g. `options.filter((opt) =>`).
+fn collapse_block_header_expanded_call(multi: &str) -> Option<String> {
+    let lines: Vec<&str> = multi.trim_end_matches(';').trim().lines().collect();
+    if lines.len() < 3 {
+        return None;
+    }
+    let first = lines[0].trim_end();
+    if !first.ends_with('(') {
+        return None;
+    }
+    if lines[lines.len() - 1].trim() != ")" {
+        return None;
+    }
+    let inner = &lines[1..lines.len() - 1];
+    // depth starts at 1: the first line's trailing `(` opened the argument list.
+    // Each inner line is one complete top-level argument, so depth returns to 1 at
+    // every line boundary. It must never reach 0 mid-region — depth 0 means the
+    // argument list closed early (e.g. a curried `foo(...)(...)` whose inner line
+    // carries a `)(`), which this flat-args fold cannot represent, so bail rather
+    // than emit a corrupted single line.
+    let mut depth: i32 = 1;
+    let mut in_string: Option<char> = None;
+    let mut prev_escape = false;
+    let mut args: Vec<String> = Vec::with_capacity(inner.len());
+    for line in inner {
+        let t = line.trim();
+        for c in t.chars() {
+            if let Some(q) = in_string {
+                if prev_escape {
+                    prev_escape = false;
+                } else if c == '\\' {
+                    prev_escape = true;
+                } else if c == q {
+                    in_string = None;
+                }
+                continue;
+            }
+            match c {
+                '"' | '\'' | '`' => in_string = Some(c),
+                '(' | '[' | '{' => depth += 1,
+                ')' | ']' | '}' => {
+                    depth -= 1;
+                    if depth <= 0 {
+                        return None;
+                    }
+                }
+                _ => {}
+            }
+        }
+        // A complete top-level argument returns to the argument-list level.
+        if in_string.is_some() || depth != 1 {
+            return None;
+        }
+        args.push(t.to_string());
+    }
+    // Drop OXC's trailing comma on the last argument (removeLines strips the
+    // `ifBreak(",")`); the commas between args are the real separators.
+    if let Some(last) = args.last_mut() {
+        *last = last.trim_end_matches(',').trim_end().to_string();
+    }
+    let joined = args.join(" ");
+    Some(format!("{first} {joined} )"))
+}
+
 /// Convert OXC's `fn({ k: v, ... })` / `fn({\n  k: v,\n})` form to
 /// prettier-plugin-svelte's "outer-expanded-arg" form:
 /// ```text
@@ -3743,6 +3834,56 @@ mod tests {
         // FIX 4: bail on string literals
         let multi = "fn(\"hello\",\n)";
         assert!(collapse_expanded_arg_form(multi).is_none());
+    }
+
+    #[test]
+    fn collapse_block_header_expanded_call_stacked_zoom() {
+        // OXC MAX-width expansion of `isNodeVisible(node, nodes.find((n) => …))`
+        // (the layerchart stacked-zoom `{#if}` header). removeLines collapses it
+        // to one line WITH expanded-arg spacing and no trailing comma.
+        let multi = "isNodeVisible(\n  node,\n  nodes.find((n) => n.data.name === selected.data.name && n.depth === selected.depth),\n)";
+        assert_eq!(
+            collapse_block_header_expanded_call(multi).unwrap(),
+            "isNodeVisible( node, nodes.find((n) => n.data.name === selected.data.name && n.depth === selected.depth) )"
+        );
+    }
+
+    #[test]
+    fn collapse_block_header_expanded_call_bails_nested_arg() {
+        // An argument whose object broke across further lines is not the flat-args
+        // shape — bail and keep the multi-line output unchanged.
+        let multi = "handle(\n  first,\n  {\n    a: 1,\n  },\n)";
+        assert!(collapse_block_header_expanded_call(multi).is_none());
+    }
+
+    #[test]
+    fn collapse_block_header_expanded_call_bails_first_line_not_open_paren() {
+        // The "arrow hugged then broke" shape (first line ends `=>`) is handled by
+        // `collapse_expanded_arg_form` in the narrowed-width path, not here.
+        let multi = "options.filter((opt) =>\n  selectedValues.has(opt.value),\n)";
+        assert!(collapse_block_header_expanded_call(multi).is_none());
+    }
+
+    #[test]
+    fn collapse_block_header_expanded_call_bails_curried_call() {
+        // A curried `foo(...)(...)` whose inner line carries a `)(` closes the
+        // argument list mid-region (depth reaches 0). The flat-args fold cannot
+        // represent it, so it must bail (keep the multi-line form) rather than
+        // emit a corrupted single line. (Without the depth<=0 guard the per-line
+        // net-balance check would accept `a)(b` and fold to `outer( a)(b, c )`.)
+        let multi = "outer(\n  a)(b,\n  c,\n)";
+        assert!(collapse_block_header_expanded_call(multi).is_none());
+    }
+
+    #[test]
+    fn collapse_block_header_expanded_call_folds_paren_inside_string() {
+        // A `(` / `)` inside a string literal argument must not corrupt the depth
+        // walk — the flat-args fold still applies.
+        let multi = "foo(\n  \"(\",\n  second,\n)";
+        assert_eq!(
+            collapse_block_header_expanded_call(multi).unwrap(),
+            "foo( \"(\", second )"
+        );
     }
 
     #[test]

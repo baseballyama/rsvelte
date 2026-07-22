@@ -106,11 +106,11 @@ jobs:
           cache-dependency-path: apps/playground/pnpm-lock.yaml
 
       - name: Install playground dependencies
-        # `--ignore-workspace` because the repo root became a pnpm workspace
-        # (npm/* publishing packages), and without this `pnpm install` walks
-        # up to the workspace root and skips installing the playground's own deps.
+        # apps/playground/pnpm-workspace.yaml marks the playground as its own
+        # workspace root, so pnpm no longer walks up to the repo-root workspace
+        # (and Renovate can maintain the standalone lockfile).
         working-directory: apps/playground
-        run: pnpm install --frozen-lockfile --ignore-workspace
+        run: pnpm install --frozen-lockfile
 
       - name: Build playground
         working-directory: apps/playground

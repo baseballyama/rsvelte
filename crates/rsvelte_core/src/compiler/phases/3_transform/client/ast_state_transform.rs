@@ -243,9 +243,26 @@ struct StateVarCollector<'a, 's> {
     /// component-function body (depth 1), so we trigger the `$.save(...)`
     /// wrap when our `function_depth >= 1`.
     function_depth: u32,
+
+    /// Semantic for the parsed script, set after construction. Enables
+    /// per-site resolution of a bare-identifier assignment RHS (upstream
+    /// `should_proxy` consults the scope at the assignment; the name-list
+    /// cannot distinguish two same-named inner bindings).
+    semantic: Option<&'a oxc_semantic::Semantic<'a>>,
 }
 
 impl<'a, 's> StateVarCollector<'a, 's> {
+    /// Per-site proxy decision for a bare-identifier assignment RHS that
+    /// resolves to a function-local declaration (see
+    /// `state_assigns_combined_ast::ident_rhs_needs_proxy`). `None` defers
+    /// to the name-list `should_proxy_ast` fallback.
+    fn ident_rhs_site_decision(&self, rhs: &Expression<'_>) -> Option<bool> {
+        let Expression::Identifier(rhs_id) = rhs.get_inner_expression() else {
+            return None;
+        };
+        super::state_assigns_combined_ast::ident_rhs_needs_proxy(self.semantic?, rhs_id)
+    }
+
     fn new(
         source: &'s str,
         state_vars: &'a FxHashSet<&'a str>,
@@ -309,6 +326,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             exported_names,
             prop_source_vars_slice: prop_source_vars,
             function_depth: 0,
+            semantic: None,
         }
     }
 
@@ -2604,7 +2622,11 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                         let needs_proxy = self.is_runes
                             && !is_raw
                             && !is_derived
-                            && should_proxy_ast(&expr.right, self.reassign_non_proxy_vars);
+                            && self
+                                .ident_rhs_site_decision(&expr.right)
+                                .unwrap_or_else(|| {
+                                    should_proxy_ast(&expr.right, self.reassign_non_proxy_vars)
+                                });
 
                         let replacement = if needs_proxy {
                             format!("$.set({}, {}, true)", name, rhs_text)
@@ -2643,7 +2665,11 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                             && self.is_runes
                             && !is_raw
                             && !is_derived
-                            && should_proxy_ast(&expr.right, self.reassign_non_proxy_vars);
+                            && self
+                                .ident_rhs_site_decision(&expr.right)
+                                .unwrap_or_else(|| {
+                                    should_proxy_ast(&expr.right, self.reassign_non_proxy_vars)
+                                });
 
                         let replacement = if needs_proxy {
                             format!(
@@ -3850,6 +3876,11 @@ pub(super) fn transform_state_vars_ast(
             return None;
         }
 
+        let semantic_ret = oxc_semantic::SemanticBuilder::new()
+            .with_build_nodes(true)
+            .build(&parsed.program);
+        let semantic = &semantic_ret.semantic;
+
         let mut collector = StateVarCollector::new(
             script,
             &var_set,
@@ -3871,6 +3902,7 @@ pub(super) fn transform_state_vars_ast(
             config.analysis,
             config.exported_names,
         );
+        collector.semantic = Some(semantic);
         collector.visit_program(&parsed.program);
 
         if collector.replacements.is_empty() {

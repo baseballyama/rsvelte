@@ -254,7 +254,7 @@ where
                         super::utils::is_expression_defined(&expr_tag.expression, context)
                     }
                 } else {
-                    super::utils::is_js_expr_defined(&memoized, &context.arena)
+                    super::utils::is_js_expr_defined(&memoized, &context.arena, context)
                 };
                 let final_value = if is_defined {
                     memoized
@@ -1299,7 +1299,7 @@ fn build_style_attribute_value_with_memoization(
                         } else if let JsExpr::Identifier(_) = &value {
                             super::utils::is_expression_defined(&expr_tag.expression, context)
                         } else {
-                            super::utils::is_js_expr_defined(&value, &context.arena)
+                            super::utils::is_js_expr_defined(&value, &context.arena, context)
                         };
                         let final_value = if is_defined {
                             value

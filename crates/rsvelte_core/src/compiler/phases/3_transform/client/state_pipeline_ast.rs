@@ -278,9 +278,24 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PipelineVisitor<'a, 'sem> {
         match expr.operator {
             AssignmentOperator::Assign => {
                 let is_raw_state = self.raw_state_vars.iter().any(|s| s.as_str() == name);
+                // A bare-identifier RHS declared inside this statement resolves
+                // per-site (upstream should_proxy consults the scope at the
+                // assignment); the name-list fallback cannot distinguish two
+                // same-named inner bindings with different proxy-ness.
+                let site_decision = match expr.right.get_inner_expression() {
+                    Expression::Identifier(rhs_id) => {
+                        super::state_assigns_combined_ast::ident_rhs_needs_proxy(
+                            self.semantic,
+                            rhs_id,
+                        )
+                    }
+                    _ => None,
+                };
                 let needs_proxy = self.is_runes
                     && !is_raw_state
-                    && expression_needs_proxy_with_scope(rhs_text.trim(), self.non_proxy_vars);
+                    && site_decision.unwrap_or_else(|| {
+                        expression_needs_proxy_with_scope(rhs_text.trim(), self.non_proxy_vars)
+                    });
                 let rewrite = if needs_proxy {
                     format!("$.set({}, {}, true)", name, rhs_text)
                 } else {
