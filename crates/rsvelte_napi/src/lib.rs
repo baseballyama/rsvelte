@@ -290,11 +290,12 @@ pub enum LenientScalar {
     Bool(bool),
     Number(f64),
     Str(String),
-    // A plain (non-array) object, keyed by property name. Nested values are
-    // themselves `LenientScalar`, so a non-finite child (`{ async: NaN }`) is
-    // read as `Number` rather than aborting the whole decode like `serde_json`.
-    // `null`/`undefined` children are dropped, matching the top-level `Option`
-    // guard.
+    // A plain (non-array) object, keyed by property name. Direct children are
+    // decoded one level deep (so `{ async: NaN }` reads `async` as `Number`
+    // rather than aborting like `serde_json`), but a grandchild object collapses
+    // to `Other` instead of recursing — that depth cap is what makes a
+    // self-referential object safe to decode. `undefined` children are dropped
+    // (unset); everything the consumers read lives at depth 1.
     Object(Vec<(String, LenientScalar)>),
     // Arrays, functions, symbols and other non-scalars — JS-truthy, but not a
     // value any option can consume.
@@ -323,6 +324,54 @@ impl napi::bindgen_prelude::TypeName for LenientScalar {
     }
 }
 
+// Decode a JS value as a scalar; objects, arrays, functions and every other
+// non-scalar become `Other` with no recursion, so this can never chase a cyclic
+// reference. Used for an object's direct children, capping the decode at depth 1.
+unsafe fn decode_scalar(
+    env: napi::sys::napi_env,
+    napi_val: napi::sys::napi_value,
+) -> napi::Result<LenientScalar> {
+    use napi::bindgen_prelude::FromNapiValue;
+    let mut val_type = 0;
+    // SAFETY: `env`/`napi_val` are valid handles from Node-API; `napi_typeof`
+    // only reads them and writes the type tag.
+    let status = unsafe { napi::sys::napi_typeof(env, napi_val, &mut val_type) };
+    if status != napi::sys::Status::napi_ok {
+        return Err(napi::Error::from_status(napi::Status::from(status)));
+    }
+    // SAFETY: each arm reads the confirmed JS type; the numeric path uses
+    // `napi_get_value_double`, which tolerates non-finite values.
+    unsafe {
+        Ok(match val_type {
+            napi::sys::ValueType::napi_boolean => {
+                LenientScalar::Bool(bool::from_napi_value(env, napi_val)?)
+            }
+            napi::sys::ValueType::napi_number => {
+                LenientScalar::Number(f64::from_napi_value(env, napi_val)?)
+            }
+            napi::sys::ValueType::napi_string => {
+                LenientScalar::Str(String::from_napi_value(env, napi_val)?)
+            }
+            _ => LenientScalar::Other,
+        })
+    }
+}
+
+// Single-level view used only for an object's direct children: its decoder
+// never recurses into further objects, which is what bounds `LenientScalar`
+// decoding at depth 1 and makes a cyclic object graph unreachable.
+struct ScalarLeaf(LenientScalar);
+
+impl napi::bindgen_prelude::FromNapiValue for ScalarLeaf {
+    unsafe fn from_napi_value(
+        env: napi::sys::napi_env,
+        napi_val: napi::sys::napi_value,
+    ) -> napi::Result<Self> {
+        // SAFETY: valid handles from Node-API, forwarded to the scalar decoder.
+        Ok(ScalarLeaf(unsafe { decode_scalar(env, napi_val)? }))
+    }
+}
+
 impl napi::bindgen_prelude::FromNapiValue for LenientScalar {
     unsafe fn from_napi_value(
         env: napi::sys::napi_env,
@@ -335,42 +384,30 @@ impl napi::bindgen_prelude::FromNapiValue for LenientScalar {
         if status != napi::sys::Status::napi_ok {
             return Err(napi::Error::from_status(napi::Status::from(status)));
         }
-        // SAFETY: the value is the confirmed JS type for each arm; the numeric
-        // path uses `napi_get_value_double`, which tolerates non-finite values,
-        // and the object path reads properties through the safe `Object` API.
-        unsafe {
-            Ok(match val_type {
-                napi::sys::ValueType::napi_boolean => {
-                    LenientScalar::Bool(bool::from_napi_value(env, napi_val)?)
-                }
-                napi::sys::ValueType::napi_number => {
-                    LenientScalar::Number(f64::from_napi_value(env, napi_val)?)
-                }
-                napi::sys::ValueType::napi_string => {
-                    LenientScalar::Str(String::from_napi_value(env, napi_val)?)
-                }
-                napi::sys::ValueType::napi_object => {
-                    let mut is_array = false;
-                    let st = napi::sys::napi_is_array(env, napi_val, &mut is_array);
-                    if st != napi::sys::Status::napi_ok {
-                        return Err(napi::Error::from_status(napi::Status::from(st)));
-                    }
-                    if is_array {
-                        LenientScalar::Other
-                    } else {
-                        let obj = napi::bindgen_prelude::Object::from_napi_value(env, napi_val)?;
-                        let mut fields = Vec::new();
-                        for key in napi::bindgen_prelude::Object::keys(&obj)? {
-                            if let Some(child) = obj.get::<LenientScalar>(&key)? {
-                                fields.push((key, child));
-                            }
-                        }
-                        LenientScalar::Object(fields)
-                    }
-                }
-                _ => LenientScalar::Other,
-            })
+        if val_type != napi::sys::ValueType::napi_object {
+            // SAFETY: valid handles; non-object values are decoded directly.
+            return unsafe { decode_scalar(env, napi_val) };
         }
+        let mut is_array = false;
+        // SAFETY: valid handles; `napi_is_array` only reads them and writes the flag.
+        let st = unsafe { napi::sys::napi_is_array(env, napi_val, &mut is_array) };
+        if st != napi::sys::Status::napi_ok {
+            return Err(napi::Error::from_status(napi::Status::from(st)));
+        }
+        if is_array {
+            return Ok(LenientScalar::Other);
+        }
+        // SAFETY: confirmed non-array object; properties are read through the
+        // safe `Object` API, and each child is decoded via `ScalarLeaf`, which
+        // does not recurse — so no cycle can drive an unbounded decode.
+        let obj = unsafe { napi::bindgen_prelude::Object::from_napi_value(env, napi_val)? };
+        let mut fields = Vec::new();
+        for key in napi::bindgen_prelude::Object::keys(&obj)? {
+            if let Some(ScalarLeaf(v)) = obj.get::<ScalarLeaf>(&key)? {
+                fields.push((key, v));
+            }
+        }
+        Ok(LenientScalar::Object(fields))
     }
 }
 

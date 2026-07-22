@@ -11,8 +11,9 @@ type \`bool\``, `Failed to convert js number to serde_json::Number`, …) on a
 non-boolean or non-finite value.
 
 - `runes` mirrors upstream's `parametric` validator: it accepts any JS value and
-  never rejects it. A truthy value forces runes on, a real `false` forces
-  legacy, and `undefined`/`null`/absent leave the mode auto-detected.
+  never rejects it. A truthy scalar (number/string) forces runes on, a real
+  `false` forces legacy, and `undefined`/`null`/absent — as well as non-scalars
+  like an object or function — leave the mode auto-detected.
 - A genuinely wrong-typed option (e.g. `dev: 1`, `namespace: 2`) is reported as
   `Invalid compiler option: …` using the upstream message.
 
