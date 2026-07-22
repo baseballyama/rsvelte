@@ -14,7 +14,7 @@
 //! reflowed here. Long text that would overflow stays multi-line (fill wrapping
 //! is handled upstream by leaving the source breaks).
 
-use rsvelte_core::ast::template::{Fragment, TemplateNode};
+use rsvelte_core::ast::template::{Fragment, Root, TemplateNode};
 use rsvelte_core::{ParseOptions, parse};
 use unicode_width::UnicodeWidthStr;
 
@@ -91,13 +91,17 @@ pub(crate) fn collapse_pure_text_elements(
     let mut edits: Vec<(u32, u32, String)> = Vec::new();
     collect(out, &root.fragment, line_width, false, options, &mut edits);
     let mut result = out.to_string();
-    let mut tree = root;
+    // `root` stays the immutable ORIGINAL (pre-collapse) tree — reused by the
+    // children-port whitespace map instead of re-parsing `out`. `tree` tracks
+    // `result`'s current AST: `None` means it still equals `root` (no edit yet),
+    // `Some(t)` an owned re-parse after an editing pass.
+    let mut tree: Option<Root> = None;
     if !edits.is_empty() {
         result = apply_edits(&result, edits);
         let Ok(t) = parse(&result, parse_opts) else {
             return Ok(result);
         };
-        tree = t;
+        tree = Some(t);
     }
 
     // 1.6-th pass: run a targeted `try_collapse` sweep on inline pure-text
@@ -107,13 +111,19 @@ pub(crate) fn collapse_pure_text_elements(
     // After the `<li>` is re-broken, the `<a>` may need its multi-line open tag
     // hugged (`>text</a\n>` → `\n  >text</a\n>`).
     let mut edits1c: Vec<(u32, u32, String)> = Vec::new();
-    collect_try_collapse_only(&result, &tree.fragment, line_width, options, &mut edits1c);
+    collect_try_collapse_only(
+        &result,
+        &tree.as_ref().unwrap_or(&root).fragment,
+        line_width,
+        options,
+        &mut edits1c,
+    );
     if !edits1c.is_empty() {
         result = apply_edits(&result, edits1c);
         let Ok(t) = parse(&result, parse_opts) else {
             return Ok(result);
         };
-        tree = t;
+        tree = Some(t);
     }
 
     // 1.7-th pass: targeted `try_hug_mixed` sweep for elements whose `indent`
@@ -123,13 +133,19 @@ pub(crate) fn collapse_pure_text_elements(
     // ownership in pass 1; this targeted pass applies it without re-running the
     // full layout suite (which would disturb already-correct prose wrapping).
     let mut edits1d: Vec<(u32, u32, String)> = Vec::new();
-    collect_hug_mixed_non_ws_prefix(&result, &tree.fragment, line_width, options, &mut edits1d);
+    collect_hug_mixed_non_ws_prefix(
+        &result,
+        &tree.as_ref().unwrap_or(&root).fragment,
+        line_width,
+        options,
+        &mut edits1d,
+    );
     if !edits1d.is_empty() {
         result = apply_edits(&result, edits1d);
         let Ok(t) = parse(&result, parse_opts) else {
             return Ok(result);
         };
-        tree = t;
+        tree = Some(t);
     }
 
     // 1.8-th pass: break block-display elements that land at a non-ws `>` prefix.
@@ -139,13 +155,18 @@ pub(crate) fn collapse_pure_text_elements(
     // this targeted sweep extracts the ws portion from `  >` and re-applies the
     // block-break logic.
     let mut edits1e: Vec<(u32, u32, String)> = Vec::new();
-    collect_break_block_non_ws_prefix(&result, &tree.fragment, line_width, &mut edits1e);
+    collect_break_block_non_ws_prefix(
+        &result,
+        &tree.as_ref().unwrap_or(&root).fragment,
+        line_width,
+        &mut edits1e,
+    );
     if !edits1e.is_empty() {
         result = apply_edits(&result, edits1e);
         let Ok(t) = parse(&result, parse_opts) else {
             return Ok(result);
         };
-        tree = t;
+        tree = Some(t);
     }
 
     // 1.9-th pass: break the open tag of inline/component elements that appear on
@@ -156,13 +177,18 @@ pub(crate) fn collapse_pure_text_elements(
     // content has leading whitespace (hug_start=false), to avoid disturbing the
     // already-correct hug layouts from earlier passes.
     let mut edits1f: Vec<(u32, u32, String)> = Vec::new();
-    collect_break_inline_open_tag(&result, &tree.fragment, line_width, &mut edits1f);
+    collect_break_inline_open_tag(
+        &result,
+        &tree.as_ref().unwrap_or(&root).fragment,
+        line_width,
+        &mut edits1f,
+    );
     if !edits1f.is_empty() {
         result = apply_edits(&result, edits1f);
         let Ok(t) = parse(&result, parse_opts) else {
             return Ok(result);
         };
-        tree = t;
+        tree = Some(t);
     }
 
     // 1.95-th pass: re-collapse broken open tags whose single-line form now fits
@@ -170,13 +196,18 @@ pub(crate) fn collapse_pure_text_elements(
     // by a long preceding line; after pass 1.9 has broken inline elements to
     // shorten those lines, the previously-broken sibling open tag may now fit.
     let mut edits1g: Vec<(u32, u32, String)> = Vec::new();
-    collect_recollapse_open_tag(&result, &tree.fragment, line_width, &mut edits1g);
+    collect_recollapse_open_tag(
+        &result,
+        &tree.as_ref().unwrap_or(&root).fragment,
+        line_width,
+        &mut edits1g,
+    );
     if !edits1g.is_empty() {
         result = apply_edits(&result, edits1g);
         let Ok(t) = parse(&result, parse_opts) else {
             return Ok(result);
         };
-        tree = t;
+        tree = Some(t);
     }
 
     // Second pass: the hug/break edits above may leave a long expression mustache
@@ -185,7 +216,13 @@ pub(crate) fn collapse_pure_text_elements(
     // because the hug edit that creates the overflowing line owns the element and
     // suppresses recursion into it.
     let mut edits2: Vec<(u32, u32, String)> = Vec::new();
-    collect_content_tag_breaks(&result, &tree.fragment, line_width, options, &mut edits2);
+    collect_content_tag_breaks(
+        &result,
+        &tree.as_ref().unwrap_or(&root).fragment,
+        line_width,
+        options,
+        &mut edits2,
+    );
     // `tree` is the AST of `result` unless this last pass edited the text.
     let mut tree_is_current = true;
     if !edits2.is_empty() {
@@ -207,27 +244,24 @@ pub(crate) fn collapse_pure_text_elements(
     let reparsed = (!tree_is_current)
         .then(|| parse(&result, parse_opts).ok())
         .flatten();
-    if let Some(root_cp) = reparsed.as_ref().or(tree_is_current.then_some(&tree)) {
+    if let Some(root_cp) = reparsed
+        .as_ref()
+        .or(tree_is_current.then(|| tree.as_ref().unwrap_or(&root)))
+    {
         // Build the intermediate→original text map so the port classifies text
         // whitespace from the pre-collapse source (`out`). Only needed when
         // collapse actually rewrote the text; otherwise the intermediate IS the
-        // original. `out` is never reassigned, so re-parsing it yields the
-        // original tree, structurally identical to `root_cp` (collapse changes
-        // only whitespace).
-        let orig_map = (result.as_str() != out)
-            .then(|| parse(out, parse_opts).ok())
-            .flatten()
-            .map(|orig_root| {
-                let mut m = std::collections::HashMap::new();
-                build_orig_text_map(
-                    &root_cp.fragment.nodes,
-                    out,
-                    &orig_root.fragment.nodes,
-                    &mut m,
-                );
-                m
-            })
-            .unwrap_or_default();
+        // original. The original tree is `root` (the first parse), reused here so
+        // no extra parse of `out` is paid.
+        let mut orig_map = std::collections::HashMap::new();
+        if result.as_str() != out {
+            build_orig_text_map(
+                &root_cp.fragment.nodes,
+                out,
+                &root.fragment.nodes,
+                &mut orig_map,
+            );
+        }
         let mut edits_cp: Vec<(u32, u32, String)> = Vec::new();
         with_orig_text(orig_map, || {
             collect_children_port_only(
