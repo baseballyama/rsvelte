@@ -408,3 +408,18 @@ fn pre_child_open_tag_dangles_on_multiline_content() {
     let expected = "<pre><code class=\"language-bash\"\n    >line1\nline2</code\n  ></pre>";
     assert_eq!(out, expected, "pre child open tag must dangle:\n{out}");
 }
+
+#[test]
+fn pre_with_attr_child_breaks_the_child_not_its_own_attrs() {
+    // An overflowing `<pre class="…"><code class="…">…</code></pre>` breaks the
+    // inner `<code>`'s open tag (dangling its `>`), keeping `<pre class="…">`
+    // glued — prettier breaks the innermost element first. The pre must NOT break
+    // its own `class` attribute onto a new line.
+    let src = "<div>\n  <pre class=\"mb-0\"><code class=\"language-javascriptxxxxxxxxxxxxx\">short content here</code></pre>\n</div>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<div>\n  <pre class=\"mb-0\"><code class=\"language-javascriptxxxxxxxxxxxxx\"\n      >short content here</code\n    ></pre>\n</div>";
+    assert_eq!(
+        out, expected,
+        "pre must break its code child, not its own attrs:\n{out}"
+    );
+}

@@ -3688,6 +3688,25 @@ fn try_break_pre_own_attrs(
     if column + whole.width() <= line_width {
         return None;
     }
+    // Prefer breaking a child element's open tag over the `<pre>`'s own attrs:
+    // prettier keeps `<pre class="…">` glued and dangles the inner `<code
+    // class="…">`'s `>` (handled by case 3). Defer whenever a direct child
+    // element has a single-line open tag with attributes to break.
+    let has_breakable_child = fragment.nodes.iter().any(|n| {
+        let (cs, cfrag) = match n {
+            TemplateNode::RegularElement(el) => (el.start as usize, &el.fragment),
+            TemplateNode::Component(c) => (c.start as usize, &c.fragment),
+            _ => return false,
+        };
+        let Some(child_open_end) = cfrag.nodes.first().map(|f| node_start(f) as usize) else {
+            return false;
+        };
+        out.get(cs..child_open_end)
+            .is_some_and(|open| !open.contains('\n') && open.contains(' ') && open.ends_with('>'))
+    });
+    if has_breakable_child {
+        return None;
+    }
     // Find the open tag end (position right after `>` of the opening tag).
     let open_end = node_start(fragment.nodes.first()?) as usize;
     let open = out.get(s..open_end)?;
