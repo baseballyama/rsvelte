@@ -15,7 +15,9 @@
 const { isWindowOutOfBounds, windowOutOfBoundsMessage } = require('./lib/bounds-check.js');
 
 const MAGIC = 0x3156_5052; // "RPV1" little-endian
-const VERSION = 1;
+// Bumped for the `FunctionDeclaration.expression` bool byte added to the wire
+// format; keep in lockstep with `napi_raw_parse.rs`'s `VERSION`.
+const VERSION = 2;
 const HEADER_LEN = 24;
 
 // Tags — must mirror napi_raw_parse.rs.

@@ -57,7 +57,9 @@ use crate::ast::template::*;
 use crate::ast::typed_expr::{JsNode, LiteralValue, Loc, RegexValue, TemplateElementValue};
 
 pub const MAGIC: u32 = 0x3156_5052; // "RPV1" little-endian
-pub const VERSION: u32 = 1;
+// Bumped for the `FunctionDeclaration.expression` bool byte added to the wire
+// format; keep in lockstep with `parse-envelope.js`'s `VERSION`.
+pub const VERSION: u32 = 2;
 pub const HEADER_LEN: usize = 24;
 
 // Header `flags` word (offset 20):
