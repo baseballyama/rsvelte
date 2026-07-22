@@ -5,7 +5,7 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: 27 entries**, concentrated in real-world corpus repos
+**Current baseline: 26 entries**, concentrated in real-world corpus repos
 (layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail). Oracle-bug /
 invalid-input / migrate cases are NOT here — those are permanently excluded in
 `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every entry here was
@@ -130,7 +130,7 @@ text/element context, not on bare adjacency — but the actual fix location is
 unknown pending further investigation. Several targeted fixes were attempted
 and are proven net-negative (see below).
 
-## Cluster 5 — prose fill / text wrap (5)
+## Cluster 5 — prose fill / text wrap (4)
 
 A long mixed text run (plain prose, or prose interleaved with inline elements,
 `{@render …}`/other call-bearing expression tags, or adjacent
@@ -143,16 +143,29 @@ proven net-negative (fixed 4 prose cases, broke 48) — the oracle's fill is
 genuinely context-dependent and not hand-characterizable without the full
 lookahead algorithm. Fix belongs in rsvelte — the `Fill`/prose layout port.
 
-Two entries were resolved by fixing a `splitTextToDocs`-parity gap (see
-Resolved): whether a text run's leading whitespace is trimmed depends on
-whether it sits at the parent's first-child position. When trimmed (first
-child), prettier's fill list is word-first (`[word, line, word, …]`) and the
-overflowing word wraps normally; when not trimmed, the list is
-hardline-first (`[hardline, word, line, word, …]`), which lets the last word
-before the line boundary overflow rather than wrap. `collapse.rs`'s
-`text_preceded_by_close_tag` only recognized a preceding `</tag>` as a
-not-first-child signal, so text right after a self-closing sibling
-(`<Code … />`) was wrongly treated as first-child and wrapped early.
+Three entries were resolved by fixing two distinct bugs (see Resolved).
+First, a `splitTextToDocs`-parity gap: whether a text run's leading
+whitespace is trimmed depends on whether it sits at the parent's first-child
+position. When trimmed (first child), prettier's fill list is word-first
+(`[word, line, word, …]`) and the overflowing word wraps normally; when not
+trimmed, the list is hardline-first (`[hardline, word, line, word, …]`),
+which lets the last word before the line boundary overflow rather than wrap.
+`collapse.rs`'s `text_preceded_by_close_tag` only recognized a preceding
+`</tag>` as a not-first-child signal, so text right after a self-closing
+sibling (`<Code … />`) was wrongly treated as first-child and wrapped early.
+Second, an over-eager bail in `try_fill_run`: a `run.len()==1 && Text &&
+!whole.contains('\n')` guard skipped reflow for single-text-node runs
+entirely, even when the text overflowed the print width and had already
+passed the flat-fit check — prettier's fill always wraps an overflowing
+single-node run, so the guard's justifying example (a *mixed*, `run.len()>1`
+run that stays flat at 86 columns) didn't actually license it. Removing the
+11-line guard fixed `sveltestrap/.../Popover.stories.svelte`, whose prose
+sits inside a `<Popover>` component with a block sibling (`<div
+slot="title">`) — that block sibling makes the element-level mixed-fill path
+bail, so the whole prose run reaches `try_fill_run` as a single text node,
+where the guard was blocking it. (An earlier read of this id as a
+children-port Component-child gap was a misdiagnosis from the whole-file
+diff shape, not the true mechanism.)
 
 This bucket is diagnosis-based, not mechanism-confirmed for every remaining
 member:
@@ -161,26 +174,39 @@ member:
   in the *opposite* direction: rsvelte's finalized fill carries a spurious
   extra leading hardline (`[hardline, "installs", …]`) where the oracle is
   word-first (`["installs", …, hardline]`), so rsvelte tolerates an overflow
-  the oracle wraps. The extra hardline traces to neither `split_text_to_docs`
-  (`collapse.rs` and `children.rs`, both instrumented) nor `try_fill_run`
-  (not even called for the `<li>` body in question) — it is reconstructed by
-  a later collapse pass, after an inline `<code>`/`<b>` hug-breaks across
-  multiple lines, in a multi-pass interaction that hasn't been safely
-  isolated. High risk to touch blind; left open.
+  the oracle wraps. The mechanism is now confirmed as a multi-pass artifact:
+  an earlier pass (indent/hug) hug-breaks an inline `<code>`/`<b>` sibling
+  across multiple lines, which moves the following prose to the start of a
+  new line in that pass's *intermediate* output; the children-port pass then
+  re-derives the text's leading-whitespace classification from that
+  intermediate output, sees what looks like a genuine line-starting newline,
+  and (correctly, given that input) attaches a leading Hardline via
+  `split_text_to_docs` — producing the inverted, overflow-tolerant fill. The
+  oracle never sees this: it builds its fill directly from the *original*
+  source, where the prose sits on the same line as the inline element, so it
+  stays word-first. Fixing this needs the children-port's whitespace
+  classification to distinguish a pass-introduced line break from a
+  source-original one — a multi-pass architecture change, still high risk;
+  left open.
 - `layerchart/.../LineChart/perf-wide-data-processed.svelte` and
   `layerchart/.../docs/examples/+page.svelte` diverge on the trailing text
   *after* a multi-line expression tag (`{format(...)}` /
-  `{@render scrollingValue(...)}`): the oracle builds an inverted fill
-  (`[line, "data", line, "points"]`, word-as-separator) that glues the first
-  trailing word to the `)}` line, while rsvelte's word-first fill wraps it
-  onto its own line. Distinct nested-fill mechanism from the two above.
-- `sveltestrap/.../Popover.stories.svelte` is not a pure fill problem: the
-  prose inside a `<Popover>` component doesn't reflow at all (no width
-  wrapping happens), i.e. the children-port claim for Component-child prose
-  is incomplete — adjacent to Cluster 1 rather than a genuine Cluster 5
-  divergence, but left here as the dominant symptom in the whole-file diff.
+  `{@render scrollingValue(...)}`); each hits a different bail on the way to
+  the same symptom. `perf-wide-data-processed.svelte`'s `{format(...)}` is
+  already multi-line in the source and trips `build_children_doc_nodes`'s
+  `if span.contains('\n') { return None }` bail, so the entire surrounding
+  run is never reflowed. `routes/docs/examples/+page.svelte`'s `{@render
+  scrollingValue(...)}` is instead emitted as an unbreakable verbatim Text
+  atom, so it stays flat and overflows rather than breaking. The trailing
+  text's own `split_text_to_docs(_, false, true)` call is confirmed correct
+  — it already produces the oracle's inverted fill
+  (`[line, "data", line, "points"]`, word-as-separator gluing the first
+  trailing word to the `)}` line) when reached. Both ids need the same
+  underlying infrastructure: a breakable Doc representation for expression
+  tags (a `RawExpr{flat, broken}`-equivalent), the same direction as Cluster
+  2's live-Doc-subtree work.
 
-Re-diagnosing the remaining 5 with full corpus instrumentation (rather than a
+Re-diagnosing the remaining 4 with full corpus instrumentation (rather than a
 diff read) would be needed before attempting further fixes.
 
 ## Cluster 6 — oxc paren / type-annotation divergence (1)
@@ -410,6 +436,21 @@ the diff).
   Cleared `smelte/src/routes/index.svelte` and
   `layerchart/docs/.../LineChart/sparkline-within-a-paragraph.svelte`
   (commit 6d57221c, PR #1651).
+- **`try_fill_run`'s single-text-node bail was over-eager (Cluster 5).** A
+  `run.len()==1 && Text && !whole.contains('\n')` guard skipped reflow for
+  any single-node text run, on the assumption (correct for a *mixed*,
+  `run.len()>1` run) that such a run should stay flat. For a lone text node
+  that had already passed the flat-fit check and still overflowed, prettier's
+  fill always wraps it — the guard was blocking exactly the case it should
+  have let through. This was reached whenever a preceding element-level bail
+  (e.g. a block sibling forcing the mixed-fill path to give up) pushed a long
+  prose run down to `try_fill_run` as a single node. Fixed by removing the
+  guard (11 lines); unit tests added, reverting reproduces the failures, 0
+  regressions across the corpus. This id was previously (mis)diagnosed as a
+  children-port Component-child gap from its whole-file diff shape; the
+  actual mechanism is the fill-layer bail above. Cleared
+  `sveltestrap/src/Popover/Popover.stories.svelte` (commit d12da203, PR
+  #1663).
 
 ## Methodology notes
 
