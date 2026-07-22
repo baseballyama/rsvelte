@@ -214,6 +214,83 @@ fn bracket_same_line_glues_non_empty_closer() {
     );
 }
 
+fn width_80(bracket_same_line: bool) -> FormatOptions {
+    FormatOptions {
+        js: JsFormatOptions {
+            line_width: LineWidth::try_from(80).unwrap(),
+            ..JsFormatOptions::default()
+        },
+        bracket_same_line,
+        ..FormatOptions::default()
+    }
+}
+
+// A wrapped open tag whose first child is an inline `{#if}` block is rebuilt by
+// the children-port pass (the `block_run` gate routes `{#if}`-only fragments
+// through it); it must still glue the `>` to the last attribute under
+// `bracketSameLine`. See issue #1654.
+#[test]
+fn bracket_same_line_glues_closer_before_if_block() {
+    let src = "<div class=\"a-long-class-name-that-overflows-eighty-columns\" id=\"identifier\" data-x=\"value\">\n  {#if cond}\n    <span>hi</span>\n  {/if}\n</div>";
+    let out = fmt(src, &width_80(true));
+    assert_eq!(
+        out,
+        "<div\n  class=\"a-long-class-name-that-overflows-eighty-columns\"\n  id=\"identifier\"\n  data-x=\"value\">\n  {#if cond}\n    <span>hi</span>\n  {/if}\n</div>\n"
+    );
+}
+
+// `{#each}` is NOT routed through the children port (the `block_run` gate only
+// admits `{#if}`), so this exercises the markup-path `bracketSameLine` glue in
+// `render_multi_line` rather than the port. Kept as a user-facing guard for the
+// each-block shape.
+#[test]
+fn bracket_same_line_glues_closer_before_each_block() {
+    let src = "<ul class=\"a-long-class-name-that-overflows-eighty-columns\" id=\"identifier\" data-x=\"value\">\n  {#each items as item}\n    <li>{item}</li>\n  {/each}\n</ul>";
+    let out = fmt(src, &width_80(true));
+    assert_eq!(
+        out,
+        "<ul\n  class=\"a-long-class-name-that-overflows-eighty-columns\"\n  id=\"identifier\"\n  data-x=\"value\">\n  {#each items as item}\n    <li>{item}</li>\n  {/each}\n</ul>\n"
+    );
+}
+
+// A wrapped, source-empty inline element whose closing `>` hugs must not emit a
+// spurious blank line under `bracketSameLine`: prettier keeps `…"\n  ></span>`
+// (softline before the dedented `>`, then `></span>` glued), applying
+// `canOmitSoftlineBeforeClosingTag` when whitespace follows the element.
+#[test]
+fn bracket_same_line_empty_inline_element_hugs_without_blank_line() {
+    let src = "<p>Some prose text <span class=\"a-really-long-class-name-that-forces-the-open-tag-to-wrap-well-past-eighty-columns\"></span> more prose after</p>";
+    let out = fmt(src, &width_80(true));
+    assert_eq!(
+        out,
+        "<p>\n  Some prose text <span\n    class=\"a-really-long-class-name-that-forces-the-open-tag-to-wrap-well-past-eighty-columns\"\n  ></span> more prose after\n</p>\n"
+    );
+}
+
+// When non-whitespace content directly follows the element (no hug of the next
+// node, not last child of a block), `canOmitSoftlineBeforeClosingTag` is false, so
+// the softline before the closing `>` is kept (`></span\n  >more`).
+#[test]
+fn bracket_same_line_empty_inline_keeps_softline_when_content_follows() {
+    let src = "<p>Some prose text <span class=\"a-really-long-class-name-that-forces-the-open-tag-to-wrap-well-past-eighty-columns\"></span>more</p>";
+    let out = fmt(src, &width_80(true));
+    assert_eq!(
+        out,
+        "<p>\n  Some prose text <span\n    class=\"a-really-long-class-name-that-forces-the-open-tag-to-wrap-well-past-eighty-columns\"\n  ></span\n  >more\n</p>\n"
+    );
+}
+
+// Default (`bracketSameLine = false`) still dangles the `>` onto its own line.
+#[test]
+fn bracket_same_line_default_dangles_closer_before_if_block() {
+    let src = "<div class=\"a-long-class-name-that-overflows-eighty-columns\" id=\"identifier\" data-x=\"value\">\n  {#if cond}\n    <span>hi</span>\n  {/if}\n</div>";
+    let out = fmt(src, &width_80(false));
+    assert_eq!(
+        out,
+        "<div\n  class=\"a-long-class-name-that-overflows-eighty-columns\"\n  id=\"identifier\"\n  data-x=\"value\"\n>\n  {#if cond}\n    <span>hi</span>\n  {/if}\n</div>\n"
+    );
+}
+
 #[test]
 fn sort_order_parse_rejects_invalid() {
     assert!(SortOrderSpec::parse("scripts-markup").is_none());
