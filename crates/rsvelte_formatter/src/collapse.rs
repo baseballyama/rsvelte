@@ -208,14 +208,36 @@ pub(crate) fn collapse_pure_text_elements(
         .then(|| parse(&result, parse_opts).ok())
         .flatten();
     if let Some(root_cp) = reparsed.as_ref().or(tree_is_current.then_some(&tree)) {
+        // Build the intermediate→original text map so the port classifies text
+        // whitespace from the pre-collapse source (`out`). Only needed when
+        // collapse actually rewrote the text; otherwise the intermediate IS the
+        // original. `out` is never reassigned, so re-parsing it yields the
+        // original tree, structurally identical to `root_cp` (collapse changes
+        // only whitespace).
+        let orig_map = (result.as_str() != out)
+            .then(|| parse(out, parse_opts).ok())
+            .flatten()
+            .map(|orig_root| {
+                let mut m = std::collections::HashMap::new();
+                build_orig_text_map(
+                    &root_cp.fragment.nodes,
+                    out,
+                    &orig_root.fragment.nodes,
+                    &mut m,
+                );
+                m
+            })
+            .unwrap_or_default();
         let mut edits_cp: Vec<(u32, u32, String)> = Vec::new();
-        collect_children_port_only(
-            &result,
-            &root_cp.fragment,
-            line_width,
-            options,
-            &mut edits_cp,
-        );
+        with_orig_text(orig_map, || {
+            collect_children_port_only(
+                &result,
+                &root_cp.fragment,
+                line_width,
+                options,
+                &mut edits_cp,
+            );
+        });
         if !edits_cp.is_empty() {
             result = apply_edits(&result, edits_cp);
         }
@@ -3199,6 +3221,102 @@ fn with_pre_content<T>(f: impl FnOnce() -> T) -> T {
     f()
 }
 
+thread_local! {
+    /// Set while the final children-port pass runs. Maps each intermediate text
+    /// node's start offset to its PRE-COLLAPSE source text, so `node_to_child`
+    /// classifies boundary whitespace from the original rather than the
+    /// intermediate output. An earlier breaking pass can turn a source space after
+    /// an inline element into a newline (by hug-breaking the element); reading the
+    /// leading whitespace from the intermediate would then flip the fill to its
+    /// inverted (last-word-overflow-tolerant) form and mis-wrap the prose.
+    static ORIG_TEXT: std::cell::RefCell<std::collections::HashMap<u32, String>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+/// Restores [`ORIG_TEXT`] on drop so an unwind cannot strand the map on a pooled
+/// worker thread.
+struct OrigTextGuard(std::collections::HashMap<u32, String>);
+
+impl Drop for OrigTextGuard {
+    fn drop(&mut self) {
+        ORIG_TEXT.with(|m| *m.borrow_mut() = std::mem::take(&mut self.0));
+    }
+}
+
+/// Run `f` with [`ORIG_TEXT`] populated, restoring the previous map afterwards.
+fn with_orig_text<T>(map: std::collections::HashMap<u32, String>, f: impl FnOnce() -> T) -> T {
+    let _guard = OrigTextGuard(ORIG_TEXT.with(|m| m.replace(map)));
+    f()
+}
+
+/// The pre-collapse source text for the intermediate text node starting at
+/// `start`, when the children-port pass has one recorded.
+fn orig_text_for(start: u32) -> Option<String> {
+    ORIG_TEXT.with(|m| m.borrow().get(&start).cloned())
+}
+
+/// Pair each node in `inter` with its whitespace-original counterpart in `orig`.
+/// Both node lists describe the same document differing only in whitespace
+/// (collapse never changes non-whitespace content or node structure — enforced by
+/// the corruption guard in `try_children_port`), so every non-text node aligns 1:1
+/// in order. A whitespace-only text node may exist in one list but not the other
+/// (collapse can drop or introduce a bare separator), so text nodes are matched
+/// positionally where possible and left unpaired otherwise.
+fn align_orig_nodes<'a>(
+    inter: &[TemplateNode],
+    orig: &'a [TemplateNode],
+) -> Vec<Option<&'a TemplateNode>> {
+    let mut result = Vec::with_capacity(inter.len());
+    let mut oi = 0usize;
+    for n in inter {
+        if matches!(n, TemplateNode::Text(_)) {
+            // Pair with the next orig text node if the cursor is on one; a non-text
+            // orig node here means the intermediate has an extra text node (collapse
+            // never adds text), so leave it unmatched.
+            if oi < orig.len() && matches!(orig[oi], TemplateNode::Text(_)) {
+                result.push(Some(&orig[oi]));
+                oi += 1;
+            } else {
+                result.push(None);
+            }
+        } else {
+            // Skip any orig text nodes collapse dropped, then take the matching
+            // non-text node (guaranteed present and in the same order).
+            while oi < orig.len() && matches!(orig[oi], TemplateNode::Text(_)) {
+                oi += 1;
+            }
+            result.push(orig.get(oi));
+            oi += 1;
+        }
+    }
+    result
+}
+
+/// Recursively map each intermediate text node's start offset to its pre-collapse
+/// source text, walking the intermediate and original trees in lockstep.
+fn build_orig_text_map(
+    inter: &[TemplateNode],
+    orig_out: &str,
+    orig: &[TemplateNode],
+    map: &mut std::collections::HashMap<u32, String>,
+) {
+    let aligned = align_orig_nodes(inter, orig);
+    for (n, on) in inter.iter().zip(aligned) {
+        if let (TemplateNode::Text(t), Some(TemplateNode::Text(ot))) = (n, on)
+            && let Some(s) = orig_out.get(ot.start as usize..ot.end as usize)
+        {
+            map.insert(t.start, s.to_string());
+        }
+        if let Some(on) = on {
+            let inter_fs = child_fragments(n);
+            let orig_fs = child_fragments(on);
+            for (f, of) in inter_fs.iter().zip(orig_fs.iter()) {
+                build_orig_text_map(&f.nodes, orig_out, &of.nodes, map);
+            }
+        }
+    }
+}
+
 fn is_whitespace_preserving(tag: &str) -> bool {
     // `pre` / `textarea` preserve whitespace; `script` / `style` carry raw
     // JS/CSS already formatted by their dedicated passes (oxfmt). None of these
@@ -4738,8 +4856,14 @@ fn node_to_child(
     use crate::doc::Doc;
     match node {
         TemplateNode::Text(t) => {
-            let txt = out.get(t.start as usize..t.end as usize)?;
-            Some(Child::Text(txt.to_string()))
+            // Prefer the pre-collapse source text (whitespace-faithful) when the
+            // children-port pass recorded one; the words are identical, so this
+            // only corrects boundary whitespace an earlier pass may have changed.
+            let txt = match orig_text_for(t.start) {
+                Some(orig) => orig,
+                None => out.get(t.start as usize..t.end as usize)?.to_string(),
+            };
+            Some(Child::Text(txt))
         }
         // Void HTML element (`<br/>`, `<input/>`) — verbatim, must be single-line.
         TemplateNode::RegularElement(ve) if is_html_void_element(ve.name.as_str()) => {
