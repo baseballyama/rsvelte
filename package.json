@@ -5,8 +5,8 @@
 	"type": "module",
 	"scripts": {
 		"build:wasm": "pnpm run build:wasm:core && pnpm run build:wasm:fmt",
-		"build:wasm:core": "wasm-pack build crates/rsvelte_lint --out-dir ../../pkg --target web --release -- --features wasm --no-default-features",
-		"build:wasm:lint-node": "wasm-pack build crates/rsvelte_lint --out-dir ../../apps/npm/language-server/vendor --target nodejs --release -- --features wasm --no-default-features",
+		"build:wasm:core": "wasm-pack build crates/rsvelte_lint_bindings --out-dir ../../pkg --target web --release -- --features wasm --no-default-features",
+		"build:wasm:lint-node": "wasm-pack build crates/rsvelte_lint_bindings --out-dir ../../apps/npm/language-server/vendor --target nodejs --release -- --features wasm --no-default-features",
 		"build:language-server": "pnpm run build:wasm:lint-node && pnpm --filter @rsvelte/language-server run build",
 		"build:vscode": "pnpm run build:language-server && pnpm --filter rsvelte-vscode run build",
 		"build:wasm:fmt": "wasm-pack build crates/rsvelte_fmt_wasm --out-dir ../../pkg-fmt --target web --release",

@@ -1,6 +1,6 @@
 name: Auto-update Svelte
 
-# Weekly: when a newer stable svelte@X.Y.Z is published than the one pinned by
+# Daily: when a newer stable svelte@X.Y.Z is published than the one pinned by
 # the submodules/svelte gitlink, open a STARTER PR that advances the gitlink to
 # the new tag and bumps the playground preview version strings.
 #
@@ -8,9 +8,6 @@ name: Auto-update Svelte
 # cannot be completed unattended: it needs regenerated fixtures and manual
 # regression fixes via the `upgrade-svelte` skill. CI on this PR will fail until
 # that work is done — the PR is just a ready-to-grab starting point.
-#
-# Complements `check-svelte-release.yml`, which files a tracking issue for the
-# same event. (If you prefer PRs only, that issue workflow can be retired.)
 #
 # SETUP:
 #   - Settings → Actions → General → Workflow permissions: enable "Allow GitHub
@@ -23,7 +20,7 @@ name: Auto-update Svelte
 on:
   workflow_dispatch:
   schedule:
-    - cron: '37 5 * * 1' # Mondays 05:37 UTC
+    - cron: '37 5 * * *' # Daily at 05:37 UTC
 
 permissions:
   contents: write
@@ -85,6 +82,7 @@ jobs:
           TAG=$(jq -r '.tag_name' latest.json)
           VERSION=${TAG#svelte@}
           URL=$(jq -r '.html_url' latest.json)
+          jq -r '.body // ""' latest.json > release-body.md
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
           echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
           echo "url=${URL}" >> "${GITHUB_OUTPUT}"
@@ -165,6 +163,12 @@ jobs:
             echo "   to rebuild the compiler, regenerate fixtures, fix regressions,"
             echo "   refresh docs, and add a changeset."
             echo "4. Push the fixes to this branch."
+            echo
+            echo "---"
+            echo
+            echo "### Release notes"
+            echo
+            cat release-body.md
             echo
             echo "---"
             echo

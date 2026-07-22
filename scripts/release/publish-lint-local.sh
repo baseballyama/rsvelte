@@ -106,22 +106,22 @@ log "Pre-flight OK."
 
 # Build rsvelte-lint (CLI bin + NAPI `.node` addon) for one target with the
 # dist-lint profile. Native cargo for darwin (we're on macOS), zigbuild for
-# Linux, xwin for Windows MSVC. The addon uses `--features napi --lib
-# -p rsvelte_lint` (scoped so `--features napi` doesn't also touch rsvelte_core).
+# Linux, xwin for Windows MSVC. The addon is the `rsvelte_lint_bindings` cdylib
+# (`[lib] name = "rsvelte_lint"`, so the dylib is still `librsvelte_lint.*`).
 build_lint_for_target() {
   local target="$1"
   case "$target" in
     *-apple-darwin)
       cargo build --profile dist-lint --bin rsvelte-lint --target="$target"
-      cargo build --profile dist-lint --features napi --lib -p rsvelte_lint --target="$target"
+      cargo build --profile dist-lint --features napi --lib -p rsvelte_lint_bindings --target="$target"
       ;;
     x86_64-pc-windows-msvc)
       cargo xwin build --profile dist-lint --bin rsvelte-lint --target="$target"
-      cargo xwin build --profile dist-lint --features napi --lib -p rsvelte_lint --target="$target"
+      cargo xwin build --profile dist-lint --features napi --lib -p rsvelte_lint_bindings --target="$target"
       ;;
     *-unknown-linux-gnu)
       cargo zigbuild --profile dist-lint --bin rsvelte-lint --target="$target"
-      cargo zigbuild --profile dist-lint --features napi --lib -p rsvelte_lint --target="$target"
+      cargo zigbuild --profile dist-lint --features napi --lib -p rsvelte_lint_bindings --target="$target"
       ;;
     *)
       die "unsupported cross target: $target"

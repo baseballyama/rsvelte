@@ -107,8 +107,9 @@ jobs:
           sudo apt-get install -y ${{ matrix.apt }}
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.97.1
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry + target
@@ -168,8 +169,9 @@ jobs:
           sudo apt-get install -y ${{ matrix.apt }}
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.97.1
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry + target
@@ -230,8 +232,9 @@ jobs:
           sudo apt-get install -y ${{ matrix.apt }}
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.97.1
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry + target
@@ -292,8 +295,9 @@ jobs:
           sudo apt-get install -y ${{ matrix.apt }}
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.97.1
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry + target
@@ -315,15 +319,15 @@ jobs:
       # The NAPI `.node` addon (the engine embedded by @rsvelte/oxlint-plugin's
       # native path) ships in the same @rsvelte/lint-<triple> package. Built with
       # `--profile dist-lint` (unwind) so napi-rs converts a per-file panic into a
-      # JS error rather than aborting the host process; `-p rsvelte_lint` keeps
-      # `--features napi` scoped to this crate (rsvelte_core also has a `napi`
-      # feature). CC needed for the aarch64-linux jemalloc build.
+      # JS error rather than aborting the host process. The addon is the
+      # `rsvelte_lint_bindings` cdylib (`[lib] name = "rsvelte_lint"`, so the
+      # dylib stays `librsvelte_lint.*`). CC needed for the aarch64-linux build.
       - name: Build rsvelte-lint NAPI addon
         shell: bash
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
           CC_aarch64_unknown_linux_gnu: ${{ matrix.linker }}
-        run: cargo build --profile dist-lint --features napi --lib -p rsvelte_lint --target ${{ matrix.target }}
+        run: cargo build --profile dist-lint --features napi --lib -p rsvelte_lint_bindings --target ${{ matrix.target }}
 
       - name: Stage binary + addon
         shell: bash
@@ -359,8 +363,9 @@ jobs:
           fetch-depth: 0
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.97.1
           targets: wasm32-unknown-unknown
 
       - name: Cache cargo registry + target

@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_lint"
-version = "0.8.0"
+version = "0.8.2"
 edition = "2024"
 rust-version = "1.90"
 description = "Fast native Svelte linter built on the rsvelte compiler (validator wrap + native rule engine)"
@@ -8,8 +8,12 @@ license = "MIT"
 publish = false
 
 [lib]
-# `cdylib` for the wasm build (playground), `rlib` for the bin + tests.
-crate-type = ["cdylib", "rlib"]
+# rlib only. The wasm playground module and the Node `.node` addon are the two
+# cdylib consumers; both now live in the `rsvelte_lint_bindings` crate. Emitting
+# a cdylib here too would write unhashed `deps/librsvelte_lint.{so,rlib}`,
+# letting cargo's two profile variants (`panic = "abort"` for the bin, forced
+# unwind for test/bench) clobber each other — cargo issue rust-lang/cargo#6313.
+crate-type = ["rlib"]
 
 [[bin]]
 name = "rsvelte-lint"
@@ -31,15 +35,6 @@ eslint-import = [
     "dep:oxc_ast_visit",
     "dep:oxc_span",
 ]
-# Browser build: the svelte_check-free rule engine compiled to wasm for the
-# playground, alongside rsvelte_core's compiler wasm exports.
-wasm = ["rsvelte_core/wasm", "dep:wasm-bindgen"]
-# Native Node addon (`.node`): the same svelte_check-free rule engine exposed via
-# NAPI, shipped inside the `@rsvelte/lint-<triple>` packages as
-# `rsvelte_lint.node` and loaded native-first by `@rsvelte/oxlint-plugin`. Reuses
-# rsvelte_core's `native` backend (proven, no wasm-bindgen); the cdylib uses the
-# system allocator, so it is dlopen-safe with no TLS setup.
-napi = ["rsvelte_core/native", "dep:napi", "dep:napi-derive", "dep:napi-build"]
 
 [dependencies]
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
@@ -64,20 +59,6 @@ oxc_ast = { version = "0.139", optional = true }
 oxc_ast_visit = { version = "0.139", optional = true }
 oxc_span = { version = "0.139", optional = true }
 
-# wasm-only.
-wasm-bindgen = { version = "0.2", optional = true }
-
-# napi-only (the `.node` addon). Same major versions as rsvelte_core so cargo
-# unifies the shared `napi` build cleanly; only the sync string exports here are
-# used, so a minimal feature set suffices.
-napi = { version = "3", default-features = false, features = ["napi9"], optional = true }
-napi-derive = { version = "3", optional = true }
-
-[build-dependencies]
-# napi-only: sets the cdylib link args (e.g. macOS `-undefined dynamic_lookup`)
-# so the `.node` addon resolves Node's symbols at load time. Gated in build.rs.
-napi-build = { version = "2", optional = true }
-
 [dev-dependencies]
 serde_json = "1.0"
 # Parse eslint-plugin-svelte `*-errors.yaml` fixtures in the compat oracle.
@@ -85,8 +66,3 @@ serde_yaml = "0.9"
 
 [lints]
 workspace = true
-
-# rustc can emit a second wasm table (reference-types); wasm-opt's default MVP
-# feature set rejects that, so the feature must be enabled explicitly.
-[package.metadata.wasm-pack.profile.release]
-wasm-opt = ['-Oz', '--enable-reference-types']

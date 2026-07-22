@@ -227,6 +227,13 @@ pub const JS_COMMENT: u8 = 0xC9;
 // `JS_RAW_JSON` escape; type annotations now ride a per-node trailer instead.)
 pub const JS_NULL: u8 = 0xCA;
 pub const JS_TS_PARAMETER_PROPERTY: u8 = 0xCC;
+// TS assertion wrappers preserved in the public `parse()` AST. As/Satisfies
+// carry a `typeAnnotation` trailer; NonNull does not.
+pub const JS_TS_AS_EXPRESSION: u8 = 0xCD;
+pub const JS_TS_SATISFIES_EXPRESSION: u8 = 0xCE;
+pub const JS_TS_NON_NULL_EXPRESSION: u8 = 0xCF;
+pub const JS_TS_TYPE_ASSERTION: u8 = 0xD0;
+pub const JS_TS_INSTANTIATION_EXPRESSION: u8 = 0xD1;
 
 // LiteralValue inner tag (within a JS_LITERAL payload).
 const LV_NULL: u8 = 0;
@@ -2087,6 +2094,66 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_preamble(w, JS_COMMENT, *start, *end);
             write_str(w, comment_type.as_str());
             write_str(w, value.as_str());
+        }
+        // TS assertion wrappers. `expression` is a child node; As/Satisfies also
+        // carry a `typeAnnotation` JSON trailer (NonNull has none).
+        JsNode::TSAsExpression {
+            start,
+            end,
+            loc,
+            expression,
+            type_annotation,
+        } => {
+            write_preamble(w, JS_TS_AS_EXPRESSION, *start, *end);
+            write_typed_loc(w, loc.as_deref());
+            write_js_node(w, arena.get_js_node(*expression), arena)?;
+            write_opt_type_annotation(w, Some(type_annotation.as_ref()))?;
+        }
+        JsNode::TSSatisfiesExpression {
+            start,
+            end,
+            loc,
+            expression,
+            type_annotation,
+        } => {
+            write_preamble(w, JS_TS_SATISFIES_EXPRESSION, *start, *end);
+            write_typed_loc(w, loc.as_deref());
+            write_js_node(w, arena.get_js_node(*expression), arena)?;
+            write_opt_type_annotation(w, Some(type_annotation.as_ref()))?;
+        }
+        JsNode::TSNonNullExpression {
+            start,
+            end,
+            loc,
+            expression,
+        } => {
+            write_preamble(w, JS_TS_NON_NULL_EXPRESSION, *start, *end);
+            write_typed_loc(w, loc.as_deref());
+            write_js_node(w, arena.get_js_node(*expression), arena)?;
+        }
+        JsNode::TSTypeAssertion {
+            start,
+            end,
+            loc,
+            expression,
+            type_annotation,
+        } => {
+            write_preamble(w, JS_TS_TYPE_ASSERTION, *start, *end);
+            write_typed_loc(w, loc.as_deref());
+            write_js_node(w, arena.get_js_node(*expression), arena)?;
+            write_opt_type_annotation(w, Some(type_annotation.as_ref()))?;
+        }
+        JsNode::TSInstantiationExpression {
+            start,
+            end,
+            loc,
+            expression,
+            type_arguments,
+        } => {
+            write_preamble(w, JS_TS_INSTANTIATION_EXPRESSION, *start, *end);
+            write_typed_loc(w, loc.as_deref());
+            write_js_node(w, arena.get_js_node(*expression), arena)?;
+            write_opt_type_annotation(w, Some(type_arguments.as_ref()))?;
         }
         // `Null` doesn't carry positions, so it uses a dedicated sentinel tag
         // without the usual preamble pair.

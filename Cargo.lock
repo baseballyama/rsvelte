@@ -850,9 +850,9 @@ checksum = "e629b9b98ef3dd8afe6ca2bd0f89306cec16d43d907889945bc5d6687f2f13c7"
 
 [[package]]
 name = "glob"
-version = "0.3.3"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
+checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "globset"
@@ -1410,9 +1410,9 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "3.10.5"
+version = "3.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6826e5ddc15589b2d68c8ad5321c18e85d40488e93e32962f362e572669bccf6"
+checksum = "de33522036981030a75c231829566bc63414e08101a6f5ff4ac6cef19c8e0941"
 dependencies = [
  "bitflags 2.13.0",
  "ctor",
@@ -1434,9 +1434,9 @@ checksum = "c9c366d2c8c60b86fa632df75f745509b52f9128f91a6bad4c796e44abb505e1"
 
 [[package]]
 name = "napi-derive"
-version = "3.5.10"
+version = "3.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0fe526e81c105d3640516fcde83909dd1afe757c0d7a15af58830b5bc0fb9a1"
+checksum = "a49c513341a61a16a10af6efcce46b30d0822ba2d4fb197d24d33dfc199c78d5"
 dependencies = [
  "convert_case",
  "ctor",
@@ -1448,9 +1448,9 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-backend"
-version = "5.1.2"
+version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "514281397bcddd9ea9a876c7a21a57bff2374237a000ca9a64ea0211ec1993e2"
+checksum = "4747005fa3e2c9989ac45a723a514c5db2411238b72981a3cda4c701a9dfea17"
 dependencies = [
  "convert_case",
  "proc-macro2 1.0.106",
@@ -1461,9 +1461,9 @@ dependencies = [
 
 [[package]]
 name = "napi-sys"
-version = "3.2.3"
+version = "3.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73e43cf2eb0bd1bf95a43c07c076ebd2da5d1e015a71c3d201faeffffcc0ecac"
+checksum = "85fbf1fa9f1babfe396d74bbbf52b3643770243e8f5b0b46715d4caf7f0dfc9a"
 dependencies = [
  "libloading",
 ]
@@ -2358,7 +2358,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_core"
-version = "0.8.0"
+version = "0.8.2"
 dependencies = [
  "bumpalo",
  "chrono",
@@ -2422,7 +2422,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_fmt"
-version = "0.6.0"
+version = "0.6.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -2458,6 +2458,7 @@ dependencies = [
  "codspeed-criterion-compat",
  "oxc_allocator",
  "oxc_ast",
+ "oxc_ast_visit",
  "oxc_formatter",
  "oxc_formatter_core",
  "oxc_formatter_css",
@@ -2471,14 +2472,11 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_lint"
-version = "0.8.0"
+version = "0.8.2"
 dependencies = [
  "anyhow",
  "clap",
  "compact_str 0.10.0",
- "napi",
- "napi-build",
- "napi-derive",
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",
@@ -2491,6 +2489,17 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "walkdir",
+]
+
+[[package]]
+name = "rsvelte_lint_bindings"
+version = "0.8.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "rsvelte_core",
+ "rsvelte_lint",
  "wasm-bindgen",
 ]
 

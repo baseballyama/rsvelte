@@ -322,3 +322,21 @@ fn quoted_string_embedded_expr_breaks_by_rendered_column() {
     );
     assert_no_line_exceeds(&out, 80);
 }
+
+#[test]
+fn overflowing_single_line_prose_in_component_body_wraps() {
+    // A single-line pure-text run that overflows must still fill-wrap, even
+    // though it sits on one source line. Inside a Component body with a block
+    // child (`<div slot="title">`), the element-level mixed fill bails on the
+    // block child and the text reaches `try_fill_run` as a lone single-line
+    // text run — which must reflow it (matching prettier / oxfmt). This is the
+    // sveltestrap `<Popover>` prose shape.
+    let src = "<Popover>\n  <div slot=\"title\">Title</div>\n  You can click inside this Popover and it will not dismiss. Dismissal will only occur if outside.\n</Popover>\n";
+    let out = fmt_at_width(src, 80);
+    // The first wrapped line reaches 86 cols: prettier's fill keeps the
+    // boundary-crossing word ("occur") on the line (last-word overflow
+    // tolerance), so `assert_no_line_exceeds` does not apply — the oracle
+    // overflows here too.
+    let expected = "<Popover>\n  <div slot=\"title\">Title</div>\n  You can click inside this Popover and it will not dismiss. Dismissal will only occur\n  if outside.\n</Popover>";
+    assert_eq!(out, expected, "single-line prose must wrap:\n{out}");
+}

@@ -256,9 +256,31 @@ fn is_expression_defined_typed(node: &JsNode, arena: &crate::ast::arena::ParseAr
                 "==" | "!=" | "===" | "!==" | "<" | ">" | "<=" | ">=" | "instanceof" | "in"
             )
         }
+        // Upstream evaluate does NOT refine `unknown ?? b` to defined: when the
+        // left side is not statically known, the union of both sides' values
+        // still contains UNKNOWN, so is_defined stays false (scope.js
+        // LogicalExpression). Only a provably-defined left (result is the left)
+        // or a provably-nullish left literal (result is the right) narrows.
         JsNode::LogicalExpression {
-            operator, right, ..
-        } if operator == "??" => is_expression_defined_typed(arena.get_js_node(*right), arena),
+            operator,
+            left,
+            right,
+            ..
+        } if operator == "??" => {
+            let left_node = arena.get_js_node(*left);
+            let left_is_nullish_literal = match left_node {
+                JsNode::Literal { value, .. } => {
+                    matches!(value, crate::ast::typed_expr::LiteralValue::Null)
+                }
+                JsNode::Identifier { name, .. } => name == "undefined",
+                _ => false,
+            };
+            if left_is_nullish_literal {
+                is_expression_defined_typed(arena.get_js_node(*right), arena)
+            } else {
+                is_expression_defined_typed(left_node, arena)
+            }
+        }
         JsNode::UnaryExpression { operator, .. } => operator != "void",
         JsNode::ConditionalExpression {
             consequent,

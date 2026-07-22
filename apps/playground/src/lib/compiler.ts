@@ -64,7 +64,7 @@ export function svelte2tsx(source: string, options: Svelte2TsxOptions = {}): Sve
 	}
 }
 
-/** A single lint finding, as emitted by `rsvelte_lint::wasm::lint`. */
+/** A single lint finding, as emitted by `rsvelte_lint_bindings::wasm::lint`. */
 export interface LintDiagnostic {
 	severity: 'error' | 'warning';
 	/** 1-indexed line. */

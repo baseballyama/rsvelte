@@ -1479,6 +1479,13 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
             return true;
         }
 
+        // Structural walk for general descendant/child chains (attribute /
+        // class / id compounds included), mirroring upstream css-prune's
+        // BACKWARD apply_selector over the component's own element tree.
+        if is_structural_descendant_chain_unused(rel_selectors, ctx) {
+            return true;
+        }
+
         // :has() unused detection - check if :has() arguments can match within the subject element's subtree
         // This is guarded inside is_has_selector_unused by has_opaque_sibling_boundaries check
         if is_has_selector_unused(rel_selectors, ctx) {
@@ -3025,6 +3032,236 @@ fn collect_chain_candidates(
             }
         }
     }
+}
+
+/// Structural unused-check for descendant/child chains whose links may be any
+/// compound of type / universal / class / id / attribute / bare pseudo
+/// selectors. Mirrors upstream css-prune's BACKWARD `apply_selector` +
+/// `apply_combinator` over the component's own element tree: the selector is
+/// used only if some element matches the subject AND its ancestor chain
+/// satisfies every remaining link. Conservative: bails (keeps the selector)
+/// on sibling combinators, `:global`, functional pseudo-classes, nesting
+/// selectors, or any shape it cannot evaluate against `CssDomElement`.
+fn is_structural_descendant_chain_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
+    if rel_selectors.len() < 2 || ctx.dom_structure.elements.is_empty() {
+        return false;
+    }
+    if ctx.has_dynamic_elements {
+        return false;
+    }
+    // A snippet-declared element's real ancestors are its render sites, and
+    // `<selectedcontent>` mirrors the selected option's subtree — the lexical
+    // parent walk cannot model either, so stay conservative.
+    if ctx
+        .dom_structure
+        .elements
+        .iter()
+        .any(|el| el.in_snippet || el.tag_name.eq_ignore_ascii_case("selectedcontent"))
+    {
+        return false;
+    }
+    for rel in rel_selectors.iter().skip(1) {
+        let combinator = rel
+            .get("combinator")
+            .and_then(|c| c.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or(" ");
+        if combinator != " " && combinator != ">" {
+            return false;
+        }
+    }
+    for rel in rel_selectors {
+        let Some(sels) = rel.get("selectors").and_then(|s| s.as_array()) else {
+            return false;
+        };
+        if sels.is_empty() || !sels.iter().all(structural_simple_selector_is_evaluable) {
+            return false;
+        }
+    }
+
+    let subject = &rel_selectors[rel_selectors.len() - 1];
+    for (idx, el) in ctx.dom_structure.elements.iter().enumerate() {
+        if structural_element_matches_compound(el, subject)
+            && structural_ancestors_satisfy_links(rel_selectors, rel_selectors.len() - 1, idx, ctx)
+        {
+            return false;
+        }
+    }
+    true
+}
+
+fn structural_ancestors_satisfy_links(
+    rels: &[Value],
+    link_idx: usize,
+    el_idx: usize,
+    ctx: &CssContext,
+) -> bool {
+    if link_idx == 0 {
+        return true;
+    }
+    let combinator = rels[link_idx]
+        .get("combinator")
+        .and_then(|c| c.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or(" ");
+    let prev = &rels[link_idx - 1];
+    let elements = &ctx.dom_structure.elements;
+    if combinator == ">" {
+        let Some(p) = elements[el_idx].parent_idx else {
+            return false;
+        };
+        structural_element_matches_compound(&elements[p], prev)
+            && structural_ancestors_satisfy_links(rels, link_idx - 1, p, ctx)
+    } else {
+        let mut parent = elements[el_idx].parent_idx;
+        while let Some(p) = parent {
+            if structural_element_matches_compound(&elements[p], prev)
+                && structural_ancestors_satisfy_links(rels, link_idx - 1, p, ctx)
+            {
+                return true;
+            }
+            parent = elements[p].parent_idx;
+        }
+        false
+    }
+}
+
+fn structural_simple_selector_is_evaluable(sel: &Value) -> bool {
+    match sel.get("type").and_then(|t| t.as_str()) {
+        // Escape sequences (`#\31 `) are compared un-decoded — bail on them.
+        Some("TypeSelector") | Some("ClassSelector") | Some("IdSelector") => sel
+            .get("name")
+            .and_then(|n| n.as_str())
+            .is_some_and(|n| !n.contains('\\')),
+        Some("AttributeSelector") => {
+            // Only the parsed shape (separate name/matcher/value); the legacy
+            // raw shape stuffs the whole content into `name`.
+            let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            !name.is_empty()
+                && !name.contains('=')
+                && !name.contains('[')
+                && !name.contains('\\')
+                && !sel
+                    .get("value")
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|v| v.contains('\\'))
+        }
+        Some("PseudoClassSelector") => {
+            let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            // `:global` scoping and the global-like `:host`/`:root` (which
+            // match outside the component tree) are not evaluable here.
+            !matches!(name, "global" | "host" | "root")
+                && sel.get("args").map(|a| a.is_null()).unwrap_or(true)
+        }
+        Some("PseudoElementSelector") => true,
+        _ => false,
+    }
+}
+
+fn structural_element_matches_compound(
+    el: &crate::compiler::phases::phase2_analyze::types::CssDomElement,
+    rel: &Value,
+) -> bool {
+    let Some(sels) = rel.get("selectors").and_then(|s| s.as_array()) else {
+        return false;
+    };
+    sels.iter().all(|sel| {
+        let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+        match sel.get("type").and_then(|t| t.as_str()) {
+            Some("TypeSelector") => {
+                name == "*" || el.is_dynamic_tag || el.tag_name.eq_ignore_ascii_case(name)
+            }
+            Some("ClassSelector") => {
+                el.has_spread
+                    || el
+                        .dynamic_attribute_names
+                        .iter()
+                        .any(|n| n.eq_ignore_ascii_case("class"))
+                    || el.has_class_directive && el.class_directive_names.contains(name)
+                    || el.classes.contains(name)
+            }
+            Some("IdSelector") => {
+                el.has_spread
+                    || el
+                        .dynamic_attribute_names
+                        .iter()
+                        .any(|n| n.eq_ignore_ascii_case("id"))
+                    || el.id.as_deref() == Some(name)
+            }
+            Some("AttributeSelector") => {
+                let matcher = sel
+                    .get("matcher")
+                    .and_then(|m| if m.is_null() { None } else { m.as_str() });
+                let value = sel
+                    .get("value")
+                    .and_then(|v| if v.is_null() { None } else { v.as_str() });
+                let flags = sel
+                    .get("flags")
+                    .and_then(|f| if f.is_null() { None } else { f.as_str() });
+                structural_element_matches_attribute(el, name, matcher, value, flags)
+            }
+            // Bare pseudo-classes (:hover, :first-of-type, …) and
+            // pseudo-elements never constrain prune matching upstream.
+            Some("PseudoClassSelector") | Some("PseudoElementSelector") => true,
+            _ => false,
+        }
+    })
+}
+
+fn structural_element_matches_attribute(
+    el: &crate::compiler::phases::phase2_analyze::types::CssDomElement,
+    attr_name: &str,
+    matcher: Option<&str>,
+    value: Option<&str>,
+    flags: Option<&str>,
+) -> bool {
+    if el.has_spread || el.is_dynamic_tag {
+        return true;
+    }
+    if is_whitelisted_attribute(&el.tag_name, attr_name) {
+        return true;
+    }
+    if el
+        .dynamic_attribute_names
+        .iter()
+        .any(|n| n.eq_ignore_ascii_case(attr_name))
+    {
+        return true;
+    }
+    if attr_name.eq_ignore_ascii_case("class") && el.has_class_directive {
+        return true;
+    }
+    if attr_name.eq_ignore_ascii_case("style") && el.has_style_directive {
+        return true;
+    }
+
+    let operator = matcher.unwrap_or("");
+    let expected_value = value.map(unquote_css_value);
+    let has_explicit_case_flag: i8 = match flags {
+        Some(f) if f.contains('i') || f.contains('I') => 1,
+        Some(f) if f.contains('s') || f.contains('S') => -1,
+        _ => 0,
+    };
+
+    for (name, attr_val) in &el.static_attributes {
+        if name.eq_ignore_ascii_case(attr_name) {
+            if operator.is_empty() {
+                return true;
+            }
+            let case_insensitive = if has_explicit_case_flag != 0 {
+                has_explicit_case_flag == 1
+            } else {
+                is_html_case_insensitive_attribute(attr_name)
+            };
+            let actual = attr_val.as_deref().unwrap_or("");
+            if let Some(ref expected) = expected_value
+                && test_attribute_value(operator, expected, actual, case_insensitive)
+            {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// Get the type selector name from a relative selector
@@ -5062,10 +5299,31 @@ fn transform_selector_list(
                             result.push_str(separator);
                         }
                     } else {
-                        // Before first used selector: /* (unused) <selectors>,*/ <used>
+                        // Before first used selector: /* (unused) <selectors>,*/ <used>.
+                        // The comma moves inside the comment; the original
+                        // whitespace after it (e.g. a newline + indent) is kept.
                         result.push_str("/* (unused) ");
                         result.push_str(&unused_buffer);
-                        result.push_str(",*/ ");
+                        result.push_str(",*/");
+                        let mut wrote_between = false;
+                        if let Some(unused_end) = last_unused_end {
+                            let between_start = unused_end.saturating_sub(css_start);
+                            let between_end = sel_start.saturating_sub(css_start);
+                            if between_end <= css_source.len() && between_start < between_end {
+                                let between = &css_source[between_start..between_end];
+                                let after_comma = match between.find(',') {
+                                    Some(i) => &between[i + 1..],
+                                    None => between,
+                                };
+                                if !after_comma.is_empty() {
+                                    result.push_str(after_comma);
+                                    wrote_between = true;
+                                }
+                            }
+                        }
+                        if !wrote_between {
+                            result.push(' ');
+                        }
                     }
                     unused_buffer.clear();
                     last_unused_end = None;

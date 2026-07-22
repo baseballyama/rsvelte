@@ -1,9 +1,9 @@
 //! Engine-only JSON diagnostic API, shared by every out-of-process binding.
 //!
-//! Both the wasm export ([`crate::wasm`]) and the NAPI export ([`crate::napi`])
-//! are thin wrappers over the two functions here, so a native (`.node`) and a
-//! wasm consumer see **byte-identical JSON**. This path is `svelte_check`-free:
-//! it runs the native rule engine ([`run_native_rules`](crate::engine::run_native_rules)
+//! Both the wasm export and the NAPI export (in `rsvelte_lint_bindings`) are
+//! thin wrappers over the two functions here, so a native (`.node`) and a wasm
+//! consumer see **byte-identical JSON**. This path is `svelte_check`-free:
+//! it runs the native rule engine ([`run_native_rules`]
 //! and [`run_script_rules`](crate::engine::run_script_rules)) plus the
 //! compiler's own warnings/errors via `compile(GenerateMode::None)`, and emits
 //! line/column directly.

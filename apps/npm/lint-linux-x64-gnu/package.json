@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/lint-linux-x64-gnu",
-  "version": "0.8.0",
+  "version": "0.8.2",
   "description": "Prebuilt rsvelte-lint binary for linux-x64 (glibc)",
   "license": "MIT",
   "repository": {
