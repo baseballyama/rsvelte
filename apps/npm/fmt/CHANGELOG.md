@@ -1,5 +1,91 @@
 # @rsvelte/fmt
 
+## 0.6.2
+
+### Patch Changes
+
+- be6b5f5: fix(formatter): measure multi-interpolation attribute values as one Doc
+
+  A quoted attribute value with two or more `{…}` interpolations was measured
+  per-interpolation, with trailing interpolations counted as zero width — so the
+  wrong interpolation broke, or none did. The whole value is now built as a single
+  measured Doc: literal text verbatim (prettier gives attribute text no break
+  points), each interpolation a group embedding its oxc-formatted flat and broken
+  forms.
+
+  Break-point selection follows prettier's fits semantics rather than a bespoke
+  rule: a breakable trailing interpolation, measured in break mode, charges only
+  the width up to its first internal break point and then short-circuits the
+  measurement. Prettier's greedy layout — keep an earlier interpolation flat
+  whenever a later one can break to absorb the overflow — emerges from that
+  composition. The mode branch is pinned by unit tests: at the same width,
+  flipping only a trailing interpolation's breakability flips the leading
+  interpolation between flat and broken.
+
+  Values stay on the previous path when the interpolation is deep (object /
+  call-argument expansion), the text spans multiple source lines, or the value is
+  a `style:` directive (whose text is a real fill, unlike regular attributes).
+
+- c50d0fe: fix(formatter): keep a template-position `as`/`satisfies` union flat when it fits
+
+  In an attribute value or mustache, `x as A | B` was expanded to a leading-`|`
+  multi-line union whenever the annotation broke onto its own line, while the
+  oxfmt(`svelte:true`) oracle keeps it flat (`… as\n  A | B`). oxc ties the
+  union's leading-`|` separator into the same group as the annotation break, so
+  once the annotation breaks the union always expands — no print width reaches
+  the oracle's layout. The oracle formats template expressions with prettier's
+  estree printer, whose `as`/`satisfies` layout breaks after the operator but
+  measures the union's own group independently.
+
+  `format_expr_core` now reproduces that layout for template expressions only: an
+  `oxc_ast_visit` gate confirms the formatted program contains an `as`/`satisfies`
+  node with a ≥2-member union, then each broken union block (a line ending in the
+  operator token directly followed by same-indent `| ` member lines) is collapsed
+  back onto the annotation line when the flat form fits the budget. Blocks with a
+  multi-line member, or whose flat form overflows, stay expanded — matching the
+  oracle. `<script>` blocks are untouched (they format through `format_program`
+  and already agree with the oracle on oxc's leading-`|`). The eventual upstream
+  fix remains a separate-group `as` layout in `oxc_formatter`.
+
+- 5ca3d4d: fix(fmt): default to the current working directory when no paths are given, matching `oxfmt`
+
+  `rsvelte-fmt` (no arguments) now formats the current directory in place, and
+  `rsvelte-fmt --check` checks it, exactly like `oxfmt`. Previously the path
+  argument was required and the no-path invocation exited with an error.
+  `--stdin` mode is unaffected.
+
+- 6df4de5: fix(formatter): include the close tag in the hugged-content width measurement
+
+  When a multi-line open tag's hugged content line (`>{content}</tag`) overflows,
+  the Doc-IR reformat printed the body alone, so the printer's fits lookahead never
+  saw the close tag's width — an inner self-closing component whose own attributes
+  fit, but overflow once `</tag` is appended, never broke. The overflowing hugged
+  line is now printed as prettier's `group(['>', body, '</tag'])` with the dangling
+  `>` appended after, so the close tag participates in the fits measurement and the
+  inner component's attributes wrap exactly where the oracle wraps them.
+
+- f95de6d: fix(fmt): exit 2 with oxfmt's own message when no files match, instead of a false success
+
+  `rsvelte-fmt` now exits 2 with `Expected at least one target file. All
+matched files may have been excluded by ignore rules.` — the same exit code
+  and message `oxfmt` gives when it finds nothing to format. This covers a
+  genuinely empty directory as well as a tree whose only files are excluded by
+  `.gitignore`/`.prettierignore` or don't match any supported extension.
+  Previously these cases printed a different message and exited 0, silently
+  reporting success. `--check` behaves the same way.
+
+- 66d7af3: Keep the leading hardline for prose text that follows a self-closing sibling (`<Code … />`), matching prettier's untrimmed `splitTextToDocs` fill so the last word tolerates overflow instead of wrapping early.
+- 71aed19: fix(formatter): normalize inter-interpolation whitespace in wrapped attribute values
+
+  A `style:`/regular attribute value made of multiple interpolations where at
+  least one wraps (e.g. two nested ternaries in `style:transform-origin`) took the
+  whole-value re-indent path, which prepends the attribute indent to every line.
+  The literal whitespace BETWEEN interpolations still carried its source
+  indentation, so the re-indent double-indented the second interpolation's opening
+  line. That structural whitespace (a depth-0 newline whose next content is the
+  next `{`) is now stripped before re-indent, matching prettier's normalization to
+  the attribute indent; literal text lines keep their source indentation verbatim.
+
 ## 0.6.1
 
 ### Patch Changes
