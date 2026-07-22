@@ -15,6 +15,13 @@
 // non-`ok` (or absent) response as "leave classes as they are", so a missing
 // plugin or a broken config degrades to unsorted output, never a crash.
 
+// Guard the JSON channel: the plugin or `tailwindcss` may print to stdout (a
+// deprecation notice, a debug line), which would corrupt our single-line
+// response. Route all stray stdout to stderr and emit only the final JSON on the
+// real stdout.
+const realStdoutWrite = process.stdout.write.bind(process.stdout);
+process.stdout.write = process.stderr.write.bind(process.stderr);
+
 function readStdin() {
 	return new Promise((resolve) => {
 		let data = '';
@@ -61,10 +68,10 @@ async function main() {
 	return { ok: true, sorted };
 }
 
+function emit(result) {
+	realStdoutWrite(JSON.stringify(result));
+}
+
 main()
-	.then((result) => {
-		process.stdout.write(JSON.stringify(result));
-	})
-	.catch((err) => {
-		process.stdout.write(JSON.stringify({ ok: false, error: String(err && err.message) }));
-	});
+	.then(emit)
+	.catch((err) => emit({ ok: false, error: String(err && err.message) }));
