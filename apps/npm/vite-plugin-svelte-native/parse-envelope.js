@@ -1170,6 +1170,7 @@ function readJsVariableDeclarator(ctx, start, end) {
 function readJsFunctionDeclaration(ctx, start, end) {
 	const loc = readTypedLoc(ctx);
 	const id = readOptNode(ctx);
+	const expression = readBool(ctx);
 	const generator = readBool(ctx);
 	const asyncFlag = readBool(ctx);
 	const params = readChildArray(ctx);
@@ -1177,6 +1178,7 @@ function readJsFunctionDeclaration(ctx, start, end) {
 	const node = { type: 'FunctionDeclaration', start, end };
 	if (loc !== null) node.loc = loc;
 	node.id = id;
+	node.expression = expression;
 	node.generator = generator;
 	node.async = asyncFlag;
 	node.params = params;

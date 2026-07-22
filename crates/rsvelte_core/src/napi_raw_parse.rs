@@ -1681,10 +1681,12 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             body,
             generator,
             r#async,
+            expression,
         } => {
             write_preamble(w, JS_FUNCTION_DECLARATION, *start, *end);
             write_typed_loc(w, loc.as_deref());
             write_opt_node_id(w, *id, arena)?;
+            write_bool(w, *expression);
             write_bool(w, *generator);
             write_bool(w, *r#async);
             write_id_range(w, *params, arena)?;
