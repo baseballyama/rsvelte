@@ -396,3 +396,15 @@ fn else_if_branch_dangles_the_first_title_close() {
     let expected = "<svg>\n  {#if typeof title === \"function\"}<title>{@render title()}</title\n    >{:else if titleText}<title>{titleText}</title>{/if}\n  {@render children?.()}\n</svg>";
     assert_eq!(out, expected, "first title close must dangle:\n{out}");
 }
+
+#[test]
+fn pre_child_open_tag_dangles_on_multiline_content() {
+    // A `<pre>` child (`<code class="x">`) whose content spans multiple lines
+    // dangles its open `>` onto its own line, even when the glued open-tag line
+    // would fit — prettier's whitespace-sensitive `<pre>` child layout. (A
+    // single-line short child stays glued.)
+    let src = "<pre><code class=\"language-bash\">line1\nline2</code></pre>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<pre><code class=\"language-bash\"\n    >line1\nline2</code\n  ></pre>";
+    assert_eq!(out, expected, "pre child open tag must dangle:\n{out}");
+}

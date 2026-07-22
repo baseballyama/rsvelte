@@ -3884,8 +3884,13 @@ fn try_fix_pre_child_open_tags(
                 .find('\n')
                 .map_or(out.len(), |i| open_end + i);
             let line = &out[line_start..line_nl];
-            if line.width() <= line_width {
-                continue; // fits on one line — no action needed
+            // Prettier dangles a `<pre>` child's open `>` when the child spans
+            // multiple lines (its content has a newline) OR the glued open-tag
+            // line overflows — a short single-line child (`<code class="x">y</code>`)
+            // stays glued.
+            let content_multiline = out.get(open_end..ce).is_some_and(|c| c.contains('\n'));
+            if line.width() <= line_width && !content_multiline {
+                continue; // fits on one line and single-line content — no action
             }
             // Drop `>` to a new indented line.  The indent sits two levels
             // deeper than `<pre>`'s own indent (one for the child element, one
@@ -3924,9 +3929,17 @@ fn try_fix_pre_child_open_tags(
                 // The line before `>` must consist entirely of spaces (the
                 // indent for the non-hug `>` placement). `open_tag_only` ends
                 // with `>` (guarded above), so strip it.
-                if after_last_nl
-                    .strip_suffix('>')
-                    .is_some_and(|s| s.bytes().all(|b| b == b' '))
+                // Re-hug the `>` to the last attribute only when the attributes
+                // themselves are broken across lines (the `<code` opener is alone
+                // on the first line). When the attrs all sit on the opener line and
+                // only the `>` was dropped (`<code class="…"\n    >`), prettier keeps
+                // the `>` dangling — the short-open, multi-line-content shape — so
+                // leave it alone.
+                let attrs_multiline = open_tag_only[..last_nl].contains('\n');
+                if attrs_multiline
+                    && after_last_nl
+                        .strip_suffix('>')
+                        .is_some_and(|s| s.bytes().all(|b| b == b' '))
                 {
                     // Move `>` to hug the last attribute line (remove the
                     // `\n{spaces}` before `>`). Keep the whitespace between
