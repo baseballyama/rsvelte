@@ -280,6 +280,20 @@ fn attribute_names(value: &serde_json::Value) -> Vec<String> {
     names
 }
 
+/// `sortTailwindcss.functions` — wrapper call names (`cn`, `cva`, …) whose class
+/// arguments are sorted in `<script>` bodies. Empty when unset (oxfmt's default).
+pub fn function_names(sort_tailwindcss: Option<&serde_json::Value>) -> Vec<String> {
+    sort_tailwindcss
+        .and_then(|v| v.get("functions"))
+        .and_then(serde_json::Value::as_array)
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(str::to_owned))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn find_v3_config(dir: &Path) -> Option<String> {
     for name in [
         "tailwind.config.js",

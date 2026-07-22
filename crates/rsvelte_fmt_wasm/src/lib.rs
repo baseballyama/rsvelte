@@ -107,5 +107,6 @@ fn parse_options(options_json: &str) -> FormatOptions {
         sort_order,
         class_sorter: None,
         class_attributes: Vec::new(),
+        tailwind_functions: Vec::new(),
     }
 }

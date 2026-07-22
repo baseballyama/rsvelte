@@ -67,6 +67,11 @@ pub(crate) fn format_script(
     let (body_start, body_end) = body_span(source, script)?;
     let body = &source[body_start..body_end];
 
+    // Sort Tailwind class strings in configured `functions` calls (`cn(...)` /
+    // `cva(...)`) before formatting, so oxc re-prints from the sorted source.
+    let sorted_body = crate::tailwind_sort::sort_script_functions(body, options);
+    let body = sorted_body.as_deref().unwrap_or(body);
+
     if body.trim().is_empty() {
         // A whitespace-only body (e.g. `<script>\n\t\n</script>`) collapses to a
         // single newline so the close tag sits on its own line, matching oxfmt /
