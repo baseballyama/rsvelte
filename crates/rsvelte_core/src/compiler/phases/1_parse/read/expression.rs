@@ -5808,6 +5808,7 @@ fn convert_statement(
                 body,
                 generator: func_decl.generator,
                 r#async: func_decl.r#async,
+                expression: false,
             })
         }
         // Fallback to the program-context converter for other statement types
@@ -6947,6 +6948,7 @@ fn convert_statement_for_program(
                         body: body_node,
                         generator: func_decl.generator,
                         r#async: func_decl.r#async,
+                        expression: false,
                     }
                 }
                 oxc_ast::ast::ExportDefaultDeclarationKind::ClassDeclaration(class_decl)
@@ -7711,6 +7713,7 @@ fn convert_function_declaration_as_node(
         body: body_node,
         generator: func_decl.generator,
         r#async: func_decl.r#async,
+        expression: false,
     })
 }
 
