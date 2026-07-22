@@ -623,6 +623,14 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> (FormatOptions, Option<
         tailwind::Decision::Off => (None, Vec::new(), None),
     };
 
+    // `functions` (script `cn(...)` / `cva(...)` sorting) applies only when a sort
+    // is actually active — native (`class_sorter`) or the JS sidecar (`pending_js`).
+    let tailwind_functions = if class_sorter.is_some() || pending_js.is_some() {
+        tailwind::function_names(cfg.sort_tailwindcss.as_ref())
+    } else {
+        Vec::new()
+    };
+
     // Embedded `<style>` blocks are formatted in-process via `oxc_formatter_css`
     // by default (same engine as `oxfmt`, no subprocess). `--no-native-css`
     // reverts to spawning `oxfmt`, which the batched Svelte pipeline drives.
@@ -644,6 +652,7 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> (FormatOptions, Option<
         bracket_same_line: cfg.bracket_same_line.unwrap_or(false),
         class_sorter,
         class_attributes,
+        tailwind_functions,
     };
     (options, pending_js)
 }

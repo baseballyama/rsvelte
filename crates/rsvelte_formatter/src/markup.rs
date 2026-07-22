@@ -1636,6 +1636,20 @@ fn render_single_expression_value(
     if inner_src.is_empty() {
         return Ok(format!("{}={{}}", node.name));
     }
+    // Tailwind class sort for a `class={expr}` (or configured attribute) mustache:
+    // reorder every class literal in the expression before formatting. Unlike the
+    // static path, this is not function-gated — mirrors oxfmt's `transformSvelte`.
+    let sorted_expr = if options.class_sorter.is_some()
+        && options
+            .class_attributes
+            .iter()
+            .any(|a| a == node.name.as_str())
+    {
+        crate::tailwind_sort::sort_class_expression(inner_src, options)
+    } else {
+        None
+    };
+    let inner_src = sorted_expr.as_deref().unwrap_or(inner_src);
     // When the open tag wraps, attribute values are narrowed so OXC breaks them
     // at the right column.  Two cases:
     //
