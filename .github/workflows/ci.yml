@@ -587,6 +587,22 @@ jobs:
           npm i --ignore-scripts "oxfmt@$OXFMT_RANGE" "svelte@$SVELTE_RANGE"
           ./node_modules/.bin/oxfmt --version
 
+      - name: Install Tailwind for the sortTailwindcss JS-parity tests
+        # Provides the `tailwindcss` + `prettier-plugin-tailwindcss` a consumer
+        # project would have, so the gated `sort_tailwindcss_*_via_js` tests in
+        # `--test cli` actually run (they no-op without RSVELTE_FMT_TW_TEST_DIR).
+        # The plugin version is read from `@rsvelte/fmt`'s own dependency — the
+        # same pin the sidecar bundles — so `auto-update-oxfmt` keeps this in
+        # lockstep and any drift is caught here (that is the point of this gate).
+        run: |
+          set -euo pipefail
+          TW_PLUGIN=$(node -p "require('./apps/npm/fmt/package.json').dependencies['prettier-plugin-tailwindcss']")
+          echo "resolving tailwindcss + prettier-plugin-tailwindcss@$TW_PLUGIN"
+          mkdir -p "$RUNNER_TEMP/tw-oracle"
+          cd "$RUNNER_TEMP/tw-oracle"
+          npm init -y >/dev/null
+          npm i --ignore-scripts tailwindcss "prettier-plugin-tailwindcss@$TW_PLUGIN"
+
       - name: Resolve svelte.dev submodule SHA
         id: svelte-dev-sha
         shell: bash
@@ -624,6 +640,16 @@ jobs:
         env:
           RUST_MIN_STACK: '33554432'
           FMT_CORPUS_OXFMT: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
+
+      - name: Run sortTailwindcss JS-parity tests (custom config vs. oxfmt)
+        # Asserts rsvelte-fmt's JS-sorted output is byte-identical to the real
+        # oxfmt oracle for a custom Tailwind config. Guards against drift of the
+        # bundled prettier-plugin-tailwindcss version vs. what oxfmt uses.
+        run: cargo nextest run --profile ci -p rsvelte_fmt --test cli sort_tailwindcss
+        timeout-minutes: 10
+        env:
+          OXFMT_BIN: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
+          RSVELTE_FMT_TW_TEST_DIR: ${{ runner.temp }}/tw-oracle
 
   # Builds the lint wasm (nodejs target) + the native rsvelte-fmt binary, bundles
   # @rsvelte/language-server, and runs its headless LSP smoke tests (formatting
