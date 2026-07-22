@@ -1496,17 +1496,6 @@ fn try_fill_run(
     if non_ws_prefix && !is_close_tag_prefix {
         return None;
     }
-    // A pure-text run (no inline elements) that is already on a single line
-    // (no `\n` in `whole`) should not be broken — prettier does not aggressively
-    // re-wrap prose that the indent pass placed on one line, even when it slightly
-    // overflows (e.g. a `<strong>Code suggestions</strong> validated … before you
-    // merge.` run that reaches 86 cols). Only reflow pure-text single-node runs
-    // that are already single-line; multi-node runs (with inline elements) that
-    // span multiple lines in the formatted output are still reflowed normally.
-    // Note: `run` was rebound above to `run[lo..hi]` (whitespace-only edges trimmed).
-    if run.len() == 1 && matches!(run[0], TemplateNode::Text(_)) && !whole.contains('\n') {
-        return None;
-    }
     let printed_raw = crate::doc::print(
         content_doc,
         line_width,
