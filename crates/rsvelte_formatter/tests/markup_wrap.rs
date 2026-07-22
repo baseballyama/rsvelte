@@ -358,3 +358,27 @@ fn prose_after_broken_inline_element_stays_word_first() {
         "prose after broken inline must stay word-first:\n{out}"
     );
 }
+
+#[test]
+fn void_element_dangles_slash_when_prose_line_overflows() {
+    // A void `<br />` glued to the end of an overflowing prose line must dangle
+    // its `/>` onto its own line at the outer indent (`<br\n/>`), matching
+    // prettier's self-closing open-tag group. A fitting line keeps `<br />`.
+    let src = "<div>\n  Notice how navigating to different pages affects the rendered output here.<br />\n  Next line of text.\n</div>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<div>\n  Notice how navigating to different pages affects the rendered output here.<br\n  />\n  Next line of text.\n</div>";
+    assert_eq!(
+        out, expected,
+        "void <br /> must dangle its slash on overflow:\n{out}"
+    );
+}
+
+#[test]
+fn void_element_stays_flat_when_it_fits() {
+    // The same shape below the print width keeps `<br />` on one line (the
+    // breakable group only breaks on overflow, so fitting lines are unchanged).
+    let src = "<div>\n  Short line.<br />\n  Next.\n</div>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<div>\n  Short line.<br />\n  Next.\n</div>";
+    assert_eq!(out, expected, "fitting void <br /> stays flat:\n{out}");
+}

@@ -4903,7 +4903,12 @@ fn node_to_child(
             if span.contains('\n') {
                 return None;
             }
-            Some(Child::Inline(Doc::Text(span.to_string())))
+            // Build a breakable self-closing group so an overflowing prose line can
+            // dangle the `/>` (`<br\n/>`), matching prettier; falls back to the
+            // verbatim atom when the span isn't a canonical `<tag … />`.
+            let doc =
+                build_void_element_doc(out, ve).unwrap_or_else(|| Doc::Text(span.to_string()));
+            Some(Child::Inline(doc))
         }
         // Non-void inline content element (`<a>`, `<span>`, `<strong>`, …) — built
         // recursively via the faithful port so its own layout matches prettier.
@@ -6117,6 +6122,60 @@ fn build_self_closing_regular_doc(out: &str, node: &TemplateNode) -> Option<crat
     // Guard: the flat form must equal the canonical single-line `<tag a b c />`
     // so this never changes bytes when the element already fits on one line.
     let expected = format!("<{tag} {flat_attrs} />");
+    let flat = crate::doc::print(doc.clone(), 999_999, "  ", 0, 0);
+    if flat != expected {
+        return None;
+    }
+    Some(doc)
+}
+
+/// Build a breakable doc for a void HTML element (`<br />`, `<img … />`,
+/// `<input … />`) inside a children/prose fill, so an overflowing line dangles
+/// the `/>` onto its own line at the outer indent — prettier's self-closing open
+/// tag `group(['<', tag, indent(group([…attrs, dedent(line)])), '/>'])`. Unlike
+/// [`build_self_closing_regular_doc`] this also handles the no-attribute case
+/// (`<br />`). Returns `None` (caller keeps the verbatim atom) when the span is
+/// multi-line or the rebuilt flat form wouldn't round-trip to `<tag … />`, so a
+/// void element that already fits on its line never changes bytes.
+fn build_void_element_doc(
+    out: &str,
+    e: &rsvelte_core::ast::template::RegularElement,
+) -> Option<crate::doc::Doc> {
+    use crate::doc::Doc;
+    let span = out.get(e.start as usize..e.end as usize)?;
+    if span.contains('\n') || !span.trim_end().ends_with("/>") {
+        return None;
+    }
+    let tag = e.name.as_str();
+    let mut group_parts: Vec<Doc> = Vec::with_capacity(e.attributes.len() * 2 + 1);
+    let mut flat_attrs = String::new();
+    for attr in &e.attributes {
+        let (as_, ae) = attribute_span(attr);
+        let atext = out.get(as_ as usize..ae as usize)?;
+        if atext.contains('\n') {
+            return None;
+        }
+        group_parts.push(Doc::Line);
+        group_parts.push(Doc::Text(atext.to_string()));
+        if !flat_attrs.is_empty() {
+            flat_attrs.push(' ');
+        }
+        flat_attrs.push_str(atext);
+    }
+    // `dedent(line)`: flat → " " (space before `/>`), break → newline at indent-1.
+    group_parts.push(Doc::Dedent(vec![Doc::Line]));
+    let doc = Doc::Group(vec![
+        Doc::Text(format!("<{tag}")),
+        Doc::Indent(vec![Doc::Group(group_parts)]),
+        Doc::Text("/>".to_string()),
+    ]);
+    // Guard: the flat form must equal the canonical single-line element, so this
+    // never changes bytes when the element already fits on one line.
+    let expected = if flat_attrs.is_empty() {
+        format!("<{tag} />")
+    } else {
+        format!("<{tag} {flat_attrs} />")
+    };
     let flat = crate::doc::print(doc.clone(), 999_999, "  ", 0, 0);
     if flat != expected {
         return None;
