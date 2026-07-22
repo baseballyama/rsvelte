@@ -2147,11 +2147,20 @@ fn render_value_sequence_doc(
     // matching prettier-plugin-svelte.
     let width = line_width.saturating_sub(1);
     let unit = indent_str(1, &options.js);
+    // The open-tag assembly emits a TEXT-led value (`class="text {…}"`,
+    // `is_string_value_attr` true) VERBATIM, but re-indents an INTERPOLATION-led
+    // value (`value="{…}"`) by the attribute column. So bake the absolute indent
+    // into continuation lines only for the verbatim case; emit the interp-led
+    // form RELATIVE (base_indent 0) so the downstream re-indent lands a broken
+    // interpolation's continuation at `attr_indent + 2`, not `2*attr_indent + 2`.
+    // (`fits` ignores indentation, so base_indent never changes a break decision.)
+    let text_led = matches!(parts.first(), Some(AttributeValuePart::Text(t)) if !t.raw.is_empty());
+    let base_indent = if text_led { attr_depth } else { 0 };
     let out = doc_print(
         propagate_breaks(Doc::Concat(docs)),
         width,
         &unit,
-        attr_depth,
+        base_indent,
         start_col,
     );
     Ok(Some(out))
