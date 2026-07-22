@@ -299,12 +299,28 @@ assert(
 			return `x-${hash(css)}`;
 		},
 	});
-	assert('dynamic cssHash receives name/filename/hash', seen.hasHashFn === true, JSON.stringify(seen));
+	assert(
+		'dynamic cssHash receives name/filename/hash',
+		seen.hasHashFn === true && seen.name === 'Dyn' && seen.filename === 'Dyn.svelte',
+		JSON.stringify(seen),
+	);
 	assert(
 		'dynamic cssHash class appears in output',
 		/x-[0-9a-z]+/.test(dyn.js.code),
 		dyn.js.code.slice(0, 160),
 	);
+
+	// Svelte defaults filename to '(unknown)' — the callback must see that, not undefined.
+	let seenFilename;
+	await r.compileAsync('<h1>hi</h1><style>h1{color:red}</style>', {
+		generate: 'client',
+		css: 'injected',
+		cssHash: ({ hash, css, filename }) => {
+			seenFilename = filename;
+			return `x-${hash(css)}`;
+		},
+	});
+	assert('cssHash filename defaults to (unknown)', seenFilename === '(unknown)', String(seenFilename));
 
 	// Different CSS must yield a different hash (proves it is content-driven).
 	const a = await r.compileAsync('<h1>a</h1><style>h1{color:red}</style>', {
@@ -326,17 +342,32 @@ assert(
 		`${clsOf(a.js.code)} vs ${clsOf(b.js.code)}`,
 	);
 
-	// A rejecting cssHash must not crash — Rust falls back to the default hash.
+	// A throwing cssHash surfaces as a compile error (matches upstream) without
+	// crashing the process during TSFN teardown.
+	let cssHashThrew = false;
+	try {
+		await r.compileAsync(src, {
+			filename: 'F.svelte',
+			generate: 'client',
+			css: 'injected',
+			cssHash: () => {
+				throw new Error('boom');
+			},
+		});
+	} catch (e) {
+		cssHashThrew = /boom/.test(String((e && e.message) || e));
+	}
+	assert('throwing cssHash surfaces as a compile error', cssHashThrew);
+
+	// A non-string return falls back to the compiler's default hash.
 	const fell = await r.compileAsync(src, {
 		filename: 'F.svelte',
 		generate: 'client',
 		css: 'injected',
-		cssHash: () => {
-			throw new Error('boom');
-		},
+		cssHash: () => 42,
 	});
 	assert(
-		'rejecting cssHash falls back to default hash',
+		'non-string cssHash return falls back to default hash',
 		fell.js.code.includes('svelte-'),
 		fell.js.code.slice(0, 160),
 	);
@@ -349,6 +380,15 @@ assert(
 		threw = true;
 	}
 	assert('sync compile throws on a dynamic cssHash', threw);
+
+	// compileBatch rejects a dynamic cssHash instead of silently dropping it.
+	let batchThrew = false;
+	try {
+		r.compileBatch([{ source: src, options: { filename: 'Bt.svelte', cssHash: () => 'x' } }]);
+	} catch {
+		batchThrew = true;
+	}
+	assert('compileBatch throws on a dynamic cssHash', batchThrew);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
