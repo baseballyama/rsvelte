@@ -3292,8 +3292,29 @@ fn align_orig_nodes<'a>(
     result
 }
 
+/// Whether two aligned nodes are the SAME kind — same AST variant, plus same tag
+/// name for elements/components. Used to reject a positional alignment that has
+/// drifted (a comment, `<svelte:*>` element, or vanished whitespace-only text can
+/// shift the node "column"); any signature mismatch means the two lists diverged.
+fn node_signature_matches(a: &TemplateNode, b: &TemplateNode) -> bool {
+    if std::mem::discriminant(a) != std::mem::discriminant(b) {
+        return false;
+    }
+    match (a, b) {
+        (TemplateNode::RegularElement(x), TemplateNode::RegularElement(y)) => x.name == y.name,
+        (TemplateNode::Component(x), TemplateNode::Component(y)) => x.name == y.name,
+        _ => true,
+    }
+}
+
 /// Recursively map each intermediate text node's start offset to its pre-collapse
-/// source text, walking the intermediate and original trees in lockstep.
+/// source text, walking the intermediate and original trees in lockstep. If a
+/// fragment's node lists diverge structurally — any non-text node fails to pair
+/// with a same-signature original — the ENTIRE fragment (and its subtree) is
+/// skipped, so its text falls back to the intermediate whitespace. This keeps the
+/// correction to fragments whose structure provably matches; the corpus never
+/// exercises the divergent path, but an unforeseen collapse edit that reshapes a
+/// node list can only lose the correction, never mis-map a text node.
 fn build_orig_text_map(
     inter: &[TemplateNode],
     orig_out: &str,
@@ -3301,6 +3322,15 @@ fn build_orig_text_map(
     map: &mut std::collections::HashMap<u32, String>,
 ) {
     let aligned = align_orig_nodes(inter, orig);
+    // A text node may legitimately have no original counterpart (a whitespace-only
+    // separator collapse dropped); leave it unmapped. But every NON-text node must
+    // pair with a same-signature original, or the alignment has drifted.
+    let consistent = inter.iter().zip(&aligned).all(|(n, on)| {
+        matches!(n, TemplateNode::Text(_)) || on.is_some_and(|o| node_signature_matches(n, o))
+    });
+    if !consistent {
+        return;
+    }
     for (n, on) in inter.iter().zip(aligned) {
         if let (TemplateNode::Text(t), Some(TemplateNode::Text(ot))) = (n, on)
             && let Some(s) = orig_out.get(ot.start as usize..ot.end as usize)
@@ -3310,6 +3340,8 @@ fn build_orig_text_map(
         if let Some(on) = on {
             let inter_fs = child_fragments(n);
             let orig_fs = child_fragments(on);
+            // A signature match guarantees the same fragment arity; a mismatch in
+            // count (should not occur) simply leaves the extra fragments unmapped.
             for (f, of) in inter_fs.iter().zip(orig_fs.iter()) {
                 build_orig_text_map(&f.nodes, orig_out, &of.nodes, map);
             }
@@ -6640,6 +6672,52 @@ mod tests {
             nodes: vec![],
             metadata: FragmentMetadata::default(),
         }
+    }
+
+    fn make_text_node(data: &str, start: u32) -> TemplateNode {
+        TemplateNode::Text(Text {
+            start,
+            end: start + data.len() as u32,
+            raw: data.into(),
+            data: data.into(),
+        })
+    }
+
+    fn make_element_node(name: &str) -> TemplateNode {
+        use rsvelte_core::ast::template::{RegularElement, RegularElementMetadata};
+        TemplateNode::RegularElement(Box::new(RegularElement {
+            start: 0,
+            end: 0,
+            name: name.into(),
+            name_loc: None,
+            attributes: vec![],
+            fragment: make_empty_fragment(),
+            metadata: RegularElementMetadata::default(),
+        }))
+    }
+
+    #[test]
+    fn orig_text_map_uses_original_text_when_structure_matches() {
+        // Same element name in both lists → the following text node is mapped to
+        // its pre-collapse source (whitespace-faithful).
+        let orig_out = "<span></span> original words here";
+        let inter = vec![make_element_node("span"), make_text_node("\nx", 13)];
+        let orig = vec![make_element_node("span"), make_text_node(" original", 13)];
+        let mut map = std::collections::HashMap::new();
+        build_orig_text_map(&inter, orig_out, &orig, &mut map);
+        assert_eq!(map.get(&13).map(String::as_str), Some(" original"));
+    }
+
+    #[test]
+    fn orig_text_map_falls_back_on_structural_divergence() {
+        // The non-text nodes disagree (span vs div), so the whole fragment is
+        // skipped and the text is left unmapped (falls back to intermediate).
+        let orig_out = "<div></div> original words here";
+        let inter = vec![make_element_node("span"), make_text_node("\nx", 13)];
+        let orig = vec![make_element_node("div"), make_text_node(" original", 13)];
+        let mut map = std::collections::HashMap::new();
+        build_orig_text_map(&inter, orig_out, &orig, &mut map);
+        assert!(map.is_empty(), "divergent structure must not map any text");
     }
 
     #[test]
