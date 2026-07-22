@@ -2372,6 +2372,7 @@ dependencies = [
  "indexmap",
  "insta",
  "itoa",
+ "js-sys",
  "lazy_static",
  "memchr",
  "miette",
