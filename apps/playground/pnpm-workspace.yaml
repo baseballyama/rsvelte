@@ -1,0 +1,5 @@
+# Workspace-root marker: stops pnpm's upward walk to the repo-root workspace
+# so the playground keeps its own standalone pnpm-lock.yaml. Without this,
+# any pnpm invocation here (including Renovate's lockfile updater, which
+# cannot pass --ignore-workspace) resolves to the repo root and leaves this
+# directory's lockfile stale — which is how Deploy Docs broke on #1591.
