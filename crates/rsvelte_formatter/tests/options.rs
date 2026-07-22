@@ -214,6 +214,51 @@ fn bracket_same_line_glues_non_empty_closer() {
     );
 }
 
+fn width_80(bracket_same_line: bool) -> FormatOptions {
+    FormatOptions {
+        js: JsFormatOptions {
+            line_width: LineWidth::try_from(80).unwrap(),
+            ..JsFormatOptions::default()
+        },
+        bracket_same_line,
+        ..FormatOptions::default()
+    }
+}
+
+// A wrapped open tag whose first child is an inline `{#if}` / `{#each}` block is
+// rebuilt by the children-port pass; it must still glue the `>` to the last
+// attribute under `bracketSameLine`. See issue #1654.
+#[test]
+fn bracket_same_line_glues_closer_before_if_block() {
+    let src = "<div class=\"a-long-class-name-that-overflows-eighty-columns\" id=\"identifier\" data-x=\"value\">\n  {#if cond}\n    <span>hi</span>\n  {/if}\n</div>";
+    let out = fmt(src, &width_80(true));
+    assert_eq!(
+        out,
+        "<div\n  class=\"a-long-class-name-that-overflows-eighty-columns\"\n  id=\"identifier\"\n  data-x=\"value\">\n  {#if cond}\n    <span>hi</span>\n  {/if}\n</div>\n"
+    );
+}
+
+#[test]
+fn bracket_same_line_glues_closer_before_each_block() {
+    let src = "<ul class=\"a-long-class-name-that-overflows-eighty-columns\" id=\"identifier\" data-x=\"value\">\n  {#each items as item}\n    <li>{item}</li>\n  {/each}\n</ul>";
+    let out = fmt(src, &width_80(true));
+    assert_eq!(
+        out,
+        "<ul\n  class=\"a-long-class-name-that-overflows-eighty-columns\"\n  id=\"identifier\"\n  data-x=\"value\">\n  {#each items as item}\n    <li>{item}</li>\n  {/each}\n</ul>\n"
+    );
+}
+
+// Default (`bracketSameLine = false`) still dangles the `>` onto its own line.
+#[test]
+fn bracket_same_line_default_dangles_closer_before_if_block() {
+    let src = "<div class=\"a-long-class-name-that-overflows-eighty-columns\" id=\"identifier\" data-x=\"value\">\n  {#if cond}\n    <span>hi</span>\n  {/if}\n</div>";
+    let out = fmt(src, &width_80(false));
+    assert_eq!(
+        out,
+        "<div\n  class=\"a-long-class-name-that-overflows-eighty-columns\"\n  id=\"identifier\"\n  data-x=\"value\"\n>\n  {#if cond}\n    <span>hi</span>\n  {/if}\n</div>\n"
+    );
+}
+
 #[test]
 fn sort_order_parse_rejects_invalid() {
     assert!(SortOrderSpec::parse("scripts-markup").is_none());

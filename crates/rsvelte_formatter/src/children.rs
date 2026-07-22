@@ -394,12 +394,37 @@ pub(crate) struct ElementLayout {
     pub self_closing: bool,
 }
 
+thread_local! {
+    /// The active `bracketSameLine` option while the children-port pass rebuilds
+    /// elements. The port recurses through many helpers that don't carry
+    /// `FormatOptions`, so the flag is read here rather than threaded through every
+    /// signature (mirrors `collapse::IN_PRE_CONTENT`).
+    static BRACKET_SAME_LINE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// RAII guard restoring [`BRACKET_SAME_LINE`] on drop.
+pub(crate) struct BracketSameLineGuard(bool);
+
+impl Drop for BracketSameLineGuard {
+    fn drop(&mut self) {
+        BRACKET_SAME_LINE.set(self.0);
+    }
+}
+
+/// Set [`BRACKET_SAME_LINE`] for the returned guard's lifetime.
+pub(crate) fn enter_bracket_same_line(value: bool) -> BracketSameLineGuard {
+    BracketSameLineGuard(BRACKET_SAME_LINE.replace(value))
+}
+
+fn bracket_same_line() -> bool {
+    BRACKET_SAME_LINE.with(std::cell::Cell::get)
+}
+
 /// Build the Doc for a regular element, porting the element case of
 /// prettier-plugin-svelte's `print` (the `shouldHugStart`/`shouldHugEnd`
-/// four-case assembly). Assumes the corpus oracle config: a supported language,
-/// not `<pre>`-content, and `bracketSameLine = false` (so
-/// `canOmitSoftlineBeforeClosingTag` is always false and the open-tag trailing
-/// separator is `dedent(softline)`).
+/// four-case assembly). Assumes the corpus oracle config: a supported language
+/// and not `<pre>`-content (so `canOmitSoftlineBeforeClosingTag` is always
+/// false). `bracketSameLine` is honoured via [`bracket_same_line`].
 pub(crate) fn build_element_doc(el: ElementLayout) -> Doc {
     let ElementLayout {
         name,
@@ -412,16 +437,23 @@ pub(crate) fn build_element_doc(el: ElementLayout) -> Doc {
     let is_empty = children
         .iter()
         .all(|c| matches!(c.text(), Some(t) if is_empty_raw(t)));
+    let bracket_same_line = bracket_same_line();
 
     // isSelfClosingTag — returns before any hug decision, so `<path … />` keeps
     // its own `/>` instead of being rebuilt as an open/close pair. The trailing
     // separator is `dedent(line)`, not softline: flat, that space is the one in
-    // `<path … />`.
+    // `<path … />`. With `bracketSameLine` the trailing line is dropped and a
+    // literal space glues `/>` to the last attribute even when the tag wraps.
     if is_empty && self_closing {
+        let (trailing, closer): (Doc, &str) = if bracket_same_line {
+            (Doc::Text(String::new()), " />")
+        } else {
+            (Doc::Dedent(vec![Doc::Line]), "/>")
+        };
         return Doc::Group(vec![
             Doc::Text(format!("<{name}")),
-            Doc::Indent(vec![Doc::Group(vec![attrs, Doc::Dedent(vec![Doc::Line])])]),
-            Doc::Text("/>".into()),
+            Doc::Indent(vec![Doc::Group(vec![attrs, trailing])]),
+            Doc::Text(closer.into()),
         ]);
     }
 
@@ -431,8 +463,11 @@ pub(crate) fn build_element_doc(el: ElementLayout) -> Doc {
     let close = format!("</{name}>");
     let close_no_bracket = format!("</{name}");
 
-    // openingTag = ['<', name, indent(group([attrs, hugStart && !isEmpty ? '' : dedent(softline)]))]
-    let opener_trailing = if hug_start && !is_empty {
+    // openingTag = ['<', name, indent(group([attrs,
+    //   hugStart && !isEmpty ? '' : !bracketSameLine ? dedent(softline) : '']))]
+    // `bracketSameLine` drops the trailing softline so the `>` stays glued to the
+    // last attribute when the open tag wraps.
+    let opener_trailing = if (hug_start && !is_empty) || bracket_same_line {
         Doc::Text(String::new())
     } else {
         Doc::Dedent(vec![Doc::Softline])
@@ -443,9 +478,8 @@ pub(crate) fn build_element_doc(el: ElementLayout) -> Doc {
     ];
 
     if is_empty {
-        // body for an empty element: a `line` only for an inline element whose
-        // (raw) first child is a whitespace text; otherwise '' (bracketSameLine
-        // is false so never `softline` here).
+        // body for an empty element: a `line` for an inline element whose (raw)
+        // first child is a whitespace text; otherwise `bracketSameLine ? softline : ''`.
         let body = if is_inline
             && children
                 .first()
@@ -453,11 +487,16 @@ pub(crate) fn build_element_doc(el: ElementLayout) -> Doc {
                 .is_some_and(starts_with_ws)
         {
             Doc::Line
+        } else if bracket_same_line {
+            Doc::Softline
         } else {
             Doc::Text(String::new())
         };
         if hug_start && hug_end {
-            // group([...opening, group([softline, group(['>', body, '</name'])]), '', '>'])
+            // group([...opening, group([softline, group(['>', body, '</name'])]),
+            //   omitSoftlineBeforeClosingTag ? '' : softline, '>'])
+            // omitSoftlineBeforeClosingTag = (isEmpty && !bracketSameLine) || canOmit
+            //                              = !bracketSameLine (isEmpty here, canOmit false)
             let hugged = Doc::Group(vec![
                 Doc::Softline,
                 Doc::Group(vec![
@@ -466,7 +505,12 @@ pub(crate) fn build_element_doc(el: ElementLayout) -> Doc {
                     Doc::Text(close_no_bracket),
                 ]),
             ]);
-            return group_concat(opening_tag, vec![hugged, Doc::Text(">".into())]);
+            let before_close = if bracket_same_line {
+                vec![hugged, Doc::Softline, Doc::Text(">".into())]
+            } else {
+                vec![hugged, Doc::Text(">".into())]
+            };
+            return group_concat(opening_tag, before_close);
         }
         // isEmpty non-hug: group([...opening, '>', body, '</name>'])
         return group_concat(

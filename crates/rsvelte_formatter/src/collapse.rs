@@ -77,6 +77,11 @@ pub(crate) fn collapse_pure_text_elements(
         skip_non_css_lang_style: true,
         ..ParseOptions::default()
     };
+    // The children-port helpers rebuild elements without carrying `FormatOptions`;
+    // expose `bracketSameLine` to them for this pass so a wrapped open tag glues
+    // its `>` to the last attribute (matching prettier-plugin-svelte).
+    let _bracket_same_line_guard =
+        crate::children::enter_bracket_same_line(options.bracket_same_line);
     let Ok(root) = parse(out, parse_opts) else {
         return Ok(out.to_string());
     };
