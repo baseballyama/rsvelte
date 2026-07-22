@@ -283,5 +283,73 @@ assert(
 	JSON.stringify(filtered.warnings.map((w) => w.code)),
 );
 
+// 11. Dynamic cssHash — a css-dependent hash function routed through the async
+//     callback bridge (`compileAsync` -> `compileWithCssHash`).
+{
+	const src = '<h1>hi</h1><style>h1{color:red}</style>';
+	const seen = {};
+	const dyn = await r.compileAsync(src, {
+		filename: 'Dyn.svelte',
+		generate: 'client',
+		css: 'injected',
+		cssHash: ({ hash, css, name, filename }) => {
+			seen.name = name;
+			seen.filename = filename;
+			seen.hasHashFn = typeof hash === 'function';
+			return `x-${hash(css)}`;
+		},
+	});
+	assert('dynamic cssHash receives name/filename/hash', seen.hasHashFn === true, JSON.stringify(seen));
+	assert(
+		'dynamic cssHash class appears in output',
+		/x-[0-9a-z]+/.test(dyn.js.code),
+		dyn.js.code.slice(0, 160),
+	);
+
+	// Different CSS must yield a different hash (proves it is content-driven).
+	const a = await r.compileAsync('<h1>a</h1><style>h1{color:red}</style>', {
+		filename: 'A.svelte',
+		generate: 'client',
+		css: 'injected',
+		cssHash: ({ hash, css }) => `x-${hash(css)}`,
+	});
+	const b = await r.compileAsync('<h1>b</h1><style>h1{color:blue}</style>', {
+		filename: 'B.svelte',
+		generate: 'client',
+		css: 'injected',
+		cssHash: ({ hash, css }) => `x-${hash(css)}`,
+	});
+	const clsOf = (code) => (code.match(/x-[0-9a-z]+/) || [])[0];
+	assert(
+		'dynamic cssHash varies with CSS content',
+		clsOf(a.js.code) && clsOf(b.js.code) && clsOf(a.js.code) !== clsOf(b.js.code),
+		`${clsOf(a.js.code)} vs ${clsOf(b.js.code)}`,
+	);
+
+	// A rejecting cssHash must not crash — Rust falls back to the default hash.
+	const fell = await r.compileAsync(src, {
+		filename: 'F.svelte',
+		generate: 'client',
+		css: 'injected',
+		cssHash: () => {
+			throw new Error('boom');
+		},
+	});
+	assert(
+		'rejecting cssHash falls back to default hash',
+		fell.js.code.includes('svelte-'),
+		fell.js.code.slice(0, 160),
+	);
+
+	// The synchronous entry rejects a dynamic cssHash rather than dropping it.
+	let threw = false;
+	try {
+		r.compile(src, { filename: 'S.svelte', generate: 'client', cssHash: () => 'x' });
+	} catch {
+		threw = true;
+	}
+	assert('sync compile throws on a dynamic cssHash', threw);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
