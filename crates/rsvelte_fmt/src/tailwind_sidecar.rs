@@ -4,9 +4,16 @@
 //! like the oxfmt oracle. Driven by [`crate::main`] only for the `SortViaJs`
 //! decision; the default zero-config path stays pure-Rust.
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
+
+/// Upper bound on how long the sidecar may run before it's killed and the run
+/// falls back to unsorted classes — a hung Node / plugin must never block the
+/// whole formatter.
+const TIMEOUT: Duration = Duration::from_secs(30);
+const POLL: Duration = Duration::from_millis(10);
 
 /// Node interpreter + `tailwind-sort.mjs` script. `None` at the call site
 /// disables the JS path, so a custom config falls back to warn+skip.
@@ -53,14 +60,37 @@ pub fn sort(env: &SidecarEnv, req: &SortRequest) -> Option<Vec<String>> {
         .spawn()
         .ok()?;
     // Dropping the moved-out stdin at the end of the statement closes the pipe,
-    // signalling EOF to the sidecar's `readStdin`.
+    // signalling EOF to the sidecar's `readStdin`. The child writes stdout only
+    // after that EOF, so writing here can't deadlock against an unread stdout.
     child.stdin.take()?.write_all(&body).ok()?;
-    let out = child.wait_with_output().ok()?;
-    if !out.status.success() {
+
+    // Drain stdout on a thread while polling `try_wait` with a deadline, so a
+    // hung child is killed instead of blocking forever.
+    let mut stdout = child.stdout.take()?;
+    let reader = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = stdout.read_to_end(&mut buf);
+        buf
+    });
+    let deadline = Instant::now() + TIMEOUT;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break Some(status),
+            Ok(None) if Instant::now() >= deadline => {
+                let _ = child.kill();
+                let _ = child.wait();
+                break None;
+            }
+            Ok(None) => std::thread::sleep(POLL),
+            Err(_) => break None,
+        }
+    };
+    let stdout = reader.join().ok()?;
+    if !status?.success() {
         return None;
     }
 
-    let resp: serde_json::Value = serde_json::from_slice(&out.stdout).ok()?;
+    let resp: serde_json::Value = serde_json::from_slice(&stdout).ok()?;
     if resp.get("ok").and_then(serde_json::Value::as_bool) != Some(true) {
         return None;
     }

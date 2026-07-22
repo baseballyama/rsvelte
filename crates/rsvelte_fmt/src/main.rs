@@ -330,7 +330,7 @@ fn run() -> Result<ExitCode> {
         .unwrap_or_else(|| cwd.clone());
     let cfg = OxfmtConfig::resolve(cli.config.as_deref(), &config_start).map_err(|e| anyhow!(e))?;
 
-    let (mut options, pending_js) = build_format_options(&cli, &cfg, js_sort_env());
+    let (mut options, pending_js) = build_format_options(&cli, &cfg);
 
     if cli.stdin {
         return run_stdin(&cli, &options, &cfg, pending_js.as_ref());
@@ -544,11 +544,7 @@ fn combine(a: PipelineStatus, b: PipelineStatus, mode: Mode) -> ExitCode {
 /// keys that exist in both places (`--print-width`/`--tab-width`/`--use-tabs`):
 /// CLI flag > `.oxfmtrc` > built-in default. Keys with no CLI equivalent
 /// (`singleQuote`, `semi`, `trailingComma`, …) come straight from `.oxfmtrc`.
-fn build_format_options(
-    cli: &Cli,
-    cfg: &OxfmtConfig,
-    js_env: Option<tailwind_sidecar::SidecarEnv>,
-) -> (FormatOptions, Option<PendingJsSort>) {
+fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> (FormatOptions, Option<PendingJsSort>) {
     let use_tabs = cli.use_tabs || cfg.use_tabs.unwrap_or(false);
     let indent_style = if use_tabs {
         IndentStyle::Tab
@@ -591,7 +587,13 @@ fn build_format_options(
     // stylesheet / config is delegated to a Node sidecar running the real
     // `prettier-plugin-tailwindcss` (see `PendingJsSort`); the sort itself is
     // resolved later, once every class string across the run is collected. With
-    // no Node available we warn and leave classes unchanged.
+    // no Node available we warn and leave classes unchanged. The Node probe runs
+    // only when `sortTailwindcss` is actually configured, never on the hot path.
+    let want_tailwind = matches!(
+        &cfg.sort_tailwindcss,
+        Some(v) if v != &serde_json::Value::Bool(false)
+    );
+    let js_env = want_tailwind.then(js_sort_env).flatten();
     let js_available = js_env.is_some();
     let (class_sorter, class_attributes, pending_js) = match tailwind::decide(
         cfg.sort_tailwindcss.as_ref(),
@@ -705,9 +707,7 @@ fn collect_source_classes(source: &str, options: &FormatOptions) -> HashSet<Stri
     opts.class_sorter = Some(collecting_sorter(sink.clone()));
     opts.style_formatter = None;
     let _ = format(source, &opts);
-    Arc::try_unwrap(sink)
-        .map(|m| m.into_inner().expect("class sink poisoned"))
-        .unwrap_or_else(|arc| arc.lock().expect("class sink poisoned").clone())
+    std::mem::take(&mut *sink.lock().expect("class sink poisoned"))
 }
 
 /// Collect every static class-attribute value across `files` in parallel, for
@@ -722,9 +722,7 @@ fn collect_svelte_classes(files: &[PathBuf], options: &FormatOptions) -> HashSet
             let _ = format(&source, &opts);
         }
     });
-    Arc::try_unwrap(sink)
-        .map(|m| m.into_inner().expect("class sink poisoned"))
-        .unwrap_or_else(|arc| arc.lock().expect("class sink poisoned").clone())
+    std::mem::take(&mut *sink.lock().expect("class sink poisoned"))
 }
 
 /// Resolve the JS class sorter for a batch: collect all class strings, run the
@@ -749,12 +747,26 @@ fn resolve_js_class_sorter(
     }
 }
 
-/// Locate the Tailwind sidecar Node environment. `None` disables the JS sort
-/// path (a custom Tailwind config then warns and skips).
+/// Locate the Tailwind sidecar Node environment, requiring both the script and a
+/// runnable Node. `None` disables the JS sort path (a custom Tailwind config then
+/// warns and skips). Only called when `sortTailwindcss` is configured, so the
+/// Node probe never touches the default path.
 fn js_sort_env() -> Option<tailwind_sidecar::SidecarEnv> {
     let script = tailwind_sidecar_script()?;
     let node = oxfmt_node().unwrap_or_else(|| PathBuf::from("node"));
-    Some(tailwind_sidecar::SidecarEnv { node, script })
+    node_runnable(&node).then_some(tailwind_sidecar::SidecarEnv { node, script })
+}
+
+/// Whether `node --version` runs — so a missing Node yields a Node-specific
+/// warning rather than blaming the plugin.
+fn node_runnable(node: &Path) -> bool {
+    Command::new(node)
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
 }
 
 /// The `tailwind-sort.mjs` sidecar: `RSVELTE_FMT_TAILWIND_SIDECAR` when set
