@@ -3480,11 +3480,21 @@ fn collapse_expanded_arg_form(multi: &str) -> Option<String> {
 /// `removeLines` then collapses that layout to one line, turning the `line`
 /// separators into spaces and dropping the trailing comma: `callee( a, b )`.
 ///
+/// The gate rests on the empirical MAX-break ⟺ shouldExpandLastArg correlation
+/// (a call reaches this path only when OXC unconditionally expands it); should a
+/// future oxc update break that correlation, the fmt corpus output-equality gate
+/// is the safety net that catches it.
+///
 /// Accepts only the "flat arguments" shape: the first line ends with `(`, the
 /// last line is `)` alone, and every intervening line is one complete top-level
-/// argument (bracket depth returns to 0 at the line boundary). Returns `None`
-/// otherwise (e.g. an argument's own object/array broke across further lines) so
+/// argument (bracket depth returns to the argument-list level at the line
+/// boundary). Returns `None` otherwise (e.g. an argument's own object/array broke
+/// across further lines, or a curried `)(` closes the argument list mid-region) so
 /// the caller keeps the multi-line output unchanged.
+///
+/// Exclusive with [`collapse_expanded_arg_form`], which handles the complementary
+/// shape where the first line does NOT end with `(` (an argument hugged onto the
+/// first line, e.g. `options.filter((opt) =>`).
 fn collapse_block_header_expanded_call(multi: &str) -> Option<String> {
     let lines: Vec<&str> = multi.trim_end_matches(';').trim().lines().collect();
     if lines.len() < 3 {
@@ -3498,7 +3508,13 @@ fn collapse_block_header_expanded_call(multi: &str) -> Option<String> {
         return None;
     }
     let inner = &lines[1..lines.len() - 1];
-    let mut depth: i32 = 0;
+    // depth starts at 1: the first line's trailing `(` opened the argument list.
+    // Each inner line is one complete top-level argument, so depth returns to 1 at
+    // every line boundary. It must never reach 0 mid-region — depth 0 means the
+    // argument list closed early (e.g. a curried `foo(...)(...)` whose inner line
+    // carries a `)(`), which this flat-args fold cannot represent, so bail rather
+    // than emit a corrupted single line.
+    let mut depth: i32 = 1;
     let mut in_string: Option<char> = None;
     let mut prev_escape = false;
     let mut args: Vec<String> = Vec::with_capacity(inner.len());
@@ -3518,12 +3534,17 @@ fn collapse_block_header_expanded_call(multi: &str) -> Option<String> {
             match c {
                 '"' | '\'' | '`' => in_string = Some(c),
                 '(' | '[' | '{' => depth += 1,
-                ')' | ']' | '}' => depth -= 1,
+                ')' | ']' | '}' => {
+                    depth -= 1;
+                    if depth <= 0 {
+                        return None;
+                    }
+                }
                 _ => {}
             }
         }
-        // An argument must be complete on its own line.
-        if in_string.is_some() || depth != 0 {
+        // A complete top-level argument returns to the argument-list level.
+        if in_string.is_some() || depth != 1 {
             return None;
         }
         args.push(t.to_string());
@@ -3841,6 +3862,28 @@ mod tests {
         // `collapse_expanded_arg_form` in the narrowed-width path, not here.
         let multi = "options.filter((opt) =>\n  selectedValues.has(opt.value),\n)";
         assert!(collapse_block_header_expanded_call(multi).is_none());
+    }
+
+    #[test]
+    fn collapse_block_header_expanded_call_bails_curried_call() {
+        // A curried `foo(...)(...)` whose inner line carries a `)(` closes the
+        // argument list mid-region (depth reaches 0). The flat-args fold cannot
+        // represent it, so it must bail (keep the multi-line form) rather than
+        // emit a corrupted single line. (Without the depth<=0 guard the per-line
+        // net-balance check would accept `a)(b` and fold to `outer( a)(b, c )`.)
+        let multi = "outer(\n  a)(b,\n  c,\n)";
+        assert!(collapse_block_header_expanded_call(multi).is_none());
+    }
+
+    #[test]
+    fn collapse_block_header_expanded_call_folds_paren_inside_string() {
+        // A `(` / `)` inside a string literal argument must not corrupt the depth
+        // walk — the flat-args fold still applies.
+        let multi = "foo(\n  \"(\",\n  second,\n)";
+        assert_eq!(
+            collapse_block_header_expanded_call(multi).unwrap(),
+            "foo( \"(\", second )"
+        );
     }
 
     #[test]
