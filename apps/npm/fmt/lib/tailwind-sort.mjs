@@ -16,11 +16,16 @@
 // plugin or a broken config degrades to unsorted output, never a crash.
 
 // Guard the JSON channel: the plugin or `tailwindcss` may print to stdout (a
-// deprecation notice, a debug line), which would corrupt our single-line
-// response. Route all stray stdout to stderr and emit only the final JSON on the
-// real stdout.
+// deprecation notice, a debug line), which would corrupt our response. Route all
+// stray stdout to stderr and emit only the framed JSON on the real stdout.
 const realStdoutWrite = process.stdout.write.bind(process.stdout);
 process.stdout.write = process.stderr.write.bind(process.stderr);
+
+// A native addon (e.g. the Tailwind v4 oxide binary) can write straight to fd 1,
+// bypassing the patch above. Framing the response between markers lets the Rust
+// side extract only the payload and discard such stray bytes. Kept byte-identical
+// to `RESP_MARKER` in `tailwind_sidecar.rs`.
+const RESP_MARKER = '\x00<<rsvelte-tw-sort>>\x00';
 
 function readStdin() {
 	return new Promise((resolve) => {
@@ -69,7 +74,7 @@ async function main() {
 }
 
 function emit(result) {
-	realStdoutWrite(JSON.stringify(result));
+	realStdoutWrite(RESP_MARKER + JSON.stringify(result) + RESP_MARKER);
 }
 
 main()
