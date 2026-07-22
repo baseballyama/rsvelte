@@ -14,14 +14,8 @@ compiler-behaviour gap; attempts to fix them are regression-prone against the
 8000+ passing entries (several have been reverted after wide blowups), so they are
 accepted until an upstream-faithful port lands.
 
-## Client (`known-failures.client.json`, 2 entries)
+## Client (`known-failures.client.json`, 1 entry)
 
-- **`melt-ui/.../SpatialMenuNavTest.svelte`** — two causes: (a) a proxy argument in
-  `$.set(highlighted, id, true)` where `id` is an inner-scope TemplateLiteral const
-  not admitted to `non_proxy_vars` (the `name_occurrences==1` heuristic bails on
-  multi-occurrence names); (b) `${cols ?? ''}` — svelte keeps the `?? ''`, rsvelte
-  elides it (scope.evaluate treats a prop member as defined where svelte keeps it
-  UNKNOWN).
 - **`svelte-sonner/.../Toaster.svelte`** — JS now matches; remaining divergence is
   **CSS unused-selector pruning**: svelte prunes selectors like
   `[data-sonner-toast][data-styled='true'] [data-description]` as unused while
