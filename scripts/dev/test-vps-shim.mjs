@@ -165,6 +165,30 @@ function compileError(options) {
 		return e.message;
 	}
 }
+
+// A self-referential object must not crash the process while decoding — it is
+// rejected (or ignored) like any other non-scalar, never followed into a cycle.
+const circular = {};
+circular.self = circular;
+// Reaching this line at all proves no fatal crash occurred; throwing a normal
+// error is an acceptable outcome, a process abort is not.
+const survives = (options) => {
+	try {
+		r.compile('<h1>x</h1>', { filename: 'A.svelte', generate: 'client', ...options });
+	} catch {
+		/* a normal thrown error is fine */
+	}
+	return true;
+};
+assert(
+	'compile() rejects a circular object option without crashing',
+	compileError({ dev: circular }) != null,
+);
+assert('compile() survives a circular experimental option', survives({ experimental: circular }));
+assert(
+	'compile() survives a nested circular option',
+	survives({ experimental: { async: circular } }),
+);
 for (const [label, options, needle] of [
 	['dev', { dev: 1 }, 'dev should be true or false'],
 	['dev (NaN)', { dev: NaN }, 'dev should be true or false'],
