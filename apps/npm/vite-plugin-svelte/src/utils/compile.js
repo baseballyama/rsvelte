@@ -59,7 +59,9 @@ export function createCompileSvelte() {
 		let finalCode = code;
 		if (compileOptions.hmr && options.emitCss) {
 			const hash = `s-${safeBase64Hash(normalizedFilename)}`;
-			compileOptions.cssHash = () => hash;
+			// Constant hash keeps the css scope class stable across HMR updates; the
+			// override path skips the cssHash callback bridge entirely.
+			compileOptions.cssHashOverride = hash;
 			const closeStylePos = code.lastIndexOf('</style>');
 			if (closeStylePos > -1) {
 				// inject rule that forces compile to attach scope class to every node in the template
