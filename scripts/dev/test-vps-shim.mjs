@@ -137,6 +137,10 @@ for (const [runes, expected] of [
 	['true', true],
 	[null, false],
 	[undefined, false],
+	// Non-finite numbers must not crash the serde bridge: NaN is falsy
+	// (auto-detect -> legacy for this rune-free source), Infinity is truthy.
+	[NaN, false],
+	[Infinity, true],
 ]) {
 	let ok = true;
 	let meta;
@@ -163,6 +167,8 @@ function compileError(options) {
 }
 for (const [label, options, needle] of [
 	['dev', { dev: 1 }, 'dev should be true or false'],
+	['dev (NaN)', { dev: NaN }, 'dev should be true or false'],
+	['name (Infinity)', { name: Infinity }, 'name should be a string'],
 	['namespace', { namespace: 2 }, 'namespace should be one of'],
 	['css', { css: 3 }, 'css should be either'],
 	['experimental.async', { experimental: { async: 1 } }, 'experimental.async should be true or false'],
