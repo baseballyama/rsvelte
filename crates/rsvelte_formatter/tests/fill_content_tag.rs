@@ -39,3 +39,17 @@ fn render_tag_breaks_and_glues_trailing_word() {
         "got:\n{out}"
     );
 }
+
+#[test]
+fn content_tag_breaks_before_a_following_element() {
+    // The breakable path fires for the content tag regardless of what follows —
+    // here a `<span>` element, not a prose word. The tag still breaks its args and
+    // the element glues to the closing `)}` (no space in the source).
+    let src = "<Blockquote>\n\tWide data (property per series). Pre-processed before passed to LineChart. {format(chartData.length)}<span>x</span>\n</Blockquote>";
+    let out = fmt(src);
+    assert_eq!(
+        out,
+        "<Blockquote>\n  Wide data (property per series). Pre-processed before passed to LineChart. {format(\n    chartData.length,\n  )}<span>x</span>\n</Blockquote>",
+        "got:\n{out}"
+    );
+}

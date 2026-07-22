@@ -5719,13 +5719,8 @@ fn build_children_doc_nodes(
                 ws_prev = false;
             }
             other => {
-                // A content/render tag (`{expr}` / `{@render …}`) whose expression
-                // is a breakable call becomes a `group([RawExpr])` so the fill can
-                // keep it flat when it fits and break its argument block otherwise,
-                // gluing the following prose word to the closing `)}` — matching
-                // prettier-plugin-svelte's `fill + tag-group + fill` shape. Only
-                // when the caller (`try_fill_mixed`) supplied options; the other
-                // callers keep the atomic path.
+                // A breakable content/render tag joins the fill as `group([RawExpr])`
+                // (prettier's fill+tag+fill); gated on a caller threading options.
                 if let Some(opts) = options
                     && matches!(
                         other,
@@ -5733,11 +5728,9 @@ fn build_children_doc_nodes(
                     )
                     && let Some(doc) = content_tag_breakable_doc(out, other, opts)
                 {
-                    if ws_prev {
-                        docs.push(Doc::Group(vec![Doc::Line, doc]));
-                    } else {
-                        docs.push(doc);
-                    }
+                    // `ws_prev` is only raised before an inline *element*, never
+                    // before a content tag, so the tag is always pushed bare.
+                    docs.push(doc);
                     ws_prev = false;
                     continue;
                 }
