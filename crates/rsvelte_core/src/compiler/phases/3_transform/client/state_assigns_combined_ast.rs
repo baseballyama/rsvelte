@@ -171,9 +171,19 @@ impl<'a, 'sem, 'ast> Visit<'ast> for CombinedCollector<'a, 'sem> {
             AssignmentOperator::Assign => {
                 // Simple assignment.
                 let is_raw_state = self.raw_state_vars.iter().any(|s| s.as_str() == name);
+                // A bare-identifier RHS declared inside this statement resolves
+                // per-site (upstream should_proxy consults the scope at the
+                // assignment); the name-list fallback cannot distinguish two
+                // same-named inner bindings with different proxy-ness.
+                let site_decision = match expr.right.get_inner_expression() {
+                    Expression::Identifier(rhs_id) => ident_rhs_needs_proxy(self.semantic, rhs_id),
+                    _ => None,
+                };
                 let needs_proxy = self.is_runes
                     && !is_raw_state
-                    && expression_needs_proxy_with_scope(rhs_text.trim(), self.non_proxy_vars);
+                    && site_decision.unwrap_or_else(|| {
+                        expression_needs_proxy_with_scope(rhs_text.trim(), self.non_proxy_vars)
+                    });
                 let rewrite = if needs_proxy {
                     format!("$.set({}, {}, true)", name, rhs_text)
                 } else {
@@ -243,6 +253,66 @@ impl<'a, 'sem, 'ast> Visit<'ast> for CombinedCollector<'a, 'sem> {
         self.replacements
             .push((expr.span.start, expr.span.end, rewrite));
     }
+}
+
+/// Mirror upstream `should_proxy(Identifier, scope)` for a bare-identifier
+/// RHS that resolves to a declaration inside the parsed statement: a
+/// non-reassigned `VariableDeclarator` whose init is one of the non-proxy
+/// node types is not proxied; a parameter, reassigned binding, or
+/// initializer-less/other declaration falls through to proxy (upstream's
+/// `return true`). Returns `None` when the identifier does not resolve
+/// within this statement (declared at script level) so the caller can use
+/// the name-list fallback.
+pub(super) fn ident_rhs_needs_proxy(
+    semantic: &Semantic,
+    ident: &IdentifierReference,
+) -> Option<bool> {
+    use oxc_ast::AstKind;
+
+    if ident.name == "undefined" {
+        return Some(false);
+    }
+    let reference_id = ident.reference_id.get()?;
+    let scoping = semantic.scoping();
+    let symbol_id = scoping.get_reference(reference_id).symbol_id()?;
+
+    // Only decide for function-local declarations — the gap the name list
+    // cannot express. Root-scope (script top-level) bindings keep the
+    // name-list decision, which already accounts for binding kinds and
+    // partially-transformed prop declarations.
+    if scoping.symbol_scope_id(symbol_id) == scoping.root_scope_id() {
+        return None;
+    }
+
+    let decl_id = scoping.symbol_declaration(symbol_id);
+    let AstKind::VariableDeclarator(decl) = semantic.nodes().get_node(decl_id).kind() else {
+        return Some(true);
+    };
+    let reassigned = scoping
+        .get_resolved_references(symbol_id)
+        .any(|r| r.is_write());
+    if reassigned {
+        return Some(true);
+    }
+    let Some(init) = &decl.init else {
+        return Some(true);
+    };
+    let non_proxy = match init.get_inner_expression() {
+        Expression::BooleanLiteral(_)
+        | Expression::NullLiteral(_)
+        | Expression::NumericLiteral(_)
+        | Expression::BigIntLiteral(_)
+        | Expression::RegExpLiteral(_)
+        | Expression::StringLiteral(_)
+        | Expression::TemplateLiteral(_)
+        | Expression::ArrowFunctionExpression(_)
+        | Expression::FunctionExpression(_)
+        | Expression::UnaryExpression(_)
+        | Expression::BinaryExpression(_) => true,
+        Expression::Identifier(id) => id.name == "undefined",
+        _ => false,
+    };
+    Some(!non_proxy)
 }
 
 #[cfg(test)]
@@ -371,5 +441,35 @@ mod tests {
     #[test]
     fn empty_state_vars_returns_none() {
         assert!(transform_state_assigns_ast("x = 5;", &[], &[], false, &[]).is_none());
+    }
+}
+
+#[cfg(test)]
+mod site_proxy_tests {
+    use super::*;
+
+    #[test]
+    fn inner_template_literal_const_rhs_is_not_proxied() {
+        let src = r#"initial.forEach((row, rowIndex) => {
+	const cols = row.split(" ");
+	cols.forEach((col, colIndex) => {
+		const id = `${rowIndex}-${colIndex}`;
+		if (col === "h") {
+			highlighted = id;
+		}
+	});
+});"#;
+        let out =
+            transform_state_assigns_ast(src, &["highlighted".to_string()], &[], true, &[]).unwrap();
+        assert!(out.contains("$.set(highlighted, id)"));
+        assert!(!out.contains("$.set(highlighted, id, true)"));
+    }
+
+    #[test]
+    fn param_rhs_stays_proxied() {
+        let src = "const menu = { onHighlightChange: (id) => { highlighted = id; } };";
+        let out =
+            transform_state_assigns_ast(src, &["highlighted".to_string()], &[], true, &[]).unwrap();
+        assert!(out.contains("$.set(highlighted, id, true)"));
     }
 }

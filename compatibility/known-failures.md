@@ -4,50 +4,38 @@ The output-equality corpus compiles every source with both the official Svelte
 compiler and rsvelte (CSR + SSR) and requires byte-identical output after
 comparison-side normalization. The comparison is **AST-structural**
 (`normalize.astEquivalent` via acorn): comment position, `${}` line-wrapping,
-redundant parens, and quote style are already absorbed, so every entry below is a
+redundant parens, and quote style are already absorbed, so any entry here is a
 **genuine structural (AST-distinct) divergence** in the generated code, not a
 cosmetic one.
 
 The ratchet (`corpus-compat.yml`) fails only on an `(id, target)` pair not in the
-baseline — the lists may only shrink, never grow. Each entry is an isolated, deep
-compiler-behaviour gap; attempts to fix them are regression-prone against the
-8000+ passing entries (several have been reverted after wide blowups), so they are
-accepted until an upstream-faithful port lands.
+baseline — the lists may only shrink, never grow. Each accepted entry must be
+justified in this file.
 
-## Client (`known-failures.client.json`, 3 entries)
+## Client (`known-failures.client.json`, 0 entries)
 
-- **`melt-ui/.../SpatialMenuNavTest.svelte`** — two causes: (a) a proxy argument in
-  `$.set(highlighted, id, true)` where `id` is an inner-scope TemplateLiteral const
-  not admitted to `non_proxy_vars` (the `name_occurrences==1` heuristic bails on
-  multi-occurrence names); (b) `${cols ?? ''}` — svelte keeps the `?? ''`, rsvelte
-  elides it (scope.evaluate treats a prop member as defined where svelte keeps it
-  UNKNOWN).
-- **`svelte-sonner/.../Toaster.svelte`** — JS now matches; remaining divergence is
-  **CSS unused-selector pruning**: svelte prunes selectors like
-  `[data-sonner-toast][data-styled='true'] [data-description]` as unused while
-  rsvelte keeps them. Caused by child-component elements + `{...restProps}` spread
-  over-matching (`attribute_matches` returns true on any spread). High CSS-fixture
-  regression risk.
-- **`svelte-table/example/Example2.svelte`** — `?? ''` wrongly added to a
-  `${cond ? … : ""}` whose branches are all strings; a legacy `let iconAsc = "↑"`
-  (string-literal init) is not treated as defined.
+No accepted client-side divergences remain.
 
 ## Server (`known-failures.server.json`, 0 entries)
 
 No accepted server-side divergences remain.
 
-## General hard-cluster root causes (why fixes are deferred)
+## Hard-cluster warnings for future work
 
-Recurring deep clusters behind these entries (mirror upstream exactly; verify
-against the full corpus + byte-exact runtime/ssr/css suites before landing):
+Deep areas where past fixes caused wide regressions (mirror upstream exactly;
+verify against the full corpus + byte-exact runtime/ssr/css suites before
+landing):
 
 - **scope.evaluate `is_defined` / `should_proxy` lattice** — widening it to drop a
   spurious `?? ''` or proxy regresses real props that need `?? ''`. svelte resolves
-  via scope; rsvelte's text/heuristic approximation is looser.
-- **CSS over-scoping / unused-selector pruning** with `{...spread}` and child
-  components — regression-prone against the 181 CSS fixtures.
+  via scope; a name-keyed approximation cannot represent per-site outcomes — use
+  per-site (Semantic / scope-chain) resolution.
 - **each-item reactivity wrapping** (function-depth `has_external_dependencies`
   check) — a prior attempt caused ~498 regressions.
 - **`$derived` currying** (`yScale()(tick)`) — reverted twice; do not retry naively.
 - **store/runes name-conflict resolution** — two independent sub-bugs that must land
   together and distinguish getter-vs-user-call by context.
+- **CSS structural prune** (`is_structural_descendant_chain_unused`) bails on
+  snippet-declared elements, `<selectedcontent>`, `:host`/`:root`/`:global`,
+  functional pseudo-classes, and escaped identifiers — extend only with the
+  matching upstream semantics.
