@@ -588,18 +588,14 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> (FormatOptions, Option<
     // `prettier-plugin-tailwindcss` (see `PendingJsSort`); the sort itself is
     // resolved later, once every class string across the run is collected. With
     // no Node available we warn and leave classes unchanged. The Node probe runs
-    // only when `sortTailwindcss` is actually configured, never on the hot path.
-    let want_tailwind = matches!(
-        &cfg.sort_tailwindcss,
-        Some(v) if v != &serde_json::Value::Bool(false)
-    );
-    let js_env = want_tailwind.then(js_sort_env).flatten();
-    let js_available = js_env.is_some();
-    let (class_sorter, class_attributes, pending_js) = match tailwind::decide(
-        cfg.sort_tailwindcss.as_ref(),
-        cfg.path.as_deref(),
-        js_available,
-    ) {
+    // lazily — only if `decide` reaches a JS branch — so a stock config never
+    // spawns `node --version`; the probed env is captured for the `SortViaJs` arm.
+    let mut js_env: Option<tailwind_sidecar::SidecarEnv> = None;
+    let decision = tailwind::decide(cfg.sort_tailwindcss.as_ref(), cfg.path.as_deref(), || {
+        js_env = js_sort_env();
+        js_env.is_some()
+    });
+    let (class_sorter, class_attributes, pending_js) = match decision {
         tailwind::Decision::Sort { sorter, attributes } => (Some(sorter), attributes, None),
         tailwind::Decision::SortViaJs {
             filepath,
@@ -612,7 +608,7 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> (FormatOptions, Option<
             None,
             attributes,
             Some(PendingJsSort {
-                env: js_env.expect("js_available implies an env"),
+                env: js_env.expect("the js probe set an env when it returned SortViaJs"),
                 filepath,
                 stylesheet_path,
                 config_path,
