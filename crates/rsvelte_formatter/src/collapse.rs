@@ -5154,6 +5154,7 @@ fn build_inline_element_doc(
         children,
         is_inline: !is_block_display(e.name.as_str()),
         self_closing: did_self_close(out, e.end) || is_html_void_element(e.name.as_str()),
+        omit_softline_allowed: omit_softline_allowed(out, e.end),
     }))
 }
 
@@ -5180,6 +5181,7 @@ fn build_component_doc(
         // never one.
         is_inline: true,
         self_closing: did_self_close(out, c.end),
+        omit_softline_allowed: omit_softline_allowed(out, c.end),
     }))
 }
 
@@ -5333,6 +5335,7 @@ fn try_children_port(
         // `is_empty` is never true here. Only the recursive descent into children
         // (`build_inline_element_doc`) reaches the self-closing branch.
         self_closing: did_self_close(out, end) || is_html_void_element(tag),
+        omit_softline_allowed: omit_softline_allowed(out, end),
     });
     let doc = crate::doc::propagate_breaks(doc);
     let printed = crate::doc::print(doc, line_width, unit.as_str(), base_level, start_col);
@@ -6713,6 +6716,31 @@ pub(crate) fn template_node_span(node: &TemplateNode) -> (u32, u32) {
 /// `<div />` stays self-closed instead of becoming `<div></div>`.
 fn did_self_close(out: &str, end: u32) -> bool {
     end >= 2 && out.as_bytes().get(end as usize - 2) == Some(&b'/')
+}
+
+/// The structural half of prettier-plugin-svelte's
+/// `canOmitSoftlineBeforeClosingTag`, read from the text right after the
+/// element's close tag: `!hugsStartOfNextNode(node) ||
+/// isLastChildWithinParentBlockElement(path)`.
+///
+/// - `hugsStartOfNextNode` is false when the element is followed by HTML-collapse
+///   whitespace or the end of the document — the softline may be omitted.
+/// - otherwise a node abuts the close tag; the softline may still be omitted only
+///   when that node is the parent's close tag (`</name>`) of a block element,
+///   i.e. this element is that block's last child.
+fn omit_softline_allowed(out: &str, end: u32) -> bool {
+    let rest = &out[end as usize..];
+    match rest.chars().next() {
+        None => true,
+        Some(' ' | '\t' | '\n' | '\u{0C}' | '\r') => true,
+        Some(_) => rest.strip_prefix("</").is_some_and(|after| {
+            let name: String = after
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == ':')
+                .collect();
+            is_block_display(&name)
+        }),
+    }
 }
 
 /// HTML void elements — elements that can never have children and always use
