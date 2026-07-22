@@ -3,10 +3,16 @@
 //! This module provides JavaScript-accessible functions for compiling
 //! Svelte components in the browser.
 
+use std::sync::{Arc, Mutex};
+
 use wasm_bindgen::prelude::*;
 
 use crate::compiler::phases::phase1_parse::{ParseOptions, parse};
-use crate::compiler::{CompileOptions, CssMode, GenerateMode, compile};
+use crate::compiler::phases::phase3_transform::css::{generate_css_hash, generate_raw_hash};
+use crate::compiler::{
+    CompileOptions, CompileResult, CssHashFn, CssHashInput, CssMode, GenerateMode, Namespace,
+    Warning, WarningFilterFn, compile,
+};
 use crate::svelte2tsx::{
     Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion,
     svelte2tsx as rust_svelte2tsx,
@@ -254,4 +260,315 @@ fn parse_svelte2tsx_options(options_json: &str) -> Svelte2TsxOptions {
         };
     }
     opts
+}
+
+// === Function-form compile options (issue #1680) ===
+//
+// `compile(source, options)` accepts the full compile-options object and
+// resolves the pieces the primitive `compile_client`/`compile_server` entries
+// can't: the function forms of `customElement`/`css`/`runes` (Svelte's
+// `parametric()`, evaluated once with `{ filename }`), a `warningFilter`
+// callback, a constant `cssHashOverride`, and a dynamic `cssHash` callback.
+// wasm compile is single-threaded, so the JS callbacks are invoked inline —
+// no threadsafe-function marshalling (unlike the NAPI backend).
+
+// On wasm32 (single-threaded) wasm-bindgen already makes `JsValue`/`Function`
+// Send + Sync, so the JS callbacks satisfy the shared `CssHashFn`/
+// `WarningFilterFn` bounds directly — the throwing-`cssHash` slot just needs a
+// thread-safe container (`Arc<Mutex<…>>`, uncontended here).
+type ErrorSlot = Arc<Mutex<Option<String>>>;
+
+fn get_prop(obj: &JsValue, key: &str) -> JsValue {
+    js_sys::Reflect::get(obj, &JsValue::from_str(key)).unwrap_or(JsValue::UNDEFINED)
+}
+
+/// Read `options[key]`, evaluating it once with `{ filename }` if it is a
+/// function (Svelte's `parametric()` normalization); otherwise return the raw
+/// value.
+fn resolve_maybe_fn(options: &JsValue, key: &str, filename: &str) -> JsValue {
+    let val = get_prop(options, key);
+    let Some(func) = val.dyn_ref::<js_sys::Function>() else {
+        return val;
+    };
+    let meta = js_sys::Object::new();
+    let _ = js_sys::Reflect::set(
+        &meta,
+        &JsValue::from_str("filename"),
+        &JsValue::from_str(filename),
+    );
+    func.call1(&JsValue::NULL, &meta)
+        .unwrap_or(JsValue::UNDEFINED)
+}
+
+/// Reproduce the compiler's default (no-`cssHash`) scope hash so a `cssHash`
+/// callback that returns a non-string can fall back to it: the rootDir-relative
+/// filename when known, else the CSS content.
+fn default_css_hash(input: &CssHashInput, root_dir: Option<&str>) -> String {
+    if input.filename == "(unknown)" {
+        return generate_css_hash(&input.css);
+    }
+    let mut fname = input.filename.replace('\\', "/");
+    if let Some(rd) = root_dir {
+        let rd = rd.replace('\\', "/");
+        if let Some(rest) = fname.strip_prefix(&rd) {
+            fname = rest.trim_start_matches('/').to_string();
+        }
+    }
+    generate_css_hash(&fname)
+}
+
+fn build_warning_filter(func: js_sys::Function, slot: ErrorSlot) -> WarningFilterFn {
+    Arc::new(move |warning: &Warning| -> bool {
+        let obj = warning_to_js(warning);
+        match func.call1(&JsValue::NULL, &obj) {
+            Ok(v) => v.as_bool().unwrap_or(true),
+            // A throwing filter aborts compilation (matching upstream Svelte and
+            // the NAPI shim), surfaced via the shared error slot; the retained
+            // warning here is discarded once the caller sees the failure.
+            Err(e) => {
+                slot.lock()
+                    .unwrap()
+                    .get_or_insert_with(|| js_error_message(&e));
+                true
+            }
+        }
+    })
+}
+
+/// Extract a JS error's `.message`, falling back to its string form.
+fn js_error_message(e: &JsValue) -> String {
+    e.as_string()
+        .or_else(|| {
+            js_sys::Reflect::get(e, &JsValue::from_str("message"))
+                .ok()
+                .and_then(|m| m.as_string())
+        })
+        .unwrap_or_else(|| "callback threw".to_string())
+}
+
+/// Bridge a user `cssHash({ hash, css, name, filename }) => string` into a
+/// `CssHashFn`. A callback that throws is recorded in `error_slot` (surfaced as
+/// a compile failure, matching upstream) and falls back to the default hash; a
+/// non-string return also falls back — the bridge never panics.
+fn build_css_hash(func: js_sys::Function, root_dir: Option<String>, slot: ErrorSlot) -> CssHashFn {
+    Arc::new(move |input: &CssHashInput| -> String {
+        let arg = js_sys::Object::new();
+        // The callback's `hash` arg is Svelte's raw digest (no `svelte-` prefix,
+        // unlike `CssHashInput::hash`) so a custom scope class matches upstream.
+        // The closure is dropped at the end of this synchronous call — no leak,
+        // no `.forget()`.
+        let closure = Closure::wrap(Box::new(|s: String| -> String { generate_raw_hash(&s) })
+            as Box<dyn Fn(String) -> String>);
+        let _ = js_sys::Reflect::set(&arg, &JsValue::from_str("hash"), closure.as_ref());
+        let _ = js_sys::Reflect::set(
+            &arg,
+            &JsValue::from_str("css"),
+            &JsValue::from_str(&input.css),
+        );
+        let _ = js_sys::Reflect::set(
+            &arg,
+            &JsValue::from_str("name"),
+            &JsValue::from_str(&input.name),
+        );
+        let _ = js_sys::Reflect::set(
+            &arg,
+            &JsValue::from_str("filename"),
+            &JsValue::from_str(&input.filename),
+        );
+        match func.call1(&JsValue::NULL, &arg) {
+            Ok(v) => v
+                .as_string()
+                .unwrap_or_else(|| default_css_hash(input, root_dir.as_deref())),
+            Err(e) => {
+                slot.lock()
+                    .unwrap()
+                    .get_or_insert_with(|| js_error_message(&e));
+                default_css_hash(input, root_dir.as_deref())
+            }
+        }
+    })
+}
+
+/// Build `CompileOptions` from a JS options object. `error_slot` collects a
+/// throwing `cssHash` so the caller can surface it as a compile failure.
+fn build_compile_options(
+    options: &JsValue,
+    error_slot: &ErrorSlot,
+) -> Result<CompileOptions, String> {
+    let mut opts = CompileOptions::default();
+    if options.is_undefined() || options.is_null() {
+        return Ok(opts);
+    }
+
+    let filename = get_prop(options, "filename").as_string();
+    // Svelte defaults `filename` to '(unknown)' before invoking parametric fns.
+    let meta_filename = filename.clone().unwrap_or_else(|| "(unknown)".to_string());
+    opts.filename = filename;
+    opts.root_dir = get_prop(options, "rootDir").as_string();
+    if let Some(n) = get_prop(options, "name").as_string() {
+        opts.name = Some(n);
+    }
+
+    let generate = resolve_maybe_fn(options, "generate", &meta_filename);
+    if let Some(s) = generate.as_string() {
+        opts.generate = match s.as_str() {
+            "client" | "dom" => GenerateMode::Client,
+            "server" | "ssr" => GenerateMode::Server,
+            "false" => GenerateMode::None,
+            _ => return Err("generate must be \"client\", \"server\" or false".to_string()),
+        };
+    } else if generate.as_bool() == Some(false) {
+        opts.generate = GenerateMode::None;
+    }
+
+    let css = resolve_maybe_fn(options, "css", &meta_filename);
+    if let Some(s) = css.as_string() {
+        opts.css = match s.as_str() {
+            "external" => CssMode::External,
+            "injected" => CssMode::Injected,
+            _ => {
+                return Err(
+                    "css should be either \"external\" (default, recommended) or \"injected\""
+                        .to_string(),
+                );
+            }
+        };
+    }
+
+    if let Some(b) = resolve_maybe_fn(options, "customElement", &meta_filename).as_bool() {
+        opts.custom_element = b;
+    }
+    // `runes` is tri-state: a boolean forces the mode, anything else auto-detects.
+    if let Some(b) = resolve_maybe_fn(options, "runes", &meta_filename).as_bool() {
+        opts.runes = Some(b);
+    }
+
+    if let Some(b) = get_prop(options, "dev").as_bool() {
+        opts.dev = b;
+    }
+    if let Some(b) = get_prop(options, "accessors").as_bool() {
+        opts.accessors = b;
+    }
+    if let Some(b) = get_prop(options, "immutable").as_bool() {
+        opts.immutable = b;
+    }
+    if let Some(b) = get_prop(options, "preserveComments").as_bool() {
+        opts.preserve_comments = b;
+    }
+    if let Some(b) = get_prop(options, "preserveWhitespace").as_bool() {
+        opts.preserve_whitespace = b;
+    }
+    if let Some(b) = get_prop(options, "discloseVersion").as_bool() {
+        opts.disclose_version = b;
+    }
+    if let Some(b) = get_prop(options, "hmr").as_bool() {
+        opts.hmr = b;
+    }
+    if let Some(s) = get_prop(options, "namespace").as_string() {
+        opts.namespace = match s.as_str() {
+            "svg" => Namespace::Svg,
+            "mathml" => Namespace::Mathml,
+            _ => Namespace::Html,
+        };
+    }
+
+    if let Some(func) = get_prop(options, "warningFilter").dyn_ref::<js_sys::Function>() {
+        opts.warning_filter = Some(build_warning_filter(func.clone(), Arc::clone(error_slot)));
+    }
+
+    // A constant `cssHashOverride` wins; otherwise bridge a dynamic `cssHash`.
+    if let Some(hash) = get_prop(options, "cssHashOverride").as_string() {
+        opts.css_hash = Some(Arc::new(move |_: &CssHashInput| hash.clone()));
+    } else if let Some(func) = get_prop(options, "cssHash").dyn_ref::<js_sys::Function>() {
+        opts.css_hash = Some(build_css_hash(
+            func.clone(),
+            opts.root_dir.clone(),
+            Arc::clone(error_slot),
+        ));
+    }
+
+    Ok(opts)
+}
+
+fn warning_to_js(warning: &Warning) -> JsValue {
+    js_sys::JSON::parse(&warning_to_value(warning).to_string()).unwrap_or(JsValue::UNDEFINED)
+}
+
+fn warning_to_value(w: &Warning) -> serde_json::Value {
+    let mut map = serde_json::Map::new();
+    map.insert(
+        "code".to_string(),
+        serde_json::Value::String(w.code.clone()),
+    );
+    map.insert(
+        "message".to_string(),
+        serde_json::Value::String(w.message.clone()),
+    );
+    if let Some(ref filename) = w.filename {
+        map.insert(
+            "filename".to_string(),
+            serde_json::Value::String(filename.clone()),
+        );
+    }
+    let pos = |p: &crate::compiler::Position| serde_json::json!({ "line": p.line, "column": p.column, "character": p.character });
+    if let Some(ref start) = w.start {
+        map.insert("start".to_string(), pos(start));
+    }
+    if let Some(ref end) = w.end {
+        map.insert("end".to_string(), pos(end));
+    }
+    if let (Some(start), Some(end)) = (&w.start, &w.end) {
+        map.insert(
+            "position".to_string(),
+            serde_json::json!([start.character, end.character]),
+        );
+    }
+    serde_json::Value::Object(map)
+}
+
+fn compile_result_to_json(result: CompileResult) -> String {
+    let parse_map = |m: Option<&str>| {
+        m.and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+            .unwrap_or(serde_json::Value::Null)
+    };
+    let css = result
+        .css
+        .map(|c| {
+            serde_json::json!({
+                "code": c.code,
+                "map": parse_map(c.map.as_deref()),
+                "hasGlobal": c.has_global,
+            })
+        })
+        .unwrap_or(serde_json::Value::Null);
+    let warnings: Vec<serde_json::Value> = result.warnings.iter().map(warning_to_value).collect();
+    serde_json::json!({
+        "js": { "code": result.js.code, "map": parse_map(result.js.map.as_deref()) },
+        "css": css,
+        "warnings": warnings,
+        "metadata": { "runes": result.metadata.runes },
+    })
+    .to_string()
+}
+
+/// Compile a Svelte component with the full compile-options object.
+///
+/// Supports the function-form compile options (issue #1680): the `parametric`
+/// function forms of `customElement`/`css`/`runes`, a `warningFilter` callback,
+/// a constant `cssHashOverride`, and a dynamic `cssHash` callback. Returns the
+/// compile result as a JSON string (`{ js, css, warnings, metadata }`);
+/// callbacks are input-only. Throws on a parse failure, an invalid option, or a
+/// `cssHash` callback that throws.
+#[wasm_bindgen(js_name = compile)]
+pub fn compile_svelte(source: &str, options: JsValue) -> Result<String, JsValue> {
+    let error_slot: ErrorSlot = Arc::new(Mutex::new(None));
+    let opts = build_compile_options(&options, &error_slot).map_err(|e| JsValue::from_str(&e))?;
+    let result = compile(source, opts);
+    if let Some(msg) = error_slot.lock().unwrap().take() {
+        return Err(JsValue::from_str(&msg));
+    }
+    match result {
+        Ok(r) => Ok(compile_result_to_json(r)),
+        Err(e) => Err(JsValue::from_str(&format!("{e:?}"))),
+    }
 }
