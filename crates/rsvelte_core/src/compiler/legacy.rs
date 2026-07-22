@@ -39,11 +39,11 @@ static REGEX_NOT_WHITESPACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^ 
 
 /// Converter from UTF-8 byte positions to UTF-16 code unit positions.
 ///
-/// `pub(crate)` so the modern parse output paths (`wasm::parse_svelte`,
-/// `napi::parse`, and the raw-transfer envelope encoder) can reuse the same
-/// remap the legacy path already applies, keeping every public AST surface on
-/// svelte/compiler's UTF-16 offsets (#793).
-pub(crate) struct Utf8ToUtf16 {
+/// Public so the modern parse output paths (`wasm::parse_svelte`, the
+/// `rsvelte_napi` bindings, and the raw-transfer envelope encoder) can reuse
+/// the same remap the legacy path already applies, keeping every public AST
+/// surface on svelte/compiler's UTF-16 offsets.
+pub struct Utf8ToUtf16 {
     /// One UTF-16 offset per source byte (plus a trailing entry). `u32` rather
     /// than `usize` because source positions are u32-bounded across the compiler
     /// — this halves the per-byte table on 64-bit targets.
@@ -54,7 +54,7 @@ pub(crate) struct Utf8ToUtf16 {
 }
 
 impl Utf8ToUtf16 {
-    pub(crate) fn new(source: &str) -> Self {
+    pub fn new(source: &str) -> Self {
         let mut utf16_pos = Vec::with_capacity(source.len() + 1);
         let mut utf16_idx = 0usize;
         let mut line_starts_byte = vec![0];
@@ -127,7 +127,7 @@ impl Utf8ToUtf16 {
 }
 
 /// Recursively convert positions in JSON from UTF-8 to UTF-16.
-pub(crate) fn convert_positions_to_utf16(value: &mut Value, pos_conv: &Utf8ToUtf16) {
+pub fn convert_positions_to_utf16(value: &mut Value, pos_conv: &Utf8ToUtf16) {
     match value {
         Value::Object(map) => {
             if let Some(Value::Number(n)) = map.get("start")

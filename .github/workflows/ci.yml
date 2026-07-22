@@ -81,12 +81,36 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.97.1
           components: rustfmt
 
       - name: Check formatting
         run: cargo fmt --all -- --check
+
+  playground-lockfile:
+    name: Playground lockfile
+    # Deploy Docs only runs on pushes to main, so a stale
+    # apps/playground/pnpm-lock.yaml (its own workspace, separate from the
+    # repo-root lockfile) used to surface only after merge. Gate it here so a
+    # package.json bump without a lockfile update goes red on the PR instead.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Check playground lockfile is in sync
+        working-directory: apps/playground
+        run: pnpm install --frozen-lockfile --lockfile-only
 
   clippy:
     name: Clippy
@@ -98,8 +122,9 @@ jobs:
           submodules: true
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.97.1
           components: clippy
 
       - name: Cache cargo registry + target
@@ -166,7 +191,9 @@ jobs:
         run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools submodules/eslint-plugin-svelte submodules/esrap
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.97.1
 
       # mold is a drop-in faster linker. The test build links ~150 separate
       # integration-test binaries (one per tests/*.rs), so link time is a real
@@ -337,7 +364,9 @@ jobs:
           submodules: true
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.97.1
 
       - name: Setup mold linker
         uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
@@ -428,7 +457,9 @@ jobs:
         run: git submodule update --init --depth 1 submodules/svelte
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.97.1
 
       - name: Setup mold linker
         uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
@@ -474,7 +505,9 @@ jobs:
         run: git submodule update --init --depth 1 submodules/svelte
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.97.1
 
       - name: Setup mold linker
         uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
@@ -515,7 +548,9 @@ jobs:
         run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.97.1
 
       - name: Setup mold linker
         uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
@@ -532,13 +567,24 @@ jobs:
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - name: Install oxfmt for the formatter parity corpus
-        # Isolated install (see the matching step in the `test` job) — provides
-        # the oxfmt oracle binary used to generate and check the corpus.
+        # Isolated install (avoids a full monorepo `pnpm install`) that provides
+        # the oxfmt oracle binary used to generate and check the corpus. The
+        # oxfmt / svelte versions are derived from the workspace package.json
+        # caret ranges — the same ranges pnpm resolves in the lockfile-backed
+        # `corpus-compat` Formatter-parity job — so `auto-update-oxfmt` and
+        # `auto-update-svelte` (which bump those ranges) keep this in sync
+        # automatically. Never hardcode a version here: a hardcoded pin silently
+        # drifts from package.json (it did — a stale oxfmt@0.53.0 made this job's
+        # oracle expect a layout newer oxfmt no longer emits).
         run: |
+          set -euo pipefail
+          OXFMT_RANGE=$(node -p "require('./package.json').devDependencies.oxfmt")
+          SVELTE_RANGE=$(node -p "require('./package.json').devDependencies.svelte")
+          echo "resolving oxfmt@$OXFMT_RANGE svelte@$SVELTE_RANGE"
           mkdir -p "$RUNNER_TEMP/fmt-oracle"
           cd "$RUNNER_TEMP/fmt-oracle"
           npm init -y >/dev/null
-          npm i --ignore-scripts oxfmt@0.53.0 svelte@5.56.2
+          npm i --ignore-scripts "oxfmt@$OXFMT_RANGE" "svelte@$SVELTE_RANGE"
           ./node_modules/.bin/oxfmt --version
 
       - name: Resolve svelte.dev submodule SHA
@@ -550,7 +596,11 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: fixtures/fmt-corpus
-          key: fmt-corpus-v1-${{ runner.os }}-${{ steps.svelte-dev-sha.outputs.sha }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json') }}
+          # Includes package.json + pnpm-lock.yaml so the cached oracle is busted
+          # whenever the derived oxfmt / svelte versions change (a version-less
+          # key left a stale 0.53 oracle cached after the pin drifted). The `v2`
+          # bump force-invalidates the pre-fix caches.
+          key: fmt-corpus-v2-${{ runner.os }}-${{ steps.svelte-dev-sha.outputs.sha }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json', 'package.json', 'pnpm-lock.yaml', 'compatibility/fmt-oracle-excluded.json') }}
 
       - name: Generate formatter parity corpus
         run: pnpm run generate-fmt-corpus
@@ -593,8 +643,9 @@ jobs:
         run: git submodule update --init --depth 1 submodules/svelte
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.97.1
           targets: wasm32-unknown-unknown
 
       - name: Setup mold linker
@@ -708,7 +759,9 @@ jobs:
           submodules: true
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.97.1
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -836,7 +889,9 @@ jobs:
           submodules: true
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.97.1
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1

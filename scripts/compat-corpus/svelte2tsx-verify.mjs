@@ -16,9 +16,9 @@
  *   - ts-mismatch     output differs after normalization
  *   - error-mismatch  one side errors where the other produces output
  *
- * Writes compat/corpus/report-s2t.json.
+ * Writes compatibility/report-s2t.json.
  *
- * Ratchet baseline: compat/corpus/svelte2tsx-known-failures.json (checked in)
+ * Ratchet baseline: compatibility/svelte2tsx-known-failures.json (checked in)
  * lists entry ids that are known-divergent. Verification exits non-zero only
  * when an entry NOT in the baseline fails (a regression). When previously-known
  * failures now pass, a reminder to shrink the baseline is printed (use
@@ -35,7 +35,7 @@ import { stripBlankLines, readIf, firstDiffLine } from './normalize.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const CORPUS = path.join(ROOT, 'compat/corpus');
+const CORPUS = path.join(ROOT, 'compatibility');
 const EXPECTED = path.join(CORPUS, 'expected-s2t');
 const ACTUAL = path.join(CORPUS, 'actual-s2t');
 

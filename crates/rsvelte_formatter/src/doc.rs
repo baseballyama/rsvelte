@@ -238,10 +238,26 @@ fn fits(mut remaining: isize, rest_stack: &[(usize, Mode, Doc)], next: &[Doc]) -
                     remaining -= text_width(s) as isize;
                 }
             }
-            // A pre-formatted interpolation is measured by its flat width: the
-            // fill decides whether to keep it inline (flat) or break it based on
-            // whether that flat form fits at the current column.
-            Doc::RawExpr { flat, .. } => {
+            // A pre-formatted interpolation. In `Flat` mode it is measured by
+            // its flat width. In `Break` mode, a *breakable* one (`broken` has
+            // 2+ lines) behaves like a prettier group with an internal line: it
+            // charges only up to its first break (`broken[0]`) and then the
+            // break ends the measurement — so an interpolation earlier in the
+            // value stays flat whenever this later one can break to absorb the
+            // overflow. (`fits` measures the rest with the modes the commands
+            // were pushed in; the value's interpolation groups sit in `Break`
+            // mode when the attribute's open tag has wrapped.)
+            Doc::RawExpr { flat, broken } => {
+                if mode == Mode::Break && broken.len() > 1 {
+                    let head = &broken[0];
+                    if !head.is_empty() {
+                        if has_pending_space {
+                            remaining -= 1;
+                        }
+                        remaining -= text_width(head) as isize;
+                    }
+                    return remaining >= 0;
+                }
                 if !flat.is_empty() {
                     if has_pending_space {
                         remaining -= 1;
@@ -433,6 +449,45 @@ mod tests {
             print(doc, 20, "  ", 0, 0),
             "lead\n{averylongidentifier +\n  anotherlongidentifier}"
         );
+    }
+
+    // Two interpolation groups L and T, adjacent; T is either breakable or not.
+    // Locks the whole-value attribute model's break-point rule: whether the
+    // LEADING interpolation stays flat depends on whether the TRAILING one can
+    // break — because `fits`, measuring the trailing group in the inherited
+    // Break mode, charges a *breakable* RawExpr only up to its first line
+    // (`broken[0]`) and then short-circuits, but a *non-breakable* one
+    // (`broken.len() == 1`) by its full flat width.
+    fn two_interps(t_breakable: bool) -> Doc {
+        let l = Doc::Group(vec![Doc::RawExpr {
+            flat: "{a1}".into(),
+            broken: vec!["{a1".into(), "z}".into()],
+        }]);
+        let t = Doc::Group(vec![Doc::RawExpr {
+            flat: "{bbbbbb}".into(),
+            broken: if t_breakable {
+                vec!["{bb".into(), "bbb}".into()]
+            } else {
+                vec!["{bbbbbb}".into()]
+            },
+        }]);
+        Doc::Concat(vec![l, Doc::Text(" ".into()), t])
+    }
+
+    #[test]
+    fn fits_break_mode_short_circuits_a_breakable_trailing_raw_expr() {
+        // width 8 = `{a1}`(4) + ` `(1) + T's first broken line `{bb`(3). Because
+        // T is breakable, L's `fits` reaches T's break and succeeds, so L stays
+        // flat and T breaks on its own (it does not fit flat at its column).
+        assert_eq!(p(two_interps(true), 8), "{a1} {bb\nbbb}");
+    }
+
+    #[test]
+    fn fits_flat_measures_an_unbreakable_trailing_raw_expr_full_width() {
+        // Same width 8, but T is unbreakable (`broken.len() == 1`), so `fits`
+        // charges its FULL flat width (`{bbbbbb}` = 8). L can no longer fit up to
+        // a later break, so L breaks and T prints flat on the continuation line.
+        assert_eq!(p(two_interps(false), 8), "{a1\nz} {bbbbbb}");
     }
 
     #[test]

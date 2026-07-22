@@ -1010,6 +1010,10 @@ pub fn visit(
         has_content: !element.fragment.nodes.is_empty(),
         has_opaque_content,
         is_dynamic_tag: false,
+        in_snippet: context
+            .fragment_owner_stack
+            .iter()
+            .any(|o| matches!(o, super::FragmentOwnerType::SnippetBlock(..))),
         prev_is_opaque_boundary: false,
         prev_has_opaque_boundary: false,
     };
@@ -1211,9 +1215,27 @@ pub fn visit(
                 let root_id =
                     extract_binding_root_identifier(&bind.expression, context.parse_arena);
                 if let Some(ref root_name) = root_id {
-                    // Get the binding for this identifier using the instance scope
-                    let scope_idx = context.analysis.root.instance_scope_index;
-                    let binding_idx = context.analysis.root.get_binding(root_name, scope_idx);
+                    // Resolve from the scope containing the select (upstream's
+                    // `context.state.scope`), not the instance scope: an each-item
+                    // declared in a block scope wrapping the select (e.g.
+                    // `{#each columns as col}<select bind:value={sel[col.key]}>`)
+                    // is a valid indirect binding upstream and must be reachable
+                    // through the ancestor chain.
+                    let scope_idx = context.scope;
+                    // Upstream `scope.get('$store')` returns null (a store
+                    // auto-subscription is not a real scope binding), so a
+                    // `bind:value={$store}` root never gets indirect bindings;
+                    // rsvelte synthesizes a StoreSub binding, so skip it here.
+                    let binding_idx = context
+                        .analysis
+                        .root
+                        .get_binding(root_name, scope_idx)
+                        .filter(|&i| {
+                            !matches!(
+                                context.analysis.root.bindings[i].kind,
+                                crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub
+                            )
+                        });
 
                     if let Some(binding_idx) = binding_idx {
                         // Collect scope references that have template references.

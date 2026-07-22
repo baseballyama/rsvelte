@@ -49,11 +49,11 @@ use napi::{Env, JsBuffer};
 use napi_derive::napi;
 use serde_json::Value;
 
-use crate::compiler::{
+use rsvelte_core::compiler::{
     CompileOptions, CssMode, ExperimentalOptions, GenerateMode, ModuleCompileOptions, Namespace,
     compile as rust_compile, compile_module as rust_compile_module,
 };
-use crate::svelte2tsx::{
+use rsvelte_core::svelte2tsx::{
     Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion,
     svelte2tsx as rust_svelte2tsx,
 };
@@ -62,7 +62,7 @@ use crate::svelte2tsx::{
 /// Serialise compiler warnings into the JSON shape the official
 /// `svelte/compiler` output uses (`code`, `message`, `filename`, `start`, `end`,
 /// `position`, `frame`).
-fn warnings_to_json(warnings: &[crate::compiler::Warning]) -> Vec<Value> {
+fn warnings_to_json(warnings: &[rsvelte_core::compiler::Warning]) -> Vec<Value> {
     warnings
         .iter()
         .map(|w| {
@@ -109,7 +109,7 @@ pub struct NapiParseOptions {
     /// parser (e.g. `svelte-eslint-parser`) can opt in for a smaller
     /// AST and a faster `JSON.parse` (or, when paired with
     /// `parseEnvelope`, a tighter binary buffer).
-    pub skip_expression_loc: Option<bool>,
+    pub skip_expression_loc: Option<LenientScalar>,
     /// Skip emitting the full CSS `StyleSheet` AST — only the outer
     /// `start`/`end` positions are kept. The decoded `css` field
     /// becomes a minimal stub (`{ type: "StyleSheet", start, end,
@@ -118,7 +118,19 @@ pub struct NapiParseOptions {
     /// pipeline re-parses style blocks with its own CSS parser (e.g.
     /// `svelte-eslint-parser` uses postcss). Saves ~5–10 KB of buffer
     /// and the matching JSON-parse cost on the JS side per component.
-    pub skip_css_ast: Option<bool>,
+    pub skip_css_ast: Option<LenientScalar>,
+}
+
+impl NapiParseOptions {
+    /// Read a boolean parse flag, defaulting to `false` when unset and
+    /// rejecting a non-boolean with the same message shape as the compile
+    /// options.
+    fn flag(field: Option<&LenientScalar>, keypath: &str) -> napi::Result<bool> {
+        match field {
+            Some(v) => coerce_bool(keypath, v),
+            None => Ok(false),
+        }
+    }
 }
 
 /// Parse a Svelte component and return the AST as a JSON string.
@@ -131,13 +143,15 @@ pub struct NapiParseOptions {
 /// and the matching `decodeParseEnvelope` JS decoder.
 #[napi(js_name = "parse")]
 pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Result<String> {
-    use crate::compiler::phases::phase1_parse::{ParseOptions, parse as rust_parse};
+    use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse as rust_parse};
 
     let parse_options = ParseOptions {
-        skip_expression_loc: options
-            .as_ref()
-            .and_then(|o| o.skip_expression_loc)
-            .unwrap_or(false),
+        skip_expression_loc: NapiParseOptions::flag(
+            options
+                .as_ref()
+                .and_then(|o| o.skip_expression_loc.as_ref()),
+            "skipExpressionLoc",
+        )?,
         // The public AST API mirrors svelte/compiler `parse()`, which keeps
         // `leadingComments`/`trailingComments` on nodes.
         capture_comments: true,
@@ -147,7 +161,7 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
         Ok(ast) => {
             // Serialize within the AST's arena so `JsNodeId`s in the
             // Serialize impls resolve (mirrors `wasm::parse_svelte`).
-            crate::ast::arena::with_serialize_arena(&ast.arena, || {
+            rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
                 // Spans are UTF-16 code-unit offsets to match svelte/compiler
                 // (#793). ASCII source needs no remap — keep the fast path.
                 if source.is_ascii() {
@@ -156,8 +170,8 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
                 }
                 let mut value = serde_json::to_value(&ast)
                     .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))?;
-                let conv = crate::compiler::legacy::Utf8ToUtf16::new(&source);
-                crate::compiler::legacy::convert_positions_to_utf16(&mut value, &conv);
+                let conv = rsvelte_core::compiler::legacy::Utf8ToUtf16::new(&source);
+                rsvelte_core::compiler::legacy::convert_positions_to_utf16(&mut value, &conv);
                 serde_json::to_string(&value)
                     .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))
             })
@@ -177,20 +191,22 @@ pub fn napi_parse_envelope(
     source: String,
     options: Option<NapiParseOptions>,
 ) -> napi::Result<Buffer> {
-    use crate::compiler::phases::phase1_parse::{ParseOptions, parse as rust_parse};
+    use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse as rust_parse};
 
     let parse_options = ParseOptions {
-        skip_expression_loc: options
-            .as_ref()
-            .and_then(|o| o.skip_expression_loc)
-            .unwrap_or(false),
+        skip_expression_loc: NapiParseOptions::flag(
+            options
+                .as_ref()
+                .and_then(|o| o.skip_expression_loc.as_ref()),
+            "skipExpressionLoc",
+        )?,
         ..ParseOptions::default()
     };
     let skip_loc = parse_options.skip_expression_loc;
-    let skip_css = options
-        .as_ref()
-        .and_then(|o| o.skip_css_ast)
-        .unwrap_or(false);
+    let skip_css = NapiParseOptions::flag(
+        options.as_ref().and_then(|o| o.skip_css_ast.as_ref()),
+        "skipCssAst",
+    )?;
     let ast = rust_parse(&source, parse_options)
         .map_err(|e| napi::Error::from_reason(format!("{e:?}")))?;
     // napi-rs's `Vec<u8> → Buffer` conversion is already zero-copy
@@ -199,8 +215,9 @@ pub fn napi_parse_envelope(
     // pre-sized arena + finalizer plumbing outweighs the saved
     // `Vec::reserve` calls for envelopes that fit in a single growth
     // step.
-    let buf =
-        crate::napi_raw_parse::encode_root_to_vec_with_flags(&ast, &source, skip_loc, skip_css);
+    let buf = rsvelte_core::napi_raw_parse::encode_root_to_vec_with_flags(
+        &ast, &source, skip_loc, skip_css,
+    );
     Ok(buf.into())
 }
 
@@ -209,7 +226,7 @@ pub fn napi_parse_envelope(
 /// matching the official `svelte/compiler` output shape.
 #[napi(js_name = "compile")]
 pub fn napi_compile(source: String, options: Option<NapiCompileOptions>) -> napi::Result<Value> {
-    let opts = options_to_compile(options);
+    let opts = options_to_compile(options)?;
 
     match rust_compile(&source, opts) {
         Ok(result) => {
@@ -261,14 +278,289 @@ pub fn napi_compile(source: String, options: Option<NapiCompileOptions>) -> napi
 // `sourcemap` field accepts either; the callback fields aren't
 // modelled here because the compiler core can't call back into JS.
 
-#[napi(object)]
-pub struct NapiExperimentalOptions {
-    pub r#async: Option<bool>,
+// Each scalar option is decoded straight from its JS value rather than through
+// `serde_json`, whose number conversion aborts on non-finite input (`NaN`,
+// `Infinity`) before any coercion runs. Objects, arrays, functions and other
+// non-scalars collapse to `Other`, so no input type can surface a raw
+// "Failed to convert napi value" error; a wrong-typed option instead reports
+// the same message the upstream `validate-options.js` prints. `undefined`,
+// absent keys and `null` all become `None` via the `#[napi(object)]` `Option`
+// guard, leaving the option at its default.
+pub enum LenientScalar {
+    Bool(bool),
+    Number(f64),
+    Str(String),
+    // A plain (non-array) object, keyed by property name. Direct children are
+    // decoded one level deep (so `{ async: NaN }` reads `async` as `Number`
+    // rather than aborting like `serde_json`), but a grandchild object collapses
+    // to `Other` instead of recursing — that depth cap is what makes a
+    // self-referential object safe to decode. `undefined` children are dropped
+    // (unset); everything the consumers read lives at depth 1.
+    Object(Vec<(String, LenientScalar)>),
+    // Arrays, functions, symbols and other non-scalars — JS-truthy, but not a
+    // value any option can consume.
+    Other,
 }
 
-#[napi(object)]
-pub struct NapiCompatibilityOptions {
-    pub component_api: Option<u32>,
+impl LenientScalar {
+    fn is_object(&self) -> bool {
+        matches!(self, LenientScalar::Object(_))
+    }
+
+    fn field(&self, key: &str) -> Option<&LenientScalar> {
+        match self {
+            LenientScalar::Object(fields) => fields.iter().find(|(k, _)| k == key).map(|(_, v)| v),
+            _ => None,
+        }
+    }
+}
+
+impl napi::bindgen_prelude::TypeName for LenientScalar {
+    fn type_name() -> &'static str {
+        "unknown"
+    }
+    fn value_type() -> napi::ValueType {
+        napi::ValueType::Unknown
+    }
+}
+
+// Decode a JS value as a scalar; objects, arrays, functions and every other
+// non-scalar become `Other` with no recursion, so this can never chase a cyclic
+// reference. Used for an object's direct children, capping the decode at depth 1.
+unsafe fn decode_scalar(
+    env: napi::sys::napi_env,
+    napi_val: napi::sys::napi_value,
+) -> napi::Result<LenientScalar> {
+    use napi::bindgen_prelude::FromNapiValue;
+    let mut val_type = 0;
+    // SAFETY: `env`/`napi_val` are valid handles from Node-API; `napi_typeof`
+    // only reads them and writes the type tag.
+    let status = unsafe { napi::sys::napi_typeof(env, napi_val, &mut val_type) };
+    if status != napi::sys::Status::napi_ok {
+        return Err(napi::Error::from_status(napi::Status::from(status)));
+    }
+    // SAFETY: each arm reads the confirmed JS type; the numeric path uses
+    // `napi_get_value_double`, which tolerates non-finite values.
+    unsafe {
+        Ok(match val_type {
+            napi::sys::ValueType::napi_boolean => {
+                LenientScalar::Bool(bool::from_napi_value(env, napi_val)?)
+            }
+            napi::sys::ValueType::napi_number => {
+                LenientScalar::Number(f64::from_napi_value(env, napi_val)?)
+            }
+            napi::sys::ValueType::napi_string => {
+                LenientScalar::Str(String::from_napi_value(env, napi_val)?)
+            }
+            _ => LenientScalar::Other,
+        })
+    }
+}
+
+// Single-level view used only for an object's direct children: its decoder
+// never recurses into further objects, which is what bounds `LenientScalar`
+// decoding at depth 1 and makes a cyclic object graph unreachable.
+struct ScalarLeaf(LenientScalar);
+
+impl napi::bindgen_prelude::FromNapiValue for ScalarLeaf {
+    unsafe fn from_napi_value(
+        env: napi::sys::napi_env,
+        napi_val: napi::sys::napi_value,
+    ) -> napi::Result<Self> {
+        // SAFETY: valid handles from Node-API, forwarded to the scalar decoder.
+        Ok(ScalarLeaf(unsafe { decode_scalar(env, napi_val)? }))
+    }
+}
+
+impl napi::bindgen_prelude::FromNapiValue for LenientScalar {
+    unsafe fn from_napi_value(
+        env: napi::sys::napi_env,
+        napi_val: napi::sys::napi_value,
+    ) -> napi::Result<Self> {
+        let mut val_type = 0;
+        // SAFETY: `env`/`napi_val` are the valid handles Node-API passed in;
+        // `napi_typeof` only reads them and writes the type tag.
+        let status = unsafe { napi::sys::napi_typeof(env, napi_val, &mut val_type) };
+        if status != napi::sys::Status::napi_ok {
+            return Err(napi::Error::from_status(napi::Status::from(status)));
+        }
+        if val_type != napi::sys::ValueType::napi_object {
+            // SAFETY: valid handles; non-object values are decoded directly.
+            return unsafe { decode_scalar(env, napi_val) };
+        }
+        let mut is_array = false;
+        // SAFETY: valid handles; `napi_is_array` only reads them and writes the flag.
+        let st = unsafe { napi::sys::napi_is_array(env, napi_val, &mut is_array) };
+        if st != napi::sys::Status::napi_ok {
+            return Err(napi::Error::from_status(napi::Status::from(st)));
+        }
+        if is_array {
+            return Ok(LenientScalar::Other);
+        }
+        // SAFETY: confirmed non-array object; properties are read through the
+        // safe `Object` API, and each child is decoded via `ScalarLeaf`, which
+        // does not recurse — so no cycle can drive an unbounded decode.
+        let obj = unsafe { napi::bindgen_prelude::Object::from_napi_value(env, napi_val)? };
+        let mut fields = Vec::new();
+        for key in napi::bindgen_prelude::Object::keys(&obj)? {
+            if let Some(ScalarLeaf(v)) = obj.get::<ScalarLeaf>(&key)? {
+                fields.push((key, v));
+            }
+        }
+        Ok(LenientScalar::Object(fields))
+    }
+}
+
+impl napi::bindgen_prelude::ToNapiValue for LenientScalar {
+    unsafe fn to_napi_value(
+        env: napi::sys::napi_env,
+        val: Self,
+    ) -> napi::Result<napi::sys::napi_value> {
+        // SAFETY: `env` is the valid env Node-API passed in; each branch
+        // delegates to the matching primitive's own `to_napi_value`. Input-only
+        // in practice — this exists so `#[napi(object)]` structs holding the
+        // type satisfy the derived `ToNapiValue` bound.
+        unsafe {
+            match val {
+                LenientScalar::Bool(b) => bool::to_napi_value(env, b),
+                LenientScalar::Number(n) => f64::to_napi_value(env, n),
+                LenientScalar::Str(s) => String::to_napi_value(env, s),
+                LenientScalar::Object(_) | LenientScalar::Other => {
+                    napi::bindgen_prelude::Null::to_napi_value(env, napi::bindgen_prelude::Null)
+                }
+            }
+        }
+    }
+}
+
+fn invalid_option(detail: impl std::fmt::Display) -> napi::Error {
+    napi::Error::from_reason(format!("Invalid compiler option: {detail}"))
+}
+
+fn coerce_bool(keypath: &str, v: &LenientScalar) -> napi::Result<bool> {
+    match v {
+        LenientScalar::Bool(b) => Ok(*b),
+        _ => Err(invalid_option(format!(
+            "{keypath} should be true or false, if specified"
+        ))),
+    }
+}
+
+fn coerce_string(keypath: &str, v: &LenientScalar) -> napi::Result<String> {
+    match v {
+        LenientScalar::Str(s) => Ok(s.clone()),
+        _ => Err(invalid_option(format!(
+            "{keypath} should be a string, if specified"
+        ))),
+    }
+}
+
+// `runes` mirrors upstream's `parametric` validator, which never rejects a
+// value. Only a real `false` becomes `Some(false)`: `Option<bool>` can't encode
+// the other falsy values (`0`/`""`/`NaN`, none of which upstream compares
+// `=== false`), so those — and non-scalars like `null` or the uninvokable
+// `(opts) => boolean` form — auto-detect (`None`) rather than risk misfiring the
+// strict `runes === false` paths a spurious `Some(false)` would trigger.
+fn coerce_runes(v: &LenientScalar) -> Option<bool> {
+    match v {
+        LenientScalar::Bool(b) => Some(*b),
+        LenientScalar::Number(n) if *n != 0.0 && !n.is_nan() => Some(true),
+        LenientScalar::Str(s) if !s.is_empty() => Some(true),
+        _ => None,
+    }
+}
+
+fn coerce_generate(v: &LenientScalar) -> napi::Result<GenerateMode> {
+    let msg = "generate must be \"client\", \"server\" or false";
+    match v {
+        LenientScalar::Bool(false) => Ok(GenerateMode::None),
+        // `dom`/`ssr` are the pre-Svelte-5 spellings of `client`/`server`.
+        LenientScalar::Str(s) => match s.as_str() {
+            "client" | "dom" => Ok(GenerateMode::Client),
+            "server" | "ssr" => Ok(GenerateMode::Server),
+            "false" => Ok(GenerateMode::None),
+            _ => Err(invalid_option(msg)),
+        },
+        _ => Err(invalid_option(msg)),
+    }
+}
+
+fn coerce_namespace(v: &LenientScalar) -> napi::Result<Namespace> {
+    let msg = "namespace should be one of \"html\", \"mathml\" or \"svg\"";
+    match v {
+        LenientScalar::Str(s) => match s.as_str() {
+            "html" => Ok(Namespace::Html),
+            "svg" => Ok(Namespace::Svg),
+            "mathml" => Ok(Namespace::Mathml),
+            _ => Err(invalid_option(msg)),
+        },
+        _ => Err(invalid_option(msg)),
+    }
+}
+
+fn coerce_css(v: &LenientScalar) -> napi::Result<CssMode> {
+    match v {
+        LenientScalar::Bool(_) => Err(invalid_option(
+            "The boolean options have been removed from the css option. Use \"external\" instead of false and \"injected\" instead of true",
+        )),
+        LenientScalar::Str(s) => match s.as_str() {
+            "external" => Ok(CssMode::External),
+            "injected" => Ok(CssMode::Injected),
+            _ => Err(invalid_option(
+                "css should be either \"external\" (default, recommended) or \"injected\"",
+            )),
+        },
+        _ => Err(invalid_option(
+            "css should be either \"external\" (default, recommended) or \"injected\"",
+        )),
+    }
+}
+
+fn coerce_fragments(v: &LenientScalar) -> napi::Result<rsvelte_core::compiler::FragmentMode> {
+    let msg = "fragments should be either \"html\" or \"tree\"";
+    match v {
+        LenientScalar::Str(s) => match s.as_str() {
+            "html" => Ok(rsvelte_core::compiler::FragmentMode::Html),
+            "tree" => Ok(rsvelte_core::compiler::FragmentMode::Tree),
+            _ => Err(invalid_option(msg)),
+        },
+        _ => Err(invalid_option(msg)),
+    }
+}
+
+// Upstream `list([4, 5], 5)` accepts only the numbers 4 and 5 (the string
+// `"4"` is rejected).
+fn coerce_component_api(v: &LenientScalar) -> napi::Result<rsvelte_core::compiler::ComponentApi> {
+    match v {
+        LenientScalar::Number(n) if *n == 4.0 => Ok(rsvelte_core::compiler::ComponentApi::V4),
+        LenientScalar::Number(n) if *n == 5.0 => Ok(rsvelte_core::compiler::ComponentApi::V5),
+        _ => Err(invalid_option(
+            "compatibility.componentApi should be either \"4\" or \"5\"",
+        )),
+    }
+}
+
+// Upstream `experimental: object({ async: boolean(false) })`: a non-object is
+// rejected; a missing/`null`/`undefined` `async` keeps the default.
+fn coerce_experimental(v: &LenientScalar) -> napi::Result<ExperimentalOptions> {
+    if !v.is_object() {
+        return Err(invalid_option("experimental should be an object"));
+    }
+    let mut exp = ExperimentalOptions::default();
+    if let Some(a) = v.field("async") {
+        exp.r#async = coerce_bool("experimental.async", a)?;
+    }
+    Ok(exp)
+}
+
+fn coerce_compatibility(v: &LenientScalar) -> napi::Result<rsvelte_core::compiler::ComponentApi> {
+    if !v.is_object() {
+        return Err(invalid_option("compatibility should be an object"));
+    }
+    match v.field("componentApi") {
+        None => Ok(rsvelte_core::compiler::ComponentApi::default()),
+        Some(c) => coerce_component_api(c),
+    }
 }
 
 /// Typed mirror of `CompileOptions` for the NAPI boundary. Field
@@ -277,98 +569,87 @@ pub struct NapiCompatibilityOptions {
 /// `options` argument (`{ dev, generate, filename, rootDir, … }`).
 #[napi(object)]
 pub struct NapiCompileOptions {
-    pub dev: Option<bool>,
-    pub generate: Option<String>,
-    pub filename: Option<String>,
-    pub root_dir: Option<String>,
-    pub name: Option<String>,
-    pub custom_element: Option<bool>,
-    pub accessors: Option<bool>,
-    pub namespace: Option<String>,
-    pub immutable: Option<bool>,
-    pub css: Option<String>,
-    pub preserve_comments: Option<bool>,
-    pub preserve_whitespace: Option<bool>,
-    pub runes: Option<bool>,
-    pub disclose_version: Option<bool>,
+    pub dev: Option<LenientScalar>,
+    pub generate: Option<LenientScalar>,
+    pub filename: Option<LenientScalar>,
+    pub root_dir: Option<LenientScalar>,
+    pub name: Option<LenientScalar>,
+    pub custom_element: Option<LenientScalar>,
+    pub accessors: Option<LenientScalar>,
+    pub namespace: Option<LenientScalar>,
+    pub immutable: Option<LenientScalar>,
+    pub css: Option<LenientScalar>,
+    pub preserve_comments: Option<LenientScalar>,
+    pub preserve_whitespace: Option<LenientScalar>,
+    pub runes: Option<LenientScalar>,
+    pub disclose_version: Option<LenientScalar>,
     /// SourceMap v3 object **or** its serialized JSON string — both
     /// accepted. Preprocessors pass an object; the test harness
     /// sometimes passes a string. Anything else (number, array,
     /// boolean) is ignored.
     pub sourcemap: Option<Value>,
-    pub output_filename: Option<String>,
-    pub css_output_filename: Option<String>,
-    pub hmr: Option<bool>,
-    pub modern_ast: Option<bool>,
-    pub experimental: Option<NapiExperimentalOptions>,
-    pub compatibility: Option<NapiCompatibilityOptions>,
+    pub output_filename: Option<LenientScalar>,
+    pub css_output_filename: Option<LenientScalar>,
+    pub hmr: Option<LenientScalar>,
+    pub modern_ast: Option<LenientScalar>,
+    pub experimental: Option<LenientScalar>,
+    pub compatibility: Option<LenientScalar>,
     /// Pre-computed deterministic hash for the test harness (the JS
     /// `cssHash` callback can't be called from Rust).
     pub css_hash_override: Option<String>,
-    pub fragments: Option<String>,
+    pub fragments: Option<LenientScalar>,
 }
 
 impl NapiCompileOptions {
-    /// Convert into the compiler's native `CompileOptions`. The
-    /// defaults match `CompileOptions::default()`; only fields the JS
-    /// caller actually set are propagated.
-    fn into_compile_options(self) -> CompileOptions {
+    /// Convert into the compiler's native `CompileOptions`, mirroring the
+    /// upstream `validate-options.js`: an absent field keeps its default and a
+    /// wrong JS type is rejected with the upstream message.
+    fn into_compile_options(self) -> napi::Result<CompileOptions> {
         let mut opts = CompileOptions::default();
-        if let Some(v) = self.dev {
-            opts.dev = v;
+        if let Some(v) = &self.dev {
+            opts.dev = coerce_bool("dev", v)?;
         }
-        if let Some(v) = self.generate.as_deref() {
-            opts.generate = match v {
-                "server" | "ssr" => GenerateMode::Server,
-                "false" => GenerateMode::None,
-                _ => GenerateMode::Client,
-            };
+        if let Some(v) = &self.generate {
+            opts.generate = coerce_generate(v)?;
         }
-        if let Some(v) = self.filename {
-            opts.filename = Some(v);
+        if let Some(v) = &self.filename {
+            opts.filename = Some(coerce_string("filename", v)?);
         }
-        // rootDir defaults to the process's cwd (matches official Svelte)
-        if let Some(v) = self.root_dir {
-            opts.root_dir = Some(v);
+        // rootDir defaults to the process's cwd (matches official Svelte).
+        if let Some(v) = &self.root_dir {
+            opts.root_dir = Some(coerce_string("rootDir", v)?);
         } else if let Ok(cwd) = std::env::current_dir() {
             opts.root_dir = Some(cwd.to_string_lossy().to_string());
         }
-        if let Some(v) = self.name {
-            opts.name = Some(v);
+        if let Some(v) = &self.name {
+            opts.name = Some(coerce_string("name", v)?);
         }
-        if let Some(v) = self.custom_element {
-            opts.custom_element = v;
+        if let Some(v) = &self.custom_element {
+            opts.custom_element = coerce_bool("customElement", v)?;
         }
-        if let Some(v) = self.accessors {
-            opts.accessors = v;
+        if let Some(v) = &self.accessors {
+            opts.accessors = coerce_bool("accessors", v)?;
         }
-        if let Some(v) = self.namespace.as_deref() {
-            opts.namespace = match v {
-                "svg" => Namespace::Svg,
-                "mathml" => Namespace::Mathml,
-                _ => Namespace::Html,
-            };
+        if let Some(v) = &self.namespace {
+            opts.namespace = coerce_namespace(v)?;
         }
-        if let Some(v) = self.immutable {
-            opts.immutable = v;
+        if let Some(v) = &self.immutable {
+            opts.immutable = coerce_bool("immutable", v)?;
         }
-        if let Some(v) = self.css.as_deref() {
-            opts.css = match v {
-                "injected" => CssMode::Injected,
-                _ => CssMode::External,
-            };
+        if let Some(v) = &self.css {
+            opts.css = coerce_css(v)?;
         }
-        if let Some(v) = self.preserve_comments {
-            opts.preserve_comments = v;
+        if let Some(v) = &self.preserve_comments {
+            opts.preserve_comments = coerce_bool("preserveComments", v)?;
         }
-        if let Some(v) = self.preserve_whitespace {
-            opts.preserve_whitespace = v;
+        if let Some(v) = &self.preserve_whitespace {
+            opts.preserve_whitespace = coerce_bool("preserveWhitespace", v)?;
         }
-        if let Some(v) = self.runes {
-            opts.runes = Some(v);
+        if let Some(v) = &self.runes {
+            opts.runes = coerce_runes(v);
         }
-        if let Some(v) = self.disclose_version {
-            opts.disclose_version = v;
+        if let Some(v) = &self.disclose_version {
+            opts.disclose_version = coerce_bool("discloseVersion", v)?;
         }
         if let Some(v) = self.sourcemap {
             // Preprocessors pass the map as an object; the test harness
@@ -383,102 +664,91 @@ impl NapiCompileOptions {
                 opts.sourcemap = serde_json::to_string(&v).ok();
             }
         }
-        if let Some(v) = self.output_filename {
-            opts.output_filename = Some(v);
+        if let Some(v) = &self.output_filename {
+            opts.output_filename = Some(coerce_string("outputFilename", v)?);
         }
-        if let Some(v) = self.css_output_filename {
-            opts.css_output_filename = Some(v);
+        if let Some(v) = &self.css_output_filename {
+            opts.css_output_filename = Some(coerce_string("cssOutputFilename", v)?);
         }
-        if let Some(v) = self.hmr {
-            opts.hmr = v;
+        if let Some(v) = &self.hmr {
+            opts.hmr = coerce_bool("hmr", v)?;
         }
-        if let Some(v) = self.modern_ast {
-            opts.modern_ast = v;
+        if let Some(v) = &self.modern_ast {
+            opts.modern_ast = coerce_bool("modernAst", v)?;
         }
-        if let Some(exp) = self.experimental
-            && let Some(v) = exp.r#async
-        {
-            opts.experimental = ExperimentalOptions { r#async: v };
+        if let Some(v) = &self.experimental {
+            opts.experimental = coerce_experimental(v)?;
         }
-        if let Some(compat) = self.compatibility
-            && let Some(v) = compat.component_api
-        {
-            opts.compatibility.component_api = if v == 4 {
-                crate::compiler::ComponentApi::V4
-            } else {
-                crate::compiler::ComponentApi::V5
-            };
+        if let Some(v) = &self.compatibility {
+            opts.compatibility.component_api = coerce_compatibility(v)?;
         }
         if let Some(hash_override) = self.css_hash_override {
             opts.css_hash = Some(std::sync::Arc::new(
-                move |_: &crate::compiler::CssHashInput| hash_override.clone(),
+                move |_: &rsvelte_core::compiler::CssHashInput| hash_override.clone(),
             ));
         }
-        if let Some(v) = self.fragments.as_deref() {
-            opts.fragments = match v {
-                "tree" => crate::compiler::FragmentMode::Tree,
-                _ => crate::compiler::FragmentMode::Html,
-            };
+        if let Some(v) = &self.fragments {
+            opts.fragments = coerce_fragments(v)?;
         }
-        opts
+        Ok(opts)
     }
 }
 
 /// Typed mirror of `ModuleCompileOptions`.
 #[napi(object)]
 pub struct NapiModuleCompileOptions {
-    pub dev: Option<bool>,
-    pub generate: Option<String>,
-    pub filename: Option<String>,
-    pub root_dir: Option<String>,
-    pub experimental: Option<NapiExperimentalOptions>,
+    pub dev: Option<LenientScalar>,
+    pub generate: Option<LenientScalar>,
+    pub filename: Option<LenientScalar>,
+    pub root_dir: Option<LenientScalar>,
+    pub experimental: Option<LenientScalar>,
 }
 
 impl NapiModuleCompileOptions {
-    fn into_module_compile_options(self) -> ModuleCompileOptions {
+    fn into_module_compile_options(self) -> napi::Result<ModuleCompileOptions> {
         let mut opts = ModuleCompileOptions::default();
-        if let Some(v) = self.dev {
-            opts.dev = v;
+        if let Some(v) = &self.dev {
+            opts.dev = coerce_bool("dev", v)?;
         }
-        if let Some(v) = self.generate.as_deref() {
-            opts.generate = match v {
-                "server" | "ssr" => GenerateMode::Server,
-                "false" => GenerateMode::None,
-                _ => GenerateMode::Client,
-            };
+        if let Some(v) = &self.generate {
+            opts.generate = coerce_generate(v)?;
         }
-        if let Some(v) = self.filename {
-            opts.filename = Some(v);
+        if let Some(v) = &self.filename {
+            opts.filename = Some(coerce_string("filename", v)?);
         }
-        if let Some(v) = self.root_dir {
-            opts.root_dir = Some(v);
+        if let Some(v) = &self.root_dir {
+            opts.root_dir = Some(coerce_string("rootDir", v)?);
         }
-        if let Some(exp) = self.experimental
-            && let Some(v) = exp.r#async
-        {
-            opts.experimental = ExperimentalOptions { r#async: v };
+        if let Some(v) = &self.experimental {
+            opts.experimental = coerce_experimental(v)?;
         }
-        opts
+        Ok(opts)
     }
 }
 
 /// Compatibility wrapper: convert an Option<NapiCompileOptions> (the
 /// typed surface) into `CompileOptions`. `None` and `Some(empty)`
 /// both produce the defaults.
-fn options_to_compile(opts: Option<NapiCompileOptions>) -> CompileOptions {
-    opts.map(NapiCompileOptions::into_compile_options)
-        .unwrap_or_else(|| {
+fn options_to_compile(opts: Option<NapiCompileOptions>) -> napi::Result<CompileOptions> {
+    match opts {
+        Some(o) => o.into_compile_options(),
+        None => {
             let mut o = CompileOptions::default();
             if let Ok(cwd) = std::env::current_dir() {
                 o.root_dir = Some(cwd.to_string_lossy().to_string());
             }
-            o
-        })
+            Ok(o)
+        }
+    }
 }
 
-fn options_to_module_compile(opts: Option<NapiModuleCompileOptions>) -> ModuleCompileOptions {
-    opts.map(NapiModuleCompileOptions::into_module_compile_options)
-        .unwrap_or_default()
+fn options_to_module_compile(
+    opts: Option<NapiModuleCompileOptions>,
+) -> napi::Result<ModuleCompileOptions> {
+    match opts {
+        Some(o) => o.into_module_compile_options(),
+        None => Ok(ModuleCompileOptions::default()),
+    }
 }
 
 /// Compile a Svelte module (.svelte.js/.svelte.ts).
@@ -487,7 +757,7 @@ pub fn napi_compile_module(
     source: String,
     options: Option<NapiModuleCompileOptions>,
 ) -> napi::Result<Value> {
-    let opts = options_to_module_compile(options);
+    let opts = options_to_module_compile(options)?;
     match rust_compile_module(&source, opts) {
         Ok(result) => {
             let js_obj = serde_json::json!({
@@ -604,7 +874,7 @@ fn parse_svelte2tsx_options(options: &Value) -> Svelte2TsxOptions {
 // vite-plugin-svelte (Wave 3) NAPI surface
 // =============================================================================
 
-use crate::vps::{ResolveOptions, hmr_diff as rust_hmr_diff, resolve_id as rust_resolve_id};
+use rsvelte_core::vps::{ResolveOptions, hmr_diff as rust_hmr_diff, resolve_id as rust_resolve_id};
 
 /// Diff two `.svelte` source versions. Returns `{ change, instanceChanged,
 /// moduleChanged }` so the JS shim can decide between Vite's hot-update
@@ -614,9 +884,9 @@ use crate::vps::{ResolveOptions, hmr_diff as rust_hmr_diff, resolve_id as rust_r
 pub fn napi_hmr_diff(prev: String, curr: String) -> napi::Result<Value> {
     let diff = rust_hmr_diff(&prev, &curr);
     let kind = match diff.change {
-        crate::vps::HmrChange::HotUpdate => "hot-update",
-        crate::vps::HmrChange::FullReload => "full-reload",
-        crate::vps::HmrChange::Unchanged => "unchanged",
+        rsvelte_core::vps::HmrChange::HotUpdate => "hot-update",
+        rsvelte_core::vps::HmrChange::FullReload => "full-reload",
+        rsvelte_core::vps::HmrChange::Unchanged => "unchanged",
     };
     Ok(serde_json::json!({
         "change": kind,
@@ -645,7 +915,7 @@ pub fn napi_resolve_id(importer: Option<String>, specifier: String) -> napi::Res
 /// signature `preprocess(source, preprocessors, options?: { filename? })`.
 #[napi(object)]
 pub struct PreprocessOptions {
-    pub filename: Option<String>,
+    pub filename: Option<LenientScalar>,
 }
 
 /// Run rsvelte's preprocessor pipeline, bridging JS preprocessor
@@ -683,11 +953,14 @@ pub fn napi_preprocess(
     // values never cross the await boundary (they're not Send).
     let extracted = preprocess_bridge::extract_groups(groups)?;
     let rust_groups = preprocess_bridge::build_groups(extracted);
-    let filename = options.and_then(|o| o.filename);
+    let filename = match options.as_ref().and_then(|o| o.filename.as_ref()) {
+        Some(v) => Some(coerce_string("filename", v)?),
+        None => None,
+    };
 
     env.execute_tokio_future(
         async move {
-            crate::compiler::preprocess::preprocess(source, rust_groups, filename)
+            rsvelte_core::compiler::preprocess::preprocess(source, rust_groups, filename)
                 .await
                 .map_err(|e| napi::Error::from_reason(format!("{e}")))
         },
@@ -696,14 +969,14 @@ pub fn napi_preprocess(
 }
 
 mod preprocess_bridge {
-    use crate::compiler::preprocess::types::{
+    use napi::Status;
+    use napi::bindgen_prelude::{FromNapiValue, Object, Promise};
+    use napi::threadsafe_function::ThreadsafeFunction;
+    use rsvelte_core::compiler::preprocess::types::{
         AttributeValue as RsAttrValue, MarkupPreprocessorFn, MarkupPreprocessorOptions,
         PreprocessError, PreprocessorFn, PreprocessorGroup, PreprocessorOptions,
         PreprocessorResult, Processed, SimpleDecodedMap, SourceMapInput,
     };
-    use napi::Status;
-    use napi::bindgen_prelude::{FromNapiValue, Object, Promise};
-    use napi::threadsafe_function::ThreadsafeFunction;
     use rustc_hash::FxHashMap;
     use serde_json::Value;
 
@@ -1116,7 +1389,7 @@ pub fn napi_compile_buffers(
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<CompileBuffersResult> {
-    let opts = options_to_compile(options);
+    let opts = options_to_compile(options)?;
     match rust_compile(&source, opts) {
         Ok(result) => Ok(CompileBuffersResult {
             js: CompileBuffersJs {
@@ -1141,7 +1414,7 @@ pub fn napi_compile_module_buffers(
     source: String,
     options: Option<NapiModuleCompileOptions>,
 ) -> napi::Result<CompileBuffersResult> {
-    let opts = options_to_module_compile(options);
+    let opts = options_to_module_compile(options)?;
 
     match rust_compile_module(&source, opts) {
         Ok(result) => Ok(CompileBuffersResult {
@@ -1157,7 +1430,7 @@ pub fn napi_compile_module_buffers(
     }
 }
 
-fn warning_to_napi(w: crate::compiler::Warning) -> NapiWarning {
+fn warning_to_napi(w: rsvelte_core::compiler::Warning) -> NapiWarning {
     NapiWarning {
         code: w.code,
         message: w.message,
@@ -1168,7 +1441,7 @@ fn warning_to_napi(w: crate::compiler::Warning) -> NapiWarning {
     }
 }
 
-fn position_to_napi(p: crate::compiler::Position) -> NapiPosition {
+fn position_to_napi(p: rsvelte_core::compiler::Position) -> NapiPosition {
     NapiPosition {
         line: p.line as u32,
         column: p.column as u32,
@@ -1181,7 +1454,7 @@ fn position_to_napi(p: crate::compiler::Position) -> NapiPosition {
 // =============================================================================
 //
 // `compileEnvelope` packs the entire `CompileResult` into one
-// fixed-layout byte buffer (`crate::napi_raw`) and hands it to V8 as
+// fixed-layout byte buffer (`rsvelte_core::napi_raw`) and hands it to V8 as
 // a single `Buffer`. The JS shim's `decodeEnvelope` slices fields
 // out on demand — no `serde_json` on the boundary, no V8 object tree
 // construction for the warning array unless the caller actually
@@ -1198,27 +1471,27 @@ fn position_to_napi(p: crate::compiler::Position) -> NapiPosition {
 /// buffer (M-012).
 #[inline]
 fn ensure_envelope_size(size: usize) -> napi::Result<()> {
-    crate::napi_raw::check_envelope_size(size).map_err(|size| {
+    rsvelte_core::napi_raw::check_envelope_size(size).map_err(|size| {
         napi::Error::from_reason(format!(
             "rsvelte: compiled output is {size} bytes, exceeding the \
              {max}-byte envelope limit (header offsets are u32)",
-            max = crate::napi_raw::MAX_ENVELOPE_SIZE
+            max = rsvelte_core::napi_raw::MAX_ENVELOPE_SIZE
         ))
     })
 }
 
 /// `compile()` returning a single packed envelope buffer.
-/// See `crate::napi_raw` for the byte-level format.
+/// See `rsvelte_core::napi_raw` for the byte-level format.
 #[napi(js_name = "compileEnvelope")]
 pub fn napi_compile_envelope(
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<Buffer> {
-    let opts = options_to_compile(options);
+    let opts = options_to_compile(options)?;
     match rust_compile(&source, opts) {
         Ok(result) => {
-            ensure_envelope_size(crate::napi_raw::estimate_size(&result))?;
-            Ok(Buffer::from(crate::napi_raw::encode_to_vec(&result)))
+            ensure_envelope_size(rsvelte_core::napi_raw::estimate_size(&result))?;
+            Ok(Buffer::from(rsvelte_core::napi_raw::encode_to_vec(&result)))
         }
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
     }
@@ -1264,9 +1537,9 @@ pub fn napi_compile_envelope(
 /// with the buffer. No Rust code retains the pointer after this returns.
 fn create_zero_copy_envelope(
     env: &Env,
-    result: &crate::compiler::CompileResult,
+    result: &rsvelte_core::compiler::CompileResult,
 ) -> napi::Result<JsBuffer> {
-    let size = crate::napi_raw::estimate_size(result);
+    let size = rsvelte_core::napi_raw::estimate_size(result);
     ensure_envelope_size(size)?;
     let bump = Box::new(bumpalo::Bump::with_capacity(size));
     let bump_ptr: *mut bumpalo::Bump = Box::into_raw(bump);
@@ -1291,7 +1564,7 @@ fn create_zero_copy_envelope(
     // aliased; we re-acquire ownership via Box::from_raw inside the
     // finalizer below.
     let bump_ref: &bumpalo::Bump = unsafe { &*bump_ptr };
-    let slice = crate::napi_raw::encode_into_bump(bump_ref, result);
+    let slice = rsvelte_core::napi_raw::encode_into_bump(bump_ref, result);
     let ptr = slice.as_mut_ptr();
     let len = slice.len();
 
@@ -1327,7 +1600,7 @@ pub fn napi_compile_envelope_zero_copy(
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<JsBuffer> {
-    let opts = options_to_compile(options);
+    let opts = options_to_compile(options)?;
     let result = match rust_compile(&source, opts) {
         Ok(r) => r,
         Err(e) => return Err(napi::Error::from_reason(format!("{e:?}"))),
@@ -1342,16 +1615,16 @@ pub fn napi_compile_module_envelope_zero_copy(
     source: String,
     options: Option<NapiModuleCompileOptions>,
 ) -> napi::Result<JsBuffer> {
-    let opts = options_to_module_compile(options);
+    let opts = options_to_module_compile(options)?;
     let result = match rust_compile_module(&source, opts) {
         Ok(r) => r,
         Err(e) => return Err(napi::Error::from_reason(format!("{e:?}"))),
     };
-    let cr = crate::compiler::CompileResult {
+    let cr = rsvelte_core::compiler::CompileResult {
         js: result.js,
         css: None,
         warnings: Vec::new(),
-        metadata: crate::compiler::CompileMetadata { runes: true },
+        metadata: rsvelte_core::compiler::CompileMetadata { runes: true },
         ast: None,
     };
     create_zero_copy_envelope(&env, &cr)
@@ -1365,22 +1638,22 @@ pub fn napi_compile_module_envelope(
     source: String,
     options: Option<NapiModuleCompileOptions>,
 ) -> napi::Result<Buffer> {
-    let opts = options_to_module_compile(options);
+    let opts = options_to_module_compile(options)?;
     match rust_compile_module(&source, opts) {
         Ok(result) => {
             // Adapt the module result into the same `CompileResult` shape
             // the envelope encoder expects. Module compiles never produce
             // CSS or warnings, and runes mode is always on, so the
             // resulting envelope is the minimal js-only form.
-            let cr = crate::compiler::CompileResult {
+            let cr = rsvelte_core::compiler::CompileResult {
                 js: result.js,
                 css: None,
                 warnings: Vec::new(),
-                metadata: crate::compiler::CompileMetadata { runes: true },
+                metadata: rsvelte_core::compiler::CompileMetadata { runes: true },
                 ast: None,
             };
-            ensure_envelope_size(crate::napi_raw::estimate_size(&cr))?;
-            Ok(Buffer::from(crate::napi_raw::encode_to_vec(&cr)))
+            ensure_envelope_size(rsvelte_core::napi_raw::estimate_size(&cr))?;
+            Ok(Buffer::from(rsvelte_core::napi_raw::encode_to_vec(&cr)))
         }
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
     }
@@ -1391,9 +1664,9 @@ pub fn napi_compile_module_envelope(
 // =============================================================================
 //
 // `compileBatch([{source, options}, …])` hands the whole worklist to
-// `crate::compiler::compile_batch`, which uses rayon to compile in
+// `rsvelte_core::compiler::compile_batch`, which uses rayon to compile in
 // parallel, and packs the resulting `Result<CompileResult, _>`s into
-// one batch envelope (`crate::napi_raw::encode_batch_to_vec`). One
+// one batch envelope (`rsvelte_core::napi_raw::encode_batch_to_vec`). One
 // `napi_create_external_buffer` per call regardless of N — the
 // per-file boundary cost goes from O(N) to O(1).
 //
@@ -1418,18 +1691,18 @@ pub fn napi_compile_batch(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer
     // pure (no NAPI touchpoint) so it could in principle run in
     // parallel, but the per-call work is trivial and this keeps the
     // rayon stage focused on the actual compile.
-    let parsed: Vec<(String, crate::compiler::CompileOptions)> = inputs
+    let parsed: Vec<(String, rsvelte_core::compiler::CompileOptions)> = inputs
         .into_iter()
-        .map(|item| (item.source, options_to_compile(item.options)))
-        .collect();
+        .map(|item| Ok((item.source, options_to_compile(item.options)?)))
+        .collect::<napi::Result<_>>()?;
 
     // Compile in parallel. `compile_batch` takes `&[(&str, CompileOptions)]`,
     // so we materialise the borrowed view once.
-    let borrowed: Vec<(&str, crate::compiler::CompileOptions)> = parsed
+    let borrowed: Vec<(&str, rsvelte_core::compiler::CompileOptions)> = parsed
         .iter()
         .map(|(s, o)| (s.as_str(), o.clone()))
         .collect();
-    let results = crate::compiler::compile_batch(&borrowed);
+    let results = rsvelte_core::compiler::compile_batch(&borrowed);
 
     // Build the BatchEntry view over the results so the encoder can
     // walk them without taking ownership. Error messages format
@@ -1442,17 +1715,21 @@ pub fn napi_compile_batch(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer
         })
         .collect();
 
-    let entries: Vec<crate::napi_raw::BatchEntry<'_>> = results
+    let entries: Vec<rsvelte_core::napi_raw::BatchEntry<'_>> = results
         .iter()
         .zip(err_strings.iter())
         .map(|(r, e)| match r {
-            Ok(cr) => crate::napi_raw::BatchEntry::Ok(cr),
-            Err(_) => crate::napi_raw::BatchEntry::Err(e.as_deref().unwrap_or("unknown error")),
+            Ok(cr) => rsvelte_core::napi_raw::BatchEntry::Ok(cr),
+            Err(_) => {
+                rsvelte_core::napi_raw::BatchEntry::Err(e.as_deref().unwrap_or("unknown error"))
+            }
         })
         .collect();
 
-    ensure_envelope_size(crate::napi_raw::estimate_batch_size(&entries))?;
-    Ok(Buffer::from(crate::napi_raw::encode_batch_to_vec(&entries)))
+    ensure_envelope_size(rsvelte_core::napi_raw::estimate_batch_size(&entries))?;
+    Ok(Buffer::from(rsvelte_core::napi_raw::encode_batch_to_vec(
+        &entries,
+    )))
 }
 
 // =============================================================================
@@ -1493,8 +1770,8 @@ impl Task for CompileEnvelopeTask {
         // small and we only pay it once per call.
         let result = rust_compile(&self.source, self.options.clone())
             .map_err(|e| napi::Error::from_reason(format!("{e:?}")))?;
-        ensure_envelope_size(crate::napi_raw::estimate_size(&result))?;
-        Ok(crate::napi_raw::encode_to_vec(&result))
+        ensure_envelope_size(rsvelte_core::napi_raw::estimate_size(&result))?;
+        Ok(rsvelte_core::napi_raw::encode_to_vec(&result))
     }
 
     fn resolve(&mut self, _env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
@@ -1509,11 +1786,11 @@ impl Task for CompileEnvelopeTask {
 pub fn napi_compile_envelope_async(
     source: String,
     options: Option<NapiCompileOptions>,
-) -> AsyncTask<CompileEnvelopeTask> {
-    AsyncTask::new(CompileEnvelopeTask {
+) -> napi::Result<AsyncTask<CompileEnvelopeTask>> {
+    Ok(AsyncTask::new(CompileEnvelopeTask {
         source,
-        options: options_to_compile(options),
-    })
+        options: options_to_compile(options)?,
+    }))
 }
 
 /// Async variant of `compileBatch` — same `compile_batch` (rayon
@@ -1532,7 +1809,7 @@ impl Task for CompileBatchTask {
             .iter()
             .map(|(s, o)| (s.as_str(), o.clone()))
             .collect();
-        let results = crate::compiler::compile_batch(&borrowed);
+        let results = rsvelte_core::compiler::compile_batch(&borrowed);
         let err_strings: Vec<Option<String>> = results
             .iter()
             .map(|r| match r {
@@ -1540,16 +1817,18 @@ impl Task for CompileBatchTask {
                 Err(e) => Some(format!("{e:?}")),
             })
             .collect();
-        let entries: Vec<crate::napi_raw::BatchEntry<'_>> = results
+        let entries: Vec<rsvelte_core::napi_raw::BatchEntry<'_>> = results
             .iter()
             .zip(err_strings.iter())
             .map(|(r, e)| match r {
-                Ok(cr) => crate::napi_raw::BatchEntry::Ok(cr),
-                Err(_) => crate::napi_raw::BatchEntry::Err(e.as_deref().unwrap_or("unknown error")),
+                Ok(cr) => rsvelte_core::napi_raw::BatchEntry::Ok(cr),
+                Err(_) => {
+                    rsvelte_core::napi_raw::BatchEntry::Err(e.as_deref().unwrap_or("unknown error"))
+                }
             })
             .collect();
-        ensure_envelope_size(crate::napi_raw::estimate_batch_size(&entries))?;
-        Ok(crate::napi_raw::encode_batch_to_vec(&entries))
+        ensure_envelope_size(rsvelte_core::napi_raw::estimate_batch_size(&entries))?;
+        Ok(rsvelte_core::napi_raw::encode_batch_to_vec(&entries))
     }
 
     fn resolve(&mut self, _env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
@@ -1558,10 +1837,12 @@ impl Task for CompileBatchTask {
 }
 
 #[napi(js_name = "compileBatchAsync")]
-pub fn napi_compile_batch_async(inputs: Vec<CompileBatchInput>) -> AsyncTask<CompileBatchTask> {
+pub fn napi_compile_batch_async(
+    inputs: Vec<CompileBatchInput>,
+) -> napi::Result<AsyncTask<CompileBatchTask>> {
     let parsed: Vec<(String, CompileOptions)> = inputs
         .into_iter()
-        .map(|item| (item.source, options_to_compile(item.options)))
-        .collect();
-    AsyncTask::new(CompileBatchTask { inputs: parsed })
+        .map(|item| Ok((item.source, options_to_compile(item.options)?)))
+        .collect::<napi::Result<_>>()?;
+    Ok(AsyncTask::new(CompileBatchTask { inputs: parsed }))
 }

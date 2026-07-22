@@ -61,7 +61,7 @@ try {
 } catch (err) {
 	throw new Error(
 		`[rsvelte-compiler shim] Failed to load NAPI binding at ${nodePath}.\n` +
-			`Make sure the binary is built (cargo build --release --features napi --lib).\n\n` +
+			`Make sure the binary is built (cargo build --release -p rsvelte_napi --lib).\n\n` +
 			`Original error: ${err.message}`
 	);
 }

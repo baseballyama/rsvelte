@@ -6,7 +6,7 @@
 //! scripts/compat-corpus/README.md).
 
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 fn bin() -> PathBuf {
@@ -121,16 +121,89 @@ fn write_mode_updates_svelte_file_on_disk() {
     assert!(after.contains("let x = 1 + 2;"), "{after}");
 }
 
+/// With no path argument, `rsvelte-fmt` formats the current directory in place
+/// (write is the default), matching `oxfmt`'s "if not provided, current working
+/// directory is used" behavior (#1432).
 #[test]
-fn no_paths_errors_helpfully() {
+fn no_paths_defaults_to_cwd_and_writes() {
+    let dir = tempdir();
+    let file = dir.join("App.svelte");
+    std::fs::write(&file, "<script>let x=1+2</script>").unwrap();
+
     let out = Command::new(bin())
-        .stderr(Stdio::piped())
+        .current_dir(&dir)
+        .args(["--oxfmt-bin", "true"])
         .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .output()
         .unwrap();
-    assert_ne!(out.status.code(), Some(0));
-    let stderr = String::from_utf8(out.stderr).unwrap();
-    assert!(stderr.contains("no paths given"), "stderr:\n{stderr}");
+    assert_eq!(out.status.code(), Some(0), "should default to cwd + write");
+
+    let after = std::fs::read_to_string(&file).unwrap();
+    assert!(after.contains("let x = 1 + 2;"), "{after}");
+}
+
+/// `--check` with no path checks the current directory and never writes, exiting
+/// non-zero when a file would be reformatted — same as `oxfmt --check`.
+#[test]
+fn no_paths_check_does_not_write() {
+    let dir = tempdir();
+    let file = dir.join("App.svelte");
+    std::fs::write(&file, "<script>let x=1+2</script>").unwrap();
+
+    let out = Command::new(bin())
+        .current_dir(&dir)
+        .args(["--check", "--oxfmt-bin", "true"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "unformatted cwd must fail --check"
+    );
+
+    let after = std::fs::read_to_string(&file).unwrap();
+    assert_eq!(
+        after, "<script>let x=1+2</script>",
+        "--check must not write"
+    );
+}
+
+/// The cwd default applies only to the file-walk path: `--stdin` still reads
+/// stdin and leaves on-disk files untouched even with no path argument.
+#[test]
+fn stdin_ignores_cwd_default() {
+    let dir = tempdir();
+    let file = dir.join("App.svelte");
+    std::fs::write(&file, "<script>let x=1+2</script>").unwrap();
+
+    let mut child = Command::new(bin())
+        .current_dir(&dir)
+        .args(["--stdin", "--stdin-filepath", "In.svelte"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(b"<script>let y=3+4</script>\n<p>{ y }</p>")
+        .unwrap();
+    let out = child.wait_with_output().unwrap();
+    assert_eq!(out.status.code(), Some(0));
+
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("let y = 3 + 4;"), "stdout:\n{stdout}");
+    // The on-disk file must be left untouched — stdin mode doesn't walk the cwd.
+    let after = std::fs::read_to_string(&file).unwrap();
+    assert_eq!(
+        after, "<script>let x=1+2</script>",
+        "stdin must not touch cwd"
+    );
 }
 
 /// Batched `<style>` delegation: every `.svelte` file's `<style>` body is
@@ -248,6 +321,330 @@ fn inline_script_defaults_to_double_quote_without_config() {
     assert!(
         stdout.contains("const x = \"hello\";"),
         "expected double-quote default:\n{stdout}"
+    );
+}
+
+/// #1430: `oxfmt.config.ts` must be honored exactly like `.oxfmtrc.json` for
+/// the in-process inline `<script>` path — same assertion as
+/// `inline_script_respects_oxfmtrc_single_quote`, just with a statically
+/// evaluated TS config instead of JSON.
+#[test]
+fn inline_script_respects_oxfmt_config_ts_single_quote() {
+    let dir = tempdir();
+    let cfg = dir.join("oxfmt.config.ts");
+    std::fs::write(&cfg, "export default { singleQuote: true };").unwrap();
+
+    let (stdout, stderr, code) = run_stdin(
+        "<script>const x = \"hello\"</script>\n<p>{x}</p>\n",
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            "x.svelte",
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "stderr:\n{stderr}");
+    assert!(
+        stdout.contains("const x = 'hello';"),
+        "expected single quotes from oxfmt.config.ts:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("\"hello\""),
+        "string should not be double-quoted:\n{stdout}"
+    );
+}
+
+/// `defineConfig(...)` — oxfmt's identity-function config helper — must
+/// evaluate the same as a plain object default export.
+#[test]
+fn inline_script_respects_oxfmt_config_ts_via_define_config() {
+    let dir = tempdir();
+    let cfg = dir.join("oxfmt.config.ts");
+    std::fs::write(
+        &cfg,
+        "import { defineConfig } from \"oxfmt\";\nexport default defineConfig({ semi: false });",
+    )
+    .unwrap();
+
+    let (stdout, stderr, code) = run_stdin(
+        "<script>const x = 1</script>\n",
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            "x.svelte",
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "stderr:\n{stderr}");
+    assert!(
+        stdout.contains("const x = 1\n"),
+        "expected no trailing semicolon from `semi: false`:\n{stdout}"
+    );
+}
+
+/// `.oxfmtrc` discovery must also find `oxfmt.config.ts` (no explicit
+/// `--config`) and apply its `ignorePatterns` to the `.svelte` walk, mirroring
+/// `check_excludes_svelte_via_oxfmtrc_ignore_patterns` for the JSON config.
+#[test]
+fn oxfmt_config_ts_is_discovered_and_ignore_patterns_apply() {
+    let dir = tempdir();
+    std::fs::write(
+        dir.join("oxfmt.config.ts"),
+        "export default { ignorePatterns: [\"ignored/**/*.svelte\"] };",
+    )
+    .unwrap();
+    std::fs::create_dir_all(dir.join("ignored")).unwrap();
+    std::fs::create_dir_all(dir.join("kept")).unwrap();
+    std::fs::write(
+        dir.join("ignored").join("skip.svelte"),
+        "<script>let x=1+2</script>",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("kept").join("keep.svelte"),
+        "<script>let x=1+2</script>",
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .current_dir(&dir)
+        .args(["--check", ".", "--oxfmt-bin", "true"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let stderr = String::from_utf8(out.stderr).unwrap();
+
+    assert!(
+        stdout.contains("keep.svelte"),
+        "kept file must be checked:\n{stdout}\nstderr:\n{stderr}"
+    );
+    assert!(
+        !stdout.contains("skip.svelte"),
+        "ignored file must be excluded:\n{stdout}"
+    );
+    assert_eq!(out.status.code(), Some(1));
+}
+
+/// A discovered `oxfmt.config.ts` containing a dynamic expression the static
+/// evaluator can't run must fail the whole invocation with a clear message —
+/// unlike `.oxfmtrc.json`'s "ignore what we can't parse" policy, a `.ts`
+/// config is a deliberate choice, so a silent partial read would be worse
+/// than an explicit error.
+#[test]
+fn dynamic_oxfmt_config_ts_is_a_clear_error() {
+    let dir = tempdir();
+    std::fs::write(
+        dir.join("oxfmt.config.ts"),
+        "export default { printWidth: computeWidth() };",
+    )
+    .unwrap();
+    let file = dir.join("App.svelte");
+    std::fs::write(&file, "<script>let x=1+2</script>").unwrap();
+
+    let out = Command::new(bin())
+        .current_dir(&dir)
+        .args([".", "--check"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    assert_ne!(out.status.code(), Some(0));
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(
+        stderr.contains("statically"),
+        "expected a static-evaluation error:\n{stderr}"
+    );
+}
+
+/// A directory holding both `.oxfmtrc.json` and `oxfmt.config.ts` is a
+/// conflict oxfmt itself refuses to resolve (only one config file is allowed
+/// per directory) — rsvelte-fmt must mirror that instead of silently picking
+/// one.
+#[test]
+fn conflicting_json_and_ts_configs_in_one_directory_is_an_error() {
+    let dir = tempdir();
+    std::fs::write(dir.join(".oxfmtrc.json"), r#"{ "singleQuote": true }"#).unwrap();
+    std::fs::write(
+        dir.join("oxfmt.config.ts"),
+        "export default { semi: true };",
+    )
+    .unwrap();
+    let file = dir.join("App.svelte");
+    std::fs::write(&file, "<script>let x=1+2</script>").unwrap();
+
+    let out = Command::new(bin())
+        .current_dir(&dir)
+        .args([".", "--check"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    assert_ne!(out.status.code(), Some(0));
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(
+        stderr.to_lowercase().contains("multiple"),
+        "expected a config-conflict error:\n{stderr}"
+    );
+}
+
+/// An explicit `--config foo.cjs` must be accepted and its `module.exports =
+/// {...}` (CommonJS's equivalent of an ESM default export) statically
+/// evaluated, mirroring oxfmt's own `is_js_config_path` accepting
+/// `.js`/`.mjs`/`.cjs` (not just `.ts`/`.mts`) for an explicit `--config`.
+/// Auto-discovery still only ever finds `oxfmt.config.ts`/`.mts`, so this
+/// requires an explicit flag.
+#[test]
+fn inline_script_respects_explicit_cjs_config() {
+    let dir = tempdir();
+    let cfg = dir.join("oxfmt.config.cjs");
+    std::fs::write(&cfg, "module.exports = { singleQuote: true };").unwrap();
+
+    let (stdout, stderr, code) = run_stdin(
+        "<script>const x = \"hello\"</script>\n",
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            "x.svelte",
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "stderr:\n{stderr}");
+    assert!(
+        stdout.contains("const x = 'hello';"),
+        "expected single quotes from oxfmt.config.cjs:\n{stdout}"
+    );
+}
+
+/// `--config foo.cjs` using the incremental `exports.foo = ...` style (as
+/// opposed to a full `module.exports = {...}` replacement) must also drive
+/// inline `<script>` formatting — real Node honors this form too, so
+/// rsvelte-fmt's static evaluator accumulates it into an object.
+#[test]
+fn inline_script_respects_explicit_cjs_config_exports_property_style() {
+    let dir = tempdir();
+    let cfg = dir.join("oxfmt.config.cjs");
+    std::fs::write(&cfg, "exports.singleQuote = true;\nexports.semi = false;").unwrap();
+
+    let (stdout, stderr, code) = run_stdin(
+        "<script>const x = \"hello\"</script>\n",
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            "x.svelte",
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "stderr:\n{stderr}");
+    assert!(
+        stdout.contains("const x = 'hello'\n"),
+        "expected single quotes (exports.singleQuote) and no trailing semicolon \
+         (exports.semi = false):\n{stdout}"
+    );
+}
+
+/// `--config foo.js` must accept either dialect the file happens to use —
+/// oxfmt (via Node's CJS/ESM interop) decides by content, not extension, so
+/// rsvelte-fmt's static evaluator must too. This covers the ESM form; the CJS
+/// form is covered by `ts_config::tests::js_extension_accepts_commonjs_module_exports`.
+#[test]
+fn inline_script_respects_explicit_js_config_esm_form() {
+    let dir = tempdir();
+    let cfg = dir.join("oxfmt.config.js");
+    std::fs::write(&cfg, "export default { semi: false };").unwrap();
+
+    let (stdout, stderr, code) = run_stdin(
+        "<script>const x = 1</script>\n",
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            "x.svelte",
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "stderr:\n{stderr}");
+    assert!(
+        stdout.contains("const x = 1\n"),
+        "expected no trailing semicolon from `semi: false`:\n{stdout}"
+    );
+}
+
+/// Fake oxfmt that proves the `-c` flag it receives is a *materialized JSON*
+/// file, never the `oxfmt.config.ts` source: it `JSON.parse`s whatever `-c`
+/// points at (which throws on non-JSON, e.g. if the `.ts` path leaked
+/// through) and stamps every formatted file with the parsed `singleQuote`
+/// value, so the test can assert the evaluated TS config's content actually
+/// reached the child process.
+const CONFIG_ECHO_OXFMT: &str = r#"const fs = require('node:fs');
+const path = require('node:path');
+const args = process.argv.slice(2);
+const cIdx = args.indexOf('-c');
+if (cIdx === -1) { throw new Error('expected a -c flag'); }
+const configPath = args[cIdx + 1];
+const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+const marker = `/*SQ:${cfg.singleQuote}*/`;
+function fmtFile(p) { fs.writeFileSync(p, marker + fs.readFileSync(p, 'utf8')); }
+for (const p of args) {
+  if (p.startsWith('-') || p.startsWith('!') || p === configPath) continue;
+  let st;
+  try { st = fs.statSync(p); } catch { continue; }
+  if (st.isFile()) fmtFile(p);
+  else if (st.isDirectory() && path.basename(p).startsWith('rsvelte-fmt-styles-')) {
+    for (const e of fs.readdirSync(p)) {
+      const fp = path.join(p, e);
+      if (fs.statSync(fp).isFile()) fmtFile(fp);
+    }
+  }
+}
+"#;
+
+/// End-to-end: `--no-native-css` delegates inline `<style>` bodies to a child
+/// `oxfmt` via the batched staging-directory path
+/// (`batched_style_delegation_maps_each_block_to_its_file`'s path), forcing
+/// `-c`. With a discovered `oxfmt.config.ts`, that flag must point at the
+/// materialized JSON (see `OxfmtConfig::oxfmt_arg_path`) carrying the
+/// statically-evaluated config — not the `.ts` file itself, which the
+/// pure-Rust `oxfmt` CLI can't evaluate.
+#[test]
+fn oxfmt_config_ts_delegates_materialized_json_to_child_oxfmt() {
+    let dir = tempdir();
+    std::fs::write(
+        dir.join("oxfmt.config.ts"),
+        "export default { singleQuote: true };",
+    )
+    .unwrap();
+    let fake = dir.join("fake-oxfmt.cjs");
+    std::fs::write(&fake, CONFIG_ECHO_OXFMT).unwrap();
+    let file = dir.join("c.svelte");
+    std::fs::write(&file, "<div></div>\n<style>.a{color:red}</style>\n").unwrap();
+
+    let status = Command::new(bin())
+        .current_dir(&dir)
+        .args([
+            file.to_str().unwrap(),
+            "--write",
+            "--no-native-css",
+            "--no-style-cache",
+            "--oxfmt-bin",
+            fake.to_str().unwrap(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::inherit())
+        .status()
+        .unwrap();
+    assert!(status.success(), "exit code: {:?}", status.code());
+
+    let out = std::fs::read_to_string(&file).unwrap();
+    assert!(
+        out.contains("/*SQ:true*/"),
+        "expected the materialized-JSON marker (proves `-c` carried the \
+         evaluated TS config, not the .ts path itself):\n{out}"
     );
 }
 
@@ -1454,16 +1851,240 @@ fn sort_tailwindcss_custom_config_warns_and_skips() {
     );
 }
 
+/// A stand-in `oxfmt` that mirrors just the one behavior this file's no-match
+/// tests need: real oxfmt only reports "Expected at least one target file…"
+/// (exit 2) when `--no-error-on-unmatched-pattern` is *not* on its argv. Since
+/// `rsvelte-fmt` always used to pass that flag unconditionally (masking a
+/// genuinely empty tree as a false success), whether the flag is present is
+/// exactly what proves the fix: it must be omitted once every in-process pass
+/// (Svelte, native JS/JSON/CSS) also found nothing.
+const NO_MATCH_ECHO_OXFMT: &str = r#"const argv = process.argv.slice(2);
+if (!argv.includes('--no-error-on-unmatched-pattern')) {
+  process.stderr.write('Expected at least one target file. All matched files may have been excluded by ignore rules.\n');
+  process.exit(2);
+}
+"#;
+
+/// An empty directory (no files at all, so not even `oxfmt`'s own delegated
+/// share has a target) must exit like real `oxfmt` does when it hits "no
+/// target file" unsuppressed — exit 2 with its exact message — not a false
+/// success from the `--no-error-on-unmatched-pattern` flag `rsvelte-fmt`
+/// always used to pass.
+#[test]
+fn empty_directory_exits_two_with_oxfmt_message() {
+    // The fake oxfmt script lives next to (not inside) the target directory —
+    // it's a `.cjs` file, so placing it inside would make the tree not
+    // actually empty (the native-JS pass would pick it up as a real target).
+    let holder = tempdir();
+    let fake = holder.join("fake-oxfmt.cjs");
+    std::fs::write(&fake, NO_MATCH_ECHO_OXFMT).unwrap();
+    let dir = holder.join("empty");
+    std::fs::create_dir(&dir).unwrap();
+
+    let out = Command::new(bin())
+        .current_dir(&dir)
+        .args(["--oxfmt-bin", fake.to_str().unwrap()])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+
+    assert_eq!(out.status.code(), Some(2), "empty directory must exit 2");
+    assert!(out.stdout.is_empty(), "stdout:\n{:?}", out.stdout);
+    assert_eq!(
+        String::from_utf8(out.stderr).unwrap(),
+        "Expected at least one target file. All matched files may have been excluded by ignore rules.\n",
+    );
+}
+
+/// Same as `empty_directory_exits_two_with_oxfmt_message`, but with `--check`
+/// — the no-match error takes priority over `--check`'s own "would reformat"
+/// exit-1 convention, matching oxfmt (which also exits 2, not 1, here).
+#[test]
+fn empty_directory_check_exits_two_with_oxfmt_message() {
+    let holder = tempdir();
+    let fake = holder.join("fake-oxfmt.cjs");
+    std::fs::write(&fake, NO_MATCH_ECHO_OXFMT).unwrap();
+    let dir = holder.join("empty");
+    std::fs::create_dir(&dir).unwrap();
+
+    let out = Command::new(bin())
+        .current_dir(&dir)
+        .args(["--check", "--oxfmt-bin", fake.to_str().unwrap()])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "empty directory must exit 2 even under --check"
+    );
+    assert!(out.stdout.is_empty(), "stdout:\n{:?}", out.stdout);
+    assert_eq!(
+        String::from_utf8(out.stderr).unwrap(),
+        "Expected at least one target file. All matched files may have been excluded by ignore rules.\n",
+    );
+}
+
+/// A directory containing only a `.svelte` file legitimately leaves oxfmt's
+/// own delegated share empty — that must stay a clean no-op (the
+/// `--no-error-on-unmatched-pattern` flag still applied), not the no-match
+/// error above. Regression guard for the `in_process_empty` gate added
+/// alongside `empty_directory_exits_two_with_oxfmt_message`.
+#[test]
+fn svelte_only_directory_is_not_treated_as_no_match() {
+    let dir = tempdir();
+    let fake = dir.join("fake-oxfmt.cjs");
+    std::fs::write(&fake, NO_MATCH_ECHO_OXFMT).unwrap();
+    std::fs::write(dir.join("App.svelte"), "<script>let x=1+2</script>").unwrap();
+
+    let out = Command::new(bin())
+        .current_dir(&dir)
+        .args(["--oxfmt-bin", fake.to_str().unwrap()])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+
+    assert!(
+        out.status.success(),
+        "svelte-only tree must still succeed: exit {:?}, stderr:\n{}",
+        out.status.code(),
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+// ─── real-oxfmt no-match parity (#1636) ──────────────────────────────────
+//
+// The tests above exercise `rsvelte-fmt`'s own decision logic against a fake
+// oxfmt; the tests below replay the same scenarios end-to-end against the
+// real vendored `oxfmt` binary, since the whole point of this fix is exact
+// exit-code/message parity with it. No-op (with a notice) when that binary
+// isn't present/runnable, matching this crate's other real-oxfmt-dependent
+// tests (see `svelte_dev_markdown.rs`).
+
+fn real_oxfmt_bin() -> PathBuf {
+    if let Ok(p) = std::env::var("OXFMT_BIN") {
+        return PathBuf::from(p);
+    }
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../node_modules/.bin/oxfmt")
+}
+
+fn real_oxfmt_runnable(oxfmt: &Path) -> bool {
+    Command::new(oxfmt)
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+/// Runs `rsvelte-fmt <dir>` against the real `oxfmt` binary and asserts both
+/// exit 2 and oxfmt's exact "no target file" message — the scenario is set up
+/// by `setup` beforehand.
+fn assert_real_oxfmt_no_match(setup: impl FnOnce(&Path)) {
+    let oxfmt = real_oxfmt_bin();
+    if !real_oxfmt_runnable(&oxfmt) {
+        eprintln!(
+            "[fmt-no-match] real oxfmt not runnable at {} (set OXFMT_BIN); skipping.",
+            oxfmt.display()
+        );
+        return;
+    }
+
+    let dir = tempdir();
+    setup(&dir);
+
+    let out = Command::new(bin())
+        .current_dir(&dir)
+        .args(["--oxfmt-bin", oxfmt.to_str().unwrap()])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "expected exit 2 against real oxfmt; stderr:\n{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(out.stderr).unwrap(),
+        "Expected at least one target file. All matched files may have been excluded by ignore rules.\n",
+    );
+}
+
+/// Case A: a fully empty directory.
+#[test]
+fn real_oxfmt_empty_directory_is_no_match() {
+    assert_real_oxfmt_no_match(|_dir| {});
+}
+
+/// Case E: an empty subdirectory only — no files anywhere in the tree.
+#[test]
+fn real_oxfmt_empty_subdirectory_only_is_no_match() {
+    assert_real_oxfmt_no_match(|dir| {
+        std::fs::create_dir(dir.join("sub")).unwrap();
+    });
+}
+
+/// Case B: a `.js` file exists but is excluded via `.gitignore`.
+#[test]
+fn real_oxfmt_gitignored_js_is_no_match() {
+    assert_real_oxfmt_no_match(|dir| {
+        let status = Command::new("git")
+            .arg("init")
+            .arg("-q")
+            .arg(dir)
+            .status()
+            .unwrap();
+        assert!(status.success(), "git init failed");
+        std::fs::write(dir.join(".gitignore"), "a.js\n").unwrap();
+        std::fs::write(dir.join("a.js"), "const x=1\n").unwrap();
+    });
+}
+
+/// Case C: a `.js` file exists but is excluded via `.prettierignore`.
+#[test]
+fn real_oxfmt_prettierignored_js_is_no_match() {
+    assert_real_oxfmt_no_match(|dir| {
+        std::fs::write(dir.join(".prettierignore"), "a.js\n").unwrap();
+        std::fs::write(dir.join("a.js"), "const x=1\n").unwrap();
+    });
+}
+
+/// Case D: only a `.txt` file, which no pass (native or oxfmt) formats.
+#[test]
+fn real_oxfmt_unsupported_extension_only_is_no_match() {
+    assert_real_oxfmt_no_match(|dir| {
+        std::fs::write(dir.join("note.txt"), "hello\n").unwrap();
+    });
+}
+
 fn tempdir() -> PathBuf {
+    // PID + timestamp alone can collide: libtest runs this file's tests on a
+    // shared thread pool, so many threads call this within the same PID at
+    // near-identical instants, and some hosts' clocks don't resolve down to a
+    // true unique nanosecond under that load. `create_dir_all` masks a
+    // collision (it happily "succeeds" on an existing dir), so two tests would
+    // silently share one directory and stomp each other's files. The atomic
+    // counter makes each call unique regardless of clock resolution.
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let mut dir = std::env::temp_dir();
     dir.push(format!(
-        "rsvelte_fmt_test_{}_{}",
+        "rsvelte_fmt_test_{}_{}_{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos(),
+        seq,
     ));
-    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::create_dir(&dir).unwrap_or_else(|e| panic!("tempdir collision at {dir:?}: {e}"));
     dir
 }

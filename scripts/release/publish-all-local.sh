@@ -212,7 +212,7 @@ log "═════════════════════════
 build_for_target() {
   local triple="$1"   # e.g. "darwin-arm64"
   local target="$2"   # e.g. "aarch64-apple-darwin"
-  local crate_args=("${@:3}")  # remaining args: --bin svelte_check OR --lib --features napi
+  local crate_args=("${@:3}")  # remaining args: --bin svelte_check OR --lib -p rsvelte_napi
 
   case "$target" in
     *-apple-darwin)
@@ -253,9 +253,9 @@ sc_dest_for() {
 dylib_for() {
   local target="$1"
   case "$target" in
-    *-apple-darwin)    echo "librsvelte_core.dylib" ;;
-    *-unknown-linux-*) echo "librsvelte_core.so" ;;
-    *-pc-windows-msvc) echo "rsvelte_core.dll" ;;
+    *-apple-darwin)    echo "librsvelte_napi.dylib" ;;
+    *-unknown-linux-*) echo "librsvelte_napi.so" ;;
+    *-pc-windows-msvc) echo "rsvelte_napi.dll" ;;
   esac
 }
 
@@ -307,7 +307,7 @@ for entry in "${TRIPLES[@]}"; do
     log "  ↻ @rsvelte/vite-plugin-svelte-native-$triple already published; skipping napi build"
   else
     step "  napi cdylib ($triple)" \
-      build_for_target "$triple" "$target" --lib --features napi
+      build_for_target "$triple" "$target" --lib -p rsvelte_napi
     vps_dylib="$(dylib_for "$target")"
     vps_dest="$vps_dir/rsvelte.node"
     cp "target/$target/release/$vps_dylib" "$vps_dest"

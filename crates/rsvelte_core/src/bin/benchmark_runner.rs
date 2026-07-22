@@ -10,7 +10,6 @@
 // rust-lang/cargo#6313.
 #[cfg(all(
     feature = "mimalloc-alloc",
-    not(feature = "napi"),
     not(target_arch = "wasm32"),
     not(target_os = "windows")
 ))]

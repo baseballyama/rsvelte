@@ -3430,16 +3430,19 @@ fn handle_component(
                             inst_var
                         );
                     } else {
-                        let expr_text = get_expression_text(&bind.expression, source);
-                        // A trailing TS postfix on the bind expression
-                        // (`bind:this={consolePane as Pane}`) moves onto the RHS
-                        // instance var: `consolePane = $$_inst as Pane;` — same as
-                        // the element `bind:this` path (mirrors Binding.ts
-                        // appending `[end, expression.end]` after the assignment).
+                        // The assignment LHS strips a trailing TS assertion
+                        // (`getEnd`); a `bind:this={consolePane as Pane}` postfix
+                        // moves onto the RHS instance var:
+                        // `consolePane = $$_inst as Pane;` — same as the element
+                        // `bind:this` path (mirrors Binding.ts appending
+                        // `[getEnd, expression.end]` after the assignment).
+                        let expr_text = get_binding_lhs_text(&bind.expression, source);
                         let postfix = get_expression_range(&bind.expression)
                             .map(|(_, e)| {
+                                let ge = get_expression_end_stripping_ts(&bind.expression, source)
+                                    .unwrap_or(e);
                                 let ee = extend_expr_end_with_ts_postfix(source, e, bind.end);
-                                slice_src(source, e as usize, ee as usize)
+                                slice_src(source, ge as usize, ee as usize)
                             })
                             .unwrap_or("");
                         let _ = write!(out, "{} = {}{};", expr_text, inst_var, postfix);
@@ -3457,7 +3460,8 @@ fn handle_component(
                     let _ = write!(out, "{}.$$bindings = '{}';", inst_var, bind.name);
                     continue;
                 }
-                let expr_text = get_expression_text(&bind.expression, source);
+                // Setter type-widener: LHS strips a trailing TS assertion.
+                let expr_text = get_binding_lhs_text(&bind.expression, source);
                 let _ = write!(
                     out,
                     "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/{}.$$bindings = '{}';",
@@ -4343,15 +4347,26 @@ fn handle_svelte_component(
         for attr in &comp.attributes {
             if let Attribute::BindDirective(bind) = attr {
                 if bind.name == "this" {
-                    let bexpr = get_expression_text(&bind.expression, source);
-                    let _ = write!(out, "{} = {};", bexpr, inst_var);
+                    // LHS strips a trailing TS assertion; a postfix moves onto the
+                    // RHS instance var (mirrors Binding.ts / the element path).
+                    let bexpr = get_binding_lhs_text(&bind.expression, source);
+                    let postfix = get_expression_range(&bind.expression)
+                        .map(|(_, e)| {
+                            let ge = get_expression_end_stripping_ts(&bind.expression, source)
+                                .unwrap_or(e);
+                            let ee = extend_expr_end_with_ts_postfix(source, e, bind.end);
+                            slice_src(source, ge as usize, ee as usize)
+                        })
+                        .unwrap_or("");
+                    let _ = write!(out, "{} = {}{};", bexpr, inst_var, postfix);
                     continue;
                 }
                 if get_set_binding_ranges(&bind.expression, source).is_some() {
                     let _ = write!(out, "{}.$$bindings = '{}';", inst_var, bind.name);
                     continue;
                 }
-                let bexpr = get_expression_text(&bind.expression, source);
+                // Setter type-widener: LHS strips a trailing TS assertion.
+                let bexpr = get_binding_lhs_text(&bind.expression, source);
                 let _ = write!(
                     out,
                     "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/{}.$$bindings = '{}';",
@@ -6205,6 +6220,185 @@ fn format_spread_attribute_segments(spread: &SpreadAttribute, source: &str) -> O
     Some(out)
 }
 
+/// Mirror upstream svelte2tsx `getEnd` (`htmlxtojsx_v2/utils/node-utils.ts`):
+/// for a TS assertion expression (`x as T` / `x satisfies T` / `x!`) return the
+/// end offset of the INNER expression (stripping the assertion); otherwise the
+/// expression's own end. Used for binding assignment LHSs, which must not carry
+/// the assertion (`() => (value as never) = …` → `() => (value = …)`).
+///
+/// The parser now preserves the assertion wrapper in the binding expression, but
+/// the svelte2tsx parse path does not resolve arena children (`as_json()` is
+/// empty), so — like [`extend_expr_end_with_ts_postfix`] — the inner end is
+/// found by scanning the expression's source span rather than the arena.
+fn get_expression_end_stripping_ts(expr: &crate::ast::js::Expression, source: &str) -> Option<u32> {
+    let (start, end) = get_expression_range(expr)?;
+    let ty = expr.node_type()?;
+    if !matches!(
+        ty,
+        "TSAsExpression"
+            | "TSSatisfiesExpression"
+            | "TSNonNullExpression"
+            | "TSInstantiationExpression"
+    ) {
+        return Some(end);
+    }
+    let bytes = source.as_bytes();
+    let (s, e) = (start as usize, end as usize);
+    if e > source.len() || s >= e {
+        return Some(end);
+    }
+    if ty == "TSNonNullExpression" {
+        // Strip the trailing `!` (and any surrounding whitespace).
+        let mut i = e;
+        while i > s && bytes[i - 1].is_ascii_whitespace() {
+            i -= 1;
+        }
+        if i > s && bytes[i - 1] == b'!' {
+            i -= 1;
+        }
+        while i > s && bytes[i - 1].is_ascii_whitespace() {
+            i -= 1;
+        }
+        return Some(i as u32);
+    }
+    if ty == "TSInstantiationExpression" {
+        // `f<T>`: strip the trailing `<…>` type-argument list. Scan back from the
+        // closing `>` balancing nested `<…>` to its matching `<`; the inner
+        // expression ends just before it.
+        let mut i = e;
+        while i > s && bytes[i - 1].is_ascii_whitespace() {
+            i -= 1;
+        }
+        if i > s && bytes[i - 1] == b'>' {
+            let mut depth: i32 = 0;
+            while i > s {
+                match bytes[i - 1] {
+                    b'>' => depth += 1,
+                    b'<' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            i -= 1;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+                i -= 1;
+            }
+            while i > s && bytes[i - 1].is_ascii_whitespace() {
+                i -= 1;
+            }
+        }
+        return Some(i as u32);
+    }
+    // `x as T` / `x satisfies T`: find the outermost (last top-level) ` as ` /
+    // ` satisfies ` keyword; the inner expression ends just before it.
+    let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'$';
+    let mut depth: i32 = 0;
+    let mut string: Option<u8> = None;
+    let mut op_ws: Option<usize> = None; // index of the whitespace preceding the keyword
+    let mut i = s;
+    while i < e {
+        let c = bytes[i];
+        if let Some(q) = string {
+            if c == b'\\' {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                string = None;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            b'\'' | b'"' | b'`' => string = Some(c),
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            _ if depth == 0 && c.is_ascii_whitespace() => {
+                let mut j = i;
+                while j < e && bytes[j].is_ascii_whitespace() {
+                    j += 1;
+                }
+                for (kw, kwlen) in [("as", 2usize), ("satisfies", 9usize)] {
+                    if j + kwlen <= e
+                        && &source[j..j + kwlen] == kw
+                        && (j + kwlen == e || !is_ident(bytes[j + kwlen]))
+                    {
+                        op_ws = Some(i);
+                    }
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    match op_ws {
+        Some(p) => {
+            let mut ie = p;
+            while ie > s && bytes[ie - 1].is_ascii_whitespace() {
+                ie -= 1;
+            }
+            Some(ie as u32)
+        }
+        None => Some(end),
+    }
+}
+
+/// Start offset of an expression, stripping a leading TS `<T>` type-assertion
+/// prefix (`TSTypeAssertion`). For `<T>x` the assignable inner expression begins
+/// after the closing `>`; every other expression keeps its own start.
+fn get_expression_start_stripping_ts(
+    expr: &crate::ast::js::Expression,
+    source: &str,
+) -> Option<u32> {
+    let (start, end) = get_expression_range(expr)?;
+    if expr.node_type()? != "TSTypeAssertion" {
+        return Some(start);
+    }
+    let bytes = source.as_bytes();
+    let (s, e) = (start as usize, end as usize);
+    if e > source.len() || s >= e || bytes[s] != b'<' {
+        return Some(start);
+    }
+    // Balance the leading `<…>` (nested generics included), then skip whitespace.
+    let mut i = s;
+    let mut depth: i32 = 0;
+    while i < e {
+        match bytes[i] {
+            b'<' => depth += 1,
+            b'>' => {
+                depth -= 1;
+                if depth == 0 {
+                    i += 1;
+                    break;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    while i < e && bytes[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    Some(i as u32)
+}
+
+/// Source text of a binding assignment LHS: the expression with any TS assertion
+/// stripped (mirrors `[getStart(expr), getEnd(expr)]` upstream). A trailing
+/// postfix (`as T` / `satisfies T` / `!` / `<T>` type args) is trimmed from the
+/// end and a leading `<T>` type-assertion prefix from the start, so a cast never
+/// lands on the assignment target.
+fn get_binding_lhs_text<'a>(expr: &crate::ast::js::Expression, source: &'a str) -> &'a str {
+    match (
+        get_expression_start_stripping_ts(expr, source),
+        get_expression_end_stripping_ts(expr, source),
+    ) {
+        (Some(start), Some(ge)) if start <= ge => slice_src(source, start as usize, ge as usize),
+        _ => get_expression_text(expr, source),
+    }
+}
+
 /// Extend an expression's end to cover a trailing TS postfix (`as T`,
 /// `satisfies T`, `!`) that the parser narrowed out of the expression span.
 /// `scan_end` is the enclosing `{…}` directive/attribute end; the closing `}`
@@ -6557,17 +6751,21 @@ fn bind_directive_suffix_seg(
             }
             return out;
         }
-        let expr_text = get_expression_text(&bind.expression, source);
+        // Every branch here emits `expr` as an assignment LHS, so a trailing TS
+        // assertion must be stripped (mirrors upstream `getEnd(attr.expression)`).
+        let expr_text = get_binding_lhs_text(&bind.expression, source);
         if bind.name == "this" {
             if let Some(var) = element_var {
                 // A trailing TS postfix on the bind expression
                 // (`bind:this={el as HTMLElement}`) moves onto the RHS var:
                 // `el = $$_var as HTMLElement;` (mirrors Binding.ts appending
-                // `[end, expression.end]` after the assignment).
+                // `[getEnd, expression.end]` after the assignment).
                 let postfix = get_expression_range(&bind.expression)
                     .map(|(_, e)| {
+                        let ge =
+                            get_expression_end_stripping_ts(&bind.expression, source).unwrap_or(e);
                         let ee = extend_expr_end_with_ts_postfix(source, e, bind.end);
-                        slice_src(source, e as usize, ee as usize)
+                        slice_src(source, ge as usize, ee as usize)
                     })
                     .unwrap_or("");
                 let _ = write!(out, "{} = {}{};", expr_text, var, postfix);

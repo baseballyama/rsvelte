@@ -2,7 +2,7 @@
 /**
  * Collect every `.svelte` / `.svelte.js` / `.svelte.ts` source (including code
  * blocks inside markdown) from the lint-relevant upstream repos into
- * `compat/lint-corpus/sources/`, for the eslint-plugin-svelte output-parity
+ * `compatibility/lint-sources/`, for the eslint-plugin-svelte output-parity
  * pipeline (scripts/compat-corpus/lint-verify.mjs).
  *
  * Unlike the compile corpus (svelte + svelte.dev only), the lint corpus also
@@ -22,8 +22,8 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const CORPUS = path.join(ROOT, 'compat/lint-corpus');
-const OUT = path.join(CORPUS, 'sources');
+const CORPUS = path.join(ROOT, 'compatibility');
+const OUT = path.join(CORPUS, 'lint-sources');
 
 // Repos to harvest, in priority order. `eslint-plugin-svelte` and
 // `svelte-eslint-parser` are the lint-specific additions (their rule/parser
@@ -190,5 +190,5 @@ fs.writeFileSync(
 
 manifest.sort((a, b) => (a.id < b.id ? -1 : 1));
 fs.mkdirSync(CORPUS, { recursive: true });
-fs.writeFileSync(path.join(CORPUS, 'manifest.json'), JSON.stringify(manifest, null, '\t') + '\n');
+fs.writeFileSync(path.join(CORPUS, 'lint-manifest.json'), JSON.stringify(manifest, null, '\t') + '\n');
 console.log(`[lint-collect] total: ${manifest.length} corpus entries -> ${path.relative(ROOT, OUT)}`);

@@ -1,7 +1,9 @@
 use oxc_allocator::Allocator;
+use oxc_ast::ast::{Program, TSAsExpression, TSSatisfiesExpression, TSType};
+use oxc_ast_visit::{Visit, walk};
 use oxc_formatter::format_program;
 use oxc_parser::{ParseOptions as OxcParseOptions, Parser};
-use oxc_span::SourceType;
+use oxc_span::{GetSpan, SourceType};
 use rsvelte_core::ast::arena::try_with_current_serialize_arena;
 use rsvelte_core::ast::js::Expression;
 use rsvelte_core::ast::template::{ExpressionTag, Fragment, TemplateNode};
@@ -858,20 +860,24 @@ fn push_bare_expression(
     let suffix_len = compute_header_suffix_len(source, end as usize);
     // First format inline (single-line) to get the canonical expression text.
     let formatted = format_inline_expression(slice, options)?;
-    // prettier-plugin-svelte uses `forceSingleLine: true` (internally `removeLines`)
-    // for block-header expressions like `{#each}`, `{#if}`, etc.  This means all
-    // non-hard line breaks in the formatted expression doc are replaced by spaces,
-    // producing a single-line result even for wide array/object literals.
-    //
-    // OXC's formatter (unlike prettier) always breaks arrays/objects of significant
-    // width into multiple lines, even with `Expand::Never` and `LineWidth::MAX`.
-    // When the source expression is an array or object literal with no newlines,
-    // collapse the multi-line OXC output back to a single line to match oracle.
-    let formatted = if formatted.contains('\n')
-        && starts_with_array_or_object_literal(slice)
-        && !slice.contains('\n')
-    {
-        collapse_multiline_to_single_line(&formatted)
+    // prettier-plugin-svelte forces block-header expressions onto one line
+    // (`forceSingleLine`/`removeLines`). OXC breaks some expressions across lines
+    // even at `LineWidth::MAX` — wide array/object literals, and calls whose last
+    // argument is huggable (prettier's shouldExpandLastArg, printed as
+    // `allArgsBrokenOut`). When the source is single-line, collapse OXC's
+    // multi-line result back to one line so a block header is never emitted broken.
+    let formatted = if formatted.contains('\n') && !slice.contains('\n') {
+        if starts_with_array_or_object_literal(slice) {
+            // Array/object literal: prettier keeps it flat with no added spaces.
+            collapse_multiline_to_single_line(&formatted)
+        } else if let Some(collapsed) = collapse_block_header_expanded_call(&formatted) {
+            // A call OXC expanded because its last arg is huggable. prettier's
+            // `removeLines` collapses the `allArgsBrokenOut` layout to one line but
+            // keeps the expanded-arg spacing: `fn( a, b )`.
+            collapsed
+        } else {
+            formatted
+        }
     } else {
         formatted
     };
@@ -1924,6 +1930,28 @@ fn format_expr_core(
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
         .into_code();
 
+    // Template-position `x as A | B` / `x satisfies A | B`: oxc ties the union's
+    // leading-`|` break to the `as`/`satisfies` annotation break, so once the
+    // annotation moves to its own line the union always expands. The oxfmt
+    // oracle formats template expressions with prettier's estree printer, which
+    // keeps the union flat on the annotation line when it fits (only `<script>`
+    // blocks — a separate `format_program` path — share oxc's behaviour). No
+    // print width reaches that layout in oxc, so reflow the flat form here when
+    // the flat line fits. The proper fix is a separate-group `as` layout in
+    // oxc_formatter upstream.
+    //
+    // Skipped on the const-wrapper (await) path: there oxc lays out at
+    // `line_width + 20` and the wrapper prefix is stripped afterwards, so the
+    // reflow's column/budget measurement would not match the final output — an
+    // `as`-union inside a template `await` expression is vanishingly rare, so
+    // leaving oxc's form is the safe choice.
+    let formatted = if !use_const_wrapper && program_has_as_or_satisfies_union(&parser_ret.program)
+    {
+        reflow_flat_as_satisfies_unions(&formatted, line_width.value() as usize, source_type)
+    } else {
+        formatted
+    };
+
     let s = formatted.trim_end().trim_end_matches(';').trim_end();
     // With semicolons set to "as needed", OXC prefixes expression statements
     // such as arrow functions with an ASI guard. Template expressions are not
@@ -1981,6 +2009,193 @@ fn format_expr_core(
     Ok(result)
 }
 
+/// AST gate for [`reflow_flat_as_satisfies_unions`]: does the program contain
+/// any `x as A | B` / `x satisfies A | B` whose annotation is a ≥2-member union?
+/// Only such expressions produce oxc's leading-`|` layout that the reflow
+/// targets, so the (structural, non-node-mapped) string pass runs only when the
+/// AST confirms the construct genuinely exists.
+fn program_has_as_or_satisfies_union(program: &Program<'_>) -> bool {
+    struct Finder {
+        found: bool,
+    }
+    impl<'a> Visit<'a> for Finder {
+        fn visit_ts_as_expression(&mut self, expr: &TSAsExpression<'a>) {
+            self.found |= is_multi_member_union(&expr.type_annotation);
+            walk::walk_ts_as_expression(self, expr);
+        }
+        fn visit_ts_satisfies_expression(&mut self, expr: &TSSatisfiesExpression<'a>) {
+            self.found |= is_multi_member_union(&expr.type_annotation);
+            walk::walk_ts_satisfies_expression(self, expr);
+        }
+    }
+    let mut finder = Finder { found: false };
+    finder.visit_program(program);
+    finder.found
+}
+
+fn is_multi_member_union(ty: &TSType<'_>) -> bool {
+    matches!(ty, TSType::TSUnionType(u) if u.types.len() >= 2)
+}
+
+/// Collapse oxc's leading-`|` union expansion back onto the `as`/`satisfies`
+/// annotation line when the flat form fits, reproducing prettier's `as`-layout
+/// (the oxfmt oracle for template expressions).
+///
+/// Robustness: a leading-`|` line run is only reflowed when it lies inside the
+/// span of a real `as`/`satisfies` union type annotation, found by **re-parsing
+/// the formatted text** and reading each annotation node's span directly. This
+/// prevents rewriting look-alike `| `-prefixed lines that are actually the body
+/// of a multi-line template literal or block comment sharing the expression with
+/// a genuine `as`-union sibling — the string/comment content is not a type node,
+/// so no union span covers it. Runs with a multi-line member (the union span
+/// then extends past the last collected `| ` line) or whose flat form overflows
+/// `budget` are left expanded, matching the oracle for long unions.
+fn reflow_flat_as_satisfies_unions(
+    formatted: &str,
+    budget: usize,
+    source_type: SourceType,
+) -> String {
+    let union_spans = as_satisfies_union_spans(formatted, source_type);
+    if union_spans.is_empty() {
+        return formatted.to_string();
+    }
+
+    let lines: Vec<&str> = formatted.split('\n').collect();
+    // Byte offset of the start of each line (lines were split on '\n').
+    let mut line_start = Vec::with_capacity(lines.len());
+    let mut acc = 0usize;
+    for l in &lines {
+        line_start.push(acc);
+        acc += l.len() + 1;
+    }
+
+    let covered_by_union = |start: usize, end: usize| {
+        union_spans
+            .iter()
+            .any(|&(us, ue)| us >= start && us <= end && ue >= start && ue <= end)
+    };
+
+    let mut out: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        let anchored = {
+            let t = line.trim_end();
+            t.ends_with(" as") || t.ends_with(" satisfies")
+        };
+        if anchored
+            && let Some((flat_line, consumed)) =
+                try_flatten_union_block(&lines, &line_start, i + 1, budget, &covered_by_union)
+        {
+            out.push(line.to_string());
+            out.push(flat_line);
+            i += 1 + consumed;
+            continue;
+        }
+        out.push(line.to_string());
+        i += 1;
+    }
+    out.join("\n")
+}
+
+/// Re-parse the formatted text and collect the byte spans (into `formatted`) of
+/// every `as`/`satisfies` node's ≥2-member union type annotation.
+fn as_satisfies_union_spans(formatted: &str, source_type: SourceType) -> Vec<(usize, usize)> {
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, formatted, source_type)
+        .with_options(formatter_parse_options())
+        .parse();
+    if !parsed.diagnostics.is_empty() {
+        return Vec::new();
+    }
+    struct Collector {
+        spans: Vec<(usize, usize)>,
+    }
+    impl<'a> Visit<'a> for Collector {
+        fn visit_ts_as_expression(&mut self, expr: &TSAsExpression<'a>) {
+            if is_multi_member_union(&expr.type_annotation) {
+                let s = expr.type_annotation.span();
+                self.spans.push((s.start as usize, s.end as usize));
+            }
+            walk::walk_ts_as_expression(self, expr);
+        }
+        fn visit_ts_satisfies_expression(&mut self, expr: &TSSatisfiesExpression<'a>) {
+            if is_multi_member_union(&expr.type_annotation) {
+                let s = expr.type_annotation.span();
+                self.spans.push((s.start as usize, s.end as usize));
+            }
+            walk::walk_ts_satisfies_expression(self, expr);
+        }
+    }
+    let mut c = Collector { spans: Vec::new() };
+    c.visit_program(&parsed.program);
+    c.spans
+}
+
+/// Try to read a leading-`|` union block starting at line `start`. On success
+/// returns the single flattened line and how many source lines it consumed.
+fn try_flatten_union_block(
+    lines: &[&str],
+    line_start: &[usize],
+    start: usize,
+    budget: usize,
+    covered_by_union: &impl Fn(usize, usize) -> bool,
+) -> Option<(String, usize)> {
+    let first = lines.get(start)?;
+    let w = first.len() - first.trim_start().len();
+    let indent = &first[..w];
+    if !first[w..].starts_with("| ") {
+        return None;
+    }
+
+    let mut members: Vec<&str> = Vec::new();
+    let mut n = 0;
+    while let Some(l) = lines.get(start + n) {
+        let lw = l.len() - l.trim_start().len();
+        if lw == w && l[lw..].starts_with("| ") {
+            members.push(&l[lw + 2..]);
+            n += 1;
+        } else {
+            break;
+        }
+    }
+    // A union has ≥2 members; a single `| X` line is not the shape we reflow.
+    if members.len() < 2 {
+        return None;
+    }
+    // The collected `| ` lines must fall inside one real union type annotation
+    // span — otherwise this is a look-alike inside a template literal / comment.
+    // The union span starts on the first member line and ends on the last.
+    let last = start + n - 1;
+    let block_start = line_start[start];
+    let block_end = line_start[last] + lines[last].len();
+    if !covered_by_union(block_start, block_end) {
+        return None;
+    }
+    // A deeper following line means the last member broke across lines — keep the
+    // whole block expanded (the oracle does too).
+    if let Some(next) = lines.get(start + n)
+        && !next.trim().is_empty()
+        && next.len() - next.trim_start().len() > w
+    {
+        return None;
+    }
+    // A member that opens a block/call/generic is itself multi-line: don't flatten.
+    if members
+        .iter()
+        .any(|m| matches!(m.trim_end().chars().last(), Some('{' | '(' | '[' | '<')))
+    {
+        return None;
+    }
+
+    let flat_body = members.join(" | ");
+    let flat_line = format!("{indent}{flat_body}");
+    if UnicodeWidthStr::width(flat_line.as_str()) > budget {
+        return None;
+    }
+    Some((flat_line, n))
+}
+
 /// Format an attribute / directive value expression (`bind:value={ … }`) at
 /// the configured width. Attribute-position wrapping is owned by the open-tag
 /// rewrite in [`crate::markup`], so this applies no markup-depth adjustment.
@@ -2027,6 +2242,33 @@ pub(crate) fn format_attribute_value_expression(
     let line_width = oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16)
         .unwrap_or(options.js.line_width);
     format_expr_core(expr_source, options, line_width, false)
+}
+
+/// Format an attribute / directive value expression at an explicit print
+/// `width` (in columns), formatted at column 0 (no reindent). Used by the
+/// whole-value Doc model (`crate::markup`) to produce an interpolation's `flat`
+/// form (at the widest line OXC allows) and its `broken` form (at the width
+/// that forces the break the enclosing group already decided on).
+pub(crate) fn format_attribute_value_expression_at_width(
+    expr_source: &str,
+    options: &FormatOptions,
+    width: usize,
+) -> Result<String, FormatError> {
+    let lw = oxc_formatter_core::LineWidth::try_from(width.max(1) as u16)
+        .unwrap_or(options.js.line_width);
+    format_expr_core(expr_source, options, lw, false)
+}
+
+/// Format an attribute / directive value expression onto a single line,
+/// regardless of length — the `RawExpr` flat variant for the whole-value Doc
+/// model. Formats at the widest line OXC allows so a long ternary / member
+/// chain does not split.
+pub(crate) fn format_attribute_value_expression_flat(
+    expr_source: &str,
+    options: &FormatOptions,
+) -> Result<String, FormatError> {
+    let wide = oxc_formatter_core::LineWidth::MAX as usize;
+    format_attribute_value_expression_at_width(expr_source, options, wide)
 }
 
 /// Format a block-header expression (`{#if cond}`, `{#each items …}`) onto a
@@ -3229,6 +3471,93 @@ fn collapse_expanded_arg_form(multi: &str) -> Option<String> {
     Some(result)
 }
 
+/// Collapse OXC's `LineWidth::MAX` "expanded call" layout back to prettier's
+/// single-line block-header form, WITH expanded-arg spacing.
+///
+/// `format_inline_expression` (LineWidth::MAX) only breaks a call across lines
+/// when OXC unconditionally expands it — the same shape prettier bakes as
+/// `allArgsBrokenOut` under shouldExpandLastArg. prettier-plugin-svelte's
+/// `removeLines` then collapses that layout to one line, turning the `line`
+/// separators into spaces and dropping the trailing comma: `callee( a, b )`.
+///
+/// The gate rests on the empirical MAX-break ⟺ shouldExpandLastArg correlation
+/// (a call reaches this path only when OXC unconditionally expands it); should a
+/// future oxc update break that correlation, the fmt corpus output-equality gate
+/// is the safety net that catches it.
+///
+/// Accepts only the "flat arguments" shape: the first line ends with `(`, the
+/// last line is `)` alone, and every intervening line is one complete top-level
+/// argument (bracket depth returns to the argument-list level at the line
+/// boundary). Returns `None` otherwise (e.g. an argument's own object/array broke
+/// across further lines, or a curried `)(` closes the argument list mid-region) so
+/// the caller keeps the multi-line output unchanged.
+///
+/// Exclusive with [`collapse_expanded_arg_form`], which handles the complementary
+/// shape where the first line does NOT end with `(` (an argument hugged onto the
+/// first line, e.g. `options.filter((opt) =>`).
+fn collapse_block_header_expanded_call(multi: &str) -> Option<String> {
+    let lines: Vec<&str> = multi.trim_end_matches(';').trim().lines().collect();
+    if lines.len() < 3 {
+        return None;
+    }
+    let first = lines[0].trim_end();
+    if !first.ends_with('(') {
+        return None;
+    }
+    if lines[lines.len() - 1].trim() != ")" {
+        return None;
+    }
+    let inner = &lines[1..lines.len() - 1];
+    // depth starts at 1: the first line's trailing `(` opened the argument list.
+    // Each inner line is one complete top-level argument, so depth returns to 1 at
+    // every line boundary. It must never reach 0 mid-region — depth 0 means the
+    // argument list closed early (e.g. a curried `foo(...)(...)` whose inner line
+    // carries a `)(`), which this flat-args fold cannot represent, so bail rather
+    // than emit a corrupted single line.
+    let mut depth: i32 = 1;
+    let mut in_string: Option<char> = None;
+    let mut prev_escape = false;
+    let mut args: Vec<String> = Vec::with_capacity(inner.len());
+    for line in inner {
+        let t = line.trim();
+        for c in t.chars() {
+            if let Some(q) = in_string {
+                if prev_escape {
+                    prev_escape = false;
+                } else if c == '\\' {
+                    prev_escape = true;
+                } else if c == q {
+                    in_string = None;
+                }
+                continue;
+            }
+            match c {
+                '"' | '\'' | '`' => in_string = Some(c),
+                '(' | '[' | '{' => depth += 1,
+                ')' | ']' | '}' => {
+                    depth -= 1;
+                    if depth <= 0 {
+                        return None;
+                    }
+                }
+                _ => {}
+            }
+        }
+        // A complete top-level argument returns to the argument-list level.
+        if in_string.is_some() || depth != 1 {
+            return None;
+        }
+        args.push(t.to_string());
+    }
+    // Drop OXC's trailing comma on the last argument (removeLines strips the
+    // `ifBreak(",")`); the commas between args are the real separators.
+    if let Some(last) = args.last_mut() {
+        *last = last.trim_end_matches(',').trim_end().to_string();
+    }
+    let joined = args.join(" ");
+    Some(format!("{first} {joined} )"))
+}
+
 /// Convert OXC's `fn({ k: v, ... })` / `fn({\n  k: v,\n})` form to
 /// prettier-plugin-svelte's "outer-expanded-arg" form:
 /// ```text
@@ -3505,6 +3834,56 @@ mod tests {
         // FIX 4: bail on string literals
         let multi = "fn(\"hello\",\n)";
         assert!(collapse_expanded_arg_form(multi).is_none());
+    }
+
+    #[test]
+    fn collapse_block_header_expanded_call_stacked_zoom() {
+        // OXC MAX-width expansion of `isNodeVisible(node, nodes.find((n) => …))`
+        // (the layerchart stacked-zoom `{#if}` header). removeLines collapses it
+        // to one line WITH expanded-arg spacing and no trailing comma.
+        let multi = "isNodeVisible(\n  node,\n  nodes.find((n) => n.data.name === selected.data.name && n.depth === selected.depth),\n)";
+        assert_eq!(
+            collapse_block_header_expanded_call(multi).unwrap(),
+            "isNodeVisible( node, nodes.find((n) => n.data.name === selected.data.name && n.depth === selected.depth) )"
+        );
+    }
+
+    #[test]
+    fn collapse_block_header_expanded_call_bails_nested_arg() {
+        // An argument whose object broke across further lines is not the flat-args
+        // shape — bail and keep the multi-line output unchanged.
+        let multi = "handle(\n  first,\n  {\n    a: 1,\n  },\n)";
+        assert!(collapse_block_header_expanded_call(multi).is_none());
+    }
+
+    #[test]
+    fn collapse_block_header_expanded_call_bails_first_line_not_open_paren() {
+        // The "arrow hugged then broke" shape (first line ends `=>`) is handled by
+        // `collapse_expanded_arg_form` in the narrowed-width path, not here.
+        let multi = "options.filter((opt) =>\n  selectedValues.has(opt.value),\n)";
+        assert!(collapse_block_header_expanded_call(multi).is_none());
+    }
+
+    #[test]
+    fn collapse_block_header_expanded_call_bails_curried_call() {
+        // A curried `foo(...)(...)` whose inner line carries a `)(` closes the
+        // argument list mid-region (depth reaches 0). The flat-args fold cannot
+        // represent it, so it must bail (keep the multi-line form) rather than
+        // emit a corrupted single line. (Without the depth<=0 guard the per-line
+        // net-balance check would accept `a)(b` and fold to `outer( a)(b, c )`.)
+        let multi = "outer(\n  a)(b,\n  c,\n)";
+        assert!(collapse_block_header_expanded_call(multi).is_none());
+    }
+
+    #[test]
+    fn collapse_block_header_expanded_call_folds_paren_inside_string() {
+        // A `(` / `)` inside a string literal argument must not corrupt the depth
+        // walk — the flat-args fold still applies.
+        let multi = "foo(\n  \"(\",\n  second,\n)";
+        assert_eq!(
+            collapse_block_header_expanded_call(multi).unwrap(),
+            "foo( \"(\", second )"
+        );
     }
 
     #[test]

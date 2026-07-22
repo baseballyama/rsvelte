@@ -27,6 +27,7 @@ mod daemon;
 mod oxfmt_ignore;
 mod style_cache;
 mod tailwind;
+mod ts_config;
 use config::OxfmtConfig;
 use style_cache::StyleCache;
 
@@ -38,7 +39,8 @@ struct Cli {
     /// process; every other path is delegated to `oxfmt`, so directories cover
     /// the full oxfmt-supported set (`.ts`/`.js`/`.css`/`.json` and also
     /// `.md`/`.yaml`/`.toml`/`.html`, etc.) — the same files `oxfmt .` would
-    /// format. See #694.
+    /// format. When omitted, the current directory is formatted (matching
+    /// `oxfmt`). See #694.
     paths: Vec<PathBuf>,
 
     /// Write formatted output back to source files. Default when paths
@@ -324,7 +326,7 @@ fn run() -> Result<ExitCode> {
         .filter(|_| cli.stdin)
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| cwd.clone());
-    let cfg = OxfmtConfig::resolve(cli.config.as_deref(), &config_start);
+    let cfg = OxfmtConfig::resolve(cli.config.as_deref(), &config_start).map_err(|e| anyhow!(e))?;
 
     let options = build_format_options(&cli, &cfg);
 
@@ -332,10 +334,10 @@ fn run() -> Result<ExitCode> {
         return run_stdin(&cli, &options, &cfg);
     }
 
+    // No paths given (and not stdin mode): default to the current directory,
+    // matching `oxfmt`, which formats the cwd when no PATH is provided.
     if cli.paths.is_empty() {
-        return Err(anyhow!(
-            "no paths given — pass files/directories or use --stdin --stdin-filepath PATH"
-        ));
+        cli.paths.push(PathBuf::from("."));
     }
 
     let native_js = !cli.no_native_js;
@@ -343,6 +345,28 @@ fn run() -> Result<ExitCode> {
     let ignore = oxfmt_ignore::SvelteIgnore::from_config(&cwd, &cfg)?;
     let (svelte, native, native_json, native_css_files, oxfmt_paths) =
         partition_files(&cli.paths, &ignore, &cwd, native_js, native_css)?;
+
+    // Whether every in-process pass (Svelte, native JS/JSON/CSS) found
+    // nothing at all. When true, `oxfmt`'s own delegated share is the only
+    // remaining source of truth for whether anything exists to format, so it
+    // must be allowed to error for real instead of being unconditionally
+    // suppressed (see `run_oxfmt`'s `suppress_unmatched`) — replicating
+    // oxfmt's own ignore + extension matching here would be a fragile
+    // duplication of logic that already lives in the `oxfmt` binary itself.
+    let in_process_empty = svelte.is_empty()
+        && native.is_empty()
+        && native_json.is_empty()
+        && native_css_files.is_empty();
+
+    // Nothing was even handed to `oxfmt` (every path was an explicit file
+    // that turned out to be ignored), so no subprocess will run to report the
+    // error itself — report it the same way oxfmt would.
+    if in_process_empty && oxfmt_paths.is_empty() {
+        eprintln!(
+            "Expected at least one target file. All matched files may have been excluded by ignore rules."
+        );
+        return Ok(ExitCode::from(2));
+    }
 
     let mode = if cli.check { Mode::Check } else { Mode::Write };
 
@@ -419,6 +443,13 @@ fn run() -> Result<ExitCode> {
                 exclude_native,
                 exclude_native_json,
                 exclude_native_css,
+                // A Svelte-only or CSS-only tree legitimately leaves oxfmt's
+                // own share empty, so suppress its unmatched-pattern error —
+                // but not when every in-process pass is *also* empty: oxfmt
+                // is then the only thing that can tell (via its own ignore
+                // rules and supported-extension set) whether anything really
+                // exists to format, so it must be allowed to error for real.
+                !in_process_empty,
             )
         },
     );
@@ -432,6 +463,14 @@ fn run() -> Result<ExitCode> {
         .merge(native_status)
         .merge(json_status)
         .merge(css_status);
+
+    // oxfmt ran unsuppressed above and genuinely found nothing — its own
+    // "no target file" message already went to stderr (inherited), so don't
+    // also print our summary line; just propagate the error exit code.
+    if in_process_empty && oxfmt_status.had_errors {
+        return Ok(combine(combined, oxfmt_status, mode));
+    }
+
     print_summary(&combined, &oxfmt_status, mode);
     Ok(combine(combined, oxfmt_status, mode))
 }
@@ -555,7 +594,7 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> FormatOptions {
     // by default (same engine as `oxfmt`, no subprocess). `--no-native-css`
     // reverts to spawning `oxfmt`, which the batched Svelte pipeline drives.
     let style_formatter = if cli.no_native_css {
-        make_oxfmt_style_formatter(cli.oxfmt_bin.clone(), cfg.path.clone())
+        make_oxfmt_style_formatter(cli.oxfmt_bin.clone(), cfg.oxfmt_arg_path.clone())
     } else {
         rsvelte_formatter::native_style_formatter(build_css_options(cli, cfg))
     };
@@ -781,7 +820,7 @@ fn run_stdin(cli: &Cli, options: &FormatOptions, cfg: &OxfmtConfig) -> Result<Ex
             }
             Err(_) => oxfmt_stdin(
                 &cli.oxfmt_bin,
-                cfg.path.as_deref(),
+                cfg.oxfmt_arg_path.as_deref(),
                 filepath,
                 &source,
                 cli.check,
@@ -791,7 +830,7 @@ fn run_stdin(cli: &Cli, options: &FormatOptions, cfg: &OxfmtConfig) -> Result<Ex
         // Pass through to oxfmt via stdin.
         oxfmt_stdin(
             &cli.oxfmt_bin,
-            cfg.path.as_deref(),
+            cfg.oxfmt_arg_path.as_deref(),
             filepath,
             &source,
             cli.check,
@@ -1154,13 +1193,18 @@ fn run_svelte_files(
     // dominant cost on a real tree (#703). Only cache misses are sent to the
     // single batched oxfmt call; freshly-formatted misses are then stored.
     let cache = if use_style_cache && !slot_css.is_empty() {
-        StyleCache::new(oxfmt, cfg.path.as_deref())
+        StyleCache::new(oxfmt, cfg.oxfmt_arg_path.as_deref())
     } else {
         None
     };
 
-    let formatted_css = format_styles_cached(oxfmt, cfg.path.as_deref(), &slot_css, cache.as_ref())
-        .context("formatting <style> blocks via oxfmt")?;
+    let formatted_css = format_styles_cached(
+        oxfmt,
+        cfg.oxfmt_arg_path.as_deref(),
+        &slot_css,
+        cache.as_ref(),
+    )
+    .context("formatting <style> blocks via oxfmt")?;
 
     // file_idx → (local_idx → formatted css)
     let mut per_file: Vec<Vec<String>> = vec![Vec::new(); pass1.len()];
@@ -1686,7 +1730,7 @@ fn run_native_js(
     // counted in `files_total`; a parse-error file the fallback also can't
     // handle surfaces oxfmt's own diagnostics.
     if !fallback.is_empty() {
-        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false)?;
+        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false, true)?;
         status.files_changed += fb.files_changed;
         status.had_errors |= fb.had_errors;
     }
@@ -1833,7 +1877,7 @@ fn run_native_json(
     // Explicit paths with no native excludes, so oxfmt formats exactly these
     // (and applies `sortPackageJson` to any `package.json`).
     if !fallback.is_empty() {
-        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false)?;
+        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false, true)?;
         status.files_changed += fb.files_changed;
         status.had_errors |= fb.had_errors;
     }
@@ -1974,7 +2018,7 @@ fn run_native_css(
     // oxfmt fallback for override-matched + parse-error files. Explicit paths
     // with no native excludes, so oxfmt formats exactly these.
     if !fallback.is_empty() {
-        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false)?;
+        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false, true)?;
         status.files_changed += fb.files_changed;
         status.had_errors |= fb.had_errors;
     }
@@ -1987,9 +2031,13 @@ fn run_native_css(
 /// Delegate every non-`.svelte` path to a single `oxfmt` invocation.
 ///
 /// `paths` are the user's directory / file inputs verbatim; a `!**/*.svelte`
-/// exclude keeps Svelte files for the in-process pass, and
-/// `--no-error-on-unmatched-pattern` makes a tree with only `.svelte` files a
-/// clean no-op rather than an error. oxfmt's informational summary
+/// exclude keeps Svelte files for the in-process pass. `suppress_unmatched`
+/// adds `--no-error-on-unmatched-pattern`, which makes a tree with only
+/// `.svelte` files (or whichever set an in-process pass already handled) a
+/// clean no-op rather than an error; callers pass `false` when oxfmt's own
+/// share is the last remaining source of truth for whether anything exists to
+/// format at all, so it must be allowed to error for real (see the
+/// `in_process_empty` check in `run`). oxfmt's informational summary
 /// ("Finished … on N files", "Format issues found in above N files") goes to
 /// stdout; we capture it to recover file counts for our own summary, then
 /// forward it. Warnings/errors on stderr stay inherited.
@@ -2000,6 +2048,7 @@ fn run_oxfmt(
     exclude_native: bool,
     exclude_native_json: bool,
     exclude_native_css: bool,
+    suppress_unmatched: bool,
 ) -> Result<PipelineStatus> {
     if paths.is_empty() {
         return Ok(PipelineStatus::default());
@@ -2012,7 +2061,9 @@ fn run_oxfmt(
             cmd.arg("--check");
         }
     }
-    cmd.arg("--no-error-on-unmatched-pattern");
+    if suppress_unmatched {
+        cmd.arg("--no-error-on-unmatched-pattern");
+    }
     cmd.arg(OXFMT_EXCLUDE_SVELTE);
     // When the native `.ts`/`.js` path handled those files in-process, keep
     // oxfmt from re-formatting them in directory walks.

@@ -6,7 +6,7 @@
 //   node provide-rsvelte-compiler.mjs --target <path> --rsvelte-binding <abs-path-to-.node>
 //
 // Effect:
-//   - creates compat/verify-svelte-compat/.cache/rsvelte-compiler-pkg/{package.json, index.cjs}
+//   - creates compatibility/verify-svelte-compat/.cache/rsvelte-compiler-pkg/{package.json, index.cjs}
 //   - merges a pnpm.overrides entry into <target>/package.json so installs
 //     resolve @rsvelte/compiler and svelte/compiler against the local wrapper
 
@@ -32,7 +32,7 @@ if (!target || !bindingPath) {
 const targetAbs = path.resolve(target);
 const bindingAbs = path.resolve(bindingPath);
 const ROOT = path.resolve(import.meta.dirname, '../../../..');
-const CACHE = path.join(ROOT, 'compat/verify-svelte-compat/.cache');
+const CACHE = path.join(ROOT, 'compatibility/verify-svelte-compat/.cache');
 const PKG = path.join(CACHE, 'rsvelte-compiler-pkg');
 
 fs.mkdirSync(PKG, { recursive: true });

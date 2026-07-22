@@ -10,7 +10,6 @@
 use std::fmt::Write as _;
 #[cfg(all(
     feature = "mimalloc-alloc",
-    not(feature = "napi"),
     not(target_arch = "wasm32"),
     not(target_os = "windows")
 ))]

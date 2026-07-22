@@ -739,6 +739,12 @@ fn build_overlay_tsconfig(
     let mut compiler_opts = serde_json::Map::new();
     compiler_opts.insert("noEmit".into(), true.into());
     compiler_opts.insert("allowArbitraryExtensions".into(), true.into());
+    // `rewrite_aliased_svelte_imports` rewrites alias-resolved `.svelte`
+    // imports to relative `.svelte.tsx` specifiers (no rootDirs bridge
+    // applies across an alias), which tsgo/tsc otherwise reject unless the
+    // user's own tsconfig happens to set this. The overlay is isolated, so
+    // it never leaks into the user's real build.
+    compiler_opts.insert("allowImportingTsExtensions".into(), true.into());
     // In `--incremental` mode, hand the compiler a `tsBuildInfoFile` so tsgo /
     // tsc persist their program graph + per-file check state across runs.
     // Without this the manifest only short-circuits svelte2tsx; the compiler
@@ -1782,6 +1788,32 @@ mod tests {
         assert!(
             root_dirs.iter().any(|d| d.ends_with("types")),
             "inherited SvelteKit `types` rootDir was clobbered: {root_dirs:?}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// Regression test for issue #1569: `rewrite_aliased_svelte_imports`
+    /// rewrites tsconfig-alias-resolved `.svelte` imports (e.g. SvelteKit's
+    /// `$lib/...`) to relative `.svelte.tsx` specifiers, which tsgo/tsc
+    /// reject with "An import path can only end with a '.tsx' extension
+    /// when 'allowImportingTsExtensions' is enabled" unless the overlay
+    /// tsconfig sets it itself.
+    #[test]
+    fn overlay_tsconfig_allows_importing_ts_extensions() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_ts_ext_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+
+        let files = vec![tmp.join("src/App.svelte")];
+        let layout = materialize_overlay(&tmp, &files, None).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        assert_eq!(
+            cfg["compilerOptions"]["allowImportingTsExtensions"],
+            serde_json::json!(true)
         );
 
         let _ = fs::remove_dir_all(&tmp);

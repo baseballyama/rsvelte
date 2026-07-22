@@ -820,13 +820,18 @@ fn try_parse_arrow_function(
             try_parse_update_expression(arena, body_str, body_bytes, body_offset, line_offsets)
         })?;
 
-    // Parse params between ( and )
-    let params_str = content[1..close_paren].trim();
+    // Parse params between ( and ). Walk the raw `(...)` region (rather than the
+    // trimmed string) so each identifier keeps its real source span — the public
+    // `parse()` AST must match svelte/compiler, which assigns real param spans.
+    let region = &content[1..close_paren];
+    let region_base = offset + 1; // absolute position of `content[1]`
     let mut params_nodes = Vec::new();
 
-    if !params_str.is_empty() {
-        for param in params_str.split(',') {
-            let p = param.trim();
+    if !region.trim().is_empty() {
+        let mut cursor = 0usize; // byte index within `region`
+        for chunk in region.split(',') {
+            let lead_ws = chunk.len() - chunk.trim_start().len();
+            let p = chunk.trim();
             if p.is_empty() {
                 return None;
             }
@@ -837,13 +842,16 @@ fn try_parse_arrow_function(
             if !p_bytes.iter().all(|&b| is_ident_continue_byte(b)) {
                 return None; // Has type annotations or defaults — too complex
             }
+            let p_start = region_base + cursor + lead_ws;
+            let p_end = p_start + p.len();
             params_nodes.push(JsNode::Identifier {
-                start: 0, // Approximate — exact positions not critical for compilation
-                end: 0,
-                loc: None,
+                start: p_start as u32,
+                end: p_end as u32,
+                loc: create_typed_loc(p_start, p_end, line_offsets),
                 name: CompactString::from(p),
                 type_annotation: None,
             });
+            cursor += chunk.len() + 1; // +1 for the consumed comma
         }
     }
     let params = arena.alloc_js_children(params_nodes);
@@ -3084,6 +3092,31 @@ fn convert_type_annotation_adjusted(
     Value::Object(obj)
 }
 
+/// Build a TS assertion wrapper (`TSAsExpression` / `TSSatisfiesExpression` /
+/// `TSNonNullExpression`) as a serde_json `Value` in svelte/compiler's shape.
+/// `type_annotation` is `None` for `TSNonNullExpression` (which has no type).
+fn ts_assertion_value(
+    type_name: &str,
+    start: usize,
+    end: usize,
+    expression: Value,
+    type_annotation: Option<Value>,
+    line_offsets: &[usize],
+) -> Value {
+    let mut obj = Map::new();
+    obj.insert("type".to_string(), Value::String(type_name.to_string()));
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    if let Some(loc) = create_loc(start, end, line_offsets) {
+        obj.insert("loc".to_string(), loc);
+    }
+    obj.insert("expression".to_string(), expression);
+    if let Some(ta) = type_annotation {
+        obj.insert("typeAnnotation".to_string(), ta);
+    }
+    Value::Object(obj)
+}
+
 /// Convert TSType with pre-adjusted offset.
 ///
 /// This is a thin alias for [`convert_ts_type`]: both take an absolute base
@@ -3731,22 +3764,78 @@ fn convert_expression(
             let end = offset + seq.span.end as usize - 1;
             create_sequence_expression(arena, seq, start, end, offset, line_offsets)
         }
-        // TypeScript expression wrappers - unwrap and return the inner expression
-        // This matches Svelte's behavior of removing TypeScript syntax
+        // TypeScript assertion wrappers - preserve the wrapper node so the public
+        // `parse()` AST mirrors svelte/compiler (which keeps them); the TS stripper
+        // erases them at compile time. Template-path spans carry the `-1` synthetic
+        // paren adjustment, so the type-annotation blob uses base `offset - 1`.
         OxcExpression::TSAsExpression(ts_as) => {
-            convert_expression(arena, &ts_as.expression, offset, line_offsets)
+            let start = offset + ts_as.span.start as usize - 1;
+            let end = offset + ts_as.span.end as usize - 1;
+            let inner = convert_expression(arena, &ts_as.expression, offset, line_offsets);
+            let type_annotation = convert_ts_type(&ts_as.type_annotation, offset - 1, line_offsets);
+            Expression::from_node(JsNode::TSAsExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+                type_annotation: Box::new(type_annotation),
+            })
         }
         OxcExpression::TSSatisfiesExpression(ts_satisfies) => {
-            convert_expression(arena, &ts_satisfies.expression, offset, line_offsets)
+            let start = offset + ts_satisfies.span.start as usize - 1;
+            let end = offset + ts_satisfies.span.end as usize - 1;
+            let inner = convert_expression(arena, &ts_satisfies.expression, offset, line_offsets);
+            let type_annotation =
+                convert_ts_type(&ts_satisfies.type_annotation, offset - 1, line_offsets);
+            Expression::from_node(JsNode::TSSatisfiesExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+                type_annotation: Box::new(type_annotation),
+            })
         }
         OxcExpression::TSNonNullExpression(ts_non_null) => {
-            convert_expression(arena, &ts_non_null.expression, offset, line_offsets)
+            let start = offset + ts_non_null.span.start as usize - 1;
+            let end = offset + ts_non_null.span.end as usize - 1;
+            let inner = convert_expression(arena, &ts_non_null.expression, offset, line_offsets);
+            Expression::from_node(JsNode::TSNonNullExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+            })
         }
         OxcExpression::TSTypeAssertion(ts_assertion) => {
-            convert_expression(arena, &ts_assertion.expression, offset, line_offsets)
+            let start = offset + ts_assertion.span.start as usize - 1;
+            let end = offset + ts_assertion.span.end as usize - 1;
+            let inner = convert_expression(arena, &ts_assertion.expression, offset, line_offsets);
+            let type_annotation =
+                convert_ts_type(&ts_assertion.type_annotation, offset - 1, line_offsets);
+            Expression::from_node(JsNode::TSTypeAssertion {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+                type_annotation: Box::new(type_annotation),
+            })
         }
         OxcExpression::TSInstantiationExpression(ts_inst) => {
-            convert_expression(arena, &ts_inst.expression, offset, line_offsets)
+            let start = offset + ts_inst.span.start as usize - 1;
+            let end = offset + ts_inst.span.end as usize - 1;
+            let inner = convert_expression(arena, &ts_inst.expression, offset, line_offsets);
+            let type_arguments = convert_ts_type_param_instantiation(
+                &ts_inst.type_arguments,
+                offset - 1,
+                line_offsets,
+            );
+            Expression::from_node(JsNode::TSInstantiationExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+                type_arguments: Box::new(type_arguments),
+            })
         }
         OxcExpression::NewExpression(new_expr) => {
             let start = offset + new_expr.span.start as usize - 1;
@@ -3837,9 +3926,18 @@ fn convert_expression(
                         line_offsets,
                     ))
                 }
-                oxc_ast::ast::ChainElement::TSNonNullExpression(ts_non_null) => expr_to_node(
-                    convert_expression(arena, &ts_non_null.expression, offset, line_offsets),
-                ),
+                oxc_ast::ast::ChainElement::TSNonNullExpression(ts_non_null) => {
+                    let inner_start = offset + ts_non_null.span.start as usize - 1;
+                    let inner_end = offset + ts_non_null.span.end as usize - 1;
+                    let inner =
+                        convert_expression(arena, &ts_non_null.expression, offset, line_offsets);
+                    JsNode::TSNonNullExpression {
+                        start: inner_start as u32,
+                        end: inner_end as u32,
+                        loc: create_typed_loc(inner_start, inner_end, line_offsets),
+                        expression: arena.alloc_js_node(expr_to_node(inner)),
+                    }
+                }
                 oxc_ast::ast::ChainElement::StaticMemberExpression(member) => {
                     let inner_start = offset + member.span.start as usize - 1;
                     let inner_end = offset + member.span.end as usize - 1;
@@ -8931,12 +9029,20 @@ fn convert_expression_for_program(
                     }
                 }
                 oxc_ast::ast::ChainElement::TSNonNullExpression(ts_non_null) => {
-                    expr_to_node(convert_expression_for_program(
+                    let inner_start = offset + ts_non_null.span.start as usize;
+                    let inner_end = offset + ts_non_null.span.end as usize;
+                    let inner = convert_expression_for_program(
                         arena,
                         &ts_non_null.expression,
                         offset,
                         line_offsets,
-                    ))
+                    );
+                    JsNode::TSNonNullExpression {
+                        start: inner_start as u32,
+                        end: inner_end as u32,
+                        loc: create_typed_loc(inner_start, inner_end, line_offsets),
+                        expression: arena.alloc_js_node(expr_to_node(inner)),
+                    }
                 }
                 oxc_ast::ast::ChainElement::StaticMemberExpression(member) => {
                     let inner_start = offset + member.span.start as usize;
@@ -9088,21 +9194,91 @@ fn convert_expression_for_program(
         OxcExpression::ParenthesizedExpression(paren) => {
             convert_expression_for_program(arena, &paren.expression, offset, line_offsets)
         }
-        // TypeScript expression wrappers - unwrap and return the inner expression
+        // TypeScript assertion wrappers - preserve the wrapper node so the public
+        // `parse()` AST mirrors svelte/compiler; the TS stripper erases them at
+        // compile time. Program-path spans use the raw `offset` (no paren shift).
         OxcExpression::TSAsExpression(ts_as) => {
-            convert_expression_for_program(arena, &ts_as.expression, offset, line_offsets)
+            let start = offset + ts_as.span.start as usize;
+            let end = offset + ts_as.span.end as usize;
+            let inner =
+                convert_expression_for_program(arena, &ts_as.expression, offset, line_offsets);
+            let type_annotation = convert_ts_type(&ts_as.type_annotation, offset, line_offsets);
+            Expression::from_node(JsNode::TSAsExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+                type_annotation: Box::new(type_annotation),
+            })
         }
         OxcExpression::TSSatisfiesExpression(ts_satisfies) => {
-            convert_expression_for_program(arena, &ts_satisfies.expression, offset, line_offsets)
+            let start = offset + ts_satisfies.span.start as usize;
+            let end = offset + ts_satisfies.span.end as usize;
+            let inner = convert_expression_for_program(
+                arena,
+                &ts_satisfies.expression,
+                offset,
+                line_offsets,
+            );
+            let type_annotation =
+                convert_ts_type(&ts_satisfies.type_annotation, offset, line_offsets);
+            Expression::from_node(JsNode::TSSatisfiesExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+                type_annotation: Box::new(type_annotation),
+            })
         }
         OxcExpression::TSNonNullExpression(ts_non_null) => {
-            convert_expression_for_program(arena, &ts_non_null.expression, offset, line_offsets)
+            let start = offset + ts_non_null.span.start as usize;
+            let end = offset + ts_non_null.span.end as usize;
+            let inner = convert_expression_for_program(
+                arena,
+                &ts_non_null.expression,
+                offset,
+                line_offsets,
+            );
+            Expression::from_node(JsNode::TSNonNullExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+            })
         }
         OxcExpression::TSTypeAssertion(ts_assertion) => {
-            convert_expression_for_program(arena, &ts_assertion.expression, offset, line_offsets)
+            let start = offset + ts_assertion.span.start as usize;
+            let end = offset + ts_assertion.span.end as usize;
+            let inner = convert_expression_for_program(
+                arena,
+                &ts_assertion.expression,
+                offset,
+                line_offsets,
+            );
+            let type_annotation =
+                convert_ts_type(&ts_assertion.type_annotation, offset, line_offsets);
+            Expression::from_node(JsNode::TSTypeAssertion {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+                type_annotation: Box::new(type_annotation),
+            })
         }
         OxcExpression::TSInstantiationExpression(ts_inst) => {
-            convert_expression_for_program(arena, &ts_inst.expression, offset, line_offsets)
+            let start = offset + ts_inst.span.start as usize;
+            let end = offset + ts_inst.span.end as usize;
+            let inner =
+                convert_expression_for_program(arena, &ts_inst.expression, offset, line_offsets);
+            let type_arguments =
+                convert_ts_type_param_instantiation(&ts_inst.type_arguments, offset, line_offsets);
+            Expression::from_node(JsNode::TSInstantiationExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+                type_arguments: Box::new(type_arguments),
+            })
         }
         OxcExpression::MetaProperty(meta) => {
             // `import.meta` / `new.target`. Without this arm the fallback
@@ -10721,28 +10897,71 @@ fn convert_expression_with_adjustment(
                 line_offsets,
             )
         }
-        // TypeScript expression wrappers - unwrap and return the inner expression
-        OxcExpression::TSAsExpression(ts_as) => convert_expression_with_adjustment(
-            arena,
-            &ts_as.expression,
-            doc_offset,
-            prefix_len,
-            line_offsets,
-        ),
-        OxcExpression::TSSatisfiesExpression(ts_satisfies) => convert_expression_with_adjustment(
-            arena,
-            &ts_satisfies.expression,
-            doc_offset,
-            prefix_len,
-            line_offsets,
-        ),
-        OxcExpression::TSNonNullExpression(ts_non_null) => convert_expression_with_adjustment(
-            arena,
-            &ts_non_null.expression,
-            doc_offset,
-            prefix_len,
-            line_offsets,
-        ),
+        // TypeScript assertion wrappers - preserve the wrapper (Value shape) so
+        // binding-pattern defaults (`let { x = y as const } = …`) mirror
+        // svelte/compiler; the TS stripper erases them at compile time. The
+        // type-annotation base is `doc_offset - prefix_len` (same as the span math
+        // below), so `base + type_span = doc_offset + type_span - prefix_len`.
+        OxcExpression::TSAsExpression(ts_as) => {
+            let start = doc_offset + ts_as.span.start as usize - prefix_len;
+            let end = doc_offset + ts_as.span.end as usize - prefix_len;
+            let inner = convert_expression_with_adjustment(
+                arena,
+                &ts_as.expression,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
+            let type_annotation = convert_ts_type(
+                &ts_as.type_annotation,
+                doc_offset - prefix_len,
+                line_offsets,
+            );
+            ts_assertion_value(
+                "TSAsExpression",
+                start,
+                end,
+                inner,
+                Some(type_annotation),
+                line_offsets,
+            )
+        }
+        OxcExpression::TSSatisfiesExpression(ts_satisfies) => {
+            let start = doc_offset + ts_satisfies.span.start as usize - prefix_len;
+            let end = doc_offset + ts_satisfies.span.end as usize - prefix_len;
+            let inner = convert_expression_with_adjustment(
+                arena,
+                &ts_satisfies.expression,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
+            let type_annotation = convert_ts_type(
+                &ts_satisfies.type_annotation,
+                doc_offset - prefix_len,
+                line_offsets,
+            );
+            ts_assertion_value(
+                "TSSatisfiesExpression",
+                start,
+                end,
+                inner,
+                Some(type_annotation),
+                line_offsets,
+            )
+        }
+        OxcExpression::TSNonNullExpression(ts_non_null) => {
+            let start = doc_offset + ts_non_null.span.start as usize - prefix_len;
+            let end = doc_offset + ts_non_null.span.end as usize - prefix_len;
+            let inner = convert_expression_with_adjustment(
+                arena,
+                &ts_non_null.expression,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
+            ts_assertion_value("TSNonNullExpression", start, end, inner, None, line_offsets)
+        }
         OxcExpression::TSTypeAssertion(ts_assertion) => convert_expression_with_adjustment(
             arena,
             &ts_assertion.expression,

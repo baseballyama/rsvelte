@@ -15,14 +15,15 @@ const require = createRequire(import.meta.url);
 
 // Prefer the published `@rsvelte/compiler` dependency; fall back to this repo's
 // in-place wasm build at `/pkg` so the plugin runs from a source checkout (and
-// this repo's own E2E test) without a publish/link step. wasm-pack names the
-// artifacts after the built crate (`rsvelte_lint`); `@rsvelte/compiler` ships
-// them under those names.
+// this repo's own E2E test) without a publish/link step. The wasm bytes come
+// from the package's stable `./wasm` subpath, which never names the internal
+// build crate (wasm-pack names its artifacts `rsvelte_lint_*`, but that is not a
+// contract) — so this keeps resolving across crate renames.
 function resolveCompiler() {
 	try {
 		return {
 			jsUrl: pathToFileURL(require.resolve('@rsvelte/compiler')).href,
-			wasmPath: require.resolve('@rsvelte/compiler/rsvelte_lint_bg.wasm'),
+			wasmPath: require.resolve('@rsvelte/compiler/wasm'),
 		};
 	} catch {
 		return {

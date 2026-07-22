@@ -160,15 +160,45 @@ function findSvelteFiles(dir, files = []) {
 	return files;
 }
 
-function collectTestFiles() {
-	const files = [];
+/**
+ * Svelte's test corpus deliberately contains sources that do not compile —
+ * `validator/samples` is mostly error cases. Those files return from the
+ * compiler almost immediately, so leaving them in blends "time to compile" with
+ * "time to throw". Keep only what the official compiler accepts in *both*
+ * client and server mode.
+ */
+function filterCompilableFiles(files) {
+	return files.filter((file) => {
+		for (const generate of ['client', 'server']) {
+			try {
+				compile(file.content, { generate, filename: file.path, dev: false });
+			} catch {
+				return false;
+			}
+		}
+		return true;
+	});
+}
 
+let cachedTestFiles = null;
+
+function collectTestFiles() {
+	if (cachedTestFiles) return cachedTestFiles;
+
+	const collected = [];
 	for (const category of TEST_CATEGORIES) {
 		const categoryPath = join(SVELTE_TESTS, category);
-		findSvelteFiles(categoryPath, files);
+		findSvelteFiles(categoryPath, collected);
 	}
 
-	return files;
+	const files = filterCompilableFiles(collected);
+	const excluded = collected.length - files.length;
+	console.error(
+		`[run-benchmark] excluded ${excluded} files that fail to compile (${collected.length} → ${files.length})`,
+	);
+
+	cachedTestFiles = { files, excludedCount: excluded };
+	return cachedTestFiles;
 }
 
 function processFileJS(file, task) {
@@ -670,7 +700,7 @@ async function runSvelteCheckTask() {
 
 async function main() {
 	console.error('Collecting Svelte test files...');
-	const files = collectTestFiles();
+	const { files, excludedCount } = collectTestFiles();
 	console.error(`Found ${files.length} files`);
 
 	const compileClient = await runBenchmarkTask(files, 'compile-client');
@@ -689,6 +719,7 @@ async function main() {
 		commitSha: getCommitSha(),
 		runner: getRunnerInfo(),
 		testFilesCount: files.length,
+		excludedFilesCount: excludedCount,
 		...asTaskResults(compileClient),
 		compileServer: asTaskResults(compileServer),
 		parse: asTaskResults(parse),

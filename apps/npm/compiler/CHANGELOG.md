@@ -1,5 +1,78 @@
 # @rsvelte/compiler
 
+## 0.8.2
+
+### Patch Changes
+
+- d7f9427: fix(client): emit `svelte:element` `on:` events bare in after_update (no `$.effect` wrap with `use:`), and emit a plain prop init for a function-valued `{@const}` shadowed by an outer same-named binding
+- c3fc6d9: fix(parse): preserve the remaining TypeScript assertion forms in parse() output
+
+  Follow-up to #1648, which deliberately deferred three forms. `parse()` now also
+  keeps `TSTypeAssertion` (`<T>x`) and `TSInstantiationExpression` (`f<T>`) — with
+  svelte/compiler-compatible shape (`TSTypeAssertion` serializes `typeAnnotation`
+  before `expression`; `TSInstantiationExpression` carries `typeArguments`) — and a
+  non-null `!` sitting inside an optional chain (`a!?.b`), matching svelte/compiler.
+  As with the other wrappers, `remove_typescript_nodes` erases them before
+  analyze/transform, so compiled client/server output is unchanged.
+
+- b31c4a7: fix(parser): preserve TS assertion expressions in `parse()` output and fix zero-width arrow-param spans
+
+  `parse()` now keeps `TSAsExpression`, `TSSatisfiesExpression`, and
+  `TSNonNullExpression` wrapper nodes in the public AST — matching
+  svelte/compiler, which parses TS via acorn-typescript and returns the assertion
+  nodes. rsvelte previously unwrapped them at parse time, returning the bare inner
+  expression and diverging from the reference AST shape (it broke downstream
+  consumers that rely on parser parity). The wrappers are still erased at compile
+  time by `remove_typescript_nodes` exactly as before, so client/server codegen is
+  unchanged (`x as const` is stripped from the generated JS). The binary
+  `parseEnvelope` encoder/decoder gains matching entries for the three node types.
+
+  Also fixes a latent bug where untyped arrow-function parameters inside template
+  expressions (event handlers such as `onclick={(color, e) => …}`) came back with
+  zero-width spans (`start == end == 0`); the fast-path template arrow parser now
+  assigns each parameter its real source span, matching svelte/compiler.
+
+  In svelte2tsx (`@rsvelte/svelte2tsx` and the svelte-check overlay), a `bind:`
+  expression carrying a TS assertion (`bind:value={value as never}`) now strips the
+  assertion from the generated assignment LHS while keeping it on the bound-value
+  side — mirroring upstream svelte2tsx's `getEnd(attr.expression)`.
+
+- d7f9427: fix(client): emit `$.invalidate_inner_signals` for prop member mutations inside `$:` reactive statements (legacy `<select bind:value={prop…}>` indirect bindings), matching the instance-script mutation path
+- d7f9427: fix(analyze): insert instance-scope declarations into the root-scope name map before module-script inner-function scopes, so a same-named function parameter in the module script no longer shadows an instance `let` (restoring its reactivity)
+- 6fa6c2e: fix(analyze): resolve legacy `<select bind:value>` indirect bindings from the select's containing scope, so an each-item wrapping the select (e.g. `{#each columns as col}<select bind:value={sel[col.key]}>`) is invalidated on mutation; a `$store` bind root is skipped like upstream
+
+## 0.8.1
+
+### Patch Changes
+
+- a44b469: fix(compiler): add a stable `@rsvelte/compiler/wasm` subpath and fix package metadata
+
+  The published package now exposes the WebAssembly binary under a stable
+  `@rsvelte/compiler/wasm` export. Previously the only way to reach the `.wasm`
+  bytes (e.g. to drive `initSync` on Node) was a deep import that hard-coded the
+  internal build crate's filename, so consumers broke whenever that name changed
+  (`rsvelte_core_bg.wasm` → `rsvelte_lint_bg.wasm`). Import from
+  `@rsvelte/compiler/wasm` instead — it stays stable across releases.
+
+  Existing crate-named deep imports keep working (an `exports` passthrough
+  preserves them), and the default `import ... from '@rsvelte/compiler'` is
+  unchanged.
+
+  Also corrects the package `description`, which had been the linter crate's text
+  rather than the compiler's.
+
+- 386f732: fix(wasm): enable reference-types in wasm-opt
+
+  Newer rustc/LLVM can emit a second wasm table (a reference-types externref table
+  alongside the funcref indirect-call table) for `wasm32-unknown-unknown`, which
+  `wasm-opt`'s default MVP feature set rejects with "Only 1 table definition allowed
+  in MVP". Whether the extra table appears depends on the rustc version CI resolves
+  that day, not on anything in this repo, so the wasm build could break without any
+  change here.
+
+  Passing `--enable-reference-types` lets wasm-opt parse and optimize it. The
+  `rsvelte_fmt_wasm` artifact shrinks ~1% as a result; `rsvelte_lint`'s is byte-identical.
+
 ## 0.8.0
 
 ### Minor Changes

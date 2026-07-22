@@ -4,22 +4,24 @@
 //
 // Why this exists:
 // - `@rsvelte/compiler` ← `crates/rsvelte_core` AND `crates/rsvelte_lint`:
-//   `@rsvelte/compiler` ships the wasm built from `crates/rsvelte_lint`
-//   (`build:wasm:core`), which re-exports the `rsvelte_core` compiler wasm
-//   API. Both crates embed their own `env!("CARGO_PKG_VERSION")` into the wasm
-//   module: `rsvelte_core` backs the compiler `version()` export and
-//   `rsvelte_lint` backs `lint_version()`. Keeping BOTH aligned with the
-//   release version keeps those runtime version strings honest. (The published
-//   `pkg/package.json` version itself is forced by `finalize-pkg.mjs`, which is
-//   what actually guards against a build-crate/version desync — but we still
-//   mirror both crates so the in-wasm version exports don't drift.)
-//   `crates/rsvelte_lint` must be mapped here too since `build:wasm:core`
-//   builds that crate; without it `lint_version()` would report a stale
-//   `0.1.0`. The native `@rsvelte/lint` CLI (also built from
-//   `crates/rsvelte_lint`, reporting `--version` from `CARGO_PKG_VERSION`) needs
-//   no separate mapping: it shares a `fixed` changeset group with
-//   `@rsvelte/compiler` (see `.changeset/config.json`), so it always bumps to the
-//   same version this rule already mirrors into the `rsvelte_lint` crate.
+//   `@rsvelte/compiler` ships the wasm built from `crates/rsvelte_lint_bindings`
+//   (`build:wasm:core`), which re-exports the `rsvelte_core` compiler wasm API
+//   and the linter engine. The two runtime version strings baked into that wasm
+//   module resolve to CRATE versions: `rsvelte_core` backs the compiler
+//   `version()` export via its own `env!("CARGO_PKG_VERSION")`, and the
+//   bindings' `lint_version()` reads `rsvelte_lint::CRATE_VERSION` (this crate's
+//   version, not the bindings crate's). Keeping BOTH aligned with the release
+//   version keeps those strings honest. (The published `pkg/package.json`
+//   version itself is forced by `finalize-pkg.mjs`, which is what actually
+//   guards against a build-crate/version desync — but we still mirror both
+//   crates so the in-wasm version exports don't drift.)
+//   `crates/rsvelte_lint` must be mapped here too since `lint_version()` reports
+//   its version; without it `lint_version()` would report a stale `0.1.0`. The
+//   native `@rsvelte/lint` CLI (built from `crates/rsvelte_lint`, reporting
+//   `--version` from `CARGO_PKG_VERSION`) needs no separate mapping: it shares a
+//   `fixed` changeset group with `@rsvelte/compiler` (see
+//   `.changeset/config.json`), so it always bumps to the same version this rule
+//   already mirrors into the `rsvelte_lint` crate.
 // - `@rsvelte/fmt` ← `crates/rsvelte_fmt`: the `rsvelte-fmt` binary reports its
 //   version from `env!("CARGO_PKG_VERSION")` (clap `#[command(version)]`).
 //   Without this sync the crate stays at `0.1.0` no matter how many releases

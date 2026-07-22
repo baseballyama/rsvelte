@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const SOURCES = path.join(ROOT, 'compat/corpus/sources');
+const SOURCES = path.join(ROOT, 'compatibility/sources');
 const OXFMT_BIN = process.env.OXFMT_BIN || path.join(ROOT, 'node_modules/.bin/oxfmt');
 const OXFMT_CONFIG = path.join(ROOT, 'scripts/fixtures/fmt-corpus.oxfmtrc.json');
 const RSVELTE_FMT_BIN =

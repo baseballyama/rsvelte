@@ -30,18 +30,41 @@ fn each_block_with_as_const_alias() {
     // The TypeScript `as const` is part of the iterable expression; the alias
     // is `tab`. Prior to the fix the parser split at the first ` as ` and
     // produced `context = (const as tab)`.
+    //
+    // The iterable `['a', 'b'] as const` is now preserved as a `TSAsExpression`
+    // (mirroring svelte/compiler's parse AST), so its `typeAnnotation` carries a
+    // `TSTypeReference` to `const` — i.e. `"name":"const"` legitimately appears
+    // inside the iterable and can no longer be used as a proxy. Assert the
+    // each-block CONTEXT (the alias) directly instead.
     let src = r#"{#each ['a', 'b'] as const as tab (tab)}<span>{tab}</span>{/each}"#;
     let out = compile_each_alias(src);
-    // Alias appears as `"name":"tab"` in the AST output.
-    assert!(
-        out.contains(r#""name":"tab""#),
-        "alias should be `tab`, got:\n{out}"
+    let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+
+    fn find_each(v: &serde_json::Value) -> Option<&serde_json::Value> {
+        match v {
+            serde_json::Value::Object(m) => {
+                if m.get("type").and_then(|t| t.as_str()) == Some("EachBlock") {
+                    return Some(v);
+                }
+                m.values().find_map(find_each)
+            }
+            serde_json::Value::Array(a) => a.iter().find_map(find_each),
+            _ => None,
+        }
+    }
+    let each = find_each(&value).expect("EachBlock present");
+    // The alias (`context`) is the identifier `tab`, not `const`.
+    assert_eq!(
+        each.pointer("/context/name").and_then(|n| n.as_str()),
+        Some("tab"),
+        "each-block alias should be `tab`:\n{out}"
     );
-    // The stray `const` should NOT appear as an identifier — it would mean
-    // the alias was parsed as `const as tab`.
-    assert!(
-        !out.contains(r#""name":"const""#),
-        "`const` should not be parsed as an alias identifier:\n{out}"
+    // The iterable expression is preserved as a `TSAsExpression` (greedy parse
+    // to the right-most ` as `).
+    assert_eq!(
+        each.pointer("/expression/type").and_then(|t| t.as_str()),
+        Some("TSAsExpression"),
+        "iterable should be preserved as TSAsExpression:\n{out}"
     );
 }
 

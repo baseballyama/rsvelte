@@ -155,6 +155,11 @@ const JS_NULL = 0xca;
 // 0xcb was the former whole-node JS_RAW_JSON escape (removed — TS type
 // annotations now ride a per-node trailer; see readOptTypeAnnotation).
 const JS_TS_PARAMETER_PROPERTY = 0xcc;
+const JS_TS_AS_EXPRESSION = 0xcd;
+const JS_TS_SATISFIES_EXPRESSION = 0xce;
+const JS_TS_NON_NULL_EXPRESSION = 0xcf;
+const JS_TS_TYPE_ASSERTION = 0xd0;
+const JS_TS_INSTANTIATION_EXPRESSION = 0xd1;
 
 // LiteralValue inner tag (within a JS_LITERAL payload).
 const LV_NULL = 0;
@@ -581,6 +586,16 @@ function readNodeBody(ctx, tag, start, end) {
 			return readJsBareExpr(ctx, 'TSParameterProperty', start, end);
 		case JS_TS_MODULE_DECLARATION:
 			return readJsTSModuleDeclaration(ctx, start, end);
+		case JS_TS_AS_EXPRESSION:
+			return readJsTSAssertion(ctx, 'TSAsExpression', start, end, true);
+		case JS_TS_SATISFIES_EXPRESSION:
+			return readJsTSAssertion(ctx, 'TSSatisfiesExpression', start, end, true);
+		case JS_TS_NON_NULL_EXPRESSION:
+			return readJsTSAssertion(ctx, 'TSNonNullExpression', start, end, false);
+		case JS_TS_TYPE_ASSERTION:
+			return readJsTSTypeAssertion(ctx, start, end);
+		case JS_TS_INSTANTIATION_EXPRESSION:
+			return readJsTSInstantiationExpression(ctx, start, end);
 		case JS_COMMENT:
 			return readJsComment_(ctx, start, end);
 
@@ -972,6 +987,45 @@ function readJsChainExpression(ctx, start, end) {
 	const node = { type: 'ChainExpression', start, end };
 	if (loc !== null) node.loc = loc;
 	node.expression = expression;
+	return node;
+}
+
+// TS assertion wrappers (`x as T` / `x satisfies T` / `x!`). As/Satisfies carry
+// a `typeAnnotation` trailer; NonNull does not (`hasTypeAnnotation` is false).
+function readJsTSAssertion(ctx, typeName, start, end, hasTypeAnnotation) {
+	const loc = readTypedLoc(ctx);
+	const expression = readNode(ctx);
+	const node = { type: typeName, start, end };
+	if (loc !== null) node.loc = loc;
+	node.expression = expression;
+	if (hasTypeAnnotation) {
+		const typeAnnotation = readOptTypeAnnotation(ctx);
+		if (typeAnnotation !== null) node.typeAnnotation = typeAnnotation;
+	}
+	return node;
+}
+
+function readJsTSTypeAssertion(ctx, start, end) {
+	// Wire order: loc, expression, typeAnnotation — but svelte/compiler emits
+	// `typeAnnotation` before `expression`, so build the object in that order.
+	const loc = readTypedLoc(ctx);
+	const expression = readNode(ctx);
+	const typeAnnotation = readOptTypeAnnotation(ctx);
+	const node = { type: 'TSTypeAssertion', start, end };
+	if (loc !== null) node.loc = loc;
+	if (typeAnnotation !== null) node.typeAnnotation = typeAnnotation;
+	node.expression = expression;
+	return node;
+}
+
+function readJsTSInstantiationExpression(ctx, start, end) {
+	const loc = readTypedLoc(ctx);
+	const expression = readNode(ctx);
+	const typeArguments = readOptTypeAnnotation(ctx);
+	const node = { type: 'TSInstantiationExpression', start, end };
+	if (loc !== null) node.loc = loc;
+	node.expression = expression;
+	if (typeArguments !== null) node.typeArguments = typeArguments;
 	return node;
 }
 

@@ -265,10 +265,9 @@ impl<'a> ComponentContext<'a> {
         let mut inner_update: Vec<JsStatement> = Vec::new();
         let mut inner_after_update: Vec<JsStatement> = Vec::new();
 
-        // Check if there are use directives (affects how we handle on: directives)
-        let has_use = !use_directives.is_empty();
-
-        // Process OnDirectives
+        // Process OnDirectives.
+        // Unlike RegularElement, SvelteElement.js always emits events bare into
+        // after_update (no `$.effect` wrapping for `use:` directives).
         for on_directive in &on_directives {
             // Save current node and temporarily set to element_id.
             // `mem::replace` returns the old value as we install the new one,
@@ -276,19 +275,7 @@ impl<'a> ComponentContext<'a> {
             let saved_node = std::mem::replace(&mut self.state.node, element_id.clone());
 
             if let TransformResult::Expression(event_call) = self.visit_on_directive(on_directive) {
-                if has_use {
-                    // If there's a use: directive, wrap in $.effect
-                    inner_init.push(b::stmt(
-                        &self.arena,
-                        b::call(
-                            &self.arena,
-                            b::member_path(&self.arena, "$.effect"),
-                            vec![b::thunk(&self.arena, event_call)],
-                        ),
-                    ));
-                } else {
-                    inner_after_update.push(b::stmt(&self.arena, event_call));
-                }
+                inner_after_update.push(b::stmt(&self.arena, event_call));
             }
 
             // Restore node

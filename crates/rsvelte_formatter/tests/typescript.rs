@@ -300,3 +300,86 @@ fn const_tag_inline_not_overbroken() {
         "destructuring const tag was wrongly broken:\n{out2}"
     );
 }
+
+// ─── Template-position `as`/`satisfies` union reflow (#1484) ──────────────
+
+#[test]
+fn template_as_union_stays_flat_when_it_fits() {
+    // oxc expands `x as A | B` to a leading-`|` union once the annotation
+    // breaks; the oracle keeps the union flat on the continuation line when it
+    // fits. The reflow reproduces the oracle's layout for template expressions.
+    let markup = "<div><div><div><div>\n<input onkeydown={(e) => {\n  if (e.key === 'Enter') {\n    const el = document.querySelector('a[data-has-node]') as HTMLElement | undefined;\n  }\n}} />\n</div></div></div></div>";
+    let out = fmt_ts(markup);
+    assert!(
+        out.contains("HTMLElement | undefined"),
+        "union should be flat:\n{out}"
+    );
+    assert!(
+        !out.contains("| HTMLElement"),
+        "union must not keep oxc's leading-`|` form:\n{out}"
+    );
+}
+
+#[test]
+fn template_as_union_expands_when_too_long_to_fit_flat() {
+    // A union whose flat form overflows must stay expanded — the reflow only
+    // collapses when the flat line fits, matching the oracle for long unions.
+    let markup = "<div><div><div><div>\n<input onkeydown={(e) => {\n  const el = document.querySelector('a') as HtmlElementLongTypeNameXXXXXXXXXX | SomeOtherReallyLongTypeNameYYYYYYYYYY | undefinedZZZZZZZZZZ;\n}} />\n</div></div></div></div>";
+    let out = fmt_ts(markup);
+    assert!(
+        out.contains("| HtmlElementLongTypeNameXXXXXXXXXX"),
+        "long union should stay expanded (leading-`|`):\n{out}"
+    );
+}
+
+#[test]
+fn script_block_as_union_keeps_oxc_leading_pipe() {
+    // The `<script>` path (`format_program`) is untouched: it agrees with the
+    // oxfmt oracle on oxc's leading-`|` expansion, so the reflow must not reach
+    // it.
+    let src = "<script lang=\"ts\">\n  function handle(e) {\n    if (e.key === 'Enter' && !e.isComposing) {\n      const element = modal.querySelector('a[data-has-node]') as HTMLElement | undefined;\n      element?.click();\n    }\n  }\n</script>";
+    // Narrow the width so the union deterministically breaks; the reflow must
+    // still not reach the `<script>` path (`format_program`), so it stays in
+    // oxc's leading-`|` form.
+    let mut opts = FormatOptions::default();
+    opts.js.line_width = rsvelte_formatter::LineWidth::try_from(70u16).unwrap();
+    let out = format(src, &opts).expect("format ok");
+    assert!(
+        out.contains("| HTMLElement") && out.contains("| undefined"),
+        "script-block union must keep oxc's leading-`|` form:\n{out}"
+    );
+}
+
+#[test]
+fn reflow_does_not_touch_template_literal_with_sibling_as_union() {
+    // A multi-line template literal whose text happens to end a line with `as`
+    // and continue with `| `-prefixed lines must survive verbatim, even when a
+    // real `as`-union sibling in the same expression opens the reflow gate.
+    let markup = "<div><div><div><div>\n<input onkeydown={(e) => {\n  const doc = `something ending as\n    | A\n    | B`;\n  const el = document.querySelector('a[data-has-node]') as HTMLElement | undefined;\n}} />\n</div></div></div></div>";
+    let out = fmt_ts(markup);
+    assert!(
+        out.contains("`something ending as\n    | A\n    | B`"),
+        "template literal body must be preserved verbatim:\n{out}"
+    );
+    // The genuine sibling union still flattens.
+    assert!(
+        out.contains("HTMLElement | undefined") && !out.contains("| HTMLElement"),
+        "sibling as-union should still flatten:\n{out}"
+    );
+}
+
+#[test]
+fn reflow_does_not_touch_block_comment_with_sibling_as_union() {
+    // A block comment containing a `| `-prefixed list after an `as`-ending line
+    // must survive verbatim.
+    let markup = "<div><div><div><div>\n<input onkeydown={(e) => {\n  /* pick one as\n     | A\n     | B */\n  const el = document.querySelector('a[data-has-node]') as HTMLElement | undefined;\n}} />\n</div></div></div></div>";
+    let out = fmt_ts(markup);
+    assert!(
+        out.contains("| A\n") && out.contains("| B */"),
+        "block comment body must be preserved verbatim:\n{out}"
+    );
+    assert!(
+        out.contains("HTMLElement | undefined") && !out.contains("| HTMLElement"),
+        "sibling as-union should still flatten:\n{out}"
+    );
+}

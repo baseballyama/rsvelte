@@ -8,6 +8,8 @@ members = [
     "crates/rsvelte_fmt_wasm",
     "crates/rsvelte_formatter",
     "crates/rsvelte_lint",
+    "crates/rsvelte_lint_bindings",
+    "crates/rsvelte_napi",
     "crates/rsvelte_preprocess",
     "crates/tailwind_class_order",
 ]

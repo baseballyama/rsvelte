@@ -4,8 +4,8 @@
  * compiler (from submodules/svelte) and rsvelte (NAPI binding), for both
  * generate targets (client = CSR, server = SSR), writing the outputs to:
  *
- *   compat/corpus/expected/<id>/{client.js,server.js,client.css,error.json}
- *   compat/corpus/actual/<id>/{...same...}
+ *   compatibility/expected/<id>/{client.js,server.js,client.css,error.json}
+ *   compatibility/actual/<id>/{...same...}
  *
  * Files the OFFICIAL compiler rejects are error cases: rsvelte must reject
  * them too (error parity), tracked via error.json on both sides.
@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const CORPUS = path.join(ROOT, 'compat/corpus');
+const CORPUS = path.join(ROOT, 'compatibility');
 const EXPECTED = path.join(CORPUS, 'expected');
 const ACTUAL = path.join(CORPUS, 'actual');
 
@@ -147,7 +147,7 @@ if (args.includes('--worker')) {
 
 if (!fs.existsSync(BINDING)) {
 	console.error(`[compile] rsvelte NAPI binding missing at ${BINDING}`);
-	console.error('  build: cargo build --release --features napi --lib');
+	console.error('  build: cargo build --release -p rsvelte_napi --lib');
 	console.error('  stage: cp target/release/librsvelte_core.{dylib,so} .corpus-cache/rsvelte.node');
 	process.exit(1);
 }

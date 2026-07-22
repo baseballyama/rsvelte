@@ -1440,7 +1440,8 @@ fn try_fill_run(
     // correctly breaks at the first word that doesn't fit, so multi-line
     // sources get the right reflowed layout.
     let use_word_first = whole.contains('\n');
-    let content_doc = build_children_doc_nodes(out, run, allow_elem_expr_collapse, use_word_first)?;
+    let content_doc =
+        build_children_doc_nodes(out, run, allow_elem_expr_collapse, use_word_first, None)?;
     // Prepend a leading Line/Hardline to the fill doc to produce prettier's
     // "inverted" fill structure when the first text node had leading whitespace.
     // This matches prettier-plugin-svelte's `splitTextToDocs` which places a `line`
@@ -1494,17 +1495,6 @@ fn try_fill_run(
     // If the prefix was non-whitespace and NOT a recognized close-tag prefix
     // (`>` or `> `), we cannot safely compute base_level for multi-line reflow.
     if non_ws_prefix && !is_close_tag_prefix {
-        return None;
-    }
-    // A pure-text run (no inline elements) that is already on a single line
-    // (no `\n` in `whole`) should not be broken — prettier does not aggressively
-    // re-wrap prose that the indent pass placed on one line, even when it slightly
-    // overflows (e.g. a `<strong>Code suggestions</strong> validated … before you
-    // merge.` run that reaches 86 cols). Only reflow pure-text single-node runs
-    // that are already single-line; multi-node runs (with inline elements) that
-    // span multiple lines in the formatted output are still reflowed normally.
-    // Note: `run` was rebound above to `run[lo..hi]` (whitespace-only edges trimmed).
-    if run.len() == 1 && matches!(run[0], TemplateNode::Text(_)) && !whole.contains('\n') {
         return None;
     }
     let printed_raw = crate::doc::print(
@@ -3671,9 +3661,9 @@ fn try_fix_pre_child_open_tags(
     for node in &fragment.nodes {
         // Handle both RegularElement and Component — both can appear as direct
         // children of `<pre>` and need the same open-tag `>` placement fix.
-        let (child_start, child_end, child_fragment) = match node {
-            TemplateNode::RegularElement(e) => (e.start, e.end, &e.fragment),
-            TemplateNode::Component(c) => (c.start, c.end, &c.fragment),
+        let (child_start, child_end, child_fragment, child_name) = match node {
+            TemplateNode::RegularElement(e) => (e.start, e.end, &e.fragment, e.name.as_str()),
+            TemplateNode::Component(c) => (c.start, c.end, &c.fragment, c.name.as_str()),
             _ => continue,
         };
         let cs = child_start as usize;
@@ -3718,11 +3708,18 @@ fn try_fix_pre_child_open_tags(
             // for the inner "attr" indent) so it aligns under the child's attrs
             // in the standard multi-line open-tag shape.
             let gt_indent = " ".repeat(pre_indent_col + 2 * iw);
+            // When the open tag is broken onto its own line, prettier's
+            // `shouldHugEnd` also dangles the close `>` onto its own line
+            // (`</code\n{indent}>`) whenever the last content char is
+            // whitespace-sensitive text touching the close tag — one indent
+            // level shallower than the open `>` (mirroring `push_close_tag`).
+            let content_and_close = &out[open_end..ce];
+            let tail = dangle_pre_child_close(content_and_close, child_name, pre_indent_col + iw);
             let result = format!(
                 "{}\n{}>{}",
                 &out[cs..open_end - 1],
                 gt_indent,
-                &out[open_end..ce],
+                tail.as_deref().unwrap_or(content_and_close),
             );
             if result != whole {
                 edits.push((child_start, child_end, result));
@@ -3762,6 +3759,31 @@ fn try_fix_pre_child_open_tags(
         }
     }
     edits
+}
+
+/// When a `<pre>`/`<textarea>` child element's open tag has been broken onto
+/// its own line, prettier's `shouldHugEnd` dangles the close `>` onto its own
+/// line too — but only when the last content char is whitespace-sensitive text
+/// touching the close tag (non-whitespace, and not the `>` of a nested child
+/// close tag), matching [`crate::markup`]'s `hug_close`. `content_and_close` is
+/// the child's content followed by its `</name>` close tag; returns the rewritten
+/// span with `</name>` replaced by `</name\n{close_indent spaces}>`, or `None`
+/// when the shape doesn't qualify.
+fn dangle_pre_child_close(
+    content_and_close: &str,
+    tag_name: &str,
+    close_indent: usize,
+) -> Option<String> {
+    let close_lit = format!("</{tag_name}>");
+    let content = content_and_close.strip_suffix(&close_lit)?;
+    let last = content.chars().next_back()?;
+    if last.is_ascii_whitespace() || last == '>' {
+        return None;
+    }
+    Some(format!(
+        "{content}</{tag_name}\n{}>",
+        " ".repeat(close_indent)
+    ))
 }
 
 /// Hug-break the single inline-element body of a block (`{#each …}<span>…</span>{/each}`)
@@ -4508,6 +4530,44 @@ fn try_hug_mixed(
             format!("</{tag}\n{ws_indent}>")
         };
         let simple = format!("{onb}\n{inner_indent}>{raw}{close_form}");
+        // When the hugged inner line `>{raw}</{tag}` overflows, break an inner
+        // component's attributes via the Doc IR. The measured group carries the close
+        // tag `</tag` (prettier's `group(['>', body, '</tag'])`) so the printer's fits
+        // lookahead counts its width — otherwise a child whose own attrs fit but
+        // overflow once the close tag is appended never breaks.
+        let inner_line = inner_indent.width() + 1 + raw.width() + 2 + tag.width();
+        if !raw_trail_ws_only
+            && inner_line > line_width
+            && !raw.contains('\n')
+            && let Some(body) = build_children_doc(out, fragment)
+        {
+            let base_level = if options.js.indent_style.is_tab() {
+                inner_indent
+                    .bytes()
+                    .take_while(|&b| b == b' ' || b == b'\t')
+                    .count()
+            } else {
+                inner_indent.width() / indent_width_hm
+            };
+            let measured = crate::doc::Doc::Group(vec![
+                crate::doc::Doc::Text(">".to_string()),
+                body,
+                crate::doc::Doc::Text(format!("</{tag}")),
+            ]);
+            let printed_full = crate::doc::print(
+                measured,
+                line_width,
+                indent_unit_hm.as_str(),
+                base_level,
+                inner_indent.width(),
+            );
+            if printed_full.contains('\n') {
+                let result2 = format!("{onb}\n{inner_indent}{printed_full}\n{ws_indent}>");
+                if result2 != whole {
+                    return Some((start, end, result2));
+                }
+            }
+        }
         if simple != whole {
             return Some((start, end, simple));
         }
@@ -5154,8 +5214,10 @@ fn try_fill_mixed(
     // Build the prettier content doc (a Concat of per-text-node fills with the
     // inline elements as hug groups in between — a port of prettier-plugin-svelte's
     // `printChildren`) and print it. This reproduces the prose fill + in-place
-    // inline-element hug-break exactly.
-    let content_doc = build_children_doc(out, fragment)?;
+    // inline-element hug-break exactly. Options are threaded so a breakable
+    // content/render tag (`{call(…)}`) participates in the fill as a
+    // `group([RawExpr])` and glues the following word to its closing `)}`.
+    let content_doc = build_children_doc_nodes(out, &fragment.nodes, false, false, Some(options))?;
     let base_level = if options.js.indent_style.is_tab() {
         inner_indent
             .bytes()
@@ -5347,6 +5409,13 @@ fn text_preceded_by_close_tag(out: &str, text_start: usize) -> bool {
     if !before.ends_with('>') {
         return false;
     }
+    // A self-closing tag (`<Code … />`) is a preceding SIBLING, so — like a close
+    // tag — the text after it is not the parent's first child and prettier does
+    // NOT trim its leading whitespace. `splitTextToDocs` then keeps the leading
+    // linebreak as a hardline (Case B).
+    if before.ends_with("/>") {
+        return true;
+    }
     // Search backwards (at most 512 bytes) for the matching `<`.
     // Ensure search_start is on a valid UTF-8 char boundary.
     let mut search_start = before.len().saturating_sub(512);
@@ -5367,7 +5436,70 @@ fn text_preceded_by_close_tag(out: &str, text_start: usize) -> bool {
 /// fresh line (a `hardline`). The first child's leading and last child's trailing
 /// whitespace are dropped (the element wrapper owns that newline).
 fn build_children_doc(out: &str, fragment: &Fragment) -> Option<crate::doc::Doc> {
-    build_children_doc_nodes(out, &fragment.nodes, false, false)
+    build_children_doc_nodes(out, &fragment.nodes, false, false, None)
+}
+
+/// Build a breakable `group([RawExpr{flat, broken}])` for a content-level tag
+/// (`{expr}` / `{@render …}`) so it participates in a prose fill exactly like
+/// prettier-plugin-svelte: the tag's own group decides flat-vs-broken via `fits`,
+/// and a trailing prose word glues to the closing `)}` (through the following
+/// fill's leading `line`) instead of dropping to a fresh line. Returns `None`
+/// when the tag can't be flattened or doesn't break into an argument block — the
+/// caller then keeps the atomic-text path.
+fn content_tag_breakable_doc(
+    out: &str,
+    node: &TemplateNode,
+    options: &FormatOptions,
+) -> Option<crate::doc::Doc> {
+    use crate::doc::Doc;
+    let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
+    let (prefix, expr_src): (&str, &str) = match node {
+        TemplateNode::ExpressionTag(_) => ("", span.strip_prefix('{')?.strip_suffix('}')?.trim()),
+        TemplateNode::RenderTag(t) => {
+            let (Some(s), Some(e)) = (t.expression.start(), t.expression.end()) else {
+                return None;
+            };
+            ("@render ", out.get(s as usize..e as usize)?.trim())
+        }
+        _ => return None,
+    };
+    if expr_src.is_empty() {
+        return None;
+    }
+    // Canonical flat inner (one line). Bail if it can't be flattened.
+    let flat_inner =
+        crate::expression::reformat_content_at_width(expr_src, options, u16::MAX as usize, 0)
+            .ok()?;
+    if flat_inner.contains('\n') {
+        return None;
+    }
+    // Keep the flat form byte-verbatim when the tag is already single-line in the
+    // formatted output (no drift); reconstruct it only for an already-broken tag.
+    let flat = if span.contains('\n') {
+        format!("{{{prefix}{flat_inner}}}")
+    } else {
+        span.to_string()
+    };
+    // Broken shape: force just the outermost break (one column under the flat
+    // inner width, mirroring `try_break_inline_content_tag`); continuation lines
+    // carry oxc's own relative indent measured from column 0, which the `RawExpr`
+    // printer offsets by the current indent level.
+    let width = UnicodeWidthStr::width(flat_inner.as_str())
+        .saturating_sub(1)
+        .max(1);
+    let broken_inner =
+        crate::expression::reformat_content_at_width(expr_src, options, width, 0).ok()?;
+    if !broken_inner.contains('\n') {
+        return None;
+    }
+    let mut lines: Vec<String> = broken_inner.split('\n').map(str::to_string).collect();
+    let last = lines.len() - 1;
+    lines[0] = format!("{{{prefix}{}", lines[0]);
+    lines[last] = format!("{}}}", lines[last]);
+    Some(Doc::Group(vec![Doc::RawExpr {
+        flat,
+        broken: lines,
+    }]))
 }
 
 // `use_word_first`: when true, a trailing text node that follows a non-void
@@ -5378,6 +5510,7 @@ fn build_children_doc_nodes(
     nodes: &[TemplateNode],
     allow_elem_expr_collapse: bool,
     use_word_first: bool,
+    options: Option<&FormatOptions>,
 ) -> Option<crate::doc::Doc> {
     use crate::doc::Doc;
     let n = nodes.len();
@@ -5575,6 +5708,21 @@ fn build_children_doc_nodes(
                 ws_prev = false;
             }
             other => {
+                // A breakable content/render tag joins the fill as `group([RawExpr])`
+                // (prettier's fill+tag+fill); gated on a caller threading options.
+                if let Some(opts) = options
+                    && matches!(
+                        other,
+                        TemplateNode::ExpressionTag(_) | TemplateNode::RenderTag(_)
+                    )
+                    && let Some(doc) = content_tag_breakable_doc(out, other, opts)
+                {
+                    // `ws_prev` is only raised before an inline *element*, never
+                    // before a content tag, so the tag is always pushed bare.
+                    docs.push(doc);
+                    ws_prev = false;
+                    continue;
+                }
                 // Expression tag / html tag / component / … : verbatim atom.
                 // For Components with text content (`<A href="/">text</A>`), try
                 // the same hug-doc treatment as RegularElement so the open tag can
@@ -6414,6 +6562,30 @@ mod tests {
     }
 
     #[test]
+    fn text_after_self_closing_tag_is_not_first_child() {
+        // A text node after a self-closing sibling (`<Code … />`) is not the
+        // parent's first child, so prettier does not trim its leading linebreak —
+        // `splitTextToDocs` keeps the leading hardline (the inverted, last-word-
+        // overflow-tolerant fill). The gate must recognise the `/>` prefix.
+        let out = "<Code />\nThen add";
+        assert!(text_preceded_by_close_tag(out, 8));
+    }
+
+    #[test]
+    fn text_after_close_tag_is_not_first_child() {
+        let out = "</code>\ntext";
+        assert!(text_preceded_by_close_tag(out, 7));
+    }
+
+    #[test]
+    fn text_after_open_tag_is_first_child() {
+        // First child of `<p>` — prettier trims the leading whitespace, so this
+        // must NOT take the inverted-fill (Case B) path.
+        let out = "<p>\ntext";
+        assert!(!text_preceded_by_close_tag(out, 3));
+    }
+
+    #[test]
     fn is_block_display_standard_elements() {
         assert!(is_block_display("div"));
         assert!(is_block_display("p"));
@@ -6434,5 +6606,50 @@ mod tests {
         assert!(!is_block_display("span"));
         assert!(!is_block_display("a"));
         assert!(!is_block_display("strong"));
+    }
+
+    #[test]
+    fn hug_close_tag_width_drives_inner_component_break() {
+        use crate::doc::{Doc, print};
+
+        // Mirrors build_self_closing_component_doc's structure for
+        // `<Icon data={TrashIcon} class="text-surface-content/50" />`.
+        let icon = || {
+            Doc::Group(vec![
+                Doc::Text("<Icon".to_string()),
+                Doc::Indent(vec![Doc::Group(vec![
+                    Doc::Line,
+                    Doc::Text("data={TrashIcon}".to_string()),
+                    Doc::Line,
+                    Doc::Text("class=\"text-surface-content/50\"".to_string()),
+                    Doc::Dedent(vec![Doc::Line]),
+                ])]),
+                Doc::Text("/>".to_string()),
+            ])
+        };
+        let body = || Doc::Concat(vec![Doc::Text("Clear ".to_string()), icon()]);
+
+        // Body alone from col 15 ends at 78 <= 80: the Icon must stay flat.
+        let a = print(body(), 80, "  ", 7, 15);
+        assert_eq!(
+            a,
+            "Clear <Icon data={TrashIcon} class=\"text-surface-content/50\" />"
+        );
+
+        // With the close tag inside the measured group (prettier's
+        // group(['>', body, '</tag'])) the same body overflows (86 > 80), so the
+        // fits lookahead must break the Icon's attributes.
+        let measured = Doc::Group(vec![
+            Doc::Text(">".to_string()),
+            body(),
+            Doc::Text("</button".to_string()),
+        ]);
+        let b = print(measured, 80, "  ", 7, 14);
+        let expected = "\
+>Clear <Icon
+                data={TrashIcon}
+                class=\"text-surface-content/50\"
+              /></button";
+        assert_eq!(b, expected);
     }
 }
