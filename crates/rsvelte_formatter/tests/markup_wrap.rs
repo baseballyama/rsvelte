@@ -340,3 +340,45 @@ fn overflowing_single_line_prose_in_component_body_wraps() {
     let expected = "<Popover>\n  <div slot=\"title\">Title</div>\n  You can click inside this Popover and it will not dismiss. Dismissal will only occur\n  if outside.\n</Popover>";
     assert_eq!(out, expected, "single-line prose must wrap:\n{out}");
 }
+
+#[test]
+fn prose_after_broken_inline_element_stays_word_first() {
+    // Multi-pass artifact: an earlier collapse pass hug-breaks the inline
+    // `<code>` (its close tag dangles), which pushes the following text onto a
+    // fresh line. The final children-port pass re-parses that intermediate and
+    // must NOT read the artifact newline as a source break — the source had a
+    // SPACE after `</code>`, so the fill stays word-first and wraps "follow"
+    // onto its own line (matching prettier / oxfmt), rather than the inverted
+    // (last-word-overflow-tolerant) fill that keeps "follow" on the long line.
+    let src = "<ul>\n  <li>\n    Svelte UX 1.0.0 requires Tailwind 3. For new projects, Svelte CLI <code>sv</code> installs\n    Tailwind 4 which can not be used. Instead you will need to follow the\n    <a href=\"https://v3.tailwindcss.com/docs/guides/sveltekit\" target=\"_blank\">official guide</a>\n    to setup your project.\n  </li>\n</ul>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<ul>\n  <li>\n    Svelte UX 1.0.0 requires Tailwind 3. For new projects, Svelte CLI <code\n      >sv</code\n    >\n    installs Tailwind 4 which can not be used. Instead you will need to follow\n    the\n    <a href=\"https://v3.tailwindcss.com/docs/guides/sveltekit\" target=\"_blank\"\n      >official guide</a\n    >\n    to setup your project.\n  </li>\n</ul>";
+    assert_eq!(
+        out, expected,
+        "prose after broken inline must stay word-first:\n{out}"
+    );
+}
+
+#[test]
+fn void_element_dangles_slash_when_prose_line_overflows() {
+    // A void `<br />` glued to the end of an overflowing prose line must dangle
+    // its `/>` onto its own line at the outer indent (`<br\n/>`), matching
+    // prettier's self-closing open-tag group. A fitting line keeps `<br />`.
+    let src = "<div>\n  Notice how navigating to different pages affects the rendered output here.<br />\n  Next line of text.\n</div>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<div>\n  Notice how navigating to different pages affects the rendered output here.<br\n  />\n  Next line of text.\n</div>";
+    assert_eq!(
+        out, expected,
+        "void <br /> must dangle its slash on overflow:\n{out}"
+    );
+}
+
+#[test]
+fn void_element_stays_flat_when_it_fits() {
+    // The same shape below the print width keeps `<br />` on one line (the
+    // breakable group only breaks on overflow, so fitting lines are unchanged).
+    let src = "<div>\n  Short line.<br />\n  Next.\n</div>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<div>\n  Short line.<br />\n  Next.\n</div>";
+    assert_eq!(out, expected, "fitting void <br /> stays flat:\n{out}");
+}
