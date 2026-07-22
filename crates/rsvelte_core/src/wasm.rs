@@ -317,15 +317,33 @@ fn default_css_hash(input: &CssHashInput, root_dir: Option<&str>) -> String {
     generate_css_hash(&fname)
 }
 
-fn build_warning_filter(func: js_sys::Function) -> WarningFilterFn {
+fn build_warning_filter(func: js_sys::Function, slot: ErrorSlot) -> WarningFilterFn {
     Arc::new(move |warning: &Warning| -> bool {
         let obj = warning_to_js(warning);
-        // A throwing filter keeps the warning rather than dropping it silently.
         match func.call1(&JsValue::NULL, &obj) {
             Ok(v) => v.as_bool().unwrap_or(true),
-            Err(_) => true,
+            // A throwing filter aborts compilation (matching upstream Svelte and
+            // the NAPI shim), surfaced via the shared error slot; the retained
+            // warning here is discarded once the caller sees the failure.
+            Err(e) => {
+                slot.lock()
+                    .unwrap()
+                    .get_or_insert_with(|| js_error_message(&e));
+                true
+            }
         }
     })
+}
+
+/// Extract a JS error's `.message`, falling back to its string form.
+fn js_error_message(e: &JsValue) -> String {
+    e.as_string()
+        .or_else(|| {
+            js_sys::Reflect::get(e, &JsValue::from_str("message"))
+                .ok()
+                .and_then(|m| m.as_string())
+        })
+        .unwrap_or_else(|| "callback threw".to_string())
 }
 
 /// Bridge a user `cssHash({ hash, css, name, filename }) => string` into a
@@ -362,15 +380,9 @@ fn build_css_hash(func: js_sys::Function, root_dir: Option<String>, slot: ErrorS
                 .as_string()
                 .unwrap_or_else(|| default_css_hash(input, root_dir.as_deref())),
             Err(e) => {
-                let msg = e
-                    .as_string()
-                    .or_else(|| {
-                        js_sys::Reflect::get(&e, &JsValue::from_str("message"))
-                            .ok()
-                            .and_then(|m| m.as_string())
-                    })
-                    .unwrap_or_else(|| "cssHash callback threw".to_string());
-                slot.lock().unwrap().get_or_insert(msg);
+                slot.lock()
+                    .unwrap()
+                    .get_or_insert_with(|| js_error_message(&e));
                 default_css_hash(input, root_dir.as_deref())
             }
         }
@@ -461,7 +473,7 @@ fn build_compile_options(
     }
 
     if let Some(func) = get_prop(options, "warningFilter").dyn_ref::<js_sys::Function>() {
-        opts.warning_filter = Some(build_warning_filter(func.clone()));
+        opts.warning_filter = Some(build_warning_filter(func.clone(), Arc::clone(error_slot)));
     }
 
     // A constant `cssHashOverride` wins; otherwise bridge a dynamic `cssHash`.

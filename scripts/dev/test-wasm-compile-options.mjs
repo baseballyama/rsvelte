@@ -106,6 +106,20 @@ assert(
 		filtered.warnings.length < unfiltered.warnings.length,
 	JSON.stringify(filtered.warnings.map((w) => w.code)),
 );
+// A throwing warningFilter aborts compilation (matches upstream Svelte / NAPI).
+let warnFilterThrew = false;
+try {
+	compiler.compile(warnSrc, {
+		filename: 'W.svelte',
+		generate: 'client',
+		warningFilter: () => {
+			throw new Error('warn-boom');
+		},
+	});
+} catch (e) {
+	warnFilterThrew = /warn-boom/.test(String((e && e.message) || e));
+}
+assert('throwing warningFilter surfaces as a compile error', warnFilterThrew);
 
 // 6. Dynamic cssHash — a css-dependent scope hash bridged through js_sys.
 {
