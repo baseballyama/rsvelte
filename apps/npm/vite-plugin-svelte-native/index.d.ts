@@ -26,7 +26,7 @@ export interface CompileOptions {
 	 * Compile as a custom element. A function form `({ filename }) => boolean`
 	 * is evaluated once at the binding boundary.
 	 */
-	customElement?: boolean | ((meta: { filename: string | undefined }) => boolean);
+	customElement?: boolean | ((meta: { filename: string }) => boolean);
 	/** Generate `accessors`. */
 	accessors?: boolean;
 	/** HTML namespace. */
@@ -41,7 +41,7 @@ export interface CompileOptions {
 	css?:
 		| 'injected'
 		| 'external'
-		| ((meta: { filename: string | undefined }) => 'injected' | 'external');
+		| ((meta: { filename: string }) => 'injected' | 'external');
 	/**
 	 * Custom hash function for CSS scoping. Called once per component with the
 	 * component's CSS; the returned string becomes the scope class. Bridged into
@@ -68,7 +68,7 @@ export interface CompileOptions {
 	 * A function form `({ filename }) => boolean | undefined` is evaluated once
 	 * at the binding boundary.
 	 */
-	runes?: boolean | ((meta: { filename: string | undefined }) => boolean | undefined);
+	runes?: boolean | ((meta: { filename: string }) => boolean | undefined);
 	/** Disclose the compiler version in the output banner. */
 	discloseVersion?: boolean;
 	/** Source-map options (forwarded through magic-string). */

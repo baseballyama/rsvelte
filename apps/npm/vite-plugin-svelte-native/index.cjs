@@ -51,18 +51,13 @@ try {
 	);
 }
 
-// Resolve the function-form compile options the NAPI boundary can't accept.
-// `customElement` / `css` / `runes` may be `(({ filename }) => value)` in the
-// upstream Svelte contract; they depend only on `filename`, so we evaluate them
-// once here and hand the plain value to Rust. `warningFilter` is returned to the
-// caller so it can post-filter the warnings array (warnings never affect codegen,
-// so filtering after compile is equivalent to Svelte's emit-time filter).
-//
-// A dynamic `cssHash` function needs the Rust→JS callback bridge and is handled
-// separately by `compileWithCssHash`; constant hashes go through `cssHashOverride`.
-//
-// Fast path: when none of these fields are functions the original object is
-// returned untouched — no clone, no allocation, zero overhead for the hot path.
+// Resolve the function-form compile options the NAPI boundary can't accept:
+// evaluate `customElement`/`css`/`runes` (`({ filename }) => value`) once and hand
+// the plain value to Rust, and return any `warningFilter` for the caller to
+// post-filter the warnings array (warnings never affect codegen, so post-filtering
+// equals Svelte's emit-time filter). A dynamic `cssHash` uses the callback bridge
+// (`compileWithCssHash`); constant hashes go through `cssHashOverride`. When no
+// field is a function the original object is returned as-is.
 function prepareCompileOptions(options) {
 	if (options == null) return { options, warningFilter: undefined };
 	const { customElement, css, runes, warningFilter } = options;
@@ -74,7 +69,8 @@ function prepareCompileOptions(options) {
 	if (!hasParametric && !hasWarningFilter) {
 		return { options, warningFilter: undefined };
 	}
-	const meta = { filename: options.filename };
+	// Svelte defaults `filename` to '(unknown)' before invoking these functions.
+	const meta = { filename: options.filename ?? '(unknown)' };
 	const resolved = { ...options };
 	if (typeof customElement === 'function') resolved.customElement = customElement(meta);
 	if (typeof css === 'function') resolved.css = css(meta);
