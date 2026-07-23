@@ -219,6 +219,8 @@ async function main() {
 				aCount === 1 && bCount === 1,
 				`got IdenticalA.svelte=${aCount}, IdenticalB.svelte=${bCount}`,
 			);
+
+			await checkRelintAfterContentChange();
 		}
 
 		// ── wasm path (forced) ────────────────────────────────────────────────
@@ -256,6 +258,61 @@ async function main() {
 		process.exit(1);
 	}
 	console.log('All oxlint-plugin E2E checks passed.');
+}
+
+// The de-dup Set that guards a dual-`<script>` component against repeat
+// reports is keyed by filename and lives for the process's lifetime (a
+// long-lived plugin host — oxlint's LSP/watch mode — relints the same file
+// many times without a fresh process). Drive the plugin's rule visitor
+// in-process (no real oxlint CLI involved) to prove that relinting the same
+// filename after its content changes does not reuse stale de-dup state and
+// swallow a diagnostic that reappears at the same line/column/message.
+async function checkRelintAfterContentChange() {
+	const dir = mkdtempSync(join(tmpdir(), 'rsvelte-oxlint-relint-'));
+	const file = join(dir, 'Dual.svelte');
+	const contentV1 = FIXTURES['Dual.svelte'];
+	writeFileSync(file, contentV1);
+
+	try {
+		const { default: plugin } = await import(pathToFileURL(pluginEntry).href);
+		const { scriptContentRanges } = await import(pathToFileURL(join(pluginDir, 'src/locate.js')).href);
+		const blockTexts = (content) => scriptContentRanges(content).map((r) => content.slice(r.start, r.end));
+
+		const reports = [];
+		// oxlint calls `createOnce(context)` once per rule for the whole
+		// invocation and mutates this same context's fields before each
+		// `Program()` visit — reproduce that shared, mutated-in-place context.
+		const context = {
+			physicalFilename: file,
+			sourceCode: { text: '' },
+			report(d) {
+				reports.push(d);
+			},
+		};
+		const visitor = plugin.rules['require-each-key'].createOnce(context);
+		const visitBlock = (blockText) => {
+			context.sourceCode = { text: blockText };
+			visitor.Program();
+		};
+
+		for (const block of blockTexts(contentV1)) visitBlock(block);
+		const afterFirstLint = reports.length;
+		reports.length = 0;
+
+		// Edit the module script's value only — the each-block diagnostic keeps
+		// the same line/column/message, since the each block itself is untouched.
+		const contentV2 = contentV1.replace('const moduleValue = 1;', 'const moduleValue = 2;');
+		writeFileSync(file, contentV2);
+		for (const block of blockTexts(contentV2)) visitBlock(block);
+
+		check(
+			'relinting the same filename after its content changes reports the diagnostic again (no stale-dedup drop)',
+			afterFirstLint === 1 && reports.length === 1,
+			`got ${afterFirstLint} report(s) on first lint, ${reports.length} on relint after content change`,
+		);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
 }
 
 async function bench() {

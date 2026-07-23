@@ -23,3 +23,9 @@ diagnostics would silently disappear instead of duplicating. Keeping the two
 caches independent also means the content cache's eviction can no longer
 resurrect the original duplicate-report bug, since de-dup state no longer
 lives on the evicted object.
+
+The per-filename entry also tracks the content it was last built from and
+resets when that content changes, so a long-lived plugin host (oxlint's
+LSP/watch mode) relinting the same file after an edit can't reuse stale
+de-dup state from the previous lint pass and drop a diagnostic that
+reappears at the same location.
