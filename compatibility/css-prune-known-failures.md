@@ -89,6 +89,16 @@ the parent rule's subject compound (`.a`) before matching. 65 sweep entries
 cleared. Representative: `A/&+&/literal/none`, `A/&+&/each_all/none`. Regression
 test: `crates/rsvelte_core/tests/css_nested_sibling_1703.rs`.
 
+### Known limitation: combinators inside a resolved compound (issue #1719)
+
+The #1702/#1703 resolution above only fires for a **single-relative** selector.
+A combinator inside the resolved compound — `:global(.a .z) + .b`, or a
+multi-relative parent like `.foo > .a { & + & }` — carries an ancestor/child
+constraint the compound-only matcher can't verify, so it is intentionally left
+unresolved (erring toward over-pruning, never over-keeping). This is a
+pre-existing limitation of the transform's dom-structure prune heuristic, not a
+regression from this PR, and is tracked in issue #1719.
+
 ## How to run
 
 ```bash
