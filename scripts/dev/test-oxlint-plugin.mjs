@@ -49,6 +49,14 @@ const FIXTURES = {
 	// runs. `Second.svelte` below exists to force that interleaving.
 	'Dual.svelte': `<script module>\n  const moduleValue = 1;\n</script>\n\n<script>\n  const items = [moduleValue];\n</script>\n\n{#each items as item}\n  <p>{item}</p>\n{/each}\n`,
 	'Second.svelte': `<script>\n  const value = 1;\n</script>\n\n<p>{value}</p>\n`,
+	// Regression: two distinct files with byte-identical content must not share
+	// de-dup state. The expensive-lint cache (`analysisCache`) is intentionally
+	// keyed by content so IdenticalA and IdenticalB reuse one lint run — the
+	// bug this guards is a per-rule "already reported" Set piggybacked on that
+	// same content-keyed entry, which would make IdenticalB's diagnostic look
+	// already-emitted (from IdenticalA's visit) and silently disappear.
+	'IdenticalA.svelte': `<script>\n  let dup = 1;\n</script>\n\n<p>{dup}</p>\n`,
+	'IdenticalB.svelte': `<script>\n  let dup = 1;\n</script>\n\n<p>{dup}</p>\n`,
 };
 
 let failures = 0;
@@ -193,6 +201,23 @@ async function main() {
 				`all ${stressDualNames.length} dual-script components report require-each-key exactly once (stress multi-file run)`,
 				seenCount === stressDualNames.length && duplicated.length === 0,
 				`got ${seenCount}/${stressDualNames.length} exactly-once, duplicated: ${duplicated.slice(0, 5).join(', ')}`,
+			);
+
+			// Two byte-identical files must each report their diagnostic exactly
+			// once: neither duplicated (the #1724 bug) nor dropped (a de-dup state
+			// wrongly shared across files with the same content, since content is
+			// what the *expensive-lint* cache is keyed by).
+			const identical = runOxlint(oxlint, configPath, dir, undefined, ['IdenticalA.svelte', 'IdenticalB.svelte']);
+			const aCount = svelteDiags(identical.report, 'IdenticalA.svelte').filter(
+				(d) => d.code === 'prefer-const',
+			).length;
+			const bCount = svelteDiags(identical.report, 'IdenticalB.svelte').filter(
+				(d) => d.code === 'prefer-const',
+			).length;
+			check(
+				'two byte-identical files each report prefer-const exactly once (no cross-file drop or dup)',
+				aCount === 1 && bCount === 1,
+				`got IdenticalA.svelte=${aCount}, IdenticalB.svelte=${bCount}`,
 			);
 		}
 
