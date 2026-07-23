@@ -59,11 +59,37 @@ pub(crate) fn is_blank_text(s: &str) -> bool {
         .all(|c| matches!(c, ' ' | '\t' | '\n' | '\r' | '\u{0b}' | '\u{0c}'))
 }
 
+/// Reusable scratch buffers for [`format_with_arenas`], letting a hot loop
+/// over many files amortize the per-file allocations. Cleared (not freed) at
+/// each `format_with_arenas` entry, so a worker thread reuses one instance's
+/// capacity across every file it formats.
+#[derive(Default)]
+pub struct Arenas {
+    edits: Vec<(u32, u32, String)>,
+}
+
+impl Arenas {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
 /// Format a Svelte source string.
 ///
 /// On success returns the formatted source. On failure returns the parse
 /// or formatting error, leaving the source untouched.
 pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatError> {
+    format_with_arenas(source, options, &mut Arenas::new())
+}
+
+/// [`format`] over caller-owned scratch buffers. A loop formatting many files
+/// keeps one [`Arenas`] and passes it each call, reusing its capacity instead
+/// of reallocating per file.
+pub fn format_with_arenas(
+    source: &str,
+    options: &FormatOptions,
+    arenas: &mut Arenas,
+) -> Result<String, FormatError> {
     // A plain `<script>` (no `lang="ts"`) may still contain TypeScript: oxfmt /
     // prettier-plugin-svelte parse Svelte `<script>` as TS by default, so e.g.
     // `import type { X }` or `let c: typeof C<any>` are valid input there. Try a
@@ -98,7 +124,10 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
         .map_err(FormatError::from_parse)?,
     };
 
-    let mut edits: Vec<(u32, u32, String)> = Vec::new();
+    // Reuse the arena's edit buffer: take it out (leaving the arena empty),
+    // refill it below, and hand it back before returning on the success path.
+    let mut edits: Vec<(u32, u32, String)> = std::mem::take(&mut arenas.edits);
+    edits.clear();
 
     // A component is TypeScript if either `<script>` block declares
     // `lang="ts"`. Template `{expr}` / attribute / pattern source must then
@@ -204,10 +233,12 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
             Vec::new()
         };
 
-    // Apply edits from the back so earlier offsets remain valid.
+    // Select the edits that survive the overlap rule, then splice them into a
+    // fresh buffer in one forward pass. Selecting in descending order keeps the
+    // exact tie-break the old back-to-front `replace_range` loop used; the
+    // forward splice avoids that loop's repeated tail memmoves (O(n) total).
     edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
-    let mut out = source.to_string();
-    // Track the range of the last applied non-zero-length edit so we can skip
+    // Track the range of the last surviving non-zero-length edit so we can skip
     // any subsequent edit whose range overlaps it.  Two passes (markup.rs and
     // indent.rs) can both emit an edit for the same span — e.g. markup.rs
     // replaces trailing whitespace with `</tag>` at the same `[start, end)`
@@ -217,7 +248,8 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     // wins; the second is skipped here to avoid a double-replace that would
     // clobber the first replacement.
     let mut last_applied: (u32, u32) = (u32::MAX, u32::MAX);
-    for (start, end, new_text) in edits {
+    let mut survivors: Vec<(u32, u32, String)> = Vec::with_capacity(edits.len());
+    for (start, end, new_text) in edits.drain(..) {
         let (la_s, la_e) = last_applied;
         let incoming_nonempty = end > start;
         let applied_nonempty = la_e > la_s;
@@ -228,13 +260,33 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
         if overlaps {
             continue;
         }
-        out.replace_range(start as usize..end as usize, &new_text);
         // Only update the guard for non-zero-length edits (range replacements).
         // Zero-length inserts don't "own" a range.
         if end > start {
             last_applied = (start, end);
         }
+        survivors.push((start, end, new_text));
     }
+    // Return the drained buffer to the arena so its capacity is reused.
+    arenas.edits = edits;
+
+    // Survivors are in descending-start order; reversing yields ascending
+    // start with same-start edits in reverse insertion order — exactly the
+    // sequence the old back-to-front `replace_range` loop produced, so a single
+    // forward splice reproduces its output byte-for-byte.
+    survivors.reverse();
+    let out_cap = source.len() + survivors.iter().map(|(_, _, t)| t.len()).sum::<usize>();
+    let mut out = String::with_capacity(out_cap);
+    let mut cursor = 0usize;
+    for (start, end, new_text) in &survivors {
+        let (s, e) = (*start as usize, *end as usize);
+        if s >= cursor {
+            out.push_str(&source[cursor..s]);
+            cursor = e;
+        }
+        out.push_str(new_text);
+    }
+    out.push_str(&source[cursor..]);
 
     // Post-pass: reorder top-level sections into prettier's canonical order
     // (options → module script → instance script → markup → styles) and

@@ -18,9 +18,9 @@ use oxc_formatter::JsFormatOptions;
 use oxc_formatter_core::{IndentStyle, IndentWidth, LineWidth};
 use rayon::prelude::*;
 use rsvelte_formatter::{
-    ClassSorter, CssFormatOptions, CssSingleQuote, CssTrailingCommas, FormatOptions,
+    Arenas, ClassSorter, CssFormatOptions, CssSingleQuote, CssTrailingCommas, FormatOptions,
     JsonFormatOptions, JsonVariant, SortOrderSpec, css_variant_from_lang, format,
-    format_css_source, format_js_source, format_json_source, reindent,
+    format_css_source, format_js_source, format_json_source, format_with_arenas, reindent,
 };
 
 mod config;
@@ -1277,7 +1277,7 @@ fn run_svelte_files_native(
 ) -> Result<PipelineStatus> {
     let outcomes: Vec<(PathBuf, NativeOutcome)> = files
         .par_iter()
-        .map(|path| {
+        .map_init(Arenas::new, |arenas, path| {
             let source = match std::fs::read_to_string(path) {
                 Ok(s) => s,
                 Err(e) => {
@@ -1287,7 +1287,7 @@ fn run_svelte_files_native(
                     );
                 }
             };
-            match format(&source, options) {
+            match format_with_arenas(&source, options, arenas) {
                 Ok(out) if out == source => (path.clone(), NativeOutcome::Unchanged),
                 Ok(out) => match mode {
                     Mode::Write => match write_atomic(path, &out) {
@@ -1363,7 +1363,9 @@ fn run_svelte_files(
     // ── Pass 1: format in parallel, collecting <style> bodies ──
     let pass1: Vec<Pass1> = files
         .par_iter()
-        .map(|path| format_collecting(path, options))
+        .map_init(Arenas::new, |arenas, path| {
+            format_collecting(path, options, arenas)
+        })
         .collect();
 
     // ── Flatten collected styles across all files, keyed by (file, local) ──
@@ -1443,7 +1445,7 @@ fn run_svelte_files(
 
 /// Pass 1 for one file: read it and format with a style callback that
 /// records each `<style>` body and returns a placeholder.
-fn format_collecting(path: &Path, options: &FormatOptions) -> Pass1 {
+fn format_collecting(path: &Path, options: &FormatOptions, arenas: &mut Arenas) -> Pass1 {
     let source = match std::fs::read_to_string(path) {
         Ok(s) => s,
         Err(e) => {
@@ -1474,7 +1476,7 @@ fn format_collecting(path: &Path, options: &FormatOptions) -> Pass1 {
         Ok(style_placeholder(idx))
     }));
 
-    let outcome = match format(&source, &opts) {
+    let outcome = match format_with_arenas(&source, &opts, arenas) {
         Ok(formatted) => {
             drop(opts); // release the sink Arc so we can unwrap it
             let styles = Arc::try_unwrap(styles)

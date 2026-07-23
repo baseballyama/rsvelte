@@ -26,7 +26,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 use rayon::prelude::*;
-use rsvelte_formatter::{FormatOptions, format};
+use rsvelte_formatter::{Arenas, FormatOptions, format, format_with_arenas};
 
 /// Count of inputs the formatter panicked on across the whole run. A
 /// benchmark over thousands of files must not be aborted by a single edge
@@ -191,7 +191,7 @@ fn load_files(files_path: &str) -> io::Result<Vec<(String, String)>> {
     Ok(files)
 }
 
-fn format_file(source: &str, options: &FormatOptions) {
+fn format_file(source: &str, options: &FormatOptions, arenas: &mut Arenas) {
     // Ignore parse/format errors — some corpus inputs intentionally contain
     // syntax the formatter can't round-trip; the benchmark only times work,
     // not correctness (the compatibility report covers correctness).
@@ -201,22 +201,28 @@ fn format_file(source: &str, options: &FormatOptions) {
     // robustness, so a single bad file is tallied and skipped rather than
     // aborting the run. `AssertUnwindSafe` is needed because `FormatOptions`
     // holds an `Option<Arc<dyn Fn>>` (None here) which isn't `RefUnwindSafe`.
-    let result = catch_unwind(AssertUnwindSafe(|| format(source, options)));
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        format_with_arenas(source, options, arenas)
+    }));
     if result.is_err() {
         PANIC_COUNT.fetch_add(1, Ordering::Relaxed);
     }
 }
 
 fn run_single_threaded(files: &[(String, String)], options: &FormatOptions) {
+    // One arena reused across every file this thread formats.
+    let mut arenas = Arenas::new();
     for (_path, content) in files {
-        format_file(content, options);
+        format_file(content, options, &mut arenas);
     }
 }
 
 fn run_multi_threaded(files: &[(String, String)], options: &FormatOptions) {
-    files.par_iter().for_each(|(_path, content)| {
-        format_file(content, options);
-    });
+    files
+        .par_iter()
+        .for_each_init(Arenas::new, |arenas, (_path, content)| {
+            format_file(content, options, arenas);
+        });
 }
 
 fn main() {
