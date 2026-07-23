@@ -194,7 +194,7 @@ Live numbers, charts, and reproduction steps: [benchmark page](https://basebally
 ## Compatibility
 
 <!-- svelte-target-version -->
-**Targeting Svelte `v5.56.4`** ([`eae50dfd1c22`](https://github.com/sveltejs/svelte/commit/eae50dfd1c22)) — automatically maintained by `pnpm run update-docs`.
+**Targeting Svelte `v5.56.7`** ([`b29d7002ecf9`](https://github.com/sveltejs/svelte/commit/b29d7002ecf9)) — automatically maintained by `pnpm run update-docs`.
 <!-- /svelte-target-version -->
 
 rsvelte passes **100% of the in-scope fixtures** of the official Svelte compiler test suite — over 3,500 fixtures across parser, snapshot, CSS, validator, compiler errors, runtime (runes + legacy), hydration, SSR, preprocess, print, and svelte2tsx. The per-suite breakdown is on the live [compatibility dashboard](https://baseballyama.github.io/rsvelte/progress); regenerate locally with `pnpm run test-and-update`.
