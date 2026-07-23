@@ -94,6 +94,8 @@ pub fn format_with_arenas(
     // Free the previous file's throwaway expression/script parses; this file's
     // parses reuse the same arena chunk (see `scratch`).
     scratch::reset();
+    // Drop the previous file's memoized expression results.
+    expression::clear_expr_memo();
 
     // A plain `<script>` (no `lang="ts"`) may still contain TypeScript: oxfmt /
     // prettier-plugin-svelte parse Svelte `<script>` as TS by default, so e.g.

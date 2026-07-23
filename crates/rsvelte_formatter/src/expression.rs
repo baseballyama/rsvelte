@@ -1,6 +1,9 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+
 use oxc_ast::ast::{Program, TSAsExpression, TSSatisfiesExpression, TSType};
 use oxc_ast_visit::{Visit, walk};
-use oxc_formatter::format_program;
+use oxc_formatter::{QuoteStyle, format_program};
 use oxc_parser::{ParseOptions as OxcParseOptions, Parser};
 use oxc_span::{GetSpan, SourceType};
 use rsvelte_core::ast::arena::try_with_current_serialize_arena;
@@ -1945,6 +1948,29 @@ fn trivial_expr_verbatim(
     None
 }
 
+/// Per-file cache of formatted expression results. A single component reuses
+/// the same interpolation many times (30% of non-trivial expression formats in
+/// the corpus are exact intra-file repeats — e.g. `{item.href}` once per
+/// each-loop iteration site), so caching the oxc round-trip's output skips the
+/// repeat parse+format entirely.
+///
+/// The key is everything that determines [`format_expr_core`]'s output and can
+/// vary between two calls within one file: the raw source slice, the print
+/// width, the single-line flag, and the quote style (an attribute-embedded
+/// expression is formatted single-quoted, the same slice elsewhere double).
+/// Every other output-affecting option (indent, semicolons, TS dialect) is
+/// constant for the whole file, so it need not be keyed. Cleared per file at
+/// [`crate::format_with_arenas`] entry, so it never mixes two documents.
+type ExprMemoKey = (String, u16, bool, QuoteStyle);
+thread_local! {
+    static EXPR_MEMO: RefCell<HashMap<ExprMemoKey, String>> = RefCell::new(HashMap::new());
+}
+
+/// Drop the previous file's cached expression results. Called once per file.
+pub(crate) fn clear_expr_memo() {
+    EXPR_MEMO.with(|m| m.borrow_mut().clear());
+}
+
 fn format_expr_core(
     expr_source: &str,
     options: &FormatOptions,
@@ -1953,6 +1979,15 @@ fn format_expr_core(
 ) -> Result<String, FormatError> {
     if let Some(out) = trivial_expr_verbatim(expr_source, line_width) {
         return Ok(out.to_string());
+    }
+    let key: ExprMemoKey = (
+        expr_source.to_string(),
+        line_width.value(),
+        single_line,
+        options.js.quote_style,
+    );
+    if let Some(cached) = EXPR_MEMO.with(|m| m.borrow().get(&key).cloned()) {
+        return Ok(cached);
     }
     let allocator = crate::scratch::acquire();
 
@@ -2168,6 +2203,7 @@ fn format_expr_core(
             strip_outer_parens(s).trim().to_string()
         }
     };
+    EXPR_MEMO.with(|m| m.borrow_mut().insert(key, result.clone()));
     Ok(result)
 }
 
