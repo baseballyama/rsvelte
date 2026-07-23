@@ -21,6 +21,7 @@ mod markup;
 mod options;
 mod prettier_ignore;
 mod reindent;
+mod scratch;
 mod script;
 mod sort_order;
 mod style;
@@ -90,6 +91,10 @@ pub fn format_with_arenas(
     options: &FormatOptions,
     arenas: &mut Arenas,
 ) -> Result<String, FormatError> {
+    // Free the previous file's throwaway expression/script parses; this file's
+    // parses reuse the same arena chunk (see `scratch`).
+    scratch::reset();
+
     // A plain `<script>` (no `lang="ts"`) may still contain TypeScript: oxfmt /
     // prettier-plugin-svelte parse Svelte `<script>` as TS by default, so e.g.
     // `import type { X }` or `let c: typeof C<any>` are valid input there. Try a

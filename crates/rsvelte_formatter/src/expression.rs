@@ -1,4 +1,3 @@
-use oxc_allocator::Allocator;
 use oxc_ast::ast::{Program, TSAsExpression, TSSatisfiesExpression, TSType};
 use oxc_ast_visit::{Visit, walk};
 use oxc_formatter::format_program;
@@ -1620,14 +1619,14 @@ pub(crate) fn format_function_binding(
     };
 
     // Detect a top-level sequence and recover each member's source span.
-    let allocator = Allocator::default();
+    let allocator = crate::scratch::acquire();
     let source_type = if options.typescript {
         SourceType::ts()
     } else {
         SourceType::default()
     };
     let wrapped = format!("({seq_src});");
-    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+    let parser_ret = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parser_ret.diagnostics.is_empty() {
@@ -1792,7 +1791,7 @@ fn format_expr_core(
     line_width: oxc_formatter_core::LineWidth,
     single_line: bool,
 ) -> Result<String, FormatError> {
-    let allocator = Allocator::default();
+    let allocator = crate::scratch::acquire();
 
     // The wrapper and source type used to parse the expression snippet vary
     // depending on whether the file is TypeScript and whether the expression
@@ -1858,7 +1857,7 @@ fn format_expr_core(
         (wrapped, source_type, false)
     };
 
-    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+    let parser_ret = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parser_ret.diagnostics.is_empty() {
@@ -1925,7 +1924,7 @@ fn format_expr_core(
     if single_line {
         js.expand = oxc_formatter::Expand::Never;
     }
-    let formatted = format_program(&allocator, &parser_ret.program, js, None)
+    let formatted = format_program(allocator, &parser_ret.program, js, None)
         .print()
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
         .into_code();
@@ -2101,8 +2100,8 @@ fn reflow_flat_as_satisfies_unions(
 /// Re-parse the formatted text and collect the byte spans (into `formatted`) of
 /// every `as`/`satisfies` node's ≥2-member union type annotation.
 fn as_satisfies_union_spans(formatted: &str, source_type: SourceType) -> Vec<(usize, usize)> {
-    let allocator = Allocator::default();
-    let parsed = Parser::new(&allocator, formatted, source_type)
+    let allocator = crate::scratch::acquire();
+    let parsed = Parser::new(allocator, formatted, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parsed.diagnostics.is_empty() {
@@ -2366,7 +2365,7 @@ fn format_const_declaration(
     options: &FormatOptions,
     depth: usize,
 ) -> Result<String, FormatError> {
-    let allocator = Allocator::default();
+    let allocator = crate::scratch::acquire();
     let source_type = if options.typescript {
         SourceType::ts()
     } else {
@@ -2374,7 +2373,7 @@ fn format_const_declaration(
     };
 
     let wrapped = format!("const {decl_source};");
-    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+    let parser_ret = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parser_ret.diagnostics.is_empty() {
@@ -2395,7 +2394,7 @@ fn format_const_declaration(
             .unwrap_or(options.js.line_width);
         let mut js = options.js.clone();
         js.line_width = line_width;
-        let formatted = format_program(&allocator, &parser_ret.program, js, None)
+        let formatted = format_program(allocator, &parser_ret.program, js, None)
             .print()
             .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
             .into_code();
@@ -2456,7 +2455,7 @@ fn format_declaration_tag_body(
     options: &FormatOptions,
     depth: usize,
 ) -> Result<String, FormatError> {
-    let allocator = Allocator::default();
+    let allocator = crate::scratch::acquire();
     let source_type = if options.typescript {
         SourceType::ts()
     } else {
@@ -2465,7 +2464,7 @@ fn format_declaration_tag_body(
 
     // Append `;` so OXC parses it as a complete statement.
     let wrapped = format!("{body};");
-    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+    let parser_ret = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parser_ret.diagnostics.is_empty() {
@@ -2488,7 +2487,7 @@ fn format_declaration_tag_body(
 
     let mut js = options.js.clone();
     js.line_width = line_width;
-    let formatted = format_program(&allocator, &parser_ret.program, js, None)
+    let formatted = format_program(allocator, &parser_ret.program, js, None)
         .print()
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
         .into_code();
@@ -2684,7 +2683,7 @@ fn format_snippet_header_source(
     options: &FormatOptions,
     depth: usize,
 ) -> Result<String, FormatError> {
-    let allocator = Allocator::default();
+    let allocator = crate::scratch::acquire();
     let source_type = if options.typescript {
         SourceType::ts()
     } else {
@@ -2692,7 +2691,7 @@ fn format_snippet_header_source(
     };
 
     let wrapped = format!("function {header_src} {{}}");
-    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+    let parser_ret = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parser_ret.diagnostics.is_empty() {
@@ -2722,7 +2721,7 @@ fn format_snippet_header_source(
         oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
     // NOTE: do NOT set `expand = Never` — width-driven breaking is the point.
 
-    let formatted = format_program(&allocator, &parser_ret.program, js, None)
+    let formatted = format_program(allocator, &parser_ret.program, js, None)
         .print()
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
         .into_code();
@@ -2761,7 +2760,7 @@ pub(crate) fn format_pattern_source(
     options: &FormatOptions,
 ) -> Result<String, FormatError> {
     const SENTINEL: &str = "__rsvelte_fmt_rhs__";
-    let allocator = Allocator::default();
+    let allocator = crate::scratch::acquire();
     let source_type = if options.typescript {
         SourceType::ts()
     } else {
@@ -2769,7 +2768,7 @@ pub(crate) fn format_pattern_source(
     };
 
     let wrapped = format!("let {pattern_source} = {SENTINEL};");
-    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+    let parser_ret = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parser_ret.diagnostics.is_empty() {
