@@ -19,3 +19,9 @@ collapse pass keeps the resulting break instead of re-gluing it. Folding this in
 body's inserted newline, making the `true` case non-idempotent; `try_collapse` now
 preserves the break whenever the wrapped open tag glued its `>`, so output is
 byte-identical to the oracle and idempotent for both `bracketSameLine` values.
+
+The `try_collapse` change is not limited to block-display elements — it applies to
+every non-whitespace-sensitive empty body (Components, `<slot>`, `svelte:*`), so
+the same-shape divergence for a top-level Component or `<slot>` with a whitespace-
+only body and a wrapping open tag (where `main` failed to break the close tag onto
+its own line) is fixed too. This moves those cases toward the oracle, not away.
