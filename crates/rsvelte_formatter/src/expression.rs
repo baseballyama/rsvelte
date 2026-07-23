@@ -1904,19 +1904,20 @@ fn is_ident_shaped(s: &str) -> bool {
 }
 
 /// A pure dotted member chain of ASCII identifiers (`a.b.c`, `this.x.y`,
-/// `$page.data.title`) whose display width is strictly below `line_width`. The
-/// head must be a real identifier reference (or `this`); each later segment is
-/// any identifier-shaped token. oxc emits such a chain verbatim only while it
-/// fits — an over-wide pure-property chain breaks onto `\n  .seg` continuation
-/// lines — so the width guard is load-bearing. `?.` chains and any segment with
-/// whitespace/comments are excluded (they contain non-identifier bytes).
+/// `$page.data.title`) that fits within `line_width`. The head must be a real
+/// identifier reference (or `this`); each later segment is any identifier-shaped
+/// token. oxc emits such a chain verbatim only while it fits — an over-wide
+/// pure-property chain breaks onto `\n  .seg` continuation lines — so the width
+/// guard is load-bearing. `?.` chains and any segment with whitespace/comments
+/// are excluded (they contain non-identifier bytes).
 fn is_member_chain_within_width(s: &str, line_width: oxc_formatter_core::LineWidth) -> bool {
     if !s.contains('.') {
         return false;
     }
     // Every segment is a pure-ASCII identifier token, so the whole slice is
-    // ASCII and its byte length equals its display width.
-    if s.len() >= line_width.value() as usize {
+    // ASCII and its byte length equals its display width. A line exactly at the
+    // print width still fits (the formatter overflows only strictly beyond it).
+    if s.len() > line_width.value() as usize {
         return false;
     }
     let mut segs = s.split('.');
@@ -1961,6 +1962,12 @@ fn trivial_expr_verbatim(
 /// Every other output-affecting option (indent, semicolons, TS dialect) is
 /// constant for the whole file, so it need not be keyed. Cleared per file at
 /// [`crate::format_with_arenas`] entry, so it never mixes two documents.
+///
+/// Invariant: within one `format_with_arenas` scope every `format_expr_core`
+/// call shares the same non-keyed options — only the keyed fields differ — and a
+/// nested `format_with_arenas` (the collapse `<pre>` re-entry) clears the memo on
+/// entry, so a sub-document formatted with different options cannot read a
+/// parent's cached entry.
 type ExprMemoKey = (String, u16, bool, QuoteStyle);
 thread_local! {
     static EXPR_MEMO: RefCell<HashMap<ExprMemoKey, String>> = RefCell::new(HashMap::new());
@@ -3952,6 +3959,11 @@ mod tests {
                 "expected member-chain accept for {src:?}"
             );
         }
+        // Boundary: a chain exactly at the print width still fits (strict-`>`
+        // overflow convention), so it is accepted.
+        assert_eq!(trivial_expr_verbatim("a.bc", lw(4)), Some("a.bc"));
+        // One past the width: falls through to oxc.
+        assert_eq!(trivial_expr_verbatim("a.bcd", lw(4)), None);
         // Over-width: oxc would break the chain, so it must fall through.
         assert_eq!(trivial_expr_verbatim("comment.user.name", lw(10)), None);
         // Head is a reserved word (would not parse as a bare chain): reject.

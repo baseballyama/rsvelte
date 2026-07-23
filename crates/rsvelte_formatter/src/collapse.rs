@@ -56,6 +56,29 @@ fn parse_formatted(formatted: &str) -> Option<rsvelte_core::ast::template::Root>
     })
 }
 
+/// Every element-like container (HTML element, component, `<slot>`, `<title>`,
+/// and every `<svelte:*>` element), paired with whether it carries any
+/// attribute. Blocks, tags, text and comments are not element containers.
+fn element_container(n: &TemplateNode) -> Option<(&Fragment, bool)> {
+    match n {
+        TemplateNode::RegularElement(e) => Some((&e.fragment, !e.attributes.is_empty())),
+        TemplateNode::Component(c) => Some((&c.fragment, !c.attributes.is_empty())),
+        TemplateNode::SlotElement(e) => Some((&e.fragment, !e.attributes.is_empty())),
+        TemplateNode::TitleElement(t) => Some((&t.fragment, !t.attributes.is_empty())),
+        TemplateNode::SvelteComponent(c) => Some((&c.fragment, !c.attributes.is_empty())),
+        TemplateNode::SvelteElement(e) => Some((&e.fragment, !e.attributes.is_empty())),
+        TemplateNode::SvelteBody(e)
+        | TemplateNode::SvelteDocument(e)
+        | TemplateNode::SvelteFragment(e)
+        | TemplateNode::SvelteBoundary(e)
+        | TemplateNode::SvelteHead(e)
+        | TemplateNode::SvelteOptions(e)
+        | TemplateNode::SvelteSelf(e)
+        | TemplateNode::SvelteWindow(e) => Some((&e.fragment, !e.attributes.is_empty())),
+        _ => None,
+    }
+}
+
 /// Conservative necessary condition for [`collapse_pure_text_elements`] to make
 /// any edit: some element (recursively) that a collapse pass could reflow. Two
 /// shapes qualify — an element with a non-blank direct `Text` or `ExpressionTag`
@@ -68,26 +91,19 @@ fn parse_formatted(formatted: &str) -> Option<rsvelte_core::ast::template::Root>
 /// (formatting never adds/removes elements or turns text into elements).
 pub(crate) fn fragment_has_collapse_candidate(fragment: &Fragment) -> bool {
     fragment.nodes.iter().any(|n| {
-        let (child, has_attrs) = match n {
-            TemplateNode::RegularElement(e) => (Some(&e.fragment), !e.attributes.is_empty()),
-            TemplateNode::Component(c) => (Some(&c.fragment), !c.attributes.is_empty()),
-            TemplateNode::SlotElement(e) => (Some(&e.fragment), !e.attributes.is_empty()),
-            _ => (None, false),
-        };
-        let direct_hit = child.is_some_and(|f| {
-            f.nodes.iter().any(|cn| match cn {
+        if let Some((child, has_attrs)) = element_container(n) {
+            let direct_hit = child.nodes.iter().any(|cn| match cn {
                 TemplateNode::Text(t) => !crate::is_blank_text(t.data.as_str()),
                 TemplateNode::ExpressionTag(_) => true,
-                TemplateNode::RegularElement(_)
-                | TemplateNode::Component(_)
-                | TemplateNode::SlotElement(_) => has_attrs,
-                _ => false,
-            })
-        });
-        direct_hit
-            || child_fragments(n)
-                .iter()
-                .any(|f| fragment_has_collapse_candidate(f))
+                _ => has_attrs && element_container(cn).is_some(),
+            });
+            if direct_hit {
+                return true;
+            }
+        }
+        child_fragments(n)
+            .iter()
+            .any(|f| fragment_has_collapse_candidate(f))
     })
 }
 
@@ -1223,8 +1239,20 @@ fn child_fragments(node: &TemplateNode) -> Vec<&Fragment> {
         TemplateNode::RegularElement(e) => vec![&e.fragment],
         TemplateNode::Component(c) => vec![&c.fragment],
         TemplateNode::TitleElement(t) => vec![&t.fragment],
+        TemplateNode::SlotElement(e) => vec![&e.fragment],
+        TemplateNode::SvelteComponent(c) => vec![&c.fragment],
         TemplateNode::SvelteElement(e) => vec![&e.fragment],
         TemplateNode::SvelteBoundary(b) => vec![&b.fragment],
+        // Every `<svelte:*>` container that carries a child fragment. Omitting any
+        // makes this generic walk (and the collapse passes built on it) silently
+        // skip content nested under it.
+        TemplateNode::SvelteBody(e)
+        | TemplateNode::SvelteDocument(e)
+        | TemplateNode::SvelteFragment(e)
+        | TemplateNode::SvelteHead(e)
+        | TemplateNode::SvelteOptions(e)
+        | TemplateNode::SvelteSelf(e)
+        | TemplateNode::SvelteWindow(e) => vec![&e.fragment],
         TemplateNode::IfBlock(b) => {
             let mut v = vec![&b.consequent];
             if let Some(a) = &b.alternate {
@@ -6954,6 +6982,17 @@ mod tests {
             "attrs + element child (children-port wrapped-open-tag shape)"
         );
         assert!(has("<div><p>hi</p></div>"), "nested pure-text element");
+        // Candidate nested under a `<svelte:*>` / `<slot>` container must be
+        // seen through the generic recursion (regression: child_fragments once
+        // dropped these variants, so the gate wrongly skipped collapse).
+        assert!(
+            has("<svelte:head><title>Hello</title></svelte:head>"),
+            "pure-text element under svelte:head"
+        );
+        assert!(
+            has("<slot><span>hi</span></slot>"),
+            "pure-text element under slot"
+        );
         // Negative — provably nothing to collapse, safe to skip.
         assert!(
             !has("<div><span></span></div>"),
@@ -6961,6 +7000,32 @@ mod tests {
         );
         assert!(!has("<div></div>"), "empty element");
         assert!(!has("<script>let x = 1;</script>"), "no markup");
+    }
+
+    #[test]
+    fn collapse_runs_for_candidate_under_svelte_head_and_slot() {
+        // Regression: when the ONLY collapse candidate is nested under a
+        // `<svelte:*>` / `<slot>` container, the gate must NOT skip collapse.
+        // Before the child_fragments fix the gate skipped and left these
+        // multi-line. Assert the pure-text element collapses to one line.
+        let head = crate::format(
+            "<svelte:head>\n\t<title>\n\t\tHello\n\t</title>\n</svelte:head>\n",
+            &FormatOptions::default(),
+        )
+        .unwrap();
+        assert!(
+            !head.contains("<title>\n") && head.contains("Hello"),
+            "title under svelte:head should collapse to one line:\n{head}"
+        );
+        let slot = crate::format(
+            "<slot>\n\t<span>\n\t\thi\n\t</span>\n</slot>\n",
+            &FormatOptions::default(),
+        )
+        .unwrap();
+        assert!(
+            !slot.contains("<span>\n") && slot.contains("hi"),
+            "span under slot should collapse to one line:\n{slot}"
+        );
     }
 
     fn make_fragment_with_text(data: &str) -> Fragment {
