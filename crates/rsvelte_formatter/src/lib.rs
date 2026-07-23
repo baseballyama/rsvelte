@@ -79,6 +79,11 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     // the CSS parse for non-CSS `lang` blocks (the body is left verbatim below).
     let parse_options = ParseOptions {
         skip_non_css_lang_style: true,
+        // The formatter reformats every expression by re-parsing its source
+        // span with oxc and reads only node spans/structure from the Svelte
+        // AST — never the typed expression `loc` objects — so skip building
+        // them (and the per-parse line-offset table they need).
+        skip_expression_loc: true,
         ..ParseOptions::default()
     };
     let root = match parse(source, parse_options) {
