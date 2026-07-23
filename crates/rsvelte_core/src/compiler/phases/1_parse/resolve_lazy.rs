@@ -13,7 +13,10 @@ use crate::ast::template::{
 /// Resolve all lazy expressions and deferred CSS in the AST.
 /// Must be called before analysis.
 /// Returns the first JS parse error encountered, if any.
-pub fn resolve_lazy_expressions(ast: &mut Root, source: &str) -> Option<crate::error::ParseError> {
+pub fn resolve_lazy_expressions<'a>(
+    ast: &mut Root<'a>,
+    source: &str,
+) -> Option<crate::error::ParseError> {
     let line_offsets = super::compute_line_offsets(source, false);
     let mut first_error = None;
     resolve_fragment(

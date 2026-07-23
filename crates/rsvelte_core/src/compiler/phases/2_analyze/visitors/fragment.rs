@@ -13,7 +13,10 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 /// This is the main entry point for fragment analysis from the root level.
 /// It delegates to shared/fragment.rs for the actual node processing, which
 /// includes const_tag_cycle checking.
-pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn analyze<'a, 'b: 'a>(
+    fragment: &mut Fragment<'b>,
+    context: &mut VisitorContext<'a>,
+) -> Result<(), AnalysisError> {
     // The shared::fragment::analyze function handles:
     // - Checking for cyclical dependencies between ConstTag nodes
     // - Visiting each child node

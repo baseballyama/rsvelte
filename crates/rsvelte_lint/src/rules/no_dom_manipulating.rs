@@ -151,7 +151,11 @@ fn collect_pattern_idents(id: Option<&Value>, out: &mut HashSet<String>) {
 /// that resolve to a top-level binding.
 fn collect_dom_vars(source: &str, binding_names: &HashSet<String>) -> HashSet<String> {
     let mut out = HashSet::new();
-    let Ok(root) = parse(source, ParseOptions::default()) else {
+    let Ok(root) = parse(
+        source,
+        &rsvelte_core::Allocator::default(),
+        ParseOptions::default(),
+    ) else {
         return out;
     };
     let Some(frag) =

@@ -119,10 +119,11 @@ pub fn format_with_arenas(
         skip_expression_loc: true,
         ..ParseOptions::default()
     };
-    let root = match parse(source, parse_options) {
+    let root = match parse(source, &rsvelte_core::Allocator::default(), parse_options) {
         Ok(root) => root,
         Err(_) => parse(
             source,
+            &rsvelte_core::Allocator::default(),
             ParseOptions {
                 force_typescript: true,
                 ..parse_options

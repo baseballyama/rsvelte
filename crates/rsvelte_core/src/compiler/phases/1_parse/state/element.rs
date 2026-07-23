@@ -29,7 +29,7 @@ use super::super::utils::is_void_element;
 /// Whether the attribute list contains a non-empty `lang="…"` attribute. Used
 /// (in lenient/lint mode) to treat `<template lang="pug">` and similar as raw
 /// text rather than Svelte markup.
-fn template_has_lang(attributes: &[crate::ast::Attribute]) -> bool {
+fn template_has_lang<'a>(attributes: &[crate::ast::Attribute<'a>]) -> bool {
     for attr in attributes {
         if let crate::ast::Attribute::Attribute(node) = attr
             && node.name.as_str() == "lang"
@@ -42,9 +42,9 @@ fn template_has_lang(attributes: &[crate::ast::Attribute]) -> bool {
     false
 }
 
-impl Parser<'_> {
+impl<'a> Parser<'a> {
     /// Parse an element or comment.
-    pub fn parse_element_or_comment(&mut self) -> ParseResult<Option<TemplateNode>> {
+    pub fn parse_element_or_comment(&mut self) -> ParseResult<Option<TemplateNode<'a>>> {
         let start = self.index;
         self.advance(); // consume '<'
 
@@ -690,7 +690,10 @@ impl Parser<'_> {
     }
 
     /// Extract the "this" attribute from a svelte:element to get the tag expression.
-    pub fn extract_this_attribute(&self, attributes: &[crate::ast::Attribute]) -> Expression {
+    pub fn extract_this_attribute(
+        &self,
+        attributes: &[crate::ast::Attribute<'a>],
+    ) -> Expression<'a> {
         for attr in attributes {
             if let crate::ast::Attribute::Attribute(node) = attr
                 && node.name.as_str() == "this"
@@ -958,7 +961,7 @@ impl Parser<'_> {
     }
 
     /// Check if a template element has shadowrootmode attribute.
-    pub fn has_shadowrootmode_attr(&self, attributes: &[crate::ast::Attribute]) -> bool {
+    pub fn has_shadowrootmode_attr(&self, attributes: &[crate::ast::Attribute<'a>]) -> bool {
         attributes.iter().any(|attr| {
             if let crate::ast::Attribute::Attribute(attr_node) = attr {
                 attr_node.name.as_str() == "shadowrootmode"
@@ -969,7 +972,7 @@ impl Parser<'_> {
     }
 
     /// Parse attributes.
-    pub fn parse_attributes(&mut self) -> ParseResult<Vec<crate::ast::Attribute>> {
+    pub fn parse_attributes(&mut self) -> ParseResult<Vec<crate::ast::Attribute<'a>>> {
         let mut attributes = Vec::new();
 
         loop {
@@ -1114,7 +1117,7 @@ impl Parser<'_> {
     }
 
     /// Parse a single attribute.
-    pub fn parse_attribute(&mut self) -> ParseResult<Option<crate::ast::Attribute>> {
+    pub fn parse_attribute(&mut self) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Capture JS-style comments (// and /* */) before attribute parsing
         // and record them in `root.comments`. Corresponds to `read_comment()`
         // in the official Svelte compiler (5.53+) — see
@@ -1392,7 +1395,7 @@ impl Parser<'_> {
         full_name: &str,
         name_start: usize,
         name_end: usize,
-    ) -> ParseResult<Option<crate::ast::Attribute>> {
+    ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Extract event name and modifiers from "on:click|preventDefault"
         let after_on = &full_name[3..]; // Skip "on:"
         let (event_name, modifiers) = if let Some(pipe_pos) = memchr(b'|', after_on.as_bytes()) {
@@ -1475,7 +1478,7 @@ impl Parser<'_> {
         full_name: &str,
         name_start: usize,
         name_end: usize,
-    ) -> ParseResult<Option<crate::ast::Attribute>> {
+    ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Extract property name and modifiers from "bind:value|modifier"
         let after_bind = &full_name[5..]; // Skip "bind:"
         let (prop_name, modifiers) = if let Some(pipe_pos) = memchr(b'|', after_bind.as_bytes()) {
@@ -1584,7 +1587,7 @@ impl Parser<'_> {
         full_name: &str,
         name_start: usize,
         name_end: usize,
-    ) -> ParseResult<Option<crate::ast::Attribute>> {
+    ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let action_name = &full_name[4..]; // Skip "use:"
 
         // Check for empty directive name
@@ -1669,7 +1672,7 @@ impl Parser<'_> {
         full_name: &str,
         name_start: usize,
         name_end: usize,
-    ) -> ParseResult<Option<crate::ast::Attribute>> {
+    ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let class_name = &full_name[6..]; // Skip "class:"
 
         // Check for empty directive name
@@ -1748,7 +1751,7 @@ impl Parser<'_> {
         full_name: &str,
         name_start: usize,
         name_end: usize,
-    ) -> ParseResult<Option<crate::ast::Attribute>> {
+    ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Extract property name and modifiers from "style:color|important"
         let after_style = &full_name[6..]; // Skip "style:"
         let (prop_name, modifiers) = if let Some(pipe_pos) = memchr(b'|', after_style.as_bytes()) {
@@ -1935,7 +1938,7 @@ impl Parser<'_> {
         full_name: &str,
         name_start: usize,
         name_end: usize,
-    ) -> ParseResult<Option<crate::ast::Attribute>> {
+    ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Determine type and extract name with modifiers
         let (directive_label, transition_name, intro, outro, modifiers) =
             if let Some(stripped) = full_name.strip_prefix("transition:") {
@@ -2046,7 +2049,7 @@ impl Parser<'_> {
         full_name: &str,
         name_start: usize,
         name_end: usize,
-    ) -> ParseResult<Option<crate::ast::Attribute>> {
+    ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let animate_name = &full_name[8..]; // Skip "animate:"
         let name_loc = self.create_name_loc_optional(name_start, name_end);
 
@@ -2105,7 +2108,7 @@ impl Parser<'_> {
         full_name: &str,
         name_start: usize,
         name_end: usize,
-    ) -> ParseResult<Option<crate::ast::Attribute>> {
+    ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let let_name = &full_name[4..]; // Skip "let:"
         let name_loc = self.create_name_loc_optional(name_start, name_end);
 
@@ -2158,7 +2161,7 @@ impl Parser<'_> {
     pub fn parse_attach_attribute(
         &mut self,
         start: usize,
-    ) -> ParseResult<Option<crate::ast::Attribute>> {
+    ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         self.skip_whitespace();
 
         // Parse the expression until the closing }
@@ -2181,7 +2184,7 @@ impl Parser<'_> {
     }
 
     /// Parse attribute value.
-    pub fn parse_attribute_value(&mut self) -> ParseResult<AttributeValue> {
+    pub fn parse_attribute_value(&mut self) -> ParseResult<AttributeValue<'a>> {
         // Check for missing value (e.g., `class= >` or `class=>`)
         if self.index < self.bytes.len() && self.bytes[self.index] == b'>' {
             return Err(crate::error::ParseError::svelte(
@@ -2452,7 +2455,7 @@ impl Parser<'_> {
     /// Parse raw text content for elements like textarea, style (inside svelte:head).
     /// - For style: completely raw text, no expression parsing
     /// - For textarea: parses {expressions} but treats HTML as text
-    pub fn parse_raw_text_content(&mut self, tag_name: &str) -> ParseResult<Fragment> {
+    pub fn parse_raw_text_content(&mut self, tag_name: &str) -> ParseResult<Fragment<'a>> {
         let closing_tag = format!("</{}", tag_name);
         // `template` only reaches here via the lenient-mode `<template lang="…">`
         // raw-text gate (a normal `<template>` is parsed as markup), so its body

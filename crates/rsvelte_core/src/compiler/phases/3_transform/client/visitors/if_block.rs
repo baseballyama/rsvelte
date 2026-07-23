@@ -28,7 +28,9 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 /// and no other non-whitespace content. This mirrors the official compiler's
 /// `alt.nodes.length === 1 && alt.nodes[0].type === 'IfBlock'` check, but is more
 /// lenient about surrounding whitespace text nodes (which our parser sometimes emits).
-fn get_elseif_block(fragment: &crate::ast::template::Fragment) -> Option<&IfBlock> {
+fn get_elseif_block<'a>(
+    fragment: &'a crate::ast::template::Fragment<'a>,
+) -> Option<&'a IfBlock<'a>> {
     let mut found: Option<&IfBlock> = None;
     for node in &fragment.nodes {
         match node {
@@ -75,7 +77,10 @@ fn collect_branch_blocker_strings(branch: &IfBlock, context: &mut ComponentConte
     strings
 }
 
-fn collect_branches<'a>(node: &'a IfBlock, context: &mut ComponentContext) -> Vec<&'a IfBlock> {
+fn collect_branches<'a>(
+    node: &'a IfBlock<'a>,
+    context: &mut ComponentContext,
+) -> Vec<&'a IfBlock<'a>> {
     let mut branches: Vec<&IfBlock> = vec![node];
     let mut current = node;
     let mut current_blockers = collect_branch_blocker_strings(node, context);

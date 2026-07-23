@@ -34,7 +34,7 @@ use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState
 use serde_json::Value;
 
 /// Visit a `{#snippet name(params)}...{/snippet}` block.
-pub fn visit_snippet_block<'a>(node: &SnippetBlock, state: &mut ServerTransformState<'a>) {
+pub fn visit_snippet_block<'a>(node: &SnippetBlock<'a>, state: &mut ServerTransformState<'a>) {
     let b = state.b;
 
     // Snippet name — `node.expression` is the name identifier.

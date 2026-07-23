@@ -78,7 +78,7 @@ use super::shared::{
 /// Visit a `{#each expr as ctx, i (key)}...{/each}` block (sync; keyed or
 /// unkeyed, with or without a `{:else}` fallback). The key is ignored on the
 /// server — see the module docs.
-pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'a>) {
+pub fn visit_each_block<'a>(node: &EachBlock<'a>, state: &mut ServerTransformState<'a>) {
     let counter = state.each_index;
     state.each_index += 1;
 

@@ -26,7 +26,7 @@ use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState
 use super::shared::{EMPTY_COMMENT, TemplateEntry, build_fragment_block};
 
 /// Visit a `{#key expr}...{/key}` block (sync path only).
-pub fn visit_key_block<'a>(node: &KeyBlock, state: &mut ServerTransformState<'a>) {
+pub fn visit_key_block<'a>(node: &KeyBlock<'a>, state: &mut ServerTransformState<'a>) {
     // KNOWN GAP: async key blocks (`node.metadata.expression.is_async()`) need
     // the `block_open` / `block_close` wrappers + blocker plumbing.
 

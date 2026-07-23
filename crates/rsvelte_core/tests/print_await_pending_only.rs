@@ -7,6 +7,7 @@ use rsvelte_core::{ParseOptions, parse};
 fn print_roundtrip(src: &str) -> String {
     let ast = parse(
         src,
+        &oxc_allocator::Allocator::default(),
         ParseOptions {
             modern: true,
             ..Default::default()

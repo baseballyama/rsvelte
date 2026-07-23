@@ -386,7 +386,7 @@ mod tests {
     use super::*;
     use std::rc::Rc;
 
-    fn create_test_on_directive() -> crate::ast::template::OnDirective {
+    fn create_test_on_directive<'a>() -> crate::ast::template::OnDirective<'a> {
         use compact_str::CompactString;
         crate::ast::template::OnDirective {
             start: 0,

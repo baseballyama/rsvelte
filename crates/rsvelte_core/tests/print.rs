@@ -77,7 +77,7 @@ fn run_print_test(fixture: &PrintFixture) -> TestResult {
         ..Default::default()
     };
 
-    match parse(&input, parse_options) {
+    match parse(&input, &oxc_allocator::Allocator::default(), parse_options) {
         Ok(ast) => {
             // Print the AST back to source
             match print_with_source(&ast, None, Some(&input)) {

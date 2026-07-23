@@ -11,7 +11,10 @@ use crate::ast::template::{TemplateNode, TitleElement};
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit a title element.
-pub fn visit(title: &mut TitleElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit<'a, 'b: 'a>(
+    title: &mut TitleElement<'b>,
+    context: &mut VisitorContext<'a>,
+) -> Result<(), AnalysisError> {
     // Check for illegal attributes - title cannot have any attributes or directives
     if !title.attributes.is_empty() {
         return Err(errors::title_illegal_attribute());

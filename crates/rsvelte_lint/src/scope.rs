@@ -124,7 +124,12 @@ pub fn scope_rules() -> Vec<Box<dyn ScopeRule>> {
 /// Parse + analyze a component, returning its full [`ComponentAnalysis`]
 /// (which owns the `ScopeRoot`). Returns `None` on parse/analysis failure.
 pub fn analyze_scope(source: &str) -> Option<ComponentAnalysis> {
-    let mut root = rsvelte_core::parse(source, ParseOptions::default()).ok()?;
+    let mut root = rsvelte_core::parse(
+        source,
+        &rsvelte_core::Allocator::default(),
+        ParseOptions::default(),
+    )
+    .ok()?;
     analyze_component(&mut root, source, &CompileOptions::default()).ok()
 }
 

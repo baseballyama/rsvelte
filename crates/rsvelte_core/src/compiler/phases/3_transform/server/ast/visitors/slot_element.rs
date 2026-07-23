@@ -65,7 +65,7 @@ use oxc_ast::ast::{Expression as OxcExpression, ObjectPropertyKind};
 use super::shared::{BLOCK_CLOSE, BLOCK_OPEN, TemplateEntry, build_fragment_body};
 
 /// Visit a `<slot>` / `<slot name="x">` element.
-pub fn visit_slot_element<'a>(node: &SlotElement, state: &mut ServerTransformState<'a>) {
+pub fn visit_slot_element<'a>(node: &SlotElement<'a>, state: &mut ServerTransformState<'a>) {
     let mut props: Vec<ObjectPropertyKind<'a>> = Vec::new();
     let mut spreads: Vec<OxcExpression<'a>> = Vec::new();
 

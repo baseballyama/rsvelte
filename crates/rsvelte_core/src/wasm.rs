@@ -87,7 +87,7 @@ impl CompileResultWasm {
 pub fn parse_svelte(source: &str) -> ParseResultWasm {
     let options = ParseOptions::default();
 
-    match parse(source, options) {
+    match parse(source, &oxc_allocator::Allocator::default(), options) {
         Ok(ast) => {
             // Serializing the AST resolves `JsNodeId`s through the thread-local
             // serialize arena; without it the Serialize impls panic ("serialize

@@ -52,7 +52,12 @@ pub fn lint_source(
             // fallback's success probe — instead of re-parsing in each. The
             // validator wrap below still compiles independently (it needs a full
             // analyze pass), so it keeps its own parse.
-            let parsed = rsvelte_core::parse(source, lint_parse_options()).ok();
+            let parsed = rsvelte_core::parse(
+                source,
+                &rsvelte_core::Allocator::default(),
+                lint_parse_options(),
+            )
+            .ok();
 
             // 1. Validator wrap — compiler warnings/errors/a11y (config applied inside).
             let mut diags = crate::validator::validator_diagnostics(source, file, options, config);
@@ -230,7 +235,11 @@ pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<Li
         }
         crate::engine::SourceKind::Svelte => {
             // Share one lenient parse across the native + script walks.
-            let mut d = match rsvelte_core::parse(source, lint_parse_options()) {
+            let mut d = match rsvelte_core::parse(
+                source,
+                &rsvelte_core::Allocator::default(),
+                lint_parse_options(),
+            ) {
                 Ok(root) => {
                     // Build the scope resolver once, share it across both passes.
                     let resolver = maybe_scope_resolver(&root, source, config);

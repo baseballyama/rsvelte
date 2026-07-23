@@ -48,7 +48,10 @@ use super::element::build_element_attributes;
 use super::shared::{TemplateEntry, build_fragment_body, build_template};
 
 /// Visit a `<svelte:element this={tag}>…</svelte:element>` element (static path).
-pub fn visit_svelte_element<'a>(node: &SvelteDynamicElement, state: &mut ServerTransformState<'a>) {
+pub fn visit_svelte_element<'a>(
+    node: &SvelteDynamicElement<'a>,
+    state: &mut ServerTransformState<'a>,
+) {
     // -- tag expression -----------------------------------------------------
     // For a string-literal tag (`this={"div"}` / `this="svg"`) reparse the raw
     // literal text so the authored quoting is preserved (mirrors the oracle's

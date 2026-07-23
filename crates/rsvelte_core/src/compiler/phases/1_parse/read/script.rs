@@ -60,13 +60,13 @@ pub fn ensure_script_parsed(
     parse_error
 }
 
-impl Parser<'_> {
+impl<'a> Parser<'a> {
     /// Merge attribute value parts into a single Text for script/style tags.
     /// This is needed because {curly braces} in quoted attribute values are NOT expressions.
     pub fn merge_attribute_parts_to_text(
         &self,
-        parts: &[AttributeValuePart],
-    ) -> Vec<AttributeValuePart> {
+        parts: &[AttributeValuePart<'a>],
+    ) -> Vec<AttributeValuePart<'a>> {
         if parts.len() <= 1 {
             // No merging needed
             return parts.to_vec();
@@ -104,9 +104,9 @@ impl Parser<'_> {
     pub fn parse_script_tag(
         &mut self,
         start: usize,
-        attributes: Vec<crate::ast::Attribute>,
+        attributes: Vec<crate::ast::Attribute<'a>>,
         self_closing: bool,
-    ) -> ParseResult<Option<TemplateNode>> {
+    ) -> ParseResult<Option<TemplateNode<'a>>> {
         let content_start = self.index;
 
         // Use SIMD-accelerated search for </script instead of byte-by-byte scanning

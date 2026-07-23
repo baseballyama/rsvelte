@@ -27,7 +27,7 @@ use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 ///   - `OnDirective` attributes are added to state.init as statements
 ///   - Other attributes are visited normally
 pub fn visit_special_element(
-    node: SpecialElementNode,
+    node: SpecialElementNode<'_>,
     id: &str,
     context: &mut ComponentContext,
 ) -> TransformResult {
@@ -68,15 +68,15 @@ pub fn visit_special_element(
 ///
 /// Represents the different types of special Svelte elements.
 #[derive(Debug, Clone)]
-pub enum SpecialElementNode {
+pub enum SpecialElementNode<'a> {
     /// `<svelte:body>` element
-    SvelteBody(SvelteElement),
+    SvelteBody(SvelteElement<'a>),
 
     /// `<svelte:document>` element
-    SvelteDocument(SvelteElement),
+    SvelteDocument(SvelteElement<'a>),
 
     /// `<svelte:window>` element
-    SvelteWindow(SvelteElement),
+    SvelteWindow(SvelteElement<'a>),
 }
 
 /// Visit an OnDirective attribute.

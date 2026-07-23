@@ -12,7 +12,10 @@ use super::shared::special_element::validate_special_element_placement;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SvelteElement};
 
 /// Visit a svelte:self.
-pub fn visit(self_: &mut SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit<'a, 'b: 'a>(
+    self_: &mut SvelteElement<'b>,
+    context: &mut VisitorContext<'a>,
+) -> Result<(), AnalysisError> {
     // Validate placement
     validate_special_element_placement("svelte:self", context)?;
 

@@ -1695,7 +1695,7 @@ trait Spanned {
     fn end(&self) -> u32;
 }
 
-impl Spanned for TemplateNode {
+impl Spanned for TemplateNode<'_> {
     fn start(&self) -> u32 {
         match self {
             TemplateNode::Text(n) => n.start,
@@ -1869,6 +1869,7 @@ mod utf16_offset_tests {
         let src = "<script>\n  const あ = 1;\n  const target = あ;\n</script>\n<p>{target}</p>";
         let ast = parse(
             src,
+            &oxc_allocator::Allocator::default(),
             ParseOptions {
                 modern: true,
                 ..Default::default()
@@ -1888,6 +1889,7 @@ mod utf16_offset_tests {
         let src = "<script>\n  const target = 1;\n</script>\n<p>{target}</p>";
         let ast = parse(
             src,
+            &oxc_allocator::Allocator::default(),
             ParseOptions {
                 modern: true,
                 ..Default::default()

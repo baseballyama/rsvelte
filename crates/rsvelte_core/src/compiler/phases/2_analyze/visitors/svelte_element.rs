@@ -25,9 +25,9 @@ fn is_text_attribute(attr: &crate::ast::template::AttributeNode) -> bool {
 }
 
 /// Visit a svelte:element.
-pub fn visit(
-    element: &mut SvelteDynamicElement,
-    context: &mut VisitorContext,
+pub fn visit<'a, 'b: 'a>(
+    element: &mut SvelteDynamicElement<'b>,
+    context: &mut VisitorContext<'a>,
 ) -> Result<(), AnalysisError> {
     // Mark that we have dynamic elements (can't safely prune type selectors)
     context.analysis.css.has_dynamic_elements = true;

@@ -675,7 +675,11 @@ pub fn diagnostics_typed(
     if severity == Severity::Off {
         return Vec::new();
     }
-    let Ok(root) = rsvelte_core::parse(source, rsvelte_core::ParseOptions::default()) else {
+    let Ok(root) = rsvelte_core::parse(
+        source,
+        &rsvelte_core::Allocator::default(),
+        rsvelte_core::ParseOptions::default(),
+    ) else {
         return Vec::new();
     };
     let li = crate::line_index::LineIndex::new(source);

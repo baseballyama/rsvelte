@@ -95,7 +95,7 @@ fn convert_results(results: &FxHashMap<usize, u8>) -> Vec<(usize, SiblingCertain
 #[derive(Clone)]
 struct PathEntry<'a> {
     /// The fragment containing the node
-    fragment: &'a Fragment,
+    fragment: &'a Fragment<'a>,
     /// The index of the node within the fragment
     index: usize,
 }

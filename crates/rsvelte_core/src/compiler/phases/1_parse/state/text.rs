@@ -38,7 +38,7 @@ use crate::error::ParseResult;
 use super::super::parser::Parser;
 use super::super::utils::decode_html_entities;
 
-impl Parser<'_> {
+impl<'a> Parser<'a> {
     /// Parse text content.
     ///
     /// Corresponds to the `text()` function in `state/text.js`.
@@ -48,7 +48,7 @@ impl Parser<'_> {
     /// 2. Collects characters until `<` or `{` is encountered (using SIMD-accelerated search)
     /// 3. Decodes HTML character references with `decode_character_references(data, false)`
     /// 4. Creates a Text node with both raw and decoded data
-    pub fn parse_text(&mut self) -> ParseResult<Option<TemplateNode>> {
+    pub fn parse_text(&mut self) -> ParseResult<Option<TemplateNode<'a>>> {
         let start = self.index as u32;
         let start_pos = self.index;
 

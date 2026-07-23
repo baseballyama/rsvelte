@@ -5590,6 +5590,7 @@ mod tests {
     fn analyze(source: &str) -> ComponentAnalysis {
         let mut ast = parse(
             source,
+            &oxc_allocator::Allocator::default(),
             ParseOptions {
                 defer_script_parse: true,
                 ..ParseOptions::default()
@@ -5721,6 +5722,7 @@ mod tests {
 "#;
         let mut ast = parse(
             source,
+            &oxc_allocator::Allocator::default(),
             ParseOptions {
                 defer_script_parse: true,
                 skip_expression_loc: true,

@@ -356,9 +356,12 @@ impl ScriptRule for NoReactiveReassign {
         let mut reports: Vec<(u32, u32, String)> = Vec::new();
         scan_refs(program, &reactive, &def_lhs, props, &mut reports);
         // Reassignments via a two-way `bind:` live in the template.
-        if let Ok(root) = parse(ctx.source(), ParseOptions::default())
-            && let Some(frag) =
-                with_serialize_arena(&root.arena, || serde_json::to_value(&root.fragment).ok())
+        if let Ok(root) = parse(
+            ctx.source(),
+            &rsvelte_core::Allocator::default(),
+            ParseOptions::default(),
+        ) && let Some(frag) =
+            with_serialize_arena(&root.arena, || serde_json::to_value(&root.fragment).ok())
         {
             scan_refs(&frag, &reactive, &def_lhs, props, &mut reports);
         }

@@ -39,27 +39,30 @@ fn indent_config(options: &FormatOptions) -> (String, usize) {
 /// non-CSS `<style lang>` body is not CSS, and TS emitted into a plain
 /// `<script>` needs the same force-TS retry the main parse uses — without both,
 /// the parse fails and the caller silently skips its whole pass.
-fn parse_formatted(formatted: &str) -> Option<rsvelte_core::ast::template::Root> {
+fn parse_formatted(formatted: &str) -> Option<rsvelte_core::ast::template::Root<'_>> {
     let opts = ParseOptions {
         skip_non_css_lang_style: true,
         ..ParseOptions::default()
     };
-    parse(formatted, opts).ok().or_else(|| {
-        parse(
-            formatted,
-            ParseOptions {
-                force_typescript: true,
-                ..opts
-            },
-        )
+    parse(formatted, &rsvelte_core::Allocator::default(), opts)
         .ok()
-    })
+        .or_else(|| {
+            parse(
+                formatted,
+                &rsvelte_core::Allocator::default(),
+                ParseOptions {
+                    force_typescript: true,
+                    ..opts
+                },
+            )
+            .ok()
+        })
 }
 
 /// Every element-like container (HTML element, component, `<slot>`, `<title>`,
 /// and every `<svelte:*>` element), paired with whether it carries any
 /// attribute. Blocks, tags, text and comments are not element containers.
-fn element_container(n: &TemplateNode) -> Option<(&Fragment, bool)> {
+fn element_container<'b, 'a>(n: &'b TemplateNode<'a>) -> Option<(&'b Fragment<'a>, bool)> {
     match n {
         TemplateNode::RegularElement(e) => Some((&e.fragment, !e.attributes.is_empty())),
         TemplateNode::Component(c) => Some((&c.fragment, !c.attributes.is_empty())),
@@ -156,7 +159,7 @@ pub(crate) fn collapse_pure_text_elements(
     // its `>` to the last attribute (matching prettier-plugin-svelte).
     let _bracket_same_line_guard =
         crate::children::enter_bracket_same_line(options.bracket_same_line);
-    let Ok(root) = parse(out, parse_opts) else {
+    let Ok(root) = parse(out, &rsvelte_core::Allocator::default(), parse_opts) else {
         return Ok(out.to_string());
     };
     let line_width = options.js.line_width.value() as usize;
@@ -177,7 +180,7 @@ pub(crate) fn collapse_pure_text_elements(
     let mut tree: Option<Root> = None;
     if !edits.is_empty() {
         result = apply_edits(&result, edits);
-        let Ok(t) = parse(&result, parse_opts) else {
+        let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
             return Ok(result);
         };
         tree = Some(t);
@@ -199,7 +202,7 @@ pub(crate) fn collapse_pure_text_elements(
     );
     if !edits1c.is_empty() {
         result = apply_edits(&result, edits1c);
-        let Ok(t) = parse(&result, parse_opts) else {
+        let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
             return Ok(result);
         };
         tree = Some(t);
@@ -221,7 +224,7 @@ pub(crate) fn collapse_pure_text_elements(
     );
     if !edits1d.is_empty() {
         result = apply_edits(&result, edits1d);
-        let Ok(t) = parse(&result, parse_opts) else {
+        let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
             return Ok(result);
         };
         tree = Some(t);
@@ -242,7 +245,7 @@ pub(crate) fn collapse_pure_text_elements(
     );
     if !edits1e.is_empty() {
         result = apply_edits(&result, edits1e);
-        let Ok(t) = parse(&result, parse_opts) else {
+        let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
             return Ok(result);
         };
         tree = Some(t);
@@ -264,7 +267,7 @@ pub(crate) fn collapse_pure_text_elements(
     );
     if !edits1f.is_empty() {
         result = apply_edits(&result, edits1f);
-        let Ok(t) = parse(&result, parse_opts) else {
+        let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
             return Ok(result);
         };
         tree = Some(t);
@@ -283,7 +286,7 @@ pub(crate) fn collapse_pure_text_elements(
     );
     if !edits1g.is_empty() {
         result = apply_edits(&result, edits1g);
-        let Ok(t) = parse(&result, parse_opts) else {
+        let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
             return Ok(result);
         };
         tree = Some(t);
@@ -305,6 +308,10 @@ pub(crate) fn collapse_pure_text_elements(
     // `tree` is the AST of `result` unless this last pass edited the text.
     let mut tree_is_current = true;
     if !edits2.is_empty() {
+        // `tree` borrows `result` (its parse source); drop it before reassigning
+        // `result`. It is never read past here in this branch — `tree_is_current`
+        // is now false, so the read below falls to the re-parsed AST.
+        tree = None;
         result = apply_edits(&result, edits2);
         tree_is_current = false;
     }
@@ -321,7 +328,7 @@ pub(crate) fn collapse_pure_text_elements(
     // still describes `result` exactly, and a fresh parse would rebuild an
     // identical AST.
     let reparsed = (!tree_is_current)
-        .then(|| parse(&result, parse_opts).ok())
+        .then(|| parse(&result, &rsvelte_core::Allocator::default(), parse_opts).ok())
         .flatten();
     if let Some(root_cp) = reparsed
         .as_ref()
@@ -363,7 +370,7 @@ pub(crate) fn collapse_pure_text_elements(
     // This pass only ever touches `<pre>`/`<textarea>`, so skip its re-parse
     // entirely unless one is present in the output.
     if (result.contains("<pre") || result.contains("<textarea"))
-        && let Ok(root3) = parse(&result, parse_opts)
+        && let Ok(root3) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts)
     {
         let mut edits3: Vec<(u32, u32, String)> = Vec::new();
         collect_pre_block_reformats(&result, &root3.fragment, 0, options, &mut edits3);
@@ -1234,7 +1241,7 @@ fn collect_content_tag_breaks(
 }
 
 /// The child fragments of a container node (for a generic recursive walk).
-fn child_fragments(node: &TemplateNode) -> Vec<&Fragment> {
+fn child_fragments<'b, 'a>(node: &'b TemplateNode<'a>) -> Vec<&'b Fragment<'a>> {
     match node {
         TemplateNode::RegularElement(e) => vec![&e.fragment],
         TemplateNode::Component(c) => vec![&c.fragment],
@@ -3387,10 +3394,10 @@ fn orig_text_for(start: u32) -> Option<String> {
 /// in order. A whitespace-only text node may exist in one list but not the other
 /// (collapse can drop or introduce a bare separator), so text nodes are matched
 /// positionally where possible and left unpaired otherwise.
-fn align_orig_nodes<'a>(
-    inter: &[TemplateNode],
-    orig: &'a [TemplateNode],
-) -> Vec<Option<&'a TemplateNode>> {
+fn align_orig_nodes<'a, 'c>(
+    inter: &[TemplateNode<'_>],
+    orig: &'a [TemplateNode<'c>],
+) -> Vec<Option<&'a TemplateNode<'c>>> {
     let mut result = Vec::with_capacity(inter.len());
     let mut oi = 0usize;
     for n in inter {
@@ -7028,7 +7035,7 @@ mod tests {
         );
     }
 
-    fn make_fragment_with_text(data: &str) -> Fragment {
+    fn make_fragment_with_text(data: &str) -> Fragment<'_> {
         Fragment {
             node_type: FragmentType::Fragment,
             nodes: vec![TemplateNode::Text(Text {
@@ -7041,7 +7048,7 @@ mod tests {
         }
     }
 
-    fn make_empty_fragment() -> Fragment {
+    fn make_empty_fragment<'a>() -> Fragment<'a> {
         Fragment {
             node_type: FragmentType::Fragment,
             nodes: vec![],
@@ -7049,7 +7056,7 @@ mod tests {
         }
     }
 
-    fn make_text_node(data: &str, start: u32) -> TemplateNode {
+    fn make_text_node(data: &str, start: u32) -> TemplateNode<'_> {
         TemplateNode::Text(Text {
             start,
             end: start + data.len() as u32,
@@ -7058,7 +7065,7 @@ mod tests {
         })
     }
 
-    fn make_element_node(name: &str) -> TemplateNode {
+    fn make_element_node(name: &str) -> TemplateNode<'_> {
         use rsvelte_core::ast::template::{RegularElement, RegularElementMetadata};
         TemplateNode::RegularElement(Box::new(RegularElement {
             start: 0,

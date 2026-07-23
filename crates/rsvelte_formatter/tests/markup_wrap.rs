@@ -64,8 +64,12 @@ fn inline_else_prefix_is_not_reused_as_indentation() {
     let src = r#"{#if found}<div>Found</div>{:else}<section class="mx-auto max-w-3xl px-4 py-20 text-center"><h1 class="text-3xl font-bold">Stage not found</h1></section>{/if}"#;
     let out = fmt_at_width(src, 80);
 
-    rsvelte_core::parse(&out, rsvelte_core::ParseOptions::default())
-        .expect("formatted output should remain valid Svelte");
+    rsvelte_core::parse(
+        &out,
+        &rsvelte_core::Allocator::default(),
+        rsvelte_core::ParseOptions::default(),
+    )
+    .expect("formatted output should remain valid Svelte");
     assert_eq!(fmt_at_width(&out, 80), out, "formatting must be idempotent");
 }
 

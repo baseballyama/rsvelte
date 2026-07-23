@@ -55,7 +55,11 @@ impl NoSvelteInternal {
     /// Scan both the instance and module script bodies of `source`, reporting at
     /// every offending `import` / `export` keyword.
     fn scan_source(&self, ctx: &mut LintContext, source: &str) {
-        let Ok(root) = rsvelte_core::parse(source, rsvelte_core::ParseOptions::default()) else {
+        let Ok(root) = rsvelte_core::parse(
+            source,
+            &rsvelte_core::Allocator::default(),
+            rsvelte_core::ParseOptions::default(),
+        ) else {
             return;
         };
         for script in [root.instance.as_ref(), root.module.as_ref()]

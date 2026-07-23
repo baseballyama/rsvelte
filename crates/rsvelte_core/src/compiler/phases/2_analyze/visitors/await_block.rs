@@ -32,7 +32,10 @@ static REGEX_CATCH_BLOCK: LazyLock<Regex> =
 ///
 /// * `block` - The await block to analyze
 /// * `context` - The visitor context
-pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit<'a, 'b: 'a>(
+    block: &mut AwaitBlock<'b>,
+    context: &mut VisitorContext<'a>,
+) -> Result<(), AnalysisError> {
     // Check if inside a textarea (logic blocks not allowed)
     if context.element_ancestors.iter().any(|a| a == "textarea") {
         return Err(errors::block_invalid_placement("{#await ...}"));

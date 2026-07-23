@@ -24,7 +24,13 @@ fn bench_single_parse(c: &mut Criterion) {
             BenchmarkId::new("parse", &sample.id),
             &sample.source,
             |b, source| {
-                b.iter(|| parse(black_box(source), ParseOptions::default()));
+                b.iter(|| {
+                    parse(
+                        black_box(source),
+                        &oxc_allocator::Allocator::default(),
+                        ParseOptions::default(),
+                    )
+                });
             },
         );
     }

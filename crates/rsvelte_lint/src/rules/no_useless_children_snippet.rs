@@ -78,7 +78,7 @@ mod tests {
     use super::*;
     use rsvelte_core::ast::js::Expression;
 
-    fn ident_snippet(name: &str, params: usize) -> SnippetBlock {
+    fn ident_snippet<'a>(name: &str, params: usize) -> SnippetBlock<'a> {
         // Build a minimal SnippetBlock for the helper test. We only exercise the
         // pure predicate, which inspects `expression` (the snippet id) and
         // `parameters`.

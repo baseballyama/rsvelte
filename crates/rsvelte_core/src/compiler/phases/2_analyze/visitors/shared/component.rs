@@ -27,9 +27,9 @@ use crate::ast::template::{
 /// - Fragment analysis
 ///
 /// Corresponds to `visit_component(node, context)` in shared/component.js.
-pub fn visit_component(
-    component: &mut Component,
-    context: &mut VisitorContext,
+pub fn visit_component<'a, 'b: 'a>(
+    component: &mut Component<'b>,
+    context: &mut VisitorContext<'a>,
 ) -> Result<(), AnalysisError> {
     use crate::ast::template::TemplateNode;
 

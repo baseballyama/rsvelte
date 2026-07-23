@@ -19,7 +19,10 @@ use crate::ast::template::{EachBlock, TemplateNode};
 /// special dependency tracking for reactivity.
 ///
 /// Corresponds to `EachBlock(node, context)` in EachBlock.js.
-pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit<'a, 'b: 'a>(
+    block: &mut EachBlock<'b>,
+    context: &mut VisitorContext<'a>,
+) -> Result<(), AnalysisError> {
     // Check if inside a textarea (logic blocks not allowed)
     if context.element_ancestors.iter().any(|a| a == "textarea") {
         return Err(errors::block_invalid_placement("{#each ...}"));

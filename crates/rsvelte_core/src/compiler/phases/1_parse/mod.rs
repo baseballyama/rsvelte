@@ -132,7 +132,15 @@ pub struct ParseOptionsWithFilename {
 }
 
 /// Parse a Svelte component source into an AST.
-pub fn parse(source: &str, options: ParseOptions) -> ParseResult<Root> {
+///
+/// `_alloc` is the caller-owned arena that M5-B/C will use to allocate the
+/// borrowed AST; M5-A accepts it but does not yet allocate into it, so it takes
+/// an independent lifetime (the returned `Root<'a>` borrows only `source`).
+pub fn parse<'a>(
+    source: &'a str,
+    _alloc: &oxc_allocator::Allocator,
+    options: ParseOptions,
+) -> ParseResult<Root<'a>> {
     let mut parser = Parser::new(source, options);
     // RAII install so to_value() calls during parsing
     // (e.g. build_const_variable_declaration) can resolve JsNodeIds.
@@ -158,7 +166,7 @@ pub fn parse(source: &str, options: ParseOptions) -> ParseResult<Root> {
 /// in a `.svelte` file with no `lang="ts"` doesn't fail) while keeping template
 /// expressions (e.g. snippet parameters) JS-only when there's no `lang="ts"`.
 /// The compiler's `parse` keeps full `lang="ts"` enforcement.
-pub fn parse_script_ts(source: &str, options: ParseOptions) -> ParseResult<Root> {
+pub fn parse_script_ts<'a>(source: &'a str, options: ParseOptions) -> ParseResult<Root<'a>> {
     let mut parser = Parser::new(source, options);
     parser.script_ts = true;
     let _capture = options
@@ -175,7 +183,7 @@ pub fn parse_reuse<'a>(
     parser: &mut Parser<'a>,
     source: &'a str,
     options: ParseOptions,
-) -> ParseResult<Root> {
+) -> ParseResult<Root<'a>> {
     parser.reset(source, options);
     let _capture = options
         .capture_comments
@@ -266,7 +274,7 @@ pub fn ts_snippet_is_valid(source: &str, is_typescript: bool) -> bool {
 pub fn parse_parallel<'a>(
     sources: impl IntoIterator<Item = (&'a str, &'a str)> + Send,
     options: ParseOptions,
-) -> Vec<(&'a str, ParseResult<Root>)>
+) -> Vec<(&'a str, ParseResult<Root<'a>>)>
 where
     ParseOptions: Clone + Send + Sync,
 {
@@ -278,7 +286,10 @@ where
         .into_par_iter()
         .map(|(filename, source)| {
             let opts = options;
-            (filename, parse(source, opts))
+            // Per-worker, file-scoped arena. Unused in M5-A (Root borrows only
+            // `source`); M5-B/C will allocate the borrowed AST into it.
+            let alloc = oxc_allocator::Allocator::default();
+            (filename, parse(source, &alloc, opts))
         })
         .collect()
 }
@@ -429,7 +440,11 @@ mod tests {
             source.chars().count(),
             "Source should contain multibyte chars"
         );
-        let result = parse(source, ParseOptions::default());
+        let result = parse(
+            source,
+            &oxc_allocator::Allocator::default(),
+            ParseOptions::default(),
+        );
         assert!(
             result.is_ok(),
             "style:width with multibyte chars should parse: {:?}",
@@ -460,7 +475,11 @@ mod tests {
         );
 
         assert_ne!(source.len(), source.chars().count());
-        let result = parse(source, ParseOptions::default());
+        let result = parse(
+            source,
+            &oxc_allocator::Allocator::default(),
+            ParseOptions::default(),
+        );
         assert!(
             result.is_ok(),
             "Complex template with multibyte should parse: {:?}",
@@ -478,7 +497,11 @@ mod tests {
 >
     hello
 </ul>"#;
-        let result = parse(source, ParseOptions::default());
+        let result = parse(
+            source,
+            &oxc_allocator::Allocator::default(),
+            ParseOptions::default(),
+        );
         assert!(
             result.is_ok(),
             "Should parse // in HTML attributes: {:?}",

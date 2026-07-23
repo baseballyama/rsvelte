@@ -28,7 +28,7 @@ use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState
 use super::shared::{TemplateEntry, build_template, process_children};
 
 /// Visit a `<title>…</title>` element.
-pub fn visit_title_element<'a>(node: &TitleElement, state: &mut ServerTransformState<'a>) {
+pub fn visit_title_element<'a>(node: &TitleElement<'a>, state: &mut ServerTransformState<'a>) {
     let b = state.b;
 
     // Build the title body in an isolated template buffer seeded with the

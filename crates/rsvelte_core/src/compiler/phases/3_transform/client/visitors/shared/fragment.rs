@@ -278,7 +278,7 @@ pub fn process_children<F>(
     // Sequence of Text/ExpressionTag nodes — pre-allocate for the common
     // case (≤8 contiguous text/expression nodes per fragment) so we don't
     // pay the Vec growth-and-reallocate cost on every push.
-    let mut sequence: Vec<TextOrExpr> = Vec::with_capacity(8);
+    let mut sequence: Vec<TextOrExpr<'_>> = Vec::with_capacity(8);
 
     // SAFETY: Extract a reference to the arena that outlives the closures.
     // The arena uses UnsafeCell internally and only appends, so holding a
@@ -339,7 +339,7 @@ pub fn process_children<F>(
     };
 
     // Helper: flush a sequence of Text/ExpressionTag nodes
-    let flush_sequence = |seq: Vec<TextOrExpr>,
+    let flush_sequence = |seq: Vec<TextOrExpr<'_>>,
                           prev_fn: &mut SiblingPrev<F>,
                           skip_count: &mut usize,
                           ctx: &mut ComponentContext| {
@@ -584,9 +584,9 @@ pub fn process_children<F>(
 /// boxing.
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
-pub enum TextOrExpr {
+pub enum TextOrExpr<'a> {
     Text(Text),
-    Expr(ExpressionTag),
+    Expr(ExpressionTag<'a>),
 }
 
 /// Push a static element and its children to the template.

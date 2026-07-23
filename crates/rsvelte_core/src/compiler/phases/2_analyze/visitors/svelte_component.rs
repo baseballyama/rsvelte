@@ -13,9 +13,9 @@ use crate::ast::template::{
 };
 
 /// Visit a svelte:component.
-pub fn visit(
-    component: &mut SvelteComponentElement,
-    context: &mut VisitorContext,
+pub fn visit<'a, 'b: 'a>(
+    component: &mut SvelteComponentElement<'b>,
+    context: &mut VisitorContext<'a>,
 ) -> Result<(), AnalysisError> {
     // In runes mode, <svelte:component> is deprecated because components are dynamic by default
     if context.analysis.runes {

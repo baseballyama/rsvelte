@@ -52,6 +52,7 @@ fn main() {
         for _ in 0..tpl_warmup {
             let _ = parse(
                 content,
+                &oxc_allocator::Allocator::default(),
                 ParseOptions {
                     modern: true,
                     skip_expression_loc: true,
@@ -65,6 +66,7 @@ fn main() {
             let start = Instant::now();
             let _ = parse(
                 content,
+                &oxc_allocator::Allocator::default(),
                 ParseOptions {
                     modern: true,
                     skip_expression_loc: true,
@@ -114,6 +116,7 @@ fn main() {
             for (_, content) in &real_files {
                 let _ = parse(
                     content,
+                    &oxc_allocator::Allocator::default(),
                     ParseOptions {
                         modern: true,
                         skip_expression_loc: true,
@@ -131,6 +134,7 @@ fn main() {
             for (_, content) in &real_files {
                 let _ = parse(
                     content,
+                    &oxc_allocator::Allocator::default(),
                     ParseOptions {
                         modern: true,
                         skip_expression_loc: true,
@@ -162,6 +166,7 @@ fn main() {
                 for (_, content) in files {
                     let _ = parse(
                         content,
+                        &oxc_allocator::Allocator::default(),
                         ParseOptions {
                             modern: true,
                             skip_expression_loc: true,
@@ -195,6 +200,7 @@ fn main() {
         for _ in 0..warmup {
             let _ = parse(
                 content,
+                &oxc_allocator::Allocator::default(),
                 ParseOptions {
                     modern: true,
                     skip_expression_loc: true,
@@ -210,6 +216,7 @@ fn main() {
             let start = Instant::now();
             let _ = parse(
                 content,
+                &oxc_allocator::Allocator::default(),
                 ParseOptions {
                     modern: true,
                     skip_expression_loc: true,
@@ -243,6 +250,7 @@ fn main() {
         for _ in 0..warmup {
             let _ = parse(
                 content,
+                &oxc_allocator::Allocator::default(),
                 ParseOptions {
                     modern: true,
                     skip_expression_loc: false,
@@ -256,6 +264,7 @@ fn main() {
             let start = Instant::now();
             let _ = parse(
                 content,
+                &oxc_allocator::Allocator::default(),
                 ParseOptions {
                     modern: true,
                     skip_expression_loc: false,

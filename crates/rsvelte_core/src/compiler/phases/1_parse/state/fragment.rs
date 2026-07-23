@@ -35,9 +35,9 @@ use crate::error::ParseResult;
 
 use super::super::parser::Parser;
 
-impl Parser<'_> {
+impl<'a> Parser<'a> {
     /// Parse the source into a Root AST node.
-    pub fn parse(&mut self) -> ParseResult<Root> {
+    pub fn parse(&mut self) -> ParseResult<Root<'a>> {
         use super::super::parser::StackEntry;
         use super::super::utils::is_void_element;
 
@@ -268,7 +268,7 @@ impl Parser<'_> {
     }
 
     /// Parse a fragment (sequence of nodes).
-    pub fn parse_fragment(&mut self) -> ParseResult<Fragment> {
+    pub fn parse_fragment(&mut self) -> ParseResult<Fragment<'a>> {
         use super::super::parser::StackEntry;
         use super::super::utils::is_void_element;
 
@@ -492,7 +492,7 @@ impl Parser<'_> {
     /// - `parser.match('{')` → `tag` (JS) / `parse_mustache()` (Rust)
     /// - Otherwise → `text` (JS) / `parse_text()` (Rust)
     #[inline]
-    pub fn parse_node(&mut self) -> ParseResult<Option<TemplateNode>> {
+    pub fn parse_node(&mut self) -> ParseResult<Option<TemplateNode<'a>>> {
         if self.index >= self.bytes.len() {
             return Ok(None);
         }

@@ -15,7 +15,12 @@ use rsvelte_core::ast::arena::with_serialize_arena;
 use rsvelte_core::{ParseOptions, parse};
 
 fn ast_json(src: &str) -> serde_json::Value {
-    let ast = parse(src, ParseOptions::default()).expect("parse");
+    let ast = parse(
+        src,
+        &oxc_allocator::Allocator::default(),
+        ParseOptions::default(),
+    )
+    .expect("parse");
     let s = with_serialize_arena(&ast.arena, || serde_json::to_string(&ast).unwrap());
     serde_json::from_str(&s).unwrap()
 }

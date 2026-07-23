@@ -808,7 +808,7 @@ fn is_abstract_role(role: &str) -> bool {
     ABSTRACT_ROLES.contains(role)
 }
 
-fn get_static_value(attribute: &AttributeNode) -> Option<&str> {
+fn get_static_value<'b>(attribute: &'b AttributeNode<'_>) -> Option<&'b str> {
     if let AttributeNode::Attribute(attr) = attribute {
         if matches!(attr.value, AttributeValue::True(_)) {
             return Some("true");

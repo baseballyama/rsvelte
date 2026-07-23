@@ -139,7 +139,7 @@ impl Rule for NoDupeElseIfBlocks {
 /// and a bare `{#if}` nested in an `{:else}` block — eslint-plugin-svelte treats
 /// the latter as a chain continuation too (its `iterateIfElseIf` walks up
 /// through any `SvelteElseBlock` whose child is an `{#if}`).
-fn next_link(block: &IfBlock) -> Option<&IfBlock> {
+fn next_link<'b, 'a>(block: &'b IfBlock<'a>) -> Option<&'b IfBlock<'a>> {
     let alt = block.alternate.as_ref()?;
     alt.nodes.iter().find_map(|n| match n {
         TemplateNode::IfBlock(b) => Some(&**b),

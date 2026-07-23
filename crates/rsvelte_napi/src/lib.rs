@@ -157,7 +157,7 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
         capture_comments: true,
         ..ParseOptions::default()
     };
-    match rust_parse(&source, parse_options) {
+    match rust_parse(&source, &rsvelte_core::Allocator::default(), parse_options) {
         Ok(ast) => {
             // Serialize within the AST's arena so `JsNodeId`s in the
             // Serialize impls resolve (mirrors `wasm::parse_svelte`).
@@ -207,7 +207,7 @@ pub fn napi_parse_envelope(
         options.as_ref().and_then(|o| o.skip_css_ast.as_ref()),
         "skipCssAst",
     )?;
-    let ast = rust_parse(&source, parse_options)
+    let ast = rust_parse(&source, &rsvelte_core::Allocator::default(), parse_options)
         .map_err(|e| napi::Error::from_reason(format!("{e:?}")))?;
     // napi-rs's `Vec<u8> → Buffer` conversion is already zero-copy
     // (V8 adopts the `Vec`'s allocation); a bumpalo-backed variant

@@ -85,7 +85,10 @@ fn compute_all_preceding_ignores(
 }
 
 /// Analyze a fragment.
-pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn analyze<'a, 'b: 'a>(
+    fragment: &mut Fragment<'b>,
+    context: &mut VisitorContext<'a>,
+) -> Result<(), AnalysisError> {
     // Check for cyclical dependencies between ConstTag nodes
     check_const_tag_cycles(&fragment.nodes)?;
 

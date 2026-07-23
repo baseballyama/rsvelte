@@ -141,7 +141,7 @@ fn run_fixture_test(sample_dir: &Path, modern: bool, skip_tests: &[&str]) -> Opt
         ..Default::default()
     };
 
-    let result = parse(&input, options);
+    let result = parse(&input, &oxc_allocator::Allocator::default(), options);
 
     match result {
         Ok(ast) => {

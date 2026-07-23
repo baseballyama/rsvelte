@@ -58,3 +58,5 @@ pub use compiler::{
     CompileError, CompileOptions, CompileResult, ExperimentalOptions, GenerateMode,
     ModuleCompileOptions, Warning, WarningFilterFn, compile, compile_both, compile_module,
 };
+#[doc(hidden)]
+pub use oxc_allocator::Allocator;

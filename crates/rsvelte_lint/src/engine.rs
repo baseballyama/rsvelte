@@ -48,7 +48,11 @@ pub fn run_native_rules(
     {
         return Vec::new();
     }
-    let Ok(root) = parse(source, lint_parse_options()) else {
+    let Ok(root) = parse(
+        source,
+        &rsvelte_core::Allocator::default(),
+        lint_parse_options(),
+    ) else {
         return Vec::new();
     };
     let resolver = maybe_scope_resolver(&root, source, config);
@@ -253,7 +257,11 @@ pub fn run_script_rules_with_path(
     if enabled.is_empty() {
         return Vec::new();
     }
-    let Ok(root) = parse(source, lint_parse_options()) else {
+    let Ok(root) = parse(
+        source,
+        &rsvelte_core::Allocator::default(),
+        lint_parse_options(),
+    ) else {
         return Vec::new();
     };
     let resolver = maybe_scope_resolver(&root, source, config);

@@ -42,6 +42,7 @@ fn main() {
         for content in &files {
             let _ = parse(
                 content,
+                &oxc_allocator::Allocator::default(),
                 ParseOptions {
                     modern: true,
                     skip_expression_loc: true,

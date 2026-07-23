@@ -1035,7 +1035,12 @@ mod tests {
   {a}{b}{c}
 {/snippet}
 {@render one(0)}"#;
-        let result = parse(input, ParseOptions::default()).unwrap();
+        let result = parse(
+            input,
+            &oxc_allocator::Allocator::default(),
+            ParseOptions::default(),
+        )
+        .unwrap();
         let json = with_serialize_arena(&result.arena, || {
             serde_json::to_string_pretty(&result).unwrap()
         });

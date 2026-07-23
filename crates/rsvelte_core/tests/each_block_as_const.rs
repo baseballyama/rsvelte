@@ -13,7 +13,12 @@ use rsvelte_core::{ParseOptions, convert_to_legacy, parse};
 /// each-block context (alias) is recognisable. We just check the rendered
 /// JSON contains the alias name and the iterable expression text.
 fn compile_each_alias(source: &str) -> String {
-    let ast = parse(source, ParseOptions::default()).expect("parse");
+    let ast = parse(
+        source,
+        &oxc_allocator::Allocator::default(),
+        ParseOptions::default(),
+    )
+    .expect("parse");
     let arena_ptr = &ast.arena as *const _;
     // SAFETY: `ast` is owned for the duration of the closure; the raw
     // pointer just satisfies the borrow checker since we then move

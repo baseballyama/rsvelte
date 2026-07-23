@@ -713,7 +713,7 @@ fn recurse_into_children(
 /// at the same depth. A plain `{:else}` whose body merely starts with an
 /// `{#if}` carries surrounding whitespace text nodes (and `elseif == false`),
 /// so it won't match and is indented as a normal nested block.
-pub(crate) fn else_if_branch(alt: &Fragment) -> Option<&IfBlock> {
+pub(crate) fn else_if_branch<'b, 'a>(alt: &'b Fragment<'a>) -> Option<&'b IfBlock<'a>> {
     match alt.nodes.as_slice() {
         [TemplateNode::IfBlock(b)] if b.elseif => Some(b.as_ref()),
         _ => None,

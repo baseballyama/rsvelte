@@ -21,7 +21,7 @@ use crate::error::ParseResult;
 
 use super::super::parser::{Parser, StackEntry};
 
-impl Parser<'_> {
+impl<'a> Parser<'a> {
     /// Try to parse a declaration tag (`{let x = …}` / `{const x = …}`,
     /// Svelte 5.56.0 #18282). Returns `Ok(None)` when the source at
     /// `self.index` does not begin with a `let` / `const` keyword followed by
@@ -35,7 +35,7 @@ impl Parser<'_> {
     pub(crate) fn try_parse_declaration_tag(
         &mut self,
         start: usize,
-    ) -> ParseResult<Option<TemplateNode>> {
+    ) -> ParseResult<Option<TemplateNode<'a>>> {
         // The `parse_mustache` caller has already consumed `{` and skipped
         // whitespace. Peek at the next bytes to detect `let ` / `const `;
         // require a trailing whitespace / line-ending byte so we don't
@@ -408,7 +408,7 @@ impl Parser<'_> {
         body_end: usize,
         kind: &str,
         segments: &[(usize, String)],
-    ) -> TemplateNode {
+    ) -> TemplateNode<'a> {
         use serde_json::{Map, Value};
 
         let mut declarators: Vec<Value> = Vec::with_capacity(segments.len());
@@ -498,7 +498,7 @@ impl Parser<'_> {
     }
 
     /// Parse a mustache expression.
-    pub fn parse_mustache(&mut self) -> ParseResult<Option<TemplateNode>> {
+    pub fn parse_mustache(&mut self) -> ParseResult<Option<TemplateNode<'a>>> {
         let start = self.index;
         self.advance(); // consume '{'
 
@@ -559,7 +559,7 @@ impl Parser<'_> {
     }
 
     /// Parse block open tag ({#if}, {#each}, etc.)
-    pub fn parse_block_open(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
+    pub fn parse_block_open(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.advance(); // consume '#'
 
         let keyword = self.read_identifier();
@@ -623,7 +623,7 @@ impl Parser<'_> {
     }
 
     /// Parse {#if} block.
-    pub fn parse_if_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
+    pub fn parse_if_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.skip_whitespace();
 
         // Read the test expression using find_matching_bracket to handle
@@ -688,7 +688,7 @@ impl Parser<'_> {
     }
 
     /// Parse {:else} or {:else if} blocks recursively
-    pub fn parse_if_alternate(&mut self) -> ParseResult<Option<Fragment>> {
+    pub fn parse_if_alternate(&mut self) -> ParseResult<Option<Fragment<'a>>> {
         // Whitespace between `{` and `:` is allowed (upstream `allow_whitespace()`).
         let Some(colon_pos) = self.match_block_continuation_marker() else {
             return Ok(None);
@@ -806,7 +806,7 @@ impl Parser<'_> {
                 .is_some_and(|c| c.is_ascii_whitespace())
     }
 
-    pub fn parse_each_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
+    pub fn parse_each_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.skip_whitespace();
 
         // Parse the iterable expression (up to " as " or closing "}")
@@ -1265,7 +1265,7 @@ impl Parser<'_> {
         &self,
         content: &str,
         offset: usize,
-    ) -> Result<Expression, crate::error::ParseError> {
+    ) -> Result<Expression<'a>, crate::error::ParseError> {
         super::super::expression::parse_binding_pattern(
             &self.arena,
             content,
@@ -1275,7 +1275,7 @@ impl Parser<'_> {
     }
 
     /// Parse {#await} block.
-    pub fn parse_await_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
+    pub fn parse_await_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.skip_whitespace();
 
         // Read the expression (until 'then', 'catch', or '}')
@@ -1609,7 +1609,7 @@ impl Parser<'_> {
     }
 
     /// Parse {#key} block.
-    pub fn parse_key_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
+    pub fn parse_key_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.skip_whitespace();
 
         // Read the key expression using find_matching_bracket to handle
@@ -1649,7 +1649,7 @@ impl Parser<'_> {
     }
 
     /// Parse {#snippet name(params)} block.
-    pub fn parse_snippet_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
+    pub fn parse_snippet_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.skip_whitespace();
 
         // Parse the snippet name (identifier)
@@ -1852,7 +1852,7 @@ impl Parser<'_> {
     }
 
     /// Parse special tag ({@html}, {@debug}, etc.)
-    pub fn parse_special_tag(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
+    pub fn parse_special_tag(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.advance(); // consume '@'
 
         // Try to match known keywords using first-byte dispatch
@@ -2201,7 +2201,7 @@ impl Parser<'_> {
         offset: usize,
         disallow_loose: bool,
         opening_token: char,
-    ) -> Expression {
+    ) -> Expression<'a> {
         // NOTE: This method does NOT create Lazy expressions because it's used
         // by @const tag which calls as_json() during parse. Only
         // parse_js_expression_strict() creates Lazy expressions.
@@ -2234,7 +2234,7 @@ impl Parser<'_> {
         &self,
         content: &str,
         offset: usize,
-    ) -> crate::error::ParseResult<Expression> {
+    ) -> crate::error::ParseResult<Expression<'a>> {
         // In deferred mode, create a Lazy expression
         if self.options.defer_script_parse {
             let trimmed = content.trim();
@@ -2281,7 +2281,7 @@ impl Parser<'_> {
     ///
     /// Convenience wrapper that calls `parse_js_expression_internal` with `disallow_loose = false`
     /// and `opening_token = '{'`.
-    pub fn parse_js_expression(&self, content: &str, offset: usize) -> Expression {
+    pub fn parse_js_expression(&self, content: &str, offset: usize) -> Expression<'a> {
         self.parse_js_expression_internal(content, offset, false, '{')
     }
 
@@ -2294,7 +2294,7 @@ impl Parser<'_> {
         &self,
         content: &str,
         offset: usize,
-    ) -> crate::error::ParseResult<Expression> {
+    ) -> crate::error::ParseResult<Expression<'a>> {
         // Adjust offset for leading whitespace that gets trimmed
         let leading_ws = content.len() - content.trim_start().len();
         let trimmed = content.trim();
@@ -2340,7 +2340,7 @@ impl Parser<'_> {
         offset: usize,
         disallow_loose: bool,
         close_char: char,
-    ) -> crate::error::ParseResult<Expression> {
+    ) -> crate::error::ParseResult<Expression<'a>> {
         let leading_ws = content.len() - content.trim_start().len();
         let trimmed = content.trim();
         let trimmed_offset = offset + leading_ws;
@@ -2489,13 +2489,13 @@ fn split_top_level_commas(body: &str) -> Vec<(usize, &str)> {
 /// the closing brace (`init: null`). Used when a declaration tag has no
 /// assignment, an empty RHS, or an un-parseable initializer — mirroring the
 /// `loose` fallback in upstream `read_declaration`.
-fn build_empty_loose_declaration(
+fn build_empty_loose_declaration<'a>(
     start: usize,
     tag_end: usize,
     decl_start: usize,
     body_end: usize,
     kind: &str,
-) -> TemplateNode {
+) -> TemplateNode<'a> {
     use serde_json::{Value, json};
     let empty_pos = body_end as u32;
     let declaration = json!({
@@ -2560,14 +2560,14 @@ fn strip_type_annotation(pattern: &str) -> String {
 ///   }]
 /// }
 /// ```
-fn build_kind_variable_declaration(
+fn build_kind_variable_declaration<'a>(
     arena: &crate::ast::arena::ParseArena,
     pattern: &Expression,
     init: &Expression,
     decl_start: usize,
     decl_end: usize,
     kind: &str,
-) -> Expression {
+) -> Expression<'a> {
     use serde_json::{Map, Value};
 
     let pattern_value = crate::ast::arena::with_serialize_arena(arena, || pattern.as_json());
@@ -2611,14 +2611,14 @@ fn build_kind_variable_declaration(
     Expression::from_json(Value::Object(declaration))
 }
 
-fn build_const_variable_declaration(
+fn build_const_variable_declaration<'a>(
     arena: &crate::ast::arena::ParseArena,
     pattern: &Expression,
     init: &Expression,
     decl_start: usize,
     decl_end: usize,
     declarator_end: usize,
-) -> Expression {
+) -> Expression<'a> {
     use serde_json::{Map, Value};
 
     // Use the parser's arena for serialization context

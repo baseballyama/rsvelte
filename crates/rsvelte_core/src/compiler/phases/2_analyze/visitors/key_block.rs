@@ -20,7 +20,10 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 /// component state.
 ///
 /// Corresponds to `KeyBlock(node, context)` in KeyBlock.js.
-pub fn visit(block: &mut KeyBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit<'a, 'b: 'a>(
+    block: &mut KeyBlock<'b>,
+    context: &mut VisitorContext<'a>,
+) -> Result<(), AnalysisError> {
     // Check if inside a textarea (logic blocks not allowed)
     if context.element_ancestors.iter().any(|a| a == "textarea") {
         return Err(errors::block_invalid_placement("{#key ...}"));

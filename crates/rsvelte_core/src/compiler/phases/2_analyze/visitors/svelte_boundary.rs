@@ -10,9 +10,9 @@ use super::shared::fragment;
 use crate::ast::template::{Attribute, SvelteElement};
 
 /// Visit a svelte:boundary.
-pub fn visit(
-    boundary: &mut SvelteElement,
-    context: &mut VisitorContext,
+pub fn visit<'a, 'b: 'a>(
+    boundary: &mut SvelteElement<'b>,
+    context: &mut VisitorContext<'a>,
 ) -> Result<(), AnalysisError> {
     for attribute in &mut boundary.attributes {
         if let Attribute::Attribute(attribute) = attribute {

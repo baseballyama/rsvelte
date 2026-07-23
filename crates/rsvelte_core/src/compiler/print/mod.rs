@@ -115,7 +115,8 @@ mod tests {
             modern: true,
             ..Default::default()
         };
-        let ast = crate::parse(source, parse_options).unwrap();
+        let ast =
+            crate::parse(source, &oxc_allocator::Allocator::default(), parse_options).unwrap();
         let result = print(&ast, None).unwrap();
         assert!(result.code.contains("<h1>"));
         assert!(result.code.contains("Hello World"));
@@ -129,7 +130,8 @@ mod tests {
             modern: true,
             ..Default::default()
         };
-        let ast = crate::parse(source, parse_options).unwrap();
+        let ast =
+            crate::parse(source, &oxc_allocator::Allocator::default(), parse_options).unwrap();
         let result = print(&ast, None).unwrap();
         assert!(result.code.contains("<div"));
         assert!(result.code.contains("class"));
@@ -144,7 +146,8 @@ mod tests {
             modern: true,
             ..Default::default()
         };
-        let ast = crate::parse(source, parse_options).unwrap();
+        let ast =
+            crate::parse(source, &oxc_allocator::Allocator::default(), parse_options).unwrap();
         let result = print(&ast, None).unwrap();
         assert!(result.code.contains("<input"));
         assert!(result.code.contains("type"));
@@ -158,7 +161,8 @@ mod tests {
             modern: true,
             ..Default::default()
         };
-        let ast = crate::parse(source, parse_options).unwrap();
+        let ast =
+            crate::parse(source, &oxc_allocator::Allocator::default(), parse_options).unwrap();
         let result = print(&ast, None).unwrap();
         assert!(result.code.contains("<div>"));
         assert!(result.code.contains("<p>"));

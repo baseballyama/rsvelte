@@ -204,7 +204,7 @@ fn run_parser_tests(test_type: &str, modern: bool) -> Category {
             ..Default::default()
         };
 
-        let result = parse(&input, options);
+        let result = parse(&input, &oxc_allocator::Allocator::default(), options);
 
         match result {
             Ok(ast) => {

@@ -30,7 +30,7 @@ const RESERVED_TAG_NAMES: &[&str] = &[
     "missing-glyph",
 ];
 
-impl Parser<'_> {
+impl<'a> Parser<'a> {
     /// Parse svelte:options element and extract options.
     ///
     /// Note: This is called after the opening tag name and attributes have been parsed,
@@ -38,9 +38,9 @@ impl Parser<'_> {
     pub fn parse_svelte_options(
         &mut self,
         start: usize,
-        attributes: Vec<crate::ast::Attribute>,
+        attributes: Vec<crate::ast::Attribute<'a>>,
         self_closing: bool,
-    ) -> ParseResult<Option<TemplateNode>> {
+    ) -> ParseResult<Option<TemplateNode<'a>>> {
         // If self-closing, no need to parse children or closing tag
         if !self_closing {
             // Check for children content before the closing tag
@@ -250,7 +250,9 @@ impl Parser<'_> {
 /// Get a static value from an attribute.
 ///
 /// Returns None if the value is not static (e.g., contains expressions).
-fn get_static_value(attr: &crate::ast::template::AttributeNode) -> ParseResult<Option<String>> {
+fn get_static_value<'a>(
+    attr: &crate::ast::template::AttributeNode<'a>,
+) -> ParseResult<Option<String>> {
     match &attr.value {
         AttributeValue::True(_) => Ok(Some("true".to_string())),
         AttributeValue::Sequence(parts) => {
@@ -282,7 +284,7 @@ fn get_static_value(attr: &crate::ast::template::AttributeNode) -> ParseResult<O
 }
 
 /// Get a boolean value from an attribute.
-fn get_boolean_value(attr: &crate::ast::template::AttributeNode) -> ParseResult<bool> {
+fn get_boolean_value<'a>(attr: &crate::ast::template::AttributeNode<'a>) -> ParseResult<bool> {
     match &attr.value {
         AttributeValue::True(_) => Ok(true),
         AttributeValue::Expression(expr) => {
@@ -332,9 +334,9 @@ fn get_boolean_value(attr: &crate::ast::template::AttributeNode) -> ParseResult<
 /// - `customElement="tag-name"` - string tag name
 /// - `customElement={{tag: "tag-name", ...}}` - object with options
 /// - `customElement={null}` - disable custom element (for backwards compat)
-fn parse_custom_element_option(
+fn parse_custom_element_option<'a>(
     attr: &crate::ast::template::AttributeNode,
-) -> ParseResult<Option<CustomElementOptions>> {
+) -> ParseResult<Option<CustomElementOptions<'a>>> {
     match &attr.value {
         AttributeValue::Sequence(parts) => {
             // Check if this is a text value
@@ -403,10 +405,10 @@ fn parse_custom_element_option(
 }
 
 /// Parse customElement object expression.
-fn parse_custom_element_object(
+fn parse_custom_element_object<'a>(
     obj_expr: &JsonValue,
     attr: &crate::ast::template::AttributeNode,
-) -> ParseResult<CustomElementOptions> {
+) -> ParseResult<CustomElementOptions<'a>> {
     let mut tag = None;
     let mut shadow = None;
     let mut shadow_object = None;
@@ -494,7 +496,10 @@ fn parse_custom_element_object(
 /// - Contain a hyphen
 /// - Only contain valid characters
 /// - Not be a reserved name
-fn validate_tag_name(tag: &str, attr: &crate::ast::template::AttributeNode) -> ParseResult<()> {
+fn validate_tag_name<'a>(
+    tag: &str,
+    attr: &crate::ast::template::AttributeNode<'a>,
+) -> ParseResult<()> {
     if tag.is_empty() {
         return Err(ParseError::svelte(
             "svelte_options_invalid_tagname",

@@ -55,7 +55,7 @@ pub fn visit_attribute(node: &Attribute, context: &mut ComponentContext) {
 ///     return is_expression_attribute(attribute) && attribute.name.startsWith('on');
 /// }
 /// ```
-pub fn is_event_attribute(attribute: &Attribute) -> Option<&AttributeNode> {
+pub fn is_event_attribute<'a>(attribute: &'a Attribute<'a>) -> Option<&'a AttributeNode<'a>> {
     match attribute {
         Attribute::Attribute(attr_node) => {
             // Check if name starts with "on"
@@ -255,9 +255,9 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
 /// Extract the expression tag from an attribute value.
 ///
 /// Handles both direct ExpressionTag and single-element Sequence cases.
-pub fn extract_expression_tag(
-    value: &crate::ast::template::AttributeValue,
-) -> &crate::ast::template::ExpressionTag {
+pub fn extract_expression_tag<'a>(
+    value: &'a crate::ast::template::AttributeValue<'a>,
+) -> &'a crate::ast::template::ExpressionTag<'a> {
     use crate::ast::template::{AttributeValue, AttributeValuePart};
 
     match value {

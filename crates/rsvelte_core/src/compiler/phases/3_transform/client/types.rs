@@ -35,11 +35,14 @@ pub struct ComponentContext<'a> {
     pub arena: JsArena,
 
     /// The path of nodes being visited (for parent access)
-    pub path: Vec<&'a TemplateNode>,
+    pub path: Vec<&'a TemplateNode<'a>>,
 
     /// Visit a node and return the transformed expression/statement
-    pub visit:
-        fn(&mut Self, &TemplateNode, Option<&ComponentClientTransformState<'a>>) -> TransformResult,
+    pub visit: fn(
+        &mut Self,
+        &TemplateNode<'_>,
+        Option<&ComponentClientTransformState<'a>>,
+    ) -> TransformResult,
 }
 
 impl<'a> ComponentContext<'a> {
@@ -48,7 +51,7 @@ impl<'a> ComponentContext<'a> {
         state: ComponentClientTransformState<'a>,
         visit: fn(
             &mut Self,
-            &TemplateNode,
+            &TemplateNode<'_>,
             Option<&ComponentClientTransformState<'a>>,
         ) -> TransformResult,
     ) -> Self {
@@ -61,17 +64,17 @@ impl<'a> ComponentContext<'a> {
     }
 
     /// Push a node onto the path stack.
-    pub fn push_path(&mut self, node: &'a TemplateNode) {
+    pub fn push_path(&mut self, node: &'a TemplateNode<'a>) {
         self.path.push(node);
     }
 
     /// Pop a node from the path stack.
-    pub fn pop_path(&mut self) -> Option<&'a TemplateNode> {
+    pub fn pop_path(&mut self) -> Option<&'a TemplateNode<'a>> {
         self.path.pop()
     }
 
     /// Get the current parent node.
-    pub fn current_parent(&self) -> Option<&'a TemplateNode> {
+    pub fn current_parent(&self) -> Option<&'a TemplateNode<'a>> {
         self.path.last().copied()
     }
 
@@ -83,7 +86,7 @@ impl<'a> ComponentContext<'a> {
     /// the overridden state (e.g., with a different `node` anchor).
     pub fn visit_node(
         &mut self,
-        node: &TemplateNode,
+        node: &TemplateNode<'_>,
         _state_override: Option<&ComponentClientTransformState<'a>>,
     ) -> TransformResult {
         match node {
@@ -195,8 +198,8 @@ impl<'a> ComponentContext<'a> {
 
         // Categorize attributes - pre-allocate based on attribute count
         let attr_count = elem.attributes.len();
-        let mut attributes: Vec<&Attribute> = Vec::with_capacity(attr_count);
-        let mut class_directives: Vec<&ClassDirective> = Vec::new();
+        let mut attributes: Vec<&Attribute<'_>> = Vec::with_capacity(attr_count);
+        let mut class_directives: Vec<&ClassDirective<'_>> = Vec::new();
         let mut style_directives: Vec<&StyleDirective> = Vec::new();
         let mut on_directives: Vec<OnDirective> = Vec::new();
         let mut transition_directives: Vec<TransitionDirective> = Vec::new();
@@ -803,7 +806,7 @@ impl<'a> ComponentContext<'a> {
 
     fn visit_expression_tag(
         &mut self,
-        _expr: &crate::ast::template::ExpressionTag,
+        _expr: &crate::ast::template::ExpressionTag<'_>,
     ) -> TransformResult {
         // TODO: Implement {expression} transformation
         TransformResult::None
