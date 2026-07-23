@@ -2020,7 +2020,8 @@ impl<'a> ScopeBuilder<'a> {
             | Expression::RegExpLiteral(_)
             | Expression::ThisExpression(_)
             | Expression::Super(_)
-            | Expression::MetaProperty(_) => {}
+            | Expression::ImportMeta(_)
+            | Expression::NewTarget(_) => {}
             // Skip other complex expressions for now
             _ => {}
         }

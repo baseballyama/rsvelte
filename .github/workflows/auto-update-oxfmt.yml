@@ -61,6 +61,13 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
+      # Needed to regenerate Cargo.lock against the new oxc rev (see the oxc-rev
+      # sync step). Resolution only; nothing is compiled here.
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.97.1
+
       - name: Read currently pinned oxfmt version
         id: current
         shell: bash
@@ -157,9 +164,7 @@ jobs:
             exit 1
           fi
           # All oxc_* deps share one rev (the [patch.crates-io] block aligns them),
-          # so read the single current rev and global-replace it. NOTE: this is a
-          # best-effort lockfile edit — if the new oxc commit changes oxc's own
-          # dependency graph, CI's `cargo build --locked` flags it for a human.
+          # so read the single current rev and global-replace it in the manifests.
           OLD_SHA=$(grep -hoE 'oxc-project/oxc".*rev = "[0-9a-f]{40}"' Cargo.toml \
             | grep -oE '[0-9a-f]{40}' | sort -u)
           if [ "$(printf '%s' "${OLD_SHA}" | grep -c .)" -ne 1 ]; then
@@ -167,12 +172,53 @@ jobs:
             exit 1
           fi
           if [ "${OLD_SHA}" != "${OXC_SHA}" ]; then
+            # 1. Repin the git rev across every Cargo manifest (source of truth).
             mapfile -t cargo_files < <(grep -rl "${OLD_SHA}" --include=Cargo.toml . | grep -v node_modules)
-            for f in "${cargo_files[@]}" Cargo.lock; do
-              [ -f "${f}" ] || continue
+            for f in "${cargo_files[@]}"; do
               sed -i "s/${OLD_SHA}/${OXC_SHA}/g" "${f}"
               git add "${f}"
             done
+
+            # 2. The oxc AST/parser crates are consumed via crates.io semver reqs
+            #    (`oxc_ast = "X.Y"`) that `[patch.crates-io]` redirects to the git
+            #    rev. When a release bumps those crate versions the old req no
+            #    longer matches the patched git version, the patch silently stops
+            #    applying, and the build ends up with two incompatible oxc copies.
+            #    Realign the reqs to the version this commit publishes (read from
+            #    the oxc tree; oxc_allocator carries the AST-stack version).
+            NEW_OXC_VER=$(gh api \
+              "repos/oxc-project/oxc/contents/crates/oxc_allocator/Cargo.toml?ref=${OXC_SHA}" \
+              --jq '.content' | base64 -d | grep -m1 -E '^version[[:space:]]*=' \
+              | grep -oE '[0-9]+\.[0-9]+')
+            OLD_OXC_VER=$(grep -rhoE 'oxc_allocator[^"]*"[0-9]+\.[0-9]+"' crates --include=Cargo.toml \
+              | grep -oE '[0-9]+\.[0-9]+' | sort -u | head -n1)
+            if [ -n "${NEW_OXC_VER}" ] && [ -n "${OLD_OXC_VER}" ] \
+              && [ "${NEW_OXC_VER}" != "${OLD_OXC_VER}" ]; then
+              mapfile -t req_files < <(grep -rl "\"${OLD_OXC_VER}\"" crates --include=Cargo.toml)
+              for f in "${req_files[@]}"; do
+                # Only touch oxc_* dependency lines, never unrelated deps that
+                # happen to share the version string.
+                sed -i -E "/oxc_/ s/\"${OLD_OXC_VER}\"/\"${NEW_OXC_VER}\"/g" "${f}"
+                git add "${f}"
+              done
+              echo "Bumped oxc crates.io reqs ${OLD_OXC_VER} -> ${NEW_OXC_VER}"
+            fi
+
+            # 3. Regenerate the lock via cargo (not sed): sed only swaps the rev
+            #    hash and leaves the `version = "x.y.z"` lines stale, which breaks
+            #    `cargo build --locked` whenever an oxc release bumps its own crate
+            #    versions. Naming the git-sourced crates keeps the refresh scoped so
+            #    unrelated registry deps stay pinned. NOTE: this handles the
+            #    mechanical repin; a breaking oxc Rust API change still needs a human
+            #    source fix, which CI surfaces.
+            mapfile -t oxc_pkgs < <(
+              awk '/^name = /{n=$3} /oxc-project\/oxc\?rev=/{gsub(/"/,"",n); print n}' Cargo.lock \
+                | sort -u
+            )
+            if [ "${#oxc_pkgs[@]}" -gt 0 ]; then
+              cargo update "${oxc_pkgs[@]}"
+              git add Cargo.lock
+            fi
             echo "Synced oxc rev ${OLD_SHA} -> ${OXC_SHA} (oxfmt_v${LATEST_VERSION})"
           else
             echo "oxc rev already at ${OXC_SHA}; no Cargo change needed."
