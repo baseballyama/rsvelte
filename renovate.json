@@ -70,6 +70,17 @@
         "https://github.com/oxc-project/oxc"
       ],
       "enabled": false
+    },
+    {
+      "description": "The npm `oxfmt` package (and its `@oxfmt/*` platform bindings) is bumped exclusively by the auto-update-oxfmt workflow, which also syncs the pinned `oxc_formatter` git rev in Cargo.toml to the matching `oxfmt_v<version>` oxc commit and honours a release-age stability window. A standalone Renovate bump (e.g. #1657) can never pass CI: it leaves the oxc rev on the old commit (rsvelte's native CSS formatting diverges from the delegated oxfmt oracle) and races the release-age policy. Disable all Renovate updates for it.",
+      "matchManagers": [
+        "npm"
+      ],
+      "enabled": false,
+      "matchPackageNames": [
+        "oxfmt",
+        "@oxfmt/**"
+      ]
     }
   ]
 }
