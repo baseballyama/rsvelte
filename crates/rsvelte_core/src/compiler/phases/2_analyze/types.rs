@@ -2146,8 +2146,10 @@ impl ComponentAnalysis {
                 name: component_name,
                 filename,
                 css: css.content.styles.clone(),
+                // Matches upstream's default `cssHash` (`svelte-${hash(...)}`):
+                // the `hash` handed to the callback is the raw digest, unprefixed.
                 hash: std::sync::Arc::new(|s: &str| {
-                    crate::compiler::phases::phase3_transform::css::generate_css_hash(s)
+                    crate::compiler::phases::phase3_transform::css::generate_raw_hash(s)
                 }),
             };
             css_hash_fn(&input)
