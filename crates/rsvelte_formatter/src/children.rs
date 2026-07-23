@@ -422,7 +422,7 @@ pub(crate) fn enter_bracket_same_line(value: bool) -> BracketSameLineGuard {
     BracketSameLineGuard(BRACKET_SAME_LINE.replace(value))
 }
 
-fn bracket_same_line() -> bool {
+pub(crate) fn bracket_same_line() -> bool {
     BRACKET_SAME_LINE.with(std::cell::Cell::get)
 }
 
@@ -450,16 +450,11 @@ pub(crate) fn build_element_doc(el: ElementLayout) -> Doc {
     let is_empty = children
         .iter()
         .all(|c| matches!(c.text(), Some(t) if is_only_ws(t)));
-    // Under `bracketSameLine`, a source-empty element must take the hug layout, so
-    // drop any whitespace-only child an earlier pass left inside it (so
-    // `should_hug_*` and the empty `body` see no content, matching prettier, whose
-    // empty source element has no children at all). Gated to `bracketSameLine` so
-    // the default path keeps upstream's non-clearing behaviour untouched.
-    let children = if is_empty && bracket_same_line {
-        Vec::new()
-    } else {
-        children
-    };
+    // A source-empty element whose open tag wrapped may arrive with a
+    // whitespace-only artifact child an earlier pass inserted; the caller
+    // (`collapse.rs`) already drops those under `bracketSameLine`, so the
+    // `children` here mirror prettier's original AST children — empty ⇔
+    // source-empty, whitespace ⇔ source-whitespace — and no clearing is needed.
     // canOmitSoftlineBeforeClosingTag(node, path, options) — false unless
     // `bracketSameLine` is on; then it drops the softline before a hugged
     // element's closing `>` when the element doesn't hug the next node (or is the
