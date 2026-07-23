@@ -17,8 +17,9 @@ const { isWindowOutOfBounds, windowOutOfBoundsMessage } = require('./lib/bounds-
 const MAGIC = 0x3156_5052; // "RPV1" little-endian
 // Bumped for the function-node AST-fidelity changes (FunctionExpression field
 // reorder, `typeParameters` on function-like nodes, Identifier `optional`);
-// keep in lockstep with `napi_raw_parse.rs`'s `VERSION`.
-const VERSION = 3;
+// v4 adds the object-method `typeParameters`-after-`body` flag byte.
+// Keep in lockstep with `napi_raw_parse.rs`'s `VERSION`.
+const VERSION = 4;
 const HEADER_LEN = 24;
 
 // Tags — must mirror napi_raw_parse.rs.
@@ -820,15 +821,18 @@ function readJsFunctionExpression(ctx, start, end) {
 	const typeParameters = readOptTypeAnnotation(ctx);
 	const params = readChildArray(ctx);
 	const body = readOptNode(ctx);
+	// Object-method inner functions carry `typeParameters` after `body` (acorn).
+	const typeParametersAfterBody = readBool(ctx);
 	const node = { type: 'FunctionExpression', start, end };
 	if (loc !== null) node.loc = loc;
 	node.id = id;
 	node.expression = expression;
 	node.generator = generator;
 	node.async = asyncFlag;
-	if (typeParameters !== null) node.typeParameters = typeParameters;
+	if (typeParameters !== null && !typeParametersAfterBody) node.typeParameters = typeParameters;
 	node.params = params;
 	node.body = body;
+	if (typeParameters !== null && typeParametersAfterBody) node.typeParameters = typeParameters;
 	return node;
 }
 

@@ -17,7 +17,7 @@ const { decodeParseEnvelope } = await import(
 ).then((m) => m.default ?? m);
 
 const MAGIC = 0x3156_5052; // "RPV1"
-const VERSION = 3;
+const VERSION = 4;
 const HEADER_LEN = 24;
 const TAG_JSON = 0x00;
 const JS_IDENTIFIER = 0x80;
