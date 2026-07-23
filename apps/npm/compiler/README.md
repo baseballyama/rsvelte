@@ -49,6 +49,7 @@ change.
 ```js
 import init, {
   parse_svelte,
+  compile,
   compile_client,
   compile_server,
   version,
@@ -71,6 +72,28 @@ const server = compile_server(source, 'App');
 const ast = JSON.parse(parse_svelte(source).ast);
 
 console.log(version()); // the rsvelte compiler version
+```
+
+### Full compile options
+
+`compile(source, options)` accepts the full compile-options object, including the
+function forms Svelte's own `compile` supports. It returns the result as a JSON
+string (`{ js, css, warnings, metadata }`); the callbacks are input-only.
+
+```js
+const result = JSON.parse(
+  compile(source, {
+    filename: 'App.svelte',
+    generate: 'client',
+    // `customElement` / `css` / `runes` also accept `({ filename }) => value`.
+    css: 'injected',
+    // Filter compiler warnings (applied by the compiler).
+    warningFilter: (w) => !w.code.startsWith('a11y'),
+    // A constant scope hash, or a dynamic `cssHash({ hash, css, name, filename })`.
+    cssHash: ({ hash, css }) => `x-${hash(css)}`,
+  }),
+);
+console.log(result.js.code, result.warnings);
 ```
 
 ## Why it is fast

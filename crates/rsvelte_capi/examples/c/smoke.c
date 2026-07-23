@@ -56,6 +56,105 @@ static int run_case_with(const char *label, const char *source,
 #define run_case(label, src, opts)        run_case_with(label, src, opts, rsvelte_compile)
 #define run_module_case(label, src, opts) run_case_with(label, src, opts, rsvelte_compile_module)
 
+/* --- callback demo (issue #1680) --- */
+
+/* Portable substring search over a non-NUL-terminated buffer. */
+static int buf_contains(const uint8_t *hay, size_t hay_len, const char *needle) {
+  size_t n = strlen(needle);
+  if (n == 0 || n > hay_len) return 0;
+  for (size_t i = 0; i + n <= hay_len; i++) {
+    if (memcmp(hay + i, needle, n) == 0) return 1;
+  }
+  return 0;
+}
+
+/* State the cssHash callback records + a scratch buffer for its return. */
+struct css_hash_state {
+  int invoked;
+  int saw_svelte_prefix; /* whether the raw digest was already prefixed */
+  char scratch[64];
+};
+
+/* cssHash: build `svelte-${hash}` from the raw digest. Since the shared
+ * digest is unprefixed, this yields a single `svelte-` prefix. */
+static RsvelteStr css_hash_cb(void *userdata, const RsvelteCssHashInput *input) {
+  struct css_hash_state *st = (struct css_hash_state *)userdata;
+  st->invoked = 1;
+  /* Guard: the digest must NOT already start with "svelte-". */
+  if (input->hash_len >= 7 && memcmp(input->hash, "svelte-", 7) == 0) {
+    st->saw_svelte_prefix = 1;
+  }
+  int n = snprintf(st->scratch, sizeof(st->scratch), "svelte-%.*s",
+                   (int)input->hash_len, (const char *)input->hash);
+  RsvelteStr out;
+  out.data = (const uint8_t *)st->scratch;
+  out.len = (n > 0 && (size_t)n < sizeof(st->scratch)) ? (size_t)n : 0;
+  return out;
+}
+
+/* warningFilter: drop every warning (return false). */
+static bool warning_filter_cb(void *userdata, const uint8_t *warning_json,
+                              uintptr_t warning_json_len) {
+  int *count = (int *)userdata;
+  (void)warning_json;
+  (void)warning_json_len;
+  (*count)++;
+  return false;
+}
+
+static int run_callbacks_case(void) {
+  printf("\n=== callbacks: cssHash + warningFilter ===\n");
+  struct css_hash_state st = {0, 0, {0}};
+  int filtered = 0;
+  RsvelteCallbacks cb = {0};
+  cb.css_hash = css_hash_cb;
+  cb.css_hash_userdata = &st;
+  cb.warning_filter = warning_filter_cb;
+  cb.warning_filter_userdata = &filtered;
+
+  const char *src =
+      "<h1>x</h1>\n<style>h1{color:red}.unused{color:blue}</style>";
+  const char *opts = "{\"filename\":\"App.svelte\",\"css\":\"external\"}";
+  RsvelteBuf out = rsvelte_compile_with_callbacks(
+      (const uint8_t *)src, strlen(src),
+      (const uint8_t *)opts, strlen(opts), &cb);
+
+  int failures = 0;
+  if (out.data == NULL || out.len == 0) {
+    fprintf(stderr, "FAIL: callbacks produced empty buffer\n");
+    rsvelte_free(out);
+    return 1;
+  }
+  fwrite(out.data, 1, out.len < 400 ? out.len : 400, stdout);
+  printf("\n");
+
+  if (!st.invoked) {
+    fprintf(stderr, "FAIL: cssHash callback was not invoked\n");
+    failures++;
+  }
+  if (st.saw_svelte_prefix) {
+    fprintf(stderr, "FAIL: raw digest was already `svelte-` prefixed (double-prefix bug)\n");
+    failures++;
+  }
+  /* The single-prefixed class must appear; the doubled form must not. */
+  if (buf_contains(out.data, out.len, "svelte-svelte-")) {
+    fprintf(stderr, "FAIL: doubled `svelte-svelte-` prefix in output\n");
+    failures++;
+  }
+  if (filtered == 0) {
+    fprintf(stderr, "FAIL: warningFilter never saw the unused-selector warning\n");
+    failures++;
+  }
+  /* warnings were dropped -> the envelope's warnings array is empty. */
+  if (buf_contains(out.data, out.len, "css_unused_selector")) {
+    fprintf(stderr, "FAIL: warningFilter=false should have dropped the warning\n");
+    failures++;
+  }
+  rsvelte_free(out);
+  printf("cssHash invoked=%d, warnings filtered=%d\n", st.invoked, filtered);
+  return failures;
+}
+
 int main(void) {
   printf("rsvelte version: %s\n", rsvelte_version());
 
@@ -80,6 +179,8 @@ int main(void) {
       "module: $state rune",
       "export const counter = $state(0);",
       "{\"filename\":\"counter.svelte.js\"}");
+
+  failures += run_callbacks_case();
 
   /* Error path: malformed JSON options. */
   {

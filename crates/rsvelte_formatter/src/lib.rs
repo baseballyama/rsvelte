@@ -25,6 +25,7 @@ mod script;
 mod sort_order;
 mod style;
 mod style_css;
+mod tailwind_sort;
 
 pub use error::FormatError;
 pub use json::{JsonVariant, format_json_source};

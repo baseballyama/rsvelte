@@ -201,7 +201,8 @@ async function compileSvelte(options, { filename, code }, statsCollection) {
 
 	if (compileOptions.hmr && options.emitCss) {
 		const hash = `s-${safeBase64Hash(normalize(filename, options.root))}`;
-		compileOptions.cssHash = () => hash;
+		compileOptions.cssHashOverride = hash;
+		delete compileOptions.cssHash;
 	}
 
 	let preprocessed;

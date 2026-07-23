@@ -104,6 +104,7 @@ Run `rsvelte-check --help` for the authoritative list.
 Highlights:
 
 - **SvelteKit-aware.** Honours `svelte.config.js`'s `kit.files` overrides; injects SvelteKit-generated kit-file augmentations for both `.ts` (real TS annotations) and `.js` (JSDoc) files.
+- **`warningFilter` support.** A function `compilerOptions.warningFilter` in `svelte.config.js` is honoured. The native compiler can't run the JS predicate itself, so the run's compiler warnings are collected and passed once to a small Node sidecar (bundled with this package) that imports your config and applies the function — equivalent to Svelte's emit-time filter since it's a pure per-warning predicate. If Node is unavailable or the config can't be imported, every warning is shown and a one-time note is printed (the filter never silently drops a warning). Projects without a function `warningFilter` pay nothing — the sidecar is never spawned.
 - **Incremental.** A per-file overlay manifest and a per-file warning cache (`<cacheDir>/warnings.json`) make warm runs near-instant.
 - **Parallel compile.** Files are compiled across rayon workers; the TS pass is the long pole.
 - **Watch mode.** Composes with `--incremental` for an editor-like inner loop.

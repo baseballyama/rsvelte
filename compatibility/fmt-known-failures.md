@@ -5,14 +5,14 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: 22 entries**, concentrated in real-world corpus repos
+**Current baseline: 16 entries**, concentrated in real-world corpus repos
 (layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail). Oracle-bug /
 invalid-input / migrate cases are NOT here — those are permanently excluded in
 `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every entry here was
 individually diffed against its oracle to confirm the cluster it belongs to;
 none is a guess from file-name pattern-matching.
 
-## Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (10)
+## Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (5)
 
 The most common failure. Prettier prints whitespace-sensitive inline elements
 (`<a>`, `<span>`, `<title>`, a `<pre><code>` pair, small inline components
@@ -27,25 +27,36 @@ self-closing tags print correctly (no more `<path … />` corrupted into
 breaks; and an empty `<textarea>`'s open-tag `>` now dangles when the glued
 last line would overflow the print width; and a hugged content line's close
 tag now participates in the width measurement, so an inner self-closing
-component's attributes break where the oracle breaks them. The remaining 10
-entries are the shapes those widening steps did not reach: an `<a>`/`<span>`
-dangling-close that falls through to the compact fallback (3 ids —
-`</div></a>`, a `<span>…</span>` pair, and an `<a>…</Blockquote` pair), an
-`<a>` hug decision that breaks the wrong node (a wrapping
-`{item.name || ...}` expression instead of the tag itself, 1 id),
-`<pre><code class="…">` open-tag hugging in two different shapes (a raw pair,
-2 ids, and a `<pre>` whose own attribute wrongly hug-breaks instead of its
-`<code>` child, 1 id), an `{:else if}` branch picking the wrong side of a
-title/element dangle (2 ids, same shape), and — in the opposite direction — a
-short `<a>` kept compact by rsvelte that the oracle still breaks onto its own
-lines (1 id, entangled with Clusters 2 and 5). Fix belongs in rsvelte —
-continuing to widen the `children.rs` Doc-IR gate.
+component's attributes break where the oracle breaks them. Two further
+widenings landed since (see Resolved): `node_to_child` now has a `RenderTag`
+arm claiming it as a bare atom (added to the block-run gate too, while a
+prose-position `RenderTag` still bails to the #1669 fill path) instead of
+falling through to the legacy string path, fixing an `{:else if}`-branch
+title/element dangle; and `<pre><code class="…">` open-tag hugging now
+follows three rules confirmed against a `printToDoc` dump — a `<pre>` child's
+open `>` dangles when its content is multi-line or its own open tag
+overflows, re-hugs only when the attrs themselves break onto multiple lines,
+and (when `<pre>` itself overflows) prefers breaking a breakable child's tag
+over the `<pre>`'s own attributes.
 
-The remaining port-bail leaf causes are down to `RenderTag` (1 causal id, 95
-files at risk) and `Other` (2 causal ids, 42 files at risk) — both too
-low-yield relative to their blast radius to keep chasing (see the Methodology
-notes on causal-to-PASS attrition), so further blind bail-hunting in
-`children.rs` is paused for now.
+The remaining 5 entries are the shapes those widening steps did not reach: an
+`<a>`/`<span>` dangling-close that falls through to the compact fallback (3
+ids — `</div></a>`, a `<span>…</span>` pair, and an `<a>…</Blockquote` pair),
+an `<a>` hug decision that breaks the wrong node (a wrapping
+`{item.name || ...}` expression instead of the tag itself, 1 id), and — in
+the opposite direction — a short `<a>` kept compact by rsvelte that the
+oracle still breaks onto its own lines (1 id, entangled with Cluster 2 and
+the since-resolved Cluster 5). The first two categories (4 ids: `svelte-ux/
+.../Collapse.svelte`, `cmsaasstarter/.../(marketing)/+page.svelte`,
+`svelte-ux/.../TextField/+page.svelte`, `layercake/routes/components/
++page.svelte`) all sit behind the same `>`-prefix bail in `try_children_port`.
+A strict-condition experiment narrowing that bail from `>`/`}` to `}`-only
+was tried and reverted — **0 fixed / 1 regressed** (`shadcn` code-viewer),
+and the 4 targeted ids stayed unchanged or got worse (see Proven
+net-negative) — confirming, alongside the earlier `hug_glue_prefix`
+narrowing experiment, that this cluster needs children.rs's hug-boundary
+construction rebuilt, not a gate relaxation. Fix belongs in rsvelte —
+continuing to widen the `children.rs` Doc-IR gate.
 
 ## Cluster 2 — attribute/style/directive value break-point selection (4)
 
@@ -88,7 +99,7 @@ in rsvelte — give each interpolation a *live* Doc subtree (formatted at its
 real indent) instead of a pre-narrowed string, so a nested subexpression can
 measure against its true column.
 
-## Cluster 3 — embedded-JS member-chain / call-argument break-point divergence (3)
+## Cluster 3 — embedded-JS member-chain / call-argument break-point divergence (4)
 
 A single JS expression inside one interpolation (`a.b.c`, `x ?? 'default'`)
 needs to break, and oxc's chosen break point differs from what the oracle
@@ -111,102 +122,34 @@ or reaches it without changing the outcome. The divergence is
 oxc_formatter's own internal choice, not a width-narrowing problem. Fix
 belongs in `oxc_formatter` (member-chain and call-argument printing).
 
+`powertable/app/src/routes/examples/+layout.svelte` was reclassified into
+this cluster after the two other mechanisms it used to carry were both
+resolved (a Cluster 5 multi-pass fill artifact and a Cluster 1 void-element
+dangle — see Resolved): the residual diff is a member-chain break-point
+choice inside an `href` attribute's interpolation — the oracle breaks after
+`example{$page`, rsvelte after `$page.data` — plus one unrelated stray
+trailing space immediately before an `<a>` link's text. The break-point part
+is the same oxc member-chain heuristic divergence as the other three ids in
+this cluster; the trailing-space part is unexamined but low-priority next to
+it.
+
 ## Cluster 4 — inline `{expr} {expr}` hug/join collapse (1)
 
 The mirror image of Cluster 1's hugging: adjacent expression-tag children
 (`{key} {first} {last}`) are kept on one line by the oracle but split onto
 separate lines by rsvelte (`svelte-table/example/example6/ContactButtonComponent.svelte`).
-**This is not on the same lever as Cluster 1, nor as Cluster 5** — confirmed by
-direct testing, not inference. Cluster 1's hug/dangle gate governs element
-open/close-tag decisions, not bare `{expr}` siblings. Cluster 5's prose-fill
-divergence is a width/lookahead disagreement *inside* a run that both sides
-agree is fillable; here the Fill algorithm falls back to one-word-per-line
-entirely where the oracle keeps the run joined. The leading (unconfirmed)
+**This is not on the same lever as Cluster 1, nor as the since-resolved
+Cluster 5** — confirmed by direct testing, not inference. Cluster 1's
+hug/dangle gate governs element open/close-tag decisions, not bare `{expr}`
+siblings. Cluster 5's prose-fill divergence (see Resolved) was a
+width/lookahead disagreement *inside* a run that both sides agree is
+fillable; here the Fill algorithm falls back to one-word-per-line entirely
+where the oracle keeps the run joined. The leading (unconfirmed)
 suspect is the prose-fill side-hug context — the Fill algorithm's decision of
 which sibling a `{expr}` "word" is allowed to hug depends on surrounding
 text/element context, not on bare adjacency — but the actual fix location is
 unknown pending further investigation. Several targeted fixes were attempted
 and are proven net-negative (see below).
-
-## Cluster 5 — prose fill / text wrap (2)
-
-A long mixed text run (plain prose, or prose interleaved with inline elements,
-`{@render …}`/other call-bearing expression tags, or adjacent
-attribute/directive values) is word-wrapped at the print width by the oracle's
-`fill` algorithm with `pair_fits` lookahead, and rsvelte either wraps a word
-early, fails to fill a block-child text run at all, or keeps a run compact
-that the oracle wraps. (The "mis-attached trailing word after a multi-line
-call inside an expression tag" symptom formerly listed here is resolved —
-see Resolved.) Dropping `pair_fits` globally is
-proven net-negative (fixed 4 prose cases, broke 48) — the oracle's fill is
-genuinely context-dependent and not hand-characterizable without the full
-lookahead algorithm. Fix belongs in rsvelte — the `Fill`/prose layout port.
-
-Three entries were resolved by fixing two distinct bugs (see Resolved).
-First, a `splitTextToDocs`-parity gap: whether a text run's leading
-whitespace is trimmed depends on whether it sits at the parent's first-child
-position. When trimmed (first child), prettier's fill list is word-first
-(`[word, line, word, …]`) and the overflowing word wraps normally; when not
-trimmed, the list is hardline-first (`[hardline, word, line, word, …]`),
-which lets the last word before the line boundary overflow rather than wrap.
-`collapse.rs`'s `text_preceded_by_close_tag` only recognized a preceding
-`</tag>` as a not-first-child signal, so text right after a self-closing
-sibling (`<Code … />`) was wrongly treated as first-child and wrapped early.
-Second, an over-eager bail in `try_fill_run`: a `run.len()==1 && Text &&
-!whole.contains('\n')` guard skipped reflow for single-text-node runs
-entirely, even when the text overflowed the print width and had already
-passed the flat-fit check — prettier's fill always wraps an overflowing
-single-node run, so the guard's justifying example (a *mixed*, `run.len()>1`
-run that stays flat at 86 columns) didn't actually license it. Removing the
-11-line guard fixed `sveltestrap/.../Popover.stories.svelte`, whose prose
-sits inside a `<Popover>` component with a block sibling (`<div
-slot="title">`) — that block sibling makes the element-level mixed-fill path
-bail, so the whole prose run reaches `try_fill_run` as a single text node,
-where the guard was blocking it. (An earlier read of this id as a
-children-port Component-child gap was a misdiagnosis from the whole-file
-diff shape, not the true mechanism.)
-
-This bucket is diagnosis-based, not mechanism-confirmed for every remaining
-member:
-
-- `svelte-ux/.../routes/+page.svelte` and `powertable/.../+layout.svelte` fail
-  in the *opposite* direction: rsvelte's finalized fill carries a spurious
-  extra leading hardline (`[hardline, "installs", …]`) where the oracle is
-  word-first (`["installs", …, hardline]`), so rsvelte tolerates an overflow
-  the oracle wraps. The mechanism is now confirmed as a multi-pass artifact:
-  an earlier pass (indent/hug) hug-breaks an inline `<code>`/`<b>` sibling
-  across multiple lines, which moves the following prose to the start of a
-  new line in that pass's *intermediate* output; the children-port pass then
-  re-derives the text's leading-whitespace classification from that
-  intermediate output, sees what looks like a genuine line-starting newline,
-  and (correctly, given that input) attaches a leading Hardline via
-  `split_text_to_docs` — producing the inverted, overflow-tolerant fill. The
-  oracle never sees this: it builds its fill directly from the *original*
-  source, where the prose sits on the same line as the inline element, so it
-  stays word-first. Fixing this needs the children-port's whitespace
-  classification to distinguish a pass-introduced line break from a
-  source-original one — a multi-pass architecture change, still high risk;
-  left open.
-- `layerchart/.../LineChart/perf-wide-data-processed.svelte` and
-  `layerchart/.../docs/examples/+page.svelte` diverge on the trailing text
-  *after* a multi-line expression tag (`{format(...)}` /
-  `{@render scrollingValue(...)}`); each hits a different bail on the way to
-  the same symptom. `perf-wide-data-processed.svelte`'s `{format(...)}` is
-  already multi-line in the source and trips `build_children_doc_nodes`'s
-  `if span.contains('\n') { return None }` bail, so the entire surrounding
-  run is never reflowed. `routes/docs/examples/+page.svelte`'s `{@render
-  scrollingValue(...)}` is instead emitted as an unbreakable verbatim Text
-  atom, so it stays flat and overflows rather than breaking. The trailing
-  text's own `split_text_to_docs(_, false, true)` call is confirmed correct
-  — it already produces the oracle's inverted fill
-  (`[line, "data", line, "points"]`, word-as-separator gluing the first
-  trailing word to the `)}` line) when reached. Both ids need the same
-  underlying infrastructure: a breakable Doc representation for expression
-  tags (a `RawExpr{flat, broken}`-equivalent), the same direction as Cluster
-  2's live-Doc-subtree work.
-
-Re-diagnosing the remaining 4 with full corpus instrumentation (rather than a
-diff read) would be needed before attempting further fixes.
 
 ## Cluster 6 — oxc paren / type-annotation divergence (1)
 
@@ -258,6 +201,83 @@ one entry in the baseline that is pure CSS formatting, not HTML/JS layout.
 
 ## Resolved
 
+- **`RenderTag` claimed as a bare atom in the children port (Cluster 1,
+  `{:else if}` title/element dangle, 2 ids).** `node_to_child` had no arm for
+  `RenderTag` (`{@render …}`), so an `<svg>` body shaped like `{#if
+  cond}<title>{@render title()}</title>{:else if …}…` bailed to the legacy
+  string path and dangled the wrong `<title>`'s close tag. A `printToDoc`
+  dump confirmed the oracle's actual rule: the first `<title>`'s group
+  measures its own fit *including* the following `{:else if}` branch, and
+  dangles its close only because that combined measurement overflows — not
+  because of anything specific to the branch itself. Fixed by giving
+  `RenderTag` a `node_to_child` arm that claims it as a bare atom (and adding
+  it to the block-run gate so runs containing one aren't skipped); a
+  `RenderTag` in prose position still bails, deferring to the fill
+  infrastructure from the `{@render …}`/`{format(...)}` fix (see the Cluster
+  5 entry above). Surfaced a latent bug along the way: a whitespace-only
+  element body (`<i> </i>`) was printing two spaces instead of prettier's
+  single-space collapse; fixed alongside. Commit ddc55220 (PR #1696).
+  Cleared `layercake/src/lib/layouts/ScaledSvg.svelte` and
+  `layercake/src/lib/layouts/Svg.svelte`.
+- **`<pre><code class="…">` open-tag hug, three-rule model (Cluster 1, 3
+  ids).** Three rules confirmed by diffing a `printToDoc` dump against
+  rsvelte's output: (a) a `<pre>` child's open `>` dangles onto its own line
+  when its content is multi-line *or* its own open tag overflows the print
+  width; (b) it re-hugs (glues `>` to the last attribute) only when the
+  attributes themselves are forced to break across multiple lines; (c) when
+  the `<pre>` element itself overflows, a breakable child element's own tag
+  is preferred for breaking over the `<pre>`'s own attributes —
+  `try_break_pre_own_attrs` now defers whenever a breakable child exists.
+  Commits 7160ae13 and 8d04ff59 (PR #1696). Cleared
+  `cmsaasstarter/.../blog/(posts)/awesome_post/+page.svelte`,
+  `cmsaasstarter/.../blog/(posts)/example_blog_post/+page.svelte`, and
+  `svelte-fa/src/routes/components/ui/docs-code.svelte`.
+- **Cluster 5 — prose fill / text wrap (solved, last entries cleared).** A
+  long mixed text run word-wrapped by the oracle's `fill` algorithm with
+  `pair_fits` lookahead sometimes disagreed with rsvelte on the wrap point;
+  the last two members of this cluster shared a multi-pass artifact. Collapse
+  is a multi-pass post-process that re-parses its own intermediate output
+  each pass: an earlier breaking pass hug-breaking an inline `<code>`/`<b>`
+  sibling (dangling its close tag) pushes the following prose onto a fresh
+  line in that pass's *intermediate* output, and the final children-port pass
+  then re-parses that intermediate and has `split_text_to_docs` read the
+  artifact newline as if it were a source line break — prepending a Hardline
+  and flipping the prose fill to its inverted, last-word-overflow-tolerant
+  form, so an overflowing word stays on the line instead of wrapping (the
+  oracle, reading the original single space, wraps it). Fixed by threading
+  the pre-collapse source text into the children-port pass via a thread-local
+  map (intermediate text-node start → original text): `node_to_child` now
+  classifies each text child's boundary whitespace from the original text
+  when available. Collapse never changes non-whitespace content or node
+  structure (a corruption guard enforces this), so intermediate and original
+  trees normally align 1:1 on non-text nodes — but the map is built via a
+  structural, signature-keyed lock-step walk (`node_signature_matches`: same
+  AST variant, plus same tag/name for elements and components) rather than by
+  raw position, so any single misalignment anywhere in a fragment falls that
+  whole fragment's subtree back to classifying from the intermediate text
+  instead of risking a wrong pairing. Four unit tests (the concrete repro
+  shape, both sides of the alignment guard — matched and deliberately
+  divergent — and a revert-confirms-the-failure check); 0 regressions across
+  the 12,657-file corpus. Commits 5ffc4a34 and 5a9578e9. Cleared
+  `svelte-ux/packages/svelte-ux/src/routes/+page.svelte` outright; the same
+  fix also cleared the multi-pass half of
+  `powertable/app/src/routes/examples/+layout.svelte`'s divergence (that id
+  remains in the baseline, filed under Cluster 3, for an unrelated
+  member-chain break-point issue — see Cluster 3). A related but
+  non-flipping fix landed alongside it: the children port previously emitted
+  a void HTML element (`<br />`, `<img … />`, `<input … />`) as a verbatim
+  single-line atom, so one glued to the end of an overflowing prose line
+  stayed on that line past the print width instead of the oracle's
+  `group(['<', tag, indent(group([…attrs, dedent(line)])), '/>'])`, which
+  dangles the `/>` onto its own line (`<br\n/>`) when the group breaks. Fixed
+  via a new `build_void_element_doc` in `node_to_child` (also covering the
+  no-attribute `<br />` case `build_self_closing_regular_doc` skips), with a
+  flat-form guard that keeps the group only when it round-trips to the
+  canonical `<tag … />`, so a void element that already fits stays
+  byte-for-byte unchanged. Commit b8f88c05 — this alone flipped no id to PASS
+  on its own, but combined with the whitespace-classification fix to fully
+  clear the non-Cluster-3 portion of `powertable/.../+layout.svelte`'s
+  divergence.
 - **Prose expression/render tag breaks its call arguments in place (Cluster
   5, 2 ids).** A long call inside an expression/render tag in prose was
   treated as an atomic fill word, so rsvelte wrapped at the word boundary
@@ -397,28 +417,37 @@ un-routed `delete_account` case) in the same file — its former Cluster 2
 `placeholder` wrong-indent half was resolved by the double-indent fix;
 `svelte-ux/.../Gooey/+page.svelte` needs Cluster 1, Cluster 2 (a
 `style:transform` directive value, un-routed, same legacy symptom as
-AxisY/AxisYRight), and Cluster 5 together. `layerchart/.../Treemap/
+AxisY/AxisYRight), and the since-resolved Cluster 5 together. `layerchart/.../Treemap/
 stacked-zoom.svelte` used to sit here (Cluster 3 block-header + Cluster 2
 wrong-indent) — both halves are now resolved and the id passes. Each id above is filed
 under its dominant/first-encountered divergence. `svelte-ux/routes/+page.svelte`
 used to belong on this list too (Cluster 5 plus a wrongly hug-broken `<Kbd>`
 component) — widening the children port to convert Component children
-resolved the `<Kbd>` half, leaving it a pure single-cluster (Cluster 5) entry
-now, which is itself a useful data point: a fix aimed at one cluster can
-silently collapse an entangled id down to a different, single-cluster one
-instead of a straight PASS. `layercake/_components/AxisRadial.svelte` used to
+resolved the `<Kbd>` half, leaving it a pure single-cluster (Cluster 5) entry,
+which was itself a useful data point at the time: a fix aimed at one cluster
+can silently collapse an entangled id down to a different, single-cluster
+one instead of a straight PASS. That remaining Cluster 5 half is now also
+resolved (see Resolved) and the id passes outright.
+`powertable/app/src/routes/examples/+layout.svelte` followed the same
+pattern from the opposite direction: it used to need Cluster 5 (the
+multi-pass fill artifact) and Cluster 1 (a void-element `<br />` dangle)
+together; both are now resolved by the same PR (see Resolved), leaving it a
+pure single-cluster entry — but now filed under Cluster 3 for a residual
+member-chain break-point divergence, rather than reaching PASS.
+`layercake/_components/AxisRadial.svelte` used to
 be on this list too (Cluster 2 plus Cluster 1); it's now fully resolved (see
 Resolved), another instance of the same pattern.
 
-Two ids improved without reaching PASS from that same fix, worth recording
-even though they don't change the count: `layerchart/LineChart/
-sparkline-within-a-paragraph.svelte` (structurally identical to the now-fixed
-`BarChart/sparkbar-within-a-paragraph.svelte`, but a genuine Cluster 5
-divergence remains once the component-child gap is no longer masking it), and
-`svelte-ux/.../ApiDocs.svelte` (its file has many `<Button>`/`<Tooltip>`
-component children; whichever of those were previously unclaimed are now
-fixed, leaving only the unrelated Cluster 3 member-chain divergence visible in
-the diff).
+One id improved without reaching PASS from that same fix, worth recording
+even though it doesn't change the count: `svelte-ux/.../ApiDocs.svelte` (its
+file has many `<Button>`/`<Tooltip>` component children; whichever of those
+were previously unclaimed are now fixed, leaving only the unrelated Cluster 3
+member-chain divergence visible in the diff). Its sibling from that same
+component-child gap, `layerchart/LineChart/sparkline-within-a-paragraph.svelte`
+(structurally identical to the now-fixed `BarChart/sparkbar-within-a-paragraph.svelte`),
+did improve the same way but stayed on a genuine Cluster 5 divergence for a
+while afterward — that divergence is since resolved too (see Resolved,
+`splitTextToDocs` first-child parity, PR #1651), and the id now passes.
 
 ## Proven net-negative (do not re-attempt without a different mechanism)
 
@@ -446,6 +475,15 @@ the diff).
   short-circuit `effectively_broken`.
 - **Narrowing `hug_glue_prefix` to `>` only** (letting `}` through): **+0/−1**,
   and it rescues zero ids. That gate blocks no fixable id.
+- **Narrowing `try_children_port`'s `>`-prefix bail to `}`-only** (Cluster 1,
+  targeting the 4-id `>`-prefix bail cluster: `svelte-ux/.../Collapse.svelte`,
+  `cmsaasstarter/.../(marketing)/+page.svelte`,
+  `svelte-ux/.../TextField/+page.svelte`,
+  `layercake/routes/components/+page.svelte`) — **0 fixed / 1 regressed**
+  (`shadcn` code-viewer), and the 4 targeted ids stayed unchanged or got
+  worse. Matches the earlier `hug_glue_prefix` narrowing result: this cluster
+  needs `children.rs`'s hug-boundary construction rebuilt, gate relaxation
+  alone doesn't reach it.
 - **Relaxing `build_attrs_concat`'s multi-line-attribute bail**: rescues zero
   ids — for every id that hits it, the multi-line attribute is the *symptom*
   (their real divergences are Cluster 2 and the since-resolved Cluster 7),

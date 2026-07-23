@@ -11,6 +11,12 @@ use serde_json::Value;
 
 /// Parse a Svelte source in modern mode and return the serialized AST as JSON.
 fn parse_to_json(source: &str) -> Value {
+    serde_json::from_str(&parse_to_string(source)).unwrap()
+}
+
+/// Parse a Svelte source in modern mode and return the raw serialized AST string
+/// (preserving `serialize_entry` key order, which the `Value` round-trip drops).
+fn parse_to_string(source: &str) -> String {
     let ast = parse(
         source,
         ParseOptions {
@@ -19,8 +25,21 @@ fn parse_to_json(source: &str) -> Value {
         },
     )
     .expect("parse should succeed");
-    let json = with_serialize_arena(&ast.arena, || serde_json::to_string(&ast).unwrap());
-    serde_json::from_str(&json).unwrap()
+    with_serialize_arena(&ast.arena, || serde_json::to_string(&ast).unwrap())
+}
+
+/// Assert that `a`, then `b`, then `c` appear in this order in `s`.
+fn assert_key_order(s: &str, a: &str, b: &str, c: &str) {
+    let ia = s.find(a).unwrap_or_else(|| panic!("missing {a}"));
+    let ib = s[ia..]
+        .find(b)
+        .map(|x| x + ia)
+        .unwrap_or_else(|| panic!("missing {b} after {a}"));
+    let ic = s[ib..]
+        .find(c)
+        .map(|x| x + ib)
+        .unwrap_or_else(|| panic!("missing {c} after {b}"));
+    assert!(ia < ib && ib < ic, "expected order {a} < {b} < {c} in: {s}");
 }
 
 /// Depth-first search for the first node of the given `type`.
@@ -146,6 +165,10 @@ fn no_typescript_unknown_stub_for_modelled_types() {
         "<script lang=\"ts\">\n  let x: { a: number } = y;\n</script>",
         "<script lang=\"ts\">\n  let x: string | number = y;\n</script>",
         "<script lang=\"ts\">\n  let x: string[] = y;\n</script>",
+        "<script lang=\"ts\">\n  let x: string | (() => void);\n</script>",
+        "<script lang=\"ts\">\n  let x: string & (() => void);\n</script>",
+        "<script lang=\"ts\">\n  let x: new (a: string) => Foo;\n</script>",
+        "<script lang=\"ts\">\n  let x = 1 as (() => void);\n</script>",
     ] {
         let ast = parse_to_json(src);
         assert!(
@@ -153,4 +176,330 @@ fn no_typescript_unknown_stub_for_modelled_types() {
             "no TSUnknownKeyword stub expected for: {src}"
         );
     }
+}
+
+// ---- #1660: TSFunctionType / TSConstructorType inside a type annotation ---
+
+#[test]
+fn function_type_inside_union_is_preserved() {
+    // The exact repro from #1660: a TSFunctionType member of a union used to
+    // collapse to a members-less `TSUnknownKeyword` stub.
+    let src = "<script lang=\"ts\">\n  let x: string | (() => void);\n</script>";
+    let ast = parse_to_json(src);
+    let union = find_node(&ast, "TSUnionType").expect("TSUnionType must be present");
+    let types = union
+        .get("types")
+        .and_then(|t| t.as_array())
+        .expect("union must have a types array");
+    assert_eq!(types.len(), 2);
+    assert_eq!(type_of(&types[0]), Some("TSStringKeyword"));
+
+    let paren = &types[1];
+    assert_eq!(type_of(paren), Some("TSParenthesizedType"));
+    let func = paren
+        .get("typeAnnotation")
+        .expect("TSParenthesizedType must carry typeAnnotation");
+    assert_eq!(type_of(func), Some("TSFunctionType"));
+    assert_eq!(
+        func.get("parameters").and_then(|p| p.as_array()),
+        Some(&vec![])
+    );
+    assert_eq!(
+        func.pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSVoidKeyword")
+    );
+}
+
+#[test]
+fn function_type_inside_intersection_is_preserved() {
+    let src = "<script lang=\"ts\">\n  let x: string & (() => void);\n</script>";
+    let ast = parse_to_json(src);
+    let inter = find_node(&ast, "TSIntersectionType").expect("TSIntersectionType must be present");
+    let types = inter
+        .get("types")
+        .and_then(|t| t.as_array())
+        .expect("intersection must have a types array");
+    assert_eq!(
+        types[1]
+            .pointer("/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSFunctionType")
+    );
+}
+
+#[test]
+fn function_type_via_as_assertion_is_preserved() {
+    // #1648 started preserving the `TSAsExpression` wrapper; its `typeAnnotation`
+    // routes through the same `convert_ts_type` this fix touches.
+    let src = "<script lang=\"ts\">\n  let x = 1 as (() => void);\n</script>";
+    let ast = parse_to_json(src);
+    let as_expr = find_node(&ast, "TSAsExpression").expect("TSAsExpression must be present");
+    assert_eq!(
+        as_expr
+            .pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSFunctionType")
+    );
+}
+
+#[test]
+fn function_type_parameters_and_return_type() {
+    let src = "<script lang=\"ts\">\n  let y: (a: string, b?: number) => void;\n</script>";
+    let ast = parse_to_json(src);
+    let func = find_node(&ast, "TSFunctionType").expect("TSFunctionType must be present");
+
+    let params = func
+        .get("parameters")
+        .and_then(|p| p.as_array())
+        .expect("parameters array must be present");
+    assert_eq!(params.len(), 2);
+
+    let a = &params[0];
+    assert_eq!(a.pointer("/name").and_then(|v| v.as_str()), Some("a"));
+    assert!(a.get("optional").is_none());
+    assert_eq!(
+        a.pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSStringKeyword")
+    );
+
+    let b = &params[1];
+    assert_eq!(b.pointer("/name").and_then(|v| v.as_str()), Some("b"));
+    // #1692: the `?` optional marker now round-trips (JsNode::Identifier carries
+    // an `optional` field, emitted after `name` and only when true).
+    assert_eq!(b.get("optional"), Some(&Value::Bool(true)));
+    assert_eq!(
+        b.pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSNumberKeyword")
+    );
+
+    assert_eq!(
+        func.pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSVoidKeyword")
+    );
+}
+
+#[test]
+fn function_type_generics_and_rest_parameter() {
+    let src = "<script lang=\"ts\">\n  let f: <T>(a: T, ...rest: T[]) => T;\n</script>";
+    let ast = parse_to_json(src);
+    let func = find_node(&ast, "TSFunctionType").expect("TSFunctionType must be present");
+
+    assert_eq!(
+        func.pointer("/typeParameters/type")
+            .and_then(|v| v.as_str()),
+        Some("TSTypeParameterDeclaration")
+    );
+    assert_eq!(
+        func.pointer("/typeParameters/params/0/name")
+            .and_then(|v| v.as_str()),
+        Some("T")
+    );
+
+    let params = func
+        .get("parameters")
+        .and_then(|p| p.as_array())
+        .expect("parameters array must be present");
+    assert_eq!(params.len(), 2);
+    assert_eq!(type_of(&params[0]), Some("Identifier"));
+
+    let rest = &params[1];
+    assert_eq!(type_of(rest), Some("RestElement"));
+    assert_eq!(
+        rest.pointer("/argument/name").and_then(|v| v.as_str()),
+        Some("rest")
+    );
+    assert_eq!(
+        rest.pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSArrayType")
+    );
+}
+
+#[test]
+fn function_type_this_parameter_is_prepended() {
+    let src = "<script lang=\"ts\">\n  let h: (this: Foo, a: number) => void;\n</script>";
+    let ast = parse_to_json(src);
+    let func = find_node(&ast, "TSFunctionType").expect("TSFunctionType must be present");
+    let params = func
+        .get("parameters")
+        .and_then(|p| p.as_array())
+        .expect("parameters array must be present");
+    assert_eq!(params.len(), 2);
+    assert_eq!(
+        params[0].pointer("/name").and_then(|v| v.as_str()),
+        Some("this")
+    );
+    assert_eq!(
+        params[0]
+            .pointer("/typeAnnotation/typeAnnotation/typeName/name")
+            .and_then(|v| v.as_str()),
+        Some("Foo")
+    );
+    assert_eq!(
+        params[1].pointer("/name").and_then(|v| v.as_str()),
+        Some("a")
+    );
+}
+
+#[test]
+fn constructor_type_is_preserved() {
+    let src = "<script lang=\"ts\">\n  let z: new (a: string) => Foo;\n</script>";
+    let ast = parse_to_json(src);
+    let ctor = find_node(&ast, "TSConstructorType").expect("TSConstructorType must be present");
+    assert_eq!(ctor.get("abstract"), Some(&Value::Bool(false)));
+    assert_eq!(
+        ctor.pointer("/parameters/0/name").and_then(|v| v.as_str()),
+        Some("a")
+    );
+    assert_eq!(
+        ctor.pointer("/typeAnnotation/typeAnnotation/typeName/name")
+            .and_then(|v| v.as_str()),
+        Some("Foo")
+    );
+}
+
+// #1694: generic function-like nodes must emit `typeParameters`, matching
+// acorn-typescript's shape and key position.
+
+#[test]
+fn generic_function_declaration_emits_type_parameters() {
+    let src = "<script lang=\"ts\">function f<T>(x: T){}</script>";
+    let ast = parse_to_json(src);
+    let f = find_node(&ast, "FunctionDeclaration").expect("FunctionDeclaration");
+    // `<T>` sits at bytes 28..31; the single param is `T`.
+    assert_eq!(
+        f.pointer("/typeParameters/type").and_then(|v| v.as_str()),
+        Some("TSTypeParameterDeclaration")
+    );
+    assert_eq!(
+        f.pointer("/typeParameters/start").and_then(|v| v.as_u64()),
+        Some(28)
+    );
+    assert_eq!(
+        f.pointer("/typeParameters/end").and_then(|v| v.as_u64()),
+        Some(31)
+    );
+    assert_eq!(
+        f.pointer("/typeParameters/params/0/name")
+            .and_then(|v| v.as_str()),
+        Some("T")
+    );
+    // acorn emits `typeParameters` between `async` and `params`.
+    let s = parse_to_string(src);
+    assert_key_order(&s, "\"async\"", "\"typeParameters\"", "\"params\"");
+}
+
+#[test]
+fn generic_function_expression_emits_type_parameters() {
+    let src = "<script lang=\"ts\">const f = function<T>(x: T){}</script>";
+    let ast = parse_to_json(src);
+    let f = find_node(&ast, "FunctionExpression").expect("FunctionExpression");
+    assert_eq!(
+        f.pointer("/typeParameters/params/0/name")
+            .and_then(|v| v.as_str()),
+        Some("T")
+    );
+    let s = parse_to_string(src);
+    assert_key_order(&s, "\"async\"", "\"typeParameters\"", "\"params\"");
+}
+
+#[test]
+fn generic_arrow_emits_type_parameters_after_body() {
+    let src = "<script lang=\"ts\">const g = <T>(x: T)=>{}</script>";
+    let ast = parse_to_json(src);
+    let a = find_node(&ast, "ArrowFunctionExpression").expect("ArrowFunctionExpression");
+    assert_eq!(
+        a.pointer("/typeParameters/params/0/name")
+            .and_then(|v| v.as_str()),
+        Some("T")
+    );
+    // Unlike declarations/expressions, acorn appends `typeParameters` after `body`.
+    let s = parse_to_string(src);
+    // Restrict to the arrow subtree to avoid matching an outer `params`/`body`.
+    let arrow_at = s.find("\"ArrowFunctionExpression\"").unwrap();
+    assert_key_order(
+        &s[arrow_at..],
+        "\"params\"",
+        "\"body\"",
+        "\"typeParameters\"",
+    );
+}
+
+#[test]
+fn non_generic_function_omits_type_parameters() {
+    let ast = parse_to_json("<script>function f(x){}</script>");
+    let f = find_node(&ast, "FunctionDeclaration").expect("FunctionDeclaration");
+    assert!(f.get("typeParameters").is_none());
+}
+
+#[test]
+fn class_method_generics_stay_off_the_inner_function() {
+    // acorn-typescript attaches a method's generics to the MethodDefinition, not
+    // the inner FunctionExpression, so the inner function must omit them.
+    let ast = parse_to_json("<script lang=\"ts\">class C { m<T>(x: T){} }</script>");
+    let f = find_node(&ast, "FunctionExpression").expect("FunctionExpression");
+    assert!(f.get("typeParameters").is_none());
+}
+
+// #1692: the TS optional-parameter marker (`b?`) must round-trip as
+// `optional: true` (after `name`, before `typeAnnotation`, omitted when false).
+
+fn first_param<'a>(ast: &'a Value, ty: &str) -> &'a Value {
+    let node = find_node(ast, ty).unwrap_or_else(|| panic!("{ty} must be present"));
+    &node
+        .get("params")
+        .and_then(|p| p.as_array())
+        .expect("params")[0]
+}
+
+#[test]
+fn optional_parameter_marker_on_function_declaration() {
+    let ast = parse_to_json("<script lang=\"ts\">function f(b?: number){}</script>");
+    let p = first_param(&ast, "FunctionDeclaration");
+    assert_eq!(p.pointer("/name").and_then(|v| v.as_str()), Some("b"));
+    assert_eq!(p.get("optional"), Some(&Value::Bool(true)));
+    // The identifier span extends over the annotation (matching acorn).
+    assert_eq!(p.get("end").and_then(|v| v.as_u64()), Some(39));
+    assert_eq!(
+        p.pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSNumberKeyword")
+    );
+}
+
+#[test]
+fn optional_parameter_marker_on_arrow() {
+    let ast = parse_to_json("<script lang=\"ts\">const g = (b?: number) => {};</script>");
+    let p = first_param(&ast, "ArrowFunctionExpression");
+    assert_eq!(p.get("optional"), Some(&Value::Bool(true)));
+    assert_eq!(
+        p.pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSNumberKeyword")
+    );
+}
+
+#[test]
+fn optional_parameter_without_annotation_extends_span_over_question_mark() {
+    let ast = parse_to_json("<script lang=\"ts\">function f(b?){}</script>");
+    let p = first_param(&ast, "FunctionDeclaration");
+    assert_eq!(p.get("optional"), Some(&Value::Bool(true)));
+    // `b?` spans bytes 29..31 (the `?` is included), with no typeAnnotation.
+    assert_eq!(p.get("start").and_then(|v| v.as_u64()), Some(29));
+    assert_eq!(p.get("end").and_then(|v| v.as_u64()), Some(31));
+    assert!(p.get("typeAnnotation").is_none());
+}
+
+#[test]
+fn required_parameter_omits_optional() {
+    let ast = parse_to_json("<script lang=\"ts\">function f(b: number){}</script>");
+    let p = first_param(&ast, "FunctionDeclaration");
+    assert!(p.get("optional").is_none());
+    // `optional` must sit before `typeAnnotation` when present.
+    let s = parse_to_string("<script lang=\"ts\">function f(b?: number){}</script>");
+    assert_key_order(&s, "\"name\"", "\"optional\"", "\"typeAnnotation\"");
 }

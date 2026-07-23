@@ -588,18 +588,14 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> (FormatOptions, Option<
     // `prettier-plugin-tailwindcss` (see `PendingJsSort`); the sort itself is
     // resolved later, once every class string across the run is collected. With
     // no Node available we warn and leave classes unchanged. The Node probe runs
-    // only when `sortTailwindcss` is actually configured, never on the hot path.
-    let want_tailwind = matches!(
-        &cfg.sort_tailwindcss,
-        Some(v) if v != &serde_json::Value::Bool(false)
-    );
-    let js_env = want_tailwind.then(js_sort_env).flatten();
-    let js_available = js_env.is_some();
-    let (class_sorter, class_attributes, pending_js) = match tailwind::decide(
-        cfg.sort_tailwindcss.as_ref(),
-        cfg.path.as_deref(),
-        js_available,
-    ) {
+    // lazily — only if `decide` reaches a JS branch — so a stock config never
+    // spawns `node --version`; the probed env is captured for the `SortViaJs` arm.
+    let mut js_env: Option<tailwind_sidecar::SidecarEnv> = None;
+    let decision = tailwind::decide(cfg.sort_tailwindcss.as_ref(), cfg.path.as_deref(), || {
+        js_env = js_sort_env();
+        js_env.is_some()
+    });
+    let (class_sorter, class_attributes, pending_js) = match decision {
         tailwind::Decision::Sort { sorter, attributes } => (Some(sorter), attributes, None),
         tailwind::Decision::SortViaJs {
             filepath,
@@ -612,7 +608,7 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> (FormatOptions, Option<
             None,
             attributes,
             Some(PendingJsSort {
-                env: js_env.expect("js_available implies an env"),
+                env: js_env.expect("the js probe set an env when it returned SortViaJs"),
                 filepath,
                 stylesheet_path,
                 config_path,
@@ -625,6 +621,14 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> (FormatOptions, Option<
             (None, Vec::new(), None)
         }
         tailwind::Decision::Off => (None, Vec::new(), None),
+    };
+
+    // `functions` (script `cn(...)` / `cva(...)` sorting) applies only when a sort
+    // is actually active — native (`class_sorter`) or the JS sidecar (`pending_js`).
+    let tailwind_functions = if class_sorter.is_some() || pending_js.is_some() {
+        tailwind::function_names(cfg.sort_tailwindcss.as_ref())
+    } else {
+        Vec::new()
     };
 
     // Embedded `<style>` blocks are formatted in-process via `oxc_formatter_css`
@@ -648,6 +652,7 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> (FormatOptions, Option<
         bracket_same_line: cfg.bracket_same_line.unwrap_or(false),
         class_sorter,
         class_attributes,
+        tailwind_functions,
     };
     (options, pending_js)
 }
@@ -754,7 +759,11 @@ fn resolve_js_class_sorter(
 fn js_sort_env() -> Option<tailwind_sidecar::SidecarEnv> {
     let script = tailwind_sidecar_script()?;
     let node = oxfmt_node().unwrap_or_else(|| PathBuf::from("node"));
-    node_runnable(&node).then_some(tailwind_sidecar::SidecarEnv { node, script })
+    node_runnable(&node).then_some(tailwind_sidecar::SidecarEnv {
+        node,
+        script,
+        timeout: tailwind_sidecar::DEFAULT_TIMEOUT,
+    })
 }
 
 /// Whether `node --version` runs — so a missing Node yields a Node-specific

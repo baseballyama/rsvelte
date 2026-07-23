@@ -46,6 +46,7 @@
 		"test:vps-shim": "node scripts/dev/test-vps-shim.mjs",
 		"test:vps-fixture": "node scripts/dev/test-vps-vite-fixture.mjs",
 		"test:vps": "node scripts/dev/test-vps-shim.mjs && node scripts/dev/test-vps-vite-fixture.mjs",
+		"test:wasm-compile": "node scripts/dev/test-wasm-compile-options.mjs",
 		"build:oxlint-plugin": "pnpm --filter @rsvelte/oxlint-plugin run build",
 		"build:lint-native": "node scripts/dev/build-lint-native-local.mjs",
 		"test:oxlint-plugin": "node scripts/dev/test-oxlint-plugin.mjs",
@@ -80,5 +81,5 @@
 		"prettier-plugin-svelte": "^4.1.0",
 		"svelte": "^5.56.4"
 	},
-	"packageManager": "pnpm@11.15.1"
+	"packageManager": "pnpm@11.16.0"
 }

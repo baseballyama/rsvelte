@@ -11,7 +11,9 @@ use std::path::{Path, PathBuf};
 
 use crate::compiler::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
 
-use super::config::{CompilerOptionsSettings, load_compiler_options_with_config};
+use super::config::{
+    CompilerOptionsSettings, load_compiler_options_with_config, warning_filter_config_path,
+};
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
 use super::kit_file::load_kit_files_settings_with_config;
 use super::manifest::{
@@ -234,9 +236,42 @@ pub fn run(options: &RunOptions) -> RunResult {
     // the workspace root are dropped.
     drop_out_of_workspace_diagnostics(&mut result.diagnostics, &options.workspace);
 
+    // Honor `compilerOptions.warningFilter` — a JS predicate the native compiler
+    // can't run — via a one-shot Node sidecar. This is equivalent to Svelte's
+    // emit-time filter because it's a pure per-warning predicate (#1666). It must
+    // run BEFORE `apply_filters`: the official order is filter-then-promote (the
+    // compiler applies `warningFilter` during `compile()`, and svelte-check's
+    // `--compiler-warnings` `ignore`/`error` handling happens afterwards), so a
+    // warning the filter rejects must be gone before a `code:error` override
+    // could promote it. Zero cost when no function `warningFilter` is declared.
+    apply_warning_filter(&mut result.diagnostics, options);
+
     apply_filters(&mut result.diagnostics, options);
 
     result
+}
+
+/// Run the project's function `warningFilter` over the collected Svelte warnings
+/// through the Node sidecar, when both a filter is declared and the sidecar is
+/// available. A no-op otherwise (and a fail-open on any sidecar error).
+fn apply_warning_filter(diagnostics: &mut Vec<Diagnostic>, options: &RunOptions) {
+    let Some(config_path) =
+        warning_filter_config_path(&options.workspace, options.config.as_deref())
+    else {
+        return;
+    };
+    let Some(env) = super::warning_filter::SidecarEnv::from_env() else {
+        // Once per process, so `--watch` doesn't re-print it on every rebuild.
+        static NO_NODE_NOTE: std::sync::Once = std::sync::Once::new();
+        NO_NODE_NOTE.call_once(|| {
+            eprintln!(
+                "rsvelte-check: warning: `compilerOptions.warningFilter` is set but could not be \
+                 evaluated (no Node sidecar available). All warnings are shown."
+            );
+        });
+        return;
+    };
+    super::warning_filter::apply(&env, &config_path, diagnostics);
 }
 
 /// Drop diagnostics whose file lives outside the checked workspace root.
