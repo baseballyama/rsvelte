@@ -52,7 +52,7 @@
     "@rsvelte/lint-win32-x64-msvc": "workspace:^"
   },
   "devDependencies": {
-    "oxlint": "1.74.0"
+    "oxlint": "1.75.0"
   },
   "publishConfig": {
     "access": "public"

@@ -228,6 +228,12 @@ jobs:
       - name: Verify svelte2tsx (oxfmt-normalized TSX must be identical)
         run: node scripts/compat-corpus/svelte2tsx-verify.mjs
 
+      # Synthetic combinatorial sweep of unused-CSS pruning — catches
+      # per-sibling-traversal prune bugs the happy-path corpus can't (issue
+      # #1700). Reuses the binding staged above; shrink-only ratchet.
+      - name: Verify CSS-prune sweep (no new divergences)
+        run: node scripts/compat-corpus/css-prune-sweep.mjs --check
+
       - name: Upload report on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
