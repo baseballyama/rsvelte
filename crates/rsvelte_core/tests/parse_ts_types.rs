@@ -463,6 +463,26 @@ fn object_method_generics_emit_type_parameters_after_body() {
     assert_key_order(&s[fn_at..], "\"params\"", "\"body\"", "\"typeParameters\"");
 }
 
+#[test]
+fn async_generator_object_method_generics_emit_type_parameters_after_body() {
+    // The after-`body` position applies to every object method, including
+    // async/generator ones.
+    let src = "<script lang=\"ts\">const o = { async *m<T>(x: T){ yield x } }</script>";
+    let s = parse_to_string(src);
+    let fn_at = s.find("\"FunctionExpression\"").unwrap();
+    assert_key_order(&s[fn_at..], "\"params\"", "\"body\"", "\"typeParameters\"");
+}
+
+#[test]
+fn object_function_value_keeps_type_parameters_before_params() {
+    // A function *value* (`m: function<T>(){}`) is not a method, so its generics
+    // stay in the declaration/expression slot before `params`, not after `body`.
+    let src = "<script lang=\"ts\">const o = { m: function<T>(x: T){ return x } }</script>";
+    let s = parse_to_string(src);
+    let fn_at = s.find("\"FunctionExpression\"").unwrap();
+    assert_key_order(&s[fn_at..], "\"async\"", "\"typeParameters\"", "\"params\"");
+}
+
 // #1692: the TS optional-parameter marker (`b?`) must round-trip as
 // `optional: true` (after `name`, before `typeAnnotation`, omitted when false).
 

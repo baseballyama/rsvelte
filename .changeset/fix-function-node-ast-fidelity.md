@@ -5,7 +5,7 @@
 
 fix(parse): improve function-node AST fidelity to match acorn / acorn-typescript
 
-Three parse-AST fixes so the public `parse()` output matches svelte/compiler:
+Four parse-AST fixes so the public `parse()` output matches svelte/compiler:
 
 - `FunctionExpression` fields are ordered `id, expression, generator, async` to
   match acorn's uniform `initFunction` key order (#1689).
