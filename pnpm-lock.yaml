@@ -40,7 +40,7 @@ importers:
         version: 0.53.0(svelte@5.56.7)
       prettier-plugin-tailwindcss:
         specifier: 0.8.1
-        version: 0.8.1(prettier-plugin-svelte@4.1.1(prettier@3.9.5)(svelte@5.56.7))(prettier@3.9.5)
+        version: 0.8.1(prettier-plugin-svelte@4.1.1(prettier@3.9.6)(svelte@5.56.7))(prettier@3.9.6)
     optionalDependencies:
       '@rsvelte/fmt-darwin-arm64':
         specifier: workspace:^
@@ -3035,11 +3035,11 @@ snapshots:
       prettier: 3.9.6
       svelte: 5.56.7
 
-  prettier-plugin-tailwindcss@0.8.1(prettier-plugin-svelte@4.1.1(prettier@3.9.5)(svelte@5.56.7))(prettier@3.9.5):
+  prettier-plugin-tailwindcss@0.8.1(prettier-plugin-svelte@4.1.1(prettier@3.9.6)(svelte@5.56.7))(prettier@3.9.6):
     dependencies:
-      prettier: 3.9.5
+      prettier: 3.9.6
     optionalDependencies:
-      prettier-plugin-svelte: 4.1.1(prettier@3.9.5)(svelte@5.56.7)
+      prettier-plugin-svelte: 4.1.1(prettier@3.9.6)(svelte@5.56.7)
 
   prettier@2.8.8: {}
 
