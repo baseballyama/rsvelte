@@ -86,10 +86,10 @@ pub struct RsvelteStr {
 /// Input handed to a [`RsvelteCssHashFn`] callback.
 ///
 /// Every field is a borrowed `(pointer, length)` UTF-8 slice, valid only
-/// for the duration of the callback. `hash` is the raw digest of `css`
-/// (the compiler's default scope digest, WITHOUT the `svelte-` prefix) —
-/// prepend `svelte-` yourself to reproduce the default class name. It is
-/// exactly the value the compiler's own default `cssHash` receives.
+/// for the duration of the callback. `hash` is the raw digest (WITHOUT the
+/// `svelte-` prefix) that the compiler's *default* `cssHash` produces —
+/// upstream digests the rootDir-relative `filename` when known, else `css`
+/// — so prepending `svelte-` reproduces the default class name exactly.
 #[repr(C)]
 pub struct RsvelteCssHashInput {
     /// The component's CSS source.
@@ -104,7 +104,8 @@ pub struct RsvelteCssHashInput {
     pub name: *const u8,
     /// Length of `name` in bytes.
     pub name_len: usize,
-    /// The raw digest of `css` (no `svelte-` prefix).
+    /// The raw digest the default `cssHash` produces — the filename when
+    /// known, else the css (no `svelte-` prefix).
     pub hash: *const u8,
     /// Length of `hash` in bytes.
     pub hash_len: usize,
@@ -662,14 +663,13 @@ unsafe fn parse_module_options(ptr: *const u8, len: usize) -> Result<ModuleCompi
 
 // --- callback bridging ----------------------------------------------------
 
-/// Reproduce the compiler's default (no-`cssHash`) scope hash, used when a
-/// `css_hash` callback declines (returns `{ NULL, 0 }` or non-UTF-8): the
-/// rootDir-relative filename when known, else the CSS content. Mirrors the
-/// wasm bridge's `default_css_hash`.
-fn default_css_hash(input: &CssHashInput, root_dir: Option<&str>) -> String {
-    use rsvelte_core::compiler::phases::phase3_transform::css::generate_css_hash;
+/// The string the compiler's default `cssHash` digests — the rootDir-relative
+/// filename when known, else the CSS content. Mirrors upstream's
+/// `hash(filename === '(unknown)' ? css : filename ?? css)`
+/// (validate-options.js) with the same rootDir stripping as core's `analyze_css`.
+fn css_hash_source(input: &CssHashInput, root_dir: Option<&str>) -> String {
     if input.filename == "(unknown)" {
-        return generate_css_hash(&input.css);
+        return input.css.clone();
     }
     let mut fname = input.filename.replace('\\', "/");
     if let Some(rd) = root_dir {
@@ -678,7 +678,14 @@ fn default_css_hash(input: &CssHashInput, root_dir: Option<&str>) -> String {
             fname = rest.trim_start_matches('/').to_string();
         }
     }
-    generate_css_hash(&fname)
+    fname
+}
+
+/// Reproduce the compiler's default (no-`cssHash`) scope class, used when a
+/// `css_hash` callback declines (returns `{ NULL, 0 }` or non-UTF-8).
+fn default_css_hash(input: &CssHashInput, root_dir: Option<&str>) -> String {
+    use rsvelte_core::compiler::phases::phase3_transform::css::generate_css_hash;
+    generate_css_hash(&css_hash_source(input, root_dir))
 }
 
 /// Wrap a `warningFilter` C callback into a core `WarningFilterFn`.
@@ -718,10 +725,11 @@ unsafe fn apply_component_callbacks(opts: &mut CompileOptions, callbacks: *const
         let ud = Userdata(cb.css_hash_userdata);
         let root_dir = opts.root_dir.clone();
         opts.css_hash = Some(std::sync::Arc::new(move |input: &CssHashInput| -> String {
-            // Trust the shared raw digest (`CssHashInput::hash`, PR #1705): it is
-            // already unprefixed, so the callback receives a raw hash and the
-            // `svelte-` prefix is never doubled.
-            let raw = (input.hash)(&input.css);
+            // The `hash` handed to the callback is the raw (unprefixed, PR #1705)
+            // digest the compiler's *default* `cssHash` would produce — upstream
+            // digests the filename when known, else the CSS — so `svelte-${hash}`
+            // reproduces the default class exactly, with no doubled prefix.
+            let raw = (input.hash)(&css_hash_source(input, root_dir.as_deref()));
             let c_input = RsvelteCssHashInput {
                 css: input.css.as_ptr(),
                 css_len: input.css.len(),

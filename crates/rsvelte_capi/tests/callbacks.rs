@@ -191,6 +191,78 @@ fn css_hash_input_is_raw_digest_no_double_prefix() {
     assert_eq!(probe.seen_filename, "App.svelte");
 }
 
+/// Extract the first `svelte-<base36>` scope class from a CSS string.
+fn first_svelte_class(css: &str) -> String {
+    let idx = css
+        .find("svelte-")
+        .expect("CSS should contain a svelte- class");
+    let rest = &css[idx + "svelte-".len()..];
+    let end = rest
+        .find(|c: char| !c.is_ascii_alphanumeric())
+        .unwrap_or(rest.len());
+    format!("svelte-{}", &rest[..end])
+}
+
+/// The raw digest handed to the callback must be the one the compiler's
+/// *default* `cssHash` digests — the filename when known (not always the
+/// CSS). Building `svelte-${hash}` from what the callback received must
+/// therefore equal the default (no-callback) scope class, for both a known
+/// filename and an unknown one. Guards the regression where the bridge
+/// always hashed the CSS regardless of filename.
+#[test]
+fn css_hash_input_matches_default_source_selection() {
+    let css = "<h1>x</h1>\n<style>h1{color:red}</style>";
+
+    // (a) filename known -> upstream digests the filename.
+    let default_named = drive(
+        css,
+        r#"{"filename":"App.svelte","css":"external"}"#,
+        &empty_callbacks(),
+    );
+    let default_named_class =
+        first_svelte_class(default_named["result"]["css"]["code"].as_str().unwrap());
+    let mut probe_named = CssHashProbe::default();
+    let cb_named = RsvelteCallbacks {
+        css_hash: Some(css_hash_cb),
+        css_hash_userdata: &mut probe_named as *mut _ as *mut c_void,
+        ..empty_callbacks()
+    };
+    let _ = drive(
+        css,
+        r#"{"filename":"App.svelte","css":"external"}"#,
+        &cb_named,
+    );
+    assert_eq!(
+        format!("svelte-{}", probe_named.seen_hash),
+        default_named_class,
+        "with a known filename, `svelte-${{hash}}` from the callback input must equal the default class"
+    );
+
+    // (b) no filename -> upstream digests the CSS.
+    let default_anon = drive(css, r#"{"css":"external"}"#, &empty_callbacks());
+    let default_anon_class =
+        first_svelte_class(default_anon["result"]["css"]["code"].as_str().unwrap());
+    let mut probe_anon = CssHashProbe::default();
+    let cb_anon = RsvelteCallbacks {
+        css_hash: Some(css_hash_cb),
+        css_hash_userdata: &mut probe_anon as *mut _ as *mut c_void,
+        ..empty_callbacks()
+    };
+    let _ = drive(css, r#"{"css":"external"}"#, &cb_anon);
+    assert_eq!(
+        format!("svelte-{}", probe_anon.seen_hash),
+        default_anon_class,
+        "with no filename, `svelte-${{hash}}` from the callback input must equal the default class"
+    );
+
+    // The two sources differ, so the digests must differ — proving the
+    // selection is filename-vs-css, not a constant.
+    assert_ne!(
+        probe_named.seen_hash, probe_anon.seen_hash,
+        "filename-based and css-based digests must differ"
+    );
+}
+
 extern "C" fn css_hash_null_cb(
     _userdata: *mut c_void,
     _input: *const RsvelteCssHashInput,

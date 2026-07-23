@@ -136,11 +136,11 @@ whole struct to behave like `rsvelte_compile`):
   Return the CSS scope class name as a **borrowed** `RsvelteStr`
   (`{data, len}`; the library copies it immediately and never frees it),
   or `{NULL, 0}` to fall back to the default hash. `RsvelteCssHashInput.hash`
-  is the **raw digest** of the CSS with **no `svelte-` prefix** — prepend
-  `svelte-` yourself for the default class name (prepending it to an
-  already-prefixed digest would double the prefix; that's why the shared
-  digest is unprefixed). A constant `cssHashOverride` in `opts_json` wins
-  over this callback.
+  is the **raw digest** the compiler's default `cssHash` produces — upstream
+  digests the rootDir-relative `filename` when known, else `css` — with **no
+  `svelte-` prefix**, so prepending `svelte-` reproduces the default class
+  name exactly (the unprefixed digest is what avoids a doubled prefix). A
+  constant `cssHashOverride` in `opts_json` wins over this callback.
 - **`warning_filter`** — `bool (*)(void *userdata, const uint8_t *warning_json, uintptr_t len)`.
   Receives one warning as a `(pointer, length)` UTF-8 JSON object; return
   `true` to keep it, `false` to drop it. Honoured by both the component

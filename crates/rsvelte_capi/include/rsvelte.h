@@ -58,10 +58,10 @@ typedef struct RsvelteStr {
  * Input handed to a [`RsvelteCssHashFn`] callback.
  *
  * Every field is a borrowed `(pointer, length)` UTF-8 slice, valid only
- * for the duration of the callback. `hash` is the raw digest of `css`
- * (the compiler's default scope digest, WITHOUT the `svelte-` prefix) —
- * prepend `svelte-` yourself to reproduce the default class name. It is
- * exactly the value the compiler's own default `cssHash` receives.
+ * for the duration of the callback. `hash` is the raw digest (WITHOUT the
+ * `svelte-` prefix) that the compiler's *default* `cssHash` produces —
+ * upstream digests the rootDir-relative `filename` when known, else `css`
+ * — so prepending `svelte-` reproduces the default class name exactly.
  */
 typedef struct RsvelteCssHashInput {
   /**
@@ -89,7 +89,8 @@ typedef struct RsvelteCssHashInput {
    */
   uintptr_t name_len;
   /**
-   * The raw digest of `css` (no `svelte-` prefix).
+   * The raw digest the default `cssHash` produces — the filename when
+   * known, else the css (no `svelte-` prefix).
    */
   const uint8_t *hash;
   /**
