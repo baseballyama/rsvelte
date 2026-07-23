@@ -76,3 +76,18 @@ fn nested_amp_plus_amp_no_pair_pruned() {
         "single `.a` should drop `& + &`, got:\n{out}"
     );
 }
+
+#[test]
+fn nested_amp_plus_amp_multi_relative_parent_no_match_pruned() {
+    // `.foo > .a { & + & }` where `.a` is not a child of `.foo`. `&` resolves to
+    // the full `.foo > .a`, which this compound matcher can't verify, so it must
+    // not over-keep: the outer rule is dropped as `(empty)`, matching upstream.
+    let out = css(
+        "<div class=\"foo\"></div><div class=\"a\"></div><div class=\"a\"></div>\n\
+         <style>.foo > .a { & + & { color: red; } }</style>",
+    );
+    assert!(
+        out.contains("(empty)"),
+        "`.foo > .a` with non-child `.a` must drop `& + &` as empty, got:\n{out}"
+    );
+}

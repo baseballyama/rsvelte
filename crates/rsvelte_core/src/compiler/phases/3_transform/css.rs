@@ -2367,22 +2367,13 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
                 return false;
             }
 
-            // Inner selector of the leading `:global(X)` (e.g. `.a` in
-            // `:global(.a)`), used to test real previous siblings of Y.
             let inner_info = global_inner_selector_info(&rel_selectors[0]);
 
-            // `:global(X) + Y` (or `~`) is used if some element matching Y is
-            // preceded by a node that X could be. Mirrors upstream `apply_selector`
-            // BACKWARD over Y's possible previous siblings, plus the
-            // `get_element_parent(node) === null && every_is_global(...)` fallback:
-            //   (a) a real previous sibling matches the inner `:global(X)` selector,
-            //   (b) Y follows an opaque boundary (slot/component/render/snippet/await
-            //       branch), which the global X could resolve to, or
-            //   (c) Y is a root-level element — X may be a sibling injected by the
-            //       parent component.
-            // Both `{#await}` branches and `{#snippet}` fragments set
-            // `has_opaque_elements`, so before this union they only checked (b) and
-            // missed the real-sibling (a) / root (c) cases (issue #1702).
+            // `:global(X) + Y` is used when some Y is preceded by a node X could
+            // be: a real previous sibling matching X, an opaque boundary, or a
+            // root-level Y (X may be injected by the parent). The opaque and root
+            // predicates alone are insufficient because await/snippet fragments
+            // mark their elements opaque yet can hold a real X sibling.
             let matches = ctx.dom_structure.elements.iter().any(|el| {
                 if !selector_matches_element(&second_info, el) {
                     return false;
@@ -2703,15 +2694,20 @@ fn global_inner_selector_info(rel: &Value) -> SelectorInfo {
     {
         return empty();
     }
-    // `:global(X)` — take X's subject compound.
+    // `:global(X)` — take X's compound, but only when X is a single relative
+    // selector. A descendant/child chain (`:global(.a .z)`) carries an ancestor
+    // constraint this compound-only matcher can't verify, so returning empty
+    // leaves the sibling test to fall back on the opaque-boundary / root-child
+    // predicates rather than matching `.z` while ignoring its required `.a`
+    // ancestor.
     if let Some(complex) = first
         .get("args")
         .and_then(|a| a.get("children"))
         .and_then(|c| c.as_array())
         .and_then(|c| c.first())
         && let Some(rels) = complex.get("children").and_then(|c| c.as_array())
-        && let Some(subject) = rels.last()
-        && let Some(sels) = subject.get("selectors").and_then(|s| s.as_array())
+        && rels.len() == 1
+        && let Some(sels) = rels[0].get("selectors").and_then(|s| s.as_array())
     {
         return extract_selector_info_from_selectors(sels);
     }
@@ -2735,11 +2731,13 @@ fn extract_selector_info(rel_selector: &Value) -> SelectorInfo {
 /// Build a [`SelectorInfo`] for a relative selector, resolving a `&`
 /// (NestingSelector) against the immediate parent rule's prelude. Mirrors
 /// upstream `relative_selector_might_apply_to_node`'s NestingSelector branch:
-/// the element must also satisfy one of the parent rule's subject compounds. The
-/// parent's subjects are added as an `:is(...)`-style OR-group so an element
-/// matched by `&` must satisfy the parent (e.g. `.a { & + & }` resolves each `&`
-/// to `.a`). Without this, a bare `&` yields an empty (matches-nothing) info and
-/// a nested sibling rule like `& + &` is wrongly pruned.
+/// the element must also satisfy one of the parent rule's compounds, added as an
+/// `:is(...)`-style OR-group (so `.a { & + & }` resolves each `&` to `.a`).
+/// Without this, a bare `&` yields an empty (matches-nothing) info and a nested
+/// sibling rule like `& + &` is wrongly pruned. Only single-relative parent
+/// selectors are resolved: a chain like `.foo > .a` carries an ancestor
+/// constraint this compound-only matcher can't verify, so leaving `&` empty lets
+/// the rule prune (matching the official `(empty)`) instead of over-keeping it.
 fn extract_selector_info_resolving_nesting(rel: &Value, ctx: &CssContext) -> SelectorInfo {
     let mut info = extract_selector_info(rel);
 
@@ -2763,8 +2761,8 @@ fn extract_selector_info_resolving_nesting(rel: &Value, ctx: &CssContext) -> Sel
     if let Some(children) = parent.get("children").and_then(|c| c.as_array()) {
         for complex in children {
             if let Some(rels) = complex.get("children").and_then(|c| c.as_array())
-                && let Some(subject) = rels.last()
-                && let Some(sels) = subject.get("selectors").and_then(|s| s.as_array())
+                && rels.len() == 1
+                && let Some(sels) = rels[0].get("selectors").and_then(|s| s.as_array())
             {
                 branches.push(extract_selector_info_from_selectors(sels));
             }

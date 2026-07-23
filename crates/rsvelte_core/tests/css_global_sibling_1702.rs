@@ -78,3 +78,51 @@ fn global_plus_scoped_in_if_kept() {
          <style>:global(.a) + .b { color: red; }</style>");
     assert_kept(&out);
 }
+
+// Negative controls: the fix must not blanket-keep `:global(.a) + .b` inside
+// opaque fragments. When `.b` has no real `.a` sibling, is not a root-level
+// element, and does not follow an opaque boundary, it is still pruned — matching
+// `svelte/compiler`.
+
+#[test]
+fn global_plus_no_sibling_in_await_nested_pruned() {
+    // `.b` is nested under `<section>` (not root) with no preceding `.a`.
+    let out = css("<script>let promise = Promise.resolve(1);</script>\n\
+         {#await promise}{:then _}<section><div class=\"b\"></div></section>{/await}\n\
+         <style>:global(.a) + .b { color: red; }</style>");
+    assert!(
+        out.contains("(unused)"),
+        "unmatched `:global(.a) + .b` must be pruned, got:\n{out}"
+    );
+    assert!(
+        !out.contains(".b.svelte-"),
+        "`.b` must not be scoped in:\n{out}"
+    );
+}
+
+#[test]
+fn global_plus_no_sibling_in_snippet_nested_pruned() {
+    let out = css(
+        "{#snippet s()}<section><div class=\"b\"></div></section>{/snippet}\n{@render s()}\n\
+         <style>:global(.a) + .b { color: red; }</style>",
+    );
+    assert!(
+        out.contains("(unused)"),
+        "unmatched `:global(.a) + .b` must be pruned, got:\n{out}"
+    );
+}
+
+#[test]
+fn global_descendant_inner_without_ancestor_pruned() {
+    // `:global(.a .z) + .b`: the `.z` sibling of `.b` has no `.a` ancestor. The
+    // inner `.a .z` carries an ancestor constraint the compound matcher can't
+    // verify, so it must not over-keep — pruned as `(unused)`, matching upstream.
+    let out = css(
+        "<section><span class=\"z\"></span><div class=\"b\"></div></section>\n\
+         <style>:global(.a .z) + .b { color: red; }</style>",
+    );
+    assert!(
+        out.contains("(unused)"),
+        "`:global(.a .z) + .b` without `.a` ancestor must be pruned, got:\n{out}"
+    );
+}
