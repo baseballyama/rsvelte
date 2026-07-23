@@ -209,6 +209,79 @@ for (const [label, options, needle] of [
 		msg,
 	);
 }
+// 9. Function-form compile options (customElement / css / runes) are resolved
+//    at the binding boundary — a `({ filename }) => value` form must produce the
+//    same output as the resolved value.
+const ceBool = r.compile('<svelte:options customElement="my-el" /><h1>hi</h1>', {
+	filename: 'El.svelte',
+	generate: 'client',
+	customElement: true,
+});
+const ceFn = r.compile('<svelte:options customElement="my-el" /><h1>hi</h1>', {
+	filename: 'El.svelte',
+	generate: 'client',
+	customElement: () => true,
+});
+assert(
+	'customElement function form resolves to boolean value',
+	ceFn.js.code === ceBool.js.code && ceBool.js.code.length > 0,
+);
+
+const cssExternal = r.compile('<h1>hi</h1><style>h1{color:red}</style>', {
+	filename: 'C.svelte',
+	generate: 'client',
+	css: 'external',
+});
+const cssFn = r.compile('<h1>hi</h1><style>h1{color:red}</style>', {
+	filename: 'C.svelte',
+	generate: 'client',
+	css: () => 'injected',
+});
+assert(
+	'css function form resolves and injects styles',
+	cssFn.css == null && cssFn.js.code !== cssExternal.js.code,
+	JSON.stringify({ hasCss: cssFn.css != null }),
+);
+
+const runesFn = r.compile('<script>let count = $state(0);</script><h1>{count}</h1>', {
+	filename: 'R.svelte',
+	generate: 'client',
+	runes: () => true,
+});
+assert('runes function form compiles', typeof runesFn?.js?.code === 'string');
+
+// 10. cssHashOverride — a constant scope hash must appear verbatim in the CSS.
+const hashed = r.compile('<h1>hi</h1><style>h1{color:red}</style>', {
+	filename: 'H.svelte',
+	generate: 'client',
+	css: 'injected',
+	cssHashOverride: 's-DEADBEEF',
+});
+assert(
+	'cssHashOverride sets the scope class',
+	hashed.js.code.includes('s-DEADBEEF'),
+	hashed.js.code.slice(0, 120),
+);
+
+// 11. warningFilter — post-filtering the returned warnings array.
+const warnSrc = '<img src="x.png">';
+const unfiltered = r.compile(warnSrc, { filename: 'W.svelte', generate: 'client' });
+assert(
+	'component emits at least one warning to filter',
+	Array.isArray(unfiltered.warnings) && unfiltered.warnings.length > 0,
+	JSON.stringify(unfiltered.warnings.map((w) => w.code)),
+);
+const filtered = r.compile(warnSrc, {
+	filename: 'W.svelte',
+	generate: 'client',
+	warningFilter: (w) => !w.code.startsWith('a11y'),
+});
+assert(
+	'warningFilter drops matching warnings',
+	filtered.warnings.every((w) => !w.code.startsWith('a11y')) &&
+		filtered.warnings.length < unfiltered.warnings.length,
+	JSON.stringify(filtered.warnings.map((w) => w.code)),
+);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
