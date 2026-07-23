@@ -4130,6 +4130,7 @@ fn convert_expression(
                 offset,
                 line_offsets,
                 type_parameters,
+                false,
             )
         }
         OxcExpression::ClassExpression(class_expr) => {
@@ -4266,30 +4267,15 @@ fn convert_expression(
             let end = offset + tagged.span.end as usize - 1;
             create_tagged_template_expression(arena, tagged, start, end, offset, line_offsets)
         }
-        OxcExpression::MetaProperty(meta) => {
+        OxcExpression::ImportMeta(meta) => {
             let start = offset + meta.span.start as usize - 1;
             let end = offset + meta.span.end as usize - 1;
-            let meta_start = offset + meta.meta.span.start as usize - 1;
-            let meta_end = offset + meta.meta.span.end as usize - 1;
-            let prop_start = offset + meta.property.span.start as usize - 1;
-            let prop_end = offset + meta.property.span.end as usize - 1;
-            Expression::from_node(JsNode::MetaProperty {
-                start: start as u32,
-                end: end as u32,
-                loc: create_typed_loc(start, end, line_offsets),
-                meta: arena.alloc_js_node(expr_to_node(create_identifier(
-                    &meta.meta.name,
-                    meta_start,
-                    meta_end,
-                    line_offsets,
-                ))),
-                property: arena.alloc_js_node(expr_to_node(create_identifier(
-                    &meta.property.name,
-                    prop_start,
-                    prop_end,
-                    line_offsets,
-                ))),
-            })
+            create_meta_property(arena, "import", "meta", start, end, line_offsets)
+        }
+        OxcExpression::NewTarget(meta) => {
+            let start = offset + meta.span.start as usize - 1;
+            let end = offset + meta.span.end as usize - 1;
+            create_meta_property(arena, "new", "target", start, end, line_offsets)
         }
         OxcExpression::RegExpLiteral(regex) => {
             let start = offset + regex.span.start as usize - 1;
@@ -4305,6 +4291,36 @@ fn convert_expression(
             create_identifier("unknown", start, end, line_offsets)
         }
     }
+}
+
+// oxc 0.141 split the old `MetaProperty` expression into fieldless `ImportMeta`
+// / `NewTarget` nodes, so the `meta` / `property` identifier spans are
+// reconstructed from the whole-node span and the fixed keyword lengths.
+fn create_meta_property(
+    arena: &ParseArena,
+    meta_name: &str,
+    property_name: &str,
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+) -> Expression {
+    Expression::from_node(JsNode::MetaProperty {
+        start: start as u32,
+        end: end as u32,
+        loc: create_typed_loc(start, end, line_offsets),
+        meta: arena.alloc_js_node(expr_to_node(create_identifier(
+            meta_name,
+            start,
+            start + meta_name.len(),
+            line_offsets,
+        ))),
+        property: arena.alloc_js_node(expr_to_node(create_identifier(
+            property_name,
+            end - property_name.len(),
+            end,
+            line_offsets,
+        ))),
+    })
 }
 
 fn create_identifier(name: &str, start: usize, end: usize, line_offsets: &[usize]) -> Expression {
@@ -4780,6 +4796,9 @@ fn create_function_expression(
     // Method values carry their generics on the wrapping MethodDefinition, not
     // the inner function (acorn-typescript), so callers pass `None` there.
     type_parameters: Option<Box<serde_json::Value>>,
+    // Object-method values keep their generics on the inner function but emit
+    // them after `body` (acorn-typescript), unlike declarations/expressions.
+    type_parameters_after_body: bool,
 ) -> Expression {
     // id
     let id = func.id.as_ref().map(|id| {
@@ -4841,6 +4860,7 @@ fn create_function_expression(
         r#async: func.r#async,
         expression: false,
         type_parameters,
+        type_parameters_after_body,
     })
 }
 
@@ -5040,6 +5060,7 @@ fn convert_class_element_for_expr(
                 offset,
                 line_offsets,
                 None,
+                false,
             );
             obj.insert("value".to_string(), value.as_json().clone());
 
@@ -5144,6 +5165,20 @@ fn create_array_expression(
     })
 }
 
+/// Object-method values keep their generics on the inner `FunctionExpression`,
+/// but acorn-typescript serializes them *after* `body` (like arrows), not in the
+/// declaration/expression slot before `params`.
+fn mark_object_method_generics(node: &mut JsNode, is_method: bool) {
+    if is_method
+        && let JsNode::FunctionExpression {
+            type_parameters_after_body,
+            ..
+        } = node
+    {
+        *type_parameters_after_body = true;
+    }
+}
+
 fn create_object_expression(
     arena: &ParseArena,
     obj_expr: &oxc_ast::ast::ObjectExpression,
@@ -5162,6 +5197,8 @@ fn create_object_expression(
 
                 let key = convert_property_key_for_expr(arena, &p.key, offset, line_offsets);
                 let value = convert_expression(arena, &p.value, offset, line_offsets);
+                let mut value_node = expr_to_node(value);
+                mark_object_method_generics(&mut value_node, p.method);
 
                 let kind = match p.kind {
                     oxc_ast::ast::PropertyKind::Init => "init",
@@ -5174,7 +5211,7 @@ fn create_object_expression(
                     end: prop_end as u32,
                     loc: create_typed_loc(prop_start, prop_end, line_offsets),
                     key: arena.alloc_js_node(key),
-                    value: arena.alloc_js_node(expr_to_node(value)),
+                    value: arena.alloc_js_node(value_node),
                     kind: CompactString::from(kind),
                     method: p.method,
                     shorthand: p.shorthand,
@@ -8821,6 +8858,8 @@ fn convert_expression_for_program(
                         let key = convert_property_key(arena, &p.key, offset, line_offsets);
                         let value =
                             convert_expression_for_program(arena, &p.value, offset, line_offsets);
+                        let mut value_node = expr_to_node(value);
+                        mark_object_method_generics(&mut value_node, p.method);
                         let kind = match p.kind {
                             oxc_ast::ast::PropertyKind::Init => "init",
                             oxc_ast::ast::PropertyKind::Get => "get",
@@ -8834,7 +8873,7 @@ fn convert_expression_for_program(
                             shorthand: p.shorthand,
                             computed: p.computed,
                             key: arena.alloc_js_node(key),
-                            value: arena.alloc_js_node(expr_to_node(value)),
+                            value: arena.alloc_js_node(value_node),
                             kind: CompactString::from(kind),
                         }
                     }
@@ -8936,6 +8975,7 @@ fn convert_expression_for_program(
                 offset,
                 line_offsets,
                 type_parameters,
+                false,
             ))
         }
         OxcExpression::StaticMemberExpression(member) => {
@@ -9644,35 +9684,22 @@ fn convert_expression_for_program(
                 type_arguments: Box::new(type_arguments),
             })
         }
-        OxcExpression::MetaProperty(meta) => {
-            // `import.meta` / `new.target`. Without this arm the fallback
-            // below turns the node into a placeholder `Identifier("unknown")`,
-            // which Phase 2's `is_safe_identifier` then misclassifies as a
-            // safe global — `import.meta.glob(...)` must set `needs_context`
-            // (upstream: a non-Identifier base is never "safe").
+        OxcExpression::ImportMeta(meta) => {
+            // `import.meta`. Without this arm the fallback below turns the node
+            // into a placeholder `Identifier("unknown")`, which Phase 2's
+            // `is_safe_identifier` then misclassifies as a safe global —
+            // `import.meta.glob(...)` must set `needs_context` (upstream: a
+            // non-Identifier base is never "safe").
             let start = offset + meta.span.start as usize;
             let end = offset + meta.span.end as usize;
-            let meta_start = offset + meta.meta.span.start as usize;
-            let meta_end = offset + meta.meta.span.end as usize;
-            let prop_start = offset + meta.property.span.start as usize;
-            let prop_end = offset + meta.property.span.end as usize;
-            Expression::from_node(JsNode::MetaProperty {
-                start: start as u32,
-                end: end as u32,
-                loc: create_typed_loc(start, end, line_offsets),
-                meta: arena.alloc_js_node(expr_to_node(create_identifier(
-                    &meta.meta.name,
-                    meta_start,
-                    meta_end,
-                    line_offsets,
-                ))),
-                property: arena.alloc_js_node(expr_to_node(create_identifier(
-                    &meta.property.name,
-                    prop_start,
-                    prop_end,
-                    line_offsets,
-                ))),
-            })
+            create_meta_property(arena, "import", "meta", start, end, line_offsets)
+        }
+        OxcExpression::NewTarget(meta) => {
+            // `new.target`; see the `import.meta` arm above for why the fallback
+            // placeholder is not acceptable here.
+            let start = offset + meta.span.start as usize;
+            let end = offset + meta.span.end as usize;
+            create_meta_property(arena, "new", "target", start, end, line_offsets)
         }
         _ => {
             // Fallback for unsupported expression types
@@ -9803,6 +9830,7 @@ fn convert_class_element_for_program_as_node(
                 offset,
                 line_offsets,
                 None,
+                false,
             );
             TypedClassElem::Node(JsNode::MethodDefinition {
                 start: start as u32,
@@ -10067,6 +10095,9 @@ fn convert_function_expression_for_program_as_node(
     line_offsets: &[usize],
     // `None` for method values (their generics live on the wrapper node).
     type_parameters: Option<Box<serde_json::Value>>,
+    // Object-method values keep their generics on the inner function but emit
+    // them after `body` (acorn-typescript), unlike declarations/expressions.
+    type_parameters_after_body: bool,
 ) -> JsNode {
     let start = offset + func.span.start as usize;
     let end = offset + func.span.end as usize;
@@ -10116,6 +10147,7 @@ fn convert_function_expression_for_program_as_node(
         r#async: func.r#async,
         expression: false,
         type_parameters,
+        type_parameters_after_body,
     }
 }
 

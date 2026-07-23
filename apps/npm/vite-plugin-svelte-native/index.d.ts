@@ -44,14 +44,17 @@ export interface CompileOptions {
 		| ((meta: { filename: string }) => 'injected' | 'external');
 	/**
 	 * Custom hash function for CSS scoping. Called once per component with the
-	 * component's CSS; the returned string becomes the scope class. Bridged into
-	 * the compiler via a threadsafe callback (`compileWithCssHash`).
+	 * component's CSS; the returned string becomes the scope class. Because it
+	 * depends on the CSS, it is bridged into the compiler through a threadsafe
+	 * callback and is only supported on the async path — use `compileAsync`.
+	 * The synchronous `compile` throws if given a `cssHash` function; pass a
+	 * pre-computed constant via `cssHashOverride` instead.
 	 */
 	cssHash?: (args: {
 		hash: (input: string) => string;
 		css: string;
 		name: string;
-		filename: string | undefined;
+		filename: string;
 	}) => string;
 	/**
 	 * Pre-computed constant CSS scope hash. Escape hatch for callers (e.g.

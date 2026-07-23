@@ -181,10 +181,50 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     let has_markup = root.fragment.nodes.iter().any(|n| {
         !matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str()))
     });
+
+    // Resolve overlapping edits ONCE, before both the section remap and the
+    // application, so the two never disagree. Two passes (markup.rs and indent.rs)
+    // can emit an edit for the same span — e.g. markup.rs replaces a whitespace
+    // body + close tag with `\n{indent}</tag>` at the same `[start, end)` that
+    // indent.rs would normalise to `\n{indent}`. Markup edits are pushed first
+    // (line 100 before line 105), so after the stable descending sort they appear
+    // before indent edits with the same start; the first one wins and the overlap
+    // is dropped here. Computing the remap from this resolved set (rather than the
+    // raw edits) is essential: a *skipped* edit must not contribute to the section
+    // offset delta, otherwise a length-changing markup edit that superseded an
+    // indent edit would shift the section boundary past the output end (#1707).
+    edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
+    let mut applied: Vec<(u32, u32, String)> = Vec::with_capacity(edits.len());
+    let mut last_applied: (u32, u32) = (u32::MAX, u32::MAX);
+    for (start, end, new_text) in edits {
+        let (la_s, la_e) = last_applied;
+        let incoming_nonempty = end > start;
+        let applied_nonempty = la_e > la_s;
+        // Two non-zero-length edits overlap when their ranges intersect.
+        // Zero-length inserts (start == end) never conflict with a range edit
+        // because they don't consume any source bytes.
+        let overlaps = applied_nonempty && incoming_nonempty && start < la_e && end > la_s;
+        if overlaps {
+            continue;
+        }
+        // Only update the guard for non-zero-length edits (range replacements).
+        // Zero-length inserts don't "own" a range.
+        if end > start {
+            last_applied = (start, end);
+        }
+        applied.push((start, end, new_text));
+    }
+
+    // Snapshot + remap the top-level section spans through the RESOLVED edits, so
+    // the reorder post-pass can run on the formatted output WITHOUT re-parsing it.
+    // An edit never straddles a top-level element boundary, so a boundary's new
+    // offset is its original offset plus the net length change of every applied
+    // edit ending at or before it. Only remap when reordering could change
+    // something (more than one top-level unit); otherwise the pass is skipped.
     let reorder_spans: Vec<(u8, usize, usize)> =
         if sections.len() > 1 || (sections.len() == 1 && has_markup) {
             let remap = |pos: u32| -> usize {
-                let delta: isize = edits
+                let delta: isize = applied
                     .iter()
                     .filter(|(_, end, _)| *end <= pos)
                     .map(|(start, end, repl)| repl.len() as isize - (*end - *start) as isize)
@@ -199,36 +239,10 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
             Vec::new()
         };
 
-    // Apply edits from the back so earlier offsets remain valid.
-    edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
+    // Apply the resolved edits from the back so earlier offsets stay valid.
     let mut out = source.to_string();
-    // Track the range of the last applied non-zero-length edit so we can skip
-    // any subsequent edit whose range overlaps it.  Two passes (markup.rs and
-    // indent.rs) can both emit an edit for the same span — e.g. markup.rs
-    // replaces trailing whitespace with `</tag>` at the same `[start, end)`
-    // that indent.rs would normalise to `\n{indent}`.  Markup edits are pushed
-    // first (lib.rs line 100 before line 105), so after the stable descending
-    // sort they appear before indent edits with the same start.  The first one
-    // wins; the second is skipped here to avoid a double-replace that would
-    // clobber the first replacement.
-    let mut last_applied: (u32, u32) = (u32::MAX, u32::MAX);
-    for (start, end, new_text) in edits {
-        let (la_s, la_e) = last_applied;
-        let incoming_nonempty = end > start;
-        let applied_nonempty = la_e > la_s;
-        // Two non-zero-length edits overlap when their ranges intersect.
-        // Zero-length inserts (start == end) never conflict with a range edit
-        // because they don't consume any source bytes.
-        let overlaps = applied_nonempty && incoming_nonempty && start < la_e && end > la_s;
-        if overlaps {
-            continue;
-        }
-        out.replace_range(start as usize..end as usize, &new_text);
-        // Only update the guard for non-zero-length edits (range replacements).
-        // Zero-length inserts don't "own" a range.
-        if end > start {
-            last_applied = (start, end);
-        }
+    for (start, end, new_text) in &applied {
+        out.replace_range(*start as usize..*end as usize, new_text);
     }
 
     // Post-pass: reorder top-level sections into prettier's canonical order

@@ -229,35 +229,162 @@ pub fn napi_compile(source: String, options: Option<NapiCompileOptions>) -> napi
     let opts = options_to_compile(options)?;
 
     match rust_compile(&source, opts) {
-        Ok(result) => {
-            let js_obj = serde_json::json!({
-                "code": result.js.code,
-                "map": result.js.map.as_deref().map(|m| serde_json::from_str::<Value>(m).unwrap_or(Value::Null)).unwrap_or(Value::Null),
-            });
-
-            let css_obj = result.css.map(|c| {
-                serde_json::json!({
-                    "code": c.code,
-                    "map": c.map.as_deref().map(|m| serde_json::from_str::<Value>(m).unwrap_or(Value::Null)).unwrap_or(Value::Null),
-                    "hasGlobal": c.has_global,
-                })
-            });
-
-            let warnings: Vec<Value> = warnings_to_json(&result.warnings);
-
-            let output = serde_json::json!({
-                "js": js_obj,
-                "css": css_obj,
-                "warnings": warnings,
-                "metadata": {
-                    "runes": result.metadata.runes,
-                },
-                "ast": Value::Null,
-            });
-
-            Ok(output)
-        }
+        Ok(result) => Ok(compile_result_to_json(result)),
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+    }
+}
+
+/// Serialize a `CompileResult` into the JSON shape the sync `compile`
+/// entry returns. Shared by the callback-bridge entry below.
+fn compile_result_to_json(result: rsvelte_core::compiler::CompileResult) -> Value {
+    let js_obj = serde_json::json!({
+        "code": result.js.code,
+        "map": result.js.map.as_deref().map(|m| serde_json::from_str::<Value>(m).unwrap_or(Value::Null)).unwrap_or(Value::Null),
+    });
+    let css_obj = result.css.map(|c| {
+        serde_json::json!({
+            "code": c.code,
+            "map": c.map.as_deref().map(|m| serde_json::from_str::<Value>(m).unwrap_or(Value::Null)).unwrap_or(Value::Null),
+            "hasGlobal": c.has_global,
+        })
+    });
+    serde_json::json!({
+        "js": js_obj,
+        "css": css_obj,
+        "warnings": warnings_to_json(&result.warnings),
+        "metadata": { "runes": result.metadata.runes },
+        "ast": Value::Null,
+    })
+}
+
+/// Compile a Svelte component with a dynamic `cssHash` callback.
+///
+/// A `cssHash` function depends on the component's CSS, so it can't be
+/// pre-resolved at the JS boundary like `customElement`/`css`/`runes`.
+/// This async entry bridges the JS callback into the compiler through a
+/// `ThreadsafeFunction`: the compile runs under `block_in_place` on a
+/// libuv worker so the JS thread stays free to service the callback,
+/// which the bridge awaits with `block_on`. Callers that don't pass a
+/// `cssHash` function keep using the sync `compile` path — this entry
+/// adds no overhead there.
+#[napi(js_name = "compileWithCssHash")]
+pub async fn napi_compile_with_css_hash(
+    source: String,
+    options: Option<NapiCompileOptions>,
+    #[napi(
+        ts_arg_type = "(name: string, filename: string, css: string) => Promise<{ value: string | null } | { error: string }>"
+    )]
+    css_hash: css_hash_bridge::JsCssHashCb,
+) -> napi::Result<Value> {
+    let mut opts = options_to_compile(options)?;
+    let handle: css_hash_bridge::Handle =
+        std::sync::Arc::new(std::sync::RwLock::new(Some(css_hash)));
+    // A throwing cssHash surfaces here so it can be propagated as a compile
+    // failure (matching upstream, where the exception aborts compilation).
+    let error_slot = css_hash_bridge::ErrorSlot::default();
+    opts.css_hash = Some(css_hash_bridge::build(
+        std::sync::Arc::clone(&handle),
+        std::sync::Arc::clone(&error_slot),
+        opts.root_dir.clone(),
+    ));
+
+    let result = napi::tokio::task::block_in_place(|| rust_compile(&source, opts));
+
+    // Drop the TSFN while V8 handles are still valid (see oxfmt's cleanup note).
+    let _ = handle.write().unwrap().take();
+
+    if let Some(msg) = error_slot.lock().unwrap().take() {
+        return Err(napi::Error::from_reason(msg));
+    }
+    match result {
+        Ok(r) => Ok(compile_result_to_json(r)),
+        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+    }
+}
+
+mod css_hash_bridge {
+    use napi::Status;
+    use napi::bindgen_prelude::{FnArgs, Promise, block_on};
+    use napi::threadsafe_function::ThreadsafeFunction;
+    use rsvelte_core::compiler::{CssHashFn, CssHashInput};
+    use serde_json::Value;
+    use std::sync::{Arc, Mutex, RwLock};
+
+    // (name, filename, css) in; `{ value: string | null }` (string, or null to
+    // fall back to the default hash) or `{ error: string }` (throw → compile
+    // failure) out. `CalleeHandled = false` so the callback receives the args
+    // directly.
+    pub(super) type JsCssHashCb = ThreadsafeFunction<
+        FnArgs<(String, String, String)>,
+        Promise<Value>,
+        FnArgs<(String, String, String)>,
+        Status,
+        false,
+    >;
+
+    pub(super) type Handle = Arc<RwLock<Option<JsCssHashCb>>>;
+    pub(super) type ErrorSlot = Arc<Mutex<Option<String>>>;
+
+    pub(super) fn build(
+        handle: Handle,
+        error_slot: ErrorSlot,
+        root_dir: Option<String>,
+    ) -> CssHashFn {
+        Arc::new(move |input: &CssHashInput| -> String {
+            let guard = handle.read().unwrap();
+            let Some(cb) = guard.as_ref() else {
+                return default_hash(input, root_dir.as_deref());
+            };
+            let args = FnArgs::from((
+                input.name.clone(),
+                input.filename.clone(),
+                input.css.clone(),
+            ));
+            let outcome = block_on(async {
+                match cb.call_async(args).await {
+                    Ok(promise) => promise.await.map_err(|e| e.to_string()),
+                    Err(e) => Err(e.to_string()),
+                }
+            });
+            drop(guard);
+            match outcome {
+                Ok(v) => {
+                    if let Some(err) = v.get("error").and_then(Value::as_str) {
+                        // Record the first thrown cssHash error; the returned hash
+                        // is discarded once the caller sees the recorded failure.
+                        error_slot
+                            .lock()
+                            .unwrap()
+                            .get_or_insert_with(|| err.to_string());
+                        return default_hash(input, root_dir.as_deref());
+                    }
+                    match v.get("value").and_then(Value::as_str) {
+                        Some(s) => s.to_string(),
+                        // null / unexpected shape → default hash (never rejects).
+                        None => default_hash(input, root_dir.as_deref()),
+                    }
+                }
+                // Internal TSFN failure (not a user throw) → default hash.
+                Err(_) => default_hash(input, root_dir.as_deref()),
+            }
+        })
+    }
+
+    // Reproduces the compiler's default (no-cssHash) scope hash: the rootDir-relative
+    // filename when known, else the CSS content (see phases/2-analyze/types.rs).
+    fn default_hash(input: &CssHashInput, root_dir: Option<&str>) -> String {
+        use rsvelte_core::compiler::phases::phase3_transform::css::generate_css_hash;
+        if input.filename == "(unknown)" {
+            return generate_css_hash(&input.css);
+        }
+        let mut fname = input.filename.replace('\\', "/");
+        if let Some(rd) = root_dir {
+            let rd = rd.replace('\\', "/");
+            if fname.starts_with(&rd) {
+                fname = fname[rd.len()..].trim_start_matches('/').to_string();
+            }
+        }
+        generate_css_hash(&fname)
     }
 }
 

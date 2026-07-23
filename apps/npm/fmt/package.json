@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/fmt",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "Rust-powered Svelte + JS/TS/CSS formatter CLI — formats .svelte in-process and dispatches everything else to oxfmt",
   "license": "MIT",
   "repository": {
@@ -35,7 +35,7 @@
     "daemon/daemon.mjs"
   ],
   "dependencies": {
-    "prettier-plugin-tailwindcss": "0.0.0-insiders.2b6f3c2"
+    "prettier-plugin-tailwindcss": "0.8.1"
   },
   "optionalDependencies": {
     "@rsvelte/fmt-darwin-arm64": "workspace:^",

@@ -187,6 +187,10 @@ pub enum JsNode {
         /// verbatim (acorn-typescript emits it between `async` and `params`).
         /// `None` for the overwhelming majority (non-generic) functions.
         type_parameters: Option<Box<serde_json::Value>>,
+        /// Object-method values carry generics on the inner function, but
+        /// acorn-typescript appends `typeParameters` *after* `body` there (like
+        /// arrows) rather than in the declaration/expression slot before `params`.
+        type_parameters_after_body: bool,
     },
     ClassExpression {
         start: u32,
@@ -1008,6 +1012,7 @@ impl Serialize for JsNode {
                 r#async,
                 expression,
                 type_parameters,
+                type_parameters_after_body,
             } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "FunctionExpression")?;
@@ -1018,11 +1023,18 @@ impl Serialize for JsNode {
                 map.serialize_entry("expression", expression)?;
                 map.serialize_entry("generator", generator)?;
                 map.serialize_entry("async", r#async)?;
-                if let Some(tp) = type_parameters {
+                if let Some(tp) = type_parameters
+                    && !type_parameters_after_body
+                {
                     map.serialize_entry("typeParameters", tp.as_ref())?;
                 }
                 ser_children!(map, "params", params);
                 ser_opt_node!(map, "body", body);
+                if let Some(tp) = type_parameters
+                    && *type_parameters_after_body
+                {
+                    map.serialize_entry("typeParameters", tp.as_ref())?;
+                }
                 ser_comments!(map, *start, *end);
                 map.end()
             }
@@ -2479,6 +2491,7 @@ impl JsNode {
                         r#async: get_bool(obj, "async"),
                         expression: get_bool(obj, "expression"),
                         type_parameters: obj.get("typeParameters").cloned().map(Box::new),
+                        type_parameters_after_body: false,
                     },
                     "ClassExpression" => JsNode::ClassExpression {
                         start,

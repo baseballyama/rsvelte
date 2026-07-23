@@ -59,8 +59,9 @@ use crate::ast::typed_expr::{JsNode, LiteralValue, Loc, RegexValue, TemplateElem
 pub const MAGIC: u32 = 0x3156_5052; // "RPV1" little-endian
 // Bumped for the function-node AST-fidelity changes (FunctionExpression field
 // reorder, `typeParameters` on function-like nodes, Identifier `optional`);
-// keep in lockstep with `parse-envelope.js`'s `VERSION`.
-pub const VERSION: u32 = 3;
+// v4 adds the object-method `typeParameters`-after-`body` flag byte.
+// Keep in lockstep with `parse-envelope.js`'s `VERSION`.
+pub const VERSION: u32 = 4;
 pub const HEADER_LEN: usize = 24;
 
 // Header `flags` word (offset 20):
@@ -1338,6 +1339,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             r#async,
             expression,
             type_parameters,
+            type_parameters_after_body,
         } => {
             write_preamble(w, JS_FUNCTION_EXPRESSION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -1348,6 +1350,8 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_opt_type_annotation(w, type_parameters.as_deref())?;
             write_id_range(w, *params, arena)?;
             write_opt_node_id(w, *body, arena)?;
+            // Object-method inner functions serialize `typeParameters` after `body`.
+            write_bool(w, *type_parameters_after_body);
         }
         JsNode::ClassExpression {
             start,

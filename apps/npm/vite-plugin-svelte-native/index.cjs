@@ -51,13 +51,9 @@ try {
 	);
 }
 
-// Resolve the function-form compile options the NAPI boundary can't accept:
-// evaluate `customElement`/`css`/`runes` (`({ filename }) => value`) once and hand
-// the plain value to Rust, and return any `warningFilter` for the caller to
-// post-filter the warnings array (warnings never affect codegen, so post-filtering
-// equals Svelte's emit-time filter). A dynamic `cssHash` uses the callback bridge
-// (`compileWithCssHash`); constant hashes go through `cssHashOverride`. When no
-// field is a function the original object is returned as-is.
+// The NAPI boundary can't accept function values, so resolve them here: evaluate
+// `customElement`/`css`/`runes` and hand back `warningFilter` for the caller to
+// post-filter warnings (which never affect codegen).
 function prepareCompileOptions(options) {
 	if (options == null) return { options, warningFilter: undefined };
 	const { customElement, css, runes, warningFilter } = options;
@@ -77,6 +73,32 @@ function prepareCompileOptions(options) {
 	if (typeof runes === 'function') resolved.runes = runes(meta);
 	if (hasWarningFilter) delete resolved.warningFilter;
 	return { options: resolved, warningFilter: hasWarningFilter ? warningFilter : undefined };
+}
+
+// Port of Svelte's `hash()` (submodules/svelte/packages/svelte/src/utils.js),
+// handed to a user `cssHash` callback so custom scope classes match upstream's digest.
+const regexReturnCharacters = /\r/g;
+function hash(str) {
+	str = str.replace(regexReturnCharacters, '');
+	let h = 5381;
+	let i = str.length;
+	while (i--) h = ((h << 5) - h) ^ str.charCodeAt(i);
+	return (h >>> 0).toString(36);
+}
+
+// Adapt a user `cssHash` to the bridge shape. It must never reject: a rejected
+// Promise crossing the NAPI boundary can crash V8 during threadsafe-function
+// teardown — so a throw becomes `{ error }` (Rust turns it into a compile failure)
+// and a non-string return becomes `{ value: null }` (Rust falls back to the default hash).
+function makeCssHashCallback(userCssHash) {
+	return async (name, filename, css) => {
+		try {
+			const result = await userCssHash({ hash, css, name, filename });
+			return { value: typeof result === 'string' ? result : null };
+		} catch (err) {
+			return { error: err instanceof Error ? err.message : String(err) };
+		}
+	};
 }
 
 function applyWarningFilter(result, warningFilter) {
@@ -106,6 +128,13 @@ function applyWarningFilter(result, warningFilter) {
 // directly. The legacy JSON path is preserved as `compileLegacy` for
 // parity testing and as an escape hatch.
 function compile(source, options) {
+	if (typeof options?.cssHash === 'function') {
+		// A dynamic cssHash needs the Rust→JS callback bridge, which would deadlock
+		// the JS event loop on the sync path; direct the caller to `compileAsync`.
+		throw new Error(
+			'[@rsvelte/vite-plugin-svelte-native] A dynamic `cssHash` function requires the async compile path; call `compileAsync(source, options)` instead. (A constant hash can use `cssHashOverride`.)',
+		);
+	}
 	const { options: resolved, warningFilter } = prepareCompileOptions(options);
 	return applyWarningFilter(decodeEnvelope(binding.compileEnvelope(source, resolved)), warningFilter);
 }
@@ -123,9 +152,20 @@ function compileModule(source, options) {
 // exactly once. The returned array is the same length as the input;
 // each slot is either a `CompileResult` or an `Error` (parse
 // failures don't abort the whole batch).
+// Batch compilation runs on rayon workers with no JS event loop to service the
+// callback, so a dynamic cssHash can't be bridged here — reject it rather than drop it.
+function assertNoDynamicCssHash(options) {
+	if (typeof options?.cssHash === 'function') {
+		throw new Error(
+			'[@rsvelte/vite-plugin-svelte-native] A dynamic `cssHash` function is not supported in compileBatch; compile such files individually with `compileAsync`.',
+		);
+	}
+}
+
 function compileBatch(inputs) {
 	const filters = [];
 	const prepared = inputs.map((input, i) => {
+		assertNoDynamicCssHash(input.options);
 		const { options, warningFilter } = prepareCompileOptions(input.options);
 		if (warningFilter) filters[i] = warningFilter;
 		return options === input.options ? input : { source: input.source, options };
@@ -144,6 +184,15 @@ function compileBatch(inputs) {
 // instead of blocking V8.
 async function compileAsync(source, options) {
 	const { options: resolved, warningFilter } = prepareCompileOptions(options);
+	if (typeof options?.cssHash === 'function') {
+		// The bridge entry returns a plain (JSON) CompileResult, not an envelope.
+		const result = await binding.compileWithCssHash(
+			source,
+			resolved,
+			makeCssHashCallback(options.cssHash),
+		);
+		return applyWarningFilter(result, warningFilter);
+	}
 	return applyWarningFilter(
 		decodeEnvelope(await binding.compileEnvelopeAsync(source, resolved)),
 		warningFilter,
@@ -153,6 +202,7 @@ async function compileAsync(source, options) {
 async function compileBatchAsync(inputs) {
 	const filters = [];
 	const prepared = inputs.map((input, i) => {
+		assertNoDynamicCssHash(input.options);
 		const { options, warningFilter } = prepareCompileOptions(input.options);
 		if (warningFilter) filters[i] = warningFilter;
 		return options === input.options ? input : { source: input.source, options };

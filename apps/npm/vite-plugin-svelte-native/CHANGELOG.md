@@ -1,5 +1,90 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.0
+
+### Minor Changes
+
+- b5f606f: feat(napi): bridge dynamic cssHash functions through an async callback
+
+  Adds a `compileWithCssHash` async NAPI entry that runs the compile under
+  `block_in_place` while a threadsafe callback services the user's `cssHash`
+  function on the JS thread — so a CSS-content-dependent scope hash is faithfully
+  supported. `compileAsync` routes a function `cssHash` through it (supplying
+  Svelte's exact `hash()` implementation as the callback's `hash` argument); the
+  synchronous `compile` throws a clear error for a dynamic `cssHash` rather than
+  silently dropping it. A callback that throws aborts compilation with that error
+  (matching upstream, where a `cssHash` exception propagates); a callback that
+  returns a non-string falls back to the default `svelte-<hash(css)>`.
+  `@rsvelte/vite-plugin-svelte` uses the async path when a `cssHash` function is
+  configured. Callers that don't pass a `cssHash` function keep the existing
+  zero-overhead synchronous path.
+
+- 36002d5: feat(napi): support function-form compile options (customElement/css/runes/warningFilter) and a constant cssHashOverride
+
+  The NAPI shim now resolves the function forms of `customElement`, `css`, and `runes`
+  (`({ filename }) => value`) once at the binding boundary before handing the plain value
+  to the compiler, matching Svelte's `parametric()` normalization. `warningFilter` is
+  applied as a post-filter on the returned `warnings` array — equivalent to Svelte's
+  emit-time filter since warnings never affect codegen. A new `cssHashOverride` string
+  option lets callers pass a pre-computed constant CSS scope hash without the callback
+  bridge; `@rsvelte/vite-plugin-svelte` now uses it for its HMR-stable hash instead of the
+  previously ignored `cssHash = () => hash` closure.
+
+### Patch Changes
+
+- 020be59: fix(parse): emit `FunctionDeclaration.expression` (always `false`) to match acorn's key order (`id`, `expression`, `generator`, `async`, `params`, `body`)
+
+  The binary NAPI raw-parse envelope (`napi_raw_parse.rs`'s writer, consumed only
+  by `@rsvelte/vite-plugin-svelte-native`'s `parse-envelope.js` decoder) carries
+  the same field, so both packages need this release. The envelope's `VERSION`
+  is bumped to 2 alongside the wire-format change (one extra bool byte on
+  `FunctionDeclaration` payloads).
+
+- 065ce6f: fix(parse): improve function-node AST fidelity to match acorn / acorn-typescript
+
+  Four parse-AST fixes so the public `parse()` output matches svelte/compiler:
+
+  - `FunctionExpression` fields are ordered `id, expression, generator, async` to
+    match acorn's uniform `initFunction` key order (#1689).
+  - Generic function-like nodes emit `typeParameters`
+    (`FunctionDeclaration`/`FunctionExpression` between `async` and `params`,
+    `ArrowFunctionExpression` after `body`) (#1694).
+  - TS optional parameters (`b?: T`) round-trip their `optional: true` marker;
+    program-context arrow params now route through the TS-aware parameter
+    converter so they carry the same `typeAnnotation`/`optional` fidelity as
+    declarations (#1692). As a side effect, this also fixes a pure-JS bug where a
+    default-valued arrow parameter (`(a = 1) => a`) lost its `AssignmentPattern`
+    (default value) in the `parse()` output — `compile()` output was unaffected.
+  - Object-method values (`{ m<T>(x: T) {} }`) keep their generics on the inner
+    `FunctionExpression` but emit `typeParameters` _after_ `body` (like arrows),
+    not in the declaration/expression slot before `params` (#1711).
+
+  The binary NAPI raw-parse envelope (consumed by
+  `@rsvelte/vite-plugin-svelte-native`'s `parse-envelope.js` decoder) carries the
+  same fields, so both packages need this release. The envelope `VERSION` is
+  bumped to 4 alongside the wire-format changes.
+
+- 78f62e8: fix(napi): accept lenient compiler options like the official compiler
+
+  The N-API `compile`/`compileModule` surface now decodes every option the way
+  `svelte/compiler`'s `validate-options.js` does, instead of failing the whole
+  call with a raw N-API conversion error (`Failed to convert napi value into rust
+type \`bool\``, `Failed to convert js number to serde_json::Number`, …) on a
+  non-boolean or non-finite value.
+
+  - `runes` mirrors upstream's `parametric` validator: it accepts any JS value and
+    never rejects it. A truthy scalar (number/string) forces runes on, a real
+    `false` forces legacy, and `undefined`/`null`/absent — as well as non-scalars
+    like an object or function — leave the mode auto-detected.
+  - A genuinely wrong-typed option (e.g. `dev: 1`, `namespace: 2`) is reported as
+    `Invalid compiler option: …` using the upstream message.
+
+  Accepted, N-API-imposed difference from upstream: because the compiler's `runes`
+  is `Option<bool>`, a falsy-but-not-`false` value (`0`, `""`, `NaN`) auto-detects
+  instead of forcing legacy — only a real `false` maps to `Some(false)`, so it
+  can't spuriously trigger the strict `runes === false` paths. A function-valued
+  `runes` cannot be invoked from Rust and likewise auto-detects.
+
 ## 0.2.8
 
 ### Patch Changes

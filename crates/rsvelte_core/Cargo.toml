@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_core"
-version = "0.8.2"
+version = "0.9.0"
 edition = "2024"
 rust-version = "1.90"
 description = "A high-performance Rust implementation of the Svelte compiler"
@@ -56,15 +56,15 @@ smallvec = { version = "1.13", features = ["serde"] }
 rustc-hash = "2.0"
 
 # JavaScript parsing and code generation
-oxc_allocator = "0.139"
-oxc_parser = "0.139"
-oxc_ast = { version = "0.139", features = ["serialize"] }
-oxc_span = "0.139"
-oxc_diagnostics = "0.139"
-oxc_codegen = "0.139"
+oxc_allocator = "0.141"
+oxc_parser = "0.141"
+oxc_ast = { version = "0.141", features = ["serialize"] }
+oxc_span = "0.141"
+oxc_diagnostics = "0.141"
+oxc_codegen = "0.141"
 rsvelte_esrap = { path = "../rsvelte_esrap" }
-oxc_syntax = "0.139"
-oxc_semantic = "0.139"
+oxc_syntax = "0.141"
+oxc_semantic = "0.141"
 
 # Module resolution for the svelte-check overlay: resolves `.svelte` imports
 # (including tsconfig `paths`/`baseUrl` aliases like `$lib/...`) so aliased
@@ -72,7 +72,7 @@ oxc_semantic = "0.139"
 oxc_resolver = "11"
 
 # SPIKE: oxc_formatter is publish=false in oxc; pull via git from main HEAD
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "2d4e8d20644e0e7446f0a381894b45ea339a0625" }
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "83abe3b49c0913b1a984a7eec5e433a59fd76eae" }
 
 # Error handling
 thiserror = "2.0"
@@ -125,7 +125,7 @@ console_error_panic_hook = { version = "0.1", optional = true }
 getrandom = { version = "0.4", optional = true }
 lazy_static = "1.5.0"
 indexmap = { version = "2.13.0", features = ["serde"] }
-oxc_ast_visit = "0.139"
+oxc_ast_visit = "0.141"
 
 # Better multi-threaded memory allocator (optional, Unix/Mac only)
 [target.'cfg(all(not(windows), not(target_arch = "wasm32")))'.dependencies]
