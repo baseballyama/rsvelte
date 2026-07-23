@@ -514,6 +514,11 @@ fn push_close_tag(
         // tag drops to its own line at the element indent and the whitespace body
         // is absorbed into that break. The open `>` glued to the last attribute
         // line under `bracketSameLine` (see `push_open_tag`) or dedented otherwise.
+        //
+        // `<textarea>` is a raw-text exception: the oracle glues `>` and, under the
+        // default `bracketSameLine: false`, glues the close tag too (`…"></textarea>`,
+        // no break — the whitespace body is dropped). Only `bracketSameLine: true`
+        // breaks the body (`…">`\n`</textarea>`).
         let bytes = source.as_bytes();
         let mut content_end = start as usize;
         while content_end > 0
@@ -521,8 +526,13 @@ fn push_close_tag(
         {
             content_end -= 1;
         }
-        let indent = indent_str(depth, &options.js);
-        edits.push((content_end as u32, end, format!("\n{indent}</{tag_name}>")));
+        let raw_text_glues_close = tag_name == "textarea" && !options.bracket_same_line;
+        if raw_text_glues_close {
+            edits.push((content_end as u32, end, format!("</{tag_name}>")));
+        } else {
+            let indent = indent_str(depth, &options.js);
+            edits.push((content_end as u32, end, format!("\n{indent}</{tag_name}>")));
+        }
     } else if hug_close {
         let indent = indent_str(depth, &options.js);
         edits.push((start, end, format!("</{tag_name}\n{indent}>")));
@@ -972,15 +982,24 @@ fn push_open_tag(
         rendered_attrs
     };
 
-    // An empty `<textarea>` glues its `>` to the last attribute line by default
-    // (`hug_open`), but prettier's empty `shouldHugStart && shouldHugEnd` branch
-    // dangles the `>` onto its own line (`…"`\n`></textarea>`) when the glued
+    // A source-empty `<textarea>` glues its `>` to the last attribute line by
+    // default (`hug_open`), but prettier's empty `shouldHugStart && shouldHugEnd`
+    // branch dangles the `>` onto its own line (`…"`\n`></textarea>`) when the glued
     // last line — `{indent}{last attr}></textarea>` — would exceed the print
     // width. (`<pre>` is a block element and always glues, so it is untouched.)
     // Detect that by rendering the glued form and measuring its last line plus
     // the `</textarea>` close width. `shape_two` handles the single-attribute
     // on-tag-line shape separately, so this only applies on the wrapped path.
-    let hug_open = if empty_element && tag_name == "textarea" && wrapped && !shape_two && hug_open {
+    // A whitespace-*body* `<textarea>` (`empty_nonhug`) is exempt: the oracle keeps
+    // its `>` glued in that shape (the body break / drop is handled in
+    // `push_close_tag`), so the width-based dangle must not fire.
+    let hug_open = if empty_element
+        && !empty_nonhug
+        && tag_name == "textarea"
+        && wrapped
+        && !shape_two
+        && hug_open
+    {
         let glued = render_multi_line(
             tag_name,
             &rendered_attrs,

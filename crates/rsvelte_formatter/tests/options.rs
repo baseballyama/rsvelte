@@ -401,6 +401,37 @@ fn wrapping_whitespace_inline_is_idempotent() {
     }
 }
 
+// `<textarea>` is a raw-text exception to the inline whitespace-body rule: the
+// oracle keeps `>` glued (never dedented) and, under the default
+// `bracketSameLine: false`, glues the close tag too (dropping the whitespace
+// body), while `bracketSameLine: true` breaks the body onto its own line. This
+// exercises the `empty_nonhug` interaction with the empty-`<textarea>` width
+// check.
+#[test]
+fn textarea_whitespace_body_matches_oracle_raw_text_layout() {
+    let src = "<textarea class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-x\"> </textarea>";
+    // bracketSameLine: true — `>` glued to the last attribute, body broken.
+    assert_eq!(
+        fmt(src, &width_80(true)),
+        "<textarea\n  class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-x\">\n</textarea>\n"
+    );
+    // Default (false) — `>` glued, close glued, whitespace body dropped.
+    assert_eq!(
+        fmt(src, &width_80(false)),
+        "<textarea\n  class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-x\"></textarea>\n"
+    );
+}
+
+// A source-empty `<textarea>` still dangles its `>` onto its own line when the
+// glued last line would overflow — unchanged by the whitespace-body handling.
+#[test]
+fn textarea_source_empty_dangles_closer_unchanged() {
+    let src = "<textarea class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-x\"></textarea>";
+    let expected = "<textarea\n  class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-x\"\n></textarea>\n";
+    assert_eq!(fmt(src, &width_80(true)), expected);
+    assert_eq!(fmt(src, &width_80(false)), expected);
+}
+
 #[test]
 fn sort_order_parse_rejects_invalid() {
     assert!(SortOrderSpec::parse("scripts-markup").is_none());
