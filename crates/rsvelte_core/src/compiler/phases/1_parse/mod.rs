@@ -307,8 +307,8 @@ mod tests {
         assert_eq!(result.fragment.nodes.len(), 1);
         match &result.fragment.nodes[0] {
             TemplateNode::Text(text) => {
-                assert_eq!(text.data.as_str(), "hello world");
-                assert_eq!(text.raw.as_str(), "hello world");
+                assert_eq!(text.data.as_ref(), "hello world");
+                assert_eq!(text.raw.as_ref(), "hello world");
             }
             _ => panic!("Expected Text node"),
         }

@@ -221,7 +221,7 @@ pub fn format_with_arenas(
         sections.push((so.style, c.start, c.end));
     }
     let has_markup = root.fragment.nodes.iter().any(|n| {
-        !matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str()))
+        !matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
     });
     let reorder_spans: Vec<(u8, usize, usize)> =
         if sections.len() > 1 || (sections.len() == 1 && has_markup) {

@@ -454,7 +454,7 @@ fn collect_node_edits(
                     {
                         for node in &frag.nodes {
                             if let TemplateNode::Text(t) = node
-                                && crate::is_blank_text(t.data.as_str())
+                                && crate::is_blank_text(t.data.as_ref())
                             {
                                 edits.push((t.start, t.end, String::new()));
                             }
@@ -1119,7 +1119,7 @@ fn expand_inline_empty_block_body(
     // Only act when EVERY node is a whitespace-only text without a newline.
     let all_inline_ws = frag.nodes.iter().all(|n| {
         matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t)
-            if crate::is_blank_text(t.data.as_str()) && !t.data.contains('\n'))
+            if crate::is_blank_text(t.data.as_ref()) && !t.data.contains('\n'))
     });
     if !all_inline_ws || frag.nodes.is_empty() {
         return;
@@ -1153,7 +1153,7 @@ pub(crate) fn await_pending_is_empty(
     match pending {
         None => false, // shorthand form — already collapsed in source
         Some(frag) => frag.nodes.iter().all(|n| {
-            matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str()))
+            matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
         }),
     }
 }
@@ -1230,7 +1230,7 @@ fn try_collapse_await_header(
 /// `{#await expr then value}{/await}` block.
 fn is_empty_fragment_for_await(frag: &rsvelte_core::ast::template::Fragment) -> bool {
     frag.nodes.iter().all(|n| {
-        matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str()))
+        matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
     })
 }
 

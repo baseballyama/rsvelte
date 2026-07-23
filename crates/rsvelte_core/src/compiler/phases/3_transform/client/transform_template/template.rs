@@ -12,6 +12,7 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 use crate::compiler::phases::phase3_transform::shared::template::{escape_attr, is_void_element};
 use indexmap::IndexMap;
 use regex::Regex;
+use std::borrow::Cow;
 use std::fmt::Write as _;
 use std::sync::LazyLock;
 
@@ -126,7 +127,20 @@ impl Template {
     }
 
     /// Push text nodes.
-    pub fn push_text(&mut self, nodes: Vec<Text>) {
+    ///
+    /// The parse-borrowed `Text` slices are converted to owned here: this
+    /// codegen IR outlives the source borrow, so the stored nodes are
+    /// `Text<'static>`.
+    pub fn push_text(&mut self, nodes: Vec<Text<'_>>) {
+        let nodes: Vec<Text<'static>> = nodes
+            .into_iter()
+            .map(|t| Text {
+                start: t.start,
+                end: t.end,
+                raw: Cow::Owned(t.raw.into_owned()),
+                data: Cow::Owned(t.data.into_owned()),
+            })
+            .collect();
         let text = TextNode {
             node_type: "text",
             nodes,
@@ -227,7 +241,7 @@ fn stringify(item: &Node) -> String {
         Node::Text(text) => {
             // Simply concatenate raw text values — no normalization.
             // Whitespace has already been processed by clean_nodes.
-            text.nodes.iter().map(|node| node.raw.as_str()).collect()
+            text.nodes.iter().map(|node| node.raw.as_ref()).collect()
         }
         Node::Comment(comment) => {
             // Match JavaScript falsy semantics: empty string is treated as no data

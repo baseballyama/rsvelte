@@ -9,6 +9,8 @@
 //! components, attributes, and all directive types (`on:`, `bind:`, `use:`,
 //! `class:`, `style:`, `transition:`, `animate:`, `let:`).
 
+use std::borrow::Cow;
+
 use compact_str::CompactString;
 use memchr::memchr;
 use memchr::memmem;
@@ -715,8 +717,8 @@ impl<'a> Parser<'a> {
                                     // { type: "Literal", value: "div", raw: "'div'" }
                                     return Expression::from_json(serde_json::json!({
                                         "type": "Literal",
-                                        "value": text.data.as_str(),
-                                        "raw": format!("'{}'", text.raw.as_str()),
+                                        "value": text.data.as_ref(),
+                                        "raw": format!("'{}'", text.raw.as_ref()),
                                         "start": text.start,
                                         "end": text.end
                                     }));
@@ -1798,8 +1800,8 @@ impl<'a> Parser<'a> {
                             parts.push(AttributeValuePart::Text(crate::ast::template::Text {
                                 start: text_start as u32,
                                 end: self.index as u32,
-                                raw: CompactString::from(&self.source[text_start..self.index]),
-                                data: CompactString::from(decode_html_entities(
+                                raw: Cow::Borrowed(&self.source[text_start..self.index]),
+                                data: Cow::Owned(decode_html_entities(
                                     &self.source[text_start..self.index],
                                     true,
                                 )),
@@ -1831,8 +1833,8 @@ impl<'a> Parser<'a> {
                     parts.push(AttributeValuePart::Text(crate::ast::template::Text {
                         start: text_start as u32,
                         end: self.index as u32,
-                        raw: CompactString::from(&self.source[text_start..self.index]),
-                        data: CompactString::from(decode_html_entities(
+                        raw: Cow::Borrowed(&self.source[text_start..self.index]),
+                        data: Cow::Owned(decode_html_entities(
                             &self.source[text_start..self.index],
                             true,
                         )),
@@ -1859,8 +1861,8 @@ impl<'a> Parser<'a> {
                             parts.push(AttributeValuePart::Text(crate::ast::template::Text {
                                 start: text_start as u32,
                                 end: self.index as u32,
-                                raw: CompactString::from(&self.source[text_start..self.index]),
-                                data: CompactString::from(decode_html_entities(
+                                raw: Cow::Borrowed(&self.source[text_start..self.index]),
+                                data: Cow::Owned(decode_html_entities(
                                     &self.source[text_start..self.index],
                                     true,
                                 )),
@@ -1892,8 +1894,8 @@ impl<'a> Parser<'a> {
                     parts.push(AttributeValuePart::Text(crate::ast::template::Text {
                         start: text_start as u32,
                         end: self.index as u32,
-                        raw: CompactString::from(&self.source[text_start..self.index]),
-                        data: CompactString::from(decode_html_entities(
+                        raw: Cow::Borrowed(&self.source[text_start..self.index]),
+                        data: Cow::Owned(decode_html_entities(
                             &self.source[text_start..self.index],
                             true,
                         )),
@@ -2206,8 +2208,8 @@ impl<'a> Parser<'a> {
                 Text {
                     start: start as u32,
                     end: self.index as u32,
-                    raw: CompactString::from("/"),
-                    data: CompactString::from("/"),
+                    raw: Cow::Borrowed("/"),
+                    data: Cow::Borrowed("/"),
                 },
             )]));
         }
@@ -2407,16 +2409,15 @@ impl<'a> Parser<'a> {
                         parts.push(AttributeValuePart::Text(Text {
                             start: text_start as u32,
                             end: text_end as u32,
-                            raw: CompactString::from(raw),
-                            data: CompactString::from(data),
+                            raw: Cow::Borrowed(raw),
+                            data: Cow::Owned(data),
                         }));
                     } else {
-                        let cs = CompactString::from(raw);
                         parts.push(AttributeValuePart::Text(Text {
                             start: text_start as u32,
                             end: text_end as u32,
-                            raw: cs.clone(),
-                            data: cs,
+                            raw: Cow::Borrowed(raw),
+                            data: Cow::Borrowed(raw),
                         }));
                     }
                 }
@@ -2434,8 +2435,8 @@ impl<'a> Parser<'a> {
                 Text {
                     start: value_start as u32,
                     end: value_start as u32,
-                    raw: CompactString::from(""),
-                    data: CompactString::from(""),
+                    raw: Cow::Borrowed(""),
+                    data: Cow::Borrowed(""),
                 },
             )]))
         } else if parts.len() == 1 && quote.is_none() {
@@ -2478,8 +2479,8 @@ impl<'a> Parser<'a> {
             let nodes = vec![TemplateNode::Text(Text {
                 start: content_start as u32,
                 end: content_end as u32,
-                raw: raw_content.to_string().into(),
-                data: raw_content.to_string().into(),
+                raw: Cow::Borrowed(raw_content),
+                data: Cow::Borrowed(raw_content),
             })];
 
             return Ok(Fragment {
@@ -2544,8 +2545,8 @@ impl<'a> Parser<'a> {
                     nodes.push(TemplateNode::Text(Text {
                         start: text_start as u32,
                         end: self.index as u32,
-                        raw: text_content.to_string().into(),
-                        data: text_content.to_string().into(),
+                        raw: Cow::Borrowed(text_content),
+                        data: Cow::Borrowed(text_content),
                     }));
                 }
 

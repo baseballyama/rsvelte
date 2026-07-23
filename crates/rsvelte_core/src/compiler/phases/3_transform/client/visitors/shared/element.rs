@@ -123,7 +123,7 @@ where
             // Single part - handle as simple value
             match &parts[0] {
                 AttributeValuePart::Text(text) => AttributeValueResult {
-                    value: b::string(text.data.as_str()),
+                    value: b::string(text.data.as_ref()),
                     has_state: false,
                 },
 
@@ -1189,7 +1189,7 @@ fn build_style_attribute_value_with_memoization(
         AttributeValue::Sequence(parts) if parts.len() == 1 => {
             // Single part - handle as simple value (avoid wrapping in template literal)
             match &parts[0] {
-                AttributeValuePart::Text(text) => (b::string(text.data.as_str()), false),
+                AttributeValuePart::Text(text) => (b::string(text.data.as_ref()), false),
                 AttributeValuePart::ExpressionTag(expr_tag) => {
                     let converted = convert_expression(&expr_tag.expression, context);
                     let expr_props =

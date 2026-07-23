@@ -3,6 +3,8 @@
 //! These types represent the parsed structure of a Svelte component's template.
 //! Field ordering follows the principle of largest-first for optimal memory layout.
 
+use std::borrow::Cow;
+
 use compact_str::CompactString;
 use indexmap::IndexSet;
 
@@ -145,7 +147,7 @@ pub enum FragmentType {
 #[serde(tag = "type")]
 pub enum TemplateNode<'a> {
     // Small variants (inline, <= 128 bytes)
-    Text(Text),
+    Text(Text<'a>),
     Comment(Comment),
     TitleElement(TitleElement<'a>),
     SlotElement(SlotElement<'a>),
@@ -187,14 +189,19 @@ impl<'a> AsRef<TemplateNode<'a>> for TemplateNode<'a> {
 // =============================================================================
 
 /// Static text node.
+///
+/// `raw`/`data` borrow directly from the source in the common case (a verbatim
+/// slice, no HTML entities), so parsing a text node copies nothing. They become
+/// owned only when a later phase rewrites the text (entity decoding, whitespace
+/// trimming/merging) — hence `Cow`.
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct Text {
+pub struct Text<'a> {
     pub start: u32,
     pub end: u32,
     /// The original text with undecoded HTML entities.
-    pub raw: CompactString,
+    pub raw: Cow<'a, str>,
     /// Text with decoded HTML entities.
-    pub data: CompactString,
+    pub data: Cow<'a, str>,
 }
 
 /// HTML comment node.
@@ -725,7 +732,7 @@ impl<'a> serde::Serialize for AttributeValue<'a> {
 #[derive(Debug, Clone, PartialEq)]
 #[allow(clippy::large_enum_variant)]
 pub enum AttributeValuePart<'a> {
-    Text(Text),
+    Text(Text<'a>),
     ExpressionTag(ExpressionTag<'a>),
 }
 
@@ -741,8 +748,8 @@ impl<'a> serde::Serialize for AttributeValuePart<'a> {
                 map.serialize_entry("start", &text.start)?;
                 map.serialize_entry("end", &text.end)?;
                 map.serialize_entry("type", "Text")?;
-                map.serialize_entry("raw", text.raw.as_str())?;
-                map.serialize_entry("data", text.data.as_str())?;
+                map.serialize_entry("raw", text.raw.as_ref())?;
+                map.serialize_entry("data", text.data.as_ref())?;
                 map.end()
             }
             AttributeValuePart::ExpressionTag(expr_tag) => {

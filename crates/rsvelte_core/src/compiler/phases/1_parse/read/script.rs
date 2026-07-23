@@ -8,6 +8,8 @@
 //! It provides script tag parsing for both instance (`<script>`) and module
 //! (`<script context="module">` or `<script module>`) scripts.
 
+use std::borrow::Cow;
+
 use compact_str::CompactString;
 
 use crate::ast::arena::ParseArena;
@@ -90,8 +92,8 @@ impl<'a> Parser<'a> {
         vec![AttributeValuePart::Text(Text {
             start: first_start,
             end: last_end,
-            raw: CompactString::from(raw),
-            data: CompactString::from(raw),
+            raw: Cow::Borrowed(raw),
+            data: Cow::Borrowed(raw),
         })]
     }
 
@@ -194,7 +196,7 @@ impl<'a> Parser<'a> {
                     if let AttributeValue::Sequence(parts) = &attr_node.value
                         && let Some(AttributeValuePart::Text(t)) = parts.first()
                     {
-                        if t.data.as_str() == "module" {
+                        if t.data.as_ref() == "module" {
                             context = ScriptContext::Module;
                             // The compiler drops the `context` attribute from the
                             // script's attribute list (it only needs the
@@ -224,7 +226,7 @@ impl<'a> Parser<'a> {
                     if let AttributeValue::Sequence(parts) = &attr_node.value
                         && let Some(AttributeValuePart::Text(t)) = parts.first()
                     {
-                        let lang = t.data.as_str();
+                        let lang = t.data.as_ref();
                         if lang == "ts" || lang == "typescript" {
                             is_typescript = true;
                         }

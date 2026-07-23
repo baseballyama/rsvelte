@@ -29,7 +29,8 @@
 //! }
 //! ```
 
-use compact_str::CompactString;
+use std::borrow::Cow;
+
 use memchr::memchr2;
 
 use crate::ast::template::{TemplateNode, Text};
@@ -79,17 +80,17 @@ impl<'a> Parser<'a> {
             Ok(Some(TemplateNode::Text(Text {
                 start,
                 end,
-                raw: CompactString::from(raw_str),
-                data: CompactString::from(decoded_data),
+                raw: Cow::Borrowed(raw_str),
+                data: Cow::Owned(decoded_data),
             })))
         } else {
-            // No entities: raw and data are the same, create both from the slice directly
-            // (CompactString inlines short strings up to 24 bytes, avoiding heap for both)
+            // No entities: raw and data are the same verbatim source slice — borrow
+            // both, zero-copy.
             Ok(Some(TemplateNode::Text(Text {
                 start,
                 end,
-                raw: CompactString::from(raw_str),
-                data: CompactString::from(raw_str),
+                raw: Cow::Borrowed(raw_str),
+                data: Cow::Borrowed(raw_str),
             })))
         }
     }

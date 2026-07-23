@@ -2080,7 +2080,7 @@ fn build_attribute_value<'a>(
                 return match &parts[0] {
                     AttributeValuePart::Text(t) => {
                         let data = if trim_ws {
-                            collapse_ws(t.data.as_str())
+                            collapse_ws(t.data.as_ref())
                         } else {
                             t.data.to_string()
                         };
@@ -2102,7 +2102,7 @@ fn build_attribute_value<'a>(
                 match part {
                     AttributeValuePart::Text(t) => {
                         let data = if trim_ws {
-                            collapse_ws_no_trim(t.data.as_str())
+                            collapse_ws_no_trim(t.data.as_ref())
                         } else {
                             t.data.to_string()
                         };
@@ -2263,9 +2263,9 @@ fn fold_sequence_static<'a>(
             // upstream `build_attribute_value`'s `replace(regex_whitespaces_strict, ' ')`.
             // The trailing trim only happens at the css-hash join in the caller.
             AttributeValuePart::Text(t) if trim_ws => {
-                out.push_str(&collapse_ws_no_trim(t.data.as_str()))
+                out.push_str(&collapse_ws_no_trim(t.data.as_ref()))
             }
-            AttributeValuePart::Text(t) => out.push_str(t.data.as_str()),
+            AttributeValuePart::Text(t) => out.push_str(t.data.as_ref()),
             AttributeValuePart::ExpressionTag(tag) => {
                 let ev = state
                     .eval_ctx()
@@ -2306,7 +2306,7 @@ fn static_text_of(parts: &[AttributeValuePart], trim_ws: bool) -> Option<String>
     let mut s = String::new();
     for part in parts {
         match part {
-            AttributeValuePart::Text(t) => s.push_str(t.data.as_str()),
+            AttributeValuePart::Text(t) => s.push_str(t.data.as_ref()),
             AttributeValuePart::ExpressionTag(_) => return None,
         }
     }

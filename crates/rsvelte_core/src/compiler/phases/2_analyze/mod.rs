@@ -164,7 +164,7 @@ pub fn analyze_component(
                                     if matches!(
                                         parts.first(),
                                         Some(crate::ast::AttributeValuePart::Text(t))
-                                            if t.data.as_str() == "ts" || t.data.as_str() == "typescript"
+                                            if t.data.as_ref() == "ts" || t.data.as_ref() == "typescript"
                                     )
                             )
                     })

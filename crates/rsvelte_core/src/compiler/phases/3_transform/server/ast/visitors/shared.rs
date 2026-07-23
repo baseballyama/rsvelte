@@ -19,7 +19,7 @@
 //! `build_template`.
 
 use crate::ast::js::Expression;
-use crate::ast::template::{Fragment, RegularElement, TemplateNode, Text};
+use crate::ast::template::{Fragment, RegularElement, TemplateNode};
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 use crate::compiler::phases::phase3_transform::shared::template::escape_html;
 use crate::compiler::phases::phase3_transform::utils::{
@@ -242,7 +242,7 @@ pub fn process_children_inner<'a>(
 
     for node in &cleaned {
         match node.as_ref() {
-            TemplateNode::Text(t) => sequence.push(SeqNode::Text(t.data.as_str())),
+            TemplateNode::Text(t) => sequence.push(SeqNode::Text(t.data.as_ref())),
             TemplateNode::Comment(c) => sequence.push(SeqNode::Comment(c.data.as_str())),
             TemplateNode::ExpressionTag(tag) => {
                 // SAFETY-of-borrow: `tag` lives in `cleaned`, but the expression
@@ -436,7 +436,7 @@ fn clean_whitespace<'n, 'b>(
             continue;
         };
 
-        let mut data: Cow<'_, str> = Cow::Borrowed(text.data.as_str());
+        let mut data: Cow<'_, str> = Cow::Borrowed(text.data.as_ref());
 
         // Trim the very first / last Text node's outer whitespace entirely.
         if i == 0 {
@@ -470,11 +470,11 @@ fn clean_whitespace<'n, 'b>(
             continue;
         }
 
-        if data.as_ref() == text.data.as_str() {
+        if data.as_ref() == text.data.as_ref() {
             out.push(Cow::Borrowed(node));
         } else {
-            let mut new_text: Text = text.clone();
-            new_text.data = CompactString::new(data.as_ref());
+            let mut new_text = text.clone();
+            new_text.data = Cow::Owned(data.into_owned());
             out.push(Cow::Owned(TemplateNode::Text(new_text)));
         }
     }
@@ -482,7 +482,7 @@ fn clean_whitespace<'n, 'b>(
     // `<pre>`: drop a leading lone-newline Text node (browser would re-add it).
     if matches!(parent, Some(el) if el.name.as_str() == "pre")
         && let Some(TemplateNode::Text(t)) = out.first().map(|c| c.as_ref())
-        && (t.data.as_str() == "\n" || t.data.as_str() == "\r\n")
+        && (t.data.as_ref() == "\n" || t.data.as_ref() == "\r\n")
     {
         out.remove(0);
     }

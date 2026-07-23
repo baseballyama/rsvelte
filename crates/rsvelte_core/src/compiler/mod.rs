@@ -1057,7 +1057,7 @@ fn remove_typescript_from_ast(ast: &mut crate::ast::Root) -> Result<(), crate::e
                 && let AttributeValue::Sequence(parts) = &attr.value
                 && let Some(AttributeValuePart::Text(t)) = parts.first()
             {
-                let lang = t.data.as_str();
+                let lang = t.data.as_ref();
                 return lang == "ts" || lang == "typescript";
             }
         }

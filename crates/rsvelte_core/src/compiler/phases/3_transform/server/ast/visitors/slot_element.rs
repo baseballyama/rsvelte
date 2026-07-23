@@ -169,7 +169,7 @@ fn slot_attribute_value<'a>(
         AttributeValue::Sequence(parts) => {
             if parts.len() == 1 {
                 return match &parts[0] {
-                    AttributeValuePart::Text(t) => state.b.string(t.data.as_str()),
+                    AttributeValuePart::Text(t) => state.b.string(t.data.as_ref()),
                     AttributeValuePart::ExpressionTag(tag) => state.visit_expr(&tag.expression),
                 };
             }
@@ -185,7 +185,7 @@ fn slot_attribute_value<'a>(
             for part in parts {
                 match part {
                     AttributeValuePart::Text(t) => {
-                        quasis.last_mut().unwrap().push_str(t.data.as_str());
+                        quasis.last_mut().unwrap().push_str(t.data.as_ref());
                     }
                     AttributeValuePart::ExpressionTag(tag) => {
                         let evaluation = state

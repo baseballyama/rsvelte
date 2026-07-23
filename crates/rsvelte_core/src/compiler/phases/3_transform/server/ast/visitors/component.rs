@@ -971,7 +971,7 @@ fn component_attribute_value<'a>(
             // Single-element sequence collapses to its lone part.
             if parts.len() == 1 {
                 return match &parts[0] {
-                    AttributeValuePart::Text(t) => state.b.string(t.data.as_str()),
+                    AttributeValuePart::Text(t) => state.b.string(t.data.as_ref()),
                     AttributeValuePart::ExpressionTag(tag) => {
                         component_value_expr(&tag.expression, optimiser, state)
                     }
@@ -995,7 +995,7 @@ fn component_attribute_value<'a>(
             for part in parts {
                 match part {
                     AttributeValuePart::Text(t) => {
-                        quasis.last_mut().unwrap().push_str(t.data.as_str());
+                        quasis.last_mut().unwrap().push_str(t.data.as_ref());
                     }
                     AttributeValuePart::ExpressionTag(tag) => {
                         let evaluation = state

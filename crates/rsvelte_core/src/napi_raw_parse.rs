@@ -644,8 +644,8 @@ fn write_opt_inline_json<W: Writer, T: Serialize>(
 
 fn write_text<W: Writer>(w: &mut W, t: &Text) {
     write_preamble(w, TAG_TEXT, t.start, t.end);
-    write_str(w, t.raw.as_str());
-    write_str(w, t.data.as_str());
+    write_str(w, t.raw.as_ref());
+    write_str(w, t.data.as_ref());
 }
 
 fn write_comment<W: Writer>(w: &mut W, c: &Comment) {

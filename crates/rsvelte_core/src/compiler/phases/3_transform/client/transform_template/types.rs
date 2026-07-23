@@ -15,11 +15,15 @@ pub struct Element {
     pub is_html: bool,
 }
 
-/// Text node in the template
+/// Text node in the template.
+///
+/// The stored `Text` is owned (`'static`): this codegen IR outlives the borrow
+/// of the parse source, so text pushed here is converted to owned at the
+/// boundary (see `Template::push_text`).
 #[derive(Debug, Clone)]
 pub struct TextNode {
     pub node_type: &'static str, // Always "text"
-    pub nodes: Vec<Text>,
+    pub nodes: Vec<Text<'static>>,
 }
 
 /// Comment node in the template

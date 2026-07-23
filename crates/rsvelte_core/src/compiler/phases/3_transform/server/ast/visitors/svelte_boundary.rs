@@ -263,7 +263,7 @@ fn failed_attribute_value<'a>(
         AttributeValue::Expression(tag) => state.visit_expr(&tag.expression),
         AttributeValue::Sequence(parts) if parts.len() == 1 => match &parts[0] {
             AttributeValuePart::ExpressionTag(tag) => state.visit_expr(&tag.expression),
-            AttributeValuePart::Text(t) => state.b.string(t.data.as_str()),
+            AttributeValuePart::Text(t) => state.b.string(t.data.as_ref()),
         },
         _ => state.b.bool(true),
     }

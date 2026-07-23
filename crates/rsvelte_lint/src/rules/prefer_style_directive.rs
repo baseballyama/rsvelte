@@ -155,7 +155,7 @@ fn parse_style_value(parts: &[AttributeValuePart], source: &str) -> Vec<RootNode
     for part in parts {
         match part {
             AttributeValuePart::Text(t) => {
-                let text = t.raw.as_str();
+                let text = t.raw.as_ref();
                 let base = t.start;
                 let bytes = text.as_bytes();
                 let mut i = 0usize;

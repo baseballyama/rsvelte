@@ -53,7 +53,7 @@ pub fn visit<'a, 'b: 'a>(
                         && let Some(AttributeValuePart::Text(text)) = parts.first()
                     {
                         // "default" is a reserved word
-                        if text.data.as_str() == "default" {
+                        if text.data.as_ref() == "default" {
                             return Err(errors::slot_element_invalid_name_default());
                         }
                         name = text.data.to_string();

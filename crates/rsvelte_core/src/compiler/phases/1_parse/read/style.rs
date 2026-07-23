@@ -35,7 +35,7 @@ fn has_non_css_lang<'a>(attributes: &[crate::ast::Attribute<'a>]) -> bool {
             && let AttributeValue::Sequence(parts) = &node.value
             && let Some(AttributeValuePart::Text(t)) = parts.first()
         {
-            let lang = t.data.as_str().trim().to_ascii_lowercase();
+            let lang = t.data.as_ref().trim().to_ascii_lowercase();
             return !lang.is_empty() && lang != "css";
         }
     }

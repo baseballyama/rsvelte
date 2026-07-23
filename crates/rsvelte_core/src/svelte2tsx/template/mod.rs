@@ -6129,7 +6129,7 @@ fn format_attribute_node_segments(
                 && parts.len() == 1
                 && let AttributeValuePart::Text(text) = &parts[0]
             {
-                let data = text.data.as_str();
+                let data = text.data.as_ref();
                 let has_backtick = data.contains('`');
                 let quote = if !has_backtick {
                     '`'

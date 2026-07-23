@@ -424,9 +424,9 @@ fn convert_text(text: &Text, path: &[&str]) -> Value {
     result.insert("start".to_string(), json!(text.start));
     result.insert("end".to_string(), json!(text.end));
     if !in_style {
-        result.insert("raw".to_string(), json!(text.raw.as_str()));
+        result.insert("raw".to_string(), json!(text.raw.as_ref()));
     }
-    result.insert("data".to_string(), json!(text.data.as_str()));
+    result.insert("data".to_string(), json!(text.data.as_ref()));
     Value::Object(result)
 }
 

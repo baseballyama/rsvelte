@@ -99,7 +99,7 @@ fn is_empty_fragment(fragment: &Fragment) -> bool {
     fragment
         .nodes
         .iter()
-        .all(|n| matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())))
+        .all(|n| matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())))
 }
 
 /// Emit the open-tag + close-tag rewrite edits for one attribute-bearing
@@ -1957,7 +1957,7 @@ fn static_attribute_text(parts: &[AttributeValuePart]) -> Option<String> {
     let mut out = String::new();
     for part in parts {
         match part {
-            AttributeValuePart::Text(t) => out.push_str(t.raw.as_str()),
+            AttributeValuePart::Text(t) => out.push_str(t.raw.as_ref()),
             AttributeValuePart::ExpressionTag(_) => return None,
         }
     }
@@ -2119,7 +2119,7 @@ fn render_value_sequence_doc(
     for part in parts {
         match part {
             AttributeValuePart::Text(t) => {
-                let (doc, w) = attr_text_chunk_doc(t.raw.as_str());
+                let (doc, w) = attr_text_chunk_doc(t.raw.as_ref());
                 docs.push(doc);
                 col += w;
             }
@@ -2252,7 +2252,7 @@ fn render_attribute_value_sequence(
                 // Emit the RAW source text, not the entity-decoded `data` — a value
                 // like `title="&quot;"` must keep `&quot;` (decoding it to `"` would
                 // prematurely close the quoted value and corrupt the markup).
-                out.push_str(t.raw.as_str());
+                out.push_str(t.raw.as_ref());
             }
             AttributeValuePart::ExpressionTag(tag) => {
                 let inner_src = expression_tag_inner(tag, source).trim();
@@ -2307,7 +2307,7 @@ fn render_attribute_value_sequence(
                     for p in &parts[i + 1..] {
                         match p {
                             AttributeValuePart::Text(t) => {
-                                let raw = t.raw.as_str();
+                                let raw = t.raw.as_ref();
                                 if let Some(nl) = raw.find('\n') {
                                     trailing_cols += visual_width(&raw[..nl]);
                                     break;

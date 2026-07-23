@@ -187,7 +187,7 @@ pub fn get_attribute_chunks<'a>(
 /// A chunk of an attribute value (text or expression).
 #[derive(Debug)]
 pub enum AttributeChunk<'a> {
-    Text(&'a crate::ast::template::Text),
+    Text(&'a crate::ast::template::Text<'a>),
     Expression(&'a crate::ast::template::ExpressionTag<'a>),
 }
 

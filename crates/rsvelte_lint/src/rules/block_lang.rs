@@ -96,7 +96,7 @@ fn get_script_lang(script: &Script) -> Option<String> {
             .iter()
             .filter_map(|p| {
                 if let AttributeValuePart::Text(t) = p {
-                    Some(t.data.as_str())
+                    Some(t.data.as_ref())
                 } else {
                     None
                 }

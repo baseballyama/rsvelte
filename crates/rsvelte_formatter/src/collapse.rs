@@ -96,7 +96,7 @@ pub(crate) fn fragment_has_collapse_candidate(fragment: &Fragment) -> bool {
     fragment.nodes.iter().any(|n| {
         if let Some((child, has_attrs)) = element_container(n) {
             let direct_hit = child.nodes.iter().any(|cn| match cn {
-                TemplateNode::Text(t) => !crate::is_blank_text(t.data.as_str()),
+                TemplateNode::Text(t) => !crate::is_blank_text(t.data.as_ref()),
                 TemplateNode::ExpressionTag(_) => true,
                 _ => has_attrs && element_container(cn).is_some(),
             });
@@ -1388,7 +1388,7 @@ fn fill_inline_runs(
     // element bodies (`<P>`) where prettier preserves the line break regardless.
     let has_non_run_block_siblings = nodes.iter().any(|n| {
         !is_run_member(out, n)
-            && !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str()))
+            && !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
     });
     let allow_elem_expr_collapse = is_block_body && !has_non_run_block_siblings;
 
@@ -1436,12 +1436,12 @@ fn try_fill_run(
     let mut lo = 0;
     let mut hi = run.len();
     while lo < hi
-        && matches!(&run[lo], TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str()))
+        && matches!(&run[lo], TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
     {
         lo += 1;
     }
     while hi > lo
-        && matches!(&run[hi - 1], TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str()))
+        && matches!(&run[hi - 1], TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
     {
         hi -= 1;
     }
@@ -1462,7 +1462,7 @@ fn try_fill_run(
     // Count non-whitespace-only nodes in the run.
     let non_ws_count = run
         .iter()
-        .filter(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())))
+        .filter(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())))
         .count();
     let has_element_content = non_ws_count > 1
         && run.iter().any(|n| match n {
@@ -1831,10 +1831,10 @@ fn collect_break_block_non_ws_prefix(
                         // Find first and last non-whitespace children.
                         if let (Some(first_child), Some(last_child)) = (
                             e.fragment.nodes.iter().find(
-                                |n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())),
+                                |n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())),
                             ),
                             e.fragment.nodes.iter().rfind(
-                                |n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())),
+                                |n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())),
                             ),
                         ) {
                             let first_start = node_start(first_child) as usize;
@@ -1897,7 +1897,7 @@ fn collect_break_inline_open_tag(
                 // Example: `  <script></script>{@html ...}` (86 chars) →
                 //          `  <script\n  ></script>{@html ...}`.
                 let elem_fragment_empty = e.fragment.nodes.iter().all(
-                    |n| matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())),
+                    |n| matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())),
                 );
                 if (is_block_display(e.name.as_str()) || is_whitespace_preserving(e.name.as_str()))
                     && e.attributes.is_empty()
@@ -4183,7 +4183,7 @@ fn try_break_content_tag_block(
     // Exactly one non-whitespace child, and it must be a content tag.
     let mut child: Option<&TemplateNode> = None;
     for n in &fragment.nodes {
-        if matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())) {
+        if matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())) {
             continue;
         }
         if child.is_some() {
@@ -4351,11 +4351,11 @@ fn try_break_block_overflow(
     let first_child = fragment
         .nodes
         .iter()
-        .find(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())))?;
+        .find(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())))?;
     let last_child = fragment
         .nodes
         .iter()
-        .rfind(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())))?;
+        .rfind(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())))?;
 
     let first_start = node_start(first_child) as usize;
     let last_end = node_end(last_child) as usize;
@@ -4432,11 +4432,11 @@ fn try_break_block_multiline_content(
     let first_child = fragment
         .nodes
         .iter()
-        .find(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())))?;
+        .find(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())))?;
     let last_child = fragment
         .nodes
         .iter()
-        .rfind(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())))?;
+        .rfind(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())))?;
 
     let first_start = node_start(first_child) as usize;
     let last_end = node_end(last_child) as usize;
@@ -5641,7 +5641,7 @@ fn try_fill_mixed(
             .nodes
             .iter()
             .filter(
-                |n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())),
+                |n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())),
             )
             .count();
         let element_one_line = column + open.width() + flat.width() + close.width();
