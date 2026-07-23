@@ -389,6 +389,17 @@ assert(
 		batchThrew = true;
 	}
 	assert('compileBatch throws on a dynamic cssHash', batchThrew);
+
+	// compileBatchAsync rejects a dynamic cssHash too (no per-file callback bridge).
+	let batchAsyncThrew = false;
+	try {
+		await r.compileBatchAsync([
+			{ source: src, options: { filename: 'Bt.svelte', cssHash: () => 'x' } },
+		]);
+	} catch {
+		batchAsyncThrew = true;
+	}
+	assert('compileBatchAsync throws on a dynamic cssHash', batchAsyncThrew);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

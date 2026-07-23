@@ -276,7 +276,7 @@ pub async fn napi_compile_with_css_hash(
     )]
     css_hash: css_hash_bridge::JsCssHashCb,
 ) -> napi::Result<Value> {
-    let mut opts = options_to_compile(options);
+    let mut opts = options_to_compile(options)?;
     let handle: css_hash_bridge::Handle =
         std::sync::Arc::new(std::sync::RwLock::new(Some(css_hash)));
     // A throwing cssHash surfaces here so it can be propagated as a compile

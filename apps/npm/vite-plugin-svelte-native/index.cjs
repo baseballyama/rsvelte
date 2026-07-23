@@ -51,13 +51,9 @@ try {
 	);
 }
 
-// Resolve the function-form compile options the NAPI boundary can't accept:
-// evaluate `customElement`/`css`/`runes` (`({ filename }) => value`) once and hand
-// the plain value to Rust, and return any `warningFilter` for the caller to
-// post-filter the warnings array (warnings never affect codegen, so post-filtering
-// equals Svelte's emit-time filter). A dynamic `cssHash` uses the callback bridge
-// (`compileWithCssHash`); constant hashes go through `cssHashOverride`. When no
-// field is a function the original object is returned as-is.
+// The NAPI boundary can't accept function values, so resolve them here: evaluate
+// `customElement`/`css`/`runes` and hand back `warningFilter` for the caller to
+// post-filter warnings (which never affect codegen).
 function prepareCompileOptions(options) {
 	if (options == null) return { options, warningFilter: undefined };
 	const { customElement, css, runes, warningFilter } = options;
@@ -79,9 +75,8 @@ function prepareCompileOptions(options) {
 	return { options: resolved, warningFilter: hasWarningFilter ? warningFilter : undefined };
 }
 
-// Port of Svelte's `hash()` (submodules/svelte/packages/svelte/src/utils.js) —
-// handed verbatim to a user `cssHash` callback as its `hash` argument so custom
-// scope-class functions produce the same digest as upstream Svelte.
+// Port of Svelte's `hash()` (submodules/svelte/packages/svelte/src/utils.js),
+// handed to a user `cssHash` callback so custom scope classes match upstream's digest.
 const regexReturnCharacters = /\r/g;
 function hash(str) {
 	str = str.replace(regexReturnCharacters, '');
@@ -91,14 +86,10 @@ function hash(str) {
 	return (h >>> 0).toString(36);
 }
 
-// Wrap a user `cssHash({ hash, css, name, filename }) => string` into the
-// `(name, filename, css) => Promise<{ value } | { error }>` shape the NAPI
-// callback bridge expects. It must never reject: a rejected Promise crossing the
-// NAPI boundary can crash V8 during threadsafe-function teardown. A thrown error
-// is carried as `{ error }` so Rust propagates it as a compile failure (matching
-// upstream, where a cssHash exception aborts compilation); a non-string return is
-// `{ value: null }`, which Rust maps to the default hash. `filename` is passed
-// through as-is (Svelte's '(unknown)' default included).
+// Adapt a user `cssHash` to the bridge shape. It must never reject: a rejected
+// Promise crossing the NAPI boundary can crash V8 during threadsafe-function
+// teardown — so a throw becomes `{ error }` (Rust turns it into a compile failure)
+// and a non-string return becomes `{ value: null }` (Rust falls back to the default hash).
 function makeCssHashCallback(userCssHash) {
 	return async (name, filename, css) => {
 		try {
@@ -138,10 +129,8 @@ function applyWarningFilter(result, warningFilter) {
 // parity testing and as an escape hatch.
 function compile(source, options) {
 	if (typeof options?.cssHash === 'function') {
-		// A dynamic cssHash depends on the component's CSS, so it needs the
-		// Rust→JS callback bridge, which can't run on the synchronous path
-		// without deadlocking the JS event loop. Direct the caller to the async
-		// entry instead of silently dropping the option.
+		// A dynamic cssHash needs the Rust→JS callback bridge, which would deadlock
+		// the JS event loop on the sync path; direct the caller to `compileAsync`.
 		throw new Error(
 			'[@rsvelte/vite-plugin-svelte-native] A dynamic `cssHash` function requires the async compile path; call `compileAsync(source, options)` instead. (A constant hash can use `cssHashOverride`.)',
 		);
@@ -163,9 +152,8 @@ function compileModule(source, options) {
 // exactly once. The returned array is the same length as the input;
 // each slot is either a `CompileResult` or an `Error` (parse
 // failures don't abort the whole batch).
-// Batch compilation runs on rayon workers with no JS event loop to service a
-// callback, so a dynamic cssHash can't be bridged here — reject it explicitly
-// rather than silently dropping it, matching the synchronous `compile`.
+// Batch compilation runs on rayon workers with no JS event loop to service the
+// callback, so a dynamic cssHash can't be bridged here — reject it rather than drop it.
 function assertNoDynamicCssHash(options) {
 	if (typeof options?.cssHash === 'function') {
 		throw new Error(
@@ -197,8 +185,7 @@ function compileBatch(inputs) {
 async function compileAsync(source, options) {
 	const { options: resolved, warningFilter } = prepareCompileOptions(options);
 	if (typeof options?.cssHash === 'function') {
-		// Bridge the dynamic cssHash through the async NAPI entry. It returns the
-		// plain (JSON) CompileResult shape rather than an envelope.
+		// The bridge entry returns a plain (JSON) CompileResult, not an envelope.
 		const result = await binding.compileWithCssHash(
 			source,
 			resolved,
