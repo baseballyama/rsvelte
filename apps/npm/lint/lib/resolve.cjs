@@ -1,7 +1,6 @@
-// Shared resolution helpers for the @rsvelte/lint CLI, used by both the JS
-// launcher (`bin/rsvelte-lint`, the fallback when `postinstall` didn't run) and
-// the `postinstall` script (`install.js`, which sets up the native-direct bin).
-// CommonJS so it loads from an extensionless launcher with no `"type"` field.
+// Shared resolution helpers for the @rsvelte/lint CLI, used by the JS launcher
+// (`bin/rsvelte-lint`) to find the platform-native binary. CommonJS so it
+// loads from an extensionless launcher with no `"type"` field.
 //
 // Unlike the sibling @rsvelte/fmt helper, rsvelte-lint has no external tool
 // dependency (fmt delegates non-`.svelte` files + `<style>` bodies to oxfmt);

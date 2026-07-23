@@ -1,13 +1,24 @@
 #!/usr/bin/env node
-// Fallback launcher for the @rsvelte/lint CLI.
+// Launcher for the @rsvelte/lint CLI.
 //
-// On a normal install the `postinstall` script (`install.js`) replaces THIS
-// file with a copy of the platform-native `rsvelte-lint` binary, so the
-// consumer runs the native binary directly with no Node startup cost. This JS
-// launcher only runs when `postinstall` didn't (e.g. `--ignore-scripts`, or a
-// package manager that gates build scripts): it resolves the right
-// `@rsvelte/lint-<triple>` binary and execs it — correct, just paying one Node
-// cold start per invocation.
+// This resolves the right `@rsvelte/lint-<triple>` binary and execs it,
+// forwarding argv/stdio and propagating the exit code/signal — one Node cold
+// start per invocation.
+//
+// There used to be a `postinstall` step that swapped this file for the
+// native binary in place (an esbuild-style trick to skip the Node start), but
+// package managers don't agree on how `bin` entries reach the native binary:
+// npm/yarn classic symlink `node_modules/.bin/<name>` straight at this file,
+// so replacing its bytes made the symlink point at the native binary and it
+// ran directly. pnpm instead generates a shim script, and it decides the
+// shim's interpreter by sniffing THIS file's shebang at link time — before
+// postinstall has necessarily run. If the sniff sees `#!/usr/bin/env node`
+// (this file, pre-swap) it bakes `exec node ".../bin/rsvelte-lint" "$@"` into
+// the shim permanently; postinstall's later swap to a native binary just
+// makes that baked-in Node try to parse Mach-O/ELF bytes as JS
+// (`SyntaxError: Invalid or unexpected token`, #1723). Never mutating this
+// file removes the race: every package manager's shim/symlink correctly runs
+// it via Node, always.
 //
 // Unlike @rsvelte/fmt this launcher has nothing extra to wire up: the linter is
 // self-contained (no oxfmt delegation, no runtime sidecar). It just resolves

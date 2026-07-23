@@ -23,12 +23,8 @@
   "bin": {
     "rsvelte-lint": "bin/rsvelte-lint"
   },
-  "scripts": {
-    "postinstall": "node install.js"
-  },
   "files": [
     "bin/rsvelte-lint",
-    "install.js",
     "lib/resolve.cjs"
   ],
   "optionalDependencies": {
