@@ -1,5 +1,154 @@
 # @rsvelte/fmt
 
+## 0.7.0
+
+### Minor Changes
+
+- 5ff3dac: feat(fmt): honor sortTailwindcss.functions in the native Svelte path
+
+  `sortTailwindcss` previously sorted only fully static `class` attribute values.
+  The oxfmt option `sortTailwindcss.functions` — sorting the class strings passed
+  to wrapper calls like `cn(...)` / `cva(...)` / `clsx(...)` — was ignored inside
+  `.svelte` files.
+
+  rsvelte-fmt now mirrors oxfmt's `.svelte` pipeline (verified byte-for-byte
+  against `oxfmt` + `prettier-plugin-tailwindcss`):
+
+  - **`<script>` bodies**: string and substitution-free template-literal arguments
+    of a call whose callee is a bare identifier listed in `functions` are sorted.
+    The descent stops at a nested call, so `cn(a, notcn("…"))` sorts only `a`; a
+    nested call is sorted only when its own callee matches. Object keys, arrays,
+    and nested plain containers inside a matched call are sorted.
+  - **`class={…}` mustaches** (and any configured `attributes`): every class
+    literal in the expression is sorted, regardless of an enclosing call — matching
+    the plugin's `transformSvelte`, which is not function-gated. `class:` directives
+    and standalone `{expr}` mustaches are left untouched.
+
+  Template literals with `${…}` interpolations are sorted per static quasi; the
+  token abutting an interpolation is pinned (`cn(\`flex m-2 ${x}\`)`keeps its
+structure), matching`prettier-plugin-tailwindcss`.
+
+  Sorting routes through the same class sorter as static attributes, so the native
+  (zero-config) and Node-sidecar (custom-config) paths both apply. The default path
+  stays untouched when `functions` is unset, and the fmt-parity corpus gate (sort
+  off) is unaffected. Mixed static-plus-`{expr}` class attribute values remain out
+  of scope.
+
+- ec08b68: feat(fmt): sort custom Tailwind configs via a Node sidecar
+
+  `sortTailwindcss` previously covered only a stock, zero-config Tailwind v4 setup
+  (sorted natively in Rust); a custom `@theme` / `@plugin` / `@utility` /
+  `@custom-variant` / `@config` stylesheet or a v3 `tailwind.config.js` warned and
+  left classes untouched, because their order depends on the project's compiled
+  CSS.
+
+  For those custom setups `rsvelte-fmt` now shells out to a one-shot Node sidecar
+  (`lib/tailwind-sort.mjs`) running the real `prettier-plugin-tailwindcss` — the
+  same plugin and `createSorter` / `sortClassAttributes` API `oxfmt` uses, pinned
+  to the same insiders build — so the result is byte-for-byte identical to the
+  oxfmt oracle. Every static class string across the run is collected and sorted
+  in a single batched sidecar call, and the sidecar never throws: if Node or the
+  plugin is unavailable the run warns once and leaves class names unchanged, never
+  a wrong reorder. The default zero-config path stays pure-Rust with no subprocess.
+
+  Adds an rsvelte-only `sortTailwindcss.strategy` extension (not an oxfmt key):
+  `auto` (default — stock native, custom via JS), `native` (always pure-Rust), and
+  `js` (always the JS oracle, even for a stock config). With the default `auto` an
+  existing oxfmt `sortTailwindcss` config works unchanged.
+
+### Patch Changes
+
+- b269efc: fix(deps): update prettier-plugin-tailwindcss to 0.8.1
+
+  Dependency-only bump of the `prettier-plugin-tailwindcss` Node sidecar used by
+  `rsvelte-fmt`'s custom-Tailwind-config sort path (`lib/tailwind-sort.mjs`), from
+  a pre-release insiders build to the stable 0.8.1 release that `tailwind_class_order`'s
+  oracle is already measured against. No sort-output changes; formatter parity
+  corpus tests pass unchanged.
+
+- 9da5da9: fix(formatter): force block-header call expressions onto one line
+
+  A block header like `{#if isNodeVisible(node, nodes.find(...))}` whose call oxc
+  expands even at unlimited width (a hug-eligible last argument) was spliced into
+  the template as a raw multi-line fragment at the wrong indent. prettier-plugin-
+  svelte reprints block headers with `removeLines`, which keeps a group's baked
+  `shouldBreak` — so such a call joins onto one line with inner spaces
+  (`fn( a, b )`) while every other call collapses without them. The flat-args
+  expanded form is now folded back the same way: inner-space join for the shapes
+  oxc refuses to keep flat, plain single line otherwise.
+
+- b32fd20: fix(fmt): match prettier for two `bracketSameLine` empty/whitespace element cases
+
+  Under `bracketSameLine: true` two residual divergences from prettier-plugin-svelte
+  are fixed (both pre-existing, no effect on the default `false`):
+
+  - a deliberate whitespace-only inline element in prose (`<p>text <span>   </span>
+text</p>`) now keeps prettier's non-hug body (`<span> </span>`) instead of
+    collapsing to the source-empty hug form — the source whitespace is told apart
+    from the wrap artifact an earlier pass inserts into source-empty wrapped
+    elements;
+  - a standalone source-empty element with a long wrapping open tag (a block
+    element's lone `<span class="…long…"></span>`) now dedents its `>` onto its own
+    line and glues `></span>` (applying `canOmitSoftlineBeforeClosingTag`) instead
+    of gluing the `>` to the last attribute and dangling `</span>`.
+
+- 08a5942: Honour `bracketSameLine` in the children-port pass so an element whose first child is an inline `{#if}` / `{#each}` block keeps the wrapped open tag's `>` glued to the last attribute instead of dangling it onto its own line, matching prettier-plugin-svelte.
+- 54debca: fix(formatter): break a prose expression/render tag's call arguments in place
+
+  A long call inside an expression or render tag in prose (`… LineChart. {format(
+chartData.length,
+)} data points`) was treated as an atomic fill word, so rsvelte wrapped at the
+  word boundary before it instead of breaking the call's arguments in place and
+  gluing the following word to the `)}` line. Prettier builds such a paragraph as
+  fill + expression-tag concat + fill — the tag sits outside the fill with its own
+  call-arguments group — so the tag breaks internally while its neighbors stay
+  glued. Element-body prose now represents multi-line content tags as a breakable
+  flat/broken doc inside the run, reproducing that layout; all other call sites
+  keep the previous atomic behavior.
+
+- cc5667b: Claim `{@render …}` tags in the children layout port (fixing which element dangles its close tag inside `{#if}/{:else if}` branches), print a whitespace-only element body as a single space, and follow prettier's `<pre>` child open-tag rules: dangle the child's `>` on multi-line content or overflow, re-hug it only when the attributes break, and break a child element's tag in preference to the `<pre>`'s own attributes.
+- 649985e: Classify a text run's boundary whitespace from the pre-collapse source instead of the intermediate multi-pass output, so prose following a hug-broken inline element keeps prettier's word-first fill and wraps at the print width.
+- 9da5da9: fix(formatter): don't double-indent interpolation-led attribute value continuations
+
+  The whole-value attribute Doc model baked the absolute attribute indent into
+  continuation lines, but the open-tag assembly re-indents interpolation-led
+  values (`value="{…}"`) a second time — text-led values (`class="text {…}"`) are
+  kept verbatim — so a wrapped interpolation's continuation landed at double the
+  intended column. The model's base indent now matches that split: absolute for
+  text-led (verbatim) values, relative for interpolation-led (re-indented) ones.
+  Break-point selection is unchanged.
+
+- 9e1a73e: Reflow an overflowing single-line prose run beside a block sibling (e.g. long text inside a Component body with a block `<div slot>` child) instead of leaving it on one 100+ column line — prettier's fill always wraps a lone overflowing text node.
+- 649985e: Dangle a void element's `/>` onto its own line when the open tag overflows the print width (`<br\n/>`), matching prettier; fitting void elements are unchanged.
+- 66efcaf: fix(fmt): break the whitespace body of a wrapping inline element (#1707)
+
+  An inline element with a whitespace-only body whose open tag wraps
+  (`<span class="…long…"> </span>`) was formatted by the non-port markup path with
+  the raw whitespace glued after the wrapped `>` (`…"`\n`> </span>`). That both
+  diverged from the prettier-plugin-svelte oracle and was non-idempotent — a
+  multi-space body collapsed to a single space on a re-format.
+
+  prettier prints such an element as `group([...openingTag, '>', line, '</tag>'])`,
+  so the whitespace body is a `line` that breaks once the wrapped open tag forces
+  the group open: the `>` glues to the last attribute line under `bracketSameLine`
+  (else dedents) and the close tag drops to its own line, absorbing the whitespace.
+  Output is now byte-identical to the oracle and idempotent for both
+  `bracketSameLine` values.
+
+  `<textarea>` is handled as the raw-text exception the oracle applies: `>` stays
+  glued (never dedented for this shape), `bracketSameLine: true` breaks the body,
+  and the default `false` glues the close tag and drops the whitespace body
+  (`…"></textarea>`). Source-empty inline elements (`<span></span>`, hug) and
+  block-display elements are left to their existing layout. Also aligns
+  `can_omit_softline_before_closing_tag` with prettier's `blockElements` (excluding
+  `script`/`style`) via `is_html_block_display_element`.
+
+  Also fixes a crash this uncovered: when the new whitespace-body edit overlapped
+  the indent pass's edit on the same text node, the top-level section-span remap
+  double-counted the dropped edit and shifted a later `<style>`/`<script>` boundary
+  past the output end, panicking during section reorder. The remap is now computed
+  from the overlap-resolved edit set, so it always agrees with the applied output.
+
 ## 0.6.2
 
 ### Patch Changes
