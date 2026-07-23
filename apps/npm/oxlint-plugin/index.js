@@ -55,12 +55,28 @@ function analyze(fullSource, filename) {
 		list.push({ ...d, startOffset, endOffset, inScript: inSomeScript(startOffset) });
 	}
 
-	const analysis = { byKey };
+	const analysis = { byKey, reported: new Map() };
 	if (analysisCache.size >= MAX_ANALYSIS_CACHE) {
 		analysisCache.delete(analysisCache.keys().next().value);
 	}
 	analysisCache.set(fullSource, analysis);
 	return analysis;
+}
+
+// Per (rule, file-content) de-dup: a dual-`<script>` component is visited once
+// per block, so markup diagnostics would otherwise repeat. Keyed off the
+// analysis object (itself cached by exact source content, see `analyze`)
+// rather than off visit order: `createOnce` runs its returned visitor once for
+// the *whole* oxlint invocation, so its closure state is shared across every
+// file being linted, and oxlint does not guarantee a file's several blocks are
+// visited back-to-back during a multi-file run. Tracking "the previously seen
+// source" in that shared closure breaks as soon as another file's block is
+// visited in between — it looks like a new file, so the de-dup set resets and
+// the diagnostic is reported again on the next block of the same file.
+function reportedSetFor(analysis, ruleName) {
+	let set = analysis.reported.get(ruleName);
+	if (!set) analysis.reported.set(ruleName, (set = new Set()));
+	return set;
 }
 
 // Map a whole-file offset span into the current `<script>` block's coordinate
@@ -82,11 +98,6 @@ function makeRule(entry) {
 			docs: { description: entry.description },
 		},
 		createOnce(context) {
-			// Per (rule, file-revision) de-dup: a dual-`<script>` component is
-			// visited once per block, so markup diagnostics would otherwise repeat.
-			let revision = '';
-			let emitted = new Set();
-
 			return {
 				Program() {
 					const filename = context.physicalFilename || context.filename;
@@ -99,14 +110,10 @@ function makeRule(entry) {
 						return;
 					}
 
-					if (revision !== fullSource) {
-						revision = fullSource;
-						emitted = new Set();
-					}
-
 					const analysis = analyze(fullSource, filename);
 					const diags = analysis.byKey.get(entry.name);
 					if (!diags || diags.length === 0) return;
+					const emitted = reportedSetFor(analysis, entry.name);
 
 					// The block oxlint is showing us right now, in the file's own
 					// offsets. Use oxlint's exact extracted text as the origin so our
