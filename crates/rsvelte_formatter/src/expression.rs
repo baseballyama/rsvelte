@@ -1785,12 +1785,108 @@ fn has_word_await(s: &str) -> bool {
     false
 }
 
+/// A reserved word or contextual keyword that a bare word matching the
+/// identifier grammar must NOT be treated as an identifier reference: some
+/// (`class`, `for`, `await` in a module) would fail to parse as a bare
+/// expression, so emitting the slice verbatim would turn an error into output.
+/// Conservative on purpose — a real identifier that happens to be listed here
+/// (e.g. `async` used as a variable) simply falls through to the oxc path,
+/// which still emits it verbatim.
+fn is_reserved_ident(s: &str) -> bool {
+    matches!(
+        s,
+        "await"
+            | "break"
+            | "case"
+            | "catch"
+            | "class"
+            | "const"
+            | "continue"
+            | "debugger"
+            | "default"
+            | "delete"
+            | "do"
+            | "else"
+            | "enum"
+            | "export"
+            | "extends"
+            | "false"
+            | "finally"
+            | "for"
+            | "function"
+            | "if"
+            | "import"
+            | "in"
+            | "instanceof"
+            | "new"
+            | "null"
+            | "return"
+            | "super"
+            | "switch"
+            | "this"
+            | "throw"
+            | "true"
+            | "try"
+            | "typeof"
+            | "var"
+            | "void"
+            | "while"
+            | "with"
+            | "yield"
+            | "let"
+            | "static"
+            | "async"
+            | "of"
+            | "as"
+            | "satisfies"
+            | "get"
+            | "set"
+    )
+}
+
+/// A bare ASCII identifier reference (`foo`, `_x`, `$store`, `$$props`): first
+/// byte an identifier start, the rest identifier continues, and not a reserved
+/// word. The oxc formatter emits such a token verbatim at any width.
+fn is_plain_identifier(s: &str) -> bool {
+    let b = s.as_bytes();
+    let Some(&first) = b.first() else {
+        return false;
+    };
+    if !(first.is_ascii_alphabetic() || first == b'_' || first == b'$') {
+        return false;
+    }
+    if !b[1..]
+        .iter()
+        .all(|&c| c.is_ascii_alphanumeric() || c == b'_' || c == b'$')
+    {
+        return false;
+    }
+    !is_reserved_ident(s)
+}
+
+/// Fast path for [`format_expr_core`]: if the trimmed source is an atomic token
+/// the oxc formatter would emit unchanged regardless of print width, return that
+/// slice so the parse+format round-trip can be skipped. The predicate is strict
+/// — it must never accept an expression whose formatted form would differ from
+/// its verbatim source, so anything not provably identity-formatted returns
+/// `None` and falls through to the full path.
+fn trivial_expr_verbatim(expr_source: &str) -> Option<&str> {
+    let s = expr_source.trim();
+    if is_plain_identifier(s) {
+        return Some(s);
+    }
+    None
+}
+
 fn format_expr_core(
     expr_source: &str,
     options: &FormatOptions,
     line_width: oxc_formatter_core::LineWidth,
     single_line: bool,
 ) -> Result<String, FormatError> {
+    if let Some(out) = trivial_expr_verbatim(expr_source) {
+        return Ok(out.to_string());
+    }
     let allocator = crate::scratch::acquire();
 
     // The wrapper and source type used to parse the expression snippet vary
@@ -3717,6 +3813,33 @@ pub(crate) fn expand_obj_arg_call(s: &str, indent_width: usize) -> Option<String
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn trivial_fastpath_accepts_plain_identifiers() {
+        for src in ["foo", "  foo  ", "_x", "$store", "$$props", "a1", "Comp"] {
+            assert_eq!(
+                trivial_expr_verbatim(src),
+                Some(src.trim()),
+                "expected fast-path accept for {src:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn trivial_fastpath_rejects_reserved_and_nonidentifiers() {
+        // Reserved words / contextual keywords fall through to the oxc path.
+        for src in [
+            "this", "true", "false", "null", "await", "class", "for", "async", "let", "new",
+        ] {
+            assert_eq!(trivial_expr_verbatim(src), None, "should reject {src:?}");
+        }
+        // Anything that is not a single bare identifier token.
+        for src in [
+            "a.b", "a b", "a()", "a?.b", "a[0]", "1", "'s'", "a + b", "", "  ", "a-b", "café",
+        ] {
+            assert_eq!(trivial_expr_verbatim(src), None, "should reject {src:?}");
+        }
+    }
 
     #[test]
     fn has_word_await_detects_standalone() {
