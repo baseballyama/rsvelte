@@ -78,6 +78,38 @@ fn nested_amp_plus_amp_no_pair_pruned() {
 }
 
 #[test]
+fn nested_amp_plus_amp_multi_relative_parent_child_kept() {
+    // Issue #1719: `.foo > .a { & + & }` where `.a` really is a child of `.foo`
+    // and an adjacent pair exists. `&` resolves to the full `.foo > .a`; the
+    // ancestor constraint is satisfied, so the official compiler keeps the outer
+    // rule (`.foo.svelte-xxx > .a:where(.svelte-xxx) { & + & { … } }`). Previously
+    // rsvelte only resolved single-relative parents and dropped this as `(empty)`.
+    let out = css(
+        "<div class=\"foo\"><div class=\"a\"></div><div class=\"a\"></div></div>\n\
+         <style>.foo > .a { & + & { color: red; } }</style>",
+    );
+    assert!(!out.contains("(empty)"), "rule must be kept, got:\n{out}");
+    assert!(!out.contains("(unused)"), "rule must be kept, got:\n{out}");
+    assert!(out.contains("& + &"), "expected `& + &` kept in:\n{out}");
+    assert!(
+        out.contains(".foo.svelte-"),
+        "expected scoped `.foo` in:\n{out}"
+    );
+}
+
+#[test]
+fn nested_amp_tilde_amp_multi_relative_parent_child_kept() {
+    // Same fix for the general-sibling combinator inside a `>` parent chain.
+    let out = css(
+        "<div class=\"foo\"><div class=\"a\"></div><span></span><div class=\"a\"></div></div>\n\
+         <style>.foo > .a { & ~ & { color: red; } }</style>",
+    );
+    assert!(!out.contains("(empty)"), "rule must be kept, got:\n{out}");
+    assert!(!out.contains("(unused)"), "rule must be kept, got:\n{out}");
+    assert!(out.contains("& ~ &"), "expected `& ~ &` kept in:\n{out}");
+}
+
+#[test]
 fn nested_amp_plus_amp_multi_relative_parent_no_match_pruned() {
     // `.foo > .a { & + & }` where `.a` is not a child of `.foo`. `&` resolves to
     // the full `.foo > .a`, which this compound matcher can't verify, so it must
