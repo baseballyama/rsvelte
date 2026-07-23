@@ -5,7 +5,7 @@
 
 fix(parse): improve function-node AST fidelity to match acorn / acorn-typescript
 
-Three parse-AST fixes so the public `parse()` output matches svelte/compiler:
+Four parse-AST fixes so the public `parse()` output matches svelte/compiler:
 
 - `FunctionExpression` fields are ordered `id, expression, generator, async` to
   match acorn's uniform `initFunction` key order (#1689).
@@ -18,8 +18,11 @@ Three parse-AST fixes so the public `parse()` output matches svelte/compiler:
   declarations (#1692). As a side effect, this also fixes a pure-JS bug where a
   default-valued arrow parameter (`(a = 1) => a`) lost its `AssignmentPattern`
   (default value) in the `parse()` output — `compile()` output was unaffected.
+- Object-method values (`{ m<T>(x: T) {} }`) keep their generics on the inner
+  `FunctionExpression` but emit `typeParameters` *after* `body` (like arrows),
+  not in the declaration/expression slot before `params` (#1711).
 
 The binary NAPI raw-parse envelope (consumed by
 `@rsvelte/vite-plugin-svelte-native`'s `parse-envelope.js` decoder) carries the
 same fields, so both packages need this release. The envelope `VERSION` is
-bumped to 3 alongside the wire-format change.
+bumped to 4 alongside the wire-format changes.
