@@ -56,10 +56,61 @@ fn parse_formatted(formatted: &str) -> Option<rsvelte_core::ast::template::Root>
     })
 }
 
+/// Conservative necessary condition for [`collapse_pure_text_elements`] to make
+/// any edit: some element (recursively) that a collapse pass could reflow. Two
+/// shapes qualify — an element with a non-blank direct `Text` or `ExpressionTag`
+/// child (the pure-text / interpolation collapse target), or an element carrying
+/// attributes whose children include another element (the children-port
+/// re-asserts the wrapped-open-tag `>` placement for those). Liberal by design:
+/// a false positive only runs collapse for nothing, whereas a false negative
+/// would drop a real edit — so it over-approximates. Computed on the source tree,
+/// which is structurally identical to the formatted output for these shapes
+/// (formatting never adds/removes elements or turns text into elements).
+pub(crate) fn fragment_has_collapse_candidate(fragment: &Fragment) -> bool {
+    fragment.nodes.iter().any(|n| {
+        let (child, has_attrs) = match n {
+            TemplateNode::RegularElement(e) => (Some(&e.fragment), !e.attributes.is_empty()),
+            TemplateNode::Component(c) => (Some(&c.fragment), !c.attributes.is_empty()),
+            TemplateNode::SlotElement(e) => (Some(&e.fragment), !e.attributes.is_empty()),
+            _ => (None, false),
+        };
+        let direct_hit = child.is_some_and(|f| {
+            f.nodes.iter().any(|cn| match cn {
+                TemplateNode::Text(t) => !crate::is_blank_text(t.data.as_str()),
+                TemplateNode::ExpressionTag(_) => true,
+                TemplateNode::RegularElement(_)
+                | TemplateNode::Component(_)
+                | TemplateNode::SlotElement(_) => has_attrs,
+                _ => false,
+            })
+        });
+        direct_hit
+            || child_fragments(n)
+                .iter()
+                .any(|f| fragment_has_collapse_candidate(f))
+    })
+}
+
 pub(crate) fn collapse_pure_text_elements(
     out: &str,
     options: &FormatOptions,
+    has_collapse_candidate: bool,
 ) -> Result<String, FormatError> {
+    // Cheap gate: skip the whole re-parse-driven collapse pass when the output
+    // provably has nothing to collapse — no structural collapse candidate, no
+    // `<pre>`/`<textarea>` to reformat, and no line exceeding the print width to
+    // break. Ordered cheapest-first (`&&` short-circuits): the bool is free, the
+    // substring checks are cheap, and the per-line width scan runs only for the
+    // candidate-free minority. Conservative — see [`fragment_has_collapse_candidate`].
+    if !has_collapse_candidate
+        && !out.contains("<pre")
+        && !out.contains("<textarea")
+        && !out
+            .lines()
+            .any(|l| UnicodeWidthStr::width(l) > options.js.line_width.value() as usize)
+    {
+        return Ok(out.to_string());
+    }
     // Collapse is a best-effort post-pass over the already-formatted output. If
     // that output can't be re-parsed, skip collapse and return it as-is rather
     // than failing the whole format — the JS formatter can legitimately emit
@@ -6887,6 +6938,29 @@ mod tests {
         let caught = std::panic::catch_unwind(|| with_pre_content(|| panic!("boom")));
         assert!(caught.is_err());
         assert!(!in_pre_content());
+    }
+
+    #[test]
+    fn collapse_candidate_gate_predicate() {
+        let has = |src: &str| {
+            let root = parse_formatted(src).expect("snippet should parse");
+            fragment_has_collapse_candidate(&root.fragment)
+        };
+        // Positive — a collapse pass could reflow these.
+        assert!(has("<p>hello</p>"), "pure-text element");
+        assert!(has("<span>{x}</span>"), "interpolation element");
+        assert!(
+            has("<button aria-label=\"x\"><span></span></button>"),
+            "attrs + element child (children-port wrapped-open-tag shape)"
+        );
+        assert!(has("<div><p>hi</p></div>"), "nested pure-text element");
+        // Negative — provably nothing to collapse, safe to skip.
+        assert!(
+            !has("<div><span></span></div>"),
+            "element child but no attrs"
+        );
+        assert!(!has("<div></div>"), "empty element");
+        assert!(!has("<script>let x = 1;</script>"), "no markup");
     }
 
     fn make_fragment_with_text(data: &str) -> Fragment {

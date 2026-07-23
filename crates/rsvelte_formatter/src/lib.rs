@@ -253,8 +253,12 @@ pub fn format_with_arenas(
         out = sort_order::reorder_sections(&out, reorder_spans, so.markup, so.reorder);
     }
 
-    // Post-pass: collapse pure-text elements onto one line when they fit.
-    out = collapse::collapse_pure_text_elements(&out, options)?;
+    // Post-pass: collapse pure-text elements onto one line when they fit. Skip
+    // its full re-parse when the source tree has no element a collapse pass could
+    // reflow (checked here so the cheap gate reuses this parse instead of paying
+    // collapse's own).
+    let has_collapse_candidate = collapse::fragment_has_collapse_candidate(&root.fragment);
+    out = collapse::collapse_pure_text_elements(&out, options, has_collapse_candidate)?;
 
     // Start the file at content: prettier / oxfmt strip leading blank lines and
     // indentation before the first node (e.g. a markdown code block that begins
