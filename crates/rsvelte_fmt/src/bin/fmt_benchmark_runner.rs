@@ -146,17 +146,17 @@ fn run_digest(files: &[(String, String)], options: &FormatOptions) {
         match catch_unwind(AssertUnwindSafe(|| format(content, options))) {
             Ok(Ok(out)) => {
                 ok += 1;
-                hash = fnv1a(&[b'K'], hash);
+                hash = fnv1a(b"K", hash);
                 hash = fnv1a(out.as_bytes(), hash);
             }
             Ok(Err(e)) => {
                 err += 1;
-                hash = fnv1a(&[b'E'], hash);
+                hash = fnv1a(b"E", hash);
                 hash = fnv1a(e.to_string().as_bytes(), hash);
             }
             Err(_) => {
                 panicked += 1;
-                hash = fnv1a(&[b'P'], hash);
+                hash = fnv1a(b"P", hash);
             }
         }
         hash = fnv1a(&[0], hash);
