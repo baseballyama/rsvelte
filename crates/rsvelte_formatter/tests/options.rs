@@ -345,6 +345,109 @@ fn bracket_same_line_standalone_empty_element_matches_default() {
     assert_eq!(fmt(src, &width_80(false)), expected);
 }
 
+// issue #1707: a source-whitespace inline element (`<span> </span>`) whose open
+// tag wraps must break its whitespace body onto its own line — prettier's `line`
+// body flexes to a newline once the wrapped open tag forces the group open — so
+// the `>` glues to the last attribute under `bracketSameLine` and `</span>` drops
+// below it. The non-port path previously kept the raw whitespace glued
+// (`…"\n> </span>`), which both diverged from the oracle and was non-idempotent
+// (a multi-space body collapsed to one space on a re-format).
+#[test]
+fn bracket_same_line_wrapping_whitespace_inline_breaks_body() {
+    let src = "<span class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-in-output\"> </span>";
+    let out = fmt(src, &width_80(true));
+    assert_eq!(
+        out,
+        "<span\n  class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-in-output\">\n</span>\n"
+    );
+}
+
+// Default (`bracketSameLine = false`): the `>` dedents onto its own line and the
+// whitespace body still breaks, dropping `</span>` below it.
+#[test]
+fn default_wrapping_whitespace_inline_breaks_body() {
+    let src = "<span class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-in-output\"> </span>";
+    let out = fmt(src, &width_80(false));
+    assert_eq!(
+        out,
+        "<span\n  class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-in-output\"\n>\n</span>\n"
+    );
+}
+
+// The same shape nested inside a block element (indented one level) matches the
+// oracle under both option values.
+#[test]
+fn bracket_same_line_nested_wrapping_whitespace_inline_breaks_body() {
+    let src = "<div>\n  <span class=\"a-really-long-class-name-that-forces-the-open-tag-to-wrap-well-past-eighty-columns\"> </span>\n</div>";
+    assert_eq!(
+        fmt(src, &width_80(true)),
+        "<div>\n  <span\n    class=\"a-really-long-class-name-that-forces-the-open-tag-to-wrap-well-past-eighty-columns\">\n  </span>\n</div>\n"
+    );
+    assert_eq!(
+        fmt(src, &width_80(false)),
+        "<div>\n  <span\n    class=\"a-really-long-class-name-that-forces-the-open-tag-to-wrap-well-past-eighty-columns\"\n  >\n  </span>\n</div>\n"
+    );
+}
+
+// The fix is idempotent, including for a multi-space body that previously
+// collapsed to a single space on a re-format (the non-idempotency of #1707).
+#[test]
+fn wrapping_whitespace_inline_is_idempotent() {
+    let multi = "<span class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-in-output\">   </span>";
+    for bsl in [true, false] {
+        let once = fmt(multi, &width_80(bsl));
+        let twice = fmt(&once, &width_80(bsl));
+        assert_eq!(once, twice, "formatting must be idempotent (bsl={bsl})");
+    }
+}
+
+// `<textarea>` is a raw-text exception to the inline whitespace-body rule: the
+// oracle keeps `>` glued (never dedented) and, under the default
+// `bracketSameLine: false`, glues the close tag too (dropping the whitespace
+// body), while `bracketSameLine: true` breaks the body onto its own line. This
+// exercises the `empty_nonhug` interaction with the empty-`<textarea>` width
+// check.
+#[test]
+fn textarea_whitespace_body_matches_oracle_raw_text_layout() {
+    let src = "<textarea class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-x\"> </textarea>";
+    // bracketSameLine: true — `>` glued to the last attribute, body broken.
+    assert_eq!(
+        fmt(src, &width_80(true)),
+        "<textarea\n  class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-x\">\n</textarea>\n"
+    );
+    // Default (false) — `>` glued, close glued, whitespace body dropped.
+    assert_eq!(
+        fmt(src, &width_80(false)),
+        "<textarea\n  class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-x\"></textarea>\n"
+    );
+}
+
+// A source-empty `<textarea>` still dangles its `>` onto its own line when the
+// glued last line would overflow — unchanged by the whitespace-body handling.
+#[test]
+fn textarea_source_empty_dangles_closer_unchanged() {
+    let src = "<textarea class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-x\"></textarea>";
+    let expected = "<textarea\n  class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-x\"\n></textarea>\n";
+    assert_eq!(fmt(src, &width_80(true)), expected);
+    assert_eq!(fmt(src, &width_80(false)), expected);
+}
+
+// Regression for the #1707 whitespace-body rewrite interacting with the
+// section-reorder remap: the markup edit that rewrites a whitespace body +
+// close tag overlaps the indent pass's edit on the same whitespace text node, so
+// one is dropped when the edits are applied. The section-span remap must be
+// computed from the SAME overlap-resolved edit set — counting the dropped edit's
+// length change shifted the `<style>` boundary past the output end and panicked
+// in `sort_order::reorder_sections` ("end byte index … out of bounds").
+#[test]
+fn whitespace_body_rewrite_does_not_panic_reorder_remap() {
+    let src = "<ul>\n\t<li>\n\t\t<a\n\t\t\tid=\"x\"\n\t\t\thref=\"https://example.com/some/really/long/url/that/forces/the/open/tag/to/wrap\"\n\t\t\taria-label=\"label\"\n\t\t>\n\t\t</a>\n\t</li>\n</ul>\n\n<style>\n\ta {\n\t\tcolor: red;\n\t}\n</style>";
+    // The `<style>` body keeps the source indentation here — `width_80` configures
+    // no CSS formatter — which is irrelevant to the reorder-remap regression.
+    let expected = "<ul>\n  <li>\n    <a\n      id=\"x\"\n      href=\"https://example.com/some/really/long/url/that/forces/the/open/tag/to/wrap\"\n      aria-label=\"label\"\n    >\n    </a>\n  </li>\n</ul>\n\n<style>\n\ta {\n\t\tcolor: red;\n\t}\n</style>\n";
+    assert_eq!(fmt(src, &width_80(false)), expected);
+}
+
 #[test]
 fn sort_order_parse_rejects_invalid() {
     assert!(SortOrderSpec::parse("scripts-markup").is_none());
