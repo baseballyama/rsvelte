@@ -75,6 +75,9 @@ pub(crate) fn collapse_pure_text_elements(
     let parse_opts = ParseOptions {
         force_typescript: options.typescript,
         skip_non_css_lang_style: true,
+        // Collapse inspects only markup structure (element/text shapes and node
+        // spans), never expression `loc` objects — skip building them.
+        skip_expression_loc: true,
         ..ParseOptions::default()
     };
     // The children-port helpers rebuild elements without carrying `FormatOptions`;
