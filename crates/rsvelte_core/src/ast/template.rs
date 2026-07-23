@@ -9,7 +9,7 @@ use indexmap::IndexSet;
 /// Binding-index sets are keyed by `usize`; the default SipHash is needless here.
 pub type BindingIndexSet = IndexSet<usize, rustc_hash::FxBuildHasher>;
 use rustc_hash::FxHashSet;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use smallvec::SmallVec;
 
 use super::css::StyleSheet;
@@ -21,7 +21,7 @@ use super::span::SourceLocation;
 // =============================================================================
 
 /// The root node of a Svelte component AST.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Root {
     /// CSS stylesheet, or null if none.
     pub css: Option<Box<StyleSheet>>,
@@ -65,7 +65,7 @@ pub struct Root {
 /// Mirrors Svelte 5's `AST.JSComment`. The `loc` field always carries
 /// `{line, column, character}` (the test runner strips `character` before
 /// comparing against acorn-style fixtures via `normalize_json`).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct JsComment {
     #[serde(rename = "type")]
     pub kind: JsCommentKind,
@@ -75,7 +75,7 @@ pub struct JsComment {
     pub loc: super::span::SourceLocation,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum JsCommentKind {
     Line,
     Block,
@@ -90,7 +90,7 @@ pub struct ParseWarning {
     pub message: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
 pub enum RootType {
     #[default]
     Root,
@@ -101,7 +101,7 @@ pub enum RootType {
 // =============================================================================
 
 /// Metadata for fragments.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct FragmentMetadata {
     /// Whether the fragment's scope is transparent (delegates to parent scopes).
     #[serde(default)]
@@ -112,7 +112,7 @@ pub struct FragmentMetadata {
 }
 
 /// A fragment is a container for template nodes.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct Fragment {
     #[serde(rename = "type")]
     pub node_type: FragmentType,
@@ -126,7 +126,7 @@ fn is_default_metadata(metadata: &FragmentMetadata) -> bool {
     !metadata.transparent && !metadata.dynamic
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
 pub enum FragmentType {
     #[default]
     Fragment,
@@ -141,7 +141,7 @@ pub enum FragmentType {
 /// Large variants are boxed to keep the enum small (~128 bytes instead of ~1056).
 /// This improves cache efficiency for the common case (Text, Comment) and reduces
 /// memory usage for `Vec<TemplateNode>` by ~8x.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
 pub enum TemplateNode {
     // Small variants (inline, <= 128 bytes)
@@ -187,7 +187,7 @@ impl AsRef<TemplateNode> for TemplateNode {
 // =============================================================================
 
 /// Static text node.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Text {
     pub start: u32,
     pub end: u32,
@@ -198,7 +198,7 @@ pub struct Text {
 }
 
 /// HTML comment node.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Comment {
     pub start: u32,
     pub end: u32,
@@ -211,7 +211,7 @@ pub struct Comment {
 // =============================================================================
 
 /// A reactive template expression: `{expression}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ExpressionTag {
     pub start: u32,
     pub end: u32,
@@ -232,7 +232,7 @@ impl PartialEq for ExpressionTag {
 }
 
 /// An HTML template expression: `{@html expression}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HtmlTag {
     pub start: u32,
     pub end: u32,
@@ -252,7 +252,7 @@ pub struct TagMetadata {
 }
 
 /// A const tag: `{@const declaration}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ConstTag {
     pub start: u32,
     pub end: u32,
@@ -268,7 +268,7 @@ pub struct ConstTag {
 /// opener and supports mutable bindings (`let`). The `declaration` field stores
 /// the parsed `VariableDeclaration` as an `Expression` for symmetry with the
 /// rest of the AST.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DeclarationTag {
     pub start: u32,
     pub end: u32,
@@ -282,7 +282,7 @@ pub struct DeclarationTag {
 }
 
 /// A debug tag: `{@debug identifiers}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DebugTag {
     pub start: u32,
     pub end: u32,
@@ -308,7 +308,7 @@ pub struct RenderTagMetadata {
 }
 
 /// A render tag: `{@render snippet(...)}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RenderTag {
     pub start: u32,
     pub end: u32,
@@ -326,7 +326,7 @@ pub struct AttachTagMetadata {
 }
 
 /// An attach tag: `{@attach expression}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct AttachTag {
     pub start: u32,
     pub end: u32,
@@ -348,7 +348,7 @@ pub struct IfBlockMetadata {
 }
 
 /// An if block: `{#if condition}...{:else if}...{:else}...{/if}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct IfBlock {
     pub elseif: bool,
     pub start: u32,
@@ -362,7 +362,7 @@ pub struct IfBlock {
 }
 
 /// Metadata for EachBlock nodes.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct EachBlockMetadata {
     /// Whether this is a keyed each block
     pub keyed: bool,
@@ -388,7 +388,7 @@ pub struct EachBlockMetadata {
 }
 
 /// An each block: `{#each items as item (key)}...{:else}...{/each}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct EachBlock {
     pub start: u32,
     pub end: u32,
@@ -415,7 +415,7 @@ pub struct AwaitBlockMetadata {
 }
 
 /// An await block: `{#await promise}...{:then value}...{:catch error}...{/await}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct AwaitBlock {
     pub start: u32,
     pub end: u32,
@@ -438,7 +438,7 @@ pub struct KeyBlockMetadata {
 }
 
 /// A key block: `{#key expression}...{/key}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct KeyBlock {
     pub start: u32,
     pub end: u32,
@@ -461,7 +461,7 @@ pub struct SnippetBlockMetadata {
 }
 
 /// A snippet block: `{#snippet name(params)}...{/snippet}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SnippetBlock {
     pub start: u32,
     pub end: u32,
@@ -480,7 +480,7 @@ pub struct SnippetBlock {
 // =============================================================================
 
 /// A regular HTML element.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RegularElement {
     pub start: u32,
     pub end: u32,
@@ -495,7 +495,7 @@ pub struct RegularElement {
 }
 
 /// A Svelte component.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Component {
     pub start: u32,
     pub end: u32,
@@ -510,7 +510,7 @@ pub struct Component {
 }
 
 /// A title element.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct TitleElement {
     pub start: u32,
     pub end: u32,
@@ -522,7 +522,7 @@ pub struct TitleElement {
 }
 
 /// A slot element.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SlotElement {
     pub start: u32,
     pub end: u32,
@@ -534,7 +534,7 @@ pub struct SlotElement {
 }
 
 /// A svelte: special element (body, document, head, window, fragment, boundary, self).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SvelteElement {
     pub start: u32,
     pub end: u32,
@@ -546,7 +546,7 @@ pub struct SvelteElement {
 }
 
 /// A svelte:component element.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SvelteComponentElement {
     pub start: u32,
     pub end: u32,
@@ -563,7 +563,7 @@ pub struct SvelteComponentElement {
 }
 
 /// A svelte:element (dynamic element).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SvelteDynamicElement {
     pub start: u32,
     pub end: u32,
@@ -586,8 +586,7 @@ pub struct SvelteDynamicElement {
 ///
 /// All variants are boxed to keep the enum small (~16 bytes instead of ~368).
 /// This reduces memory for `Vec<Attribute>` on elements by ~23x.
-#[derive(Debug, Clone, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone)]
 pub enum Attribute {
     Attribute(AttributeNode),
     SpreadAttribute(SpreadAttribute),
@@ -651,18 +650,16 @@ pub struct AttributeNodeMetadata {
 }
 
 /// A regular attribute: `name="value"` or `name={expression}`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct AttributeNode {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
     pub value: AttributeValue,
     /// Internal metadata. Always defaults on construction; populated during
     /// Phase 2 analysis. Skipped during (de)serialisation so snapshot output
     /// is unchanged.
-    #[serde(skip)]
     pub metadata: AttributeNodeMetadata,
 }
 
@@ -686,8 +683,7 @@ impl serde::Serialize for AttributeNode {
 }
 
 /// The value of an attribute.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(clippy::large_enum_variant)]
 pub enum AttributeValue {
     /// Boolean attribute (no value).
@@ -726,8 +722,7 @@ impl serde::Serialize for AttributeValue {
 /// would shrink the enum but require touching every match site;
 /// `AttributeValuePart` instances are short-lived and stored in small
 /// per-attribute vectors, so we accept the size disparity here.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(clippy::large_enum_variant)]
 pub enum AttributeValuePart {
     Text(Text),
@@ -763,7 +758,7 @@ impl serde::Serialize for AttributeValuePart {
 }
 
 /// A spread attribute: `{...props}`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct SpreadAttribute {
     pub start: u32,
     pub end: u32,
@@ -786,7 +781,7 @@ impl serde::Serialize for SpreadAttribute {
 }
 
 /// A bind directive: `bind:name={expression}`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct BindDirective {
     pub start: u32,
     pub end: u32,
@@ -828,7 +823,7 @@ pub struct OnDirectiveMetadata {
 }
 
 /// An on directive: `on:event={handler}`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct OnDirective {
     pub start: u32,
     pub end: u32,
@@ -838,7 +833,6 @@ pub struct OnDirective {
     pub modifiers: SmallVec<[CompactString; 2]>,
     /// Internal metadata, populated during Phase 2 analysis. Skipped during
     /// (de)serialisation so snapshot output is unchanged.
-    #[serde(skip)]
     pub metadata: OnDirectiveMetadata,
 }
 
@@ -876,7 +870,7 @@ pub struct ClassDirectiveMetadata {
 }
 
 /// A class directive: `class:name={expression}`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ClassDirective {
     pub start: u32,
     pub end: u32,
@@ -885,7 +879,6 @@ pub struct ClassDirective {
     pub expression: Expression,
     /// Internal metadata, populated during Phase 2 analysis. Skipped during
     /// (de)serialisation so snapshot output is unchanged.
-    #[serde(skip)]
     pub metadata: ClassDirectiveMetadata,
 }
 
@@ -909,7 +902,7 @@ impl serde::Serialize for ClassDirective {
 }
 
 /// A style directive: `style:property={expression}`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct StyleDirective {
     pub start: u32,
     pub end: u32,
@@ -940,7 +933,7 @@ impl serde::Serialize for StyleDirective {
 }
 
 /// A transition directive: `transition:name`, `in:name`, `out:name`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct TransitionDirective {
     pub start: u32,
     pub end: u32,
@@ -950,7 +943,6 @@ pub struct TransitionDirective {
     pub modifiers: SmallVec<[CompactString; 2]>,
     pub intro: bool,
     pub outro: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<DirectiveMetadata>,
 }
 
@@ -984,14 +976,14 @@ impl serde::Serialize for TransitionDirective {
 /// Metadata for directives (animate, transition, etc.).
 ///
 /// Contains information about the directive's expression dependencies.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DirectiveMetadata {
     /// Expression metadata (dependencies, blockers, etc.)
     pub expression: DirectiveExpressionMetadata,
 }
 
 /// Expression metadata for directives.
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct DirectiveExpressionMetadata {
     /// Whether the expression contains await
     #[serde(default)]
@@ -1014,14 +1006,13 @@ impl DirectiveExpressionMetadata {
 }
 
 /// An animate directive: `animate:name`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct AnimateDirective {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
     pub expression: Option<Expression>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<DirectiveMetadata>,
 }
 
@@ -1050,7 +1041,7 @@ impl serde::Serialize for AnimateDirective {
 }
 
 /// A use directive: `use:action`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct UseDirective {
     pub start: u32,
     pub end: u32,
@@ -1081,7 +1072,7 @@ impl serde::Serialize for UseDirective {
 }
 
 /// A let directive: `let:item`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct LetDirective {
     pub start: u32,
     pub end: u32,
@@ -1116,7 +1107,7 @@ impl serde::Serialize for LetDirective {
 // =============================================================================
 
 /// A script block.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Script {
     #[serde(rename = "type")]
     pub node_type: ScriptType,
@@ -1136,13 +1127,13 @@ pub struct Script {
     pub is_typescript: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
 pub enum ScriptType {
     #[default]
     Script,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ScriptContext {
     Default,
@@ -1150,7 +1141,7 @@ pub enum ScriptContext {
 }
 
 /// Svelte component options from `<svelte:options>`.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct SvelteOptions {
     pub start: u32,
     pub end: u32,
@@ -1172,7 +1163,7 @@ pub struct SvelteOptions {
     pub attributes: Vec<AttributeNode>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Namespace {
     Html,
@@ -1180,14 +1171,14 @@ pub enum Namespace {
     Mathml,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CssOption {
     Injected,
 }
 
 /// Custom element options.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct CustomElementOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tag: Option<CompactString>,
@@ -1203,7 +1194,7 @@ pub struct CustomElementOptions {
     pub extend: Option<Expression>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ShadowMode {
     Open,
@@ -1355,45 +1346,6 @@ impl Serialize for ExpressionMetadata {
         state.serialize_field("dependencies", &self.dependencies)?;
         state.serialize_field("references", &self.references)?;
         state.end()
-    }
-}
-
-// Custom Deserialize implementation for backward compatibility
-impl<'de> Deserialize<'de> for ExpressionMetadata {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        struct ExpressionMetadataHelper {
-            #[serde(default)]
-            has_state: bool,
-            #[serde(default)]
-            has_call: bool,
-            #[serde(default)]
-            has_await: bool,
-            #[serde(default)]
-            has_member_expression: bool,
-            #[serde(default)]
-            has_assignment: bool,
-            #[serde(default)]
-            dependencies: BindingIndexSet,
-            #[serde(default)]
-            references: BindingIndexSet,
-        }
-
-        let helper = ExpressionMetadataHelper::deserialize(deserializer)?;
-        let mut result = ExpressionMetadata {
-            flags: 0,
-            dependencies: helper.dependencies,
-            references: helper.references,
-        };
-        result.set_has_state(helper.has_state);
-        result.set_has_call(helper.has_call);
-        result.set_has_await(helper.has_await);
-        result.set_has_member_expression(helper.has_member_expression);
-        result.set_has_assignment(helper.has_assignment);
-        Ok(result)
     }
 }
 
