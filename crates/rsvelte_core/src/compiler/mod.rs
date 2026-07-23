@@ -171,7 +171,8 @@ pub struct CssHashInput {
     pub filename: String,
     /// CSS code.
     pub css: String,
-    /// Hash function.
+    /// Raw digest function (no `svelte-` prefix), matching the `hash` argument
+    /// upstream hands to a user `cssHash` callback.
     pub hash: Arc<dyn Fn(&str) -> String + Send + Sync>,
 }
 
