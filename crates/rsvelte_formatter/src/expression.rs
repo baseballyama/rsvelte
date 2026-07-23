@@ -1864,15 +1864,82 @@ fn is_plain_identifier(s: &str) -> bool {
     !is_reserved_ident(s)
 }
 
-/// Fast path for [`format_expr_core`]: if the trimmed source is an atomic token
-/// the oxc formatter would emit unchanged regardless of print width, return that
-/// slice so the parse+format round-trip can be skipped. The predicate is strict
-/// — it must never accept an expression whose formatted form would differ from
-/// its verbatim source, so anything not provably identity-formatted returns
-/// `None` and falls through to the full path.
-fn trivial_expr_verbatim(expr_source: &str) -> Option<&str> {
+/// A plain non-negative integer literal (`0`, `42`) with no leading zero,
+/// decimal point, exponent, separator, radix prefix, or bigint suffix. The oxc
+/// formatter emits such a literal verbatim; the excluded forms it may normalize
+/// (`1.0`, `0x1F`, `1_000`, `.5`) fall through to the full path.
+fn is_plain_integer(s: &str) -> bool {
+    match s.as_bytes() {
+        [b'0'] => true,
+        [first, rest @ ..] if first.is_ascii_digit() && *first != b'0' => {
+            rest.iter().all(u8::is_ascii_digit)
+        }
+        _ => false,
+    }
+}
+
+/// An atomic literal the oxc formatter always emits verbatim at any width:
+/// the keyword primaries `this` / `true` / `false` / `null`, or a plain
+/// integer. Unlike a general numeric/string literal these need no quote or
+/// numeric normalization.
+fn is_simple_literal(s: &str) -> bool {
+    matches!(s, "this" | "true" | "false" | "null") || is_plain_integer(s)
+}
+
+/// An identifier-shaped ASCII token, ignoring reserved-word status. Used for the
+/// non-head segments of a member chain, where reserved words are valid property
+/// names (`a.class`, `a.for`).
+fn is_ident_shaped(s: &str) -> bool {
+    let b = s.as_bytes();
+    let Some(&first) = b.first() else {
+        return false;
+    };
+    (first.is_ascii_alphabetic() || first == b'_' || first == b'$')
+        && b[1..]
+            .iter()
+            .all(|&c| c.is_ascii_alphanumeric() || c == b'_' || c == b'$')
+}
+
+/// A pure dotted member chain of ASCII identifiers (`a.b.c`, `this.x.y`,
+/// `$page.data.title`) whose display width is strictly below `line_width`. The
+/// head must be a real identifier reference (or `this`); each later segment is
+/// any identifier-shaped token. oxc emits such a chain verbatim only while it
+/// fits — an over-wide pure-property chain breaks onto `\n  .seg` continuation
+/// lines — so the width guard is load-bearing. `?.` chains and any segment with
+/// whitespace/comments are excluded (they contain non-identifier bytes).
+fn is_member_chain_within_width(s: &str, line_width: oxc_formatter_core::LineWidth) -> bool {
+    if !s.contains('.') {
+        return false;
+    }
+    // Every segment is a pure-ASCII identifier token, so the whole slice is
+    // ASCII and its byte length equals its display width.
+    if s.len() >= line_width.value() as usize {
+        return false;
+    }
+    let mut segs = s.split('.');
+    let Some(head) = segs.next() else {
+        return false;
+    };
+    if !(is_plain_identifier(head) || head == "this") {
+        return false;
+    }
+    segs.all(is_ident_shaped)
+}
+
+/// Fast path for [`format_expr_core`]: if the trimmed source is a token the oxc
+/// formatter would emit unchanged, return that slice so the parse+format
+/// round-trip can be skipped. The predicate is strict — it must never accept an
+/// expression whose formatted form would differ from its verbatim source, so
+/// anything not provably identity-formatted returns `None` and falls through to
+/// the full path. Atomic tokens (identifiers, simple literals) are
+/// width-independent; a member chain is verbatim only within `line_width`.
+fn trivial_expr_verbatim(
+    expr_source: &str,
+    line_width: oxc_formatter_core::LineWidth,
+) -> Option<&str> {
     let s = expr_source.trim();
-    if is_plain_identifier(s) {
+    if is_plain_identifier(s) || is_simple_literal(s) || is_member_chain_within_width(s, line_width)
+    {
         return Some(s);
     }
     None
@@ -1884,7 +1951,7 @@ fn format_expr_core(
     line_width: oxc_formatter_core::LineWidth,
     single_line: bool,
 ) -> Result<String, FormatError> {
-    if let Some(out) = trivial_expr_verbatim(expr_source) {
+    if let Some(out) = trivial_expr_verbatim(expr_source, line_width) {
         return Ok(out.to_string());
     }
     let allocator = crate::scratch::acquire();
@@ -3814,11 +3881,19 @@ pub(crate) fn expand_obj_arg_call(s: &str, indent_width: usize) -> Option<String
 mod tests {
     use super::*;
 
+    fn lw(w: u16) -> oxc_formatter_core::LineWidth {
+        oxc_formatter_core::LineWidth::try_from(w).unwrap()
+    }
+
     #[test]
-    fn trivial_fastpath_accepts_plain_identifiers() {
-        for src in ["foo", "  foo  ", "_x", "$store", "$$props", "a1", "Comp"] {
+    fn trivial_fastpath_accepts_identifiers_and_simple_literals() {
+        for src in [
+            "foo", "  foo  ", "_x", "$store", "$$props", "a1", "Comp", // identifiers
+            "this", "true", "false", "null", // keyword primaries
+            "0", "1", "42", "1000", // plain integers
+        ] {
             assert_eq!(
-                trivial_expr_verbatim(src),
+                trivial_expr_verbatim(src, lw(80)),
                 Some(src.trim()),
                 "expected fast-path accept for {src:?}"
             );
@@ -3826,18 +3901,56 @@ mod tests {
     }
 
     #[test]
-    fn trivial_fastpath_rejects_reserved_and_nonidentifiers() {
-        // Reserved words / contextual keywords fall through to the oxc path.
+    fn trivial_fastpath_accepts_member_chains_within_width() {
         for src in [
-            "this", "true", "false", "null", "await", "class", "for", "async", "let", "new",
+            "a.b",
+            "a.b.c",
+            "this.x.y",
+            "$page.data.title",
+            "a.class",
+            "a.for",
         ] {
-            assert_eq!(trivial_expr_verbatim(src), None, "should reject {src:?}");
+            assert_eq!(
+                trivial_expr_verbatim(src, lw(80)),
+                Some(src),
+                "expected member-chain accept for {src:?}"
+            );
         }
-        // Anything that is not a single bare identifier token.
+        // Over-width: oxc would break the chain, so it must fall through.
+        assert_eq!(trivial_expr_verbatim("comment.user.name", lw(10)), None);
+        // Head is a reserved word (would not parse as a bare chain): reject.
+        assert_eq!(trivial_expr_verbatim("class.foo", lw(80)), None);
+    }
+
+    #[test]
+    fn trivial_fastpath_rejects_reserved_and_nonverbatim() {
+        // Reserved words / contextual keywords that are not verbatim primaries
+        // fall through to the oxc path.
+        for src in ["await", "class", "for", "async", "let", "new", "typeof"] {
+            assert_eq!(
+                trivial_expr_verbatim(src, lw(80)),
+                None,
+                "should reject {src:?}"
+            );
+        }
+        // Numeric forms oxc may normalize must NOT be fast-pathed.
+        for src in ["01", "1.0", "1.", ".5", "0x1F", "1e3", "1_000", "10n"] {
+            assert_eq!(
+                trivial_expr_verbatim(src, lw(80)),
+                None,
+                "should reject {src:?}"
+            );
+        }
+        // Not a single atomic token or a pure dotted chain.
         for src in [
-            "a.b", "a b", "a()", "a?.b", "a[0]", "1", "'s'", "a + b", "", "  ", "a-b", "café",
+            "a b", "a()", "a?.b", "a[0]", "'s'", "a + b", "", "  ", "a-b", "café", "a..b", ".a",
+            "a.", "a.b()",
         ] {
-            assert_eq!(trivial_expr_verbatim(src), None, "should reject {src:?}");
+            assert_eq!(
+                trivial_expr_verbatim(src, lw(80)),
+                None,
+                "should reject {src:?}"
+            );
         }
     }
 
