@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/vite-plugin-svelte-native-darwin-x64",
-  "version": "0.2.8",
+  "version": "0.3.0",
   "description": "Prebuilt rsvelte NAPI binding for darwin-x64",
   "license": "MIT",
   "repository": {

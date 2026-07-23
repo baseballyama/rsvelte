@@ -1,5 +1,22 @@
 # @rsvelte/oxlint-plugin
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [64cb25d]
+- Updated dependencies [deadab5]
+- Updated dependencies [a10913c]
+- Updated dependencies [1508778]
+- Updated dependencies [46cf5fe]
+- Updated dependencies [97178b7]
+- Updated dependencies [020be59]
+- Updated dependencies [065ce6f]
+- Updated dependencies [97178b7]
+- Updated dependencies [97178b7]
+- Updated dependencies [d7353f8]
+  - @rsvelte/compiler@0.9.0
+
 ## 0.2.0
 
 ### Minor Changes

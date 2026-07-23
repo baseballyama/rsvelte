@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/oxlint-plugin",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Run rsvelte's Svelte lint + compiler/a11y diagnostics as oxlint rules, in one pass",
   "license": "MIT",
   "repository": {
