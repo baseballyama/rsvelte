@@ -26,7 +26,11 @@ Sweep shape: 1222 components, ~4s. Client and server prune identically
 (`--both` reports 0 client≠server divergences), so the sweep compiles one target
 (`generate: 'client'`, `css: 'external'`) per component.
 
-## Divergence clusters (81 entries, 2 root causes)
+## Divergence clusters (0 entries — all root causes fixed)
+
+The ratchet is empty: the sweep reports 0 divergences. The three root causes
+found by this sweep are all fixed. The history is kept here as the record of why
+the ratchet could shrink.
 
 ### 1. `<svelte:head>` void-element perturbation — FIXED (issue #1700)
 
@@ -43,40 +47,47 @@ element inside such a wrapper shifted every later element's sibling data by one.
 `<title>` never triggered it because a `TitleElement` is not scopable and gets
 no index.
 
-Fixed on branch `fix/1700-sibling-combinator-prune`: 36 sweep entries cleared
-(every `head_void` / `head_link_void` variant on a non-nested selector, plus all
-`:has` variants). The 14 `A/&+&/…/head_void` variants that remain are **not**
-head-void bugs — they diverge identically with `corr=none` and belong to cluster
-3 below (nested-`&`); the head void no longer perturbs them.
+Fixed in #1708: 36 sweep entries cleared (every `head_void` / `head_link_void`
+variant on a non-nested selector, plus all `:has` variants).
 
-### 2. `:global(.a) + .b` inside `{#await}` / snippet — 16 entries (issue #1702)
+### 2. `:global(.a) + .b` inside `{#await}` / snippet — FIXED (issue #1702)
 
 `:global(.a) + .b` where a `:global` leads a scoped following-sibling, when the
 pair lives inside a `{#await}…{:then}` branch or a `{#snippet}` fragment
-rendered with `{@render}`. rsvelte prunes the whole selector as `(unused)`;
-official keeps it (`.a + .b.svelte-X`). Corruptor-independent (diverges with
-`corr=none`). Asymmetric: `.a + :global(.b)` is **not** affected, and the same
-selector in `{#each}` / `{#if}` / `{#key}` / nested-`{#each}` contexts matches —
-the bug is specific to the await-branch and snippet fragment child-lists not
-being traversed for the `:global`-prefixed leading segment.
+rendered with `{@render}`. rsvelte pruned the whole selector as `(unused)`;
+official keeps it (`.a + .b.svelte-X`). Asymmetric: `.a + :global(.b)` was **not**
+affected, and the same selector in `{#each}` / `{#if}` / `{#key}` contexts already
+matched. Root cause: `{#await}` branches and `{#snippet}` bodies both set
+`css.has_opaque_elements`, which forced the transform's `:global(X) + Y` prune
+check down a branch that only accepted `Y` when it immediately followed an opaque
+boundary — a real previous sibling `.a` is not an opaque boundary, so the rule
+was pruned. `{#each}`/`{#if}`/`{#key}` do not set `has_opaque_elements`, so they
+took the root-child branch and matched.
 
+Fixed in this PR (`is_sibling_combinator_unused` in
+`crates/rsvelte_core/src/compiler/phases/3_transform/css.rs`): the acceptable
+predecessors of `Y` are now unioned — a real previous sibling matching the inner
+`:global(...)` selector, an opaque boundary, or `Y` being a root-level element
+(the global `.a` may be injected by the parent). 16 sweep entries cleared.
 Representative: `A/:global(.a)+.b/await_then/none`,
-`A/:global(.a)+.b/snippet_render/none`. Pre-existing, unrelated to #1700 —
-tracked as issue #1702.
+`A/:global(.a)+.b/snippet_render/none`. Regression test:
+`crates/rsvelte_core/tests/css_global_sibling_1702.rs`.
 
-### 3. Nested `.a { & + & {} }` sibling combinator — 65 entries (issue #1703)
+### 3. Nested `.a { & + & {} }` sibling combinator — FIXED (issue #1703)
 
 A nested rule whose inner selector uses the parent-selector sibling combinator
 (`.a { & + & { … } }`, i.e. `.a + .a`) against a real adjacent-`.a` sibling
-pair. Official scopes and keeps it (`.a.svelte-X { & + & {} }`); rsvelte marks
-the whole nested rule `(empty)` and drops it. Corruptor-independent (diverges at
-`corr=none`) and spans nearly every markup context that produces the sibling
-pair — including the 14 `head_void` / `head_link_void` variants, which now
-diverge exactly as their `corr=none` counterparts do. rsvelte's nested-rule
-(`&`) expansion is not consulted during sibling-relationship pruning.
+pair. Official scopes and keeps it (`.a.svelte-X { & + & {} }`); rsvelte marked
+the whole nested rule `(empty)` and dropped it, spanning nearly every markup
+context that produces the sibling pair. Root cause: the transform's
+`is_sibling_combinator_unused` built the `SelectorInfo` for `&` (NestingSelector)
+via `extract_selector_info`, which ignores NestingSelector and yields an empty
+(matches-nothing) info, so the sibling walk never found a match.
 
-Representative: `A/&+&/literal/none`, `A/&+&/each_all/none`. Pre-existing,
-unrelated to #1700 — tracked as issue #1703.
+Fixed in this PR: `extract_selector_info_resolving_nesting` resolves `&` against
+the parent rule's subject compound (`.a`) before matching. 65 sweep entries
+cleared. Representative: `A/&+&/literal/none`, `A/&+&/each_all/none`. Regression
+test: `crates/rsvelte_core/tests/css_nested_sibling_1703.rs`.
 
 ## How to run
 

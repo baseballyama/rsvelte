@@ -2367,33 +2367,48 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
                 return false;
             }
 
-            // When there are opaque boundaries (slots, components, render tags),
-            // :global(X) could be from any slot/component. Check if Y matches
-            // an element that is adjacent to (for +) or following (for ~) an opaque boundary.
-            if ctx.has_opaque_sibling_boundaries {
-                let matches = ctx.dom_structure.elements.iter().any(|el| {
-                    if !selector_matches_element(&second_info, el) {
-                        return false;
-                    }
-                    if combinator == "+" {
-                        // For + combinator, Y must be immediately after an opaque boundary
-                        el.prev_is_opaque_boundary
-                    } else {
-                        // For ~ combinator, Y must be somewhere after an opaque boundary
-                        el.prev_has_opaque_boundary
-                    }
-                });
-                return !matches;
-            }
+            // Inner selector of the leading `:global(X)` (e.g. `.a` in
+            // `:global(.a)`), used to test real previous siblings of Y.
+            let inner_info = global_inner_selector_info(&rel_selectors[0]);
 
-            // Without opaque boundaries, check if Y matches a root-level element
-            let matches_root = ctx
-                .dom_structure
-                .elements
-                .iter()
-                .any(|el| el.is_root_child && selector_matches_element(&second_info, el));
+            // `:global(X) + Y` (or `~`) is used if some element matching Y is
+            // preceded by a node that X could be. Mirrors upstream `apply_selector`
+            // BACKWARD over Y's possible previous siblings, plus the
+            // `get_element_parent(node) === null && every_is_global(...)` fallback:
+            //   (a) a real previous sibling matches the inner `:global(X)` selector,
+            //   (b) Y follows an opaque boundary (slot/component/render/snippet/await
+            //       branch), which the global X could resolve to, or
+            //   (c) Y is a root-level element — X may be a sibling injected by the
+            //       parent component.
+            // Both `{#await}` branches and `{#snippet}` fragments set
+            // `has_opaque_elements`, so before this union they only checked (b) and
+            // missed the real-sibling (a) / root (c) cases (issue #1702).
+            let matches = ctx.dom_structure.elements.iter().any(|el| {
+                if !selector_matches_element(&second_info, el) {
+                    return false;
+                }
+                let opaque = if combinator == "+" {
+                    el.prev_is_opaque_boundary
+                } else {
+                    el.prev_has_opaque_boundary
+                };
+                if opaque || el.is_root_child {
+                    return true;
+                }
+                let prevs = if combinator == "+" {
+                    &el.possible_prev_adjacent
+                } else {
+                    &el.possible_prev_general
+                };
+                prevs.iter().any(|(idx, _)| {
+                    ctx.dom_structure
+                        .elements
+                        .get(*idx)
+                        .is_some_and(|sib| selector_matches_element(&inner_info, sib))
+                })
+            });
 
-            return !matches_root; // Unused if no root element matches
+            return !matches;
         }
         return false;
     }
@@ -2663,6 +2678,44 @@ struct SelectorInfo {
     /// universal branch so it conservatively matches, matching upstream's
     /// treatment of complex `:is()` arguments as used.
     is_groups: Vec<Vec<SelectorInfo>>,
+}
+
+/// Extract the [`SelectorInfo`] of the subject compound inside a leading
+/// `:global(X)` relative selector (the `X`). Returns an empty (matches-nothing)
+/// info when the relative selector is not a single-argument `:global(...)`.
+fn global_inner_selector_info(rel: &Value) -> SelectorInfo {
+    let empty = || SelectorInfo {
+        tag_name: None,
+        classes: Vec::new(),
+        id: None,
+        is_universal: false,
+        is_groups: Vec::new(),
+    };
+    let Some(first) = rel
+        .get("selectors")
+        .and_then(|s| s.as_array())
+        .and_then(|a| a.first())
+    else {
+        return empty();
+    };
+    if first.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector")
+        || first.get("name").and_then(|n| n.as_str()) != Some("global")
+    {
+        return empty();
+    }
+    // `:global(X)` — take X's subject compound.
+    if let Some(complex) = first
+        .get("args")
+        .and_then(|a| a.get("children"))
+        .and_then(|c| c.as_array())
+        .and_then(|c| c.first())
+        && let Some(rels) = complex.get("children").and_then(|c| c.as_array())
+        && let Some(subject) = rels.last()
+        && let Some(sels) = subject.get("selectors").and_then(|s| s.as_array())
+    {
+        return extract_selector_info_from_selectors(sels);
+    }
+    empty()
 }
 
 fn extract_selector_info(rel_selector: &Value) -> SelectorInfo {
