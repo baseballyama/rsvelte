@@ -11,6 +11,12 @@ use serde_json::Value;
 
 /// Parse a Svelte source in modern mode and return the serialized AST as JSON.
 fn parse_to_json(source: &str) -> Value {
+    serde_json::from_str(&parse_to_string(source)).unwrap()
+}
+
+/// Parse a Svelte source in modern mode and return the raw serialized AST string
+/// (preserving `serialize_entry` key order, which the `Value` round-trip drops).
+fn parse_to_string(source: &str) -> String {
     let ast = parse(
         source,
         ParseOptions {
@@ -19,8 +25,21 @@ fn parse_to_json(source: &str) -> Value {
         },
     )
     .expect("parse should succeed");
-    let json = with_serialize_arena(&ast.arena, || serde_json::to_string(&ast).unwrap());
-    serde_json::from_str(&json).unwrap()
+    with_serialize_arena(&ast.arena, || serde_json::to_string(&ast).unwrap())
+}
+
+/// Assert that `a`, then `b`, then `c` appear in this order in `s`.
+fn assert_key_order(s: &str, a: &str, b: &str, c: &str) {
+    let ia = s.find(a).unwrap_or_else(|| panic!("missing {a}"));
+    let ib = s[ia..]
+        .find(b)
+        .map(|x| x + ia)
+        .unwrap_or_else(|| panic!("missing {b} after {a}"));
+    let ic = s[ib..]
+        .find(c)
+        .map(|x| x + ib)
+        .unwrap_or_else(|| panic!("missing {c} after {b}"));
+    assert!(ia < ib && ib < ic, "expected order {a} < {b} < {c} in: {s}");
 }
 
 /// Depth-first search for the first node of the given `type`.
@@ -344,4 +363,78 @@ fn constructor_type_is_preserved() {
             .and_then(|v| v.as_str()),
         Some("Foo")
     );
+}
+
+// #1694: generic function-like nodes must emit `typeParameters`, matching
+// acorn-typescript's shape and key position.
+
+#[test]
+fn generic_function_declaration_emits_type_parameters() {
+    let src = "<script lang=\"ts\">function f<T>(x: T){}</script>";
+    let ast = parse_to_json(src);
+    let f = find_node(&ast, "FunctionDeclaration").expect("FunctionDeclaration");
+    // `<T>` sits at bytes 28..31; the single param is `T`.
+    assert_eq!(
+        f.pointer("/typeParameters/type").and_then(|v| v.as_str()),
+        Some("TSTypeParameterDeclaration")
+    );
+    assert_eq!(
+        f.pointer("/typeParameters/start").and_then(|v| v.as_u64()),
+        Some(28)
+    );
+    assert_eq!(
+        f.pointer("/typeParameters/end").and_then(|v| v.as_u64()),
+        Some(31)
+    );
+    assert_eq!(
+        f.pointer("/typeParameters/params/0/name")
+            .and_then(|v| v.as_str()),
+        Some("T")
+    );
+    // acorn emits `typeParameters` between `async` and `params`.
+    let s = parse_to_string(src);
+    assert_key_order(&s, "\"async\"", "\"typeParameters\"", "\"params\"");
+}
+
+#[test]
+fn generic_function_expression_emits_type_parameters() {
+    let src = "<script lang=\"ts\">const f = function<T>(x: T){}</script>";
+    let ast = parse_to_json(src);
+    let f = find_node(&ast, "FunctionExpression").expect("FunctionExpression");
+    assert_eq!(
+        f.pointer("/typeParameters/params/0/name")
+            .and_then(|v| v.as_str()),
+        Some("T")
+    );
+    let s = parse_to_string(src);
+    assert_key_order(&s, "\"async\"", "\"typeParameters\"", "\"params\"");
+}
+
+#[test]
+fn generic_arrow_emits_type_parameters_after_body() {
+    let src = "<script lang=\"ts\">const g = <T>(x: T)=>{}</script>";
+    let ast = parse_to_json(src);
+    let a = find_node(&ast, "ArrowFunctionExpression").expect("ArrowFunctionExpression");
+    assert_eq!(
+        a.pointer("/typeParameters/params/0/name")
+            .and_then(|v| v.as_str()),
+        Some("T")
+    );
+    // Unlike declarations/expressions, acorn appends `typeParameters` after `body`.
+    let s = parse_to_string(src);
+    // Restrict to the arrow subtree to avoid matching an outer `params`/`body`.
+    let arrow_at = s.find("\"ArrowFunctionExpression\"").unwrap();
+    assert_key_order(
+        &s[arrow_at..],
+        "\"params\"",
+        "\"body\"",
+        "\"typeParameters\"",
+    );
+}
+
+#[test]
+fn non_generic_function_omits_type_parameters() {
+    let ast = parse_to_json("<script>function f(x){}</script>");
+    let f = find_node(&ast, "FunctionDeclaration").expect("FunctionDeclaration");
+    assert!(f.get("typeParameters").is_none());
 }

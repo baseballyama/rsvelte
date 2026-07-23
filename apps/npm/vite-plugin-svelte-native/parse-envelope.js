@@ -815,6 +815,7 @@ function readJsFunctionExpression(ctx, start, end) {
 	const expression = readBool(ctx);
 	const generator = readBool(ctx);
 	const asyncFlag = readBool(ctx);
+	const typeParameters = readOptTypeAnnotation(ctx);
 	const params = readChildArray(ctx);
 	const body = readOptNode(ctx);
 	const node = { type: 'FunctionExpression', start, end };
@@ -823,6 +824,7 @@ function readJsFunctionExpression(ctx, start, end) {
 	node.expression = expression;
 	node.generator = generator;
 	node.async = asyncFlag;
+	if (typeParameters !== null) node.typeParameters = typeParameters;
 	node.params = params;
 	node.body = body;
 	return node;
@@ -849,6 +851,7 @@ function readJsArrowFunctionExpression(ctx, start, end) {
 	const asyncFlag = readBool(ctx);
 	const params = readChildArray(ctx);
 	const body = readNode(ctx);
+	const typeParameters = readOptTypeAnnotation(ctx);
 	const node = { type: 'ArrowFunctionExpression', start, end };
 	if (loc !== null) node.loc = loc;
 	node.id = id;
@@ -857,6 +860,7 @@ function readJsArrowFunctionExpression(ctx, start, end) {
 	node.async = asyncFlag;
 	node.params = params;
 	node.body = body;
+	if (typeParameters !== null) node.typeParameters = typeParameters;
 	return node;
 }
 
@@ -1176,6 +1180,7 @@ function readJsFunctionDeclaration(ctx, start, end) {
 	const expression = readBool(ctx);
 	const generator = readBool(ctx);
 	const asyncFlag = readBool(ctx);
+	const typeParameters = readOptTypeAnnotation(ctx);
 	const params = readChildArray(ctx);
 	const body = readOptNode(ctx);
 	const node = { type: 'FunctionDeclaration', start, end };
@@ -1184,6 +1189,7 @@ function readJsFunctionDeclaration(ctx, start, end) {
 	node.expression = expression;
 	node.generator = generator;
 	node.async = asyncFlag;
+	if (typeParameters !== null) node.typeParameters = typeParameters;
 	node.params = params;
 	node.body = body;
 	return node;

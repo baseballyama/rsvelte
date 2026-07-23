@@ -4891,6 +4891,7 @@ fn collect_identifier_names_in_node(
             generator: _,
             r#async: _,
             expression: _,
+            type_parameters: _,
         } => {
             walk_range(*params, out);
             walk_opt(body, out);
@@ -4906,6 +4907,7 @@ fn collect_identifier_names_in_node(
             generator: _,
             r#async: _,
             expression: _,
+            type_parameters: _,
         } => {
             walk_range(*params, out);
             walk_opt(body, out);
@@ -4921,6 +4923,7 @@ fn collect_identifier_names_in_node(
             expression: _,
             generator: _,
             r#async: _,
+            type_parameters: _,
         } => {
             walk_range(*params, out);
             walk(*body, out);

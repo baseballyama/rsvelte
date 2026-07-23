@@ -1335,6 +1335,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             generator,
             r#async,
             expression,
+            type_parameters,
         } => {
             write_preamble(w, JS_FUNCTION_EXPRESSION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -1342,6 +1343,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_bool(w, *expression);
             write_bool(w, *generator);
             write_bool(w, *r#async);
+            write_opt_type_annotation(w, type_parameters.as_deref())?;
             write_id_range(w, *params, arena)?;
             write_opt_node_id(w, *body, arena)?;
         }
@@ -1369,6 +1371,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             expression,
             generator,
             r#async,
+            type_parameters,
         } => {
             write_preamble(w, JS_ARROW_FUNCTION_EXPRESSION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -1378,6 +1381,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_bool(w, *r#async);
             write_id_range(w, *params, arena)?;
             write_node_id(w, *body, arena)?;
+            write_opt_type_annotation(w, type_parameters.as_deref())?;
         }
         JsNode::AssignmentExpression {
             start,
@@ -1685,6 +1689,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             generator,
             r#async,
             expression,
+            type_parameters,
         } => {
             write_preamble(w, JS_FUNCTION_DECLARATION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -1692,6 +1697,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_bool(w, *expression);
             write_bool(w, *generator);
             write_bool(w, *r#async);
+            write_opt_type_annotation(w, type_parameters.as_deref())?;
             write_id_range(w, *params, arena)?;
             write_opt_node_id(w, *body, arena)?;
         }

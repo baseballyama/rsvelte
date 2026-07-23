@@ -867,6 +867,8 @@ fn try_parse_arrow_function(
         expression: true,
         generator: false,
         r#async: false,
+        // This fast path bails out on any TS syntax, so never generic.
+        type_parameters: None,
     }))
 }
 
@@ -4798,6 +4800,14 @@ fn create_function_expression(
         generator: func.generator,
         r#async: func.r#async,
         expression: false,
+        type_parameters: func.type_parameters.as_ref().map(|tp| {
+            Box::new(convert_ts_type_parameter_declaration(
+                arena,
+                tp,
+                offset - 1,
+                line_offsets,
+            ))
+        }),
     })
 }
 
@@ -5714,6 +5724,14 @@ fn create_arrow_function(
         expression: arrow.expression,
         generator: false,
         r#async: arrow.r#async,
+        type_parameters: arrow.type_parameters.as_ref().map(|tp| {
+            Box::new(convert_ts_type_parameter_declaration(
+                arena,
+                tp,
+                offset - 1,
+                line_offsets,
+            ))
+        }),
     })
 }
 
@@ -6043,6 +6061,14 @@ fn convert_statement(
                 generator: func_decl.generator,
                 r#async: func_decl.r#async,
                 expression: false,
+                type_parameters: func_decl.type_parameters.as_ref().map(|tp| {
+                    Box::new(convert_ts_type_parameter_declaration(
+                        arena,
+                        tp,
+                        offset - 1,
+                        line_offsets,
+                    ))
+                }),
             })
         }
         // Fallback to the program-context converter for other statement types
@@ -7184,6 +7210,14 @@ fn convert_statement_for_program(
                         generator: func_decl.generator,
                         r#async: func_decl.r#async,
                         expression: false,
+                        type_parameters: func_decl.type_parameters.as_ref().map(|tp| {
+                            Box::new(convert_ts_type_parameter_declaration(
+                                arena,
+                                tp,
+                                offset,
+                                line_offsets,
+                            ))
+                        }),
                     }
                 }
                 oxc_ast::ast::ExportDefaultDeclarationKind::ClassDeclaration(class_decl)
@@ -7949,6 +7983,14 @@ fn convert_function_declaration_as_node(
         generator: func_decl.generator,
         r#async: func_decl.r#async,
         expression: false,
+        type_parameters: func_decl.type_parameters.as_ref().map(|tp| {
+            Box::new(convert_ts_type_parameter_declaration(
+                arena,
+                tp,
+                offset,
+                line_offsets,
+            ))
+        }),
     })
 }
 
@@ -8817,6 +8859,14 @@ fn convert_expression_for_program(
                 r#async: arrow.r#async,
                 params: arena.alloc_js_children(params),
                 body: arena.alloc_js_node(body_node),
+                type_parameters: arrow.type_parameters.as_ref().map(|tp| {
+                    Box::new(convert_ts_type_parameter_declaration(
+                        arena,
+                        tp,
+                        offset,
+                        line_offsets,
+                    ))
+                }),
             })
         }
         OxcExpression::FunctionExpression(func) => Expression::from_node(
@@ -9994,6 +10044,14 @@ fn convert_function_expression_for_program_as_node(
         generator: func.generator,
         r#async: func.r#async,
         expression: false,
+        type_parameters: func.type_parameters.as_ref().map(|tp| {
+            Box::new(convert_ts_type_parameter_declaration(
+                arena,
+                tp,
+                offset,
+                line_offsets,
+            ))
+        }),
     }
 }
 
