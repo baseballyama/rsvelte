@@ -141,23 +141,23 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (Svelte **v5.56.3**). Re-run `pnpm run test-and-update`
+Source: `pnpm run compatibility-report` (Svelte **v5.56.7**). Re-run `pnpm run test-and-update`
 to refresh. Skip lists live in `crates/rsvelte_core/tests/compatibility_report.rs` and
 `crates/rsvelte_core/tests/runtime.rs`; `crates/rsvelte_core/tests/audit_skipped.rs`
 re-checks every skipped fixture after a Svelte bump.
 
 | Suite | Pass/Total |
 |-------|------------|
-| Parser Modern | 26/26 |
-| Parser Legacy | 82/82 |
+| Parser Modern | 27/27 |
+| Parser Legacy | 81/81 |
 | Compiler Errors | 145/145 |
-| Compiler Snapshot | 29/29 |
+| Compiler Snapshot | 30/30 |
 | CSS | 181/181 |
 | Validator | 333/333 |
-| SSR | 97/97 |
+| SSR | 99/99 |
 | Hydration | 80/80 |
 | Runtime Legacy | 1206/1206 |
-| Runtime Runes | 999/999 |
+| Runtime Runes | 1006/1006 |
 | Runtime Browser | 32/32 |
 | Print | 43/43 |
 | Preprocess | 19/19 |

@@ -317,7 +317,14 @@ pub fn process_children_inner<'a>(
                             .expr_source(&tag.expression)
                             .map(|s| s.to_string())
                             .unwrap_or_default();
-                        save_wrap_expr_text(state, &src)
+                        // `save_wrap_expr_text` only rewrites the inline `await` into
+                        // the `(await $.save(<arg>))()` shape; upstream's
+                        // `context.visit(node.expression, state)` ALSO read-wraps the
+                        // derived / store reads inside `<arg>` (`d` → `d()`), so apply
+                        // the read-wrap pass to the save-wrapped result.
+                        let mut wrapped = save_wrap_expr_text(state, &src);
+                        state.wrap_reads_in_place(&mut wrapped);
+                        wrapped
                     } else {
                         state.visit_expr(&tag.expression)
                     };
