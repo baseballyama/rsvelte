@@ -36,22 +36,13 @@ alongside it; `rsvelte-lint` is self-contained. Supported targets:
 
 If your platform isn't listed, please [open an issue](https://github.com/baseballyama/rsvelte/issues).
 
-### Native-direct binary (no Node startup)
+### How the CLI is launched
 
-On install, a `postinstall` step swaps in the platform-native binary as the
-CLI's `bin` (the same mechanism [`@rsvelte/fmt`](../fmt) uses), so
-`rsvelte-lint` runs directly with no per-invocation Node cold start.
-
-If your package manager **gates install scripts** (e.g. pnpm's
-`onlyBuiltDependencies`), allow `@rsvelte/lint` so this step runs:
-
-```jsonc
-// package.json (pnpm)
-"pnpm": { "onlyBuiltDependencies": ["@rsvelte/lint"] }
-```
-
-Without it (or with `--ignore-scripts`, or on Windows) a small Node launcher is
-used instead — identical output, just a little slower to start.
+`rsvelte-lint`'s `bin` entry is a small Node launcher that resolves the
+platform-native binary from `optionalDependencies` and execs it, forwarding
+argv/stdio and the exit code — one Node cold start per invocation. There is no
+install-time step and nothing to allow in a package manager's build-script
+gate (e.g. pnpm's `onlyBuiltDependencies`).
 
 ## Usage
 
