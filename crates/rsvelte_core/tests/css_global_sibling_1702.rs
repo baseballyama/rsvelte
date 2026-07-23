@@ -113,6 +113,30 @@ fn global_plus_no_sibling_in_snippet_nested_pruned() {
 }
 
 #[test]
+fn global_descendant_inner_with_ancestor_kept() {
+    // Issue #1719: `:global(.a .z) + .b` where the `.z` sibling of `.b` really
+    // has an `.a` ancestor. The inner descendant chain's ancestor constraint is
+    // satisfied, so the official compiler keeps the rule and scopes `.b`
+    // (`.a .z + .b.svelte-xxx`). Previously rsvelte only resolved single-relative
+    // `:global(...)` inners and over-pruned this as `(unused)`.
+    let out = css(
+        "<div class=\"a\"><span class=\"z\"></span><div class=\"b\"></div></div>\n\
+         <style>:global(.a .z) + .b { color: red; }</style>",
+    );
+    assert_kept(&out);
+}
+
+#[test]
+fn global_child_inner_with_ancestor_kept() {
+    // Same fix for a `>` child chain inside `:global(...)`.
+    let out = css(
+        "<div class=\"a\"><span class=\"z\"></span><div class=\"b\"></div></div>\n\
+         <style>:global(.a > .z) + .b { color: red; }</style>",
+    );
+    assert_kept(&out);
+}
+
+#[test]
 fn global_descendant_inner_without_ancestor_pruned() {
     // `:global(.a .z) + .b`: the `.z` sibling of `.b` has no `.a` ancestor. The
     // inner `.a .z` carries an ancestor constraint the compound matcher can't

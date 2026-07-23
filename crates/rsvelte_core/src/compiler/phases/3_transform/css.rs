@@ -2367,7 +2367,11 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
                 return false;
             }
 
-            let inner_info = global_inner_selector_info(&rel_selectors[0]);
+            // Resolve the inner `:global(X)` compound. A multi-relative chain
+            // like `:global(.a .z)` becomes a `Chain` so the `.a` ancestor of a
+            // candidate `.z` sibling is verified (rather than left unresolved,
+            // which over-prunes even when the ancestor really exists).
+            let inner_matcher = resolve_global_inner_matcher(&rel_selectors[0]);
 
             // `:global(X) + Y` is used when some Y is preceded by a node X could
             // be: a real previous sibling matching X, an opaque boundary, or a
@@ -2391,12 +2395,9 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
                 } else {
                     &el.possible_prev_general
                 };
-                prevs.iter().any(|(idx, _)| {
-                    ctx.dom_structure
-                        .elements
-                        .get(*idx)
-                        .is_some_and(|sib| selector_matches_element(&inner_info, sib))
-                })
+                prevs
+                    .iter()
+                    .any(|(idx, _)| matcher_matches_at(&inner_matcher, *idx, ctx))
             });
 
             return !matches;
@@ -2481,11 +2482,17 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         // The official compiler's prune() checks each element with direction=BACKWARD,
         // so we check: does any element matching 'after' have 'before' as a prev sibling?
 
+        // Resolve `&` operands to ancestor-aware matchers so a multi-relative
+        // parent (`.foo > .a { & + & }`) verifies the `.foo` ancestor instead of
+        // matching nothing; single-relative parents keep the `Info` path.
+        let before_m = resolve_sibling_matcher(before, ctx);
+        let after_m = resolve_sibling_matcher(after, ctx);
+
         // Find all elements that match 'after' selector
         let mut found_after_element = false;
         let mut any_after_has_incomplete_siblings = false;
-        for el in ctx.dom_structure.elements.iter() {
-            if selector_matches_element(&after_info, el) {
+        for (el_idx, el) in ctx.dom_structure.elements.iter().enumerate() {
+            if matcher_matches_at(&after_m, el_idx, ctx) {
                 found_after_element = true;
                 // Check possible previous siblings based on combinator type
                 let possible_siblings = if combinator == "+" {
@@ -2497,9 +2504,7 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
 
                 // Check if any possible previous sibling matches 'before' selector
                 for (sibling_idx, _certainty) in possible_siblings {
-                    if let Some(sibling) = ctx.dom_structure.elements.get(*sibling_idx)
-                        && selector_matches_element(&before_info, sibling)
-                    {
+                    if matcher_matches_at(&before_m, *sibling_idx, ctx) {
                         return false; // Found a match, not unused
                     }
                 }
@@ -2522,8 +2527,8 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         if !found_after_element {
             // Also check forward: do any 'before' elements have 'after' as next sibling?
             let mut found_before_element = false;
-            for el in ctx.dom_structure.elements.iter() {
-                if selector_matches_element(&before_info, el) {
+            for (el_idx, el) in ctx.dom_structure.elements.iter().enumerate() {
+                if matcher_matches_at(&before_m, el_idx, ctx) {
                     found_before_element = true;
                     let possible_siblings = if combinator == "+" {
                         &el.possible_next_adjacent
@@ -2531,9 +2536,7 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
                         &el.possible_next_general
                     };
                     for (sibling_idx, _certainty) in possible_siblings {
-                        if let Some(sibling) = ctx.dom_structure.elements.get(*sibling_idx)
-                            && selector_matches_element(&after_info, sibling)
-                        {
+                        if matcher_matches_at(&after_m, *sibling_idx, ctx) {
                             return false; // Found a match
                         }
                     }
@@ -2712,6 +2715,197 @@ fn global_inner_selector_info(rel: &Value) -> SelectorInfo {
         return extract_selector_info_from_selectors(sels);
     }
     empty()
+}
+
+/// A resolved sibling operand for the `+` / `~` prune check: either a compound
+/// matched directly against an element, or a descendant/child ancestor-chain
+/// (subject last) verified structurally against an element's ancestors. The
+/// `Chain` variant lets `:global(.a .z) + .b` and `.foo > .a { & + & }` honour
+/// the ancestor constraint (`.a` above `.z`, `.foo` above `.a`) instead of
+/// bailing to unresolved on the multi-relative chain.
+enum SiblingMatcher {
+    Info(SelectorInfo),
+    Chain(Vec<Value>),
+}
+
+fn matcher_matches_at(matcher: &SiblingMatcher, idx: usize, ctx: &CssContext) -> bool {
+    let Some(el) = ctx.dom_structure.elements.get(idx) else {
+        return false;
+    };
+    match matcher {
+        SiblingMatcher::Info(info) => selector_matches_element(info, el),
+        SiblingMatcher::Chain(rels) => {
+            structural_element_matches_compound(el, &rels[rels.len() - 1])
+                && structural_ancestors_satisfy_links(rels, rels.len() - 1, idx, ctx)
+        }
+    }
+}
+
+/// The inner complex selector's relative-selector list for a single-argument
+/// `:global(X)` relative selector, or `None`.
+fn global_inner_complex_rels(rel: &Value) -> Option<&Vec<Value>> {
+    let first = rel
+        .get("selectors")
+        .and_then(|s| s.as_array())
+        .and_then(|a| a.first())?;
+    if first.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector")
+        || first.get("name").and_then(|n| n.as_str()) != Some("global")
+    {
+        return None;
+    }
+    let complex = first
+        .get("args")
+        .and_then(|a| a.get("children"))
+        .and_then(|c| c.as_array())
+        .and_then(|c| c.first())?;
+    complex.get("children").and_then(|c| c.as_array())
+}
+
+/// True when a descendant/child chain (subject last) can be evaluated by the
+/// structural ancestor matcher: at least two links, only ` `/`>` combinators and
+/// only evaluable simple selectors (no `:global`/`&`/functional pseudo).
+fn chain_is_structurally_evaluable(rels: &[Value]) -> bool {
+    if rels.len() < 2 {
+        return false;
+    }
+    for rel in rels.iter().skip(1) {
+        let comb = rel
+            .get("combinator")
+            .and_then(|c| c.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or(" ");
+        if comb != " " && comb != ">" {
+            return false;
+        }
+    }
+    rels.iter().all(|rel| {
+        rel.get("selectors")
+            .and_then(|s| s.as_array())
+            .is_some_and(|sels| {
+                !sels.is_empty() && sels.iter().all(structural_simple_selector_is_evaluable)
+            })
+    })
+}
+
+/// Resolve a leading `:global(X)` relative selector into a [`SiblingMatcher`]:
+/// a `Chain` when `X` is a structurally-evaluable descendant/child chain (so the
+/// `.a` ancestor of `:global(.a .z)` is verified), otherwise the single-compound
+/// `Info` (unchanged behaviour).
+fn resolve_global_inner_matcher(rel: &Value) -> SiblingMatcher {
+    if let Some(rels) = global_inner_complex_rels(rel)
+        && chain_is_structurally_evaluable(rels)
+    {
+        return SiblingMatcher::Chain(rels.clone());
+    }
+    SiblingMatcher::Info(global_inner_selector_info(rel))
+}
+
+/// True when a single nesting level's compounds can be evaluated by the
+/// structural ancestor matcher: only ` `/`>` combinators (the head compound may
+/// carry a null combinator) and only evaluable simple selectors (no
+/// `:global`/`&`/functional pseudo). Unlike [`chain_is_structurally_evaluable`]
+/// this accepts a single-compound level (a bare `.grand`).
+fn level_is_structurally_evaluable(rels: &[Value]) -> bool {
+    if rels.is_empty() {
+        return false;
+    }
+    for rel in rels.iter().skip(1) {
+        let comb = rel
+            .get("combinator")
+            .and_then(|c| c.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or(" ");
+        if comb != " " && comb != ">" {
+            return false;
+        }
+    }
+    rels.iter().all(|rel| {
+        rel.get("selectors")
+            .and_then(|s| s.as_array())
+            .is_some_and(|sels| {
+                !sels.is_empty() && sels.iter().all(structural_simple_selector_is_evaluable)
+            })
+    })
+}
+
+/// Clone a relative selector, forcing a null/absent combinator on its head to a
+/// descendant combinator. Mirrors upstream `get_relative_selectors`, which links
+/// a nested rule's prelude to its parent by prepending an implicit `&` +
+/// descendant combinator before recursing up.
+fn with_descendant_head(rel: &Value) -> Value {
+    let mut cloned = rel.clone();
+    let is_null = cloned
+        .get("combinator")
+        .map(|c| c.is_null())
+        .unwrap_or(true);
+    if is_null && let Value::Object(map) = &mut cloned {
+        map.insert(
+            "combinator".to_string(),
+            serde_json::json!({ "type": "Combinator", "name": " " }),
+        );
+    }
+    cloned
+}
+
+/// Build the full ancestor chain (subject last) for nesting levels
+/// `preludes[..level]`, mirroring upstream `get_relative_selectors` +
+/// `NestingSelector` resolution: each enclosing rule contributes its prelude,
+/// linked to the level below by an implicit descendant combinator, so
+/// `.grand { .foo > .a { … } }` resolves `&` to `.grand .foo > .a`. Returns
+/// `None` if any level is not a single structurally-evaluable descendant/child
+/// complex selector (multiple complex selectors, sibling combinators, nested
+/// `&`, `:global`, or functional pseudo) — the caller then falls back to the
+/// compound `Info` path.
+fn build_parent_chain(preludes: &[&Value], level: usize) -> Option<Vec<Value>> {
+    if level == 0 {
+        return None;
+    }
+    let prelude = preludes[level - 1];
+    let children = prelude.get("children").and_then(|c| c.as_array())?;
+    if children.len() != 1 {
+        return None;
+    }
+    let rels = children[0].get("children").and_then(|c| c.as_array())?;
+    if !level_is_structurally_evaluable(rels) {
+        return None;
+    }
+    if level == 1 {
+        return Some(rels.clone());
+    }
+    let mut chain = build_parent_chain(preludes, level - 1)?;
+    chain.push(with_descendant_head(&rels[0]));
+    chain.extend(rels[1..].iter().cloned());
+    Some(chain)
+}
+
+/// If `rel` is a bare `&` (a single NestingSelector), resolve it against the
+/// full stack of enclosing rule preludes into a descendant/child chain (subject
+/// last) so `.foo > .a { & + & }` and `.grand { .foo > .a { & + & } }` verify
+/// every ancestor level, not just the immediate parent. Returns `None` when the
+/// resolved chain is a single compound (no ancestor constraint — handled by
+/// [`extract_selector_info_resolving_nesting`]) or when any level is a shape the
+/// structural matcher cannot evaluate.
+fn resolve_bare_nesting_chain(rel: &Value, ctx: &CssContext) -> Option<Vec<Value>> {
+    let sels = rel.get("selectors").and_then(|s| s.as_array())?;
+    if sels.len() != 1 || sels[0].get("type").and_then(|t| t.as_str()) != Some("NestingSelector") {
+        return None;
+    }
+    let parent_preludes = ctx.parent_preludes.borrow();
+    let chain = build_parent_chain(&parent_preludes, parent_preludes.len())?;
+    if chain.len() < 2 {
+        return None;
+    }
+    Some(chain)
+}
+
+/// Resolve a sibling operand relative selector into a [`SiblingMatcher`],
+/// preferring an ancestor-aware `Chain` for a bare `&` with a multi-relative
+/// parent, else the existing compound `Info`.
+fn resolve_sibling_matcher(rel: &Value, ctx: &CssContext) -> SiblingMatcher {
+    if let Some(chain) = resolve_bare_nesting_chain(rel, ctx) {
+        return SiblingMatcher::Chain(chain);
+    }
+    SiblingMatcher::Info(extract_selector_info_resolving_nesting(rel, ctx))
 }
 
 fn extract_selector_info(rel_selector: &Value) -> SelectorInfo {
