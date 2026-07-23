@@ -69,6 +69,7 @@ const ROLE = {
 	p: '<p></p>',
 	span: '<span class="x"></span>', // stands in for `*`
 	section: '<section></section>',
+	z: '<div class="z"></div>',
 };
 
 // Family A — flat sibling lists. `sibs` is the ordered list of adjacent
@@ -96,6 +97,43 @@ const SELECTORS_B = [
 	{ id: '.a>.b', css: '.a > .b', nest: ['a', 'b'] },
 	{ id: 'section>.a', css: 'section > .a', nest: ['section', 'a'] },
 ];
+
+// Family C — multi-relative sibling selectors whose match hinges on an ancestor
+// constraint (issue #1719): a sibling combinator sits after a descendant/child
+// chain, reached either through `:global(...)`'s inner selector or through a
+// nested rule's `&` resolving to a multi-relative parent prelude. `ancestor` is
+// the class wrapping the `sibs`; `sep` (optional) separates the two siblings for
+// a `~` combinator.
+const SELECTORS_C = [
+	{ id: 'global(.a_.z)+.b', css: ':global(.a .z) + .b', ancestor: 'a', sibs: ['z', 'b'] },
+	{ id: 'global(.a>.z)+.b', css: ':global(.a > .z) + .b', ancestor: 'a', sibs: ['z', 'b'] },
+	{
+		id: '.foo>.a{&+&}',
+		css: '.foo > .a {\n\t\t& + & { color: red; }\n\t}',
+		rawCss: true,
+		ancestor: 'foo',
+		sibs: ['a', 'a'],
+	},
+	{
+		id: '.foo>.a{&~&}',
+		css: '.foo > .a {\n\t\t& ~ & { color: red; }\n\t}',
+		rawCss: true,
+		ancestor: 'foo',
+		sibs: ['a', 'a'],
+		sep: '<span></span>',
+	},
+];
+
+// Family C arrangements: whether the ancestor constraint is satisfiable.
+// `ancestor` wraps the sibling pair in the required ancestor (positive);
+// `root` puts them at the top level and `wrong` under a mismatching ancestor
+// (both negatives). Official and rsvelte must agree in every arrangement.
+const ARRANGE_C = {
+	ancestor: (sel, inner) => `<div class="${sel.ancestor}">${inner}</div>`,
+	ancestor_each: (sel, inner) => `<div class="${sel.ancestor}">{#each list as _}${inner}{/each}</div>`,
+	root: (_sel, inner) => inner,
+	wrong: (_sel, inner) => `<section>${inner}</section>`,
+};
 
 const wrapNest = (roles) => {
 	// build <outer>…<inner></inner>…</outer>, keeping the class on the div.
@@ -202,6 +240,20 @@ function* generate() {
 						source: assemble({ prefix: '', markup, sel }),
 					};
 				}
+			}
+		}
+	}
+	// Family C: multi-relative sibling selector × ancestor arrangement ×
+	// structural corruptor.
+	for (const sel of SELECTORS_C) {
+		const inner = sel.sibs.map((r) => ROLE[r]).join(sel.sep ?? '');
+		for (const [arrName, arrFn] of Object.entries(ARRANGE_C)) {
+			const markup = arrFn(sel, inner);
+			for (const [corrName, corr] of Object.entries(CORRUPTORS_STRUCTURAL)) {
+				yield {
+					id: `C/${sel.id}/${arrName}/${corrName}`,
+					source: assemble({ prefix: corr, markup, sel }),
+				};
 			}
 		}
 	}
