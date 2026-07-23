@@ -2851,7 +2851,29 @@ fn try_collapse(
             let result = format!("{open} {close}");
             return (result != whole).then_some((start, end, result));
         }
-        // Case 1: block/component — collapse completely.
+        // Case 1: block/component/slot. When a wrapped open tag glued its `>` to
+        // the last attribute line (`bracketSameLine` on a block-display element,
+        // #1721), the close tag drops to its own line at the element indent
+        // (`<div`\n`  …">`\n`</div>`) — so the inserted break must be preserved,
+        // not collapsed away. The `>` is glued exactly when the open tag's last
+        // line is not the dedented lone `>` (`…"`\n`></div>`, the default
+        // `bracketSameLine: false` form) — in every other case (inline open tag,
+        // or a wrapped open tag whose `>` dedented) the body whitespace is
+        // dropped entirely.
+        let bracket_glued = open.contains('\n')
+            && open
+                .rsplit('\n')
+                .next()
+                .is_some_and(|last| last.trim() != ">");
+        if bracket_glued {
+            let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+            let indent: String = out[line_start..s]
+                .chars()
+                .take_while(|c| *c == ' ' || *c == '\t')
+                .collect();
+            let result = format!("{open}\n{indent}{close}");
+            return (result != whole).then_some((start, end, result));
+        }
         let result = format!("{open}{close}");
         return (result != whole).then_some((start, end, result));
     }

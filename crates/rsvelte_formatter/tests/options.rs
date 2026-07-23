@@ -456,3 +456,80 @@ fn sort_order_parse_rejects_invalid() {
     assert!(SortOrderSpec::parse("options-scripts-markup-styles").is_some());
     assert!(SortOrderSpec::parse("none").is_some());
 }
+
+// issue #1721: a BLOCK-display element (`<div>`) with a whitespace-only body whose
+// open tag wraps. The oracle treats the whitespace body as empty. Under
+// `bracketSameLine: true` the `>` glues to the last attribute and `</div>` drops to
+// its own line (`…">`\n`</div>`); under the default `false` the `>` dedents onto its
+// own line and glues the close tag (`…"`\n`></div>`). rsvelte previously emitted the
+// dedented `></div>` form at BOTH values (correct only for `false`) — the `true`
+// case diverged. Folding this into #1707's inline fix was deferred because the
+// collapse pass stripped the inserted break (re-gluing the close tag); the fix
+// teaches `try_collapse` to keep the break when the wrapped open tag glued its `>`.
+#[test]
+fn block_display_wrapping_whitespace_body_matches_oracle() {
+    let src = "<div class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines\"> </div>";
+    // bracketSameLine: true — `>` glued to the last attribute, `</div>` on its own line.
+    assert_eq!(
+        fmt(src, &width_80(true)),
+        "<div\n  class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines\">\n</div>\n"
+    );
+    // Default (false) — `>` dedents onto its own line, close tag glued.
+    assert_eq!(
+        fmt(src, &width_80(false)),
+        "<div\n  class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines\"\n></div>\n"
+    );
+}
+
+// A source-EMPTY block element (`<div></div>`) with a wrapping open tag is
+// byte-identical to the whitespace-body case — the oracle drops the whitespace, so
+// the two shapes converge.
+#[test]
+fn block_display_wrapping_empty_matches_oracle() {
+    let src = "<div class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines\"></div>";
+    assert_eq!(
+        fmt(src, &width_80(true)),
+        "<div\n  class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines\">\n</div>\n"
+    );
+    assert_eq!(
+        fmt(src, &width_80(false)),
+        "<div\n  class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines\"\n></div>\n"
+    );
+}
+
+// The same shape nested inside a block element (indented one level) matches the
+// oracle under both option values.
+#[test]
+fn block_display_nested_wrapping_whitespace_body_matches_oracle() {
+    let src = "<section>\n  <div class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines\"> </div>\n</section>";
+    assert_eq!(
+        fmt(src, &width_80(true)),
+        "<section>\n  <div\n    class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines\">\n  </div>\n</section>\n"
+    );
+    assert_eq!(
+        fmt(src, &width_80(false)),
+        "<section>\n  <div\n    class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines\"\n  ></div>\n</section>\n"
+    );
+}
+
+// Idempotency (format(format(x)) == format(x)) at BOTH option values, including a
+// multi-space body — the interaction with the collapse pass that made #1718 defer
+// this. Without the `try_collapse` fix the `bracketSameLine: true` output was
+// non-idempotent (the second pass re-glued `></div>`).
+#[test]
+fn block_display_wrapping_whitespace_body_is_idempotent() {
+    for src in [
+        "<div class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines\"> </div>",
+        "<div class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines\">   </div>",
+        "<div class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines\"></div>",
+    ] {
+        for bsl in [true, false] {
+            let once = fmt(src, &width_80(bsl));
+            let twice = fmt(&once, &width_80(bsl));
+            assert_eq!(
+                once, twice,
+                "formatting must be idempotent (bsl={bsl}, src={src:?})"
+            );
+        }
+    }
+}
