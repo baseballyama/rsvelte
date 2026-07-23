@@ -701,9 +701,11 @@ function readOptNode(ctx) {
 function readJsIdentifier(ctx, start, end) {
 	const loc = readTypedLoc(ctx);
 	const name = readStr(ctx);
+	const optional = readBool(ctx);
 	const node = { type: 'Identifier', start, end };
 	if (loc !== null) node.loc = loc;
 	node.name = name;
+	if (optional) node.optional = true;
 	const typeAnnotation = readOptTypeAnnotation(ctx);
 	if (typeAnnotation !== null) node.typeAnnotation = typeAnnotation;
 	return node;

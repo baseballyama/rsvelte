@@ -1196,11 +1196,13 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             end,
             loc,
             name,
+            optional,
             type_annotation,
         } => {
             write_preamble(w, JS_IDENTIFIER, *start, *end);
             write_typed_loc(w, loc.as_deref());
             write_str(w, name.as_str());
+            write_bool(w, *optional);
             write_opt_type_annotation(w, type_annotation.as_deref())?;
         }
         JsNode::PrivateIdentifier {

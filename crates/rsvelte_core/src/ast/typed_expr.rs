@@ -90,6 +90,11 @@ pub enum JsNode {
         end: u32,
         loc: Option<Box<Loc>>,
         name: CompactString,
+        /// TS optional-parameter marker (`b?: T`). acorn-typescript emits
+        /// `optional: true` after `name` (before `typeAnnotation`) and omits it
+        /// when false, so this serializes only when `true`. `false` for the
+        /// overwhelming majority of identifiers.
+        optional: bool,
         /// Opaque, output-only TS `typeAnnotation` boundary blob (ESTree
         /// `TSTypeAnnotation`). Analyze never walks into it; it exists solely so
         /// a TS-annotated binding/declarator identifier can route through the
@@ -799,6 +804,7 @@ impl Serialize for JsNode {
                 end,
                 loc,
                 name,
+                optional,
                 type_annotation,
             } => {
                 let mut map = serializer.serialize_map(None)?;
@@ -807,6 +813,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 map.serialize_entry("name", name.as_str())?;
+                if *optional {
+                    map.serialize_entry("optional", &true)?;
+                }
                 if let Some(ta) = type_annotation {
                     map.serialize_entry("typeAnnotation", ta.as_ref())?;
                 }
@@ -2364,6 +2373,7 @@ impl JsNode {
                         end,
                         loc,
                         name: get_str(obj, "name"),
+                        optional: get_bool(obj, "optional"),
                         type_annotation: obj.get("typeAnnotation").cloned().map(Box::new),
                     },
                     "PrivateIdentifier" => JsNode::PrivateIdentifier {

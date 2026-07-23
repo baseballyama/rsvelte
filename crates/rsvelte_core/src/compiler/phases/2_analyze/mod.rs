@@ -4749,6 +4749,7 @@ fn collect_identifier_names_in_node(
             end: _,
             loc: _,
             name,
+            optional: _,
             type_annotation: _,
         } => {
             if !out.contains(name.as_str()) {

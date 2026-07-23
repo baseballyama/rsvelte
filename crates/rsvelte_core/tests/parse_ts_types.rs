@@ -266,12 +266,9 @@ fn function_type_parameters_and_return_type() {
 
     let b = &params[1];
     assert_eq!(b.pointer("/name").and_then(|v| v.as_str()), Some("b"));
-    // NOTE: svelte/compiler emits `optional: true` here (the `?` marker), but
-    // rsvelte currently drops it for *every* function/arrow parameter — not
-    // specific to TSFunctionType — because `JsNode::Identifier` has no
-    // `optional` field to round-trip it through the typed AST. Out of scope
-    // for #1660; tracked separately.
-    assert!(b.get("optional").is_none());
+    // #1692: the `?` optional marker now round-trips (JsNode::Identifier carries
+    // an `optional` field, emitted after `name` and only when true).
+    assert_eq!(b.get("optional"), Some(&Value::Bool(true)));
     assert_eq!(
         b.pointer("/typeAnnotation/typeAnnotation/type")
             .and_then(|v| v.as_str()),
@@ -437,4 +434,63 @@ fn non_generic_function_omits_type_parameters() {
     let ast = parse_to_json("<script>function f(x){}</script>");
     let f = find_node(&ast, "FunctionDeclaration").expect("FunctionDeclaration");
     assert!(f.get("typeParameters").is_none());
+}
+
+// #1692: the TS optional-parameter marker (`b?`) must round-trip as
+// `optional: true` (after `name`, before `typeAnnotation`, omitted when false).
+
+fn first_param<'a>(ast: &'a Value, ty: &str) -> &'a Value {
+    let node = find_node(ast, ty).unwrap_or_else(|| panic!("{ty} must be present"));
+    &node
+        .get("params")
+        .and_then(|p| p.as_array())
+        .expect("params")[0]
+}
+
+#[test]
+fn optional_parameter_marker_on_function_declaration() {
+    let ast = parse_to_json("<script lang=\"ts\">function f(b?: number){}</script>");
+    let p = first_param(&ast, "FunctionDeclaration");
+    assert_eq!(p.pointer("/name").and_then(|v| v.as_str()), Some("b"));
+    assert_eq!(p.get("optional"), Some(&Value::Bool(true)));
+    // The identifier span extends over the annotation (matching acorn).
+    assert_eq!(p.get("end").and_then(|v| v.as_u64()), Some(39));
+    assert_eq!(
+        p.pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSNumberKeyword")
+    );
+}
+
+#[test]
+fn optional_parameter_marker_on_arrow() {
+    let ast = parse_to_json("<script lang=\"ts\">const g = (b?: number) => {};</script>");
+    let p = first_param(&ast, "ArrowFunctionExpression");
+    assert_eq!(p.get("optional"), Some(&Value::Bool(true)));
+    assert_eq!(
+        p.pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSNumberKeyword")
+    );
+}
+
+#[test]
+fn optional_parameter_without_annotation_extends_span_over_question_mark() {
+    let ast = parse_to_json("<script lang=\"ts\">function f(b?){}</script>");
+    let p = first_param(&ast, "FunctionDeclaration");
+    assert_eq!(p.get("optional"), Some(&Value::Bool(true)));
+    // `b?` spans bytes 29..31 (the `?` is included), with no typeAnnotation.
+    assert_eq!(p.get("start").and_then(|v| v.as_u64()), Some(29));
+    assert_eq!(p.get("end").and_then(|v| v.as_u64()), Some(31));
+    assert!(p.get("typeAnnotation").is_none());
+}
+
+#[test]
+fn required_parameter_omits_optional() {
+    let ast = parse_to_json("<script lang=\"ts\">function f(b: number){}</script>");
+    let p = first_param(&ast, "FunctionDeclaration");
+    assert!(p.get("optional").is_none());
+    // `optional` must sit before `typeAnnotation` when present.
+    let s = parse_to_string("<script lang=\"ts\">function f(b?: number){}</script>");
+    assert_key_order(&s, "\"name\"", "\"optional\"", "\"typeAnnotation\"");
 }

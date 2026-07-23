@@ -259,6 +259,7 @@ fn get_loose_identifier(
             end: end as u32,
             loc: None,
             name: CompactString::from(""),
+            optional: false,
             type_annotation: None,
         }));
     }
@@ -849,6 +850,7 @@ fn try_parse_arrow_function(
                 end: p_end as u32,
                 loc: create_typed_loc(p_start, p_end, line_offsets),
                 name: CompactString::from(p),
+                optional: false,
                 type_annotation: None,
             });
             cursor += chunk.len() + 1; // +1 for the consumed comma
@@ -1318,6 +1320,7 @@ fn try_parse_ident_or_member(
             end: (offset + seg_end) as u32,
             loc: create_typed_loc(offset + seg_start, offset + seg_end, line_offsets),
             name: CompactString::from(prop_name),
+            optional: false,
             type_annotation: None,
         };
 
@@ -1759,6 +1762,7 @@ fn create_invalid_identifier(start: usize, end: usize, _line_offsets: &[usize]) 
         end: end as u32,
         loc: None,
         name: CompactString::from(""),
+        optional: false,
         type_annotation: None,
     })
 }
@@ -2580,6 +2584,11 @@ fn convert_formal_parameter_inner(
                 }
                 obj.insert("name".to_string(), Value::String(name.to_string()));
 
+                // TS optional marker (`b?: T`); acorn emits it after `name`.
+                if param.optional {
+                    obj.insert("optional".to_string(), Value::Bool(true));
+                }
+
                 // Convert type annotation
                 let type_ann_obj = convert_type_annotation_adjusted(
                     arena,
@@ -2590,6 +2599,18 @@ fn convert_formal_parameter_inner(
                 obj.insert("typeAnnotation".to_string(), type_ann_obj);
 
                 Expression::from_json(Value::Object(obj))
+            } else if param.optional {
+                // Optional parameter without a type annotation (`b?`). acorn
+                // extends the identifier span to include the `?`.
+                let end = adjusted_offset + id.span.end as usize + 1;
+                Expression::from_node(JsNode::Identifier {
+                    start: start as u32,
+                    end: end as u32,
+                    loc: create_typed_loc(start, end, line_offsets),
+                    name: CompactString::from(name),
+                    optional: true,
+                    type_annotation: None,
+                })
             } else {
                 let end = adjusted_offset + id.span.end as usize;
                 create_identifier(name, start, end, line_offsets)
@@ -4282,6 +4303,7 @@ fn create_identifier(name: &str, start: usize, end: usize, line_offsets: &[usize
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         name: CompactString::from(name),
+        optional: false,
         type_annotation: None,
     })
 }
@@ -4313,6 +4335,7 @@ fn create_identifier_for_binding(
         end: end as u32,
         loc: create_typed_loc_for_binding(start, end, line_offsets),
         name: CompactString::from(name),
+        optional: false,
         type_annotation: None,
     }
 }
@@ -4345,6 +4368,7 @@ fn create_identifier_for_binding_toplevel(
         end: end as u32,
         loc: create_typed_loc_for_binding_identifier(start, end, line_offsets),
         name: CompactString::from(name),
+        optional: false,
         type_annotation: None,
     }
 }
@@ -4416,6 +4440,7 @@ pub fn create_identifier_with_character(
         end: end as u32,
         loc: create_typed_loc_with_character(start, end, line_offsets),
         name: CompactString::from(name),
+        optional: false,
         type_annotation: None,
     })
 }
@@ -4428,6 +4453,7 @@ pub fn create_empty_identifier(name: &str, start: usize, end: usize) -> Expressi
         end: end as u32,
         loc: None,
         name: CompactString::from(name),
+        optional: false,
         type_annotation: None,
     })
 }
@@ -4634,6 +4660,7 @@ fn create_static_member_expression(
             end: prop_end as u32,
             loc: create_typed_loc(prop_start, prop_end, line_offsets),
             name: CompactString::from(member.property.name.as_str()),
+            optional: false,
             type_annotation: None,
         }),
         computed: false,
@@ -6184,6 +6211,7 @@ fn convert_binding_pattern_for_decl_as_node(
                     end: end as u32,
                     loc: create_typed_loc(start, end, line_offsets),
                     name: CompactString::from(id.name.as_str()),
+                    optional: false,
                     type_annotation: Some(Box::new(ta_value)),
                 }
             } else {
@@ -8551,6 +8579,7 @@ fn convert_variable_declarator_for_program(
                 end: ts_end as u32,
                 loc: create_typed_loc(id_start as usize, ts_end, line_offsets),
                 name,
+                optional: false,
                 type_annotation: Some(Box::new(ts_value)),
             }),
             // Annotated destructuring declarator id (`let { a }: T` / `let [ a ]: T`):
@@ -8817,7 +8846,9 @@ fn convert_expression_for_program(
                 .params
                 .items
                 .iter()
-                .map(|param| convert_binding_pattern(arena, &param.pattern, offset, line_offsets))
+                .map(|param| {
+                    expr_to_node(convert_formal_parameter(arena, param, offset, line_offsets))
+                })
                 .collect();
             if let Some(rest) = &arrow.params.rest {
                 let rest_start = offset + rest.span.start as usize;
