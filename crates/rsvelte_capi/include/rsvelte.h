@@ -33,6 +33,103 @@ typedef struct RsvelteBuf {
   uintptr_t cap;
 } RsvelteBuf;
 
+/**
+ * Borrowed UTF-8 string view returned by a callback into this library.
+ *
+ * Unlike [`RsvelteBuf`], the library does NOT take ownership of these
+ * bytes and never frees them. The pointer must stay valid only for the
+ * duration of the callback invocation that returned it (this library
+ * copies the bytes synchronously before the callback returns control
+ * upstream). A `{ data: NULL, len: 0 }` value means "no value — fall
+ * back to the compiler default".
+ */
+typedef struct RsvelteStr {
+  /**
+   * Pointer to borrowed UTF-8 bytes. NULL means "no value".
+   */
+  const uint8_t *data;
+  /**
+   * Length in bytes (does NOT include any trailing NUL).
+   */
+  uintptr_t len;
+} RsvelteStr;
+
+/**
+ * Input handed to a [`RsvelteCssHashFn`] callback.
+ *
+ * Every field is a borrowed `(pointer, length)` UTF-8 slice, valid only
+ * for the duration of the callback. `hash` is the raw digest of `css`
+ * (the compiler's default scope digest, WITHOUT the `svelte-` prefix) —
+ * prepend `svelte-` yourself to reproduce the default class name. It is
+ * exactly the value the compiler's own default `cssHash` receives.
+ */
+typedef struct RsvelteCssHashInput {
+  /**
+   * The component's CSS source.
+   */
+  const uint8_t *css;
+  /**
+   * Length of `css` in bytes.
+   */
+  uintptr_t css_len;
+  /**
+   * The rootDir-relative (or absolute) filename, or `(unknown)`.
+   */
+  const uint8_t *filename;
+  /**
+   * Length of `filename` in bytes.
+   */
+  uintptr_t filename_len;
+  /**
+   * The derived component name.
+   */
+  const uint8_t *name;
+  /**
+   * Length of `name` in bytes.
+   */
+  uintptr_t name_len;
+  /**
+   * The raw digest of `css` (no `svelte-` prefix).
+   */
+  const uint8_t *hash;
+  /**
+   * Length of `hash` in bytes.
+   */
+  uintptr_t hash_len;
+} RsvelteCssHashInput;
+
+/**
+ * Optional compile callbacks (issue #1680).
+ *
+ * Passed by pointer to the `*_with_callbacks` entry points. A NULL
+ * function-pointer field disables that callback. Each `*_userdata`
+ * pointer is passed back verbatim to its callback and is otherwise
+ * opaque to this library — use it to carry closure state. When a
+ * constant `cssHashOverride` is also set in the options JSON, that
+ * constant wins and `css_hash` is not invoked (mirrors the wasm/NAPI
+ * precedence).
+ */
+typedef struct RsvelteCallbacks {
+  /**
+   * CSS hash callback (a [`RsvelteCssHashFn`]), or NULL. Inlined rather
+   * than referenced via the alias so cbindgen emits a nullable function
+   * pointer instead of an opaque `Option_*` struct.
+   */
+  struct RsvelteStr (*css_hash)(void *userdata, const struct RsvelteCssHashInput *input);
+  /**
+   * Opaque state pointer passed to `css_hash`.
+   */
+  void *css_hash_userdata;
+  /**
+   * Warning filter callback (a [`RsvelteWarningFilterFn`]), or NULL.
+   */
+  bool (*warning_filter)(void *userdata, const uint8_t *warning_json, uintptr_t warning_json_len);
+  /**
+   * Opaque state pointer passed to `warning_filter`.
+   */
+  void *warning_filter_userdata;
+} RsvelteCallbacks;
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -98,6 +195,42 @@ struct RsvelteBuf rsvelte_compile_module(const uint8_t *source,
                                          uintptr_t source_len,
                                          const uint8_t *options_json,
                                          uintptr_t options_len);
+
+/**
+ * Compile a Svelte component with optional `cssHash` / `warningFilter`
+ * callbacks (issue #1680).
+ *
+ * Identical to [`rsvelte_compile`] but also resolves the two callback
+ * compile options that can't cross the JSON boundary. `callbacks` may
+ * be NULL (equivalent to [`rsvelte_compile`]); individual callback
+ * fields may be NULL too. The callbacks are input-only and are never
+ * retained past this call.
+ *
+ * # Safety
+ * - Source/options pointers follow [`rsvelte_compile`]'s rules.
+ * - `callbacks` must be NULL or point to a valid [`RsvelteCallbacks`];
+ *   each non-NULL function pointer must be callable with the documented
+ *   signature and its paired `*_userdata` value.
+ */
+struct RsvelteBuf rsvelte_compile_with_callbacks(const uint8_t *source,
+                                                 uintptr_t source_len,
+                                                 const uint8_t *options_json,
+                                                 uintptr_t options_len,
+                                                 const struct RsvelteCallbacks *callbacks);
+
+/**
+ * Compile a Svelte `.svelte.js` / `.svelte.ts` module with an optional
+ * `warningFilter` callback (issue #1680). Modules have no CSS, so the
+ * `css_hash` field of `callbacks` is ignored.
+ *
+ * # Safety
+ * See [`rsvelte_compile_with_callbacks`].
+ */
+struct RsvelteBuf rsvelte_compile_module_with_callbacks(const uint8_t *source,
+                                                        uintptr_t source_len,
+                                                        const uint8_t *options_json,
+                                                        uintptr_t options_len,
+                                                        const struct RsvelteCallbacks *callbacks);
 
 /**
  * Out-parameter variant of [`rsvelte_compile`] for hosts whose FFI

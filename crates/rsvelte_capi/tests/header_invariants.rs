@@ -27,8 +27,13 @@ fn required_exports_are_present() {
         "rsvelte_compile_module",
         "rsvelte_compile_into",
         "rsvelte_compile_module_into",
-        // Struct
+        "rsvelte_compile_with_callbacks",
+        "rsvelte_compile_module_with_callbacks",
+        // Structs
         "struct RsvelteBuf",
+        "struct RsvelteCallbacks",
+        "struct RsvelteCssHashInput",
+        "struct RsvelteStr",
         // Struct fields (renaming any breaks every wrapper)
         "*data",
         "len",

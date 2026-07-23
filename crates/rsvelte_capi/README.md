@@ -117,7 +117,38 @@ RsvelteBuf  rsvelte_compile_module(const uint8_t *src, uintptr_t src_len,
 // out-parameter variants — write result through `out`
 void        rsvelte_compile_into       (..., RsvelteBuf *out);
 void        rsvelte_compile_module_into(..., RsvelteBuf *out);
+
+// callback variants — resolve the `cssHash` / `warningFilter` compile
+// options that can't cross the JSON boundary (issue #1680)
+RsvelteBuf  rsvelte_compile_with_callbacks       (const uint8_t *src, uintptr_t src_len,
+                                                  const uint8_t *opts_json, uintptr_t opts_len,
+                                                  const RsvelteCallbacks *callbacks);
+RsvelteBuf  rsvelte_compile_module_with_callbacks(..., const RsvelteCallbacks *callbacks);
 ```
+
+### Callbacks (`cssHash` / `warningFilter`)
+
+The function-form compile options are supplied through a
+`RsvelteCallbacks` struct (any field may be `NULL`; pass `NULL` for the
+whole struct to behave like `rsvelte_compile`):
+
+- **`css_hash`** — `RsvelteStr (*)(void *userdata, const RsvelteCssHashInput *)`.
+  Return the CSS scope class name as a **borrowed** `RsvelteStr`
+  (`{data, len}`; the library copies it immediately and never frees it),
+  or `{NULL, 0}` to fall back to the default hash. `RsvelteCssHashInput.hash`
+  is the **raw digest** of the CSS with **no `svelte-` prefix** — prepend
+  `svelte-` yourself for the default class name (prepending it to an
+  already-prefixed digest would double the prefix; that's why the shared
+  digest is unprefixed). A constant `cssHashOverride` in `opts_json` wins
+  over this callback.
+- **`warning_filter`** — `bool (*)(void *userdata, const uint8_t *warning_json, uintptr_t len)`.
+  Receives one warning as a `(pointer, length)` UTF-8 JSON object; return
+  `true` to keep it, `false` to drop it. Honoured by both the component
+  and module callback entry points (modules ignore `css_hash`).
+
+Each `*_userdata` pointer is passed back verbatim and is opaque to the
+library — the caller owns whatever it points at and is responsible for
+its thread-safety.
 
 ### JSON envelope
 
@@ -156,11 +187,12 @@ defaults.
 
 Each example exercises: default options, runes+dev, SSR generation,
 `compile_module` with a `$state` rune, and the malformed-options error
-path.
+path. The C example additionally drives `rsvelte_compile_with_callbacks`
+with a `cssHash` + `warningFilter` pair.
 
 ## Test infrastructure (breaking-change guard)
 
-`crates/rsvelte_capi/tests/` contains five Rust integration test files
+`crates/rsvelte_capi/tests/` contains six Rust integration test files
 designed to make any breaking change to the FFI surface fail loudly in
 CI:
 
@@ -169,6 +201,7 @@ CI:
 | `envelope.rs`          | The exact JSON envelope shape (`ok`, `result.js.code`, `warnings[].code`, etc.)           |
 | `options_coverage.rs`  | Every documented `CompileOption` is accepted, and most have observable codegen effect     |
 | `module.rs`            | `rsvelte_compile_module` envelope shape + runes / SSR variants                            |
+| `callbacks.rs`         | `cssHash` / `warningFilter` callback path incl. the raw-digest (no double-prefix) guard   |
 | `header_invariants.rs` | Required exports are present in `include/rsvelte.h` AND it byte-matches fresh cbindgen    |
 | `memory.rs`            | Free is no-op on empty buffer; 1000-iteration compile loop checks for double-free / leaks |
 
