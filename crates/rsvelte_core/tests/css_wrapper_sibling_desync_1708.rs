@@ -49,9 +49,8 @@ fn assert_kept(src: &str) {
 
 #[test]
 fn svelte_boundary_scopable_child_keeps_sibling() {
-    let src = format!(
-        "{SCRIPT}<svelte:boundary><b class=\"x\"></b></svelte:boundary>\n{EACH}{STYLE}"
-    );
+    let src =
+        format!("{SCRIPT}<svelte:boundary><b class=\"x\"></b></svelte:boundary>\n{EACH}{STYLE}");
     assert_kept(&src);
 }
 
