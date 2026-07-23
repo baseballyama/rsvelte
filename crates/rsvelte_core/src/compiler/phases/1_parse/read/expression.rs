@@ -259,6 +259,7 @@ fn get_loose_identifier(
             end: end as u32,
             loc: None,
             name: CompactString::from(""),
+            optional: false,
             type_annotation: None,
         }));
     }
@@ -849,6 +850,7 @@ fn try_parse_arrow_function(
                 end: p_end as u32,
                 loc: create_typed_loc(p_start, p_end, line_offsets),
                 name: CompactString::from(p),
+                optional: false,
                 type_annotation: None,
             });
             cursor += chunk.len() + 1; // +1 for the consumed comma
@@ -867,6 +869,8 @@ fn try_parse_arrow_function(
         expression: true,
         generator: false,
         r#async: false,
+        // This fast path bails out on any TS syntax, so never generic.
+        type_parameters: None,
     }))
 }
 
@@ -1316,6 +1320,7 @@ fn try_parse_ident_or_member(
             end: (offset + seg_end) as u32,
             loc: create_typed_loc(offset + seg_start, offset + seg_end, line_offsets),
             name: CompactString::from(prop_name),
+            optional: false,
             type_annotation: None,
         };
 
@@ -1757,6 +1762,7 @@ fn create_invalid_identifier(start: usize, end: usize, _line_offsets: &[usize]) 
         end: end as u32,
         loc: None,
         name: CompactString::from(""),
+        optional: false,
         type_annotation: None,
     })
 }
@@ -2578,6 +2584,11 @@ fn convert_formal_parameter_inner(
                 }
                 obj.insert("name".to_string(), Value::String(name.to_string()));
 
+                // TS optional marker (`b?: T`); acorn emits it after `name`.
+                if param.optional {
+                    obj.insert("optional".to_string(), Value::Bool(true));
+                }
+
                 // Convert type annotation
                 let type_ann_obj = convert_type_annotation_adjusted(
                     arena,
@@ -2588,6 +2599,18 @@ fn convert_formal_parameter_inner(
                 obj.insert("typeAnnotation".to_string(), type_ann_obj);
 
                 Expression::from_json(Value::Object(obj))
+            } else if param.optional {
+                // Optional parameter without a type annotation (`b?`). acorn
+                // extends the identifier span to include the `?`.
+                let end = adjusted_offset + id.span.end as usize + 1;
+                Expression::from_node(JsNode::Identifier {
+                    start: start as u32,
+                    end: end as u32,
+                    loc: create_typed_loc(start, end, line_offsets),
+                    name: CompactString::from(name),
+                    optional: true,
+                    type_annotation: None,
+                })
             } else {
                 let end = adjusted_offset + id.span.end as usize;
                 create_identifier(name, start, end, line_offsets)
@@ -4097,7 +4120,17 @@ fn convert_expression(
         OxcExpression::FunctionExpression(func) => {
             let start = offset + func.span.start as usize - 1;
             let end = offset + func.span.end as usize - 1;
-            create_function_expression(arena, func, start, end, offset, line_offsets)
+            let type_parameters =
+                function_expression_type_parameters(arena, func, offset, line_offsets);
+            create_function_expression(
+                arena,
+                func,
+                start,
+                end,
+                offset,
+                line_offsets,
+                type_parameters,
+            )
         }
         OxcExpression::ClassExpression(class_expr) => {
             let start = offset + class_expr.span.start as usize - 1;
@@ -4280,6 +4313,7 @@ fn create_identifier(name: &str, start: usize, end: usize, line_offsets: &[usize
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         name: CompactString::from(name),
+        optional: false,
         type_annotation: None,
     })
 }
@@ -4311,6 +4345,7 @@ fn create_identifier_for_binding(
         end: end as u32,
         loc: create_typed_loc_for_binding(start, end, line_offsets),
         name: CompactString::from(name),
+        optional: false,
         type_annotation: None,
     }
 }
@@ -4343,6 +4378,7 @@ fn create_identifier_for_binding_toplevel(
         end: end as u32,
         loc: create_typed_loc_for_binding_identifier(start, end, line_offsets),
         name: CompactString::from(name),
+        optional: false,
         type_annotation: None,
     }
 }
@@ -4414,6 +4450,7 @@ pub fn create_identifier_with_character(
         end: end as u32,
         loc: create_typed_loc_with_character(start, end, line_offsets),
         name: CompactString::from(name),
+        optional: false,
         type_annotation: None,
     })
 }
@@ -4426,6 +4463,7 @@ pub fn create_empty_identifier(name: &str, start: usize, end: usize) -> Expressi
         end: end as u32,
         loc: None,
         name: CompactString::from(name),
+        optional: false,
         type_annotation: None,
     })
 }
@@ -4632,6 +4670,7 @@ fn create_static_member_expression(
             end: prop_end as u32,
             loc: create_typed_loc(prop_start, prop_end, line_offsets),
             name: CompactString::from(member.property.name.as_str()),
+            optional: false,
             type_annotation: None,
         }),
         computed: false,
@@ -4738,6 +4777,9 @@ fn create_function_expression(
     end: usize,
     offset: usize,
     line_offsets: &[usize],
+    // Method values carry their generics on the wrapping MethodDefinition, not
+    // the inner function (acorn-typescript), so callers pass `None` there.
+    type_parameters: Option<Box<serde_json::Value>>,
 ) -> Expression {
     // id
     let id = func.id.as_ref().map(|id| {
@@ -4798,6 +4840,26 @@ fn create_function_expression(
         generator: func.generator,
         r#async: func.r#async,
         expression: false,
+        type_parameters,
+    })
+}
+
+/// Convert an oxc `Function`'s generic type parameters into the opaque
+/// `TSTypeParameterDeclaration` blob, using the expression-context (`offset - 1`)
+/// span base. `None` when the function is non-generic.
+fn function_expression_type_parameters(
+    arena: &ParseArena,
+    func: &oxc_ast::ast::Function,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<Box<serde_json::Value>> {
+    func.type_parameters.as_ref().map(|tp| {
+        Box::new(convert_ts_type_parameter_declaration(
+            arena,
+            tp,
+            offset - 1,
+            line_offsets,
+        ))
     })
 }
 
@@ -4966,7 +5028,8 @@ fn convert_class_element_for_expr(
             let key = convert_property_key_for_expr(arena, &method.key, offset, line_offsets);
             obj.insert("key".to_string(), key.to_value());
 
-            // value (function expression)
+            // value (function expression). A method's generics live on the
+            // MethodDefinition (acorn-typescript), not the inner function.
             let value_start = offset + method.value.span.start as usize - 1;
             let value_end = offset + method.value.span.end as usize - 1;
             let value = create_function_expression(
@@ -4976,6 +5039,7 @@ fn convert_class_element_for_expr(
                 value_end,
                 offset,
                 line_offsets,
+                None,
             );
             obj.insert("value".to_string(), value.as_json().clone());
 
@@ -5714,6 +5778,14 @@ fn create_arrow_function(
         expression: arrow.expression,
         generator: false,
         r#async: arrow.r#async,
+        type_parameters: arrow.type_parameters.as_ref().map(|tp| {
+            Box::new(convert_ts_type_parameter_declaration(
+                arena,
+                tp,
+                offset - 1,
+                line_offsets,
+            ))
+        }),
     })
 }
 
@@ -6043,6 +6115,14 @@ fn convert_statement(
                 generator: func_decl.generator,
                 r#async: func_decl.r#async,
                 expression: false,
+                type_parameters: func_decl.type_parameters.as_ref().map(|tp| {
+                    Box::new(convert_ts_type_parameter_declaration(
+                        arena,
+                        tp,
+                        offset - 1,
+                        line_offsets,
+                    ))
+                }),
             })
         }
         // Fallback to the program-context converter for other statement types
@@ -6158,6 +6238,7 @@ fn convert_binding_pattern_for_decl_as_node(
                     end: end as u32,
                     loc: create_typed_loc(start, end, line_offsets),
                     name: CompactString::from(id.name.as_str()),
+                    optional: false,
                     type_annotation: Some(Box::new(ta_value)),
                 }
             } else {
@@ -7184,6 +7265,14 @@ fn convert_statement_for_program(
                         generator: func_decl.generator,
                         r#async: func_decl.r#async,
                         expression: false,
+                        type_parameters: func_decl.type_parameters.as_ref().map(|tp| {
+                            Box::new(convert_ts_type_parameter_declaration(
+                                arena,
+                                tp,
+                                offset,
+                                line_offsets,
+                            ))
+                        }),
                     }
                 }
                 oxc_ast::ast::ExportDefaultDeclarationKind::ClassDeclaration(class_decl)
@@ -7949,6 +8038,14 @@ fn convert_function_declaration_as_node(
         generator: func_decl.generator,
         r#async: func_decl.r#async,
         expression: false,
+        type_parameters: func_decl.type_parameters.as_ref().map(|tp| {
+            Box::new(convert_ts_type_parameter_declaration(
+                arena,
+                tp,
+                offset,
+                line_offsets,
+            ))
+        }),
     })
 }
 
@@ -8509,6 +8606,7 @@ fn convert_variable_declarator_for_program(
                 end: ts_end as u32,
                 loc: create_typed_loc(id_start as usize, ts_end, line_offsets),
                 name,
+                optional: false,
                 type_annotation: Some(Box::new(ts_value)),
             }),
             // Annotated destructuring declarator id (`let { a }: T` / `let [ a ]: T`):
@@ -8775,7 +8873,9 @@ fn convert_expression_for_program(
                 .params
                 .items
                 .iter()
-                .map(|param| convert_binding_pattern(arena, &param.pattern, offset, line_offsets))
+                .map(|param| {
+                    expr_to_node(convert_formal_parameter(arena, param, offset, line_offsets))
+                })
                 .collect();
             if let Some(rest) = &arrow.params.rest {
                 let rest_start = offset + rest.span.start as usize;
@@ -8817,11 +8917,27 @@ fn convert_expression_for_program(
                 r#async: arrow.r#async,
                 params: arena.alloc_js_children(params),
                 body: arena.alloc_js_node(body_node),
+                type_parameters: arrow.type_parameters.as_ref().map(|tp| {
+                    Box::new(convert_ts_type_parameter_declaration(
+                        arena,
+                        tp,
+                        offset,
+                        line_offsets,
+                    ))
+                }),
             })
         }
-        OxcExpression::FunctionExpression(func) => Expression::from_node(
-            convert_function_expression_for_program_as_node(arena, func, offset, line_offsets),
-        ),
+        OxcExpression::FunctionExpression(func) => {
+            let type_parameters =
+                program_function_expression_type_parameters(arena, func, offset, line_offsets);
+            Expression::from_node(convert_function_expression_for_program_as_node(
+                arena,
+                func,
+                offset,
+                line_offsets,
+                type_parameters,
+            ))
+        }
         OxcExpression::StaticMemberExpression(member) => {
             let start = offset + member.span.start as usize;
             let end = offset + member.span.end as usize;
@@ -9679,11 +9795,14 @@ fn convert_class_element_for_program_as_node(
                 oxc_ast::ast::MethodDefinitionKind::Set => "set",
             };
             let key = convert_property_key(arena, &method.key, offset, line_offsets);
+            // A method's generics live on the MethodDefinition, not the inner
+            // function (acorn-typescript), so the inner function gets `None`.
             let value = convert_function_expression_for_program_as_node(
                 arena,
                 &method.value,
                 offset,
                 line_offsets,
+                None,
             );
             TypedClassElem::Node(JsNode::MethodDefinition {
                 start: start as u32,
@@ -9946,6 +10065,8 @@ fn convert_function_expression_for_program_as_node(
     func: &oxc_ast::ast::Function,
     offset: usize,
     line_offsets: &[usize],
+    // `None` for method values (their generics live on the wrapper node).
+    type_parameters: Option<Box<serde_json::Value>>,
 ) -> JsNode {
     let start = offset + func.span.start as usize;
     let end = offset + func.span.end as usize;
@@ -9994,7 +10115,27 @@ fn convert_function_expression_for_program_as_node(
         generator: func.generator,
         r#async: func.r#async,
         expression: false,
+        type_parameters,
     }
+}
+
+/// Convert an oxc `Function`'s generic type parameters into the opaque
+/// `TSTypeParameterDeclaration` blob, using the program-context (`offset`) span
+/// base. `None` when the function is non-generic.
+fn program_function_expression_type_parameters(
+    arena: &ParseArena,
+    func: &oxc_ast::ast::Function,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<Box<serde_json::Value>> {
+    func.type_parameters.as_ref().map(|tp| {
+        Box::new(convert_ts_type_parameter_declaration(
+            arena,
+            tp,
+            offset,
+            line_offsets,
+        ))
+    })
 }
 
 /// Convert a function body (statement or expression) to JSON value.

@@ -57,9 +57,10 @@ use crate::ast::template::*;
 use crate::ast::typed_expr::{JsNode, LiteralValue, Loc, RegexValue, TemplateElementValue};
 
 pub const MAGIC: u32 = 0x3156_5052; // "RPV1" little-endian
-// Bumped for the `FunctionDeclaration.expression` bool byte added to the wire
-// format; keep in lockstep with `parse-envelope.js`'s `VERSION`.
-pub const VERSION: u32 = 2;
+// Bumped for the function-node AST-fidelity changes (FunctionExpression field
+// reorder, `typeParameters` on function-like nodes, Identifier `optional`);
+// keep in lockstep with `parse-envelope.js`'s `VERSION`.
+pub const VERSION: u32 = 3;
 pub const HEADER_LEN: usize = 24;
 
 // Header `flags` word (offset 20):
@@ -1195,11 +1196,13 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             end,
             loc,
             name,
+            optional,
             type_annotation,
         } => {
             write_preamble(w, JS_IDENTIFIER, *start, *end);
             write_typed_loc(w, loc.as_deref());
             write_str(w, name.as_str());
+            write_bool(w, *optional);
             write_opt_type_annotation(w, type_annotation.as_deref())?;
         }
         JsNode::PrivateIdentifier {
@@ -1334,13 +1337,15 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             generator,
             r#async,
             expression,
+            type_parameters,
         } => {
             write_preamble(w, JS_FUNCTION_EXPRESSION, *start, *end);
             write_typed_loc(w, loc.as_deref());
             write_opt_node_id(w, *id, arena)?;
+            write_bool(w, *expression);
             write_bool(w, *generator);
             write_bool(w, *r#async);
-            write_bool(w, *expression);
+            write_opt_type_annotation(w, type_parameters.as_deref())?;
             write_id_range(w, *params, arena)?;
             write_opt_node_id(w, *body, arena)?;
         }
@@ -1368,6 +1373,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             expression,
             generator,
             r#async,
+            type_parameters,
         } => {
             write_preamble(w, JS_ARROW_FUNCTION_EXPRESSION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -1377,6 +1383,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_bool(w, *r#async);
             write_id_range(w, *params, arena)?;
             write_node_id(w, *body, arena)?;
+            write_opt_type_annotation(w, type_parameters.as_deref())?;
         }
         JsNode::AssignmentExpression {
             start,
@@ -1684,6 +1691,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             generator,
             r#async,
             expression,
+            type_parameters,
         } => {
             write_preamble(w, JS_FUNCTION_DECLARATION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -1691,6 +1699,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_bool(w, *expression);
             write_bool(w, *generator);
             write_bool(w, *r#async);
+            write_opt_type_annotation(w, type_parameters.as_deref())?;
             write_id_range(w, *params, arena)?;
             write_opt_node_id(w, *body, arena)?;
         }
