@@ -35,7 +35,7 @@
     "daemon/daemon.mjs"
   ],
   "dependencies": {
-    "prettier-plugin-tailwindcss": "0.0.0-insiders.2b6f3c2"
+    "prettier-plugin-tailwindcss": "0.8.1"
   },
   "optionalDependencies": {
     "@rsvelte/fmt-darwin-arm64": "workspace:^",
