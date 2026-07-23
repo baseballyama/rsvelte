@@ -135,6 +135,37 @@ const ARRANGE_C = {
 	wrong: (_sel, inner) => `<section>${inner}</section>`,
 };
 
+// Family C3 — three-level nesting whose innermost `& +/~ &` must resolve every
+// ancestor level (`.grand` AND `.foo`), not just the immediate parent (issue
+// #1719 review regression). `sep` separates the two `.a` for `~`.
+const SELECTORS_C3 = [
+	{
+		id: '.grand{.foo>.a{&+&}}',
+		css: '.grand {\n\t\t.foo > .a { & + & { color: red; } }\n\t}',
+		rawCss: true,
+		sibs: ['a', 'a'],
+	},
+	{
+		id: '.grand{.foo>.a{&~&}}',
+		css: '.grand {\n\t\t.foo > .a { & ~ & { color: red; } }\n\t}',
+		rawCss: true,
+		sibs: ['a', 'a'],
+		sep: '<span></span>',
+	},
+];
+
+// Family C3 arrangements: `full` satisfies both ancestors; `no_grand` breaks the
+// outer link (`.foo` not under `.grand`); `no_foo` breaks the inner link (`.a`
+// directly under `.grand`); `flat` puts the pair at the root. Only `full` is a
+// keep — the rest prune — and official and rsvelte must agree in each.
+const ARRANGE_C3 = {
+	full: (inner) => `<div class="grand"><div class="foo">${inner}</div></div>`,
+	full_each: (inner) => `<div class="grand"><div class="foo">{#each list as _}${inner}{/each}</div></div>`,
+	no_grand: (inner) => `<div class="grand"></div><div class="foo">${inner}</div>`,
+	no_foo: (inner) => `<div class="grand">${inner}</div>`,
+	flat: (inner) => inner,
+};
+
 const wrapNest = (roles) => {
 	// build <outer>…<inner></inner>…</outer>, keeping the class on the div.
 	let inner = '';
@@ -252,6 +283,20 @@ function* generate() {
 			for (const [corrName, corr] of Object.entries(CORRUPTORS_STRUCTURAL)) {
 				yield {
 					id: `C/${sel.id}/${arrName}/${corrName}`,
+					source: assemble({ prefix: corr, markup, sel }),
+				};
+			}
+		}
+	}
+	// Family C3: three-level nested sibling selector × ancestor arrangement ×
+	// structural corruptor.
+	for (const sel of SELECTORS_C3) {
+		const inner = sel.sibs.map((r) => ROLE[r]).join(sel.sep ?? '');
+		for (const [arrName, arrFn] of Object.entries(ARRANGE_C3)) {
+			const markup = arrFn(inner);
+			for (const [corrName, corr] of Object.entries(CORRUPTORS_STRUCTURAL)) {
+				yield {
+					id: `C3/${sel.id}/${arrName}/${corrName}`,
 					source: assemble({ prefix: corr, markup, sel }),
 				};
 			}

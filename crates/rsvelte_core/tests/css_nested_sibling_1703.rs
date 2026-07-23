@@ -110,6 +110,90 @@ fn nested_amp_tilde_amp_multi_relative_parent_child_kept() {
 }
 
 #[test]
+fn nested_three_level_plus_ancestor_satisfied_kept() {
+    // Issue #1719 review: three-level nesting must resolve *every* ancestor
+    // level, not just the immediate parent. `.grand { .foo > .a { & + & } }`
+    // with `.foo` actually a descendant of `.grand` and an adjacent `.a` pair →
+    // official keeps the rule.
+    let out = css(
+        "<div class=\"grand\"><div class=\"foo\"><div class=\"a\"></div><div class=\"a\"></div></div></div>\n\
+         <style>.grand { .foo > .a { & + & { color: red; } } }</style>",
+    );
+    assert!(!out.contains("(empty)"), "rule must be kept, got:\n{out}");
+    assert!(!out.contains("(unused)"), "rule must be kept, got:\n{out}");
+    assert!(out.contains("& + &"), "expected `& + &` kept in:\n{out}");
+    assert!(
+        out.contains(".grand.svelte-"),
+        "expected scoped `.grand` in:\n{out}"
+    );
+}
+
+#[test]
+fn nested_three_level_plus_ancestor_missing_pruned() {
+    // `.foo` is NOT a descendant of `.grand` (they are siblings), so the outer
+    // ancestor constraint is unsatisfied and the official compiler prunes the
+    // rule as `(empty)`. This is the regression the review caught: resolving
+    // only the immediate `.foo > .a` parent wrongly kept it.
+    let out = css(
+        "<div class=\"grand\"></div><div class=\"foo\"><div class=\"a\"></div><div class=\"a\"></div></div>\n\
+         <style>.grand { .foo > .a { & + & { color: red; } } }</style>",
+    );
+    assert!(
+        out.contains("(empty)"),
+        "`.grand` ancestor unsatisfied must prune `& + &` as empty, got:\n{out}"
+    );
+}
+
+#[test]
+fn nested_three_level_tilde_ancestor_satisfied_kept() {
+    let out = css(
+        "<div class=\"grand\"><div class=\"foo\"><div class=\"a\"></div><span></span><div class=\"a\"></div></div></div>\n\
+         <style>.grand { .foo > .a { & ~ & { color: red; } } }</style>",
+    );
+    assert!(!out.contains("(empty)"), "rule must be kept, got:\n{out}");
+    assert!(!out.contains("(unused)"), "rule must be kept, got:\n{out}");
+    assert!(out.contains("& ~ &"), "expected `& ~ &` kept in:\n{out}");
+}
+
+#[test]
+fn nested_three_level_tilde_ancestor_missing_pruned() {
+    let out = css(
+        "<div class=\"grand\"></div><div class=\"foo\"><div class=\"a\"></div><span></span><div class=\"a\"></div></div>\n\
+         <style>.grand { .foo > .a { & ~ & { color: red; } } }</style>",
+    );
+    assert!(
+        out.contains("(empty)"),
+        "`.grand` ancestor unsatisfied must prune `& ~ &` as empty, got:\n{out}"
+    );
+}
+
+#[test]
+fn nested_two_level_single_compound_ancestor_satisfied_kept() {
+    // `.grand { .a { & + & } }`: `&` resolves to `.grand .a`; the `.a` pair is
+    // under `.grand`, so official keeps.
+    let out = css(
+        "<div class=\"grand\"><div class=\"a\"></div><div class=\"a\"></div></div>\n\
+         <style>.grand { .a { & + & { color: red; } } }</style>",
+    );
+    assert!(!out.contains("(empty)"), "rule must be kept, got:\n{out}");
+    assert!(!out.contains("(unused)"), "rule must be kept, got:\n{out}");
+    assert!(out.contains("& + &"), "expected `& + &` kept in:\n{out}");
+}
+
+#[test]
+fn nested_two_level_single_compound_ancestor_missing_pruned() {
+    // The `.a` pair is at the root, not under `.grand`, so official prunes.
+    let out = css(
+        "<div class=\"grand\"></div><div class=\"a\"></div><div class=\"a\"></div>\n\
+         <style>.grand { .a { & + & { color: red; } } }</style>",
+    );
+    assert!(
+        out.contains("(empty)"),
+        "`.grand` ancestor unsatisfied must prune `& + &` as empty, got:\n{out}"
+    );
+}
+
+#[test]
 fn nested_amp_plus_amp_multi_relative_parent_no_match_pruned() {
     // `.foo > .a { & + & }` where `.a` is not a child of `.foo`. `&` resolves to
     // the full `.foo > .a`, which this compound matcher can't verify, so it must

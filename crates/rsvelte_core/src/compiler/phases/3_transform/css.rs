@@ -2800,29 +2800,102 @@ fn resolve_global_inner_matcher(rel: &Value) -> SiblingMatcher {
     SiblingMatcher::Info(global_inner_selector_info(rel))
 }
 
-/// If `rel` is a bare `&` (a single NestingSelector) whose immediate parent rule
-/// prelude is a single structurally-evaluable descendant/child chain, return
-/// that chain (subject last) so `.foo > .a { & + & }` resolves `&` to the full
-/// `.foo > .a` with its ancestor constraint. Returns `None` for the
-/// single-relative parent (handled by [`extract_selector_info_resolving_nesting`])
-/// and for shapes the structural matcher cannot evaluate.
+/// True when a single nesting level's compounds can be evaluated by the
+/// structural ancestor matcher: only ` `/`>` combinators (the head compound may
+/// carry a null combinator) and only evaluable simple selectors (no
+/// `:global`/`&`/functional pseudo). Unlike [`chain_is_structurally_evaluable`]
+/// this accepts a single-compound level (a bare `.grand`).
+fn level_is_structurally_evaluable(rels: &[Value]) -> bool {
+    if rels.is_empty() {
+        return false;
+    }
+    for rel in rels.iter().skip(1) {
+        let comb = rel
+            .get("combinator")
+            .and_then(|c| c.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or(" ");
+        if comb != " " && comb != ">" {
+            return false;
+        }
+    }
+    rels.iter().all(|rel| {
+        rel.get("selectors")
+            .and_then(|s| s.as_array())
+            .is_some_and(|sels| {
+                !sels.is_empty() && sels.iter().all(structural_simple_selector_is_evaluable)
+            })
+    })
+}
+
+/// Clone a relative selector, forcing a null/absent combinator on its head to a
+/// descendant combinator. Mirrors upstream `get_relative_selectors`, which links
+/// a nested rule's prelude to its parent by prepending an implicit `&` +
+/// descendant combinator before recursing up.
+fn with_descendant_head(rel: &Value) -> Value {
+    let mut cloned = rel.clone();
+    let is_null = cloned
+        .get("combinator")
+        .map(|c| c.is_null())
+        .unwrap_or(true);
+    if is_null && let Value::Object(map) = &mut cloned {
+        map.insert(
+            "combinator".to_string(),
+            serde_json::json!({ "type": "Combinator", "name": " " }),
+        );
+    }
+    cloned
+}
+
+/// Build the full ancestor chain (subject last) for nesting levels
+/// `preludes[..level]`, mirroring upstream `get_relative_selectors` +
+/// `NestingSelector` resolution: each enclosing rule contributes its prelude,
+/// linked to the level below by an implicit descendant combinator, so
+/// `.grand { .foo > .a { … } }` resolves `&` to `.grand .foo > .a`. Returns
+/// `None` if any level is not a single structurally-evaluable descendant/child
+/// complex selector (multiple complex selectors, sibling combinators, nested
+/// `&`, `:global`, or functional pseudo) — the caller then falls back to the
+/// compound `Info` path.
+fn build_parent_chain(preludes: &[&Value], level: usize) -> Option<Vec<Value>> {
+    if level == 0 {
+        return None;
+    }
+    let prelude = preludes[level - 1];
+    let children = prelude.get("children").and_then(|c| c.as_array())?;
+    if children.len() != 1 {
+        return None;
+    }
+    let rels = children[0].get("children").and_then(|c| c.as_array())?;
+    if !level_is_structurally_evaluable(rels) {
+        return None;
+    }
+    if level == 1 {
+        return Some(rels.clone());
+    }
+    let mut chain = build_parent_chain(preludes, level - 1)?;
+    chain.push(with_descendant_head(&rels[0]));
+    chain.extend(rels[1..].iter().cloned());
+    Some(chain)
+}
+
+/// If `rel` is a bare `&` (a single NestingSelector), resolve it against the
+/// full stack of enclosing rule preludes into a descendant/child chain (subject
+/// last) so `.foo > .a { & + & }` and `.grand { .foo > .a { & + & } }` verify
+/// every ancestor level, not just the immediate parent. Returns `None` when the
+/// resolved chain is a single compound (no ancestor constraint — handled by
+/// [`extract_selector_info_resolving_nesting`]) or when any level is a shape the
+/// structural matcher cannot evaluate.
 fn resolve_bare_nesting_chain(rel: &Value, ctx: &CssContext) -> Option<Vec<Value>> {
     let sels = rel.get("selectors").and_then(|s| s.as_array())?;
     if sels.len() != 1 || sels[0].get("type").and_then(|t| t.as_str()) != Some("NestingSelector") {
         return None;
     }
     let parent_preludes = ctx.parent_preludes.borrow();
-    let parent = parent_preludes.last()?;
-    let children = parent.get("children").and_then(|c| c.as_array())?;
-    if children.len() != 1 {
+    let chain = build_parent_chain(&parent_preludes, parent_preludes.len())?;
+    if chain.len() < 2 {
         return None;
     }
-    let rels = children[0].get("children").and_then(|c| c.as_array())?;
-    if chain_is_structurally_evaluable(rels) {
-        Some(rels.clone())
-    } else {
-        None
-    }
+    Some(chain)
 }
 
 /// Resolve a sibling operand relative selector into a [`SiblingMatcher`],
