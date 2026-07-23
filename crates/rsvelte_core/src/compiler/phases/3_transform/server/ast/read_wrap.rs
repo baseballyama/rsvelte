@@ -944,22 +944,6 @@ fn collect_binding_pattern_names(pat: &oxc_ast::ast::BindingPattern, out: &mut F
     }
 }
 
-/// Whether `expr` is a `$state.eager(<arg>)` call. The read-wrap pass leaves its
-/// argument unvisited (写经 the server `CallExpression` visitor returning
-/// `node.arguments[0]` without visiting), so the eager read stays bare.
-fn is_state_eager_call(expr: &Expression<'_>) -> bool {
-    let Expression::CallExpression(call) = expr else {
-        return false;
-    };
-    let Expression::StaticMemberExpression(m) = &call.callee else {
-        return false;
-    };
-    let Expression::Identifier(obj) = &m.object else {
-        return false;
-    };
-    obj.name.as_str() == "$state" && m.property.name.as_str() == "eager"
-}
-
 impl<'a, 'b> VisitMut<'a> for ReadWrap<'a, 'b> {
     fn visit_expression(&mut self, expr: &mut Expression<'a>) {
         match expr {
@@ -997,14 +981,6 @@ impl<'a, 'b> VisitMut<'a> for ReadWrap<'a, 'b> {
                     oxc_ast_visit::walk_mut::walk_expression(self, expr);
                 }
             }
-            // `$state.eager(<arg>)`: upstream's server `CallExpression` visitor
-            // returns `node.arguments[0]` WITHOUT visiting it, so the eager read
-            // is NOT derived-wrapped (`$state.eager(derivedCount)` stays a bare
-            // `derivedCount`, later unwrapped by `lower_effect_value_runes_expr`).
-            // Skip recursion here so the argument's derived/store reads are left
-            // bare — otherwise it would wrap to `derivedCount()` before the
-            // unwrap, yielding the wrong `derivedCount() !== derivedCount()`.
-            Expression::CallExpression(_) if is_state_eager_call(expr) => {}
             _ => oxc_ast_visit::walk_mut::walk_expression(self, expr),
         }
     }
