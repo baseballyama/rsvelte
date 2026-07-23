@@ -63,50 +63,25 @@ function analyze(fullSource, filename) {
 	return analysis;
 }
 
-// Per (rule, file) de-dup: a dual-`<script>` component is visited once per
-// block, so markup diagnostics would otherwise repeat. `createOnce` runs its
-// returned visitor once for the *whole* oxlint invocation, so its closure
-// state is shared across every file being linted, and oxlint does not
-// guarantee a file's several blocks are visited back-to-back during a
-// multi-file run — tracking "the previously seen source" in that shared
-// closure breaks as soon as another file's block is visited in between (it
-// looks like a new file, so the de-dup set resets and the diagnostic is
-// reported again on the next block of the same file).
-//
-// Keyed by absolute filename in its own cache, deliberately *not* piggybacked
-// on `analysisCache` (which is keyed by file *content*, to reuse the one
-// expensive lint call across ~160 rule visitors of the same file): two
-// distinct files with byte-identical content share one `analysisCache` entry,
-// so a reported-state Set living on that shared entry would make the second
-// file's diagnostics look "already reported" and silently vanish — trading
-// the duplicate-report bug for a worse dropped-report bug. Keeping the two
-// caches separate also decouples their eviction: `analysisCache`'s tight
-// 64-entry bound (sized for the expensive-relint cost) evicting a file's
-// analysis no longer touches this Set, so it can no longer resurrect the
-// original duplicate-report bug the way a shared cache entry could.
-//
-// Bounded generously and independently of `analysisCache` for the same
-// reason — a long-lived process (oxlint's LSP/watch mode) must not grow this
-// forever, but the bound only needs to be "large enough that this file's
-// entry is very unlikely to be evicted between visits to its own blocks",
-// not "cheap to recompute" like the content cache. There's no reliable
-// "this file's every block visit is now done" signal to release the entry
-// on completion instead: blocks and ~160 rules are visited in an
-// oxlint-controlled interleaving no single rule's `Program` visitor can
-// observe the end of, so eviction-by-size is the only practical option.
+// Per (rule, file) de-dup so a dual-`<script>` component's two block visits
+// don't double-report; keyed by filename (not shared across files like a
+// content-keyed cache would be) and re-armed whenever a file's content
+// changes (so a stale Set from a prior lint of the same filename can't
+// swallow a diagnostic that's genuinely new to this pass).
 const MAX_REPORTED_FILES = 2048;
 const reportedByFile = new Map();
 
-function reportedSetFor(filename, ruleName) {
-	let perRule = reportedByFile.get(filename);
-	if (!perRule) {
-		if (reportedByFile.size >= MAX_REPORTED_FILES) {
+function reportedSetFor(filename, ruleName, fullSource) {
+	let entry = reportedByFile.get(filename);
+	if (!entry || entry.source !== fullSource) {
+		if (!entry && reportedByFile.size >= MAX_REPORTED_FILES) {
 			reportedByFile.delete(reportedByFile.keys().next().value);
 		}
-		reportedByFile.set(filename, (perRule = new Map()));
+		entry = { source: fullSource, perRule: new Map() };
+		reportedByFile.set(filename, entry);
 	}
-	let set = perRule.get(ruleName);
-	if (!set) perRule.set(ruleName, (set = new Set()));
+	let set = entry.perRule.get(ruleName);
+	if (!set) entry.perRule.set(ruleName, (set = new Set()));
 	return set;
 }
 
@@ -144,7 +119,7 @@ function makeRule(entry) {
 					const analysis = analyze(fullSource, filename);
 					const diags = analysis.byKey.get(entry.name);
 					if (!diags || diags.length === 0) return;
-					const emitted = reportedSetFor(filename, entry.name);
+					const emitted = reportedSetFor(filename, entry.name, fullSource);
 
 					// The block oxlint is showing us right now, in the file's own
 					// offsets. Use oxlint's exact extracted text as the origin so our
