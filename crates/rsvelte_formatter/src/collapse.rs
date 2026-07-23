@@ -78,6 +78,10 @@ pub(crate) fn collapse_pure_text_elements(
         // Collapse inspects only markup structure (element/text shapes and node
         // spans), never expression `loc` objects — skip building them.
         skip_expression_loc: true,
+        // Collapse never reads `<script>` / `<style>` bodies nor typed template
+        // expressions (only their source spans, which survive on the lazy
+        // variant), so defer the oxc script/CSS parse the re-parse never uses.
+        defer_script_parse: true,
         ..ParseOptions::default()
     };
     // The children-port helpers rebuild elements without carrying `FormatOptions`;
