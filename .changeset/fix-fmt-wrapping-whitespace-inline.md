@@ -24,3 +24,9 @@ and the default `false` glues the close tag and drops the whitespace body
 block-display elements are left to their existing layout. Also aligns
 `can_omit_softline_before_closing_tag` with prettier's `blockElements` (excluding
 `script`/`style`) via `is_html_block_display_element`.
+
+Also fixes a crash this uncovered: when the new whitespace-body edit overlapped
+the indent pass's edit on the same text node, the top-level section-span remap
+double-counted the dropped edit and shifted a later `<style>`/`<script>` boundary
+past the output end, panicking during section reorder. The remap is now computed
+from the overlap-resolved edit set, so it always agrees with the applied output.
