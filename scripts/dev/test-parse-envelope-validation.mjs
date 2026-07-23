@@ -100,8 +100,8 @@ function buildParseEnvelope(json, over = {}) {
 function buildIdentifierEnvelope(name, over = {}) {
 	const nameBytes = Buffer.from(name, 'utf8');
 	const rootOffset = HEADER_LEN;
-	// node: tag(1) + start(4) + end(4) + nameLen(4) + nameBytes + typeAnnotationFlag(1)
-	const nodeLen = 1 + 4 + 4 + 4 + nameBytes.length + 1;
+	// node: tag(1) + start(4) + end(4) + nameLen(4) + nameBytes + optionalFlag(1) + typeAnnotationFlag(1)
+	const nodeLen = 1 + 4 + 4 + 4 + nameBytes.length + 1 + 1;
 	const total = HEADER_LEN + nodeLen;
 
 	const buf = Buffer.alloc(total);
@@ -123,6 +123,8 @@ function buildIdentifierEnvelope(name, over = {}) {
 	p += 4;
 	nameBytes.copy(buf, p);
 	p += nameBytes.length;
+	buf.writeUInt8(0, p); // optional = false
+	p += 1;
 	buf.writeUInt8(0, p); // no typeAnnotation
 
 	for (const [offset, value] of Object.entries(over)) {

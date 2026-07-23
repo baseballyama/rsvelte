@@ -4120,7 +4120,17 @@ fn convert_expression(
         OxcExpression::FunctionExpression(func) => {
             let start = offset + func.span.start as usize - 1;
             let end = offset + func.span.end as usize - 1;
-            create_function_expression(arena, func, start, end, offset, line_offsets)
+            let type_parameters =
+                function_expression_type_parameters(arena, func, offset, line_offsets);
+            create_function_expression(
+                arena,
+                func,
+                start,
+                end,
+                offset,
+                line_offsets,
+                type_parameters,
+            )
         }
         OxcExpression::ClassExpression(class_expr) => {
             let start = offset + class_expr.span.start as usize - 1;
@@ -4767,6 +4777,9 @@ fn create_function_expression(
     end: usize,
     offset: usize,
     line_offsets: &[usize],
+    // Method values carry their generics on the wrapping MethodDefinition, not
+    // the inner function (acorn-typescript), so callers pass `None` there.
+    type_parameters: Option<Box<serde_json::Value>>,
 ) -> Expression {
     // id
     let id = func.id.as_ref().map(|id| {
@@ -4827,14 +4840,26 @@ fn create_function_expression(
         generator: func.generator,
         r#async: func.r#async,
         expression: false,
-        type_parameters: func.type_parameters.as_ref().map(|tp| {
-            Box::new(convert_ts_type_parameter_declaration(
-                arena,
-                tp,
-                offset - 1,
-                line_offsets,
-            ))
-        }),
+        type_parameters,
+    })
+}
+
+/// Convert an oxc `Function`'s generic type parameters into the opaque
+/// `TSTypeParameterDeclaration` blob, using the expression-context (`offset - 1`)
+/// span base. `None` when the function is non-generic.
+fn function_expression_type_parameters(
+    arena: &ParseArena,
+    func: &oxc_ast::ast::Function,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<Box<serde_json::Value>> {
+    func.type_parameters.as_ref().map(|tp| {
+        Box::new(convert_ts_type_parameter_declaration(
+            arena,
+            tp,
+            offset - 1,
+            line_offsets,
+        ))
     })
 }
 
@@ -5003,7 +5028,8 @@ fn convert_class_element_for_expr(
             let key = convert_property_key_for_expr(arena, &method.key, offset, line_offsets);
             obj.insert("key".to_string(), key.to_value());
 
-            // value (function expression)
+            // value (function expression). A method's generics live on the
+            // MethodDefinition (acorn-typescript), not the inner function.
             let value_start = offset + method.value.span.start as usize - 1;
             let value_end = offset + method.value.span.end as usize - 1;
             let value = create_function_expression(
@@ -5013,6 +5039,7 @@ fn convert_class_element_for_expr(
                 value_end,
                 offset,
                 line_offsets,
+                None,
             );
             obj.insert("value".to_string(), value.as_json().clone());
 
@@ -8900,9 +8927,17 @@ fn convert_expression_for_program(
                 }),
             })
         }
-        OxcExpression::FunctionExpression(func) => Expression::from_node(
-            convert_function_expression_for_program_as_node(arena, func, offset, line_offsets),
-        ),
+        OxcExpression::FunctionExpression(func) => {
+            let type_parameters =
+                program_function_expression_type_parameters(arena, func, offset, line_offsets);
+            Expression::from_node(convert_function_expression_for_program_as_node(
+                arena,
+                func,
+                offset,
+                line_offsets,
+                type_parameters,
+            ))
+        }
         OxcExpression::StaticMemberExpression(member) => {
             let start = offset + member.span.start as usize;
             let end = offset + member.span.end as usize;
@@ -9760,11 +9795,14 @@ fn convert_class_element_for_program_as_node(
                 oxc_ast::ast::MethodDefinitionKind::Set => "set",
             };
             let key = convert_property_key(arena, &method.key, offset, line_offsets);
+            // A method's generics live on the MethodDefinition, not the inner
+            // function (acorn-typescript), so the inner function gets `None`.
             let value = convert_function_expression_for_program_as_node(
                 arena,
                 &method.value,
                 offset,
                 line_offsets,
+                None,
             );
             TypedClassElem::Node(JsNode::MethodDefinition {
                 start: start as u32,
@@ -10027,6 +10065,8 @@ fn convert_function_expression_for_program_as_node(
     func: &oxc_ast::ast::Function,
     offset: usize,
     line_offsets: &[usize],
+    // `None` for method values (their generics live on the wrapper node).
+    type_parameters: Option<Box<serde_json::Value>>,
 ) -> JsNode {
     let start = offset + func.span.start as usize;
     let end = offset + func.span.end as usize;
@@ -10075,15 +10115,27 @@ fn convert_function_expression_for_program_as_node(
         generator: func.generator,
         r#async: func.r#async,
         expression: false,
-        type_parameters: func.type_parameters.as_ref().map(|tp| {
-            Box::new(convert_ts_type_parameter_declaration(
-                arena,
-                tp,
-                offset,
-                line_offsets,
-            ))
-        }),
+        type_parameters,
     }
+}
+
+/// Convert an oxc `Function`'s generic type parameters into the opaque
+/// `TSTypeParameterDeclaration` blob, using the program-context (`offset`) span
+/// base. `None` when the function is non-generic.
+fn program_function_expression_type_parameters(
+    arena: &ParseArena,
+    func: &oxc_ast::ast::Function,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<Box<serde_json::Value>> {
+    func.type_parameters.as_ref().map(|tp| {
+        Box::new(convert_ts_type_parameter_declaration(
+            arena,
+            tp,
+            offset,
+            line_offsets,
+        ))
+    })
 }
 
 /// Convert a function body (statement or expression) to JSON value.

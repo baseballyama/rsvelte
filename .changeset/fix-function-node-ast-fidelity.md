@@ -15,7 +15,9 @@ Three parse-AST fixes so the public `parse()` output matches svelte/compiler:
 - TS optional parameters (`b?: T`) round-trip their `optional: true` marker;
   program-context arrow params now route through the TS-aware parameter
   converter so they carry the same `typeAnnotation`/`optional` fidelity as
-  declarations (#1692).
+  declarations (#1692). As a side effect, this also fixes a pure-JS bug where a
+  default-valued arrow parameter (`(a = 1) => a`) lost its `AssignmentPattern`
+  (default value) in the `parse()` output — `compile()` output was unaffected.
 
 The binary NAPI raw-parse envelope (consumed by
 `@rsvelte/vite-plugin-svelte-native`'s `parse-envelope.js` decoder) carries the

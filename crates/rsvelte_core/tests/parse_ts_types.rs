@@ -436,6 +436,15 @@ fn non_generic_function_omits_type_parameters() {
     assert!(f.get("typeParameters").is_none());
 }
 
+#[test]
+fn class_method_generics_stay_off_the_inner_function() {
+    // acorn-typescript attaches a method's generics to the MethodDefinition, not
+    // the inner FunctionExpression, so the inner function must omit them.
+    let ast = parse_to_json("<script lang=\"ts\">class C { m<T>(x: T){} }</script>");
+    let f = find_node(&ast, "FunctionExpression").expect("FunctionExpression");
+    assert!(f.get("typeParameters").is_none());
+}
+
 // #1692: the TS optional-parameter marker (`b?`) must round-trip as
 // `optional: true` (after `name`, before `typeAnnotation`, omitted when false).
 
