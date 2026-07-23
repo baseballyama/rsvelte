@@ -244,6 +244,42 @@ fn collect_elements_and_paths<'a>(
                     node_path,
                 );
             }
+            TemplateNode::SvelteComponent(comp) => {
+                collect_elements_and_paths(
+                    &comp.fragment,
+                    node_to_dom_idx,
+                    element_paths,
+                    dom_idx_counter,
+                    node_path,
+                );
+            }
+            // Wrapper elements the analysis visitor descends into when assigning
+            // `dom_idx`; skipping them here desyncs the two counters and shifts
+            // every later element's sibling data.
+            TemplateNode::SvelteSelf(elem)
+            | TemplateNode::SvelteHead(elem)
+            | TemplateNode::SvelteFragment(elem)
+            | TemplateNode::SvelteBoundary(elem)
+            | TemplateNode::SvelteBody(elem)
+            | TemplateNode::SvelteWindow(elem)
+            | TemplateNode::SvelteDocument(elem) => {
+                collect_elements_and_paths(
+                    &elem.fragment,
+                    node_to_dom_idx,
+                    element_paths,
+                    dom_idx_counter,
+                    node_path,
+                );
+            }
+            TemplateNode::TitleElement(title) => {
+                collect_elements_and_paths(
+                    &title.fragment,
+                    node_to_dom_idx,
+                    element_paths,
+                    dom_idx_counter,
+                    node_path,
+                );
+            }
             _ => {
                 // Text, comments, expression tags
             }
@@ -677,6 +713,21 @@ fn mark_opaque_in_fragment(
             }
             TemplateNode::Component(comp) => {
                 mark_opaque_in_fragment(dom_structure, &comp.fragment, node_to_dom_idx);
+            }
+            TemplateNode::SvelteComponent(comp) => {
+                mark_opaque_in_fragment(dom_structure, &comp.fragment, node_to_dom_idx);
+            }
+            TemplateNode::SvelteSelf(elem)
+            | TemplateNode::SvelteHead(elem)
+            | TemplateNode::SvelteFragment(elem)
+            | TemplateNode::SvelteBoundary(elem)
+            | TemplateNode::SvelteBody(elem)
+            | TemplateNode::SvelteWindow(elem)
+            | TemplateNode::SvelteDocument(elem) => {
+                mark_opaque_in_fragment(dom_structure, &elem.fragment, node_to_dom_idx);
+            }
+            TemplateNode::TitleElement(title) => {
+                mark_opaque_in_fragment(dom_structure, &title.fragment, node_to_dom_idx);
             }
             _ => {}
         }
