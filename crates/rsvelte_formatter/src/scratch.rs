@@ -23,6 +23,12 @@
 //!   only already-consumed data.
 //! - `SCRATCH` is a `thread_local`, so all of the above is per-thread; rayon
 //!   workers never share an allocator and never race.
+//!
+//! There is also a compiler-enforced backstop beyond this discipline: at the
+//! call sites that parse a function-local `String` (the `format!`-built
+//! `wrapped` snippets), `oxc_parser::Parser::new<'a>(&'a Allocator, &'a str, …)`
+//! unifies the allocator and source lifetimes, so the borrow checker clamps the
+//! laundered `'a` to that local's scope.
 
 use std::cell::UnsafeCell;
 

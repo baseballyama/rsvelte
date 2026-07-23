@@ -238,60 +238,9 @@ pub fn format_with_arenas(
             Vec::new()
         };
 
-    // Select the edits that survive the overlap rule, then splice them into a
-    // fresh buffer in one forward pass. Selecting in descending order keeps the
-    // exact tie-break the old back-to-front `replace_range` loop used; the
-    // forward splice avoids that loop's repeated tail memmoves (O(n) total).
-    edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
-    // Track the range of the last surviving non-zero-length edit so we can skip
-    // any subsequent edit whose range overlaps it.  Two passes (markup.rs and
-    // indent.rs) can both emit an edit for the same span — e.g. markup.rs
-    // replaces trailing whitespace with `</tag>` at the same `[start, end)`
-    // that indent.rs would normalise to `\n{indent}`.  Markup edits are pushed
-    // first (lib.rs line 100 before line 105), so after the stable descending
-    // sort they appear before indent edits with the same start.  The first one
-    // wins; the second is skipped here to avoid a double-replace that would
-    // clobber the first replacement.
-    let mut last_applied: (u32, u32) = (u32::MAX, u32::MAX);
-    let mut survivors: Vec<(u32, u32, String)> = Vec::with_capacity(edits.len());
-    for (start, end, new_text) in edits.drain(..) {
-        let (la_s, la_e) = last_applied;
-        let incoming_nonempty = end > start;
-        let applied_nonempty = la_e > la_s;
-        // Two non-zero-length edits overlap when their ranges intersect.
-        // Zero-length inserts (start == end) never conflict with a range edit
-        // because they don't consume any source bytes.
-        let overlaps = applied_nonempty && incoming_nonempty && start < la_e && end > la_s;
-        if overlaps {
-            continue;
-        }
-        // Only update the guard for non-zero-length edits (range replacements).
-        // Zero-length inserts don't "own" a range.
-        if end > start {
-            last_applied = (start, end);
-        }
-        survivors.push((start, end, new_text));
-    }
+    let mut out = apply_edits(source, &mut edits);
     // Return the drained buffer to the arena so its capacity is reused.
     arenas.edits = edits;
-
-    // Survivors are in descending-start order; reversing yields ascending
-    // start with same-start edits in reverse insertion order — exactly the
-    // sequence the old back-to-front `replace_range` loop produced, so a single
-    // forward splice reproduces its output byte-for-byte.
-    survivors.reverse();
-    let out_cap = source.len() + survivors.iter().map(|(_, _, t)| t.len()).sum::<usize>();
-    let mut out = String::with_capacity(out_cap);
-    let mut cursor = 0usize;
-    for (start, end, new_text) in &survivors {
-        let (s, e) = (*start as usize, *end as usize);
-        if s >= cursor {
-            out.push_str(&source[cursor..s]);
-            cursor = e;
-        }
-        out.push_str(new_text);
-    }
-    out.push_str(&source[cursor..]);
 
     // Post-pass: reorder top-level sections into prettier's canonical order
     // (options → module script → instance script → markup → styles) and
@@ -321,4 +270,129 @@ pub fn format_with_arenas(
     }
 
     Ok(out)
+}
+
+/// Splice the collected edits into `source` in one forward pass, draining
+/// `edits` (left empty for buffer reuse).
+///
+/// Edits are `(start, end, replacement)` in original-source byte offsets. The
+/// overlap and ordering rules the edit passes depend on:
+///
+/// - Two intersecting non-zero-length edits: the larger-start one wins, the
+///   other is dropped. In practice only markup.rs vs indent.rs on an identical
+///   span collide today.
+/// - At a shared start, a zero-length insert is spliced **before** a surviving
+///   range edit (insert-then-replace) — e.g. indent.rs's `\n{indent}` lands
+///   before markup.rs's rewritten open tag. This is decided explicitly here,
+///   not left to the old back-to-front loop's incidental behaviour (which, for
+///   this exact shape, dropped the insert and consumed a source byte). The
+///   corpus doesn't currently produce this shape, so making it explicit leaves
+///   every corpus output byte-identical; the unit tests below lock in the
+///   intended semantics.
+/// - Multiple inserts at one position keep the order the old apply produced
+///   (last-pushed first).
+fn apply_edits(source: &str, edits: &mut Vec<(u32, u32, String)>) -> String {
+    // Select survivors in descending-start order so the overlap tie-break
+    // matches the historical back-to-front `replace_range` loop.
+    edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
+    let mut last_applied: (u32, u32) = (u32::MAX, u32::MAX);
+    let mut survivors: Vec<(u32, u32, String)> = Vec::with_capacity(edits.len());
+    for (start, end, new_text) in edits.drain(..) {
+        let (la_s, la_e) = last_applied;
+        let incoming_nonempty = end > start;
+        let applied_nonempty = la_e > la_s;
+        // Two non-zero-length edits overlap when their ranges intersect. A
+        // zero-length insert consumes no bytes, so it never conflicts and never
+        // owns a range (it leaves `last_applied` untouched).
+        let overlaps = applied_nonempty && incoming_nonempty && start < la_e && end > la_s;
+        if overlaps {
+            continue;
+        }
+        if end > start {
+            last_applied = (start, end);
+        }
+        survivors.push((start, end, new_text));
+    }
+
+    // `reverse` turns the descending-start survivors into ascending start with
+    // same-start edits in reverse push order (what the old loop produced for
+    // coincident inserts). The stable re-sort then pins the one deliberate
+    // rule: at a shared start a zero-length insert precedes the range edit.
+    survivors.reverse();
+    survivors.sort_by_key(|(start, end, _)| (*start, u8::from(*end > *start)));
+
+    let out_cap = source.len() + survivors.iter().map(|(_, _, t)| t.len()).sum::<usize>();
+    let mut out = String::with_capacity(out_cap);
+    let mut cursor = 0usize;
+    for (start, end, new_text) in &survivors {
+        let (s, e) = (*start as usize, *end as usize);
+        // Emit the untouched gap before this edit, then its replacement. A
+        // zero-length insert (e == s) leaves the cursor put, so a range edit
+        // sharing that start still emits immediately after the insert.
+        if s > cursor {
+            out.push_str(&source[cursor..s]);
+            cursor = s;
+        }
+        out.push_str(new_text);
+        if e > cursor {
+            cursor = e;
+        }
+    }
+    out.push_str(&source[cursor..]);
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::apply_edits;
+
+    fn apply(source: &str, mut edits: Vec<(u32, u32, String)>) -> String {
+        apply_edits(source, &mut edits)
+    }
+
+    fn e(start: u32, end: u32, text: &str) -> (u32, u32, String) {
+        (start, end, text.to_string())
+    }
+
+    #[test]
+    fn insert_before_surviving_range_at_shared_start() {
+        // indent.rs's zero-length `\n{indent}` insert and markup.rs's open-tag
+        // rewrite both anchored at one node start: the insert must land before
+        // the rewritten tag (insert-then-replace), deterministically regardless
+        // of which pass pushed first.
+        let src = "abcXXXXyz"; // bytes [3, 7) == "XXXX"
+        let expected = "abc\n  RWyz";
+        assert_eq!(apply(src, vec![e(3, 7, "RW"), e(3, 3, "\n  ")]), expected);
+        assert_eq!(apply(src, vec![e(3, 3, "\n  "), e(3, 7, "RW")]), expected);
+    }
+
+    #[test]
+    fn insert_at_range_end_stays_after() {
+        // A zero-length insert at a range edit's END emits after the range —
+        // the already-correct touching case, locked in here.
+        let src = "abcXXXXyz";
+        assert_eq!(apply(src, vec![e(3, 7, "RW"), e(7, 7, "!")]), "abcRW!yz");
+        assert_eq!(apply(src, vec![e(7, 7, "!"), e(3, 7, "RW")]), "abcRW!yz");
+    }
+
+    #[test]
+    fn multiple_inserts_at_one_position_keep_reverse_push_order() {
+        // Matches the old back-to-front apply: the last-pushed insert prints
+        // first (each `replace_range` at the same offset prepends).
+        assert_eq!(apply("abcd", vec![e(2, 2, "1"), e(2, 2, "2")]), "ab21cd");
+    }
+
+    #[test]
+    fn overlapping_ranges_larger_start_wins() {
+        // The overlap rule drops the smaller-start edit of an intersecting pair.
+        assert_eq!(apply("abcdef", vec![e(1, 4, "X"), e(2, 5, "Y")]), "abYf");
+    }
+
+    #[test]
+    fn disjoint_edits_splice_in_order() {
+        assert_eq!(
+            apply("hello world", vec![e(0, 5, "HELLO"), e(6, 11, "WORLD")]),
+            "HELLO WORLD"
+        );
+    }
 }
