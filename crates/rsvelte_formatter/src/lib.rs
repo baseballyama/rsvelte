@@ -86,10 +86,30 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
 /// [`format`] over caller-owned scratch buffers. A loop formatting many files
 /// keeps one [`Arenas`] and passes it each call, reusing its capacity instead
 /// of reallocating per file.
+///
+/// The initial parse defers `<script>` bodies and template expressions (the
+/// formatter re-parses both from source anyway, so the eager phase-1 oxc→JsNode
+/// work is waste). Deferring means the phase-1 parse no longer surfaces the
+/// TS-in-plain-`<script>` signal that drove the old JS-first / force-TS retry
+/// (#682); that signal now comes from the script/expression re-parse, so a
+/// dialect-sensitive failure re-runs the whole format forcing TS — identical
+/// output, only the trigger moved.
 pub fn format_with_arenas(
     source: &str,
     options: &FormatOptions,
     arenas: &mut Arenas,
+) -> Result<String, FormatError> {
+    match format_attempt(source, options, arenas, false) {
+        Err(e) if e.is_dialect_sensitive() => format_attempt(source, options, arenas, true),
+        other => other,
+    }
+}
+
+fn format_attempt(
+    source: &str,
+    options: &FormatOptions,
+    arenas: &mut Arenas,
+    force_typescript: bool,
 ) -> Result<String, FormatError> {
     // Free the previous file's throwaway expression/script parses; this file's
     // parses reuse the same arena chunk (see `scratch`).
@@ -97,14 +117,6 @@ pub fn format_with_arenas(
     // Drop the previous file's memoized expression results.
     expression::clear_expr_memo();
 
-    // A plain `<script>` (no `lang="ts"`) may still contain TypeScript: oxfmt /
-    // prettier-plugin-svelte parse Svelte `<script>` as TS by default, so e.g.
-    // `import type { X }` or `let c: typeof C<any>` are valid input there. Try a
-    // normal (JS) parse first; only when that fails retry forcing TS, so the vast
-    // majority of components (valid JS, or already `lang="ts"`) are untouched and
-    // cannot regress — only previously-erroring TS-in-plain-`<script>` files gain
-    // formatting. The TS retry sets `is_typescript` on the scripts, so the
-    // dialect detection below threads TS through every template expression too.
     // A `<style lang="scss|less|postcss|…">` body is not plain CSS, so parsing it
     // as CSS would abort the whole-file parse (`css_expected_identifier` on `//`
     // comments, `$variables`, maps, …). prettier-plugin-svelte treats these as
@@ -117,20 +129,18 @@ pub fn format_with_arenas(
         // AST — never the typed expression `loc` objects — so skip building
         // them (and the per-parse line-offset table they need).
         skip_expression_loc: true,
+        // `<script>` bodies and template expressions are re-parsed from source
+        // by the script/expression passes below, so the eager phase-1 oxc→JsNode
+        // parse is pure waste for the formatter.
+        defer_script_parse: true,
+        // On the retry (see `format_with_arenas`), force every `<script>` and
+        // template expression to TS — the deferred parse can no longer surface
+        // the TS-in-plain-`<script>` signal itself (#682).
+        force_typescript,
         ..ParseOptions::default()
     };
-    let root = match parse(source, &rsvelte_core::Allocator::default(), parse_options) {
-        Ok(root) => root,
-        Err(_) => parse(
-            source,
-            &rsvelte_core::Allocator::default(),
-            ParseOptions {
-                force_typescript: true,
-                ..parse_options
-            },
-        )
-        .map_err(FormatError::from_parse)?,
-    };
+    let root = parse(source, &rsvelte_core::Allocator::default(), parse_options)
+        .map_err(FormatError::from_parse)?;
 
     // Reuse the arena's edit buffer: take it out (leaving the arena empty),
     // refill it below, and hand it back before returning on the success path.
