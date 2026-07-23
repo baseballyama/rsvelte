@@ -29,10 +29,16 @@ enum Frame {
 /// The scanner tracks template-literal / `${}` nesting plus string and comment
 /// context so backticks, `${`, and braces inside strings or comments aren't
 /// misread.
+///
+/// Scans bytes rather than a `Vec<char>`: every character the scanner keys off
+/// is ASCII, and an ASCII byte can never occur inside a UTF-8 multi-byte
+/// sequence, so multi-byte characters are copied through verbatim by the
+/// catch-all arms without ever being mistaken for a delimiter.
 pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> String {
-    let chars: Vec<char> = formatted.chars().collect();
-    let n = chars.len();
-    let mut out = String::with_capacity(formatted.len() + 16);
+    let bytes = formatted.as_bytes();
+    let n = bytes.len();
+    let prefix = prefix.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(formatted.len() + 16);
     let mut stack: Vec<Frame> = Vec::new();
     let mut line_comment = false;
     let mut block_comment = false;
@@ -41,19 +47,19 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
     // continuation line is aligned relative to the `/**` opener).  Regular
     // block comments (`/*`) have their interiors preserved verbatim.
     let mut is_jsdoc = false;
-    let mut string: Option<char> = None;
+    let mut string: Option<u8> = None;
     let mut at_line_start = true;
     let mut seen_newline = false;
     let mut i = 0;
 
     while i < n {
-        let c = chars[i];
+        let c = bytes[i];
 
         if at_line_start {
             let in_quasi = matches!(stack.last(), Some(Frame::Template));
             let suppress_first = skip_first && !seen_newline;
-            if c != '\n' && !in_quasi && !suppress_first {
-                out.push_str(prefix);
+            if c != b'\n' && !in_quasi && !suppress_first {
+                out.extend_from_slice(prefix);
             }
             at_line_start = false;
         }
@@ -62,7 +68,7 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
         if line_comment {
             out.push(c);
             i += 1;
-            if c == '\n' {
+            if c == b'\n' {
                 line_comment = false;
                 at_line_start = true;
                 seen_newline = true;
@@ -78,9 +84,9 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
         //   verbatim. The comment author's formatting is intentional, and
         //   `oxc_formatter` does not touch the interior. `is_jsdoc = false`.
         if block_comment {
-            if c == '*' && chars.get(i + 1) == Some(&'/') {
-                out.push('*');
-                out.push('/');
+            if c == b'*' && bytes.get(i + 1) == Some(&b'/') {
+                out.push(b'*');
+                out.push(b'/');
                 i += 2;
                 block_comment = false;
                 is_jsdoc = false;
@@ -88,7 +94,7 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
             }
             out.push(c);
             i += 1;
-            if c == '\n' {
+            if c == b'\n' {
                 seen_newline = true;
                 if is_jsdoc {
                     // JSDoc interior: re-indent continuation lines normally.
@@ -112,7 +118,7 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
             // prefix (a script body de-indents after such a regex). The
             // mis-scanned tail sits on the already-prefixed line, so the visible
             // indentation is unaffected.
-            if c == '\n' {
+            if c == b'\n' {
                 out.push(c);
                 string = None;
                 at_line_start = true;
@@ -121,9 +127,9 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
                 continue;
             }
             out.push(c);
-            if c == '\\' {
+            if c == b'\\' {
                 if i + 1 < n {
-                    out.push(chars[i + 1]);
+                    out.push(bytes[i + 1]);
                     i += 2;
                 } else {
                     i += 1;
@@ -140,27 +146,27 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
         if matches!(stack.last(), Some(Frame::Template)) {
             // Inside template-literal quasi text.
             match c {
-                '`' => {
+                b'`' => {
                     stack.pop();
                     out.push(c);
                     i += 1;
                 }
-                '\\' => {
+                b'\\' => {
                     out.push(c);
                     if i + 1 < n {
-                        out.push(chars[i + 1]);
+                        out.push(bytes[i + 1]);
                         i += 2;
                     } else {
                         i += 1;
                     }
                 }
-                '$' if chars.get(i + 1) == Some(&'{') => {
+                b'$' if bytes.get(i + 1) == Some(&b'{') => {
                     stack.push(Frame::Subst(0));
-                    out.push('$');
-                    out.push('{');
+                    out.push(b'$');
+                    out.push(b'{');
                     i += 2;
                 }
-                '\n' => {
+                b'\n' => {
                     out.push(c);
                     at_line_start = true;
                     seen_newline = true;
@@ -174,23 +180,23 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
         } else {
             // Ordinary code context (top level or inside `${ … }`).
             match c {
-                '`' => {
+                b'`' => {
                     stack.push(Frame::Template);
                     out.push(c);
                     i += 1;
                 }
-                '\'' | '"' => {
+                b'\'' | b'"' => {
                     string = Some(c);
                     out.push(c);
                     i += 1;
                 }
-                '/' if chars.get(i + 1) == Some(&'/') => {
+                b'/' if bytes.get(i + 1) == Some(&b'/') => {
                     line_comment = true;
-                    out.push('/');
-                    out.push('/');
+                    out.push(b'/');
+                    out.push(b'/');
                     i += 2;
                 }
-                '/' if chars.get(i + 1) == Some(&'*') => {
+                b'/' if bytes.get(i + 1) == Some(&b'*') => {
                     block_comment = true;
                     // A block comment's interior is re-indented (aligned) by
                     // `oxc_formatter` only when it is "indentable": it spans
@@ -203,19 +209,19 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
                     // indentable: `oxc_formatter` leaves its interior verbatim,
                     // so the splice indent must not be prepended to those lines
                     // either. (Being `/**` is not sufficient on its own.)
-                    is_jsdoc = is_indentable_block_comment(&chars, i, n);
-                    out.push('/');
-                    out.push('*');
+                    is_jsdoc = is_indentable_block_comment(bytes, i, n);
+                    out.push(b'/');
+                    out.push(b'*');
                     i += 2;
                 }
-                '{' => {
+                b'{' => {
                     if let Some(Frame::Subst(d)) = stack.last_mut() {
                         *d += 1;
                     }
                     out.push(c);
                     i += 1;
                 }
-                '}' => {
+                b'}' => {
                     if matches!(stack.last(), Some(Frame::Subst(0))) {
                         stack.pop();
                     } else if let Some(Frame::Subst(d)) = stack.last_mut() {
@@ -224,7 +230,7 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
                     out.push(c);
                     i += 1;
                 }
-                '\n' => {
+                b'\n' => {
                     out.push(c);
                     at_line_start = true;
                     seen_newline = true;
@@ -238,35 +244,40 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
         }
     }
 
-    out
+    // SAFETY-equivalent (checked): every byte pushed is copied verbatim from
+    // `formatted` or `prefix`, both valid UTF-8, and multi-byte sequences are
+    // never split (the scanner only ever branches on ASCII bytes), so `out` is
+    // always valid UTF-8. The validation cost is a single linear scan, far
+    // cheaper than the `Vec<char>` decode+allocation it replaces.
+    String::from_utf8(out).expect("reindent output is valid utf-8")
 }
 
-/// Whether the block comment beginning at `start` (where `chars[start] == '/'`
-/// and `chars[start + 1] == '*'`) is "indentable" in the prettier sense: it
+/// Whether the block comment beginning at `start` (where `bytes[start] == b'/'`
+/// and `bytes[start + 1] == b'*'`) is "indentable" in the prettier sense: it
 /// spans more than one line and every continuation line (each line after the
 /// opener line) has `*` as its first non-whitespace character. Only such
 /// comments have their interior re-aligned by `oxc_formatter`; all others —
 /// single-line comments and multi-line prose comments — are emitted verbatim,
 /// so their continuation lines must not receive the splice indent.
-fn is_indentable_block_comment(chars: &[char], start: usize, n: usize) -> bool {
+fn is_indentable_block_comment(bytes: &[u8], start: usize, n: usize) -> bool {
     let mut j = start + 2;
     let mut saw_newline = false;
     while j < n {
         // Closing `*/` ends the comment before any further continuation line.
-        if chars[j] == '*' && chars.get(j + 1) == Some(&'/') {
+        if bytes[j] == b'*' && bytes.get(j + 1) == Some(&b'/') {
             break;
         }
-        if chars[j] == '\n' {
+        if bytes[j] == b'\n' {
             saw_newline = true;
             // First non-whitespace character of the next line.
             let mut k = j + 1;
-            while k < n && (chars[k] == ' ' || chars[k] == '\t') {
+            while k < n && (bytes[k] == b' ' || bytes[k] == b'\t') {
                 k += 1;
             }
             // A continuation line that does not start with `*` (including a
             // blank line, where the next char is the newline) makes the comment
             // non-indentable.
-            if k >= n || chars[k] != '*' {
+            if k >= n || bytes[k] != b'*' {
                 return false;
             }
         }
