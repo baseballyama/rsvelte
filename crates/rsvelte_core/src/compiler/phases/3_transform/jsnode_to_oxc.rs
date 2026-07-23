@@ -876,14 +876,15 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 ThisExpression::boxed(SPAN, &self.ab),
             )),
             JsNode::Super { .. } => Some(Expression::Super(Super::boxed(SPAN, &self.ab))),
-            JsNode::MetaProperty { meta, property, .. } => {
+            JsNode::MetaProperty { meta, .. } => {
+                // oxc 0.141 split `MetaProperty` into `ImportMeta` / `NewTarget`;
+                // the meta keyword (`import` vs `new`) selects the variant.
                 let meta = self.identifier_name_of(*meta)?;
-                let property = self.identifier_name_of(*property)?;
-                let meta = IdentifierName::new(SPAN, self.str(&meta), &self.ab);
-                let property = IdentifierName::new(SPAN, self.str(&property), &self.ab);
-                Some(Expression::new_meta_property(
-                    SPAN, meta, property, &self.ab,
-                ))
+                Some(if meta == "new" {
+                    Expression::new_new_target(SPAN, &self.ab)
+                } else {
+                    Expression::new_import_meta(SPAN, &self.ab)
+                })
             }
             JsNode::MemberExpression { .. } => Some(Expression::from(self.member_expr(node)?)),
             JsNode::CallExpression {

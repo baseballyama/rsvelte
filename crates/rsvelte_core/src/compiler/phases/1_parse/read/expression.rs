@@ -4267,30 +4267,15 @@ fn convert_expression(
             let end = offset + tagged.span.end as usize - 1;
             create_tagged_template_expression(arena, tagged, start, end, offset, line_offsets)
         }
-        OxcExpression::MetaProperty(meta) => {
+        OxcExpression::ImportMeta(meta) => {
             let start = offset + meta.span.start as usize - 1;
             let end = offset + meta.span.end as usize - 1;
-            let meta_start = offset + meta.meta.span.start as usize - 1;
-            let meta_end = offset + meta.meta.span.end as usize - 1;
-            let prop_start = offset + meta.property.span.start as usize - 1;
-            let prop_end = offset + meta.property.span.end as usize - 1;
-            Expression::from_node(JsNode::MetaProperty {
-                start: start as u32,
-                end: end as u32,
-                loc: create_typed_loc(start, end, line_offsets),
-                meta: arena.alloc_js_node(expr_to_node(create_identifier(
-                    &meta.meta.name,
-                    meta_start,
-                    meta_end,
-                    line_offsets,
-                ))),
-                property: arena.alloc_js_node(expr_to_node(create_identifier(
-                    &meta.property.name,
-                    prop_start,
-                    prop_end,
-                    line_offsets,
-                ))),
-            })
+            create_meta_property(arena, "import", "meta", start, end, line_offsets)
+        }
+        OxcExpression::NewTarget(meta) => {
+            let start = offset + meta.span.start as usize - 1;
+            let end = offset + meta.span.end as usize - 1;
+            create_meta_property(arena, "new", "target", start, end, line_offsets)
         }
         OxcExpression::RegExpLiteral(regex) => {
             let start = offset + regex.span.start as usize - 1;
@@ -4306,6 +4291,36 @@ fn convert_expression(
             create_identifier("unknown", start, end, line_offsets)
         }
     }
+}
+
+// oxc 0.141 split the old `MetaProperty` expression into fieldless `ImportMeta`
+// / `NewTarget` nodes, so the `meta` / `property` identifier spans are
+// reconstructed from the whole-node span and the fixed keyword lengths.
+fn create_meta_property(
+    arena: &ParseArena,
+    meta_name: &str,
+    property_name: &str,
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+) -> Expression {
+    Expression::from_node(JsNode::MetaProperty {
+        start: start as u32,
+        end: end as u32,
+        loc: create_typed_loc(start, end, line_offsets),
+        meta: arena.alloc_js_node(expr_to_node(create_identifier(
+            meta_name,
+            start,
+            start + meta_name.len(),
+            line_offsets,
+        ))),
+        property: arena.alloc_js_node(expr_to_node(create_identifier(
+            property_name,
+            end - property_name.len(),
+            end,
+            line_offsets,
+        ))),
+    })
 }
 
 fn create_identifier(name: &str, start: usize, end: usize, line_offsets: &[usize]) -> Expression {
@@ -9669,35 +9684,22 @@ fn convert_expression_for_program(
                 type_arguments: Box::new(type_arguments),
             })
         }
-        OxcExpression::MetaProperty(meta) => {
-            // `import.meta` / `new.target`. Without this arm the fallback
-            // below turns the node into a placeholder `Identifier("unknown")`,
-            // which Phase 2's `is_safe_identifier` then misclassifies as a
-            // safe global — `import.meta.glob(...)` must set `needs_context`
-            // (upstream: a non-Identifier base is never "safe").
+        OxcExpression::ImportMeta(meta) => {
+            // `import.meta`. Without this arm the fallback below turns the node
+            // into a placeholder `Identifier("unknown")`, which Phase 2's
+            // `is_safe_identifier` then misclassifies as a safe global —
+            // `import.meta.glob(...)` must set `needs_context` (upstream: a
+            // non-Identifier base is never "safe").
             let start = offset + meta.span.start as usize;
             let end = offset + meta.span.end as usize;
-            let meta_start = offset + meta.meta.span.start as usize;
-            let meta_end = offset + meta.meta.span.end as usize;
-            let prop_start = offset + meta.property.span.start as usize;
-            let prop_end = offset + meta.property.span.end as usize;
-            Expression::from_node(JsNode::MetaProperty {
-                start: start as u32,
-                end: end as u32,
-                loc: create_typed_loc(start, end, line_offsets),
-                meta: arena.alloc_js_node(expr_to_node(create_identifier(
-                    &meta.meta.name,
-                    meta_start,
-                    meta_end,
-                    line_offsets,
-                ))),
-                property: arena.alloc_js_node(expr_to_node(create_identifier(
-                    &meta.property.name,
-                    prop_start,
-                    prop_end,
-                    line_offsets,
-                ))),
-            })
+            create_meta_property(arena, "import", "meta", start, end, line_offsets)
+        }
+        OxcExpression::NewTarget(meta) => {
+            // `new.target`; see the `import.meta` arm above for why the fallback
+            // placeholder is not acceptable here.
+            let start = offset + meta.span.start as usize;
+            let end = offset + meta.span.end as usize;
+            create_meta_property(arena, "new", "target", start, end, line_offsets)
         }
         _ => {
             // Fallback for unsupported expression types
