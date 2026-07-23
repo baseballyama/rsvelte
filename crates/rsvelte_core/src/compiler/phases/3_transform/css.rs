@@ -2433,9 +2433,10 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         // Get the selector after the sibling combinator
         let after = &rel_selectors[sibling_idx];
 
-        // Extract selector info for before and after
-        let before_info = extract_selector_info(before);
-        let after_info = extract_selector_info(after);
+        // Extract selector info for before and after, resolving any `&` against
+        // the parent rule (so `.a { & + & }` matches on `.a + .a`).
+        let before_info = extract_selector_info_resolving_nesting(before, ctx);
+        let after_info = extract_selector_info_resolving_nesting(after, ctx);
 
         // If we have a parent context (e.g., .foo > A + B) and no control flow,
         // use the structural children_idx approach. When control flow is present,
@@ -2579,8 +2580,8 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         // and the "after" element is at idx_b
         let before = &rel_selectors[idx_b - 1];
         let after = &rel_selectors[idx_b];
-        let before_info = extract_selector_info(before);
-        let after_info = extract_selector_info(after);
+        let before_info = extract_selector_info_resolving_nesting(before, ctx);
+        let after_info = extract_selector_info_resolving_nesting(after, ctx);
 
         // Check if any element matching 'after' has 'before' as a possible previous sibling
         let mut found_match = false;
@@ -2615,8 +2616,8 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         let (first_idx, first_comb) = sibling_pairs[0];
         let before = &rel_selectors[first_idx - 1];
         let after = &rel_selectors[first_idx];
-        let before_info = extract_selector_info(before);
-        let after_info = extract_selector_info(after);
+        let before_info = extract_selector_info_resolving_nesting(before, ctx);
+        let after_info = extract_selector_info_resolving_nesting(after, ctx);
 
         let mut found_match = false;
         for el in ctx.dom_structure.elements.iter() {
@@ -2676,6 +2677,50 @@ fn extract_selector_info(rel_selector: &Value) -> SelectorInfo {
             is_groups: Vec::new(),
         }
     }
+}
+
+/// Build a [`SelectorInfo`] for a relative selector, resolving a `&`
+/// (NestingSelector) against the immediate parent rule's prelude. Mirrors
+/// upstream `relative_selector_might_apply_to_node`'s NestingSelector branch:
+/// the element must also satisfy one of the parent rule's subject compounds. The
+/// parent's subjects are added as an `:is(...)`-style OR-group so an element
+/// matched by `&` must satisfy the parent (e.g. `.a { & + & }` resolves each `&`
+/// to `.a`). Without this, a bare `&` yields an empty (matches-nothing) info and
+/// a nested sibling rule like `& + &` is wrongly pruned.
+fn extract_selector_info_resolving_nesting(rel: &Value, ctx: &CssContext) -> SelectorInfo {
+    let mut info = extract_selector_info(rel);
+
+    let has_nesting = rel
+        .get("selectors")
+        .and_then(|s| s.as_array())
+        .is_some_and(|arr| {
+            arr.iter()
+                .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
+        });
+    if !has_nesting {
+        return info;
+    }
+
+    let parent_preludes = ctx.parent_preludes.borrow();
+    let Some(parent) = parent_preludes.last() else {
+        return info;
+    };
+
+    let mut branches: Vec<SelectorInfo> = Vec::new();
+    if let Some(children) = parent.get("children").and_then(|c| c.as_array()) {
+        for complex in children {
+            if let Some(rels) = complex.get("children").and_then(|c| c.as_array())
+                && let Some(subject) = rels.last()
+                && let Some(sels) = subject.get("selectors").and_then(|s| s.as_array())
+            {
+                branches.push(extract_selector_info_from_selectors(sels));
+            }
+        }
+    }
+    if !branches.is_empty() {
+        info.is_groups.push(branches);
+    }
+    info
 }
 
 /// Build `:is(...)` / `:where(...)` OR-groups from a compound's simple selectors.
