@@ -345,6 +345,62 @@ fn bracket_same_line_standalone_empty_element_matches_default() {
     assert_eq!(fmt(src, &width_80(false)), expected);
 }
 
+// issue #1707: a source-whitespace inline element (`<span> </span>`) whose open
+// tag wraps must break its whitespace body onto its own line — prettier's `line`
+// body flexes to a newline once the wrapped open tag forces the group open — so
+// the `>` glues to the last attribute under `bracketSameLine` and `</span>` drops
+// below it. The non-port path previously kept the raw whitespace glued
+// (`…"\n> </span>`), which both diverged from the oracle and was non-idempotent
+// (a multi-space body collapsed to one space on a re-format).
+#[test]
+fn bracket_same_line_wrapping_whitespace_inline_breaks_body() {
+    let src = "<span class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-in-output\"> </span>";
+    let out = fmt(src, &width_80(true));
+    assert_eq!(
+        out,
+        "<span\n  class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-in-output\">\n</span>\n"
+    );
+}
+
+// Default (`bracketSameLine = false`): the `>` dedents onto its own line and the
+// whitespace body still breaks, dropping `</span>` below it.
+#[test]
+fn default_wrapping_whitespace_inline_breaks_body() {
+    let src = "<span class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-in-output\"> </span>";
+    let out = fmt(src, &width_80(false));
+    assert_eq!(
+        out,
+        "<span\n  class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-in-output\"\n>\n</span>\n"
+    );
+}
+
+// The same shape nested inside a block element (indented one level) matches the
+// oracle under both option values.
+#[test]
+fn bracket_same_line_nested_wrapping_whitespace_inline_breaks_body() {
+    let src = "<div>\n  <span class=\"a-really-long-class-name-that-forces-the-open-tag-to-wrap-well-past-eighty-columns\"> </span>\n</div>";
+    assert_eq!(
+        fmt(src, &width_80(true)),
+        "<div>\n  <span\n    class=\"a-really-long-class-name-that-forces-the-open-tag-to-wrap-well-past-eighty-columns\">\n  </span>\n</div>\n"
+    );
+    assert_eq!(
+        fmt(src, &width_80(false)),
+        "<div>\n  <span\n    class=\"a-really-long-class-name-that-forces-the-open-tag-to-wrap-well-past-eighty-columns\"\n  >\n  </span>\n</div>\n"
+    );
+}
+
+// The fix is idempotent, including for a multi-space body that previously
+// collapsed to a single space on a re-format (the non-idempotency of #1707).
+#[test]
+fn wrapping_whitespace_inline_is_idempotent() {
+    let multi = "<span class=\"very-long-class-that-forces-the-open-tag-to-wrap-across-multiple-lines-in-output\">   </span>";
+    for bsl in [true, false] {
+        let once = fmt(multi, &width_80(bsl));
+        let twice = fmt(&once, &width_80(bsl));
+        assert_eq!(once, twice, "formatting must be idempotent (bsl={bsl})");
+    }
+}
+
 #[test]
 fn sort_order_parse_rejects_invalid() {
     assert!(SortOrderSpec::parse("scripts-markup").is_none());
