@@ -60,6 +60,8 @@
 		"corpus:fmt-verify": "node scripts/compat-corpus/fmt-verify.mjs",
 		"corpus:s2t:compile": "node scripts/compat-corpus/svelte2tsx-compile.mjs",
 		"corpus:s2t:verify": "node scripts/compat-corpus/svelte2tsx-verify.mjs",
+		"corpus:css-prune": "node scripts/compat-corpus/css-prune-sweep.mjs",
+		"corpus:css-prune:check": "node scripts/compat-corpus/css-prune-sweep.mjs --check",
 		"corpus": "pnpm run corpus:sync && pnpm run corpus:collect && pnpm run corpus:compile && pnpm run corpus:verify && pnpm run corpus:s2t:compile && pnpm run corpus:s2t:verify",
 		"corpus:fmt-parity": "pnpm run corpus:collect && pnpm run corpus:fmt && pnpm run corpus:fmt-verify",
 		"lint-corpus:sync": "git submodule update --init --depth 1 submodules/eslint-plugin-svelte submodules/svelte-eslint-parser submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte",
