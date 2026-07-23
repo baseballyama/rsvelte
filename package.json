@@ -81,5 +81,5 @@
 		"prettier-plugin-svelte": "^4.1.0",
 		"svelte": "^5.56.4"
 	},
-	"packageManager": "pnpm@11.15.1"
+	"packageManager": "pnpm@11.16.0"
 }
