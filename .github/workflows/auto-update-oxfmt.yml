@@ -228,6 +228,15 @@ jobs:
           pnpm install --lockfile-only
           git add pnpm-lock.yaml
 
+          # apps/playground keeps a standalone lockfile (its pnpm-workspace.yaml
+          # marker stops pnpm's upward walk), so the repo-root install above never
+          # touches it. Refresh it too or the "Playground lockfile" gate fails on
+          # the oxfmt specifier mismatch.
+          if [ -f apps/playground/pnpm-lock.yaml ]; then
+            (cd apps/playground && pnpm install --lockfile-only)
+            git add apps/playground/pnpm-lock.yaml
+          fi
+
           title="chore(deps): update oxfmt to ${LATEST_VERSION}"
           git commit -m "${title}"
           git push --force origin "${pr_branch}"
