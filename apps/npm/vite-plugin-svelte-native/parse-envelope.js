@@ -15,9 +15,10 @@
 const { isWindowOutOfBounds, windowOutOfBoundsMessage } = require('./lib/bounds-check.js');
 
 const MAGIC = 0x3156_5052; // "RPV1" little-endian
-// Bumped for the `FunctionDeclaration.expression` bool byte added to the wire
-// format; keep in lockstep with `napi_raw_parse.rs`'s `VERSION`.
-const VERSION = 2;
+// Bumped for the function-node AST-fidelity changes (FunctionExpression field
+// reorder, `typeParameters` on function-like nodes, Identifier `optional`);
+// keep in lockstep with `napi_raw_parse.rs`'s `VERSION`.
+const VERSION = 3;
 const HEADER_LEN = 24;
 
 // Tags — must mirror napi_raw_parse.rs.
@@ -700,9 +701,11 @@ function readOptNode(ctx) {
 function readJsIdentifier(ctx, start, end) {
 	const loc = readTypedLoc(ctx);
 	const name = readStr(ctx);
+	const optional = readBool(ctx);
 	const node = { type: 'Identifier', start, end };
 	if (loc !== null) node.loc = loc;
 	node.name = name;
+	if (optional) node.optional = true;
 	const typeAnnotation = readOptTypeAnnotation(ctx);
 	if (typeAnnotation !== null) node.typeAnnotation = typeAnnotation;
 	return node;
@@ -811,17 +814,19 @@ function readJsNewExpression(ctx, start, end) {
 function readJsFunctionExpression(ctx, start, end) {
 	const loc = readTypedLoc(ctx);
 	const id = readOptNode(ctx);
+	const expression = readBool(ctx);
 	const generator = readBool(ctx);
 	const asyncFlag = readBool(ctx);
-	const expression = readBool(ctx);
+	const typeParameters = readOptTypeAnnotation(ctx);
 	const params = readChildArray(ctx);
 	const body = readOptNode(ctx);
 	const node = { type: 'FunctionExpression', start, end };
 	if (loc !== null) node.loc = loc;
 	node.id = id;
+	node.expression = expression;
 	node.generator = generator;
 	node.async = asyncFlag;
-	node.expression = expression;
+	if (typeParameters !== null) node.typeParameters = typeParameters;
 	node.params = params;
 	node.body = body;
 	return node;
@@ -848,6 +853,7 @@ function readJsArrowFunctionExpression(ctx, start, end) {
 	const asyncFlag = readBool(ctx);
 	const params = readChildArray(ctx);
 	const body = readNode(ctx);
+	const typeParameters = readOptTypeAnnotation(ctx);
 	const node = { type: 'ArrowFunctionExpression', start, end };
 	if (loc !== null) node.loc = loc;
 	node.id = id;
@@ -856,6 +862,7 @@ function readJsArrowFunctionExpression(ctx, start, end) {
 	node.async = asyncFlag;
 	node.params = params;
 	node.body = body;
+	if (typeParameters !== null) node.typeParameters = typeParameters;
 	return node;
 }
 
@@ -1175,6 +1182,7 @@ function readJsFunctionDeclaration(ctx, start, end) {
 	const expression = readBool(ctx);
 	const generator = readBool(ctx);
 	const asyncFlag = readBool(ctx);
+	const typeParameters = readOptTypeAnnotation(ctx);
 	const params = readChildArray(ctx);
 	const body = readOptNode(ctx);
 	const node = { type: 'FunctionDeclaration', start, end };
@@ -1183,6 +1191,7 @@ function readJsFunctionDeclaration(ctx, start, end) {
 	node.expression = expression;
 	node.generator = generator;
 	node.async = asyncFlag;
+	if (typeParameters !== null) node.typeParameters = typeParameters;
 	node.params = params;
 	node.body = body;
 	return node;

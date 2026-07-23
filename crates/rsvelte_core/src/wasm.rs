@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use wasm_bindgen::prelude::*;
 
 use crate::compiler::phases::phase1_parse::{ParseOptions, parse};
-use crate::compiler::phases::phase3_transform::css::{generate_css_hash, generate_raw_hash};
+use crate::compiler::phases::phase3_transform::css::generate_css_hash;
 use crate::compiler::{
     CompileOptions, CompileResult, CssHashFn, CssHashInput, CssMode, GenerateMode, Namespace,
     Warning, WarningFilterFn, compile,
@@ -353,12 +353,14 @@ fn js_error_message(e: &JsValue) -> String {
 fn build_css_hash(func: js_sys::Function, root_dir: Option<String>, slot: ErrorSlot) -> CssHashFn {
     Arc::new(move |input: &CssHashInput| -> String {
         let arg = js_sys::Object::new();
-        // The callback's `hash` arg is Svelte's raw digest (no `svelte-` prefix,
-        // unlike `CssHashInput::hash`) so a custom scope class matches upstream.
-        // The closure is dropped at the end of this synchronous call — no leak,
-        // no `.forget()`.
-        let closure = Closure::wrap(Box::new(|s: String| -> String { generate_raw_hash(&s) })
-            as Box<dyn Fn(String) -> String>);
+        // The callback's `hash` arg is the shared `CssHashInput::hash` — Svelte's
+        // raw digest (no `svelte-` prefix) — so a custom scope class matches
+        // upstream. The closure is dropped at the end of this synchronous call —
+        // no leak, no `.forget()`.
+        let hash_fn = input.hash.clone();
+        let closure =
+            Closure::wrap(Box::new(move |s: String| -> String { hash_fn(&s) })
+                as Box<dyn Fn(String) -> String>);
         let _ = js_sys::Reflect::set(&arg, &JsValue::from_str("hash"), closure.as_ref());
         let _ = js_sys::Reflect::set(
             &arg,

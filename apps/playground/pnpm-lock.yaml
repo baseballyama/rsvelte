@@ -17,22 +17,22 @@ importers:
     devDependencies:
       '@sveltejs/adapter-static':
         specifier: ^3.0.8
-        version: 3.0.10(@sveltejs/kit@2.70.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.53.7)(vite@8.1.5))(svelte@5.53.7)(typescript@7.0.2)(vite@8.1.5))
+        version: 3.0.10(@sveltejs/kit@2.70.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.7)(vite@8.1.5))(svelte@5.56.7)(typescript@7.0.2)(vite@8.1.5))
       '@sveltejs/kit':
         specifier: ^2.49.2
-        version: 2.70.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.53.7)(vite@8.1.5))(svelte@5.53.7)(typescript@7.0.2)(vite@8.1.5)
+        version: 2.70.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.7)(vite@8.1.5))(svelte@5.56.7)(typescript@7.0.2)(vite@8.1.5)
       '@sveltejs/vite-plugin-svelte':
         specifier: ^7.0.0
-        version: 7.1.2(svelte@5.53.7)(vite@8.1.5)
+        version: 7.1.2(svelte@5.56.7)(vite@8.1.5)
       oxfmt:
         specifier: ^0.59.0
-        version: 0.59.0(svelte@5.53.7)
+        version: 0.59.0(svelte@5.56.7)
       oxlint:
         specifier: ^1.36.0
         version: 1.51.0
       svelte:
         specifier: ^5.46.1
-        version: 5.53.7
+        version: 5.56.7
       typescript:
         specifier: ^7.0.0
         version: 7.0.2
@@ -432,11 +432,6 @@ packages:
     peerDependencies:
       acorn: ^8.9.0
 
-  '@sveltejs/acorn-typescript@1.0.9':
-    resolution: {integrity: sha512-lVJX6qEgs/4DOcRTpo56tmKzVPtoWAaVbL4hfO7t7NVwl9AAXzQR6cihesW1BmNMPl+bK6dreu2sOKBP2Q9CIA==}
-    peerDependencies:
-      acorn: ^8.9.0
-
   '@sveltejs/adapter-static@3.0.10':
     resolution: {integrity: sha512-7D9lYFWJmB7zxZyTE/qxjksvMqzMuYrrsyh1f4AlZqeZeACPRySjbC3aFiY55wb1tWUaKOQG9PVbm74JcN2Iew==}
     peerDependencies:
@@ -471,8 +466,8 @@ packages:
   '@types/cookie@0.6.0':
     resolution: {integrity: sha512-4Kh9a6B2bQciAhf7FSuMRRkUWecJgJu9nPnx3yzpsfXX/c50REIqpHY4C82bXP90qrLtXtkDxTZosYO3UpOwlA==}
 
-  '@types/estree@1.0.8':
-    resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
+  '@types/estree@1.0.9':
+    resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
 
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
@@ -597,11 +592,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  acorn@8.16.0:
-    resolution: {integrity: sha512-UVJyE9MttOsBQIDKw1skb9nAwQuR5wuGD3+82K6JgJlm/Y+KI92oNsMNGZCYdDsVtRHSak0pcV5Dno5+4jh9sw==}
-    engines: {node: '>=0.4.0'}
-    hasBin: true
-
   acorn@8.17.0:
     resolution: {integrity: sha512-xRQbDb9BnwDafYNn6Vwl839DYVjqXYb1XVGtWAZ1kcDc6iwAL4hg3B1dZlRiuENFeO2H53gFG3in621AdERVAg==}
     engines: {node: '>=0.4.0'}
@@ -631,9 +621,6 @@ packages:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
 
-  devalue@5.6.3:
-    resolution: {integrity: sha512-nc7XjUU/2Lb+SvEFVGcWLiKkzfw8+qHI7zn8WYXKkLMgfGSHbgCEaR6bJpev8Cm6Rmrb19Gfd/tZvGqx9is3wg==}
-
   devalue@5.8.2:
     resolution: {integrity: sha512-DObPPAfdtFbXjxLqK8s2Xk9ZuWz5+ZoFEhC7J76es4GU/rEiXwHTmbImoCdyoCOcBH1UF3+Cz6Z2sYD4hyl5TA==}
 
@@ -643,8 +630,13 @@ packages:
   esm-env@1.2.2:
     resolution: {integrity: sha512-Epxrv+Nr/CaL4ZcFGPJIYLWFom+YeV1DqMLHJoEd9SYRxNbaFruBwfEX/kkHUJf55j2+TUbmDcmuilbP1TmXHA==}
 
-  esrap@2.2.3:
-    resolution: {integrity: sha512-8fOS+GIGCQZl/ZIlhl59htOlms6U8NvX6ZYgYHpRU/b6tVSh3uHkOHZikl3D4cMbYM0JlpBe+p/BkZEi8J9XIQ==}
+  esrap@2.3.0:
+    resolution: {integrity: sha512-GQ/7RN8uOtEfNpzZzBMTzW9JBcX42oaSVtPzdF+6cEL8pqIL094iUpr9jzYGn4O4P/1S60dJ6izyT8F4LYARng==}
+    peerDependencies:
+      '@typescript-eslint/types': ^8.2.0
+    peerDependenciesMeta:
+      '@typescript-eslint/types':
+        optional: true
 
   fdir@6.5.0:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
@@ -820,8 +812,8 @@ packages:
   state-local@1.0.7:
     resolution: {integrity: sha512-HTEHMNieakEnoe33shBYcZ7NX83ACUjCu8c40iOGEZsngj9zRnkqS9j1pqQPXwobB0ZcVTk27REb7COQ0UR59w==}
 
-  svelte@5.53.7:
-    resolution: {integrity: sha512-uxck1KI7JWtlfP3H6HOWi/94soAl23jsGJkBzN2BAWcQng0+lTrRNhxActFqORgnO9BHVd1hKJhG+ljRuIUWfQ==}
+  svelte@5.56.7:
+    resolution: {integrity: sha512-5qERUZX80oQj6XrDMUmD2Uhd/cIpCPDWWKBK3ZHmyRUC9apPyamWM8xMo31mbWsIQxwG2hVoSnOJ/EcnhVkkzQ==}
     engines: {node: '>=18'}
 
   tinyglobby@0.2.17:
@@ -1121,19 +1113,15 @@ snapshots:
     dependencies:
       acorn: 8.17.0
 
-  '@sveltejs/acorn-typescript@1.0.9(acorn@8.16.0)':
+  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.70.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.7)(vite@8.1.5))(svelte@5.56.7)(typescript@7.0.2)(vite@8.1.5))':
     dependencies:
-      acorn: 8.16.0
+      '@sveltejs/kit': 2.70.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.7)(vite@8.1.5))(svelte@5.56.7)(typescript@7.0.2)(vite@8.1.5)
 
-  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.70.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.53.7)(vite@8.1.5))(svelte@5.53.7)(typescript@7.0.2)(vite@8.1.5))':
-    dependencies:
-      '@sveltejs/kit': 2.70.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.53.7)(vite@8.1.5))(svelte@5.53.7)(typescript@7.0.2)(vite@8.1.5)
-
-  '@sveltejs/kit@2.70.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.53.7)(vite@8.1.5))(svelte@5.53.7)(typescript@7.0.2)(vite@8.1.5)':
+  '@sveltejs/kit@2.70.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.7)(vite@8.1.5))(svelte@5.56.7)(typescript@7.0.2)(vite@8.1.5)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@sveltejs/acorn-typescript': 1.0.11(acorn@8.17.0)
-      '@sveltejs/vite-plugin-svelte': 7.1.2(svelte@5.53.7)(vite@8.1.5)
+      '@sveltejs/vite-plugin-svelte': 7.1.2(svelte@5.56.7)(vite@8.1.5)
       '@types/cookie': 0.6.0
       acorn: 8.17.0
       cookie: 0.6.0
@@ -1144,17 +1132,17 @@ snapshots:
       mrmime: 2.0.1
       set-cookie-parser: 3.1.2
       sirv: 3.0.2
-      svelte: 5.53.7
+      svelte: 5.56.7
       vite: 8.1.5
     optionalDependencies:
       typescript: 7.0.2
 
-  '@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.53.7)(vite@8.1.5)':
+  '@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.7)(vite@8.1.5)':
     dependencies:
       deepmerge: 4.3.1
       magic-string: 0.30.21
       obug: 2.1.1
-      svelte: 5.53.7
+      svelte: 5.56.7
       vite: 8.1.5
       vitefu: 1.1.2(vite@8.1.5)
 
@@ -1165,7 +1153,7 @@ snapshots:
 
   '@types/cookie@0.6.0': {}
 
-  '@types/estree@1.0.8': {}
+  '@types/estree@1.0.9': {}
 
   '@types/trusted-types@2.0.7': {}
 
@@ -1229,8 +1217,6 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
-  acorn@8.16.0: {}
-
   acorn@8.17.0: {}
 
   aria-query@5.3.1: {}
@@ -1245,8 +1231,6 @@ snapshots:
 
   detect-libc@2.1.2: {}
 
-  devalue@5.6.3: {}
-
   devalue@5.8.2: {}
 
   dompurify@3.4.8:
@@ -1255,7 +1239,7 @@ snapshots:
 
   esm-env@1.2.2: {}
 
-  esrap@2.2.3:
+  esrap@2.3.0:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
@@ -1268,7 +1252,7 @@ snapshots:
 
   is-reference@3.0.3:
     dependencies:
-      '@types/estree': 1.0.8
+      '@types/estree': 1.0.9
 
   kleur@4.1.5: {}
 
@@ -1340,7 +1324,7 @@ snapshots:
 
   obug@2.1.1: {}
 
-  oxfmt@0.59.0(svelte@5.53.7):
+  oxfmt@0.59.0(svelte@5.56.7):
     dependencies:
       tinypool: 2.1.0
     optionalDependencies:
@@ -1363,7 +1347,7 @@ snapshots:
       '@oxfmt/binding-win32-arm64-msvc': 0.59.0
       '@oxfmt/binding-win32-ia32-msvc': 0.59.0
       '@oxfmt/binding-win32-x64-msvc': 0.59.0
-      svelte: 5.53.7
+      svelte: 5.56.7
 
   oxlint@1.51.0:
     optionalDependencies:
@@ -1430,24 +1414,26 @@ snapshots:
 
   state-local@1.0.7: {}
 
-  svelte@5.53.7:
+  svelte@5.56.7:
     dependencies:
       '@jridgewell/remapping': 2.3.5
       '@jridgewell/sourcemap-codec': 1.5.5
-      '@sveltejs/acorn-typescript': 1.0.9(acorn@8.16.0)
-      '@types/estree': 1.0.8
+      '@sveltejs/acorn-typescript': 1.0.11(acorn@8.17.0)
+      '@types/estree': 1.0.9
       '@types/trusted-types': 2.0.7
-      acorn: 8.16.0
+      acorn: 8.17.0
       aria-query: 5.3.1
       axobject-query: 4.1.0
       clsx: 2.1.1
-      devalue: 5.6.3
+      devalue: 5.8.2
       esm-env: 1.2.2
-      esrap: 2.2.3
+      esrap: 2.3.0
       is-reference: 3.0.3
       locate-character: 3.0.0
       magic-string: 0.30.21
       zimmerframe: 1.1.4
+    transitivePeerDependencies:
+      - '@typescript-eslint/types'
 
   tinyglobby@0.2.17:
     dependencies:
