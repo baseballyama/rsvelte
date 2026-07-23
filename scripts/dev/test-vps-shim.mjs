@@ -283,5 +283,124 @@ assert(
 	JSON.stringify(filtered.warnings.map((w) => w.code)),
 );
 
+// 11. Dynamic cssHash — a css-dependent hash function routed through the async
+//     callback bridge (`compileAsync` -> `compileWithCssHash`).
+{
+	const src = '<h1>hi</h1><style>h1{color:red}</style>';
+	const seen = {};
+	const dyn = await r.compileAsync(src, {
+		filename: 'Dyn.svelte',
+		generate: 'client',
+		css: 'injected',
+		cssHash: ({ hash, css, name, filename }) => {
+			seen.name = name;
+			seen.filename = filename;
+			seen.hasHashFn = typeof hash === 'function';
+			return `x-${hash(css)}`;
+		},
+	});
+	assert(
+		'dynamic cssHash receives name/filename/hash',
+		seen.hasHashFn === true && seen.name === 'Dyn' && seen.filename === 'Dyn.svelte',
+		JSON.stringify(seen),
+	);
+	assert(
+		'dynamic cssHash class appears in output',
+		/x-[0-9a-z]+/.test(dyn.js.code),
+		dyn.js.code.slice(0, 160),
+	);
+
+	// Svelte defaults filename to '(unknown)' — the callback must see that, not undefined.
+	let seenFilename;
+	await r.compileAsync('<h1>hi</h1><style>h1{color:red}</style>', {
+		generate: 'client',
+		css: 'injected',
+		cssHash: ({ hash, css, filename }) => {
+			seenFilename = filename;
+			return `x-${hash(css)}`;
+		},
+	});
+	assert('cssHash filename defaults to (unknown)', seenFilename === '(unknown)', String(seenFilename));
+
+	// Different CSS must yield a different hash (proves it is content-driven).
+	const a = await r.compileAsync('<h1>a</h1><style>h1{color:red}</style>', {
+		filename: 'A.svelte',
+		generate: 'client',
+		css: 'injected',
+		cssHash: ({ hash, css }) => `x-${hash(css)}`,
+	});
+	const b = await r.compileAsync('<h1>b</h1><style>h1{color:blue}</style>', {
+		filename: 'B.svelte',
+		generate: 'client',
+		css: 'injected',
+		cssHash: ({ hash, css }) => `x-${hash(css)}`,
+	});
+	const clsOf = (code) => (code.match(/x-[0-9a-z]+/) || [])[0];
+	assert(
+		'dynamic cssHash varies with CSS content',
+		clsOf(a.js.code) && clsOf(b.js.code) && clsOf(a.js.code) !== clsOf(b.js.code),
+		`${clsOf(a.js.code)} vs ${clsOf(b.js.code)}`,
+	);
+
+	// A throwing cssHash surfaces as a compile error (matches upstream) without
+	// crashing the process during TSFN teardown.
+	let cssHashThrew = false;
+	try {
+		await r.compileAsync(src, {
+			filename: 'F.svelte',
+			generate: 'client',
+			css: 'injected',
+			cssHash: () => {
+				throw new Error('boom');
+			},
+		});
+	} catch (e) {
+		cssHashThrew = /boom/.test(String((e && e.message) || e));
+	}
+	assert('throwing cssHash surfaces as a compile error', cssHashThrew);
+
+	// A non-string return falls back to the compiler's default hash.
+	const fell = await r.compileAsync(src, {
+		filename: 'F.svelte',
+		generate: 'client',
+		css: 'injected',
+		cssHash: () => 42,
+	});
+	assert(
+		'non-string cssHash return falls back to default hash',
+		fell.js.code.includes('svelte-'),
+		fell.js.code.slice(0, 160),
+	);
+
+	// The synchronous entry rejects a dynamic cssHash rather than dropping it.
+	let threw = false;
+	try {
+		r.compile(src, { filename: 'S.svelte', generate: 'client', cssHash: () => 'x' });
+	} catch {
+		threw = true;
+	}
+	assert('sync compile throws on a dynamic cssHash', threw);
+
+	// compileBatch rejects a dynamic cssHash instead of silently dropping it.
+	let batchThrew = false;
+	try {
+		r.compileBatch([{ source: src, options: { filename: 'Bt.svelte', cssHash: () => 'x' } }]);
+	} catch {
+		batchThrew = true;
+	}
+	assert('compileBatch throws on a dynamic cssHash', batchThrew);
+
+	// compileBatchAsync rejects a dynamic cssHash too (no per-file callback bridge).
+	let batchAsyncThrew = false;
+	try {
+		await r.compileBatchAsync([
+			{ source: src, options: { filename: 'Bt.svelte', cssHash: () => 'x' } },
+		]);
+	} catch {
+		batchAsyncThrew = true;
+	}
+	assert('compileBatchAsync throws on a dynamic cssHash', batchAsyncThrew);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

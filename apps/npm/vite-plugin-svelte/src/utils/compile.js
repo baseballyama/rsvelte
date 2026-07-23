@@ -98,7 +98,12 @@ export function createCompileSvelte() {
 		/** @type {import('@rsvelte/vite-plugin-svelte-native').CompileResult} */
 		let compiled;
 		try {
-			compiled = svelte.compile(finalCode, { ...finalCompileOptions, filename });
+			// A dynamic cssHash function only works through the async callback
+			// bridge; everything else stays on the faster synchronous path.
+			compiled =
+				typeof finalCompileOptions.cssHash === 'function'
+					? await svelte.compileAsync(finalCode, { ...finalCompileOptions, filename })
+					: svelte.compile(finalCode, { ...finalCompileOptions, filename });
 
 			// patch output with partial accept until svelte does it
 			// TODO remove later
