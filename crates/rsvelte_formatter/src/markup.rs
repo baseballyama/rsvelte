@@ -536,6 +536,27 @@ fn push_close_tag(
     } else if hug_close {
         let indent = indent_str(depth, &options.js);
         edits.push((start, end, format!("</{tag_name}\n{indent}>")));
+    } else if open_wrapped
+        && is_empty
+        && options.bracket_same_line
+        && is_html_block_display_element(tag_name)
+    {
+        // A block-display element with a wrapping open tag whose body is empty (or
+        // whitespace-only, which the oracle treats as empty): under
+        // `bracketSameLine` the open `>` glues to the last attribute (see
+        // `push_open_tag`), so the close tag drops to its own line and any
+        // whitespace body is absorbed into that break — matching the oracle
+        // `<div`\n`  …">`\n`</div>`. The default (`bracketSameLine: false`) keeps
+        // the dedented `></div>` form of the branch below. See #1721.
+        let bytes = source.as_bytes();
+        let mut content_end = start as usize;
+        while content_end > 0
+            && matches!(bytes[content_end - 1], b' ' | b'\t' | b'\n' | b'\r' | 0x0c)
+        {
+            content_end -= 1;
+        }
+        let indent = indent_str(depth, &options.js);
+        edits.push((content_end as u32, end, format!("\n{indent}</{tag_name}>")));
     } else if open_wrapped && is_empty && options.bracket_same_line {
         // An empty element's wrapped open `>` dedents onto its own line (see the
         // `!empty_element` guard in `push_open_tag`), so `>` and `</tag` glue as
@@ -1036,7 +1057,14 @@ fn push_open_tag(
             // (`<span> </span>`, not a hug) instead glues `>` to the last attribute
             // line (`…">`), matching prettier's `group([...openingTag, '>', line, …])`.
             // A self-closing element (`<input … />`) always glues its ` />`.
-            options.bracket_same_line && (self_closing || !empty_element || empty_nonhug),
+            // A block-display element never hugs, so its `>` glues to the last
+            // attribute under `bracketSameLine` even when empty (`<div …">`\n`</div>`,
+            // vs the inline empty hug `></span>`). See #1721.
+            options.bracket_same_line
+                && (self_closing
+                    || !empty_element
+                    || empty_nonhug
+                    || is_html_block_display_element(tag_name)),
         )
     } else {
         one_liner
