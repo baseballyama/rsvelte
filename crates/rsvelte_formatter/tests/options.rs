@@ -432,6 +432,22 @@ fn textarea_source_empty_dangles_closer_unchanged() {
     assert_eq!(fmt(src, &width_80(false)), expected);
 }
 
+// Regression for the #1707 whitespace-body rewrite interacting with the
+// section-reorder remap: the markup edit that rewrites a whitespace body +
+// close tag overlaps the indent pass's edit on the same whitespace text node, so
+// one is dropped when the edits are applied. The section-span remap must be
+// computed from the SAME overlap-resolved edit set — counting the dropped edit's
+// length change shifted the `<style>` boundary past the output end and panicked
+// in `sort_order::reorder_sections` ("end byte index … out of bounds").
+#[test]
+fn whitespace_body_rewrite_does_not_panic_reorder_remap() {
+    let src = "<ul>\n\t<li>\n\t\t<a\n\t\t\tid=\"x\"\n\t\t\thref=\"https://example.com/some/really/long/url/that/forces/the/open/tag/to/wrap\"\n\t\t\taria-label=\"label\"\n\t\t>\n\t\t</a>\n\t</li>\n</ul>\n\n<style>\n\ta {\n\t\tcolor: red;\n\t}\n</style>";
+    // The `<style>` body keeps the source indentation here — `width_80` configures
+    // no CSS formatter — which is irrelevant to the reorder-remap regression.
+    let expected = "<ul>\n  <li>\n    <a\n      id=\"x\"\n      href=\"https://example.com/some/really/long/url/that/forces/the/open/tag/to/wrap\"\n      aria-label=\"label\"\n    >\n    </a>\n  </li>\n</ul>\n\n<style>\n\ta {\n\t\tcolor: red;\n\t}\n</style>\n";
+    assert_eq!(fmt(src, &width_80(false)), expected);
+}
+
 #[test]
 fn sort_order_parse_rejects_invalid() {
     assert!(SortOrderSpec::parse("scripts-markup").is_none());
