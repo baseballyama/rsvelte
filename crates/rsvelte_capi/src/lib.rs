@@ -26,11 +26,11 @@
 //! { "ok": false, "error":  { "message": "..." } }
 //! ```
 
-use std::os::raw::c_char;
+use std::os::raw::{c_char, c_void};
 
 use rsvelte_core::compiler::{
-    CompileOptions, CssMode, ExperimentalOptions, GenerateMode, ModuleCompileOptions, Namespace,
-    compile as rust_compile, compile_module as rust_compile_module,
+    CompileOptions, CssHashInput, CssMode, ExperimentalOptions, GenerateMode, ModuleCompileOptions,
+    Namespace, Warning, compile as rust_compile, compile_module as rust_compile_module,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -66,6 +66,122 @@ impl RsvelteBuf {
         Self { data, len, cap }
     }
 }
+
+/// Borrowed UTF-8 string view returned by a callback into this library.
+///
+/// Unlike [`RsvelteBuf`], the library does NOT take ownership of these
+/// bytes and never frees them. The pointer must stay valid only for the
+/// duration of the callback invocation that returned it (this library
+/// copies the bytes synchronously before the callback returns control
+/// upstream). A `{ data: NULL, len: 0 }` value means "no value — fall
+/// back to the compiler default".
+#[repr(C)]
+pub struct RsvelteStr {
+    /// Pointer to borrowed UTF-8 bytes. NULL means "no value".
+    pub data: *const u8,
+    /// Length in bytes (does NOT include any trailing NUL).
+    pub len: usize,
+}
+
+/// Input handed to a [`RsvelteCssHashFn`] callback.
+///
+/// Every field is a borrowed `(pointer, length)` UTF-8 slice, valid only
+/// for the duration of the callback. `hash` is the raw digest (WITHOUT the
+/// `svelte-` prefix) that the compiler's *default* `cssHash` produces —
+/// upstream digests the rootDir-relative `filename` when known, else `css`
+/// — so prepending `svelte-` reproduces the default class name exactly.
+#[repr(C)]
+pub struct RsvelteCssHashInput {
+    /// The component's CSS source.
+    pub css: *const u8,
+    /// Length of `css` in bytes.
+    pub css_len: usize,
+    /// The rootDir-relative (or absolute) filename, or `(unknown)`.
+    pub filename: *const u8,
+    /// Length of `filename` in bytes.
+    pub filename_len: usize,
+    /// The derived component name.
+    pub name: *const u8,
+    /// Length of `name` in bytes.
+    pub name_len: usize,
+    /// The raw digest the default `cssHash` produces — the filename when
+    /// known, else the css (no `svelte-` prefix).
+    pub hash: *const u8,
+    /// Length of `hash` in bytes.
+    pub hash_len: usize,
+}
+
+/// A `cssHash` callback: `(userdata, input) -> class name`.
+///
+/// Returns the CSS scope class name as a borrowed [`RsvelteStr`]. Return
+/// `{ NULL, 0 }` to fall back to the compiler's default hash. The
+/// returned bytes must stay valid until the callback returns; this
+/// library copies them immediately.
+pub type RsvelteCssHashFn =
+    extern "C" fn(userdata: *mut c_void, input: *const RsvelteCssHashInput) -> RsvelteStr;
+
+/// A `warningFilter` callback: `(userdata, warning_json) -> keep`.
+///
+/// `warning_json` is a borrowed `(pointer, length)` UTF-8 JSON object
+/// (`{ code, message, filename?, start?, end?, position?, frame? }`),
+/// matching the warnings in the compile envelope. Return `true` to keep
+/// the warning, `false` to drop it.
+pub type RsvelteWarningFilterFn =
+    extern "C" fn(userdata: *mut c_void, warning_json: *const u8, warning_json_len: usize) -> bool;
+
+/// Optional compile callbacks (issue #1680).
+///
+/// Passed by pointer to the `*_with_callbacks` entry points. A NULL
+/// function-pointer field disables that callback. Each `*_userdata`
+/// pointer is passed back verbatim to its callback and is otherwise
+/// opaque to this library — use it to carry closure state. When a
+/// constant `cssHashOverride` is also set in the options JSON, that
+/// constant wins and `css_hash` is not invoked (mirrors the wasm/NAPI
+/// precedence).
+#[repr(C)]
+pub struct RsvelteCallbacks {
+    /// CSS hash callback (a [`RsvelteCssHashFn`]), or NULL. Inlined rather
+    /// than referenced via the alias so cbindgen emits a nullable function
+    /// pointer instead of an opaque `Option_*` struct.
+    pub css_hash: Option<
+        extern "C" fn(userdata: *mut c_void, input: *const RsvelteCssHashInput) -> RsvelteStr,
+    >,
+    /// Opaque state pointer passed to `css_hash`.
+    pub css_hash_userdata: *mut c_void,
+    /// Warning filter callback (a [`RsvelteWarningFilterFn`]), or NULL.
+    pub warning_filter: Option<
+        extern "C" fn(
+            userdata: *mut c_void,
+            warning_json: *const u8,
+            warning_json_len: usize,
+        ) -> bool,
+    >,
+    /// Opaque state pointer passed to `warning_filter`.
+    pub warning_filter_userdata: *mut c_void,
+}
+
+/// Opaque userdata pointer made `Send + Sync` so the callback closures
+/// satisfy the compiler's `CssHashFn` / `WarningFilterFn` bounds. The
+/// pointer is only ever dereferenced inside the caller's own callback,
+/// which the caller is responsible for making thread-safe.
+#[derive(Clone, Copy)]
+struct Userdata(*mut c_void);
+
+impl Userdata {
+    // A method (rather than a bare `.0` field access) so closures capture the
+    // whole `Userdata` (which is `Send + Sync`) instead of the raw pointer field
+    // under Rust 2021 disjoint closure captures.
+    fn get(&self) -> *mut c_void {
+        self.0
+    }
+}
+
+// SAFETY: the pointer is opaque to this library; thread-safety of any
+// data it references is the caller's responsibility, exactly as for the
+// callback function itself.
+unsafe impl Send for Userdata {}
+// SAFETY: see the `Send` impl above — same rationale.
+unsafe impl Sync for Userdata {}
 
 /// Library version (matches the `rsvelte_core` crate version).
 ///
@@ -172,6 +288,78 @@ pub unsafe extern "C" fn rsvelte_compile_module(
         Ok(o) => o,
         Err(msg) => return error_envelope(&msg),
     };
+
+    match rust_compile_module(source_str, opts) {
+        Ok(result) => success_envelope(compile_result_to_json(&result)),
+        Err(e) => error_envelope(&format!("{e}")),
+    }
+}
+
+/// Compile a Svelte component with optional `cssHash` / `warningFilter`
+/// callbacks (issue #1680).
+///
+/// Identical to [`rsvelte_compile`] but also resolves the two callback
+/// compile options that can't cross the JSON boundary. `callbacks` may
+/// be NULL (equivalent to [`rsvelte_compile`]); individual callback
+/// fields may be NULL too. The callbacks are input-only and are never
+/// retained past this call.
+///
+/// # Safety
+/// - Source/options pointers follow [`rsvelte_compile`]'s rules.
+/// - `callbacks` must be NULL or point to a valid [`RsvelteCallbacks`];
+///   each non-NULL function pointer must be callable with the documented
+///   signature and its paired `*_userdata` value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rsvelte_compile_with_callbacks(
+    source: *const u8,
+    source_len: usize,
+    options_json: *const u8,
+    options_len: usize,
+    callbacks: *const RsvelteCallbacks,
+) -> RsvelteBuf {
+    // SAFETY: upheld by this function's documented `# Safety` contract.
+    let Some(source_str) = (unsafe { borrow_utf8(source, source_len) }) else {
+        return error_envelope("source is not valid UTF-8 or pointer is null");
+    };
+    // SAFETY: upheld by this function's documented `# Safety` contract.
+    let mut opts = match unsafe { parse_compile_options(options_json, options_len) } {
+        Ok(o) => o,
+        Err(msg) => return error_envelope(&msg),
+    };
+    // SAFETY: `callbacks` is NULL or a valid `RsvelteCallbacks` per the contract.
+    unsafe { apply_component_callbacks(&mut opts, callbacks) };
+
+    match rust_compile(source_str, opts) {
+        Ok(result) => success_envelope(compile_result_to_json(&result)),
+        Err(e) => error_envelope(&format!("{e}")),
+    }
+}
+
+/// Compile a Svelte `.svelte.js` / `.svelte.ts` module with an optional
+/// `warningFilter` callback (issue #1680). Modules have no CSS, so the
+/// `css_hash` field of `callbacks` is ignored.
+///
+/// # Safety
+/// See [`rsvelte_compile_with_callbacks`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rsvelte_compile_module_with_callbacks(
+    source: *const u8,
+    source_len: usize,
+    options_json: *const u8,
+    options_len: usize,
+    callbacks: *const RsvelteCallbacks,
+) -> RsvelteBuf {
+    // SAFETY: upheld by this function's documented `# Safety` contract.
+    let Some(source_str) = (unsafe { borrow_utf8(source, source_len) }) else {
+        return error_envelope("source is not valid UTF-8 or pointer is null");
+    };
+    // SAFETY: upheld by this function's documented `# Safety` contract.
+    let mut opts = match unsafe { parse_module_options(options_json, options_len) } {
+        Ok(o) => o,
+        Err(msg) => return error_envelope(&msg),
+    };
+    // SAFETY: `callbacks` is NULL or a valid `RsvelteCallbacks` per the contract.
+    unsafe { apply_module_callbacks(&mut opts, callbacks) };
 
     match rust_compile_module(source_str, opts) {
         Ok(result) => success_envelope(compile_result_to_json(&result)),
@@ -473,7 +661,160 @@ unsafe fn parse_module_options(ptr: *const u8, len: usize) -> Result<ModuleCompi
     Ok(opts)
 }
 
+// --- callback bridging ----------------------------------------------------
+
+/// The string the compiler's default `cssHash` digests — the rootDir-relative
+/// filename when known, else the CSS content. Mirrors upstream's
+/// `hash(filename === '(unknown)' ? css : filename ?? css)`
+/// (validate-options.js) with the same rootDir stripping as core's `analyze_css`.
+fn css_hash_source(input: &CssHashInput, root_dir: Option<&str>) -> String {
+    if input.filename == "(unknown)" {
+        return input.css.clone();
+    }
+    let mut fname = input.filename.replace('\\', "/");
+    if let Some(rd) = root_dir {
+        let rd = rd.replace('\\', "/");
+        if let Some(rest) = fname.strip_prefix(&rd) {
+            fname = rest.trim_start_matches('/').to_string();
+        }
+    }
+    fname
+}
+
+/// Reproduce the compiler's default (no-`cssHash`) scope class, used when a
+/// `css_hash` callback declines (returns `{ NULL, 0 }` or non-UTF-8).
+fn default_css_hash(input: &CssHashInput, root_dir: Option<&str>) -> String {
+    use rsvelte_core::compiler::phases::phase3_transform::css::generate_css_hash;
+    generate_css_hash(&css_hash_source(input, root_dir))
+}
+
+/// Wrap a `warningFilter` C callback into a core `WarningFilterFn`.
+fn build_warning_filter(
+    func: RsvelteWarningFilterFn,
+    userdata: *mut c_void,
+) -> impl Fn(&Warning) -> bool {
+    let ud = Userdata(userdata);
+    move |warning: &Warning| -> bool {
+        let json = warning_to_value(warning).to_string();
+        let bytes = json.as_bytes();
+        // SAFETY: `func` is a valid extern fn per the caller's `RsvelteCallbacks`
+        // contract; the JSON slice is valid for this synchronous call.
+        func(ud.get(), bytes.as_ptr(), bytes.len())
+    }
+}
+
+/// # Safety
+/// `callbacks` must be NULL or point to a valid [`RsvelteCallbacks`].
+unsafe fn apply_component_callbacks(opts: &mut CompileOptions, callbacks: *const RsvelteCallbacks) {
+    if callbacks.is_null() {
+        return;
+    }
+    // SAFETY: non-null and valid per the caller's contract.
+    let cb = unsafe { &*callbacks };
+
+    if let Some(func) = cb.warning_filter {
+        let filter = build_warning_filter(func, cb.warning_filter_userdata);
+        opts.warning_filter = Some(std::sync::Arc::new(filter));
+    }
+
+    // A constant `cssHashOverride` (already set by `parse_compile_options`)
+    // wins; only bridge the dynamic callback when no override was supplied.
+    if opts.css_hash.is_none()
+        && let Some(func) = cb.css_hash
+    {
+        let ud = Userdata(cb.css_hash_userdata);
+        let root_dir = opts.root_dir.clone();
+        opts.css_hash = Some(std::sync::Arc::new(move |input: &CssHashInput| -> String {
+            // The `hash` handed to the callback is the raw (unprefixed, PR #1705)
+            // digest the compiler's *default* `cssHash` would produce — upstream
+            // digests the filename when known, else the CSS — so `svelte-${hash}`
+            // reproduces the default class exactly, with no doubled prefix.
+            let raw = (input.hash)(&css_hash_source(input, root_dir.as_deref()));
+            let c_input = RsvelteCssHashInput {
+                css: input.css.as_ptr(),
+                css_len: input.css.len(),
+                filename: input.filename.as_ptr(),
+                filename_len: input.filename.len(),
+                name: input.name.as_ptr(),
+                name_len: input.name.len(),
+                hash: raw.as_ptr(),
+                hash_len: raw.len(),
+            };
+            // SAFETY: `func` is a valid extern fn per the caller's contract; the
+            // borrowed slices in `c_input` outlive this synchronous call.
+            let ret = func(ud.get(), &c_input);
+            if ret.data.is_null() || ret.len == 0 {
+                return default_css_hash(input, root_dir.as_deref());
+            }
+            // SAFETY: callback contract — `ret` borrows valid UTF-8 for this call.
+            let bytes = unsafe { std::slice::from_raw_parts(ret.data, ret.len) };
+            match std::str::from_utf8(bytes) {
+                Ok(s) => s.to_string(),
+                Err(_) => default_css_hash(input, root_dir.as_deref()),
+            }
+        }));
+    }
+}
+
+/// # Safety
+/// `callbacks` must be NULL or point to a valid [`RsvelteCallbacks`].
+unsafe fn apply_module_callbacks(
+    opts: &mut ModuleCompileOptions,
+    callbacks: *const RsvelteCallbacks,
+) {
+    if callbacks.is_null() {
+        return;
+    }
+    // SAFETY: non-null and valid per the caller's contract.
+    let cb = unsafe { &*callbacks };
+    if let Some(func) = cb.warning_filter {
+        let filter = build_warning_filter(func, cb.warning_filter_userdata);
+        opts.warning_filter = Some(std::sync::Arc::new(filter));
+    }
+}
+
 // --- result encoding ------------------------------------------------------
+
+/// Encode a single warning as the JSON object shared by the compile
+/// envelope and the `warningFilter` callback.
+fn warning_to_value(w: &Warning) -> Value {
+    let mut map = serde_json::Map::new();
+    map.insert("code".to_string(), Value::String(w.code.clone()));
+    map.insert("message".to_string(), Value::String(w.message.clone()));
+    if let Some(ref filename) = w.filename {
+        map.insert("filename".to_string(), Value::String(filename.clone()));
+    }
+    if let Some(ref start) = w.start {
+        map.insert(
+            "start".to_string(),
+            serde_json::json!({
+                "line": start.line,
+                "column": start.column,
+                "character": start.character,
+            }),
+        );
+    }
+    if let Some(ref end) = w.end {
+        map.insert(
+            "end".to_string(),
+            serde_json::json!({
+                "line": end.line,
+                "column": end.column,
+                "character": end.character,
+            }),
+        );
+    }
+    if let (Some(start), Some(end)) = (&w.start, &w.end) {
+        map.insert(
+            "position".to_string(),
+            serde_json::json!([start.character, end.character]),
+        );
+    }
+    if let Some(ref frame) = w.frame {
+        map.insert("frame".to_string(), Value::String(frame.clone()));
+    }
+    Value::Object(map)
+}
 
 fn compile_result_to_json(result: &rsvelte_core::compiler::CompileResult) -> Value {
     let js_obj = serde_json::json!({
@@ -498,48 +839,7 @@ fn compile_result_to_json(result: &rsvelte_core::compiler::CompileResult) -> Val
         })
     });
 
-    let warnings: Vec<Value> = result
-        .warnings
-        .iter()
-        .map(|w| {
-            let mut map = serde_json::Map::new();
-            map.insert("code".to_string(), Value::String(w.code.clone()));
-            map.insert("message".to_string(), Value::String(w.message.clone()));
-            if let Some(ref filename) = w.filename {
-                map.insert("filename".to_string(), Value::String(filename.clone()));
-            }
-            if let Some(ref start) = w.start {
-                map.insert(
-                    "start".to_string(),
-                    serde_json::json!({
-                        "line": start.line,
-                        "column": start.column,
-                        "character": start.character,
-                    }),
-                );
-            }
-            if let Some(ref end) = w.end {
-                map.insert(
-                    "end".to_string(),
-                    serde_json::json!({
-                        "line": end.line,
-                        "column": end.column,
-                        "character": end.character,
-                    }),
-                );
-            }
-            if let (Some(start), Some(end)) = (&w.start, &w.end) {
-                map.insert(
-                    "position".to_string(),
-                    serde_json::json!([start.character, end.character]),
-                );
-            }
-            if let Some(ref frame) = w.frame {
-                map.insert("frame".to_string(), Value::String(frame.clone()));
-            }
-            Value::Object(map)
-        })
-        .collect();
+    let warnings: Vec<Value> = result.warnings.iter().map(warning_to_value).collect();
 
     serde_json::json!({
         "js": js_obj,

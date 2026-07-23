@@ -14,7 +14,7 @@
 //! reflowed here. Long text that would overflow stays multi-line (fill wrapping
 //! is handled upstream by leaving the source breaks).
 
-use rsvelte_core::ast::template::{Fragment, TemplateNode};
+use rsvelte_core::ast::template::{Fragment, Root, TemplateNode};
 use rsvelte_core::{ParseOptions, parse};
 use unicode_width::UnicodeWidthStr;
 
@@ -77,6 +77,11 @@ pub(crate) fn collapse_pure_text_elements(
         skip_non_css_lang_style: true,
         ..ParseOptions::default()
     };
+    // The children-port helpers rebuild elements without carrying `FormatOptions`;
+    // expose `bracketSameLine` to them for this pass so a wrapped open tag glues
+    // its `>` to the last attribute (matching prettier-plugin-svelte).
+    let _bracket_same_line_guard =
+        crate::children::enter_bracket_same_line(options.bracket_same_line);
     let Ok(root) = parse(out, parse_opts) else {
         return Ok(out.to_string());
     };
@@ -91,13 +96,17 @@ pub(crate) fn collapse_pure_text_elements(
     let mut edits: Vec<(u32, u32, String)> = Vec::new();
     collect(out, &root.fragment, line_width, false, options, &mut edits);
     let mut result = out.to_string();
-    let mut tree = root;
+    // `root` stays the immutable ORIGINAL (pre-collapse) tree — reused by the
+    // children-port whitespace map instead of re-parsing `out`. `tree` tracks
+    // `result`'s current AST: `None` means it still equals `root` (no edit yet),
+    // `Some(t)` an owned re-parse after an editing pass.
+    let mut tree: Option<Root> = None;
     if !edits.is_empty() {
         result = apply_edits(&result, edits);
         let Ok(t) = parse(&result, parse_opts) else {
             return Ok(result);
         };
-        tree = t;
+        tree = Some(t);
     }
 
     // 1.6-th pass: run a targeted `try_collapse` sweep on inline pure-text
@@ -107,13 +116,19 @@ pub(crate) fn collapse_pure_text_elements(
     // After the `<li>` is re-broken, the `<a>` may need its multi-line open tag
     // hugged (`>text</a\n>` → `\n  >text</a\n>`).
     let mut edits1c: Vec<(u32, u32, String)> = Vec::new();
-    collect_try_collapse_only(&result, &tree.fragment, line_width, options, &mut edits1c);
+    collect_try_collapse_only(
+        &result,
+        &tree.as_ref().unwrap_or(&root).fragment,
+        line_width,
+        options,
+        &mut edits1c,
+    );
     if !edits1c.is_empty() {
         result = apply_edits(&result, edits1c);
         let Ok(t) = parse(&result, parse_opts) else {
             return Ok(result);
         };
-        tree = t;
+        tree = Some(t);
     }
 
     // 1.7-th pass: targeted `try_hug_mixed` sweep for elements whose `indent`
@@ -123,13 +138,19 @@ pub(crate) fn collapse_pure_text_elements(
     // ownership in pass 1; this targeted pass applies it without re-running the
     // full layout suite (which would disturb already-correct prose wrapping).
     let mut edits1d: Vec<(u32, u32, String)> = Vec::new();
-    collect_hug_mixed_non_ws_prefix(&result, &tree.fragment, line_width, options, &mut edits1d);
+    collect_hug_mixed_non_ws_prefix(
+        &result,
+        &tree.as_ref().unwrap_or(&root).fragment,
+        line_width,
+        options,
+        &mut edits1d,
+    );
     if !edits1d.is_empty() {
         result = apply_edits(&result, edits1d);
         let Ok(t) = parse(&result, parse_opts) else {
             return Ok(result);
         };
-        tree = t;
+        tree = Some(t);
     }
 
     // 1.8-th pass: break block-display elements that land at a non-ws `>` prefix.
@@ -139,13 +160,18 @@ pub(crate) fn collapse_pure_text_elements(
     // this targeted sweep extracts the ws portion from `  >` and re-applies the
     // block-break logic.
     let mut edits1e: Vec<(u32, u32, String)> = Vec::new();
-    collect_break_block_non_ws_prefix(&result, &tree.fragment, line_width, &mut edits1e);
+    collect_break_block_non_ws_prefix(
+        &result,
+        &tree.as_ref().unwrap_or(&root).fragment,
+        line_width,
+        &mut edits1e,
+    );
     if !edits1e.is_empty() {
         result = apply_edits(&result, edits1e);
         let Ok(t) = parse(&result, parse_opts) else {
             return Ok(result);
         };
-        tree = t;
+        tree = Some(t);
     }
 
     // 1.9-th pass: break the open tag of inline/component elements that appear on
@@ -156,13 +182,18 @@ pub(crate) fn collapse_pure_text_elements(
     // content has leading whitespace (hug_start=false), to avoid disturbing the
     // already-correct hug layouts from earlier passes.
     let mut edits1f: Vec<(u32, u32, String)> = Vec::new();
-    collect_break_inline_open_tag(&result, &tree.fragment, line_width, &mut edits1f);
+    collect_break_inline_open_tag(
+        &result,
+        &tree.as_ref().unwrap_or(&root).fragment,
+        line_width,
+        &mut edits1f,
+    );
     if !edits1f.is_empty() {
         result = apply_edits(&result, edits1f);
         let Ok(t) = parse(&result, parse_opts) else {
             return Ok(result);
         };
-        tree = t;
+        tree = Some(t);
     }
 
     // 1.95-th pass: re-collapse broken open tags whose single-line form now fits
@@ -170,13 +201,18 @@ pub(crate) fn collapse_pure_text_elements(
     // by a long preceding line; after pass 1.9 has broken inline elements to
     // shorten those lines, the previously-broken sibling open tag may now fit.
     let mut edits1g: Vec<(u32, u32, String)> = Vec::new();
-    collect_recollapse_open_tag(&result, &tree.fragment, line_width, &mut edits1g);
+    collect_recollapse_open_tag(
+        &result,
+        &tree.as_ref().unwrap_or(&root).fragment,
+        line_width,
+        &mut edits1g,
+    );
     if !edits1g.is_empty() {
         result = apply_edits(&result, edits1g);
         let Ok(t) = parse(&result, parse_opts) else {
             return Ok(result);
         };
-        tree = t;
+        tree = Some(t);
     }
 
     // Second pass: the hug/break edits above may leave a long expression mustache
@@ -185,7 +221,13 @@ pub(crate) fn collapse_pure_text_elements(
     // because the hug edit that creates the overflowing line owns the element and
     // suppresses recursion into it.
     let mut edits2: Vec<(u32, u32, String)> = Vec::new();
-    collect_content_tag_breaks(&result, &tree.fragment, line_width, options, &mut edits2);
+    collect_content_tag_breaks(
+        &result,
+        &tree.as_ref().unwrap_or(&root).fragment,
+        line_width,
+        options,
+        &mut edits2,
+    );
     // `tree` is the AST of `result` unless this last pass edited the text.
     let mut tree_is_current = true;
     if !edits2.is_empty() {
@@ -207,15 +249,34 @@ pub(crate) fn collapse_pure_text_elements(
     let reparsed = (!tree_is_current)
         .then(|| parse(&result, parse_opts).ok())
         .flatten();
-    if let Some(root_cp) = reparsed.as_ref().or(tree_is_current.then_some(&tree)) {
+    if let Some(root_cp) = reparsed
+        .as_ref()
+        .or(tree_is_current.then(|| tree.as_ref().unwrap_or(&root)))
+    {
+        // Build the intermediate→original text map so the port classifies text
+        // whitespace from the pre-collapse source (`out`). Only needed when
+        // collapse actually rewrote the text; otherwise the intermediate IS the
+        // original. The original tree is `root` (the first parse), reused here so
+        // no extra parse of `out` is paid.
+        let mut orig_map = std::collections::HashMap::new();
+        if result.as_str() != out {
+            build_orig_text_map(
+                &root_cp.fragment.nodes,
+                out,
+                &root.fragment.nodes,
+                &mut orig_map,
+            );
+        }
         let mut edits_cp: Vec<(u32, u32, String)> = Vec::new();
-        collect_children_port_only(
-            &result,
-            &root_cp.fragment,
-            line_width,
-            options,
-            &mut edits_cp,
-        );
+        with_orig_text(orig_map, || {
+            collect_children_port_only(
+                &result,
+                &root_cp.fragment,
+                line_width,
+                options,
+                &mut edits_cp,
+            );
+        });
         if !edits_cp.is_empty() {
             result = apply_edits(&result, edits_cp);
         }
@@ -3199,6 +3260,134 @@ fn with_pre_content<T>(f: impl FnOnce() -> T) -> T {
     f()
 }
 
+thread_local! {
+    /// Set while the final children-port pass runs. Maps each intermediate text
+    /// node's start offset to its PRE-COLLAPSE source text, so `node_to_child`
+    /// classifies boundary whitespace from the original rather than the
+    /// intermediate output. An earlier breaking pass can turn a source space after
+    /// an inline element into a newline (by hug-breaking the element); reading the
+    /// leading whitespace from the intermediate would then flip the fill to its
+    /// inverted (last-word-overflow-tolerant) form and mis-wrap the prose.
+    static ORIG_TEXT: std::cell::RefCell<std::collections::HashMap<u32, String>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+/// Restores [`ORIG_TEXT`] on drop so an unwind cannot strand the map on a pooled
+/// worker thread.
+struct OrigTextGuard(std::collections::HashMap<u32, String>);
+
+impl Drop for OrigTextGuard {
+    fn drop(&mut self) {
+        ORIG_TEXT.with(|m| *m.borrow_mut() = std::mem::take(&mut self.0));
+    }
+}
+
+/// Run `f` with [`ORIG_TEXT`] populated, restoring the previous map afterwards.
+fn with_orig_text<T>(map: std::collections::HashMap<u32, String>, f: impl FnOnce() -> T) -> T {
+    let _guard = OrigTextGuard(ORIG_TEXT.with(|m| m.replace(map)));
+    f()
+}
+
+/// The pre-collapse source text for the intermediate text node starting at
+/// `start`, when the children-port pass has one recorded.
+fn orig_text_for(start: u32) -> Option<String> {
+    ORIG_TEXT.with(|m| m.borrow().get(&start).cloned())
+}
+
+/// Pair each node in `inter` with its whitespace-original counterpart in `orig`.
+/// Both node lists describe the same document differing only in whitespace
+/// (collapse never changes non-whitespace content or node structure — enforced by
+/// the corruption guard in `try_children_port`), so every non-text node aligns 1:1
+/// in order. A whitespace-only text node may exist in one list but not the other
+/// (collapse can drop or introduce a bare separator), so text nodes are matched
+/// positionally where possible and left unpaired otherwise.
+fn align_orig_nodes<'a>(
+    inter: &[TemplateNode],
+    orig: &'a [TemplateNode],
+) -> Vec<Option<&'a TemplateNode>> {
+    let mut result = Vec::with_capacity(inter.len());
+    let mut oi = 0usize;
+    for n in inter {
+        if matches!(n, TemplateNode::Text(_)) {
+            // Pair with the next orig text node if the cursor is on one; a non-text
+            // orig node here means the intermediate has an extra text node (collapse
+            // never adds text), so leave it unmatched.
+            if oi < orig.len() && matches!(orig[oi], TemplateNode::Text(_)) {
+                result.push(Some(&orig[oi]));
+                oi += 1;
+            } else {
+                result.push(None);
+            }
+        } else {
+            // Skip any orig text nodes collapse dropped, then take the matching
+            // non-text node (guaranteed present and in the same order).
+            while oi < orig.len() && matches!(orig[oi], TemplateNode::Text(_)) {
+                oi += 1;
+            }
+            result.push(orig.get(oi));
+            oi += 1;
+        }
+    }
+    result
+}
+
+/// Whether two aligned nodes are the SAME kind — same AST variant, plus same tag
+/// name for elements/components. Used to reject a positional alignment that has
+/// drifted (a comment, `<svelte:*>` element, or vanished whitespace-only text can
+/// shift the node "column"); any signature mismatch means the two lists diverged.
+fn node_signature_matches(a: &TemplateNode, b: &TemplateNode) -> bool {
+    if std::mem::discriminant(a) != std::mem::discriminant(b) {
+        return false;
+    }
+    match (a, b) {
+        (TemplateNode::RegularElement(x), TemplateNode::RegularElement(y)) => x.name == y.name,
+        (TemplateNode::Component(x), TemplateNode::Component(y)) => x.name == y.name,
+        _ => true,
+    }
+}
+
+/// Recursively map each intermediate text node's start offset to its pre-collapse
+/// source text, walking the intermediate and original trees in lockstep. If a
+/// fragment's node lists diverge structurally — any non-text node fails to pair
+/// with a same-signature original — the ENTIRE fragment (and its subtree) is
+/// skipped, so its text falls back to the intermediate whitespace. This keeps the
+/// correction to fragments whose structure provably matches; the corpus never
+/// exercises the divergent path, but an unforeseen collapse edit that reshapes a
+/// node list can only lose the correction, never mis-map a text node.
+fn build_orig_text_map(
+    inter: &[TemplateNode],
+    orig_out: &str,
+    orig: &[TemplateNode],
+    map: &mut std::collections::HashMap<u32, String>,
+) {
+    let aligned = align_orig_nodes(inter, orig);
+    // A text node may legitimately have no original counterpart (a whitespace-only
+    // separator collapse dropped); leave it unmapped. But every NON-text node must
+    // pair with a same-signature original, or the alignment has drifted.
+    let consistent = inter.iter().zip(&aligned).all(|(n, on)| {
+        matches!(n, TemplateNode::Text(_)) || on.is_some_and(|o| node_signature_matches(n, o))
+    });
+    if !consistent {
+        return;
+    }
+    for (n, on) in inter.iter().zip(aligned) {
+        if let (TemplateNode::Text(t), Some(TemplateNode::Text(ot))) = (n, on)
+            && let Some(s) = orig_out.get(ot.start as usize..ot.end as usize)
+        {
+            map.insert(t.start, s.to_string());
+        }
+        if let Some(on) = on {
+            let inter_fs = child_fragments(n);
+            let orig_fs = child_fragments(on);
+            // A signature match guarantees the same fragment arity; a mismatch in
+            // count (should not occur) simply leaves the extra fragments unmapped.
+            for (f, of) in inter_fs.iter().zip(orig_fs.iter()) {
+                build_orig_text_map(&f.nodes, orig_out, &of.nodes, map);
+            }
+        }
+    }
+}
+
 fn is_whitespace_preserving(tag: &str) -> bool {
     // `pre` / `textarea` preserve whitespace; `script` / `style` carry raw
     // JS/CSS already formatted by their dedicated passes (oxfmt). None of these
@@ -3504,6 +3693,25 @@ fn try_break_pre_own_attrs(
     if column + whole.width() <= line_width {
         return None;
     }
+    // Prefer breaking a child element's open tag over the `<pre>`'s own attrs:
+    // prettier keeps `<pre class="…">` glued and dangles the inner `<code
+    // class="…">`'s `>` (handled by case 3). Defer whenever a direct child
+    // element has a single-line open tag with attributes to break.
+    let has_breakable_child = fragment.nodes.iter().any(|n| {
+        let (cs, cfrag) = match n {
+            TemplateNode::RegularElement(el) => (el.start as usize, &el.fragment),
+            TemplateNode::Component(c) => (c.start as usize, &c.fragment),
+            _ => return false,
+        };
+        let Some(child_open_end) = cfrag.nodes.first().map(|f| node_start(f) as usize) else {
+            return false;
+        };
+        out.get(cs..child_open_end)
+            .is_some_and(|open| !open.contains('\n') && open.contains(' ') && open.ends_with('>'))
+    });
+    if has_breakable_child {
+        return None;
+    }
     // Find the open tag end (position right after `>` of the opening tag).
     let open_end = node_start(fragment.nodes.first()?) as usize;
     let open = out.get(s..open_end)?;
@@ -3700,8 +3908,13 @@ fn try_fix_pre_child_open_tags(
                 .find('\n')
                 .map_or(out.len(), |i| open_end + i);
             let line = &out[line_start..line_nl];
-            if line.width() <= line_width {
-                continue; // fits on one line — no action needed
+            // Prettier dangles a `<pre>` child's open `>` when the child spans
+            // multiple lines (its content has a newline) OR the glued open-tag
+            // line overflows — a short single-line child (`<code class="x">y</code>`)
+            // stays glued.
+            let content_multiline = out.get(open_end..ce).is_some_and(|c| c.contains('\n'));
+            if line.width() <= line_width && !content_multiline {
+                continue; // fits on one line and single-line content — no action
             }
             // Drop `>` to a new indented line.  The indent sits two levels
             // deeper than `<pre>`'s own indent (one for the child element, one
@@ -3740,9 +3953,17 @@ fn try_fix_pre_child_open_tags(
                 // The line before `>` must consist entirely of spaces (the
                 // indent for the non-hug `>` placement). `open_tag_only` ends
                 // with `>` (guarded above), so strip it.
-                if after_last_nl
-                    .strip_suffix('>')
-                    .is_some_and(|s| s.bytes().all(|b| b == b' '))
+                // Re-hug the `>` to the last attribute only when the attributes
+                // themselves are broken across lines (the `<code` opener is alone
+                // on the first line). When the attrs all sit on the opener line and
+                // only the `>` was dropped (`<code class="…"\n    >`), prettier keeps
+                // the `>` dangling — the short-open, multi-line-content shape — so
+                // leave it alone.
+                let attrs_multiline = open_tag_only[..last_nl].contains('\n');
+                if attrs_multiline
+                    && after_last_nl
+                        .strip_suffix('>')
+                        .is_some_and(|s| s.bytes().all(|b| b == b' '))
                 {
                     // Move `>` to hug the last attribute line (remove the
                     // `\n{spaces}` before `>`). Keep the whitespace between
@@ -4738,8 +4959,14 @@ fn node_to_child(
     use crate::doc::Doc;
     match node {
         TemplateNode::Text(t) => {
-            let txt = out.get(t.start as usize..t.end as usize)?;
-            Some(Child::Text(txt.to_string()))
+            // Prefer the pre-collapse source text (whitespace-faithful) when the
+            // children-port pass recorded one; the words are identical, so this
+            // only corrects boundary whitespace an earlier pass may have changed.
+            let txt = match orig_text_for(t.start) {
+                Some(orig) => orig,
+                None => out.get(t.start as usize..t.end as usize)?.to_string(),
+            };
+            Some(Child::Text(txt))
         }
         // Void HTML element (`<br/>`, `<input/>`) — verbatim, must be single-line.
         TemplateNode::RegularElement(ve) if is_html_void_element(ve.name.as_str()) => {
@@ -4747,7 +4974,12 @@ fn node_to_child(
             if span.contains('\n') {
                 return None;
             }
-            Some(Child::Inline(Doc::Text(span.to_string())))
+            // Build a breakable self-closing group so an overflowing prose line can
+            // dangle the `/>` (`<br\n/>`), matching prettier; falls back to the
+            // verbatim atom when the span isn't a canonical `<tag … />`.
+            let doc =
+                build_void_element_doc(out, ve).unwrap_or_else(|| Doc::Text(span.to_string()));
+            Some(Child::Inline(doc))
         }
         // Non-void inline content element (`<a>`, `<span>`, `<strong>`, …) — built
         // recursively via the faithful port so its own layout matches prettier.
@@ -4779,7 +5011,13 @@ fn node_to_child(
         // together and only the inter-item spaces break. (Mapping to `Child::Inline`
         // — a `group([line, …])` — broke `label:` from `{value}`; verified against
         // prettier's own `printDocToString` that the bare-atom structure matches.)
-        TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_) => {
+        // `{@render …}` is likewise a bare mustache atom in prettier-plugin-svelte
+        // (a RenderTag is not a `RegularElement`, so `isInlineElement` is false and
+        // it goes through `printChildren`'s `else` branch, pushed bare). Treating it
+        // like an expression tag lets an element run containing `{@render}` (e.g. a
+        // `<title>{@render title()}</title>` inside an `{#if}`) be claimed by the
+        // port instead of bailing to the approximate legacy layout.
+        TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_) | TemplateNode::RenderTag(_) => {
             let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
             if span.contains('\n') {
                 return None;
@@ -4948,12 +5186,14 @@ fn build_inline_element_doc(
     for n in &e.fragment.nodes {
         children.push(node_to_child(out, n, line_width)?);
     }
+    let children = layout_children(out, &e.fragment.nodes, e.start, children);
     Some(build_element_doc(ElementLayout {
         name: e.name.to_string(),
         attrs,
         children,
         is_inline: !is_block_display(e.name.as_str()),
         self_closing: did_self_close(out, e.end) || is_html_void_element(e.name.as_str()),
+        omit_softline_allowed: omit_softline_allowed(out, e.end),
     }))
 }
 
@@ -4971,6 +5211,7 @@ fn build_component_doc(
     for n in &c.fragment.nodes {
         children.push(node_to_child(out, n, line_width)?);
     }
+    let children = layout_children(out, &c.fragment.nodes, c.start, children);
     Some(build_element_doc(ElementLayout {
         name: c.name.to_string(),
         attrs,
@@ -4980,6 +5221,7 @@ fn build_component_doc(
         // never one.
         is_inline: true,
         self_closing: did_self_close(out, c.end),
+        omit_softline_allowed: omit_softline_allowed(out, c.end),
     }))
 }
 
@@ -5079,10 +5321,26 @@ fn try_children_port(
     let block_run = has_any_text
         && fragment.nodes.iter().all(|n| match n {
             TemplateNode::Text(t) => t.data.split_whitespace().next().is_none(),
-            TemplateNode::IfBlock(_) => true,
+            // Bare atoms that `node_to_child` converts and that print one-per-line
+            // in a whitespace-separated block run (e.g. an `<svg>` body holding an
+            // `{#if}` next to a `{@render children()}`).
+            TemplateNode::IfBlock(_) | TemplateNode::RenderTag(_) => true,
             _ => false,
         });
     if !has_non_text || (!has_prose_word && ((has_any_text && !block_run) || in_pre_content())) {
+        return None;
+    }
+    // A `{@render …}` inside PROSE (mixed with text words) needs the fill path's
+    // breakable-call-arg treatment; the port renders it as a verbatim single-line
+    // atom, which would leave an overflowing render call unbroken. Leave those to
+    // `try_fill_mixed`. In a block run (no prose word) the render tag prints on its
+    // own line, so the port owns it.
+    if has_prose_word
+        && fragment
+            .nodes
+            .iter()
+            .any(|n| matches!(n, TemplateNode::RenderTag(_)))
+    {
         return None;
     }
 
@@ -5133,6 +5391,7 @@ fn try_children_port(
         // `is_empty` is never true here. Only the recursive descent into children
         // (`build_inline_element_doc`) reaches the self-closing branch.
         self_closing: did_self_close(out, end) || is_html_void_element(tag),
+        omit_softline_allowed: omit_softline_allowed(out, end),
     });
     let doc = crate::doc::propagate_breaks(doc);
     let printed = crate::doc::print(doc, line_width, unit.as_str(), base_level, start_col);
@@ -5968,6 +6227,60 @@ fn build_self_closing_regular_doc(out: &str, node: &TemplateNode) -> Option<crat
     Some(doc)
 }
 
+/// Build a breakable doc for a void HTML element (`<br />`, `<img … />`,
+/// `<input … />`) inside a children/prose fill, so an overflowing line dangles
+/// the `/>` onto its own line at the outer indent — prettier's self-closing open
+/// tag `group(['<', tag, indent(group([…attrs, dedent(line)])), '/>'])`. Unlike
+/// [`build_self_closing_regular_doc`] this also handles the no-attribute case
+/// (`<br />`). Returns `None` (caller keeps the verbatim atom) when the span is
+/// multi-line or the rebuilt flat form wouldn't round-trip to `<tag … />`, so a
+/// void element that already fits on its line never changes bytes.
+fn build_void_element_doc(
+    out: &str,
+    e: &rsvelte_core::ast::template::RegularElement,
+) -> Option<crate::doc::Doc> {
+    use crate::doc::Doc;
+    let span = out.get(e.start as usize..e.end as usize)?;
+    if span.contains('\n') || !span.trim_end().ends_with("/>") {
+        return None;
+    }
+    let tag = e.name.as_str();
+    let mut group_parts: Vec<Doc> = Vec::with_capacity(e.attributes.len() * 2 + 1);
+    let mut flat_attrs = String::new();
+    for attr in &e.attributes {
+        let (as_, ae) = attribute_span(attr);
+        let atext = out.get(as_ as usize..ae as usize)?;
+        if atext.contains('\n') {
+            return None;
+        }
+        group_parts.push(Doc::Line);
+        group_parts.push(Doc::Text(atext.to_string()));
+        if !flat_attrs.is_empty() {
+            flat_attrs.push(' ');
+        }
+        flat_attrs.push_str(atext);
+    }
+    // `dedent(line)`: flat → " " (space before `/>`), break → newline at indent-1.
+    group_parts.push(Doc::Dedent(vec![Doc::Line]));
+    let doc = Doc::Group(vec![
+        Doc::Text(format!("<{tag}")),
+        Doc::Indent(vec![Doc::Group(group_parts)]),
+        Doc::Text("/>".to_string()),
+    ]);
+    // Guard: the flat form must equal the canonical single-line element, so this
+    // never changes bytes when the element already fits on one line.
+    let expected = if flat_attrs.is_empty() {
+        format!("<{tag} />")
+    } else {
+        format!("<{tag} {flat_attrs} />")
+    };
+    let flat = crate::doc::print(doc.clone(), 999_999, "  ", 0, 0);
+    if flat != expected {
+        return None;
+    }
+    Some(doc)
+}
+
 /// The doc for one inline element: a hug `Group` for a huggable display:inline
 /// element, otherwise the verbatim single-line span.
 fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
@@ -6461,6 +6774,78 @@ fn did_self_close(out: &str, end: u32) -> bool {
     end >= 2 && out.as_bytes().get(end as usize - 2) == Some(&b'/')
 }
 
+/// Whether the element `<name …>…</name>` (spanning `el_start..` with children
+/// `nodes`) should be treated as having no body when hugging under
+/// `bracketSameLine` — i.e. its only children are whitespace-only wrap artifacts,
+/// not deliberate source whitespace like `<span> </span>`.
+///
+/// prettier keys the empty-element `body` on the ORIGINAL AST child count, but an
+/// earlier collapse pass inserts a whitespace-only artifact child when the open
+/// tag wraps across lines. The two are told apart by the open tag: a single-line
+/// open tag never receives a wrap artifact, so any whitespace child there is
+/// genuine source content and the element keeps its non-hug body; only a wrapped
+/// (multi-line) open tag can carry the artifact that must be dropped so the
+/// element hugs (matching prettier's source-empty `<span class="long"></span>`).
+fn element_source_empty(out: &str, nodes: &[TemplateNode], el_start: u32) -> bool {
+    let all_ws = nodes.iter().all(|n| {
+        matches!(n, TemplateNode::Text(t)
+            if out.get(t.start as usize..t.end as usize)
+                .is_some_and(|s| s.split_whitespace().next().is_none()))
+    });
+    if !all_ws {
+        return false;
+    }
+    let Some(first) = nodes.first() else {
+        return true; // no children at all — genuinely source-empty
+    };
+    // A single-line open tag never receives a wrap artifact, so a whitespace child
+    // there is deliberate source content (`<span> </span>`) and must be kept.
+    out.get(el_start as usize..node_start(first) as usize)
+        .is_some_and(|open| open.contains('\n'))
+}
+
+/// The `children` for an element's [`ElementLayout`], with whitespace-only wrap
+/// artifacts dropped under `bracketSameLine` so a source-empty element takes the
+/// hug layout (prettier's empty source element has no children). Genuine
+/// source-whitespace elements keep their child, so `<span> </span>` stays non-hug.
+fn layout_children(
+    out: &str,
+    nodes: &[TemplateNode],
+    el_start: u32,
+    children: Vec<crate::children::Child>,
+) -> Vec<crate::children::Child> {
+    if crate::children::bracket_same_line() && element_source_empty(out, nodes, el_start) {
+        Vec::new()
+    } else {
+        children
+    }
+}
+
+/// The structural half of prettier-plugin-svelte's
+/// `canOmitSoftlineBeforeClosingTag`, read from the text right after the
+/// element's close tag: `!hugsStartOfNextNode(node) ||
+/// isLastChildWithinParentBlockElement(path)`.
+///
+/// - `hugsStartOfNextNode` is false when the element is followed by HTML-collapse
+///   whitespace or the end of the document — the softline may be omitted.
+/// - otherwise a node abuts the close tag; the softline may still be omitted only
+///   when that node is the parent's close tag (`</name>`) of a block element,
+///   i.e. this element is that block's last child.
+fn omit_softline_allowed(out: &str, end: u32) -> bool {
+    let rest = &out[end as usize..];
+    match rest.chars().next() {
+        None => true,
+        Some(' ' | '\t' | '\n' | '\u{0C}' | '\r') => true,
+        Some(_) => rest.strip_prefix("</").is_some_and(|after| {
+            let name: String = after
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == ':')
+                .collect();
+            is_block_display(&name)
+        }),
+    }
+}
+
 /// HTML void elements — elements that can never have children and always use
 /// the self-closing `/>` form. Their output cursor after printing is
 /// well-defined regardless of attribute wrapping, unlike content elements
@@ -6516,6 +6901,52 @@ mod tests {
             nodes: vec![],
             metadata: FragmentMetadata::default(),
         }
+    }
+
+    fn make_text_node(data: &str, start: u32) -> TemplateNode {
+        TemplateNode::Text(Text {
+            start,
+            end: start + data.len() as u32,
+            raw: data.into(),
+            data: data.into(),
+        })
+    }
+
+    fn make_element_node(name: &str) -> TemplateNode {
+        use rsvelte_core::ast::template::{RegularElement, RegularElementMetadata};
+        TemplateNode::RegularElement(Box::new(RegularElement {
+            start: 0,
+            end: 0,
+            name: name.into(),
+            name_loc: None,
+            attributes: vec![],
+            fragment: make_empty_fragment(),
+            metadata: RegularElementMetadata::default(),
+        }))
+    }
+
+    #[test]
+    fn orig_text_map_uses_original_text_when_structure_matches() {
+        // Same element name in both lists → the following text node is mapped to
+        // its pre-collapse source (whitespace-faithful).
+        let orig_out = "<span></span> original words here";
+        let inter = vec![make_element_node("span"), make_text_node("\nx", 13)];
+        let orig = vec![make_element_node("span"), make_text_node(" original", 13)];
+        let mut map = std::collections::HashMap::new();
+        build_orig_text_map(&inter, orig_out, &orig, &mut map);
+        assert_eq!(map.get(&13).map(String::as_str), Some(" original"));
+    }
+
+    #[test]
+    fn orig_text_map_falls_back_on_structural_divergence() {
+        // The non-text nodes disagree (span vs div), so the whole fragment is
+        // skipped and the text is left unmapped (falls back to intermediate).
+        let orig_out = "<div></div> original words here";
+        let inter = vec![make_element_node("span"), make_text_node("\nx", 13)];
+        let orig = vec![make_element_node("div"), make_text_node(" original", 13)];
+        let mut map = std::collections::HashMap::new();
+        build_orig_text_map(&inter, orig_out, &orig, &mut map);
+        assert!(map.is_empty(), "divergent structure must not map any text");
     }
 
     #[test]

@@ -73,9 +73,22 @@ if (process.platform !== 'win32') {
 	}
 }
 
+// Hand the native binary the Node interpreter + `warningFilter` sidecar script
+// it needs to evaluate `compilerOptions.warningFilter` (a JS predicate the Rust
+// compiler can't run). The script lives in this launcher's own package; the
+// binary re-spawns this same Node against it. Absent env vars simply disable the
+// feature (warnings are then all shown), so this is best-effort.
+const sidecar = path.join(__dirname, '..', 'lib', 'warning-filter.mjs');
+const childEnv = {
+	...process.env,
+	RSVELTE_CHECK_NODE: process.execPath,
+	RSVELTE_CHECK_WARNING_FILTER_SIDECAR: sidecar,
+};
+
 const result = spawnSync(binPath, process.argv.slice(2), {
 	stdio: 'inherit',
 	windowsHide: true,
+	env: childEnv,
 });
 
 if (result.error) {

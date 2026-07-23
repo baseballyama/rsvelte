@@ -461,15 +461,46 @@ fn push_close_tag(
         let indent = indent_str(depth, &options.js);
         edits.push((start, end, format!("</{tag_name}\n{indent}>")));
     } else if open_wrapped && is_empty && options.bracket_same_line {
-        // `bracketSameLine` glues the wrapped open tag's `>` to the last
-        // attribute (`…role="c">`), so an empty element's close tag drops to its
-        // own line at the element indent (`…role="c">\n</div>`). Emit the
-        // newline as part of the close-tag replacement so it never conflicts
-        // with the open-tag edit that ends at this same position.
-        let indent = indent_str(depth, &options.js);
-        edits.push((start, end, format!("\n{indent}</{tag_name}>")));
+        // An empty element's wrapped open `>` dedents onto its own line (see the
+        // `!empty_element` guard in `push_open_tag`), so `>` and `</tag` glue as
+        // `…"`\n`></tag` — matching prettier's empty `shouldHugStart && hugEnd`
+        // branch. `canOmitSoftlineBeforeClosingTag` then decides the final `>`:
+        // when the element is followed by collapse-whitespace / the doc end / a
+        // block parent's close tag it is glued (`></tag>`), otherwise a softline
+        // dedents it onto its own line (`></tag`\n`>`), mirroring #1687's port.
+        if can_omit_softline_before_closing_tag(source, element_end) {
+            edits.push((start, end, format!("</{tag_name}>")));
+        } else {
+            let indent = indent_str(depth, &options.js);
+            edits.push((start, end, format!("</{tag_name}\n{indent}>")));
+        }
     } else {
         edits.push((start, end, format!("</{tag_name}>")));
+    }
+}
+
+/// prettier-plugin-svelte's `canOmitSoftlineBeforeClosingTag`, evaluated
+/// structurally from the text after the element's close tag (its caller already
+/// gates on `bracketSameLine`): `!hugsStartOfNextNode(node) ||
+/// isLastChildWithinParentBlockElement(path)`.
+///
+/// - `hugsStartOfNextNode` is false at the doc end or when HTML-collapse
+///   whitespace follows — the softline before the closing `>` may be omitted;
+/// - otherwise a node abuts the close tag, and the softline may still be omitted
+///   only when that node is a block parent's own close tag (`</block…`), i.e.
+///   this element is that block's last child.
+fn can_omit_softline_before_closing_tag(source: &str, element_end: u32) -> bool {
+    let rest = &source[element_end as usize..];
+    match rest.chars().next() {
+        None => true,
+        Some(' ' | '\t' | '\n' | '\u{0C}' | '\r') => true,
+        Some(_) => rest.strip_prefix("</").is_some_and(|after| {
+            let name: String = after
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == ':')
+                .collect();
+            is_block_element(&name)
+        }),
     }
 }
 
@@ -903,7 +934,13 @@ fn push_open_tag(
             depth,
             &options.js,
             hug_open,
-            options.bracket_same_line,
+            // An empty NON-self-closing element never glues its wrapped open `>`
+            // to the last attribute under `bracketSameLine`: prettier's empty
+            // `shouldHugStart && shouldHugEnd` branch keeps the `>` inside a
+            // hugged group that breaks onto its own line (`…"`\n`></span>`) when
+            // the attrs wrapped, so it dedents exactly like the default path. A
+            // self-closing element (`<input … />`) still glues its ` />`.
+            options.bracket_same_line && (self_closing || !empty_element),
         )
     } else {
         one_liner
@@ -1636,6 +1673,20 @@ fn render_single_expression_value(
     if inner_src.is_empty() {
         return Ok(format!("{}={{}}", node.name));
     }
+    // Tailwind class sort for a `class={expr}` (or configured attribute) mustache:
+    // reorder every class literal in the expression before formatting. Unlike the
+    // static path, this is not function-gated — mirrors oxfmt's `transformSvelte`.
+    let sorted_expr = if options.class_sorter.is_some()
+        && options
+            .class_attributes
+            .iter()
+            .any(|a| a == node.name.as_str())
+    {
+        crate::tailwind_sort::sort_class_expression(inner_src, options)
+    } else {
+        None
+    };
+    let inner_src = sorted_expr.as_deref().unwrap_or(inner_src);
     // When the open tag wraps, attribute values are narrowed so OXC breaks them
     // at the right column.  Two cases:
     //

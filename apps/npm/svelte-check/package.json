@@ -23,7 +23,8 @@
     "rsvelte-check": "bin/svelte-check.cjs"
   },
   "files": [
-    "bin/svelte-check.cjs"
+    "bin/svelte-check.cjs",
+    "lib/warning-filter.mjs"
   ],
   "optionalDependencies": {
     "@rsvelte/svelte-check-darwin-arm64": "workspace:^",

@@ -75,6 +75,12 @@ pub struct FormatOptions {
     /// default; the CLI sets it from `sortTailwindcss.attributes` (default
     /// `["class"]`).
     pub class_attributes: Vec<String>,
+
+    /// Wrapper function names (`sortTailwindcss.functions`, e.g. `["cn", "cva"]`)
+    /// whose string / template-literal class arguments [`Self::class_sorter`]
+    /// sorts inside `<script>` bodies. Empty by default. Independent of the
+    /// `class`-mustache sort, which is always on when `class_sorter` is set.
+    pub tailwind_functions: Vec<String>,
 }
 
 /// Callback that sorts a space-separated class attribute value. See
@@ -102,6 +108,7 @@ impl FormatOptions {
             bracket_same_line: false,
             class_sorter: None,
             class_attributes: Vec::new(),
+            tailwind_functions: Vec::new(),
         }
     }
 
@@ -137,6 +144,7 @@ impl std::fmt::Debug for FormatOptions {
                 &self.class_sorter.as_ref().map(|_| "<callback>"),
             )
             .field("class_attributes", &self.class_attributes)
+            .field("tailwind_functions", &self.tailwind_functions)
             .finish()
     }
 }

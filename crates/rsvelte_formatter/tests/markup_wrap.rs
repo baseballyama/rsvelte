@@ -340,3 +340,86 @@ fn overflowing_single_line_prose_in_component_body_wraps() {
     let expected = "<Popover>\n  <div slot=\"title\">Title</div>\n  You can click inside this Popover and it will not dismiss. Dismissal will only occur\n  if outside.\n</Popover>";
     assert_eq!(out, expected, "single-line prose must wrap:\n{out}");
 }
+
+#[test]
+fn prose_after_broken_inline_element_stays_word_first() {
+    // Multi-pass artifact: an earlier collapse pass hug-breaks the inline
+    // `<code>` (its close tag dangles), which pushes the following text onto a
+    // fresh line. The final children-port pass re-parses that intermediate and
+    // must NOT read the artifact newline as a source break — the source had a
+    // SPACE after `</code>`, so the fill stays word-first and wraps "follow"
+    // onto its own line (matching prettier / oxfmt), rather than the inverted
+    // (last-word-overflow-tolerant) fill that keeps "follow" on the long line.
+    let src = "<ul>\n  <li>\n    Svelte UX 1.0.0 requires Tailwind 3. For new projects, Svelte CLI <code>sv</code> installs\n    Tailwind 4 which can not be used. Instead you will need to follow the\n    <a href=\"https://v3.tailwindcss.com/docs/guides/sveltekit\" target=\"_blank\">official guide</a>\n    to setup your project.\n  </li>\n</ul>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<ul>\n  <li>\n    Svelte UX 1.0.0 requires Tailwind 3. For new projects, Svelte CLI <code\n      >sv</code\n    >\n    installs Tailwind 4 which can not be used. Instead you will need to follow\n    the\n    <a href=\"https://v3.tailwindcss.com/docs/guides/sveltekit\" target=\"_blank\"\n      >official guide</a\n    >\n    to setup your project.\n  </li>\n</ul>";
+    assert_eq!(
+        out, expected,
+        "prose after broken inline must stay word-first:\n{out}"
+    );
+}
+
+#[test]
+fn void_element_dangles_slash_when_prose_line_overflows() {
+    // A void `<br />` glued to the end of an overflowing prose line must dangle
+    // its `/>` onto its own line at the outer indent (`<br\n/>`), matching
+    // prettier's self-closing open-tag group. A fitting line keeps `<br />`.
+    let src = "<div>\n  Notice how navigating to different pages affects the rendered output here.<br />\n  Next line of text.\n</div>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<div>\n  Notice how navigating to different pages affects the rendered output here.<br\n  />\n  Next line of text.\n</div>";
+    assert_eq!(
+        out, expected,
+        "void <br /> must dangle its slash on overflow:\n{out}"
+    );
+}
+
+#[test]
+fn void_element_stays_flat_when_it_fits() {
+    // The same shape below the print width keeps `<br />` on one line (the
+    // breakable group only breaks on overflow, so fitting lines are unchanged).
+    let src = "<div>\n  Short line.<br />\n  Next.\n</div>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<div>\n  Short line.<br />\n  Next.\n</div>";
+    assert_eq!(out, expected, "fitting void <br /> stays flat:\n{out}");
+}
+
+#[test]
+fn else_if_branch_dangles_the_first_title_close() {
+    // `{#if}<title>{@render title()}</title>{:else if}<title>…</title>{/if}` inside
+    // an `<svg>` (with a sibling `{@render children()}` making the body a block
+    // run): the first `<title>`'s close `>` dangles because its group, measured
+    // with the trailing `{:else if}` branch, overflows — the port must claim the
+    // `<svg>` (RenderTag support + block-run gate) instead of bailing to the
+    // legacy layout that wrongly wraps at the second title.
+    let src = "<svg>\n  {#if typeof title === \"function\"}<title>{@render title()}</title>{:else if titleText}<title>{titleText}</title>{/if}\n  {@render children?.()}\n</svg>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<svg>\n  {#if typeof title === \"function\"}<title>{@render title()}</title\n    >{:else if titleText}<title>{titleText}</title>{/if}\n  {@render children?.()}\n</svg>";
+    assert_eq!(out, expected, "first title close must dangle:\n{out}");
+}
+
+#[test]
+fn pre_child_open_tag_dangles_on_multiline_content() {
+    // A `<pre>` child (`<code class="x">`) whose content spans multiple lines
+    // dangles its open `>` onto its own line, even when the glued open-tag line
+    // would fit — prettier's whitespace-sensitive `<pre>` child layout. (A
+    // single-line short child stays glued.)
+    let src = "<pre><code class=\"language-bash\">line1\nline2</code></pre>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<pre><code class=\"language-bash\"\n    >line1\nline2</code\n  ></pre>";
+    assert_eq!(out, expected, "pre child open tag must dangle:\n{out}");
+}
+
+#[test]
+fn pre_with_attr_child_breaks_the_child_not_its_own_attrs() {
+    // An overflowing `<pre class="…"><code class="…">…</code></pre>` breaks the
+    // inner `<code>`'s open tag (dangling its `>`), keeping `<pre class="…">`
+    // glued — prettier breaks the innermost element first. The pre must NOT break
+    // its own `class` attribute onto a new line.
+    let src = "<div>\n  <pre class=\"mb-0\"><code class=\"language-javascriptxxxxxxxxxxxxx\">short content here</code></pre>\n</div>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<div>\n  <pre class=\"mb-0\"><code class=\"language-javascriptxxxxxxxxxxxxx\"\n      >short content here</code\n    ></pre>\n</div>";
+    assert_eq!(
+        out, expected,
+        "pre must break its code child, not its own attrs:\n{out}"
+    );
+}

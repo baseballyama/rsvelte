@@ -90,6 +90,11 @@ pub enum JsNode {
         end: u32,
         loc: Option<Box<Loc>>,
         name: CompactString,
+        /// TS optional-parameter marker (`b?: T`). acorn-typescript emits
+        /// `optional: true` after `name` (before `typeAnnotation`) and omits it
+        /// when false, so this serializes only when `true`. `false` for the
+        /// overwhelming majority of identifiers.
+        optional: bool,
         /// Opaque, output-only TS `typeAnnotation` boundary blob (ESTree
         /// `TSTypeAnnotation`). Analyze never walks into it; it exists solely so
         /// a TS-annotated binding/declarator identifier can route through the
@@ -178,6 +183,10 @@ pub enum JsNode {
         generator: bool,
         r#async: bool,
         expression: bool,
+        /// Opaque, output-only TS `typeParameters` blob (`<T, U>`), serialized
+        /// verbatim (acorn-typescript emits it between `async` and `params`).
+        /// `None` for the overwhelming majority (non-generic) functions.
+        type_parameters: Option<Box<serde_json::Value>>,
     },
     ClassExpression {
         start: u32,
@@ -197,6 +206,10 @@ pub enum JsNode {
         expression: bool,
         generator: bool,
         r#async: bool,
+        /// Opaque, output-only TS `typeParameters` blob (`<T,>`). Unlike
+        /// declarations/expressions, acorn-typescript appends it *after* `body`
+        /// for arrows. `None` for the overwhelming majority (non-generic) arrows.
+        type_parameters: Option<Box<serde_json::Value>>,
     },
     AssignmentExpression {
         start: u32,
@@ -403,6 +416,13 @@ pub enum JsNode {
         body: Option<JsNodeId>,
         generator: bool,
         r#async: bool,
+        // Always `false`: acorn only ever sets `expression: true` on arrow function
+        // bodies without a block; declarations always have a block body.
+        expression: bool,
+        /// Opaque, output-only TS `typeParameters` blob (`<T, U>`), serialized
+        /// verbatim (acorn-typescript emits it between `async` and `params`).
+        /// `None` for the overwhelming majority (non-generic) functions.
+        type_parameters: Option<Box<serde_json::Value>>,
     },
     ClassDeclaration {
         start: u32,
@@ -784,6 +804,7 @@ impl Serialize for JsNode {
                 end,
                 loc,
                 name,
+                optional,
                 type_annotation,
             } => {
                 let mut map = serializer.serialize_map(None)?;
@@ -792,6 +813,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 map.serialize_entry("name", name.as_str())?;
+                if *optional {
+                    map.serialize_entry("optional", &true)?;
+                }
                 if let Some(ta) = type_annotation {
                     map.serialize_entry("typeAnnotation", ta.as_ref())?;
                 }
@@ -983,6 +1007,7 @@ impl Serialize for JsNode {
                 generator,
                 r#async,
                 expression,
+                type_parameters,
             } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "FunctionExpression")?;
@@ -990,9 +1015,12 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_opt_node!(map, "id", id);
+                map.serialize_entry("expression", expression)?;
                 map.serialize_entry("generator", generator)?;
                 map.serialize_entry("async", r#async)?;
-                map.serialize_entry("expression", expression)?;
+                if let Some(tp) = type_parameters {
+                    map.serialize_entry("typeParameters", tp.as_ref())?;
+                }
                 ser_children!(map, "params", params);
                 ser_opt_node!(map, "body", body);
                 ser_comments!(map, *start, *end);
@@ -1027,6 +1055,7 @@ impl Serialize for JsNode {
                 expression,
                 generator,
                 r#async,
+                type_parameters,
             } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "ArrowFunctionExpression")?;
@@ -1039,6 +1068,10 @@ impl Serialize for JsNode {
                 map.serialize_entry("async", r#async)?;
                 ser_children!(map, "params", params);
                 ser_node!(map, "body", body);
+                // acorn-typescript appends `typeParameters` after `body` for arrows.
+                if let Some(tp) = type_parameters {
+                    map.serialize_entry("typeParameters", tp.as_ref())?;
+                }
                 ser_comments!(map, *start, *end);
                 map.end()
             }
@@ -1497,6 +1530,8 @@ impl Serialize for JsNode {
                 body,
                 generator,
                 r#async,
+                expression,
+                type_parameters,
             } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "FunctionDeclaration")?;
@@ -1504,8 +1539,12 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_opt_node!(map, "id", id);
+                map.serialize_entry("expression", expression)?;
                 map.serialize_entry("generator", generator)?;
                 map.serialize_entry("async", r#async)?;
+                if let Some(tp) = type_parameters {
+                    map.serialize_entry("typeParameters", tp.as_ref())?;
+                }
                 ser_children!(map, "params", params);
                 ser_opt_node!(map, "body", body);
                 ser_comments!(map, *start, *end);
@@ -2334,6 +2373,7 @@ impl JsNode {
                         end,
                         loc,
                         name: get_str(obj, "name"),
+                        optional: get_bool(obj, "optional"),
                         type_annotation: obj.get("typeAnnotation").cloned().map(Box::new),
                     },
                     "PrivateIdentifier" => JsNode::PrivateIdentifier {
@@ -2438,6 +2478,7 @@ impl JsNode {
                         generator: get_bool(obj, "generator"),
                         r#async: get_bool(obj, "async"),
                         expression: get_bool(obj, "expression"),
+                        type_parameters: obj.get("typeParameters").cloned().map(Box::new),
                     },
                     "ClassExpression" => JsNode::ClassExpression {
                         start,
@@ -2457,6 +2498,7 @@ impl JsNode {
                         expression: get_bool(obj, "expression"),
                         generator: get_bool(obj, "generator"),
                         r#async: get_bool(obj, "async"),
+                        type_parameters: obj.get("typeParameters").cloned().map(Box::new),
                     },
                     "AssignmentExpression" => JsNode::AssignmentExpression {
                         start,
@@ -2653,6 +2695,8 @@ impl JsNode {
                         body: convert_optional_child(obj, "body"),
                         generator: get_bool(obj, "generator"),
                         r#async: get_bool(obj, "async"),
+                        expression: get_bool(obj, "expression"),
+                        type_parameters: obj.get("typeParameters").cloned().map(Box::new),
                     },
                     "ClassDeclaration" => JsNode::ClassDeclaration {
                         start,

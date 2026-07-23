@@ -31,8 +31,12 @@
     "bin/rsvelte-fmt",
     "install.js",
     "lib/resolve.cjs",
+    "lib/tailwind-sort.mjs",
     "daemon/daemon.mjs"
   ],
+  "dependencies": {
+    "prettier-plugin-tailwindcss": "0.0.0-insiders.2b6f3c2"
+  },
   "optionalDependencies": {
     "@rsvelte/fmt-darwin-arm64": "workspace:^",
     "@rsvelte/fmt-darwin-x64": "workspace:^",
