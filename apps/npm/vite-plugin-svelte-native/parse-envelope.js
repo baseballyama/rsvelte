@@ -15,9 +15,10 @@
 const { isWindowOutOfBounds, windowOutOfBoundsMessage } = require('./lib/bounds-check.js');
 
 const MAGIC = 0x3156_5052; // "RPV1" little-endian
-// Bumped for the `FunctionDeclaration.expression` bool byte added to the wire
-// format; keep in lockstep with `napi_raw_parse.rs`'s `VERSION`.
-const VERSION = 2;
+// Bumped for the function-node AST-fidelity changes (FunctionExpression field
+// reorder, `typeParameters` on function-like nodes, Identifier `optional`);
+// keep in lockstep with `napi_raw_parse.rs`'s `VERSION`.
+const VERSION = 3;
 const HEADER_LEN = 24;
 
 // Tags — must mirror napi_raw_parse.rs.
@@ -811,17 +812,17 @@ function readJsNewExpression(ctx, start, end) {
 function readJsFunctionExpression(ctx, start, end) {
 	const loc = readTypedLoc(ctx);
 	const id = readOptNode(ctx);
+	const expression = readBool(ctx);
 	const generator = readBool(ctx);
 	const asyncFlag = readBool(ctx);
-	const expression = readBool(ctx);
 	const params = readChildArray(ctx);
 	const body = readOptNode(ctx);
 	const node = { type: 'FunctionExpression', start, end };
 	if (loc !== null) node.loc = loc;
 	node.id = id;
+	node.expression = expression;
 	node.generator = generator;
 	node.async = asyncFlag;
-	node.expression = expression;
 	node.params = params;
 	node.body = body;
 	return node;

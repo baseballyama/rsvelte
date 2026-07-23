@@ -993,9 +993,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_opt_node!(map, "id", id);
+                map.serialize_entry("expression", expression)?;
                 map.serialize_entry("generator", generator)?;
                 map.serialize_entry("async", r#async)?;
-                map.serialize_entry("expression", expression)?;
                 ser_children!(map, "params", params);
                 ser_opt_node!(map, "body", body);
                 ser_comments!(map, *start, *end);
