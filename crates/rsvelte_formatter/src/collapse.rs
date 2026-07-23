@@ -5186,6 +5186,7 @@ fn build_inline_element_doc(
     for n in &e.fragment.nodes {
         children.push(node_to_child(out, n, line_width)?);
     }
+    let children = layout_children(out, &e.fragment.nodes, e.start, children);
     Some(build_element_doc(ElementLayout {
         name: e.name.to_string(),
         attrs,
@@ -5210,6 +5211,7 @@ fn build_component_doc(
     for n in &c.fragment.nodes {
         children.push(node_to_child(out, n, line_width)?);
     }
+    let children = layout_children(out, &c.fragment.nodes, c.start, children);
     Some(build_element_doc(ElementLayout {
         name: c.name.to_string(),
         attrs,
@@ -6770,6 +6772,53 @@ pub(crate) fn template_node_span(node: &TemplateNode) -> (u32, u32) {
 /// `<div />` stays self-closed instead of becoming `<div></div>`.
 fn did_self_close(out: &str, end: u32) -> bool {
     end >= 2 && out.as_bytes().get(end as usize - 2) == Some(&b'/')
+}
+
+/// Whether the element `<name …>…</name>` (spanning `el_start..` with children
+/// `nodes`) should be treated as having no body when hugging under
+/// `bracketSameLine` — i.e. its only children are whitespace-only wrap artifacts,
+/// not deliberate source whitespace like `<span> </span>`.
+///
+/// prettier keys the empty-element `body` on the ORIGINAL AST child count, but an
+/// earlier collapse pass inserts a whitespace-only artifact child when the open
+/// tag wraps across lines. The two are told apart by the open tag: a single-line
+/// open tag never receives a wrap artifact, so any whitespace child there is
+/// genuine source content and the element keeps its non-hug body; only a wrapped
+/// (multi-line) open tag can carry the artifact that must be dropped so the
+/// element hugs (matching prettier's source-empty `<span class="long"></span>`).
+fn element_source_empty(out: &str, nodes: &[TemplateNode], el_start: u32) -> bool {
+    let all_ws = nodes.iter().all(|n| {
+        matches!(n, TemplateNode::Text(t)
+            if out.get(t.start as usize..t.end as usize)
+                .is_some_and(|s| s.split_whitespace().next().is_none()))
+    });
+    if !all_ws {
+        return false;
+    }
+    let Some(first) = nodes.first() else {
+        return true; // no children at all — genuinely source-empty
+    };
+    // A single-line open tag never receives a wrap artifact, so a whitespace child
+    // there is deliberate source content (`<span> </span>`) and must be kept.
+    out.get(el_start as usize..node_start(first) as usize)
+        .is_some_and(|open| open.contains('\n'))
+}
+
+/// The `children` for an element's [`ElementLayout`], with whitespace-only wrap
+/// artifacts dropped under `bracketSameLine` so a source-empty element takes the
+/// hug layout (prettier's empty source element has no children). Genuine
+/// source-whitespace elements keep their child, so `<span> </span>` stays non-hug.
+fn layout_children(
+    out: &str,
+    nodes: &[TemplateNode],
+    el_start: u32,
+    children: Vec<crate::children::Child>,
+) -> Vec<crate::children::Child> {
+    if crate::children::bracket_same_line() && element_source_empty(out, nodes, el_start) {
+        Vec::new()
+    } else {
+        children
+    }
 }
 
 /// The structural half of prettier-plugin-svelte's

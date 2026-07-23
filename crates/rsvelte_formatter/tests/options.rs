@@ -291,6 +291,60 @@ fn bracket_same_line_default_dangles_closer_before_if_block() {
     );
 }
 
+// A deliberate whitespace-only inline element in prose (`<span>   </span>`, open
+// tag NOT wrapped) keeps prettier's non-hug body — a single collapsed space —
+// under `bracketSameLine`, rather than collapsing to the source-empty hug form.
+// The source whitespace must be told apart from the wrap artifact an earlier pass
+// inserts into source-EMPTY wrapped elements. See issue #1699.
+#[test]
+fn bracket_same_line_keeps_whitespace_content_inline_element() {
+    let src = "<p>Some prose text <span>   </span> more prose after</p>";
+    let out = fmt(src, &width_80(true));
+    assert_eq!(
+        out,
+        "<p>Some prose text <span> </span> more prose after</p>\n"
+    );
+}
+
+// The source-EMPTY sibling of the case above (`<span></span>`) still prints the
+// hug/empty form — no space body — proving the whitespace vs empty distinction is
+// preserved, not lost to a blanket clear.
+#[test]
+fn bracket_same_line_source_empty_inline_stays_empty() {
+    let src = "<p>Some prose text <span></span> more prose after</p>";
+    let out = fmt(src, &width_80(true));
+    assert_eq!(
+        out,
+        "<p>Some prose text <span></span> more prose after</p>\n"
+    );
+}
+
+// A standalone source-empty element (sole child of a block `<div>`, outside the
+// children port) whose long open tag wraps must dedent its `>` onto its own line
+// and glue `></span>` — matching prettier — instead of gluing the `>` to the last
+// attribute and dangling `</span>`. Whitespace follows, so
+// `canOmitSoftlineBeforeClosingTag` is true. See issue #1699.
+#[test]
+fn bracket_same_line_standalone_empty_element_dedents_closer() {
+    let src = "<div>\n  <span class=\"a-really-long-class-name-that-forces-the-open-tag-to-wrap-well-past-eighty-columns\"></span>\n</div>";
+    let out = fmt(src, &width_80(true));
+    assert_eq!(
+        out,
+        "<div>\n  <span\n    class=\"a-really-long-class-name-that-forces-the-open-tag-to-wrap-well-past-eighty-columns\"\n  ></span>\n</div>\n"
+    );
+}
+
+// The same standalone shape is identical under the default (`bracketSameLine =
+// false`) — the fix must not diverge the two, since prettier's output does not
+// depend on the flag here.
+#[test]
+fn bracket_same_line_standalone_empty_element_matches_default() {
+    let src = "<div>\n  <span class=\"a-really-long-class-name-that-forces-the-open-tag-to-wrap-well-past-eighty-columns\"></span>\n</div>";
+    let expected = "<div>\n  <span\n    class=\"a-really-long-class-name-that-forces-the-open-tag-to-wrap-well-past-eighty-columns\"\n  ></span>\n</div>\n";
+    assert_eq!(fmt(src, &width_80(true)), expected);
+    assert_eq!(fmt(src, &width_80(false)), expected);
+}
+
 #[test]
 fn sort_order_parse_rejects_invalid() {
     assert!(SortOrderSpec::parse("scripts-markup").is_none());
