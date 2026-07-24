@@ -83,11 +83,13 @@ fn element_container<'b, 'a>(n: &'b TemplateNode<'a>) -> Option<(&'b Fragment<'a
 }
 
 /// Conservative necessary condition for [`collapse_pure_text_elements`] to make
-/// any edit: some element (recursively) that a collapse pass could reflow. Two
+/// any edit: some element (recursively) that a collapse pass could reflow. Three
 /// shapes qualify — an element with a non-blank direct `Text` or `ExpressionTag`
-/// child (the pure-text / interpolation collapse target), or an element carrying
+/// child (the pure-text / interpolation collapse target), an element carrying
 /// attributes whose children include another element (the children-port
-/// re-asserts the wrapped-open-tag `>` placement for those). Liberal by design:
+/// re-asserts the wrapped-open-tag `>` placement for those), or an element whose
+/// body is entirely blank `Text` (the whitespace-only-body normalization,
+/// #1721/#1729, edits those even though no child is a non-blank hit). Liberal by design:
 /// a false positive only runs collapse for nothing, whereas a false negative
 /// would drop a real edit — so it over-approximates. Computed on the source tree,
 /// which is structurally identical to the formatted output for these shapes
@@ -100,7 +102,11 @@ pub(crate) fn fragment_has_collapse_candidate(fragment: &Fragment) -> bool {
                 TemplateNode::ExpressionTag(_) => true,
                 _ => has_attrs && element_container(cn).is_some(),
             });
-            if direct_hit {
+            let blank_only_body = !child.nodes.is_empty()
+                && child.nodes.iter().all(
+                    |cn| matches!(cn, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())),
+                );
+            if direct_hit || blank_only_body {
                 return true;
             }
         }
