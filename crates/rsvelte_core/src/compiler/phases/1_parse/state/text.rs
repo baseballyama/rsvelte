@@ -29,7 +29,8 @@
 //! }
 //! ```
 
-use compact_str::CompactString;
+use std::borrow::Cow;
+
 use memchr::memchr2;
 
 use crate::ast::template::{TemplateNode, Text};
@@ -38,7 +39,7 @@ use crate::error::ParseResult;
 use super::super::parser::Parser;
 use super::super::utils::decode_html_entities;
 
-impl Parser<'_> {
+impl<'a> Parser<'a> {
     /// Parse text content.
     ///
     /// Corresponds to the `text()` function in `state/text.js`.
@@ -48,7 +49,7 @@ impl Parser<'_> {
     /// 2. Collects characters until `<` or `{` is encountered (using SIMD-accelerated search)
     /// 3. Decodes HTML character references with `decode_character_references(data, false)`
     /// 4. Creates a Text node with both raw and decoded data
-    pub fn parse_text(&mut self) -> ParseResult<Option<TemplateNode>> {
+    pub fn parse_text(&mut self) -> ParseResult<Option<TemplateNode<'a>>> {
         let start = self.index as u32;
         let start_pos = self.index;
 
@@ -79,17 +80,17 @@ impl Parser<'_> {
             Ok(Some(TemplateNode::Text(Text {
                 start,
                 end,
-                raw: CompactString::from(raw_str),
-                data: CompactString::from(decoded_data),
+                raw: Cow::Borrowed(raw_str),
+                data: Cow::Owned(decoded_data),
             })))
         } else {
-            // No entities: raw and data are the same, create both from the slice directly
-            // (CompactString inlines short strings up to 24 bytes, avoiding heap for both)
+            // No entities: raw and data are the same verbatim source slice — borrow
+            // both, zero-copy.
             Ok(Some(TemplateNode::Text(Text {
                 start,
                 end,
-                raw: CompactString::from(raw_str),
-                data: CompactString::from(raw_str),
+                raw: Cow::Borrowed(raw_str),
+                data: Cow::Borrowed(raw_str),
             })))
         }
     }

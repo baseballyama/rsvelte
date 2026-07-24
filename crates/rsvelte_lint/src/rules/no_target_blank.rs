@@ -40,12 +40,12 @@ const MESSAGE: &str =
 /// The static text value of an attribute value, if it is exactly one text part
 /// (no mustaches). Mirrors upstream `getStaticAttributeValue`: a value made of a
 /// single `SvelteLiteral` returns its text, anything else returns `None`.
-fn static_attribute_value(value: &AttributeValue) -> Option<&str> {
+fn static_attribute_value<'b>(value: &'b AttributeValue<'_>) -> Option<&'b str> {
     match value {
         AttributeValue::True(_) => None,
         AttributeValue::Expression(_) => None,
         AttributeValue::Sequence(parts) => match parts.as_slice() {
-            [AttributeValuePart::Text(text)] => Some(text.data.as_str()),
+            [AttributeValuePart::Text(text)] => Some(text.data.as_ref()),
             _ => None,
         },
     }
@@ -82,9 +82,9 @@ pub struct NoTargetBlank;
 
 impl NoTargetBlank {
     /// `target="_blank"` (static literal exactly `_blank`).
-    fn target_blank_attr(
-        el: &RegularElement,
-    ) -> Option<&rsvelte_core::ast::template::AttributeNode> {
+    fn target_blank_attr<'b, 'a>(
+        el: &'b RegularElement<'a>,
+    ) -> Option<&'b rsvelte_core::ast::template::AttributeNode<'a>> {
         for attr in &el.attributes {
             if let Attribute::Attribute(node) = attr
                 && node.name == "target"
@@ -111,7 +111,7 @@ impl NoTargetBlank {
                             if !rel.is_empty() {
                                 rel.push(' ');
                             }
-                            rel.push_str(text.data.as_str());
+                            rel.push_str(text.data.as_ref());
                         }
                     }
                     return is_secure_rel(&rel, allow_referrer);
@@ -129,7 +129,7 @@ impl NoTargetBlank {
                 && node.name == "href"
                 && let AttributeValue::Sequence(parts) = &node.value
                 && let Some(AttributeValuePart::Text(text)) = parts.first()
-                && is_external_href(text.data.as_str())
+                && is_external_href(text.data.as_ref())
             {
                 return true;
             }

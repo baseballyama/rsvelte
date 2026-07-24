@@ -46,7 +46,7 @@ impl Sample {
             ..Default::default()
         };
         assert!(
-            parse(&self.source, opts).is_ok(),
+            parse(&self.source, &oxc_allocator::Allocator::default(), opts).is_ok(),
             "bench corpus sample `{}` failed to parse",
             self.id
         );

@@ -497,7 +497,7 @@ fn tabs_to_spaces_column(line: &str, column: usize) -> usize {
 /// Returned to the caller so the `Root` is pinned on the caller's stack before
 /// the arena guard is installed — the guard holds a raw pointer to `ast.arena`,
 /// so the `Root` must not move after the guard is created.
-fn parse_component(source: &str) -> Result<crate::ast::Root, CompileError> {
+fn parse_component(source: &str) -> Result<crate::ast::Root<'_>, CompileError> {
     let parse_options = crate::ParseOptions {
         modern: true,
         loose: false,
@@ -508,7 +508,9 @@ fn parse_component(source: &str) -> Result<crate::ast::Root, CompileError> {
         skip_non_css_lang_style: false,
         capture_comments: false,
     };
-    Ok(phases::phase1_parse::parse(source, parse_options)?)
+    // M5-A: caller-owned arena, unused for now (Root borrows only `source`).
+    let alloc = oxc_allocator::Allocator::default();
+    Ok(phases::phase1_parse::parse(source, &alloc, parse_options)?)
 }
 
 /// Front-half shared by [`compile`] and [`compile_both`], run under the caller's
@@ -1055,7 +1057,7 @@ fn remove_typescript_from_ast(ast: &mut crate::ast::Root) -> Result<(), crate::e
                 && let AttributeValue::Sequence(parts) = &attr.value
                 && let Some(AttributeValuePart::Text(t)) = parts.first()
             {
-                let lang = t.data.as_str();
+                let lang = t.data.as_ref();
                 return lang == "ts" || lang == "typescript";
             }
         }

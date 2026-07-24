@@ -397,19 +397,19 @@ fn validate_debug_tag_arguments(ast: &Root, source: &str) -> Result<(), Svelte2T
 /// component (to `ensureType`/`ensureTransition` suffixes) — only `use:` makes
 /// it CRASH (`element.addAction is not a function`). So, for error-parity with
 /// svelte2tsx specifically, only `use:` triggers an error here.
-fn component_has_invalid_directive(attributes: &[crate::ast::Attribute]) -> bool {
+fn component_has_invalid_directive(attributes: &[crate::ast::Attribute<'_>]) -> bool {
     use crate::ast::Attribute as A;
     attributes.iter().any(|a| matches!(a, A::UseDirective(_)))
 }
 
-fn validate_meta_element_placement(ast: &Root, source: &str) -> Result<(), Svelte2TsxError> {
+fn validate_meta_element_placement(ast: &Root<'_>, source: &str) -> Result<(), Svelte2TsxError> {
     use crate::ast::template::{Fragment, TemplateNode as N};
     use std::collections::HashSet;
 
     // `<svelte:element>` requires a `this` attribute with a value. svelte's
     // parser stores it as the element's `tag` expression; a missing / valueless
     // `this` leaves an empty span. Official svelte2tsx rejects it.
-    fn dynamic_element_tag_is_empty(tag: &crate::ast::js::Expression, source: &str) -> bool {
+    fn dynamic_element_tag_is_empty(tag: &crate::ast::js::Expression<'_>, source: &str) -> bool {
         match (tag.start(), tag.end()) {
             (Some(s), Some(e)) if (s as usize) < (e as usize) && (e as usize) <= source.len() => {
                 slice_src(source, s as usize, e as usize).trim().is_empty()
@@ -418,7 +418,7 @@ fn validate_meta_element_placement(ast: &Root, source: &str) -> Result<(), Svelt
         }
     }
 
-    fn meta_name(node: &N) -> Option<&str> {
+    fn meta_name<'b>(node: &'b N<'_>) -> Option<&'b str> {
         match node {
             N::SvelteWindow(e)
             | N::SvelteBody(e)

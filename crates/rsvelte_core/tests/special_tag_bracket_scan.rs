@@ -13,7 +13,12 @@ use rsvelte_core::ast::arena::with_serialize_arena;
 use rsvelte_core::{ParseOptions, parse};
 
 fn ast_json(src: &str) -> serde_json::Value {
-    let ast = parse(src, ParseOptions::default()).expect("parse should succeed");
+    let ast = parse(
+        src,
+        &oxc_allocator::Allocator::default(),
+        ParseOptions::default(),
+    )
+    .expect("parse should succeed");
     let s = with_serialize_arena(&ast.arena, || serde_json::to_string(&ast).unwrap());
     serde_json::from_str(&s).unwrap()
 }
@@ -99,11 +104,20 @@ fn debug_tag_string_stops_at_real_close() {
 // sequence separator.
 
 fn parse_ok(src: &str) -> bool {
-    parse(src, ParseOptions::default()).is_ok()
+    parse(
+        src,
+        &oxc_allocator::Allocator::default(),
+        ParseOptions::default(),
+    )
+    .is_ok()
 }
 
 fn parse_err_code(src: &str) -> Option<String> {
-    match parse(src, ParseOptions::default()) {
+    match parse(
+        src,
+        &oxc_allocator::Allocator::default(),
+        ParseOptions::default(),
+    ) {
         Ok(_) => None,
         Err(e) => Some(format!("{e:?}")),
     }

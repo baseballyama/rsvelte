@@ -127,14 +127,16 @@ pub fn validate_slot_attribute(
 }
 
 /// Check if an attribute is an expression attribute.
-pub fn is_expression_attribute(attribute: &AttributeNode) -> bool {
+pub fn is_expression_attribute(attribute: &AttributeNode<'_>) -> bool {
     use crate::ast::template::AttributeValue;
 
     matches!(&attribute.value, AttributeValue::Expression(_))
 }
 
 /// Get the expression tag from an attribute value.
-pub fn get_attribute_expression(attribute: &AttributeNode) -> Option<&ExpressionTag> {
+pub fn get_attribute_expression<'b, 'a>(
+    attribute: &'b AttributeNode<'a>,
+) -> Option<&'b ExpressionTag<'a>> {
     use crate::ast::template::AttributeValue;
 
     match &attribute.value {
@@ -155,7 +157,7 @@ pub fn get_correct_attribute_name(name: &str) -> Option<&'static str> {
 /// Check if an attribute is an event attribute (starts with "on" and has expression value).
 ///
 /// Corresponds to `is_event_attribute` in ast.js.
-pub fn is_event_attribute(attribute: &AttributeNode) -> bool {
+pub fn is_event_attribute(attribute: &AttributeNode<'_>) -> bool {
     attribute.name.starts_with("on") && is_expression_attribute(attribute)
 }
 
@@ -164,9 +166,9 @@ pub fn is_event_attribute(attribute: &AttributeNode) -> bool {
 /// Corresponds to `get_attribute_chunks` in ast.js.
 ///
 /// Returns the expression tags and text nodes that make up an attribute value.
-pub fn get_attribute_chunks(
-    value: &crate::ast::template::AttributeValue,
-) -> Vec<AttributeChunk<'_>> {
+pub fn get_attribute_chunks<'a>(
+    value: &'a crate::ast::template::AttributeValue<'a>,
+) -> Vec<AttributeChunk<'a>> {
     use crate::ast::template::{AttributeValue, AttributeValuePart};
 
     match value {
@@ -185,8 +187,8 @@ pub fn get_attribute_chunks(
 /// A chunk of an attribute value (text or expression).
 #[derive(Debug)]
 pub enum AttributeChunk<'a> {
-    Text(&'a crate::ast::template::Text),
-    Expression(&'a crate::ast::template::ExpressionTag),
+    Text(&'a crate::ast::template::Text<'a>),
+    Expression(&'a crate::ast::template::ExpressionTag<'a>),
 }
 
 /// Check if an expression is an unparenthesized sequence expression.
@@ -196,7 +198,7 @@ pub enum AttributeChunk<'a> {
 ///
 /// Corresponds to `disallow_unparenthesized_sequences` in utils/ast.js.
 pub fn is_unparenthesized_sequence_expression(
-    expression_tag: &ExpressionTag,
+    expression_tag: &ExpressionTag<'_>,
     source: &str,
 ) -> bool {
     // Check if it's a SequenceExpression

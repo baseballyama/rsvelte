@@ -14,7 +14,11 @@ use rsvelte_core::error::ParseError;
 use rsvelte_core::{ParseOptions, parse};
 
 fn error_code(source: &str) -> String {
-    match parse(source, ParseOptions::default()) {
+    match parse(
+        source,
+        &oxc_allocator::Allocator::default(),
+        ParseOptions::default(),
+    ) {
         Ok(_) => panic!("expected a parse error for:\n{source}"),
         Err(ParseError::SvelteError { code, .. }) => code,
         Err(other) => panic!("expected a SvelteError, got {other:?} for:\n{source}"),
@@ -71,7 +75,12 @@ fn matching_block_closes_still_parse() {
         "{#if ok}<p>a</p>{/if }",
     ] {
         assert!(
-            parse(source, ParseOptions::default()).is_ok(),
+            parse(
+                source,
+                &oxc_allocator::Allocator::default(),
+                ParseOptions::default()
+            )
+            .is_ok(),
             "expected a clean parse for:\n{source}"
         );
     }

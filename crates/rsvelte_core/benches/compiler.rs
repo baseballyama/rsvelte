@@ -194,7 +194,13 @@ fn bench_phase1_parse(c: &mut Criterion) {
             BenchmarkId::new("parse", &sample.id),
             &sample.source,
             |b, source| {
-                b.iter(|| parse(black_box(source), parse_opts()));
+                b.iter(|| {
+                    parse(
+                        black_box(source),
+                        &oxc_allocator::Allocator::default(),
+                        parse_opts(),
+                    )
+                });
             },
         );
     }
@@ -221,7 +227,8 @@ fn bench_phase2_analyze(c: &mut Criterion) {
             &sample.source,
             |b, source| {
                 b.iter(|| {
-                    let mut ast = parse(source, parse_opts()).unwrap();
+                    let mut ast =
+                        parse(source, &oxc_allocator::Allocator::default(), parse_opts()).unwrap();
                     analyze_component(black_box(&mut ast), black_box(source), &compile_options)
                 });
             },
@@ -243,8 +250,12 @@ fn bench_transform(c: &mut Criterion, mode: GenerateMode, group_name: &str, id_p
         };
 
         // Pre-parse and analyze (not included in measurement).
-        let mut ast = parse(&sample.source, parse_opts())
-            .unwrap_or_else(|_| panic!("corpus sample {} failed to parse", sample.id));
+        let mut ast = parse(
+            &sample.source,
+            &oxc_allocator::Allocator::default(),
+            parse_opts(),
+        )
+        .unwrap_or_else(|_| panic!("corpus sample {} failed to parse", sample.id));
         let analysis = analyze_component(&mut ast, &sample.source, &compile_options)
             .unwrap_or_else(|_| panic!("corpus sample {} failed to analyze", sample.id));
 

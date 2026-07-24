@@ -1322,7 +1322,9 @@ mod tests {
             skip_non_css_lang_style: false,
             capture_comments: false,
         };
-        let mut ast = phase1_parse::parse(source, parse_options).expect("parse");
+        let mut ast =
+            phase1_parse::parse(source, &oxc_allocator::Allocator::default(), parse_options)
+                .expect("parse");
 
         // The serialize-arena guard is required by the analyze pipeline.
         // SAFETY: `ast` (and thus `ast.arena`) outlives `_guard` for the rest of
@@ -1375,7 +1377,9 @@ mod tests {
             skip_non_css_lang_style: false,
             capture_comments: false,
         };
-        let mut ast = phase1_parse::parse(source, parse_options).expect("parse");
+        let mut ast =
+            phase1_parse::parse(source, &oxc_allocator::Allocator::default(), parse_options)
+                .expect("parse");
         // SAFETY: `ast` (and thus `ast.arena`) outlives `_guard` for the rest of
         // this function, so the raw pointer the guard holds stays valid.
         let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
@@ -3080,7 +3084,9 @@ mod tests {
             skip_non_css_lang_style: false,
             capture_comments: false,
         };
-        let mut ast = phase1_parse::parse(source, parse_options).expect("parse");
+        let mut ast =
+            phase1_parse::parse(source, &oxc_allocator::Allocator::default(), parse_options)
+                .expect("parse");
         // SAFETY: `ast` (and thus `ast.arena`) outlives `_guard` for the rest of
         // this function, so the raw pointer the guard holds stays valid.
         let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
@@ -3596,7 +3602,9 @@ mod tests {
             skip_non_css_lang_style: false,
             capture_comments: false,
         };
-        let mut ast = phase1_parse::parse(source, parse_options).expect("parse");
+        let mut ast =
+            phase1_parse::parse(source, &oxc_allocator::Allocator::default(), parse_options)
+                .expect("parse");
         // SAFETY: `ast` (and thus `ast.arena`) outlives `_guard` for the rest of
         // this function, so the raw pointer the guard holds stays valid.
         let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
@@ -5109,7 +5117,7 @@ mod tests {
         // the catch_unwind closure. (Boxing keeps `&boxed.arena` constant; a
         // stack move would dangle and SIGBUS.)
         let parsed = catch_unwind(AssertUnwindSafe(|| {
-            phase1_parse::parse(source, parse_options)
+            phase1_parse::parse(source, &oxc_allocator::Allocator::default(), parse_options)
                 .ok()
                 .map(Box::new)
         }));

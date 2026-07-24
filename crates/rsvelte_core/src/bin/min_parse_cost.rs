@@ -38,11 +38,11 @@ fn main() {
     let iters = 50000;
     for (label, source) in &files {
         for _ in 0..2000 {
-            let _ = parse(source, options);
+            let _ = parse(source, &oxc_allocator::Allocator::default(), options);
         }
         let start = Instant::now();
         for _ in 0..iters {
-            let _ = parse(source, options);
+            let _ = parse(source, &oxc_allocator::Allocator::default(), options);
         }
         let ns = start.elapsed().as_nanos() as f64 / iters as f64;
         println!("{:30} {:6.0}ns ({:.2}µs)", label, ns, ns / 1000.0);

@@ -38,7 +38,7 @@ static META: RuleMeta = RuleMeta {
 /// Find the byte offset of the first `/*` inside a text node's raw content,
 /// returning `text.start + inner_offset` when found.
 fn find_css_comment(text: &Text) -> Option<u32> {
-    let raw = text.raw.as_str();
+    let raw = text.raw.as_ref();
     // Find `/*` but not inside a string (simple scan; style attribute values
     // are not expected to contain string literals with `/*`).
     let bytes = raw.as_bytes();
@@ -137,7 +137,7 @@ fn check_sequence(ctx: &mut LintContext, parts: &[AttributeValuePart]) {
                 // calls like `translate(…)` contain `,` but not `:` or `;`).
                 // A simple scan is sufficient because we don't allow nested
                 // interpolations in property keys.
-                let raw = text.raw.as_str();
+                let raw = text.raw.as_ref();
                 let mut depth = 0i32; // paren depth
                 for ch in raw.chars() {
                     match ch {
@@ -153,7 +153,7 @@ fn check_sequence(ctx: &mut LintContext, parts: &[AttributeValuePart]) {
                 // Peek at what text immediately follows this expression.
                 let next_text_trimmed = parts.get(i + 1).and_then(|p| {
                     if let AttributeValuePart::Text(t) = p {
-                        Some(t.raw.as_str())
+                        Some(t.raw.as_ref())
                     } else {
                         None
                     }

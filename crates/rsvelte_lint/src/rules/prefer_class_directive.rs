@@ -494,7 +494,7 @@ fn verify_sequence_attr(
                 && let Some(AttributeValuePart::Text(t)) = parts[..index].iter().next_back()
             {
                 let trimmed_end = t.data.trim_end();
-                if trimmed_end != t.data.as_str() {
+                if trimmed_end != t.data.as_ref() {
                     // Trim trailing whitespace: shorten the text node.
                     let new_end = t.start + trimmed_end.len() as u32;
                     if new_end < t.end {
@@ -522,7 +522,7 @@ fn verify_sequence_attr(
                 && let Some(AttributeValuePart::Text(t)) = parts[index + 1..].iter().next()
             {
                 let trimmed_start = t.data.trim_start();
-                if trimmed_start != t.data.as_str() {
+                if trimmed_start != t.data.as_ref() {
                     let removed_len = t.data.len() - trimmed_start.len();
                     let new_start = t.start + removed_len as u32;
                     if t.data.trim().is_empty() {

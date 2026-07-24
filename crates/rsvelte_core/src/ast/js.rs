@@ -4,6 +4,8 @@
 //! We use a typed JsNode representation for performance, with backward-compatible
 //! serde_json::Value access via lazy conversion.
 
+use std::marker::PhantomData;
+
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 
@@ -15,17 +17,21 @@ use super::typed_expr::{JsNode, Loc, SourcePosition};
 /// The cache is only populated when `as_json()` is first called (during Phase 2/3),
 /// not during parsing. This saves 40 bytes per expression during parse,
 /// while still avoiding repeated serialization during analysis/transform.
-pub struct TypedExpr {
+pub struct TypedExpr<'a> {
     pub node: JsNode,
     json_cache: std::cell::OnceCell<serde_json::Value>,
+    /// Reserves the borrowed-AST lifetime `'a` ahead of M5-B, when the typed
+    /// node's verbatim strings (operators, `Literal.raw`) borrow from source.
+    _marker: PhantomData<&'a ()>,
 }
 
-impl TypedExpr {
+impl<'a> TypedExpr<'a> {
     #[inline(always)]
     pub fn new(node: JsNode) -> Self {
         TypedExpr {
             node,
             json_cache: std::cell::OnceCell::new(),
+            _marker: PhantomData,
         }
     }
 
@@ -37,23 +43,24 @@ impl TypedExpr {
     }
 }
 
-impl Clone for TypedExpr {
+impl<'a> Clone for TypedExpr<'a> {
     #[inline]
     fn clone(&self) -> Self {
         TypedExpr {
             node: self.node.clone(),
             json_cache: std::cell::OnceCell::new(), // Cache not shared on clone
+            _marker: PhantomData,
         }
     }
 }
 
-impl PartialEq for TypedExpr {
+impl<'a> PartialEq for TypedExpr<'a> {
     fn eq(&self, other: &Self) -> bool {
         self.node == other.node
     }
 }
 
-impl std::fmt::Debug for TypedExpr {
+impl<'a> std::fmt::Debug for TypedExpr<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("TypedExpr").field(&self.node).finish()
     }
@@ -69,9 +76,9 @@ impl std::fmt::Debug for TypedExpr {
 // variant sizes would add an allocation + indirection to every expression on
 // the hot path, so we intentionally keep it inline.
 #[allow(clippy::large_enum_variant)]
-pub enum Expression {
+pub enum Expression<'a> {
     /// A typed JavaScript expression (performance-optimized).
-    Typed(TypedExpr),
+    Typed(TypedExpr<'a>),
     /// A deferred expression — stores source byte offsets (zero allocation).
     /// Resolved by `resolve_lazy_expressions()` before analysis.
     Lazy {
@@ -84,7 +91,7 @@ pub enum Expression {
     },
 }
 
-impl Expression {
+impl<'a> Expression<'a> {
     /// Create a new identifier expression.
     pub fn identifier(
         name: impl Into<CompactString>,
@@ -415,7 +422,7 @@ impl Expression {
     }
 }
 
-impl Clone for Expression {
+impl<'a> Clone for Expression<'a> {
     fn clone(&self) -> Self {
         match self {
             Expression::Typed(te) => Expression::Typed(te.clone()),
@@ -428,7 +435,7 @@ impl Clone for Expression {
     }
 }
 
-impl PartialEq for Expression {
+impl<'a> PartialEq for Expression<'a> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Expression::Typed(a), Expression::Typed(b)) => a == b,
@@ -450,7 +457,7 @@ impl PartialEq for Expression {
     }
 }
 
-impl std::fmt::Debug for Expression {
+impl<'a> std::fmt::Debug for Expression<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expression::Typed(te) => f.debug_tuple("Expression::Typed").field(&te.node).finish(),
@@ -464,7 +471,7 @@ impl std::fmt::Debug for Expression {
     }
 }
 
-impl Serialize for Expression {
+impl<'a> Serialize for Expression<'a> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {
             Expression::Typed(te) => te.node.serialize(serializer),
@@ -475,7 +482,7 @@ impl Serialize for Expression {
     }
 }
 
-impl<'de> Deserialize<'de> for Expression {
+impl<'de, 'a> Deserialize<'de> for Expression<'a> {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = serde_json::Value::deserialize(deserializer)?;
         // Only a real ESTree node (a JSON object with a non-empty `type`) can
@@ -498,7 +505,7 @@ impl<'de> Deserialize<'de> for Expression {
     }
 }
 
-impl Default for Expression {
+impl<'a> Default for Expression<'a> {
     fn default() -> Self {
         Expression::from_node(JsNode::Null)
     }

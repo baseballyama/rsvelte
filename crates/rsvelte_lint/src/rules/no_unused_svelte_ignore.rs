@@ -114,6 +114,7 @@ pub fn no_unused_svelte_ignore_diagnostics(
     // are present. (We compile a *stripped* copy below.)
     let Ok(root) = parse(
         source,
+        &rsvelte_core::Allocator::default(),
         ParseOptions {
             lenient_script: true,
             ..Default::default()
@@ -626,7 +627,7 @@ fn node_span(node: &TemplateNode) -> (u32, u32) {
 }
 
 /// The child fragments of a node, mirroring [`crate::visitor`]'s recursion.
-fn child_fragments(node: &TemplateNode) -> Vec<&Fragment> {
+fn child_fragments<'b, 'a>(node: &'b TemplateNode<'a>) -> Vec<&'b Fragment<'a>> {
     let mut out: Vec<&Fragment> = Vec::new();
     match node {
         TemplateNode::EachBlock(b) => {

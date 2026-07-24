@@ -164,7 +164,7 @@ pub fn analyze_component(
                                     if matches!(
                                         parts.first(),
                                         Some(crate::ast::AttributeValuePart::Text(t))
-                                            if t.data.as_str() == "ts" || t.data.as_str() == "typescript"
+                                            if t.data.as_ref() == "ts" || t.data.as_ref() == "typescript"
                                     )
                             )
                     })
@@ -5590,6 +5590,7 @@ mod tests {
     fn analyze(source: &str) -> ComponentAnalysis {
         let mut ast = parse(
             source,
+            &oxc_allocator::Allocator::default(),
             ParseOptions {
                 defer_script_parse: true,
                 ..ParseOptions::default()
@@ -5721,6 +5722,7 @@ mod tests {
 "#;
         let mut ast = parse(
             source,
+            &oxc_allocator::Allocator::default(),
             ParseOptions {
                 defer_script_parse: true,
                 skip_expression_loc: true,

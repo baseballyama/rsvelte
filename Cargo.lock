@@ -2423,6 +2423,7 @@ dependencies = [
  "anyhow",
  "clap",
  "ignore",
+ "mimalloc",
  "oxc_allocator",
  "oxc_ast",
  "oxc_formatter",

@@ -278,7 +278,7 @@ pub fn process_children<F>(
     // Sequence of Text/ExpressionTag nodes — pre-allocate for the common
     // case (≤8 contiguous text/expression nodes per fragment) so we don't
     // pay the Vec growth-and-reallocate cost on every push.
-    let mut sequence: Vec<TextOrExpr> = Vec::with_capacity(8);
+    let mut sequence: Vec<TextOrExpr<'_>> = Vec::with_capacity(8);
 
     // SAFETY: Extract a reference to the arena that outlives the closures.
     // The arena uses UnsafeCell internally and only appends, so holding a
@@ -339,7 +339,7 @@ pub fn process_children<F>(
     };
 
     // Helper: flush a sequence of Text/ExpressionTag nodes
-    let flush_sequence = |seq: Vec<TextOrExpr>,
+    let flush_sequence = |seq: Vec<TextOrExpr<'_>>,
                           prev_fn: &mut SiblingPrev<F>,
                           skip_count: &mut usize,
                           ctx: &mut ComponentContext| {
@@ -584,9 +584,9 @@ pub fn process_children<F>(
 /// boxing.
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
-pub enum TextOrExpr {
-    Text(Text),
-    Expr(ExpressionTag),
+pub enum TextOrExpr<'a> {
+    Text(Text<'a>),
+    Expr(ExpressionTag<'a>),
 }
 
 /// Push a static element and its children to the template.
@@ -740,7 +740,7 @@ fn push_static_element_to_template_inner(
                     if is_first
                         && elem.name == "pre"
                         && let TemplateNode::Text(text) = child
-                        && (text.data.as_str() == "\n" || text.data.as_str() == "\r\n")
+                        && (text.data.as_ref() == "\n" || text.data.as_ref() == "\r\n")
                     {
                         is_first = false;
                         continue;
@@ -809,10 +809,10 @@ fn push_static_element_to_template_inner(
                                     let mut merged = prev.clone();
                                     let mut new_data = prev.data.to_string();
                                     new_data.push_str(&t.data);
-                                    merged.data = compact_str::CompactString::new(&new_data);
+                                    merged.data = Cow::Owned(new_data);
                                     let mut new_raw = prev.raw.to_string();
                                     new_raw.push_str(&t.raw);
-                                    merged.raw = compact_str::CompactString::new(&new_raw);
+                                    merged.raw = Cow::Owned(new_raw);
                                     pending_text = Some(merged);
                                 } else {
                                     pending_text = Some(t.clone());
@@ -930,8 +930,8 @@ fn push_static_element_to_template_inner(
                                     )))
                         {
                             let mut trimmed = text.clone();
-                            trimmed.data = compact_str::CompactString::new(&data);
-                            trimmed.raw = compact_str::CompactString::new(&raw);
+                            trimmed.data = Cow::Owned(data);
+                            trimmed.raw = Cow::Owned(raw);
                             push_static_element_to_template_inner(
                                 &TemplateNode::Text(trimmed),
                                 template,

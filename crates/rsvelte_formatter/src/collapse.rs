@@ -39,27 +39,116 @@ fn indent_config(options: &FormatOptions) -> (String, usize) {
 /// non-CSS `<style lang>` body is not CSS, and TS emitted into a plain
 /// `<script>` needs the same force-TS retry the main parse uses — without both,
 /// the parse fails and the caller silently skips its whole pass.
-fn parse_formatted(formatted: &str) -> Option<rsvelte_core::ast::template::Root> {
+fn parse_formatted(formatted: &str) -> Option<rsvelte_core::ast::template::Root<'_>> {
     let opts = ParseOptions {
         skip_non_css_lang_style: true,
         ..ParseOptions::default()
     };
-    parse(formatted, opts).ok().or_else(|| {
-        parse(
-            formatted,
-            ParseOptions {
-                force_typescript: true,
-                ..opts
-            },
-        )
+    parse(formatted, &rsvelte_core::Allocator::default(), opts)
         .ok()
+        .or_else(|| {
+            parse(
+                formatted,
+                &rsvelte_core::Allocator::default(),
+                ParseOptions {
+                    force_typescript: true,
+                    ..opts
+                },
+            )
+            .ok()
+        })
+}
+
+/// Every element-like container (HTML element, component, `<slot>`, `<title>`,
+/// and every `<svelte:*>` element), paired with whether it carries any
+/// attribute. Blocks, tags, text and comments are not element containers.
+fn element_container<'b, 'a>(n: &'b TemplateNode<'a>) -> Option<(&'b Fragment<'a>, bool)> {
+    match n {
+        TemplateNode::RegularElement(e) => Some((&e.fragment, !e.attributes.is_empty())),
+        TemplateNode::Component(c) => Some((&c.fragment, !c.attributes.is_empty())),
+        TemplateNode::SlotElement(e) => Some((&e.fragment, !e.attributes.is_empty())),
+        TemplateNode::TitleElement(t) => Some((&t.fragment, !t.attributes.is_empty())),
+        TemplateNode::SvelteComponent(c) => Some((&c.fragment, !c.attributes.is_empty())),
+        TemplateNode::SvelteElement(e) => Some((&e.fragment, !e.attributes.is_empty())),
+        TemplateNode::SvelteBody(e)
+        | TemplateNode::SvelteDocument(e)
+        | TemplateNode::SvelteFragment(e)
+        | TemplateNode::SvelteBoundary(e)
+        | TemplateNode::SvelteHead(e)
+        | TemplateNode::SvelteOptions(e)
+        | TemplateNode::SvelteSelf(e)
+        | TemplateNode::SvelteWindow(e) => Some((&e.fragment, !e.attributes.is_empty())),
+        _ => None,
+    }
+}
+
+/// Conservative necessary condition for [`collapse_pure_text_elements`] to make
+/// any edit: some element (recursively) that a collapse pass could reflow. Three
+/// shapes qualify — an element with a non-blank direct `Text` or `ExpressionTag`
+/// child (the pure-text / interpolation collapse target), an element carrying
+/// attributes whose children include another element (the children-port
+/// re-asserts the wrapped-open-tag `>` placement for those), or an element whose
+/// body is entirely blank `Text` (the whitespace-only-body normalization,
+/// #1721/#1729, edits those even though no child is a non-blank hit). Liberal by design:
+/// a false positive only runs collapse for nothing, whereas a false negative
+/// would drop a real edit — so it over-approximates. Computed on the source tree,
+/// which is structurally identical to the formatted output for these shapes
+/// (formatting never adds/removes elements or turns text into elements).
+pub(crate) fn fragment_has_collapse_candidate(fragment: &Fragment) -> bool {
+    fragment.nodes.iter().any(|n| {
+        // Prose/interpolation/raw-html reflow applies at ANY fragment level —
+        // top-level text and `{@html}` runs are collapse targets too, not just
+        // element bodies.
+        match n {
+            TemplateNode::Text(t) => {
+                if !crate::is_blank_text(t.data.as_ref()) {
+                    return true;
+                }
+            }
+            TemplateNode::ExpressionTag(_)
+            | TemplateNode::HtmlTag(_)
+            | TemplateNode::RenderTag(_) => return true,
+            _ => {}
+        }
+        if let Some((child, has_attrs)) = element_container(n) {
+            let direct_hit = child
+                .nodes
+                .iter()
+                .any(|cn| has_attrs && element_container(cn).is_some());
+            let blank_only_body = !child.nodes.is_empty()
+                && child.nodes.iter().all(
+                    |cn| matches!(cn, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())),
+                );
+            if direct_hit || blank_only_body {
+                return true;
+            }
+        }
+        child_fragments(n)
+            .iter()
+            .any(|f| fragment_has_collapse_candidate(f))
     })
 }
 
 pub(crate) fn collapse_pure_text_elements(
     out: &str,
     options: &FormatOptions,
+    has_collapse_candidate: bool,
 ) -> Result<String, FormatError> {
+    // Cheap gate: skip the whole re-parse-driven collapse pass when the output
+    // provably has nothing to collapse — no structural collapse candidate, no
+    // `<pre>`/`<textarea>` to reformat, and no line exceeding the print width to
+    // break. Ordered cheapest-first (`&&` short-circuits): the bool is free, the
+    // substring checks are cheap, and the per-line width scan runs only for the
+    // candidate-free minority. Conservative — see [`fragment_has_collapse_candidate`].
+    if !has_collapse_candidate
+        && !out.contains("<pre")
+        && !out.contains("<textarea")
+        && !out
+            .lines()
+            .any(|l| UnicodeWidthStr::width(l) > options.js.line_width.value() as usize)
+    {
+        return Ok(out.to_string());
+    }
     // Collapse is a best-effort post-pass over the already-formatted output. If
     // that output can't be re-parsed, skip collapse and return it as-is rather
     // than failing the whole format — the JS formatter can legitimately emit
@@ -75,6 +164,13 @@ pub(crate) fn collapse_pure_text_elements(
     let parse_opts = ParseOptions {
         force_typescript: options.typescript,
         skip_non_css_lang_style: true,
+        // Collapse inspects only markup structure (element/text shapes and node
+        // spans), never expression `loc` objects — skip building them.
+        skip_expression_loc: true,
+        // Collapse never reads `<script>` / `<style>` bodies nor typed template
+        // expressions (only their source spans, which survive on the lazy
+        // variant), so defer the oxc script/CSS parse the re-parse never uses.
+        defer_script_parse: true,
         ..ParseOptions::default()
     };
     // The children-port helpers rebuild elements without carrying `FormatOptions`;
@@ -82,7 +178,7 @@ pub(crate) fn collapse_pure_text_elements(
     // its `>` to the last attribute (matching prettier-plugin-svelte).
     let _bracket_same_line_guard =
         crate::children::enter_bracket_same_line(options.bracket_same_line);
-    let Ok(root) = parse(out, parse_opts) else {
+    let Ok(root) = parse(out, &rsvelte_core::Allocator::default(), parse_opts) else {
         return Ok(out.to_string());
     };
     let line_width = options.js.line_width.value() as usize;
@@ -103,7 +199,7 @@ pub(crate) fn collapse_pure_text_elements(
     let mut tree: Option<Root> = None;
     if !edits.is_empty() {
         result = apply_edits(&result, edits);
-        let Ok(t) = parse(&result, parse_opts) else {
+        let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
             return Ok(result);
         };
         tree = Some(t);
@@ -125,7 +221,7 @@ pub(crate) fn collapse_pure_text_elements(
     );
     if !edits1c.is_empty() {
         result = apply_edits(&result, edits1c);
-        let Ok(t) = parse(&result, parse_opts) else {
+        let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
             return Ok(result);
         };
         tree = Some(t);
@@ -147,7 +243,7 @@ pub(crate) fn collapse_pure_text_elements(
     );
     if !edits1d.is_empty() {
         result = apply_edits(&result, edits1d);
-        let Ok(t) = parse(&result, parse_opts) else {
+        let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
             return Ok(result);
         };
         tree = Some(t);
@@ -168,7 +264,7 @@ pub(crate) fn collapse_pure_text_elements(
     );
     if !edits1e.is_empty() {
         result = apply_edits(&result, edits1e);
-        let Ok(t) = parse(&result, parse_opts) else {
+        let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
             return Ok(result);
         };
         tree = Some(t);
@@ -190,7 +286,7 @@ pub(crate) fn collapse_pure_text_elements(
     );
     if !edits1f.is_empty() {
         result = apply_edits(&result, edits1f);
-        let Ok(t) = parse(&result, parse_opts) else {
+        let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
             return Ok(result);
         };
         tree = Some(t);
@@ -209,7 +305,7 @@ pub(crate) fn collapse_pure_text_elements(
     );
     if !edits1g.is_empty() {
         result = apply_edits(&result, edits1g);
-        let Ok(t) = parse(&result, parse_opts) else {
+        let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
             return Ok(result);
         };
         tree = Some(t);
@@ -231,6 +327,10 @@ pub(crate) fn collapse_pure_text_elements(
     // `tree` is the AST of `result` unless this last pass edited the text.
     let mut tree_is_current = true;
     if !edits2.is_empty() {
+        // `tree` borrows `result` (its parse source); drop it before reassigning
+        // `result`. It is never read past here in this branch — `tree_is_current`
+        // is now false, so the read below falls to the re-parsed AST.
+        tree = None;
         result = apply_edits(&result, edits2);
         tree_is_current = false;
     }
@@ -247,7 +347,7 @@ pub(crate) fn collapse_pure_text_elements(
     // still describes `result` exactly, and a fresh parse would rebuild an
     // identical AST.
     let reparsed = (!tree_is_current)
-        .then(|| parse(&result, parse_opts).ok())
+        .then(|| parse(&result, &rsvelte_core::Allocator::default(), parse_opts).ok())
         .flatten();
     if let Some(root_cp) = reparsed
         .as_ref()
@@ -289,7 +389,7 @@ pub(crate) fn collapse_pure_text_elements(
     // This pass only ever touches `<pre>`/`<textarea>`, so skip its re-parse
     // entirely unless one is present in the output.
     if (result.contains("<pre") || result.contains("<textarea"))
-        && let Ok(root3) = parse(&result, parse_opts)
+        && let Ok(root3) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts)
     {
         let mut edits3: Vec<(u32, u32, String)> = Vec::new();
         collect_pre_block_reformats(&result, &root3.fragment, 0, options, &mut edits3);
@@ -1160,13 +1260,25 @@ fn collect_content_tag_breaks(
 }
 
 /// The child fragments of a container node (for a generic recursive walk).
-fn child_fragments(node: &TemplateNode) -> Vec<&Fragment> {
+fn child_fragments<'b, 'a>(node: &'b TemplateNode<'a>) -> Vec<&'b Fragment<'a>> {
     match node {
         TemplateNode::RegularElement(e) => vec![&e.fragment],
         TemplateNode::Component(c) => vec![&c.fragment],
         TemplateNode::TitleElement(t) => vec![&t.fragment],
+        TemplateNode::SlotElement(e) => vec![&e.fragment],
+        TemplateNode::SvelteComponent(c) => vec![&c.fragment],
         TemplateNode::SvelteElement(e) => vec![&e.fragment],
         TemplateNode::SvelteBoundary(b) => vec![&b.fragment],
+        // Every `<svelte:*>` container that carries a child fragment. Omitting any
+        // makes this generic walk (and the collapse passes built on it) silently
+        // skip content nested under it.
+        TemplateNode::SvelteBody(e)
+        | TemplateNode::SvelteDocument(e)
+        | TemplateNode::SvelteFragment(e)
+        | TemplateNode::SvelteHead(e)
+        | TemplateNode::SvelteOptions(e)
+        | TemplateNode::SvelteSelf(e)
+        | TemplateNode::SvelteWindow(e) => vec![&e.fragment],
         TemplateNode::IfBlock(b) => {
             let mut v = vec![&b.consequent];
             if let Some(a) = &b.alternate {
@@ -1295,7 +1407,7 @@ fn fill_inline_runs(
     // element bodies (`<P>`) where prettier preserves the line break regardless.
     let has_non_run_block_siblings = nodes.iter().any(|n| {
         !is_run_member(out, n)
-            && !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str()))
+            && !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
     });
     let allow_elem_expr_collapse = is_block_body && !has_non_run_block_siblings;
 
@@ -1343,12 +1455,12 @@ fn try_fill_run(
     let mut lo = 0;
     let mut hi = run.len();
     while lo < hi
-        && matches!(&run[lo], TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str()))
+        && matches!(&run[lo], TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
     {
         lo += 1;
     }
     while hi > lo
-        && matches!(&run[hi - 1], TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str()))
+        && matches!(&run[hi - 1], TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
     {
         hi -= 1;
     }
@@ -1369,7 +1481,7 @@ fn try_fill_run(
     // Count non-whitespace-only nodes in the run.
     let non_ws_count = run
         .iter()
-        .filter(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())))
+        .filter(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())))
         .count();
     let has_element_content = non_ws_count > 1
         && run.iter().any(|n| match n {
@@ -1539,13 +1651,7 @@ fn try_fill_run(
         _ => content_doc,
     };
     // Flat width (a hardline forces multi-line).
-    let flat = crate::doc::print(
-        crate::doc::Doc::Group(vec![content_doc.clone()]),
-        1_000_000,
-        indent_unit.as_str(),
-        base_level,
-        0,
-    );
+    let flat = crate::doc::print_flat(&content_doc, 1_000_000, indent_unit.as_str(), base_level, 0);
     if !flat.contains('\n') && indent_cols + flat.width() <= line_width {
         // Fits on one line — collapse to the flat form. The input run may itself
         // be multi-line (e.g. root-level prose written one word per line), and
@@ -1559,7 +1665,7 @@ fn try_fill_run(
         return None;
     }
     let printed_raw = crate::doc::print(
-        content_doc,
+        &content_doc,
         line_width,
         indent_unit.as_str(),
         base_level,
@@ -1738,10 +1844,10 @@ fn collect_break_block_non_ws_prefix(
                         // Find first and last non-whitespace children.
                         if let (Some(first_child), Some(last_child)) = (
                             e.fragment.nodes.iter().find(
-                                |n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())),
+                                |n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())),
                             ),
                             e.fragment.nodes.iter().rfind(
-                                |n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())),
+                                |n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())),
                             ),
                         ) {
                             let first_start = node_start(first_child) as usize;
@@ -1804,7 +1910,7 @@ fn collect_break_inline_open_tag(
                 // Example: `  <script></script>{@html ...}` (86 chars) →
                 //          `  <script\n  ></script>{@html ...}`.
                 let elem_fragment_empty = e.fragment.nodes.iter().all(
-                    |n| matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())),
+                    |n| matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())),
                 );
                 if (is_block_display(e.name.as_str()) || is_whitespace_preserving(e.name.as_str()))
                     && e.attributes.is_empty()
@@ -3144,7 +3250,7 @@ fn try_collapse(
                         indent.width() / indent_width
                     };
                     let printed = crate::doc::print(
-                        elem_doc,
+                        &elem_doc,
                         line_width,
                         indent_unit.as_str(),
                         base_level,
@@ -3323,10 +3429,10 @@ fn orig_text_for(start: u32) -> Option<String> {
 /// in order. A whitespace-only text node may exist in one list but not the other
 /// (collapse can drop or introduce a bare separator), so text nodes are matched
 /// positionally where possible and left unpaired otherwise.
-fn align_orig_nodes<'a>(
-    inter: &[TemplateNode],
-    orig: &'a [TemplateNode],
-) -> Vec<Option<&'a TemplateNode>> {
+fn align_orig_nodes<'a, 'c>(
+    inter: &[TemplateNode<'_>],
+    orig: &'a [TemplateNode<'c>],
+) -> Vec<Option<&'a TemplateNode<'c>>> {
     let mut result = Vec::with_capacity(inter.len());
     let mut oi = 0usize;
     for n in inter {
@@ -4112,7 +4218,7 @@ fn try_break_content_tag_block(
     // Exactly one non-whitespace child, and it must be a content tag.
     let mut child: Option<&TemplateNode> = None;
     for n in &fragment.nodes {
-        if matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())) {
+        if matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())) {
             continue;
         }
         if child.is_some() {
@@ -4280,11 +4386,11 @@ fn try_break_block_overflow(
     let first_child = fragment
         .nodes
         .iter()
-        .find(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())))?;
+        .find(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())))?;
     let last_child = fragment
         .nodes
         .iter()
-        .rfind(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())))?;
+        .rfind(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())))?;
 
     let first_start = node_start(first_child) as usize;
     let last_end = node_end(last_child) as usize;
@@ -4361,11 +4467,11 @@ fn try_break_block_multiline_content(
     let first_child = fragment
         .nodes
         .iter()
-        .find(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())))?;
+        .find(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())))?;
     let last_child = fragment
         .nodes
         .iter()
-        .rfind(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())))?;
+        .rfind(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())))?;
 
     let first_start = node_start(first_child) as usize;
     let last_end = node_end(last_child) as usize;
@@ -4798,7 +4904,7 @@ fn try_hug_mixed(
                 crate::doc::Doc::Text(format!("</{tag}")),
             ]);
             let printed_full = crate::doc::print(
-                measured,
+                &measured,
                 line_width,
                 indent_unit_hm.as_str(),
                 base_level,
@@ -4829,7 +4935,7 @@ fn try_hug_mixed(
                 inner_indent.width() / indent_width_hm
             };
             let printed = crate::doc::print(
-                body,
+                &body,
                 line_width,
                 indent_unit_hm.as_str(),
                 base_level,
@@ -4923,7 +5029,13 @@ fn try_hug_mixed(
     } else {
         ws_indent.width() / indent_width_hm
     };
-    let printed = crate::doc::print(elem_doc, line_width, indent_unit_hm.as_str(), level, column);
+    let printed = crate::doc::print(
+        &elem_doc,
+        line_width,
+        indent_unit_hm.as_str(),
+        level,
+        column,
+    );
     (printed != whole).then_some((start, end, printed))
 }
 
@@ -5416,7 +5528,7 @@ fn try_children_port(
         omit_softline_allowed: omit_softline_allowed(out, end),
     });
     let doc = crate::doc::propagate_breaks(doc);
-    let printed = crate::doc::print(doc, line_width, unit.as_str(), base_level, start_col);
+    let printed = crate::doc::print(&doc, line_width, unit.as_str(), base_level, start_col);
 
     // Corruption guard: the non-whitespace content must be byte-identical (the
     // port only ever changes whitespace/line breaks, never content). If it isn't,
@@ -5514,13 +5626,7 @@ fn try_fill_mixed(
     // content all-flat (a huge width) to measure: a `hardline` (a source blank
     // line) still forces a newline, so flat content with a `\n` is inherently
     // multi-line and must break.
-    let flat = crate::doc::print(
-        crate::doc::Doc::Group(vec![content_doc.clone()]),
-        1_000_000,
-        indent_unit.as_str(),
-        base_level,
-        0,
-    );
+    let flat = crate::doc::print_flat(&content_doc, 1_000_000, indent_unit.as_str(), base_level, 0);
     let column = current_column(out, start);
 
     // A non-text child that is already multi-line in the output forces the content
@@ -5570,7 +5676,7 @@ fn try_fill_mixed(
             .nodes
             .iter()
             .filter(
-                |n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str())),
+                |n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())),
             )
             .count();
         let element_one_line = column + open.width() + flat.width() + close.width();
@@ -5606,7 +5712,7 @@ fn try_fill_mixed(
         }
     }
     let mut printed = crate::doc::print(
-        content_doc,
+        &content_doc,
         line_width,
         indent_unit.as_str(),
         base_level,
@@ -6189,7 +6295,7 @@ fn build_self_closing_component_doc(out: &str, node: &TemplateNode) -> Option<cr
         Doc::Text("/>".to_string()), // no leading space: the `dedent(line)` provides it
     ]);
     // Guard: the flat print must match the verbatim span (trimmed).
-    let flat = crate::doc::print(doc.clone(), 999999, "  ", 0, 0);
+    let flat = crate::doc::print(&doc, 999999, "  ", 0, 0);
     if flat.trim() != span.trim() {
         return None;
     }
@@ -6242,7 +6348,7 @@ fn build_self_closing_regular_doc(out: &str, node: &TemplateNode) -> Option<crat
     // Guard: the flat form must equal the canonical single-line `<tag a b c />`
     // so this never changes bytes when the element already fits on one line.
     let expected = format!("<{tag} {flat_attrs} />");
-    let flat = crate::doc::print(doc.clone(), 999_999, "  ", 0, 0);
+    let flat = crate::doc::print(&doc, 999_999, "  ", 0, 0);
     if flat != expected {
         return None;
     }
@@ -6296,7 +6402,7 @@ fn build_void_element_doc(
     } else {
         format!("<{tag} {flat_attrs} />")
     };
-    let flat = crate::doc::print(doc.clone(), 999_999, "  ", 0, 0);
+    let flat = crate::doc::print(&doc, 999_999, "  ", 0, 0);
     if flat != expected {
         return None;
     }
@@ -6491,7 +6597,7 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
                         // so leading/trailing space differences don't cause a spurious
                         // mismatch — the surrounding `>` / `</{tag}` wrappers are
                         // structural and don't vary.
-                        let flat_body = crate::doc::print(body.clone(), 1_000_000, "  ", 0, 0);
+                        let flat_body = crate::doc::print(&body, 1_000_000, "  ", 0, 0);
                         if flat_body.trim() == content.trim() {
                             // Re-inject leading/trailing whitespace that
                             // `build_children_doc_nodes` trims from the first/last
@@ -6565,7 +6671,7 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
             // 0-regression: only switch when the body prints flat-identically to
             // `content` (modulo boundary trimming by build_children_doc_nodes).
             let inner_body_doc = build_children_doc(out, &e.fragment).and_then(|body| {
-                let flat_body = crate::doc::print(body.clone(), 1_000_000, "  ", 0, 0);
+                let flat_body = crate::doc::print(&body, 1_000_000, "  ", 0, 0);
                 if flat_body.trim() == content.trim() {
                     let recursive_content = Doc::Concat(vec![
                         Doc::Text(">".to_string()),
@@ -6904,7 +7010,67 @@ mod tests {
         assert!(!in_pre_content());
     }
 
-    fn make_fragment_with_text(data: &str) -> Fragment {
+    #[test]
+    fn collapse_candidate_gate_predicate() {
+        let has = |src: &str| {
+            let root = parse_formatted(src).expect("snippet should parse");
+            fragment_has_collapse_candidate(&root.fragment)
+        };
+        // Positive — a collapse pass could reflow these.
+        assert!(has("<p>hello</p>"), "pure-text element");
+        assert!(has("<span>{x}</span>"), "interpolation element");
+        assert!(
+            has("<button aria-label=\"x\"><span></span></button>"),
+            "attrs + element child (children-port wrapped-open-tag shape)"
+        );
+        assert!(has("<div><p>hi</p></div>"), "nested pure-text element");
+        // Candidate nested under a `<svelte:*>` / `<slot>` container must be
+        // seen through the generic recursion (regression: child_fragments once
+        // dropped these variants, so the gate wrongly skipped collapse).
+        assert!(
+            has("<svelte:head><title>Hello</title></svelte:head>"),
+            "pure-text element under svelte:head"
+        );
+        assert!(
+            has("<slot><span>hi</span></slot>"),
+            "pure-text element under slot"
+        );
+        // Negative — provably nothing to collapse, safe to skip.
+        assert!(
+            !has("<div><span></span></div>"),
+            "element child but no attrs"
+        );
+        assert!(!has("<div></div>"), "empty element");
+        assert!(!has("<script>let x = 1;</script>"), "no markup");
+    }
+
+    #[test]
+    fn collapse_runs_for_candidate_under_svelte_head_and_slot() {
+        // Regression: when the ONLY collapse candidate is nested under a
+        // `<svelte:*>` / `<slot>` container, the gate must NOT skip collapse.
+        // Before the child_fragments fix the gate skipped and left these
+        // multi-line. Assert the pure-text element collapses to one line.
+        let head = crate::format(
+            "<svelte:head>\n\t<title>\n\t\tHello\n\t</title>\n</svelte:head>\n",
+            &FormatOptions::default(),
+        )
+        .unwrap();
+        assert!(
+            !head.contains("<title>\n") && head.contains("Hello"),
+            "title under svelte:head should collapse to one line:\n{head}"
+        );
+        let slot = crate::format(
+            "<slot>\n\t<span>\n\t\thi\n\t</span>\n</slot>\n",
+            &FormatOptions::default(),
+        )
+        .unwrap();
+        assert!(
+            !slot.contains("<span>\n") && slot.contains("hi"),
+            "span under slot should collapse to one line:\n{slot}"
+        );
+    }
+
+    fn make_fragment_with_text(data: &str) -> Fragment<'_> {
         Fragment {
             node_type: FragmentType::Fragment,
             nodes: vec![TemplateNode::Text(Text {
@@ -6917,7 +7083,7 @@ mod tests {
         }
     }
 
-    fn make_empty_fragment() -> Fragment {
+    fn make_empty_fragment<'a>() -> Fragment<'a> {
         Fragment {
             node_type: FragmentType::Fragment,
             nodes: vec![],
@@ -6925,7 +7091,7 @@ mod tests {
         }
     }
 
-    fn make_text_node(data: &str, start: u32) -> TemplateNode {
+    fn make_text_node(data: &str, start: u32) -> TemplateNode<'_> {
         TemplateNode::Text(Text {
             start,
             end: start + data.len() as u32,
@@ -6934,7 +7100,7 @@ mod tests {
         })
     }
 
-    fn make_element_node(name: &str) -> TemplateNode {
+    fn make_element_node(name: &str) -> TemplateNode<'_> {
         use rsvelte_core::ast::template::{RegularElement, RegularElementMetadata};
         TemplateNode::RegularElement(Box::new(RegularElement {
             start: 0,
@@ -7083,7 +7249,7 @@ mod tests {
         let body = || Doc::Concat(vec![Doc::Text("Clear ".to_string()), icon()]);
 
         // Body alone from col 15 ends at 78 <= 80: the Icon must stay flat.
-        let a = print(body(), 80, "  ", 7, 15);
+        let a = print(&body(), 80, "  ", 7, 15);
         assert_eq!(
             a,
             "Clear <Icon data={TrashIcon} class=\"text-surface-content/50\" />"
@@ -7097,7 +7263,7 @@ mod tests {
             body(),
             Doc::Text("</button".to_string()),
         ]);
-        let b = print(measured, 80, "  ", 7, 14);
+        let b = print(&measured, 80, "  ", 7, 14);
         let expected = "\
 >Clear <Icon
                 data={TrashIcon}

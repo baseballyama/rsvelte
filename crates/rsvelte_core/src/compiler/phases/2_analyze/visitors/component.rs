@@ -16,7 +16,10 @@ use crate::ast::template::Component;
 /// delegates to the shared visit_component function for full analysis.
 ///
 /// Corresponds to `Component(node, context)` in Component.js.
-pub fn visit(component: &mut Component, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit<'a, 'b: 'a>(
+    component: &mut Component<'b>,
+    context: &mut VisitorContext<'a>,
+) -> Result<(), AnalysisError> {
     // Extract the base name from the component name
     // If the name contains a dot (e.g., Foo.Bar), use the part before the dot
     let base_name = if let Some(dot_pos) = component.name.find('.') {

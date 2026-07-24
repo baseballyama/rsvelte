@@ -1,7 +1,9 @@
-use oxc_allocator::Allocator;
+use std::cell::RefCell;
+use std::collections::HashMap;
+
 use oxc_ast::ast::{Program, TSAsExpression, TSSatisfiesExpression, TSType};
 use oxc_ast_visit::{Visit, walk};
-use oxc_formatter::format_program;
+use oxc_formatter::{QuoteStyle, format_program};
 use oxc_parser::{ParseOptions as OxcParseOptions, Parser};
 use oxc_span::{GetSpan, SourceType};
 use rsvelte_core::ast::arena::try_with_current_serialize_arena;
@@ -452,7 +454,7 @@ fn collect_node_edits(
                     {
                         for node in &frag.nodes {
                             if let TemplateNode::Text(t) = node
-                                && crate::is_blank_text(t.data.as_str())
+                                && crate::is_blank_text(t.data.as_ref())
                             {
                                 edits.push((t.start, t.end, String::new()));
                             }
@@ -540,6 +542,33 @@ fn split_leading_line_comments(inner: &str) -> (&str, &str) {
 /// Replace `{...}` (template-position or attribute-value `ExpressionTag`)
 /// with the formatted expression body wrapped in braces. Collapses any
 /// whitespace inside the braces.
+/// The byte range of the leading expression code inside `rest`, excluding any
+/// surrounding comments — the boundaries a typed parse's expression span gives,
+/// recovered via an oxc parse for the deferred (`Lazy`) case. `None` when the
+/// snippet doesn't parse (caller falls back to the raw text).
+fn expression_code_range(rest: &str, options: &FormatOptions) -> Option<std::ops::Range<usize>> {
+    let allocator = crate::scratch::acquire();
+    let wrapped = format!("({rest});");
+    let source_type = if options.typescript {
+        SourceType::ts().with_module(true)
+    } else {
+        SourceType::default()
+    };
+    let ret = Parser::new(allocator, &wrapped, source_type)
+        .with_options(formatter_parse_options())
+        .parse();
+    if !ret.diagnostics.is_empty() {
+        return None;
+    }
+    let oxc_ast::ast::Statement::ExpressionStatement(stmt) = ret.program.body.first()? else {
+        return None;
+    };
+    let span = oxc_span::GetSpan::span(&stmt.expression);
+    let (start, end) = (span.start as usize, span.end as usize);
+    // The `(` wrapper shifts every offset by one byte.
+    (start >= 1 && end >= start && end - 1 <= rest.len()).then(|| start - 1..end - 1)
+}
+
 fn push_expression_tag(
     source: &str,
     tag: &ExpressionTag,
@@ -571,12 +600,23 @@ fn push_expression_tag(
         let (leading, rest) = split_leading_line_comments(inner);
         let leading_comments = leading.trim_end_matches('\n');
         // Use the AST expression span as the expression source so that
-        // trailing comments on the expression node are not included.
+        // trailing comments on the expression node are not included. A Lazy
+        // span covers the whole braced body (comments included), so derive the
+        // code range from an oxc parse instead — same boundaries a typed node's
+        // span would have had.
+        let lazy = matches!(
+            tag.expression,
+            rsvelte_core::ast::js::Expression::Lazy { .. }
+        );
         let expr_source =
-            if let (Some(es), Some(ee)) = (tag.expression.start(), tag.expression.end()) {
+            if !lazy && let (Some(es), Some(ee)) = (tag.expression.start(), tag.expression.end()) {
                 source.get(es as usize..ee as usize).unwrap_or("").trim()
             } else {
-                rest.trim()
+                let r = rest.trim();
+                match expression_code_range(r, options) {
+                    Some(range) => r.get(range).unwrap_or(r).trim(),
+                    None => r,
+                }
             };
         if expr_source.is_empty() {
             edits.push((tag.start, tag.end, format!("{{{leading_comments}}}")));
@@ -1117,7 +1157,7 @@ fn expand_inline_empty_block_body(
     // Only act when EVERY node is a whitespace-only text without a newline.
     let all_inline_ws = frag.nodes.iter().all(|n| {
         matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t)
-            if crate::is_blank_text(t.data.as_str()) && !t.data.contains('\n'))
+            if crate::is_blank_text(t.data.as_ref()) && !t.data.contains('\n'))
     });
     if !all_inline_ws || frag.nodes.is_empty() {
         return;
@@ -1151,7 +1191,7 @@ pub(crate) fn await_pending_is_empty(
     match pending {
         None => false, // shorthand form — already collapsed in source
         Some(frag) => frag.nodes.iter().all(|n| {
-            matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str()))
+            matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
         }),
     }
 }
@@ -1228,7 +1268,7 @@ fn try_collapse_await_header(
 /// `{#await expr then value}{/await}` block.
 fn is_empty_fragment_for_await(frag: &rsvelte_core::ast::template::Fragment) -> bool {
     frag.nodes.iter().all(|n| {
-        matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if crate::is_blank_text(t.data.as_str()))
+        matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
     })
 }
 
@@ -1620,14 +1660,14 @@ pub(crate) fn format_function_binding(
     };
 
     // Detect a top-level sequence and recover each member's source span.
-    let allocator = Allocator::default();
+    let allocator = crate::scratch::acquire();
     let source_type = if options.typescript {
         SourceType::ts()
     } else {
         SourceType::default()
     };
     let wrapped = format!("({seq_src});");
-    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+    let parser_ret = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parser_ret.diagnostics.is_empty() {
@@ -1786,13 +1826,222 @@ fn has_word_await(s: &str) -> bool {
     false
 }
 
+/// A reserved word or contextual keyword that a bare word matching the
+/// identifier grammar must NOT be treated as an identifier reference: some
+/// (`class`, `for`, `await` in a module) would fail to parse as a bare
+/// expression, so emitting the slice verbatim would turn an error into output.
+/// Conservative on purpose — a real identifier that happens to be listed here
+/// (e.g. `async` used as a variable) simply falls through to the oxc path,
+/// which still emits it verbatim.
+fn is_reserved_ident(s: &str) -> bool {
+    matches!(
+        s,
+        "await"
+            | "break"
+            | "case"
+            | "catch"
+            | "class"
+            | "const"
+            | "continue"
+            | "debugger"
+            | "default"
+            | "delete"
+            | "do"
+            | "else"
+            | "enum"
+            | "export"
+            | "extends"
+            | "false"
+            | "finally"
+            | "for"
+            | "function"
+            | "if"
+            | "import"
+            | "in"
+            | "instanceof"
+            | "new"
+            | "null"
+            | "return"
+            | "super"
+            | "switch"
+            | "this"
+            | "throw"
+            | "true"
+            | "try"
+            | "typeof"
+            | "var"
+            | "void"
+            | "while"
+            | "with"
+            | "yield"
+            | "let"
+            | "static"
+            | "async"
+            | "of"
+            | "as"
+            | "satisfies"
+            | "get"
+            | "set"
+    )
+}
+
+/// A bare ASCII identifier reference (`foo`, `_x`, `$store`, `$$props`): first
+/// byte an identifier start, the rest identifier continues, and not a reserved
+/// word. The oxc formatter emits such a token verbatim at any width.
+fn is_plain_identifier(s: &str) -> bool {
+    let b = s.as_bytes();
+    let Some(&first) = b.first() else {
+        return false;
+    };
+    if !(first.is_ascii_alphabetic() || first == b'_' || first == b'$') {
+        return false;
+    }
+    if !b[1..]
+        .iter()
+        .all(|&c| c.is_ascii_alphanumeric() || c == b'_' || c == b'$')
+    {
+        return false;
+    }
+    !is_reserved_ident(s)
+}
+
+/// A plain non-negative integer literal (`0`, `42`) with no leading zero,
+/// decimal point, exponent, separator, radix prefix, or bigint suffix. The oxc
+/// formatter emits such a literal verbatim; the excluded forms it may normalize
+/// (`1.0`, `0x1F`, `1_000`, `.5`) fall through to the full path.
+fn is_plain_integer(s: &str) -> bool {
+    match s.as_bytes() {
+        [b'0'] => true,
+        [first, rest @ ..] if first.is_ascii_digit() && *first != b'0' => {
+            rest.iter().all(u8::is_ascii_digit)
+        }
+        _ => false,
+    }
+}
+
+/// An atomic literal the oxc formatter always emits verbatim at any width:
+/// the keyword primaries `this` / `true` / `false` / `null`, or a plain
+/// integer. Unlike a general numeric/string literal these need no quote or
+/// numeric normalization.
+fn is_simple_literal(s: &str) -> bool {
+    matches!(s, "this" | "true" | "false" | "null") || is_plain_integer(s)
+}
+
+/// An identifier-shaped ASCII token, ignoring reserved-word status. Used for the
+/// non-head segments of a member chain, where reserved words are valid property
+/// names (`a.class`, `a.for`).
+fn is_ident_shaped(s: &str) -> bool {
+    let b = s.as_bytes();
+    let Some(&first) = b.first() else {
+        return false;
+    };
+    (first.is_ascii_alphabetic() || first == b'_' || first == b'$')
+        && b[1..]
+            .iter()
+            .all(|&c| c.is_ascii_alphanumeric() || c == b'_' || c == b'$')
+}
+
+/// A pure dotted member chain of ASCII identifiers (`a.b.c`, `this.x.y`,
+/// `$page.data.title`) that fits within `line_width`. The head must be a real
+/// identifier reference (or `this`); each later segment is any identifier-shaped
+/// token. oxc emits such a chain verbatim only while it fits — an over-wide
+/// pure-property chain breaks onto `\n  .seg` continuation lines — so the width
+/// guard is load-bearing. `?.` chains and any segment with whitespace/comments
+/// are excluded (they contain non-identifier bytes).
+fn is_member_chain_within_width(s: &str, line_width: oxc_formatter_core::LineWidth) -> bool {
+    if !s.contains('.') {
+        return false;
+    }
+    // Every segment is a pure-ASCII identifier token, so the whole slice is
+    // ASCII and its byte length equals its display width. A line exactly at the
+    // print width still fits (the formatter overflows only strictly beyond it).
+    if s.len() > line_width.value() as usize {
+        return false;
+    }
+    let mut segs = s.split('.');
+    let Some(head) = segs.next() else {
+        return false;
+    };
+    if !(is_plain_identifier(head) || head == "this") {
+        return false;
+    }
+    segs.all(is_ident_shaped)
+}
+
+/// Fast path for [`format_expr_core`]: if the trimmed source is a token the oxc
+/// formatter would emit unchanged, return that slice so the parse+format
+/// round-trip can be skipped. The predicate is strict — it must never accept an
+/// expression whose formatted form would differ from its verbatim source, so
+/// anything not provably identity-formatted returns `None` and falls through to
+/// the full path. Atomic tokens (identifiers, simple literals) are
+/// width-independent; a member chain is verbatim only within `line_width`.
+fn trivial_expr_verbatim(
+    expr_source: &str,
+    line_width: oxc_formatter_core::LineWidth,
+) -> Option<&str> {
+    let s = expr_source.trim();
+    if is_plain_identifier(s) || is_simple_literal(s) || is_member_chain_within_width(s, line_width)
+    {
+        return Some(s);
+    }
+    None
+}
+
+/// Per-file cache of formatted expression results. A single component reuses
+/// the same interpolation many times (30% of non-trivial expression formats in
+/// the corpus are exact intra-file repeats — e.g. `{item.href}` once per
+/// each-loop iteration site), so caching the oxc round-trip's output skips the
+/// repeat parse+format entirely.
+///
+/// The key is everything that determines [`format_expr_core`]'s output and can
+/// vary between two calls within one file: the raw source slice, the print
+/// width, the single-line flag, and the quote style (an attribute-embedded
+/// expression is formatted single-quoted, the same slice elsewhere double).
+/// Every other output-affecting option (indent, semicolons, TS dialect) is
+/// constant for the whole file, so it need not be keyed. Cleared per file at
+/// [`crate::format_with_arenas`] entry, so it never mixes two documents.
+///
+/// Invariant: within one `format_with_arenas` scope every `format_expr_core`
+/// call shares the same non-keyed options — only the keyed fields differ — and a
+/// nested `format_with_arenas` (the collapse `<pre>` re-entry) clears the memo on
+/// entry, so a sub-document formatted with different options cannot read a
+/// parent's cached entry.
+/// The `bool` after `single_line` is the TS/JS dialect (`options.typescript`):
+/// the #682 retry re-formats the same expression source in the other dialect, so
+/// the dialect must key the cache even though `clear_expr_memo()` already runs
+/// per attempt — belt-and-suspenders against a future change to the clear timing
+/// silently returning a JS-formatted result for a TS retry.
+type ExprMemoKey = (String, u16, bool, bool, QuoteStyle);
+thread_local! {
+    static EXPR_MEMO: RefCell<HashMap<ExprMemoKey, String>> = RefCell::new(HashMap::new());
+}
+
+/// Drop the previous attempt's cached expression results. Called once per format
+/// attempt (up to two per file when the #682 TS retry fires).
+pub(crate) fn clear_expr_memo() {
+    EXPR_MEMO.with(|m| m.borrow_mut().clear());
+}
+
 fn format_expr_core(
     expr_source: &str,
     options: &FormatOptions,
     line_width: oxc_formatter_core::LineWidth,
     single_line: bool,
 ) -> Result<String, FormatError> {
-    let allocator = Allocator::default();
+    if let Some(out) = trivial_expr_verbatim(expr_source, line_width) {
+        return Ok(out.to_string());
+    }
+    let key: ExprMemoKey = (
+        expr_source.to_string(),
+        line_width.value(),
+        single_line,
+        options.typescript,
+        options.js.quote_style,
+    );
+    if let Some(cached) = EXPR_MEMO.with(|m| m.borrow().get(&key).cloned()) {
+        return Ok(cached);
+    }
+    let allocator = crate::scratch::acquire();
 
     // The wrapper and source type used to parse the expression snippet vary
     // depending on whether the file is TypeScript and whether the expression
@@ -1858,7 +2107,7 @@ fn format_expr_core(
         (wrapped, source_type, false)
     };
 
-    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+    let parser_ret = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parser_ret.diagnostics.is_empty() {
@@ -1925,7 +2174,7 @@ fn format_expr_core(
     if single_line {
         js.expand = oxc_formatter::Expand::Never;
     }
-    let formatted = format_program(&allocator, &parser_ret.program, js, None)
+    let formatted = format_program(allocator, &parser_ret.program, js, None)
         .print()
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
         .into_code();
@@ -2006,6 +2255,7 @@ fn format_expr_core(
             strip_outer_parens(s).trim().to_string()
         }
     };
+    EXPR_MEMO.with(|m| m.borrow_mut().insert(key, result.clone()));
     Ok(result)
 }
 
@@ -2101,8 +2351,8 @@ fn reflow_flat_as_satisfies_unions(
 /// Re-parse the formatted text and collect the byte spans (into `formatted`) of
 /// every `as`/`satisfies` node's ≥2-member union type annotation.
 fn as_satisfies_union_spans(formatted: &str, source_type: SourceType) -> Vec<(usize, usize)> {
-    let allocator = Allocator::default();
-    let parsed = Parser::new(&allocator, formatted, source_type)
+    let allocator = crate::scratch::acquire();
+    let parsed = Parser::new(allocator, formatted, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parsed.diagnostics.is_empty() {
@@ -2366,7 +2616,7 @@ fn format_const_declaration(
     options: &FormatOptions,
     depth: usize,
 ) -> Result<String, FormatError> {
-    let allocator = Allocator::default();
+    let allocator = crate::scratch::acquire();
     let source_type = if options.typescript {
         SourceType::ts()
     } else {
@@ -2374,7 +2624,7 @@ fn format_const_declaration(
     };
 
     let wrapped = format!("const {decl_source};");
-    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+    let parser_ret = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parser_ret.diagnostics.is_empty() {
@@ -2395,7 +2645,7 @@ fn format_const_declaration(
             .unwrap_or(options.js.line_width);
         let mut js = options.js.clone();
         js.line_width = line_width;
-        let formatted = format_program(&allocator, &parser_ret.program, js, None)
+        let formatted = format_program(allocator, &parser_ret.program, js, None)
             .print()
             .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
             .into_code();
@@ -2456,7 +2706,7 @@ fn format_declaration_tag_body(
     options: &FormatOptions,
     depth: usize,
 ) -> Result<String, FormatError> {
-    let allocator = Allocator::default();
+    let allocator = crate::scratch::acquire();
     let source_type = if options.typescript {
         SourceType::ts()
     } else {
@@ -2465,7 +2715,7 @@ fn format_declaration_tag_body(
 
     // Append `;` so OXC parses it as a complete statement.
     let wrapped = format!("{body};");
-    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+    let parser_ret = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parser_ret.diagnostics.is_empty() {
@@ -2488,7 +2738,7 @@ fn format_declaration_tag_body(
 
     let mut js = options.js.clone();
     js.line_width = line_width;
-    let formatted = format_program(&allocator, &parser_ret.program, js, None)
+    let formatted = format_program(allocator, &parser_ret.program, js, None)
         .print()
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
         .into_code();
@@ -2684,7 +2934,7 @@ fn format_snippet_header_source(
     options: &FormatOptions,
     depth: usize,
 ) -> Result<String, FormatError> {
-    let allocator = Allocator::default();
+    let allocator = crate::scratch::acquire();
     let source_type = if options.typescript {
         SourceType::ts()
     } else {
@@ -2692,7 +2942,7 @@ fn format_snippet_header_source(
     };
 
     let wrapped = format!("function {header_src} {{}}");
-    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+    let parser_ret = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parser_ret.diagnostics.is_empty() {
@@ -2722,7 +2972,7 @@ fn format_snippet_header_source(
         oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
     // NOTE: do NOT set `expand = Never` — width-driven breaking is the point.
 
-    let formatted = format_program(&allocator, &parser_ret.program, js, None)
+    let formatted = format_program(allocator, &parser_ret.program, js, None)
         .print()
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
         .into_code();
@@ -2761,7 +3011,7 @@ pub(crate) fn format_pattern_source(
     options: &FormatOptions,
 ) -> Result<String, FormatError> {
     const SENTINEL: &str = "__rsvelte_fmt_rhs__";
-    let allocator = Allocator::default();
+    let allocator = crate::scratch::acquire();
     let source_type = if options.typescript {
         SourceType::ts()
     } else {
@@ -2769,7 +3019,7 @@ pub(crate) fn format_pattern_source(
     };
 
     let wrapped = format!("let {pattern_source} = {SENTINEL};");
-    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+    let parser_ret = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parser_ret.diagnostics.is_empty() {
@@ -3718,6 +3968,84 @@ pub(crate) fn expand_obj_arg_call(s: &str, indent_width: usize) -> Option<String
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn lw(w: u16) -> oxc_formatter_core::LineWidth {
+        oxc_formatter_core::LineWidth::try_from(w).unwrap()
+    }
+
+    #[test]
+    fn trivial_fastpath_accepts_identifiers_and_simple_literals() {
+        for src in [
+            "foo", "  foo  ", "_x", "$store", "$$props", "a1", "Comp", // identifiers
+            "this", "true", "false", "null", // keyword primaries
+            "0", "1", "42", "1000", // plain integers
+        ] {
+            assert_eq!(
+                trivial_expr_verbatim(src, lw(80)),
+                Some(src.trim()),
+                "expected fast-path accept for {src:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn trivial_fastpath_accepts_member_chains_within_width() {
+        for src in [
+            "a.b",
+            "a.b.c",
+            "this.x.y",
+            "$page.data.title",
+            "a.class",
+            "a.for",
+        ] {
+            assert_eq!(
+                trivial_expr_verbatim(src, lw(80)),
+                Some(src),
+                "expected member-chain accept for {src:?}"
+            );
+        }
+        // Boundary: a chain exactly at the print width still fits (strict-`>`
+        // overflow convention), so it is accepted.
+        assert_eq!(trivial_expr_verbatim("a.bc", lw(4)), Some("a.bc"));
+        // One past the width: falls through to oxc.
+        assert_eq!(trivial_expr_verbatim("a.bcd", lw(4)), None);
+        // Over-width: oxc would break the chain, so it must fall through.
+        assert_eq!(trivial_expr_verbatim("comment.user.name", lw(10)), None);
+        // Head is a reserved word (would not parse as a bare chain): reject.
+        assert_eq!(trivial_expr_verbatim("class.foo", lw(80)), None);
+    }
+
+    #[test]
+    fn trivial_fastpath_rejects_reserved_and_nonverbatim() {
+        // Reserved words / contextual keywords that are not verbatim primaries
+        // fall through to the oxc path.
+        for src in ["await", "class", "for", "async", "let", "new", "typeof"] {
+            assert_eq!(
+                trivial_expr_verbatim(src, lw(80)),
+                None,
+                "should reject {src:?}"
+            );
+        }
+        // Numeric forms oxc may normalize must NOT be fast-pathed.
+        for src in ["01", "1.0", "1.", ".5", "0x1F", "1e3", "1_000", "10n"] {
+            assert_eq!(
+                trivial_expr_verbatim(src, lw(80)),
+                None,
+                "should reject {src:?}"
+            );
+        }
+        // Not a single atomic token or a pure dotted chain.
+        for src in [
+            "a b", "a()", "a?.b", "a[0]", "'s'", "a + b", "", "  ", "a-b", "café", "a..b", ".a",
+            "a.", "a.b()",
+        ] {
+            assert_eq!(
+                trivial_expr_verbatim(src, lw(80)),
+                None,
+                "should reject {src:?}"
+            );
+        }
+    }
 
     #[test]
     fn has_word_await_detects_standalone() {

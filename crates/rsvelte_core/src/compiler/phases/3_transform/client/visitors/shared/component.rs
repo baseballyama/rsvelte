@@ -19,16 +19,16 @@ use indexmap::IndexMap;
 
 /// Component node types.
 #[derive(Debug, Clone)]
-pub enum ComponentNode {
+pub enum ComponentNode<'a> {
     /// Regular component (`<MyComponent>`)
-    Component(Component),
+    Component(Component<'a>),
     /// Dynamic component (`<svelte:component this={...}>`)
-    SvelteComponent(SvelteComponentElement),
+    SvelteComponent(SvelteComponentElement<'a>),
     /// Self-reference (`<svelte:self>`)
-    SvelteSelf(SvelteElement),
+    SvelteSelf(SvelteElement<'a>),
 }
 
-impl ComponentNode {
+impl<'a> ComponentNode<'a> {
     /// Get the start position of the component node.
     pub fn start(&self) -> u32 {
         match self {
@@ -67,7 +67,7 @@ struct DelayedProp {
 ///
 /// Returns a statement that instantiates the component.
 pub fn build_component(
-    node: ComponentNode,
+    node: ComponentNode<'_>,
     component_name: String,
     context: &mut ComponentContext,
 ) -> JsStatement {
@@ -87,7 +87,7 @@ pub fn build_component(
     let mut let_names: Vec<(String, Option<String>)> = Vec::new();
     let mut events: IndexMap<String, Vec<JsExpr>> = IndexMap::new();
     let mut custom_css_props: Vec<JsObjectMember> = Vec::new();
-    let mut bind_this: Option<Expression> = None;
+    let mut bind_this: Option<Expression<'_>> = None;
     let mut binding_initializers: Vec<JsStatement> = Vec::new();
     let mut snippet_declarations: Vec<JsStatement> = Vec::new();
     let mut serialized_slots: Vec<JsObjectMember> = Vec::new();
@@ -1208,7 +1208,7 @@ fn process_regular_attribute(
 }
 
 /// Extract the original AST expression from an AttributeValue.
-fn get_original_expression(value: &AttributeValue) -> crate::ast::js::Expression {
+fn get_original_expression<'a>(value: &AttributeValue<'a>) -> crate::ast::js::Expression<'a> {
     match value {
         AttributeValue::Expression(expr_tag) => expr_tag.expression.clone(),
         AttributeValue::Sequence(parts) if parts.len() == 1 => {
@@ -1291,12 +1291,12 @@ fn is_snippet_identifier(value: &AttributeValue, context: &ComponentContext) -> 
 }
 
 /// Process a bind directive.
-fn process_bind_directive(
-    bind: &BindDirective,
+fn process_bind_directive<'a>(
+    bind: &BindDirective<'a>,
     context: &mut ComponentContext,
     props_and_spreads: &mut Vec<PropsEntry>,
     delayed_props: &mut Vec<DelayedProp>,
-    bind_this: &mut Option<Expression>,
+    bind_this: &mut Option<Expression<'a>>,
     binding_initializers: &mut Vec<JsStatement>,
     is_component_dynamic: bool,
     intermediate_name: &str,
@@ -2805,7 +2805,7 @@ fn visit_slot_children(
 
 /// Build the component expression for dynamic components.
 fn build_component_expression(
-    node: &ComponentNode,
+    node: &ComponentNode<'_>,
     component_name: &str,
     context: &mut ComponentContext,
 ) -> JsExpr {
@@ -2877,7 +2877,7 @@ fn build_component_call(
     is_component_dynamic: bool,
     intermediate_name: &str,
     props_expression: &JsExpr,
-    bind_this: Option<&Expression>,
+    bind_this: Option<&Expression<'_>>,
     context: &mut ComponentContext,
 ) -> JsExpr {
     let callee = if is_component_dynamic {
@@ -3087,7 +3087,7 @@ fn build_component_meta_stmt(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 
     expression: JsExpr,
-    node: &ComponentNode,
+    node: &ComponentNode<'_>,
     analysis_name: &str,
     dev: bool,
     source: &str,

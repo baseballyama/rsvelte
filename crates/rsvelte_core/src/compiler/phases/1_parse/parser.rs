@@ -56,13 +56,13 @@ pub struct Parser<'a> {
     /// Line offsets for location calculation.
     pub(crate) line_offsets: Vec<usize>,
     /// Parsed instance script (context="default").
-    pub(crate) instance_script: Option<Script>,
+    pub(crate) instance_script: Option<Script<'a>>,
     /// Parsed module script (context="module").
-    pub(crate) module_script: Option<Script>,
+    pub(crate) module_script: Option<Script<'a>>,
     /// Parsed stylesheet.
     pub(crate) stylesheet: Option<StyleSheet>,
     /// Parsed svelte:options.
-    pub(crate) svelte_options: Option<SvelteOptions>,
+    pub(crate) svelte_options: Option<SvelteOptions<'a>>,
     /// Pending comments that could become leading comments for a script.
     pub(crate) pending_leading_comments: Vec<String>,
     /// Whether we're in TypeScript mode.

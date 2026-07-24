@@ -15,7 +15,10 @@ use crate::ast::template::IfBlock;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit an if block.
-pub fn visit(block: &mut IfBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit<'a, 'b: 'a>(
+    block: &mut IfBlock<'b>,
+    context: &mut VisitorContext<'a>,
+) -> Result<(), AnalysisError> {
     // Check if inside a textarea (logic blocks not allowed)
     if context.element_ancestors.iter().any(|a| a == "textarea") {
         return Err(errors::block_invalid_placement("{#if ...}"));

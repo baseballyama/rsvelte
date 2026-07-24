@@ -302,7 +302,10 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
 /// Unwrap optional chain expression if present.
 ///
 /// Corresponds to `unwrap_optional` in Svelte's utils.
-fn unwrap_optional(expr: &Expression, arena: &crate::ast::arena::ParseArena) -> Expression {
+fn unwrap_optional<'a>(
+    expr: &Expression<'a>,
+    arena: &crate::ast::arena::ParseArena,
+) -> Expression<'a> {
     use crate::ast::typed_expr::JsNode;
     if expr.node_type() == Some("ChainExpression") {
         let node = expr.as_node();
@@ -314,10 +317,10 @@ fn unwrap_optional(expr: &Expression, arena: &crate::ast::arena::ParseArena) -> 
 }
 
 /// Extract arguments from a call expression.
-fn extract_call_arguments(
-    expr: &Expression,
+fn extract_call_arguments<'a>(
+    expr: &Expression<'a>,
     arena: &crate::ast::arena::ParseArena,
-) -> Vec<Expression> {
+) -> Vec<Expression<'a>> {
     use crate::ast::typed_expr::JsNode;
     if expr.node_type() != Some("CallExpression") {
         return Vec::new();
@@ -334,10 +337,10 @@ fn extract_call_arguments(
 }
 
 /// Extract callee from a call expression.
-fn extract_call_callee(
-    expr: &Expression,
+fn extract_call_callee<'a>(
+    expr: &Expression<'a>,
     arena: &crate::ast::arena::ParseArena,
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     use crate::ast::typed_expr::JsNode;
     if expr.node_type() != Some("CallExpression") {
         return None;

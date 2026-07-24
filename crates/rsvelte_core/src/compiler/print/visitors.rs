@@ -293,7 +293,7 @@ fn is_block_element(node: &TemplateNode) -> bool {
 /// Helper enum for processed nodes in fragment
 enum ProcessedNode<'a> {
     Text(String),
-    Node(&'a TemplateNode),
+    Node(&'a TemplateNode<'a>),
 }
 
 /// Normalize whitespace in a string (replace sequences of whitespace with single space)

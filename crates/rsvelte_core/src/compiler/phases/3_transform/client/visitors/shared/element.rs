@@ -123,7 +123,7 @@ where
             // Single part - handle as simple value
             match &parts[0] {
                 AttributeValuePart::Text(text) => AttributeValueResult {
-                    value: b::string(text.data.as_str()),
+                    value: b::string(text.data.as_ref()),
                     has_state: false,
                 },
 
@@ -1189,7 +1189,7 @@ fn build_style_attribute_value_with_memoization(
         AttributeValue::Sequence(parts) if parts.len() == 1 => {
             // Single part - handle as simple value (avoid wrapping in template literal)
             match &parts[0] {
-                AttributeValuePart::Text(text) => (b::string(text.data.as_str()), false),
+                AttributeValuePart::Text(text) => (b::string(text.data.as_ref()), false),
                 AttributeValuePart::ExpressionTag(expr_tag) => {
                     let converted = convert_expression(&expr_tag.expression, context);
                     let expr_props =
@@ -1334,7 +1334,7 @@ fn build_style_attribute_value_with_memoization(
 }
 
 /// Helper to get the expression from a style directive value.
-fn get_directive_expression(directive: &StyleDirective) -> crate::ast::js::Expression {
+fn get_directive_expression<'a>(directive: &StyleDirective<'a>) -> crate::ast::js::Expression<'a> {
     use crate::ast::js::Expression;
 
     match &directive.value {
@@ -1730,7 +1730,12 @@ mod tests {
         // Test that literal attributes (a={5}) are correctly parsed
         // and recognized as non-reactive (has_state = false)
         let input = "<Test a={5} />";
-        let result = crate::parse(input, Default::default()).unwrap();
+        let result = crate::parse(
+            input,
+            &oxc_allocator::Allocator::default(),
+            Default::default(),
+        )
+        .unwrap();
 
         // Find the Component node
         let mut found_component = false;

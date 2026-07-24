@@ -19,7 +19,7 @@
 //! `build_template`.
 
 use crate::ast::js::Expression;
-use crate::ast::template::{Fragment, RegularElement, TemplateNode, Text};
+use crate::ast::template::{Fragment, RegularElement, TemplateNode};
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 use crate::compiler::phases::phase3_transform::shared::template::escape_html;
 use crate::compiler::phases::phase3_transform::utils::{
@@ -81,8 +81,8 @@ pub enum TemplateEntry<'a> {
 /// `<pre>` / `<select>` / `<table>` / SVG special-cases match upstream's
 /// `clean_nodes` + `trim_whitespace` exactly.
 pub fn process_children<'a>(
-    nodes: &[TemplateNode],
-    parent: Option<&RegularElement>,
+    nodes: &[TemplateNode<'a>],
+    parent: Option<&RegularElement<'_>>,
     namespace: &str,
     state: &mut ServerTransformState<'a>,
 ) {
@@ -99,8 +99,8 @@ pub fn process_children<'a>(
 /// hydration. RegularElement / TitleElement parents pass `false` (they are not
 /// in upstream's `is_text_first` parent list).
 pub fn process_children_inner<'a>(
-    nodes: &[TemplateNode],
-    parent: Option<&RegularElement>,
+    nodes: &[TemplateNode<'a>],
+    parent: Option<&RegularElement<'_>>,
     namespace: &str,
     is_block_parent: bool,
     state: &mut ServerTransformState<'a>,
@@ -242,7 +242,7 @@ pub fn process_children_inner<'a>(
 
     for node in &cleaned {
         match node.as_ref() {
-            TemplateNode::Text(t) => sequence.push(SeqNode::Text(t.data.as_str())),
+            TemplateNode::Text(t) => sequence.push(SeqNode::Text(t.data.as_ref())),
             TemplateNode::Comment(c) => sequence.push(SeqNode::Comment(c.data.as_str())),
             TemplateNode::ExpressionTag(tag) => {
                 // SAFETY-of-borrow: `tag` lives in `cleaned`, but the expression
@@ -373,12 +373,12 @@ pub fn process_children_inner<'a>(
 ///   parent is a `select` / `tr` / `table` / `tbody` / `thead` / `tfoot` /
 ///   `colgroup` / `datalist`, or any non-`text` SVG element (`can_remove_entirely`).
 /// - The first Text node inside `<pre>` is dropped if it is a lone `\n` / `\r\n`.
-fn clean_whitespace<'n>(
-    nodes: &[&'n TemplateNode],
-    parent: Option<&RegularElement>,
+fn clean_whitespace<'n, 'b>(
+    nodes: &[&'n TemplateNode<'b>],
+    parent: Option<&RegularElement<'_>>,
     namespace: &str,
     preserve_whitespace: bool,
-) -> Vec<Cow<'n, TemplateNode>> {
+) -> Vec<Cow<'n, TemplateNode<'b>>> {
     if preserve_whitespace {
         return nodes.iter().map(|n| Cow::Borrowed(*n)).collect();
     }
@@ -443,7 +443,7 @@ fn clean_whitespace<'n>(
             continue;
         };
 
-        let mut data: Cow<'_, str> = Cow::Borrowed(text.data.as_str());
+        let mut data: Cow<'_, str> = Cow::Borrowed(text.data.as_ref());
 
         // Trim the very first / last Text node's outer whitespace entirely.
         if i == 0 {
@@ -477,11 +477,11 @@ fn clean_whitespace<'n>(
             continue;
         }
 
-        if data.as_ref() == text.data.as_str() {
+        if data.as_ref() == text.data.as_ref() {
             out.push(Cow::Borrowed(node));
         } else {
-            let mut new_text: Text = text.clone();
-            new_text.data = CompactString::new(data.as_ref());
+            let mut new_text = text.clone();
+            new_text.data = Cow::Owned(data.into_owned());
             out.push(Cow::Owned(TemplateNode::Text(new_text)));
         }
     }
@@ -489,7 +489,7 @@ fn clean_whitespace<'n>(
     // `<pre>`: drop a leading lone-newline Text node (browser would re-add it).
     if matches!(parent, Some(el) if el.name.as_str() == "pre")
         && let Some(TemplateNode::Text(t)) = out.first().map(|c| c.as_ref())
-        && (t.data.as_str() == "\n" || t.data.as_str() == "\r\n")
+        && (t.data.as_ref() == "\n" || t.data.as_ref() == "\r\n")
     {
         out.remove(0);
     }
@@ -596,7 +596,7 @@ fn expression_tag_const_blockers(expr: &Expression, state: &ServerTransformState
 enum SeqNode<'n> {
     Text(&'n str),
     Comment(&'n str),
-    Expr(&'n Expression),
+    Expr(&'n Expression<'n>),
 }
 
 /// Whether `src` is a single bare JS identifier (`foo`, `$bar`, `_x9`) — used to
@@ -737,21 +737,21 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
 /// dependency scan only needs each const's declared names + the identifiers
 /// referenced in its initializer (reusing the same string-based extraction the
 /// const-tag visitor uses, so the two stay consistent).
-fn sort_const_tags<'n>(
-    nodes: &'n [TemplateNode],
+fn sort_const_tags<'n, 'b>(
+    nodes: &'n [TemplateNode<'b>],
     state: &ServerTransformState<'_>,
-) -> Option<Vec<&'n TemplateNode>> {
+) -> Option<Vec<&'n TemplateNode<'b>>> {
     if state.analysis.runes {
         return None;
     }
 
-    struct ConstInfo<'n> {
-        node: &'n TemplateNode,
+    struct ConstInfo<'n, 'b> {
+        node: &'n TemplateNode<'b>,
         declared: Vec<String>,
         deps: Vec<String>,
     }
 
-    let mut consts: Vec<ConstInfo<'n>> = Vec::new();
+    let mut consts: Vec<ConstInfo<'n, 'b>> = Vec::new();
     let mut others: Vec<&'n TemplateNode> = Vec::new();
     for n in nodes {
         if let TemplateNode::ConstTag(ct) = n {
@@ -983,7 +983,7 @@ pub fn build_template<'a>(
 /// inference — mirroring upstream `infer_namespace`, which only runs the deep
 /// check for the reset-parent kinds.
 pub fn build_fragment_body<'a>(
-    fragment: &Fragment,
+    fragment: &Fragment<'a>,
     is_text_first_parent: bool,
     reset_namespace: bool,
     state: &mut ServerTransformState<'a>,
@@ -1203,7 +1203,7 @@ fn build_async_consts_run<'a>(
 /// `clean_nodes` hoist pass is still handled by the per-visitor pipeline rather
 /// than centrally here.
 pub fn build_fragment_block<'a>(
-    fragment: &Fragment,
+    fragment: &Fragment<'a>,
     is_text_first_parent: bool,
     state: &mut ServerTransformState<'a>,
 ) -> Statement<'a> {
@@ -1795,7 +1795,7 @@ fn check_nodes_for_namespace(nodes: &[TemplateNode]) -> NsCheck {
 /// inside `{#if}` / `{#each}` blocks); a definitive verdict wins, otherwise
 /// falls back to the shallow direct-child inference. 写经 upstream
 /// `infer_namespace`'s reset-parent branch + element-loop fall-through.
-pub(crate) fn infer_namespace_reset(nodes: &[TemplateNode], parent_namespace: &str) -> String {
+pub(crate) fn infer_namespace_reset(nodes: &[TemplateNode<'_>], parent_namespace: &str) -> String {
     match check_nodes_for_namespace(nodes) {
         NsCheck::Svg => "svg".to_string(),
         NsCheck::Mathml => "mathml".to_string(),
@@ -1807,7 +1807,7 @@ pub(crate) fn infer_namespace_reset(nodes: &[TemplateNode], parent_namespace: &s
 }
 
 pub(crate) fn infer_namespace_from_nodes_owned(
-    nodes: &[TemplateNode],
+    nodes: &[TemplateNode<'_>],
     parent_namespace: &str,
 ) -> String {
     let mut found_namespace: Option<&str> = None;

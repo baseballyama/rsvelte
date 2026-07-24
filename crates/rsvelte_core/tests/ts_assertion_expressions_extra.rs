@@ -8,7 +8,12 @@ use rsvelte_core::{CompileOptions, GenerateMode, ParseOptions, compile, parse};
 use serde_json::Value;
 
 fn parse_to_value(source: &str) -> Value {
-    let ast = parse(source, ParseOptions::default()).expect("parse should succeed");
+    let ast = parse(
+        source,
+        &oxc_allocator::Allocator::default(),
+        ParseOptions::default(),
+    )
+    .expect("parse should succeed");
     with_serialize_arena(&ast.arena, || serde_json::to_value(&ast).unwrap())
 }
 

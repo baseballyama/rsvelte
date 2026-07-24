@@ -30,7 +30,7 @@ pub struct SpecialElement<'a> {
     pub end: u32,
     /// The element's plain attributes (e.g. `lang`, `context`, `generics`).
     /// Always `Attribute::Attribute(_)` variants — these tags carry no directives.
-    pub attributes: Vec<Attribute>,
+    pub attributes: Vec<Attribute<'a>>,
 }
 
 /// Configured severity for a rule. `Off` disables it entirely (its hooks are

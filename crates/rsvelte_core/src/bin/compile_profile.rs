@@ -57,7 +57,7 @@ fn main() {
     let start = Instant::now();
     let mut asts: Vec<_> = files
         .iter()
-        .map(|(_, content)| parse(content, parse_opts).ok())
+        .map(|(_, content)| parse(content, &oxc_allocator::Allocator::default(), parse_opts).ok())
         .collect();
     let parse_time = start.elapsed();
 

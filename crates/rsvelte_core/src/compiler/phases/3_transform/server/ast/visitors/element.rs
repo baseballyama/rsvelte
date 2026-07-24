@@ -80,7 +80,7 @@ use super::shared::{TemplateEntry, process_children};
 const WHITESPACE_INSENSITIVE_ATTRIBUTES: [&str; 2] = ["class", "style"];
 
 /// Visit a `<name ...>children</name>` regular element.
-pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransformState<'a>) {
+pub fn visit_regular_element<'a>(node: &RegularElement<'a>, state: &mut ServerTransformState<'a>) {
     // 写经 upstream `RegularElement.js` l.18: in the HTML namespace the element
     // tag name is lowercased (`<iNPUT>` → `<input>`, `<thisShouldWarnMe>` →
     // `<thisshouldwarnme>`); SVG / MathML preserve case. This must precede the
@@ -214,7 +214,7 @@ pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransf
 /// Emit an element's open tag, attributes, `>`/`/>`, children, and close tag into
 /// `state.template`. Shared by the sync fast path and the async-buffered path.
 fn emit_element_body<'a>(
-    node: &RegularElement,
+    node: &RegularElement<'a>,
     name: &str,
     is_void: bool,
     state: &mut ServerTransformState<'a>,
@@ -420,7 +420,7 @@ fn bind_skipped_in_ssr(node: &RegularElement, bind: &BindDirective) -> bool {
 /// (`$$renderer.child(async …)` / `$$renderer.async([$$promises[N]…], …)`). 写经
 /// `RegularElement.js`: `optimiser.render([b.block([...build_template(state.template)])])`.
 fn emit_async_element<'a>(
-    node: &RegularElement,
+    node: &RegularElement<'a>,
     name: &str,
     is_void: bool,
     state: &mut ServerTransformState<'a>,
@@ -468,7 +468,7 @@ fn emit_async_element<'a>(
 /// the surrounding literal-coalescing run (the `<textarea>`/`>` opener and the
 /// `</textarea>` closer stay outside it).
 fn emit_content_body<'a>(
-    node: &RegularElement,
+    node: &RegularElement<'a>,
     content: OxcExpression<'a>,
     namespace: &str,
     suppress_children: bool,
@@ -648,7 +648,7 @@ fn attr_static_text(value: &AttributeValue) -> Option<String> {
 
 /// Find the sibling `value` plain-attribute node (for `bind:group`'s membership
 /// test). Mirrors upstream's `node.attributes.find(attr.name === 'value')`.
-fn find_value_attribute(node: &RegularElement) -> Option<&AttributeNode> {
+fn find_value_attribute<'a>(node: &'a RegularElement<'a>) -> Option<&'a AttributeNode<'a>> {
     node.attributes.iter().find_map(|a| match a {
         Attribute::Attribute(attr) if attr.name.as_str() == "value" => Some(attr),
         _ => None,
@@ -1691,7 +1691,7 @@ fn select_find_descendants<'n>(
 /// `inner_state = { ...state, template: [], init: [] }; process_children(...);
 /// build_template(inner_state.template)`.
 fn render_children_body<'a>(
-    node: &RegularElement,
+    node: &RegularElement<'a>,
     state: &mut ServerTransformState<'a>,
 ) -> Vec<Statement<'a>> {
     use super::shared::build_template;
@@ -1862,7 +1862,7 @@ fn prepare_element_spread_object<'a>(
 /// (lines 109-128). The `...rest` is `[css_hash?, classes?, styles?, flags?]`
 /// (trailing `None`s pruned) with an extra `true` appended when the select has
 /// rich content (`is_customizable_select_element`).
-fn emit_select_special<'a>(node: &RegularElement, state: &mut ServerTransformState<'a>) {
+fn emit_select_special<'a>(node: &RegularElement<'a>, state: &mut ServerTransformState<'a>) {
     let css_hash: Option<String> = if node.metadata.scoped && !state.analysis.css.hash.is_empty() {
         Some(state.analysis.css.hash.to_string())
     } else {
@@ -1896,7 +1896,7 @@ fn emit_select_special<'a>(node: &RegularElement, state: &mut ServerTransformSta
 /// `is_option_special` branch of upstream `RegularElement.js` (lines 131-175).
 /// `body` is the synthetic value expression directly (when the option has a
 /// `synthetic_value_node`), else a `($$renderer) => { <children> }` callback.
-fn emit_option_special<'a>(node: &RegularElement, state: &mut ServerTransformState<'a>) {
+fn emit_option_special<'a>(node: &RegularElement<'a>, state: &mut ServerTransformState<'a>) {
     let css_hash: Option<String> = if node.metadata.scoped && !state.analysis.css.hash.is_empty() {
         Some(state.analysis.css.hash.to_string())
     } else {
@@ -2080,7 +2080,7 @@ fn build_attribute_value<'a>(
                 return match &parts[0] {
                     AttributeValuePart::Text(t) => {
                         let data = if trim_ws {
-                            collapse_ws(t.data.as_str())
+                            collapse_ws(t.data.as_ref())
                         } else {
                             t.data.to_string()
                         };
@@ -2102,7 +2102,7 @@ fn build_attribute_value<'a>(
                 match part {
                     AttributeValuePart::Text(t) => {
                         let data = if trim_ws {
-                            collapse_ws_no_trim(t.data.as_str())
+                            collapse_ws_no_trim(t.data.as_ref())
                         } else {
                             t.data.to_string()
                         };
@@ -2263,9 +2263,9 @@ fn fold_sequence_static<'a>(
             // upstream `build_attribute_value`'s `replace(regex_whitespaces_strict, ' ')`.
             // The trailing trim only happens at the css-hash join in the caller.
             AttributeValuePart::Text(t) if trim_ws => {
-                out.push_str(&collapse_ws_no_trim(t.data.as_str()))
+                out.push_str(&collapse_ws_no_trim(t.data.as_ref()))
             }
-            AttributeValuePart::Text(t) => out.push_str(t.data.as_str()),
+            AttributeValuePart::Text(t) => out.push_str(t.data.as_ref()),
             AttributeValuePart::ExpressionTag(tag) => {
                 let ev = state
                     .eval_ctx()
@@ -2306,7 +2306,7 @@ fn static_text_of(parts: &[AttributeValuePart], trim_ws: bool) -> Option<String>
     let mut s = String::new();
     for part in parts {
         match part {
-            AttributeValuePart::Text(t) => s.push_str(t.data.as_str()),
+            AttributeValuePart::Text(t) => s.push_str(t.data.as_ref()),
             AttributeValuePart::ExpressionTag(_) => return None,
         }
     }

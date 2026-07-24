@@ -216,7 +216,11 @@ fn is_written(name: &str, scope: &Value) -> bool {
 /// are mutated through the loop and so are *not* immutable.
 fn collect_mutable_via_each(source: &str) -> HashSet<String> {
     let mut out = HashSet::new();
-    let Ok(root) = parse(source, ParseOptions::default()) else {
+    let Ok(root) = parse(
+        source,
+        &rsvelte_core::Allocator::default(),
+        ParseOptions::default(),
+    ) else {
         return out;
     };
     let Some(frag) =

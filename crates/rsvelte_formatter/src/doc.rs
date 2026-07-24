@@ -69,36 +69,75 @@ enum Mode {
 /// a prefix). The first line is NOT prefixed with indentation — the caller owns
 /// that.
 pub(crate) fn print(
-    doc: Doc,
+    doc: &Doc,
     width: usize,
     unit: &str,
     base_indent: usize,
     start_col: usize,
 ) -> String {
+    print_inner(doc, width, unit, base_indent, start_col, Mode::Break)
+}
+
+/// Like [`print`] but starts in flat mode — the byte-for-byte equivalent of
+/// printing `Group([doc])` at infinite width, without cloning `doc` into a
+/// wrapper group. Used by the collapse pass's one-line fit test.
+pub(crate) fn print_flat(
+    doc: &Doc,
+    width: usize,
+    unit: &str,
+    base_indent: usize,
+    start_col: usize,
+) -> String {
+    print_inner(doc, width, unit, base_indent, start_col, Mode::Flat)
+}
+
+/// A pending print command: a doc to render at an indent/mode, or a `Fill`
+/// continuation over a borrowed slice — the greedy fill advances by re-pushing
+/// the tail slice instead of allocating a fresh `Doc::Fill` each step.
+enum Cmd<'a> {
+    Doc(usize, Mode, &'a Doc),
+    Fill(usize, Mode, &'a [Doc]),
+}
+
+fn print_inner(
+    doc: &Doc,
+    width: usize,
+    unit: &str,
+    base_indent: usize,
+    start_col: usize,
+    start_mode: Mode,
+) -> String {
     let mut out = String::new();
     let mut pos = start_col;
-    let mut cmds: Vec<(usize, Mode, Doc)> = vec![(base_indent, Mode::Break, doc)];
+    let mut cmds: Vec<Cmd> = vec![Cmd::Doc(base_indent, start_mode, doc)];
 
-    while let Some((ind, mode, d)) = cmds.pop() {
+    while let Some(cmd) = cmds.pop() {
+        let (ind, mode, d) = match cmd {
+            Cmd::Doc(ind, mode, d) => (ind, mode, d),
+            Cmd::Fill(ind, mode, ps) => {
+                print_fill(ind, mode, ps, width, pos, &mut cmds);
+                continue;
+            }
+        };
         match d {
             Doc::Text(s) => {
-                pos += text_width(&s);
-                out.push_str(&s);
+                pos += text_width(s);
+                out.push_str(s);
             }
             Doc::Concat(ps) => {
-                for p in ps.into_iter().rev() {
-                    cmds.push((ind, mode, p));
+                for p in ps.iter().rev() {
+                    cmds.push(Cmd::Doc(ind, mode, p));
                 }
             }
             Doc::Indent(ps) => {
-                for p in ps.into_iter().rev() {
-                    cmds.push((ind + 1, mode, p));
+                for p in ps.iter().rev() {
+                    cmds.push(Cmd::Doc(ind + 1, mode, p));
                 }
             }
             Doc::Dedent(ps) => {
                 let de = ind.saturating_sub(1);
-                for p in ps.into_iter().rev() {
-                    cmds.push((de, mode, p));
+                for p in ps.iter().rev() {
+                    cmds.push(Cmd::Doc(de, mode, p));
                 }
             }
             Doc::Line | Doc::Softline | Doc::Hardline => {
@@ -123,81 +162,93 @@ pub(crate) fn print(
             }
             Doc::RawExpr { flat, broken } => {
                 if mode == Mode::Flat || broken.len() <= 1 {
-                    pos += text_width(&flat);
-                    out.push_str(&flat);
+                    pos += text_width(flat);
+                    out.push_str(flat);
                 } else {
-                    let mut lines = broken.into_iter();
+                    let mut lines = broken.iter();
                     if let Some(first) = lines.next() {
-                        pos += text_width(&first);
-                        out.push_str(&first);
+                        pos += text_width(first);
+                        out.push_str(first);
                     }
                     for line in lines {
                         trim_trailing_blanks(&mut out);
                         out.push('\n');
                         let pad_width = push_indent(&mut out, unit, ind);
-                        out.push_str(&line);
-                        pos = pad_width + text_width(&line);
+                        out.push_str(line);
+                        pos = pad_width + text_width(line);
                     }
                 }
             }
             Doc::BreakParent => {} // consumed by propagate_breaks; prints nothing
             Doc::Group(ps) => {
-                let flat = fits(width as isize - pos as isize, &cmds, &ps);
+                let flat = fits(width as isize - pos as isize, &cmds, ps);
                 let m = if flat { Mode::Flat } else { Mode::Break };
-                for p in ps.into_iter().rev() {
-                    cmds.push((ind, m, p));
+                for p in ps.iter().rev() {
+                    cmds.push(Cmd::Doc(ind, m, p));
                 }
             }
             Doc::ForcedGroup(ps) => {
                 // Already known to break — never measured.
-                for p in ps.into_iter().rev() {
-                    cmds.push((ind, Mode::Break, p));
+                for p in ps.iter().rev() {
+                    cmds.push(Cmd::Doc(ind, Mode::Break, p));
                 }
             }
-            Doc::Fill(mut ps) => {
-                if ps.is_empty() {
-                    continue;
-                }
-                // Fill measures locally (a content item / a content–sep–content
-                // pair), NOT the whole rest of the document — otherwise a large
-                // sibling after the fill (an element) would make every word
-                // "not fit" and break the prose one word per line. Both
-                // measurements borrow from `ps`, so the items are only moved out
-                // afterwards.
-                let remaining = width as isize - pos as isize;
-                let content_fits = fits(remaining, &[], &ps[..1]);
-                if ps.len() <= 2 {
-                    let m = if content_fits {
-                        Mode::Flat
-                    } else {
-                        Mode::Break
-                    };
-                    for p in ps.into_iter().rev() {
-                        cmds.push((ind, m, p));
-                    }
-                    continue;
-                }
-                // The content–separator–content triple is contiguous, so it can be
-                // measured in place.
-                let pair_fits = fits(remaining, &[], &ps[..3]);
-                let rest = Doc::Fill(ps.split_off(2));
-                let ws = ps.pop().expect("fill separator");
-                let content = ps.pop().expect("fill content");
-                cmds.push((ind, mode, rest));
-                if pair_fits {
-                    cmds.push((ind, Mode::Flat, ws));
-                    cmds.push((ind, Mode::Flat, content));
-                } else if content_fits {
-                    cmds.push((ind, Mode::Break, ws));
-                    cmds.push((ind, Mode::Flat, content));
-                } else {
-                    cmds.push((ind, Mode::Break, ws));
-                    cmds.push((ind, Mode::Break, content));
-                }
+            Doc::Fill(ps) => {
+                cmds.push(Cmd::Fill(ind, mode, ps));
             }
         }
     }
     out
+}
+
+/// One greedy `Fill` step: decide the mode of the first content item (and, if
+/// present, its following separator) from a local fit test, push them, and push
+/// the tail slice back as a `Fill` continuation. `pos` is the current column;
+/// this never mutates it (it only enqueues commands).
+fn print_fill<'a>(
+    ind: usize,
+    mode: Mode,
+    ps: &'a [Doc],
+    width: usize,
+    pos: usize,
+    cmds: &mut Vec<Cmd<'a>>,
+) {
+    if ps.is_empty() {
+        return;
+    }
+    // Fill measures locally (a content item / a content–sep–content pair), NOT
+    // the whole rest of the document — otherwise a large sibling after the fill
+    // (an element) would make every word "not fit" and break the prose one word
+    // per line.
+    let remaining = width as isize - pos as isize;
+    let content_fits = fits(remaining, &[], &ps[..1]);
+    if ps.len() <= 2 {
+        let m = if content_fits {
+            Mode::Flat
+        } else {
+            Mode::Break
+        };
+        for p in ps.iter().rev() {
+            cmds.push(Cmd::Doc(ind, m, p));
+        }
+        return;
+    }
+    // The content–separator–content triple is contiguous, so it can be measured
+    // in place.
+    let pair_fits = fits(remaining, &[], &ps[..3]);
+    cmds.push(Cmd::Fill(ind, mode, &ps[2..]));
+    let content = &ps[0];
+    let ws = &ps[1];
+    if pair_fits {
+        cmds.push(Cmd::Doc(ind, Mode::Flat, ws));
+        cmds.push(Cmd::Doc(ind, Mode::Flat, content));
+    } else if content_fits {
+        cmds.push(Cmd::Doc(ind, Mode::Break, ws));
+        cmds.push(Cmd::Doc(ind, Mode::Flat, content));
+    } else {
+        cmds.push(Cmd::Doc(ind, Mode::Break, ws));
+        cmds.push(Cmd::Doc(ind, Mode::Break, content));
+    }
 }
 
 /// Whether `next` (rendered flat) followed by the rest of the command stack fits
@@ -205,7 +256,7 @@ pub(crate) fn print(
 /// of prettier's `doc.js` `fits`: a soft `line` defers a pending space that is
 /// only charged when a following string is emitted (so a trailing `line` costs
 /// nothing), and a hard/break line ends the measurement successfully.
-fn fits(mut remaining: isize, rest_stack: &[(usize, Mode, Doc)], next: &[Doc]) -> bool {
+fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc]) -> bool {
     // Measurement never mutates the tree, so the whole walk borrows: cloning a
     // `Doc` here would deep-copy the entire measured subtree (and every entry
     // pulled off `rest_stack`) on every group, which dominated `print`.
@@ -224,8 +275,17 @@ fn fits(mut remaining: isize, rest_stack: &[(usize, Mode, Doc)], next: &[Doc]) -
                     return true;
                 }
                 rest_idx -= 1;
-                let (_, m, dd) = &rest_stack[rest_idx];
-                (*m, dd)
+                match &rest_stack[rest_idx] {
+                    Cmd::Doc(_, m, dd) => (*m, *dd),
+                    Cmd::Fill(_, m, ps) => {
+                        // A pending fill measures like its items in the fill's own
+                        // mode (front first, so push in reverse).
+                        for p in ps.iter().rev() {
+                            local.push((*m, p));
+                        }
+                        continue;
+                    }
+                }
             }
         };
         match d {
@@ -400,7 +460,7 @@ mod tests {
     use super::*;
 
     fn p(doc: Doc, width: usize) -> String {
-        print(doc, width, "  ", 0, 0)
+        print(&doc, width, "  ", 0, 0)
     }
 
     #[test]
@@ -446,7 +506,7 @@ mod tests {
         // width 20 forces the fill's Line to break before the wide RawExpr, then
         // the RawExpr itself prints broken with its continuation at indent 0.
         assert_eq!(
-            print(doc, 20, "  ", 0, 0),
+            print(&doc, 20, "  ", 0, 0),
             "lead\n{averylongidentifier +\n  anotherlongidentifier}"
         );
     }

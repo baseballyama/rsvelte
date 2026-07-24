@@ -37,7 +37,7 @@ fn main() {
         ..Default::default()
     };
 
-    match parse(&source, options) {
+    match parse(&source, &oxc_allocator::Allocator::default(), options) {
         Ok(_ast) => {
             println!("Parsed successfully");
         }

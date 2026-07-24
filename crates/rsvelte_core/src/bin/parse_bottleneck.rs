@@ -154,7 +154,7 @@ fn bench(files: &[(String, String)], options: ParseOptions, label: &str) -> f64 
     // Warmup
     for _ in 0..3 {
         for (_, content) in files {
-            let _ = parse(content, options);
+            let _ = parse(content, &oxc_allocator::Allocator::default(), options);
         }
     }
     // Measure
@@ -162,7 +162,7 @@ fn bench(files: &[(String, String)], options: ParseOptions, label: &str) -> f64 
     for _ in 0..10 {
         let start = Instant::now();
         for (_, content) in files {
-            let _ = parse(content, options);
+            let _ = parse(content, &oxc_allocator::Allocator::default(), options);
         }
         times.push(start.elapsed().as_secs_f64() * 1000.0);
     }

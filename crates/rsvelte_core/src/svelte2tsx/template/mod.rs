@@ -63,7 +63,7 @@ trait TemplateNodeExt {
     fn end(&self) -> u32;
 }
 
-impl TemplateNodeExt for TemplateNode {
+impl TemplateNodeExt for TemplateNode<'_> {
     fn start(&self) -> u32 {
         match self {
             TemplateNode::Text(n) => n.start,
@@ -961,7 +961,7 @@ fn push_component_slot_consumer_lets(
 /// slot="x">`, …). Returns `None` for nodes that cannot carry a `slot=`
 /// attribute (text, blocks, tags). Mirrors official `getSlotName(child)` reading
 /// `child.attributes`.
-fn node_slot_consumer_attributes(node: &TemplateNode) -> Option<&[Attribute]> {
+fn node_slot_consumer_attributes<'a>(node: &'a TemplateNode<'a>) -> Option<&'a [Attribute<'a>]> {
     match node {
         TemplateNode::RegularElement(el) => Some(&el.attributes),
         TemplateNode::Component(comp) => Some(&comp.attributes),
@@ -5605,7 +5605,7 @@ fn build_component_props_segments(
 }
 
 /// Collect references to all `on:` directives from an attribute list.
-fn get_on_directives(attributes: &[Attribute]) -> Vec<&OnDirective> {
+fn get_on_directives<'a>(attributes: &'a [Attribute<'a>]) -> Vec<&'a OnDirective<'a>> {
     attributes
         .iter()
         .filter_map(|attr| match attr {
@@ -6129,7 +6129,7 @@ fn format_attribute_node_segments(
                 && parts.len() == 1
                 && let AttributeValuePart::Text(text) = &parts[0]
             {
-                let data = text.data.as_str();
+                let data = text.data.as_ref();
                 let has_backtick = data.contains('`');
                 let quote = if !has_backtick {
                     '`'
@@ -7352,7 +7352,7 @@ fn build_slot_props_string(attributes: &[Attribute], source: &str) -> String {
 }
 
 /// Collect `let:` directives from an attribute list.
-fn get_let_directives(attributes: &[Attribute]) -> Vec<&LetDirective> {
+fn get_let_directives<'a>(attributes: &'a [Attribute<'a>]) -> Vec<&'a LetDirective<'a>> {
     attributes
         .iter()
         .filter_map(|attr| match attr {

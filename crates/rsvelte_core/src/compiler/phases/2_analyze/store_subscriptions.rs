@@ -1325,7 +1325,7 @@ mod tests {
 
 <p>{$count}</p>
 "#;
-        let mut ast = parse(source, parse_opts).unwrap();
+        let mut ast = parse(source, &oxc_allocator::Allocator::default(), parse_opts).unwrap();
         let options = CompileOptions::default();
         // SAFETY: `ast` (and thus `ast.arena`) outlives the `analyze_component`
         // call; `clear_serialize_arena()` runs before `ast` is dropped, so the
@@ -1349,7 +1349,7 @@ mod tests {
 
 <p>{value}</p>
 "#;
-        let mut ast2 = parse(source2, parse_opts).unwrap();
+        let mut ast2 = parse(source2, &oxc_allocator::Allocator::default(), parse_opts).unwrap();
         // SAFETY: `ast2` (and thus `ast2.arena`) outlives the `analyze_component`
         // call; `clear_serialize_arena()` runs before `ast2` is dropped, so the
         // installed pointer never dangles.
@@ -1376,7 +1376,7 @@ mod tests {
 
 <button onclick={() => $items.push('new')}>Add</button>
 "#;
-        let mut ast3 = parse(source3, parse_opts).unwrap();
+        let mut ast3 = parse(source3, &oxc_allocator::Allocator::default(), parse_opts).unwrap();
         // SAFETY: `ast3` (and thus `ast3.arena`) outlives the `analyze_component`
         // call; `clear_serialize_arena()` runs before `ast3` is dropped, so the
         // installed pointer never dangles.
@@ -1402,7 +1402,12 @@ mod tests {
         use crate::compiler::phases::phase1_parse::{ParseOptions, parse};
         use crate::compiler::phases::phase2_analyze::analyze_component;
 
-        let mut ast = parse(source, ParseOptions::default()).unwrap();
+        let mut ast = parse(
+            source,
+            &oxc_allocator::Allocator::default(),
+            ParseOptions::default(),
+        )
+        .unwrap();
         let options = CompileOptions::default();
         // SAFETY: `ast` outlives the analyze call; `clear_serialize_arena()` runs
         // before `ast` is dropped, so the installed pointer never dangles.
@@ -1559,7 +1564,12 @@ mod tests {
         let options = CompileOptions::default();
 
         let analyze = |source: &str| {
-            let mut ast = parse(source, ParseOptions::default()).unwrap();
+            let mut ast = parse(
+                source,
+                &oxc_allocator::Allocator::default(),
+                ParseOptions::default(),
+            )
+            .unwrap();
             // SAFETY: `ast` (and thus `ast.arena`) outlives the
             // `analyze_component` call; `clear_serialize_arena()` runs before
             // `ast` is dropped, so the installed pointer never dangles.

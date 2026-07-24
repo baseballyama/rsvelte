@@ -78,7 +78,11 @@ fn collect_template_reassignments(source: &str, out: &mut HashSet<String>) {
     // fragment's JS expressions live in the parse arena, which must be installed
     // for the duration of the serialize.
     use rsvelte_core::ast::arena::with_serialize_arena;
-    let Ok(root) = rsvelte_core::parse(source, rsvelte_core::ParseOptions::default()) else {
+    let Ok(root) = rsvelte_core::parse(
+        source,
+        &rsvelte_core::Allocator::default(),
+        rsvelte_core::ParseOptions::default(),
+    ) else {
         return;
     };
     let Some(value) =
@@ -252,13 +256,19 @@ fn collect_pattern_idents<'a>(id: &'a Value, out: &mut Vec<&'a Value>) {
 /// `analyze_scope` path. Call this after populating `reassigned` from either
 /// path to close the gap.
 /// Walk a template `Fragment` and collect all `DeclarationTag` nodes.
-fn collect_declaration_tags<'a>(fragment: &'a Fragment, out: &mut Vec<&'a DeclarationTag>) {
+fn collect_declaration_tags<'a, 'b>(
+    fragment: &'a Fragment<'b>,
+    out: &mut Vec<&'a DeclarationTag<'b>>,
+) {
     for node in &fragment.nodes {
         walk_template_node_for_decl_tags(node, out);
     }
 }
 
-fn walk_template_node_for_decl_tags<'a>(node: &'a TemplateNode, out: &mut Vec<&'a DeclarationTag>) {
+fn walk_template_node_for_decl_tags<'a, 'b>(
+    node: &'a TemplateNode<'b>,
+    out: &mut Vec<&'a DeclarationTag<'b>>,
+) {
     match node {
         TemplateNode::DeclarationTag(tag) => {
             out.push(tag);
@@ -312,6 +322,7 @@ fn check_template_declaration_tags(
     // them). Mirror the engine's lenient parse.
     let Ok(root) = rsvelte_core::parse(
         source,
+        &rsvelte_core::Allocator::default(),
         rsvelte_core::ParseOptions {
             lenient_script: true,
             ..Default::default()

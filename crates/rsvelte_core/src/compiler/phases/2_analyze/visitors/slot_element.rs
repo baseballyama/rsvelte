@@ -21,7 +21,10 @@ fn is_text_attribute(value: &AttributeValue) -> bool {
 }
 
 /// Visit a slot element.
-pub fn visit(slot: &mut SlotElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit<'a, 'b: 'a>(
+    slot: &mut SlotElement<'b>,
+    context: &mut VisitorContext<'a>,
+) -> Result<(), AnalysisError> {
     // In runes mode (without custom elements), emit a deprecation warning
     if context.analysis.runes && context.analysis.custom_element.is_none() {
         context.emit_warning(warnings::slot_element_deprecated());
@@ -50,7 +53,7 @@ pub fn visit(slot: &mut SlotElement, context: &mut VisitorContext) -> Result<(),
                         && let Some(AttributeValuePart::Text(text)) = parts.first()
                     {
                         // "default" is a reserved word
-                        if text.data.as_str() == "default" {
+                        if text.data.as_ref() == "default" {
                             return Err(errors::slot_element_invalid_name_default());
                         }
                         name = text.data.to_string();

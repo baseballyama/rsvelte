@@ -449,7 +449,11 @@ fn find_root_expression<'a>(
 /// lazily, only when a candidate handler is found) to locate the script spans.
 fn build_const_map(source: &str) -> std::collections::HashMap<String, Value> {
     let mut map = std::collections::HashMap::new();
-    let Ok(root) = rsvelte_core::parse(source, rsvelte_core::ParseOptions::default()) else {
+    let Ok(root) = rsvelte_core::parse(
+        source,
+        &rsvelte_core::Allocator::default(),
+        rsvelte_core::ParseOptions::default(),
+    ) else {
         return map;
     };
     for script in [root.instance.as_ref(), root.module.as_ref()]

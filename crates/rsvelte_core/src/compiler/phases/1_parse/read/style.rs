@@ -28,14 +28,14 @@ use super::super::parser::Parser;
 /// is preprocessed before the compiler normally sees it, so its body is NOT
 /// CSS — used (in lenient/lint mode only) to skip CSS-shaped validation that
 /// would otherwise abort the whole-file parse.
-fn has_non_css_lang(attributes: &[crate::ast::Attribute]) -> bool {
+fn has_non_css_lang<'a>(attributes: &[crate::ast::Attribute<'a>]) -> bool {
     for attr in attributes {
         if let crate::ast::Attribute::Attribute(node) = attr
             && node.name.as_str() == "lang"
             && let AttributeValue::Sequence(parts) = &node.value
             && let Some(AttributeValuePart::Text(t)) = parts.first()
         {
-            let lang = t.data.as_str().trim().to_ascii_lowercase();
+            let lang = t.data.as_ref().trim().to_ascii_lowercase();
             return !lang.is_empty() && lang != "css";
         }
     }
@@ -86,14 +86,14 @@ fn record_first_error(
 // Parser implementation for style tags
 // ============================================================================
 
-impl Parser<'_> {
+impl<'a> Parser<'a> {
     /// Parse a `<style>` tag and store it in stylesheet.
     pub fn parse_style_tag(
         &mut self,
         start: usize,
         attributes: Vec<crate::ast::Attribute>,
         self_closing: bool,
-    ) -> ParseResult<Option<TemplateNode>> {
+    ) -> ParseResult<Option<TemplateNode<'a>>> {
         // Check for duplicate style tags
         if self.stylesheet.is_some() {
             return Err(crate::error::ParseError::svelte(

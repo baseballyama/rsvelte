@@ -26,7 +26,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 use rayon::prelude::*;
-use rsvelte_formatter::{FormatOptions, format};
+use rsvelte_formatter::{Arenas, FormatOptions, format, format_with_arenas};
 
 /// Count of inputs the formatter panicked on across the whole run. A
 /// benchmark over thousands of files must not be aborted by a single edge
@@ -42,6 +42,7 @@ struct Config {
     files_path: String,
     iterations: usize,
     warmup: usize,
+    digest: bool,
 }
 
 fn parse_args() -> Result<Config, String> {
@@ -50,10 +51,17 @@ fn parse_args() -> Result<Config, String> {
     let mut files_path = String::new();
     let mut iterations = 5;
     let mut warmup = 2;
+    let mut digest = false;
 
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
+            // Correctness harness: format every file once and print an
+            // aggregate content hash instead of timing. Used to prove a perf
+            // change is byte-for-byte output-preserving (errors included).
+            "--digest" => {
+                digest = true;
+            }
             "--mode" => {
                 i += 1;
                 if i < args.len() {
@@ -110,7 +118,59 @@ fn parse_args() -> Result<Config, String> {
         files_path,
         iterations,
         warmup,
+        digest,
     })
+}
+
+/// FNV-1a 64-bit, fed incrementally so a whole run folds into one value.
+/// Deterministic across builds/runs (fixed offset basis + prime), no dep.
+fn fnv1a(bytes: &[u8], mut hash: u64) -> u64 {
+    for &b in bytes {
+        hash ^= b as u64;
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash
+}
+
+/// Format every file once in list order and fold each outcome — the formatted
+/// output, or the error text, or a panic marker — into a single hash. Any
+/// change to any output, to which files error, or to an error's text moves the
+/// digest, so an identical digest before/after a perf change proves it is
+/// output-preserving.
+fn run_digest(files: &[(String, String)], options: &FormatOptions) {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let (mut ok, mut err, mut panicked) = (0usize, 0usize, 0usize);
+    for (path, content) in files {
+        hash = fnv1a(path.as_bytes(), hash);
+        hash = fnv1a(&[0], hash);
+        match catch_unwind(AssertUnwindSafe(|| format(content, options))) {
+            Ok(Ok(out)) => {
+                ok += 1;
+                hash = fnv1a(b"K", hash);
+                hash = fnv1a(out.as_bytes(), hash);
+            }
+            Ok(Err(e)) => {
+                err += 1;
+                hash = fnv1a(b"E", hash);
+                hash = fnv1a(e.to_string().as_bytes(), hash);
+            }
+            Err(_) => {
+                panicked += 1;
+                hash = fnv1a(b"P", hash);
+            }
+        }
+        hash = fnv1a(&[0], hash);
+    }
+    eprintln!(
+        "digest over {} files: {} ok, {} error, {} panic",
+        files.len(),
+        ok,
+        err,
+        panicked
+    );
+    println!(
+        "{{\"digest\": \"{hash:016x}\", \"ok\": {ok}, \"error\": {err}, \"panic\": {panicked}}}"
+    );
 }
 
 fn load_files(files_path: &str) -> io::Result<Vec<(String, String)>> {
@@ -131,7 +191,7 @@ fn load_files(files_path: &str) -> io::Result<Vec<(String, String)>> {
     Ok(files)
 }
 
-fn format_file(source: &str, options: &FormatOptions) {
+fn format_file(source: &str, options: &FormatOptions, arenas: &mut Arenas) {
     // Ignore parse/format errors — some corpus inputs intentionally contain
     // syntax the formatter can't round-trip; the benchmark only times work,
     // not correctness (the compatibility report covers correctness).
@@ -141,22 +201,28 @@ fn format_file(source: &str, options: &FormatOptions) {
     // robustness, so a single bad file is tallied and skipped rather than
     // aborting the run. `AssertUnwindSafe` is needed because `FormatOptions`
     // holds an `Option<Arc<dyn Fn>>` (None here) which isn't `RefUnwindSafe`.
-    let result = catch_unwind(AssertUnwindSafe(|| format(source, options)));
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        format_with_arenas(source, options, arenas)
+    }));
     if result.is_err() {
         PANIC_COUNT.fetch_add(1, Ordering::Relaxed);
     }
 }
 
 fn run_single_threaded(files: &[(String, String)], options: &FormatOptions) {
+    // One arena reused across every file this thread formats.
+    let mut arenas = Arenas::new();
     for (_path, content) in files {
-        format_file(content, options);
+        format_file(content, options, &mut arenas);
     }
 }
 
 fn run_multi_threaded(files: &[(String, String)], options: &FormatOptions) {
-    files.par_iter().for_each(|(_path, content)| {
-        format_file(content, options);
-    });
+    files
+        .par_iter()
+        .for_each_init(Arenas::new, |arenas, (_path, content)| {
+            format_file(content, options, arenas);
+        });
 }
 
 fn main() {
@@ -189,6 +255,12 @@ fn main() {
     std::panic::set_hook(Box::new(|_| {}));
 
     let options = FormatOptions::default();
+
+    if config.digest {
+        run_digest(&files, &options);
+        return;
+    }
+
     let is_multi = config.mode == "multi";
 
     // Warmup

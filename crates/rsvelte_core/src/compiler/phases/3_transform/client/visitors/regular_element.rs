@@ -1019,7 +1019,7 @@ pub fn visit_regular_element(
 
     if use_text_content {
         // Convert children to TextOrExpr for build_template_chunk
-        let values: Vec<TextOrExpr> = cleaned
+        let values: Vec<TextOrExpr<'_>> = cleaned
             .trimmed
             .iter()
             .filter_map(|n| match n.as_ref() {
@@ -2013,13 +2013,13 @@ fn is_customizable_select_element(node: &RegularElementNode) -> bool {
 ///
 /// Corresponds to `find_descendants` generator in
 /// `svelte/packages/svelte/src/compiler/phases/nodes.js`.
-fn find_descendants(fragment: &Fragment) -> Vec<TemplateNode> {
+fn find_descendants<'a>(fragment: &Fragment<'a>) -> Vec<TemplateNode<'a>> {
     let mut result = Vec::new();
     find_descendants_recursive(&fragment.nodes, &mut result);
     result
 }
 
-fn find_descendants_recursive(nodes: &[TemplateNode], result: &mut Vec<TemplateNode>) {
+fn find_descendants_recursive<'a>(nodes: &[TemplateNode<'a>], result: &mut Vec<TemplateNode<'a>>) {
     for node in nodes {
         match node {
             // Skip these types - they don't contribute to rich content detection

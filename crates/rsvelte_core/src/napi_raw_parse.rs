@@ -644,8 +644,8 @@ fn write_opt_inline_json<W: Writer, T: Serialize>(
 
 fn write_text<W: Writer>(w: &mut W, t: &Text) {
     write_preamble(w, TAG_TEXT, t.start, t.end);
-    write_str(w, t.raw.as_str());
-    write_str(w, t.data.as_str());
+    write_str(w, t.raw.as_ref());
+    write_str(w, t.data.as_ref());
 }
 
 fn write_comment<W: Writer>(w: &mut W, c: &Comment) {
@@ -2292,7 +2292,12 @@ mod tests {
     #[test]
     fn header_layout_minimal() {
         let src = "<h1>Hello</h1>";
-        let ast = parse(src, ParseOptions::default()).unwrap();
+        let ast = parse(
+            src,
+            &oxc_allocator::Allocator::default(),
+            ParseOptions::default(),
+        )
+        .unwrap();
         let buf = encode_root_to_vec(&ast, src);
 
         assert!(buf.len() >= HEADER_LEN);
@@ -2336,7 +2341,12 @@ mod tests {
             "</script>\n",
             "<p>{\u{30E9}\u{30D9}\u{30EB}}</p>",
         );
-        let ast = parse(src, ParseOptions::default()).unwrap();
+        let ast = parse(
+            src,
+            &oxc_allocator::Allocator::default(),
+            ParseOptions::default(),
+        )
+        .unwrap();
 
         // Canonical UTF-16 offsets — exactly what the JSON `parse` path emits.
         let valid: HashSet<i64> = crate::ast::arena::with_serialize_arena(&ast.arena, || {
@@ -2404,6 +2414,7 @@ mod tests {
         let src = "<p>{x}</p>";
         let ast = parse(
             src,
+            &oxc_allocator::Allocator::default(),
             ParseOptions {
                 skip_expression_loc: true,
                 ..ParseOptions::default()

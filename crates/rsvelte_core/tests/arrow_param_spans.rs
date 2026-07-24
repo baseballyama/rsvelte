@@ -8,7 +8,12 @@ use rsvelte_core::{ParseOptions, parse};
 use serde_json::Value;
 
 fn first_arrow_params(source: &str) -> Vec<Value> {
-    let ast = parse(source, ParseOptions::default()).expect("parse should succeed");
+    let ast = parse(
+        source,
+        &oxc_allocator::Allocator::default(),
+        ParseOptions::default(),
+    )
+    .expect("parse should succeed");
     let value = with_serialize_arena(&ast.arena, || serde_json::to_value(&ast).unwrap());
 
     fn find(v: &Value) -> Option<&Value> {

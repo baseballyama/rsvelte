@@ -18,6 +18,8 @@ pub fn format_js_source(
     options: &FormatOptions,
 ) -> Result<String, FormatError> {
     let source_type = SourceType::from_extension(ext).unwrap_or_else(|_| SourceType::ts());
+    // Standalone entry (not reached through `format`), so it never hits the
+    // per-file scratch reset — use a fresh per-call allocator to avoid leaking.
     let allocator = Allocator::default();
     let parser_ret = Parser::new(&allocator, source, source_type)
         .with_options(formatter_parse_options())
@@ -82,7 +84,7 @@ pub(crate) fn format_script(
         return Ok(Some((body_start as u32, body_end as u32, "\n".to_string())));
     }
 
-    let allocator = Allocator::default();
+    let allocator = crate::scratch::acquire();
     // Always parse as TypeScript: oxfmt's `.svelte` mode via `prettier-plugin-svelte`
     // uses `babel-ts` (TypeScript parser) for ALL `<script>` blocks regardless of
     // `lang="ts"`. TypeScript is a superset of JS so valid JS parses identically,
@@ -99,7 +101,7 @@ pub(crate) fn format_script(
     // scripts as `.ts` (no comma). Matching the extension keeps `<T>` as `<T>`.
     let source_type = SourceType::from_extension("ts").unwrap_or_else(|_| SourceType::ts());
 
-    let parser_ret = Parser::new(&allocator, body, source_type)
+    let parser_ret = Parser::new(allocator, body, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parser_ret.diagnostics.is_empty() {
@@ -123,7 +125,7 @@ pub(crate) fn format_script(
         js.line_width =
             oxc_formatter_core::LineWidth::try_from(nested_width).unwrap_or(js.line_width);
     }
-    let formatted = format_program(&allocator, &parser_ret.program, js, None)
+    let formatted = format_program(allocator, &parser_ret.program, js, None)
         .print()
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
         .into_code();
@@ -177,13 +179,13 @@ pub(crate) fn format_nested_script(
     if body.trim().is_empty() {
         return Ok(None);
     }
-    let allocator = Allocator::default();
+    let allocator = crate::scratch::acquire();
     // Same reasoning as format_script: always use TS source type so that
     // numeric-looking string property keys are preserved (oracle uses babel-ts).
     // `from_extension("ts")` (extension `Some(Ts)`) avoids the forced
     // `<T>` → `<T,>` arrow type-parameter comma that a `None` extension triggers.
     let source_type = SourceType::from_extension("ts").unwrap_or_else(|_| SourceType::ts());
-    let parser_ret = Parser::new(&allocator, body, source_type)
+    let parser_ret = Parser::new(allocator, body, source_type)
         .with_options(formatter_parse_options())
         .parse();
     if !parser_ret.diagnostics.is_empty() {
@@ -205,7 +207,7 @@ pub(crate) fn format_nested_script(
     let narrow = (body_indent.len() as u16).min(js.line_width.value().saturating_sub(1));
     let nested_width = js.line_width.value().saturating_sub(narrow);
     js.line_width = oxc_formatter_core::LineWidth::try_from(nested_width).unwrap_or(js.line_width);
-    let formatted = format_program(&allocator, &parser_ret.program, js, None)
+    let formatted = format_program(allocator, &parser_ret.program, js, None)
         .print()
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
         .into_code();

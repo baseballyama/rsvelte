@@ -16,7 +16,10 @@ use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit a snippet block.
-pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit<'a, 'b: 'a>(
+    block: &mut SnippetBlock<'b>,
+    context: &mut VisitorContext<'a>,
+) -> Result<(), AnalysisError> {
     // Mark that we have control flow affecting sibling relationships
     // (snippets can be rendered at any point via @render)
     context.analysis.css.has_control_flow = true;

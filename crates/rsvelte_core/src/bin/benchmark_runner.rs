@@ -168,7 +168,7 @@ fn process_file(source: &str, filename: &str, task: &Task) {
                 defer_script_parse: true,
                 ..Default::default()
             };
-            let _ = parse(source, options);
+            let _ = parse(source, &oxc_allocator::Allocator::default(), options);
         }
         Task::Svelte2Tsx => {
             let options = Svelte2TsxOptions {

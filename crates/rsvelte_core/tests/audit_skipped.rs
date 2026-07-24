@@ -234,8 +234,9 @@ fn audit_parser(name: &str, modern: bool) -> Outcome {
         ..Default::default()
     };
 
-    let parse_result =
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| parse(&input, opts)));
+    let parse_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        parse(&input, &oxc_allocator::Allocator::default(), opts)
+    }));
     match parse_result {
         Ok(Ok(ast)) => {
             let actual_json = if modern {
@@ -337,8 +338,9 @@ fn audit_print(name: &str) -> Outcome {
         modern: true,
         ..Default::default()
     };
-    let parse_result =
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| parse(&input, parse_opts)));
+    let parse_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        parse(&input, &oxc_allocator::Allocator::default(), parse_opts)
+    }));
     match parse_result {
         Ok(Ok(ast)) => match print_with_source(&ast, None, Some(&input)) {
             Ok(actual) => {

@@ -8,6 +8,8 @@
 //! It provides script tag parsing for both instance (`<script>`) and module
 //! (`<script context="module">` or `<script module>`) scripts.
 
+use std::borrow::Cow;
+
 use compact_str::CompactString;
 
 use crate::ast::arena::ParseArena;
@@ -60,13 +62,13 @@ pub fn ensure_script_parsed(
     parse_error
 }
 
-impl Parser<'_> {
+impl<'a> Parser<'a> {
     /// Merge attribute value parts into a single Text for script/style tags.
     /// This is needed because {curly braces} in quoted attribute values are NOT expressions.
     pub fn merge_attribute_parts_to_text(
         &self,
-        parts: &[AttributeValuePart],
-    ) -> Vec<AttributeValuePart> {
+        parts: &[AttributeValuePart<'a>],
+    ) -> Vec<AttributeValuePart<'a>> {
         if parts.len() <= 1 {
             // No merging needed
             return parts.to_vec();
@@ -90,8 +92,8 @@ impl Parser<'_> {
         vec![AttributeValuePart::Text(Text {
             start: first_start,
             end: last_end,
-            raw: CompactString::from(raw),
-            data: CompactString::from(raw),
+            raw: Cow::Borrowed(raw),
+            data: Cow::Borrowed(raw),
         })]
     }
 
@@ -104,9 +106,9 @@ impl Parser<'_> {
     pub fn parse_script_tag(
         &mut self,
         start: usize,
-        attributes: Vec<crate::ast::Attribute>,
+        attributes: Vec<crate::ast::Attribute<'a>>,
         self_closing: bool,
-    ) -> ParseResult<Option<TemplateNode>> {
+    ) -> ParseResult<Option<TemplateNode<'a>>> {
         let content_start = self.index;
 
         // Use SIMD-accelerated search for </script instead of byte-by-byte scanning
@@ -194,7 +196,7 @@ impl Parser<'_> {
                     if let AttributeValue::Sequence(parts) = &attr_node.value
                         && let Some(AttributeValuePart::Text(t)) = parts.first()
                     {
-                        if t.data.as_str() == "module" {
+                        if t.data.as_ref() == "module" {
                             context = ScriptContext::Module;
                             // The compiler drops the `context` attribute from the
                             // script's attribute list (it only needs the
@@ -224,7 +226,7 @@ impl Parser<'_> {
                     if let AttributeValue::Sequence(parts) = &attr_node.value
                         && let Some(AttributeValuePart::Text(t)) = parts.first()
                     {
-                        let lang = t.data.as_str();
+                        let lang = t.data.as_ref();
                         if lang == "ts" || lang == "typescript" {
                             is_typescript = true;
                         }

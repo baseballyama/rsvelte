@@ -65,7 +65,7 @@ use oxc_ast::ast::{Expression as OxcExpression, ObjectPropertyKind};
 use super::shared::{BLOCK_CLOSE, BLOCK_OPEN, TemplateEntry, build_fragment_body};
 
 /// Visit a `<slot>` / `<slot name="x">` element.
-pub fn visit_slot_element<'a>(node: &SlotElement, state: &mut ServerTransformState<'a>) {
+pub fn visit_slot_element<'a>(node: &SlotElement<'a>, state: &mut ServerTransformState<'a>) {
     let mut props: Vec<ObjectPropertyKind<'a>> = Vec::new();
     let mut spreads: Vec<OxcExpression<'a>> = Vec::new();
 
@@ -169,7 +169,7 @@ fn slot_attribute_value<'a>(
         AttributeValue::Sequence(parts) => {
             if parts.len() == 1 {
                 return match &parts[0] {
-                    AttributeValuePart::Text(t) => state.b.string(t.data.as_str()),
+                    AttributeValuePart::Text(t) => state.b.string(t.data.as_ref()),
                     AttributeValuePart::ExpressionTag(tag) => state.visit_expr(&tag.expression),
                 };
             }
@@ -185,7 +185,7 @@ fn slot_attribute_value<'a>(
             for part in parts {
                 match part {
                     AttributeValuePart::Text(t) => {
-                        quasis.last_mut().unwrap().push_str(t.data.as_str());
+                        quasis.last_mut().unwrap().push_str(t.data.as_ref());
                     }
                     AttributeValuePart::ExpressionTag(tag) => {
                         let evaluation = state

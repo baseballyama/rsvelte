@@ -4,7 +4,12 @@ use rsvelte_core::{
 };
 
 fn assert_template_reference(source: &str, binding_name: &str, reference_start: usize) {
-    let mut root = parse(source, ParseOptions::default()).expect("parse");
+    let mut root = parse(
+        source,
+        &oxc_allocator::Allocator::default(),
+        ParseOptions::default(),
+    )
+    .expect("parse");
     // SAFETY: `root.arena` outlives the guard and the analysis below.
     let _arena_guard = unsafe { SerializeArenaGuard::new(&raw const root.arena) };
     let analysis =
@@ -27,7 +32,12 @@ fn assert_template_reference(source: &str, binding_name: &str, reference_start: 
 }
 
 fn assert_has_template_reference(source: &str, binding_name: &str) {
-    let mut root = parse(source, ParseOptions::default()).expect("parse");
+    let mut root = parse(
+        source,
+        &oxc_allocator::Allocator::default(),
+        ParseOptions::default(),
+    )
+    .expect("parse");
     // SAFETY: `root.arena` outlives the guard and the analysis below.
     let _arena_guard = unsafe { SerializeArenaGuard::new(&raw const root.arena) };
     let analysis =

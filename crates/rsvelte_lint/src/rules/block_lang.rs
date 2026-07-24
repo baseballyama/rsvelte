@@ -96,7 +96,7 @@ fn get_script_lang(script: &Script) -> Option<String> {
             .iter()
             .filter_map(|p| {
                 if let AttributeValuePart::Text(t) = p {
-                    Some(t.data.as_str())
+                    Some(t.data.as_ref())
                 } else {
                     None
                 }
@@ -108,7 +108,7 @@ fn get_script_lang(script: &Script) -> Option<String> {
 }
 
 /// Find the `lang` `AttributeNode` within a `<script>` block's attributes.
-fn find_script_lang_attr(script: &Script) -> Option<&AttributeNode> {
+fn find_script_lang_attr<'b, 'a>(script: &'b Script<'a>) -> Option<&'b AttributeNode<'a>> {
     script.attributes.iter().find(|a| a.name == "lang")
 }
 

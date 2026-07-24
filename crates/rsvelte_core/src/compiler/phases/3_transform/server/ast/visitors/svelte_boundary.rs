@@ -82,7 +82,7 @@ use super::shared::{
 
 /// Visit a `<svelte:boundary>...</svelte:boundary>` element. See the module docs
 /// for the targeted shapes and KNOWN GAPs.
-pub fn visit_svelte_boundary<'a>(node: &SvelteElement, state: &mut ServerTransformState<'a>) {
+pub fn visit_svelte_boundary<'a>(node: &SvelteElement<'a>, state: &mut ServerTransformState<'a>) {
     // `failed` snippet (a `{#snippet failed(e)}` child) / `failed` attribute.
     let failed_snippet = find_snippet(&node.fragment, "failed");
     let failed_attribute = find_attribute(&node.attributes, "failed");
@@ -230,7 +230,7 @@ fn marker<'a>(state: &ServerTransformState<'a>, text: &str) -> oxc_ast::ast::Exp
 /// visitor / `component.rs::build_snippet_declaration`, returned for inline
 /// (component-local) emission rather than module-scope hoisting.
 fn build_boundary_snippet<'a>(
-    snippet: &SnippetBlock,
+    snippet: &SnippetBlock<'a>,
     name: &str,
     state: &mut ServerTransformState<'a>,
 ) -> Statement<'a> {
@@ -263,14 +263,14 @@ fn failed_attribute_value<'a>(
         AttributeValue::Expression(tag) => state.visit_expr(&tag.expression),
         AttributeValue::Sequence(parts) if parts.len() == 1 => match &parts[0] {
             AttributeValuePart::ExpressionTag(tag) => state.visit_expr(&tag.expression),
-            AttributeValuePart::Text(t) => state.b.string(t.data.as_str()),
+            AttributeValuePart::Text(t) => state.b.string(t.data.as_ref()),
         },
         _ => state.b.bool(true),
     }
 }
 
 /// Find a `{#snippet name(...)}` child of the boundary fragment by name.
-fn find_snippet<'f>(fragment: &'f Fragment, name: &str) -> Option<&'f SnippetBlock> {
+fn find_snippet<'f, 'b>(fragment: &'f Fragment<'b>, name: &str) -> Option<&'f SnippetBlock<'b>> {
     fragment.nodes.iter().find_map(|node| match node {
         TemplateNode::SnippetBlock(snippet) if snippet.expression.is_identifier(name) => {
             Some(&**snippet)
@@ -280,7 +280,7 @@ fn find_snippet<'f>(fragment: &'f Fragment, name: &str) -> Option<&'f SnippetBlo
 }
 
 /// Find a plain `name=...` attribute on the boundary element by name.
-fn find_attribute<'a>(attributes: &'a [Attribute], name: &str) -> Option<&'a Attribute> {
+fn find_attribute<'a>(attributes: &'a [Attribute<'a>], name: &str) -> Option<&'a Attribute<'a>> {
     attributes
         .iter()
         .find(|attr| matches!(attr, Attribute::Attribute(a) if a.name == name))

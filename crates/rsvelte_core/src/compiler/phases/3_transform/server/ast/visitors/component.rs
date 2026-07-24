@@ -85,7 +85,7 @@ enum PropGroup<'a> {
 /// `metadata.dynamic` (member-expression component, or a non-`Normal` binding
 /// in runes mode).
 pub fn visit_component<'a>(
-    node: &crate::ast::template::Component,
+    node: &crate::ast::template::Component<'a>,
     state: &mut ServerTransformState<'a>,
 ) {
     // Upstream: `context.visit(b.member_id(node.name))` — a dotted name like
@@ -121,7 +121,7 @@ pub fn visit_component<'a>(
 /// ALWAYS dynamic upstream (`node.type === 'SvelteComponent'`), so the guarded
 /// `if (<expr>) { … } else { … }` form is always emitted.
 pub fn visit_svelte_component<'a>(
-    node: &crate::ast::template::SvelteComponentElement,
+    node: &crate::ast::template::SvelteComponentElement<'a>,
     state: &mut ServerTransformState<'a>,
 ) {
     let this_src = state.expr_source(&node.expression).map(|s| s.to_string());
@@ -138,7 +138,7 @@ pub fn visit_svelte_component<'a>(
 /// Visit a `<svelte:self .../>` element. `SvelteSelf` is never dynamic (the
 /// component is always defined), so the plain direct-call path is used.
 pub fn visit_svelte_self<'a>(
-    node: &crate::ast::template::SvelteElement,
+    node: &crate::ast::template::SvelteElement<'a>,
     state: &mut ServerTransformState<'a>,
 ) {
     let name = state.analysis.name.clone();
@@ -160,8 +160,8 @@ pub fn visit_svelte_self<'a>(
 /// once for the `<expr>($$renderer, props)` call — so the read-wrapped /
 /// member-chain shape is identical on both sides.
 fn build_inline_component<'a, 'b>(
-    attributes: &'b [Attribute],
-    fragment: &'b Fragment,
+    attributes: &'b [Attribute<'a>],
+    fragment: &'b Fragment<'a>,
     mut make_expression: impl FnMut(&mut ServerTransformState<'a>) -> OxcExpression<'a>,
     dynamic: bool,
     // Source text of the component-name / `this={…}` expression (写经
@@ -390,9 +390,9 @@ fn build_inline_component<'a, 'b>(
 /// directives gets a second destructured parameter `{ x: <pattern>, … }` on its
 /// slot function (upstream `shared/component.js` lines 232-257).
 fn build_component_children<'a, 'b>(
-    fragment: &'b Fragment,
+    fragment: &'b Fragment<'a>,
     has_children_prop: bool,
-    mut default_lets: Vec<&'b crate::ast::template::LetDirective>,
+    mut default_lets: Vec<&'b crate::ast::template::LetDirective<'a>>,
     groups: &mut Vec<PropGroup<'a>>,
     state: &mut ServerTransformState<'a>,
 ) -> Vec<Statement<'a>> {
@@ -401,12 +401,12 @@ fn build_component_children<'a, 'b>(
 
     // Group non-snippet children by slot name (default vs `slot="name"`).
     // Snippet blocks are handled inline (they become named props + `$$slots`).
-    let mut default_children: Vec<&'b TemplateNode> = Vec::new();
+    let mut default_children: Vec<&'b TemplateNode<'a>> = Vec::new();
     // Named slots: insertion-ordered (name, nodes, lets).
     let mut named_slots: Vec<(
         String,
-        Vec<&'b TemplateNode>,
-        Vec<&'b crate::ast::template::LetDirective>,
+        Vec<&'b TemplateNode<'a>>,
+        Vec<&'b crate::ast::template::LetDirective<'a>>,
     )> = Vec::new();
 
     for child in &fragment.nodes {
@@ -543,7 +543,7 @@ fn build_component_children<'a, 'b>(
 /// through the shared fragment machinery — a Component slot IS an `is_text_first`
 /// parent, so leading text gets the `<!---->` anchor.
 fn render_slot_body<'a>(
-    nodes: &[&TemplateNode],
+    nodes: &[&TemplateNode<'a>],
     is_text_first_parent: bool,
     state: &mut ServerTransformState<'a>,
 ) -> Vec<Statement<'a>> {
@@ -688,7 +688,7 @@ fn collect_binding_pattern_leaf_idents(
 /// returned for inline hoisting into the component-call block rather than pushed
 /// to module scope).
 fn build_snippet_declaration<'a>(
-    snippet: &SnippetBlock,
+    snippet: &SnippetBlock<'a>,
     name: &str,
     state: &mut ServerTransformState<'a>,
 ) -> Statement<'a> {
@@ -743,7 +743,7 @@ fn slot_name_of(node: &TemplateNode) -> Option<String> {
 
 /// Return the attribute list of an element-like template node (the nodes that
 /// can carry `slot=` / `let:` directives), or `None` for non-element children.
-fn element_attributes(node: &TemplateNode) -> Option<&[Attribute]> {
+fn element_attributes<'b, 'a>(node: &'b TemplateNode<'a>) -> Option<&'b [Attribute<'a>]> {
     Some(match node {
         TemplateNode::RegularElement(el) => &el.attributes,
         TemplateNode::SvelteElement(el) => &el.attributes,
@@ -760,7 +760,9 @@ fn element_attributes(node: &TemplateNode) -> Option<&[Attribute]> {
 
 /// Collect the `let:` directives declared on an element-like child node, in
 /// source order (upstream `child.attributes.filter(LetDirective)`).
-fn let_directives_of(node: &TemplateNode) -> Vec<&crate::ast::template::LetDirective> {
+fn let_directives_of<'b, 'a>(
+    node: &'b TemplateNode<'a>,
+) -> Vec<&'b crate::ast::template::LetDirective<'a>> {
     element_attributes(node)
         .into_iter()
         .flatten()
@@ -969,7 +971,7 @@ fn component_attribute_value<'a>(
             // Single-element sequence collapses to its lone part.
             if parts.len() == 1 {
                 return match &parts[0] {
-                    AttributeValuePart::Text(t) => state.b.string(t.data.as_str()),
+                    AttributeValuePart::Text(t) => state.b.string(t.data.as_ref()),
                     AttributeValuePart::ExpressionTag(tag) => {
                         component_value_expr(&tag.expression, optimiser, state)
                     }
@@ -993,7 +995,7 @@ fn component_attribute_value<'a>(
             for part in parts {
                 match part {
                     AttributeValuePart::Text(t) => {
-                        quasis.last_mut().unwrap().push_str(t.data.as_str());
+                        quasis.last_mut().unwrap().push_str(t.data.as_ref());
                     }
                     AttributeValuePart::ExpressionTag(tag) => {
                         let evaluation = state

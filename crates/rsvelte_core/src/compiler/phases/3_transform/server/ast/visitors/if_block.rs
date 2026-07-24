@@ -61,7 +61,7 @@ use super::shared::{
 };
 
 /// Visit a `{#if test}...{:else if}...{:else}...{/if}` block.
-pub fn visit_if_block<'a>(node: &IfBlock, state: &mut ServerTransformState<'a>) {
+pub fn visit_if_block<'a>(node: &IfBlock<'a>, state: &mut ServerTransformState<'a>) {
     // Aggregate blockers + has_await over the FLATTENED chain (this test plus
     // every else-if that flattens into it). Mirrors
     // `node.metadata.expression.blockers()` / `.has_await` — those metadata
@@ -164,7 +164,7 @@ fn flattens_into(elseif: &IfBlock, parent: &IfBlock, state: &ServerTransformStat
 /// IfBlock, walking the FLATTENABLE `{:else if}` chain and assigning branch
 /// markers `<!--[0-->`, `<!--[1-->`, … and the final `<!--[-1-->`.
 fn build_if_chain<'a>(
-    node: &IfBlock,
+    node: &IfBlock<'a>,
     consequent_marker_index: i32,
     state: &mut ServerTransformState<'a>,
 ) -> Statement<'a> {
@@ -203,7 +203,7 @@ fn build_test<'a>(
 /// is re-visited via [`build_fragment_body`], producing its OWN
 /// `create_child_block` wrap + `<!--]-->` close.
 fn build_alternate<'a>(
-    node: &IfBlock,
+    node: &IfBlock<'a>,
     next_marker_index: i32,
     state: &mut ServerTransformState<'a>,
 ) -> Statement<'a> {
@@ -230,7 +230,7 @@ fn build_alternate<'a>(
 
 /// If `frag`'s single meaningful child is an `{:else if}` IfBlock (`elseif ==
 /// true`), return it; otherwise `None` (a real `{:else}` body).
-fn single_elseif(frag: &Fragment) -> Option<&IfBlock> {
+fn single_elseif<'a, 'b>(frag: &'a Fragment<'b>) -> Option<&'a IfBlock<'b>> {
     let meaningful: Vec<&TemplateNode> = frag
         .nodes
         .iter()
@@ -252,7 +252,7 @@ fn is_whitespace_text(node: &TemplateNode) -> bool {
 /// Build a branch `BlockStatement` for `frag`, with the branch marker push
 /// (`$$renderer.push('<!--[N-->')`) unshifted to the front of the body.
 fn build_branch_block<'a>(
-    frag: &Fragment,
+    frag: &Fragment<'a>,
     marker_index: i32,
     state: &mut ServerTransformState<'a>,
 ) -> Statement<'a> {

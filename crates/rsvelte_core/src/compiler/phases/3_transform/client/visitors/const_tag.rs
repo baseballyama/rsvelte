@@ -880,11 +880,11 @@ pub(crate) fn add_async_declaration_multi(
 }
 
 /// Parsed variable declaration result.
-struct ParsedDeclaration {
+struct ParsedDeclaration<'a> {
     /// The identifier name (empty for destructuring patterns)
     id_name: String,
     /// The initializer expression
-    init_expr: Expression,
+    init_expr: Expression<'a>,
     /// Whether the id is a simple identifier (true) or destructuring pattern (false)
     is_identifier: bool,
     /// The raw JSON pattern for destructuring (None for simple identifiers)
@@ -898,7 +898,7 @@ struct ParsedDeclaration {
 ///    `{ type: "VariableDeclaration", declarations: [{ id, init }] }`
 /// 2. AssignmentExpression (our Rust parser format):
 ///    `{ type: "AssignmentExpression", left: id, right: init }`
-fn parse_variable_declaration(expr: &Expression) -> Option<ParsedDeclaration> {
+fn parse_variable_declaration<'a>(expr: &Expression<'a>) -> Option<ParsedDeclaration<'a>> {
     {
         let json_value = expr.as_json();
         let obj = json_value.as_object()?;

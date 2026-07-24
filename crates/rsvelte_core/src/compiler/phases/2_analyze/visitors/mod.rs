@@ -347,7 +347,7 @@ pub struct VisitorContext<'a> {
     /// The parse arena used to resolve JsNodeId and IdRange references.
     pub parse_arena: &'a ParseArena,
     /// The path of nodes from root to current (Svelte template nodes).
-    pub path: Vec<&'a TemplateNode>,
+    pub path: Vec<&'a TemplateNode<'a>>,
     /// JavaScript AST node path (for expressions in scripts).
     /// Uses `JsPathEntry` (a raw pointer wrapper) to avoid expensive deep clones.
     /// SAFETY: Pointers are always valid because walk_js_node pushes a pointer
@@ -697,11 +697,11 @@ pub fn analyze_template(
 /// its run. None of the path readers traverse the alias's mutated subtrees,
 /// so the only observable property they rely on — the enum discriminant —
 /// stays valid.
-pub fn visit_node(
-    node: &mut TemplateNode,
-    context: &mut VisitorContext,
+pub fn visit_node<'a, 'b: 'a>(
+    node: &mut TemplateNode<'b>,
+    context: &mut VisitorContext<'a>,
 ) -> Result<(), AnalysisError> {
-    let node_ptr: *const TemplateNode = node as *const _;
+    let node_ptr: *const TemplateNode<'b> = node as *const _;
     // SAFETY: see this function's doc comment — `node_ptr` aliases `node` for the
     // duration of the inner visit and is popped before `node` is used again; path
     // readers only rely on the enum discriminant, which stays valid.

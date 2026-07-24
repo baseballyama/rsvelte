@@ -3,13 +3,15 @@
 //! These types represent the parsed structure of a Svelte component's template.
 //! Field ordering follows the principle of largest-first for optimal memory layout.
 
+use std::borrow::Cow;
+
 use compact_str::CompactString;
 use indexmap::IndexSet;
 
 /// Binding-index sets are keyed by `usize`; the default SipHash is needless here.
 pub type BindingIndexSet = IndexSet<usize, rustc_hash::FxBuildHasher>;
 use rustc_hash::FxHashSet;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use smallvec::SmallVec;
 
 use super::css::StyleSheet;
@@ -21,8 +23,8 @@ use super::span::SourceLocation;
 // =============================================================================
 
 /// The root node of a Svelte component AST.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Root {
+#[derive(Debug, Clone, Serialize)]
+pub struct Root<'a> {
     /// CSS stylesheet, or null if none.
     pub css: Option<Box<StyleSheet>>,
     /// JS comments (for modern AST format, represented as empty array).
@@ -32,9 +34,9 @@ pub struct Root {
     pub end: u32,
     #[serde(rename = "type")]
     pub node_type: RootType,
-    pub fragment: Fragment,
+    pub fragment: Fragment<'a>,
     /// Component options, or null if none.
-    pub options: Option<Box<SvelteOptions>>,
+    pub options: Option<Box<SvelteOptions<'a>>>,
     /// JS comments collected during parsing (Svelte 5.53+).
     /// Includes comments in element openers (between attributes) plus
     /// comments captured by the JS parser inside `{...}` expressions
@@ -43,10 +45,10 @@ pub struct Root {
     pub comments: Vec<JsComment>,
     /// Instance script, serialized only if present.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub instance: Option<Box<Script>>,
+    pub instance: Option<Box<Script<'a>>>,
     /// Module script, serialized only if present.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub module: Option<Box<Script>>,
+    pub module: Option<Box<Script<'a>>>,
     /// Parser-level warnings (e.g., element_implicitly_closed).
     /// These are collected during parsing and forwarded to the analysis phase.
     #[serde(skip)]
@@ -65,7 +67,7 @@ pub struct Root {
 /// Mirrors Svelte 5's `AST.JSComment`. The `loc` field always carries
 /// `{line, column, character}` (the test runner strips `character` before
 /// comparing against acorn-style fixtures via `normalize_json`).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct JsComment {
     #[serde(rename = "type")]
     pub kind: JsCommentKind,
@@ -75,7 +77,7 @@ pub struct JsComment {
     pub loc: super::span::SourceLocation,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum JsCommentKind {
     Line,
     Block,
@@ -90,7 +92,7 @@ pub struct ParseWarning {
     pub message: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
 pub enum RootType {
     #[default]
     Root,
@@ -101,7 +103,7 @@ pub enum RootType {
 // =============================================================================
 
 /// Metadata for fragments.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct FragmentMetadata {
     /// Whether the fragment's scope is transparent (delegates to parent scopes).
     #[serde(default)]
@@ -112,11 +114,11 @@ pub struct FragmentMetadata {
 }
 
 /// A fragment is a container for template nodes.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Fragment {
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct Fragment<'a> {
     #[serde(rename = "type")]
     pub node_type: FragmentType,
-    pub nodes: Vec<TemplateNode>,
+    pub nodes: Vec<TemplateNode<'a>>,
     /// Fragment metadata (used internally during analysis).
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: FragmentMetadata,
@@ -126,7 +128,7 @@ fn is_default_metadata(metadata: &FragmentMetadata) -> bool {
     !metadata.transparent && !metadata.dynamic
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
 pub enum FragmentType {
     #[default]
     Fragment,
@@ -141,43 +143,43 @@ pub enum FragmentType {
 /// Large variants are boxed to keep the enum small (~128 bytes instead of ~1056).
 /// This improves cache efficiency for the common case (Text, Comment) and reduces
 /// memory usage for `Vec<TemplateNode>` by ~8x.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
-pub enum TemplateNode {
+pub enum TemplateNode<'a> {
     // Small variants (inline, <= 128 bytes)
-    Text(Text),
+    Text(Text<'a>),
     Comment(Comment),
-    TitleElement(TitleElement),
-    SlotElement(SlotElement),
-    SvelteBody(SvelteElement),
-    SvelteDocument(SvelteElement),
-    SvelteFragment(SvelteElement),
-    SvelteBoundary(SvelteElement),
-    SvelteHead(SvelteElement),
-    SvelteOptions(SvelteElement),
-    SvelteSelf(SvelteElement),
-    SvelteWindow(SvelteElement),
+    TitleElement(TitleElement<'a>),
+    SlotElement(SlotElement<'a>),
+    SvelteBody(SvelteElement<'a>),
+    SvelteDocument(SvelteElement<'a>),
+    SvelteFragment(SvelteElement<'a>),
+    SvelteBoundary(SvelteElement<'a>),
+    SvelteHead(SvelteElement<'a>),
+    SvelteOptions(SvelteElement<'a>),
+    SvelteSelf(SvelteElement<'a>),
+    SvelteWindow(SvelteElement<'a>),
     // Large variants (boxed to reduce enum size)
-    ExpressionTag(Box<ExpressionTag>),
-    HtmlTag(Box<HtmlTag>),
-    ConstTag(Box<ConstTag>),
-    DeclarationTag(Box<DeclarationTag>),
-    DebugTag(Box<DebugTag>),
-    RenderTag(Box<RenderTag>),
-    AttachTag(Box<AttachTag>),
-    IfBlock(Box<IfBlock>),
-    EachBlock(Box<EachBlock>),
-    AwaitBlock(Box<AwaitBlock>),
-    KeyBlock(Box<KeyBlock>),
-    SnippetBlock(Box<SnippetBlock>),
-    RegularElement(Box<RegularElement>),
-    Component(Box<Component>),
-    SvelteComponent(Box<SvelteComponentElement>),
-    SvelteElement(Box<SvelteDynamicElement>),
+    ExpressionTag(Box<ExpressionTag<'a>>),
+    HtmlTag(Box<HtmlTag<'a>>),
+    ConstTag(Box<ConstTag<'a>>),
+    DeclarationTag(Box<DeclarationTag<'a>>),
+    DebugTag(Box<DebugTag<'a>>),
+    RenderTag(Box<RenderTag<'a>>),
+    AttachTag(Box<AttachTag<'a>>),
+    IfBlock(Box<IfBlock<'a>>),
+    EachBlock(Box<EachBlock<'a>>),
+    AwaitBlock(Box<AwaitBlock<'a>>),
+    KeyBlock(Box<KeyBlock<'a>>),
+    SnippetBlock(Box<SnippetBlock<'a>>),
+    RegularElement(Box<RegularElement<'a>>),
+    Component(Box<Component<'a>>),
+    SvelteComponent(Box<SvelteComponentElement<'a>>),
+    SvelteElement(Box<SvelteDynamicElement<'a>>),
 }
 
-impl AsRef<TemplateNode> for TemplateNode {
-    fn as_ref(&self) -> &TemplateNode {
+impl<'a> AsRef<TemplateNode<'a>> for TemplateNode<'a> {
+    fn as_ref(&self) -> &TemplateNode<'a> {
         self
     }
 }
@@ -187,18 +189,23 @@ impl AsRef<TemplateNode> for TemplateNode {
 // =============================================================================
 
 /// Static text node.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Text {
+///
+/// `raw`/`data` borrow directly from the source in the common case (a verbatim
+/// slice, no HTML entities), so parsing a text node copies nothing. They become
+/// owned only when a later phase rewrites the text (entity decoding, whitespace
+/// trimming/merging) — hence `Cow`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Text<'a> {
     pub start: u32,
     pub end: u32,
     /// The original text with undecoded HTML entities.
-    pub raw: CompactString,
+    pub raw: Cow<'a, str>,
     /// Text with decoded HTML entities.
-    pub data: CompactString,
+    pub data: Cow<'a, str>,
 }
 
 /// HTML comment node.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Comment {
     pub start: u32,
     pub end: u32,
@@ -211,11 +218,11 @@ pub struct Comment {
 // =============================================================================
 
 /// A reactive template expression: `{expression}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExpressionTag {
+#[derive(Debug, Clone, Serialize)]
+pub struct ExpressionTag<'a> {
     pub start: u32,
     pub end: u32,
-    pub expression: Expression,
+    pub expression: Expression<'a>,
     /// Internal metadata populated during Phase 2 analysis (mirrors the
     /// `node.metadata.expression` field on the official compiler's
     /// `ExpressionTag`). Skipped from (de)serialisation so snapshot output
@@ -224,7 +231,7 @@ pub struct ExpressionTag {
     pub metadata: TagMetadata,
 }
 
-impl PartialEq for ExpressionTag {
+impl<'a> PartialEq for ExpressionTag<'a> {
     fn eq(&self, other: &Self) -> bool {
         // Metadata is derived from the AST and not part of structural identity.
         self.start == other.start && self.end == other.end && self.expression == other.expression
@@ -232,11 +239,11 @@ impl PartialEq for ExpressionTag {
 }
 
 /// An HTML template expression: `{@html expression}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HtmlTag {
+#[derive(Debug, Clone, Serialize)]
+pub struct HtmlTag<'a> {
     pub start: u32,
     pub end: u32,
-    pub expression: Expression,
+    pub expression: Expression<'a>,
     /// Metadata (not serialized)
     #[serde(skip)]
     pub metadata: TagMetadata,
@@ -252,11 +259,11 @@ pub struct TagMetadata {
 }
 
 /// A const tag: `{@const declaration}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConstTag {
+#[derive(Debug, Clone, Serialize)]
+pub struct ConstTag<'a> {
     pub start: u32,
     pub end: u32,
-    pub declaration: Expression,
+    pub declaration: Expression<'a>,
     /// Metadata (not serialized)
     #[serde(skip)]
     pub metadata: TagMetadata,
@@ -268,25 +275,25 @@ pub struct ConstTag {
 /// opener and supports mutable bindings (`let`). The `declaration` field stores
 /// the parsed `VariableDeclaration` as an `Expression` for symmetry with the
 /// rest of the AST.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeclarationTag {
+#[derive(Debug, Clone, Serialize)]
+pub struct DeclarationTag<'a> {
     pub start: u32,
     pub end: u32,
     /// The `VariableDeclaration` parsed from the tag body. Represented as an
     /// `Expression` for AST-walker uniformity; downstream visitors narrow to
     /// `VariableDeclaration` shape via `node_type()`.
-    pub declaration: Expression,
+    pub declaration: Expression<'a>,
     /// Metadata (not serialized).
     #[serde(skip)]
     pub metadata: TagMetadata,
 }
 
 /// A debug tag: `{@debug identifiers}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DebugTag {
+#[derive(Debug, Clone, Serialize)]
+pub struct DebugTag<'a> {
     pub start: u32,
     pub end: u32,
-    pub identifiers: Vec<Expression>,
+    pub identifiers: Vec<Expression<'a>>,
     /// Metadata (not serialized)
     #[serde(skip)]
     pub metadata: TagMetadata,
@@ -308,11 +315,11 @@ pub struct RenderTagMetadata {
 }
 
 /// A render tag: `{@render snippet(...)}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RenderTag {
+#[derive(Debug, Clone, Serialize)]
+pub struct RenderTag<'a> {
     pub start: u32,
     pub end: u32,
-    pub expression: Expression,
+    pub expression: Expression<'a>,
     /// Metadata (not serialized)
     #[serde(skip)]
     pub metadata: RenderTagMetadata,
@@ -326,11 +333,11 @@ pub struct AttachTagMetadata {
 }
 
 /// An attach tag: `{@attach expression}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AttachTag {
+#[derive(Debug, Clone, Serialize)]
+pub struct AttachTag<'a> {
     pub start: u32,
     pub end: u32,
-    pub expression: Expression,
+    pub expression: Expression<'a>,
     /// Metadata (not serialized)
     #[serde(skip)]
     pub metadata: AttachTagMetadata,
@@ -348,21 +355,21 @@ pub struct IfBlockMetadata {
 }
 
 /// An if block: `{#if condition}...{:else if}...{:else}...{/if}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct IfBlock {
+#[derive(Debug, Clone, Serialize)]
+pub struct IfBlock<'a> {
     pub elseif: bool,
     pub start: u32,
     pub end: u32,
-    pub test: Expression,
-    pub consequent: Fragment,
-    pub alternate: Option<Fragment>,
+    pub test: Expression<'a>,
+    pub consequent: Fragment<'a>,
+    pub alternate: Option<Fragment<'a>>,
     /// Metadata (not serialized)
     #[serde(skip)]
     pub metadata: IfBlockMetadata,
 }
 
 /// Metadata for EachBlock nodes.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct EachBlockMetadata {
     /// Whether this is a keyed each block
     pub keyed: bool,
@@ -388,20 +395,20 @@ pub struct EachBlockMetadata {
 }
 
 /// An each block: `{#each items as item (key)}...{:else}...{/each}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EachBlock {
+#[derive(Debug, Clone, Serialize)]
+pub struct EachBlock<'a> {
     pub start: u32,
     pub end: u32,
-    pub expression: Expression,
-    pub body: Fragment,
+    pub expression: Expression<'a>,
+    pub body: Fragment<'a>,
     /// Context pattern - serializes as null when None (required by tests)
-    pub context: Option<Expression>,
+    pub context: Option<Expression<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub fallback: Option<Fragment>,
+    pub fallback: Option<Fragment<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub index: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub key: Option<Expression>,
+    pub key: Option<Expression<'a>>,
     /// Metadata (not serialized)
     #[serde(skip)]
     pub metadata: EachBlockMetadata,
@@ -415,16 +422,16 @@ pub struct AwaitBlockMetadata {
 }
 
 /// An await block: `{#await promise}...{:then value}...{:catch error}...{/await}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AwaitBlock {
+#[derive(Debug, Clone, Serialize)]
+pub struct AwaitBlock<'a> {
     pub start: u32,
     pub end: u32,
-    pub expression: Expression,
-    pub value: Option<Expression>,
-    pub error: Option<Expression>,
-    pub pending: Option<Fragment>,
-    pub then: Option<Fragment>,
-    pub catch: Option<Fragment>,
+    pub expression: Expression<'a>,
+    pub value: Option<Expression<'a>>,
+    pub error: Option<Expression<'a>>,
+    pub pending: Option<Fragment<'a>>,
+    pub then: Option<Fragment<'a>>,
+    pub catch: Option<Fragment<'a>>,
     /// Metadata (not serialized)
     #[serde(skip)]
     pub metadata: AwaitBlockMetadata,
@@ -438,12 +445,12 @@ pub struct KeyBlockMetadata {
 }
 
 /// A key block: `{#key expression}...{/key}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KeyBlock {
+#[derive(Debug, Clone, Serialize)]
+pub struct KeyBlock<'a> {
     pub start: u32,
     pub end: u32,
-    pub expression: Expression,
-    pub fragment: Fragment,
+    pub expression: Expression<'a>,
+    pub fragment: Fragment<'a>,
     /// Metadata (not serialized)
     #[serde(skip)]
     pub metadata: KeyBlockMetadata,
@@ -461,15 +468,15 @@ pub struct SnippetBlockMetadata {
 }
 
 /// A snippet block: `{#snippet name(params)}...{/snippet}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SnippetBlock {
+#[derive(Debug, Clone, Serialize)]
+pub struct SnippetBlock<'a> {
     pub start: u32,
     pub end: u32,
-    pub expression: Expression,
+    pub expression: Expression<'a>,
     #[serde(rename = "typeParams", skip_serializing_if = "Option::is_none")]
     pub type_params: Option<CompactString>,
-    pub parameters: Vec<Expression>,
-    pub body: Fragment,
+    pub parameters: Vec<Expression<'a>>,
+    pub body: Fragment<'a>,
     /// Metadata (not serialized)
     #[serde(skip)]
     pub metadata: SnippetBlockMetadata,
@@ -480,82 +487,82 @@ pub struct SnippetBlock {
 // =============================================================================
 
 /// A regular HTML element.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RegularElement {
+#[derive(Debug, Clone, Serialize)]
+pub struct RegularElement<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
-    pub attributes: Vec<Attribute>,
-    pub fragment: Fragment,
+    pub attributes: Vec<Attribute<'a>>,
+    pub fragment: Fragment<'a>,
     /// Metadata populated during analysis (Phase 2)
     #[serde(skip)]
-    pub metadata: RegularElementMetadata,
+    pub metadata: RegularElementMetadata<'a>,
 }
 
 /// A Svelte component.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Component {
+#[derive(Debug, Clone, Serialize)]
+pub struct Component<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
-    pub attributes: Vec<Attribute>,
-    pub fragment: Fragment,
+    pub attributes: Vec<Attribute<'a>>,
+    pub fragment: Fragment<'a>,
     /// Metadata populated during analysis (Phase 2)
     #[serde(skip)]
     pub metadata: ComponentNodeMetadata,
 }
 
 /// A title element.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TitleElement {
+#[derive(Debug, Clone, Serialize)]
+pub struct TitleElement<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
-    pub attributes: Vec<Attribute>,
-    pub fragment: Fragment,
+    pub attributes: Vec<Attribute<'a>>,
+    pub fragment: Fragment<'a>,
 }
 
 /// A slot element.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SlotElement {
+#[derive(Debug, Clone, Serialize)]
+pub struct SlotElement<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
-    pub attributes: Vec<Attribute>,
-    pub fragment: Fragment,
+    pub attributes: Vec<Attribute<'a>>,
+    pub fragment: Fragment<'a>,
 }
 
 /// A svelte: special element (body, document, head, window, fragment, boundary, self).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SvelteElement {
+#[derive(Debug, Clone, Serialize)]
+pub struct SvelteElement<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
-    pub attributes: Vec<Attribute>,
-    pub fragment: Fragment,
+    pub attributes: Vec<Attribute<'a>>,
+    pub fragment: Fragment<'a>,
 }
 
 /// A svelte:component element.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SvelteComponentElement {
+#[derive(Debug, Clone, Serialize)]
+pub struct SvelteComponentElement<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
-    pub attributes: Vec<Attribute>,
-    pub fragment: Fragment,
-    pub expression: Expression,
+    pub attributes: Vec<Attribute<'a>>,
+    pub fragment: Fragment<'a>,
+    pub expression: Expression<'a>,
     /// Warning codes ignored via `<!-- svelte-ignore ... -->` comments preceding this element.
     /// Set during Phase 2 analysis from preceding svelte-ignore comments.
     #[serde(skip)]
@@ -563,16 +570,16 @@ pub struct SvelteComponentElement {
 }
 
 /// A svelte:element (dynamic element).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SvelteDynamicElement {
+#[derive(Debug, Clone, Serialize)]
+pub struct SvelteDynamicElement<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
-    pub attributes: Vec<Attribute>,
-    pub fragment: Fragment,
-    pub tag: Expression,
+    pub attributes: Vec<Attribute<'a>>,
+    pub fragment: Fragment<'a>,
+    pub tag: Expression<'a>,
     /// Metadata populated during analysis (Phase 2)
     #[serde(skip)]
     pub metadata: SvelteDynamicElementMetadata,
@@ -586,24 +593,23 @@ pub struct SvelteDynamicElement {
 ///
 /// All variants are boxed to keep the enum small (~16 bytes instead of ~368).
 /// This reduces memory for `Vec<Attribute>` on elements by ~23x.
-#[derive(Debug, Clone, Deserialize)]
-#[serde(untagged)]
-pub enum Attribute {
-    Attribute(AttributeNode),
-    SpreadAttribute(SpreadAttribute),
-    AttachTag(AttachTag),
+#[derive(Debug, Clone)]
+pub enum Attribute<'a> {
+    Attribute(AttributeNode<'a>),
+    SpreadAttribute(SpreadAttribute<'a>),
+    AttachTag(AttachTag<'a>),
     // Directives
-    BindDirective(BindDirective),
-    OnDirective(OnDirective),
-    ClassDirective(ClassDirective),
-    StyleDirective(StyleDirective),
-    TransitionDirective(TransitionDirective),
-    AnimateDirective(AnimateDirective),
-    UseDirective(UseDirective),
-    LetDirective(LetDirective),
+    BindDirective(BindDirective<'a>),
+    OnDirective(OnDirective<'a>),
+    ClassDirective(ClassDirective<'a>),
+    StyleDirective(StyleDirective<'a>),
+    TransitionDirective(TransitionDirective<'a>),
+    AnimateDirective(AnimateDirective<'a>),
+    UseDirective(UseDirective<'a>),
+    LetDirective(LetDirective<'a>),
 }
 
-impl serde::Serialize for Attribute {
+impl<'a> serde::Serialize for Attribute<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -651,22 +657,20 @@ pub struct AttributeNodeMetadata {
 }
 
 /// A regular attribute: `name="value"` or `name={expression}`.
-#[derive(Debug, Clone, Deserialize)]
-pub struct AttributeNode {
+#[derive(Debug, Clone)]
+pub struct AttributeNode<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
-    pub value: AttributeValue,
+    pub value: AttributeValue<'a>,
     /// Internal metadata. Always defaults on construction; populated during
     /// Phase 2 analysis. Skipped during (de)serialisation so snapshot output
     /// is unchanged.
-    #[serde(skip)]
     pub metadata: AttributeNodeMetadata,
 }
 
-impl serde::Serialize for AttributeNode {
+impl<'a> serde::Serialize for AttributeNode<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -686,19 +690,18 @@ impl serde::Serialize for AttributeNode {
 }
 
 /// The value of an attribute.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(clippy::large_enum_variant)]
-pub enum AttributeValue {
+pub enum AttributeValue<'a> {
     /// Boolean attribute (no value).
     True(bool),
     /// Expression value.
-    Expression(ExpressionTag),
+    Expression(ExpressionTag<'a>),
     /// Text or mixed content.
-    Sequence(Vec<AttributeValuePart>),
+    Sequence(Vec<AttributeValuePart<'a>>),
 }
 
-impl serde::Serialize for AttributeValue {
+impl<'a> serde::Serialize for AttributeValue<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -726,15 +729,14 @@ impl serde::Serialize for AttributeValue {
 /// would shrink the enum but require touching every match site;
 /// `AttributeValuePart` instances are short-lived and stored in small
 /// per-attribute vectors, so we accept the size disparity here.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(clippy::large_enum_variant)]
-pub enum AttributeValuePart {
-    Text(Text),
-    ExpressionTag(ExpressionTag),
+pub enum AttributeValuePart<'a> {
+    Text(Text<'a>),
+    ExpressionTag(ExpressionTag<'a>),
 }
 
-impl serde::Serialize for AttributeValuePart {
+impl<'a> serde::Serialize for AttributeValuePart<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -746,8 +748,8 @@ impl serde::Serialize for AttributeValuePart {
                 map.serialize_entry("start", &text.start)?;
                 map.serialize_entry("end", &text.end)?;
                 map.serialize_entry("type", "Text")?;
-                map.serialize_entry("raw", text.raw.as_str())?;
-                map.serialize_entry("data", text.data.as_str())?;
+                map.serialize_entry("raw", text.raw.as_ref())?;
+                map.serialize_entry("data", text.data.as_ref())?;
                 map.end()
             }
             AttributeValuePart::ExpressionTag(expr_tag) => {
@@ -763,14 +765,14 @@ impl serde::Serialize for AttributeValuePart {
 }
 
 /// A spread attribute: `{...props}`.
-#[derive(Debug, Clone, Deserialize)]
-pub struct SpreadAttribute {
+#[derive(Debug, Clone)]
+pub struct SpreadAttribute<'a> {
     pub start: u32,
     pub end: u32,
-    pub expression: Expression,
+    pub expression: Expression<'a>,
 }
 
-impl serde::Serialize for SpreadAttribute {
+impl<'a> serde::Serialize for SpreadAttribute<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -786,17 +788,17 @@ impl serde::Serialize for SpreadAttribute {
 }
 
 /// A bind directive: `bind:name={expression}`.
-#[derive(Debug, Clone, Deserialize)]
-pub struct BindDirective {
+#[derive(Debug, Clone)]
+pub struct BindDirective<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
-    pub expression: Expression,
+    pub expression: Expression<'a>,
     pub modifiers: SmallVec<[CompactString; 2]>,
 }
 
-impl serde::Serialize for BindDirective {
+impl<'a> serde::Serialize for BindDirective<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -828,21 +830,20 @@ pub struct OnDirectiveMetadata {
 }
 
 /// An on directive: `on:event={handler}`.
-#[derive(Debug, Clone, Deserialize)]
-pub struct OnDirective {
+#[derive(Debug, Clone)]
+pub struct OnDirective<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
-    pub expression: Option<Expression>,
+    pub expression: Option<Expression<'a>>,
     pub modifiers: SmallVec<[CompactString; 2]>,
     /// Internal metadata, populated during Phase 2 analysis. Skipped during
     /// (de)serialisation so snapshot output is unchanged.
-    #[serde(skip)]
     pub metadata: OnDirectiveMetadata,
 }
 
-impl serde::Serialize for OnDirective {
+impl<'a> serde::Serialize for OnDirective<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -876,20 +877,19 @@ pub struct ClassDirectiveMetadata {
 }
 
 /// A class directive: `class:name={expression}`.
-#[derive(Debug, Clone, Deserialize)]
-pub struct ClassDirective {
+#[derive(Debug, Clone)]
+pub struct ClassDirective<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
-    pub expression: Expression,
+    pub expression: Expression<'a>,
     /// Internal metadata, populated during Phase 2 analysis. Skipped during
     /// (de)serialisation so snapshot output is unchanged.
-    #[serde(skip)]
     pub metadata: ClassDirectiveMetadata,
 }
 
-impl serde::Serialize for ClassDirective {
+impl<'a> serde::Serialize for ClassDirective<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -909,17 +909,17 @@ impl serde::Serialize for ClassDirective {
 }
 
 /// A style directive: `style:property={expression}`.
-#[derive(Debug, Clone, Deserialize)]
-pub struct StyleDirective {
+#[derive(Debug, Clone)]
+pub struct StyleDirective<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
-    pub value: AttributeValue,
+    pub value: AttributeValue<'a>,
     pub modifiers: SmallVec<[CompactString; 2]>,
 }
 
-impl serde::Serialize for StyleDirective {
+impl<'a> serde::Serialize for StyleDirective<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -940,21 +940,20 @@ impl serde::Serialize for StyleDirective {
 }
 
 /// A transition directive: `transition:name`, `in:name`, `out:name`.
-#[derive(Debug, Clone, Deserialize)]
-pub struct TransitionDirective {
+#[derive(Debug, Clone)]
+pub struct TransitionDirective<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
-    pub expression: Option<Expression>,
+    pub expression: Option<Expression<'a>>,
     pub modifiers: SmallVec<[CompactString; 2]>,
     pub intro: bool,
     pub outro: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<DirectiveMetadata>,
+    pub metadata: Option<DirectiveMetadata<'a>>,
 }
 
-impl serde::Serialize for TransitionDirective {
+impl<'a> serde::Serialize for TransitionDirective<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -984,48 +983,47 @@ impl serde::Serialize for TransitionDirective {
 /// Metadata for directives (animate, transition, etc.).
 ///
 /// Contains information about the directive's expression dependencies.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct DirectiveMetadata {
+#[derive(Debug, Clone, Serialize)]
+pub struct DirectiveMetadata<'a> {
     /// Expression metadata (dependencies, blockers, etc.)
-    pub expression: DirectiveExpressionMetadata,
+    pub expression: DirectiveExpressionMetadata<'a>,
 }
 
 /// Expression metadata for directives.
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
-pub struct DirectiveExpressionMetadata {
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct DirectiveExpressionMetadata<'a> {
     /// Whether the expression contains await
     #[serde(default)]
     pub has_await: bool,
     /// Blocking dependencies (for async expressions)
     #[serde(default)]
-    pub blockers: Vec<Expression>,
+    pub blockers: Vec<Expression<'a>>,
 }
 
-impl DirectiveExpressionMetadata {
+impl<'a> DirectiveExpressionMetadata<'a> {
     /// Check if the expression is async (has await or blockers).
     pub fn is_async(&self) -> bool {
         self.has_await || !self.blockers.is_empty()
     }
 
     /// Get the blocking dependencies.
-    pub fn blockers(&self) -> &[Expression] {
+    pub fn blockers(&self) -> &[Expression<'a>] {
         &self.blockers
     }
 }
 
 /// An animate directive: `animate:name`.
-#[derive(Debug, Clone, Deserialize)]
-pub struct AnimateDirective {
+#[derive(Debug, Clone)]
+pub struct AnimateDirective<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
-    pub expression: Option<Expression>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<DirectiveMetadata>,
+    pub expression: Option<Expression<'a>>,
+    pub metadata: Option<DirectiveMetadata<'a>>,
 }
 
-impl serde::Serialize for AnimateDirective {
+impl<'a> serde::Serialize for AnimateDirective<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -1050,16 +1048,16 @@ impl serde::Serialize for AnimateDirective {
 }
 
 /// A use directive: `use:action`.
-#[derive(Debug, Clone, Deserialize)]
-pub struct UseDirective {
+#[derive(Debug, Clone)]
+pub struct UseDirective<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
-    pub expression: Option<Expression>,
+    pub expression: Option<Expression<'a>>,
 }
 
-impl serde::Serialize for UseDirective {
+impl<'a> serde::Serialize for UseDirective<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -1081,16 +1079,16 @@ impl serde::Serialize for UseDirective {
 }
 
 /// A let directive: `let:item`.
-#[derive(Debug, Clone, Deserialize)]
-pub struct LetDirective {
+#[derive(Debug, Clone)]
+pub struct LetDirective<'a> {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
-    pub expression: Option<Expression>,
+    pub expression: Option<Expression<'a>>,
 }
 
-impl serde::Serialize for LetDirective {
+impl<'a> serde::Serialize for LetDirective<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -1116,15 +1114,15 @@ impl serde::Serialize for LetDirective {
 // =============================================================================
 
 /// A script block.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Script {
+#[derive(Debug, Clone, Serialize)]
+pub struct Script<'a> {
     #[serde(rename = "type")]
     pub node_type: ScriptType,
     pub start: u32,
     pub end: u32,
     pub context: ScriptContext,
-    pub content: Expression, // Program (lazily parsed from raw_content)
-    pub attributes: Vec<AttributeNode>,
+    pub content: Expression<'a>, // Program (lazily parsed from raw_content)
+    pub attributes: Vec<AttributeNode<'a>>,
     /// Raw script content for deferred parsing. Empty string means content was already parsed eagerly.
     #[serde(skip)]
     pub raw_content: String,
@@ -1136,13 +1134,13 @@ pub struct Script {
     pub is_typescript: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
 pub enum ScriptType {
     #[default]
     Script,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ScriptContext {
     Default,
@@ -1150,8 +1148,8 @@ pub enum ScriptContext {
 }
 
 /// Svelte component options from `<svelte:options>`.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct SvelteOptions {
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct SvelteOptions<'a> {
     pub start: u32,
     pub end: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1167,12 +1165,12 @@ pub struct SvelteOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub css: Option<CssOption>,
     #[serde(rename = "customElement", skip_serializing_if = "Option::is_none")]
-    pub custom_element: Option<CustomElementOptions>,
+    pub custom_element: Option<CustomElementOptions<'a>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<AttributeNode>,
+    pub attributes: Vec<AttributeNode<'a>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Namespace {
     Html,
@@ -1180,15 +1178,15 @@ pub enum Namespace {
     Mathml,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CssOption {
     Injected,
 }
 
 /// Custom element options.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct CustomElementOptions {
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct CustomElementOptions<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tag: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1200,10 +1198,10 @@ pub struct CustomElementOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub props: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub extend: Option<Expression>,
+    pub extend: Option<Expression<'a>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ShadowMode {
     Open,
@@ -1358,51 +1356,12 @@ impl Serialize for ExpressionMetadata {
     }
 }
 
-// Custom Deserialize implementation for backward compatibility
-impl<'de> Deserialize<'de> for ExpressionMetadata {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        struct ExpressionMetadataHelper {
-            #[serde(default)]
-            has_state: bool,
-            #[serde(default)]
-            has_call: bool,
-            #[serde(default)]
-            has_await: bool,
-            #[serde(default)]
-            has_member_expression: bool,
-            #[serde(default)]
-            has_assignment: bool,
-            #[serde(default)]
-            dependencies: BindingIndexSet,
-            #[serde(default)]
-            references: BindingIndexSet,
-        }
-
-        let helper = ExpressionMetadataHelper::deserialize(deserializer)?;
-        let mut result = ExpressionMetadata {
-            flags: 0,
-            dependencies: helper.dependencies,
-            references: helper.references,
-        };
-        result.set_has_state(helper.has_state);
-        result.set_has_call(helper.has_call);
-        result.set_has_await(helper.has_await);
-        result.set_has_member_expression(helper.has_member_expression);
-        result.set_has_assignment(helper.has_assignment);
-        Ok(result)
-    }
-}
-
 /// Metadata for RegularElement nodes, populated during Phase 2 analysis.
 #[derive(Debug, Clone, Default)]
-pub struct RegularElementMetadata {
+pub struct RegularElementMetadata<'a> {
     /// For option elements without an explicit value attribute but with a single expression child,
     /// the expression is used as the synthetic value. This stores a clone of that ExpressionTag.
-    pub synthetic_value_node: Option<Box<ExpressionTag>>,
+    pub synthetic_value_node: Option<Box<ExpressionTag<'a>>>,
     /// Whether this element is scoped (has CSS class hash applied)
     pub scoped: bool,
     /// Whether this element has spread attributes

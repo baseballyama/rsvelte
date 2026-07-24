@@ -60,7 +60,7 @@ use super::shared::{
 ///   `has_await`, so a blocker reference becomes
 ///   `$$renderer.async_block([$$promises[N]…], …)` and an inline await becomes
 ///   `$$renderer.child_block(async …)`.
-pub fn visit_await_block<'a>(node: &AwaitBlock, state: &mut ServerTransformState<'a>) {
+pub fn visit_await_block<'a>(node: &AwaitBlock<'a>, state: &mut ServerTransformState<'a>) {
     // Detect the async axes from the expression source against the precomputed
     // instance blocker map (only populated under `experimental.async`).
     let expr_text = state.expr_source(&node.expression).map(|s| s.to_string());

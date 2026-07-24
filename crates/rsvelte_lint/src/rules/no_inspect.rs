@@ -63,7 +63,11 @@ impl Rule for NoInspect {
 /// Returns `(start, end)` byte-offset spans (absolute, into `source`).
 fn find_inspect_idents(source: &str) -> Vec<(u32, u32)> {
     let mut out = Vec::new();
-    let Ok(root) = rsvelte_core::parse(source, rsvelte_core::ParseOptions::default()) else {
+    let Ok(root) = rsvelte_core::parse(
+        source,
+        &rsvelte_core::Allocator::default(),
+        rsvelte_core::ParseOptions::default(),
+    ) else {
         return out;
     };
     for script in [root.instance.as_ref(), root.module.as_ref()]

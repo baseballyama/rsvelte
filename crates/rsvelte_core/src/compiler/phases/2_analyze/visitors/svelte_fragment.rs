@@ -11,7 +11,10 @@ use super::shared::fragment;
 use crate::ast::template::SvelteElement;
 
 /// Visit a svelte:fragment.
-pub fn visit(frag: &mut SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit<'a, 'b: 'a>(
+    frag: &mut SvelteElement<'b>,
+    context: &mut VisitorContext<'a>,
+) -> Result<(), AnalysisError> {
     // svelte:fragment must be a direct child of a component
     if !context.is_direct_child_of_component {
         return Err(errors::svelte_fragment_invalid_placement());

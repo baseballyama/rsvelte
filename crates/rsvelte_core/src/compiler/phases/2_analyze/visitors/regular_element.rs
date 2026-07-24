@@ -403,9 +403,9 @@ fn create_textarea_value_attribute(nodes: Vec<TemplateNode>) -> Attribute {
 }
 
 /// Visit a regular element.
-pub fn visit(
-    element: &mut RegularElement,
-    context: &mut VisitorContext,
+pub fn visit<'a, 'b: 'a>(
+    element: &mut RegularElement<'b>,
+    context: &mut VisitorContext<'a>,
 ) -> Result<(), AnalysisError> {
     // Validate the element
     validate_element(element, context)?;

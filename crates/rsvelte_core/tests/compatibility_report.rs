@@ -93,7 +93,7 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
             ..Default::default()
         };
 
-        match parse(&input, options) {
+        match parse(&input, &oxc_allocator::Allocator::default(), options) {
             Ok(ast) => {
                 let actual_json =
                     rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
@@ -1287,7 +1287,7 @@ fn run_print_tests() -> CategoryResult {
             ..Default::default()
         };
 
-        let (status, error) = match parse(&input, options) {
+        let (status, error) = match parse(&input, &oxc_allocator::Allocator::default(), options) {
             Ok(ast) => match print_with_source(&ast, None, Some(&input)) {
                 Ok(printed) => {
                     if normalize_print_output(&printed.code) == normalize_print_output(&expected) {

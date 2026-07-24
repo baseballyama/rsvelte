@@ -46,6 +46,7 @@ fn declaration_tag_multibyte_type_annotation_does_not_panic() {
     // mid-`é` and panic; a byte-index slice must succeed.
     let root = parse(
         "{#if true}{@const café: T = e}{/if}",
+        &oxc_allocator::Allocator::default(),
         ParseOptions::default(),
     );
     assert!(
@@ -68,8 +69,12 @@ fn empty_style_selector_reports_css_expected_identifier() {
 fn high_codepoint_type_selector_parses() {
     // `×` (U+00D7, code point 215 >= 160) is a valid CSS type-selector name.
     // rsvelte used to spin forever reading an empty identifier here.
-    let root = parse("<style>× {}</style>", ParseOptions::default())
-        .expect("high-codepoint type selector failed to parse");
+    let root = parse(
+        "<style>× {}</style>",
+        &oxc_allocator::Allocator::default(),
+        ParseOptions::default(),
+    )
+    .expect("high-codepoint type selector failed to parse");
     let css = serde_json::to_string(&root.css).expect("serialize css");
     assert!(
         css.contains("\"TypeSelector\"") && css.contains('×'),

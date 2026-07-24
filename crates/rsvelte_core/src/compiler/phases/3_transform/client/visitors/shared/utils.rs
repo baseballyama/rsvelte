@@ -3333,7 +3333,7 @@ pub struct TemplateChunkResult {
 ///
 /// Returns a TemplateChunkResult with the generated expression and state flag.
 pub fn build_template_chunk(
-    values: &[crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::TextOrExpr],
+    values: &[crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::TextOrExpr<'_>],
     context: &mut ComponentContext,
 ) -> TemplateChunkResult {
     use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;

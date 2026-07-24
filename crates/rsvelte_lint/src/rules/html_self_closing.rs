@@ -357,7 +357,7 @@ fn attr_end(a: &Attribute) -> u32 {
 /// True when the element is empty (no children, or only whitespace text).
 fn is_empty(children: &[TemplateNode]) -> bool {
     children.iter().all(|c| match c {
-        TemplateNode::Text(t) => t.data.as_str().chars().all(char::is_whitespace),
+        TemplateNode::Text(t) => t.data.as_ref().chars().all(char::is_whitespace),
         _ => false,
     })
 }

@@ -424,9 +424,9 @@ fn convert_text(text: &Text, path: &[&str]) -> Value {
     result.insert("start".to_string(), json!(text.start));
     result.insert("end".to_string(), json!(text.end));
     if !in_style {
-        result.insert("raw".to_string(), json!(text.raw.as_str()));
+        result.insert("raw".to_string(), json!(text.raw.as_ref()));
     }
-    result.insert("data".to_string(), json!(text.data.as_str()));
+    result.insert("data".to_string(), json!(text.data.as_ref()));
     Value::Object(result)
 }
 
@@ -1695,7 +1695,7 @@ trait Spanned {
     fn end(&self) -> u32;
 }
 
-impl Spanned for TemplateNode {
+impl Spanned for TemplateNode<'_> {
     fn start(&self) -> u32 {
         match self {
             TemplateNode::Text(n) => n.start,
@@ -1869,6 +1869,7 @@ mod utf16_offset_tests {
         let src = "<script>\n  const あ = 1;\n  const target = あ;\n</script>\n<p>{target}</p>";
         let ast = parse(
             src,
+            &oxc_allocator::Allocator::default(),
             ParseOptions {
                 modern: true,
                 ..Default::default()
@@ -1888,6 +1889,7 @@ mod utf16_offset_tests {
         let src = "<script>\n  const target = 1;\n</script>\n<p>{target}</p>";
         let ast = parse(
             src,
+            &oxc_allocator::Allocator::default(),
             ParseOptions {
                 modern: true,
                 ..Default::default()

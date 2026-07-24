@@ -81,7 +81,7 @@ where
 /// For Typed variant: returns the inner JsNode directly (zero cost).
 /// For Value variant: wraps the Value in JsNode::Raw (no clone).
 #[inline]
-fn expr_to_node(expr: Expression) -> JsNode {
+fn expr_to_node<'a>(expr: Expression<'a>) -> JsNode {
     match expr {
         Expression::Typed(te) => te.node,
         Expression::Lazy { .. } => {
@@ -242,12 +242,12 @@ fn extract_comment_value(raw: &str, kind: oxc_ast::ast::CommentKind) -> String {
 ///
 /// # Returns
 /// An empty `Identifier` node if a matching bracket is found, otherwise `None`.
-fn get_loose_identifier(
+fn get_loose_identifier<'a>(
     template: &str,
     start: usize,
     opening_token: char,
     _line_offsets: &[usize],
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     // Find the next closing bracket and treat it as the end of the expression
     if let Some(end) = find_matching_bracket(template, start, opening_token) {
         // We don't know what the expression is and signal this by returning an empty identifier
@@ -283,12 +283,12 @@ fn get_loose_identifier(
 ///
 /// Returns `None` if the expression is too complex for the fast path.
 #[inline]
-fn try_parse_simple_expression(
+fn try_parse_simple_expression<'a>(
     arena: &ParseArena,
     content: &str,
     offset: usize,
     line_offsets: &[usize],
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     let bytes = content.as_bytes();
     if bytes.is_empty() {
         return None;
@@ -358,13 +358,13 @@ fn try_parse_simple_expression(
 
 /// Try to parse a unary `!expr` where expr is a simple expression.
 #[inline]
-fn try_parse_unary_not(
+fn try_parse_unary_not<'a>(
     arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
     line_offsets: &[usize],
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     let inner = &content[1..];
     let inner_bytes = &bytes[1..];
     if inner_bytes.is_empty() {
@@ -387,13 +387,13 @@ fn try_parse_unary_not(
 /// Try to parse a "simple atom" - identifier, member expr, numeric, string, bool, null.
 /// This is used as a building block for compound expressions.
 #[inline]
-fn try_parse_atom(
+fn try_parse_atom<'a>(
     arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
     line_offsets: &[usize],
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     if bytes.is_empty() {
         return None;
     }
@@ -416,13 +416,13 @@ fn try_parse_atom(
 /// Try to parse call expressions: `fn(arg)`, `obj.method(a, b)`
 /// Handles simple call expressions where callee is an ident/member and args are atoms.
 #[inline]
-fn try_parse_call_expression(
+fn try_parse_call_expression<'a>(
     arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
     line_offsets: &[usize],
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     // Find the opening '(' - callee must be ident/member
     let paren_pos = memchr::memchr(b'(', bytes)?;
     if paren_pos == 0 {
@@ -537,13 +537,13 @@ fn try_parse_call_expression(
 
 /// Try to parse update expressions: `count++`, `count--`, `++count`, `--count`
 #[inline]
-fn try_parse_update_expression(
+fn try_parse_update_expression<'a>(
     arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
     line_offsets: &[usize],
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     let len = bytes.len();
     if len < 3 {
         return None;
@@ -591,13 +591,13 @@ fn try_parse_update_expression(
 
 /// Try to parse ternary expressions: `cond ? consequent : alternate`
 #[inline]
-fn try_parse_ternary(
+fn try_parse_ternary<'a>(
     arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
     line_offsets: &[usize],
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     // Find '?' at top level (not inside strings/parens)
     let mut depth = 0u32;
     let mut in_string = 0u8;
@@ -710,13 +710,13 @@ fn try_parse_ternary(
 
 /// Try to parse parenthesized expressions: `(expr)`
 #[inline]
-fn try_parse_parenthesized(
+fn try_parse_parenthesized<'a>(
     arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
     line_offsets: &[usize],
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     // Find the matching ')' for the opening '('
     let mut depth = 1u32;
     let mut in_string = 0u8;
@@ -783,7 +783,7 @@ fn try_parse_parenthesized(
 /// Try to parse arrow functions: `() => expr`, `(x) => expr`, `(a, b) => expr`
 /// Also handles expression body only (not block body `() => { ... }`).
 #[inline]
-fn try_parse_arrow_function(
+fn try_parse_arrow_function<'a>(
     arena: &ParseArena,
     content: &str,
     _bytes: &[u8],
@@ -791,7 +791,7 @@ fn try_parse_arrow_function(
     line_offsets: &[usize],
     close_paren: usize,
     ws_after_paren: usize,
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     let arrow_start = close_paren + 1 + ws_after_paren + 2; // past "=>"
     let body_str = content[arrow_start..].trim();
 
@@ -877,13 +877,13 @@ fn try_parse_arrow_function(
 /// Try to parse compound expressions: binary ops, logical ops, ternary.
 /// Examples: `count > 5`, `a === b`, `a && b`, `x > 0 ? 'yes' : 'no'`
 #[inline]
-fn try_parse_compound_expression(
+fn try_parse_compound_expression<'a>(
     arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
     line_offsets: &[usize],
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     let len = bytes.len();
 
     // Scan for a binary/logical operator at the top level.
@@ -1072,13 +1072,13 @@ fn match_operator(bytes: &[u8], i: usize) -> Option<(&'static str, usize)> {
 
 /// Try to parse a negative numeric literal (-1, -3.14).
 #[inline]
-fn try_parse_negative_numeric(
+fn try_parse_negative_numeric<'a>(
     arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
     line_offsets: &[usize],
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     // Parse the numeric part (after the minus sign)
     let num_content = &content[1..];
     let num_bytes = &bytes[1..];
@@ -1145,12 +1145,12 @@ fn try_parse_negative_numeric(
 /// Does NOT handle: template literals, strings with escape sequences, or
 /// strings that don't consume the entire content.
 #[inline]
-fn try_parse_string_literal(
+fn try_parse_string_literal<'a>(
     content: &str,
     bytes: &[u8],
     offset: usize,
     line_offsets: &[usize],
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     let len = bytes.len();
     if len < 2 {
         return None;
@@ -1215,13 +1215,13 @@ fn is_ident_continue_byte(b: u8) -> bool {
 /// Scans the content and validates it matches: `ident(.ident)*` or `ident(?.ident)*`
 /// Returns None if it contains anything else.
 #[inline]
-fn try_parse_ident_or_member(
+fn try_parse_ident_or_member<'a>(
     arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
     line_offsets: &[usize],
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     let len = bytes.len();
 
     // Scan the first identifier segment
@@ -1343,12 +1343,12 @@ fn try_parse_ident_or_member(
 /// Handles: `0`, `42`, `3.14`, `0.5`
 /// Does NOT handle: hex, octal, binary, exponential, bigint, separators.
 #[inline]
-fn try_parse_numeric_literal(
+fn try_parse_numeric_literal<'a>(
     content: &str,
     bytes: &[u8],
     offset: usize,
     line_offsets: &[usize],
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     let len = bytes.len();
     let mut pos = 0;
     let mut has_dot = false;
@@ -1408,7 +1408,7 @@ fn try_parse_numeric_literal(
 /// # Returns
 /// A parsed `Expression` or an empty identifier in loose mode.
 /// Returns an error message if parsing fails and loose mode is disabled.
-pub fn parse_expression(
+pub fn parse_expression<'a>(
     arena: &ParseArena,
     content: &str,
     offset: usize,
@@ -1418,7 +1418,7 @@ pub fn parse_expression(
     disallow_loose: bool,
     opening_token: char,
     ts: bool,
-) -> Result<Expression, (String, usize)> {
+) -> Result<Expression<'a>, (String, usize)> {
     // Fast path: handle simple expressions (identifiers, member expressions,
     // boolean/null literals) without invoking OXC.
     if let Some(expr) = try_parse_simple_expression(arena, content, offset, line_offsets) {
@@ -1471,12 +1471,12 @@ pub fn parse_expression(
 /// - Nested patterns: `{a: {b, c}}`
 /// - Array patterns: `[a, b, ...rest]`
 /// - Rest elements: `{a, ...rest}`
-pub fn parse_destructuring_pattern(
+pub fn parse_destructuring_pattern<'a>(
     arena: &ParseArena,
     content: &str,
     offset: usize,
     line_offsets: &[usize],
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     // Try TypeScript first, then JavaScript
     for use_typescript in [true, false] {
         let result = with_oxc_allocator(|allocator| {
@@ -1540,7 +1540,7 @@ pub fn parse_destructuring_pattern(
 /// # Returns
 /// A parsed `Expression` or an empty identifier in loose mode.
 /// Returns an error message if parsing fails and loose mode is disabled.
-pub fn parse_expression_with_end(
+pub fn parse_expression_with_end<'a>(
     arena: &ParseArena,
     content: &str,
     offset: usize,
@@ -1551,7 +1551,7 @@ pub fn parse_expression_with_end(
     disallow_loose: bool,
     _opening_token: char,
     ts: bool,
-) -> Result<Expression, (String, usize)> {
+) -> Result<Expression<'a>, (String, usize)> {
     // Fast path: handle simple expressions without OXC
     if let Some(expr) = try_parse_simple_expression(arena, content, offset, line_offsets) {
         return Ok(expr);
@@ -1755,7 +1755,11 @@ pub fn trailing_token_offset(content: &str) -> Option<usize> {
 }
 
 /// Create an identifier for invalid expressions
-fn create_invalid_identifier(start: usize, end: usize, _line_offsets: &[usize]) -> Expression {
+fn create_invalid_identifier<'a>(
+    start: usize,
+    end: usize,
+    _line_offsets: &[usize],
+) -> Expression<'a> {
     // Note: Similar to get_loose_identifier, invalid identifiers don't include 'loc'
     Expression::from_node(JsNode::Identifier {
         start: start as u32,
@@ -1769,7 +1773,7 @@ fn create_invalid_identifier(start: usize, end: usize, _line_offsets: &[usize]) 
 
 /// Check if an expression is an assignment to an invalid target (e.g., `42 = nope`).
 /// OXC may parse these without errors, but they should be treated as parse errors.
-fn is_invalid_assignment_expression(expr: &oxc_ast::ast::Expression) -> bool {
+fn is_invalid_assignment_expression<'a>(expr: &oxc_ast::ast::Expression<'a>) -> bool {
     // Unwrap parenthesized expressions
     let inner = match expr {
         oxc_ast::ast::Expression::ParenthesizedExpression(paren) => &paren.expression,
@@ -1797,13 +1801,13 @@ fn is_valid_assignment_target(target: &oxc_ast::ast::AssignmentTarget) -> bool {
     }
 }
 
-fn parse_expression_with_typescript(
+fn parse_expression_with_typescript<'a>(
     arena: &ParseArena,
     content: &str,
     offset: usize,
     line_offsets: &[usize],
     use_typescript: bool,
-) -> Option<Expression> {
+) -> Option<Expression<'a>> {
     with_oxc_allocator(|allocator| {
         let source_type = if use_typescript {
             SourceType::ts()
@@ -2243,12 +2247,12 @@ fn split_top_level_params(content: &str) -> Vec<String> {
 
 /// Parse TypeScript function parameters and return them as Expressions.
 /// Input is the content inside parentheses, e.g., "msg: string, count: number"
-pub fn parse_typescript_params(
+pub fn parse_typescript_params<'a>(
     arena: &ParseArena,
     content: &str,
     offset: usize,
     line_offsets: &[usize],
-) -> Vec<Expression> {
+) -> Vec<Expression<'a>> {
     // Use TypeScript source type to parse type annotations
     let source_type = SourceType::ts();
 
@@ -2259,8 +2263,8 @@ pub fn parse_typescript_params(
     wrapped.push_str(") => {}");
     let mut params = Vec::new();
 
-    enum ParseOutcome {
-        Ok(Vec<Expression>),
+    enum ParseOutcome<'a> {
+        Ok(Vec<Expression<'a>>),
         HasErrors,
     }
 
@@ -2427,13 +2431,13 @@ pub fn parse_typescript_params(
 /// The `base_offset` is the position in the original source where the parameter content starts
 /// (i.e., `params_start`). The `stripped` info tells us where `?` characters were removed
 /// so we can map OXC positions (relative to cleaned content) back to original positions.
-fn convert_formal_parameter_with_remap(
+fn convert_formal_parameter_with_remap<'a>(
     arena: &ParseArena,
     param: &oxc_ast::ast::FormalParameter,
     base_offset: usize,
     line_offsets: &[usize],
     stripped: &StrippedOptionalMarkers,
-) -> Expression {
+) -> Expression<'a> {
     // OXC positions are relative to the wrapped string "(cleaned_content) => {}"
     // So position 1 in OXC = position 0 in cleaned content.
     // We need: original_source_pos = base_offset + stripped.map_to_original(oxc_pos - 1)
@@ -2511,12 +2515,12 @@ fn convert_formal_parameter_with_remap(
 
 /// Convert oxc FormalParameter to our Expression format with type annotations.
 /// Caller should pass pre-adjusted offset if needed (e.g., offset - 1 for paren-wrapped content).
-fn convert_formal_parameter(
+fn convert_formal_parameter<'a>(
     arena: &ParseArena,
     param: &oxc_ast::ast::FormalParameter,
     adjusted_offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     // Check for TypeScript parameter properties (e.g., `constructor(private x: number)`)
     // These need to be emitted as TSParameterProperty nodes so that
     // remove_typescript_nodes can detect and report them.
@@ -2557,12 +2561,12 @@ fn convert_formal_parameter(
 }
 
 /// Inner implementation of convert_formal_parameter (without TSParameterProperty wrapping).
-fn convert_formal_parameter_inner(
+fn convert_formal_parameter_inner<'a>(
     arena: &ParseArena,
     param: &oxc_ast::ast::FormalParameter,
     adjusted_offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     use oxc_ast::ast::BindingPattern;
 
     // First, convert the pattern (left side)
@@ -2666,13 +2670,13 @@ fn convert_formal_parameter_inner(
 /// (the OXC span is relative to the parser's wrapped source); the annotation's
 /// spans use the same base, so callers needing original-source positions
 /// (e.g. the optional-marker remap path) still remap the top-level `end`.
-fn attach_param_type_annotation(
+fn attach_param_type_annotation<'a>(
     arena: &ParseArena,
-    expr: Expression,
+    expr: Expression<'a>,
     param: &oxc_ast::ast::FormalParameter,
     adjusted_offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let Some(type_ann) = &param.type_annotation else {
         return expr;
     };
@@ -2692,12 +2696,12 @@ fn attach_param_type_annotation(
 }
 
 /// Convert oxc ObjectPattern to our Expression format (for function parameters).
-fn convert_object_pattern_to_expr(
+fn convert_object_pattern_to_expr<'a>(
     arena: &ParseArena,
     obj_pat: &oxc_ast::ast::ObjectPattern,
     adjusted_offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let start = adjusted_offset + obj_pat.span.start as usize;
     let end = adjusted_offset + obj_pat.span.end as usize;
 
@@ -2760,12 +2764,12 @@ fn convert_object_pattern_to_expr(
 }
 
 /// Convert oxc ArrayPattern to our Expression format (for function parameters).
-fn convert_array_pattern_to_expr(
+fn convert_array_pattern_to_expr<'a>(
     arena: &ParseArena,
     arr_pat: &oxc_ast::ast::ArrayPattern,
     adjusted_offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let start = adjusted_offset + arr_pat.span.start as usize;
     let end = adjusted_offset + arr_pat.span.end as usize;
 
@@ -2811,12 +2815,12 @@ fn convert_array_pattern_to_expr(
 }
 
 /// Convert oxc AssignmentPattern to our Expression format (for function parameters).
-fn convert_assignment_pattern_to_expr(
+fn convert_assignment_pattern_to_expr<'a>(
     arena: &ParseArena,
     assign_pat: &oxc_ast::ast::AssignmentPattern,
     adjusted_offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let start = adjusted_offset + assign_pat.span.start as usize;
     let end = adjusted_offset + assign_pat.span.end as usize;
 
@@ -3887,12 +3891,12 @@ fn create_ts_keyword(type_name: &str, start: usize, end: usize, line_offsets: &[
 }
 
 /// Convert an oxc Expression to our JSON-based Expression format.
-fn convert_expression(
+fn convert_expression<'a>(
     arena: &ParseArena,
     expr: &OxcExpression,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     match expr {
         OxcExpression::Identifier(id) => {
             let start = offset + id.span.start as usize - 1; // -1 for the paren we added
@@ -4296,14 +4300,14 @@ fn convert_expression(
 // oxc 0.141 split the old `MetaProperty` expression into fieldless `ImportMeta`
 // / `NewTarget` nodes, so the `meta` / `property` identifier spans are
 // reconstructed from the whole-node span and the fixed keyword lengths.
-fn create_meta_property(
+fn create_meta_property<'a>(
     arena: &ParseArena,
     meta_name: &str,
     property_name: &str,
     start: usize,
     end: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     Expression::from_node(JsNode::MetaProperty {
         start: start as u32,
         end: end as u32,
@@ -4323,7 +4327,12 @@ fn create_meta_property(
     })
 }
 
-fn create_identifier(name: &str, start: usize, end: usize, line_offsets: &[usize]) -> Expression {
+fn create_identifier<'a>(
+    name: &str,
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+) -> Expression<'a> {
     Expression::from_node(JsNode::Identifier {
         start: start as u32,
         end: end as u32,
@@ -4335,12 +4344,12 @@ fn create_identifier(name: &str, start: usize, end: usize, line_offsets: &[usize
 }
 
 /// Create a PrivateIdentifier node (for class private fields like #count).
-fn create_private_identifier(
+fn create_private_identifier<'a>(
     name: &str,
     start: usize,
     end: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     Expression::from_node(JsNode::PrivateIdentifier {
         start: start as u32,
         end: end as u32,
@@ -4455,12 +4464,12 @@ fn create_string_literal_for_binding(
 
 /// Create an identifier with character field in loc.
 /// Used for Svelte-level identifiers like snippet names.
-pub fn create_identifier_with_character(
+pub fn create_identifier_with_character<'a>(
     name: &str,
     start: usize,
     end: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     Expression::from_node(JsNode::Identifier {
         start: start as u32,
         end: end as u32,
@@ -4473,7 +4482,7 @@ pub fn create_identifier_with_character(
 
 /// Create an identifier WITHOUT a loc field.
 /// Used for error recovery when parsing invalid expressions in loose mode.
-pub fn create_empty_identifier(name: &str, start: usize, end: usize) -> Expression {
+pub fn create_empty_identifier<'a>(name: &str, start: usize, end: usize) -> Expression<'a> {
     Expression::from_node(JsNode::Identifier {
         start: start as u32,
         end: end as u32,
@@ -4484,13 +4493,13 @@ pub fn create_empty_identifier(name: &str, start: usize, end: usize) -> Expressi
     })
 }
 
-fn create_literal(
+fn create_literal<'a>(
     value: LiteralValue,
     raw: &str,
     start: usize,
     end: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     Expression::from_node(JsNode::Literal {
         start: start as u32,
         end: end as u32,
@@ -4501,13 +4510,13 @@ fn create_literal(
     })
 }
 
-fn create_numeric_literal(
+fn create_numeric_literal<'a>(
     value: f64,
     raw: &str,
     start: usize,
     end: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     Expression::from_node(JsNode::Literal {
         start: start as u32,
         end: end as u32,
@@ -4518,13 +4527,13 @@ fn create_numeric_literal(
     })
 }
 
-fn create_string_literal(
+fn create_string_literal<'a>(
     value: &str,
     raw: &str,
     start: usize,
     end: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     Expression::from_node(JsNode::Literal {
         start: start as u32,
         end: end as u32,
@@ -4535,7 +4544,7 @@ fn create_string_literal(
     })
 }
 
-fn create_binary_expression(
+fn create_binary_expression<'a>(
     arena: &ParseArena,
     left: &OxcExpression,
     operator: &oxc_ast::ast::BinaryOperator,
@@ -4544,7 +4553,7 @@ fn create_binary_expression(
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let left_expr = convert_expression(arena, left, offset, line_offsets);
     let right_expr = convert_expression(arena, right, offset, line_offsets);
 
@@ -4558,14 +4567,14 @@ fn create_binary_expression(
     })
 }
 
-fn create_logical_expression(
+fn create_logical_expression<'a>(
     arena: &ParseArena,
     logical: &oxc_ast::ast::LogicalExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let left_expr = convert_expression(arena, &logical.left, offset, line_offsets);
     let right_expr = convert_expression(arena, &logical.right, offset, line_offsets);
 
@@ -4579,14 +4588,14 @@ fn create_logical_expression(
     })
 }
 
-fn create_unary_expression(
+fn create_unary_expression<'a>(
     arena: &ParseArena,
     unary: &oxc_ast::ast::UnaryExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let argument = convert_expression(arena, &unary.argument, offset, line_offsets);
 
     Expression::from_node(JsNode::UnaryExpression {
@@ -4599,14 +4608,14 @@ fn create_unary_expression(
     })
 }
 
-fn create_conditional_expression(
+fn create_conditional_expression<'a>(
     arena: &ParseArena,
     cond: &oxc_ast::ast::ConditionalExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let test = convert_expression(arena, &cond.test, offset, line_offsets);
     let consequent = convert_expression(arena, &cond.consequent, offset, line_offsets);
     let alternate = convert_expression(arena, &cond.alternate, offset, line_offsets);
@@ -4621,14 +4630,14 @@ fn create_conditional_expression(
     })
 }
 
-fn create_call_expression(
+fn create_call_expression<'a>(
     arena: &ParseArena,
     call: &oxc_ast::ast::CallExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let callee = convert_expression(arena, &call.callee, offset, line_offsets);
 
     let args: Vec<JsNode> = call
@@ -4663,14 +4672,14 @@ fn create_call_expression(
     })
 }
 
-fn create_static_member_expression(
+fn create_static_member_expression<'a>(
     arena: &ParseArena,
     member: &oxc_ast::ast::StaticMemberExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let object = convert_expression(arena, &member.object, offset, line_offsets);
 
     let prop_start = offset + member.property.span.start as usize - 1;
@@ -4694,14 +4703,14 @@ fn create_static_member_expression(
     })
 }
 
-fn create_computed_member_expression(
+fn create_computed_member_expression<'a>(
     arena: &ParseArena,
     member: &oxc_ast::ast::ComputedMemberExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let object = convert_expression(arena, &member.object, offset, line_offsets);
     let property = convert_expression(arena, &member.expression, offset, line_offsets);
 
@@ -4716,14 +4725,14 @@ fn create_computed_member_expression(
     })
 }
 
-fn create_private_member_expression(
+fn create_private_member_expression<'a>(
     arena: &ParseArena,
     member: &oxc_ast::ast::PrivateFieldExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let object = convert_expression(arena, &member.object, offset, line_offsets);
 
     let prop_start = offset + member.field.span.start as usize - 1;
@@ -4745,14 +4754,14 @@ fn create_private_member_expression(
     })
 }
 
-fn create_new_expression(
+fn create_new_expression<'a>(
     arena: &ParseArena,
     new_expr: &oxc_ast::ast::NewExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let callee = convert_expression(arena, &new_expr.callee, offset, line_offsets);
 
     let args: Vec<JsNode> = new_expr
@@ -4786,7 +4795,7 @@ fn create_new_expression(
     })
 }
 
-fn create_function_expression(
+fn create_function_expression<'a>(
     arena: &ParseArena,
     func: &oxc_ast::ast::Function,
     start: usize,
@@ -4799,7 +4808,7 @@ fn create_function_expression(
     // Object-method values keep their generics on the inner function but emit
     // them after `body` (acorn-typescript), unlike declarations/expressions.
     type_parameters_after_body: bool,
-) -> Expression {
+) -> Expression<'a> {
     // id
     let id = func.id.as_ref().map(|id| {
         let id_start = offset + id.span.start as usize - 1;
@@ -4883,14 +4892,14 @@ fn function_expression_type_parameters(
     })
 }
 
-fn create_class_expression(
+fn create_class_expression<'a>(
     arena: &ParseArena,
     class_expr: &oxc_ast::ast::Class,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     // id
     let id = class_expr.id.as_ref().map(|id| {
         let id_start = offset + id.span.start as usize - 1;
@@ -4922,14 +4931,14 @@ fn create_class_expression(
     })
 }
 
-fn create_tagged_template_expression(
+fn create_tagged_template_expression<'a>(
     arena: &ParseArena,
     tagged: &oxc_ast::ast::TaggedTemplateExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let tag = convert_expression(arena, &tagged.tag, offset, line_offsets);
 
     let quasi_start = offset + tagged.quasi.span.start as usize - 1;
@@ -4952,12 +4961,12 @@ fn create_tagged_template_expression(
     })
 }
 
-fn create_regex_literal(
+fn create_regex_literal<'a>(
     regex: &oxc_ast::ast::RegExpLiteral,
     start: usize,
     end: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let pattern_str = regex.regex.pattern.text.to_string();
     let flags_str = regex.regex.flags.to_string();
 
@@ -5121,14 +5130,14 @@ fn convert_class_element_for_expr(
     }
 }
 
-fn create_array_expression(
+fn create_array_expression<'a>(
     arena: &ParseArena,
     arr: &oxc_ast::ast::ArrayExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let elements: Vec<Option<JsNode>> = arr
         .elements
         .iter()
@@ -5179,14 +5188,14 @@ fn mark_object_method_generics(node: &mut JsNode, is_method: bool) {
     }
 }
 
-fn create_object_expression(
+fn create_object_expression<'a>(
     arena: &ParseArena,
     obj_expr: &oxc_ast::ast::ObjectExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let properties: Vec<JsNode> = obj_expr
         .properties
         .iter()
@@ -5276,14 +5285,14 @@ fn convert_property_key_for_expr(
     }
 }
 
-fn create_assignment_expression(
+fn create_assignment_expression<'a>(
     arena: &ParseArena,
     assign: &oxc_ast::ast::AssignmentExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let operator = assignment_operator_to_str(&assign.operator);
     let left = convert_assignment_target(arena, &assign.left, offset, line_offsets);
     let right = convert_expression(arena, &assign.right, offset, line_offsets);
@@ -5642,14 +5651,14 @@ fn convert_assignment_target(
     }
 }
 
-fn create_update_expression(
+fn create_update_expression<'a>(
     arena: &ParseArena,
     update: &oxc_ast::ast::UpdateExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let operator = match update.operator {
         oxc_ast::ast::UpdateOperator::Increment => "++",
         oxc_ast::ast::UpdateOperator::Decrement => "--",
@@ -5667,14 +5676,14 @@ fn create_update_expression(
     })
 }
 
-fn create_sequence_expression(
+fn create_sequence_expression<'a>(
     arena: &ParseArena,
     seq: &oxc_ast::ast::SequenceExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let expressions: Vec<JsNode> = seq
         .expressions
         .iter()
@@ -5747,14 +5756,14 @@ fn convert_simple_assignment_target(
     }
 }
 
-fn create_arrow_function(
+fn create_arrow_function<'a>(
     arena: &ParseArena,
     arrow: &oxc_ast::ast::ArrowFunctionExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     // Convert params - pass offset - 1 because we wrapped content in parens for parsing
     let mut params: Vec<JsNode> = arrow
         .params
@@ -6295,14 +6304,14 @@ fn convert_binding_pattern_for_decl_as_node(
     }
 }
 
-fn create_template_literal(
+fn create_template_literal<'a>(
     arena: &ParseArena,
     template: &oxc_ast::ast::TemplateLiteral,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     let quasis: Vec<JsNode> = template
         .quasis
         .iter()
@@ -6651,10 +6660,10 @@ pub struct ProgramParseParams<'a> {
 /// acorn.js). The recovered partial program is still returned so lenient
 /// callers (e.g. the profiling binary) can keep operating on a best-effort
 /// AST.
-pub fn parse_program_with_error(
+pub fn parse_program_with_error<'a>(
     arena: &ParseArena,
     params: ProgramParseParams,
-) -> (Expression, Option<crate::error::ParseError>) {
+) -> (Expression<'a>, Option<crate::error::ParseError>) {
     let ProgramParseParams {
         content,
         offset,
@@ -8710,12 +8719,12 @@ fn convert_variable_declarator_for_program(
 }
 
 /// Convert an expression for program context (no -1 offset adjustment).
-fn convert_expression_for_program(
+fn convert_expression_for_program<'a>(
     arena: &ParseArena,
     expr: &OxcExpression,
     offset: usize,
     line_offsets: &[usize],
-) -> Expression {
+) -> Expression<'a> {
     // For program context, we use the raw offset without -1 adjustment
     match expr {
         OxcExpression::Identifier(id) => {
@@ -10844,12 +10853,12 @@ fn convert_property_key(
 
 /// Parse a binding pattern (for {#each} context).
 /// This parses patterns like `item`, `{ name }`, `[a, b]`, etc.
-pub fn parse_binding_pattern(
+pub fn parse_binding_pattern<'a>(
     arena: &ParseArena,
     content: &str,
     offset: usize,
     line_offsets: &[usize],
-) -> Result<Expression, crate::error::ParseError> {
+) -> Result<Expression<'a>, crate::error::ParseError> {
     // Check for reserved words in simple identifier contexts
     // (e.g., {#each cases as case} where "case" is a reserved word)
     let trimmed = content.trim();
