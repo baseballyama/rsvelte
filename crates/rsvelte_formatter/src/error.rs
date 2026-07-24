@@ -21,11 +21,14 @@ impl FormatError {
     ///
     /// A plain `<script>` may contain TS, and its template expressions must
     /// then parse in the same dialect (#682). With the initial parse deferred,
-    /// that failure surfaces here (from the script/expression re-parse) rather
-    /// than at parse time, so the formatter retries the whole file forcing TS
-    /// exactly as the eager path used to. Style/JSON failures are dialect-
-    /// independent and never retried.
+    /// that failure surfaces here (from the script/expression oxc re-parse) as
+    /// `ScriptParse`, so the formatter retries the whole file forcing TS exactly
+    /// as the eager path used to. Deliberately excludes `Parse`: it carries only
+    /// the svelte *markup* parse failure (dialect-independent) and internal
+    /// "span out of bounds" invariants — neither is fixed by forcing TS, so
+    /// retrying them would waste a second pass and shadow the real error.
+    /// Style/JSON failures are dialect-independent too and never retried.
     pub(crate) fn is_dialect_sensitive(&self) -> bool {
-        matches!(self, FormatError::Parse(_) | FormatError::ScriptParse(_))
+        matches!(self, FormatError::ScriptParse(_))
     }
 }

@@ -1968,12 +1968,18 @@ fn trivial_expr_verbatim(
 /// nested `format_with_arenas` (the collapse `<pre>` re-entry) clears the memo on
 /// entry, so a sub-document formatted with different options cannot read a
 /// parent's cached entry.
-type ExprMemoKey = (String, u16, bool, QuoteStyle);
+/// The `bool` after `single_line` is the TS/JS dialect (`options.typescript`):
+/// the #682 retry re-formats the same expression source in the other dialect, so
+/// the dialect must key the cache even though `clear_expr_memo()` already runs
+/// per attempt — belt-and-suspenders against a future change to the clear timing
+/// silently returning a JS-formatted result for a TS retry.
+type ExprMemoKey = (String, u16, bool, bool, QuoteStyle);
 thread_local! {
     static EXPR_MEMO: RefCell<HashMap<ExprMemoKey, String>> = RefCell::new(HashMap::new());
 }
 
-/// Drop the previous file's cached expression results. Called once per file.
+/// Drop the previous attempt's cached expression results. Called once per format
+/// attempt (up to two per file when the #682 TS retry fires).
 pub(crate) fn clear_expr_memo() {
     EXPR_MEMO.with(|m| m.borrow_mut().clear());
 }
@@ -1991,6 +1997,7 @@ fn format_expr_core(
         expr_source.to_string(),
         line_width.value(),
         single_line,
+        options.typescript,
         options.js.quote_style,
     );
     if let Some(cached) = EXPR_MEMO.with(|m| m.borrow().get(&key).cloned()) {

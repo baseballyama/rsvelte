@@ -232,10 +232,12 @@ fn script_long_type_alias_wraps_like_oxfmt() {
 //
 // oxfmt / prettier-plugin-svelte parse Svelte `<script>` as TS by default, so a
 // plain `<script>` containing TS-only syntax is valid, formattable input there.
-// rsvelte-fmt mirrors this via a JS-first / TS-fallback parse: a normal JS parse
-// is tried first (so valid-JS components never change dialect), and only on
-// failure is the source re-parsed forcing TS. Regression for the corpus
-// `v4-migration-guide` / `content-sveltekit` entries.
+// The formatter's initial parse defers script/expression bodies, and
+// `format_script` always re-parses `<script>` as TS, so a plain TS `<script>`
+// formats correctly with no retry. When a *template expression* needs TS (a
+// dialect-sensitive `ScriptParse` failure on the first, non-TS attempt), the
+// whole format is re-run forcing TS (see `format_with_arenas`). Regression for
+// the corpus `v4-migration-guide` / `content-sveltekit` entries.
 
 #[test]
 fn plain_script_with_typeof_generic_formats_as_ts() {
@@ -274,6 +276,40 @@ fn plain_script_valid_js_is_untouched_by_fallback() {
     assert!(
         out.contains("let a = 1;") && out.contains("let b = a + 2;"),
         "{out}"
+    );
+}
+
+#[test]
+fn plain_script_with_ts_template_expr_triggers_ts_retry() {
+    // The ONLY coverage of the retry path itself: a plain (valid-JS) `<script>`
+    // plus a TS-only *template expression*. `lang="ts"` is absent, so the first
+    // (non-TS) attempt parses `{x as string}` as JS and fails with a dialect-
+    // sensitive `ScriptParse`; the whole format then re-runs forcing TS and the
+    // cast round-trips. Disabling `FormatError::is_dialect_sensitive` makes this
+    // test fail.
+    let src = "<script>let x = 1;</script>\n<p>{x as string}</p>\n";
+    let out = format(src, &FormatOptions::default()).expect("format ok");
+    assert!(
+        out.contains("{x as string}"),
+        "the TS retry should round-trip the template cast:\n{out}"
+    );
+}
+
+#[test]
+fn plain_ts_script_ambiguous_generic_expr_formats_as_js() {
+    // Documented, ACCEPTED divergence from the old eager path: a plain `<script>`
+    // whose TS-ness lives only in the body (no `lang="ts"`) does not flip an
+    // *ambiguous* template expression's dialect — `{fn<string>(a)}` parses fine
+    // as a JS comparison, raises no error, so no TS retry fires and it formats as
+    // JS (the eager path used to force it to a TS generic call). Closing this
+    // needs a script JS-parse probe, re-adding the parse cost parse-lite removed;
+    // TS in a plain `<script>` is invalid Svelte the compiler rejects, so the
+    // dialect here is a don't-care.
+    let src = "<script>let x: number = 1;</script>\n<p>{fn<string>(a)}</p>\n";
+    let out = format(src, &FormatOptions::default()).expect("format ok");
+    assert!(
+        out.contains("fn < string"),
+        "ambiguous generic must format as a JS comparison, not a TS generic call:\n{out}"
     );
 }
 

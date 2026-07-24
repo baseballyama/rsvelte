@@ -1,7 +1,8 @@
 //! Per-thread scratch arena for the throwaway oxc parses the formatter runs on
-//! every `{expr}` and `<script>` body. The allocator is reset once per file so
-//! a file's parses share one arena instead of each allocating (and freeing) a
-//! fresh chunk — the dominant per-parse cost once the AST work is small.
+//! every `{expr}` and `<script>` body. The allocator is reset once per format
+//! attempt so an attempt's parses share one arena instead of each allocating
+//! (and freeing) a fresh chunk — the dominant per-parse cost once the AST work
+//! is small.
 //!
 //! ## Soundness invariant
 //!
@@ -54,12 +55,13 @@ pub(crate) fn acquire<'a>() -> &'a Allocator {
     })
 }
 
-/// Reset the scratch arena, freeing the previous file's parses while keeping the
-/// backing chunk. Called once per file at [`crate::format_with_arenas`] entry.
+/// Reset the scratch arena, freeing the previous attempt's parses while keeping
+/// the backing chunk. Called once per format attempt (up to two per file when
+/// the #682 TS retry fires) at [`crate::format_attempt`] entry.
 pub(crate) fn reset() {
     SCRATCH.with(|cell| {
         // SAFETY: exclusive access to this thread's allocator. Sound because
-        // `reset` runs only at `format_with_arenas` entry, where the module
+        // `reset` runs only at `format_attempt` entry, where the module
         // invariant guarantees no `acquire` reference is live on this thread
         // (leaves consume their parse within the call; the collapse `<pre>`
         // re-entry resets only already-consumed data), so this `&mut` never
