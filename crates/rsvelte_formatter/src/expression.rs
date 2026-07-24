@@ -542,6 +542,33 @@ fn split_leading_line_comments(inner: &str) -> (&str, &str) {
 /// Replace `{...}` (template-position or attribute-value `ExpressionTag`)
 /// with the formatted expression body wrapped in braces. Collapses any
 /// whitespace inside the braces.
+/// The byte range of the leading expression code inside `rest`, excluding any
+/// surrounding comments — the boundaries a typed parse's expression span gives,
+/// recovered via an oxc parse for the deferred (`Lazy`) case. `None` when the
+/// snippet doesn't parse (caller falls back to the raw text).
+fn expression_code_range(rest: &str, options: &FormatOptions) -> Option<std::ops::Range<usize>> {
+    let allocator = crate::scratch::acquire();
+    let wrapped = format!("({rest});");
+    let source_type = if options.typescript {
+        SourceType::ts().with_module(true)
+    } else {
+        SourceType::default()
+    };
+    let ret = Parser::new(allocator, &wrapped, source_type)
+        .with_options(formatter_parse_options())
+        .parse();
+    if !ret.diagnostics.is_empty() {
+        return None;
+    }
+    let oxc_ast::ast::Statement::ExpressionStatement(stmt) = ret.program.body.first()? else {
+        return None;
+    };
+    let span = oxc_span::GetSpan::span(&stmt.expression);
+    let (start, end) = (span.start as usize, span.end as usize);
+    // The `(` wrapper shifts every offset by one byte.
+    (start >= 1 && end >= start && end - 1 <= rest.len()).then(|| start - 1..end - 1)
+}
+
 fn push_expression_tag(
     source: &str,
     tag: &ExpressionTag,
@@ -573,12 +600,23 @@ fn push_expression_tag(
         let (leading, rest) = split_leading_line_comments(inner);
         let leading_comments = leading.trim_end_matches('\n');
         // Use the AST expression span as the expression source so that
-        // trailing comments on the expression node are not included.
+        // trailing comments on the expression node are not included. A Lazy
+        // span covers the whole braced body (comments included), so derive the
+        // code range from an oxc parse instead — same boundaries a typed node's
+        // span would have had.
+        let lazy = matches!(
+            tag.expression,
+            rsvelte_core::ast::js::Expression::Lazy { .. }
+        );
         let expr_source =
-            if let (Some(es), Some(ee)) = (tag.expression.start(), tag.expression.end()) {
+            if !lazy && let (Some(es), Some(ee)) = (tag.expression.start(), tag.expression.end()) {
                 source.get(es as usize..ee as usize).unwrap_or("").trim()
             } else {
-                rest.trim()
+                let r = rest.trim();
+                match expression_code_range(r, options) {
+                    Some(range) => r.get(range).unwrap_or(r).trim(),
+                    None => r,
+                }
             };
         if expr_source.is_empty() {
             edits.push((tag.start, tag.end, format!("{{{leading_comments}}}")));
