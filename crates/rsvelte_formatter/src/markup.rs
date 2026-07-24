@@ -2208,7 +2208,7 @@ fn render_value_sequence_doc(
     let text_led = matches!(parts.first(), Some(AttributeValuePart::Text(t)) if !t.raw.is_empty());
     let base_indent = if text_led { attr_depth } else { 0 };
     let out = doc_print(
-        propagate_breaks(Doc::Concat(docs)),
+        &propagate_breaks(Doc::Concat(docs)),
         width,
         &unit,
         base_indent,

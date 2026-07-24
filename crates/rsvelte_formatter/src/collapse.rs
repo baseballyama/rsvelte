@@ -1632,13 +1632,7 @@ fn try_fill_run(
         _ => content_doc,
     };
     // Flat width (a hardline forces multi-line).
-    let flat = crate::doc::print(
-        crate::doc::Doc::Group(vec![content_doc.clone()]),
-        1_000_000,
-        indent_unit.as_str(),
-        base_level,
-        0,
-    );
+    let flat = crate::doc::print_flat(&content_doc, 1_000_000, indent_unit.as_str(), base_level, 0);
     if !flat.contains('\n') && indent_cols + flat.width() <= line_width {
         // Fits on one line — collapse to the flat form. The input run may itself
         // be multi-line (e.g. root-level prose written one word per line), and
@@ -1652,7 +1646,7 @@ fn try_fill_run(
         return None;
     }
     let printed_raw = crate::doc::print(
-        content_doc,
+        &content_doc,
         line_width,
         indent_unit.as_str(),
         base_level,
@@ -3215,7 +3209,7 @@ fn try_collapse(
                         indent.width() / indent_width
                     };
                     let printed = crate::doc::print(
-                        elem_doc,
+                        &elem_doc,
                         line_width,
                         indent_unit.as_str(),
                         base_level,
@@ -4869,7 +4863,7 @@ fn try_hug_mixed(
                 crate::doc::Doc::Text(format!("</{tag}")),
             ]);
             let printed_full = crate::doc::print(
-                measured,
+                &measured,
                 line_width,
                 indent_unit_hm.as_str(),
                 base_level,
@@ -4900,7 +4894,7 @@ fn try_hug_mixed(
                 inner_indent.width() / indent_width_hm
             };
             let printed = crate::doc::print(
-                body,
+                &body,
                 line_width,
                 indent_unit_hm.as_str(),
                 base_level,
@@ -4994,7 +4988,13 @@ fn try_hug_mixed(
     } else {
         ws_indent.width() / indent_width_hm
     };
-    let printed = crate::doc::print(elem_doc, line_width, indent_unit_hm.as_str(), level, column);
+    let printed = crate::doc::print(
+        &elem_doc,
+        line_width,
+        indent_unit_hm.as_str(),
+        level,
+        column,
+    );
     (printed != whole).then_some((start, end, printed))
 }
 
@@ -5487,7 +5487,7 @@ fn try_children_port(
         omit_softline_allowed: omit_softline_allowed(out, end),
     });
     let doc = crate::doc::propagate_breaks(doc);
-    let printed = crate::doc::print(doc, line_width, unit.as_str(), base_level, start_col);
+    let printed = crate::doc::print(&doc, line_width, unit.as_str(), base_level, start_col);
 
     // Corruption guard: the non-whitespace content must be byte-identical (the
     // port only ever changes whitespace/line breaks, never content). If it isn't,
@@ -5585,13 +5585,7 @@ fn try_fill_mixed(
     // content all-flat (a huge width) to measure: a `hardline` (a source blank
     // line) still forces a newline, so flat content with a `\n` is inherently
     // multi-line and must break.
-    let flat = crate::doc::print(
-        crate::doc::Doc::Group(vec![content_doc.clone()]),
-        1_000_000,
-        indent_unit.as_str(),
-        base_level,
-        0,
-    );
+    let flat = crate::doc::print_flat(&content_doc, 1_000_000, indent_unit.as_str(), base_level, 0);
     let column = current_column(out, start);
 
     // A non-text child that is already multi-line in the output forces the content
@@ -5677,7 +5671,7 @@ fn try_fill_mixed(
         }
     }
     let mut printed = crate::doc::print(
-        content_doc,
+        &content_doc,
         line_width,
         indent_unit.as_str(),
         base_level,
@@ -6260,7 +6254,7 @@ fn build_self_closing_component_doc(out: &str, node: &TemplateNode) -> Option<cr
         Doc::Text("/>".to_string()), // no leading space: the `dedent(line)` provides it
     ]);
     // Guard: the flat print must match the verbatim span (trimmed).
-    let flat = crate::doc::print(doc.clone(), 999999, "  ", 0, 0);
+    let flat = crate::doc::print(&doc, 999999, "  ", 0, 0);
     if flat.trim() != span.trim() {
         return None;
     }
@@ -6313,7 +6307,7 @@ fn build_self_closing_regular_doc(out: &str, node: &TemplateNode) -> Option<crat
     // Guard: the flat form must equal the canonical single-line `<tag a b c />`
     // so this never changes bytes when the element already fits on one line.
     let expected = format!("<{tag} {flat_attrs} />");
-    let flat = crate::doc::print(doc.clone(), 999_999, "  ", 0, 0);
+    let flat = crate::doc::print(&doc, 999_999, "  ", 0, 0);
     if flat != expected {
         return None;
     }
@@ -6367,7 +6361,7 @@ fn build_void_element_doc(
     } else {
         format!("<{tag} {flat_attrs} />")
     };
-    let flat = crate::doc::print(doc.clone(), 999_999, "  ", 0, 0);
+    let flat = crate::doc::print(&doc, 999_999, "  ", 0, 0);
     if flat != expected {
         return None;
     }
@@ -6562,7 +6556,7 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
                         // so leading/trailing space differences don't cause a spurious
                         // mismatch — the surrounding `>` / `</{tag}` wrappers are
                         // structural and don't vary.
-                        let flat_body = crate::doc::print(body.clone(), 1_000_000, "  ", 0, 0);
+                        let flat_body = crate::doc::print(&body, 1_000_000, "  ", 0, 0);
                         if flat_body.trim() == content.trim() {
                             // Re-inject leading/trailing whitespace that
                             // `build_children_doc_nodes` trims from the first/last
@@ -6636,7 +6630,7 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
             // 0-regression: only switch when the body prints flat-identically to
             // `content` (modulo boundary trimming by build_children_doc_nodes).
             let inner_body_doc = build_children_doc(out, &e.fragment).and_then(|body| {
-                let flat_body = crate::doc::print(body.clone(), 1_000_000, "  ", 0, 0);
+                let flat_body = crate::doc::print(&body, 1_000_000, "  ", 0, 0);
                 if flat_body.trim() == content.trim() {
                     let recursive_content = Doc::Concat(vec![
                         Doc::Text(">".to_string()),
@@ -7214,7 +7208,7 @@ mod tests {
         let body = || Doc::Concat(vec![Doc::Text("Clear ".to_string()), icon()]);
 
         // Body alone from col 15 ends at 78 <= 80: the Icon must stay flat.
-        let a = print(body(), 80, "  ", 7, 15);
+        let a = print(&body(), 80, "  ", 7, 15);
         assert_eq!(
             a,
             "Clear <Icon data={TrashIcon} class=\"text-surface-content/50\" />"
@@ -7228,7 +7222,7 @@ mod tests {
             body(),
             Doc::Text("</button".to_string()),
         ]);
-        let b = print(measured, 80, "  ", 7, 14);
+        let b = print(&measured, 80, "  ", 7, 14);
         let expected = "\
 >Clear <Icon
                 data={TrashIcon}
