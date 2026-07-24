@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/compiler",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "A high-performance Rust implementation of the Svelte compiler",
   "license": "MIT",
   "repository": {
