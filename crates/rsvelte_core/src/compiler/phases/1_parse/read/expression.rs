@@ -4327,7 +4327,12 @@ fn create_meta_property<'a>(
     })
 }
 
-fn create_identifier<'a>(name: &str, start: usize, end: usize, line_offsets: &[usize]) -> Expression<'a> {
+fn create_identifier<'a>(
+    name: &str,
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+) -> Expression<'a> {
     Expression::from_node(JsNode::Identifier {
         start: start as u32,
         end: end as u32,
