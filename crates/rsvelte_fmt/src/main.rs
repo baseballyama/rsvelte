@@ -2,6 +2,14 @@
 //! tree. `.svelte` files go through [`rsvelte_formatter`]; every other file
 //! is delegated to a child `oxfmt` process. Both pipelines run in parallel.
 
+// The CLI streams files (read → format → drop, one source live at a time), so
+// the system allocator churns pages back to the OS between files; mimalloc
+// retains them, closing a large per-file read+format overhead the batched
+// in-process benchmark never sees. mimalloc is rsvelte's production allocator
+// (the compiler CLI and NAPI addon use it for the same allocation-bound reason).
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::io::{self, Read, Write};
