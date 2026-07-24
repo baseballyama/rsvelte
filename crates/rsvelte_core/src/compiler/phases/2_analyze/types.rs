@@ -947,7 +947,8 @@ fn is_paren_safe_to_drop(expr: &oxc_ast::ast::Expression) -> bool {
             | E::ComputedMemberExpression(_)
             | E::StaticMemberExpression(_)
             | E::PrivateFieldExpression(_)
-            | E::MetaProperty(_)
+            | E::ImportMeta(_)
+            | E::NewTarget(_)
             | E::ImportExpression(_)
     )
 }

@@ -27,7 +27,8 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::fragmen
     TextOrExpr, has_dynamic_children, is_static_element, process_children,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
-    build_render_statement_with_memoizer, build_template_chunk, expression_has_reactive_state,
+    build_render_statement_with_memoizer, build_template_chunk, build_template_effect,
+    expression_has_reactive_state,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
@@ -1395,14 +1396,13 @@ pub fn visit_regular_element(
                     ),
                 ));
             } else {
-                block_body.push(b::stmt(
-                    &context.arena,
-                    b::call(
-                        &context.arena,
-                        b::member_path(&context.arena, "$.template_effect"),
-                        vec![b::arrow_block(vec![], child_update)],
-                    ),
-                ));
+                // A single expression-statement update collapses to the concise
+                // `() => stmt` arrow (写经 upstream `build_template`); only a
+                // multi-statement body uses a block. `build_template_effect`
+                // applies that decision — previously this branch always emitted a
+                // block body, diverging for a lone `set_text` inside a
+                // DeclarationTag scope (`{let dt = …}{typeof dt}`).
+                block_body.push(build_template_effect(&context.arena, child_update, None));
             }
         }
 

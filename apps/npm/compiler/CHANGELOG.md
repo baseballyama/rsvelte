@@ -1,5 +1,179 @@
 # @rsvelte/compiler
 
+## 0.9.1
+
+### Patch Changes
+
+- 62b47e6: chore: upgrade Svelte compatibility target to 5.56.7
+
+  Bumps the pinned Svelte submodule from 5.56.4 to 5.56.7, regenerates all test
+  fixtures, and ports the codegen changes that alter compiler output — two on the
+  server (SSR) transform and two on the client transform:
+
+  - **`$state.eager(<arg>)` visits its argument** (upstream #18530): the server
+    `CallExpression` visitor now visits `node.arguments[0]` instead of returning
+    it verbatim, so a `$derived` read inside `$state.eager(...)` resolves to a
+    getter call (`$state.eager(d)` → `d()`). The read-wrap pass no longer skips
+    the eager argument.
+  - **Inline `{await …}` expression tags read-wrap their reads** (upstream #18492
+    `process_children` threading `state` into `visit`): an inline await whose
+    immediate parent is an element now applies the read-wrap pass to the
+    `$.save`-wrapped result, so `$derived` / store reads inside it resolve to
+    getter calls (`{await push(d)}` → `push(d())`).
+  - **Keyed each computed destructuring keys are transformed** (upstream #18521):
+    the client key-function parameter pattern is now converted under the each
+    block's `key_state`, so a computed destructuring key rewrites to its
+    prop / state access (`{#each … as { [labelKey]: label } (…)}` →
+    `({ [$$props.labelKey]: label }) => …`).
+  - **A lone update effect in a `DeclarationTag` element scope stays concise**: an
+    element that directly contains a `{let …}` / `{const …}` declaration tag now
+    collapses a single-statement `$.template_effect` to the `() => stmt` arrow body
+    instead of a block, matching upstream (a pre-existing client quirk surfaced by
+    the new `declaration-tags-transform` sample).
+
+  The `async-batch-derived` runtime-runes fixture is skip-listed: its
+  `<svelte:boundary {pending}>` with a `$derived` pending attribute needs the
+  server pending-attribute boundary branch, an unported gap that is unaffected by
+  this bump (`SvelteBoundary.js` is unchanged across 5.56.4..5.56.7).
+
+- bb96376: fix(css): resolve multi-relative chains in `:global()`/nested-`&` sibling prune
+
+  The `+`/`~` unused-CSS prune check resolved only single-relative selectors when
+  expanding a leading `:global(X)` inner selector or a nested rule's `&` against
+  its ancestor rules, so a descendant/child chain inside the compound was left
+  unresolved and the rule was pruned even when the ancestor constraint was
+  actually satisfied — e.g. `:global(.a .z) + .b` (`.z` really under `.a`) became
+  `/* (unused) */` and `.grand { .foo > .a { & + & } }` became `/* (empty) */`.
+  The `&`/`:global(...)` inner is now resolved through the full ancestor chain
+  with the same structural matcher used for `>` child checks, matching
+  `svelte/compiler` for both the kept and pruned cases (#1719).
+
+## 0.9.0
+
+### Minor Changes
+
+- 64cb25d: feat(capi): support `cssHash` / `warningFilter` compile callbacks in the C ABI (`crates/rsvelte_capi`)
+
+  The C shared library gains two callback-aware entry points,
+  `rsvelte_compile_with_callbacks` and `rsvelte_compile_module_with_callbacks`,
+  which resolve the two function-form compile options that can't be expressed as
+  JSON — completing the C-API half of the function-compile-options work (the wasm
+  side shipped separately, NAPI in earlier releases):
+
+  - **`css_hash`** — a `(userdata, RsvelteCssHashInput) -> RsvelteStr` function
+    pointer. The input's `hash` field is the raw digest the compiler's default
+    `cssHash` produces (the filename when known, else the CSS; no `svelte-`
+    prefix), so `svelte-${hash}` reproduces the default class exactly. Returns a
+    borrowed string the library copies immediately; a constant `cssHashOverride`
+    in the options JSON still wins.
+  - **`warning_filter`** — a `(userdata, warning_json, len) -> bool` function
+    pointer, applied natively by the compiler for both components and modules.
+
+  Callbacks are opt-in via a new `RsvelteCallbacks` struct (any field may be
+  NULL); the existing `rsvelte_compile` / `rsvelte_compile_module` entry points
+  are unchanged. `include/rsvelte.h` regenerates via cbindgen.
+
+  This does not change the published `@rsvelte/compiler` npm package's runtime
+  behaviour — it is a parallel C distribution channel. The npm version is bumped
+  so the new C ABI surface appears in the next release notes.
+
+- deadab5: feat(wasm): support function compile options via a new `compile(source, options)` entry
+
+  The wasm compiler now exposes `compile(source, options)`, which accepts the full
+  compile-options object and resolves the function-form options that the primitive
+  `compile_client`/`compile_server` entries can't — matching the NAPI shim's
+  support (PRs #1666/#1667):
+
+  - the `parametric` function forms of `customElement`, `css`, and `runes`
+    (`({ filename }) => value`), evaluated once at the boundary;
+  - a `warningFilter` callback, applied natively by the compiler;
+  - a constant `cssHashOverride` string; and
+  - a dynamic `cssHash` callback bridged through `js_sys::Function` (wasm compile
+    is single-threaded, so the callback runs inline with no threadsafe-function
+    marshalling). A callback that throws surfaces as a compile error; a non-string
+    return falls back to the default hash.
+
+  The result is returned as a JSON string (`{ js, css, warnings, metadata }`);
+  callbacks are input-only. The existing `compile_client`/`compile_server` entries
+  are unchanged.
+
+### Patch Changes
+
+- a10913c: fix(analyze): hand the raw digest to `cssHash` callbacks via `CssHashInput.hash`
+
+  `CssHashInput.hash` now carries the unprefixed raw digest, matching upstream's
+  default `cssHash` (`svelte-${hash(...)}`) where the `hash` argument is the raw
+  digest and the `svelte-` prefix is applied by the default implementation itself.
+  The prefix is now materialized only where the default hash is produced. The wasm
+  `cssHash` bridge no longer recomputes its own raw hash and instead trusts the
+  shared field. No compiler output changes.
+
+- 1508778: fix(css): keep nested `& + &` and `:global(.a) + .b` sibling rules
+
+  Two unused-CSS prune divergences found by the css-prune differential sweep are
+  fixed, clearing the sweep ratchet (81 → 0):
+
+  - A nested rule whose inner selector uses the parent-selector sibling combinator
+    (`.a { & + & { … } }`, i.e. `.a + .a`) was dropped as `/* (empty) */` even with
+    a real adjacent `.a` pair, because `&` (NestingSelector) resolved to an empty
+    matches-nothing selector during sibling pruning. `&` is now resolved against
+    the parent rule's subject compound (#1703).
+  - `:global(.a) + .b` was pruned as `/* (unused) */` when the sibling pair lived
+    inside an `{#await}…{:then}` branch or a `{#snippet}` fragment (both set the
+    opaque-elements flag, which suppressed real-sibling matching). The acceptable
+    predecessors of the scoped segment are now unioned — a real previous sibling
+    matching the inner `:global(...)`, an opaque boundary, or a root-level element
+    (#1702).
+
+- 46cf5fe: fix(css): keep sibling-combinator rules past `<svelte:head>` void elements
+
+  The unused-CSS analysis assigned sibling-data slots (`dom_idx`) with a walker
+  that did not descend into `svelte:*` wrapper nodes, while the analysis visitor
+  that builds the element table does. A void element inside `<svelte:head>`
+  (`<meta />` / `<link />`) therefore shifted every subsequent element's
+  sibling-data slot by one, so sibling-combinator selectors (`.a + .a`, `.a ~ .a`)
+  matched by `{#each}`-generated siblings were wrongly pruned as unused — and in
+  other structures (`{#if}`/`{:else}`), wrongly kept. Both walkers now descend
+  into the same wrapper set, matching the official compiler's prune decisions
+  (verified by a new 1222-component differential sweep against `svelte/compiler`).
+
+- 97178b7: fix(css): prune descendant/child selector chains whose subject or ancestor links cannot match the component's own element tree (attribute/class/id compounds included), and preserve source whitespace after a pruned leading selector-list item
+- 020be59: fix(parse): emit `FunctionDeclaration.expression` (always `false`) to match acorn's key order (`id`, `expression`, `generator`, `async`, `params`, `body`)
+
+  The binary NAPI raw-parse envelope (`napi_raw_parse.rs`'s writer, consumed only
+  by `@rsvelte/vite-plugin-svelte-native`'s `parse-envelope.js` decoder) carries
+  the same field, so both packages need this release. The envelope's `VERSION`
+  is bumped to 2 alongside the wire-format change (one extra bool byte on
+  `FunctionDeclaration` payloads).
+
+- 065ce6f: fix(parse): improve function-node AST fidelity to match acorn / acorn-typescript
+
+  Four parse-AST fixes so the public `parse()` output matches svelte/compiler:
+
+  - `FunctionExpression` fields are ordered `id, expression, generator, async` to
+    match acorn's uniform `initFunction` key order (#1689).
+  - Generic function-like nodes emit `typeParameters`
+    (`FunctionDeclaration`/`FunctionExpression` between `async` and `params`,
+    `ArrowFunctionExpression` after `body`) (#1694).
+  - TS optional parameters (`b?: T`) round-trip their `optional: true` marker;
+    program-context arrow params now route through the TS-aware parameter
+    converter so they carry the same `typeAnnotation`/`optional` fidelity as
+    declarations (#1692). As a side effect, this also fixes a pure-JS bug where a
+    default-valued arrow parameter (`(a = 1) => a`) lost its `AssignmentPattern`
+    (default value) in the `parse()` output — `compile()` output was unaffected.
+  - Object-method values (`{ m<T>(x: T) {} }`) keep their generics on the inner
+    `FunctionExpression` but emit `typeParameters` _after_ `body` (like arrows),
+    not in the declaration/expression slot before `params` (#1711).
+
+  The binary NAPI raw-parse envelope (consumed by
+  `@rsvelte/vite-plugin-svelte-native`'s `parse-envelope.js` decoder) carries the
+  same fields, so both packages need this release. The envelope `VERSION` is
+  bumped to 4 alongside the wire-format changes.
+
+- 97178b7: fix(client): per-site proxy decision for bare-identifier assignment RHS resolved to a function-local declaration, and upstream-faithful `is_defined` for `unknown ?? b` initializers (no narrowing when the left side is not statically known)
+- 97178b7: fix(client): resolve bare identifiers via scope in template-chunk `is_defined`, so e.g. a legacy `let iconAsc = "↑"` inside `${cond ? iconAsc : iconDesc}` reads bare without a spurious `?? ''`
+- d7353f8: fix(parse): preserve `TSFunctionType` / `TSConstructorType` in `convert_ts_type` instead of collapsing them to a `TSUnknownKeyword` stub (e.g. inside a union like `string | (() => void)`)
+
 ## 0.8.2
 
 ### Patch Changes

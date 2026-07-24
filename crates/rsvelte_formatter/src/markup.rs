@@ -88,6 +88,7 @@ pub(crate) fn collect_options_open_tag_edit(
         None,
         0,
         false,
+        false,
         options,
         edits,
     )?;
@@ -100,6 +101,36 @@ fn is_empty_fragment(fragment: &Fragment) -> bool {
         .nodes
         .iter()
         .all(|n| matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())))
+}
+
+/// Whether an (empty) fragment carries a whitespace-only text body — the
+/// `<span> </span>` shape — as opposed to a truly source-empty `<span></span>`.
+/// prettier keys `shouldHugStart`/`shouldHugEnd` on this: an inline element with
+/// a whitespace body does NOT hug (its body prints as a `line`), whereas a
+/// source-empty inline element hugs (`></span>`).
+fn fragment_has_whitespace_body(fragment: &Fragment) -> bool {
+    fragment.nodes.iter().any(|n| {
+        matches!(n, TemplateNode::Text(t)
+            if t.data.chars().next().is_some_and(|c| c.is_ascii_whitespace()))
+    })
+}
+
+/// An inline element whose only body is whitespace (`<span> </span>`) — the shape
+/// this targets. It is NOT `shouldHugStart && shouldHugEnd` (the whitespace body
+/// blocks hugging), so prettier prints `group([...openingTag, '>', line, '</tag>'])`:
+/// under a wrapping open tag the `>` glues to the last attribute line (under
+/// `bracketSameLine`, else dedents), and the whitespace body prints as a `line`
+/// that breaks, dropping the close tag to its own line. Without this the non-port
+/// path keeps the raw whitespace glued (`> </span>`), which both diverges from the
+/// oracle and is non-idempotent (multi-space collapses on a re-format).
+///
+/// Restricted to inline elements. A source-empty inline element (`<span></span>`)
+/// hugs (`></span>`) and is already correct. Block-display elements (and
+/// `script` / `style`, which prettier's `blockElements` excludes) are left to their
+/// existing layout: their empty body is subject to the collapse pass's own
+/// restructuring, which this edit-based path must not fight.
+fn is_empty_nonhug_element(name: &str, fragment: &Fragment) -> bool {
+    !is_block_element(name) && is_empty_fragment(fragment) && fragment_has_whitespace_body(fragment)
 }
 
 /// Emit the open-tag + close-tag rewrite edits for one attribute-bearing
@@ -120,6 +151,7 @@ fn handle_element(
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
     let is_empty = is_empty_fragment(fragment);
+    let empty_nonhug = is_empty_nonhug_element(name, fragment);
     let wrapped = push_open_tag(
         source,
         start,
@@ -128,10 +160,21 @@ fn handle_element(
         this_expression,
         depth,
         is_empty,
+        empty_nonhug,
         options,
         edits,
     )?;
-    push_close_tag(source, end, name, wrapped, depth, is_empty, options, edits);
+    push_close_tag(
+        source,
+        end,
+        name,
+        wrapped,
+        depth,
+        is_empty,
+        empty_nonhug,
+        options,
+        edits,
+    );
     collect_open_tag_edits(source, fragment, depth + 1, options, edits)?;
     Ok(())
 }
@@ -225,6 +268,9 @@ fn collect_node_open_tag_edits(
                     None,
                     depth,
                     empty,
+                    // `<svelte:window>` is always self-closing when empty, so the
+                    // non-hug empty layout never applies.
+                    false,
                     options,
                     edits,
                 )?;
@@ -339,6 +385,10 @@ fn push_close_tag(
     // non-whitespace content inside the element.  Empty elements (e.g.
     // `<duiv>\n`) have their whitespace preserved by the collapse pass.
     is_empty: bool,
+    // Inline element with a whitespace-only body (`<span> </span>`): when its open
+    // tag wraps, the close tag drops to its own line and the whitespace body is
+    // absorbed into that break. See [`is_empty_nonhug_element`].
+    empty_nonhug: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
@@ -457,9 +507,56 @@ fn push_close_tag(
             .checked_sub(1)
             .and_then(|i| source.as_bytes().get(i))
             .is_some_and(|&b| !b.is_ascii_whitespace() && b != b'>');
-    if hug_close {
+    if empty_nonhug && open_wrapped {
+        // Inline element with a whitespace body and a wrapped open tag: prettier
+        // prints `group([...openingTag, '>', line, '</tag>'])`, and the `line`
+        // breaks because the wrapped open tag forces the group open — so the close
+        // tag drops to its own line at the element indent and the whitespace body
+        // is absorbed into that break. The open `>` glued to the last attribute
+        // line under `bracketSameLine` (see `push_open_tag`) or dedented otherwise.
+        //
+        // `<textarea>` is a raw-text exception: the oracle glues `>` and, under the
+        // default `bracketSameLine: false`, glues the close tag too (`…"></textarea>`,
+        // no break — the whitespace body is dropped). Only `bracketSameLine: true`
+        // breaks the body (`…">`\n`</textarea>`).
+        let bytes = source.as_bytes();
+        let mut content_end = start as usize;
+        while content_end > 0
+            && matches!(bytes[content_end - 1], b' ' | b'\t' | b'\n' | b'\r' | 0x0c)
+        {
+            content_end -= 1;
+        }
+        let raw_text_glues_close = tag_name == "textarea" && !options.bracket_same_line;
+        if raw_text_glues_close {
+            edits.push((content_end as u32, end, format!("</{tag_name}>")));
+        } else {
+            let indent = indent_str(depth, &options.js);
+            edits.push((content_end as u32, end, format!("\n{indent}</{tag_name}>")));
+        }
+    } else if hug_close {
         let indent = indent_str(depth, &options.js);
         edits.push((start, end, format!("</{tag_name}\n{indent}>")));
+    } else if open_wrapped
+        && is_empty
+        && options.bracket_same_line
+        && is_html_block_display_element(tag_name)
+    {
+        // A block-display element with a wrapping open tag whose body is empty (or
+        // whitespace-only, which the oracle treats as empty): under
+        // `bracketSameLine` the open `>` glues to the last attribute (see
+        // `push_open_tag`), so the close tag drops to its own line and any
+        // whitespace body is absorbed into that break — matching the oracle
+        // `<div`\n`  …">`\n`</div>`. The default (`bracketSameLine: false`) keeps
+        // the dedented `></div>` form of the branch below. See #1721.
+        let bytes = source.as_bytes();
+        let mut content_end = start as usize;
+        while content_end > 0
+            && matches!(bytes[content_end - 1], b' ' | b'\t' | b'\n' | b'\r' | 0x0c)
+        {
+            content_end -= 1;
+        }
+        let indent = indent_str(depth, &options.js);
+        edits.push((content_end as u32, end, format!("\n{indent}</{tag_name}>")));
     } else if open_wrapped && is_empty && options.bracket_same_line {
         // An empty element's wrapped open `>` dedents onto its own line (see the
         // `!empty_element` guard in `push_open_tag`), so `>` and `</tag` glue as
@@ -489,6 +586,11 @@ fn push_close_tag(
 /// - otherwise a node abuts the close tag, and the softline may still be omitted
 ///   only when that node is a block parent's own close tag (`</block…`), i.e.
 ///   this element is that block's last child.
+///
+/// The block test uses `is_html_block_display_element` — prettier's `blockElements`
+/// list, which excludes `script`/`style` — to match `isLastChildWithinParentBlockElement`
+/// exactly (and its collapse-pass mirror `omit_softline_allowed`, which uses the
+/// same `is_block_display`).
 fn can_omit_softline_before_closing_tag(source: &str, element_end: u32) -> bool {
     let rest = &source[element_end as usize..];
     match rest.chars().next() {
@@ -499,7 +601,7 @@ fn can_omit_softline_before_closing_tag(source: &str, element_end: u32) -> bool 
                 .chars()
                 .take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == ':')
                 .collect();
-            is_block_element(&name)
+            is_html_block_display_element(&name)
         }),
     }
 }
@@ -648,6 +750,11 @@ fn push_open_tag(
     this_expression: Option<&Expression>,
     depth: usize,
     empty_element: bool,
+    // Inline element with a whitespace-only body (`<span> </span>`): its wrapped
+    // open `>` glues to the last attribute line under `bracketSameLine`, unlike the
+    // hug case (source-empty inline) whose `>` dedents onto its own line. See
+    // [`is_empty_nonhug_element`].
+    empty_nonhug: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<bool, FormatError> {
@@ -896,15 +1003,24 @@ fn push_open_tag(
         rendered_attrs
     };
 
-    // An empty `<textarea>` glues its `>` to the last attribute line by default
-    // (`hug_open`), but prettier's empty `shouldHugStart && shouldHugEnd` branch
-    // dangles the `>` onto its own line (`…"`\n`></textarea>`) when the glued
+    // A source-empty `<textarea>` glues its `>` to the last attribute line by
+    // default (`hug_open`), but prettier's empty `shouldHugStart && shouldHugEnd`
+    // branch dangles the `>` onto its own line (`…"`\n`></textarea>`) when the glued
     // last line — `{indent}{last attr}></textarea>` — would exceed the print
     // width. (`<pre>` is a block element and always glues, so it is untouched.)
     // Detect that by rendering the glued form and measuring its last line plus
     // the `</textarea>` close width. `shape_two` handles the single-attribute
     // on-tag-line shape separately, so this only applies on the wrapped path.
-    let hug_open = if empty_element && tag_name == "textarea" && wrapped && !shape_two && hug_open {
+    // A whitespace-*body* `<textarea>` (`empty_nonhug`) is exempt: the oracle keeps
+    // its `>` glued in that shape (the body break / drop is handled in
+    // `push_close_tag`), so the width-based dangle must not fire.
+    let hug_open = if empty_element
+        && !empty_nonhug
+        && tag_name == "textarea"
+        && wrapped
+        && !shape_two
+        && hug_open
+    {
         let glued = render_multi_line(
             tag_name,
             &rendered_attrs,
@@ -934,13 +1050,21 @@ fn push_open_tag(
             depth,
             &options.js,
             hug_open,
-            // An empty NON-self-closing element never glues its wrapped open `>`
-            // to the last attribute under `bracketSameLine`: prettier's empty
-            // `shouldHugStart && shouldHugEnd` branch keeps the `>` inside a
-            // hugged group that breaks onto its own line (`…"`\n`></span>`) when
-            // the attrs wrapped, so it dedents exactly like the default path. A
-            // self-closing element (`<input … />`) still glues its ` />`.
-            options.bracket_same_line && (self_closing || !empty_element),
+            // A source-empty inline element (`shouldHugStart && shouldHugEnd`)
+            // keeps its wrapped open `>` inside a hugged group that breaks onto its
+            // own line (`…"`\n`></span>`), so it dedents even under
+            // `bracketSameLine`. An inline element with a whitespace body
+            // (`<span> </span>`, not a hug) instead glues `>` to the last attribute
+            // line (`…">`), matching prettier's `group([...openingTag, '>', line, …])`.
+            // A self-closing element (`<input … />`) always glues its ` />`.
+            // A block-display element never hugs, so its `>` glues to the last
+            // attribute under `bracketSameLine` even when empty (`<div …">`\n`</div>`,
+            // vs the inline empty hug `></span>`). See #1721.
+            options.bracket_same_line
+                && (self_closing
+                    || !empty_element
+                    || empty_nonhug
+                    || is_html_block_display_element(tag_name)),
         )
     } else {
         one_liner

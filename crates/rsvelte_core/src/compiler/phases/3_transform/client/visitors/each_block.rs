@@ -1928,7 +1928,13 @@ fn build_key_function(
             apply_transforms_to_expression_with_shadowed(&key_expr, context, &local_scope);
 
         if let Some(context_expr) = &node.context {
-            let pattern = convert_expression_to_pattern(&context.arena, context_expr);
+            // 写经 upstream #18521 `context.visit(node.context, key_state)`: the
+            // key-function parameter pattern is visited under `key_state`, so a
+            // COMPUTED destructuring key (`{ [labelKey]: label }`) has its key
+            // expression rewritten to the prop / state access
+            // (`{ [$$props.labelKey]: label }`), while the each-context binding
+            // names stay shadowed.
+            let pattern = convert_context_pattern(context, context_expr, &local_scope);
 
             let params = if key_uses_index {
                 vec![pattern, convert_expr_to_pattern(index)]
@@ -2059,12 +2065,18 @@ fn visit_fragment(fragment: &Fragment, context: &mut ComponentContext) -> JsBloc
     visit_fragment_impl(fragment, context, true)
 }
 
-/// Convert an AST Expression to a JsPattern.
-#[allow(clippy::only_used_in_recursion)]
-fn convert_expression_to_pattern(
-    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+/// Convert the keyed-each KEY-FUNCTION parameter pattern (写经 upstream #18521's
+/// `context.visit(node.context, key_state)`): a COMPUTED destructuring key has
+/// its key expression converted and read-wrapped under the each-block
+/// `key_state` transforms (`{ [labelKey]: label }` → `{ [$$props.labelKey]:
+/// label }`), while the each-context binding names remain shadowed via
+/// `local_scope`. All other pattern shapes convert structurally.
+fn convert_context_pattern(
+    context: &mut ComponentContext,
     expr: &Expression,
+    local_scope: &crate::compiler::phases::phase3_transform::client::visitors::shared::utils::LocalScope,
 ) -> JsPattern {
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression_with_shadowed;
     let val = expr.as_json();
     if let serde_json::Value::Object(obj) = val {
         match obj.get("type").and_then(|v| v.as_str()) {
@@ -2075,84 +2087,116 @@ fn convert_expression_to_pattern(
             }
             Some("ObjectPattern") => {
                 if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
-                    let properties = props
-                        .iter()
-                        .filter_map(|prop| {
-                            let prop_obj = prop.as_object()?;
-                            // A rest element `{ ...rest }` has no `key`; preserve it
-                            // as a Rest property so the key-function parameter keeps
-                            // the full destructure (matching upstream).
-                            if prop_obj.get("type").and_then(|t| t.as_str()) == Some("RestElement")
-                            {
-                                let arg = prop_obj.get("argument")?;
-                                let inner = convert_expression_to_pattern(
-                                    arena,
+                    let mut properties = Vec::with_capacity(props.len());
+                    for prop in props {
+                        let Some(prop_obj) = prop.as_object() else {
+                            continue;
+                        };
+                        if prop_obj.get("type").and_then(|t| t.as_str()) == Some("RestElement") {
+                            if let Some(arg) = prop_obj.get("argument") {
+                                let inner = convert_context_pattern(
+                                    context,
                                     &Expression::from_json(arg.clone()),
+                                    local_scope,
                                 );
-                                return Some(JsObjectPatternProperty::Rest(Box::new(inner)));
+                                properties.push(JsObjectPatternProperty::Rest(Box::new(inner)));
                             }
-                            let key = prop_obj.get("key")?.as_object()?;
-                            let key_name = key.get("name")?.as_str()?;
-                            let value = prop_obj.get("value")?;
-
+                            continue;
+                        }
+                        let (Some(key), Some(value)) = (prop_obj.get("key"), prop_obj.get("value"))
+                        else {
+                            continue;
+                        };
+                        let computed = prop_obj
+                            .get("computed")
+                            .and_then(|c| c.as_bool())
+                            .unwrap_or(false);
+                        if computed {
+                            let key_js =
+                                convert_expression(&Expression::from_json(key.clone()), context);
+                            let key_js = apply_transforms_to_expression_with_shadowed(
+                                &key_js,
+                                context,
+                                local_scope,
+                            );
+                            let id = context.arena.alloc_expr(key_js);
+                            let value_pattern = convert_context_pattern(
+                                context,
+                                &Expression::from_json(value.clone()),
+                                local_scope,
+                            );
+                            properties.push(JsObjectPatternProperty::Property {
+                                key: JsPropertyKey::Computed(id),
+                                value: value_pattern,
+                                computed: true,
+                                shorthand: false,
+                            });
+                        } else {
+                            let Some(key_name) = key
+                                .as_object()
+                                .and_then(|k| k.get("name"))
+                                .and_then(|n| n.as_str())
+                            else {
+                                continue;
+                            };
                             let value_pattern = if value.is_object() {
-                                convert_expression_to_pattern(
-                                    arena,
+                                convert_context_pattern(
+                                    context,
                                     &Expression::from_json(value.clone()),
+                                    local_scope,
                                 )
                             } else {
                                 JsPattern::Identifier(key_name.into())
                             };
-
                             let shorthand = prop_obj
                                 .get("shorthand")
                                 .and_then(|s| s.as_bool())
                                 .unwrap_or(false);
-
-                            Some(JsObjectPatternProperty::Property {
+                            properties.push(JsObjectPatternProperty::Property {
                                 key: JsPropertyKey::Identifier(key_name.into()),
                                 value: value_pattern,
                                 computed: false,
                                 shorthand,
-                            })
-                        })
-                        .collect();
-
+                            });
+                        }
+                    }
                     return JsPattern::Object(JsObjectPattern { properties });
                 }
             }
             Some("ArrayPattern") => {
                 if let Some(elems) = obj.get("elements").and_then(|e| e.as_array()) {
-                    let elements = elems
-                        .iter()
-                        .map(|elem| {
-                            if elem.is_null() {
-                                None
-                            } else {
-                                Some(convert_expression_to_pattern(
-                                    arena,
-                                    &Expression::from_json(elem.clone()),
-                                ))
-                            }
-                        })
-                        .collect();
-
+                    let mut elements = Vec::with_capacity(elems.len());
+                    for elem in elems {
+                        if elem.is_null() {
+                            elements.push(None);
+                        } else {
+                            elements.push(Some(convert_context_pattern(
+                                context,
+                                &Expression::from_json(elem.clone()),
+                                local_scope,
+                            )));
+                        }
+                    }
                     return JsPattern::Array(JsArrayPattern { elements });
                 }
             }
             Some("RestElement") => {
                 if let Some(arg) = obj.get("argument") {
-                    let inner =
-                        convert_expression_to_pattern(arena, &Expression::from_json(arg.clone()));
+                    let inner = convert_context_pattern(
+                        context,
+                        &Expression::from_json(arg.clone()),
+                        local_scope,
+                    );
                     return JsPattern::Rest(Box::new(inner));
                 }
             }
             Some("AssignmentPattern") => {
-                #[allow(unused_variables)]
-                if let (Some(left), Some(_right)) = (obj.get("left"), obj.get("right")) {
-                    let left_pattern =
-                        convert_expression_to_pattern(arena, &Expression::from_json(left.clone()));
-                    return left_pattern;
+                if let Some(left) = obj.get("left") {
+                    return convert_context_pattern(
+                        context,
+                        &Expression::from_json(left.clone()),
+                        local_scope,
+                    );
                 }
             }
             _ => {}
@@ -2304,20 +2348,5 @@ mod tests {
         }));
         assert!(expression_references_identifier(&expr, "i"));
         assert!(!expression_references_identifier(&expr, "j"));
-    }
-
-    #[test]
-    fn test_convert_simple_pattern() {
-        let arena = crate::compiler::phases::phase3_transform::js_ast::arena::JsArena::new();
-        let expr = Expression::from_json(serde_json::json!({
-            "type": "Identifier",
-            "name": "item"
-        }));
-
-        let pattern = convert_expression_to_pattern(&arena, &expr);
-        match pattern {
-            JsPattern::Identifier(name) => assert_eq!(name, "item"),
-            _ => panic!("Expected identifier pattern"),
-        }
     }
 }

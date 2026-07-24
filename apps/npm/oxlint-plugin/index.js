@@ -63,6 +63,28 @@ function analyze(fullSource, filename) {
 	return analysis;
 }
 
+// Per (rule, file) de-dup so a dual-`<script>` component's two block visits
+// don't double-report; keyed by filename (not shared across files like a
+// content-keyed cache would be) and re-armed whenever a file's content
+// changes (so a stale Set from a prior lint of the same filename can't
+// swallow a diagnostic that's genuinely new to this pass).
+const MAX_REPORTED_FILES = 2048;
+const reportedByFile = new Map();
+
+function reportedSetFor(filename, ruleName, fullSource) {
+	let entry = reportedByFile.get(filename);
+	if (!entry || entry.source !== fullSource) {
+		if (!entry && reportedByFile.size >= MAX_REPORTED_FILES) {
+			reportedByFile.delete(reportedByFile.keys().next().value);
+		}
+		entry = { source: fullSource, perRule: new Map() };
+		reportedByFile.set(filename, entry);
+	}
+	let set = entry.perRule.get(ruleName);
+	if (!set) entry.perRule.set(ruleName, (set = new Set()));
+	return set;
+}
+
 // Map a whole-file offset span into the current `<script>` block's coordinate
 // space (what oxlint's `report({ loc })` expects), using oxlint's *exact*
 // extracted text as the origin so it maps back to the right file position.
@@ -82,11 +104,6 @@ function makeRule(entry) {
 			docs: { description: entry.description },
 		},
 		createOnce(context) {
-			// Per (rule, file-revision) de-dup: a dual-`<script>` component is
-			// visited once per block, so markup diagnostics would otherwise repeat.
-			let revision = '';
-			let emitted = new Set();
-
 			return {
 				Program() {
 					const filename = context.physicalFilename || context.filename;
@@ -99,14 +116,10 @@ function makeRule(entry) {
 						return;
 					}
 
-					if (revision !== fullSource) {
-						revision = fullSource;
-						emitted = new Set();
-					}
-
 					const analysis = analyze(fullSource, filename);
 					const diags = analysis.byKey.get(entry.name);
 					if (!diags || diags.length === 0) return;
+					const emitted = reportedSetFor(filename, entry.name, fullSource);
 
 					// The block oxlint is showing us right now, in the file's own
 					// offsets. Use oxlint's exact extracted text as the origin so our

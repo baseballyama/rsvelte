@@ -680,12 +680,14 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 SPAN, &self.ab,
             ))),
             JsExpr::Super => Some(Expression::Super(Super::boxed(SPAN, &self.ab))),
-            JsExpr::MetaProperty(meta, property) => {
-                let meta = IdentifierName::new(SPAN, self.str(meta), &self.ab);
-                let property = IdentifierName::new(SPAN, self.str(property), &self.ab);
-                Some(Expression::new_meta_property(
-                    SPAN, meta, property, &self.ab,
-                ))
+            JsExpr::MetaProperty(meta, _property) => {
+                // oxc 0.141 split `MetaProperty` into `ImportMeta` / `NewTarget`;
+                // the meta keyword (`import` vs `new`) selects the variant.
+                Some(if meta.as_str() == "new" {
+                    Expression::new_new_target(SPAN, &self.ab)
+                } else {
+                    Expression::new_import_meta(SPAN, &self.ab)
+                })
             }
             JsExpr::Member(m) => self.member(m),
             JsExpr::Call(c) => {

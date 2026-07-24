@@ -239,7 +239,8 @@ fn expr_precedence(expr: &Expression) -> u8 {
         Expression::StaticMemberExpression(_)
         | Expression::ComputedMemberExpression(_)
         | Expression::PrivateFieldExpression(_)
-        | Expression::MetaProperty(_)
+        | Expression::ImportMeta(_)
+        | Expression::NewTarget(_)
         | Expression::CallExpression(_)
         | Expression::ChainExpression(_)
         | Expression::ImportExpression(_)
@@ -2157,10 +2158,15 @@ impl<'opt> Printer<'opt> {
                 ctx.write(if m.optional { "?." } else { "." });
                 ctx.write(format!("#{}", m.field.name));
             }
-            Expression::MetaProperty(m) => {
-                ctx.write(m.meta.name.as_str().to_string());
+            Expression::ImportMeta(_) => {
+                ctx.write("import".to_string());
                 ctx.write(".");
-                ctx.write(m.property.name.as_str().to_string());
+                ctx.write("meta".to_string());
+            }
+            Expression::NewTarget(_) => {
+                ctx.write("new".to_string());
+                ctx.write(".");
+                ctx.write("target".to_string());
             }
             Expression::AwaitExpression(a) => {
                 // esrap's `AwaitExpression`: map `await` to its source span, then
@@ -3770,7 +3776,7 @@ fn expression_kind(expr: &Expression) -> &'static str {
     match expr {
         Expression::TaggedTemplateExpression(_) => "TaggedTemplateExpression",
         Expression::YieldExpression(_) => "YieldExpression",
-        Expression::MetaProperty(_) => "MetaProperty",
+        Expression::ImportMeta(_) | Expression::NewTarget(_) => "MetaProperty",
         Expression::ImportExpression(_) => "ImportExpression",
         Expression::PrivateFieldExpression(_) => "PrivateFieldExpression",
         Expression::PrivateInExpression(_) => "PrivateInExpression",

@@ -1,5 +1,53 @@
 # @sveltejs/vite-plugin-svelte
 
+## 0.5.0
+
+### Minor Changes
+
+- b5f606f: feat(napi): bridge dynamic cssHash functions through an async callback
+
+  Adds a `compileWithCssHash` async NAPI entry that runs the compile under
+  `block_in_place` while a threadsafe callback services the user's `cssHash`
+  function on the JS thread — so a CSS-content-dependent scope hash is faithfully
+  supported. `compileAsync` routes a function `cssHash` through it (supplying
+  Svelte's exact `hash()` implementation as the callback's `hash` argument); the
+  synchronous `compile` throws a clear error for a dynamic `cssHash` rather than
+  silently dropping it. A callback that throws aborts compilation with that error
+  (matching upstream, where a `cssHash` exception propagates); a callback that
+  returns a non-string falls back to the default `svelte-<hash(css)>`.
+  `@rsvelte/vite-plugin-svelte` uses the async path when a `cssHash` function is
+  configured. Callers that don't pass a `cssHash` function keep the existing
+  zero-overhead synchronous path.
+
+- 36002d5: feat(napi): support function-form compile options (customElement/css/runes/warningFilter) and a constant cssHashOverride
+
+  The NAPI shim now resolves the function forms of `customElement`, `css`, and `runes`
+  (`({ filename }) => value`) once at the binding boundary before handing the plain value
+  to the compiler, matching Svelte's `parametric()` normalization. `warningFilter` is
+  applied as a post-filter on the returned `warnings` array — equivalent to Svelte's
+  emit-time filter since warnings never affect codegen. A new `cssHashOverride` string
+  option lets callers pass a pre-computed constant CSS scope hash without the callback
+  bridge; `@rsvelte/vite-plugin-svelte` now uses it for its HMR-stable hash instead of the
+  previously ignored `cssHash = () => hash` closure.
+
+### Patch Changes
+
+- 09a101d: docs(readme): document both plain-Vite and SvelteKit setups
+
+  The README only covered direct `svelte()` import in a plain Vite config, with no
+  guidance for SvelteKit — where the Svelte plugin is loaded from inside
+  `@sveltejs/kit` and must be swapped via a package-manager override
+  (`npm:@rsvelte/vite-plugin-svelte`) rather than added to `vite.config`. Reworked
+  into an (A) plain Vite / (B) SvelteKit split with pnpm/npm/yarn override examples
+  and a "don't do this" note against registering two Svelte plugins.
+
+- Updated dependencies [020be59]
+- Updated dependencies [065ce6f]
+- Updated dependencies [78f62e8]
+- Updated dependencies [b5f606f]
+- Updated dependencies [36002d5]
+  - @rsvelte/vite-plugin-svelte-native@0.3.0
+
 ## 0.4.2
 
 ### Patch Changes

@@ -233,10 +233,50 @@ fn format_attempt(
     let has_markup = root.fragment.nodes.iter().any(|n| {
         !matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
     });
+
+    // Resolve overlapping edits ONCE, before both the section remap and the
+    // application, so the two never disagree. Two passes (markup.rs and indent.rs)
+    // can emit an edit for the same span — e.g. markup.rs replaces a whitespace
+    // body + close tag with `\n{indent}</tag>` at the same `[start, end)` that
+    // indent.rs would normalise to `\n{indent}`. Markup edits are pushed first
+    // (line 100 before line 105), so after the stable descending sort they appear
+    // before indent edits with the same start; the first one wins and the overlap
+    // is dropped here. Computing the remap from this resolved set (rather than the
+    // raw edits) is essential: a *skipped* edit must not contribute to the section
+    // offset delta, otherwise a length-changing markup edit that superseded an
+    // indent edit would shift the section boundary past the output end (#1707).
+    edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
+    let mut applied: Vec<(u32, u32, String)> = Vec::with_capacity(edits.len());
+    let mut last_applied: (u32, u32) = (u32::MAX, u32::MAX);
+    for (start, end, new_text) in edits {
+        let (la_s, la_e) = last_applied;
+        let incoming_nonempty = end > start;
+        let applied_nonempty = la_e > la_s;
+        // Two non-zero-length edits overlap when their ranges intersect.
+        // Zero-length inserts (start == end) never conflict with a range edit
+        // because they don't consume any source bytes.
+        let overlaps = applied_nonempty && incoming_nonempty && start < la_e && end > la_s;
+        if overlaps {
+            continue;
+        }
+        // Only update the guard for non-zero-length edits (range replacements).
+        // Zero-length inserts don't "own" a range.
+        if end > start {
+            last_applied = (start, end);
+        }
+        applied.push((start, end, new_text));
+    }
+
+    // Snapshot + remap the top-level section spans through the RESOLVED edits, so
+    // the reorder post-pass can run on the formatted output WITHOUT re-parsing it.
+    // An edit never straddles a top-level element boundary, so a boundary's new
+    // offset is its original offset plus the net length change of every applied
+    // edit ending at or before it. Only remap when reordering could change
+    // something (more than one top-level unit); otherwise the pass is skipped.
     let reorder_spans: Vec<(u8, usize, usize)> =
         if sections.len() > 1 || (sections.len() == 1 && has_markup) {
             let remap = |pos: u32| -> usize {
-                let delta: isize = edits
+                let delta: isize = applied
                     .iter()
                     .filter(|(_, end, _)| *end <= pos)
                     .map(|(start, end, repl)| repl.len() as isize - (*end - *start) as isize)
@@ -251,9 +291,14 @@ fn format_attempt(
             Vec::new()
         };
 
-    let mut out = apply_edits(source, &mut edits);
+    // Apply the resolved edits via the forward-splice pass (memmove-light vs a
+    // back-to-front `replace_range` loop, and it keeps the deterministic
+    // zero-length-insert-before-range ordering). `applied` is already
+    // overlap-resolved (for #1707's correct section remap), so apply_edits'
+    // in-pass overlap check is a no-op here; it drains `applied`.
+    let mut out = apply_edits(source, &mut applied);
     // Return the drained buffer to the arena so its capacity is reused.
-    arenas.edits = edits;
+    arenas.edits = applied;
 
     // Post-pass: reorder top-level sections into prettier's canonical order
     // (options → module script → instance script → markup → styles) and

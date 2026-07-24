@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/lint",
-  "version": "0.8.2",
+  "version": "0.9.1",
   "description": "Fast native Svelte linter CLI — compiler warnings/a11y + ESLint-compatible rule engine, powered by Rust",
   "license": "MIT",
   "repository": {
@@ -23,12 +23,8 @@
   "bin": {
     "rsvelte-lint": "bin/rsvelte-lint"
   },
-  "scripts": {
-    "postinstall": "node install.js"
-  },
   "files": [
     "bin/rsvelte-lint",
-    "install.js",
     "lib/resolve.cjs"
   ],
   "optionalDependencies": {

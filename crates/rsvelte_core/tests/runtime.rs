@@ -199,6 +199,14 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // async-derived-template-mutation). Client output matches; the server
     // async-derived template-mutation codegen is not yet ported (server=MISMATCH).
     "async-parallel-derived-template-mutation",
+    // New 5.56.x fixture (#18525, `bfbb026f2`): `<svelte:boundary {pending}>`
+    // with a `$derived` pending attribute. The SERVER `pending` ATTRIBUTE branch
+    // (`build_pending_attribute_block` + the `is_pending_attr_nullish`
+    // `if (pending()) {…} else {…}` wrapper) is a pre-existing GAP in
+    // `svelte_boundary.rs` — only the `pending` SNIPPET branch is ported. Client
+    // output matches; server=MISMATCH. Unaffected by the 5.56.7 bump
+    // (`SvelteBoundary.js` is byte-identical across 5.56.4..5.56.7).
+    "async-batch-derived",
 ];
 
 /// runtime-legacy fixtures still failing on the rsvelte port. Each cluster is
