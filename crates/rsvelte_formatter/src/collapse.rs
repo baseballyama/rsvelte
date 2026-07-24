@@ -96,12 +96,25 @@ fn element_container<'b, 'a>(n: &'b TemplateNode<'a>) -> Option<(&'b Fragment<'a
 /// (formatting never adds/removes elements or turns text into elements).
 pub(crate) fn fragment_has_collapse_candidate(fragment: &Fragment) -> bool {
     fragment.nodes.iter().any(|n| {
+        // Prose/interpolation/raw-html reflow applies at ANY fragment level —
+        // top-level text and `{@html}` runs are collapse targets too, not just
+        // element bodies.
+        match n {
+            TemplateNode::Text(t) => {
+                if !crate::is_blank_text(t.data.as_ref()) {
+                    return true;
+                }
+            }
+            TemplateNode::ExpressionTag(_)
+            | TemplateNode::HtmlTag(_)
+            | TemplateNode::RenderTag(_) => return true,
+            _ => {}
+        }
         if let Some((child, has_attrs)) = element_container(n) {
-            let direct_hit = child.nodes.iter().any(|cn| match cn {
-                TemplateNode::Text(t) => !crate::is_blank_text(t.data.as_ref()),
-                TemplateNode::ExpressionTag(_) => true,
-                _ => has_attrs && element_container(cn).is_some(),
-            });
+            let direct_hit = child
+                .nodes
+                .iter()
+                .any(|cn| has_attrs && element_container(cn).is_some());
             let blank_only_body = !child.nodes.is_empty()
                 && child.nodes.iter().all(
                     |cn| matches!(cn, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())),
