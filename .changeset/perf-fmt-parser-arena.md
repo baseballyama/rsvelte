@@ -1,6 +1,8 @@
 ---
 "@rsvelte/fmt": patch
 "@rsvelte/compiler": patch
+"@rsvelte/svelte2tsx": patch
+"@rsvelte/svelte-check": patch
 ---
 
 perf(fmt): make the formatter significantly faster; borrow the parser AST from source

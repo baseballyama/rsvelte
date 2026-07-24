@@ -83,7 +83,7 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     format_with_arenas(source, options, &mut Arenas::new())
 }
 
-/// [`format`] over caller-owned scratch buffers. A loop formatting many files
+/// [`format()`] over caller-owned scratch buffers. A loop formatting many files
 /// keeps one [`Arenas`] and passes it each call, reusing its capacity instead
 /// of reallocating per file.
 ///
