@@ -64,6 +64,15 @@ pub fn run_native_rules(
 /// the script walk, and the block-lang fallback. `scope_resolver` is likewise
 /// built once by the caller and shared with the script pass (see
 /// [`maybe_scope_resolver`]).
+/// `(content_offset, end)` for each `<script>` block of a parsed component.
+fn script_spans_of(root: &Root) -> Vec<(u32, u32)> {
+    [root.instance.as_ref(), root.module.as_ref()]
+        .into_iter()
+        .flatten()
+        .map(|s| (s.content_offset, s.end))
+        .collect()
+}
+
 pub(crate) fn run_native_rules_on_root(
     root: &Root,
     source: &str,
@@ -96,7 +105,8 @@ pub(crate) fn run_native_rules_on_root(
     // read of a component binding from the same-named global.
     let mut ctx = LintContext::new(config, source, filename)
         .with_path(path)
-        .with_scope_resolver(scope_resolver);
+        .with_scope_resolver(scope_resolver)
+        .with_script_spans(script_spans_of(root));
     // Re-install the arena pointer so that `Expression::Typed::as_json()` can
     // resolve arena-indexed children while the visitor walks the template.
     // The pointer was cleared when `parse()` dropped its `SerializeArenaGuard`.

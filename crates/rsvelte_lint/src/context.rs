@@ -42,6 +42,10 @@ pub struct LintContext<'a> {
     /// Running it costs a full parse + analyze — several rules need it, so they
     /// share one result per file instead of each re-analyzing the source.
     /// `None` records an analysis failure (rules fall back to their own scan).
+    /// `(content_offset, end)` of the component's `<script>` blocks, taken from
+    /// the `Root` the pass already parsed. Rules that only need script bounds
+    /// used to re-parse the whole source to recover them.
+    script_spans: Vec<(u32, u32)>,
     scope_analysis: OnceCell<Option<Rc<ComponentAnalysis>>>,
     /// The template fragment as ESTree JSON (default parse options), built on
     /// first use — several script rules scan template expressions and would
@@ -65,6 +69,7 @@ impl<'a> LintContext<'a> {
             filename,
             path: None,
             scope_resolver: None,
+            script_spans: Vec::new(),
             scope_analysis: OnceCell::new(),
             template_fragment_json: OnceCell::new(),
             root_json: OnceCell::new(),
@@ -76,6 +81,17 @@ impl<'a> LintContext<'a> {
     pub fn with_path(mut self, path: Option<&'a Path>) -> Self {
         self.path = path;
         self
+    }
+
+    /// Attach the component's `<script>` spans (builder style).
+    pub fn with_script_spans(mut self, spans: Vec<(u32, u32)>) -> Self {
+        self.script_spans = spans;
+        self
+    }
+
+    /// `(content_offset, end)` for each `<script>` block, empty when unknown.
+    pub fn script_spans(&self) -> &[(u32, u32)] {
+        &self.script_spans
     }
 
     /// Attach the script-scope resolver (builder style). Left `None` by default.
