@@ -30,12 +30,20 @@ pub fn check_graph_for_cycles<T>(edges: &[(T, T)]) -> Option<Vec<T>>
 where
     T: Clone + Eq + Hash,
 {
-    // Build adjacency list
+    // Build adjacency list. The JS original uses a `Map`, whose iteration order
+    // decides which cycle is reported, so the roots must be visited in insertion
+    // order rather than hash order.
     let mut graph: FxHashMap<T, Vec<T>> = FxHashMap::default();
+    let mut roots: Vec<T> = Vec::new();
 
     for (u, v) in edges {
+        for node in [u, v] {
+            if !graph.contains_key(node) {
+                graph.insert(node.clone(), Vec::new());
+                roots.push(node.clone());
+            }
+        }
         graph.entry(u.clone()).or_default().push(v.clone());
-        graph.entry(v.clone()).or_default();
     }
 
     let mut visited: FxHashMap<T, bool> = FxHashMap::default();
@@ -68,7 +76,7 @@ where
         on_stack.pop();
     }
 
-    for v in graph.keys() {
+    for v in &roots {
         if !visited.contains_key(v) {
             visit(v.clone(), &graph, &mut visited, &mut on_stack, &mut cycles);
         }
@@ -112,6 +120,17 @@ mod tests {
         assert!(cycle.is_some());
         let cycle = cycle.unwrap();
         assert!(cycle.contains(&"c") || cycle.contains(&"d"));
+    }
+
+    /// With two disjoint cycles the JS original reports the one whose node was
+    /// inserted first, so the reported path must not depend on hash order.
+    #[test]
+    fn test_first_inserted_cycle_wins() {
+        let edges = vec![("c", "d"), ("d", "c"), ("a", "b"), ("b", "a")];
+        assert_eq!(check_graph_for_cycles(&edges), Some(vec!["c", "d", "c"]));
+
+        let edges = vec![("a", "b"), ("b", "a"), ("c", "d"), ("d", "c")];
+        assert_eq!(check_graph_for_cycles(&edges), Some(vec!["a", "b", "a"]));
     }
 
     #[test]

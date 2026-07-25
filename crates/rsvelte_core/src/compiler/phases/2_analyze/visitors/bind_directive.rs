@@ -9,7 +9,9 @@ use super::shared::utils::validate_assignment_node;
 use crate::ast::template::{AttributeValue, BindDirective, RegularElement};
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
-use crate::compiler::phases::phase2_analyze::binding_properties::BINDING_PROPERTIES;
+use crate::compiler::phases::phase2_analyze::binding_properties::{
+    BINDING_PROPERTIES, all_binding_names, get_valid_bindings,
+};
 use crate::compiler::phases::phase2_analyze::errors;
 /// Visit a bind directive with explicit element context.
 ///
@@ -377,7 +379,7 @@ fn validate_binding_for_svelte_element(
             && !valid_elements.contains(&element_name)
         {
             // For svelte: elements, provide a list of possible bindings
-            let valid_bindings = get_valid_bindings_for_element(element_name);
+            let valid_bindings = get_valid_bindings(element_name);
             let message = format!(
                 "Possible bindings for <{}> are {}",
                 element_name,
@@ -391,7 +393,7 @@ fn validate_binding_for_svelte_element(
         if let Some(invalid_elements) = property.invalid_elements
             && invalid_elements.contains(&element_name)
         {
-            let valid_bindings = get_valid_bindings_for_element(element_name);
+            let valid_bindings = get_valid_bindings(element_name);
             let message = format!(
                 "Possible bindings for <{}> are {}",
                 element_name,
@@ -402,7 +404,7 @@ fn validate_binding_for_svelte_element(
         }
     } else {
         // Binding not found - try fuzzy match
-        let match_name = fuzzy_match(binding_name, &get_all_binding_names());
+        let match_name = fuzzy_match(binding_name, &all_binding_names());
 
         if let Some(match_name) = match_name
             && let Some(property) = BINDING_PROPERTIES.get(match_name)
@@ -448,7 +450,7 @@ fn validate_binding_for_regular_element(
         if let Some(invalid_elements) = property.invalid_elements
             && invalid_elements.contains(&parent_name)
         {
-            let valid_bindings = get_valid_bindings_for_element(parent_name);
+            let valid_bindings = get_valid_bindings(parent_name);
             let message = format!(
                 "Possible bindings for <{}> are {}",
                 parent_name,
@@ -482,7 +484,7 @@ fn validate_binding_for_regular_element(
         }
     } else {
         // Binding not found - try fuzzy match
-        let match_name = fuzzy_match(binding_name, &get_all_binding_names());
+        let match_name = fuzzy_match(binding_name, &all_binding_names());
 
         if let Some(match_name) = match_name
             && let Some(property) = BINDING_PROPERTIES.get(match_name)
@@ -716,28 +718,6 @@ fn get_object_name_from_json(v: &serde_json::Value) -> Option<String> {
         }
         _ => None,
     }
-}
-
-/// Get all valid binding names for an element.
-fn get_valid_bindings_for_element(element_name: &str) -> Vec<String> {
-    BINDING_PROPERTIES
-        .iter()
-        .filter(|(_, property)| {
-            if let Some(valid) = property.valid_elements {
-                valid.contains(&element_name)
-            } else if let Some(invalid) = property.invalid_elements {
-                !invalid.contains(&element_name)
-            } else {
-                true
-            }
-        })
-        .map(|(name, _)| name.to_string())
-        .collect()
-}
-
-/// Get all binding names.
-fn get_all_binding_names() -> Vec<&'static str> {
-    BINDING_PROPERTIES.keys().copied().collect()
 }
 
 /// Fuzzy match a string against a list of candidates.

@@ -4,14 +4,16 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/shared/fragment.js`.
 
-use rustc_hash::FxHashSet;
-
 use super::super::super::AnalysisError;
 use super::super::super::errors;
 use super::super::super::utils::{check_graph_for_cycles, extract_svelte_ignore_with_warnings};
 use super::super::super::warnings;
 use super::super::VisitorContext;
 use crate::ast::template::{ConstTag, Fragment, TemplateNode};
+
+/// Insertion-ordered identifier set: the JS original uses a `Set`, and the order
+/// decides which `{@const}` cycle a diagnostic reports.
+type IdentifierSet = indexmap::IndexSet<String, rustc_hash::FxBuildHasher>;
 
 /// Result of collecting preceding ignores.
 struct PrecedingIgnores {
@@ -171,7 +173,7 @@ pub fn analyze<'a, 'b: 'a>(
 /// Corresponds to `sort_const_tags` in `3-transform/utils.js`.
 fn check_const_tag_cycles(nodes: &[TemplateNode]) -> Result<(), AnalysisError> {
     // Collect all ConstTag nodes with their bindings and dependencies
-    let mut const_tags: Vec<(&ConstTag, Vec<String>, FxHashSet<String>)> = Vec::new();
+    let mut const_tags: Vec<(&ConstTag, Vec<String>, IdentifierSet)> = Vec::new();
 
     for node in nodes {
         if let TemplateNode::ConstTag(tag) = node {
@@ -198,11 +200,11 @@ fn check_const_tag_cycles(nodes: &[TemplateNode]) -> Result<(), AnalysisError> {
                     let deps = if let Some(init) = declaration.get("init") {
                         extract_expression_identifiers(init)
                     } else {
-                        FxHashSet::default()
+                        IdentifierSet::default()
                     };
                     (bindings, deps)
                 } else {
-                    (Vec::new(), FxHashSet::default())
+                    (Vec::new(), IdentifierSet::default())
                 }
             } else if decl_type == Some("AssignmentExpression") {
                 // AssignmentExpression structure
@@ -214,11 +216,11 @@ fn check_const_tag_cycles(nodes: &[TemplateNode]) -> Result<(), AnalysisError> {
                 let deps = if let Some(right) = decl_json.get("right") {
                     extract_expression_identifiers(right)
                 } else {
-                    FxHashSet::default()
+                    IdentifierSet::default()
                 };
                 (bindings, deps)
             } else {
-                (Vec::new(), FxHashSet::default())
+                (Vec::new(), IdentifierSet::default())
             };
 
             if !bindings.is_empty() {
@@ -307,8 +309,8 @@ fn extract_pattern_identifiers(pattern: &serde_json::Value) -> Vec<String> {
 }
 
 /// Extract all identifier references from an expression.
-fn extract_expression_identifiers(expression: &serde_json::Value) -> FxHashSet<String> {
-    let mut identifiers = FxHashSet::default();
+fn extract_expression_identifiers(expression: &serde_json::Value) -> IdentifierSet {
+    let mut identifiers = IdentifierSet::default();
     collect_expression_identifiers(expression, &mut identifiers);
     identifiers
 }
@@ -317,10 +319,7 @@ fn extract_expression_identifiers(expression: &serde_json::Value) -> FxHashSet<S
 /// Respects scoping boundaries: does not recurse into function bodies
 /// (ArrowFunctionExpression, FunctionExpression, FunctionDeclaration)
 /// because those create new scopes where local declarations shadow outer names.
-fn collect_expression_identifiers(
-    expression: &serde_json::Value,
-    identifiers: &mut FxHashSet<String>,
-) {
+fn collect_expression_identifiers(expression: &serde_json::Value, identifiers: &mut IdentifierSet) {
     if let Some(expr_type) = expression.get("type").and_then(|t| t.as_str()) {
         match expr_type {
             "Identifier" => {

@@ -59,320 +59,312 @@ impl BindingProperty {
     }
 }
 
+/// Binding definitions in the same order as Svelte's `phases/bindings.js`.
+///
+/// Diagnostics enumerate bindings from this ordered slice, never from the map, so
+/// message order can never depend on hash iteration order.
+pub static BINDING_PROPERTIES_LIST: &[(&str, BindingProperty)] = &[
+    (
+        "currentTime",
+        BindingProperty::new()
+            .with_valid_elements(&["audio", "video"])
+            .omit_in_ssr()
+            .bidirectional(),
+    ),
+    (
+        "duration",
+        BindingProperty::new()
+            .with_valid_elements(&["audio", "video"])
+            .with_event("durationchange")
+            .omit_in_ssr(),
+    ),
+    ("focused", BindingProperty::new()),
+    (
+        "paused",
+        BindingProperty::new()
+            .with_valid_elements(&["audio", "video"])
+            .omit_in_ssr()
+            .bidirectional(),
+    ),
+    (
+        "buffered",
+        BindingProperty::new()
+            .with_valid_elements(&["audio", "video"])
+            .omit_in_ssr(),
+    ),
+    (
+        "seekable",
+        BindingProperty::new()
+            .with_valid_elements(&["audio", "video"])
+            .omit_in_ssr(),
+    ),
+    (
+        "played",
+        BindingProperty::new()
+            .with_valid_elements(&["audio", "video"])
+            .omit_in_ssr(),
+    ),
+    (
+        "volume",
+        BindingProperty::new()
+            .with_valid_elements(&["audio", "video"])
+            .omit_in_ssr()
+            .bidirectional(),
+    ),
+    (
+        "muted",
+        BindingProperty::new()
+            .with_valid_elements(&["audio", "video"])
+            .omit_in_ssr()
+            .bidirectional(),
+    ),
+    (
+        "playbackRate",
+        BindingProperty::new()
+            .with_valid_elements(&["audio", "video"])
+            .omit_in_ssr()
+            .bidirectional(),
+    ),
+    (
+        "seeking",
+        BindingProperty::new()
+            .with_valid_elements(&["audio", "video"])
+            .omit_in_ssr(),
+    ),
+    (
+        "ended",
+        BindingProperty::new()
+            .with_valid_elements(&["audio", "video"])
+            .omit_in_ssr(),
+    ),
+    (
+        "readyState",
+        BindingProperty::new()
+            .with_valid_elements(&["audio", "video"])
+            .omit_in_ssr(),
+    ),
+    (
+        "videoHeight",
+        BindingProperty::new()
+            .with_valid_elements(&["video"])
+            .with_event("resize")
+            .omit_in_ssr(),
+    ),
+    (
+        "videoWidth",
+        BindingProperty::new()
+            .with_valid_elements(&["video"])
+            .with_event("resize")
+            .omit_in_ssr(),
+    ),
+    (
+        "naturalWidth",
+        BindingProperty::new()
+            .with_valid_elements(&["img"])
+            .with_event("load")
+            .omit_in_ssr(),
+    ),
+    (
+        "naturalHeight",
+        BindingProperty::new()
+            .with_valid_elements(&["img"])
+            .with_event("load")
+            .omit_in_ssr(),
+    ),
+    (
+        "activeElement",
+        BindingProperty::new()
+            .with_valid_elements(&["svelte:document"])
+            .omit_in_ssr(),
+    ),
+    (
+        "fullscreenElement",
+        BindingProperty::new()
+            .with_valid_elements(&["svelte:document"])
+            .with_event("fullscreenchange")
+            .omit_in_ssr(),
+    ),
+    (
+        "pointerLockElement",
+        BindingProperty::new()
+            .with_valid_elements(&["svelte:document"])
+            .with_event("pointerlockchange")
+            .omit_in_ssr(),
+    ),
+    (
+        "visibilityState",
+        BindingProperty::new()
+            .with_valid_elements(&["svelte:document"])
+            .with_event("visibilitychange")
+            .omit_in_ssr(),
+    ),
+    (
+        "innerWidth",
+        BindingProperty::new()
+            .with_valid_elements(&["svelte:window"])
+            .omit_in_ssr(),
+    ),
+    (
+        "innerHeight",
+        BindingProperty::new()
+            .with_valid_elements(&["svelte:window"])
+            .omit_in_ssr(),
+    ),
+    (
+        "outerWidth",
+        BindingProperty::new()
+            .with_valid_elements(&["svelte:window"])
+            .omit_in_ssr(),
+    ),
+    (
+        "outerHeight",
+        BindingProperty::new()
+            .with_valid_elements(&["svelte:window"])
+            .omit_in_ssr(),
+    ),
+    (
+        "scrollX",
+        BindingProperty::new()
+            .with_valid_elements(&["svelte:window"])
+            .omit_in_ssr()
+            .bidirectional(),
+    ),
+    (
+        "scrollY",
+        BindingProperty::new()
+            .with_valid_elements(&["svelte:window"])
+            .omit_in_ssr()
+            .bidirectional(),
+    ),
+    (
+        "online",
+        BindingProperty::new()
+            .with_valid_elements(&["svelte:window"])
+            .omit_in_ssr(),
+    ),
+    (
+        "devicePixelRatio",
+        BindingProperty::new()
+            .with_valid_elements(&["svelte:window"])
+            .with_event("resize")
+            .omit_in_ssr(),
+    ),
+    (
+        "clientWidth",
+        BindingProperty::new()
+            .with_invalid_elements(&["svelte:window", "svelte:document"])
+            .omit_in_ssr(),
+    ),
+    (
+        "clientHeight",
+        BindingProperty::new()
+            .with_invalid_elements(&["svelte:window", "svelte:document"])
+            .omit_in_ssr(),
+    ),
+    (
+        "offsetWidth",
+        BindingProperty::new()
+            .with_invalid_elements(&["svelte:window", "svelte:document"])
+            .omit_in_ssr(),
+    ),
+    (
+        "offsetHeight",
+        BindingProperty::new()
+            .with_invalid_elements(&["svelte:window", "svelte:document"])
+            .omit_in_ssr(),
+    ),
+    (
+        "contentRect",
+        BindingProperty::new()
+            .with_invalid_elements(&["svelte:window", "svelte:document"])
+            .omit_in_ssr(),
+    ),
+    (
+        "contentBoxSize",
+        BindingProperty::new()
+            .with_invalid_elements(&["svelte:window", "svelte:document"])
+            .omit_in_ssr(),
+    ),
+    (
+        "borderBoxSize",
+        BindingProperty::new()
+            .with_invalid_elements(&["svelte:window", "svelte:document"])
+            .omit_in_ssr(),
+    ),
+    (
+        "devicePixelContentBoxSize",
+        BindingProperty::new()
+            .with_invalid_elements(&["svelte:window", "svelte:document"])
+            .omit_in_ssr(),
+    ),
+    (
+        "indeterminate",
+        BindingProperty::new()
+            .with_valid_elements(&["input"])
+            .with_event("change")
+            .bidirectional()
+            .omit_in_ssr(),
+    ),
+    (
+        "checked",
+        BindingProperty::new()
+            .with_valid_elements(&["input"])
+            .bidirectional(),
+    ),
+    (
+        "group",
+        BindingProperty::new()
+            .with_valid_elements(&["input"])
+            .bidirectional(),
+    ),
+    ("this", BindingProperty::new().omit_in_ssr()),
+    (
+        "innerText",
+        BindingProperty::new()
+            .with_invalid_elements(&["svelte:window", "svelte:document"])
+            .bidirectional(),
+    ),
+    (
+        "innerHTML",
+        BindingProperty::new()
+            .with_invalid_elements(&["svelte:window", "svelte:document"])
+            .bidirectional(),
+    ),
+    (
+        "textContent",
+        BindingProperty::new()
+            .with_invalid_elements(&["svelte:window", "svelte:document"])
+            .bidirectional(),
+    ),
+    (
+        "open",
+        BindingProperty::new()
+            .with_valid_elements(&["details"])
+            .with_event("toggle")
+            .bidirectional(),
+    ),
+    (
+        "value",
+        BindingProperty::new()
+            .with_valid_elements(&["input", "textarea", "select"])
+            .bidirectional(),
+    ),
+    (
+        "files",
+        BindingProperty::new()
+            .with_valid_elements(&["input"])
+            .omit_in_ssr()
+            .bidirectional(),
+    ),
+];
+
 /// Map of binding names to their properties.
 pub static BINDING_PROPERTIES: LazyLock<FxHashMap<&'static str, BindingProperty>> =
     LazyLock::new(|| {
-        let mut map = FxHashMap::default();
-
-        // Media bindings
-        map.insert(
-            "currentTime",
-            BindingProperty::new()
-                .with_valid_elements(&["audio", "video"])
-                .omit_in_ssr()
-                .bidirectional(),
-        );
-        map.insert(
-            "duration",
-            BindingProperty::new()
-                .with_valid_elements(&["audio", "video"])
-                .with_event("durationchange")
-                .omit_in_ssr(),
-        );
-        map.insert("focused", BindingProperty::new());
-        map.insert(
-            "paused",
-            BindingProperty::new()
-                .with_valid_elements(&["audio", "video"])
-                .omit_in_ssr()
-                .bidirectional(),
-        );
-        map.insert(
-            "buffered",
-            BindingProperty::new()
-                .with_valid_elements(&["audio", "video"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "seekable",
-            BindingProperty::new()
-                .with_valid_elements(&["audio", "video"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "played",
-            BindingProperty::new()
-                .with_valid_elements(&["audio", "video"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "volume",
-            BindingProperty::new()
-                .with_valid_elements(&["audio", "video"])
-                .omit_in_ssr()
-                .bidirectional(),
-        );
-        map.insert(
-            "muted",
-            BindingProperty::new()
-                .with_valid_elements(&["audio", "video"])
-                .omit_in_ssr()
-                .bidirectional(),
-        );
-        map.insert(
-            "playbackRate",
-            BindingProperty::new()
-                .with_valid_elements(&["audio", "video"])
-                .omit_in_ssr()
-                .bidirectional(),
-        );
-        map.insert(
-            "seeking",
-            BindingProperty::new()
-                .with_valid_elements(&["audio", "video"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "ended",
-            BindingProperty::new()
-                .with_valid_elements(&["audio", "video"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "readyState",
-            BindingProperty::new()
-                .with_valid_elements(&["audio", "video"])
-                .omit_in_ssr(),
-        );
-
-        // Video bindings
-        map.insert(
-            "videoHeight",
-            BindingProperty::new()
-                .with_valid_elements(&["video"])
-                .with_event("resize")
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "videoWidth",
-            BindingProperty::new()
-                .with_valid_elements(&["video"])
-                .with_event("resize")
-                .omit_in_ssr(),
-        );
-
-        // Image bindings
-        map.insert(
-            "naturalWidth",
-            BindingProperty::new()
-                .with_valid_elements(&["img"])
-                .with_event("load")
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "naturalHeight",
-            BindingProperty::new()
-                .with_valid_elements(&["img"])
-                .with_event("load")
-                .omit_in_ssr(),
-        );
-
-        // Document bindings
-        map.insert(
-            "activeElement",
-            BindingProperty::new()
-                .with_valid_elements(&["svelte:document"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "fullscreenElement",
-            BindingProperty::new()
-                .with_valid_elements(&["svelte:document"])
-                .with_event("fullscreenchange")
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "pointerLockElement",
-            BindingProperty::new()
-                .with_valid_elements(&["svelte:document"])
-                .with_event("pointerlockchange")
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "visibilityState",
-            BindingProperty::new()
-                .with_valid_elements(&["svelte:document"])
-                .with_event("visibilitychange")
-                .omit_in_ssr(),
-        );
-
-        // Window bindings
-        map.insert(
-            "innerWidth",
-            BindingProperty::new()
-                .with_valid_elements(&["svelte:window"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "innerHeight",
-            BindingProperty::new()
-                .with_valid_elements(&["svelte:window"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "outerWidth",
-            BindingProperty::new()
-                .with_valid_elements(&["svelte:window"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "outerHeight",
-            BindingProperty::new()
-                .with_valid_elements(&["svelte:window"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "scrollX",
-            BindingProperty::new()
-                .with_valid_elements(&["svelte:window"])
-                .omit_in_ssr()
-                .bidirectional(),
-        );
-        map.insert(
-            "scrollY",
-            BindingProperty::new()
-                .with_valid_elements(&["svelte:window"])
-                .omit_in_ssr()
-                .bidirectional(),
-        );
-        map.insert(
-            "online",
-            BindingProperty::new()
-                .with_valid_elements(&["svelte:window"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "devicePixelRatio",
-            BindingProperty::new()
-                .with_valid_elements(&["svelte:window"])
-                .with_event("resize")
-                .omit_in_ssr(),
-        );
-
-        // Dimension bindings
-        map.insert(
-            "clientWidth",
-            BindingProperty::new()
-                .with_invalid_elements(&["svelte:window", "svelte:document"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "clientHeight",
-            BindingProperty::new()
-                .with_invalid_elements(&["svelte:window", "svelte:document"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "offsetWidth",
-            BindingProperty::new()
-                .with_invalid_elements(&["svelte:window", "svelte:document"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "offsetHeight",
-            BindingProperty::new()
-                .with_invalid_elements(&["svelte:window", "svelte:document"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "contentRect",
-            BindingProperty::new()
-                .with_invalid_elements(&["svelte:window", "svelte:document"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "contentBoxSize",
-            BindingProperty::new()
-                .with_invalid_elements(&["svelte:window", "svelte:document"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "borderBoxSize",
-            BindingProperty::new()
-                .with_invalid_elements(&["svelte:window", "svelte:document"])
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "devicePixelContentBoxSize",
-            BindingProperty::new()
-                .with_invalid_elements(&["svelte:window", "svelte:document"])
-                .omit_in_ssr(),
-        );
-
-        // Checkbox/radio bindings
-        map.insert(
-            "indeterminate",
-            BindingProperty::new()
-                .with_valid_elements(&["input"])
-                .with_event("change")
-                .bidirectional()
-                .omit_in_ssr(),
-        );
-        map.insert(
-            "checked",
-            BindingProperty::new()
-                .with_valid_elements(&["input"])
-                .bidirectional(),
-        );
-        map.insert(
-            "group",
-            BindingProperty::new()
-                .with_valid_elements(&["input"])
-                .bidirectional(),
-        );
-
-        // Various bindings
-        map.insert("this", BindingProperty::new().omit_in_ssr());
-        map.insert(
-            "innerText",
-            BindingProperty::new()
-                .with_invalid_elements(&["svelte:window", "svelte:document"])
-                .bidirectional(),
-        );
-        map.insert(
-            "innerHTML",
-            BindingProperty::new()
-                .with_invalid_elements(&["svelte:window", "svelte:document"])
-                .bidirectional(),
-        );
-        map.insert(
-            "textContent",
-            BindingProperty::new()
-                .with_invalid_elements(&["svelte:window", "svelte:document"])
-                .bidirectional(),
-        );
-        map.insert(
-            "open",
-            BindingProperty::new()
-                .with_valid_elements(&["details"])
-                .with_event("toggle")
-                .bidirectional(),
-        );
-        map.insert(
-            "value",
-            BindingProperty::new()
-                .with_valid_elements(&["input", "textarea", "select"])
-                .bidirectional(),
-        );
-        map.insert(
-            "files",
-            BindingProperty::new()
-                .with_valid_elements(&["input"])
-                .omit_in_ssr()
-                .bidirectional(),
-        );
-
-        map
+        BINDING_PROPERTIES_LIST
+            .iter()
+            .map(|(name, property)| (*name, property.clone()))
+            .collect()
     });
 
 /// Check if a binding is valid for a given element.
@@ -395,9 +387,10 @@ pub fn is_binding_valid(binding_name: &str, element_name: &str) -> bool {
     }
 }
 
-/// Get all valid bindings for an element.
+/// Get all valid bindings for an element, sorted like Svelte's `.sort()` on the
+/// `Possible bindings for <…> are …` enumeration.
 pub fn get_valid_bindings(element_name: &str) -> Vec<&'static str> {
-    BINDING_PROPERTIES
+    let mut names: Vec<&'static str> = BINDING_PROPERTIES_LIST
         .iter()
         .filter(|(_name, property)| {
             if let Some(valid) = property.valid_elements {
@@ -408,6 +401,16 @@ pub fn get_valid_bindings(element_name: &str) -> Vec<&'static str> {
                 true
             }
         })
+        .map(|(name, _)| *name)
+        .collect();
+    names.sort_unstable();
+    names
+}
+
+/// All binding names, in Svelte's `Object.keys(binding_properties)` order.
+pub fn all_binding_names() -> Vec<&'static str> {
+    BINDING_PROPERTIES_LIST
+        .iter()
         .map(|(name, _)| *name)
         .collect()
 }
