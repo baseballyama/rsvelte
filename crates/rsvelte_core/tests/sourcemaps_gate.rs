@@ -1,8 +1,9 @@
 //! Source-map verification gate.
 //!
 //! `tests/sourcemaps.rs` only compares *generated code*; the map itself was
-//! never checked (its `compare_sourcemaps` call double-encoded the JSON, and the
-//! result was gated behind an opt-in env var). This file is the actual gate: it
+//! never checked (its comparison double-encoded the JSON so it could never
+//! parse, and the result was gated behind an opt-in env var — both since
+//! removed). This file is the actual gate: it
 //! ports the assertions the official suite makes in
 //! `packages/svelte/tests/sourcemaps/samples/*/_config.js` and adds two
 //! structural measures, all ratcheted shrink-only through

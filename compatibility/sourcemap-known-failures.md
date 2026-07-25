@@ -41,6 +41,33 @@ UPDATE_SOURCEMAP_RATCHET=1 cargo test -p rsvelte_core --test sourcemaps_gate -- 
   --ignored --nocapture sourcemap_gate_measure
 ```
 
+## After a Svelte bump
+
+The four constants at the top of `sourcemaps_gate.rs` are the only things a bump
+can touch beyond the ratchet itself. Raise a floor only *after* a measurement
+justifies it — never to make a red run go green.
+
+- **Upstream adds samples.** Nothing to do. The floors are `>=` lower bounds, so
+  they stay satisfied, and a new sample has no ratchet entry — any failure it
+  brings is correctly reported as a regression. Once it is triaged, regenerate
+  the ratchet and raise `EXPECTED_SAMPLES` / `EXPECTED_ANCHOR_COUNT` /
+  `EXPECTED_IDENTICAL_OUTPUTS` to the new measured values in the same commit.
+- **Upstream removes or renames samples.** A floor trips, or `load_input`
+  panics. That is the intended outcome — confirm against the upstream diff that
+  the sample really is gone, then lower the floor and drop its ratchet entries.
+  Never lower a floor without that confirmation: an unreadable sample and a
+  deleted one look identical from here, and the first is a broken checkout.
+- **Upstream adds a sourcemaps `_config.js` that the fixture generator can
+  import.** `check_fixture_options` fails with "the comparison would be
+  meaningless". This is a benign cause with a loud symptom: the generator now
+  compiles that sample with options this test does not use, so the oracle and
+  rsvelte are no longer comparable. Either teach `compile_sample` the same
+  options, or exclude the sample — do not relax
+  `EXPECTED_FIXTURE_COMPILE_OPTIONS` to paper over the divergence.
+- **Anchors.** `_config.js` expectations are copied by hand into `ANCHORS`;
+  re-read the changed ones on a bump, since nothing detects an upstream
+  expectation that silently changed value.
+
 ## Baseline at the time this gate was added
 
 Measured on Svelte `b29d7002ecf9`, 29 samples × {client, server} (54 of the 58
