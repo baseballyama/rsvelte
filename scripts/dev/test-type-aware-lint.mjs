@@ -12,7 +12,7 @@
 // setup here is loud rather than a green no-op.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -68,12 +68,26 @@ ensureSubmodule('submodules/eslint-plugin-svelte', 'Check your network / git con
 // (`defaultCorsaExecutable`).
 let executable = process.env.CORSA_EXECUTABLE ?? process.env.CORSA_PATH;
 if (!executable) {
-	// Always run the install: it is a no-op once the pinned version is present,
-	// and it re-syncs the tree after a Renovate bump instead of leaving a stale
-	// binary behind (a stale tsgo silently changes diagnostic text).
+	// Always attempt the install rather than short-circuiting on "a binary
+	// exists": after a Renovate bump the existing tree is the OLD version, and a
+	// stale tsgo silently changes diagnostic text. `--prefer-offline` keeps it
+	// cheap (and working offline) once the pinned tarball is in the npm cache.
 	console.log('==> installing @typescript/native-preview (pinned)');
-	run('npm', ['install', '--prefix', tsgoPrefix, '--no-package-lock']);
+	const install = spawnSync(
+		'npm',
+		['install', '--prefix', tsgoPrefix, '--no-package-lock', '--prefer-offline'],
+		{ stdio: 'inherit', cwd: repoRoot }
+	);
 	executable = nativePreviewBinary(tsgoPrefix);
+	if (install.status !== 0) {
+		// Offline with nothing cached is fatal; offline with a previous install is
+		// not — fall back, and let the version check below flag a stale binary.
+		if (!executable) {
+			console.error('\nnpm install failed and no previously installed tsgo binary was found.');
+			process.exit(install.status ?? 1);
+		}
+		console.warn('\nwarning: npm install failed — falling back to the installed binary.');
+	}
 }
 if (!executable) {
 	console.error('Could not locate a tsgo binary after installing @typescript/native-preview.');
@@ -91,6 +105,18 @@ try {
 // Printed because the suite asserts exact diagnostic text — when a run diverges,
 // the tsgo build is the first thing to check.
 console.log(`==> tsgo: ${executable}\n==> ${version}`);
+// A binary that does not match the pin is the single most likely cause of a
+// mysterious diagnostic-text failure, so say so out loud rather than let it
+// look like a code regression.
+const pinned = JSON.parse(readFileSync(join(tsgoPrefix, 'package.json'), 'utf8')).dependencies[
+	'@typescript/native-preview'
+];
+if (!version.includes(pinned)) {
+	console.warn(
+		`warning: tsgo reports "${version}" but the pin is ${pinned}. ` +
+			'Diagnostic text may differ from what the tests expect.'
+	);
+}
 
 run('cargo', ['test', ...process.argv.slice(2)], {
 	cwd: crateDir,
