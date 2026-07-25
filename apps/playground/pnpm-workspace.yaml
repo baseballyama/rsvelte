@@ -3,3 +3,12 @@
 # any pnpm invocation here (including Renovate's lockfile updater, which
 # cannot pass --ignore-workspace) resolves to the repo root and leaves this
 # directory's lockfile stale — which is how Deploy Docs broke on #1591.
+#
+# Because this is its own workspace root, the repo-root pnpm-workspace.yaml's
+# minimumReleaseAgeExclude does not apply here. `svelte`, `vite`, and `oxlint`
+# are Renovate-bumped tooling deps here too, so mirror the same exclude list
+# to avoid ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION on fresh bumps.
+minimumReleaseAgeExclude:
+  - svelte
+  - vite
+  - oxlint
