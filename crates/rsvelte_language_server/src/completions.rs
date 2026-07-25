@@ -92,7 +92,7 @@ fn is_word_byte(byte: u8) -> bool {
 
 /// The trigger character nearest the cursor.
 fn trigger_character(window: &str) -> Option<u8> {
-    [b'#', b'/', b':', b'@']
+    (*b"#/:@")
         .into_iter()
         .filter_map(|char| window.rfind(char as char).map(|idx| (idx, char)))
         .max_by_key(|&(idx, _)| idx)
