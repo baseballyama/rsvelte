@@ -8,6 +8,7 @@
 
 mod ctx;
 mod segs;
+mod utils;
 
 use crate::ast::template::{
     AttachTag, Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock,
@@ -27,6 +28,15 @@ use ctx::{Counter, ELEMENT_OPENER_COMMENTS, TemplateNodeExt};
 use segs::{
     Seg, bake_out_of_order_src, emit_segmented_overwrite, segs_is_empty, segs_push_lit,
     segs_push_src, segs_to_string, segs_trim_start,
+};
+use utils::expr::{
+    extend_expr_end_with_ts_postfix, get_binding_lhs_text, get_expression_end_stripping_ts,
+    get_expression_range, get_expression_text, get_set_binding_ranges,
+};
+use utils::names::{reversed_component_instance_name, reversed_component_name};
+use utils::source::{
+    closing_tag_name_matches, count_tag_to_attr_spaces, find_closing_tag_start,
+    find_opening_tag_end,
 };
 
 pub(crate) use ctx::{clear_element_opener_comments, set_element_opener_comments};
@@ -61,146 +71,6 @@ pub enum ForwardedEventKind {
     /// Component / `svelte:component` — official `handleEventHandlerBubble`
     /// concats into the existing entry.
     Component,
-}
-
-// =============================================================================
-// Helpers
-// =============================================================================
-
-/// Get the expression source text range from an Expression.
-fn get_expression_range(expr: &crate::ast::js::Expression) -> Option<(u32, u32)> {
-    let start = expr.start()?;
-    let end = expr.end()?;
-    Some((start, end))
-}
-
-/// For a Svelte 5 function binding `bind:prop={getFn, setFn}`, the directive
-/// value is a `SequenceExpression` of exactly two expressions (the getter and
-/// the setter). Returns the source byte ranges of the getter and setter,
-/// `((get_start, get_end), (set_start, set_end))`.
-///
-/// The template-expression arena isn't resolvable in the svelte2tsx parse
-/// path (`expr.as_json()` yields no children), so the split is done on the
-/// source text by scanning for the first top-level comma — the comma that
-/// separates the two expressions in `getFn, setFn`. This mirrors the
-/// `isGetSetBinding` branch in upstream `htmlxtojsx_v2/nodes/Binding.ts`,
-/// which reads `attr.expression.expressions[0]`/`[1]`.
-fn get_set_binding_ranges(
-    expr: &crate::ast::js::Expression,
-    source: &str,
-) -> Option<((u32, u32), (u32, u32))> {
-    if expr.node_type() != Some("SequenceExpression") {
-        return None;
-    }
-    let (start, end) = get_expression_range(expr)?;
-    let (us, ue) = (start as usize, end as usize);
-    if ue > source.len() || us >= ue {
-        return None;
-    }
-    let text = &source[us..ue];
-    let bytes = text.as_bytes();
-    let mut depth: i32 = 0;
-    let mut string: Option<u8> = None; // active quote char: ' " `
-    let mut i = 0usize;
-    while i < bytes.len() {
-        let c = bytes[i];
-        if let Some(q) = string {
-            if c == b'\\' {
-                i += 2;
-                continue;
-            }
-            if c == q {
-                string = None;
-            }
-            i += 1;
-            continue;
-        }
-        match c {
-            b'\'' | b'"' | b'`' => string = Some(c),
-            b'(' | b'[' | b'{' => depth += 1,
-            b')' | b']' | b'}' => depth -= 1,
-            b',' if depth == 0 => {
-                // Top-level comma: getter is [start, here), setter is
-                // (here, end). Trim surrounding whitespace from each half so
-                // the emitted ranges line up with the actual expressions.
-                let get_end = us + i;
-                let set_start = us + i + 1;
-                let get = trim_range(source, us, get_end)?;
-                let set = trim_range(source, set_start, ue)?;
-                return Some((get, set));
-            }
-            _ => {}
-        }
-        i += 1;
-    }
-    None
-}
-
-/// Trim leading/trailing ASCII whitespace from a `[start, end)` source range,
-/// returning the tightened `(start, end)` (or `None` if empty after trimming).
-fn trim_range(source: &str, mut start: usize, mut end: usize) -> Option<(u32, u32)> {
-    let bytes = source.as_bytes();
-    while start < end && bytes[start].is_ascii_whitespace() {
-        start += 1;
-    }
-    while end > start && bytes[end - 1].is_ascii_whitespace() {
-        end -= 1;
-    }
-    if start >= end {
-        None
-    } else {
-        Some((start as u32, end as u32))
-    }
-}
-
-/// Get the expression source text from the original source.
-fn get_expression_text<'a>(expr: &crate::ast::js::Expression, source: &'a str) -> &'a str {
-    if let Some((start, end)) = get_expression_range(expr) {
-        slice_src(source, start as usize, end as usize)
-    } else {
-        ""
-    }
-}
-
-/// Sanitize a component name for use in variable names.
-///
-/// Mirrors `sanitizePropName` in `htmlxtojsx_v2/utils/node-utils.ts`:
-/// each character that is NOT `[0-9A-Za-z$_]` is replaced with `_`.
-/// Applied BEFORE reversing, so `Foo.Bar` → `Foo_Bar` → reversed `raB_ooF`.
-fn sanitize_prop_name(name: &str) -> String {
-    name.chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '$' || c == '_' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect()
-}
-
-/// Generate a reversed component constructor variable name.
-///
-/// Mirrors upstream `InlineComponent.ts`:
-///   `this._name = '$$_' + Array.from(sanitizePropName(name)).reverse().join('') + depth`
-///   `const constructorName = this._name + 'C'`
-///
-/// The `depth` (ancestor element/component count, NOT including blocks/root)
-/// replaces the old per-name counter so two `<A/>` at the same level both
-/// get index 0 — `$$_A0C` — matching the official tool.
-fn reversed_component_name(name: &str, depth: u32) -> String {
-    let sanitized = sanitize_prop_name(name);
-    let reversed: String = sanitized.chars().rev().collect();
-    format!("$$_{}{}C", reversed, depth)
-}
-
-/// Generate a reversed component instance variable name.
-///
-/// Like `reversed_component_name` but without the trailing `C` suffix.
-fn reversed_component_instance_name(name: &str, depth: u32) -> String {
-    let sanitized = sanitize_prop_name(name);
-    let reversed: String = sanitized.chars().rev().collect();
-    format!("$$_{}{}", reversed, depth)
 }
 
 // =============================================================================
@@ -5894,210 +5764,6 @@ fn format_spread_attribute_segments(spread: &SpreadAttribute, source: &str) -> O
     Some(out)
 }
 
-/// Mirror upstream svelte2tsx `getEnd` (`htmlxtojsx_v2/utils/node-utils.ts`):
-/// for a TS assertion expression (`x as T` / `x satisfies T` / `x!`) return the
-/// end offset of the INNER expression (stripping the assertion); otherwise the
-/// expression's own end. Used for binding assignment LHSs, which must not carry
-/// the assertion (`() => (value as never) = …` → `() => (value = …)`).
-///
-/// The parser now preserves the assertion wrapper in the binding expression, but
-/// the svelte2tsx parse path does not resolve arena children (`as_json()` is
-/// empty), so — like [`extend_expr_end_with_ts_postfix`] — the inner end is
-/// found by scanning the expression's source span rather than the arena.
-fn get_expression_end_stripping_ts(expr: &crate::ast::js::Expression, source: &str) -> Option<u32> {
-    let (start, end) = get_expression_range(expr)?;
-    let ty = expr.node_type()?;
-    if !matches!(
-        ty,
-        "TSAsExpression"
-            | "TSSatisfiesExpression"
-            | "TSNonNullExpression"
-            | "TSInstantiationExpression"
-    ) {
-        return Some(end);
-    }
-    let bytes = source.as_bytes();
-    let (s, e) = (start as usize, end as usize);
-    if e > source.len() || s >= e {
-        return Some(end);
-    }
-    if ty == "TSNonNullExpression" {
-        // Strip the trailing `!` (and any surrounding whitespace).
-        let mut i = e;
-        while i > s && bytes[i - 1].is_ascii_whitespace() {
-            i -= 1;
-        }
-        if i > s && bytes[i - 1] == b'!' {
-            i -= 1;
-        }
-        while i > s && bytes[i - 1].is_ascii_whitespace() {
-            i -= 1;
-        }
-        return Some(i as u32);
-    }
-    if ty == "TSInstantiationExpression" {
-        // `f<T>`: strip the trailing `<…>` type-argument list. Scan back from the
-        // closing `>` balancing nested `<…>` to its matching `<`; the inner
-        // expression ends just before it.
-        let mut i = e;
-        while i > s && bytes[i - 1].is_ascii_whitespace() {
-            i -= 1;
-        }
-        if i > s && bytes[i - 1] == b'>' {
-            let mut depth: i32 = 0;
-            while i > s {
-                match bytes[i - 1] {
-                    b'>' => depth += 1,
-                    b'<' => {
-                        depth -= 1;
-                        if depth == 0 {
-                            i -= 1;
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-                i -= 1;
-            }
-            while i > s && bytes[i - 1].is_ascii_whitespace() {
-                i -= 1;
-            }
-        }
-        return Some(i as u32);
-    }
-    // `x as T` / `x satisfies T`: find the outermost (last top-level) ` as ` /
-    // ` satisfies ` keyword; the inner expression ends just before it.
-    let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'$';
-    let mut depth: i32 = 0;
-    let mut string: Option<u8> = None;
-    let mut op_ws: Option<usize> = None; // index of the whitespace preceding the keyword
-    let mut i = s;
-    while i < e {
-        let c = bytes[i];
-        if let Some(q) = string {
-            if c == b'\\' {
-                i += 2;
-                continue;
-            }
-            if c == q {
-                string = None;
-            }
-            i += 1;
-            continue;
-        }
-        match c {
-            b'\'' | b'"' | b'`' => string = Some(c),
-            b'(' | b'[' | b'{' => depth += 1,
-            b')' | b']' | b'}' => depth -= 1,
-            _ if depth == 0 && c.is_ascii_whitespace() => {
-                let mut j = i;
-                while j < e && bytes[j].is_ascii_whitespace() {
-                    j += 1;
-                }
-                for (kw, kwlen) in [("as", 2usize), ("satisfies", 9usize)] {
-                    if j + kwlen <= e
-                        && &source[j..j + kwlen] == kw
-                        && (j + kwlen == e || !is_ident(bytes[j + kwlen]))
-                    {
-                        op_ws = Some(i);
-                    }
-                }
-            }
-            _ => {}
-        }
-        i += 1;
-    }
-    match op_ws {
-        Some(p) => {
-            let mut ie = p;
-            while ie > s && bytes[ie - 1].is_ascii_whitespace() {
-                ie -= 1;
-            }
-            Some(ie as u32)
-        }
-        None => Some(end),
-    }
-}
-
-/// Start offset of an expression, stripping a leading TS `<T>` type-assertion
-/// prefix (`TSTypeAssertion`). For `<T>x` the assignable inner expression begins
-/// after the closing `>`; every other expression keeps its own start.
-fn get_expression_start_stripping_ts(
-    expr: &crate::ast::js::Expression,
-    source: &str,
-) -> Option<u32> {
-    let (start, end) = get_expression_range(expr)?;
-    if expr.node_type()? != "TSTypeAssertion" {
-        return Some(start);
-    }
-    let bytes = source.as_bytes();
-    let (s, e) = (start as usize, end as usize);
-    if e > source.len() || s >= e || bytes[s] != b'<' {
-        return Some(start);
-    }
-    // Balance the leading `<…>` (nested generics included), then skip whitespace.
-    let mut i = s;
-    let mut depth: i32 = 0;
-    while i < e {
-        match bytes[i] {
-            b'<' => depth += 1,
-            b'>' => {
-                depth -= 1;
-                if depth == 0 {
-                    i += 1;
-                    break;
-                }
-            }
-            _ => {}
-        }
-        i += 1;
-    }
-    while i < e && bytes[i].is_ascii_whitespace() {
-        i += 1;
-    }
-    Some(i as u32)
-}
-
-/// Source text of a binding assignment LHS: the expression with any TS assertion
-/// stripped (mirrors `[getStart(expr), getEnd(expr)]` upstream). A trailing
-/// postfix (`as T` / `satisfies T` / `!` / `<T>` type args) is trimmed from the
-/// end and a leading `<T>` type-assertion prefix from the start, so a cast never
-/// lands on the assignment target.
-fn get_binding_lhs_text<'a>(expr: &crate::ast::js::Expression, source: &'a str) -> &'a str {
-    match (
-        get_expression_start_stripping_ts(expr, source),
-        get_expression_end_stripping_ts(expr, source),
-    ) {
-        (Some(start), Some(ge)) if start <= ge => slice_src(source, start as usize, ge as usize),
-        _ => get_expression_text(expr, source),
-    }
-}
-
-/// Extend an expression's end to cover a trailing TS postfix (`as T`,
-/// `satisfies T`, `!`) that the parser narrowed out of the expression span.
-/// `scan_end` is the enclosing `{…}` directive/attribute end; the closing `}`
-/// is found by scanning back from it (so braces inside the type — `as { x }` —
-/// don't confuse it). Returns the original `expr_end` when no postfix follows.
-fn extend_expr_end_with_ts_postfix(source: &str, expr_end: u32, scan_end: u32) -> u32 {
-    let bytes = source.as_bytes();
-    let mut c = scan_end as usize;
-    while c > expr_end as usize && bytes.get(c - 1) != Some(&b'}') {
-        c -= 1;
-    }
-    let close = c.saturating_sub(1);
-    let tail = source
-        .get(expr_end as usize..close)
-        .unwrap_or("")
-        .trim_start();
-    if close > expr_end as usize
-        && (tail.starts_with("as ") || tail.starts_with("satisfies ") || tail.starts_with('!'))
-    {
-        close as u32
-    } else {
-        expr_end
-    }
-}
-
 /// Structured-bake variant of [`format_bind_directive`].
 fn format_bind_directive_segments(bind: &BindDirective, source: &str) -> Vec<Seg> {
     let mut out = Vec::new();
@@ -6847,31 +6513,6 @@ fn format_use_directive(use_dir: &UseDirective, source: &str) -> Option<String> 
     }
 }
 
-/// Count the number of whitespace characters between the tag name and the
-/// first attribute in the opening tag source. This preserves whitespace
-/// that the JS svelte2tsx would keep via MagicString in-place editing.
-///
-/// For `<Test b="6" />`, returns 1 (the space between `Test` and `b`).
-/// For `<div class="foo">`, returns 1.
-/// For `<Component\n  prop>`, returns 3 (newline + 2 spaces).
-fn count_tag_to_attr_spaces(tag_name: &str, el_start: u32, source: &str) -> usize {
-    let name_end = el_start as usize + 1 + tag_name.len(); // +1 for '<'
-    let bytes = source.as_bytes();
-    let mut count = 0;
-    let mut i = name_end;
-    let end = source.len();
-    while i < end {
-        let ch = bytes[i];
-        if ch == b' ' || ch == b'\t' || ch == b'\n' || ch == b'\r' {
-            count += 1;
-            i += 1;
-        } else {
-            break;
-        }
-    }
-    count
-}
-
 // =============================================================================
 // Slot Helpers
 // =============================================================================
@@ -7090,109 +6731,6 @@ fn get_slot_attr_value(attributes: &[Attribute], _source: &str) -> Option<String
 }
 
 // =============================================================================
-// Source Position Helpers
-// =============================================================================
-
-/// Find the end of the opening tag (position after the closing `>`).
-///
-/// Scans from `start` looking for the first `>` that is not inside a string
-/// or expression. Returns the position after the `>`.
-fn find_opening_tag_end(source: &str, start: u32, element_end: u32) -> u32 {
-    let bytes = source.as_bytes();
-    let start = start as usize;
-    let end = element_end as usize;
-    let mut i = start;
-    let mut in_string = None::<u8>; // tracks quote char
-    let mut brace_depth = 0u32;
-
-    while i < end {
-        let ch = bytes[i];
-
-        match in_string {
-            Some(quote) => {
-                if ch == quote && (i == 0 || bytes[i - 1] != b'\\') {
-                    in_string = None;
-                }
-            }
-            None => {
-                // Inside an expression value (`{ … }`), skip JS comments so a
-                // quote within them (`// don't` / `/* don't */`) doesn't start a
-                // fake string and throw off the brace tracking — which would make
-                // this return the wrong `>` and overwrite past the tag.
-                if brace_depth > 0 && ch == b'/' && i + 1 < end {
-                    if bytes[i + 1] == b'/' {
-                        while i < end && bytes[i] != b'\n' {
-                            i += 1;
-                        }
-                        continue;
-                    } else if bytes[i + 1] == b'*' {
-                        i += 2;
-                        while i + 1 < end && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                            i += 1;
-                        }
-                        i += 2; // skip the closing `*/`
-                        continue;
-                    }
-                }
-                if ch == b'"' || ch == b'\'' || ch == b'`' {
-                    in_string = Some(ch);
-                } else if ch == b'{' {
-                    brace_depth += 1;
-                } else if ch == b'}' {
-                    brace_depth = brace_depth.saturating_sub(1);
-                } else if ch == b'>' && brace_depth == 0 {
-                    return (i + 1) as u32;
-                }
-            }
-        }
-        i += 1;
-    }
-
-    // Fallback: return element end
-    element_end
-}
-
-/// Find the start of the closing tag.
-///
-/// Scans backwards from `end` looking for `</`.
-/// True when the `</…>` at `closing_tag_start` is the closing tag for an
-/// element named `name` (case-insensitive). Used to distinguish a real closing
-/// tag from a child's closing tag wrongly matched on an auto-closed element.
-fn closing_tag_name_matches(source: &str, closing_tag_start: u32, name: &str) -> bool {
-    let rest = &source[closing_tag_start as usize..];
-    let Some(after) = rest.strip_prefix("</") else {
-        return false;
-    };
-    // Read the tag-name characters following `</`.
-    let tag: String = after
-        .chars()
-        .take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == ':' || *c == '.')
-        .collect();
-    tag.eq_ignore_ascii_case(name)
-}
-
-fn find_closing_tag_start(source: &str, end: u32) -> u32 {
-    let bytes = source.as_bytes();
-    let end = end as usize;
-
-    // Check if this is a self-closing tag (ends with `/>`)
-    if end >= 2 && bytes[end - 2] == b'/' && bytes[end - 1] == b'>' {
-        return end as u32; // Return end to signal self-closing
-    }
-
-    // Scan backwards for `</`
-    let mut i = end;
-    while i >= 2 {
-        i -= 1;
-        if bytes[i] == b'<' && i + 1 < end && bytes[i + 1] == b'/' {
-            return i as u32;
-        }
-    }
-
-    end as u32
-}
-
-// =============================================================================
 // Legacy string-based API (kept for backward compatibility during migration)
 // =============================================================================
 
@@ -7212,90 +6750,12 @@ mod tests {
     use crate::ast::template::Fragment;
 
     #[test]
-    fn extend_expr_end_covers_trailing_ts_postfix() {
-        // The parser narrows the expression span to `val` (`expr_end` = index 4,
-        // just after `l`); `scan_end` is the directive `}`+1. The helper scans
-        // back to the `}` and, when an `as`/`satisfies`/`!` postfix sits between
-        // `expr_end` and `}`, extends the end to just before `}`.
-
-        // `{val as T}` → end at index 9 (the `}`), covering ` as T`.
-        let src = "{val as T}";
-        assert_eq!(extend_expr_end_with_ts_postfix(src, 4, src.len() as u32), 9);
-
-        // `{val!}` → non-null `!` absorbed, end at index 5 (the `}`).
-        let src = "{val!}";
-        assert_eq!(extend_expr_end_with_ts_postfix(src, 4, src.len() as u32), 5);
-
-        // `{val satisfies T}` → `satisfies T` absorbed.
-        let src = "{val satisfies T}";
-        assert_eq!(
-            extend_expr_end_with_ts_postfix(src, 4, src.len() as u32),
-            16
-        );
-
-        // `{val}` → no postfix, end unchanged.
-        let src = "{val}";
-        assert_eq!(extend_expr_end_with_ts_postfix(src, 4, src.len() as u32), 4);
-
-        // `as { x: T }` — braces inside the cast type don't confuse the close
-        // scan (it stops at the OUTER `}` nearest `scan_end`).
-        let src = "{val as {x: T}}";
-        assert_eq!(
-            extend_expr_end_with_ts_postfix(src, 4, src.len() as u32),
-            14
-        );
-    }
-
-    #[test]
     fn test_process_empty_template() {
         let fragment = Fragment::default();
         let options = Svelte2TsxOptions::default();
         let mut str = MagicString::new("");
         process_template_inplace(&fragment, "", &options, &mut str);
         assert_eq!(str.to_string(), "");
-    }
-
-    #[test]
-    fn test_reversed_component_name() {
-        // Basic cases: depth (not per-name counter) is the suffix.
-        assert_eq!(reversed_component_name("Component", 0), "$$_tnenopmoC0C");
-        // depth=1 → `$$_ooF1C` (same as before, index was already depth in these examples)
-        assert_eq!(reversed_component_name("Foo", 1), "$$_ooF1C");
-        assert_eq!(reversed_component_name("Button", 0), "$$_nottuB0C");
-        // sanitizePropName: '.' is not [0-9A-Za-z$_], replaced with '_' before reversing.
-        // "Foo.Bar" → sanitized "Foo_Bar" → reversed "raB_ooF" → "$$_raB_ooF0C"
-        assert_eq!(reversed_component_name("Foo.Bar", 0), "$$_raB_ooF0C");
-        // Namespaced component: "Namespace:Comp" → "Namespace_Comp" → "pmoC_ecapsemaN" → "$$_pmoC_ecapsemaN0C"
-        assert_eq!(
-            reversed_component_name("Namespace:Comp", 0),
-            "$$_pmoC_ecapsemaN0C"
-        );
-    }
-
-    #[test]
-    fn test_reversed_component_instance_name() {
-        assert_eq!(
-            reversed_component_instance_name("Component", 0),
-            "$$_tnenopmoC0"
-        );
-        assert_eq!(reversed_component_instance_name("Button", 0), "$$_nottuB0");
-        // sanitizePropName applied before reversing for instance names too.
-        assert_eq!(
-            reversed_component_instance_name("Foo.Bar", 0),
-            "$$_raB_ooF0"
-        );
-    }
-
-    #[test]
-    fn test_sanitize_prop_name() {
-        // Valid chars pass through unchanged.
-        assert_eq!(sanitize_prop_name("Component"), "Component");
-        assert_eq!(sanitize_prop_name("Foo_Bar"), "Foo_Bar");
-        assert_eq!(sanitize_prop_name("$foo"), "$foo");
-        // Invalid chars are replaced with '_'.
-        assert_eq!(sanitize_prop_name("Foo.Bar"), "Foo_Bar");
-        assert_eq!(sanitize_prop_name("svelte:self"), "svelte_self");
-        assert_eq!(sanitize_prop_name("a-b-c"), "a_b_c");
     }
 
     // Tests for data-* and --* attribute wrapping rules.
