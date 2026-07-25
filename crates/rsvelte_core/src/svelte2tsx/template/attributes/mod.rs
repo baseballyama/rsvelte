@@ -16,7 +16,7 @@ pub(super) mod transition;
 
 use crate::ast::template::Attribute;
 use crate::svelte2tsx::svelte2tsx::slice_src;
-use crate::svelte2tsx::template::format_attach_tag_segments;
+use crate::svelte2tsx::template::nodes::attach_tag::format_attach_tag_segments;
 use crate::svelte2tsx::template::segs::{
     Seg, segs_is_empty, segs_push_lit, segs_push_src, segs_to_string,
 };

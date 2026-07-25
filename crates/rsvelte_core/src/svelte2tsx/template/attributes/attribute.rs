@@ -545,3 +545,82 @@ pub(crate) fn format_attribute_node_segments(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    // Tests for data-* and --* attribute wrapping rules.
+    // Mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute` / `addProp`.
+
+    use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
+
+    fn compile_template(src: &str) -> String {
+        svelte2tsx(src, Svelte2TsxOptions::default()).unwrap().code
+    }
+
+    #[test]
+    fn test_data_attr_on_element_is_wrapped_with_empty() {
+        // `data-foo="foobarbaz"` on a DOM element must become
+        // `...__sveltets_2_empty({"data-foo":\`foobarbaz\`})`.
+        let src = "<p data-foo=\"foobarbaz\">hello</p>";
+        let out = compile_template(src);
+        assert!(
+            out.contains("...__sveltets_2_empty({\"data-foo\":`foobarbaz`})"),
+            "expected __sveltets_2_empty wrap, got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn test_data_sveltekit_attr_not_wrapped() {
+        // `data-sveltekit-*` must NOT be wrapped — it is valid in `svelte/elements`.
+        let src = "<a data-sveltekit-preload-data=\"hover\">link</a>";
+        let out = compile_template(src);
+        assert!(
+            !out.contains("__sveltets_2_empty"),
+            "data-sveltekit-* should not be wrapped, got:\n{out}"
+        );
+        assert!(
+            out.contains("\"data-sveltekit-preload-data\""),
+            "data-sveltekit-preload-data should be a plain prop, got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn test_data_attr_boolean_on_element_uses_true() {
+        // Boolean `data-foo` (no value) on a DOM element → `true` (official wraps
+        // it as `...__sveltets_2_empty({ "data-foo": true })`).
+        let src = "<p data-foo>hello</p>";
+        let out = compile_template(src);
+        assert!(
+            out.contains("...__sveltets_2_empty({\"data-foo\":true})"),
+            "boolean data-* should use true, got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn test_css_prop_on_component_is_wrapped_with_cssprop() {
+        // `--my-var={x}` on a component must become
+        // `...__sveltets_2_cssProp({"--my-var":x})`.
+        let src = "<script>import Comp from \"./Comp.svelte\"; let x = 5;</script>\
+                   <Comp --my-var={x} />";
+        let out = compile_template(src);
+        assert!(
+            out.contains("...__sveltets_2_cssProp({\"--my-var\":x})"),
+            "expected __sveltets_2_cssProp wrap, got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn test_normal_attr_not_wrapped() {
+        // Regular attributes (no data-* or --*) must remain unwrapped.
+        let src = "<p class=\"foo\" id=\"bar\">hello</p>";
+        let out = compile_template(src);
+        assert!(
+            !out.contains("__sveltets_2_empty"),
+            "regular attrs should not be wrapped, got:\n{out}"
+        );
+        assert!(
+            out.contains("\"class\":`foo`"),
+            "class attr should be plain prop, got:\n{out}"
+        );
+    }
+}

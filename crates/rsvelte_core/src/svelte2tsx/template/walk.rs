@@ -11,14 +11,17 @@ use super::nodes::dynamic_element::handle_svelte_dynamic_element;
 use super::nodes::each_block::handle_each_block;
 use super::nodes::element::{handle_regular_element, handle_title_element};
 use super::nodes::if_else_block::handle_if_block;
+use super::nodes::inline_component::{
+    handle_component, handle_svelte_component, handle_svelte_self,
+};
 use super::nodes::key_block::handle_key_block;
 use super::nodes::mustache_tag::handle_expression_tag;
 use super::nodes::raw_mustache_tag::handle_html_tag;
 use super::nodes::render_tag::handle_render_tag;
+use super::nodes::slot_element::handle_slot_element;
 use super::nodes::snippet_block::handle_snippet_block;
 use super::nodes::special_element::handle_svelte_special_element;
 use super::nodes::text::handle_text;
-use super::{handle_component, handle_slot_element, handle_svelte_component, handle_svelte_self};
 use crate::ast::template::{Fragment, TemplateNode};
 use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions;

@@ -22,10 +22,9 @@ use crate::svelte2tsx::template::utils::source::{
 };
 use crate::svelte2tsx::template::walk::process_fragment_inplace;
 
+use super::component_slots::handle_named_slot_element;
+use super::slot_element::{get_slot_attr_value, handle_slot_element};
 use super::snippet_block::hoist_snippet_blocks;
-use crate::svelte2tsx::template::{
-    get_slot_attr_value, handle_named_slot_element, handle_slot_element,
-};
 
 /// Handle a regular HTML element.
 ///

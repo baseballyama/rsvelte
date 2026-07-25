@@ -22,7 +22,8 @@ use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_express
 use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
 use crate::svelte2tsx::template::walk::process_fragment_inplace;
 
-use crate::svelte2tsx::template::{build_named_slot_element_attrs, get_slot_attr_value};
+use super::component_slots::build_named_slot_element_attrs;
+use super::slot_element::get_slot_attr_value;
 
 /// Handle `<svelte:element this={tag}>`.
 pub(crate) fn handle_svelte_dynamic_element(

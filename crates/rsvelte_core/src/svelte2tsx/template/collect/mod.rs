@@ -7,8 +7,9 @@ use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, Fragme
 use pattern::{collect_pattern_bindings, expand_object_shorthands};
 
 use super::attributes::let_::get_let_directives;
+use super::nodes::slot_element::{get_slot_attr_value, slot_name_for_type};
 use super::utils::expr::get_expression_text;
-use super::{ForwardedEventKind, TemplateInfo, get_slot_attr_value, slot_name_for_type};
+use super::{ForwardedEventKind, TemplateInfo};
 
 pub(super) fn collect_info_from_fragment(
     fragment: &Fragment,
