@@ -6,6 +6,10 @@ use crate::svelte2tsx::magic_string::MagicString;
 use super::comment::comments_in_opener_range;
 use crate::svelte2tsx::template::utils::expr::get_expression_range;
 
+/// Handle an expression tag: `{expression}`.
+///
+/// Overwrites `{` with empty and `}` with `;` so the expression is preserved
+/// as a statement: `{count}` → `count;`
 pub(crate) fn handle_expression_tag(expr: &ExpressionTag, source: &str, str: &mut MagicString) {
     if expr.start >= expr.end {
         return;

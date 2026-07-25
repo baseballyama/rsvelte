@@ -15,10 +15,6 @@ pub(crate) fn handle_comment(comment: &Comment, str: &mut MagicString) {
     str.overwrite(comment.start, comment.end, "");
 }
 
-/// Handle an expression tag: `{expression}`.
-///
-/// Overwrites `{` with empty and `}` with `;` so the expression is preserved
-/// as a statement: `{count}` → `count;`
 /// Comments (from the per-compile set) whose source range lies fully within
 /// `[start, end)`, sorted by start. Used to preserve `{/* c */ expr}` comments.
 pub(crate) fn comments_in_opener_range(start: u32, end: u32) -> Vec<(u32, u32)> {
