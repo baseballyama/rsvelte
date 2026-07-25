@@ -27,6 +27,17 @@ fn load_input(sample_name: &str) -> Option<String> {
         .map(|s| s.replace("\r\n", "\n"))
 }
 
+/// `js.map` is already a JSON string; re-serializing it with `serde_json`
+/// would wrap it in another layer of quotes and escapes, which is what made
+/// every `compare_sourcemaps` call here fail to parse (and so always report a
+/// mismatch). Pretty-print the parsed value instead.
+fn pretty_map(map: &str) -> String {
+    match serde_json::from_str::<serde_json::Value>(map) {
+        Ok(value) => serde_json::to_string_pretty(&value).unwrap_or_else(|_| map.to_string()),
+        Err(_) => map.to_string(),
+    }
+}
+
 /// A sourcemap test fixture.
 struct SourcemapFixture {
     name: String,
@@ -135,7 +146,7 @@ fn run_sourcemap_fixture_test(fixture: &SourcemapFixture) -> TestResult {
 
                 // Compare sourcemap if available
                 if let Some(map) = &compile_result.js.map {
-                    let map_json = serde_json::to_string_pretty(map).unwrap_or_default();
+                    let map_json = pretty_map(map);
                     write_actual_output("sourcemaps", &fixture.name, "client.js.map", &map_json);
 
                     if let Some(expected_map) = &fixture.expected_client_map {
@@ -175,7 +186,7 @@ fn run_sourcemap_fixture_test(fixture: &SourcemapFixture) -> TestResult {
 
                 // Compare sourcemap if available
                 if let Some(map) = &compile_result.js.map {
-                    let map_json = serde_json::to_string_pretty(map).unwrap_or_default();
+                    let map_json = pretty_map(map);
                     write_actual_output("sourcemaps", &fixture.name, "server.js.map", &map_json);
 
                     if let Some(expected_map) = &fixture.expected_server_map {
