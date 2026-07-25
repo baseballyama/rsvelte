@@ -43,6 +43,145 @@
     "onLanguage:less"
   ],
   "contributes": {
+    "languages": [
+      {
+        "id": "svelte",
+        "aliases": [
+          "Svelte",
+          "svelte"
+        ],
+        "extensions": [
+          ".svelte"
+        ],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "svelte-start-tag",
+        "configuration": "./language-configuration-start-tag.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "svelte",
+        "scopeName": "source.svelte",
+        "path": "./syntaxes/svelte.tmLanguage.json",
+        "embeddedLanguages": {
+          "text.html.basic": "html",
+          "text.html.markdown": "markdown",
+          "text.pug": "jade",
+          "meta.tag.start.svelte": "svelte-start-tag",
+          "punctuation.definition.tag.begin.svelte": "svelte",
+          "source.css": "css",
+          "source.css.less": "less",
+          "source.css.scss": "scss",
+          "source.css.postcss": "postcss",
+          "source.sass": "sass",
+          "source.stylus": "stylus",
+          "source.js": "javascript",
+          "source.ts": "typescript",
+          "source.coffee": "coffeescript"
+        },
+        "unbalancedBracketScopes": [
+          "keyword.operator.relational",
+          "storage.type.function.arrow",
+          "keyword.operator.bitwise.shift",
+          "meta.brace.angle",
+          "punctuation.definition.tag"
+        ],
+        "tokenTypes": {
+          "punctuation.definition.template-expression": "other",
+          "entity.name.type.instance.jsdoc": "other",
+          "entity.name.function.tagged-template": "other",
+          "meta.import string.quoted": "other",
+          "variable.other.jsdoc": "other"
+        }
+      },
+      {
+        "scopeName": "svelte.pug",
+        "path": "./syntaxes/pug-svelte.json",
+        "injectTo": [
+          "source.svelte"
+        ],
+        "embeddedLanguages": {
+          "source.ts": "typescript",
+          "text.pug": "jade"
+        }
+      },
+      {
+        "scopeName": "svelte.pug.tags",
+        "path": "./syntaxes/pug-svelte-tags.json",
+        "injectTo": [
+          "source.svelte"
+        ],
+        "embeddedLanguages": {
+          "source.ts": "typescript",
+          "text.pug": "jade"
+        }
+      },
+      {
+        "scopeName": "svelte.pug.dotblock",
+        "path": "./syntaxes/pug-svelte-dotblock.json",
+        "injectTo": [
+          "source.svelte"
+        ],
+        "embeddedLanguages": {
+          "source.ts": "typescript"
+        }
+      },
+      {
+        "scopeName": "markdown.svelte.codeblock",
+        "path": "./syntaxes/markdown-svelte.json",
+        "injectTo": [
+          "text.html.markdown",
+          "source.mdx"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.svelte": "svelte"
+        }
+      },
+      {
+        "scopeName": "markdown.svelte.codeblock.script",
+        "path": "./syntaxes/markdown-svelte-js.json",
+        "injectTo": [
+          "text.html.markdown",
+          "source.mdx"
+        ]
+      },
+      {
+        "scopeName": "markdown.svelte.codeblock.style",
+        "path": "./syntaxes/markdown-svelte-css.json",
+        "injectTo": [
+          "text.html.markdown",
+          "source.mdx"
+        ]
+      },
+      {
+        "scopeName": "source.css.postcss",
+        "path": "./syntaxes/postcss.json",
+        "injectTo": [
+          "source.svelte"
+        ]
+      }
+    ],
+    "snippets": [
+      {
+        "language": "svelte",
+        "path": "./snippets/svelte.json"
+      },
+      {
+        "language": "javascript",
+        "path": "./snippets/javascript.json"
+      },
+      {
+        "language": "typescript",
+        "path": "./snippets/typescript.json"
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "svelte"
+      }
+    ],
     "configuration": {
       "title": "rsvelte",
       "properties": {

@@ -5,7 +5,13 @@
  */
 
 import * as path from "node:path";
-import type { ExtensionContext } from "vscode";
+import {
+  IndentAction,
+  extensions,
+  languages,
+  window,
+  type ExtensionContext,
+} from "vscode";
 import {
   LanguageClient,
   TransportKind,
@@ -29,7 +35,92 @@ const DOCUMENT_SELECTOR = [
   { scheme: "file", language: "less" },
 ];
 
+/** HTML elements that never get a closing tag, so they must not trigger indent. */
+const VOID_ELEMENTS = [
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "keygen",
+  "link",
+  "menuitem",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
+];
+
+const OFFICIAL_EXTENSION_ID = "svelte.svelte-vscode";
+const CONFLICT_DISMISSED_KEY = "rsvelte.officialExtensionConflictDismissed";
+
+function registerSvelteLanguageConfiguration(context: ExtensionContext): void {
+  const voidElements = VOID_ELEMENTS.join("|");
+  context.subscriptions.push(
+    languages.setLanguageConfiguration("svelte", {
+      indentationRules: {
+        // An opening tag that is not a doctype, void element, closing tag, or
+        // self-closed, and is not closed again on the same line — or `<!--`, or `{`.
+        increaseIndentPattern:
+          /<(?!\?|(?:area|base|br|col|frame|hr|html|img|input|link|meta|param)\b|[^>]*\/>)([-_.A-Za-z0-9]+)(?=\s|>)\b[^>]*>(?!.*<\/\1>)|<!--(?!.*-->)|\{[^}"']*$/,
+        // A leading closing tag other than `</html>`, or `-->`, or `}`.
+        decreaseIndentPattern: /^\s*(<\/(?!html)[-_.A-Za-z0-9]+\b[^>]*>|-->|\})/,
+      },
+      // A number with an optional sign/fraction, or a run of characters
+      // excluding whitespace and punctuation that cannot appear in an identifier.
+      wordPattern:
+        /(-?\d*\.\d\w*)|([^\`\~\!\@\#\^\&\*\(\)\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\s]+)/g,
+      onEnterRules: [
+        {
+          beforeText: new RegExp(
+            `<(?!(?:${voidElements}))([_:\\w][_:\\w-.\\d]*)([^/>]*(?!/)>)[^<]*$`,
+            "i",
+          ),
+          afterText: /^<\/([_:\w][_:\w-.\d]*)\s*>/i,
+          action: { indentAction: IndentAction.IndentOutdent },
+        },
+        {
+          beforeText: new RegExp(
+            `<(?!(?:${voidElements}))(\\w[\\w\\d]*)([^/>]*(?!/)>)[^<]*$`,
+            "i",
+          ),
+          action: { indentAction: IndentAction.Indent },
+        },
+      ],
+    }),
+  );
+}
+
+/**
+ * Both extensions contribute the `source.svelte` grammar and Svelte
+ * diagnostics, so running them together duplicates problems and makes which
+ * grammar wins non-deterministic.
+ */
+async function warnAboutOfficialExtension(
+  context: ExtensionContext,
+): Promise<void> {
+  if (context.globalState.get<boolean>(CONFLICT_DISMISSED_KEY)) return;
+  if (!extensions.getExtension(OFFICIAL_EXTENSION_ID)) return;
+
+  const dismiss = "Don't show again";
+  const choice = await window.showWarningMessage(
+    "rsvelte and the official Svelte extension (svelte.svelte-vscode) are both enabled. " +
+      "They contribute the same Svelte grammar and overlapping diagnostics — disable one of them.",
+    dismiss,
+  );
+  if (choice === dismiss) {
+    await context.globalState.update(CONFLICT_DISMISSED_KEY, true);
+  }
+}
+
 export function activate(context: ExtensionContext): void {
+  registerSvelteLanguageConfiguration(context);
+  void warnAboutOfficialExtension(context);
+
   // The bundled server lives at dist/server.mjs, copied next to the extension
   // bundle by the build (see build.mjs).
   const serverModule = context.asAbsolutePath(
