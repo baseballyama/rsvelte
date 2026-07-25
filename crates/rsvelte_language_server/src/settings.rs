@@ -1,6 +1,21 @@
 //! The `rsvelte.*` client settings this server honours.
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use serde_json::Value;
+
+/// What a `compilerWarnings` entry does to the warning it names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WarningLevel {
+    Ignore,
+    Error,
+}
+
+/// Per-code overrides for compiler warnings, mirroring the official
+/// `svelte.plugin.svelte.compilerWarnings`. Shared so handing the map to the
+/// worker costs a refcount.
+pub type CompilerWarnings = Arc<HashMap<String, WarningLevel>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Settings {
@@ -8,6 +23,7 @@ pub struct Settings {
     pub lint_enable: bool,
     pub completion_enable: bool,
     pub hover_enable: bool,
+    pub compiler_warnings: CompilerWarnings,
 }
 
 impl Default for Settings {
@@ -17,6 +33,7 @@ impl Default for Settings {
             lint_enable: true,
             completion_enable: true,
             hover_enable: true,
+            compiler_warnings: CompilerWarnings::default(),
         }
     }
 }
@@ -31,12 +48,28 @@ impl Settings {
             lint_enable: enabled(value, "lint").unwrap_or(default.lint_enable),
             completion_enable: enabled(value, "completion").unwrap_or(default.completion_enable),
             hover_enable: enabled(value, "hover").unwrap_or(default.hover_enable),
+            compiler_warnings: compiler_warnings(value),
         }
     }
 }
 
 fn enabled(value: &Value, section: &str) -> Option<bool> {
     value.get(section)?.get("enable")?.as_bool()
+}
+
+fn compiler_warnings(value: &Value) -> CompilerWarnings {
+    let mut levels = HashMap::new();
+    if let Some(entries) = value.get("compilerWarnings").and_then(Value::as_object) {
+        for (code, level) in entries {
+            let level = match level.as_str() {
+                Some("ignore") => WarningLevel::Ignore,
+                Some("error") => WarningLevel::Error,
+                _ => continue,
+            };
+            levels.insert(code.clone(), level);
+        }
+    }
+    Arc::new(levels)
 }
 
 #[cfg(test)]
@@ -59,6 +92,7 @@ mod tests {
                 lint_enable: true,
                 completion_enable: false,
                 hover_enable: false,
+                compiler_warnings: CompilerWarnings::default(),
             }
         );
     }
@@ -70,5 +104,27 @@ mod tests {
             Settings::from_json(&json!({ "format": "yes", "lint": { "enable": 1 } })),
             Settings::default()
         );
+    }
+
+    #[test]
+    fn reads_compiler_warning_levels() {
+        let s = Settings::from_json(&json!({
+            "compilerWarnings": {
+                "a11y_missing_attribute": "ignore",
+                "state_referenced_locally": "error",
+                "css_unused_selector": "warning",
+                "a11y_invalid_attribute": 1,
+            }
+        }));
+        assert_eq!(
+            s.compiler_warnings.get("a11y_missing_attribute"),
+            Some(&WarningLevel::Ignore)
+        );
+        assert_eq!(
+            s.compiler_warnings.get("state_referenced_locally"),
+            Some(&WarningLevel::Error)
+        );
+        // Levels outside the two the official setting defines are dropped.
+        assert_eq!(s.compiler_warnings.len(), 2);
     }
 }

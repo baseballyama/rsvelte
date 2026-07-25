@@ -8,12 +8,13 @@ use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender, after, never, select, unbounded};
 use lsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestId, Response};
 use lsp_types::{
-    CompletionOptions, CompletionParams, ConfigurationItem, ConfigurationParams,
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, DocumentFormattingParams, HoverParams, HoverProviderCapability,
-    OneOf, PublishDiagnosticsParams, ServerCapabilities, TextDocumentPositionParams,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    TextDocumentSyncSaveOptions, TextEdit, Uri,
+    CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
+    CodeActionProviderCapability, CompletionOptions, CompletionParams, ConfigurationItem,
+    ConfigurationParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
+    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams, HoverParams,
+    HoverProviderCapability, OneOf, PublishDiagnosticsParams, ServerCapabilities,
+    TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Uri,
 };
 
 use crate::client::ClientState;
@@ -85,6 +86,10 @@ fn capabilities() -> ServerCapabilities {
             ..CompletionOptions::default()
         }),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
+        code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
+            code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+            ..CodeActionOptions::default()
+        })),
         ..ServerCapabilities::default()
     }
 }
@@ -96,6 +101,7 @@ enum Pending {
     Formatting,
     Completion,
     Hover,
+    CodeAction,
 }
 
 /// A request this server sent to the client, keyed by the id the client will
@@ -201,6 +207,7 @@ impl Server {
             "textDocument/formatting" => self.on_formatting(request),
             "textDocument/completion" => self.on_completion(request),
             "textDocument/hover" => self.on_hover(request),
+            "textDocument/codeAction" => self.on_code_action(request),
             _ => self.respond(Response::new_err(
                 request.id,
                 ErrorCode::MethodNotFound as i32,
@@ -309,6 +316,43 @@ impl Server {
             document.shared_text(),
             document.offset_at(params.position),
         ))
+    }
+
+    fn on_code_action(&mut self, request: Request) {
+        let id = request.id;
+        let params = match serde_json::from_value::<CodeActionParams>(request.params) {
+            Ok(params) => params,
+            Err(err) => {
+                log::warn(format_args!("textDocument/codeAction: {err}"));
+                self.respond_no_actions(id);
+                return;
+            }
+        };
+        let uri = params.text_document.uri;
+        let Some(document) = self.documents.get(&uri) else {
+            self.respond_no_actions(id);
+            return;
+        };
+        // A client asking only for other kinds (organize imports, refactorings)
+        // gets nothing rather than a quickfix it did not ask for.
+        let wants_quickfix = params
+            .context
+            .only
+            .as_ref()
+            .is_none_or(|kinds| kinds.contains(&CodeActionKind::QUICKFIX));
+        if params.context.diagnostics.is_empty() || !wants_quickfix {
+            self.respond_no_actions(id);
+            return;
+        }
+        let job = Job::CodeAction {
+            id: id.clone(),
+            path: uri_to_path(uri.as_str()),
+            text: document.shared_text(),
+            uri,
+            diagnostics: params.context.diagnostics,
+        };
+        self.pending.insert(id, Pending::CodeAction);
+        self.worker.submit(job);
     }
 
     fn on_notification(&mut self, notification: Notification) {
@@ -421,6 +465,11 @@ impl Server {
                     self.respond(Response::new_ok(id, hover));
                 }
             }
+            Outcome::CodeActions { id, actions } => {
+                if self.pending.remove(&id).is_some() {
+                    self.respond(Response::new_ok(id, actions));
+                }
+            }
             Outcome::Diagnostics {
                 key,
                 uri,
@@ -506,6 +555,7 @@ impl Server {
             version,
             path: uri_to_path(key),
             text: document.shared_text(),
+            warnings: self.settings.compiler_warnings.clone(),
         });
     }
 
@@ -527,6 +577,10 @@ impl Server {
     /// A request with nothing to offer is answered with `null`, not an error.
     fn respond_nothing(&self, id: RequestId) {
         self.respond(Response::new_ok(id, serde_json::Value::Null));
+    }
+
+    fn respond_no_actions(&self, id: RequestId) {
+        self.respond(Response::new_ok(id, Vec::<CodeActionOrCommand>::new()));
     }
 
     fn respond(&self, response: Response) {

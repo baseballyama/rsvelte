@@ -17,11 +17,12 @@ use std::thread::JoinHandle;
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use lsp_server::RequestId;
-use lsp_types::{CompletionList, Diagnostic, Hover, Range, TextEdit, Uri};
+use lsp_types::{CodeActionOrCommand, CompletionList, Diagnostic, Hover, Range, TextEdit, Uri};
 
 use crate::format::FormatSessions;
 use crate::lint::LintConfigCache;
 use crate::log;
+use crate::settings::CompilerWarnings;
 
 /// `rsvelte_core`'s own deeply-nested-AST tests reserve the same 256 MiB. It is
 /// address space, not resident memory — pages are committed only as the
@@ -35,6 +36,7 @@ pub enum Job {
         version: i32,
         path: PathBuf,
         text: Arc<String>,
+        warnings: CompilerWarnings,
     },
     Format {
         id: RequestId,
@@ -53,6 +55,13 @@ pub enum Job {
         path: PathBuf,
         text: Arc<String>,
         offset: usize,
+    },
+    CodeAction {
+        id: RequestId,
+        uri: Uri,
+        path: PathBuf,
+        text: Arc<String>,
+        diagnostics: Vec<Diagnostic>,
     },
     /// Drop the resolved `rsvelte-lint.json` / `.oxfmtrc` caches so the next
     /// job re-reads them from disk.
@@ -77,6 +86,10 @@ pub enum Outcome {
     Hovered {
         id: RequestId,
         hover: Option<Hover>,
+    },
+    CodeActions {
+        id: RequestId,
+        actions: Vec<CodeActionOrCommand>,
     },
 }
 
@@ -134,12 +147,13 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                 version,
                 path,
                 text,
+                warnings,
             } => {
                 let config = lint_configs.get(path.parent().unwrap_or(Path::new(".")));
                 let diagnostics = guard("lint", &path, || {
                     crate::lint::lint(&path, &text, &config)
                         .iter()
-                        .map(crate::diagnostics::to_lsp)
+                        .filter_map(|d| crate::diagnostics::to_lsp(d, &warnings))
                         .collect()
                 })
                 .unwrap_or_default();
@@ -180,6 +194,19 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                 id,
                 hover: guard("hover", &path, || crate::hover::hover(&text, offset)).flatten(),
             },
+            Job::CodeAction {
+                id,
+                uri,
+                path,
+                text,
+                diagnostics,
+            } => {
+                let actions = guard("code action", &path, || {
+                    crate::code_actions::quickfixes(&text, &uri, &diagnostics)
+                })
+                .unwrap_or_default();
+                Outcome::CodeActions { id, actions }
+            }
         };
         if outcomes.send(outcome).is_err() {
             break;

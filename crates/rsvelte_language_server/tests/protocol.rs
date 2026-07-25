@@ -344,6 +344,10 @@ fn serves_diagnostics_and_formatting() {
         result["capabilities"]["documentFormattingProvider"],
         json!(true)
     );
+    assert_eq!(
+        result["capabilities"]["codeActionProvider"]["codeActionKinds"],
+        json!(["quickfix"])
+    );
 
     server.notify("initialized", json!({}));
     server.notify(
@@ -361,9 +365,11 @@ fn serves_diagnostics_and_formatting() {
     // Diagnostics must match a direct lint of the same source.
     let mut config_cache = rsvelte_language_server::lint::LintConfigCache::default();
     let config = config_cache.get(path.parent().unwrap());
+    let warnings = rsvelte_language_server::settings::CompilerWarnings::default();
     let expected: Vec<Value> = rsvelte_language_server::lint::lint(&path, SOURCE, &config)
         .iter()
-        .map(|d| serde_json::to_value(rsvelte_language_server::diagnostics::to_lsp(d)).unwrap())
+        .filter_map(|d| rsvelte_language_server::diagnostics::to_lsp(d, &warnings))
+        .map(|d| serde_json::to_value(d).unwrap())
         .collect();
     assert!(!expected.is_empty(), "the fixture should produce findings");
     assert_eq!(server.diagnostics(&uri), expected);
@@ -519,6 +525,78 @@ fn serves_completions_and_hover() {
     assert_eq!(server.shutdown(), Some(0));
 }
 
+/// A compiler warning must arrive with the metadata the official server
+/// publishes, and the quickfix built from it must come back through the real
+/// binary.
+#[test]
+fn a_compiler_warning_carries_its_docs_link_and_yields_a_quickfix() {
+    let dir = temp_dir("code-action");
+    let uri = file_uri(&dir.join("App.svelte"));
+    let mut server = initialized_server();
+
+    did_open(&mut server, &uri, "<div>\n    <img>\n</div>\n");
+    let diagnostics = server.diagnostics_matching(&uri, |d| {
+        d.iter().any(|d| d["code"] == "a11y_missing_attribute")
+    });
+    let warning = diagnostics
+        .iter()
+        .find(|d| d["code"] == "a11y_missing_attribute")
+        .expect("the fixture should report a missing alt attribute");
+    assert_eq!(warning["source"], json!("svelte"));
+    assert_eq!(
+        warning["codeDescription"]["href"],
+        json!("https://svelte.dev/docs/svelte/compiler-warnings#a11y_missing_attribute")
+    );
+
+    let id = server.request(
+        "textDocument/codeAction",
+        json!({
+            "textDocument": { "uri": uri },
+            "range": warning["range"],
+            "context": { "diagnostics": [warning] },
+        }),
+    );
+    let actions = server.response(id);
+    let actions = actions.as_array().expect("code actions");
+    assert_eq!(actions.len(), 1);
+    assert_eq!(
+        actions[0]["title"],
+        json!("(svelte) Disable a11y_missing_attribute for this line")
+    );
+    assert_eq!(actions[0]["kind"], json!("quickfix"));
+    let edits = actions[0]["edit"]["changes"][&uri]
+        .as_array()
+        .expect("edits for the document");
+    assert_eq!(edits.len(), 1);
+    assert_eq!(
+        edits[0]["newText"],
+        json!("    <!-- svelte-ignore a11y_missing_attribute -->\n")
+    );
+    assert_eq!(
+        edits[0]["range"],
+        json!({ "start": { "line": 1, "character": 0 }, "end": { "line": 1, "character": 0 } })
+    );
+
+    // A request naming no diagnostic, or asking only for another kind, has
+    // nothing to fix.
+    for context in [
+        json!({ "diagnostics": [] }),
+        json!({ "diagnostics": [warning], "only": ["refactor"] }),
+    ] {
+        let id = server.request(
+            "textDocument/codeAction",
+            json!({
+                "textDocument": { "uri": uri },
+                "range": warning["range"],
+                "context": context,
+            }),
+        );
+        assert_eq!(server.response(id), json!([]));
+    }
+
+    assert_eq!(server.shutdown(), Some(0));
+}
+
 /// `rsvelte.completion.enable` / `rsvelte.hover.enable` switch the features off
 /// without the client having to stop asking.
 #[test]
@@ -546,6 +624,51 @@ fn the_settings_switch_completion_and_hover_off() {
 
     assert_eq!(server.completion_response(&uri, 1, 2), Value::Null);
     assert_eq!(server.hover(&uri, 0, 5), Value::Null);
+
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+/// `compilerWarnings` drops the codes it silences and escalates the rest.
+#[test]
+fn compiler_warning_settings_reach_the_published_diagnostics() {
+    let dir = temp_dir("compiler-warnings");
+    let uri = file_uri(&dir.join("App.svelte"));
+
+    let mut server = Server::start();
+    server.settings = json!({
+        "compilerWarnings": {
+            "a11y_missing_attribute": "ignore",
+            "a11y_consider_explicit_label": "error",
+        }
+    });
+    let id = server.request(
+        "initialize",
+        json!({
+            "processId": Value::Null,
+            "rootUri": Value::Null,
+            "capabilities": { "workspace": { "configuration": true } },
+        }),
+    );
+    server.response(id);
+    server.notify("initialized", json!({}));
+    // Opening only once the settings are in hand keeps the first publish from
+    // being one a lint that raced them produced.
+    server.settle_configuration();
+    did_open(&mut server, &uri, "<img>\n<a></a>\n");
+
+    let diagnostics = server.diagnostics(&uri);
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|d| d["code"] == "a11y_missing_attribute"),
+        "an ignored code must not be published: {diagnostics:?}"
+    );
+    let escalated = diagnostics
+        .iter()
+        .find(|d| d["code"] == "a11y_consider_explicit_label")
+        .expect("the fixture should report a link without a label");
+    // 1 == DiagnosticSeverity.Error
+    assert_eq!(escalated["severity"], json!(1));
 
     assert_eq!(server.shutdown(), Some(0));
 }
