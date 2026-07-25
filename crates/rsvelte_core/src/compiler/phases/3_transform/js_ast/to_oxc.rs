@@ -21,9 +21,21 @@
 //! and `JsStatement::RawMapped`, which carry opaque source text the structural
 //! esrap printer cannot reconstruct.
 //!
-//! All spans use the dummy [`oxc_span::SPAN`]: esrap formats structurally, so
-//! spans do not affect output for comment-free programs (and these IR nodes
-//! carry no comments).
+//! # Comments and the unified coordinate space
+//!
+//! Synthesized nodes use the dummy [`oxc_span::SPAN`]: esrap formats
+//! structurally, so their spans do not affect output. Comments are the one
+//! exception — esrap places them *positionally*, and a program reassembled from
+//! independently-parsed `Raw` chunks has no shared coordinate space to place
+//! them in.
+//!
+//! [`Synth`] builds one. Each comment-bearing chunk is re-parsed from a
+//! `pad + chunk` buffer so its spans (and its comments') land in a private,
+//! monotonically increasing region of a unified buffer above `loc_base`;
+//! container nodes get the span of the region their children consumed. Spans
+//! below `loc_base` — synthesized nodes, and the original-source spans stamped
+//! by `Spanned`/`RawMapped` — read as "no location" to the printer, mirroring
+//! esrap's `if (node.loc)` guards.
 
 use super::arena::{ExprId, JsArena};
 use super::nodes::*;
@@ -35,38 +47,141 @@ use oxc_syntax::number::{BigintBase, NumberBase};
 use oxc_syntax::operator::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
 };
+use std::cell::RefCell;
+
+/// A converted program plus the comment coordinate space it needs to be printed
+/// in (see the module docs). `comment_source` is `None` for the common
+/// comment-free program, which prints exactly as before.
+pub struct Converted<'a> {
+    pub program: oxc_ast::ast::Program<'a>,
+    pub comment_source: Option<String>,
+    pub loc_base: u32,
+    pub loc_map: Vec<(u32, u32, Option<u32>)>,
+}
 
 /// Convert a whole [`JsProgram`] into an oxc [`oxc_ast::ast::Program`].
 ///
 /// Returns `None` if any node in the program is not handled by this converter
 /// (see the module docs). The returned program borrows `allocator`, so the
 /// allocator must outlive the program (and any `rsvelte_esrap::print` of it).
+///
+/// Runs as a probe pass followed, only when a chunk turned out to carry
+/// comments, by a second pass that knows where to put the comment coordinate
+/// space — it has to sit above every span the first pass produced.
 pub fn program_to_oxc<'a>(
     program: &JsProgram,
     arena: &JsArena,
     allocator: &'a oxc_allocator::Allocator,
-) -> Option<oxc_ast::ast::Program<'a>> {
+) -> Option<Converted<'a>> {
+    let (probe, synth) = convert_once(program, arena, allocator, None)?;
+    if !synth.saw_comments {
+        return Some(probe);
+    }
+    let loc_base = synth.max_span.saturating_add(2);
+    let (converted, synth) = convert_once(program, arena, allocator, Some(loc_base))?;
+    // Every span the pass produced outside a chunk region must stay below
+    // `loc_base`, or the printer would mistake it for a real location.
+    if synth.max_span >= loc_base {
+        return None;
+    }
+    Some(converted)
+}
+
+fn convert_once<'a>(
+    program: &JsProgram,
+    arena: &JsArena,
+    allocator: &'a oxc_allocator::Allocator,
+    loc_base: Option<u32>,
+) -> Option<(Converted<'a>, Synth)> {
     let ab = AstBuilder::new(allocator);
-    let cx = Cx { ab, arena };
+    let cx = Cx {
+        ab,
+        arena,
+        synth: RefCell::new(Synth::new(loc_base)),
+    };
 
     // Collect, flattening multi-statement `Raw` blobs inline. A single None
     // (parse failure / unhandled node) bails the whole program.
-    let mut body: Vec<Statement<'a>> = Vec::with_capacity(program.body.len());
-    for s in &program.body {
-        body.extend(cx.expand_stmt(s)?);
-    }
+    let (body, span) = cx.consumed(|| {
+        let mut body: Vec<Statement<'a>> = Vec::with_capacity(program.body.len());
+        for s in &program.body {
+            body.extend(cx.expand_stmt(s)?);
+        }
+        Some(body)
+    })?;
 
+    let synth = cx.synth.into_inner();
     let body = ArenaVec::from_iter_in(body, &ab);
-    Some(Program::new(
-        SPAN,
+    let comments = ArenaVec::from_iter_in(synth.comments.iter().cloned(), &ab);
+    let program = Program::new(
+        span,
         oxc_span::SourceType::mjs(),
         "",
-        ArenaVec::new_in(&ab),
+        comments,
         None,
         ArenaVec::new_in(&ab),
         body,
         &ab,
-    ))
+    );
+    let converted = Converted {
+        program,
+        comment_source: synth.enabled.then(|| synth.source.clone()),
+        loc_base: synth.loc_base,
+        loc_map: synth.loc_map.clone(),
+    };
+    Some((converted, synth))
+}
+
+/// The unified comment coordinate space for a reassembled program.
+struct Synth {
+    /// Whether this pass places comments (`false` for the probe pass).
+    enabled: bool,
+    /// The buffer comment spans index into. Starts as a `loc_base`-long pad so
+    /// the first chunk's region begins at `loc_base`; each comment-bearing chunk
+    /// is appended verbatim, followed by a newline.
+    source: String,
+    loc_base: u32,
+    comments: Vec<Comment>,
+    /// Per-chunk `(start, end, original-source offset)`, for source maps.
+    loc_map: Vec<(u32, u32, Option<u32>)>,
+    /// Region the chunk just parsed occupies, consumed by the caller that knows
+    /// the chunk's original-source offset.
+    pending_region: Option<(u32, u32)>,
+    saw_comments: bool,
+    /// Upper bound on every span produced outside a chunk region.
+    max_span: u32,
+}
+
+impl Synth {
+    fn new(loc_base: Option<u32>) -> Self {
+        let loc_base = loc_base.unwrap_or(0);
+        let mut source = String::new();
+        if loc_base > 0 {
+            // Pad ends with a newline so a comment on the chunk's first line
+            // sees an empty indentation prefix, as it would unpadded.
+            source.push_str(&" ".repeat(loc_base as usize - 1));
+            source.push('\n');
+        }
+        Self {
+            enabled: loc_base > 0,
+            source,
+            loc_base,
+            comments: Vec::new(),
+            loc_map: Vec::new(),
+            pending_region: None,
+            saw_comments: false,
+            max_span: 0,
+        }
+    }
+
+    /// The offset the next chunk region would start at.
+    fn cursor(&self) -> u32 {
+        self.source.len() as u32
+    }
+
+    fn note_span(&mut self, end: u32) {
+        self.max_span = self.max_span.max(end);
+    }
 }
 
 /// Conversion context: holds the oxc [`AstBuilder`] and the IR arena used to
@@ -74,6 +189,7 @@ pub fn program_to_oxc<'a>(
 struct Cx<'a, 'arena> {
     ab: AstBuilder<'a>,
     arena: &'arena JsArena,
+    synth: RefCell<Synth>,
 }
 
 impl<'a, 'arena> Cx<'a, 'arena> {
@@ -89,6 +205,37 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     #[inline]
     fn expr_id(&self, id: ExprId) -> Option<Expression<'a>> {
         self.expr(self.arena.get_expr(id))
+    }
+
+    /// Run `f` and report the comment-buffer region it consumed, so a container
+    /// node can span the comments its children carry (esrap brackets a body's
+    /// leading/trailing comments by the body's own `loc`). [`SPAN`] when the
+    /// subtree consumed nothing, i.e. carries no comments.
+    fn consumed<T>(&self, f: impl FnOnce() -> Option<T>) -> Option<(T, Span)> {
+        let before = self.synth.borrow().cursor();
+        let value = f()?;
+        let after = self.synth.borrow().cursor();
+        let span = if after > before {
+            Span::new(before, after)
+        } else {
+            SPAN
+        };
+        Some((value, span))
+    }
+
+    /// Record a span the printer must NOT read as a chunk location.
+    #[inline]
+    fn note_span(&self, end: u32) {
+        self.synth.borrow_mut().note_span(end);
+    }
+
+    /// Attach the region the chunk just parsed occupies to its original-source
+    /// offset (for source maps). Returns the region, if any.
+    fn take_chunk_region(&self, source_offset: Option<u32>) -> Option<(u32, u32)> {
+        let mut synth = self.synth.borrow_mut();
+        let region = synth.pending_region.take()?;
+        synth.loc_map.push((region.0, region.1, source_offset));
+        Some(region)
     }
 
     // -- statements ---------------------------------------------------------
@@ -112,9 +259,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             }
             JsStatement::VariableDeclaration(decl) => self.variable_declaration(decl),
             JsStatement::Block(b) => {
-                let stmts = self.statements(&b.body)?;
+                let (stmts, span) = self.statements(&b.body)?;
                 Some(Statement::BlockStatement(BlockStatement::boxed(
-                    SPAN, stmts, &self.ab,
+                    span, stmts, &self.ab,
                 )))
             }
             JsStatement::Empty => Some(Statement::EmptyStatement(EmptyStatement::boxed(
@@ -189,20 +336,29 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             // body): parse the text; a lone statement is returned directly, a
             // multi-statement blob is wrapped in a block. (Statement-LIST sites
             // use `expand_stmt` instead, which flattens inline.)
-            JsStatement::Raw(code) => self.raw_single_statement(code),
-            JsStatement::RawMapped { code, .. } => self.raw_single_statement(code),
+            JsStatement::Raw(code) => self.raw_single_statement(code, None),
+            JsStatement::RawMapped {
+                code,
+                source_offset,
+            } => self.raw_single_statement(code, Some(*source_offset)),
         }
     }
 
     /// Convert a `Raw` statement at a single-statement position: one parsed
     /// statement is returned as-is; several are wrapped in a `{ … }` block.
-    fn raw_single_statement(&self, code: &str) -> Option<Statement<'a>> {
+    fn raw_single_statement(
+        &self,
+        code: &str,
+        source_offset: Option<u32>,
+    ) -> Option<Statement<'a>> {
         let stmts = self.parse_raw_statements(code)?;
+        let region = self.take_chunk_region(source_offset);
         if stmts.len() == 1 {
             stmts.into_iter().next()
         } else {
+            let span = region.map_or(SPAN, |(a, b)| Span::new(a, b));
             Some(Statement::BlockStatement(BlockStatement::boxed(
-                SPAN,
+                span,
                 ArenaVec::from_iter_in(stmts, &self.ab),
                 &self.ab,
             )))
@@ -302,8 +458,8 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 Some(id) => Some(self.expr_id(id)?),
                 None => None,
             };
-            let consequent = self.statements(&case.consequent)?;
-            cases.push(SwitchCase::new(SPAN, test, consequent, &self.ab));
+            let (consequent, span) = self.statements(&case.consequent)?;
+            cases.push(SwitchCase::new(span, test, consequent, &self.ab));
         }
         Some(Statement::SwitchStatement(SwitchStatement::boxed(
             SPAN,
@@ -316,8 +472,8 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     /// Build a `try { } catch (e) { } finally { }` statement. Bails on a
     /// destructuring catch parameter.
     fn try_statement(&self, t: &JsTryStatement) -> Option<Statement<'a>> {
-        let block_stmts = self.statements(&t.block.body)?;
-        let block = BlockStatement::boxed(SPAN, block_stmts, &self.ab);
+        let (block_stmts, block_span) = self.statements(&t.block.body)?;
+        let block = BlockStatement::boxed(block_span, block_stmts, &self.ab);
 
         let handler = match &t.handler {
             None => None,
@@ -329,17 +485,17 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                         Some(CatchParameter::new(SPAN, pattern, oxc_ast::NONE, &self.ab))
                     }
                 };
-                let body_stmts = self.statements(&catch.body.body)?;
-                let body = BlockStatement::boxed(SPAN, body_stmts, &self.ab);
-                Some(CatchClause::new(SPAN, param, body, &self.ab))
+                let (body_stmts, body_span) = self.statements(&catch.body.body)?;
+                let body = BlockStatement::boxed(body_span, body_stmts, &self.ab);
+                Some(CatchClause::new(body_span, param, body, &self.ab))
             }
         };
 
         let finalizer = match &t.finalizer {
             None => None,
             Some(block) => {
-                let stmts = self.statements(&block.body)?;
-                Some(BlockStatement::boxed(SPAN, stmts, &self.ab))
+                let (stmts, span) = self.statements(&block.body)?;
+                Some(BlockStatement::boxed(span, stmts, &self.ab))
             }
         };
 
@@ -486,8 +642,8 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             .as_ref()
             .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
         let params = self.formal_params(&func.params)?;
-        let stmts = self.statements(&func.body.body)?;
-        let body = FunctionBody::new(SPAN, ArenaVec::new_in(&self.ab), stmts, &self.ab);
+        let (stmts, span) = self.statements(&func.body.body)?;
+        let body = FunctionBody::new(span, ArenaVec::new_in(&self.ab), stmts, &self.ab);
         Some(Function::boxed(
             SPAN,
             func_type,
@@ -505,13 +661,16 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     }
 
     /// Convert a slice of IR statements into an arena `Vec`, bailing on any
-    /// unhandled statement.
-    fn statements(&self, body: &[JsStatement]) -> Option<ArenaVec<'a, Statement<'a>>> {
-        let mut v: Vec<Statement<'a>> = Vec::with_capacity(body.len());
-        for s in body {
-            v.extend(self.expand_stmt(s)?);
-        }
-        Some(ArenaVec::from_iter_in(v, &self.ab))
+    /// unhandled statement. The span is the comment-buffer region the statements
+    /// consumed, which their container must carry (see [`Cx::consumed`]).
+    fn statements(&self, body: &[JsStatement]) -> Option<(ArenaVec<'a, Statement<'a>>, Span)> {
+        self.consumed(|| {
+            let mut v: Vec<Statement<'a>> = Vec::with_capacity(body.len());
+            for s in body {
+                v.extend(self.expand_stmt(s)?);
+            }
+            Some(ArenaVec::from_iter_in(v, &self.ab))
+        })
     }
 
     /// Build an optional `LabelIdentifier` for `break`/`continue` labels.
@@ -869,6 +1028,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             JsExpr::Spanned(inner, start, end) => {
                 let mut e = self.expr_id(*inner)?;
                 *e.span_mut() = Span::new(*start, *end);
+                self.note_span(*end);
                 Some(e)
             }
             // `Raw` carries opaque JS expression text. Parse it into a real oxc
@@ -884,18 +1044,11 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     /// strips the synthetic parens. Returns `None` on a parse error.
     fn parse_raw_expression(&self, code: &str) -> Option<Expression<'a>> {
         let wrapped = format!("({})", code.trim());
-        let owned = self.ab.allocator.alloc_str(&wrapped);
-        let ret =
-            oxc_parser::Parser::new(self.ab.allocator, owned, oxc_span::SourceType::mjs()).parse();
-        // Bail on any comment-bearing chunk: re-printing a parsed AST drops the
-        // comments (esrap places them by source line, which a reassembled program
-        // has no unified coordinate for). Falling back to the verbatim string
-        // codegen for these preserves the comments exactly. (KNOWN GAP: AST-side
-        // comment preservation.)
-        if !ret.diagnostics.is_empty() || !ret.program.comments.is_empty() {
-            return None;
-        }
-        for stmt in ret.program.body {
+        let stmts = self.parse_chunk(&wrapped)?;
+        // The synthetic parens are part of the chunk text, so the region already
+        // covers them; no caller needs it for an expression.
+        self.take_chunk_region(None);
+        for stmt in stmts {
             if let Statement::ExpressionStatement(es) = stmt {
                 let mut e = es.unbox().expression;
                 while let Expression::ParenthesizedExpression(p) = e {
@@ -910,14 +1063,51 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     /// Parse a raw JS statement source string into a vec of oxc [`Statement`]s
     /// (`Raw` may hold several statements). Returns `None` on a parse error.
     fn parse_raw_statements(&self, code: &str) -> Option<Vec<Statement<'a>>> {
-        let owned = self.ab.allocator.alloc_str(code.trim());
+        self.parse_chunk(code.trim())
+    }
+
+    /// Parse one opaque chunk of generated JS. A comment-free chunk parses in
+    /// place, exactly as before. A comment-bearing chunk is re-parsed from a
+    /// `pad + text` buffer so its spans land at the chunk's own region of the
+    /// unified comment buffer, and its comments are collected there.
+    fn parse_chunk(&self, text: &str) -> Option<Vec<Statement<'a>>> {
+        let owned = self.ab.allocator.alloc_str(text);
         let ret =
             oxc_parser::Parser::new(self.ab.allocator, owned, oxc_span::SourceType::mjs()).parse();
-        // Bail on comments so the verbatim string codegen preserves them (see
-        // `parse_raw_expression`).
-        if !ret.diagnostics.is_empty() || !ret.program.comments.is_empty() {
+        if !ret.diagnostics.is_empty() {
             return None;
         }
+        if ret.program.comments.is_empty() {
+            // Chunk-local spans stay below `loc_base`, so they read as "no
+            // location"; record the bound the second pass has to clear.
+            self.note_span(text.len() as u32);
+            return Some(ret.program.body.into_iter().collect());
+        }
+        self.synth.borrow_mut().saw_comments = true;
+        if !self.synth.borrow().enabled {
+            // Probe pass: the comments are dropped here, but the result is
+            // discarded — it only tells the driver a second pass is needed.
+            self.note_span(text.len() as u32);
+            return Some(ret.program.body.into_iter().collect());
+        }
+
+        let base = self.synth.borrow().cursor();
+        let mut padded = String::with_capacity(base as usize + text.len());
+        padded.extend(std::iter::repeat_n(' ', base as usize - 1));
+        padded.push('\n');
+        padded.push_str(text);
+        let owned = self.ab.allocator.alloc_str(&padded);
+        let ret =
+            oxc_parser::Parser::new(self.ab.allocator, owned, oxc_span::SourceType::mjs()).parse();
+        if !ret.diagnostics.is_empty() {
+            return None;
+        }
+        let mut synth = self.synth.borrow_mut();
+        synth.source.push_str(text);
+        synth.source.push('\n');
+        synth.comments.extend(ret.program.comments.iter().cloned());
+        synth.pending_region = Some((base, base + text.len() as u32));
+        drop(synth);
         Some(ret.program.body.into_iter().collect())
     }
 
@@ -927,12 +1117,21 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     /// block bodies) so a multi-statement `Raw` flattens inline.
     fn expand_stmt(&self, stmt: &JsStatement) -> Option<Vec<Statement<'a>>> {
         match stmt {
-            JsStatement::Raw(code) => self.parse_raw_statements(code),
+            JsStatement::Raw(code) => {
+                let stmts = self.parse_raw_statements(code)?;
+                self.take_chunk_region(None);
+                Some(stmts)
+            }
             JsStatement::RawMapped {
                 code,
                 source_offset,
             } => {
                 let mut stmts = self.parse_raw_statements(code)?;
+                if self.take_chunk_region(Some(*source_offset)).is_some() {
+                    // The chunk's own spans are its comment anchors; the source
+                    // offset is carried by the region's `loc_map` entry instead.
+                    return Some(stmts);
+                }
                 // Stamp each statement with the original-source offset so esrap's
                 // `print_with_map` maps the (transformed) instance-script lines
                 // back to the user source — mirroring the text codegen's
@@ -941,6 +1140,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 for s in &mut stmts {
                     *s.span_mut() = sp;
                 }
+                self.note_span(*source_offset);
                 Some(stmts)
             }
             other => Some(vec![self.stmt(other)?]),
@@ -1080,8 +1280,8 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             .as_ref()
             .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
         let params = self.formal_params(&func.params)?;
-        let stmts = self.statements(&func.body.body)?;
-        let body = FunctionBody::new(SPAN, ArenaVec::new_in(&self.ab), stmts, &self.ab);
+        let (stmts, span) = self.statements(&func.body.body)?;
+        let body = FunctionBody::new(span, ArenaVec::new_in(&self.ab), stmts, &self.ab);
         Some(Function::boxed(
             SPAN,
             FunctionType::FunctionExpression,
@@ -1520,10 +1720,10 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 )
             }
             JsArrowBody::Block(block) => {
-                let stmts = self.statements(&block.body)?;
+                let (stmts, span) = self.statements(&block.body)?;
                 (
                     false,
-                    FunctionBody::new(SPAN, ArenaVec::new_in(&self.ab), stmts, &self.ab),
+                    FunctionBody::new(span, ArenaVec::new_in(&self.ab), stmts, &self.ab),
                 )
             }
         };
@@ -1574,8 +1774,8 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             .as_ref()
             .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
         let params = self.formal_params(&func.params)?;
-        let stmts = self.statements(&func.body.body)?;
-        let body = FunctionBody::new(SPAN, ArenaVec::new_in(&self.ab), stmts, &self.ab);
+        let (stmts, span) = self.statements(&func.body.body)?;
+        let body = FunctionBody::new(span, ArenaVec::new_in(&self.ab), stmts, &self.ab);
         Some(Expression::FunctionExpression(Function::boxed(
             SPAN,
             FunctionType::FunctionExpression,

@@ -2212,31 +2212,48 @@ fn transform_client_with_visitors(
 
     // Direct-AST codegen via to_oxc + esrap — the DEFAULT client codegen path.
     // The string codegen (`generate` / `generate_with_sourcemap`) is the fallback
-    // for the ~6% of components where to_oxc bails (a comment-bearing chunk, which
-    // keeps the comments verbatim, or an unsupported node). `RSVELTE_CLIENT_NO_OXC`
-    // forces the legacy string path (escape hatch). Span-stamping (`Spanned` /
-    // `RawMapped` → original-source offsets) feeds esrap `print_with_map` for the
-    // sourcemap branch.
+    // for the ~0.03% of components carrying a node shape `to_oxc` does not model
+    // yet (`{@const}` computed destructuring is the only one left in the Svelte
+    // corpus). `RSVELTE_CLIENT_NO_OXC` forces the legacy string path (escape
+    // hatch). Span-stamping (`Spanned` / `RawMapped` → original-source offsets)
+    // feeds esrap `print_with_map` for the sourcemap branch.
     if std::env::var_os("RSVELTE_CLIENT_NO_OXC").is_none() {
         let converted = CLIENT_TO_OXC_ALLOCATOR.with(|cell| {
             let mut alloc = cell.borrow_mut();
             alloc.reset();
             super::js_ast::to_oxc::program_to_oxc(&program, &context.arena, &alloc).map(
-                |oxc_prog| {
+                |converted| {
                     // Keep `;` empty statements: the parsed-`Raw` `;;` are real
                     // EmptyStatement nodes the official compiler output preserves.
                     let print_opts = rsvelte_esrap::PrintOptions {
                         keep_empty_statements: true,
                         ..Default::default()
                     };
-                    if options.enable_sourcemap {
-                        let pm = rsvelte_esrap::print_with_map_opts(&oxc_prog, source, &print_opts);
-                        (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
-                    } else {
-                        (
-                            rsvelte_esrap::print_with(&oxc_prog, "", &print_opts),
+                    let oxc_prog = &converted.program;
+                    match &converted.comment_source {
+                        // The program carries comments, so it prints in the
+                        // unified comment coordinate space `to_oxc` built.
+                        Some(comment_source) => {
+                            let map_source = options.enable_sourcemap.then_some(source);
+                            let pm = rsvelte_esrap::print_split(
+                                oxc_prog,
+                                comment_source,
+                                converted.loc_base,
+                                map_source,
+                                &converted.loc_map,
+                                &print_opts,
+                            );
+                            (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
+                        }
+                        None if options.enable_sourcemap => {
+                            let pm =
+                                rsvelte_esrap::print_with_map_opts(oxc_prog, source, &print_opts);
+                            (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
+                        }
+                        None => (
+                            rsvelte_esrap::print_with(oxc_prog, "", &print_opts),
                             Vec::new(),
-                        )
+                        ),
                     }
                 },
             )

@@ -25,6 +25,23 @@ struct Counts {
 }
 
 fn main() {
+    // `roundtrip_probe <file.svelte>`: print that file's client output.
+    if let Some(p) = std::env::args().nth(1)
+        && p.ends_with(".svelte")
+    {
+        let content = fs::read_to_string(&p).unwrap();
+        let out = rsvelte_core::compile(
+            &content,
+            rsvelte_core::CompileOptions {
+                generate: rsvelte_core::GenerateMode::Client,
+                filename: Some(p),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        print!("{}", out.js.code);
+        return;
+    }
     let out_path = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "/tmp/roundtrip.jsonl".to_string());
@@ -146,6 +163,8 @@ fn main() {
     // RSVELTE_CLIENT_TO_OXC_DEBUG=1 and count the fallbacks on stderr.
     let mut ok = 0usize;
     let mut err = 0usize;
+    // Output digest per file, so a before/after run can prove byte-equality.
+    let mut digests: Vec<String> = Vec::new();
     for (path, content) in &files {
         let r = rsvelte_core::compile(
             content,
@@ -156,12 +175,34 @@ fn main() {
             },
         );
         match r {
-            Ok(_) => ok += 1,
+            Ok(out) => {
+                ok += 1;
+                digests.push(format!("{}\t{:016x}", short(path), fnv1a(&out.js.code)));
+            }
             Err(_) => err += 1,
         }
     }
     println!("\n=== client compile ===");
     println!("compiled ok: {ok}, compile error: {err}");
+    if let Some(p) = std::env::args().nth(2) {
+        let _ = fs::write(p, digests.join("\n"));
+    }
+}
+
+fn short(path: &str) -> &str {
+    match path.find("packages/svelte/tests/") {
+        Some(i) => &path[i..],
+        None => path,
+    }
+}
+
+fn fnv1a(s: &str) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in s.as_bytes() {
+        h ^= *b as u64;
+        h = h.wrapping_mul(0x1000_0000_01b3);
+    }
+    h
 }
 
 enum Cat {
