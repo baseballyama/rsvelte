@@ -2312,6 +2312,24 @@ fn deser_alloc_children(nodes: Vec<JsNode>) -> IdRange {
     with_deser_arena(|arena| arena.alloc_js_children(nodes))
 }
 
+/// Same arena selection as `from_value`, for builders that construct the typed
+/// node directly instead of going through a `Value`.
+pub fn alloc_deser_node(node: JsNode) -> JsNodeId {
+    deser_alloc_node(node)
+}
+
+pub fn alloc_deser_children(nodes: Vec<JsNode>) -> IdRange {
+    deser_alloc_children(nodes)
+}
+
+/// `from_value`'s child rule: anything that is not a JSON object becomes `Null`.
+pub fn child_node_from_value(value: Value) -> JsNode {
+    match value {
+        Value::Object(_) => JsNode::from_value(value),
+        _ => JsNode::Null,
+    }
+}
+
 // Children are taken out of the map rather than cloned: `from_value` owns the
 // object, and cloning each child re-copies the whole subtree at every level.
 fn convert_child(obj: &mut serde_json::Map<String, Value>, key: &str) -> JsNodeId {

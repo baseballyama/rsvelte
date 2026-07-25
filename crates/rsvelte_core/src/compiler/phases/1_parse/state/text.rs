@@ -31,7 +31,7 @@
 
 use std::borrow::Cow;
 
-use memchr::memchr2;
+use memchr::{memchr2, memchr3};
 
 use crate::ast::template::{TemplateNode, Text};
 use crate::error::ParseResult;
@@ -53,15 +53,25 @@ impl<'a> Parser<'a> {
         let start = self.index as u32;
         let start_pos = self.index;
 
-        // Use SIMD-accelerated search to find '<' or '{' quickly
-        // This is much faster than character-by-character scanning
+        // One SIMD pass finds the node end and answers "any entity?" at once:
+        // hitting `<`/`{` first proves there is no `&` before it.
         let remaining = &self.source.as_bytes()[self.index..];
-        if let Some(pos) = memchr2(b'<', b'{', remaining) {
-            self.index += pos;
-        } else {
-            // No '<' or '{' found, consume rest of source
-            self.index = self.source.len();
-        }
+        let has_entity = match memchr3(b'<', b'{', b'&', remaining) {
+            Some(pos) if remaining[pos] == b'&' => {
+                self.index += memchr2(b'<', b'{', &remaining[pos..])
+                    .map(|p| pos + p)
+                    .unwrap_or(remaining.len());
+                true
+            }
+            Some(pos) => {
+                self.index += pos;
+                false
+            }
+            None => {
+                self.index = self.source.len();
+                false
+            }
+        };
 
         // If no data was collected, return None
         if self.index == start_pos {
@@ -70,10 +80,6 @@ impl<'a> Parser<'a> {
 
         let end = self.index as u32;
         let raw_str = &self.source[start_pos..self.index];
-
-        // Fast path: skip decode_html_entities entirely if no '&' present
-        let text_bytes = &self.bytes[start_pos..self.index];
-        let has_entity = memchr::memchr(b'&', text_bytes).is_some();
 
         if has_entity {
             let decoded_data = decode_html_entities(raw_str, false);

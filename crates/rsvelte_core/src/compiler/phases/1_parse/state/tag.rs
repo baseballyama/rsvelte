@@ -21,6 +21,7 @@ use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 use crate::error::ParseResult;
 
 use super::super::parser::{Parser, StackEntry};
+use super::super::utils::TrimWs;
 
 impl<'a> Parser<'a> {
     /// Try to parse a declaration tag (`{let x = …}` / `{const x = …}`,
@@ -266,8 +267,8 @@ impl<'a> Parser<'a> {
             }
         };
 
-        let pattern_str = body_text[..eq_idx].trim();
-        let init_str = body_text[eq_idx + 1..].trim();
+        let pattern_str = body_text[..eq_idx].trim_ws();
+        let init_str = body_text[eq_idx + 1..].trim_ws();
 
         // In loose mode, an empty RHS (`{const x = }`) collapses both sides
         // into a single empty-name declarator at the `}` position — mirrors
@@ -415,7 +416,7 @@ impl<'a> Parser<'a> {
         let mut declarators: Vec<Value> = Vec::with_capacity(segments.len());
         for (seg_off, raw) in segments {
             let lead = raw.len() - raw.trim_start().len();
-            let seg = raw.trim();
+            let seg = raw.trim_ws();
             if seg.is_empty() {
                 continue;
             }
@@ -425,8 +426,8 @@ impl<'a> Parser<'a> {
                 Some(eq) => {
                     let init_lead = seg[eq + 1..].len() - seg[eq + 1..].trim_start().len();
                     (
-                        seg[..eq].trim().to_string(),
-                        seg[eq + 1..].trim().to_string(),
+                        seg[..eq].trim_ws().to_string(),
+                        seg[eq + 1..].trim_ws().to_string(),
                         seg_off + eq + 1 + init_lead,
                     )
                 }
@@ -549,7 +550,7 @@ impl<'a> Parser<'a> {
 
         // Parse the expression - propagate JS parse errors when not in loose mode
         // (corresponds to Svelte's read_expression call which throws on invalid JS)
-        let expression = self.parse_js_expression_strict(expr_content.trim(), expr_start)?;
+        let expression = self.parse_js_expression_strict(expr_content.trim_ws(), expr_start)?;
 
         Ok(Some(TemplateNode::ExpressionTag(Box::new(ExpressionTag {
             start: start as u32,
@@ -635,7 +636,7 @@ impl<'a> Parser<'a> {
         let expr_content = &self.source[expr_start..self.index];
         self.advance(); // consume '}'
 
-        let test = self.parse_head_expression(expr_content.trim(), expr_start, false, '}')?;
+        let test = self.parse_head_expression(expr_content.trim_ws(), expr_start, false, '}')?;
 
         // Push block to stack
         self.stack.push(StackEntry::IfBlock {
@@ -718,7 +719,7 @@ impl<'a> Parser<'a> {
             self.advance(); // consume '}'
 
             let alt_test =
-                self.parse_head_expression(alt_expr_content.trim(), alt_expr_start, false, '}')?;
+                self.parse_head_expression(alt_expr_content.trim_ws(), alt_expr_start, false, '}')?;
             let alt_consequent = self.parse_fragment()?;
 
             // Recursively check for another else/else-if
@@ -893,7 +894,7 @@ impl<'a> Parser<'a> {
         }
 
         let expr_end = self.index;
-        let expr_content = &self.source[expr_start..expr_end].trim();
+        let expr_content = &self.source[expr_start..expr_end].trim_ws();
         // Use disallow_loose = true to prevent patterns like `as { y = z }` from being parsed as expressions
         // (corresponds to Svelte's read_expression(parser, undefined, true))
         let expression = self.parse_head_expression(expr_content, expr_start, true, '}')?;
@@ -917,8 +918,8 @@ impl<'a> Parser<'a> {
                 }
 
                 if let Some(comma_pos) = last_comma {
-                    let expr_part = s[..comma_pos].trim();
-                    let idx_part = s[comma_pos + 1..].trim();
+                    let expr_part = s[..comma_pos].trim_ws();
+                    let idx_part = s[comma_pos + 1..].trim_ws();
 
                     // Check if idx_part contains a key expression (contains '(' at top level)
                     // e.g., "i (key)" means we have both index and key
@@ -943,7 +944,7 @@ impl<'a> Parser<'a> {
                     if !idx_part.is_empty() {
                         // Extract the identifier part (before any '(')
                         let idx_name = if idx_has_key {
-                            idx_part.split('(').next().unwrap_or("").trim()
+                            idx_part.split('(').next().unwrap_or("").trim_ws()
                         } else {
                             idx_part
                         };
@@ -966,7 +967,7 @@ impl<'a> Parser<'a> {
                                             .unwrap_or(self.bytes.len());
                                     let key_raw = &self.source[key_start..key_end];
                                     let key_lead = key_raw.len() - key_raw.trim_start().len();
-                                    let key_content = key_raw.trim().to_string();
+                                    let key_content = key_raw.trim_ws().to_string();
                                     Some(self.parse_head_expression(
                                         &key_content,
                                         key_start + key_lead,
@@ -1168,7 +1169,7 @@ impl<'a> Parser<'a> {
 
         let context_end = self.index;
         let raw_content = &self.source[context_start..context_end];
-        let trimmed_content = raw_content.trim();
+        let trimmed_content = raw_content.trim_ws();
         // Calculate actual start position after trimming leading whitespace
         let leading_ws = raw_content.len() - raw_content.trim_start().len();
         let actual_context_start = context_start + leading_ws;
@@ -1186,7 +1187,7 @@ impl<'a> Parser<'a> {
                 }
                 self.advance();
             }
-            let idx_name = self.source[idx_start..self.index].trim();
+            let idx_name = self.source[idx_start..self.index].trim_ws();
             if !idx_name.is_empty() {
                 index = Some(CompactString::from(idx_name));
             }
@@ -1202,7 +1203,7 @@ impl<'a> Parser<'a> {
             // `{#each items as item (item.name + ")")}`) doesn't close it early.
             self.index =
                 find_matching_bracket(self.source, key_start, '(').unwrap_or(self.bytes.len());
-            let key_content = self.source[key_start..self.index].trim();
+            let key_content = self.source[key_start..self.index].trim_ws();
             // Use opening_token = '(' for key expressions (corresponds to Svelte's read_expression(parser, '('))
             key = Some(self.parse_head_expression(key_content, key_start, false, ')')?);
             self.eat_optional(")"); // consume closing paren
@@ -1445,13 +1446,13 @@ impl<'a> Parser<'a> {
         // For await blocks, we parse the expression with a known end position
         // to avoid find_matching_bracket finding the block's closing }
         let expression = if let Some(lazy) =
-            self.defer_expression(trimmed_content.trim(), adjusted_start, LazyKind::Lenient)
+            self.defer_expression(trimmed_content.trim_ws(), adjusted_start, LazyKind::Lenient)
         {
             lazy
         } else {
             super::super::expression::parse_expression_with_end(
                 &self.arena,
-                trimmed_content.trim(),
+                trimmed_content.trim_ws(),
                 adjusted_start,
                 adjusted_end,
                 self.expression_line_offsets(),
@@ -1483,12 +1484,12 @@ impl<'a> Parser<'a> {
                 // Parse pattern with brace/bracket matching for destructuring patterns
                 self.skip_pattern_expression();
                 let value_content = &self.source[value_start..self.index];
-                if !value_content.trim().is_empty() {
+                if !value_content.trim_ws().is_empty() {
                     // Use parse_binding_pattern to properly parse destructuring patterns
                     // (e.g., `{ width, height }` -> ObjectPattern) instead of creating
                     // a simple identifier. This ensures phase 2 scope analysis correctly
                     // declares individual bindings for destructured names.
-                    value = Some(self.parse_binding_pattern(value_content.trim(), value_start)?);
+                    value = Some(self.parse_binding_pattern(value_content.trim_ws(), value_start)?);
                 }
             }
         }
@@ -1504,10 +1505,10 @@ impl<'a> Parser<'a> {
                 // Parse pattern with brace/bracket matching for destructuring patterns
                 self.skip_pattern_expression();
                 let error_content = &self.source[error_start..self.index];
-                if !error_content.trim().is_empty() {
+                if !error_content.trim_ws().is_empty() {
                     // Use parse_binding_pattern to properly parse destructuring patterns
                     // (same as for then values above).
-                    error = Some(self.parse_binding_pattern(error_content.trim(), error_start)?);
+                    error = Some(self.parse_binding_pattern(error_content.trim_ws(), error_start)?);
                 }
             }
         }
@@ -1553,10 +1554,10 @@ impl<'a> Parser<'a> {
                     // Parse pattern with brace/bracket matching for destructuring patterns
                     self.skip_pattern_expression();
                     let value_content = &self.source[value_start..self.index];
-                    if !value_content.trim().is_empty() {
+                    if !value_content.trim_ws().is_empty() {
                         // Use parse_binding_pattern to properly parse destructuring patterns
                         value =
-                            Some(self.parse_binding_pattern(value_content.trim(), value_start)?);
+                            Some(self.parse_binding_pattern(value_content.trim_ws(), value_start)?);
                     }
                 }
                 self.skip_whitespace();
@@ -1572,10 +1573,10 @@ impl<'a> Parser<'a> {
                     // Parse pattern with brace/bracket matching for destructuring patterns
                     self.skip_pattern_expression();
                     let error_content = &self.source[error_start..self.index];
-                    if !error_content.trim().is_empty() {
+                    if !error_content.trim_ws().is_empty() {
                         // Use parse_binding_pattern to properly parse destructuring patterns
                         error =
-                            Some(self.parse_binding_pattern(error_content.trim(), error_start)?);
+                            Some(self.parse_binding_pattern(error_content.trim_ws(), error_start)?);
                     }
                 }
                 self.skip_whitespace();
@@ -1627,7 +1628,8 @@ impl<'a> Parser<'a> {
         let expr_content = &self.source[expr_start..self.index];
         self.advance(); // consume '}'
 
-        let expression = self.parse_head_expression(expr_content.trim(), expr_start, false, '}')?;
+        let expression =
+            self.parse_head_expression(expr_content.trim_ws(), expr_start, false, '}')?;
 
         // Push block to stack
         self.stack.push(StackEntry::KeyBlock {
@@ -1704,8 +1706,8 @@ impl<'a> Parser<'a> {
                 }
             }
             let type_params_content = &self.source[type_params_start..self.index];
-            if !type_params_content.trim().is_empty() {
-                type_params = Some(CompactString::from(type_params_content.trim()));
+            if !type_params_content.trim_ws().is_empty() {
+                type_params = Some(CompactString::from(type_params_content.trim_ws()));
             }
             self.eat_optional(">"); // consume closing >
         }
@@ -1757,7 +1759,7 @@ impl<'a> Parser<'a> {
             // (the compiler-errors fixture needs its position), but skips it in
             // svelte2tsx mode (`script_ts`, set only by `parse_script_ts`).
             if !self.script_ts {
-                let trimmed = params_content.trim();
+                let trimmed = params_content.trim_ws();
                 let mut depth = 0;
                 for (byte_offset, c) in trimmed.char_indices() {
                     if c == '(' || c == '[' || c == '{' {
@@ -1777,7 +1779,7 @@ impl<'a> Parser<'a> {
             }
 
             // Parse parameters with TypeScript type annotations
-            if !params_content.trim().is_empty() {
+            if !params_content.trim_ws().is_empty() {
                 // Upstream parses `${params} => {}` with `parse_expression_at`
                 // in the file's `parser.ts` mode (1-parse/state/tag.js), so
                 // TS annotations without `lang="ts"` raise `js_parse_error`.
@@ -1912,7 +1914,7 @@ impl<'a> Parser<'a> {
                 self.advance(); // consume '}'
 
                 let expression =
-                    self.parse_head_expression(expr_content.trim(), expr_start, false, '}')?;
+                    self.parse_head_expression(expr_content.trim_ws(), expr_start, false, '}')?;
 
                 Ok(Some(TemplateNode::HtmlTag(Box::new(HtmlTag {
                     start: start as u32,
@@ -1941,7 +1943,7 @@ impl<'a> Parser<'a> {
                 // render_tag.rs` performs the precise AST-based check, so we must
                 // not reject it here at parse time (svelte2tsx, which only parses,
                 // would otherwise diverge from official by erroring).
-                let trimmed = expr_content.trim();
+                let trimmed = expr_content.trim_ws();
                 let expression = self.parse_js_expression_lenient(trimmed, expr_start);
 
                 Ok(Some(TemplateNode::RenderTag(Box::new(RenderTag {
@@ -1975,7 +1977,7 @@ impl<'a> Parser<'a> {
                 // assignment operator inside a bracketed destructuring default
                 // (depth > 0) or a string, both of which are skipped here, so
                 // the first depth-0 `=` is the assignment.
-                let trimmed = expr_content.trim();
+                let trimmed = expr_content.trim_ws();
                 let mut depth = 0i32;
                 let mut in_string = false;
                 let mut string_char = 0u8;
@@ -2029,8 +2031,8 @@ impl<'a> Parser<'a> {
                 // top-level `=` we already found.
                 let declaration = if let Some(eq_idx) = first_equals {
                     // Split into pattern string and init string
-                    let pattern_str = trimmed[..eq_idx].trim();
-                    let init_str = trimmed[eq_idx + 1..].trim();
+                    let pattern_str = trimmed[..eq_idx].trim_ws();
+                    let init_str = trimmed[eq_idx + 1..].trim_ws();
 
                     // Strip TypeScript type annotation from pattern if present.
                     // For a simple identifier like `area: number`, strip `: number`.
@@ -2140,7 +2142,7 @@ impl<'a> Parser<'a> {
                     let end = find_matching_bracket(self.source, expr_start, '{')
                         .unwrap_or(self.source.len());
                     self.index = end;
-                    let expr_content = self.source[expr_start..end].trim();
+                    let expr_content = self.source[expr_start..end].trim_ws();
 
                     if expr_content.is_empty() {
                         Vec::new()
@@ -2215,7 +2217,7 @@ impl<'a> Parser<'a> {
 
         // Adjust offset for leading whitespace that gets trimmed
         let leading_ws = content.len() - content.trim_start().len();
-        let trimmed = content.trim();
+        let trimmed = content.trim_ws();
         super::super::expression::parse_expression(
             &self.arena,
             trimmed,
@@ -2244,7 +2246,7 @@ impl<'a> Parser<'a> {
     ) -> crate::error::ParseResult<Expression<'a>> {
         // In deferred mode, create a Lazy expression
         if self.options.defer_script_parse {
-            let trimmed = content.trim();
+            let trimmed = content.trim_ws();
             if !trimmed.is_empty() {
                 let leading_ws = content.len() - content.trim_start().len();
                 return Ok(Expression::Lazy {
@@ -2258,7 +2260,7 @@ impl<'a> Parser<'a> {
 
         // Adjust offset for leading whitespace that gets trimmed
         let leading_ws = content.len() - content.trim_start().len();
-        let trimmed = content.trim();
+        let trimmed = content.trim_ws();
         let trimmed_offset = offset + leading_ws;
         super::super::expression::parse_expression(
             &self.arena,
@@ -2327,7 +2329,7 @@ impl<'a> Parser<'a> {
     /// error) and the `{#await …}` head.
     pub fn parse_js_expression_lenient(&self, content: &str, offset: usize) -> Expression<'a> {
         let leading_ws = content.len() - content.trim_start().len();
-        let trimmed = content.trim();
+        let trimmed = content.trim_ws();
         match self.defer_expression(trimmed, offset + leading_ws, LazyKind::Lenient) {
             Some(lazy) => lazy,
             None => self.parse_js_expression_internal(content, offset, false, '{'),
@@ -2345,7 +2347,7 @@ impl<'a> Parser<'a> {
     ) -> crate::error::ParseResult<Expression<'a>> {
         // Adjust offset for leading whitespace that gets trimmed
         let leading_ws = content.len() - content.trim_start().len();
-        let trimmed = content.trim();
+        let trimmed = content.trim_ws();
         let trimmed_offset = offset + leading_ws;
         if let Some(lazy) = self.defer_expression(trimmed, trimmed_offset, LazyKind::Attribute) {
             return Ok(lazy);
@@ -2393,7 +2395,7 @@ impl<'a> Parser<'a> {
         close_char: char,
     ) -> crate::error::ParseResult<Expression<'a>> {
         let leading_ws = content.len() - content.trim_start().len();
-        let trimmed = content.trim();
+        let trimmed = content.trim_ws();
         let trimmed_offset = offset + leading_ws;
         let opening_token = if close_char == ')' { '(' } else { '{' };
 
@@ -2607,7 +2609,7 @@ fn strip_type_annotation(pattern: &str) -> String {
             '}' | ']' | ')' => depth -= 1,
             ':' if depth == 0 => {
                 // Found a top-level colon - this is a type annotation
-                return pattern[..i].trim().to_string();
+                return pattern[..i].trim_ws().to_string();
             }
             _ => {}
         }

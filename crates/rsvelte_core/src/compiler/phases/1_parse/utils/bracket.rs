@@ -4,7 +4,10 @@
 //!
 //! This module corresponds to `svelte/packages/svelte/src/compiler/phases/1-parse/utils/bracket.js`
 
-use memchr::{memchr, memmem};
+use memchr::memchr;
+
+static BLOCK_COMMENT_END_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
+    std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"*/"));
 
 /// Find the end of a string expression.
 ///
@@ -15,8 +18,8 @@ use memchr::{memchr, memmem};
 ///
 /// # Returns
 /// The index of the end of this string expression, or `usize::MAX` if not found
-fn find_string_end(string: &str, search_start_index: usize, string_start_char: char) -> usize {
-    let string_to_search = if string_start_char == '`' {
+fn find_string_end(string: &str, search_start_index: usize, string_start_char: u8) -> usize {
+    let string_to_search = if string_start_char == b'`' {
         string
     } else {
         // we could slice at the search start index, but this way the index remains valid
@@ -39,7 +42,7 @@ fn find_string_end(string: &str, search_start_index: usize, string_start_char: c
 /// # Returns
 /// The index of the end of this regex expression, or `usize::MAX` if not found
 fn find_regex_end(string: &str, search_start_index: usize) -> usize {
-    find_unescaped_char(string, search_start_index, '/')
+    find_unescaped_char(string, search_start_index, b'/')
 }
 
 /// Find the closing backtick of a template literal, properly handling `${...}`
@@ -98,14 +101,13 @@ fn find_template_literal_end(string: &str, start: usize) -> usize {
 ///
 /// # Returns
 /// The index of the first unescaped instance of `char`, or `usize::MAX` if not found
-fn find_unescaped_char(string: &str, search_start_index: usize, ch: char) -> usize {
+fn find_unescaped_char(string: &str, search_start_index: usize, ch: u8) -> usize {
+    let bytes = string.as_bytes();
     let mut i = search_start_index;
     loop {
-        let found_index = string[i..].find(ch).map(|p| i + p).unwrap_or(usize::MAX);
-
-        if found_index == usize::MAX {
+        let Some(found_index) = memchr(ch, &bytes[i..]).map(|p| i + p) else {
             return usize::MAX;
-        }
+        };
 
         if found_index == 0 || count_leading_backslashes(string, found_index - 1).is_multiple_of(2)
         {
@@ -143,6 +145,17 @@ fn count_leading_backslashes(string: &str, search_start_index: usize) -> usize {
     count
 }
 
+/// Bytes that can hide a bracket (string, template literal, comment or regex
+/// openers) and therefore need the state machine.
+static OPAQUE_BYTE: [bool; 256] = {
+    let mut table = [false; 256];
+    table[b'\'' as usize] = true;
+    table[b'"' as usize] = true;
+    table[b'`' as usize] = true;
+    table[b'/' as usize] = true;
+    table
+};
+
 /// Finds the corresponding closing bracket, ignoring brackets found inside comments,
 /// strings, or regex expressions.
 ///
@@ -153,43 +166,6 @@ fn count_leading_backslashes(string: &str, search_start_index: usize) -> usize {
 ///
 /// # Returns
 /// The index of the closing bracket, or `None` if not found
-/// Bytes that can appear in a `{...}` expression handled by the fast path:
-/// nothing that needs the string / comment / regex / nesting state machine.
-static SIMPLE_EXPRESSION_BYTE: [bool; 256] = {
-    let mut table = [false; 256];
-    let mut b = 0usize;
-    while b < 256 {
-        table[b] = (b as u8).is_ascii_alphanumeric()
-            || matches!(
-                b as u8,
-                b'_' | b'$'
-                    | b'.'
-                    | b' '
-                    | b'\t'
-                    | b'\n'
-                    | b'\r'
-                    | b'?'
-                    | b','
-                    | b':'
-                    | b';'
-                    | b'+'
-                    | b'-'
-                    | b'*'
-                    | b'%'
-                    | b'!'
-                    | b'='
-                    | b'<'
-                    | b'>'
-                    | b'&'
-                    | b'|'
-                    | b'^'
-                    | b'~'
-            );
-        b += 1;
-    }
-    table
-};
-
 pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option<usize> {
     let close = match open {
         '{' => '}',
@@ -198,25 +174,8 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
         _ => return None,
     };
     let bytes = template.as_bytes();
-
-    // Fast path: for simple expressions like `{identifier}` or `{a.b.c}`,
-    // scan for the closing bracket directly. If we only encounter identifier
-    // characters, dots, whitespace, and no nesting/string/comment characters,
-    // we can return immediately without the full state machine.
-    if open == '{' {
-        let remaining = &bytes[index..];
-        // Use memchr to find the first '}' quickly
-        if let Some(close_offset) = memchr(b'}', remaining) {
-            // Check if the content between open and close is "simple" -
-            // contains no characters that require the full state machine:
-            // no nested brackets, no strings, no comments, no regex
-            let content = &remaining[..close_offset];
-            let is_simple = content.iter().all(|&b| SIMPLE_EXPRESSION_BYTE[b as usize]);
-            if is_simple {
-                return Some(index + close_offset);
-            }
-        }
-    }
+    let open_byte = open as u8;
+    let close_byte = close as u8;
 
     let mut brackets = 1;
     let mut i = index;
@@ -226,11 +185,36 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
     let mut prev_non_ws: Option<u8> = None;
 
     while brackets > 0 && i < template.len() {
+        // Only quotes, `/` and the bracket pair itself can change the state;
+        // every other byte (operators, identifiers, non-ASCII) just shifts
+        // `prev_non_ws`, so whole runs of them are skipped in one go.
+        let run_start = i;
+        while i < bytes.len() {
+            let b = bytes[i];
+            if OPAQUE_BYTE[b as usize] || b == open_byte || b == close_byte {
+                break;
+            }
+            i += 1;
+        }
+        if i > run_start {
+            let mut k = i;
+            while k > run_start {
+                k -= 1;
+                if !bytes[k].is_ascii_whitespace() {
+                    prev_non_ws = Some(bytes[k]);
+                    break;
+                }
+            }
+            if i >= template.len() {
+                break;
+            }
+        }
+
         let ch = bytes[i] as char;
 
         match ch {
             '\'' | '"' => {
-                i = find_string_end(template, i + 1, ch);
+                i = find_string_end(template, i + 1, bytes[i]);
                 if i == usize::MAX {
                     i = template.len();
                 } else {
@@ -273,7 +257,7 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
                 if next_char == '*' {
                     // Block comment. An unterminated `/*` (no closing `*/`)
                     // bails to EOF so the outer loop terminates and returns None.
-                    i = match memmem::find(&bytes[i + 1..], b"*/") {
+                    i = match BLOCK_COMMENT_END_FINDER.find(&bytes[i + 1..]) {
                         Some(p) => i + 1 + p + "*/".len(),
                         None => template.len(),
                     };
@@ -354,9 +338,9 @@ mod tests {
 
     #[test]
     fn test_find_unescaped_char() {
-        assert_eq!(find_unescaped_char("hello'world", 0, '\''), 5);
-        assert_eq!(find_unescaped_char(r"hello\'world'", 0, '\''), 12);
-        assert_eq!(find_unescaped_char("hello", 0, '\''), usize::MAX);
+        assert_eq!(find_unescaped_char("hello'world", 0, b'\''), 5);
+        assert_eq!(find_unescaped_char(r"hello\'world'", 0, b'\''), 12);
+        assert_eq!(find_unescaped_char("hello", 0, b'\''), usize::MAX);
     }
 
     #[test]

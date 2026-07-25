@@ -282,10 +282,7 @@ impl<'a> Parser<'a> {
             // allowed between `{` and the `/` / `:` marker char (upstream
             // `tag()` runs `allow_whitespace()` before dispatching).
             let (is_block_close, is_block_continuation) = if first_byte == b'{' {
-                (
-                    self.match_block_close_marker().is_some(),
-                    self.match_block_continuation_marker().is_some(),
-                )
+                self.match_block_markers()
             } else {
                 (false, false)
             };

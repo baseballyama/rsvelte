@@ -62,6 +62,9 @@ pub fn ensure_script_parsed(
     parse_error
 }
 
+static SCRIPT_END_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
+    std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"</script"));
+
 impl<'a> Parser<'a> {
     /// Merge attribute value parts into a single Text for script/style tags.
     /// This is needed because {curly braces} in quoted attribute values are NOT expressions.
@@ -114,7 +117,7 @@ impl<'a> Parser<'a> {
         // Use SIMD-accelerated search for </script instead of byte-by-byte scanning
         if !self_closing {
             loop {
-                if let Some(offset) = memchr::memmem::find(&self.bytes[self.index..], b"</script") {
+                if let Some(offset) = SCRIPT_END_FINDER.find(&self.bytes[self.index..]) {
                     self.index += offset;
                     if self.is_valid_closing_tag("</script") {
                         break;

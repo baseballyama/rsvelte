@@ -35,6 +35,10 @@ static SCRIPT_TAG_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
     std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"<script"));
 static HTML_COMMENT_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
     std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"<!--"));
+static LANG_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
+    std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"lang"));
+static COMMENT_END_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
+    std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"-->"));
 
 /// Last auto-closed tag information.
 ///
@@ -269,6 +273,12 @@ impl<'a> Parser<'a> {
         let bytes = source.as_bytes();
         let len = bytes.len();
 
+        // Every positive answer needs a literal `lang` attribute, so one cheap
+        // pass rules out the two scans below for the whole no-`lang` majority.
+        if LANG_FINDER.find(bytes).is_none() {
+            return false;
+        }
+
         // Jump straight between `<script` occurrences; HTML-comment spans are
         // resolved lazily so a commented-out script is still ignored.
         let script_finder = &*SCRIPT_TAG_FINDER;
@@ -289,7 +299,7 @@ impl<'a> Parser<'a> {
                     comment_pos = comment_start;
                     break;
                 }
-                let comment_end = match memchr::memmem::find(&bytes[comment_start + 4..], b"-->") {
+                let comment_end = match COMMENT_END_FINDER.find(&bytes[comment_start + 4..]) {
                     Some(end_offset) => comment_start + 4 + end_offset + 3,
                     None => len,
                 };
@@ -580,6 +590,26 @@ impl<'a> Parser<'a> {
             return None;
         }
         Some(i)
+    }
+
+    /// `(close, continuation)` markers, sharing the single whitespace skip.
+    #[inline]
+    pub fn match_block_markers(&self) -> (bool, bool) {
+        let Some(i) = self.index_after_open_brace_ws() else {
+            return (false, false);
+        };
+        match self.bytes[i] {
+            b'/' => (
+                !matches!(self.bytes.get(i + 1), Some(b'*') | Some(b'/')),
+                false,
+            ),
+            b':' => (
+                false,
+                !(self.bytes.get(i + 1) == Some(&b'/')
+                    && matches!(self.bytes.get(i + 2), Some(b'*') | Some(b'/'))),
+            ),
+            _ => (false, false),
+        }
     }
 
     /// Consume a string if it matches.
