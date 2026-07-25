@@ -138,7 +138,8 @@ impl ScriptRule for NoUnnecessaryStateWrap {
         // `x = ...` and `bind:` getter/setter writes via the analyzed scope, plus
         // shorthand `bind:x` two-way bindings detected from the source.
         let reassigned: HashSet<String> = if allow_reassign {
-            let mut set: HashSet<String> = crate::scope::analyze_scope(ctx.source())
+            let mut set: HashSet<String> = ctx
+                .scope_analysis()
                 .map(|a| {
                     a.root
                         .bindings

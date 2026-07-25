@@ -424,7 +424,7 @@ impl ScriptRule for NoImmutableReactiveStatements {
         // wouldn't reject), continue with empty binding maps — the write-only
         // LHS detection and the "unknown identifier → skip" guard ensure we
         // only report structurally obvious non-reactive statements.
-        let analysis = crate::scope::analyze_scope(ctx.source());
+        let analysis = ctx.scope_analysis();
 
         let (binding_names, mutable_bindings): (HashSet<&str>, HashSet<&str>) =
             if let Some(ref a) = analysis {

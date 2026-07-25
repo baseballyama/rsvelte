@@ -522,7 +522,7 @@ impl SortAttributes {
 
                 if !entry.is_plain_attr || !has_spread_between {
                     // Standard report + fix.
-                    let fix = build_fix(&src, entries, prev_idx, i);
+                    let fix = build_fix(src, entries, prev_idx, i);
                     ctx.report_with_fix(
                         entry.start,
                         entry.end,
@@ -533,7 +533,7 @@ impl SortAttributes {
                     // Spread exists between; use the "spread" verification:
                     // only compare against attributes between the last spread
                     // before `i` and `i`.
-                    self.verify_for_spread(ctx, &src, entries, &opt, i);
+                    self.verify_for_spread(ctx, src, entries, &opt, i);
                 }
                 // Skip adding to valid_previous (we already reported).
                 continue;

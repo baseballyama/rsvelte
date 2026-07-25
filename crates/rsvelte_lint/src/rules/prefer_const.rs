@@ -71,26 +71,11 @@ fn init_rune_callee(init: &Value) -> Option<&str> {
 /// `prefer-const` rule, which only bails on a write reference to the binding
 /// itself. Used to cover template positions the compiler scope walk skips
 /// (e.g. `{@render}` arguments).
-fn collect_template_reassignments(source: &str, out: &mut HashSet<String>) {
-    // Re-parse (cheap; the analyzed `ComponentAnalysis` keeps only the scope
-    // tree, not the template AST) and serialize the template fragment so the
-    // assignment walk runs over the ESTree expressions inside every tag. The
-    // fragment's JS expressions live in the parse arena, which must be installed
-    // for the duration of the serialize.
-    use rsvelte_core::ast::arena::with_serialize_arena;
-    let Ok(root) = rsvelte_core::parse(
-        source,
-        &rsvelte_core::Allocator::default(),
-        rsvelte_core::ParseOptions::default(),
-    ) else {
-        return;
-    };
-    let Some(value) =
-        with_serialize_arena(&root.arena, || serde_json::to_value(&root.fragment).ok())
-    else {
-        return;
-    };
-    walk_assignments(&value, out);
+fn collect_template_reassignments(ctx: &LintContext, out: &mut HashSet<String>) {
+    // The template fragment is serialized once per file by the context (this
+    // rule alone would otherwise re-parse + re-serialize the source on each of
+    // its two call sites, for each script block).
+    walk_assignments(&ctx.template_fragment_json(), out);
 }
 
 /// Add names that are declared by more than one `let`/`var`/`const` declarator
@@ -616,7 +601,7 @@ impl ScriptRule for PreferConst {
         // svelte-eslint-parser only parses, so it still lints such a file; to
         // match, fall back to a parse-only assignment scan of the script +
         // template when the analysis is unavailable.
-        let mut reassigned: HashSet<String> = match crate::scope::analyze_scope(ctx.source()) {
+        let mut reassigned: HashSet<String> = match ctx.scope_analysis() {
             Some(analysis) => analysis
                 .root
                 .bindings
@@ -648,7 +633,7 @@ impl ScriptRule for PreferConst {
         // ONCE here and reused below for the no-init-let check, avoiding a second
         // re-parse of the source.
         let mut template_reassign: HashSet<String> = HashSet::new();
-        collect_template_reassignments(ctx.source(), &mut template_reassign);
+        collect_template_reassignments(ctx, &mut template_reassign);
         reassigned.extend(template_reassign.iter().cloned());
         // `for (x of …)` / `for (x in …)` with a bare pattern (not
         // `VariableDeclaration`) reassign the binding. The rsvelte scope builder
@@ -887,7 +872,7 @@ impl Rule for PreferConst {
 
         // Build the reassigned set from the template itself.
         let mut reassigned: HashSet<String> = HashSet::new();
-        collect_template_reassignments(ctx.source(), &mut reassigned);
+        collect_template_reassignments(ctx, &mut reassigned);
 
         let tag_reports =
             check_template_declaration_tags(ctx.source(), &reassigned, destructuring_all);
