@@ -51,6 +51,7 @@
   "map-parity\tsourcemap-empty-source\tserver\t6",
   "map-parity\tsourcemap-names\tclient\t36",
   "map-parity\tsourcemap-names\tserver\t6",
+  "map-parity\tsourcemap-offsets\tclient\t8",
   "map-parity\tsourcemap-sources\tclient\t18",
   "map-parity\tsourcemap-sources\tserver\t5",
   "map-parity\tstatic-no-script\tclient\t4",

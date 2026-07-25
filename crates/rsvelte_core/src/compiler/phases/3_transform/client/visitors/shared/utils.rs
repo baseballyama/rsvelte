@@ -1666,6 +1666,7 @@ fn apply_transforms_to_statement_with_shadowed(
                             .arena
                             .alloc_expr(transform_expr(context.arena.get_expr(init)))
                     }),
+                    comment_anchor: None,
                 })
                 .collect();
 
@@ -1743,6 +1744,7 @@ fn apply_transforms_to_statement_with_shadowed(
                                     ),
                                 )
                             }),
+                            comment_anchor: None,
                         })
                         .collect();
                     JsForInit::Variable(JsVariableDeclaration {

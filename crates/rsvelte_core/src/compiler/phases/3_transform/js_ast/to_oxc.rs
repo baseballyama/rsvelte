@@ -147,6 +147,10 @@ struct Synth {
     /// Region the chunk just parsed occupies, consumed by the caller that knows
     /// the chunk's original-source offset.
     pending_region: Option<(u32, u32)>,
+    /// Original-source offset of the last comment-bearing chunk, so an anchor
+    /// can tell whether it sits after those comments in the *source* (which is
+    /// the order upstream compares in) and not merely after them in the buffer.
+    last_region_source: Option<u32>,
     saw_comments: bool,
     /// Upper bound on every span produced outside a chunk region.
     max_span: u32,
@@ -169,6 +173,7 @@ impl Synth {
             comments: Vec::new(),
             loc_map: Vec::new(),
             pending_region: None,
+            last_region_source: None,
             saw_comments: false,
             max_span: 0,
         }
@@ -235,7 +240,27 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         let mut synth = self.synth.borrow_mut();
         let region = synth.pending_region.take()?;
         synth.loc_map.push((region.0, region.1, source_offset));
+        synth.last_region_source = source_offset;
         Some(region)
+    }
+
+    /// The comment-space position of a generated node that upstream anchors to
+    /// `source_offset` (esrap's `if (node.loc)` flush point). Sits at the buffer
+    /// cursor — past the preceding chunk's region and its closing newline, so a
+    /// comment left dangling at that chunk's end is flushed here and followed by
+    /// a line break, exactly as upstream flushes it at the next located node.
+    /// [`SPAN`] (no location) unless the anchor really does follow the pending
+    /// comments in the source, which is the order upstream compares in.
+    fn comment_anchor(&self, source_offset: Option<u32>) -> Span {
+        let Some(anchor) = source_offset else {
+            return SPAN;
+        };
+        let synth = self.synth.borrow();
+        if !synth.enabled || synth.last_region_source.is_none_or(|chunk| anchor <= chunk) {
+            return SPAN;
+        }
+        let at = synth.cursor();
+        Span::new(at, at)
     }
 
     // -- statements ---------------------------------------------------------
@@ -707,7 +732,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 None => None,
             };
             declarators.push(VariableDeclarator::new(
-                SPAN,
+                self.comment_anchor(d.comment_anchor),
                 kind,
                 binding,
                 oxc_ast::NONE,

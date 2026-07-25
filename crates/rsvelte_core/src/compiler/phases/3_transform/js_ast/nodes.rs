@@ -173,6 +173,11 @@ impl fmt::Display for JsVariableKind {
 pub struct JsVariableDeclarator {
     pub id: JsPattern,
     pub init: Option<ExprId>,
+    /// Original-source offset upstream stamps on this declarator's identifier
+    /// (`b.id(name, element.name_loc)`), which is where esrap flushes comments
+    /// left over from an earlier chunk. `None` for a fully synthesized
+    /// declarator.
+    pub comment_anchor: Option<u32>,
 }
 
 /// Function declaration.

@@ -122,6 +122,23 @@ This is the degradation issue #1781 describes, and it is the reason this gate
 exists: the same change passed every other suite. No other sample's counts
 moved, so nothing else on main has touched source maps.
 
+### Second catch: #1784
+
+Same shape as the #1772 entry above. Fixing #1784 (a trailing
+`<script>` comment now flushes at the next node upstream gives a location, not
+at the end of the function body) made `sourcemap-offsets` client output
+byte-identical to the official compiler for the first time, so it newly
+qualifies for `map-parity` and reports its resolution loss: 8 official segments,
+0 reproduced.
+
+| | before #1784 | after |
+|---|---|---|
+| `sourcemap-offsets` client — byte-identical to official | no | **yes** |
+| `sourcemap-offsets` client — official segments reproduced | not measured | 0 / 8 (8 missing, 0 wrong) |
+
+`EXPECTED_IDENTICAL_OUTPUTS` rises 55 → 56 in the same commit. Nothing else
+moved: no anchor changed, and no existing budget grew.
+
 ## Root cause
 
 The client entries all share one cause, tracked in issue #1781: the client AST
@@ -158,7 +175,7 @@ No entry is accepted as correct behaviour; all are burndown targets.
   chunk is anchored at the file start, so the whole block is off by the
   `<script module>` line) and `sourcemap-empty-source`/client maps to `0:8`
   instead of `2:1`.
-- **`map-parity` (45)** — one per byte-identical pair that loses official
+- **`map-parity` (46)** — one per byte-identical pair that loses official
   segments. Client counts (4–52) are dominated by `missing`; server counts (4–13)
   are mostly `missing`-only, except `preprocessed-styles` and
   `source-map-generator`, which contribute the 7 server `wrong` segments.
