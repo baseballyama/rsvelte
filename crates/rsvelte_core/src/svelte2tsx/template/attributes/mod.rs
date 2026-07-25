@@ -1,6 +1,7 @@
 //! Attribute and directive emission.
 
 pub(super) mod action;
+pub(super) mod binding;
 pub(super) mod class_style;
 pub(super) mod event_handler;
 pub(super) mod let_;
