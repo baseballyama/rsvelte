@@ -34,7 +34,6 @@
         "oxc_data_structures",
         "oxc_diagnostics",
         "oxc_ecmascript",
-        "oxc_estree",
         "oxc_formatter",
         "oxc_formatter_core",
         "oxc_formatter_css",

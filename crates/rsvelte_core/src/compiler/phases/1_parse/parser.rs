@@ -800,20 +800,6 @@ impl<'a> Parser<'a> {
         &self.source[start..self.index]
     }
 
-    /// Peek at the next n characters.
-    pub fn peek_chars(&self, n: usize) -> String {
-        self.source[self.index..].chars().take(n).collect()
-    }
-
-    /// Check if the svelte:options has customElement set.
-    pub fn has_custom_element_option(&self) -> bool {
-        if let Some(opts) = &self.svelte_options {
-            opts.custom_element.is_some()
-        } else {
-            false
-        }
-    }
-
     /// Check if we're in runes mode via svelte:options.
     pub fn is_runes_mode(&self) -> bool {
         if let Some(opts) = &self.svelte_options {
@@ -907,25 +893,6 @@ impl<'a> Parser<'a> {
 
         self.skip_whitespace();
         Ok(())
-    }
-
-    /// Handle an acorn error.
-    ///
-    /// Corresponds to `acorn_error()` in JavaScript Parser.
-    pub fn acorn_error(&self, pos: usize, message: &str) -> ParseError {
-        // Remove position indicator from message (e.g., " (10:5)")
-        let clean_message = message
-            .trim_end_matches(|c: char| c == ')' || c.is_ascii_digit() || c == ':' || c == '(');
-
-        ParseError::svelte("js_parse_error", clean_message, (pos, pos + 1))
-    }
-
-    /// Allow whitespace (skip it if present).
-    ///
-    /// Corresponds to `allow_whitespace()` in JavaScript Parser.
-    /// This is just an alias for `skip_whitespace()`.
-    pub fn allow_whitespace(&mut self) {
-        self.skip_whitespace();
     }
 
     /// Scan forward from the current position to find the matching closing brace.

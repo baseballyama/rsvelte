@@ -69,11 +69,6 @@ pub struct AwaitedDeclaration {
 }
 
 impl ScriptContent {
-    /// Extract script content from an AST Script node and source.
-    pub fn from_script(script: &Script, source: &str) -> Self {
-        Self::from_script_with_ts(script, source, false)
-    }
-
     /// Extract script content from an AST Script node and source,
     /// with optional forced TypeScript stripping.
     /// `force_typescript` is true when another script in the component has `lang="ts"`.

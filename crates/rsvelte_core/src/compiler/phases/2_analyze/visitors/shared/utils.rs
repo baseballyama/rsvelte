@@ -1210,34 +1210,6 @@ pub fn validate_export(name: &str, context: &VisitorContext) -> Result<(), Analy
     Ok(())
 }
 
-// Utility functions for context checking (already present in the file)
-
-/// Check if the current context is inside a specific block type.
-pub fn is_inside_block(context: &VisitorContext, block_type: &str) -> bool {
-    context.path.iter().any(|node| {
-        matches!(
-            (node, block_type),
-            (TemplateNode::IfBlock(_), "if")
-                | (TemplateNode::EachBlock(_), "each")
-                | (TemplateNode::AwaitBlock(_), "await")
-                | (TemplateNode::KeyBlock(_), "key")
-                | (TemplateNode::SnippetBlock(_), "snippet")
-        )
-    })
-}
-
-/// Check if the current context is inside a component.
-pub fn is_inside_component(context: &VisitorContext) -> bool {
-    context.path.iter().any(|node| {
-        matches!(
-            node,
-            TemplateNode::Component(_)
-                | TemplateNode::SvelteComponent(_)
-                | TemplateNode::SvelteSelf(_)
-        )
-    })
-}
-
 /// Check if the current context is inside an element.
 pub fn is_inside_element(context: &VisitorContext) -> bool {
     context.path.iter().any(|node| {
@@ -1246,16 +1218,6 @@ pub fn is_inside_element(context: &VisitorContext) -> bool {
             TemplateNode::RegularElement(_) | TemplateNode::SvelteElement(_)
         )
     })
-}
-
-/// Get the closest ancestor element name.
-pub fn get_closest_element<'a>(context: &'a VisitorContext<'a>) -> Option<&'a str> {
-    for node in context.path.iter().rev() {
-        if let TemplateNode::RegularElement(element) = node {
-            return Some(&element.name);
-        }
-    }
-    None
 }
 
 /// Check if a name is a valid JavaScript identifier.
@@ -1344,45 +1306,6 @@ pub fn is_svg_element(name: &str) -> bool {
             | "animateTransform"
             | "set"
             | "foreignObject"
-    )
-}
-
-/// Check if an element is a MathML element.
-pub fn is_mathml_element(name: &str) -> bool {
-    matches!(
-        name,
-        "math"
-            | "mi"
-            | "mn"
-            | "mo"
-            | "ms"
-            | "mspace"
-            | "mtext"
-            | "menclose"
-            | "merror"
-            | "mfenced"
-            | "mfrac"
-            | "mpadded"
-            | "mphantom"
-            | "mroot"
-            | "mrow"
-            | "msqrt"
-            | "mstyle"
-            | "mmultiscripts"
-            | "mover"
-            | "mprescripts"
-            | "msub"
-            | "msubsup"
-            | "msup"
-            | "munder"
-            | "munderover"
-            | "mtable"
-            | "mtd"
-            | "mtr"
-            | "maction"
-            | "annotation"
-            | "annotation-xml"
-            | "semantics"
     )
 }
 
@@ -1767,28 +1690,6 @@ fn get_rune_name(callee: &Value, context: &VisitorContext) -> Option<String> {
     }
 
     None
-}
-
-/// Visit a JavaScript expression and track identifier references.
-///
-/// Corresponds to walking expressions in Svelte's utils.js.
-///
-/// # Arguments
-///
-/// * `expression` - The JavaScript expression to visit
-/// * `context` - The visitor context
-/// * `metadata` - Expression metadata to populate
-pub fn walk_template_expression(
-    expr: &crate::ast::js::Expression,
-    context: &mut VisitorContext,
-    metadata: &mut crate::ast::template::ExpressionMetadata,
-) -> Result<(), AnalysisError> {
-    match expr {
-        crate::ast::js::Expression::Typed(te) => {
-            walk_js_expression_node(&te.node, context, metadata)
-        }
-        _ => walk_js_expression(expr.as_json(), context, metadata),
-    }
 }
 
 pub fn walk_js_expression(

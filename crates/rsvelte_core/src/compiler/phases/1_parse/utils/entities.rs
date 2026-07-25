@@ -16,12 +16,8 @@
 //! - Legacy entity handling (entities without trailing semicolon)
 //! - Complete compatibility with Svelte's entity decoding behavior
 
-// Allow dead code for library functions that will be used as the parser is extended
-#![allow(dead_code)]
-
-// Re-export from sibling module
 use super::entities_data::decode_legacy_named_entity;
-pub use super::entities_data::decode_named_entity;
+use super::entities_data::decode_named_entity;
 use super::html::validate_code;
 
 /// Decode a numeric HTML entity (without & prefix).
@@ -55,30 +51,6 @@ pub fn decode_numeric_entity(entity: &str) -> Option<char> {
             char::from_u32(validated)
         }
     })
-}
-
-/// Decode an HTML entity reference.
-///
-/// This function handles the full HTML entity decoding:
-/// - Named entities: `&amp;`, `&lt;`, `&copy;`, etc.
-/// - Numeric entities: `&#123;`, `&#x7B;`
-/// - Legacy entities (without semicolon): `&amp`, `&lt`
-///
-/// # Arguments
-/// * `entity` - The entity string after `&`, e.g., "amp;", "lt", "#123;", "#x7B;"
-///
-/// # Returns
-/// The decoded string (may be empty for unknown entities)
-pub fn decode_entity(entity: &str) -> Option<String> {
-    // Check for numeric entity
-    if let Some(stripped) = entity.strip_prefix('#') {
-        let stripped = stripped.strip_suffix(';').unwrap_or(stripped);
-        return decode_numeric_entity(stripped).map(|c| c.to_string());
-    }
-
-    // Try named entity (with semicolon)
-    let name = entity.strip_suffix(';').unwrap_or(entity);
-    decode_named_entity(name)
 }
 
 /// Decode all HTML entities in a string.

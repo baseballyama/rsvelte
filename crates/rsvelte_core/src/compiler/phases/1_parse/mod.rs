@@ -18,13 +18,6 @@
 //! 1_parse/
 //! ├── mod.rs              # Public API: parse(), ParseOptions
 //! ├── parser.rs           # Parser struct + helper methods
-//! ├── estree_compat/      # ESTree compatibility layer (test-only)
-//! │   ├── mod.rs          # Public API: convert_to_estree()
-//! │   ├── expression.rs   # Expression node conversion
-//! │   ├── statement.rs    # Statement node conversion
-//! │   ├── pattern.rs      # Pattern node conversion
-//! │   ├── typescript.rs   # TypeScript annotation conversion
-//! │   └── utils.rs        # Position calculation utilities
 //! ├── read/               # Reading specific constructs
 //! │   ├── mod.rs
 //! │   ├── context.rs      # Pattern parsing for {#each} and {#snippet}
@@ -51,7 +44,6 @@
 //! Note: Legacy AST conversion is in `compiler/legacy.rs` (matches Svelte's
 //! `svelte/packages/svelte/src/compiler/legacy.js`).
 
-pub mod estree_compat;
 mod parser;
 pub(crate) mod read;
 pub mod remove_typescript_nodes;

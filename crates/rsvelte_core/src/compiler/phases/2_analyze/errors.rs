@@ -170,17 +170,6 @@ pub fn constant_binding(thing: &str) -> AnalysisError {
 
 // Attribute-related errors
 
-/// Attribute "%name%" is ambiguous — use "%values_string%" instead
-pub fn attribute_ambiguous(name: &str, values_string: &str) -> AnalysisError {
-    error(
-        "attribute_ambiguous",
-        format!(
-            "Attribute \"{}\" is ambiguous — use \"{}\" instead",
-            name, values_string
-        ),
-    )
-}
-
 /// Attributes need to be unique
 pub fn attribute_duplicate() -> AnalysisError {
     error("attribute_duplicate", "Attributes need to be unique")
@@ -266,14 +255,6 @@ pub fn svelte_element_missing_this() -> AnalysisError {
     )
 }
 
-/// `<svelte:element>` can only have one `this` attribute
-pub fn svelte_element_duplicate_this() -> AnalysisError {
-    error(
-        "svelte_element_duplicate_this",
-        "`<svelte:element>` can only have one `this` attribute",
-    )
-}
-
 /// `<svelte:component>` must have a `this` attribute (issue #453, H-046)
 pub fn svelte_component_missing_this() -> AnalysisError {
     error(
@@ -295,16 +276,6 @@ pub fn svelte_meta_invalid_placement(name: &str) -> AnalysisError {
     error(
         "svelte_meta_invalid_placement",
         format!("`<{}>` tags cannot be inside elements or blocks", name),
-    )
-}
-
-// Slot-related errors
-
-/// Duplicate slot name "%name%" in <%component%>
-pub fn slot_duplicate(name: &str, component: &str) -> AnalysisError {
-    error(
-        "slot_duplicate",
-        format!("Duplicate slot name \"{}\" in <{}>", name, component),
     )
 }
 
@@ -331,16 +302,6 @@ pub fn render_tag_invalid_call_expression() -> AnalysisError {
     error(
         "render_tag_invalid_call_expression",
         "Calling a snippet function using apply, bind or call is not allowed",
-    )
-}
-
-// General errors
-
-/// `%feature%` is not yet implemented
-pub fn not_implemented(feature: &str) -> AnalysisError {
-    error(
-        "not_implemented",
-        format!("`{}` is not yet implemented", feature),
     )
 }
 
@@ -1060,14 +1021,6 @@ pub fn script_duplicate() -> AnalysisError {
     error(
         "script_duplicate",
         "A component can only have one instance-level `<script>` element\nhttps://svelte.dev/e/script_duplicate",
-    )
-}
-
-/// A component can only have one `<script module>` element
-pub fn script_module_duplicate() -> AnalysisError {
-    error(
-        "script_module_duplicate",
-        "A component can only have one `<script module>` element\nhttps://svelte.dev/e/script_module_duplicate",
     )
 }
 
