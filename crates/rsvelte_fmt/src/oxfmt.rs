@@ -142,10 +142,19 @@ pub(crate) fn oxfmt_stdin(
             oxfmt.display()
         )
     })?;
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(source.as_bytes())?;
-    }
+    // Feed stdin from its own thread: with stdout captured, a child that starts
+    // writing output before it has consumed all of its input would otherwise
+    // deadlock against us once either pipe's buffer fills.
+    let writer = child.stdin.take().map(|mut stdin| {
+        let source = source.to_owned();
+        std::thread::spawn(move || stdin.write_all(source.as_bytes()))
+    });
     let out = child.wait_with_output()?;
+    if let Some(writer) = writer {
+        // A child that exited without reading everything is not our error —
+        // its exit code already says what happened.
+        let _ = writer.join();
+    }
     Ok(OxfmtStdinOutput {
         code: out.status.code().unwrap_or(1),
         stdout: out.stdout,

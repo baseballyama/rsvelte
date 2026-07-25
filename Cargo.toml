@@ -47,6 +47,17 @@ strip = "symbols"
 inherits = "dist"
 panic = "unwind"
 
+# Distribution profile for the `rsvelte-language-server` binary. Its analysis
+# worker isolates a per-document compiler panic via `catch_unwind` (see
+# `crates/rsvelte_language_server/src/worker.rs`), which only holds when the
+# binary UNWINDS — the shared `release`/`dist` profiles set `panic = "abort"`,
+# turning that isolation into an immediate `SIGABRT` that kills the editor's
+# whole language server. Same reasoning as `dist-lint` above. Build the server
+# with `--profile dist-lsp`.
+[profile.dist-lsp]
+inherits = "dist"
+panic = "unwind"
+
 [profile.profiling]
 inherits = "release"
 lto = "thin"          # thin LTO keeps profiling builds within the dev box's RAM

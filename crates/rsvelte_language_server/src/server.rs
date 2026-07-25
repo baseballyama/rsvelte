@@ -1,25 +1,26 @@
 //! The LSP message loop.
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use crossbeam_channel::{RecvTimeoutError, Sender};
+use crossbeam_channel::{Receiver, Sender, after, never, select, unbounded};
 use lsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestId, Response};
 use lsp_types::{
     ConfigurationItem, ConfigurationParams, DidChangeTextDocumentParams,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    DocumentFormattingParams, InitializeParams, OneOf, PublishDiagnosticsParams,
-    ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    DocumentFormattingParams, OneOf, PublishDiagnosticsParams, ServerCapabilities,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
     TextDocumentSyncSaveOptions, TextEdit, Uri,
 };
 
+use crate::client::ClientState;
 use crate::document::{Document, DocumentStore};
-use crate::format::FormatSessions;
-use crate::lint::LintConfigCache;
+use crate::log;
 use crate::settings::Settings;
 use crate::uri::uri_to_path;
+use crate::worker::{Job, Outcome, Worker};
 
 pub const SERVER_NAME: &str = "rsvelte-language-server";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -31,16 +32,16 @@ const LINT_DEBOUNCE: Duration = Duration::from_millis(300);
 const CONFIG_SECTION: &str = "rsvelte";
 
 /// Serve the LSP over stdio until the client shuts the connection down.
-pub fn run_stdio() -> Result<()> {
+///
+/// **stdout belongs to the JSON-RPC session.** Anything printed there that is
+/// not a framed message corrupts the stream with no way back, so no code
+/// reachable from here may write to it — note that `rsvelte_fmt` does print to
+/// stdout on its CLI paths, which is why only [`rsvelte_fmt::FormatSession`]
+/// (which never does) is used.
+pub fn run_stdio() -> Result<ExitCode> {
     let (connection, io_threads) = Connection::stdio();
     let (id, params) = connection.initialize_start()?;
-    let params: InitializeParams = serde_json::from_value(params)?;
-    let pull_configuration = params
-        .capabilities
-        .workspace
-        .as_ref()
-        .and_then(|w| w.configuration)
-        .unwrap_or(false);
+    let client = ClientState::from_initialize(&params);
 
     connection.initialize_finish(
         id,
@@ -50,12 +51,20 @@ pub fn run_stdio() -> Result<()> {
         }),
     )?;
 
-    Server::new(connection.sender.clone(), pull_configuration).run(&connection)?;
+    let (results, outcomes) = unbounded();
+    let code = Server::new(
+        connection.sender.clone(),
+        client,
+        Worker::spawn(results),
+        outcomes,
+    )
+    .run(&connection)?;
+
     // The writer thread ends only once every sender is gone, so the connection
     // (and the server's clone of it) must be dropped before joining.
     drop(connection);
     io_threads.join()?;
-    Ok(())
+    Ok(code)
 }
 
 fn capabilities() -> ServerCapabilities {
@@ -73,90 +82,115 @@ fn capabilities() -> ServerCapabilities {
     }
 }
 
+/// A client request whose answer is still being computed. The response is sent
+/// when the worker reports back, so a handler never has to block the loop to
+/// produce one.
+enum Pending {
+    Formatting,
+}
+
+/// A request this server sent to the client, keyed by the id the client will
+/// echo back.
+enum Outgoing {
+    Configuration,
+}
+
 struct Server {
     sender: Sender<Message>,
-    pull_configuration: bool,
+    client: ClientState,
     settings: Settings,
     documents: DocumentStore,
-    format_sessions: FormatSessions,
-    lint_configs: LintConfigCache,
+    worker: Worker,
+    outcomes: Receiver<Outcome>,
     /// Documents awaiting a lint, and when it comes due.
     scheduled: HashMap<String, Instant>,
     /// The content hash each document was last linted at.
     linted: HashMap<String, u64>,
-    config_request: Option<RequestId>,
+    pending: HashMap<RequestId, Pending>,
+    outgoing: HashMap<RequestId, Outgoing>,
     next_request_id: u32,
+    shutdown_requested: bool,
+    exiting: bool,
 }
 
 impl Server {
-    fn new(sender: Sender<Message>, pull_configuration: bool) -> Self {
+    fn new(
+        sender: Sender<Message>,
+        client: ClientState,
+        worker: Worker,
+        outcomes: Receiver<Outcome>,
+    ) -> Self {
         Self {
             sender,
-            pull_configuration,
+            client,
             settings: Settings::default(),
             documents: DocumentStore::default(),
-            format_sessions: FormatSessions::default(),
-            lint_configs: LintConfigCache::default(),
+            worker,
+            outcomes,
             scheduled: HashMap::new(),
             linted: HashMap::new(),
-            config_request: None,
+            pending: HashMap::new(),
+            outgoing: HashMap::new(),
             next_request_id: 0,
+            shutdown_requested: false,
+            exiting: false,
         }
     }
 
-    fn run(&mut self, connection: &Connection) -> Result<()> {
-        if self.pull_configuration {
+    fn run(&mut self, connection: &Connection) -> Result<ExitCode> {
+        if self.client.pull_configuration {
             self.request_configuration();
         }
-        loop {
-            let message = match self.scheduled.values().min().copied() {
-                Some(deadline) => {
-                    let Some(wait) = deadline.checked_duration_since(Instant::now()) else {
-                        self.run_scheduled_lints();
-                        continue;
-                    };
-                    match connection.receiver.recv_timeout(wait) {
-                        Ok(message) => message,
-                        Err(RecvTimeoutError::Timeout) => {
-                            self.run_scheduled_lints();
-                            continue;
-                        }
-                        Err(RecvTimeoutError::Disconnected) => break,
-                    }
-                }
-                None => match connection.receiver.recv() {
-                    Ok(message) => message,
+        // Cloned out of `self` so the handlers below can still borrow it.
+        let outcomes = self.outcomes.clone();
+
+        while !self.exiting {
+            // Rearmed each turn: the debounce deadline moves with every edit.
+            let timer = match self.scheduled.values().min() {
+                Some(&deadline) => after(deadline.saturating_duration_since(Instant::now())),
+                None => never(),
+            };
+            select! {
+                recv(connection.receiver) -> message => match message {
+                    Ok(Message::Request(request)) => self.on_request(request),
+                    Ok(Message::Notification(notification)) => self.on_notification(notification),
+                    Ok(Message::Response(response)) => self.on_response(response),
                     Err(_) => break,
                 },
-            };
-
-            match message {
-                Message::Request(request) => {
-                    if connection.handle_shutdown(&request)? {
-                        return Ok(());
-                    }
-                    self.on_request(request);
-                }
-                Message::Notification(notification) => self.on_notification(notification),
-                Message::Response(response) => self.on_response(response),
+                recv(outcomes) -> outcome => match outcome {
+                    Ok(outcome) => self.on_outcome(outcome),
+                    Err(_) => break,
+                },
+                recv(timer) -> _ => self.run_scheduled_lints(),
             }
         }
-        Ok(())
+
+        // A client that drops the connection or exits without shutting down
+        // first is an abnormal end, per the protocol.
+        Ok(if self.shutdown_requested {
+            ExitCode::SUCCESS
+        } else {
+            ExitCode::FAILURE
+        })
     }
 
-    // ── Requests ────────────────────────────────────────────────────────
-
     fn on_request(&mut self, request: Request) {
+        if request.method == "shutdown" {
+            self.shutdown_requested = true;
+            self.respond(Response::new_ok(request.id, ()));
+            return;
+        }
+        if self.shutdown_requested {
+            self.respond(Response::new_err(
+                request.id,
+                ErrorCode::InvalidRequest as i32,
+                "server is shutting down".to_string(),
+            ));
+            return;
+        }
         match request.method.as_str() {
-            "textDocument/formatting" => {
-                let edits = match serde_json::from_value::<DocumentFormattingParams>(request.params)
-                {
-                    Ok(params) => self.format(&params.text_document.uri),
-                    Err(_) => Vec::new(),
-                };
-                self.send(Response::new_ok(request.id, edits));
-            }
-            _ => self.send(Response::new_err(
+            "textDocument/formatting" => self.on_formatting(request),
+            _ => self.respond(Response::new_err(
                 request.id,
                 ErrorCode::MethodNotFound as i32,
                 format!("unhandled method {}", request.method),
@@ -164,109 +198,152 @@ impl Server {
         }
     }
 
-    fn format(&mut self, uri: &Uri) -> Vec<TextEdit> {
+    fn on_formatting(&mut self, request: Request) {
+        let id = request.id;
+        let params = match serde_json::from_value::<DocumentFormattingParams>(request.params) {
+            Ok(params) => params,
+            Err(err) => {
+                log::warn(format_args!("textDocument/formatting: {err}"));
+                self.respond_no_edits(id);
+                return;
+            }
+        };
         if !self.settings.format_enable {
-            return Vec::new();
+            self.respond_no_edits(id);
+            return;
         }
-        let Some(document) = self.documents.get(uri) else {
-            return Vec::new();
+        let uri = params.text_document.uri;
+        let Some(document) = self.documents.get(&uri) else {
+            self.respond_no_edits(id);
+            return;
         };
-        let path = uri_to_path(uri.as_str());
-        let source = document.text();
-        let range = document.full_range();
-
-        let Ok(session) = self.format_sessions.get(&path) else {
-            return Vec::new();
+        let job = Job::Format {
+            id: id.clone(),
+            path: uri_to_path(uri.as_str()),
+            text: document.shared_text(),
+            range: document.full_range(),
         };
-        // Formatting is never an error: a failure yields no edits.
-        let Ok(formatted) = session.format(source, &path) else {
-            return Vec::new();
-        };
-        if formatted == source {
-            return Vec::new();
-        }
-        vec![TextEdit {
-            range,
-            new_text: formatted,
-        }]
+        self.pending.insert(id, Pending::Formatting);
+        self.worker.submit(job);
     }
 
-    // ── Notifications ───────────────────────────────────────────────────
-
     fn on_notification(&mut self, notification: Notification) {
-        match notification.method.as_str() {
+        let method = notification.method.clone();
+        match method.as_str() {
             "textDocument/didOpen" => {
-                if let Ok(params) =
-                    serde_json::from_value::<DidOpenTextDocumentParams>(notification.params)
-                {
-                    let doc = params.text_document;
-                    let key = doc.uri.as_str().to_string();
-                    self.documents
-                        .open(doc.uri, doc.language_id, doc.version, doc.text);
-                    self.schedule_lint(key, Duration::ZERO);
+                match serde_json::from_value::<DidOpenTextDocumentParams>(notification.params) {
+                    Ok(params) => {
+                        let doc = params.text_document;
+                        let key = doc.uri.as_str().to_string();
+                        self.documents
+                            .open(doc.uri, doc.language_id, doc.version, doc.text);
+                        self.schedule_lint(key, Duration::ZERO);
+                    }
+                    Err(err) => log::warn(format_args!("{method}: {err}")),
                 }
             }
             "textDocument/didChange" => {
-                if let Ok(params) =
-                    serde_json::from_value::<DidChangeTextDocumentParams>(notification.params)
-                {
-                    let key = params.text_document.uri.as_str().to_string();
-                    if let Some(document) = self.documents.get_mut(&params.text_document.uri) {
-                        document.apply(params.text_document.version, &params.content_changes);
-                        self.schedule_lint(key, LINT_DEBOUNCE);
+                match serde_json::from_value::<DidChangeTextDocumentParams>(notification.params) {
+                    Ok(params) => {
+                        let key = params.text_document.uri.as_str().to_string();
+                        if let Some(document) = self.documents.get_mut(&params.text_document.uri) {
+                            document.apply(params.text_document.version, &params.content_changes);
+                            self.schedule_lint(key, LINT_DEBOUNCE);
+                        }
                     }
+                    Err(err) => log::warn(format_args!("{method}: {err}")),
                 }
             }
             "textDocument/didSave" => {
-                if let Ok(params) =
-                    serde_json::from_value::<DidSaveTextDocumentParams>(notification.params)
-                {
-                    self.schedule_lint(
+                match serde_json::from_value::<DidSaveTextDocumentParams>(notification.params) {
+                    Ok(params) => self.schedule_lint(
                         params.text_document.uri.as_str().to_string(),
                         Duration::ZERO,
-                    );
+                    ),
+                    Err(err) => log::warn(format_args!("{method}: {err}")),
                 }
             }
             "textDocument/didClose" => {
-                if let Ok(params) =
-                    serde_json::from_value::<DidCloseTextDocumentParams>(notification.params)
-                {
-                    let uri = params.text_document.uri;
-                    self.scheduled.remove(uri.as_str());
-                    self.linted.remove(uri.as_str());
-                    self.documents.close(&uri);
-                    self.publish(uri, Vec::new());
+                match serde_json::from_value::<DidCloseTextDocumentParams>(notification.params) {
+                    Ok(params) => {
+                        let uri = params.text_document.uri;
+                        self.scheduled.remove(uri.as_str());
+                        self.linted.remove(uri.as_str());
+                        let version = self.documents.close(&uri).map_or(0, |d| d.version);
+                        self.publish(uri, version, Vec::new());
+                    }
+                    Err(err) => log::warn(format_args!("{method}: {err}")),
                 }
             }
             "workspace/didChangeConfiguration" => {
-                if self.pull_configuration {
+                // A `rsvelte-lint.json` / `.oxfmtrc` edit reaches the server as
+                // a configuration change too, so the resolved-config caches are
+                // dropped along with the client settings.
+                self.worker.submit(Job::ClearCaches);
+                if self.client.pull_configuration {
                     self.request_configuration();
                 } else {
                     self.settings = Settings::default();
                     self.relint_open_documents();
                 }
             }
+            "exit" => self.exiting = true,
             _ => {}
         }
     }
 
     fn on_response(&mut self, response: Response) {
-        if self.config_request.as_ref() != Some(&response.id) {
+        let Some(outgoing) = self.outgoing.remove(&response.id) else {
+            log::warn(format_args!("response to unknown request {}", response.id));
             return;
+        };
+        match outgoing {
+            Outgoing::Configuration => {
+                self.settings = match response.response_result {
+                    Ok(value) => value
+                        .as_array()
+                        .and_then(|items| items.first())
+                        .map(Settings::from_json)
+                        .unwrap_or_default(),
+                    Err(err) => {
+                        log::warn(format_args!(
+                            "workspace/configuration failed: {}",
+                            err.message
+                        ));
+                        Settings::default()
+                    }
+                };
+                self.relint_open_documents();
+            }
         }
-        self.config_request = None;
-        self.settings = response
-            .response_result
-            .ok()
-            .and_then(|value| value.as_array()?.first().map(Settings::from_json))
-            .unwrap_or_default();
-        self.relint_open_documents();
+    }
+
+    fn on_outcome(&mut self, outcome: Outcome) {
+        match outcome {
+            Outcome::Formatted { id, edits } => {
+                // A request that is no longer pending was cancelled or already
+                // answered; its result is simply dropped.
+                if self.pending.remove(&id).is_some() {
+                    self.respond(Response::new_ok(id, edits));
+                }
+            }
+            Outcome::Diagnostics {
+                key,
+                uri,
+                version,
+                diagnostics,
+            } => {
+                if self.documents.get_by_key(&key).is_some() {
+                    self.publish(uri, version, diagnostics);
+                }
+            }
+        }
     }
 
     fn request_configuration(&mut self) {
         self.next_request_id += 1;
         let id = RequestId::from(format!("rsvelte-configuration-{}", self.next_request_id));
-        self.config_request = Some(id.clone());
+        self.outgoing.insert(id.clone(), Outgoing::Configuration);
         self.send(Request::new(
             id,
             "workspace/configuration".to_string(),
@@ -278,8 +355,6 @@ impl Server {
             },
         ));
     }
-
-    // ── Diagnostics ─────────────────────────────────────────────────────
 
     fn schedule_lint(&mut self, key: String, delay: Duration) {
         self.scheduled.insert(key, Instant::now() + delay);
@@ -318,6 +393,7 @@ impl Server {
             return;
         };
         let uri = document.uri.clone();
+        let version = document.version;
         let hash = document.content_hash();
         // A burst of edits that cancel out leaves the text — and therefore the
         // diagnostics already on screen — unchanged.
@@ -327,35 +403,35 @@ impl Server {
         self.linted.insert(key.to_string(), hash);
 
         if !self.settings.lint_enable || !is_lint_target(document) {
-            self.publish(uri, Vec::new());
+            self.publish(uri, version, Vec::new());
             return;
         }
-
-        let path = uri_to_path(key);
-        let config = self
-            .lint_configs
-            .get(path.parent().unwrap_or(Path::new(".")));
-        let source = self
-            .documents
-            .get_by_key(key)
-            .map(Document::text)
-            .unwrap_or_default();
-        let diagnostics = crate::lint::lint(&path, source, &config)
-            .iter()
-            .map(crate::diagnostics::to_lsp)
-            .collect();
-        self.publish(uri, diagnostics);
+        self.worker.submit(Job::Lint {
+            key: key.to_string(),
+            uri,
+            version,
+            path: uri_to_path(key),
+            text: document.shared_text(),
+        });
     }
 
-    fn publish(&self, uri: Uri, diagnostics: Vec<lsp_types::Diagnostic>) {
+    fn publish(&self, uri: Uri, version: i32, diagnostics: Vec<lsp_types::Diagnostic>) {
         self.send(Notification::new(
             "textDocument/publishDiagnostics".to_string(),
             PublishDiagnosticsParams {
                 uri,
                 diagnostics,
-                version: None,
+                version: Some(version),
             },
         ));
+    }
+
+    fn respond_no_edits(&self, id: RequestId) {
+        self.respond(Response::new_ok(id, Vec::<TextEdit>::new()));
+    }
+
+    fn respond(&self, response: Response) {
+        self.send(response);
     }
 
     fn send(&self, message: impl Into<Message>) {

@@ -8,18 +8,12 @@ use rsvelte_core::CompileOptions;
 use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 use rsvelte_lint::{LintConfig, lint_source};
 
-/// Config file names, in the order a directory is probed. The first two are
-/// `rsvelte-lint`'s own; an ESLint flat config is the fallback, imported for
-/// its `svelte/*` severities so a project that only configures ESLint still
-/// gets the rules it asked for.
+/// Config file names, in the order a directory is probed — the same two
+/// `rsvelte-lint` itself discovers. An ESLint config is deliberately *not*
+/// consulted: importing it is opt-in on the CLI (`--config-from-eslint`), and a
+/// server that read it on its own would report a different rule set in the
+/// editor than the same project's CI does.
 const CONFIG_NAMES: &[&str] = &["rsvelte-lint.json", ".rsvelte-lintrc.json"];
-const ESLINT_CONFIG_NAMES: &[&str] = &[
-    "eslint.config.js",
-    "eslint.config.mjs",
-    "eslint.config.cjs",
-    "eslint.config.ts",
-    "eslint.config.mts",
-];
 
 /// Resolved lint configs, keyed by the directory discovery started from.
 /// Discovery walks to the filesystem root, so it is cached rather than redone
@@ -54,28 +48,21 @@ fn discover(start: &Path) -> Option<LintConfig> {
         for name in CONFIG_NAMES {
             let candidate = d.join(name);
             if candidate.is_file() {
-                return std::fs::read_to_string(&candidate)
-                    .ok()
-                    .and_then(|text| LintConfig::from_json_str(&text).ok());
-            }
-        }
-        for name in ESLINT_CONFIG_NAMES {
-            let candidate = d.join(name);
-            if candidate.is_file() {
-                return std::fs::read_to_string(&candidate).ok().map(from_eslint);
+                return match std::fs::read_to_string(&candidate)
+                    .map_err(|e| e.to_string())
+                    .and_then(|text| LintConfig::from_json_str(&text).map_err(|e| e.to_string()))
+                {
+                    Ok(config) => Some(config),
+                    Err(err) => {
+                        crate::log::warn(format_args!("{}: {err}", candidate.display()));
+                        None
+                    }
+                };
             }
         }
         dir = d.parent();
     }
     None
-}
-
-fn from_eslint(text: String) -> LintConfig {
-    let mut config = LintConfig::recommended();
-    for (rule, severity) in rsvelte_lint::eslint_import::import_svelte_rules(&text) {
-        config = config.with_override(rule, severity);
-    }
-    config
 }
 
 /// Lint one open document. Suppression comments (`<!-- svelte-ignore -->`,

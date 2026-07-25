@@ -82,4 +82,28 @@ mod tests {
             Range::new(Position::new(0, 0), Position::new(0, 0))
         );
     }
+
+    /// End-to-end over the real linter with a hand-computed expectation, so a
+    /// change in how columns are counted cannot slip past: each `💡` is two
+    /// UTF-16 code units, putting `{@html v}` at units 9..18 of line 0.
+    #[test]
+    fn a_real_finding_lands_on_hand_counted_utf16_columns() {
+        let path = PathBuf::from("App.svelte");
+        let source = "<div>💡💡{@html v}</div>";
+        let found = rsvelte_lint::lint_source(
+            source,
+            &path,
+            &rsvelte_core::CompileOptions::default(),
+            &rsvelte_lint::LintConfig::recommended(),
+        );
+        let at_html = found
+            .iter()
+            .find(|d| d.code.as_deref() == Some("svelte/no-at-html-tags"))
+            .expect("the fixture should report svelte/no-at-html-tags");
+
+        assert_eq!(
+            to_lsp(at_html).range,
+            Range::new(Position::new(0, 9), Position::new(0, 18))
+        );
+    }
 }

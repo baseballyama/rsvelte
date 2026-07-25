@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 
 use lsp_types::{Position, Range, TextDocumentContentChangeEvent, Uri};
 
@@ -12,7 +13,10 @@ pub struct Document {
     pub uri: Uri,
     pub language_id: String,
     pub version: i32,
-    text: String,
+    /// Shared so dispatching an analysis costs a refcount rather than a copy of
+    /// the file. `Arc::make_mut` keeps editing in place for as long as no
+    /// worker holds the other end.
+    text: Arc<String>,
     index: LineIndex,
     hash: u64,
 }
@@ -25,7 +29,7 @@ impl Document {
             uri,
             language_id,
             version,
-            text,
+            text: Arc::new(text),
             index,
             hash,
         }
@@ -33,6 +37,11 @@ impl Document {
 
     pub fn text(&self) -> &str {
         &self.text
+    }
+
+    /// The contents, ready to hand to another thread.
+    pub fn shared_text(&self) -> Arc<String> {
+        Arc::clone(&self.text)
     }
 
     /// A hash of the current contents, so a consumer can skip re-analysing a
@@ -56,13 +65,14 @@ impl Document {
     pub fn apply(&mut self, version: i32, changes: &[TextDocumentContentChangeEvent]) {
         self.version = version;
         for change in changes {
+            let text = Arc::make_mut(&mut self.text);
             match change.range {
                 Some(range) => {
-                    let start = self.index.offset(&self.text, range.start);
-                    let end = self.index.offset(&self.text, range.end).max(start);
-                    self.text.replace_range(start..end, &change.text);
+                    let start = self.index.offset(text, range.start);
+                    let end = self.index.offset(text, range.end).max(start);
+                    text.replace_range(start..end, &change.text);
                 }
-                None => self.text.clone_from(&change.text),
+                None => text.clone_from(&change.text),
             }
             self.index = LineIndex::new(&self.text);
         }
