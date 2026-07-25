@@ -103,20 +103,6 @@ pub fn collect_template_info(fragment: &Fragment, source: &str) -> TemplateInfo 
     info
 }
 
-// =============================================================================
-// Legacy string-based API (kept for backward compatibility during migration)
-// =============================================================================
-
-/// Process a template fragment and generate TSX output (string-based, legacy).
-///
-/// This is kept temporarily for backward compatibility. New code should use
-/// `process_template_inplace`.
-pub fn process_template(fragment: &Fragment, source: &str, options: &Svelte2TsxOptions) -> String {
-    let mut str = MagicString::new(source);
-    process_template_inplace(fragment, source, options, &mut str);
-    str.to_string()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

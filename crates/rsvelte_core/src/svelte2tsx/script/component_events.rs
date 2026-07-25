@@ -50,8 +50,6 @@ pub struct ComponentEvents {
 pub struct EventInfo {
     /// The TypeScript type of the event detail.
     pub detail_type: Option<String>,
-    /// Whether this event is forwarded from a child element.
-    pub is_forwarded: bool,
 }
 
 impl ComponentEvents {
@@ -68,14 +66,8 @@ impl ComponentEvents {
     }
 
     /// Add an event declaration.
-    pub fn add(&mut self, name: String, detail_type: Option<String>, is_forwarded: bool) {
-        self.events.insert(
-            name,
-            EventInfo {
-                detail_type,
-                is_forwarded,
-            },
-        );
+    pub fn add(&mut self, name: String, detail_type: Option<String>) {
+        self.events.insert(name, EventInfo { detail_type });
     }
 
     /// Get all event names.
@@ -191,7 +183,7 @@ impl ComponentEvents {
         for evt in template_events.into_iter().chain(script_events) {
             if !self.events.contains_key(&evt) {
                 self.dispatched_order.push(evt.clone());
-                self.add(evt, None, false);
+                self.add(evt, None);
             }
         }
     }
@@ -281,7 +273,7 @@ mod tests {
     #[test]
     fn test_component_events_add() {
         let mut events = ComponentEvents::new();
-        events.add("click".to_string(), Some("MouseEvent".to_string()), false);
+        events.add("click".to_string(), Some("MouseEvent".to_string()));
         assert!(!events.is_empty());
         assert_eq!(events.get_event_names(), vec!["click"]);
     }

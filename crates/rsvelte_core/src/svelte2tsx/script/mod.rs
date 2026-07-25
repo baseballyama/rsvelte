@@ -32,8 +32,8 @@ use crate::ast::template::Script;
 use super::magic_string::MagicString;
 use super::svelte2tsx::slice_src;
 
-pub use component_events::{ComponentEvents, EventInfo};
-pub use exported_names::{ExportedNameInfo, ExportedNames};
+pub use component_events::ComponentEvents;
+pub use exported_names::ExportedNames;
 pub use stores::collect_module_import_store_declarations;
 
 use ast_utils::{
