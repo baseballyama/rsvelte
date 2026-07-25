@@ -36,6 +36,8 @@
     "onLanguage:svelte",
     "onLanguage:typescript",
     "onLanguage:javascript",
+    "onLanguage:typescriptreact",
+    "onLanguage:javascriptreact",
     "onLanguage:json",
     "onLanguage:jsonc",
     "onLanguage:css",
