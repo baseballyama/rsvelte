@@ -169,10 +169,6 @@ pub struct ServerTransformState<'a> {
     /// `_1`, `_2`, … — so two destructured `$state(...)` declarations deconflict
     /// (`tmp` / `tmp_1`).
     pub state_tmp_counter: usize,
-    /// Monotonic counter for the `$$array` temp generated per `ArrayPattern` in a
-    /// destructured `$state(...)` (mirrors upstream `scope.generate('$$array')`).
-    /// The first is bare `$$array`, subsequent ones append `_1`, `_2`, …
-    pub state_array_counter: usize,
     /// Whether the CURRENT children run is the direct children of a
     /// RegularElement / TitleElement (`process_children` `parent.is_some()`).
     /// Mirrors upstream's `AwaitExpression` server visitor parent-walk: an inline
@@ -272,7 +268,6 @@ impl<'a> ServerTransformState<'a> {
             derived_d_counter: 0,
             derived_array_counter: 0,
             state_tmp_counter: 0,
-            state_array_counter: 0,
             in_element_children: false,
             attr_optimiser: None,
             shadowed_names: Vec::new(),
@@ -344,18 +339,6 @@ impl<'a> ServerTransformState<'a> {
             "tmp".to_string()
         } else {
             format!("tmp_{counter}")
-        }
-    }
-
-    /// Generate the next `$$array` temp name — `$$array`, `$$array_1`, …
-    /// (mirrors upstream `scope.generate('$$array')`).
-    pub fn next_state_array_name(&mut self) -> String {
-        let counter = self.state_array_counter;
-        self.state_array_counter = counter + 1;
-        if counter == 0 {
-            "$$array".to_string()
-        } else {
-            format!("$$array_{counter}")
         }
     }
 

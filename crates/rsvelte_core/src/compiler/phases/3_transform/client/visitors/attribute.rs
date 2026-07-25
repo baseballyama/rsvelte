@@ -12,34 +12,6 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 #[cfg(test)]
 use crate::compiler::utils::can_delegate_event;
 
-/// Visit an Attribute node and generate client-side code.
-///
-/// This visitor handles regular attributes and event attributes (on:*).
-/// For event attributes, it delegates to `visit_event_attribute`.
-///
-/// # Arguments
-///
-/// * `node` - The attribute node to visit
-/// * `context` - The component transformation context
-///
-/// # Corresponds to
-///
-/// `Attribute` function in `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/Attribute.js`:
-///
-/// ```javascript
-/// export function Attribute(node, context) {
-///     if (is_event_attribute(node)) {
-///         visit_event_attribute(node, context);
-///     }
-/// }
-/// ```
-pub fn visit_attribute(node: &Attribute, context: &mut ComponentContext) {
-    // Check if this is an event attribute (on:*)
-    if let Some(attr_node) = is_event_attribute(node) {
-        visit_event_attribute(attr_node, context);
-    }
-}
-
 /// Check if an attribute is an event attribute.
 ///
 /// An event attribute:

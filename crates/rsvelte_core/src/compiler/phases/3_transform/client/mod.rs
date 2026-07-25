@@ -57,7 +57,6 @@ mod tag_declarator_ast;
 pub mod transform_template;
 pub mod types;
 pub mod utils;
-mod visitor;
 pub mod visitors;
 
 // Re-export all extracted module functions so they remain accessible by their original names.

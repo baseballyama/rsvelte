@@ -40,13 +40,3 @@ pub enum Node {
     Text(TextNode),
     Comment(Comment),
 }
-
-impl Node {
-    pub fn node_type(&self) -> &'static str {
-        match self {
-            Node::Element(_) => "element",
-            Node::Text(_) => "text",
-            Node::Comment(_) => "comment",
-        }
-    }
-}

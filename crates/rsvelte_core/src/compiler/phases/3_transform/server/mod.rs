@@ -17,7 +17,6 @@ pub(crate) mod strip_export_ast;
 pub mod transform_legacy;
 pub mod transform_script;
 pub mod transform_store;
-pub mod types;
 pub(crate) mod unthunk_derived_ast;
 
 use super::TransformError;

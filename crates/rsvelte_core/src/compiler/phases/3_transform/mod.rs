@@ -17,7 +17,6 @@ pub mod jsnode_to_oxc;
 pub mod profile;
 pub mod server;
 pub mod shared;
-pub mod types;
 pub mod utils;
 
 // Re-export commonly used types

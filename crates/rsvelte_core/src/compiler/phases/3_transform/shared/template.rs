@@ -47,32 +47,6 @@ pub fn is_void_element(name: &str) -> bool {
     ) || name.eq_ignore_ascii_case("!doctype")
 }
 
-/// Check if an element preserves whitespace.
-pub fn preserves_whitespace(name: &str) -> bool {
-    matches!(name, "pre" | "textarea" | "script" | "style")
-}
-
-/// Normalize whitespace in text content.
-/// Collapses multiple whitespace characters into single spaces.
-pub fn normalize_whitespace(s: &str) -> String {
-    let mut result = String::with_capacity(s.len());
-    let mut prev_was_ws = false;
-
-    for c in s.chars() {
-        if c.is_whitespace() {
-            if !prev_was_ws {
-                result.push(' ');
-                prev_was_ws = true;
-            }
-        } else {
-            result.push(c);
-            prev_was_ws = false;
-        }
-    }
-
-    result
-}
-
 /// Sanitize a template string by escaping special characters.
 pub fn sanitize_template_string(s: &str) -> String {
     // Fast path: if no special chars, avoid allocation
@@ -147,25 +121,6 @@ pub fn is_boolean_attribute(name: &str) -> bool {
     )
 }
 
-/// Check if a name is a custom element (has hyphen or is attribute).
-pub fn is_custom_element_node(name: &str) -> bool {
-    name.contains('-')
-}
-
-/// Check if a node is an element node (for template processing).
-pub fn is_element_node(node: &crate::ast::template::TemplateNode) -> bool {
-    use crate::ast::template::TemplateNode;
-    matches!(
-        node,
-        TemplateNode::RegularElement(_)
-            | TemplateNode::Component(_)
-            | TemplateNode::SvelteElement(_)
-            | TemplateNode::SlotElement(_)
-            | TemplateNode::TitleElement(_)
-            | TemplateNode::SvelteFragment(_)
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -192,13 +147,6 @@ mod tests {
         assert!(is_void_element("input"));
         assert!(!is_void_element("div"));
         assert!(!is_void_element("span"));
-    }
-
-    #[test]
-    fn test_normalize_whitespace() {
-        assert_eq!(normalize_whitespace("a  b"), "a b");
-        assert_eq!(normalize_whitespace("a\n\nb"), "a b");
-        assert_eq!(normalize_whitespace("  a  "), " a ");
     }
 
     #[test]

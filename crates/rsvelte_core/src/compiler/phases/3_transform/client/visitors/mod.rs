@@ -56,8 +56,6 @@ pub mod shared;
 
 // Visitor modules
 pub mod animate_directive;
-pub mod arrow_function_expression;
-pub mod assignment_expression;
 pub mod attach_tag;
 pub mod const_tag;
 pub mod debug_tag;
