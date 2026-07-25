@@ -131,7 +131,7 @@ const { js, css } = compile_client('<h1>Hello {name}</h1>', 'App');
 const ast = JSON.parse(parse_svelte('<h1>Hello</h1>').ast);
 ```
 
-Need the exact `svelte/compiler` surface (`compile`, `compileModule`, `parse`, `preprocess`, `VERSION`) at native speed? That's [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native), the NAPI binding the Vite plugin runs on. One caveat: function-valued options can't cross the language boundary — see [Compiler option compatibility](#compiler-option-compatibility).
+Need the exact `svelte/compiler` surface (`compile`, `compileModule`, `parse`, `preprocess`, `VERSION`) at native speed? That's [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native), the NAPI binding the Vite plugin runs on. Function-valued options work too — one caveat: a dynamic `cssHash` needs the async path — see [Compiler option compatibility](#compiler-option-compatibility).
 
 ### Embed in Rust, or call from any language
 
