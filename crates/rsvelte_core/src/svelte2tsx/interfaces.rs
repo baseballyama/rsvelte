@@ -105,7 +105,7 @@ pub struct Svelte2TsxResult {
     /// for verbatim-copied (unedited) regions, in generated order. Lets a
     /// type-aware consumer map an original Svelte byte offset forward to the
     /// generated TSX offset for a `get_type_at_position` probe. See
-    /// [`crate::svelte2tsx::magic_string::MagicString::forward_segments`].
+    /// `MagicString::forward_segments` (crate-internal).
     /// Empty unless the chunk graph yields verbatim regions; reflects the
     /// pre-import-rewrite chunk layout.
     pub forward_map: Vec<(u32, u32, u32)>,
