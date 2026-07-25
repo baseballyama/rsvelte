@@ -1,0 +1,844 @@
+//! `ExportedNames` — props and named exports collected from a component's
+//! script blocks, plus the generated `$$prop_def` / render-props output.
+
+use std::collections::{HashMap, HashSet};
+
+/// Tracks names exported from a component's script block.
+///
+/// This includes:
+/// - `export let` / `export const` declarations (Svelte 4 props)
+/// - `$props()` destructured properties (Svelte 5 runes)
+/// - Named exports for module consumers
+#[derive(Debug, Clone, Default)]
+pub struct ExportedNames {
+    names: HashMap<String, ExportedNameInfo>,
+    insertion_order: Vec<String>,
+    uses_runes: bool,
+    has_props_rune: bool,
+    /// Type annotation text for $props() (e.g., "Props" from `let {...}: Props = $props()`)
+    pub props_type_text: Option<String>,
+    /// Whether a $$ComponentProps typedef was generated (for use in return statement)
+    pub has_component_props_typedef: bool,
+    /// Names of $bindable() props
+    pub bindable_props: Vec<String>,
+    /// JSDoc type text found before $props() (e.g., "{{ a: number, b: string }}")
+    pub props_jsdoc_type: Option<String>,
+    /// Whether a legacy `type $$Props` / `interface $$Props` is declared.
+    pub uses_dollar_props_type: bool,
+    /// Whether `$$Slots` type/interface is declared in the script
+    pub has_slots_type: bool,
+    /// Whether `$$Events` type/interface is declared in the script
+    pub has_events_type: bool,
+    /// Absolute source position of the FIRST `$$Events` interface / type
+    /// declaration, if any. Official only injects `<__sveltets_2_CustomEvents<
+    /// $$Events>>` onto an untyped `createEventDispatcher()` when the `$$Events`
+    /// declaration was already seen earlier in the single source-order walk
+    /// (`ComponentEventsFromInterface.isPresent()` gate), so the injection is
+    /// gated on the dispatcher position coming AFTER this.
+    pub events_type_decl_pos: Option<u32>,
+    /// Whether the $$ComponentProps type was already inserted by apply_props_typedef
+    /// (for best-effort auto-generated types that go inside $$render, not before it)
+    pub type_already_inserted: bool,
+    /// Generics collected from `type X = $$Generic<T>` declarations.
+    /// Each entry is (name, constraint) e.g., ("A", None), ("B", Some("keyof A")).
+    pub dollar_generics: Vec<(String, Option<String>)>,
+    /// Source positions of `type X = $$Generic...` statements to blank out.
+    pub dollar_generic_positions: Vec<(u32, u32)>,
+    /// Type/interface declarations from instance script that should be hoisted
+    /// before $$render(). Each entry is (start, end) relative to source (absolute positions).
+    pub hoistable_type_ranges: Vec<(u32, u32)>,
+    /// Type/interface declarations referenced by `$$Generic<X>` constraints that
+    /// must be moved before $$render() so the generic constraint sees the type.
+    /// Mirrors `nodesToMove` in the JS reference (`processInstanceScriptContent`).
+    /// Each entry is `(start, end)` in absolute source positions; processing
+    /// differs from `hoistable_type_ranges` (no `;` markers, no leading-trivia
+    /// walk-back, append `\n` after the chunk to mirror `moveNode`'s
+    /// `originalEndChar + '\n'` overwrite).
+    pub dollar_generic_referenced_ranges: Vec<(u32, u32)>,
+    /// Absolute source position of the `let` keyword in `let { ... } = $props()`.
+    /// Used to insert `;type $$ComponentProps = ...;` right before the `$props()`
+    /// statement when the type can't be hoisted out of $$render (matches JS reference's
+    /// `move(generic_arg.pos, generic_arg.end, node.parent.pos)`).
+    pub props_let_abs_pos: Option<u32>,
+    /// Names of top-level `type X = ...` and `interface X { ... }` declarations
+    /// in the instance script. Used to detect "shadowed" type references in the
+    /// `$props()` type annotation: if `let { ... }: { x: T } = $props()` mentions
+    /// any name in this set, the synthesised `$$ComponentProps` cannot be hoisted
+    /// out of `$$render` because the name resolves to an instance-scope binding.
+    pub instance_type_names: HashSet<String>,
+    /// Names of top-level value declarations (let/const/var/function/class) from
+    /// the instance script. Used to detect runtime-value dependencies in the
+    /// `$props()` type annotation (in addition to the `typeof ...` heuristic).
+    pub instance_value_names: HashSet<String>,
+    /// Names imported into the instance script (default, named, namespace).
+    /// Imports are "allowed references" for hoistability analysis — a snippet
+    /// or interface that references an imported binding is still hoistable
+    /// because the imported value resolves to a stable, module-scoped binding.
+    pub instance_import_names: HashSet<String>,
+    /// Base names of `$X` references found in the instance script raw source,
+    /// WITHOUT applying the rune-exclusion filter.
+    ///
+    /// The official JS svelte2tsx's `processInstanceScriptContent` calls
+    /// `resolveStore` for every `$X` identifier in the instance script via
+    /// `pendingStoreResolutions`. Due to a broken `parent.parent` check in
+    /// `is_rune` (TypeScript AST nodes don't have parent pointers set), the
+    /// exclusion for `$props`/`$state`/`$derived` never fires in practice —
+    /// they ALL land in `accessedStores` and then `addDisallowed(...)` puts
+    /// their base names into `disallowed_values`. A snippet that references
+    /// plain `props` (e.g. from a nested `{#snippet child({ props })}`) will
+    /// therefore be blocked from module-scope hoisting.
+    ///
+    /// This field replicates that behaviour: populated by scanning the raw
+    /// instance script text for `$name` patterns without the rune filter.
+    pub instance_script_loose_dollar_names: HashSet<String>,
+    /// Names declared at the top level of the module (`<script context="module">`)
+    /// script. Used by the snippet hoist analyser: a reference to `$X` in a
+    /// snippet body must block hoisting whenever `X` is bound anywhere in the
+    /// component (module or instance), because the JS reference's
+    /// `addDisallowed(getAccessedStores())` is component-wide.
+    pub module_value_names: HashSet<String>,
+    /// Names imported into the module script.
+    pub module_import_names: HashSet<String>,
+    /// Names of top-level `type X = ...` / `interface X { ... }` declarations
+    /// in the module script. Used by the hoist analyser to detect a candidate
+    /// instance-script type that would shadow a module-scope name once
+    /// hoisted.
+    pub module_type_names: HashSet<String>,
+    /// Subset of `instance_type_names` that have been determined hoistable.
+    /// References to these from `$$ComponentProps` do NOT trigger
+    /// force-inside-render, because the hoisted declaration is still in scope
+    /// when the synthesised type is read.
+    pub hoistable_instance_type_names: HashSet<String>,
+    /// Absolute source range of the inline type argument in `$props<{ ... }>()`.
+    /// When set, the type arg is moved to `scriptStart` (like other hoistable types)
+    /// with `\ntype $$ComponentProps = ` prepended and `;` appended.
+    /// The original position gets `/*Ωignore_startΩ*/ $$ComponentProps /*Ωignore_endΩ*/`
+    /// inserted via `append_right`.
+    /// Mirrors upstream's `analyze$propsRune` → `moveHoistableInterfaces` for `$$ComponentProps`.
+    pub props_type_arg_hoist: Option<(u32, u32)>,
+    /// True when `$props<{ ... }>()` (inline non-named type arg) form is used and the type
+    /// is being moved to scriptStart via `props_type_arg_hoist`. In this case `create_props_str`
+    /// should return `{} as any as $$ComponentProps` even without `props_type_text` being set
+    /// (to avoid triggering `ts_component_props_before_render`).
+    pub props_type_arg_hoist_ts: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExportedNameInfo {
+    pub local_name: String,
+    pub has_default: bool,
+    pub type_annotation: Option<String>,
+    pub is_prop: bool,
+    pub is_let: bool,
+    pub is_named_export: bool,
+    /// Leading JSDoc `/** @type {…} */` comment on the export declaration,
+    /// preserved in the legacy `props: { … }` return (mirrors official's
+    /// `value.doc`).
+    pub doc: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct PossibleExport {
+    pub(super) is_let: bool,
+    pub(super) has_init: bool,
+    pub(super) has_type_annotation: bool,
+    /// Initializer is a boolean literal (`let x = false`). Like official's
+    /// `propTypeAssertToUserDefined`, this still forces the `__sveltets_2_any`
+    /// widen (TS would otherwise narrow `x` to the `false`/`true` literal type).
+    pub(super) has_boolean_init: bool,
+    pub(super) decl_end: u32,
+    pub(super) type_annotation_text: Option<String>,
+    /// Leading JSDoc `/** @type {…} */` on the declaration, for
+    /// `export { x as y }` (the doc lives on the `let x` declaration).
+    pub(super) doc: Option<String>,
+}
+
+impl ExportedNames {
+    pub fn new() -> Self {
+        Self {
+            names: HashMap::new(),
+            insertion_order: Vec::new(),
+            uses_runes: false,
+            has_props_rune: false,
+            props_type_text: None,
+            has_component_props_typedef: false,
+            bindable_props: Vec::new(),
+            props_jsdoc_type: None,
+            uses_dollar_props_type: false,
+            has_slots_type: false,
+            has_events_type: false,
+            events_type_decl_pos: None,
+            type_already_inserted: false,
+            dollar_generics: Vec::new(),
+            dollar_generic_positions: Vec::new(),
+            hoistable_type_ranges: Vec::new(),
+            dollar_generic_referenced_ranges: Vec::new(),
+            props_let_abs_pos: None,
+            instance_type_names: HashSet::new(),
+            instance_value_names: HashSet::new(),
+            instance_import_names: HashSet::new(),
+            module_value_names: HashSet::new(),
+            module_import_names: HashSet::new(),
+            module_type_names: HashSet::new(),
+            hoistable_instance_type_names: HashSet::new(),
+            props_type_arg_hoist: None,
+            props_type_arg_hoist_ts: false,
+            instance_script_loose_dollar_names: HashSet::new(),
+        }
+    }
+    /// Build the generics string for `$$render` from `$$Generic` declarations.
+    /// Returns something like `/*Ωignore_startΩ*/<A,B extends keyof A,C extends boolean>/*Ωignore_endΩ*/`
+    /// or empty string if no $$Generic declarations.
+    pub fn build_dollar_generics_str(&self) -> String {
+        if self.dollar_generics.is_empty() {
+            return String::new();
+        }
+        let parts: Vec<String> = self
+            .dollar_generics
+            .iter()
+            .map(|(name, constraint)| {
+                if let Some(c) = constraint {
+                    format!("{} extends {}", name, c)
+                } else {
+                    name.clone()
+                }
+            })
+            .collect();
+        format!(
+            "/*\u{03A9}ignore_start\u{03A9}*/<{}>/*\u{03A9}ignore_end\u{03A9}*/",
+            parts.join(",")
+        )
+    }
+
+    pub fn add(
+        &mut self,
+        name: String,
+        local_name: String,
+        has_default: bool,
+        type_annotation: Option<String>,
+        is_prop: bool,
+    ) {
+        if !self.names.contains_key(&name) {
+            self.insertion_order.push(name.clone());
+        }
+        self.names.insert(
+            name,
+            ExportedNameInfo {
+                local_name,
+                has_default,
+                type_annotation,
+                is_prop,
+                is_let: false,
+                is_named_export: false,
+                doc: None,
+            },
+        );
+    }
+    pub fn add_full(
+        &mut self,
+        name: String,
+        local_name: String,
+        has_default: bool,
+        type_annotation: Option<String>,
+        is_prop: bool,
+        is_let: bool,
+        is_named_export: bool,
+    ) {
+        if !self.names.contains_key(&name) {
+            self.insertion_order.push(name.clone());
+        }
+        self.names.insert(
+            name,
+            ExportedNameInfo {
+                local_name,
+                has_default,
+                type_annotation,
+                is_prop,
+                is_let,
+                is_named_export,
+                doc: None,
+            },
+        );
+    }
+    pub fn set_uses_runes(&mut self, val: bool) {
+        self.uses_runes = val;
+    }
+    pub fn set_has_props_rune(&mut self, val: bool) {
+        self.has_props_rune = val;
+    }
+    pub fn is_runes_mode(&self) -> bool {
+        self.uses_runes || self.has_props_rune
+    }
+    pub fn get_prop_names(&self) -> Vec<&str> {
+        let mut names: Vec<&str> = self
+            .names
+            .iter()
+            .filter(|(_, info)| info.is_prop)
+            .map(|(name, _)| name.as_str())
+            .collect();
+        names.sort();
+        names
+    }
+    pub fn get_all_names(&self) -> Vec<&str> {
+        let mut names: Vec<&str> = self.names.keys().map(|s| s.as_str()).collect();
+        names.sort();
+        names
+    }
+    pub fn has(&self, name: &str) -> bool {
+        self.names.contains_key(name)
+    }
+    /// True if `local` is the *local* (source-declared) name of any export.
+    /// Unlike `has`, this matches through aliases: `export { v1 as a1 }`
+    /// is keyed by `a1`, but its local name is `v1`.
+    pub fn has_local(&self, local: &str) -> bool {
+        self.names.values().any(|info| info.local_name == local)
+    }
+    /// Mirror official `hasNoProps()`: runes mode → no `$props` type/comment;
+    /// legacy → no exports.
+    pub fn has_no_props(&self) -> bool {
+        if self.is_runes_mode() {
+            self.props_type_text.is_none()
+                && !self.has_component_props_typedef
+                && self.props_jsdoc_type.is_none()
+        } else {
+            self.names.is_empty()
+        }
+    }
+    /// Attach the leading JSDoc comment to an exported name (by export key).
+    pub fn set_doc(&mut self, name: &str, doc: String) {
+        if let Some(info) = self.names.get_mut(name) {
+            info.doc = Some(doc);
+        }
+    }
+    /// Mirror official `addExport` overwriting an existing entry when a binding
+    /// already added by `export let local` (Case 1) is later renamed via
+    /// `export { local as exported }`. Official keys its `exports` map by the
+    /// LOCAL name, so the rename overwrites the same entry in place. An
+    /// `export let` is NOT a "possible export", so `existingDeclaration` is
+    /// undefined inside `addExport`: `isLet` falls to `false`, the type is
+    /// dropped, and the doc comes only from the `export { … }` statement's own
+    /// leading comment (`getDoc(target)`), never the declaration's. rsvelte keys
+    /// by the EXPORTED name, so emulate the overwrite by relocating the
+    /// `local`-keyed entry to the `exported` key at its original insertion
+    /// position instead of appending a duplicate entry.
+    pub fn rename_export_let_in_place(
+        &mut self,
+        local: &str,
+        exported: String,
+        doc: Option<String>,
+    ) {
+        let Some(mut info) = self.names.remove(local) else {
+            return;
+        };
+        info.local_name = local.to_string();
+        info.is_let = false;
+        info.is_named_export = true;
+        info.type_annotation = None;
+        info.doc = doc;
+        match self.insertion_order.iter().position(|k| k == local) {
+            Some(pos) => self.insertion_order[pos] = exported.clone(),
+            None => self.insertion_order.push(exported.clone()),
+        }
+        self.names.insert(exported, info);
+    }
+    pub fn get(&self, name: &str) -> Option<&ExportedNameInfo> {
+        self.names.get(name)
+    }
+    pub fn get_mut(&mut self, name: &str) -> Option<&mut ExportedNameInfo> {
+        self.names.get_mut(name)
+    }
+    pub fn is_empty(&self) -> bool {
+        self.names.is_empty()
+    }
+    pub fn create_props_str(&self, is_ts: bool, uses_dollar_props: bool) -> String {
+        if self.is_runes_mode() {
+            // Type-arg hoist case: `$props<{ ... }>()` with type moved to scriptStart
+            if self.props_type_arg_hoist_ts {
+                return "{} as any as $$ComponentProps".to_string();
+            }
+            // If we generated a $$ComponentProps typedef (hoistable TS or JSDoc), use it
+            if self.has_component_props_typedef && self.props_type_text.is_some() {
+                // TS hoistable case: `{} as any as $$ComponentProps`
+                return "{} as any as $$ComponentProps".to_string();
+            }
+            if self.has_component_props_typedef {
+                // JSDoc/inferred case: `/** @type {$$ComponentProps} */({})`
+                return "/** @type {$$ComponentProps} */({})".to_string();
+            }
+
+            // Non-hoistable TS case: use the type text directly
+            // e.g., `{} as any as Props<boolean>`
+            if let Some(ref type_text) = self.props_type_text {
+                return format!("{{}} as any as {}", type_text);
+            }
+
+            // JSDoc named type case: `/** @type {SomeType} */` → `/** @type {SomeType} */({})`
+            if let Some(ref jsdoc_type) = self.props_jsdoc_type
+                && !self.has_component_props_typedef
+            {
+                return format!("/** @type {} */({{}})", jsdoc_type);
+            }
+
+            // Otherwise, list the prop entries from $props() destructuring.
+            // In runes mode, props ONLY come from a `$props()` call; a stray
+            // `export let foo` is not a prop (it's a runes-mode error), so
+            // without a `$props()` call there are no props. Named exports
+            // (`export { x as y }`) are likewise not props.
+            let entries: Vec<String> = if self.has_props_rune {
+                self.get_ordered()
+                    .iter()
+                    .filter(|(_, info)| info.is_prop && !info.is_named_export)
+                    .map(|(en, info)| format!("{}: {}", en, info.local_name))
+                    .collect()
+            } else {
+                Vec::new()
+            };
+            if entries.is_empty() {
+                // Reference: addComponentExport.ts `props()` function —
+                // runes mode with no props: TS uses `{} as Record<string, never>`,
+                // JS uses `/** @type {Record<string, never>} */ ({})`.
+                return if is_ts {
+                    "{} as Record<string, never>".to_string()
+                } else {
+                    "/** @type {Record<string, never>} */ ({})".to_string()
+                };
+            }
+            return format!("{{{}}}", entries.join(" , "));
+        }
+        // Legacy `$$Props` type/interface (TS only): mirror official's
+        // `uses$$Props` branch — wrap the props in `__sveltets_2_ensureRightProps`
+        // and assert against `$$Props` (with non-`let` exports `& `-joined in).
+        // Reference: ExportedNames.ts createPropsStr uses$$Props branch.
+        if self.uses_dollar_props_type && is_ts {
+            // Mirror official `createReturnElementsType`: each member is prefixed
+            // with its leading JSDoc (`addDoc` defaults true), so a `/** … */`
+            // comment on the `export let` survives into the `$$Props` type list.
+            let type_entry = |en: &str, info: &ExportedNameInfo| -> String {
+                let optional = if info.has_default || !info.is_let {
+                    "?"
+                } else {
+                    ""
+                };
+                let doc = match &info.doc {
+                    Some(d) => format!("{} ", d),
+                    None => String::new(),
+                };
+                match &info.type_annotation {
+                    Some(ta) => format!("{}{}{}: {}", doc, en, optional, ta),
+                    None => format!("{}{}{}: typeof {}", doc, en, optional, info.local_name),
+                }
+            };
+            let lets: Vec<String> = self
+                .get_ordered()
+                .iter()
+                .filter(|(_, info)| info.is_let)
+                .map(|(en, info)| type_entry(en, info))
+                .collect();
+            let others: Vec<String> = self
+                .get_ordered()
+                .iter()
+                .filter(|(_, info)| !info.is_let)
+                .map(|(en, info)| type_entry(en, info))
+                .collect();
+            let others_prefix = if others.is_empty() {
+                String::new()
+            } else {
+                format!("{{{}}} & ", others.join(","))
+            };
+            return format!(
+                "{{ ...__sveltets_2_ensureRightProps<{{{}}}>(__sveltets_2_any(\"\") as $$Props)}} as {}$$Props",
+                lets.join(","),
+                others_prefix
+            );
+        }
+        // Mirror official `dontAddTypeDef` (ExportedNames.ts createPropsStr):
+        // omit the `as {…}` cast entirely when every export is untyped AND
+        // required — a plain `export let x` with no default and no type
+        // annotation (`required = !initializer`). A typed or defaulted /
+        // optional export (or any non-`let` export) forces the cast. Computed
+        // up-front because it also gates whether the *value* elements carry the
+        // leading JSDoc (official `createReturnElements`: doc when dontAddTypeDef).
+        let dont_add_type_def = !is_ts
+            || self.get_ordered().iter().all(|(_, info)| {
+                info.type_annotation.is_none() && info.is_let && !info.has_default
+            });
+        // When `dontAddTypeDef`, the props object omits the `as {…}` type assert,
+        // so a captured leading JSDoc `/** … */` is emitted before the prop's
+        // value element — mirrors official `createReturnElements`.
+        let entries: Vec<String> = self
+            .get_ordered()
+            .iter()
+            .map(|(en, info)| match &info.doc {
+                Some(doc) if dont_add_type_def => format!("{} {}: {}", doc, en, info.local_name),
+                _ => format!("{}: {}", en, info.local_name),
+            })
+            .collect();
+        if entries.is_empty() {
+            // Reference: ExportedNames.ts createPropsStr — non-runes mode with
+            // no props. When `$$props`/`$$restProps` is used, props flattens to
+            // a bare `{}`; otherwise TS uses `{} as Record<string, never>` and
+            // JS uses `/** @type {Record<string, never>} */ ({})`.
+            if uses_dollar_props {
+                "{}".to_string()
+            } else if is_ts {
+                "{} as Record<string, never>".to_string()
+            } else {
+                "/** @type {Record<string, never>} */ ({})".to_string()
+            }
+        } else {
+            let base = format!("{{{}}}", entries.join(" , "));
+            if is_ts && !dont_add_type_def {
+                // For TS files, add `as {name1?: type, ...}` type assertion
+                let type_entries: Vec<String> = self
+                    .get_ordered()
+                    .iter()
+                    .map(|(en, info)| {
+                        let optional = if info.has_default || !info.is_let {
+                            "?"
+                        } else {
+                            ""
+                        };
+                        // A leading block comment on the export is preserved
+                        // before its type-cast entry (official emits the doc here).
+                        let doc = match &info.doc {
+                            Some(d) => format!("{} ", d),
+                            None => String::new(),
+                        };
+                        if let Some(ref ta) = info.type_annotation {
+                            format!("{}{}{}: {}", doc, en, optional, ta)
+                        } else {
+                            format!("{}{}{}: typeof {}", doc, en, optional, info.local_name)
+                        }
+                    })
+                    .collect();
+                format!("{} as {{{}}}", base, type_entries.join(", "))
+            } else {
+                base
+            }
+        }
+    }
+    pub fn create_exports_str(&self, is_svelte5: bool, is_ts: bool) -> String {
+        self.create_exports_str_with_accessors(is_svelte5, false, is_ts)
+    }
+
+    pub fn create_exports_str_with_accessors(
+        &self,
+        is_svelte5: bool,
+        accessors: bool,
+        is_ts: bool,
+    ) -> String {
+        if !is_svelte5 {
+            return String::new();
+        }
+        let others: Vec<(&str, &ExportedNameInfo)> = self
+            .get_ordered()
+            .into_iter()
+            .filter(|(_, info)| {
+                // In exports, include:
+                // - Non-let declarations (const, function, class)
+                // - Named exports in runes mode (even if marked as prop from export specifiers)
+                // - When accessors is true, also include `export let` props
+                // BUT exclude props from $props() destructuring (is_prop && !is_named_export)
+
+                // When accessors is true, include all exported let props
+                if accessors && info.is_let {
+                    return true;
+                }
+                if info.is_prop && !info.is_named_export {
+                    return false;
+                }
+                !info.is_let || (self.is_runes_mode() && info.is_named_export)
+            })
+            .collect();
+        if !others.is_empty() {
+            let te: Vec<String> = others
+                .iter()
+                .map(|(en, info)| {
+                    // In TS files, doc comments are included (addDoc = true in JS reference).
+                    // In JS files, addDoc = false — no doc prefix.
+                    let doc_prefix = if is_ts {
+                        match &info.doc {
+                            Some(d) => format!("\n{}", d),
+                            None => String::new(),
+                        }
+                    } else {
+                        String::new()
+                    };
+                    if let Some(ref ta) = info.type_annotation {
+                        format!("{}{}: {}", doc_prefix, en, ta)
+                    } else {
+                        format!("{}{}: typeof {}", doc_prefix, en, info.local_name)
+                    }
+                })
+                .collect();
+            // In runes mode, include values in the exports object — but ONLY for
+            // exports that carry an explicit type annotation. Official's value
+            // call is `createReturnElements(others, false, /*onlyTyped*/ true)`,
+            // which skips any entry without `value.type`. Untyped exports
+            // (`let count = $state(0)`) therefore yield an empty value object,
+            // with the names appearing only in the `as any as { … }` cast.
+            let val_str = if self.is_runes_mode() {
+                let val_entries: Vec<String> = others
+                    .iter()
+                    .filter(|(_, info)| info.type_annotation.is_some())
+                    .map(|(en, info)| format!("{}: {}", en, info.local_name))
+                    .collect();
+                val_entries.join(",")
+            } else {
+                String::new()
+            };
+            if is_ts {
+                format!(
+                    ", exports: {{{}}} as any as {{ {} }}",
+                    val_str,
+                    te.join(",")
+                )
+            } else {
+                format!(", exports: /** @type {{{{{}}}}} */ ({{}})", te.join(","))
+            }
+        } else {
+            ", exports: {}".to_string()
+        }
+    }
+    pub fn create_bindings_str(&self, is_svelte5: bool) -> String {
+        if !is_svelte5 {
+            return String::new();
+        }
+        if self.is_runes_mode() {
+            if self.bindable_props.is_empty() {
+                ", bindings: __sveltets_$$bindings('')".to_string()
+            } else {
+                let bindings: Vec<String> = self
+                    .bindable_props
+                    .iter()
+                    .map(|n| format!("'{}'", n))
+                    .collect();
+                format!(", bindings: __sveltets_$$bindings({})", bindings.join(", "))
+            }
+        } else {
+            ", bindings: \"\"".to_string()
+        }
+    }
+    /// Return just the raw bindings value (for __sveltets_Render class)
+    pub fn create_raw_bindings_str(&self, is_svelte5: bool) -> String {
+        if !is_svelte5 {
+            return "\"\"".to_string();
+        }
+        if self.is_runes_mode() {
+            if self.bindable_props.is_empty() {
+                "__sveltets_$$bindings('')".to_string()
+            } else {
+                let bindings: Vec<String> = self
+                    .bindable_props
+                    .iter()
+                    .map(|n| format!("'{}'", n))
+                    .collect();
+                format!("__sveltets_$$bindings({})", bindings.join(", "))
+            }
+        } else {
+            "\"\"".to_string()
+        }
+    }
+
+    /// Return just the raw exports value (for __sveltets_Render class)
+    pub fn create_raw_exports_str(
+        &self,
+        is_svelte5: bool,
+        accessors: bool,
+        _is_ts: bool,
+    ) -> String {
+        if !is_svelte5 {
+            return "{}".to_string();
+        }
+        // Check if there are actual exports (non-prop declarations)
+        let has_exports = self.get_ordered().iter().any(|(_, info)| {
+            if accessors && info.is_let {
+                return true;
+            }
+            if info.is_prop && !info.is_named_export {
+                return false;
+            }
+            !info.is_let || (self.is_runes_mode() && info.is_named_export)
+        });
+        if has_exports {
+            // Return a sentinel that signals "has exports" - the caller
+            // will use $$render<gn>().exports instead of {}
+            "$$HAS_EXPORTS$$".to_string()
+        } else {
+            "{}".to_string()
+        }
+    }
+
+    pub fn create_optional_props_array(&self, is_ts: bool) -> Vec<String> {
+        if self.is_runes_mode() {
+            return Vec::new();
+        }
+        // For TS files, the `as {...}` type assertion on props handles optionality,
+        // so __sveltets_2_partial is not needed
+        if is_ts {
+            return Vec::new();
+        }
+        self.insertion_order
+            .iter()
+            .filter_map(|en| {
+                let info = self.names.get(en)?;
+                if info.has_default || !info.is_let {
+                    Some(format!("'{}'", en))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+    fn get_ordered(&self) -> Vec<(&str, &ExportedNameInfo)> {
+        self.insertion_order
+            .iter()
+            .filter_map(|n| self.names.get(n).map(|i| (n.as_str(), i)))
+            .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::test_support::run_svelte2tsx;
+    use super::*;
+    use crate::svelte2tsx::svelte2tsx::svelte2tsx;
+
+    #[test]
+    fn test_exported_names_empty() {
+        let names = ExportedNames::new();
+        assert!(names.is_empty());
+        assert!(names.get_prop_names().is_empty());
+        assert!(names.get_all_names().is_empty());
+    }
+
+    #[test]
+    fn test_exported_names_add_prop() {
+        let mut names = ExportedNames::new();
+        names.add(
+            "count".to_string(),
+            "count".to_string(),
+            true,
+            Some("number".to_string()),
+            true,
+        );
+        assert!(!names.is_empty());
+        assert!(names.has("count"));
+        assert_eq!(names.get_prop_names(), vec!["count"]);
+    }
+
+    #[test]
+    fn test_exported_names_add_non_prop() {
+        let mut names = ExportedNames::new();
+        names.add(
+            "helper".to_string(),
+            "helper".to_string(),
+            false,
+            None,
+            false,
+        );
+        assert!(names.has("helper"));
+        assert!(names.get_prop_names().is_empty()); // Not a prop
+        assert_eq!(names.get_all_names(), vec!["helper"]);
+    }
+
+    #[test]
+    fn test_export_let_props_in_output() {
+        let source = "<script>\nexport let count = 0;\nexport let name;\n</script>";
+        let result = run_svelte2tsx(source);
+
+        assert!(
+            result.code.contains("count: count"),
+            "Output should contain 'count: count' in props return"
+        );
+        assert!(
+            result.code.contains("name: name"),
+            "Output should contain 'name: name' in props return"
+        );
+    }
+
+    #[test]
+    fn test_props_rune_props_in_output() {
+        let source = "<script>\nlet { x, y } = $props();\n</script>";
+        let result = run_svelte2tsx(source);
+
+        // With $$ComponentProps typedef, the output uses the typedef
+        assert!(
+            result.code.contains("$$ComponentProps") || result.code.contains("x: x"),
+            "Output should contain $$ComponentProps typedef or 'x: x' in props return.\nGot: {}",
+            result.code
+        );
+    }
+
+    #[test]
+    fn test_no_props_empty_return() {
+        let source = "<script>\nconst internal = 5;\n</script>";
+        let result = run_svelte2tsx(source);
+
+        assert!(
+            result.code.contains("Record<string, never>"),
+            "Output should contain empty record type when there are no props"
+        );
+    }
+
+    /// For a TS file with no props, the return statement must use the TS `as`
+    /// cast form: `{} as Record<string, never>`.
+    /// Reference: ExportedNames.ts `createPropsStr` runes-mode branch:
+    ///   `return this.isTsFile ? '{} as Record<string, never>' : '/** @type ... */ ({})'`
+    #[test]
+    fn test_empty_props_ts_file_uses_as_cast() {
+        let source = "<script lang=\"ts\">\nconst internal: number = 5;\n</script>";
+        let opts = crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions {
+            is_ts_file: true,
+            ..Default::default()
+        };
+        let result = svelte2tsx(source, opts).expect("svelte2tsx should not fail");
+        assert!(
+            result.code.contains("{} as Record<string, never>"),
+            "TS file with no props must use `{{}} as Record<string, never>`, got:\n{}",
+            result.code
+        );
+        assert!(
+            !result.code.contains("/** @type {Record<string, never>} */"),
+            "TS file must NOT use JSDoc cast for empty props, got:\n{}",
+            result.code
+        );
+    }
+
+    /// For a JS file with no props, the JSDoc cast form must be used:
+    /// `/** @type {Record<string, never>} */ ({})`.
+    /// Reference: same ExportedNames.ts branch, JS (non-TS) path.
+    #[test]
+    fn test_empty_props_js_file_uses_jsdoc() {
+        let source = "<script>\nconst internal = 5;\n</script>";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("/** @type {Record<string, never>} */"),
+            "JS file with no props must use JSDoc cast, got:\n{}",
+            result.code
+        );
+        assert!(
+            !result.code.contains("{} as Record<string, never>"),
+            "JS file must NOT use TS `as` cast for empty props, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Runes-mode TS file with no props must also emit `{} as Record<string, never>`.
+    /// Reference: ExportedNames.ts `createPropsStr` runes branch (same isTsFile check).
+    #[test]
+    fn test_empty_props_runes_ts_file_uses_as_cast() {
+        // A runes component (uses $state) with no exported props in a TS file.
+        let source_no_props = "<script lang=\"ts\">\nlet x = $state(0);\n</script>";
+        let opts = crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions {
+            is_ts_file: true,
+            ..Default::default()
+        };
+        let result = svelte2tsx(source_no_props, opts).expect("svelte2tsx should not fail");
+        assert!(
+            result.code.contains("{} as Record<string, never>"),
+            "Runes-mode TS file with no props must use `{{}} as Record<string, never>`, got:\n{}",
+            result.code
+        );
+    }
+}

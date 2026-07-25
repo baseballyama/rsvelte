@@ -2,6 +2,11 @@
 
 use std::collections::HashMap;
 
+use oxc_ast::ast as oxc;
+use oxc_span::GetSpan;
+
+use super::ast_utils::binding_pattern_simple_name;
+
 /// Tracks events declared by a component.
 ///
 /// Events can be declared via:
@@ -218,6 +223,47 @@ impl ComponentEvents {
             .collect();
         entries.sort_by(|a, b| a.0.cmp(&b.0));
         entries
+    }
+}
+
+/// Detect `createEventDispatcher<Type>()` calls and extract the generic type.
+///
+/// Records the type text (e.g. `{a: A}`) in the events struct for use
+/// in the return statement's events field.
+pub(super) fn detect_create_event_dispatcher(
+    declarator: &oxc::VariableDeclarator,
+    raw_content: &str,
+    events: &mut ComponentEvents,
+    content_offset: u32,
+) {
+    if let Some(ref init) = declarator.init
+        && let oxc::Expression::CallExpression(call) = init
+        && let oxc::Expression::Identifier(ref callee) = call.callee
+        && callee.name == "createEventDispatcher"
+    {
+        // Check for type arguments: createEventDispatcher<Type>()
+        if let Some(ref type_args) = call.type_arguments
+            && let Some(first_param) = type_args.params.first()
+        {
+            let start = first_param.span().start as usize;
+            let end = first_param.span().end as usize;
+            if start < end && end <= raw_content.len() {
+                let type_text = raw_content[start..end].to_string();
+                events.dispatcher_generic_type = Some(type_text);
+            }
+        } else if let Some(name) = binding_pattern_simple_name(&declarator.id) {
+            // Untyped dispatcher: record its name + absolute declaration position
+            // (`content_offset + declarator.span.start`) so `dispatch("name")`
+            // call sites can be scanned — and order-gated against this position —
+            // to populate the events return.
+            let decl_pos = content_offset + declarator.span.start;
+            events.dispatcher_decls.push((name, decl_pos));
+            // Record the callee end (before `(`) so a `$$Events` interface can
+            // inject `<__sveltets_2_CustomEvents<$$Events>>` onto the untyped call.
+            events
+                .dispatcher_typing_inject_pos
+                .push(content_offset + callee.span.end);
+        }
     }
 }
 

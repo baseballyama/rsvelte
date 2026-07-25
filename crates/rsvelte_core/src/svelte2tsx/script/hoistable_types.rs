@@ -309,6 +309,9 @@ pub(super) fn resolve_hoistable_type_decls(
                         g.insert(name.to_string());
                     }
                 }
+                // type_deps are limited to candidate_names by
+                // `collect_type_body_deps`, so anything else simply doesn't
+                // appear here.
             }
             g
         })
@@ -364,6 +367,9 @@ pub(super) fn resolve_hoistable_type_decls(
                     blocked[i] = true;
                     break;
                 }
+                // A type dep that isn't a local candidate is an outside
+                // reference (import / global) — fine to reference from a hoisted
+                // declaration.
             }
         }
     }
@@ -436,9 +442,6 @@ pub(super) fn resolve_hoistable_type_decls(
                         can_hoist = false;
                     }
                 }
-                // type_deps are limited to candidate_names by
-                // `collect_type_body_deps`, so anything else simply doesn't
-                // appear here.
             }
             if can_hoist {
                 hoistable[i] = true;
@@ -502,9 +505,6 @@ pub(super) fn resolve_hoistable_type_decls(
                     ok = false;
                     break;
                 }
-                // A type dep that isn't a local candidate is an outside
-                // reference (import / global) — fine to reference from a hoisted
-                // declaration.
             }
         }
         if ok {
