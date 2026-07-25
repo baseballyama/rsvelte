@@ -405,11 +405,6 @@ impl ParseArena {
             let start = range.start as usize;
             let len = range.len as usize;
             if start + len > store.len {
-                #[cfg(debug_assertions)]
-                eprintln!(
-                    "ARENA CHILDREN MISMATCH: range({},{}) but arena has {} children",
-                    range.start, range.len, store.len
-                );
                 return &[];
             }
             std::slice::from_raw_parts(store.ptr(start), len)
