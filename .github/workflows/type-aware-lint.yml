@@ -1,0 +1,70 @@
+name: Type-aware Lint
+
+# Runs the type-aware lint backend suite (crates/rsvelte_lint_types).
+#
+# NOT part of the `CI` workflow, and deliberately so: that crate is its own
+# Cargo workspace because it path-depends on the PRIVATE submodule
+# `ubugeeei-prod/corsa-bind` (see its Cargo.toml header), and the `CI` shards
+# skip that submodule entirely. So the nine tests in it can never run on a
+# fork or on an unprivileged PR.
+#
+# Manual dispatch only, for the same reason: it needs `secrets.GH_PAT` (the
+# same fine-grained PAT `auto-update-submodules.yml` already uses to
+# `git ls-remote` corsa-bind) to clone the private submodule over HTTPS.
+# Promote it to a `schedule:` once it has been green a few times.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  type-aware-lint:
+    name: Type-aware lint suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      # Fail loudly instead of "succeeding" with nothing run — the whole point
+      # of this workflow (see issue #1790).
+      - name: Require corsa-bind access
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          if [ -z "${GH_PAT}" ]; then
+            echo "::error::secrets.GH_PAT is not set — the private corsa-bind submodule cannot be cloned, so the type-aware suite cannot run."
+            exit 1
+          fi
+
+      - name: Checkout private submodule over HTTPS
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "git@github.com:"
+          git submodule update --init --depth 1 submodules/corsa-bind
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.97.1
+
+      - name: Setup mold linker
+        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+
+      # Its own workspace ⇒ its own target dir; keyed separately from the CI cache.
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: crates/rsvelte_lint_types
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      # Checks out eslint-plugin-svelte, installs @typescript/native-preview,
+      # verifies the binary runs, then `cargo test`s the crate.
+      - name: Run type-aware lint suite
+        run: node scripts/dev/test-type-aware-lint.mjs
