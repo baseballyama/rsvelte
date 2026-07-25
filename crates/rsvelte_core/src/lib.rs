@@ -10,10 +10,11 @@
 //! ## Usage
 //!
 //! ```rust,no_run
-//! use rsvelte_core::{parse, ParseOptions};
+//! use rsvelte_core::{Allocator, parse, ParseOptions};
 //!
 //! let source = r#"<h1>Hello, {name}!</h1>"#;
-//! let ast = parse(source, ParseOptions::default()).unwrap();
+//! let allocator = Allocator::default();
+//! let ast = parse(source, &allocator, ParseOptions::default()).unwrap();
 //! ```
 
 // `#[global_allocator]` deliberately lives in each binary entry point
