@@ -1,3 +1,4 @@
+pub mod add_component_export;
 pub mod helpers;
 pub mod interfaces;
 #[allow(
