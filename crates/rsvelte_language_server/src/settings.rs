@@ -6,6 +6,8 @@ use serde_json::Value;
 pub struct Settings {
     pub format_enable: bool,
     pub lint_enable: bool,
+    pub completion_enable: bool,
+    pub hover_enable: bool,
 }
 
 impl Default for Settings {
@@ -13,6 +15,8 @@ impl Default for Settings {
         Self {
             format_enable: true,
             lint_enable: true,
+            completion_enable: true,
+            hover_enable: true,
         }
     }
 }
@@ -25,6 +29,8 @@ impl Settings {
         Self {
             format_enable: enabled(value, "format").unwrap_or(default.format_enable),
             lint_enable: enabled(value, "lint").unwrap_or(default.lint_enable),
+            completion_enable: enabled(value, "completion").unwrap_or(default.completion_enable),
+            hover_enable: enabled(value, "hover").unwrap_or(default.hover_enable),
         }
     }
 }
@@ -39,16 +45,20 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn reads_both_switches() {
+    fn reads_every_switch() {
         let s = Settings::from_json(&json!({
             "format": { "enable": false },
-            "lint": { "enable": true }
+            "lint": { "enable": true },
+            "completion": { "enable": false },
+            "hover": { "enable": false }
         }));
         assert_eq!(
             s,
             Settings {
                 format_enable: false,
-                lint_enable: true
+                lint_enable: true,
+                completion_enable: false,
+                hover_enable: false,
             }
         );
     }

@@ -8,14 +8,16 @@ use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender, after, never, select, unbounded};
 use lsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestId, Response};
 use lsp_types::{
-    ConfigurationItem, ConfigurationParams, DidChangeTextDocumentParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    DocumentFormattingParams, OneOf, PublishDiagnosticsParams, ServerCapabilities,
+    CompletionOptions, CompletionParams, ConfigurationItem, ConfigurationParams,
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, DocumentFormattingParams, HoverParams, HoverProviderCapability,
+    OneOf, PublishDiagnosticsParams, ServerCapabilities, TextDocumentPositionParams,
     TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
     TextDocumentSyncSaveOptions, TextEdit, Uri,
 };
 
 use crate::client::ClientState;
+use crate::completions::TRIGGER_CHARACTERS;
 use crate::document::{Document, DocumentStore};
 use crate::log;
 use crate::settings::Settings;
@@ -78,6 +80,11 @@ fn capabilities() -> ServerCapabilities {
             },
         )),
         document_formatting_provider: Some(OneOf::Left(true)),
+        completion_provider: Some(CompletionOptions {
+            trigger_characters: Some(TRIGGER_CHARACTERS.map(str::to_string).to_vec()),
+            ..CompletionOptions::default()
+        }),
+        hover_provider: Some(HoverProviderCapability::Simple(true)),
         ..ServerCapabilities::default()
     }
 }
@@ -87,6 +94,8 @@ fn capabilities() -> ServerCapabilities {
 /// produce one.
 enum Pending {
     Formatting,
+    Completion,
+    Hover,
 }
 
 /// A request this server sent to the client, keyed by the id the client will
@@ -190,6 +199,8 @@ impl Server {
         }
         match request.method.as_str() {
             "textDocument/formatting" => self.on_formatting(request),
+            "textDocument/completion" => self.on_completion(request),
+            "textDocument/hover" => self.on_hover(request),
             _ => self.respond(Response::new_err(
                 request.id,
                 ErrorCode::MethodNotFound as i32,
@@ -225,6 +236,79 @@ impl Server {
         };
         self.pending.insert(id, Pending::Formatting);
         self.worker.submit(job);
+    }
+
+    fn on_completion(&mut self, request: Request) {
+        let id = request.id;
+        let params = match serde_json::from_value::<CompletionParams>(request.params) {
+            Ok(params) => params.text_document_position,
+            Err(err) => {
+                log::warn(format_args!("textDocument/completion: {err}"));
+                self.respond_nothing(id);
+                return;
+            }
+        };
+        if !self.settings.completion_enable {
+            self.respond_nothing(id);
+            return;
+        }
+        match self.locate(&params) {
+            Some((path, text, offset)) => {
+                self.pending.insert(id.clone(), Pending::Completion);
+                self.worker.submit(Job::Complete {
+                    id,
+                    path,
+                    text,
+                    offset,
+                });
+            }
+            None => self.respond_nothing(id),
+        }
+    }
+
+    fn on_hover(&mut self, request: Request) {
+        let id = request.id;
+        let params = match serde_json::from_value::<HoverParams>(request.params) {
+            Ok(params) => params.text_document_position_params,
+            Err(err) => {
+                log::warn(format_args!("textDocument/hover: {err}"));
+                self.respond_nothing(id);
+                return;
+            }
+        };
+        if !self.settings.hover_enable {
+            self.respond_nothing(id);
+            return;
+        }
+        match self.locate(&params) {
+            Some((path, text, offset)) => {
+                self.pending.insert(id.clone(), Pending::Hover);
+                self.worker.submit(Job::Hover {
+                    id,
+                    path,
+                    text,
+                    offset,
+                });
+            }
+            None => self.respond_nothing(id),
+        }
+    }
+
+    /// Resolve a position in an open component to what the worker needs. Only
+    /// components have Svelte template syntax to answer for.
+    fn locate(
+        &self,
+        params: &TextDocumentPositionParams,
+    ) -> Option<(std::path::PathBuf, std::sync::Arc<String>, usize)> {
+        let document = self.documents.get(&params.text_document.uri)?;
+        if document.language_id != "svelte" {
+            return None;
+        }
+        Some((
+            uri_to_path(params.text_document.uri.as_str()),
+            document.shared_text(),
+            document.offset_at(params.position),
+        ))
     }
 
     fn on_notification(&mut self, notification: Notification) {
@@ -325,6 +409,16 @@ impl Server {
                 // answered; its result is simply dropped.
                 if self.pending.remove(&id).is_some() {
                     self.respond(Response::new_ok(id, edits));
+                }
+            }
+            Outcome::Completed { id, list } => {
+                if self.pending.remove(&id).is_some() {
+                    self.respond(Response::new_ok(id, list));
+                }
+            }
+            Outcome::Hovered { id, hover } => {
+                if self.pending.remove(&id).is_some() {
+                    self.respond(Response::new_ok(id, hover));
                 }
             }
             Outcome::Diagnostics {
@@ -428,6 +522,11 @@ impl Server {
 
     fn respond_no_edits(&self, id: RequestId) {
         self.respond(Response::new_ok(id, Vec::<TextEdit>::new()));
+    }
+
+    /// A request with nothing to offer is answered with `null`, not an error.
+    fn respond_nothing(&self, id: RequestId) {
+        self.respond(Response::new_ok(id, serde_json::Value::Null));
     }
 
     fn respond(&self, response: Response) {

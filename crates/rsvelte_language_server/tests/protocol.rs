@@ -21,6 +21,8 @@ struct Server {
     stdout: BufReader<ChildStdout>,
     finished: Arc<AtomicBool>,
     next_id: i64,
+    /// What `workspace/configuration` is answered with.
+    settings: Value,
 }
 
 impl Server {
@@ -57,6 +59,12 @@ impl Server {
             stdout,
             finished,
             next_id: 0,
+            settings: json!({
+                "format": { "enable": true },
+                "lint": { "enable": true },
+                "completion": { "enable": true },
+                "hover": { "enable": true },
+            }),
         }
     }
 
@@ -117,6 +125,48 @@ impl Server {
         }
     }
 
+    /// Answer the `workspace/configuration` the server asks for once it has
+    /// seen `initialized`, so that a request sent afterwards is served with
+    /// this client's settings rather than the defaults.
+    fn settle_configuration(&mut self) {
+        loop {
+            let message = self.read();
+            let configuration = message["method"] == "workspace/configuration";
+            self.answer_server_request(&message);
+            if configuration {
+                return;
+            }
+        }
+    }
+
+    /// The items `textDocument/completion` offers at a position.
+    fn completion(&mut self, uri: &str, line: u32, character: u32) -> Vec<Value> {
+        let response = self.completion_response(uri, line, character);
+        response["items"].as_array().cloned().unwrap_or_default()
+    }
+
+    fn completion_response(&mut self, uri: &str, line: u32, character: u32) -> Value {
+        let id = self.request(
+            "textDocument/completion",
+            json!({
+                "textDocument": { "uri": uri },
+                "position": { "line": line, "character": character },
+            }),
+        );
+        self.response(id)
+    }
+
+    fn hover(&mut self, uri: &str, line: u32, character: u32) -> Value {
+        let id = self.request(
+            "textDocument/hover",
+            json!({
+                "textDocument": { "uri": uri },
+                "position": { "line": line, "character": character },
+            }),
+        );
+        self.response(id)
+    }
+
     /// Read until diagnostics for `uri` arrive.
     fn diagnostics(&mut self, uri: &str) -> Vec<Value> {
         loop {
@@ -157,10 +207,7 @@ impl Server {
         };
         let result = if method == "workspace/configuration" {
             let items = message["params"]["items"].as_array().map_or(0, Vec::len);
-            Value::Array(vec![
-                json!({ "format": { "enable": true }, "lint": { "enable": true } });
-                items
-            ])
+            Value::Array(vec![self.settings.clone(); items])
         } else {
             Value::Null
         };
@@ -365,6 +412,140 @@ fn serves_diagnostics_and_formatting() {
         json!({ "textDocument": { "uri": uri } }),
     );
     server.cleared_diagnostics(&uri);
+
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+/// Completion and hover over the wire, on a document that does not parse — the
+/// state a component is in for most of the time it is being typed.
+#[test]
+fn serves_completions_and_hover() {
+    let dir = temp_dir("completion");
+    let uri = file_uri(&dir.join("App.svelte"));
+
+    let mut server = Server::start();
+    let id = server.request(
+        "initialize",
+        json!({
+            "processId": Value::Null,
+            "rootUri": Value::Null,
+            "capabilities": { "workspace": { "configuration": true } },
+        }),
+    );
+    let capabilities = server.response(id)["capabilities"].clone();
+    assert_eq!(
+        capabilities["completionProvider"]["triggerCharacters"],
+        json!(["#", "@", ":", "/", "|"])
+    );
+    assert_eq!(capabilities["hoverProvider"], json!(true));
+    server.notify("initialized", json!({}));
+
+    let source =
+        "<script>\n  let value = 1;\n</script>\n\n<div on:click|>\n  {#each value as v}\n    {#";
+    did_open(&mut server, &uri, source);
+
+    // `{#` on the last line, mid-edit: the block completions, closing snippet
+    // and all.
+    let items = server.completion(&uri, 6, 6);
+    assert_eq!(
+        items.iter().map(|i| i["label"].clone()).collect::<Vec<_>>(),
+        json!(["if", "each", "await :then", "await then", "key", "snippet"])
+            .as_array()
+            .unwrap()
+            .clone()
+    );
+    let each = items.iter().find(|i| i["label"] == "each").unwrap();
+    assert_eq!(each["insertText"], json!("each $1 as $2}\n\t$3\n{/each"));
+    // 2 == InsertTextFormat.Snippet, 14 == CompletionItemKind.Keyword
+    assert_eq!(each["insertTextFormat"], json!(2));
+    assert_eq!(each["kind"], json!(14));
+    assert_eq!(each["sortText"], json!("-1"));
+    assert_eq!(each["preselect"], json!(true));
+
+    // The open `{#each` decides what a `{/` typed in its place may close.
+    server.notify(
+        "textDocument/didChange",
+        json!({
+            "textDocument": { "uri": uri, "version": 2 },
+            "contentChanges": [{
+                "range": {
+                    "start": { "line": 6, "character": 5 },
+                    "end": { "line": 6, "character": 6 },
+                },
+                "text": "/",
+            }],
+        }),
+    );
+    let items = server.completion(&uri, 6, 6);
+    assert_eq!(
+        items.iter().map(|i| i["label"].clone()).collect::<Vec<_>>(),
+        [json!("each")]
+    );
+
+    // Event modifiers, filtered by what the attribute already carries.
+    let items = server.completion(&uri, 4, 14);
+    let labels: Vec<&str> = items
+        .iter()
+        .map(|i| i["label"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        labels,
+        [
+            "preventDefault",
+            "stopPropagation",
+            "passive",
+            "nonpassive",
+            "capture",
+            "once",
+            "self",
+            "trusted"
+        ]
+    );
+    // 23 == CompletionItemKind.Event
+    assert_eq!(items[0]["kind"], json!(23));
+
+    // Hover over `#each` documents the block.
+    let hover = server.hover(&uri, 5, 5);
+    let contents = hover["contents"]["value"].as_str().unwrap();
+    assert!(contents.starts_with("`{#each ...}`"), "{contents}");
+    assert_eq!(hover["contents"]["kind"], json!("markdown"));
+
+    // Hover inside `<script>` is the TypeScript plugin's business, not ours.
+    assert_eq!(server.hover(&uri, 1, 8), Value::Null);
+
+    // Nothing to offer is `null`, never an error.
+    assert_eq!(server.completion(&uri, 1, 0), Vec::<Value>::new());
+
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+/// `rsvelte.completion.enable` / `rsvelte.hover.enable` switch the features off
+/// without the client having to stop asking.
+#[test]
+fn the_settings_switch_completion_and_hover_off() {
+    let dir = temp_dir("completion-disabled");
+    let uri = file_uri(&dir.join("App.svelte"));
+
+    let mut server = Server::start();
+    server.settings = json!({
+        "completion": { "enable": false },
+        "hover": { "enable": false },
+    });
+    let id = server.request(
+        "initialize",
+        json!({
+            "processId": Value::Null,
+            "rootUri": Value::Null,
+            "capabilities": { "workspace": { "configuration": true } },
+        }),
+    );
+    server.response(id);
+    server.notify("initialized", json!({}));
+    server.settle_configuration();
+    did_open(&mut server, &uri, "<p>{#each a as b}{/each}</p>\n{#");
+
+    assert_eq!(server.completion_response(&uri, 1, 2), Value::Null);
+    assert_eq!(server.hover(&uri, 0, 5), Value::Null);
 
     assert_eq!(server.shutdown(), Some(0));
 }

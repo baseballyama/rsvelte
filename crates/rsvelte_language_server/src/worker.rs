@@ -17,7 +17,7 @@ use std::thread::JoinHandle;
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use lsp_server::RequestId;
-use lsp_types::{Diagnostic, Range, TextEdit, Uri};
+use lsp_types::{CompletionList, Diagnostic, Hover, Range, TextEdit, Uri};
 
 use crate::format::FormatSessions;
 use crate::lint::LintConfigCache;
@@ -42,6 +42,18 @@ pub enum Job {
         text: Arc<String>,
         range: Range,
     },
+    Complete {
+        id: RequestId,
+        path: PathBuf,
+        text: Arc<String>,
+        offset: usize,
+    },
+    Hover {
+        id: RequestId,
+        path: PathBuf,
+        text: Arc<String>,
+        offset: usize,
+    },
     /// Drop the resolved `rsvelte-lint.json` / `.oxfmtrc` caches so the next
     /// job re-reads them from disk.
     ClearCaches,
@@ -57,6 +69,14 @@ pub enum Outcome {
     Formatted {
         id: RequestId,
         edits: Vec<TextEdit>,
+    },
+    Completed {
+        id: RequestId,
+        list: Option<CompletionList>,
+    },
+    Hovered {
+        id: RequestId,
+        hover: Option<Hover>,
     },
 }
 
@@ -139,6 +159,27 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                 let edits = format(&mut format_sessions, &path, &text, range);
                 Outcome::Formatted { id, edits }
             }
+            Job::Complete {
+                id,
+                path,
+                text,
+                offset,
+            } => Outcome::Completed {
+                id,
+                list: guard("completion", &path, || {
+                    crate::completions::completions(&text, offset)
+                })
+                .flatten(),
+            },
+            Job::Hover {
+                id,
+                path,
+                text,
+                offset,
+            } => Outcome::Hovered {
+                id,
+                hover: guard("hover", &path, || crate::hover::hover(&text, offset)).flatten(),
+            },
         };
         if outcomes.send(outcome).is_err() {
             break;
