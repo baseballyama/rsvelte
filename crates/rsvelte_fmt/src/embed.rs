@@ -48,7 +48,7 @@ impl FormatSession {
     /// forward a resolved path through — mirrors the `RSVELTE_FMT_NODE`
     /// convention the CLI's own npm launcher already uses), else a bare
     /// `oxfmt` on `$PATH` (the CLI's own `--oxfmt-bin` default). Before this
-    /// (#1792), `FormatSession::resolve` built [`OptionFlags::default`]
+    /// (#1792), `FormatSession::resolve` built `OptionFlags::default()`
     /// unconditionally, so a bare `oxfmt` on `$PATH` was the *only* option —
     /// never guaranteed for a process an editor spawns, unlike the CLI, which
     /// always has an explicit `--oxfmt-bin` from its own npm launcher.
