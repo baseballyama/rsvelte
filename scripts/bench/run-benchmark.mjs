@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Benchmark script that measures JS vs Rust compiler performance across
- * five tasks: compile-client, compile-server, parse, svelte2tsx, svelte-check.
+ * Benchmark script that measures JS vs Rust performance across seven tasks:
+ * compile-client, compile-server, parse, svelte2tsx, fmt, lint, svelte-check.
  *
  * The JS baselines (`svelte/compiler`, `svelte2tsx`, `svelte-check`) live in
  * submodules and publish their consumable entrypoints as rollup build
@@ -84,6 +84,14 @@ function ensureBenchDeps() {
 			console.error(`[run-benchmark] building language-tools/${pkg.name} (one-time)…`);
 			run(pkg.cmd, pkg.cwd);
 		}
+	}
+
+	// 3. The lint baseline is the real eslint-plugin-svelte, installed in the
+	// parity corpus' isolated oracle package (same pin the lint gate compares
+	// against) rather than as a root devDependency.
+	if (!built('scripts/compat-corpus/lint-oracle/node_modules/eslint-plugin-svelte')) {
+		console.error('[run-benchmark] installing lint oracle (one-time)…');
+		run('npm install --no-package-lock', 'scripts/compat-corpus/lint-oracle');
 	}
 }
 
@@ -262,21 +270,21 @@ function benchmarkJavaScript(files, iterations, task) {
  * `rsvelte_fmt` (the formatter can't live in the compiler crate without a
  * dependency cycle). Both share the same CLI + JSON-output contract.
  */
-async function benchmarkRust(files, singleThread, task, binName = 'benchmark_runner') {
+async function benchmarkRust(files, singleThread, task, binName = 'benchmark_runner', extraArgs = []) {
 	const mode = singleThread ? 'single' : 'multi';
 
 	const fileList = files.map((f) => f.path).join('\n');
 	const tempFile = join(__dirname, '../../.benchmark-files.txt');
 	writeFileSync(tempFile, fileList);
 
-	// `profile.release` sets `panic = "abort"`, so a formatter panic on a
-	// malformed corpus file would kill the whole run. The fmt runner relies
-	// on `catch_unwind` to skip such files, which only works under a profile
-	// with `panic = "unwind"` — that's exactly what `profile.bench` is for
-	// (it inherits release's optimisation flags, so the timings stay
+	// `profile.release` sets `panic = "abort"`, so a formatter/linter panic on
+	// a malformed corpus file would kill the whole run. Both runners rely on
+	// `catch_unwind` to skip such files, which only works under a profile with
+	// `panic = "unwind"` — that's exactly what `profile.bench` is for (it
+	// inherits release's optimisation flags, so the timings stay
 	// representative). Compiler tasks don't panic on this corpus, so they
 	// keep the faster-to-link release profile.
-	const profileFlag = binName === 'fmt_benchmark_runner' ? '--profile=bench' : '--release';
+	const profileFlag = binName === 'benchmark_runner' ? '--release' : '--profile=bench';
 
 	return new Promise((resolve, reject) => {
 		const args = [
@@ -295,6 +303,7 @@ async function benchmarkRust(files, singleThread, task, binName = 'benchmark_run
 			String(BENCHMARK_ITERATIONS),
 			'--warmup',
 			String(WARMUP_ITERATIONS),
+			...extraArgs,
 		];
 
 		const proc = spawn('cargo', args, {
@@ -544,6 +553,133 @@ async function runFmtTask(files) {
 	};
 }
 
+// The `lint` task pits ESLint + eslint-plugin-svelte against `rsvelte_lint`
+// over the shared per-file corpus.
+//
+// Fairness rests on one thing: **both sides must evaluate the same rules.** A
+// linter's cost is the sum of its enabled rules, so comparing rsvelte's rule
+// set against the plugin's `recommended` preset would measure preset
+// composition, not implementation speed. Both sides therefore run the parity
+// corpus' rule universe (`scripts/compat-corpus/lint-universe.mjs`) — the
+// intersection of "rules rsvelte implements" and "rules the pinned plugin
+// exposes", minus the handful that are structurally incomparable (type-aware
+// rules the oracle can't evaluate without a checker, and the compiler
+// meta-rules whose cost is the compiler's, not the linter's). That is the same
+// universe the lint output-parity gate diffs, so speed and parity are measured
+// over identical work.
+//
+// The JS side is timed in-process by the oracle's own `run.mjs --bench`, so
+// neither side pays node startup or ESLint config resolution inside the
+// measured loop, and both pre-read every source before timing starts.
+//
+// One asymmetry is left in deliberately, and it counts AGAINST rsvelte:
+// `rsvelte-lint` always runs its compiler validator pass (the analyzer's own
+// warnings are part of what the tool reports), while the ESLint side's
+// equivalent — `svelte/valid-compile` — sits outside the shared universe. The
+// reported ratio therefore understates a rule-engine-only comparison.
+
+const LINT_BENCH_BIN = join(REPO_ROOT, 'target/release/lint_benchmark_runner');
+const LINT_ORACLE_DIR = join(REPO_ROOT, 'scripts/compat-corpus/lint-oracle');
+
+function ensureLintBenchRunnerBuilt() {
+	if (existsSync(LINT_BENCH_BIN)) return;
+	console.error('  Building lint_benchmark_runner (one-time)...');
+	// `--profile=bench` for the same reason the fmt runner uses it: the runner
+	// isolates a per-file panic with `catch_unwind`, which needs unwinding.
+	const r = spawnSync(
+		'cargo',
+		['build', '--profile=bench', '--bin', 'lint_benchmark_runner'],
+		{ cwd: REPO_ROOT, stdio: ['ignore', 2, 'inherit'] },
+	);
+	if (r.status !== 0) throw new Error('cargo build --bin lint_benchmark_runner failed');
+}
+
+async function runLintTask(files) {
+	console.error('\n=== lint ===');
+
+	ensureLintBenchRunnerBuilt();
+	const { ruleUniverse } = await import('../compat-corpus/lint-universe.mjs');
+	const universe = ruleUniverse(LINT_BENCH_BIN);
+	console.error(`  Rule universe: ${universe.length} rules enabled on both sides`);
+
+	const rulesFile = join(REPO_ROOT, '.benchmark-lint-rules.json');
+	const configFile = join(REPO_ROOT, '.benchmark-lint-config.json');
+	writeFileSync(rulesFile, JSON.stringify(universe));
+	writeFileSync(
+		configFile,
+		JSON.stringify({
+			extends: ['none'],
+			rules: Object.fromEntries(universe.map((id) => [id, 'warn'])),
+		}),
+	);
+
+	console.error('  Benchmarking JavaScript (eslint + eslint-plugin-svelte)...');
+	const jsProc = spawnSync(
+		'node',
+		[
+			'run.mjs',
+			'--rules',
+			rulesFile,
+			'--stdin',
+			'--bench',
+			'--iterations',
+			String(BENCHMARK_ITERATIONS),
+			'--warmup',
+			String(WARMUP_ITERATIONS),
+		],
+		{
+			cwd: LINT_ORACLE_DIR,
+			input: files.map((f) => f.path).join('\0'),
+			encoding: 'utf8',
+			maxBuffer: 1 << 28,
+			stdio: ['pipe', 'pipe', 'inherit'],
+		},
+	);
+	if (jsProc.status !== 0) throw new Error('lint oracle benchmark failed');
+	const jsTimes = JSON.parse(jsProc.stdout).times;
+	const jsStats = calculateStats(jsTimes, files.length);
+	console.error(
+		`    ${jsStats.durationMs.toFixed(2)}ms (${jsStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+	);
+
+	console.error('  Benchmarking Rust (single-threaded)...');
+	const rustSingleTimes = await benchmarkRust(files, true, 'lint', 'lint_benchmark_runner', [
+		'--config',
+		configFile,
+	]);
+	const rustSingleStats = calculateStats(rustSingleTimes, files.length);
+	console.error(
+		`    ${rustSingleStats.durationMs.toFixed(2)}ms (${rustSingleStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+	);
+
+	console.error('  Benchmarking Rust (multi-threaded)...');
+	const rustMultiTimes = await benchmarkRust(files, false, 'lint', 'lint_benchmark_runner', [
+		'--config',
+		configFile,
+	]);
+	const rustMultiStats = calculateStats(rustMultiTimes, files.length);
+	console.error(
+		`    ${rustMultiStats.durationMs.toFixed(2)}ms (${rustMultiStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+	);
+
+	const speedupSingle = jsStats.durationMs / rustSingleStats.durationMs;
+	const speedupMulti = jsStats.durationMs / rustMultiStats.durationMs;
+	console.error(`  Speedup: single=${speedupSingle.toFixed(1)}x, multi=${speedupMulti.toFixed(1)}x`);
+
+	return {
+		task: 'lint',
+		taskLabel: 'lint',
+		rulesCount: universe.length,
+		javascript: { ...jsStats },
+		rustSingleThread: { ...rustSingleStats },
+		rustMultiThread: { ...rustMultiStats },
+		speedup: {
+			singleThreadVsJs: speedupSingle,
+			multiThreadVsJs: speedupMulti,
+		},
+	};
+}
+
 // Unlike the other tasks, svelte-check is a project-wise CLI, not a per-file
 // API. We materialise a synthetic workspace of N `.svelte` files and time each
 // CLI's wall-clock cost end-to-end.
@@ -708,12 +844,13 @@ async function main() {
 	const parse = await runBenchmarkTask(files, 'parse');
 	const svelte2tsx = await runBenchmarkTask(files, 'svelte2tsx');
 	const fmt = await runFmtTask(files);
+	const lint = await runLintTask(files);
 	const svelteCheck = await runSvelteCheckTask();
 
 	// Output combined JSON. Compile-client (CSR) lives at the top level for
 	// backward compatibility with the existing benchmark page; compile-server
-	// (SSR), parse, svelte2tsx, fmt and svelte-check are nested siblings so the
-	// page can render each as its own section.
+	// (SSR), parse, svelte2tsx, fmt, lint and svelte-check are nested siblings
+	// so the page can render each as its own section.
 	const output = {
 		generatedAt: new Date().toISOString(),
 		commitSha: getCommitSha(),
@@ -725,6 +862,7 @@ async function main() {
 		parse: asTaskResults(parse),
 		svelte2tsx: asTaskResults(svelte2tsx),
 		fmt: asTaskResults(fmt),
+		lint: { ...asTaskResults(lint), rulesCount: lint.rulesCount },
 		svelteCheck: { ...svelteCheck, filesCount: SVELTE_CHECK_FILES },
 	};
 

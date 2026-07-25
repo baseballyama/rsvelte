@@ -174,17 +174,23 @@ Multi-threaded rsvelte vs. the official JavaScript tool, same machine, same corp
 
 | Task | JS baseline | Rust (1 thread) | Rust (multi) | Multi vs JS |
 |---|---:|---:|---:|---:|
-| Compile — client (full pipeline) | 750.8 ms | 245.2 ms | 34.9 ms | **21.5×** |
-| Compile — server (SSR) | 600.1 ms | 138.7 ms | 20.6 ms | **29.2×** |
-| Parse only | 173.9 ms | 9.3 ms | 2.9 ms | **60.5×** |
-| `svelte2tsx` | 288.5 ms | 95.1 ms | 13.3 ms | **21.7×** |
-| Format (vs prettier-plugin-svelte) | 3,060.0 ms | 79.1 ms | 15.1 ms | **202.2×** |
-| `svelte-check` (500-file workspace) | 1,105.7 ms | 39.3 ms | 13.3 ms | **82.9×** |
+| Compile — client (full pipeline) | 746.8 ms | 248.3 ms | 34.1 ms | **21.9×** |
+| Compile — server (SSR) | 603.5 ms | 140.3 ms | 21.6 ms | **27.9×** |
+| Parse only | 175.2 ms | 9.3 ms | 2.9 ms | **61.3×** |
+| `svelte2tsx` | 288.8 ms | 95.5 ms | 15.5 ms | **18.7×** |
+| Format (vs prettier-plugin-svelte) | 3,102.6 ms | 82.6 ms | 15.4 ms | **201.5×** |
+| Lint (vs eslint + eslint-plugin-svelte) | 6,305.0 ms | 1,625.7 ms | 253.3 ms | **24.9×** |
+| `svelte-check` (500-file workspace) | 1,121.0 ms | 41.3 ms | 13.3 ms | **84.5×** |
 
 The corpus is Svelte's own test suite, restricted to the 3,412 of 3,869 files the official compiler
 accepts under the benchmark's options — otherwise the numbers would partly measure how fast each
 compiler throws. Of the 457 excluded, 290 are valid sources that merely need `experimental.async`
 (which the benchmark does not enable) and 167 are deliberately invalid error-case fixtures.
+
+The lint row runs **the same 72 rules on both sides** — the rule universe the
+[lint output-parity gate](#verified-against-real-world-code-not-just-fixtures) diffs, so speed and
+parity are measured over identical work. It is a conservative figure: `rsvelte-lint` additionally
+runs its compiler validator pass on every file, which the ESLint side does not.
 
 Because the corpus is Svelte's test suite, files are small (~236 bytes on average) and the numbers
 are dominated by per-file fixed costs rather than throughput on realistic components.

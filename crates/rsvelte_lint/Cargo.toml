@@ -20,6 +20,13 @@ name = "rsvelte-lint"
 path = "src/main.rs"
 required-features = ["cli"]
 
+# Benchmark driver invoked by `scripts/bench/run-benchmark.mjs` for the `lint`
+# task (the ESLint + eslint-plugin-svelte comparison).
+[[bin]]
+name = "lint_benchmark_runner"
+path = "src/bin/lint_benchmark_runner.rs"
+required-features = ["cli"]
+
 [features]
 default = ["cli"]
 # The CLI: native compiler backend + ESLint-config import + the bin's runtime

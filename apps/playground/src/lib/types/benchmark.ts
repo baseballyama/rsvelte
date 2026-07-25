@@ -20,6 +20,13 @@ export interface SvelteCheckBenchmarkTaskResults extends BenchmarkTaskResults {
 	filesCount: number;
 }
 
+export interface LintBenchmarkTaskResults extends BenchmarkTaskResults {
+	// Rules enabled on BOTH sides of the lint comparison (the parity corpus'
+	// rule universe) — a lint benchmark only means something alongside the
+	// rule count it measured.
+	rulesCount: number;
+}
+
 export interface RunnerInfo {
 	// Free-form label that names the host. In CI this is the GitHub-hosted
 	// runner label (e.g. "ubuntu-22.04-arm-16-cores"); locally it's "local".
@@ -49,5 +56,8 @@ export interface BenchmarkResults extends BenchmarkTaskResults {
 	// rsvelte_formatter vs prettier-plugin-svelte. Optional — older JSON
 	// snapshots predate the fmt task.
 	fmt?: BenchmarkTaskResults;
+	// rsvelte_lint vs eslint + eslint-plugin-svelte. Optional — older JSON
+	// snapshots predate the lint task.
+	lint?: LintBenchmarkTaskResults;
 	svelteCheck?: SvelteCheckBenchmarkTaskResults;
 }
