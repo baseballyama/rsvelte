@@ -8,6 +8,7 @@ pub mod interfaces;
 )]
 pub mod magic_string;
 pub mod nodes;
+pub mod process_instance_script_tag;
 pub mod script;
 #[allow(
     clippy::module_inception,
