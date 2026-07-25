@@ -65,7 +65,25 @@ function sh(cmd) {
 }
 
 function resolveBase() {
-  if (process.env.BASE_SHA) return process.env.BASE_SHA;
+  // Never trust a caller-supplied BASE_SHA (github.event.pull_request.base.sha):
+  // GitHub sets it once — at PR-open time, or the last time the PR was synced —
+  // and it does NOT track the base branch's current tip. On the `pull_request`
+  // event, `HEAD` here is actually the ephemeral `refs/pull/<n>/merge` commit
+  // (this PR's head merged onto main's tip *as of this run*), so a stale
+  // BASE_SHA makes `git diff base...HEAD` include every file changed by every
+  // other PR merged into main between BASE_SHA and now — see #1799. The actual
+  // merge-base with `origin/main` is always correct, since it resolves to
+  // exactly the main-tip parent of that ephemeral merge commit.
+  //
+  // `+main:refs/remotes/origin/main` force-updates the local ref explicitly
+  // rather than relying on the default `origin` fetch refspec, which actions/
+  // checkout does not always configure.
+  try {
+    sh('git fetch --quiet origin +main:refs/remotes/origin/main');
+  } catch {
+    // Best-effort refresh (e.g. no network in a sandboxed/offline run); fall
+    // back to whatever `origin/main` already resolves to locally.
+  }
   try {
     return sh('git merge-base HEAD origin/main');
   } catch {

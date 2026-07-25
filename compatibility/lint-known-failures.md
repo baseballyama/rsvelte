@@ -11,14 +11,16 @@ The exact-fixture oracle gate (`crates/rsvelte_lint/tests/eslint_plugin_oracle.r
 is the authoritative behaviour check and must stay 100%; this corpus is the
 real-world volume check.
 
-## Current baseline: 102 divergences (50 FP, 52 FN)
+## Current baseline: 80 divergences (32 FP, 48 FN)
 
 The former largest cluster — `no-top-level-browser-globals` (136 FP) — is now
 resolved: an oxc-semantic scope resolver (`rsvelte_core::lint_scope` +
 `rsvelte_lint::scope::ScopeResolver`) distinguishes a real browser global
 (`window`) from a local binding that shares its name (`open` / `top` / `name` /
 `status` — a prop / import / `let`) in both the `<script>` and template paths.
-That dropped the baseline from 238 to 102.
+That dropped the baseline from 238 to 102. The `shorthand-directive` (11 FP) and
+`shorthand-attribute` (7 FP) clusters are now resolved as well, along with part of
+the `prefer-const` tail — 102 → 80.
 
 The remainder are genuine rsvelte gaps, each a self-contained follow-up rather
 than a novel class — production code re-surfaces the already-known clusters at
@@ -29,14 +31,12 @@ higher volume:
 - **`valid-prop-names-in-kit-pages` (16 FP) / `no-goto-without-base` (6 FN).**
   SvelteKit route-file-type gating + `resolve()`/base-path handling on real
   `src/routes/+page.svelte` files.
-- **`prefer-const` (13 — 12 FN / 1 FP) / `no-target-blank` (7 FN).** Small per-rule
+- **`prefer-const` (9 — 8 FN / 1 FP) / `no-target-blank` (7 FN).** Small per-rule
   tail (TS `let`, `{@const}`, template-attribute reassignment scan).
-- **`shorthand-directive` (11 FP) / `shorthand-attribute` (7 FP).** rsvelte proposes
-  the shorthand where the oracle stays silent — a bounded rule fix.
 - **Singletons:** `experimental-require-slot-types` (2 FP),
   `prefer-svelte-reactivity` (2 FN), `prefer-destructured-store-props` (2 FP).
 
-By repo: flowbite-svelte 53, shadcn-svelte 26, bits-ui 23 (melt-ui 0).
+By repo: flowbite-svelte 45, bits-ui 18, shadcn-svelte 17 (melt-ui 0).
 
 ## Harness-config decisions (NOT rsvelte bugs)
 

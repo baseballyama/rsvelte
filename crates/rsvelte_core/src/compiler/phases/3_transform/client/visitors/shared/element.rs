@@ -481,25 +481,6 @@ fn is_literal_value(val: &serde_json::Value) -> bool {
     }
 }
 
-/// Build attribute setter.
-///
-/// Creates a call to set an attribute on an element.
-pub fn build_set_attribute(
-    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
-    element: JsExpr,
-    name: &str,
-    value: JsExpr,
-) -> JsStatement {
-    b::stmt(
-        arena,
-        b::call(
-            arena,
-            b::member_path(arena, "$.set_attribute"),
-            vec![element, b::string(name), value],
-        ),
-    )
-}
-
 /// Build an object from class directives.
 ///
 /// Corresponds to `build_class_directives_object` in RegularElement.js.
@@ -915,90 +896,6 @@ pub fn build_set_class(
             .init
             .push(b::stmt(&context.arena, set_class_expr));
     }
-}
-
-/// Legacy function for backwards compatibility - use build_set_class instead.
-pub fn build_set_class_call(
-    _element: &RegularElementNode,
-    node_expr: JsExpr,
-    class_directives: &[&ClassDirective],
-    context: &mut ComponentContext,
-    is_html: bool,
-    css_hash: &str,
-) -> JsExpr {
-    // Extract node_id from node_expr
-    let node_id = match &node_expr {
-        JsExpr::Identifier(name) => name.clone(),
-        _ => "node".into(),
-    };
-
-    // Build class directives object: { foo: condition(), bar: otherCondition() }
-    let (class_obj, _has_state) = build_class_directives_object(class_directives, context);
-
-    // Flags: 1 for HTML, 0 for SVG
-    let flags = if is_html {
-        b::number(1.0)
-    } else {
-        b::number(0.0)
-    };
-
-    // Class attribute value (empty string if no class attribute)
-    let class_attr = b::string("");
-
-    // CSS hash for scoping (null if no hash)
-    let css_binding = if css_hash.is_empty() {
-        b::null()
-    } else {
-        b::string(css_hash)
-    };
-
-    // Previous state (empty object for initial render)
-    let prev = b::empty_object();
-
-    // $.set_class(element, flags, class_attr, css_hash, prev, next)
-    b::call(
-        &context.arena,
-        b::member_path(&context.arena, "$.set_class"),
-        vec![
-            b::id(node_id.clone()),
-            flags,
-            class_attr,
-            css_binding,
-            prev,
-            class_obj,
-        ],
-    )
-}
-
-/// Build a $.set_style() call for an element with style directives (legacy version).
-///
-/// Corresponds to `build_set_style` in shared/element.js.
-///
-/// Generates: `$.set_style(element, style_attr, prev, next)`
-/// Where:
-/// - style_attr: The static style attribute value (or "")
-/// - prev: Previous style directives state (or {})
-/// - next: Current style directives object
-pub fn build_set_style_call(
-    node_expr: JsExpr,
-    style_directives: &[&StyleDirective],
-    context: &mut ComponentContext,
-) -> JsExpr {
-    // Build style directives object
-    let style_obj = build_style_directives_object(style_directives, context);
-
-    // Style attribute value (empty string if no style attribute)
-    let style_attr = b::string("");
-
-    // Previous state (empty object for initial render)
-    let prev = b::empty_object();
-
-    // $.set_style(element, style_attr, prev, next)
-    b::call(
-        &context.arena,
-        b::member_path(&context.arena, "$.set_style"),
-        vec![node_expr, style_attr, prev, style_obj],
-    )
 }
 
 /// Build style handling for an element with style attribute and/or style directives.

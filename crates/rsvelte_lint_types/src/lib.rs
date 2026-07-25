@@ -25,7 +25,7 @@ use rsvelte_core::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
 use rsvelte_lint::type_backend::{PropMeta, TypeBackend, TypeFacts, TypeId, TypeMeta};
 
 mod resolver;
-pub use resolver::resolve_tsgo;
+pub use resolver::{MISSING_TSGO_HELP, require_tsgo, resolve_tsgo};
 
 use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 

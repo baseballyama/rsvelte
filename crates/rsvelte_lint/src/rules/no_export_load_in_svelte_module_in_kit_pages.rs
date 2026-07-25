@@ -16,7 +16,7 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-export-load-in-svelte-module-in-kit-pages",
@@ -79,7 +79,7 @@ impl ScriptRule for NoExportLoadInSvelteModuleInKitPages {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, kind: ScriptKind) {
         // Only inspect the module script (`<script context="module">`).
         if kind != ScriptKind::Module {
             return;
@@ -93,7 +93,7 @@ impl ScriptRule for NoExportLoadInSvelteModuleInKitPages {
         // declared directly under them.
         let mut reports: Vec<(u32, u32)> = Vec::new();
 
-        walk_js(program, |node, ancestors| {
+        program.walk(|node, ancestors| {
             if node_type(node) != Some("ExportNamedDeclaration") {
                 return;
             }

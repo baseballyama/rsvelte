@@ -27,7 +27,7 @@ use rsvelte_core::ast::template::Root;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_start, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_start, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/prefer-svelte-reactivity",
@@ -250,7 +250,7 @@ impl ScriptRule for PreferSvelteReactivity {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         let shadowed = collect_shadowed(program);
         let instances = collect_instances(program, &shadowed);
         // Live instances are already filtered for shadowing inside
@@ -293,19 +293,18 @@ impl Rule for PreferSvelteReactivity {
 
         // Serialize both programs inside the arena scope (already active because
         // `check_root` is called from `run_native_rules` → `with_serialize_arena`).
-        let module_program =
-            with_serialize_arena(&root.arena, || module_script.content.as_json().clone());
+        let module_program = with_serialize_arena(&root.arena, || module_script.content.as_json());
         let instance_program =
-            with_serialize_arena(&root.arena, || instance_script.content.as_json().clone());
+            with_serialize_arena(&root.arena, || instance_script.content.as_json());
 
         // Collect shadowed names and instances from BOTH scripts.
-        let module_shadowed = collect_shadowed(&module_program);
-        let instance_shadowed = collect_shadowed(&instance_program);
+        let module_shadowed = collect_shadowed(module_program);
+        let instance_shadowed = collect_shadowed(instance_program);
 
         // Instances declared in the module script.
-        let module_instances = collect_instances(&module_program, &module_shadowed);
+        let module_instances = collect_instances(module_program, &module_shadowed);
         // Instances declared in the instance script.
-        let instance_instances = collect_instances(&instance_program, &instance_shadowed);
+        let instance_instances = collect_instances(instance_program, &instance_shadowed);
 
         // Case A: declared in module, mutated in instance.
         // The same-script check (module declares + module mutates) is handled by
@@ -318,12 +317,12 @@ impl Rule for PreferSvelteReactivity {
             .collect();
         {
             let mutated_in_instance =
-                collect_mutations(&instance_program, &module_instances, &all_shadowed_for_a);
+                collect_mutations(instance_program, &module_instances, &all_shadowed_for_a);
             // Only keep instances that are NOT ALSO mutated in the module script
             // (to avoid double-reporting when both scripts mutate them — the
             // module check_program call would already fire).
             let mutated_in_module =
-                collect_mutations(&module_program, &module_instances, &module_shadowed);
+                collect_mutations(module_program, &module_instances, &module_shadowed);
             let mutated_in_module_starts: std::collections::HashSet<u32> =
                 mutated_in_module.iter().map(|(s, _)| *s).collect();
             for (start, class) in &mutated_in_instance {
@@ -339,11 +338,11 @@ impl Rule for PreferSvelteReactivity {
         // Case B: declared in instance, mutated in module.
         {
             let mutated_in_module =
-                collect_mutations(&module_program, &instance_instances, &all_shadowed_for_a);
+                collect_mutations(module_program, &instance_instances, &all_shadowed_for_a);
             // Exclude those already mutated in the instance script itself (to
             // avoid double-reporting).
             let mutated_in_instance_self =
-                collect_mutations(&instance_program, &instance_instances, &instance_shadowed);
+                collect_mutations(instance_program, &instance_instances, &instance_shadowed);
             let mutated_in_instance_starts: std::collections::HashSet<u32> =
                 mutated_in_instance_self.iter().map(|(s, _)| *s).collect();
             for (start, class) in &mutated_in_module {

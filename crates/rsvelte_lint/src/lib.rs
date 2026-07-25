@@ -62,10 +62,14 @@ pub mod json_api;
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub use config::LintConfig;
+#[cfg(feature = "native")]
+pub use diagnostic::LintMessage;
 pub use diagnostic::{Fix, LintDiagnostic, Suggestion, TextEdit};
 pub use rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 
 #[cfg(feature = "native")]
 pub use output::{LintFormat, render};
 #[cfg(feature = "native")]
-pub use runner::{FixResult, fix_source, lint_file, lint_source, lint_source_raw};
+pub use runner::{
+    FixResult, fix_source, lint_file, lint_source, lint_source_messages, lint_source_raw,
+};

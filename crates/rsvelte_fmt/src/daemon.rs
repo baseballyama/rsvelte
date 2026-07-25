@@ -49,7 +49,7 @@ impl DaemonClient {
         }
         // The daemon is a Node script: without a known interpreter (oxfmt
         // installed as a native binary on `$PATH`), there's nothing to run it.
-        let node = crate::oxfmt_node()?;
+        let node = crate::oxfmt::oxfmt_node()?;
         let bundle = daemon_bundle_path()?;
         let pkg_dir = oxfmt_pkg_dir(oxfmt)?;
         let socket = socket_path(oxfmt)?;
@@ -81,7 +81,7 @@ impl DaemonClient {
             want.push(id);
             let req = serde_json::json!({
                 "id": id,
-                "fileName": format!("inline.{}", crate::oxfmt_ext(lang)),
+                "fileName": format!("inline.{}", crate::oxfmt::oxfmt_ext(lang)),
                 "content": css,
                 "options": options,
             });

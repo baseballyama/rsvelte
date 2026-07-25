@@ -1644,16 +1644,6 @@ fn is_js_keyword_or_builtin(s: &str) -> bool {
     )
 }
 
-/// Track whether we're inside a template literal by counting unescaped backticks on a line.
-///
-/// Used to avoid adding indentation to content inside template literals.
-/// Track template literal state across lines.
-/// `state` is (in_template, brace_depth) where brace_depth > 0 means inside ${...}.
-pub fn update_template_literal_state_for_indent(line: &str, currently_in_template: bool) -> bool {
-    let (result, _) = update_template_literal_state_full(line, currently_in_template, 0);
-    result
-}
-
 /// Full template literal state tracking with brace depth for ${...} expressions.
 /// Returns (in_template, brace_depth).
 pub fn update_template_literal_state_full(

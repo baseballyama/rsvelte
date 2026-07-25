@@ -6,9 +6,13 @@
 //! also borrows the resolved [`LintConfig`] so a rule can read its own parsed
 //! options via [`LintContext::option_bool`] / [`LintContext::option_str_list`].
 
+use std::cell::OnceCell;
 use std::path::Path;
+use std::rc::Rc;
 
 use serde_json::Value;
+
+use rsvelte_core::compiler::phases::phase2_analyze::ComponentAnalysis;
 
 use crate::config::LintConfig;
 use crate::diagnostic::{Fix, LintDiagnostic, Suggestion};
@@ -34,6 +38,24 @@ pub struct LintContext<'a> {
     /// rule that needs it is disabled). Rules use it to distinguish a real
     /// global reference from a local binding that shares a global's name.
     scope_resolver: Option<&'a crate::scope::ScopeResolver>,
+    /// The component's Phase-2 analysis (bindings/scopes), run on first use.
+    /// Running it costs a full parse + analyze — several rules need it, so they
+    /// share one result per file instead of each re-analyzing the source.
+    /// `None` records an analysis failure (rules fall back to their own scan).
+    /// `(content_offset, end)` of the component's `<script>` blocks, taken from
+    /// the `Root` the pass already parsed. Rules that only need script bounds
+    /// used to re-parse the whole source to recover them.
+    script_spans: Vec<(u32, u32)>,
+    scope_analysis: OnceCell<Option<Rc<ComponentAnalysis>>>,
+    /// The template fragment as ESTree JSON (default parse options), built on
+    /// first use — several script rules scan template expressions and would
+    /// otherwise each re-parse and re-serialize the whole source.
+    template_fragment_json: OnceCell<Rc<Value>>,
+    /// The component's template AST as ESTree JSON, serialized on first use.
+    /// Several rules walk the whole tree generically; serializing it is one of
+    /// the most expensive things a lint pass does, so they share one value.
+    /// `Value::Null` records a serialization failure (rules bail on it).
+    root_json: OnceCell<Rc<Value>>,
 }
 
 impl<'a> LintContext<'a> {
@@ -47,6 +69,10 @@ impl<'a> LintContext<'a> {
             filename,
             path: None,
             scope_resolver: None,
+            script_spans: Vec::new(),
+            scope_analysis: OnceCell::new(),
+            template_fragment_json: OnceCell::new(),
+            root_json: OnceCell::new(),
         }
     }
 
@@ -57,6 +83,17 @@ impl<'a> LintContext<'a> {
         self
     }
 
+    /// Attach the component's `<script>` spans (builder style).
+    pub fn with_script_spans(mut self, spans: Vec<(u32, u32)>) -> Self {
+        self.script_spans = spans;
+        self
+    }
+
+    /// `(content_offset, end)` for each `<script>` block, empty when unknown.
+    pub fn script_spans(&self) -> &[(u32, u32)] {
+        &self.script_spans
+    }
+
     /// Attach the script-scope resolver (builder style). Left `None` by default.
     pub fn with_scope_resolver(
         mut self,
@@ -64,6 +101,62 @@ impl<'a> LintContext<'a> {
     ) -> Self {
         self.scope_resolver = resolver;
         self
+    }
+
+    /// The component's Phase-2 analysis, run once per file and shared by every
+    /// rule that asks for it. `None` when the component fails to analyze (an
+    /// invalid component still lints — rules fall back to a parse-only scan).
+    pub fn scope_analysis(&self) -> Option<Rc<ComponentAnalysis>> {
+        self.scope_analysis
+            .get_or_init(|| crate::scope::analyze_scope(self.source).map(Rc::new))
+            .clone()
+    }
+
+    /// The component's template AST as ESTree JSON, serialized once per file
+    /// and shared by every rule that asks for it. Returns `Value::Null` if the
+    /// tree could not be serialized. The `Rc` handout keeps the borrow off
+    /// `self`, so a rule can report while holding the JSON.
+    pub fn root_json(&self, root: &rsvelte_core::ast::template::Root) -> Rc<Value> {
+        self.root_json
+            .get_or_init(|| {
+                Rc::new(rsvelte_core::ast::arena::with_serialize_arena(
+                    &root.arena,
+                    || serde_json::to_value(root).unwrap_or(Value::Null),
+                ))
+            })
+            .clone()
+    }
+
+    /// The `fragment` of the shared root JSON (same lenient parse the lint pass
+    /// already did), for rules that hold the `Root` and only walk the template.
+    pub fn root_fragment_json(
+        &self,
+        root: &rsvelte_core::ast::template::Root,
+    ) -> Option<Rc<Value>> {
+        let json = self.root_json(root);
+        json.get("fragment").is_some().then_some(json)
+    }
+
+    /// The template fragment as ESTree JSON, parsed with the *default* options
+    /// (not the lenient lint options — a script rule scanning template
+    /// expressions must see what the strict parse produces) and cached per
+    /// file. Script rules reach the template through this instead of
+    /// re-parsing + re-serializing the source on every call.
+    pub fn template_fragment_json(&self) -> Rc<Value> {
+        self.template_fragment_json
+            .get_or_init(|| {
+                let alloc = rsvelte_core::Allocator::default();
+                let Ok(root) =
+                    rsvelte_core::parse(self.source, &alloc, rsvelte_core::ParseOptions::default())
+                else {
+                    return Rc::new(Value::Null);
+                };
+                Rc::new(rsvelte_core::ast::arena::with_serialize_arena(
+                    &root.arena,
+                    || serde_json::to_value(&root.fragment).unwrap_or(Value::Null),
+                ))
+            })
+            .clone()
     }
 
     /// The script-scope resolver for this file, when one was built.

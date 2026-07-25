@@ -54,14 +54,8 @@ pub struct NoSvelteInternal;
 impl NoSvelteInternal {
     /// Scan both the instance and module script bodies of `source`, reporting at
     /// every offending `import` / `export` keyword.
-    fn scan_source(&self, ctx: &mut LintContext, source: &str) {
-        let Ok(root) = rsvelte_core::parse(
-            source,
-            &rsvelte_core::Allocator::default(),
-            rsvelte_core::ParseOptions::default(),
-        ) else {
-            return;
-        };
+    fn scan_source(&self, ctx: &mut LintContext, source: &str, root: &Root) {
+        // Script bounds come from the `Root` the lint pass already parsed.
         for script in [root.instance.as_ref(), root.module.as_ref()]
             .into_iter()
             .flatten()
@@ -88,9 +82,9 @@ impl Rule for NoSvelteInternal {
         &META
     }
 
-    fn check_root(&self, ctx: &mut LintContext, _root: &Root) {
+    fn check_root(&self, ctx: &mut LintContext, root: &Root) {
         let source = ctx.source();
-        self.scan_source(ctx, source);
+        self.scan_source(ctx, source, root);
     }
 }
 

@@ -58,22 +58,6 @@ pub fn build_event(
     b::call(arena, b::member_path(arena, callee), args)
 }
 
-/// Build a delegated event assignment: `element.__eventname = handler`
-/// Reference: events.js lines 34-42 in the official compiler
-pub fn build_delegated_event_assignment(
-    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
-
-    event_name: &str,
-    node: &JsExpr,
-    handler: JsExpr,
-) -> JsExpr {
-    b::call(
-        arena,
-        b::member_path(arena, "$.delegated"),
-        vec![b::string(event_name), node.clone(), handler],
-    )
-}
-
 /// In dev mode, convert arrow function event handlers to named function expressions
 /// for better debugging (stack traces show the event name).
 /// Reference: events.js `build_event` in the official Svelte compiler.
@@ -266,121 +250,6 @@ pub fn build_event_handler(
     )
 }
 
-/// Build an event listener attachment.
-///
-/// Creates a call to attach an event listener to an element.
-///
-/// # Arguments
-///
-/// * `element` - The element to attach the listener to
-/// * `event_name` - The name of the event (e.g., "click", "input")
-/// * `handler` - The handler function
-/// * `options` - Event listener options (capture, passive, once, etc.)
-///
-/// # Returns
-///
-/// Returns a statement that attaches the event listener.
-pub fn build_event_listener(
-    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
-
-    element: JsExpr,
-    event_name: &str,
-    handler: JsExpr,
-    options: Option<EventListenerOptions>,
-) -> JsStatement {
-    if let Some(opts) = options {
-        // Build options object
-        let mut props = Vec::new();
-
-        if opts.capture {
-            props.push(b::prop(arena, "capture", b::boolean(true)));
-        }
-        if opts.passive {
-            props.push(b::prop(arena, "passive", b::boolean(true)));
-        }
-        if opts.once {
-            props.push(b::prop(arena, "once", b::boolean(true)));
-        }
-
-        let options_obj = b::object(props);
-
-        b::stmt(
-            arena,
-            b::call(
-                arena,
-                b::member_path(arena, "$.listen"),
-                vec![element, b::string(event_name), handler, options_obj],
-            ),
-        )
-    } else {
-        // No options
-        b::stmt(
-            arena,
-            b::call(
-                arena,
-                b::member_path(arena, "$.listen"),
-                vec![element, b::string(event_name), handler],
-            ),
-        )
-    }
-}
-
-/// Event listener options.
-#[derive(Debug, Clone, Default)]
-pub struct EventListenerOptions {
-    /// Whether to use capture phase
-    pub capture: bool,
-
-    /// Whether the listener is passive
-    pub passive: bool,
-
-    /// Whether the listener should be called only once
-    pub once: bool,
-}
-
-impl EventListenerOptions {
-    /// Create new event listener options.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Set capture option.
-    pub fn with_capture(mut self, capture: bool) -> Self {
-        self.capture = capture;
-        self
-    }
-
-    /// Set passive option.
-    pub fn with_passive(mut self, passive: bool) -> Self {
-        self.passive = passive;
-        self
-    }
-
-    /// Set once option.
-    pub fn with_once(mut self, once: bool) -> Self {
-        self.once = once;
-        self
-    }
-}
-
-/// Build delegated event setup.
-///
-/// For events that can be delegated (like click), this creates
-/// the delegation setup code.
-pub fn build_delegated_event(
-    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
-    event_name: &str,
-) -> JsStatement {
-    b::stmt(
-        arena,
-        b::call(
-            arena,
-            b::member_path(arena, "$.delegate"),
-            vec![b::string(event_name)],
-        ),
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -434,41 +303,4 @@ mod tests {
     }
 
     // Note: Removed test_build_event_handler_function as it requires Expression type which is complex to create
-
-    #[test]
-    fn test_build_event_listener_simple() {
-        let arena = crate::compiler::phases::phase3_transform::js_ast::arena::JsArena::new();
-        let element = b::id("button");
-        let handler = b::id("handleClick");
-
-        let stmt = build_event_listener(&arena, element, "click", handler, None);
-
-        // Should generate $.listen(button, "click", handleClick)
-        match stmt {
-            JsStatement::Expression(_) => {
-                // Success
-            }
-            _ => panic!("Expected expression statement"),
-        }
-    }
-
-    #[test]
-    fn test_build_event_listener_with_options() {
-        let arena = crate::compiler::phases::phase3_transform::js_ast::arena::JsArena::new();
-        let element = b::id("button");
-        let handler = b::id("handleClick");
-        let options = EventListenerOptions::new()
-            .with_capture(true)
-            .with_once(true);
-
-        let stmt = build_event_listener(&arena, element, "click", handler, Some(options));
-
-        // Should generate $.listen(button, "click", handleClick, { capture: true, once: true })
-        match stmt {
-            JsStatement::Expression(_) => {
-                // Success
-            }
-            _ => panic!("Expected expression statement"),
-        }
-    }
 }

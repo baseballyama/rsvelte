@@ -1,16 +1,18 @@
 //! Audit: for every fixture currently in the skip lists, run the same
-//! compile-and-compare logic the compatibility report uses and report which
-//! fixtures now pass. Run after every Svelte submodule bump to spot
-//! "previously-broken but now passing" fixtures so the skip lists don't
-//! accumulate dead entries.
+//! compile-and-compare logic the compatibility report uses and fail when a
+//! skipped fixture now passes. Run after every Svelte submodule bump so the
+//! skip lists don't accumulate dead entries that hide real coverage.
 //!
 //! Run: `cargo test --release --test audit_skipped -- --nocapture`
 //!
-//! When this prints `NOW PASSING (N fixtures)` with N > 0, remove the listed
-//! fixtures from `tests/compatibility_report.rs::runtime_skip_tests` and from
-//! the matching `RUNTIME_*_SKIP_NAMES` / `HYDRATION_SKIP_NAMES` arrays in
-//! `tests/runtime.rs` (or from the per-category `skip_*` arrays for parser /
-//! css / print / svelte2tsx).
+//! When this fails with `STALE SKIP ENTRIES`, remove the listed fixtures from
+//! `tests/compatibility_report.rs::runtime_skip_tests` and from the matching
+//! `RUNTIME_*_SKIP_NAMES` / `HYDRATION_SKIP_NAMES` arrays in `tests/runtime.rs`
+//! (or from the per-category `skip_*` arrays for parser / css / print).
+//!
+//! The audited names are parsed out of those sibling test sources rather than
+//! duplicated here, so the audit cannot silently drift away from the lists it
+//! polices.
 
 mod common;
 
@@ -65,11 +67,65 @@ fn remove_internal_fields(value: &mut serde_json::Value) {
     }
 }
 
+/// Skip entries that already pass under this audit. Unskipping them edits test
+/// files this change does not own, so they are ratcheted here and tracked in
+/// issue #1808. Shrink-only in both directions: a new stale entry fails, and an
+/// entry that stops applying must be dropped from the list.
+const KNOWN_STALE_SKIPS: &[(&str, &str)] = &[
+    ("runtime-runes", "async-each-const-await-iife"),
+    ("runtime-runes", "async-parallel-derived-template-mutation"),
+];
+
+/// Sibling test sources are embedded so the audited names come from the real
+/// skip lists instead of a hand-copied duplicate that silently rots.
+const RUNTIME_SRC: &str = include_str!("runtime.rs");
+const PRINT_SRC: &str = include_str!("print.rs");
+const CSS_SRC: &str = include_str!("css.rs");
+const REPORT_SRC: &str = include_str!("compatibility_report.rs");
+
+/// Returns the string literals of the `&[…]` literal that follows `marker`.
+/// Panics when the marker is gone — a renamed skip list must fail loudly here
+/// rather than turn the audit into a no-op.
+fn skip_list(src: &str, what: &str, marker: &str) -> Vec<String> {
+    let head = src
+        .find(marker)
+        .unwrap_or_else(|| panic!("{what}: `{marker}` not found — skip list renamed or moved?"));
+    let rest = &src[head + marker.len()..];
+    let open = rest
+        .find("&[")
+        .unwrap_or_else(|| panic!("{what}: no `&[` after `{marker}`"));
+    // Entries are documented with prose that contains quotes and brackets, so
+    // line comments go before anything else is located.
+    let code: String = rest[open + 2..]
+        .lines()
+        .map(|line| line.split("//").next().unwrap_or(""))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let close = code
+        .find(']')
+        .unwrap_or_else(|| panic!("{what}: unterminated array after `{marker}`"));
+
+    let mut names = Vec::new();
+    for line in code[..close].lines() {
+        let mut rest = line;
+        while let Some(start) = rest.find('"') {
+            let after = &rest[start + 1..];
+            let Some(end) = after.find('"') else { break };
+            names.push(after[..end].to_string());
+            rest = &after[end + 1..];
+        }
+    }
+    names
+}
+
 #[derive(Debug, Default)]
 struct Outcome {
     client_pass: Option<bool>,
     server_pass: Option<bool>,
     error: Option<String>,
+    /// The fixture (or its expected output) is gone — the skip entry cannot be
+    /// verified at all, which is itself a stale-skip signal.
+    missing: bool,
 }
 
 impl Outcome {
@@ -107,6 +163,7 @@ fn audit_runtime(category: &str, name: &str) -> Outcome {
 
     let Ok(input) = fs::read_to_string(&input_path) else {
         out.error = Some(format!("input not found: {:?}", input_path));
+        out.missing = true;
         return out;
     };
 
@@ -131,6 +188,7 @@ fn audit_runtime(category: &str, name: &str) -> Outcome {
     let expected_server = load_fixture_output(category, name, "server.js");
     if expected_client.is_none() && expected_server.is_none() {
         out.error = Some("no expected client/server output".to_string());
+        out.missing = true;
         return out;
     }
 
@@ -220,10 +278,12 @@ fn audit_parser(name: &str, modern: bool) -> Outcome {
 
     let Ok(input) = fs::read_to_string(&input_path) else {
         out.error = Some("input not found".to_string());
+        out.missing = true;
         return out;
     };
     let Ok(expected) = fs::read_to_string(&output_path) else {
         out.error = Some("output.json not found".to_string());
+        out.missing = true;
         return out;
     };
 
@@ -269,11 +329,13 @@ fn audit_css(name: &str) -> Outcome {
         .join("input.svelte");
     let Ok(input) = fs::read_to_string(&input_path) else {
         out.error = Some("input not found".to_string());
+        out.missing = true;
         return out;
     };
     let expected = load_fixture_output("css", name, "css.css");
     let Some(expected) = expected else {
         out.error = Some("no expected css".to_string());
+        out.missing = true;
         return out;
     };
 
@@ -327,10 +389,12 @@ fn audit_print(name: &str) -> Outcome {
         .join("output.svelte");
     let Ok(input) = fs::read_to_string(&input_path) else {
         out.error = Some("input not found".to_string());
+        out.missing = true;
         return out;
     };
     let Ok(expected) = fs::read_to_string(&expected_path) else {
         out.error = Some("output.svelte not found".to_string());
+        out.missing = true;
         return out;
     };
 
@@ -377,83 +441,84 @@ fn audit_skipped_fixtures() {
     let _ = compile_module;
     ensure_fixtures_exist();
 
-    // Names lifted from the skip lists in tests/compatibility_report.rs and
-    // tests/runtime.rs (excluding the always-out-of-scope migrate fixtures
-    // and validator's `_config.js` opt-out). svelte2tsx `expected.error.json`
-    // fixtures are now driven by `tests/common/svelte2tsx.rs` directly — they
-    // execute as regular runs in the compatibility report rather than being
-    // skipped — so they don't need to appear here.
-    let runtime_skipped: &[(&str, &str)] = &[
-        // Mirrors `RUNTIME_RUNES_SKIP_NAMES` in `tests/runtime.rs` — the
-        // Svelte 5.56.0 DeclarationTag (#18282) follow-up cluster + the
-        // pre-existing async-blocker propagation cluster (#18309). Re-checked
-        // here after every Svelte bump so an unblocked fixture surfaces as
-        // "now passing".
-        ("runtime-runes", "declaration-tags"),
-        ("runtime-runes", "async-declaration-tag"),
-        ("runtime-runes", "async-declaration-tag-2"),
-        ("runtime-runes", "async-each-const-await-iife"),
-        ("runtime-runes", "async-style-after-await"),
-        // New 5.56.4 fixture (#18453): server async-derived template-mutation
-        // codegen not yet ported (server=MISMATCH).
-        ("runtime-runes", "async-parallel-derived-template-mutation"),
-    ];
+    // The migrate fixtures (out of scope) and validator's `_config.js` opt-out
+    // are not skip lists and stay out of the audit. svelte2tsx
+    // `expected.error.json` fixtures run as regular samples via
+    // `tests/common/svelte2tsx.rs`, so they aren't skipped either.
+    let mut runtime_skipped: Vec<(String, String)> = Vec::new();
+    for (list, category) in [
+        ("RUNTIME_RUNES_SKIP_NAMES: &[&str] = ", "runtime-runes"),
+        ("RUNTIME_LEGACY_SKIP_NAMES: &[&str] = ", "runtime-legacy"),
+        ("HYDRATION_SKIP_NAMES: &[&str] = ", "hydration"),
+    ] {
+        for name in skip_list(RUNTIME_SRC, "tests/runtime.rs", list) {
+            runtime_skipped.push((category.to_string(), name));
+        }
+    }
+    // `runtime_skip_tests` is a `&[(category, name)]` list, so its literals
+    // alternate category / name.
+    let report_runtime = skip_list(
+        REPORT_SRC,
+        "tests/compatibility_report.rs",
+        "runtime_skip_tests: &[(&str, &str)] = ",
+    );
+    for pair in report_runtime.chunks(2) {
+        let [category, name] = pair else {
+            panic!("runtime_skip_tests has a dangling entry: {pair:?}");
+        };
+        let entry = (category.clone(), name.clone());
+        if !runtime_skipped.contains(&entry) {
+            runtime_skipped.push(entry);
+        }
+    }
 
-    let parser_legacy_skipped = &["javascript-comments", "implicitly-closed-li-block"];
-    let parser_modern_skipped: &[&str] = &[];
-    let css_skipped: &[&str] = &[];
-    let print_skipped = &["css-keyframes-percent"];
+    // The parser skip list is a `if !modern { … } else { … }` expression, so the
+    // modern branch is read from the source that follows the legacy branch.
+    const PARSER_MARKER: &str = "skip_tests: &[&str] = if !modern {";
+    let parser_legacy_skipped =
+        skip_list(REPORT_SRC, "tests/compatibility_report.rs", PARSER_MARKER);
+    let else_branch = &REPORT_SRC[REPORT_SRC.find(PARSER_MARKER).expect("parser skip list")..];
+    let parser_modern_skipped = skip_list(else_branch, "tests/compatibility_report.rs", "} else {");
+    let mut css_skipped = skip_list(CSS_SRC, "tests/css.rs", "CSS_SKIP_NAMES: &[&str] = ");
+    for name in skip_list(
+        REPORT_SRC,
+        "tests/compatibility_report.rs",
+        "skip_css: &[&str] = ",
+    ) {
+        if !css_skipped.contains(&name) {
+            css_skipped.push(name);
+        }
+    }
+    let print_skipped = skip_list(PRINT_SRC, "tests/print.rs", "PRINT_SKIP_NAMES: &[&str] = ");
 
     let mut now_passing: Vec<(String, String)> = Vec::new();
     let mut still_failing: Vec<(String, String, String)> = Vec::new();
+    let mut unverifiable: Vec<(String, String, String)> = Vec::new();
 
-    for (cat, name) in runtime_skipped {
-        let outcome = audit_runtime(cat, name);
-        if outcome.passed() {
-            now_passing.push((cat.to_string(), name.to_string()));
+    let mut record = |category: &str, name: &str, outcome: Outcome| {
+        if outcome.missing {
+            unverifiable.push((category.to_string(), name.to_string(), outcome.summary()));
+        } else if outcome.passed() {
+            now_passing.push((category.to_string(), name.to_string()));
         } else {
-            still_failing.push((cat.to_string(), name.to_string(), outcome.summary()));
+            still_failing.push((category.to_string(), name.to_string(), outcome.summary()));
         }
+    };
+
+    for (category, name) in &runtime_skipped {
+        record(category, name, audit_runtime(category, name));
     }
-    for name in parser_legacy_skipped {
-        let outcome = audit_parser(name, false);
-        if outcome.passed() {
-            now_passing.push(("parser-legacy".to_string(), name.to_string()));
-        } else {
-            still_failing.push((
-                "parser-legacy".to_string(),
-                name.to_string(),
-                outcome.summary(),
-            ));
-        }
+    for name in &parser_legacy_skipped {
+        record("parser-legacy", name, audit_parser(name, false));
     }
-    for name in parser_modern_skipped {
-        let outcome = audit_parser(name, true);
-        if outcome.passed() {
-            now_passing.push(("parser-modern".to_string(), name.to_string()));
-        } else {
-            still_failing.push((
-                "parser-modern".to_string(),
-                name.to_string(),
-                outcome.summary(),
-            ));
-        }
+    for name in &parser_modern_skipped {
+        record("parser-modern", name, audit_parser(name, true));
     }
-    for name in css_skipped {
-        let outcome = audit_css(name);
-        if outcome.passed() {
-            now_passing.push(("css".to_string(), name.to_string()));
-        } else {
-            still_failing.push(("css".to_string(), name.to_string(), outcome.summary()));
-        }
+    for name in &css_skipped {
+        record("css", name, audit_css(name));
     }
-    for name in print_skipped {
-        let outcome = audit_print(name);
-        if outcome.passed() {
-            now_passing.push(("print".to_string(), name.to_string()));
-        } else {
-            still_failing.push(("print".to_string(), name.to_string(), outcome.summary()));
-        }
+    for name in &print_skipped {
+        record("print", name, audit_print(name));
     }
 
     println!(
@@ -470,4 +535,55 @@ fn audit_skipped_fixtures() {
     for (cat, name, why) in &still_failing {
         println!("  FAIL  {}/{}  ({})", cat, name, why);
     }
+
+    assert!(
+        unverifiable.is_empty(),
+        "\n{} skip entries could not be verified — the fixture or its expected \
+         output is gone, so the skip is stale (or `pnpm run generate-fixtures` \
+         is out of date):\n{}",
+        unverifiable.len(),
+        unverifiable
+            .iter()
+            .map(|(cat, name, why)| format!("  - {cat}/{name}  ({why})"))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+
+    let new_stale: Vec<&(String, String)> = now_passing
+        .iter()
+        .filter(|(cat, name)| {
+            !KNOWN_STALE_SKIPS
+                .iter()
+                .any(|(c, n)| *c == cat && *n == name)
+        })
+        .collect();
+    assert!(
+        new_stale.is_empty(),
+        "\n{} STALE SKIP ENTRIES — these fixtures pass but are still skipped, \
+         so they contribute no coverage. Remove them from the skip lists in \
+         tests/runtime.rs, tests/css.rs, tests/print.rs and \
+         tests/compatibility_report.rs:\n{}",
+        new_stale.len(),
+        new_stale
+            .iter()
+            .map(|(cat, name)| format!("  - {cat}/{name}"))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+
+    let dead_ratchet: Vec<&(&str, &str)> = KNOWN_STALE_SKIPS
+        .iter()
+        .filter(|(cat, name)| !now_passing.iter().any(|(c, n)| c == cat && n == name))
+        .collect();
+    assert!(
+        dead_ratchet.is_empty(),
+        "\n{} KNOWN_STALE_SKIPS entries no longer apply (unskipped, or failing \
+         again) — drop them from the list:\n{}",
+        dead_ratchet.len(),
+        dead_ratchet
+            .iter()
+            .map(|(cat, name)| format!("  - {cat}/{name}"))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
 }

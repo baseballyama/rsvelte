@@ -55,9 +55,21 @@ pub struct Printer<'opt> {
     /// node's last line) rather than attaching them to AST nodes.
     comments: Vec<Cmt>,
     comment_index: usize,
-    /// Byte offsets of each line start, for offset→line lookups when placing
-    /// comments. Empty when printing without comments.
+    /// Byte offsets of each line start in the buffer the comment spans index
+    /// into, for offset→line lookups when placing comments. Empty when printing
+    /// without comments.
     line_starts: Vec<u32>,
+    /// Byte offsets of each line start in the buffer source-map positions are
+    /// resolved against. Same as `line_starts` unless the caller split the two
+    /// coordinate spaces (see [`crate::print_split`]).
+    map_line_starts: Vec<u32>,
+    /// Spans below this offset are synthesized and carry no source location, so
+    /// they take no part in comment placement — the Rust equivalent of esrap's
+    /// `if (node.loc)` guards. `None` = every span is a real location.
+    loc_base: Option<u32>,
+    /// Sorted, disjoint `(start, end, mapped)` ranges translating a comment-space
+    /// offset back to a source-map-space offset. `None` mapped = unmapped.
+    loc_map: Vec<(u32, u32, Option<u32>)>,
     /// Optional caller hooks that inject synthetic leading/trailing comments per
     /// statement (esrap's `getLeadingComments` / `getTrailingComments`).
     hooks: Option<&'opt crate::CommentHooks<'opt>>,
@@ -391,6 +403,9 @@ impl<'opt> Printer<'opt> {
             comments: Vec::new(),
             comment_index: 0,
             line_starts: Vec::new(),
+            map_line_starts: Vec::new(),
+            loc_base: None,
+            loc_map: Vec::new(),
             hooks: None,
         }
     }
@@ -407,9 +422,28 @@ impl<'opt> Printer<'opt> {
             missing: None,
             comments,
             comment_index: 0,
+            map_line_starts: line_starts.clone(),
             line_starts,
+            loc_base: None,
+            loc_map: Vec::new(),
             hooks: None,
         }
+    }
+
+    /// Resolve source-map positions against a different buffer than the one the
+    /// comment spans index into, and treat spans below `loc_base` as
+    /// synthesized (no location). `loc_map` translates comment-space offsets
+    /// back into map-space offsets.
+    pub fn with_split_coordinates(
+        mut self,
+        map_line_starts: Vec<u32>,
+        loc_base: u32,
+        loc_map: &[(u32, u32, Option<u32>)],
+    ) -> Self {
+        self.map_line_starts = map_line_starts;
+        self.loc_base = Some(loc_base);
+        self.loc_map = loc_map.to_vec();
+        self
     }
 
     /// Attach caller comment hooks (builder-style).
@@ -423,18 +457,46 @@ impl<'opt> Printer<'opt> {
         self.line_starts.partition_point(|&s| s <= offset) as u32
     }
 
+    /// esrap's `if (node.loc)`: whether a span offset is a real source position
+    /// (and so may carry comments) rather than a synthesized node's placeholder.
+    fn has_loc(&self, offset: u32) -> bool {
+        self.loc_base.is_none_or(|base| offset >= base)
+    }
+
     /// Convert a byte offset to `(line_1based, column_0based)` using
     /// `line_starts`, mirroring ESTree `loc` (1-based line, 0-based column). The
     /// column is the offset relative to the start of its line; for ASCII / BMP
     /// source this equals the UTF-16 column esrap uses. Returns `None` when
     /// there are no line starts (printing without source context).
     fn offset_to_line_col(&self, offset: u32) -> Option<(u32, u32)> {
-        if self.line_starts.is_empty() {
+        if self.map_line_starts.is_empty() {
             return None;
         }
-        let line = self.line_of(offset);
+        let offset = if self.loc_map.is_empty() {
+            offset
+        } else {
+            match self
+                .loc_map
+                .binary_search_by(|(start, end, _)| {
+                    if offset < *start {
+                        std::cmp::Ordering::Greater
+                    } else if offset >= *end {
+                        std::cmp::Ordering::Less
+                    } else {
+                        std::cmp::Ordering::Equal
+                    }
+                })
+                .ok()
+                .map(|i| self.loc_map[i].2)
+            {
+                Some(Some(mapped)) => mapped,
+                Some(None) => return None,
+                None => offset,
+            }
+        };
+        let line = self.map_line_starts.partition_point(|&s| s <= offset) as u32;
         // `line` is 1-based; its start offset lives at index `line - 1`.
-        let line_start = self.line_starts[(line - 1) as usize];
+        let line_start = self.map_line_starts[(line - 1) as usize];
         Some((line, offset.saturating_sub(line_start)))
     }
 
@@ -560,6 +622,9 @@ impl<'opt> Printer<'opt> {
         from_line: Option<u32>,
         pad: bool,
     ) {
+        if !self.has_loc(to) {
+            return;
+        }
         let mut first = true;
         while self.comment_index < self.comments.len() {
             let cmt = &self.comments[self.comment_index];
@@ -593,9 +658,16 @@ impl<'opt> Printer<'opt> {
     fn flush_trailing_comments(
         &mut self,
         ctx: &mut Context,
-        prev_end_line: u32,
+        prev_end: u32,
         next: Option<u32>,
     ) -> bool {
+        if !self.has_loc(prev_end) {
+            return false;
+        }
+        // A `next` boundary that is itself synthesized bounds nothing (esrap's
+        // `next` is `null` when the following node has no `loc`).
+        let next = next.filter(|n| self.has_loc(*n));
+        let prev_end_line = self.line_of(prev_end);
         let mut emitted_line_newline = false;
         while self.comment_index < self.comments.len() {
             let cmt = &self.comments[self.comment_index];
@@ -620,6 +692,9 @@ impl<'opt> Printer<'opt> {
     /// esrap's `reset_comment_index`: re-sync the cursor to the first comment
     /// at/after `node_start` (so a nested body doesn't replay earlier comments).
     fn reset_comment_index(&mut self, node_start: u32) {
+        if !self.has_loc(node_start) {
+            return;
+        }
         let cur = self.comments.get(self.comment_index);
         let prev = self
             .comment_index
@@ -693,7 +768,7 @@ impl<'opt> Printer<'opt> {
             // start, or `until` for the final node.
             let next = if i == n - 1 { until } else { starts[i + 1] };
             if let Some(end) = node.end {
-                self.flush_trailing_comments(&mut child, self.line_of(end), next);
+                self.flush_trailing_comments(&mut child, end, next);
             }
 
             length += child.measure() as i64 + 1;
@@ -739,6 +814,7 @@ impl<'opt> Printer<'opt> {
             let from_line = nodes
                 .last()
                 .and_then(|node| node.end)
+                .filter(|&e| self.has_loc(e))
                 .map(|e| self.line_of(e));
             self.flush_comments_until(parent, until, self.line_of(until), from_line, false);
         }
@@ -827,9 +903,8 @@ impl<'opt> Printer<'opt> {
             let multiline = child.multiline;
             ctx.append(child);
 
-            let end_line = self.line_of(elem.span_end());
             let next = non_empty.get(i + 1).map(|e| e.span_start());
-            self.flush_trailing_comments(ctx, end_line, next);
+            self.flush_trailing_comments(ctx, elem.span_end(), next);
 
             prev = Some((elem, multiline));
         }
@@ -842,7 +917,11 @@ impl<'opt> Printer<'opt> {
         // `empty()`, so a comment-free `{}` is unaffected.
         ctx.newline();
         if !self.comments.is_empty() {
-            let from_line = non_empty.last().map(|e| self.line_of(e.span_end()));
+            let from_line = non_empty
+                .last()
+                .map(|e| e.span_end())
+                .filter(|&end| self.has_loc(end))
+                .map(|end| self.line_of(end));
             self.flush_comments_until(ctx, body_end, self.line_of(body_end), from_line, false);
         }
     }
@@ -2109,6 +2188,8 @@ impl<'opt> Printer<'opt> {
                 //    sequence visitor.)
                 if matches!(p.expression, Expression::SequenceExpression(_)) {
                     self.print_expression(&p.expression, ctx);
+                // No `has_loc` guard needed: every comment offset is >= `loc_base`
+                // by construction, so a synthesized span never contains one.
                 } else if self.comment_in_span(p.span.start, p.span.end) {
                     ctx.write("(");
                     self.print_expression(&p.expression, ctx);
@@ -2900,6 +2981,9 @@ impl<'opt> Printer<'opt> {
             let is_last = i == n - 1;
             let arg_start = arg.span().start;
 
+            // No `has_loc` guard needed: every comment offset is >= `loc_base` by
+            // construction, so `c.start < arg_start` is already false for a
+            // synthesized argument span.
             if is_last
                 && let Some(c) = self.comments.get(self.comment_index)
                 && c.start < arg_start
@@ -2928,8 +3012,7 @@ impl<'opt> Printer<'opt> {
             } else {
                 Some(args[i + 1].span().start)
             };
-            let emitted_line =
-                self.flush_trailing_comments(&mut child, self.line_of(arg.span().end), next);
+            let emitted_line = self.flush_trailing_comments(&mut child, arg.span().end, next);
             // esrap accumulates all non-final args in one `child_context` and
             // `append`s a `join` context after each, which propagates the
             // trailing line comment's pending newline into `child_context.multiline`

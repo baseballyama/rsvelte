@@ -149,23 +149,6 @@ pub fn is_svelte_whitespace_only(s: &str) -> bool {
         .all(|c| matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C'))
 }
 
-/// Trim Svelte whitespace from both ends of a string.
-///
-/// Only trims space, tab, carriage return, newline, and form feed.
-/// Does NOT trim non-breaking space (\u{00A0}).
-pub fn svelte_trim(s: &str) -> &str {
-    let is_ws = |c: char| matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C');
-    let start = s
-        .char_indices()
-        .find(|(_, c)| !is_ws(*c))
-        .map_or(s.len(), |(i, _)| i);
-    let end = s
-        .char_indices()
-        .rfind(|(_, c)| !is_ws(*c))
-        .map_or(0, |(i, c)| i + c.len_utf8());
-    if start > end { "" } else { &s[start..end] }
-}
-
 /// Trim Svelte whitespace from the start of a string.
 pub fn svelte_trim_start(s: &str) -> &str {
     let is_ws = |c: char| matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C');

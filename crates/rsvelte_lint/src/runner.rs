@@ -7,13 +7,66 @@ use rsvelte_core::CompileOptions;
 use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 
 use crate::config::LintConfig;
-use crate::diagnostic::{LintDiagnostic, TextEdit};
+use crate::diagnostic::{LintDiagnostic, LintMessage, TextEdit};
 use crate::engine::{
     lint_parse_options, maybe_scope_resolver, run_native_rules, run_native_rules_on_root,
     run_script_rules, run_script_rules_on_root,
 };
 use crate::line_index::LineIndex;
 use crate::suppression::Suppressions;
+
+/// Parse the component once and run every AST-driven rule pass over it: the
+/// native template walk, the `<script>` walk and the scope rules. The flag
+/// reports whether the lenient parse succeeded, which gates the source-scan
+/// fallbacks that stand in for the walks when it did not.
+fn svelte_rule_findings(
+    source: &str,
+    file: &Path,
+    filename: &str,
+    config: &LintConfig,
+) -> (Vec<LintDiagnostic>, bool) {
+    // One lenient parse shared by the native-template walk, the script-AST walk
+    // and the block-lang fallback's success probe. The validator wrap compiles
+    // independently (it needs a full analyze pass), so it keeps its own parse.
+    let parsed = rsvelte_core::parse(
+        source,
+        &rsvelte_core::Allocator::default(),
+        lint_parse_options(),
+    )
+    .ok();
+
+    let mut diags = Vec::new();
+    if let Some(root) = &parsed {
+        // Build the oxc-semantic scope resolver ONCE (when the rule that needs
+        // it is on) and share it across both passes, so the semantic build isn't
+        // paid twice.
+        let resolver = maybe_scope_resolver(root, source, config);
+        diags.extend(run_native_rules_on_root(
+            root,
+            source,
+            filename,
+            config,
+            Some(file),
+            resolver.as_ref(),
+        ));
+        // Thread the full path so path-gated rules (e.g. SvelteKit route file
+        // detection) can check whether the file lives under src/routes.
+        diags.extend(run_script_rules_on_root(
+            root,
+            source,
+            filename,
+            config,
+            Some(file),
+            resolver.as_ref(),
+        ));
+    }
+
+    // Scope-based rules (Wave 2). No-op until scope rules ship; this skips the
+    // analysis pass entirely when none are enabled.
+    diags.extend(crate::scope::scope_diagnostics(source, config));
+
+    (diags, parsed.is_some())
+}
 
 /// Lint a single source string. `file` is used for diagnostic paths and
 /// filename-gated rules (e.g. SvelteKit route file detection).
@@ -23,6 +76,23 @@ pub fn lint_source(
     options: &CompileOptions,
     config: &LintConfig,
 ) -> Vec<Diagnostic> {
+    lint_source_messages(source, file, options, config)
+        .into_iter()
+        .map(|m| m.diagnostic)
+        .collect()
+}
+
+/// The full lint pass behind [`lint_source`]: the same diagnostics in the same
+/// order, each paired with the `fix` / `suggestions` / `help` payload of the
+/// rule that produced it. Findings from the validator wrap and the source-scan
+/// meta rules carry no payload. Editors use this to drive `publishDiagnostics`
+/// and `codeAction` from a single pass.
+pub fn lint_source_messages(
+    source: &str,
+    file: &Path,
+    options: &CompileOptions,
+    config: &LintConfig,
+) -> Vec<LintMessage> {
     let line_index = LineIndex::new(source);
     let filename = file
         .file_name()
@@ -40,78 +110,42 @@ pub fn lint_source(
         // / `*.ts`): no template or compiler-warning pass — only script-AST rules
         // run, over the whole-file module program.
         crate::engine::SourceKind::Module { ts } => {
-            let mut diags = Vec::new();
-            for d in crate::engine::run_script_rules_module(source, &filename, ts, config) {
-                diags.push(d.to_output(file, &line_index));
-            }
-            diags
+            crate::engine::run_script_rules_module(source, &filename, ts, config)
+                .into_iter()
+                .map(|d| LintMessage::from_lint(d, file, &line_index))
+                .collect()
         }
         crate::engine::SourceKind::Svelte => {
-            // Parse the source ONCE (lenient) and share the `Root` across the
-            // native-template walk, the script-AST walk, and the block-lang
-            // fallback's success probe — instead of re-parsing in each. The
-            // validator wrap below still compiles independently (it needs a full
-            // analyze pass), so it keeps its own parse.
-            let parsed = rsvelte_core::parse(
-                source,
-                &rsvelte_core::Allocator::default(),
-                lint_parse_options(),
-            )
-            .ok();
-
             // 1. Validator wrap — compiler warnings/errors/a11y (config applied inside).
-            let mut diags = crate::validator::validator_diagnostics(source, file, options, config);
+            let mut diags: Vec<LintMessage> =
+                crate::validator::validator_diagnostics(source, file, options, config)
+                    .into_iter()
+                    .map(LintMessage::from_diagnostic)
+                    .collect();
 
-            if let Some(root) = &parsed {
-                // Build the oxc-semantic scope resolver ONCE (when the rule that
-                // needs it is on) and share it across both the native (template)
-                // and script passes, so the semantic build isn't paid twice.
-                let resolver = maybe_scope_resolver(root, source, config);
+            // 2. Native template walk + script-AST rules + scope rules.
+            let (findings, parsed_ok) = svelte_rule_findings(source, file, &filename, config);
+            diags.extend(
+                findings
+                    .into_iter()
+                    .map(|d| LintMessage::from_lint(d, file, &line_index)),
+            );
 
-                // 2. Native rule engine — single shared DFS over the template AST.
-                for d in run_native_rules_on_root(
-                    root,
-                    source,
-                    &filename,
-                    config,
-                    Some(file),
-                    resolver.as_ref(),
-                ) {
-                    diags.push(d.to_output(file, &line_index));
-                }
-
-                // 2a. Script-AST rules — walk the `<script>` ESTree program(s).
-                // Thread the full path so path-gated rules (e.g. SvelteKit route
-                // file detection) can check whether the file lives under src/routes.
-                for d in run_script_rules_on_root(
-                    root,
-                    source,
-                    &filename,
-                    config,
-                    Some(file),
-                    resolver.as_ref(),
-                ) {
-                    diags.push(d.to_output(file, &line_index));
-                }
-            }
-
-            // 2b. Scope-based rules (Wave 2). No-op until scope rules ship; this
-            // skips the analysis pass entirely when none are enabled.
-            for d in crate::scope::scope_diagnostics(source, config) {
-                diags.push(d.to_output(file, &line_index));
-            }
+            // The source-scan meta rules below report in output coordinates and
+            // never carry a fix.
+            let mut meta: Vec<Diagnostic> = Vec::new();
 
             // 2c. valid-compile (opt-in): surface compiler warnings/errors under
             // the single `svelte/valid-compile` id. Off by default, so this is a
             // no-op (and skips the extra compile) unless the rule is enabled.
-            diags.extend(crate::rules::valid_compile::valid_compile_diagnostics(
+            meta.extend(crate::rules::valid_compile::valid_compile_diagnostics(
                 source, file, options, config,
             ));
 
             // 2d. valid-style-parse: report `<style>` blocks with an unsupported
             // `lang`. A source scan, so it runs even when the (invalid) style
             // body would otherwise abort the main parse.
-            diags.extend(
+            meta.extend(
                 crate::rules::valid_style_parse::valid_style_parse_diagnostics(
                     source, file, config,
                 ),
@@ -121,35 +155,32 @@ pub fn lint_source(
             // parse (e.g. unknown `<style lang="…">` bodies or invalid TypeScript),
             // the normal `check_root` path is skipped. Run a source-scan instead
             // to catch `<script lang="…">` / `<style lang="…">` violations.
-            diags.extend(
+            meta.extend(
                 crate::rules::block_lang::block_lang_source_scan_diagnostics(
-                    source,
-                    file,
-                    config,
-                    parsed.is_some(),
+                    source, file, config, parsed_ok,
                 ),
             );
 
             // 2e. Cross-cutting (template + script) source-scan meta-rules.
-            diags.extend(crate::rules::experimental_require_slot_types::diagnostics(
+            meta.extend(crate::rules::experimental_require_slot_types::diagnostics(
                 source, file, config,
             ));
-            diags.extend(
+            meta.extend(
                 crate::rules::experimental_require_strict_events::diagnostics(source, file, config),
             );
-            diags.extend(crate::rules::require_event_dispatcher_types::diagnostics(
+            meta.extend(crate::rules::require_event_dispatcher_types::diagnostics(
                 source, file, config,
             ));
-            diags.extend(crate::rules::require_event_prefix::diagnostics(
+            meta.extend(crate::rules::require_event_prefix::diagnostics(
                 source, file, config,
             ));
-            diags.extend(crate::rules::no_unused_props::diagnostics(
+            meta.extend(crate::rules::no_unused_props::diagnostics(
                 source, file, config,
             ));
 
             // 2f. no-unused-svelte-ignore: compile + match svelte-ignore comments
             // against the warnings they would suppress; report the unused ones.
-            diags.extend(
+            meta.extend(
                 crate::rules::no_unused_svelte_ignore::no_unused_svelte_ignore_diagnostics(
                     source,
                     file,
@@ -158,6 +189,8 @@ pub fn lint_source(
                     &line_index,
                 ),
             );
+
+            diags.extend(meta.into_iter().map(LintMessage::from_diagnostic));
             diags
         }
     };
@@ -173,9 +206,9 @@ pub fn lint_source(
     {
         let findings: Vec<(u32, u32, String)> = diagnostics
             .iter()
-            .filter_map(|d| {
-                let code = d.code.clone()?;
-                let range = d.range?;
+            .filter_map(|m| {
+                let code = m.diagnostic.code.clone()?;
+                let range = m.diagnostic.range?;
                 Some((range.start.line, range.start.column, code))
             })
             .collect();
@@ -192,7 +225,7 @@ pub fn lint_source(
 
     // 4. Suppression directives (eslint-disable* + svelte-ignore).
     let suppressions = Suppressions::collect(source);
-    diagnostics.retain(|d| match (&d.code, &d.range) {
+    diagnostics.retain(|m| match (&m.diagnostic.code, &m.diagnostic.range) {
         (Some(code), Some(range)) => !suppressions.is_suppressed(code, range.start.line),
         _ => true,
     });
@@ -200,12 +233,13 @@ pub fn lint_source(
     // 4a. Append the unused-directive reports (not subject to the line-based
     //     suppression above).
     for d in cd_reports {
-        diagnostics.push(d.to_output(file, &line_index));
+        diagnostics.push(LintMessage::from_lint(d, file, &line_index));
     }
 
     // 5. Stable order: by line, then column.
-    diagnostics.sort_by_key(|d| {
-        d.range
+    diagnostics.sort_by_key(|m| {
+        m.diagnostic
+            .range
             .map(|r| (r.start.line, r.start.column))
             .unwrap_or((0, 0))
     });
@@ -217,7 +251,8 @@ pub fn lint_source(
 /// before conversion to the output diagnostic. The validator/compiler wrap is
 /// omitted — only the ported plugin rules emit `svelte/*` codes — and
 /// suppression directives are applied. Used by the compat oracle to assert
-/// suggestion + fix parity, which the line/column output type cannot express.
+/// suggestion + fix parity against eslint-plugin-svelte, whose fixtures cover
+/// the ported rules only. Editors want [`lint_source_messages`] instead.
 pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<LintDiagnostic> {
     let line_index = LineIndex::new(source);
     let filename = file
@@ -234,37 +269,7 @@ pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<Li
             crate::engine::run_script_rules_module(source, &filename, ts, config)
         }
         crate::engine::SourceKind::Svelte => {
-            // Share one lenient parse across the native + script walks.
-            let mut d = match rsvelte_core::parse(
-                source,
-                &rsvelte_core::Allocator::default(),
-                lint_parse_options(),
-            ) {
-                Ok(root) => {
-                    // Build the scope resolver once, share it across both passes.
-                    let resolver = maybe_scope_resolver(&root, source, config);
-                    let mut d = run_native_rules_on_root(
-                        &root,
-                        source,
-                        &filename,
-                        config,
-                        Some(file),
-                        resolver.as_ref(),
-                    );
-                    d.extend(run_script_rules_on_root(
-                        &root,
-                        source,
-                        &filename,
-                        config,
-                        Some(file),
-                        resolver.as_ref(),
-                    ));
-                    d
-                }
-                Err(_) => Vec::new(),
-            };
-            d.extend(crate::scope::scope_diagnostics(source, config));
-            d
+            svelte_rule_findings(source, file, &filename, config).0
         }
     };
 
@@ -555,6 +560,89 @@ mod tests {
 
         let spread = lint("<button {...rest}>x</button>", &cfg);
         assert!(!codes(&spread).contains(&"svelte/button-has-type".to_string()));
+    }
+
+    fn messages(src: &str, config: &LintConfig) -> Vec<LintMessage> {
+        lint_source_messages(
+            src,
+            &PathBuf::from("Test.svelte"),
+            &CompileOptions::default(),
+            config,
+        )
+    }
+
+    #[test]
+    fn messages_pair_the_validator_wrap_with_rule_fixes_in_one_pass() {
+        let cfg =
+            LintConfig::recommended().with_override("svelte/no-useless-mustaches", Severity::Warn);
+        let src = "<img src=\"x.png\" />\n<p>{'foo'}</p>";
+        let msgs = messages(src, &cfg);
+
+        // Validator wrap: positioned, no fix payload.
+        let a11y = msgs
+            .iter()
+            .find(|m| {
+                m.diagnostic
+                    .code
+                    .as_deref()
+                    .is_some_and(|c| c.starts_with("a11y"))
+            })
+            .expect("expected an a11y_* diagnostic from the validator wrap");
+        assert!(a11y.diagnostic.range.is_some());
+        assert!(a11y.span.is_none());
+        assert!(a11y.fix.is_none());
+        assert!(a11y.suggestions.is_empty());
+
+        // Native rule: fix + byte span, from the same call.
+        let mustache = msgs
+            .iter()
+            .find(|m| m.diagnostic.code.as_deref() == Some("svelte/no-useless-mustaches"))
+            .expect("expected the rule finding alongside the validator wrap");
+        let (start, end) = mustache.span.expect("rule findings carry a byte span");
+        assert_eq!(&src[start as usize..end as usize], "{'foo'}");
+        let fix = mustache.fix.as_ref().expect("rule offers an autofix");
+        assert_eq!(fix.apply(src), "<img src=\"x.png\" />\n<p>foo</p>");
+    }
+
+    #[test]
+    fn messages_carry_suggestions() {
+        let msgs = messages("<p>{@debug foo}</p>", &LintConfig::recommended());
+        let debug = msgs
+            .iter()
+            .find(|m| m.diagnostic.code.as_deref() == Some("svelte/no-at-debug-tags"))
+            .expect("no-at-debug-tags fires");
+        assert!(debug.fix.is_none(), "offered as a suggestion, not a fix");
+        assert!(!debug.suggestions.is_empty());
+    }
+
+    #[test]
+    fn messages_reproduce_lint_source_output_verbatim() {
+        // Covers ordering, suppression and the unused-directive meta-rule: a
+        // source whose findings come from the validator wrap, the template walk,
+        // the script walk and a source-scan meta rule at once.
+        let cfg = LintConfig::recommended()
+            .with_override("svelte/no-useless-mustaches", Severity::Warn)
+            .with_override("svelte/valid-compile", Severity::Warn);
+        let src = concat!(
+            "<script>\n  let a;\n  a = 1;\n</script>\n",
+            "<!-- eslint-disable-next-line svelte/no-at-html-tags -->\n",
+            "{@html a}\n",
+            "<img src=\"x.png\" />\n",
+            "{#each items as item}{item}{/each}\n",
+            "<p>{'foo'}</p>\n",
+            "{@debug a}\n",
+        );
+        let via_messages: Vec<String> = messages(src, &cfg)
+            .iter()
+            .map(|m| format!("{:?}", m.diagnostic))
+            .collect();
+        let direct: Vec<String> = lint(src, &cfg).iter().map(|d| format!("{d:?}")).collect();
+        assert_eq!(via_messages, direct);
+        assert!(
+            !direct.iter().any(|d| d.contains("no-at-html-tags")),
+            "the eslint-disable directive still applies"
+        );
+        assert!(direct.len() > 3, "expected findings from several sources");
     }
 
     #[test]

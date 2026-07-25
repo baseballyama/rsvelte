@@ -388,18 +388,9 @@ pub fn enrich_blocker_map_with_transitive_deps(
     }
 }
 
-/// Transform the instance script body for async components.
+/// Transform the instance script body into a sync/async split.
 ///
-/// Takes the already-transformed script text (after rune transforms, etc.)
-/// and splits it at the first top-level `await`.
-///
-/// # Arguments
-/// * `script` - The already-transformed instance script text
-/// * `runner` - The runner expression (e.g., "$.run" for client, "$$renderer.run" for server)
-/// * `dev` - Whether dev mode is enabled (affects await wrapping with $.track_reactivity_loss)
-///
-/// # Returns
-/// The transformed script with sync/async split, or None if no top-level await found.
+/// Returns `None` if no top-level await is found.
 pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResult> {
     transform_async_body_inner(script, runner, false)
 }

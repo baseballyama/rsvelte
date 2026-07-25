@@ -17,11 +17,11 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_start, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_start, node_type};
 
 /// Collect the local namespace alias for `import * as X from module` into `out`.
-fn import_ns_locals(program: &Value, module: &str, out: &mut HashSet<String>) {
-    walk_js(program, |node, _| {
+fn import_ns_locals(program: &ProgramView<'_>, module: &str, out: &mut HashSet<String>) {
+    program.walk(|node, _| {
         if node_type(node) != Some("ImportDeclaration") {
             return;
         }
@@ -69,8 +69,8 @@ const MESSAGE: &str = "Found a goto() call with a url that isn't prefixed with t
 
 /// Collect the local names that an import from `module` binds for the given
 /// exported `name` (alias aware: `import { base as b }` → `b`).
-fn import_locals(program: &Value, module: &str, name: &str, out: &mut HashSet<String>) {
-    walk_js(program, |node, _| {
+fn import_locals(program: &ProgramView<'_>, module: &str, name: &str, out: &mut HashSet<String>) {
+    program.walk(|node, _| {
         if node_type(node) != Some("ImportDeclaration") {
             return;
         }
@@ -182,7 +182,7 @@ impl ScriptRule for NoGotoWithoutBase {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         let mut goto_names: HashSet<String> = HashSet::new();
         import_locals(program, "$app/navigation", "goto", &mut goto_names);
         let mut nav_ns: HashSet<String> = HashSet::new();
@@ -194,7 +194,7 @@ impl ScriptRule for NoGotoWithoutBase {
         import_locals(program, "$app/paths", "base", &mut base_names);
 
         let mut reports: Vec<u32> = Vec::new();
-        walk_js(program, |node, _| {
+        program.walk(|node, _| {
             if node_type(node) != Some("CallExpression") {
                 return;
             }

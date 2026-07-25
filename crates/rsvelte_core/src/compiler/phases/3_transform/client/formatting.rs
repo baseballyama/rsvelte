@@ -932,19 +932,3 @@ pub(super) fn rejoin_inspect_empty_stmts(code: &str) -> String {
     }
     result.join("\n")
 }
-
-/// Detect the common indentation level (in tabs) of the first non-empty line
-/// in the original script content.
-#[allow(dead_code)]
-pub(super) fn detect_indent_level(js: &str) -> usize {
-    for line in js.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        // Count leading tabs
-        let tabs = line.chars().take_while(|c| *c == '\t').count();
-        return tabs;
-    }
-    0
-}

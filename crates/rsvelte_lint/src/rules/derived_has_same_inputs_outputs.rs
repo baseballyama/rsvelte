@@ -22,7 +22,9 @@ use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
 use crate::rules::store_refs::collect_store_creators;
-use crate::script::{ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js};
+use crate::script::{
+    ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/derived-has-same-inputs-outputs",
@@ -331,7 +333,7 @@ impl ScriptRule for DerivedHasSameInputsOutputs {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         let creators = collect_store_creators(program);
         if creators.is_empty() {
             return;
@@ -339,7 +341,7 @@ impl ScriptRule for DerivedHasSameInputsOutputs {
 
         let mut reports: Vec<Report> = Vec::new();
 
-        walk_js(program, |node, _| {
+        program.walk(|node, _| {
             if node_type(node) != Some("CallExpression") {
                 return;
             }

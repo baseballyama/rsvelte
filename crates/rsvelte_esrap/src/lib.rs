@@ -87,6 +87,51 @@ pub fn print_with(program: &Program<'_>, source: &str, options: &PrintOptions) -
     command::print(&ctx.into_commands(), &options.indent)
 }
 
+/// Print a program whose comment coordinates and source-map coordinates live in
+/// two different buffers — the shape a *reassembled* program has, where the
+/// nodes carrying comments were parsed from generated chunks rather than from
+/// the original file.
+///
+/// * `comment_source` is the buffer the program's comment spans (and the spans
+///   of the nodes those comments attach to) index into.
+/// * `loc_base` splits the two: spans below it are synthesized nodes that carry
+///   no location, exactly like a missing `node.loc` in esrap, and take part in
+///   no comment placement.
+/// * `map_source` (when `Some`) is the buffer source-map line/columns resolve
+///   against, with `loc_map` translating comment-space offsets back into it —
+///   sorted and disjoint, one entry per chunk, a `None` third field meaning the
+///   chunk has no original-source anchor. `map_source: None` prints without
+///   source-map anchors.
+///
+/// A chunk maps to a single point, so source-map *resolution* inside a chunk is
+/// chunk-granular, not statement-granular.
+pub fn print_split(
+    program: &Program<'_>,
+    comment_source: &str,
+    loc_base: u32,
+    map_source: Option<&str>,
+    loc_map: &[(u32, u32, Option<u32>)],
+    options: &PrintOptions,
+) -> PrintWithMap {
+    let comments = printer::build_comments(program, comment_source);
+    let map_line_starts = map_source.map(printer::line_starts).unwrap_or_default();
+    let mut printer =
+        printer::Printer::with_comments(options, comments, printer::line_starts(comment_source))
+            .with_split_coordinates(map_line_starts, loc_base, loc_map);
+    let mut ctx = context::Context::new();
+    printer.print_program(program, &mut ctx);
+    let commands = ctx.into_commands();
+    if map_source.is_some() {
+        let (code, mappings) = command::flatten_with_map(&commands, &options.indent);
+        PrintWithMap { code, mappings }
+    } else {
+        PrintWithMap {
+            code: command::print(&commands, &options.indent),
+            mappings: Vec::new(),
+        }
+    }
+}
+
 /// A synthetic comment injected by a [`CommentHooks`] callback (esrap's
 /// `BaseComment`). `block` chooses `/* … */` vs `// …`; `value` is the interior
 /// text (without delimiters).

@@ -10,7 +10,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	type TaskId = 'full' | 'full-ssr' | 'parse' | 'svelte2tsx' | 'fmt' | 'svelte-check';
+	type TaskId = 'full' | 'full-ssr' | 'parse' | 'svelte2tsx' | 'fmt' | 'lint' | 'svelte-check';
 
 	// `animationTime` is the elapsed wall-clock ms since the run started.
 	// Each bar across every task shows `min(animationTime, this.durationMs)`,
@@ -94,6 +94,16 @@
 				group: 'ecosystem',
 				baseline: 'prettier-plugin-svelte',
 				data: r.fmt
+			});
+		}
+		if (r.lint) {
+			list.push({
+				id: 'lint',
+				label: 'Lint',
+				sub: `linter · ${r.lint.rulesCount} shared rules`,
+				group: 'ecosystem',
+				baseline: 'eslint + eslint-plugin-svelte',
+				data: r.lint
 			});
 		}
 		if (r.svelteCheck) {
@@ -333,7 +343,7 @@
 				<pre><code><span class="c-cmt"># 1. Build the Rust compiler in release mode</span>
 <span class="c-prompt">$</span> cargo build <span class="c-flag">--release</span>
 
-<span class="c-cmt"># 2. Run the corpus benchmark (compile / parse / svelte2tsx / fmt / svelte-check)</span>
+<span class="c-cmt"># 2. Run the corpus benchmark (compile / parse / svelte2tsx / fmt / lint / svelte-check)</span>
 <span class="c-prompt">$</span> pnpm run generate-benchmark
 
 <span class="c-cmt"># 3. View the report locally</span>

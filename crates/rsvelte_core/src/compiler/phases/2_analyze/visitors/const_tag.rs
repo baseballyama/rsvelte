@@ -6,7 +6,7 @@
 
 use super::super::AnalysisError;
 use super::super::errors;
-use super::shared::utils::{validate_opening_tag, walk_js_expression, walk_js_expression_node};
+use super::shared::utils::{validate_opening_tag, walk_js_expression_node};
 use super::{FragmentOwnerType, VisitorContext};
 use crate::ast::template::ConstTag;
 use crate::ast::typed_expr::JsNode;
@@ -84,30 +84,9 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
                 arena,
             );
         }
-        // Fallback for Raw or unknown variants
-        _ => {
-            let value = tag.declaration.as_json();
-            let decl_type = value.get("type").and_then(|t| t.as_str());
-            if decl_type == Some("VariableDeclaration")
-                && let Some(declarations) = value.get("declarations").and_then(|d| d.as_array())
-                && let Some(declaration) = declarations.first()
-                && let Some(init) = declaration.get("init")
-            {
-                walk_js_expression(init, context, &mut tag.metadata.expression)?;
-                super::await_block::collect_pickled_awaits(
-                    init,
-                    &mut context.analysis.pickled_awaits,
-                );
-            } else if decl_type == Some("AssignmentExpression")
-                && let Some(right) = value.get("right")
-            {
-                walk_js_expression(right, context, &mut tag.metadata.expression)?;
-                super::await_block::collect_pickled_awaits(
-                    right,
-                    &mut context.analysis.pickled_awaits,
-                );
-            }
-        }
+        // Any other declaration shape carries no init to walk; the JSON fallback
+        // this replaced re-tested the same two types and so was already a no-op.
+        _ => {}
     }
 
     context.in_const_tag = false;

@@ -3,8 +3,9 @@ name: Site Benchmark
 # Produces the JS-vs-Rust benchmark JSON that the /benchmark page on the docs
 # site renders (`apps/playground/static/benchmark-results.json`). This is
 # deliberately a manual, on-demand job — the numbers do not move per-push, and
-# running the full five-task comparison (compile-client / parse / svelte2tsx /
-# fmt / svelte-check) takes long enough that gating CI on it would be wasteful.
+# running the full comparison (compile-client / compile-server / parse /
+# svelte2tsx / fmt / lint / svelte-check) takes long enough that gating CI on it
+# would be wasteful.
 #
 # Flow: dispatch this workflow from a local checkout
 #   gh workflow run site-benchmark.yml
@@ -72,8 +73,9 @@ jobs:
 
       # The JS baselines (svelte/compiler, svelte2tsx, language-server,
       # svelte-check) are rollup/tsc build outputs that run-benchmark.mjs
-      # bootstraps on demand. Cache them keyed by submodule SHA so warm runs
-      # skip the ~several-minute build chain.
+      # bootstraps on demand; the `lint` baseline is the parity corpus' isolated
+      # eslint-plugin-svelte install, which it bootstraps the same way. Cache
+      # them keyed by submodule SHA so warm runs skip the build/install chain.
       - name: Cache JS baseline builds
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -89,7 +91,8 @@ jobs:
             submodules/language-tools/packages/svelte2tsx/index.mjs
             submodules/language-tools/packages/language-server/dist
             submodules/language-tools/packages/svelte-check/dist
-          key: js-baselines-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
+            scripts/compat-corpus/lint-oracle/node_modules
+          key: js-baselines-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules', 'scripts/compat-corpus/lint-oracle/package.json') }}
 
       # prettier + prettier-plugin-svelte (the JS `fmt` baseline) resolve from
       # the repo-root node_modules.
@@ -109,7 +112,7 @@ jobs:
       - name: Build Rust benchmark harnesses
         run: |
           cargo build --release --bin benchmark_runner --bin svelte_check
-          cargo build --profile=bench --bin fmt_benchmark_runner
+          cargo build --profile=bench --bin fmt_benchmark_runner --bin lint_benchmark_runner
         timeout-minutes: 45
 
       - name: Run benchmark
@@ -124,7 +127,7 @@ jobs:
         run: |
           echo '### Benchmark results' >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          node -e "const r=require('./benchmark-results.json');console.log(JSON.stringify({generatedAt:r.generatedAt,commitSha:r.commitSha,runner:r.runner,testFilesCount:r.testFilesCount,compileClient:r.speedup,parse:r.parse.speedup,svelte2tsx:r.svelte2tsx?.speedup,fmt:r.fmt?.speedup,svelteCheck:r.svelteCheck?.speedup},null,2))" >> "$GITHUB_STEP_SUMMARY"
+          node -e "const r=require('./benchmark-results.json');console.log(JSON.stringify({generatedAt:r.generatedAt,commitSha:r.commitSha,runner:r.runner,testFilesCount:r.testFilesCount,compileClient:r.speedup,parse:r.parse.speedup,svelte2tsx:r.svelte2tsx?.speedup,fmt:r.fmt?.speedup,lint:r.lint?.speedup,svelteCheck:r.svelteCheck?.speedup},null,2))" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload benchmark JSON

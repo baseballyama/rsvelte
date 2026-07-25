@@ -1,0 +1,26 @@
+[package]
+name = "rsvelte_language_server"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+description = "Language server exposing rsvelte's formatter and linter over LSP"
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "rsvelte-language-server"
+path = "src/main.rs"
+
+[dependencies]
+rsvelte_core = { path = "../rsvelte_core" }
+rsvelte_fmt = { path = "../rsvelte_fmt" }
+rsvelte_lint = { path = "../rsvelte_lint", default-features = false, features = ["native"] }
+anyhow = "1.0"
+crossbeam-channel = "0.5"
+lsp-server = "0.10"
+lsp-types = "0.97"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[lints]
+workspace = true

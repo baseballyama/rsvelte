@@ -164,16 +164,6 @@ impl<'a> B<'a> {
         ))
     }
 
-    /// Build a static [`MemberExpression`] node (not wrapped as `Expression`),
-    /// for callers needing the member form directly.
-    #[inline]
-    pub fn member_node(self, object: Expression<'a>, property: &str) -> MemberExpression<'a> {
-        let property = self.id_name(property);
-        MemberExpression::StaticMemberExpression(StaticMemberExpression::boxed(
-            SPAN, object, property, false, &self.ab,
-        ))
-    }
-
     /// `a.b.c` from a dotted path (upstream `b.member_id`).
     pub fn member_id(self, path: &str) -> Expression<'a> {
         let mut parts = path.split('.');
@@ -190,23 +180,6 @@ impl<'a> B<'a> {
     pub fn call(self, callee: impl IntoExpr<'a>, args: Vec<Expression<'a>>) -> Expression<'a> {
         let callee = callee.into_expr(self);
         let args = self.args(args);
-        Expression::CallExpression(CallExpression::boxed(
-            SPAN,
-            callee,
-            oxc_ast::NONE,
-            args,
-            false,
-            &self.ab,
-        ))
-    }
-
-    /// `callee(args…)` taking pre-built [`Argument`]s (for spreads).
-    pub fn call_args(
-        self,
-        callee: impl IntoExpr<'a>,
-        args: ArenaVec<'a, Argument<'a>>,
-    ) -> Expression<'a> {
-        let callee = callee.into_expr(self);
         Expression::CallExpression(CallExpression::boxed(
             SPAN,
             callee,
@@ -275,12 +248,6 @@ impl<'a> B<'a> {
         out
     }
 
-    /// A spread argument `...expr` (for use with [`B::call_args`]).
-    #[inline]
-    pub fn spread_arg(self, expr: Expression<'a>) -> Argument<'a> {
-        Argument::new_spread_element(SPAN, expr, &self.ab)
-    }
-
     // -- operators ----------------------------------------------------------
 
     #[inline]
@@ -306,18 +273,6 @@ impl<'a> B<'a> {
     #[inline]
     pub fn unary(self, op: UnaryOperator, argument: Expression<'a>) -> Expression<'a> {
         Expression::UnaryExpression(UnaryExpression::boxed(SPAN, op, argument, &self.ab))
-    }
-
-    #[inline]
-    pub fn conditional(
-        self,
-        test: Expression<'a>,
-        consequent: Expression<'a>,
-        alternate: Expression<'a>,
-    ) -> Expression<'a> {
-        Expression::ConditionalExpression(ConditionalExpression::boxed(
-            SPAN, test, consequent, alternate, &self.ab,
-        ))
     }
 
     #[inline]
@@ -742,22 +697,6 @@ impl<'a> B<'a> {
         }
         let decl = VariableDeclaration::boxed(SPAN, kind, declarators, false, &self.ab);
         Statement::VariableDeclaration(decl)
-    }
-
-    /// Like `var_decl_from_pairs` but emits ONE `VariableDeclaration`
-    /// statement per declarator pair (写经 the server text-oracle's
-    /// `split_comma_separated_declarations`: the official compiler prints each
-    /// top-level declarator as its own statement). A single pair yields one
-    /// statement, identical to `var_decl_from_pairs` with one element.
-    pub fn var_decls_split(
-        self,
-        kind: VariableDeclarationKind,
-        pairs: Vec<(BindingPattern<'a>, Option<Expression<'a>>)>,
-    ) -> Vec<Statement<'a>> {
-        pairs
-            .into_iter()
-            .map(|(pat, init)| self.declaration(kind, pat, init))
-            .collect()
     }
 
     fn declaration(

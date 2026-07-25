@@ -20,7 +20,7 @@ use serde_json::Value;
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/prefer-writable-derived",
@@ -151,10 +151,10 @@ impl ScriptRule for PreferWritableDerived {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         // name → StateDecl (declarator start + init span).
         let mut state_decls: HashMap<String, StateDecl> = HashMap::new();
-        walk_js(program, |node, _| {
+        program.walk(|node, _| {
             if node_type(node) != Some("VariableDeclarator") {
                 return;
             }
@@ -189,7 +189,7 @@ impl ScriptRule for PreferWritableDerived {
         // (decl_start, init_start, init_end, rhs_start, rhs_end,
         //  effect_start, effect_end)
         let mut reports: Vec<(u32, u32, u32, u32, u32, u32, u32)> = Vec::new();
-        walk_js(program, |node, _| {
+        program.walk(|node, _| {
             if node_type(node) != Some("CallExpression") || !is_effect_call(node) {
                 return;
             }
