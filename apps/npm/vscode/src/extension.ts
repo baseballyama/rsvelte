@@ -7,19 +7,27 @@
 import * as path from "node:path";
 import {
   IndentAction,
+  commands,
   extensions,
   languages,
   window,
+  workspace,
   type ExtensionContext,
+  type LogOutputChannel,
+  type TextDocument,
 } from "vscode";
 import {
   LanguageClient,
+  State,
+  Trace,
   TransportKind,
   type LanguageClientOptions,
   type ServerOptions,
 } from "vscode-languageclient/node";
 
 let client: LanguageClient | undefined;
+let outputChannel: LogOutputChannel | undefined;
+let restarting = false;
 
 /** Languages the server attaches to (formatting + diagnostics). */
 const DOCUMENT_SELECTOR = [
@@ -57,6 +65,22 @@ const VOID_ELEMENTS = [
 
 const OFFICIAL_EXTENSION_ID = "svelte.svelte-vscode";
 const CONFLICT_DISMISSED_KEY = "rsvelte.officialExtensionConflictDismissed";
+const RESTART_COMMAND_ID = "rsvelte.restartLanguageServer";
+
+/**
+ * Basenames of files whose content changes the server's effective
+ * compiler/format/lint config, matched against the extensions rsvelte
+ * actually resolves (see `crates/rsvelte_core/src/svelte_check/config.rs`,
+ * `crates/rsvelte_fmt/src/config.rs`, `crates/rsvelte_lint/src/main.rs`).
+ */
+const RESTART_ON_SAVE_PATTERNS: readonly RegExp[] = [
+  /^svelte\.config\.(js|mjs|cjs|ts|mts)$/,
+  /^vite\.config\.(js|mjs|cjs|ts|mts|cts)$/,
+  /^rsvelte-lint\.json$/,
+  /^\.rsvelte-lintrc\.json$/,
+  /^\.oxfmtrc\.(json|jsonc)$/,
+  /^oxfmt\.config\.(ts|mts)$/,
+];
 
 function registerSvelteLanguageConfiguration(context: ExtensionContext): void {
   const voidElements = VOID_ELEMENTS.join("|");
@@ -119,15 +143,90 @@ async function warnAboutOfficialExtension(
   }
 }
 
+/** Resolves once `c` has left the `Starting` state, so `stop`/`restart` never race an in-flight `start`. */
+function waitWhileStarting(c: LanguageClient): Promise<void> {
+  if (c.state !== State.Starting) return Promise.resolve();
+  return new Promise((resolve) => {
+    const disposable = c.onDidChangeState((event) => {
+      if (event.newState !== State.Starting) {
+        disposable.dispose();
+        resolve();
+      }
+    });
+  });
+}
+
+/**
+ * Restarts the running client, or starts it if it never came up (e.g. a
+ * previous `StartFailed`). `BaseLanguageClient.restart()` calls `stop()`
+ * first, which throws unless the client is `Running`, so those states go
+ * through `start()` instead. The `restarting` guard collapses concurrent
+ * triggers (command + several config saves in a row) into one restart.
+ */
+async function restartLanguageServer(): Promise<void> {
+  if (!client || restarting) return;
+  restarting = true;
+  try {
+    await waitWhileStarting(client);
+    outputChannel?.clear();
+    if (client.state === State.Running) {
+      await client.restart();
+    } else {
+      await client.start();
+    }
+    if (client.state === State.Running) {
+      await client.setTrace(traceFromConfig());
+    }
+  } finally {
+    restarting = false;
+  }
+}
+
+function traceFromConfig(): Trace {
+  const value = workspace
+    .getConfiguration("rsvelte")
+    .get<string>("trace.server", "off");
+  return Trace.fromString(value ?? "off");
+}
+
+/** Resolves a config value that may be relative to the first workspace folder. */
+function resolveWorkspaceRelative(configured: string): string {
+  if (path.isAbsolute(configured)) return configured;
+  const root = workspace.workspaceFolders?.[0]?.uri.fsPath;
+  return root ? path.join(root, configured) : configured;
+}
+
+function resolveServerModule(context: ExtensionContext): string {
+  const configured = workspace
+    .getConfiguration("rsvelte")
+    .get<string>("languageServer.path");
+  if (configured && configured.trim() !== "") {
+    return resolveWorkspaceRelative(configured);
+  }
+  // The bundled server lives at dist/server.mjs, copied next to the
+  // extension bundle by the build (see build.mjs).
+  return context.asAbsolutePath(path.join("dist", "server.mjs"));
+}
+
+/** Files outside any open workspace folder, or inside `node_modules`, never trigger a restart. */
+function isRestartTrigger(document: TextDocument): boolean {
+  if (document.uri.scheme !== "file") return false;
+  if (!workspace.getWorkspaceFolder(document.uri)) return false;
+
+  const relativeParts = workspace
+    .asRelativePath(document.uri, false)
+    .split(/[\\/]/);
+  if (relativeParts.includes("node_modules")) return false;
+
+  const base = path.basename(document.uri.fsPath);
+  return RESTART_ON_SAVE_PATTERNS.some((pattern) => pattern.test(base));
+}
+
 export function activate(context: ExtensionContext): void {
   registerSvelteLanguageConfiguration(context);
   void warnAboutOfficialExtension(context);
 
-  // The bundled server lives at dist/server.mjs, copied next to the extension
-  // bundle by the build (see build.mjs).
-  const serverModule = context.asAbsolutePath(
-    path.join("dist", "server.mjs"),
-  );
+  const serverModule = resolveServerModule(context);
 
   const serverOptions: ServerOptions = {
     run: { module: serverModule, transport: TransportKind.stdio },
@@ -138,8 +237,14 @@ export function activate(context: ExtensionContext): void {
     },
   };
 
+  outputChannel = window.createOutputChannel("rsvelte Language Server", {
+    log: true,
+  });
+  context.subscriptions.push(outputChannel);
+
   const clientOptions: LanguageClientOptions = {
     documentSelector: DOCUMENT_SELECTOR,
+    outputChannel,
     synchronize: {
       // Forward `rsvelte.*` configuration changes to the server.
       configurationSection: "rsvelte",
@@ -153,9 +258,38 @@ export function activate(context: ExtensionContext): void {
     clientOptions,
   );
 
-  void client.start();
+  void client
+    .start()
+    .then(() => client?.setTrace(traceFromConfig()))
+    // The client already surfaces start failures via its own error UI.
+    .catch(() => undefined);
+
+  context.subscriptions.push(
+    commands.registerCommand(RESTART_COMMAND_ID, () =>
+      restartLanguageServer(),
+    ),
+    workspace.onDidSaveTextDocument((document) => {
+      if (isRestartTrigger(document)) {
+        void restartLanguageServer();
+      }
+    }),
+    workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration("rsvelte.trace.server")) {
+        void client?.setTrace(traceFromConfig());
+      }
+    }),
+  );
 }
 
-export function deactivate(): Thenable<void> | undefined {
-  return client?.stop();
+export async function deactivate(): Promise<void> {
+  const toStop = client;
+  client = undefined;
+  outputChannel = undefined;
+  if (!toStop) return;
+  // Mirrors the restart guard: `stop()` throws unless the client is
+  // `Running`, so wait out an in-flight `start()` before stopping.
+  await waitWhileStarting(toStop);
+  if (toStop.state === State.Running) {
+    await toStop.stop();
+  }
 }
