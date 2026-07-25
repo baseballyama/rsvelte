@@ -1,4 +1,5 @@
 pub mod add_component_export;
+pub mod create_render_function;
 pub mod helpers;
 pub mod interfaces;
 #[allow(

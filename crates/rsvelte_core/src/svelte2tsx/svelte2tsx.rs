@@ -3,12 +3,10 @@
 //! Converts Svelte component source files into TypeScript/TSX for type checking.
 //! This is a Rust port of the `svelte2tsx` package used by the Svelte language server.
 
-use std::fmt::Write as _;
-
-use crate::ast::template::Root;
 use crate::compiler::phases::phase1_parse::{self, ParseOptions};
 
 use super::add_component_export::{ComponentExportParams, add_component_export};
+use super::create_render_function::{build_dollar_declarations, create_render_function};
 use super::helpers::rewrite_external_imports::rewrite_external_specifiers_in_text;
 use super::magic_string::{GenerateMapOptions, MagicString};
 use super::nodes::component_name::derive_component_name;
@@ -22,9 +20,7 @@ use super::nodes::runes_detection::{
 use super::nodes::scripts::{
     detect_top_level_await, find_instance_imports, find_script_close_tag_start,
 };
-use super::nodes::slot::{
-    collect_slot_names_from_ast, escape_js_single_quoted, fragment_has_slot_element,
-};
+use super::nodes::slot::fragment_has_slot_element;
 use super::nodes::snippet_hoisting::hoist_top_level_snippets;
 use super::nodes::svelte_options::emit_svelte_options_element;
 use super::script::{ComponentEvents, ExportedNames};
@@ -1128,110 +1124,18 @@ pub fn svelte2tsx(
         }
     }
 
-    // Phase 4: Add reference types and component wrapper
-    let is_dts_mode = matches!(options.mode, Svelte2TsxMode::Dts);
-    let header_str = if is_dts_mode {
-        "import { SvelteComponentTyped } from \"svelte\"\n\n"
-    } else {
-        "///<reference types=\"svelte\" />\n"
-    };
-    if has_instance_script {
-        // Prepend the reference types
-        str.prepend_str(header_str);
-    } else if has_module_script {
-        // Module script but no instance script
-        let module = ast.module.as_ref().unwrap();
-        let mod_content_start = module.content_offset;
-        let mod_end = module.end;
-
-        // Module-hoistable snippets land either:
-        // - right after the last top-level import in the module script, or
-        // - at `mod_content_start` (right after `<script module ...>`'s `>`)
-        //   if the module has no imports.
-        //
-        // Mirrors the JS reference's `snippetHoistTargetForModule = lastImport
-        // ? lastImport.end + moduleAst.astOffset : moduleAst.astOffset` and the
-        // accompanying `appendLeft(target, '\n')` for the no-imports case.
-        if !hoistable_snippet_ranges.is_empty() {
-            let module_imports = find_instance_imports(module, source);
-            let module_hoist_target = match module_imports.last() {
-                Some(&(_, _, last_end)) => mod_content_start + last_end,
-                None => mod_content_start,
-            };
-            // JS reference: `str.appendLeft(snippetHoistTargetForModule, '\n')`
-            // for both the imports-present and no-imports branches.
-            str.append_left(module_hoist_target, "\n");
-            for (s, e) in hoistable_snippet_ranges.iter() {
-                str.move_range(*s, *e, module_hoist_target);
-            }
-        }
-
-        // For module-script-only components, inject store subscriptions for
-        // module-level imports at the start of the $$render async wrapper.
-        let store_decls = super::script::collect_module_import_store_declarations(source);
-        // Suppress the `__sveltets_createSlot` binding in dts mode; matches
-        // `createRenderFunction.ts`'s `slots.size > 0 && mode !== 'dts'` gate.
-        let slot_decl_mod = if has_slot_elements && !is_dts_mode {
-            "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot();/*\u{03A9}ignore_end\u{03A9}*/"
-        } else {
-            ""
-        };
-        // Official `createRenderFunction.ts` emits the `slotsDeclaration`
-        // (`const __sveltets_createSlot = …`) in the $$render body BEFORE the
-        // `async () => {` wrapper, not inside it. Keep module-import store
-        // subscriptions inside the async wrapper.
-        let render_open = format!(
-            ";function $$render() {{{}{}\nasync () => {{{}",
-            dollar_decls, slot_decl_mod, store_decls
-        );
-        str.append_left(mod_end, &render_open);
-
-        // Blank out trailing whitespace after the module script ONLY when
-        // there's no template content following. This ensures the async
-        // wrapper closes immediately for module-script-only components.
-        let has_non_whitespace_template = ast.fragment.nodes.iter().any(|node| {
-            !matches!(node, crate::ast::template::TemplateNode::Text(t)
-                if slice_src(source, t.start as usize, t.end as usize).chars().all(|c| c.is_whitespace()))
-        });
-        if !has_non_whitespace_template && (mod_end as usize) < source.len() {
-            let bytes = source.as_bytes();
-            let mut trailing_end = mod_end;
-            while (trailing_end as usize) < bytes.len() {
-                let b = bytes[trailing_end as usize];
-                if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-                    trailing_end += 1;
-                } else {
-                    break;
-                }
-            }
-            if trailing_end > mod_end {
-                str.overwrite(mod_end, trailing_end, "");
-            }
-        }
-
-        str.prepend_str(header_str);
-    } else {
-        // No script tags at all: prepend the full wrapper.
-        // When embedded scripts were found and removed (step 7.48), their content
-        // is injected here right after `function $$render() {` — mirroring how
-        // the official tool processes an embedded script as an instance script and
-        // moves its content to the render-function body start.
-        let slot_decl_tmpl = if has_slot_elements && !is_dts_mode {
-            "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot();/*\u{03A9}ignore_end\u{03A9}*/"
-        } else {
-            ""
-        };
-        let embedded_injection = if !embedded_script_content.is_empty() {
-            format!("\n{}", embedded_script_content)
-        } else {
-            String::new()
-        };
-        let wrapper = format!(
-            "{};function $$render() {{{}{}{}\nasync () => {{",
-            header_str, dollar_decls, embedded_injection, slot_decl_tmpl
-        );
-        str.prepend_str(&wrapper);
-    }
+    create_render_function(
+        &ast,
+        source,
+        &options,
+        &mut str,
+        &dollar_decls,
+        has_instance_script,
+        has_module_script,
+        has_slot_elements,
+        &hoistable_snippet_ranges,
+        &embedded_script_content,
+    );
 
     let closing = add_component_export(
         ComponentExportParams {
@@ -1292,36 +1196,4 @@ pub fn svelte2tsx(
         events,
         forward_map,
     })
-}
-
-/// Build the `$$props`/`$$restProps`/`$$slots` declaration text injected into
-/// the `$$render()` header for a component that references those legacy magic
-/// variables.
-fn build_dollar_declarations(
-    ast: &Root,
-    uses_dollar_props: bool,
-    uses_dollar_rest_props: bool,
-    uses_dollar_slots: bool,
-) -> String {
-    let mut dollar_decls = String::new();
-    if uses_dollar_props {
-        dollar_decls.push_str(" let $$props = __sveltets_2_allPropsType();");
-    }
-    if uses_dollar_rest_props {
-        dollar_decls.push_str(" let $$restProps = __sveltets_2_restPropsType();");
-    }
-    if uses_dollar_slots {
-        // Collect slot names from the template AST for $$slots declaration
-        let slot_names = collect_slot_names_from_ast(&ast.fragment);
-        let slots_obj: Vec<String> = slot_names
-            .iter()
-            .map(|name| format!("'{}': ''", escape_js_single_quoted(name)))
-            .collect();
-        let _ = write!(
-            dollar_decls,
-            " let $$slots = __sveltets_2_slotsType({{{}}});",
-            slots_obj.join(", ")
-        );
-    }
-    dollar_decls
 }
