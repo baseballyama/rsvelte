@@ -161,7 +161,7 @@ fn oxfmt_fingerprint(oxfmt: &Path) -> Vec<u8> {
         return fp;
     }
     // Path not directly stat-able — spawn `--version` as a fallback.
-    if let Ok(out) = crate::oxfmt_command(oxfmt).arg("--version").output()
+    if let Ok(out) = crate::oxfmt::oxfmt_command(oxfmt).arg("--version").output()
         && out.status.success()
     {
         fp.extend_from_slice(out.stdout.trim_ascii());

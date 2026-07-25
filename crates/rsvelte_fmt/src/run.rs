@@ -1,0 +1,221 @@
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
+
+use anyhow::{Result, anyhow};
+use clap::Parser;
+
+use crate::cli::Cli;
+use crate::config::OxfmtConfig;
+use crate::native_css::{CssOptionsResolver, run_native_css};
+use crate::native_js::{JsOptionsResolver, run_native_js};
+use crate::native_json::{JsonOptionsResolver, run_native_json};
+use crate::options::{build_css_options, build_format_options, build_json_options};
+use crate::oxfmt::{load_oxfmt_runtime_sidecar, run_oxfmt, set_oxfmt_node};
+use crate::oxfmt_ignore;
+use crate::status::{Mode, PipelineStatus, combine};
+use crate::stdin::run_stdin;
+use crate::svelte_pipeline::run_svelte_files;
+use crate::tailwind_sort::{collect_svelte_classes, resolve_js_class_sorter};
+use crate::walk::partition_files;
+
+pub(crate) fn run() -> Result<ExitCode> {
+    let mut cli = Cli::parse();
+
+    // Native-direct install: when not launched via the npm JS launcher (which
+    // passes `--oxfmt-bin` + `RSVELTE_FMT_NODE`) and the user didn't override
+    // `--oxfmt-bin`, recover the consumer's `oxfmt` launcher + Node interpreter
+    // from the `postinstall` sidecar written next to this binary. This is what
+    // lets the JS launcher be dropped from the hot path (#1177 follow-up): the
+    // platform binary runs directly, then finds oxfmt the same way the launcher
+    // would have.
+    let launched_via_js_launcher = std::env::var_os("RSVELTE_FMT_NODE")
+        .filter(|v| !v.is_empty())
+        .is_some();
+    let user_set_oxfmt_bin = cli.oxfmt_bin != Path::new("oxfmt");
+    if !launched_via_js_launcher
+        && !user_set_oxfmt_bin
+        && let Some((oxfmt_bin, node)) = load_oxfmt_runtime_sidecar()
+    {
+        cli.oxfmt_bin = oxfmt_bin;
+        set_oxfmt_node(node);
+    }
+
+    // Resolve the project's `.oxfmtrc` once. Standalone files delegated to
+    // `oxfmt` discover it themselves; we resolve it here so inline `<script>`
+    // (formatted in-process) and inline `<style>` (staged in a temp dir) honor
+    // the same settings. Discovery starts from `--stdin-filepath`'s directory
+    // in stdin mode, else the working directory — matching oxfmt.
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let config_start = cli
+        .stdin_filepath
+        .as_deref()
+        .filter(|_| cli.stdin)
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| cwd.clone());
+    let cfg = OxfmtConfig::resolve(cli.config.as_deref(), &config_start).map_err(|e| anyhow!(e))?;
+
+    let (mut options, pending_js) = build_format_options(&cli, &cfg);
+
+    if cli.stdin {
+        return run_stdin(&cli, &options, &cfg, pending_js.as_ref());
+    }
+
+    // No paths given (and not stdin mode): default to the current directory,
+    // matching `oxfmt`, which formats the cwd when no PATH is provided.
+    if cli.paths.is_empty() {
+        cli.paths.push(PathBuf::from("."));
+    }
+
+    let native_js = !cli.no_native_js;
+    let native_css = !cli.no_native_css;
+    let ignore = oxfmt_ignore::SvelteIgnore::from_config(&cwd, &cfg)?;
+    let (svelte, native, native_json, native_css_files, oxfmt_paths) =
+        partition_files(&cli.paths, &ignore, &cwd, native_js, native_css)?;
+
+    // Custom Tailwind config (`SortViaJs`): collect every class string across the
+    // `.svelte` files, sort them in one sidecar call, and install a map-backed
+    // sorter for the real formatting pass below. Only `.svelte` files carry the
+    // class sorter, so nothing else needs the collection pass.
+    if let Some(pending) = &pending_js {
+        let classes = collect_svelte_classes(&svelte, &options);
+        options.class_sorter = resolve_js_class_sorter(pending, classes);
+    }
+
+    // Whether every in-process pass (Svelte, native JS/JSON/CSS) found
+    // nothing at all. When true, `oxfmt`'s own delegated share is the only
+    // remaining source of truth for whether anything exists to format, so it
+    // must be allowed to error for real instead of being unconditionally
+    // suppressed (see `run_oxfmt`'s `suppress_unmatched`) — replicating
+    // oxfmt's own ignore + extension matching here would be a fragile
+    // duplication of logic that already lives in the `oxfmt` binary itself.
+    let in_process_empty = svelte.is_empty()
+        && native.is_empty()
+        && native_json.is_empty()
+        && native_css_files.is_empty();
+
+    // Nothing was even handed to `oxfmt` (every path was an explicit file
+    // that turned out to be ignored), so no subprocess will run to report the
+    // error itself — report it the same way oxfmt would.
+    if in_process_empty && oxfmt_paths.is_empty() {
+        eprintln!(
+            "Expected at least one target file. All matched files may have been excluded by ignore rules."
+        );
+        return Ok(ExitCode::from(2));
+    }
+
+    let mode = if cli.check { Mode::Check } else { Mode::Write };
+
+    // Per-file JS options resolver (base + `.oxfmtrc` `overrides`). A CLI width
+    // flag takes precedence over an override's printWidth/tabWidth.
+    let cli_width_flag = cli.print_width.is_some() || cli.tab_width.is_some() || cli.use_tabs;
+    let resolver = JsOptionsResolver::new(&options, &cfg, &cwd, cli_width_flag);
+
+    // Per-file JSON options resolver (native JSON; `package.json` + overrides +
+    // parse errors delegate to oxfmt).
+    let json_options = build_json_options(&cli, &cfg);
+    let base_print_width = cli.print_width.or(cfg.print_width).unwrap_or(80);
+    let json_resolver = JsonOptionsResolver::new(json_options, base_print_width, &cfg, &cwd);
+
+    // Per-file CSS options resolver (native CSS; overrides + over-width delegate
+    // to oxfmt, mirroring native JSON).
+    let css_options = build_css_options(&cli, &cfg);
+    let css_resolver = CssOptionsResolver::new(css_options, base_print_width, &cfg, &cwd);
+
+    // Run the pipelines in parallel: the oxfmt subprocess overlaps with the
+    // in-process Svelte, native-JS, native-JSON, and native-CSS formatters.
+    let use_style_cache = !cli.no_style_cache;
+    let exclude_native = native_js && !native.is_empty();
+    let exclude_native_json = native_js && !native_json.is_empty();
+    let exclude_native_css = native_css && !native_css_files.is_empty();
+    let (((svelte_result, native_result), (json_result, css_result)), oxfmt_result) = rayon::join(
+        || {
+            rayon::join(
+                || {
+                    rayon::join(
+                        || {
+                            run_svelte_files(
+                                &svelte,
+                                &options,
+                                &cli.oxfmt_bin,
+                                &cfg,
+                                mode,
+                                use_style_cache,
+                                native_css,
+                            )
+                        },
+                        || run_native_js(&native, &resolver, &cwd, &cli.oxfmt_bin, mode),
+                    )
+                },
+                || {
+                    rayon::join(
+                        || {
+                            run_native_json(
+                                &native_json,
+                                &json_resolver,
+                                &cwd,
+                                &cli.oxfmt_bin,
+                                mode,
+                            )
+                        },
+                        || {
+                            run_native_css(
+                                &native_css_files,
+                                &css_resolver,
+                                &cwd,
+                                &cli.oxfmt_bin,
+                                mode,
+                            )
+                        },
+                    )
+                },
+            )
+        },
+        || {
+            run_oxfmt(
+                &oxfmt_paths,
+                &cli.oxfmt_bin,
+                mode,
+                exclude_native,
+                exclude_native_json,
+                exclude_native_css,
+                // A Svelte-only or CSS-only tree legitimately leaves oxfmt's
+                // own share empty, so suppress its unmatched-pattern error —
+                // but not when every in-process pass is *also* empty: oxfmt
+                // is then the only thing that can tell (via its own ignore
+                // rules and supported-extension set) whether anything really
+                // exists to format, so it must be allowed to error for real.
+                !in_process_empty,
+            )
+        },
+    );
+
+    let svelte_status = svelte_result?;
+    let native_status = native_result?;
+    let json_status = json_result?;
+    let css_status = css_result?;
+    let oxfmt_status = oxfmt_result?;
+    let combined = svelte_status
+        .merge(native_status)
+        .merge(json_status)
+        .merge(css_status);
+
+    // oxfmt ran unsuppressed above and genuinely found nothing — its own
+    // "no target file" message already went to stderr (inherited), so don't
+    // also print our summary line; just propagate the error exit code.
+    if in_process_empty && oxfmt_status.had_errors {
+        return Ok(combine(combined, oxfmt_status, mode));
+    }
+
+    print_summary(&combined, &oxfmt_status, mode);
+    Ok(combine(combined, oxfmt_status, mode))
+}
+
+fn print_summary(svelte: &PipelineStatus, oxfmt: &PipelineStatus, mode: Mode) {
+    let total = svelte.files_total + oxfmt.files_total;
+    let changed = svelte.files_changed + oxfmt.files_changed;
+    let verb = match mode {
+        Mode::Write => "formatted",
+        Mode::Check => "would reformat",
+    };
+    eprintln!("rsvelte-fmt: {verb} {changed} / {total} files");
+}
