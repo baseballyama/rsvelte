@@ -119,6 +119,7 @@ pub enum Expression<'a> {
 // `Expression` is embedded by value in every expression-bearing template node
 // (`ExpressionTag`, `Attribute`, `EachBlock`, `AwaitBlock`, …), so its width
 // multiplies into `Vec` growth memcpy and struct moves on the parse hot path.
+#[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::<Expression<'static>>() == 16);
 
 impl<'a> Expression<'a> {
