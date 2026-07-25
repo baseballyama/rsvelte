@@ -6,13 +6,6 @@ use std::collections::HashSet;
 use super::super::magic_string::MagicString;
 use super::ExportedNames;
 
-/// Walk every `TSTypeAssertion` in a module script's AST and rewrite
-/// `<Type>expr` to `expr as Type` via `MagicString.overwrite`. Nested
-/// Rewrite a top-level `interface X { ... }` (with optional `extends Y, Z`)
-/// into `type X = Y & Z & { ... }` for dts-mode output. Indirectly using
-/// interfaces inside the return type of a function is forbidden by the
-/// declaration emitter, so the JS reference's
-/// `transformInterfacesToTypes(...)` performs this rewrite. Mirror that here.
 /// One top-level `type X = ...` or `interface X { ... }` from the instance
 /// script that may be hoistable above `function $$render()`.
 #[derive(Debug, Clone)]
@@ -712,6 +705,11 @@ fn has_whole_ident(text: &str, name: &str) -> bool {
     false
 }
 
+/// Rewrite a top-level `interface X { ... }` (with optional `extends Y, Z`)
+/// into `type X = Y & Z & { ... }` for dts-mode output. Indirectly using
+/// interfaces inside the return type of a function is forbidden by the
+/// declaration emitter, so the JS reference's
+/// `transformInterfacesToTypes(...)` performs this rewrite. Mirror that here.
 ///
 /// Concretely:
 /// - `interface X { … }`                  → `type X ={ … }`
