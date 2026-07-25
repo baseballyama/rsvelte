@@ -20,6 +20,7 @@ pub mod blockers;
 pub mod control_flow;
 pub mod css;
 mod css_scoping;
+mod diagnostic;
 pub mod errors;
 mod pattern_ids;
 pub mod scope;

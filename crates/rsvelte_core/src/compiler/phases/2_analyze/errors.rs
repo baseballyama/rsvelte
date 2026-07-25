@@ -6,6 +6,7 @@
 //! Corresponds to Svelte's `errors.js`.
 
 use super::AnalysisError;
+use super::diagnostic::diagnostics;
 
 /// Create an error with a specific code and message.
 fn error(code: &str, message: impl Into<String>) -> AnalysisError {
@@ -17,130 +18,422 @@ fn error(code: &str, message: impl Into<String>) -> AnalysisError {
 
 // Rune-related errors
 
-/// `$bindable()` can only be used inside a `$props()` declaration
-pub fn bindable_invalid_location() -> AnalysisError {
-    error(
-        "bindable_invalid_location",
-        "`$bindable()` can only be used inside a `$props()` declaration",
-    )
+diagnostics! {
+    error => AnalysisError;
+
+    /// `$bindable()` can only be used inside a `$props()` declaration
+    bindable_invalid_location() => "`$bindable()` can only be used inside a `$props()` declaration";
+
+    /// `$host()` can only be used inside custom element component instances
+    host_invalid_placement() => "`$host()` can only be used inside custom element component instances";
+
+    /// `$props()` can only be used as a variable declaration initializer at the top level of the `<script>` tag
+    props_invalid_placement() => "`$props()` can only be used as a variable declaration initializer at the top level of the `<script>` tag";
+
+    /// `$props()` can only be used with an object destructuring pattern or an identifier
+    props_invalid_identifier() => "`$props()` can only be used with an object destructuring pattern or an identifier";
+
+    /// `%rune%` has already been declared
+    props_duplicate(rune: &str) => "`{}` has already been declared", rune;
+
+    /// Declaring or accessing a prop starting with `$$` is illegal (they are reserved for Svelte internals)
+    props_illegal_name() => "Declaring or accessing a prop starting with `$$` is illegal (they are reserved for Svelte internals)";
+
+    /// `$props.id()` can only be used as a variable declaration initializer at the top level of the `<script>` tag
+    props_id_invalid_placement() => "`$props.id()` can only be used as a variable declaration initializer at the top level of the `<script>` tag";
+
+    /// `%rune%` cannot be used with arguments
+    rune_invalid_arguments(rune: &str) => "`{}` cannot be used with arguments", rune;
+
+    /// `%rune%` cannot be used with spread arguments
+    rune_invalid_spread(rune: &str) => "`{}` cannot be used with spread arguments", rune;
+
+    /// `%rune%` requires %expected%
+    rune_invalid_arguments_length(rune: &str, expected: &str) => "`{}` requires {}", rune, expected;
+
+    /// `%rune%` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.
+    state_invalid_placement(rune: &str) => "`{}(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement", rune;
+
+    /// `$effect()` can only be used as an expression statement
+    effect_invalid_placement() => "`$effect()` can only be used as an expression statement";
+
+    /// `$inspect.trace()` can only be called as a statement within the body of a function
+    inspect_trace_invalid_placement() => "`$inspect.trace()` can only be called as a statement within the body of a function";
+
+    /// Generator functions cannot be used with $inspect.trace
+    inspect_trace_generator() => "Generator functions cannot be used with $inspect.trace";
+
+    // Binding-related errors
+
+    /// `%name%` can only be bound to %target%
+    bind_invalid_target(name: &str, target: &str) => "`{}` can only be bound to {}", name, target;
+
+    /// Cannot assign to %thing%
+    constant_assignment(thing: &str) => "Cannot assign to {}", thing;
+
+    /// Cannot bind to %thing%
+    constant_binding(thing: &str) => "Cannot bind to {}", thing;
+
+    // Attribute-related errors
+
+    /// Attributes need to be unique
+    attribute_duplicate() => "Attributes need to be unique";
+
+    /// '%name%' attribute cannot be dynamic
+    attribute_invalid_type(name: &str) => "'{}' attribute cannot be dynamic", name;
+
+    /// The 'multiple' attribute must be static if select uses two-way binding
+    attribute_invalid_multiple() => "'multiple' attribute must be static if select uses two-way binding\nhttps://svelte.dev/e/attribute_invalid_multiple";
+
+    // Declaration-related errors
+
+    /// `%name%` has already been declared
+    declaration_duplicate(name: &str) => "`{}` has already been declared", name;
+
+    // Class-related errors
+
+    /// `%name%` has already been declared
+    duplicate_class_field(name: &str) => "`{}` has already been declared", name;
+
+    /// `%name%` has already been declared on this class
+    state_field_duplicate(name: &str) => "`{}` has already been declared on this class", name;
+
+    /// Cannot declare a variable with the same name as an import inside `<script module>`
+    declaration_duplicate_module_import() => "Cannot declare a variable with the same name as an import inside `<script module>`";
+
+    // Export-related errors
+
+    /// Cannot export derived state from a module
+    derived_invalid_export() => "Cannot export derived state from a module. To expose the current derived value, export a function returning its value\nhttps://svelte.dev/e/derived_invalid_export";
+
+    /// A component cannot have a default export
+    module_illegal_default_export() => "A component cannot have a default export\nhttps://svelte.dev/e/module_illegal_default_export";
+
+    // Element-related errors
+
+    /// `<svelte:element>` must have a 'this' attribute with a value
+    svelte_element_missing_this() => "`<svelte:element>` must have a 'this' attribute with a value";
+
+    /// `<svelte:component>` must have a `this` attribute (issue #453, H-046)
+    svelte_component_missing_this() => "`<svelte:component>` must have a 'this' attribute";
+
+    /// A component can only have one `<%name%>` element
+    svelte_meta_duplicate(name: &str) => "A component can only have one `<{}>` element", name;
+
+    /// `<%name%>` tags cannot be inside elements or blocks
+    svelte_meta_invalid_placement(name: &str) => "`<{}>` tags cannot be inside elements or blocks", name;
+
+    // Render tag errors
+
+    /// `{@render ...}` tags can only contain call expressions
+    render_tag_invalid_expression() => "`{@render ...}` tags can only contain call expressions";
+
+    /// Cannot use spread arguments in `{@render ...}` tags
+    render_tag_invalid_spread_argument() => "cannot use spread arguments in `{@render ...}` tags";
+
+    /// Calling a snippet function using apply, bind or call is not allowed
+    render_tag_invalid_call_expression() => "Calling a snippet function using apply, bind or call is not allowed";
+
+    // Assignment-related errors
+
+    /// Cannot reassign or bind to each block item
+    each_item_invalid_assignment() => "Cannot reassign or bind to each block item";
+
+    /// Cannot reassign or bind to snippet parameter
+    snippet_parameter_assignment() => "Cannot reassign or bind to snippet parameter";
+
+    /// Cannot use `$` as a variable name
+    dollar_binding_invalid() => "Cannot use `$` as a variable name";
+
+    /// Variable name cannot start with `$`
+    dollar_prefix_invalid() => "Variable name cannot start with `$` except for special Svelte stores";
+
+    /// Cannot export state from a module if it is reassigned
+    state_invalid_export() => "Cannot export state from a module if it is reassigned. Either export a function returning the state value or only mutate the state value's properties\nhttps://svelte.dev/e/state_invalid_export";
+
+    // Block-related errors
+
+    /// {@const} tag can only be used in certain contexts
+    const_tag_invalid_placement() => "`{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, `<svelte:boundary>` or `<Component>`\nhttps://svelte.dev/e/const_tag_invalid_placement";
+
+    /// Declaration tags (`{let …}` / `{const …}`) are not allowed in legacy mode.
+    /// Svelte 5.56.0 (#18282).
+    declaration_tag_no_legacy_mode() => "Declaration tags cannot be used in legacy mode\nhttps://svelte.dev/e/declaration_tag_no_legacy_mode";
+
+    /// A declaration tag must contain a plain `let` or `const` VariableDeclaration.
+    /// Svelte 5.56.0 (#18282).
+    declaration_tag_invalid_type() => "Declaration tags can only contain `let` or `const` variable declarations\nhttps://svelte.dev/e/declaration_tag_invalid_type";
+
+    /// Block must start with expected character
+    block_unexpected_character(expected: &str) => "Expected a `{}` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character", expected;
+
+    /// `{#each}` block with a key requires an `as` binding
+    each_key_without_as() => "An `{#each ...}` block without an `as` clause cannot have a key";
+
+    /// Cannot assign to %thing% before initialization
+    state_field_invalid_assignment() => "Cannot assign to state field before initialization in constructor";
+
+    /// %name% cannot have children
+    svelte_meta_invalid_content(name: &str) => "`<{}>` cannot have children", name;
+
+    /// `use:`, `transition:` and `animate:` directives, attachments and bindings do not support await expressions
+    illegal_await_expression() => "`use:`, `transition:` and `animate:` directives, attachments and bindings do not support await expressions";
+
+    /// `arguments` cannot be used outside of functions
+    invalid_arguments_usage() => "`arguments` cannot be used outside of functions";
+
+    /// Runes cannot use computed properties
+    rune_invalid_computed_property() => "Runes cannot use computed member expressions";
+
+    /// Rune %old_name% has been renamed to %new_name%
+    rune_renamed(old_name: &str, new_name: &str) => "`{}` has been renamed to `{}`", old_name, new_name;
+
+    /// Rune %name% has been removed
+    rune_removed(name: &str) => "`{}` has been removed", name;
+
+    /// Invalid rune name %name%
+    rune_invalid_name(name: &str) => "`{}` is not a valid rune", name;
+
+    /// Runes must be called
+    rune_missing_parentheses() => "Runes must be called as functions";
+
+    /// {@const} tag cannot reference %name% in this context
+    const_tag_invalid_reference(name: &str) => "{{@const}} tag cannot reference `{}` in this context - it can only be used with declarations from an implicit children snippet", name;
+
+    // Slot element errors
+
+    /// `<slot>` can only receive attributes and (optionally) let directives
+    slot_element_invalid_attribute() => "`<slot>` can only receive attributes and (optionally) let directives";
+
+    /// slot attribute must be a static value
+    slot_element_invalid_name() => "slot attribute must be a static value";
+
+    /// `default` is a reserved word — it cannot be used as a slot name
+    slot_element_invalid_name_default() => "`default` is a reserved word — it cannot be used as a slot name";
+
+    // Event handler errors
+
+    /// Event modifiers other than 'once' can only be used on DOM elements
+    event_handler_invalid_component_modifier() => "Event modifiers other than 'once' can only be used on DOM elements\nhttps://svelte.dev/e/event_handler_invalid_component_modifier";
+
+    // Transition/animation directive errors
+
+    /// An element can only have one '%name%' directive
+    transition_duplicate(directive_name: &str) => "An element can only have one '{}' directive", directive_name;
+
+    /// An element cannot have both '%a%' and '%b%' directives
+    transition_conflict(a: &str, b: &str) => "An element cannot have both '{}' and '{}' directives", a, b;
+
+    /// An element can only have one animate directive
+    animation_duplicate() => "An element can only have one 'animate' directive\nhttps://svelte.dev/e/animation_duplicate";
+
+    /// An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block
+    animation_invalid_placement() => "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement";
+
+    /// An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block. Did you forget to add a key to your each block?
+    animation_missing_key() => "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block. Did you forget to add a key to your each block?\nhttps://svelte.dev/e/animation_missing_key";
+
+    // CSS-related errors
+
+    /// `:global(...)` must contain exactly one selector
+    css_global_invalid_selector() => "`:global(...)` must contain exactly one selector";
+
+    /// `:global(...)` must not contain type or universal selectors when used in a compound selector
+    css_global_invalid_selector_list() => "`:global(...)` must not contain type or universal selectors when used in a compound selector";
+
+    /// `:global(...)` can be at the start or end of a selector sequence, but not in the middle
+    css_global_invalid_placement() => "`:global(...)` can be at the start or end of a selector sequence, but not in the middle";
+
+    /// Invalid selector
+    css_selector_invalid() => "Invalid selector";
+
+    /// A `:global` selector cannot be inside a pseudoclass
+    css_global_block_invalid_placement() => "A `:global` selector cannot be inside a pseudoclass";
+
+    /// A `:global` selector cannot follow a `%name%` combinator
+    css_global_block_invalid_combinator(combinator_name: &str) => "A `:global` selector cannot follow a `{}` combinator", combinator_name;
+
+    /// A top-level `:global {{...}}` block can only contain rules, not declarations
+    css_global_block_invalid_declaration() => "A top-level `:global {...}` block can only contain rules, not declarations";
+
+    /// A `:global` selector cannot be part of a selector list with entries that don't contain `:global`
+    css_global_block_invalid_list() => "A `:global` selector cannot be part of a selector list with entries that don't contain `:global`";
+
+    /// A `:global` selector cannot modify an existing selector
+    css_global_block_invalid_modifier() => "A `:global` selector cannot modify an existing selector";
+
+    /// A `:global` selector can only be modified if it is a descendant of other selectors
+    css_global_block_invalid_modifier_start() => "A `:global` selector can only be modified if it is a descendant of other selectors";
+
+    /// Nesting selectors can only be used inside a rule or as the first selector inside a lone `:global(...)`
+    css_nesting_selector_invalid_placement() => "Nesting selectors can only be used inside a rule or as the first selector inside a lone `:global(...)`";
+
+    /// Type selector cannot appear after `:global(...)`
+    css_type_selector_invalid_placement() => "Type selector cannot appear after `:global(...)`";
+
+    /// Declaration cannot be empty
+    css_empty_declaration() => "Declaration cannot be empty";
+
+    // Attribute-related errors
+
+    /// '%name%' is not a valid attribute name
+    attribute_invalid_name(name: &str) => "'{}' is not a valid attribute name", name;
+
+    /// 'contenteditable' attribute cannot be dynamic if element uses two-way binding
+    attribute_contenteditable_dynamic() => "'contenteditable' attribute cannot be dynamic if element uses two-way binding";
+
+    /// 'contenteditable' attribute is required for textContent, innerHTML and innerText two-way bindings
+    attribute_contenteditable_missing() => "'contenteditable' attribute is required for textContent, innerHTML and innerText two-way bindings";
+
+    /// Cannot use `%rune%` rune in non-runes mode
+    rune_invalid_usage(rune: &str) => "Cannot use `{}` rune in non-runes mode\nhttps://svelte.dev/e/rune_invalid_usage", rune;
+
+    /// Props destructuring pattern cannot use computed properties
+    props_invalid_pattern() => "Props destructuring pattern cannot use computed properties or non-identifier keys";
+
+    // Component-related errors
+
+    /// This type of directive is not valid on components
+    component_invalid_directive() => "This type of directive is not valid on components";
+
+    // Svelte element errors
+
+    /// `<svelte:head>` cannot have attributes nor directives
+    svelte_head_illegal_attribute() => "`<svelte:head>` cannot have attributes nor directives";
+
+    // Title element errors
+
+    /// `<title>` cannot have attributes nor directives
+    title_illegal_attribute() => "`<title>` cannot have attributes nor directives";
+
+    // Reactive declaration errors
+
+    /// Cyclical dependency detected: %cycle%
+    reactive_declaration_cycle(cycle: &str) => "Cyclical dependency detected: {}", cycle;
+
+    /// {@%name% ...} tag cannot be %location%
+    tag_invalid_placement(name: &str, location: &str) => "{{@{} ...}} tag cannot be {}\nhttps://svelte.dev/e/tag_invalid_placement", name, location;
+
+    /// %message%. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.
+    node_invalid_placement(message: &str) => "{}. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.\nhttps://svelte.dev/e/node_invalid_placement", message;
+
+    /// A `<textarea>` can have either a value attribute or (equivalently) child content, but not both
+    textarea_invalid_content() => "A `<textarea>` can have either a value attribute or (equivalently) child content, but not both\nhttps://svelte.dev/e/textarea_invalid_content";
+
+    /// Cannot reference store value outside a `.svelte` file
+    store_invalid_subscription_module() => "Cannot reference store value outside a `.svelte` file\nhttps://svelte.dev/e/store_invalid_subscription_module";
+
+    /// Mixing old (on:event) and new syntaxes for event handling is not allowed
+    mixed_event_handler_syntaxes(name: &str) => "Mixing old (on:{}) and new syntaxes for event handling is not allowed. Use only the on{} syntax\nhttps://svelte.dev/e/mixed_event_handler_syntaxes", name, name;
+
+    /// Imports of `svelte/internal/*` are forbidden
+    import_svelte_internal_forbidden() => "Imports of `svelte/internal/*` are forbidden. It contains private runtime code which is subject to change without notice.\nhttps://svelte.dev/e/import_svelte_internal_forbidden";
+
+    /// %name% cannot be used in runes mode
+    runes_mode_invalid_import(name: &str) => "{} cannot be used in runes mode\nhttps://svelte.dev/e/runes_mode_invalid_import", name;
+
+    /// Cannot use `export let` in runes mode — use `$props()` instead
+    legacy_export_invalid() => "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid";
+
+    /// `$:` is not allowed in runes mode, use `$derived` or `$effect` instead
+    legacy_reactive_statement_invalid() => "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid";
+
+    /// Cannot subscribe to stores that are not declared at the top level of the component
+    store_invalid_scoped_subscription() => "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription";
+
+    /// Cannot reference store value inside `<script module>`
+    store_invalid_subscription() => "Cannot reference store value inside `<script module>`\nhttps://svelte.dev/e/store_invalid_subscription";
+
+    /// `%name%` is not defined
+    export_undefined(name: &str) => "`{}` is not defined\nhttps://svelte.dev/e/export_undefined", name;
+
+    /// Duplicate slot name '%name%' in <%component%>
+    slot_attribute_duplicate(name: &str, component: &str) => "Duplicate slot name '{}' in <{}>\nhttps://svelte.dev/e/slot_attribute_duplicate", name, component;
+
+    /// Found default slot content alongside an explicit slot="default"
+    slot_default_duplicate() => "Found default slot content alongside an explicit slot=\"default\"\nhttps://svelte.dev/e/slot_default_duplicate";
+
+    /// This snippet is shadowing the prop `%prop%` with the same name
+    snippet_shadowing_prop(prop: &str) => "This snippet is shadowing the prop `{}` with the same name\nhttps://svelte.dev/e/snippet_shadowing_prop", prop;
+
+    /// Element with a slot='...' attribute must be a child of a component or a descendant of a custom element
+    slot_attribute_invalid_placement() => "Element with a slot='...' attribute must be a child of a component or a descendant of a custom element\nhttps://svelte.dev/e/slot_attribute_invalid_placement";
+
+    /// slot attribute must be a static value
+    slot_attribute_invalid() => "slot attribute must be a static value\nhttps://svelte.dev/e/slot_attribute_invalid";
+
+    /// `<svelte:fragment>` must be the direct child of a component
+    svelte_fragment_invalid_placement() => "`<svelte:fragment>` must be the direct child of a component\nhttps://svelte.dev/e/svelte_fragment_invalid_placement";
+
+    /// Cyclical dependency detected: %cycle%
+    const_tag_cycle(cycle: &str) => "Cyclical dependency detected: {}\nhttps://svelte.dev/e/const_tag_cycle", cycle;
+
+    /// Attribute shorthand cannot be empty
+    attribute_empty_shorthand() => "Attribute shorthand cannot be empty\nhttps://svelte.dev/e/attribute_empty_shorthand";
+
+    /// `%type%` name cannot be empty
+    directive_missing_name(directive_type: &str) => "`{}` name cannot be empty\nhttps://svelte.dev/e/directive_missing_name", directive_type;
+
+    /// Sequence expressions are not allowed as attribute/directive values in runes mode, unless wrapped in parentheses
+    attribute_invalid_sequence_expression() => "Sequence expressions are not allowed as attribute/directive values in runes mode, unless wrapped in parentheses\nhttps://svelte.dev/e/attribute_invalid_sequence_expression";
+
+    /// `%name%` is an illegal variable name. To reference a global variable called `%name%`, use `globalThis.%name%`
+    global_reference_invalid(name: &str) => "`{}` is an illegal variable name. To reference a global variable called `{}`, use `globalThis.{}`\nhttps://svelte.dev/e/global_reference_invalid", name, name, name;
+
+    /// Valid `<svelte:...>` tag names are %list%
+    svelte_meta_invalid_tag(list: &str) => "Valid `<svelte:...>` tag names are {}\nhttps://svelte.dev/e/svelte_meta_invalid_tag", list;
+
+    /// Expected a valid element or component name. Components must have a valid variable name or dot notation expression
+    tag_invalid_name() => "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name";
+
+    /// Cannot use `<slot>` syntax and `{@render ...}` tags in the same component. Migrate towards `{@render ...}` tags completely
+    slot_snippet_conflict() => "Cannot use `<slot>` syntax and `{@render ...}` tags in the same component. Migrate towards `{@render ...}` tags completely\nhttps://svelte.dev/e/slot_snippet_conflict";
+
+    /// Cannot use explicit children snippet at the same time as implicit children content. Remove either the non-whitespace content or the children snippet block
+    snippet_conflict() => "Cannot use explicit children snippet at the same time as implicit children content. Remove either the non-whitespace content or the children snippet block\nhttps://svelte.dev/e/snippet_conflict";
+
+    /// An exported snippet can only reference things declared in a `<script module>`, or other exportable snippets
+    snippet_invalid_export() => "An exported snippet can only reference things declared in a `<script module>`, or other exportable snippets\nhttps://svelte.dev/e/snippet_invalid_export";
+
+    /// Attribute values containing `{...}` must be enclosed in quote marks, unless the value only contains the expression
+    attribute_unquoted_sequence() => "Attribute values containing `{...}` must be enclosed in quote marks, unless the value only contains the expression\nhttps://svelte.dev/e/attribute_unquoted_sequence";
+
+    /// Event attribute must be a JavaScript expression, not a string
+    attribute_invalid_event_handler() => "Event attribute must be a JavaScript expression, not a string\nhttps://svelte.dev/e/attribute_invalid_event_handler";
+
+    /// A component can only have one instance-level `<script>` element
+    script_duplicate() => "A component can only have one instance-level `<script>` element\nhttps://svelte.dev/e/script_duplicate";
+
+    /// `let:` directive at invalid position
+    let_directive_invalid_placement() => "`let:` directive at invalid position\nhttps://svelte.dev/e/let_directive_invalid_placement";
+
+    /// `<svelte:element>` or `<svelte:window>` cannot have spread attributes
+    illegal_element_attribute(element: &str) => "`<{}>` cannot have spread attributes\nhttps://svelte.dev/e/illegal_element_attribute", element;
+
+    /// `{@debug ...}` arguments must be identifiers
+    debug_tag_invalid_arguments() => "{@debug ...} arguments must be identifiers, not arbitrary expressions\nhttps://svelte.dev/e/debug_tag_invalid_arguments";
+
+    /// Title element can only contain text and `{expression}`
+    title_invalid_content() => "`<title>` can only contain text and {tags}\nhttps://svelte.dev/e/title_invalid_content";
+
+    /// Logic block or expression inside textarea
+    block_invalid_placement(thing: &str) => "{} block cannot be inside <textarea>\nhttps://svelte.dev/e/block_invalid_placement", thing;
+
+    /// Style directive modifier invalid
+    style_directive_invalid_modifier() => "`style:` directive can only use the `important` modifier\nhttps://svelte.dev/e/style_directive_invalid_modifier";
+
+    /// Directive value must be an expression
+    directive_invalid_value() => "Directive value must be a JavaScript expression enclosed in curly braces\nhttps://svelte.dev/e/directive_invalid_value";
+
+    /// `bind:value` on wrong element
+    bind_invalid_value(element: &str) => "`bind:value` can only be used on `<input>`, `<textarea>` or `<select>`, not `<{}>`\nhttps://svelte.dev/e/bind_invalid_value", element;
+
+    /// TypeScript feature invalid
+    typescript_invalid_feature(feature: &str) => "TypeScript {} are not supported in Svelte components\nhttps://svelte.dev/e/typescript_invalid_feature", feature;
 }
 
-/// `$host()` can only be used inside custom element component instances
-pub fn host_invalid_placement() -> AnalysisError {
-    error(
-        "host_invalid_placement",
-        "`$host()` can only be used inside custom element component instances",
-    )
-}
-
-/// `$props()` can only be used as a variable declaration initializer at the top level of the `<script>` tag
-pub fn props_invalid_placement() -> AnalysisError {
-    error(
-        "props_invalid_placement",
-        "`$props()` can only be used as a variable declaration initializer at the top level of the `<script>` tag",
-    )
-}
-
-/// `$props()` can only be used with an object destructuring pattern or an identifier
-pub fn props_invalid_identifier() -> AnalysisError {
-    error(
-        "props_invalid_identifier",
-        "`$props()` can only be used with an object destructuring pattern or an identifier",
-    )
-}
-
-/// `%rune%` has already been declared
-pub fn props_duplicate(rune: &str) -> AnalysisError {
-    error(
-        "props_duplicate",
-        format!("`{}` has already been declared", rune),
-    )
-}
-
-/// Declaring or accessing a prop starting with `$$` is illegal (they are reserved for Svelte internals)
-pub fn props_illegal_name() -> AnalysisError {
-    error(
-        "props_illegal_name",
-        "Declaring or accessing a prop starting with `$$` is illegal (they are reserved for Svelte internals)",
-    )
-}
-
-/// `$props.id()` can only be used as a variable declaration initializer at the top level of the `<script>` tag
-pub fn props_id_invalid_placement() -> AnalysisError {
-    error(
-        "props_id_invalid_placement",
-        "`$props.id()` can only be used as a variable declaration initializer at the top level of the `<script>` tag",
-    )
-}
-
-/// `%rune%` cannot be used with arguments
-pub fn rune_invalid_arguments(rune: &str) -> AnalysisError {
-    error(
-        "rune_invalid_arguments",
-        format!("`{}` cannot be used with arguments", rune),
-    )
-}
-
-/// `%rune%` cannot be used with spread arguments
-pub fn rune_invalid_spread(rune: &str) -> AnalysisError {
-    error(
-        "rune_invalid_spread",
-        format!("`{}` cannot be used with spread arguments", rune),
-    )
-}
-
-/// `%rune%` requires %expected%
-pub fn rune_invalid_arguments_length(rune: &str, expected: &str) -> AnalysisError {
-    error(
-        "rune_invalid_arguments_length",
-        format!("`{}` requires {}", rune, expected),
-    )
-}
-
-/// `%rune%` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.
-pub fn state_invalid_placement(rune: &str) -> AnalysisError {
-    error(
-        "state_invalid_placement",
-        format!(
-            "`{}(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
-            rune
-        ),
-    )
-}
-
-/// `$effect()` can only be used as an expression statement
-pub fn effect_invalid_placement() -> AnalysisError {
-    error(
-        "effect_invalid_placement",
-        "`$effect()` can only be used as an expression statement",
-    )
-}
-
-/// `$inspect.trace()` can only be called as a statement within the body of a function
-pub fn inspect_trace_invalid_placement() -> AnalysisError {
-    error(
-        "inspect_trace_invalid_placement",
-        "`$inspect.trace()` can only be called as a statement within the body of a function",
-    )
-}
-
-/// Generator functions cannot be used with $inspect.trace
-pub fn inspect_trace_generator() -> AnalysisError {
-    error(
-        "inspect_trace_generator",
-        "Generator functions cannot be used with $inspect.trace",
-    )
-}
-
-// Binding-related errors
-
-/// `%name%` can only be bound to %target%
-pub fn bind_invalid_target(name: &str, target: &str) -> AnalysisError {
-    error(
-        "bind_invalid_target",
-        format!("`{}` can only be bound to {}", name, target),
-    )
-}
+// Diagnostics whose message is assembled conditionally, or that carry a span,
+// do not fit the declarative form above.
 
 /// `bind:%name%` is not a valid binding. %explanation%
 pub fn bind_invalid_name(name: &str, explanation: Option<&str>) -> AnalysisError {
@@ -156,954 +449,4 @@ pub fn bind_invalid_name(name: &str, explanation: Option<&str>) -> AnalysisError
         )
     };
     error("bind_invalid_name", message)
-}
-
-/// Cannot assign to %thing%
-pub fn constant_assignment(thing: &str) -> AnalysisError {
-    error("constant_assignment", format!("Cannot assign to {}", thing))
-}
-
-/// Cannot bind to %thing%
-pub fn constant_binding(thing: &str) -> AnalysisError {
-    error("constant_binding", format!("Cannot bind to {}", thing))
-}
-
-// Attribute-related errors
-
-/// Attributes need to be unique
-pub fn attribute_duplicate() -> AnalysisError {
-    error("attribute_duplicate", "Attributes need to be unique")
-}
-
-/// '%name%' attribute cannot be dynamic
-pub fn attribute_invalid_type(name: &str) -> AnalysisError {
-    error(
-        "attribute_invalid_type",
-        format!("'{}' attribute cannot be dynamic", name),
-    )
-}
-
-/// The 'multiple' attribute must be static if select uses two-way binding
-pub fn attribute_invalid_multiple() -> AnalysisError {
-    error(
-        "attribute_invalid_multiple",
-        "'multiple' attribute must be static if select uses two-way binding\nhttps://svelte.dev/e/attribute_invalid_multiple",
-    )
-}
-
-// Declaration-related errors
-
-/// `%name%` has already been declared
-pub fn declaration_duplicate(name: &str) -> AnalysisError {
-    error(
-        "declaration_duplicate",
-        format!("`{}` has already been declared", name),
-    )
-}
-
-// Class-related errors
-
-/// `%name%` has already been declared
-pub fn duplicate_class_field(name: &str) -> AnalysisError {
-    error(
-        "duplicate_class_field",
-        format!("`{}` has already been declared", name),
-    )
-}
-
-/// `%name%` has already been declared on this class
-pub fn state_field_duplicate(name: &str) -> AnalysisError {
-    error(
-        "state_field_duplicate",
-        format!("`{}` has already been declared on this class", name),
-    )
-}
-
-/// Cannot declare a variable with the same name as an import inside `<script module>`
-pub fn declaration_duplicate_module_import() -> AnalysisError {
-    error(
-        "declaration_duplicate_module_import",
-        "Cannot declare a variable with the same name as an import inside `<script module>`",
-    )
-}
-
-// Export-related errors
-
-/// Cannot export derived state from a module
-pub fn derived_invalid_export() -> AnalysisError {
-    error(
-        "derived_invalid_export",
-        "Cannot export derived state from a module. To expose the current derived value, export a function returning its value\nhttps://svelte.dev/e/derived_invalid_export",
-    )
-}
-
-/// A component cannot have a default export
-pub fn module_illegal_default_export() -> AnalysisError {
-    error(
-        "module_illegal_default_export",
-        "A component cannot have a default export\nhttps://svelte.dev/e/module_illegal_default_export",
-    )
-}
-
-// Element-related errors
-
-/// `<svelte:element>` must have a 'this' attribute with a value
-pub fn svelte_element_missing_this() -> AnalysisError {
-    error(
-        "svelte_element_missing_this",
-        "`<svelte:element>` must have a 'this' attribute with a value",
-    )
-}
-
-/// `<svelte:component>` must have a `this` attribute (issue #453, H-046)
-pub fn svelte_component_missing_this() -> AnalysisError {
-    error(
-        "svelte_component_missing_this",
-        "`<svelte:component>` must have a 'this' attribute",
-    )
-}
-
-/// A component can only have one `<%name%>` element
-pub fn svelte_meta_duplicate(name: &str) -> AnalysisError {
-    error(
-        "svelte_meta_duplicate",
-        format!("A component can only have one `<{}>` element", name),
-    )
-}
-
-/// `<%name%>` tags cannot be inside elements or blocks
-pub fn svelte_meta_invalid_placement(name: &str) -> AnalysisError {
-    error(
-        "svelte_meta_invalid_placement",
-        format!("`<{}>` tags cannot be inside elements or blocks", name),
-    )
-}
-
-// Render tag errors
-
-/// `{@render ...}` tags can only contain call expressions
-pub fn render_tag_invalid_expression() -> AnalysisError {
-    error(
-        "render_tag_invalid_expression",
-        "`{@render ...}` tags can only contain call expressions",
-    )
-}
-
-/// Cannot use spread arguments in `{@render ...}` tags
-pub fn render_tag_invalid_spread_argument() -> AnalysisError {
-    error(
-        "render_tag_invalid_spread_argument",
-        "cannot use spread arguments in `{@render ...}` tags",
-    )
-}
-
-/// Calling a snippet function using apply, bind or call is not allowed
-pub fn render_tag_invalid_call_expression() -> AnalysisError {
-    error(
-        "render_tag_invalid_call_expression",
-        "Calling a snippet function using apply, bind or call is not allowed",
-    )
-}
-
-// Assignment-related errors
-
-/// Cannot reassign or bind to each block item
-pub fn each_item_invalid_assignment() -> AnalysisError {
-    error(
-        "each_item_invalid_assignment",
-        "Cannot reassign or bind to each block item",
-    )
-}
-
-/// Cannot reassign or bind to snippet parameter
-pub fn snippet_parameter_assignment() -> AnalysisError {
-    error(
-        "snippet_parameter_assignment",
-        "Cannot reassign or bind to snippet parameter",
-    )
-}
-
-/// Cannot use `$` as a variable name
-pub fn dollar_binding_invalid() -> AnalysisError {
-    error(
-        "dollar_binding_invalid",
-        "Cannot use `$` as a variable name",
-    )
-}
-
-/// Variable name cannot start with `$`
-pub fn dollar_prefix_invalid() -> AnalysisError {
-    error(
-        "dollar_prefix_invalid",
-        "Variable name cannot start with `$` except for special Svelte stores",
-    )
-}
-
-/// Cannot export state from a module if it is reassigned
-pub fn state_invalid_export() -> AnalysisError {
-    error(
-        "state_invalid_export",
-        "Cannot export state from a module if it is reassigned. Either export a function returning the state value or only mutate the state value's properties\nhttps://svelte.dev/e/state_invalid_export",
-    )
-}
-
-// Block-related errors
-
-/// {@const} tag can only be used in certain contexts
-pub fn const_tag_invalid_placement() -> AnalysisError {
-    error(
-        "const_tag_invalid_placement",
-        "`{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, `<svelte:boundary>` or `<Component>`\nhttps://svelte.dev/e/const_tag_invalid_placement",
-    )
-}
-
-/// Declaration tags (`{let …}` / `{const …}`) are not allowed in legacy mode.
-/// Svelte 5.56.0 (#18282).
-pub fn declaration_tag_no_legacy_mode() -> AnalysisError {
-    error(
-        "declaration_tag_no_legacy_mode",
-        "Declaration tags cannot be used in legacy mode\nhttps://svelte.dev/e/declaration_tag_no_legacy_mode",
-    )
-}
-
-/// A declaration tag must contain a plain `let` or `const` VariableDeclaration.
-/// Svelte 5.56.0 (#18282).
-pub fn declaration_tag_invalid_type() -> AnalysisError {
-    error(
-        "declaration_tag_invalid_type",
-        "Declaration tags can only contain `let` or `const` variable declarations\nhttps://svelte.dev/e/declaration_tag_invalid_type",
-    )
-}
-
-/// Block must start with expected character
-pub fn block_unexpected_character(expected: &str) -> AnalysisError {
-    error(
-        "block_unexpected_character",
-        format!(
-            "Expected a `{}` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character",
-            expected
-        ),
-    )
-}
-
-/// `{#each}` block with a key requires an `as` binding
-pub fn each_key_without_as() -> AnalysisError {
-    error(
-        "each_key_without_as",
-        "An `{#each ...}` block without an `as` clause cannot have a key",
-    )
-}
-
-/// Cannot assign to %thing% before initialization
-pub fn state_field_invalid_assignment() -> AnalysisError {
-    error(
-        "state_field_invalid_assignment",
-        "Cannot assign to state field before initialization in constructor",
-    )
-}
-
-/// %name% cannot have children
-pub fn svelte_meta_invalid_content(name: &str) -> AnalysisError {
-    error(
-        "svelte_meta_invalid_content",
-        format!("`<{}>` cannot have children", name),
-    )
-}
-
-/// `use:`, `transition:` and `animate:` directives, attachments and bindings do not support await expressions
-pub fn illegal_await_expression() -> AnalysisError {
-    error(
-        "illegal_await_expression",
-        "`use:`, `transition:` and `animate:` directives, attachments and bindings do not support await expressions",
-    )
-}
-
-/// `arguments` cannot be used outside of functions
-pub fn invalid_arguments_usage() -> AnalysisError {
-    error(
-        "invalid_arguments_usage",
-        "`arguments` cannot be used outside of functions",
-    )
-}
-
-/// Runes cannot use computed properties
-pub fn rune_invalid_computed_property() -> AnalysisError {
-    error(
-        "rune_invalid_computed_property",
-        "Runes cannot use computed member expressions",
-    )
-}
-
-/// Rune %old_name% has been renamed to %new_name%
-pub fn rune_renamed(old_name: &str, new_name: &str) -> AnalysisError {
-    error(
-        "rune_renamed",
-        format!("`{}` has been renamed to `{}`", old_name, new_name),
-    )
-}
-
-/// Rune %name% has been removed
-pub fn rune_removed(name: &str) -> AnalysisError {
-    error("rune_removed", format!("`{}` has been removed", name))
-}
-
-/// Invalid rune name %name%
-pub fn rune_invalid_name(name: &str) -> AnalysisError {
-    error(
-        "rune_invalid_name",
-        format!("`{}` is not a valid rune", name),
-    )
-}
-
-/// Runes must be called
-pub fn rune_missing_parentheses() -> AnalysisError {
-    error(
-        "rune_missing_parentheses",
-        "Runes must be called as functions",
-    )
-}
-
-/// {@const} tag cannot reference %name% in this context
-pub fn const_tag_invalid_reference(name: &str) -> AnalysisError {
-    error(
-        "const_tag_invalid_reference",
-        format!(
-            "{{@const}} tag cannot reference `{}` in this context - it can only be used with declarations from an implicit children snippet",
-            name
-        ),
-    )
-}
-
-// Slot element errors
-
-/// `<slot>` can only receive attributes and (optionally) let directives
-pub fn slot_element_invalid_attribute() -> AnalysisError {
-    error(
-        "slot_element_invalid_attribute",
-        "`<slot>` can only receive attributes and (optionally) let directives",
-    )
-}
-
-/// slot attribute must be a static value
-pub fn slot_element_invalid_name() -> AnalysisError {
-    error(
-        "slot_element_invalid_name",
-        "slot attribute must be a static value",
-    )
-}
-
-/// `default` is a reserved word — it cannot be used as a slot name
-pub fn slot_element_invalid_name_default() -> AnalysisError {
-    error(
-        "slot_element_invalid_name_default",
-        "`default` is a reserved word — it cannot be used as a slot name",
-    )
-}
-
-// Event handler errors
-
-/// Event modifiers other than 'once' can only be used on DOM elements
-pub fn event_handler_invalid_component_modifier() -> AnalysisError {
-    error(
-        "event_handler_invalid_component_modifier",
-        "Event modifiers other than 'once' can only be used on DOM elements\nhttps://svelte.dev/e/event_handler_invalid_component_modifier",
-    )
-}
-
-// Transition/animation directive errors
-
-/// An element can only have one '%name%' directive
-pub fn transition_duplicate(directive_name: &str) -> AnalysisError {
-    error(
-        "transition_duplicate",
-        format!(
-            "An element can only have one '{}' directive",
-            directive_name
-        ),
-    )
-}
-
-/// An element cannot have both '%a%' and '%b%' directives
-pub fn transition_conflict(a: &str, b: &str) -> AnalysisError {
-    error(
-        "transition_conflict",
-        format!("An element cannot have both '{}' and '{}' directives", a, b),
-    )
-}
-
-/// An element can only have one animate directive
-pub fn animation_duplicate() -> AnalysisError {
-    error(
-        "animation_duplicate",
-        "An element can only have one 'animate' directive\nhttps://svelte.dev/e/animation_duplicate",
-    )
-}
-
-/// An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block
-pub fn animation_invalid_placement() -> AnalysisError {
-    error(
-        "animation_invalid_placement",
-        "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
-    )
-}
-
-/// An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block. Did you forget to add a key to your each block?
-pub fn animation_missing_key() -> AnalysisError {
-    error(
-        "animation_missing_key",
-        "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block. Did you forget to add a key to your each block?\nhttps://svelte.dev/e/animation_missing_key",
-    )
-}
-
-// CSS-related errors
-
-/// `:global(...)` must contain exactly one selector
-pub fn css_global_invalid_selector() -> AnalysisError {
-    error(
-        "css_global_invalid_selector",
-        "`:global(...)` must contain exactly one selector",
-    )
-}
-
-/// `:global(...)` must not contain type or universal selectors when used in a compound selector
-pub fn css_global_invalid_selector_list() -> AnalysisError {
-    error(
-        "css_global_invalid_selector_list",
-        "`:global(...)` must not contain type or universal selectors when used in a compound selector",
-    )
-}
-
-/// `:global(...)` can be at the start or end of a selector sequence, but not in the middle
-pub fn css_global_invalid_placement() -> AnalysisError {
-    error(
-        "css_global_invalid_placement",
-        "`:global(...)` can be at the start or end of a selector sequence, but not in the middle",
-    )
-}
-
-/// Invalid selector
-pub fn css_selector_invalid() -> AnalysisError {
-    error("css_selector_invalid", "Invalid selector")
-}
-
-/// A `:global` selector cannot be inside a pseudoclass
-pub fn css_global_block_invalid_placement() -> AnalysisError {
-    error(
-        "css_global_block_invalid_placement",
-        "A `:global` selector cannot be inside a pseudoclass",
-    )
-}
-
-/// A `:global` selector cannot follow a `%name%` combinator
-pub fn css_global_block_invalid_combinator(combinator_name: &str) -> AnalysisError {
-    error(
-        "css_global_block_invalid_combinator",
-        format!(
-            "A `:global` selector cannot follow a `{}` combinator",
-            combinator_name
-        ),
-    )
-}
-
-/// A top-level `:global {{...}}` block can only contain rules, not declarations
-pub fn css_global_block_invalid_declaration() -> AnalysisError {
-    error(
-        "css_global_block_invalid_declaration",
-        "A top-level `:global {...}` block can only contain rules, not declarations",
-    )
-}
-
-/// A `:global` selector cannot be part of a selector list with entries that don't contain `:global`
-pub fn css_global_block_invalid_list() -> AnalysisError {
-    error(
-        "css_global_block_invalid_list",
-        "A `:global` selector cannot be part of a selector list with entries that don't contain `:global`",
-    )
-}
-
-/// A `:global` selector cannot modify an existing selector
-pub fn css_global_block_invalid_modifier() -> AnalysisError {
-    error(
-        "css_global_block_invalid_modifier",
-        "A `:global` selector cannot modify an existing selector",
-    )
-}
-
-/// A `:global` selector can only be modified if it is a descendant of other selectors
-pub fn css_global_block_invalid_modifier_start() -> AnalysisError {
-    error(
-        "css_global_block_invalid_modifier_start",
-        "A `:global` selector can only be modified if it is a descendant of other selectors",
-    )
-}
-
-/// Nesting selectors can only be used inside a rule or as the first selector inside a lone `:global(...)`
-pub fn css_nesting_selector_invalid_placement() -> AnalysisError {
-    error(
-        "css_nesting_selector_invalid_placement",
-        "Nesting selectors can only be used inside a rule or as the first selector inside a lone `:global(...)`",
-    )
-}
-
-/// Type selector cannot appear after `:global(...)`
-pub fn css_type_selector_invalid_placement() -> AnalysisError {
-    error(
-        "css_type_selector_invalid_placement",
-        "Type selector cannot appear after `:global(...)`",
-    )
-}
-
-/// Declaration cannot be empty
-pub fn css_empty_declaration() -> AnalysisError {
-    error("css_empty_declaration", "Declaration cannot be empty")
-}
-
-// Attribute-related errors
-
-/// '%name%' is not a valid attribute name
-pub fn attribute_invalid_name(name: &str) -> AnalysisError {
-    error(
-        "attribute_invalid_name",
-        format!("'{}' is not a valid attribute name", name),
-    )
-}
-
-/// 'contenteditable' attribute cannot be dynamic if element uses two-way binding
-pub fn attribute_contenteditable_dynamic() -> AnalysisError {
-    error(
-        "attribute_contenteditable_dynamic",
-        "'contenteditable' attribute cannot be dynamic if element uses two-way binding",
-    )
-}
-
-/// 'contenteditable' attribute is required for textContent, innerHTML and innerText two-way bindings
-pub fn attribute_contenteditable_missing() -> AnalysisError {
-    error(
-        "attribute_contenteditable_missing",
-        "'contenteditable' attribute is required for textContent, innerHTML and innerText two-way bindings",
-    )
-}
-
-/// Cannot use `%rune%` rune in non-runes mode
-pub fn rune_invalid_usage(rune: &str) -> AnalysisError {
-    error(
-        "rune_invalid_usage",
-        format!(
-            "Cannot use `{}` rune in non-runes mode\nhttps://svelte.dev/e/rune_invalid_usage",
-            rune
-        ),
-    )
-}
-
-/// Props destructuring pattern cannot use computed properties
-pub fn props_invalid_pattern() -> AnalysisError {
-    error(
-        "props_invalid_pattern",
-        "Props destructuring pattern cannot use computed properties or non-identifier keys",
-    )
-}
-
-// Component-related errors
-
-/// This type of directive is not valid on components
-pub fn component_invalid_directive() -> AnalysisError {
-    error(
-        "component_invalid_directive",
-        "This type of directive is not valid on components",
-    )
-}
-
-// Svelte element errors
-
-/// `<svelte:head>` cannot have attributes nor directives
-pub fn svelte_head_illegal_attribute() -> AnalysisError {
-    error(
-        "svelte_head_illegal_attribute",
-        "`<svelte:head>` cannot have attributes nor directives",
-    )
-}
-
-// Title element errors
-
-/// `<title>` cannot have attributes nor directives
-pub fn title_illegal_attribute() -> AnalysisError {
-    error(
-        "title_illegal_attribute",
-        "`<title>` cannot have attributes nor directives",
-    )
-}
-
-// Reactive declaration errors
-
-/// Cyclical dependency detected: %cycle%
-pub fn reactive_declaration_cycle(cycle: &str) -> AnalysisError {
-    error(
-        "reactive_declaration_cycle",
-        format!("Cyclical dependency detected: {}", cycle),
-    )
-}
-
-/// {@%name% ...} tag cannot be %location%
-pub fn tag_invalid_placement(name: &str, location: &str) -> AnalysisError {
-    error(
-        "tag_invalid_placement",
-        format!(
-            "{{@{} ...}} tag cannot be {}\nhttps://svelte.dev/e/tag_invalid_placement",
-            name, location
-        ),
-    )
-}
-
-/// %message%. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.
-pub fn node_invalid_placement(message: &str) -> AnalysisError {
-    error(
-        "node_invalid_placement",
-        format!(
-            "{}. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.\nhttps://svelte.dev/e/node_invalid_placement",
-            message
-        ),
-    )
-}
-
-/// A `<textarea>` can have either a value attribute or (equivalently) child content, but not both
-pub fn textarea_invalid_content() -> AnalysisError {
-    error(
-        "textarea_invalid_content",
-        "A `<textarea>` can have either a value attribute or (equivalently) child content, but not both\nhttps://svelte.dev/e/textarea_invalid_content",
-    )
-}
-
-/// Cannot reference store value outside a `.svelte` file
-pub fn store_invalid_subscription_module() -> AnalysisError {
-    error(
-        "store_invalid_subscription_module",
-        "Cannot reference store value outside a `.svelte` file\nhttps://svelte.dev/e/store_invalid_subscription_module",
-    )
-}
-
-/// Mixing old (on:event) and new syntaxes for event handling is not allowed
-pub fn mixed_event_handler_syntaxes(name: &str) -> AnalysisError {
-    error(
-        "mixed_event_handler_syntaxes",
-        format!(
-            "Mixing old (on:{}) and new syntaxes for event handling is not allowed. Use only the on{} syntax\nhttps://svelte.dev/e/mixed_event_handler_syntaxes",
-            name, name
-        ),
-    )
-}
-
-/// Imports of `svelte/internal/*` are forbidden
-pub fn import_svelte_internal_forbidden() -> AnalysisError {
-    error(
-        "import_svelte_internal_forbidden",
-        "Imports of `svelte/internal/*` are forbidden. It contains private runtime code which is subject to change without notice.\nhttps://svelte.dev/e/import_svelte_internal_forbidden",
-    )
-}
-
-/// %name% cannot be used in runes mode
-pub fn runes_mode_invalid_import(name: &str) -> AnalysisError {
-    error(
-        "runes_mode_invalid_import",
-        format!(
-            "{} cannot be used in runes mode\nhttps://svelte.dev/e/runes_mode_invalid_import",
-            name
-        ),
-    )
-}
-
-/// Cannot use `export let` in runes mode — use `$props()` instead
-pub fn legacy_export_invalid() -> AnalysisError {
-    error(
-        "legacy_export_invalid",
-        "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid",
-    )
-}
-
-/// `$:` is not allowed in runes mode, use `$derived` or `$effect` instead
-pub fn legacy_reactive_statement_invalid() -> AnalysisError {
-    error(
-        "legacy_reactive_statement_invalid",
-        "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid",
-    )
-}
-
-/// Cannot subscribe to stores that are not declared at the top level of the component
-pub fn store_invalid_scoped_subscription() -> AnalysisError {
-    error(
-        "store_invalid_scoped_subscription",
-        "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription",
-    )
-}
-
-/// Cannot reference store value inside `<script module>`
-pub fn store_invalid_subscription() -> AnalysisError {
-    error(
-        "store_invalid_subscription",
-        "Cannot reference store value inside `<script module>`\nhttps://svelte.dev/e/store_invalid_subscription",
-    )
-}
-
-/// `%name%` is not defined
-pub fn export_undefined(name: &str) -> AnalysisError {
-    error(
-        "export_undefined",
-        format!(
-            "`{}` is not defined\nhttps://svelte.dev/e/export_undefined",
-            name
-        ),
-    )
-}
-
-/// Duplicate slot name '%name%' in <%component%>
-pub fn slot_attribute_duplicate(name: &str, component: &str) -> AnalysisError {
-    error(
-        "slot_attribute_duplicate",
-        format!(
-            "Duplicate slot name '{}' in <{}>\nhttps://svelte.dev/e/slot_attribute_duplicate",
-            name, component
-        ),
-    )
-}
-
-/// Found default slot content alongside an explicit slot="default"
-pub fn slot_default_duplicate() -> AnalysisError {
-    error(
-        "slot_default_duplicate",
-        "Found default slot content alongside an explicit slot=\"default\"\nhttps://svelte.dev/e/slot_default_duplicate",
-    )
-}
-
-/// This snippet is shadowing the prop `%prop%` with the same name
-pub fn snippet_shadowing_prop(prop: &str) -> AnalysisError {
-    error(
-        "snippet_shadowing_prop",
-        format!(
-            "This snippet is shadowing the prop `{}` with the same name\nhttps://svelte.dev/e/snippet_shadowing_prop",
-            prop
-        ),
-    )
-}
-
-/// Element with a slot='...' attribute must be a child of a component or a descendant of a custom element
-pub fn slot_attribute_invalid_placement() -> AnalysisError {
-    error(
-        "slot_attribute_invalid_placement",
-        "Element with a slot='...' attribute must be a child of a component or a descendant of a custom element\nhttps://svelte.dev/e/slot_attribute_invalid_placement",
-    )
-}
-
-/// slot attribute must be a static value
-pub fn slot_attribute_invalid() -> AnalysisError {
-    error(
-        "slot_attribute_invalid",
-        "slot attribute must be a static value\nhttps://svelte.dev/e/slot_attribute_invalid",
-    )
-}
-
-/// `<svelte:fragment>` must be the direct child of a component
-pub fn svelte_fragment_invalid_placement() -> AnalysisError {
-    error(
-        "svelte_fragment_invalid_placement",
-        "`<svelte:fragment>` must be the direct child of a component\nhttps://svelte.dev/e/svelte_fragment_invalid_placement",
-    )
-}
-
-/// Cyclical dependency detected: %cycle%
-pub fn const_tag_cycle(cycle: &str) -> AnalysisError {
-    error(
-        "const_tag_cycle",
-        format!(
-            "Cyclical dependency detected: {}\nhttps://svelte.dev/e/const_tag_cycle",
-            cycle
-        ),
-    )
-}
-
-/// Attribute shorthand cannot be empty
-pub fn attribute_empty_shorthand() -> AnalysisError {
-    error(
-        "attribute_empty_shorthand",
-        "Attribute shorthand cannot be empty\nhttps://svelte.dev/e/attribute_empty_shorthand",
-    )
-}
-
-/// `%type%` name cannot be empty
-pub fn directive_missing_name(directive_type: &str) -> AnalysisError {
-    error(
-        "directive_missing_name",
-        format!(
-            "`{}` name cannot be empty\nhttps://svelte.dev/e/directive_missing_name",
-            directive_type
-        ),
-    )
-}
-
-/// Sequence expressions are not allowed as attribute/directive values in runes mode, unless wrapped in parentheses
-pub fn attribute_invalid_sequence_expression() -> AnalysisError {
-    error(
-        "attribute_invalid_sequence_expression",
-        "Sequence expressions are not allowed as attribute/directive values in runes mode, unless wrapped in parentheses\nhttps://svelte.dev/e/attribute_invalid_sequence_expression",
-    )
-}
-
-/// `%name%` is an illegal variable name. To reference a global variable called `%name%`, use `globalThis.%name%`
-pub fn global_reference_invalid(name: &str) -> AnalysisError {
-    error(
-        "global_reference_invalid",
-        format!(
-            "`{}` is an illegal variable name. To reference a global variable called `{}`, use `globalThis.{}`\nhttps://svelte.dev/e/global_reference_invalid",
-            name, name, name
-        ),
-    )
-}
-
-/// Valid `<svelte:...>` tag names are %list%
-pub fn svelte_meta_invalid_tag(list: &str) -> AnalysisError {
-    error(
-        "svelte_meta_invalid_tag",
-        format!(
-            "Valid `<svelte:...>` tag names are {}\nhttps://svelte.dev/e/svelte_meta_invalid_tag",
-            list
-        ),
-    )
-}
-
-/// Expected a valid element or component name. Components must have a valid variable name or dot notation expression
-pub fn tag_invalid_name() -> AnalysisError {
-    error(
-        "tag_invalid_name",
-        "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
-    )
-}
-
-/// Cannot use `<slot>` syntax and `{@render ...}` tags in the same component. Migrate towards `{@render ...}` tags completely
-pub fn slot_snippet_conflict() -> AnalysisError {
-    error(
-        "slot_snippet_conflict",
-        "Cannot use `<slot>` syntax and `{@render ...}` tags in the same component. Migrate towards `{@render ...}` tags completely\nhttps://svelte.dev/e/slot_snippet_conflict",
-    )
-}
-
-/// Cannot use explicit children snippet at the same time as implicit children content. Remove either the non-whitespace content or the children snippet block
-pub fn snippet_conflict() -> AnalysisError {
-    error(
-        "snippet_conflict",
-        "Cannot use explicit children snippet at the same time as implicit children content. Remove either the non-whitespace content or the children snippet block\nhttps://svelte.dev/e/snippet_conflict",
-    )
-}
-
-/// An exported snippet can only reference things declared in a `<script module>`, or other exportable snippets
-pub fn snippet_invalid_export() -> AnalysisError {
-    error(
-        "snippet_invalid_export",
-        "An exported snippet can only reference things declared in a `<script module>`, or other exportable snippets\nhttps://svelte.dev/e/snippet_invalid_export",
-    )
-}
-
-/// Attribute values containing `{...}` must be enclosed in quote marks, unless the value only contains the expression
-pub fn attribute_unquoted_sequence() -> AnalysisError {
-    error(
-        "attribute_unquoted_sequence",
-        "Attribute values containing `{...}` must be enclosed in quote marks, unless the value only contains the expression\nhttps://svelte.dev/e/attribute_unquoted_sequence",
-    )
-}
-
-/// Event attribute must be a JavaScript expression, not a string
-pub fn attribute_invalid_event_handler() -> AnalysisError {
-    error(
-        "attribute_invalid_event_handler",
-        "Event attribute must be a JavaScript expression, not a string\nhttps://svelte.dev/e/attribute_invalid_event_handler",
-    )
-}
-
-/// A component can only have one instance-level `<script>` element
-pub fn script_duplicate() -> AnalysisError {
-    error(
-        "script_duplicate",
-        "A component can only have one instance-level `<script>` element\nhttps://svelte.dev/e/script_duplicate",
-    )
-}
-
-/// `let:` directive at invalid position
-pub fn let_directive_invalid_placement() -> AnalysisError {
-    error(
-        "let_directive_invalid_placement",
-        "`let:` directive at invalid position\nhttps://svelte.dev/e/let_directive_invalid_placement",
-    )
-}
-
-/// `<svelte:element>` or `<svelte:window>` cannot have spread attributes
-pub fn illegal_element_attribute(element: &str) -> AnalysisError {
-    error(
-        "illegal_element_attribute",
-        format!(
-            "`<{}>` cannot have spread attributes\nhttps://svelte.dev/e/illegal_element_attribute",
-            element
-        ),
-    )
-}
-
-/// `{@debug ...}` arguments must be identifiers
-pub fn debug_tag_invalid_arguments() -> AnalysisError {
-    error(
-        "debug_tag_invalid_arguments",
-        "{@debug ...} arguments must be identifiers, not arbitrary expressions\nhttps://svelte.dev/e/debug_tag_invalid_arguments",
-    )
-}
-
-/// Title element can only contain text and `{expression}`
-pub fn title_invalid_content() -> AnalysisError {
-    error(
-        "title_invalid_content",
-        "`<title>` can only contain text and {tags}\nhttps://svelte.dev/e/title_invalid_content",
-    )
-}
-
-/// Logic block or expression inside textarea
-pub fn block_invalid_placement(thing: &str) -> AnalysisError {
-    error(
-        "block_invalid_placement",
-        format!(
-            "{} block cannot be inside <textarea>\nhttps://svelte.dev/e/block_invalid_placement",
-            thing
-        ),
-    )
-}
-
-/// Style directive modifier invalid
-pub fn style_directive_invalid_modifier() -> AnalysisError {
-    error(
-        "style_directive_invalid_modifier",
-        "`style:` directive can only use the `important` modifier\nhttps://svelte.dev/e/style_directive_invalid_modifier",
-    )
-}
-
-/// Directive value must be an expression
-pub fn directive_invalid_value() -> AnalysisError {
-    error(
-        "directive_invalid_value",
-        "Directive value must be a JavaScript expression enclosed in curly braces\nhttps://svelte.dev/e/directive_invalid_value",
-    )
-}
-
-/// `bind:value` on wrong element
-pub fn bind_invalid_value(element: &str) -> AnalysisError {
-    error(
-        "bind_invalid_value",
-        format!(
-            "`bind:value` can only be used on `<input>`, `<textarea>` or `<select>`, not `<{}>`\nhttps://svelte.dev/e/bind_invalid_value",
-            element
-        ),
-    )
-}
-
-/// TypeScript feature invalid
-pub fn typescript_invalid_feature(feature: &str) -> AnalysisError {
-    error(
-        "typescript_invalid_feature",
-        format!(
-            "TypeScript {} are not supported in Svelte components\nhttps://svelte.dev/e/typescript_invalid_feature",
-            feature
-        ),
-    )
 }
