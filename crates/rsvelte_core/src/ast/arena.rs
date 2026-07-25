@@ -360,11 +360,6 @@ impl ParseArena {
             let store = &*self.js_nodes.get();
             let index = id.0 as usize;
             if index >= store.len {
-                #[cfg(debug_assertions)]
-                eprintln!(
-                    "ARENA MISMATCH: get_js_node(id={}) but arena has {} nodes",
-                    id.0, store.len
-                );
                 static NULL_NODE: JsNode = JsNode::Null;
                 return &NULL_NODE;
             }
