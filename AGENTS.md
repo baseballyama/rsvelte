@@ -141,7 +141,7 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (Svelte **v5.56.7**). Re-run `pnpm run test-and-update`
+Source: `pnpm run compatibility-report` (Svelte **v5.56.8**). Re-run `pnpm run test-and-update`
 to refresh. Skip lists live in `crates/rsvelte_core/tests/compatibility_report.rs` and
 `crates/rsvelte_core/tests/runtime.rs`; `crates/rsvelte_core/tests/audit_skipped.rs`
 re-checks every skipped fixture after a Svelte bump.
