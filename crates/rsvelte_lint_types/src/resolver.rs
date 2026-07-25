@@ -33,7 +33,7 @@ Provide one of:
     to an API-capable binary, or
   * put `tsgo` / `corsa` on $PATH.
 
-`pnpm run test-type-aware-lint` does all of this for you.
+`pnpm run test:type-aware-lint` does all of this for you.
 Note: $TSGO_BIN is NOT read here — it names a batch `tsc`/`tsgo` for
 rsvelte-check, which cannot serve the corsa `--api` protocol.";
 

@@ -127,9 +127,6 @@ artifacts/
 # Claude scheduled task lock (runtime artifact)
 .claude/scheduled_tasks.lock
 
-# tsgo binary installed on demand by scripts/dev/test-type-aware-lint.mjs
-.cache/
-
 # Corpus-compat pipeline (generated; see scripts/compat-corpus/)
 .corpus-cache/
 compatibility/sources/

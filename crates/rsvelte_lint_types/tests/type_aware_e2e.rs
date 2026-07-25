@@ -2,7 +2,7 @@
 //! TypeScript types for `svelte/no-unused-props` on cases the syntactic path
 //! cannot handle (`extends`, intersection, nested object props).
 //!
-//! Requires a discoverable `tsgo` binary; run via `pnpm run test-type-aware-lint`,
+//! Requires a discoverable `tsgo` binary; run via `pnpm run test:type-aware-lint`,
 //! which installs one. A missing binary FAILS the test rather than skipping it —
 //! see `resolver::require_tsgo`.
 

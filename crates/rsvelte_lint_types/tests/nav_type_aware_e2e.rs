@@ -7,7 +7,7 @@
 //! self-contained (no `$app/types` ambient package required); the rule's
 //! `goto`/`<a>` detection is syntactic and works regardless of `$app/*`
 //! resolving. Requires a discoverable `tsgo` binary — a missing one FAILS the
-//! test rather than skipping it (`pnpm run test-type-aware-lint` installs one).
+//! test rather than skipping it (`pnpm run test:type-aware-lint` installs one).
 
 use std::path::{Path, PathBuf};
 

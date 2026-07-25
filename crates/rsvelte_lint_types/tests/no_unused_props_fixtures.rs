@@ -5,12 +5,11 @@
 //!
 //! Requires a discoverable `tsgo` binary and the `eslint-plugin-svelte`
 //! submodule; FAILS (rather than skipping) when either is absent.
-//! `pnpm run test-type-aware-lint` sets both up.
+//! `pnpm run test:type-aware-lint` sets both up.
 
 use std::path::{Path, PathBuf};
 
 use rsvelte_lint::config::LintConfig;
-use rsvelte_lint::line_index::LineIndex;
 use rsvelte_lint::rules::no_unused_props;
 use rsvelte_lint_types::{CorsaTypeBackend, require_tsgo};
 use serde::Deserialize;
@@ -96,7 +95,6 @@ fn run_fixture(input: &Path, tsgo: &Path) -> Vec<(u32, u32, String)> {
     drop(backend);
     let _ = std::fs::remove_dir_all(&dir);
 
-    let li = LineIndex::new(&source);
     let mut out: Vec<(u32, u32, String)> = diags
         .into_iter()
         .filter_map(|d| {
@@ -105,7 +103,6 @@ fn run_fixture(input: &Path, tsgo: &Path) -> Vec<(u32, u32, String)> {
             Some((r.start.line, r.start.column + 1, d.message))
         })
         .collect();
-    let _ = &li;
     out.sort();
     out
 }
@@ -117,7 +114,10 @@ fn expected_for(input: &Path) -> Vec<(u32, u32, String)> {
     let Ok(text) = std::fs::read_to_string(&yaml) else {
         return Vec::new();
     };
-    let errs: Vec<ExpectedError> = serde_yaml::from_str(&text).unwrap_or_default();
+    // Not `unwrap_or_default`: an unparseable expectations file would silently
+    // become "expects nothing" and pass.
+    let errs: Vec<ExpectedError> =
+        serde_yaml::from_str(&text).unwrap_or_else(|e| panic!("malformed {yaml:?}: {e}"));
     let mut out: Vec<(u32, u32, String)> = errs
         .into_iter()
         .map(|e| (e.line, e.column, e.message))

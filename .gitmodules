@@ -15,9 +15,11 @@
 	path = submodules/vize
 	url = git@github.com:ubugeeei-prod/vize.git
 
+# Backs the type-aware lint crate (crates/rsvelte_lint_types). HTTPS, not SSH:
+# the repo is public, so CI clones it with no credentials.
 [submodule "submodules/corsa-bind"]
 	path = submodules/corsa-bind
-	url = git@github.com:ubugeeei-prod/corsa-bind.git
+	url = https://github.com/ubugeeei-prod/corsa-bind.git
 
 [submodule "submodules/eslint-plugin-svelte"]
 	path = submodules/eslint-plugin-svelte
