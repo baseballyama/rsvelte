@@ -6,10 +6,9 @@ mod pattern;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, Fragment, TemplateNode};
 use pattern::{collect_pattern_bindings, expand_object_shorthands};
 
+use super::attributes::let_::get_let_directives;
 use super::utils::expr::get_expression_text;
-use super::{
-    ForwardedEventKind, TemplateInfo, get_let_directives, get_slot_attr_value, slot_name_for_type,
-};
+use super::{ForwardedEventKind, TemplateInfo, get_slot_attr_value, slot_name_for_type};
 
 pub(super) fn collect_info_from_fragment(
     fragment: &Fragment,

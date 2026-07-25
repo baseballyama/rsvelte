@@ -18,7 +18,6 @@ use crate::ast::template::{
     ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, LetDirective, OnDirective, RegularElement,
     RenderTag, SlotElement, SnippetBlock, SpreadAttribute, StyleDirective, SvelteComponentElement,
     SvelteDynamicElement, SvelteElement, TemplateNode, Text, TitleElement, TransitionDirective,
-    UseDirective,
 };
 use std::fmt::Write as _;
 
@@ -26,6 +25,8 @@ use indexmap::IndexMap;
 
 use super::magic_string::MagicString;
 use super::svelte2tsx::{Svelte2TsxOptions, SvelteVersion, slice_src};
+use attributes::action::format_use_directive;
+use attributes::let_::{build_let_destructure_string, get_let_directives};
 use attributes::svg::is_svg_attribute;
 use ctx::{Counter, ELEMENT_OPENER_COMMENTS, TemplateNodeExt};
 use segs::{
@@ -5703,22 +5704,6 @@ fn build_component_directive_suffix(attributes: &[Attribute], source: &str) -> V
     out
 }
 
-/// Legacy V5-style use formatter — see `format_transition_directive`.
-fn format_use_directive(use_dir: &UseDirective, source: &str) -> Option<String> {
-    if let Some(ref expr) = use_dir.expression {
-        let expr_text = get_expression_text(expr, source);
-        Some(format!(
-            "__sveltets_2_ensureAction({})(svelteHTML.mapElementTag('{}'), {}),",
-            use_dir.name, "", expr_text
-        ))
-    } else {
-        Some(format!(
-            "__sveltets_2_ensureAction({})(svelteHTML.mapElementTag('{}'), {{}}),",
-            use_dir.name, ""
-        ))
-    }
-}
-
 // =============================================================================
 // Slot Helpers
 // =============================================================================
@@ -5870,35 +5855,6 @@ fn build_slot_props_string(attributes: &[Attribute], source: &str) -> String {
         // one space) as a leading space after `{`, e.g. `{ "message":… }`.
         format!(" {result}")
     }
-}
-
-/// Collect `let:` directives from an attribute list.
-pub(super) fn get_let_directives<'a>(attributes: &'a [Attribute<'a>]) -> Vec<&'a LetDirective<'a>> {
-    attributes
-        .iter()
-        .filter_map(|attr| match attr {
-            Attribute::LetDirective(let_dir) => Some(let_dir),
-            _ => None,
-        })
-        .collect()
-}
-
-/// Build the `let:` destructuring string for slot definitions.
-///
-/// Given `let:name={n} let:thing let:whatever={{ bla }}`, produces:
-/// `name:n,thing,whatever:{ bla },`
-fn build_let_destructure_string(let_directives: &[&LetDirective], source: &str) -> String {
-    let mut parts = Vec::new();
-    for let_dir in let_directives {
-        if let Some(ref expr) = let_dir.expression {
-            let expr_text = get_expression_text(expr, source);
-            parts.push(format!("{}:{},", let_dir.name, expr_text));
-        } else {
-            // Shorthand: `let:thing` → `thing,`
-            parts.push(format!("{},", let_dir.name));
-        }
-    }
-    parts.join("")
 }
 
 /// Get the static `slot="name"` attribute value from an element's attributes.
