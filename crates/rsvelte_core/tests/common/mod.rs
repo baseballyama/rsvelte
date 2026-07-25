@@ -372,19 +372,10 @@ pub fn runtime_fixture_options(category: &str, sample: &str) -> RuntimeFixtureOp
 /// audited by `tests/audit_skipped.rs`, which fails the build once a skipped
 /// fixture starts passing. Remove an entry as soon as the port lands.
 pub const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
-    // Svelte 5.56.0 #18309 (`e705369de` "fix: propagate async @const blockers
-    // through closure references"): rsvelte's per-template_effect blocker
-    // scanner does not yet propagate awaited `@const` blockers across closure
-    // boundaries (IIFE in template expressions).
-    "async-each-const-await-iife",
     // template_effect double-counts `$$promises` inside an `$.async(...)`
-    // wrapper for the IfBlock branch. Same blocker-scanner cluster as
-    // `async-each-const-await-iife`.
+    // wrapper for the IfBlock branch — the awaited `@const` blocker is not
+    // propagated across the closure boundary.
     "async-style-after-await",
-    // Svelte 5.56.4 #18453 (`36ae0622a`): client output matches, but the server
-    // async-derived template-mutation codegen emits `$.save(a)` where upstream
-    // emits `$.save(a())`.
-    "async-parallel-derived-template-mutation",
     // Svelte 5.56.x #18525 (`bfbb026f2`): `<svelte:boundary {pending}>` with a
     // `$derived` pending attribute. The server `pending` ATTRIBUTE branch
     // (`build_pending_attribute_block` + the `is_pending_attr_nullish` wrapper)

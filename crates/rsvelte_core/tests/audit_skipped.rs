@@ -70,10 +70,10 @@ fn remove_internal_fields(value: &mut serde_json::Value) {
     }
 }
 
-/// Skip entries that already pass under this audit. Unskipping them edits test
-/// files this change does not own, so they are ratcheted here and tracked in
-/// issue #1808. Shrink-only in both directions: a new stale entry fails, and an
-/// entry that stops applying must be dropped from the list.
+/// Skip entries that already pass under this audit but have not been unskipped
+/// yet. Shrink-only in both directions: a new stale entry fails, and an entry
+/// that stops applying must be dropped from the list. Empty is the goal state —
+/// a fixture that passes belongs off the skip list, not on this ratchet.
 const KNOWN_STALE_SKIPS: &[(&str, &str)] = &[];
 
 /// Sibling test sources are embedded so the audited names come from the real

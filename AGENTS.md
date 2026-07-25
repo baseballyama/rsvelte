@@ -159,7 +159,7 @@ Svelte bump.
 | SSR | 99/99 |
 | Hydration | 79/79 |
 | Runtime Legacy | 1207/1207 |
-| Runtime Runes | 1005/1005 |
+| Runtime Runes | 1007/1007 |
 | Runtime Browser | 32/32 |
 | Print | 43/43 |
 | Preprocess | 19/19 |

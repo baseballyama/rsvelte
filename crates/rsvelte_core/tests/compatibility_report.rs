@@ -37,7 +37,7 @@ fn min_fixtures(category: &str) -> usize {
         "compiler-errors" => 145,
         // The runtime floors sit below the sample count by exactly the
         // documented `runtime_skip_names` entries for the category.
-        "runtime-runes" => 1005,
+        "runtime-runes" => 1007,
         "runtime-legacy" => 1206,
         "runtime-browser" => 32,
         "hydration" => 79,
