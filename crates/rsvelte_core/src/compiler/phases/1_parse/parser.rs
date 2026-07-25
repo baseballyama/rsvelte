@@ -29,6 +29,13 @@ use crate::error::{ParseError, ParseResult};
 
 use super::ParseOptions;
 
+/// Substring searchers used once per file; building one is not free, so they
+/// are shared instead of reconstructed per parse.
+static SCRIPT_TAG_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
+    std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"<script"));
+static HTML_COMMENT_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
+    std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"<!--"));
+
 /// Last auto-closed tag information.
 ///
 /// Corresponds to `LastAutoClosedTag` in `svelte/packages/svelte/src/compiler/phases/1-parse/index.js`.
@@ -255,30 +262,41 @@ impl<'a> Parser<'a> {
         let bytes = source.as_bytes();
         let len = bytes.len();
 
-        // Use memchr to quickly find '<' characters, then check for <script
-        let mut pos = 0;
-        while let Some(offset) = memchr::memchr(b'<', &bytes[pos..]) {
-            let i = pos + offset;
-            pos = i + 1;
+        // Jump straight between `<script` occurrences; HTML-comment spans are
+        // resolved lazily so a commented-out script is still ignored.
+        let script_finder = &*SCRIPT_TAG_FINDER;
+        let comment_finder = &*HTML_COMMENT_FINDER;
+        let mut comment_pos = 0usize;
+        let mut script_pos = 0usize;
 
-            // Skip HTML comments: <!-- ... -->
-            if i + 3 < len && bytes[i + 1] == b'!' && bytes[i + 2] == b'-' && bytes[i + 3] == b'-' {
-                if let Some(end_offset) = memchr::memmem::find(&bytes[i + 4..], b"-->") {
-                    pos = i + 4 + end_offset + 3;
-                } else {
+        'outer: while let Some(offset) = script_finder.find(&bytes[script_pos..]) {
+            let i = script_pos + offset;
+
+            while comment_pos <= i {
+                let Some(coffset) = comment_finder.find(&bytes[comment_pos..]) else {
+                    comment_pos = len + 1;
+                    break;
+                };
+                let comment_start = comment_pos + coffset;
+                if comment_start > i {
+                    comment_pos = comment_start;
                     break;
                 }
-                continue;
+                let comment_end = match memchr::memmem::find(&bytes[comment_start + 4..], b"-->") {
+                    Some(end_offset) => comment_start + 4 + end_offset + 3,
+                    None => len,
+                };
+                comment_pos = comment_end;
+                if comment_end > i {
+                    script_pos = comment_end;
+                    continue 'outer;
+                }
             }
+
+            script_pos = i + 7;
 
             // Check for <script followed by whitespace or >
             if i + 7 < len
-                && bytes[i + 1] == b's'
-                && bytes[i + 2] == b'c'
-                && bytes[i + 3] == b'r'
-                && bytes[i + 4] == b'i'
-                && bytes[i + 5] == b'p'
-                && bytes[i + 6] == b't'
                 && (bytes[i + 7] == b' '
                     || bytes[i + 7] == b'\t'
                     || bytes[i + 7] == b'\n'
@@ -328,9 +346,7 @@ impl<'a> Parser<'a> {
                     }
                     j += 1;
                 }
-                if j < len {
-                    pos = j + 1;
-                }
+                script_pos = if j < len { j + 1 } else { len };
             }
         }
 

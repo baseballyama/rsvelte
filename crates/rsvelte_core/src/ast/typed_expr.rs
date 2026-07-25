@@ -2312,39 +2312,44 @@ fn deser_alloc_children(nodes: Vec<JsNode>) -> IdRange {
     with_deser_arena(|arena| arena.alloc_js_children(nodes))
 }
 
-fn convert_child(obj: &serde_json::Map<String, Value>, key: &str) -> JsNodeId {
-    match obj.get(key) {
-        Some(val @ Value::Object(_)) => deser_alloc_node(JsNode::from_value(val.clone())),
+// Children are taken out of the map rather than cloned: `from_value` owns the
+// object, and cloning each child re-copies the whole subtree at every level.
+fn convert_child(obj: &mut serde_json::Map<String, Value>, key: &str) -> JsNodeId {
+    match obj.remove(key) {
+        Some(val @ Value::Object(_)) => deser_alloc_node(JsNode::from_value(val)),
         _ => deser_alloc_node(JsNode::Null),
     }
 }
 
-fn convert_optional_child(obj: &serde_json::Map<String, Value>, key: &str) -> Option<JsNodeId> {
-    match obj.get(key) {
-        Some(val @ Value::Object(_)) => Some(deser_alloc_node(JsNode::from_value(val.clone()))),
+fn convert_optional_child(obj: &mut serde_json::Map<String, Value>, key: &str) -> Option<JsNodeId> {
+    match obj.remove(key) {
+        Some(val @ Value::Object(_)) => Some(deser_alloc_node(JsNode::from_value(val))),
         _ => None,
     }
 }
 
-fn convert_array(obj: &serde_json::Map<String, Value>, key: &str) -> IdRange {
-    match obj.get(key) {
+fn convert_array(obj: &mut serde_json::Map<String, Value>, key: &str) -> IdRange {
+    match obj.remove(key) {
         Some(Value::Array(arr)) => {
-            let nodes: Vec<JsNode> = arr.iter().map(|v| JsNode::from_value(v.clone())).collect();
+            let nodes: Vec<JsNode> = arr.into_iter().map(JsNode::from_value).collect();
             deser_alloc_children(nodes)
         }
         _ => IdRange::empty(),
     }
 }
 
-fn convert_nullable_array(obj: &serde_json::Map<String, Value>, key: &str) -> Vec<Option<JsNode>> {
-    match obj.get(key) {
+fn convert_nullable_array(
+    obj: &mut serde_json::Map<String, Value>,
+    key: &str,
+) -> Vec<Option<JsNode>> {
+    match obj.remove(key) {
         Some(Value::Array(arr)) => arr
-            .iter()
+            .into_iter()
             .map(|v| {
                 if v.is_null() {
                     None
                 } else {
-                    Some(JsNode::from_value(v.clone()))
+                    Some(JsNode::from_value(v))
                 }
             })
             .collect(),
@@ -2356,7 +2361,8 @@ impl JsNode {
     pub fn from_value(value: Value) -> Self {
         match value {
             Value::Null => JsNode::Null,
-            Value::Object(ref obj) => {
+            Value::Object(mut owned_obj) => {
+                let obj = &mut owned_obj;
                 let type_str = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
                 let start = get_u32(obj, "start");
                 let end = get_u32(obj, "end");

@@ -48,7 +48,7 @@ pub fn ensure_script_parsed(
     let (program, parse_error) = super::expression::parse_program_with_error(
         arena,
         super::expression::ProgramParseParams {
-            content: &raw,
+            content: raw,
             offset,
             line_offsets,
             is_typescript: script.is_typescript,
@@ -193,7 +193,7 @@ impl<'a> Parser<'a> {
                 }
 
                 if attr_node.name.as_str() == "context" {
-                    if let AttributeValue::Sequence(parts) = &attr_node.value
+                    let keep = if let AttributeValue::Sequence(parts) = &attr_node.value
                         && let Some(AttributeValuePart::Text(t)) = parts.first()
                     {
                         if t.data.as_ref() == "module" {
@@ -205,9 +205,7 @@ impl<'a> Parser<'a> {
                             // lint rules count it — preserve it only in lenient
                             // (lint) mode to match the oracle without changing
                             // compiler output.
-                            if self.options.lenient_script {
-                                script_attributes.push(attr_node.clone());
-                            }
+                            self.options.lenient_script
                         } else {
                             // Invalid context value - only "module" is allowed
                             return Err(crate::error::ParseError::svelte(
@@ -216,11 +214,16 @@ impl<'a> Parser<'a> {
                                 (attr_node.start as usize, attr_node.end as usize),
                             ));
                         }
+                    } else {
+                        false
+                    };
+                    if keep {
+                        script_attributes.push(attr_node);
                     }
                 } else if attr_node.name.as_str() == "module" {
                     // `module` attribute (boolean or with value) indicates module context
                     context = ScriptContext::Module;
-                    script_attributes.push(attr_node.clone());
+                    script_attributes.push(attr_node);
                     continue;
                 } else if attr_node.name.as_str() == "lang" {
                     if let AttributeValue::Sequence(parts) = &attr_node.value
@@ -231,9 +234,9 @@ impl<'a> Parser<'a> {
                             is_typescript = true;
                         }
                     }
-                    script_attributes.push(attr_node.clone());
+                    script_attributes.push(attr_node);
                 } else {
-                    script_attributes.push(attr_node.clone());
+                    script_attributes.push(attr_node);
                 }
             }
         }
@@ -260,7 +263,7 @@ impl<'a> Parser<'a> {
                 context,
                 content: placeholder,
                 attributes: script_attributes,
-                raw_content: script_content.to_string(),
+                raw_content: script_content,
                 content_offset: content_start as u32,
                 is_typescript: use_typescript,
             }
@@ -308,7 +311,7 @@ impl<'a> Parser<'a> {
                     context,
                     content: placeholder,
                     attributes: script_attributes,
-                    raw_content: script_content.to_string(),
+                    raw_content: script_content,
                     content_offset: content_start as u32,
                     is_typescript: use_typescript,
                 }
@@ -320,7 +323,7 @@ impl<'a> Parser<'a> {
                     context,
                     content: program,
                     attributes: script_attributes,
-                    raw_content: String::new(),
+                    raw_content: "",
                     content_offset: content_start as u32,
                     is_typescript: use_typescript,
                 }

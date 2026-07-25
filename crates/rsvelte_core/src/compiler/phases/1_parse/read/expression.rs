@@ -10853,6 +10853,15 @@ fn convert_property_key(
 
 /// Parse a binding pattern (for {#each} context).
 /// This parses patterns like `item`, `{ name }`, `[a, b]`, etc.
+fn is_plain_ascii_identifier(s: &str) -> bool {
+    let mut bytes = s.bytes();
+    match bytes.next() {
+        Some(b) if b.is_ascii_alphabetic() || b == b'_' || b == b'$' => {}
+        _ => return false,
+    }
+    bytes.all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'$')
+}
+
 pub fn parse_binding_pattern<'a>(
     arena: &ParseArena,
     content: &str,
@@ -10874,6 +10883,16 @@ pub fn parse_binding_pattern<'a>(
                 trimmed
             ),
             (offset, offset),
+        ));
+    }
+
+    // `{#each xs as item}` / `{#await p then v}` bind a bare identifier in the
+    // vast majority of cases; skip the `let … = null` wrap + full JS parse.
+    if is_plain_ascii_identifier(trimmed) {
+        let start = offset + (content.len() - content.trim_start().len());
+        let end = start + trimmed.len();
+        return Ok(Expression::from_node(
+            create_identifier_for_binding_toplevel(trimmed, start, end, line_offsets),
         ));
     }
 

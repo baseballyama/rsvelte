@@ -1125,7 +1125,7 @@ pub struct Script<'a> {
     pub attributes: Vec<AttributeNode<'a>>,
     /// Raw script content for deferred parsing. Empty string means content was already parsed eagerly.
     #[serde(skip)]
-    pub raw_content: String,
+    pub raw_content: &'a str,
     /// Offset of raw_content in the source for position mapping.
     #[serde(skip)]
     pub content_offset: u32,

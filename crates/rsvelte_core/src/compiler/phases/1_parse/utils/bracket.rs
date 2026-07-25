@@ -153,6 +153,43 @@ fn count_leading_backslashes(string: &str, search_start_index: usize) -> usize {
 ///
 /// # Returns
 /// The index of the closing bracket, or `None` if not found
+/// Bytes that can appear in a `{...}` expression handled by the fast path:
+/// nothing that needs the string / comment / regex / nesting state machine.
+static SIMPLE_EXPRESSION_BYTE: [bool; 256] = {
+    let mut table = [false; 256];
+    let mut b = 0usize;
+    while b < 256 {
+        table[b] = (b as u8).is_ascii_alphanumeric()
+            || matches!(
+                b as u8,
+                b'_' | b'$'
+                    | b'.'
+                    | b' '
+                    | b'\t'
+                    | b'\n'
+                    | b'\r'
+                    | b'?'
+                    | b','
+                    | b':'
+                    | b';'
+                    | b'+'
+                    | b'-'
+                    | b'*'
+                    | b'%'
+                    | b'!'
+                    | b'='
+                    | b'<'
+                    | b'>'
+                    | b'&'
+                    | b'|'
+                    | b'^'
+                    | b'~'
+            );
+        b += 1;
+    }
+    table
+};
+
 pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option<usize> {
     let close = match open {
         '{' => '}',
@@ -174,32 +211,7 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
             // contains no characters that require the full state machine:
             // no nested brackets, no strings, no comments, no regex
             let content = &remaining[..close_offset];
-            let is_simple = content.iter().all(|&b| {
-                b.is_ascii_alphanumeric()
-                    || b == b'_'
-                    || b == b'$'
-                    || b == b'.'
-                    || b == b' '
-                    || b == b'\t'
-                    || b == b'\n'
-                    || b == b'\r'
-                    || b == b'?'  // optional chaining
-                    || b == b','
-                    || b == b':'  // ternary, object literal
-                    || b == b';'
-                    || b == b'+'
-                    || b == b'-'
-                    || b == b'*'
-                    || b == b'%'
-                    || b == b'!'
-                    || b == b'='
-                    || b == b'<'
-                    || b == b'>'
-                    || b == b'&'
-                    || b == b'|'
-                    || b == b'^'
-                    || b == b'~'
-            });
+            let is_simple = content.iter().all(|&b| SIMPLE_EXPRESSION_BYTE[b as usize]);
             if is_simple {
                 return Some(index + close_offset);
             }

@@ -910,7 +910,7 @@ pub fn compile_module(
             context: crate::ast::template::ScriptContext::Module,
             content: program,
             attributes: Vec::new(),
-            raw_content: String::new(),
+            raw_content: "",
             content_offset: 0,
             is_typescript: false,
         })),
