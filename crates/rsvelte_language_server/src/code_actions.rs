@@ -11,14 +11,10 @@ use lsp_types::{
     Range, TextEdit, Uri, WorkspaceEdit,
 };
 use rsvelte_core::ParseOptions;
-use rsvelte_core::ast::template::{Attribute, AttributeNode, Fragment, Root, TemplateNode};
+use rsvelte_core::ast::template::{Fragment, Root, TemplateNode};
 
 use crate::diagnostics::{COMPILER_SOURCE, is_compiler_code};
 use crate::text::LineIndex;
-
-/// The warning whose anchor is missing `rel="noreferrer"`. Svelte 5 no longer
-/// emits it; the fix stays for diagnostics produced against older compilers.
-const ANCHOR_REL_NOREFERRER: &str = "security-anchor-rel-noreferrer";
 
 /// Warnings a `svelte-ignore` comment cannot suppress, in both the spelling the
 /// official server lists and the one Svelte 5 emits.
@@ -31,8 +27,7 @@ const NON_IGNORABLE: &[&str] = &[
     "css_unused_selector",
 ];
 
-/// The quick fixes available for `diagnostics`, in the order the official
-/// server returns them.
+/// The quick fixes available for `diagnostics`.
 pub fn quickfixes(source: &str, uri: &Uri, diagnostics: &[Diagnostic]) -> Vec<CodeActionOrCommand> {
     let index = LineIndex::new(source);
     let allocator = rsvelte_core::Allocator::default();
@@ -74,12 +69,6 @@ fn for_diagnostic(
         .filter(|_| !in_script)
         .and_then(|root| enclosing_node(&root.fragment, start, end));
 
-    if code == ANCHOR_REL_NOREFERRER
-        && let Some(node) = node
-        && let Some(action) = rel_noreferrer(source, index, uri, node)
-    {
-        actions.push(action);
-    }
     let anchor = node.map_or(start, |node| span(node).0);
     actions.push(svelte_ignore(source, index, uri, code, anchor, in_script));
 }
@@ -124,58 +113,16 @@ fn svelte_ignore(
     } else {
         format!("<!-- svelte-ignore {code} -->")
     };
-    let new_text = format!("{indent}{comment}{}", line_ending(source));
-
-    action(
-        format!("(svelte) Disable {code} for this line"),
-        uri,
-        vec![TextEdit {
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-            new_text,
-        }],
-    )
-}
-
-/// Add `noreferrer` to the anchor's `rel`, or the whole attribute when it has
-/// none. An existing `rel` is only extended when its value is quoted, so the
-/// insertion cannot land in the middle of a bare or dynamic value.
-fn rel_noreferrer(
-    source: &str,
-    index: &LineIndex,
-    uri: &Uri,
-    node: &TemplateNode,
-) -> Option<CodeActionOrCommand> {
-    let attributes = attributes(node);
-    let (offset, new_text) = match attribute(attributes, "rel") {
-        Some(rel) => {
-            let before_quote = rel.end.checked_sub(1)? as usize;
-            if !matches!(source.as_bytes().get(before_quote), Some(b'"' | b'\'')) {
-                return None;
-            }
-            (before_quote, " noreferrer".to_string())
-        }
-        None => (
-            attribute(attributes, "target")?.end as usize,
-            " rel=\"noreferrer\"".to_string(),
-        ),
+    let edit = TextEdit {
+        range: Range::new(Position::new(line, 0), Position::new(line, 0)),
+        new_text: format!("{indent}{comment}{}", line_ending(source)),
     };
-    let at = index.position(source, offset);
-    Some(action(
-        "(svelte) Add missing attribute rel=\"noreferrer\"".to_string(),
-        uri,
-        vec![TextEdit {
-            range: Range::new(at, at),
-            new_text,
-        }],
-    ))
-}
 
-fn action(title: String, uri: &Uri, edits: Vec<TextEdit>) -> CodeActionOrCommand {
     CodeActionOrCommand::CodeAction(CodeAction {
-        title,
+        title: format!("(svelte) Disable {code} for this line"),
         kind: Some(CodeActionKind::QUICKFIX),
         edit: Some(WorkspaceEdit {
-            changes: Some(HashMap::from([(uri.clone(), edits)])),
+            changes: Some(HashMap::from([(uri.clone(), vec![edit])])),
             ..WorkspaceEdit::default()
         }),
         ..CodeAction::default()
@@ -302,33 +249,6 @@ fn child_fragments<'b, 'a>(node: &'b TemplateNode<'a>) -> Vec<&'b Fragment<'a>> 
         | TemplateNode::SvelteWindow(n) => vec![&n.fragment],
         _ => Vec::new(),
     }
-}
-
-fn attributes<'b, 'a>(node: &'b TemplateNode<'a>) -> &'b [Attribute<'a>] {
-    match node {
-        TemplateNode::RegularElement(n) => &n.attributes,
-        TemplateNode::Component(n) => &n.attributes,
-        TemplateNode::SvelteComponent(n) => &n.attributes,
-        TemplateNode::SvelteElement(n) => &n.attributes,
-        TemplateNode::TitleElement(n) => &n.attributes,
-        TemplateNode::SlotElement(n) => &n.attributes,
-        TemplateNode::SvelteBody(n)
-        | TemplateNode::SvelteDocument(n)
-        | TemplateNode::SvelteFragment(n)
-        | TemplateNode::SvelteBoundary(n)
-        | TemplateNode::SvelteHead(n)
-        | TemplateNode::SvelteOptions(n)
-        | TemplateNode::SvelteSelf(n)
-        | TemplateNode::SvelteWindow(n) => &n.attributes,
-        _ => &[],
-    }
-}
-
-fn attribute<'b, 'a>(attributes: &'b [Attribute<'a>], name: &str) -> Option<&'b AttributeNode<'a>> {
-    attributes.iter().find_map(|attribute| match attribute {
-        Attribute::Attribute(node) if node.name == name => Some(node),
-        _ => None,
-    })
 }
 
 #[cfg(test)]
@@ -471,60 +391,6 @@ mod tests {
     }
 
     #[test]
-    fn a_missing_rel_attribute_is_added_after_target() {
-        let source = "<a href=\"https://svelte.dev\" target=\"_blank\">Svelte</a>\n";
-        let fixes = fixes(
-            source,
-            &[diagnostic(ANCHOR_REL_NOREFERRER, range((0, 0), (0, 55)))],
-        );
-        assert_eq!(
-            fixes[0],
-            (
-                "(svelte) Add missing attribute rel=\"noreferrer\"".to_string(),
-                TextEdit {
-                    range: range((0, 44), (0, 44)),
-                    new_text: " rel=\"noreferrer\"".to_string(),
-                }
-            )
-        );
-        // The ignore comment is offered alongside it, and second.
-        assert_eq!(
-            fixes[1].0,
-            format!("(svelte) Disable {ANCHOR_REL_NOREFERRER} for this line")
-        );
-    }
-
-    #[test]
-    fn an_existing_rel_attribute_is_extended() {
-        let source =
-            "<a href=\"https://svelte.dev\" target=\"_blank\" rel=\"noopener\">Svelte</a>\n";
-        let fixes = fixes(
-            source,
-            &[diagnostic(ANCHOR_REL_NOREFERRER, range((0, 0), (0, 70)))],
-        );
-        assert_eq!(
-            fixes[0].1,
-            TextEdit {
-                range: range((0, 58), (0, 58)),
-                new_text: " noreferrer".to_string(),
-            }
-        );
-    }
-
-    /// A `rel` whose value is not quoted cannot be extended by a text insert,
-    /// so only the ignore comment is offered.
-    #[test]
-    fn a_dynamic_rel_attribute_is_left_alone() {
-        let source = "<a href=\"x\" target=\"_blank\" rel={rel}>Svelte</a>\n";
-        let fixes = fixes(
-            source,
-            &[diagnostic(ANCHOR_REL_NOREFERRER, range((0, 0), (0, 47)))],
-        );
-        assert_eq!(fixes.len(), 1);
-        assert!(fixes[0].0.starts_with("(svelte) Disable"));
-    }
-
-    #[test]
     fn the_codes_the_official_server_excludes_get_no_fix() {
         for code in NON_IGNORABLE {
             assert!(
@@ -584,19 +450,22 @@ mod tests {
         assert!(fixes[0].1.new_text.ends_with("-->\r\n"));
     }
 
-    /// Positions cross the protocol boundary in UTF-16 units, so the anchor of
-    /// a finding after astral text must still land on its element.
+    /// Positions cross the protocol boundary in UTF-16 units, so a finding
+    /// after astral text must still resolve to its own element — read as bytes,
+    /// the range would land inside the emoji and anchor to the parent instead.
     #[test]
     fn columns_are_read_as_utf16() {
-        let source = "<p>💡</p>\n<a target=\"_blank\">x</a>\n";
+        let source = "<div>\n    💡<img>\n</div>\n";
         let fixes = fixes(
             source,
-            &[diagnostic(ANCHOR_REL_NOREFERRER, range((1, 0), (1, 20)))],
+            &[diagnostic("a11y_missing_attribute", range((1, 6), (1, 11)))],
         );
         assert_eq!(
-            fixes[0].1.range,
-            range((1, 18), (1, 18)),
-            "the insert should follow target=\"_blank\""
+            fixes[0].1,
+            TextEdit {
+                range: range((1, 0), (1, 0)),
+                new_text: "    <!-- svelte-ignore a11y_missing_attribute -->\n".to_string(),
+            }
         );
     }
 
@@ -613,7 +482,7 @@ mod tests {
         ] {
             let warning = compiler_warning(source, code);
             let fixes = fixes(source, &[warning]);
-            let edit = &fixes.last().expect("a fix for the warning").1;
+            let edit = &fixes.first().expect("a fix for the warning").1;
 
             let index = LineIndex::new(source);
             let at = index.offset(source, edit.range.start);

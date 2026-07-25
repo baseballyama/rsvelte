@@ -191,12 +191,12 @@ mod tests {
     #[test]
     fn only_word_separated_lowercase_codes_are_documented() {
         let d = convert(&compiler_diagnostic(
-            "security-anchor-rel-noreferrer",
+            "css-unused-selector",
             LintSeverity::Warning,
         ));
         assert_eq!(
             d.code_description.unwrap().href.as_str(),
-            "https://svelte.dev/docs/svelte/compiler-warnings#security_anchor_rel_noreferrer"
+            "https://svelte.dev/docs/svelte/compiler-warnings#css_unused_selector"
         );
 
         for code in ["Uppercase_code", "nodash"] {
