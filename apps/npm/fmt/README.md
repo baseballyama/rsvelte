@@ -30,23 +30,14 @@ The package resolves the right prebuilt native binary for your platform via
 
 If your platform isn't listed, please [open an issue](https://github.com/baseballyama/rsvelte/issues).
 
-### Native-direct binary (no Node startup)
+### How the CLI is launched
 
-On install, a `postinstall` step swaps in the platform-native binary as the
-CLI's `bin`, so `rsvelte-fmt` runs directly with no per-invocation Node cold
-start — the biggest cost for format-on-save. It also records your `oxfmt` +
-Node paths in a sidecar the binary reads at runtime.
-
-If your package manager **gates install scripts** (e.g. pnpm's
-`onlyBuiltDependencies`), allow `@rsvelte/fmt` so this step runs:
-
-```jsonc
-// package.json (pnpm)
-"pnpm": { "onlyBuiltDependencies": ["@rsvelte/fmt"] }
-```
-
-Without it (or with `--ignore-scripts`, or on Windows) a small Node launcher is
-used instead — identical output, just a little slower to start.
+`rsvelte-fmt`'s `bin` entry is a small Node launcher that resolves the
+platform-native binary from `optionalDependencies` (plus your `oxfmt`, if
+installed) and execs it, forwarding argv/stdio and the exit code — one Node
+cold start per invocation. There is no install-time step and nothing to allow
+in a package manager's build-script gate (e.g. pnpm's
+`onlyBuiltDependencies`).
 
 ### oxfmt daemon (warm CSS formatting)
 
@@ -143,9 +134,10 @@ A **custom config** (any of the above) changes the class order in ways that
 depend on the project's compiled CSS, so `rsvelte-fmt` shells out to a one-shot
 Node sidecar running the real `prettier-plugin-tailwindcss` — the same plugin
 (and API) `oxfmt` uses — resolving your project's `tailwindcss` and producing the
-same order `oxfmt` would. This needs a Node interpreter (the one recorded at
-install time) and the bundled plugin; if either is unavailable, `rsvelte-fmt`
-prints a warning and leaves class names unchanged rather than reorder them
+same order `oxfmt` would. This needs a Node interpreter (the one the JS
+launcher passes via `RSVELTE_FMT_NODE`) and the bundled plugin; if either is
+unavailable, `rsvelte-fmt` prints a warning and leaves class names unchanged
+rather than reorder them
 wrongly. The `attributes` option is honored (default `["class"]`); `functions`
 (e.g. `cn(...)`) are not yet supported on either path.
 

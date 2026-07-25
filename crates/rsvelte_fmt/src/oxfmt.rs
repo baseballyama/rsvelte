@@ -2,7 +2,6 @@ use std::ffi::OsStr;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::OnceLock;
 
 use anyhow::{Context, Result};
 
@@ -12,29 +11,10 @@ use crate::paths::{
 };
 use crate::status::{Mode, PipelineStatus};
 
-/// The Node interpreter used to run a JS `oxfmt` launcher, resolved once.
-///
-/// Two entry points populate it, in priority order:
-///   1. The native-direct install path ([`crate::run::run`] reads it from the
-///      `rsvelte-fmt.runtime.json` sidecar the npm `postinstall` writes next to
-///      the binary) calls [`set_oxfmt_node`].
-///   2. Otherwise [`oxfmt_node`] falls back to `RSVELTE_FMT_NODE` (set by the
-///      npm JS launcher when it spawns this binary).
-static OXFMT_NODE: OnceLock<Option<PathBuf>> = OnceLock::new();
-
-/// Record the Node interpreter for JS `oxfmt` launchers (from the install
-/// sidecar). Best-effort: a later call is ignored, which is fine — the value is
-/// set once at startup before any `oxfmt` invocation.
-pub(crate) fn set_oxfmt_node(node: Option<PathBuf>) {
-    let _ = OXFMT_NODE.set(node);
-}
-
-/// The Node interpreter to run a JS `oxfmt` launcher through, if any. Prefers
-/// the value recorded from the install sidecar, else `RSVELTE_FMT_NODE`.
+/// The Node interpreter to run a JS `oxfmt` launcher through, if any — set via
+/// `RSVELTE_FMT_NODE` by the npm JS launcher (`bin/rsvelte-fmt`) when it spawns
+/// this binary.
 pub(crate) fn oxfmt_node() -> Option<PathBuf> {
-    if let Some(v) = OXFMT_NODE.get() {
-        return v.clone();
-    }
     std::env::var_os("RSVELTE_FMT_NODE")
         .filter(|v| !v.is_empty())
         .map(PathBuf::from)
@@ -45,15 +25,12 @@ pub(crate) fn oxfmt_node() -> Option<PathBuf> {
 /// The npm `@rsvelte/fmt` launcher resolves the consumer's `oxfmt/bin/oxfmt`
 /// Node launcher (an extensionless script with shebang `#!/usr/bin/env node`)
 /// and passes it via `--oxfmt-bin`, setting `RSVELTE_FMT_NODE` to the exact
-/// interpreter. When installed native-direct (the JS launcher replaced by this
-/// binary at `postinstall`), the same two values come from the
-/// `rsvelte-fmt.runtime.json` sidecar instead — see [`oxfmt_node`]. Such a
-/// script isn't directly executable on Windows, so when a Node interpreter is
-/// known we run the oxfmt path through it. As a convenience for `cargo run`
-/// users who point `--oxfmt-bin` at a `.js` / `.cjs` / `.mjs` launcher without
-/// providing an interpreter, we also fall back to `node` on `$PATH` in that
-/// case. A plain native binary (the default `oxfmt` on `$PATH`, or any
-/// user-supplied path) is run directly.
+/// interpreter — see [`oxfmt_node`]. Such a script isn't directly executable on
+/// Windows, so when a Node interpreter is known we run the oxfmt path through
+/// it. As a convenience for `cargo run` users who point `--oxfmt-bin` at a
+/// `.js` / `.cjs` / `.mjs` launcher without providing an interpreter, we also
+/// fall back to `node` on `$PATH` in that case. A plain native binary (the
+/// default `oxfmt` on `$PATH`, or any user-supplied path) is run directly.
 pub(crate) fn oxfmt_command(oxfmt: &Path) -> Command {
     let node_env = oxfmt_node();
     let is_js_ext = matches!(
@@ -68,28 +45,6 @@ pub(crate) fn oxfmt_command(oxfmt: &Path) -> Command {
     } else {
         Command::new(oxfmt)
     }
-}
-
-/// Recover the consumer's `oxfmt` launcher + Node interpreter from the
-/// `rsvelte-fmt.runtime.json` sidecar the npm `postinstall` writes next to this
-/// binary when it installs native-direct (the JS launcher replaced by the
-/// platform binary). Returns `(oxfmt_bin, node)`; `None` when there is no
-/// sidecar or it doesn't name an `oxfmtBin` (then `oxfmt` is resolved on `$PATH`
-/// as usual). `node` may be `None` (oxfmt installed as a native binary).
-pub(crate) fn load_oxfmt_runtime_sidecar() -> Option<(PathBuf, Option<PathBuf>)> {
-    let exe = std::env::current_exe().ok()?;
-    let sidecar = exe.parent()?.join("rsvelte-fmt.runtime.json");
-    let bytes = std::fs::read(sidecar).ok()?;
-    let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
-    let oxfmt = value
-        .get("oxfmtBin")
-        .and_then(serde_json::Value::as_str)
-        .map(PathBuf::from)?;
-    let node = value
-        .get("node")
-        .and_then(serde_json::Value::as_str)
-        .map(PathBuf::from);
-    Some((oxfmt, node))
 }
 
 /// Map a `<style lang="...">` value to the file extension oxfmt uses to

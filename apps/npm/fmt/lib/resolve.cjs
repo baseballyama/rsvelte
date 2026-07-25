@@ -1,7 +1,7 @@
-// Shared resolution helpers for the @rsvelte/fmt CLI, used by both the JS
-// launcher (`bin/rsvelte-fmt`, the fallback when `postinstall` didn't run) and
-// the `postinstall` script (`install.js`, which sets up the native-direct bin).
-// CommonJS so it loads from an extensionless launcher with no `"type"` field.
+// Shared resolution helpers for the @rsvelte/fmt CLI, used by the JS launcher
+// (`bin/rsvelte-fmt`) to find the platform-native binary and the consumer's
+// `oxfmt`. CommonJS so it loads from an extensionless launcher with no
+// `"type"` field.
 
 const { statSync, readFileSync, constants } = require('node:fs');
 const path = require('node:path');

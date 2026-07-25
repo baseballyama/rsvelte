@@ -24,12 +24,8 @@
   "bin": {
     "rsvelte-fmt": "bin/rsvelte-fmt"
   },
-  "scripts": {
-    "postinstall": "node install.js"
-  },
   "files": [
     "bin/rsvelte-fmt",
-    "install.js",
     "lib/resolve.cjs",
     "lib/tailwind-sort.mjs",
     "daemon/daemon.mjs"
