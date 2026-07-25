@@ -8,6 +8,8 @@
   "anchor\teffects\tclient\t1\t$effect",
   "anchor\tscript\tclient\t0\t42",
   "anchor\tscript-after-comment\tclient\t0\tassertThisLine",
+  "anchor\tsourcemap-empty-source\tclient\t0\tlet doubled",
+  "anchor\tsourcemap-empty-source\tserver\t0\tlet doubled",
   "anchor\ttwo-scripts\tclient\t0\tfirst",
   "anchor\ttwo-scripts\tclient\t1\tassertThisLine",
   "map-parity\tattached-sourcemap\tclient\t24",

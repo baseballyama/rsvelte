@@ -22,9 +22,15 @@ preprocessed text therefore have no counterpart in the fixture. (Samples whose
 doc comment in the test. Only anchors that survive the raw-input compile are
 listed here.)
 
-The gate warns when an excluded anchor starts passing on the oracle — that means
-the harness changed and the exclusion should be removed.
+The gate prints a note when an excluded anchor starts passing on the oracle —
+that means the harness changed and the exclusion should be removed.
+
+Coverage caveat: the oracle cross-check needs an official fixture to run against,
+and the fixture generator emits no CSS output for this category. So 22 of the 23
+ported anchors are oracle-checked; the one `css` anchor is not (its expected
+generated string was instead verified by hand against `submodules/svelte`'s
+`compile()` — see the comment on it in `ANCHORS`).
 
 ## Excluded anchors
 
-(none)
+(none — all 22 oracle-checked anchors hold on the official map)

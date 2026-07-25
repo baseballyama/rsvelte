@@ -100,15 +100,29 @@ impl Target {
 
 /// The compile-only subset of `packages/svelte/tests/sourcemaps/samples`.
 ///
-/// Samples driven by a `preprocess` hook are deliberately absent: their
-/// `_config.js` expectations describe the *preprocessed* source, which a Rust
-/// test cannot reproduce (the preprocessors are JS closures over `magic-string`
-/// / `typescript`). Those samples still take part in checks 2 and 3 below, which
-/// need no config. Upstream `skip: true` samples (`binding-shorthand`, `markup`)
-/// are absent for the same reason they are skipped upstream.
+/// Two upstream categories are absent, and only these two:
+///
+/// - Samples driven by a `preprocess` hook. Their `_config.js` expectations
+///   describe the *preprocessed* source, which a Rust test cannot reproduce (the
+///   preprocessors are JS closures over `magic-string` / `typescript`).
+/// - Upstream `skip: true` samples (`binding-shorthand`, `markup`), skipped for
+///   the same reason upstream skips them.
+///
+/// Both still take part in checks 2 and 3, which need no config.
+///
+/// `sourcemap-empty-source` is a third shape — it is neither preprocessed nor
+/// skipped, it passes an upstream map through `compileOptions.sourcemap`. rsvelte
+/// ignores that option here (the fixture generator does not forward it either),
+/// so the anchor exercises the plain compile. It is ported anyway: the
+/// expectation holds on the oracle for both targets, and its *server* failure is
+/// the one counterexample to "server maps are accurate" — leaving it out would
+/// have hidden that.
 ///
 /// When `server` is absent upstream, `test.ts` reuses the `client` list for the
 /// server output; that fallback is spelled out here instead.
+///
+/// `EXPECTED_ANCHOR_COUNT` pins the size of this table so an anchor cannot be
+/// quietly deleted to make the gate pass.
 const ANCHORS: &[(&str, Target, &[Anchor])] = &[
     ("basic", Target::Client, &[a("bar.baz")]),
     ("basic", Target::Server, &[a("bar.baz")]),
@@ -142,6 +156,16 @@ const ANCHORS: &[(&str, Target, &[Anchor])] = &[
     ("script", Target::Client, &[a("42")]),
     ("script", Target::Server, &[a("42")]),
     (
+        "sourcemap-empty-source",
+        Target::Client,
+        &[a("let doubled")],
+    ),
+    (
+        "sourcemap-empty-source",
+        Target::Server,
+        &[a("let doubled")],
+    ),
+    (
         "script-after-comment",
         Target::Client,
         &[a("assertThisLine")],
@@ -162,6 +186,27 @@ const ANCHORS: &[(&str, Target, &[Anchor])] = &[
         &[a("first"), a("assertThisLine")],
     ),
 ];
+
+/// Floors that stop the gate from passing because it measured *nothing*.
+///
+/// This is precisely the defect this PR exists to expose: the compatibility
+/// report skipped every sourcemaps sample (wrong filename) and reported 0/0 as
+/// success. An upstream rename, an uninitialised submodule, or a failed fixture
+/// generation would silently do the same here, so every input to the gate
+/// carries a lower bound. Raise these only alongside the measurement.
+const EXPECTED_SAMPLES: usize = 29;
+const EXPECTED_ANCHOR_COUNT: usize = 23;
+/// `<sample>/<target>` pairs whose generated code is byte-identical to the
+/// official compiler's — the population `map-parity` can observe at all. A drop
+/// means byte-parity regressed and the map check silently shrank with it.
+const EXPECTED_IDENTICAL_OUTPUTS: usize = 54;
+
+/// What `scripts/fixtures/generate-fixtures.mjs` compiled the oracle with. Every
+/// sourcemaps `_config.js` fails to import under the generator (it pulls in the
+/// vitest suite), so all of them fall back to this. Compared against each
+/// sample's `metadata.json` so a generator change that makes the oracle and this
+/// test disagree is caught instead of silently skewing every comparison.
+const EXPECTED_FIXTURE_COMPILE_OPTIONS: &str = r#"{"dev":false}"#;
 
 // ============================================================================
 // Source Map v3 decoding
@@ -364,12 +409,14 @@ fn check_anchor(source: &str, output: &str, map: &DecodedMap, entry: &Anchor) ->
 
     // The segment covering the end of the string must land on the end of the
     // original string. Upstream tolerates a missing end segment when the string
-    // runs to the end of the generated line.
+    // runs to the end of the generated line. Running past the end of the whole
+    // output is *not* tolerated: upstream indexes past the end, gets `undefined`,
+    // and its `/[\r\n]/` test fails — so `None` is a failure here too.
     let generated_end = generated.column + generated_str.chars().count();
     let Some(end_segment) = segments.iter().find(|s| s[0] == generated_end as i64) else {
         let last_col = segments.last().map(|s| s[0]).unwrap_or(0);
         let next = char_at(output, generated.character + generated_str.chars().count());
-        if last_col > generated_end as i64 || !matches!(next, Some('\n') | Some('\r') | None) {
+        if last_col > generated_end as i64 || !matches!(next, Some('\n') | Some('\r')) {
             return AnchorOutcome::Failed(format!(
                 "no end segment at {}:{} for '{}'",
                 generated.line, generated_end, entry.str
@@ -444,9 +491,14 @@ fn out_of_range(map: &DecodedMap, fallback_source: &str) -> (usize, usize) {
 }
 
 /// Any negative field is invalid and breaks downstream consumers. Upstream
-/// checks this for every sample; so do we.
+/// checks this for every sample; so do we. Only the four accumulated fields are
+/// checked — `vlq_decode_line` leaves the 5th (`names`) as a raw delta, which is
+/// legitimately negative when a map's name indices go backwards.
 fn has_negative_segment(map: &DecodedMap) -> bool {
-    map.lines.iter().flatten().any(|s| s.iter().any(|v| *v < 0))
+    map.lines
+        .iter()
+        .flatten()
+        .any(|s| s.iter().take(4).any(|v| *v < 0))
 }
 
 /// How rsvelte's map compares to the official one for identical generated code.
@@ -578,6 +630,26 @@ fn compile_sample(input: &str, sample: &str, target: Target) -> Option<Compiled>
     }
 }
 
+/// The oracle is only an oracle if it was compiled the way `compile_sample`
+/// compiles. Panics if a sample's recorded `compileOptions` drift away from
+/// [`EXPECTED_FIXTURE_COMPILE_OPTIONS`].
+fn check_fixture_options(sample: &str) {
+    let Some(metadata) = load_fixture_output("sourcemaps", sample, "metadata.json") else {
+        panic!("sourcemaps fixture {sample:?} has no metadata.json — regenerate fixtures");
+    };
+    let parsed: serde_json::Value = serde_json::from_str(&metadata)
+        .unwrap_or_else(|e| panic!("sourcemaps fixture {sample:?} metadata.json is not JSON: {e}"));
+    let options = parsed
+        .get("compileOptions")
+        .unwrap_or(&serde_json::Value::Null);
+    assert_eq!(
+        serde_json::to_string(options).unwrap_or_default(),
+        EXPECTED_FIXTURE_COMPILE_OPTIONS,
+        "sourcemaps fixture {sample:?} was generated with different compileOptions than this \
+         test compiles with — the comparison would be meaningless"
+    );
+}
+
 /// The official compiler's output for the same input and options, as recorded
 /// by `scripts/fixtures/generate-fixtures.mjs`. `None` for `Target::Css` — the
 /// fixture generator does not emit CSS output for this category, so CSS anchors
@@ -615,6 +687,10 @@ struct Report {
     oracle_failures: Vec<String>,
     /// `<sample>/<target>` pairs whose generated code is byte-identical.
     identical_code: Vec<String>,
+    /// Samples whose `input.svelte` was read and compiled.
+    samples_measured: usize,
+    /// Anchors evaluated, across every sample and target.
+    anchors_measured: usize,
     /// Diagnostics printed on failure.
     notes: Vec<String>,
 }
@@ -623,9 +699,17 @@ fn measure() -> Report {
     let mut report = Report::default();
 
     for sample in sample_names() {
-        let Some(input) = load_input(&sample) else {
-            continue;
-        };
+        // Not `continue`: a sample directory without a readable `input.svelte`
+        // means the upstream layout moved, and silently measuring less is the
+        // failure mode this whole file exists to prevent.
+        let input = load_input(&sample).unwrap_or_else(|| {
+            panic!(
+                "sourcemaps sample {sample:?} has no readable input.svelte — \
+                 upstream layout changed?"
+            )
+        });
+        check_fixture_options(&sample);
+        report.samples_measured += 1;
 
         for target in [Target::Client, Target::Server] {
             let key = format!("{sample}/{}", target.as_str());
@@ -679,14 +763,14 @@ fn measure() -> Report {
     // Anchors — checked against rsvelte's map, and separately against the
     // official map so a setup difference is not blamed on rsvelte.
     for (sample, target, entries) in ANCHORS {
-        let Some(input) = load_input(sample) else {
-            continue;
-        };
+        let input = load_input(sample)
+            .unwrap_or_else(|| panic!("anchor sample {sample:?} has no readable input.svelte"));
         let ours = compile_sample(&input, sample, *target);
         let theirs = official(sample, *target);
 
         for (i, entry) in entries.iter().enumerate() {
             let id = anchor_id(sample, *target, i, entry);
+            report.anchors_measured += 1;
 
             if let Some(theirs) = &theirs
                 && let Some(map) = theirs.map.as_deref().and_then(decode_map)
@@ -859,11 +943,15 @@ fn sourcemap_gate() {
                     ));
                 }
             }
+            // A budgeted pair that vanished is a *regression*, not a win: it
+            // means the gate stopped looking, which is exactly how the
+            // compatibility report reported 0/0 as success.
             for key in budget.keys() {
                 if !measured.contains_key(key) {
-                    fixed.push(format!(
-                        "{kind}\t{}\t(no longer measured)",
-                        key.replace('/', "\t")
+                    regressions.push(format!(
+                        "{kind}\t{}\tNO LONGER MEASURED (budget {})",
+                        key.replace('/', "\t"),
+                        budget[key]
                     ));
                 }
             }
@@ -876,10 +964,58 @@ fn sourcemap_gate() {
         .collect();
     check_budget("map-parity", &parity_bad, &parity_budget);
 
+    // An `anchor` ratchet entry for a sample no longer in `ANCHORS` would
+    // otherwise be silently forgiven by the `plain_known.difference` branch
+    // above, so deleting an anchor from the table would turn the gate green.
+    let anchor_ids: BTreeSet<String> = ANCHORS
+        .iter()
+        .flat_map(|(sample, target, entries)| {
+            entries
+                .iter()
+                .enumerate()
+                .map(move |(i, e)| anchor_id(sample, *target, i, e))
+        })
+        .collect();
+    for id in plain_known.iter().filter(|id| id.starts_with("anchor\t")) {
+        if !anchor_ids.contains(*id) {
+            regressions.push(format!("{id}\tNO LONGER CHECKED (removed from ANCHORS?)"));
+        }
+    }
+    for id in &oracle_excluded {
+        if !report.oracle_failures.contains(id) {
+            println!(
+                "\nnote: oracle-excluded anchor now passes on the official map, \
+                 remove it from sourcemap-oracle-excluded.json:\n  {id}"
+            );
+        }
+    }
+
     println!("\n=== Sourcemap gate ===");
     println!("{}", summary(&report));
     println!("  known failures: {}", known.len());
     println!("  oracle-excluded anchors: {}", oracle_excluded.len());
+
+    // Floors. These come last so the printed summary above is still visible when
+    // one trips, and they are plain asserts rather than ratchet entries because
+    // "measured nothing" must never be expressible as a known failure.
+    assert!(
+        report.samples_measured >= EXPECTED_SAMPLES,
+        "only {} sourcemaps samples measured, expected at least {EXPECTED_SAMPLES} — \
+         upstream layout changed or the submodule is missing",
+        report.samples_measured
+    );
+    assert!(
+        report.anchors_measured >= EXPECTED_ANCHOR_COUNT,
+        "only {} anchors evaluated, expected at least {EXPECTED_ANCHOR_COUNT} — \
+         were entries removed from ANCHORS?",
+        report.anchors_measured
+    );
+    assert!(
+        report.identical_code.len() >= EXPECTED_IDENTICAL_OUTPUTS,
+        "only {} byte-identical outputs, expected at least {EXPECTED_IDENTICAL_OUTPUTS} — \
+         generated-code parity regressed, so map-parity is now watching less than it was",
+        report.identical_code.len()
+    );
 
     if !fixed.is_empty() {
         println!(

@@ -6,7 +6,8 @@ the resulting `js.map` / `css.map`. Ground truth is the official compiler: the
 `client.js` / `client.js.map` / `server.js` / `server.js.map` fixtures under
 `fixtures/<sha>/sourcemaps/` come from `scripts/fixtures/generate-fixtures.mjs`
 calling `submodules/svelte`'s own `compile()` on the same input with the same
-options (`{ dev: false, generate, filename: 'input.svelte' }`).
+options (`{ dev: false, generate, filename: 'input.svelte' }` — the gate asserts
+each sample's recorded `metadata.json` still says exactly that).
 
 | kind | id shape | meaning |
 |---|---|---|
@@ -21,6 +22,18 @@ Ratchet semantics, matching `fmt-verify.mjs` / `verify.mjs`:
 - an entry that starts passing (or a count below its budget) only prints a
   reminder to shrink the list — the list may shrink, never grow.
 
+Two things deliberately **cannot** be expressed as a known failure, because
+"measured less" must never look like "passed":
+
+- a budgeted `<sample>/<target>` that disappears from the measurement is a
+  regression, not a win;
+- an `anchor` id in this list whose entry no longer exists in the test's
+  `ANCHORS` table is a regression, so anchors cannot be deleted to go green.
+
+On top of that the gate holds hard floors — sample count, anchor count, and the
+number of byte-identical outputs `map-parity` can observe — and panics rather
+than skipping when a sample's `input.svelte` or `metadata.json` is unreadable.
+
 Regenerate the whole list from a measurement (never hand-edit the counts):
 
 ```bash
@@ -34,27 +47,33 @@ Measured on Svelte `b29d7002ecf9`, 29 samples × {client, server} (54 of the 58
 pairs are byte-identical to the official output, so 54 take part in
 `map-parity`):
 
-| measure | value |
-|---|---|
-| official segments reproduced | 164 / 712 (23.0%) — 466 missing, 82 wrong |
-| out-of-range segments | 32 / 559 (5.7%) |
-| ported `_config.js` anchors passing | 10 / 21 |
+| measure | client | server | total |
+|---|---|---|---|
+| official segments reproduced | 0 / 428 | 164 / 284 | **164 / 712 (23.0%)** |
+| — of which missing / wrong | 353 / 75 | 113 / 7 | 466 / 82 |
+| out-of-range segments | 32 | 0 | **32 / 559 (5.7%)** |
+| ported `_config.js` anchors passing | 0 / 12 | 9 / 10 | **10 / 23** (incl. 1 CSS) |
 
-The split is entirely along the client/server line:
+The split is nearly, but not entirely, along the client/server line:
 
-- **Server maps are accurate.** All 9 ported server anchors pass, no server map
-  has an out-of-range segment, and every reproduced segment in the table above is
-  a server segment. The server transform is pure-AST, so nodes carry real spans.
-- **Client maps are not.** All 11 failing anchors are client. Every client
-  sample scores `0 exact` — not one segment of the official client map is
-  reproduced at the same generated position with the same origin — and all 32
+- **Client maps reproduce nothing.** Every client sample scores `0 exact` — not
+  one segment of the official client map is reproduced at the same generated
+  position with the same origin — all 12 client anchors fail, and all 32
   out-of-range segments are client.
-- The single CSS anchor (`css` sample) passes: CSS maps come from a separate
+- **Server maps are directionally correct but coarser than official.** 164 of
+  284 official server segments are reproduced exactly and no server map has an
+  out-of-range segment, but 113 are *missing* (the official compiler emits
+  segments rsvelte's printer does not) and 7 are *wrong* (in
+  `preprocessed-styles` and `source-map-generator`). One server anchor fails:
+  `sourcemap-empty-source` has no segment at the start of `let doubled`. So
+  "the server side is fine" would be an overstatement — server is where the
+  burndown is tractable, not where it is finished.
+- The single CSS anchor passes: CSS maps come from a separate
   `string_wizard`-based path that the client JS refactor does not touch.
 
 ## Root cause
 
-Every entry below has the same cause, tracked in issue #1781: the client AST
+The client entries all share one cause, tracked in issue #1781: the client AST
 output path maps an entire emitted *chunk* to the one source offset the chunk
 started at (`js_ast/to_oxc.rs::take_chunk_region`), and the printer's column
 arithmetic then accumulates on top of that single anchor. Individual nodes inside
@@ -64,8 +83,10 @@ address a column past the end of the anchor's line (`out-of-range`).
 
 Resolution is expected to fall out of the Wave-4 script AST-visitor migration:
 once `Raw` / `RawMapped` chunks are gone and every oxc node carries a real span,
-the client path gets the same per-node provenance the server path already has.
-Until then the numbers above are a budget, not an acceptance of the behaviour.
+the client path gets per-node provenance. The server residue (the 113 missing
+segments, the 7 wrong ones, and the `sourcemap-empty-source` anchor) is a
+separate, smaller gap in the server printer's segment emission, not explained by
+`take_chunk_region`.
 
 `RSVELTE_CLIENT_NO_OXC=1` still routes client output through the legacy text
 generator, whose maps are per-fragment and land inside the source. It is a
@@ -75,19 +96,21 @@ official compiler is the real oracle.
 
 ## Entries
 
-All entries are the client-side manifestation of the single root cause above; no
-entry is accepted as correct behaviour.
+No entry is accepted as correct behaviour; all are burndown targets.
 
-- **`anchor` (11)** — `basic`, `binding`, `each-block` (×3), `effects` (×2),
-  `script`, `script-after-comment`, `two-scripts` (×2), all `client`. Ten report
-  “no segment at `<line>:<col>`”: the chunk-level anchor means no segment starts
-  where the identifier starts. `two-scripts` `first` instead reports a *wrong*
-  origin (`0:11` instead of `1:12`) — the module script's chunk is anchored at
-  the file start, so the whole block is off by the `<script module>` line.
+- **`anchor` (13)** — `basic`, `binding`, `each-block` (×3), `effects` (×2),
+  `script`, `script-after-comment`, `two-scripts` (×2) and
+  `sourcemap-empty-source` on `client`; `sourcemap-empty-source` on `server`.
+  Eleven report "no segment at `<line>:<col>`": the chunk-level anchor means no
+  segment starts where the identifier starts. Two report a *wrong* origin —
+  `two-scripts`/`first` maps to `0:11` instead of `1:12` (the module script's
+  chunk is anchored at the file start, so the whole block is off by the
+  `<script module>` line) and `sourcemap-empty-source`/client maps to `0:8`
+  instead of `2:1`.
 - **`map-parity` (44)** — one per byte-identical pair that loses official
   segments. Client counts (4–36) are dominated by `missing`; server counts (4–13)
-  are `missing`-only and come from the official compiler emitting a few extra
-  end-of-token segments that rsvelte's printer does not.
+  are mostly `missing`-only, except `preprocessed-styles` and
+  `source-map-generator`, which contribute the 7 server `wrong` segments.
 - **`out-of-range` (14)** — 1–4 segments per client map. These are the segments
   that break downstream consumers outright (a devtools frame resolving past the
   end of a line), so this is the budget to burn down first.
