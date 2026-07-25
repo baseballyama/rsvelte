@@ -472,6 +472,9 @@ pub(super) fn detect_rune_in_expr(
 mod tests {
     use super::super::test_support::run_svelte2tsx;
 
+    /// A JS component with `$effect` called INSIDE a function body (not top-level)
+    /// should still be detected as runes mode and emit `__sveltets_$$bindings("")`.
+    /// Reference: ExportedNames.ts `checkGlobalsForRunes` which walks the entire AST.
     #[test]
     fn test_runes_effect_in_function_body() {
         let source = "<script>\nfunction myaction(node) {\n    $effect(() => {\n        // setup\n    });\n}\n</script>\n<div use:myaction>...</div>";

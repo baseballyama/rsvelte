@@ -4058,7 +4058,6 @@ mod tests {
     // Integration tests using the full svelte2tsx pipeline
     // =========================================================================
 
-    /// Helper to run svelte2tsx and return the result
     // -- export let (Svelte 4 props) --
 
     #[test]
@@ -4312,9 +4311,6 @@ mod tests {
 
     // -- Bug 2: nested $effect (inside function body) triggers runes mode --
 
-    /// A JS component with `$effect` called INSIDE a function body (not top-level)
-    /// should still be detected as runes mode and emit `__sveltets_$$bindings("")`.
-    /// Reference: ExportedNames.ts `checkGlobalsForRunes` which walks the entire AST.
     // -- Generic arrow disambiguation (#725) --
 
     // -- Store subscription tests --
@@ -4444,7 +4440,6 @@ mod tests {
     // Reference: ExportedNames.ts handle$propsRune / createPropsStr
     // =========================================================================
 
-    /// Helper to run svelte2tsx with TS enabled
     /// Case A: JS whole-object `let props = $props()` — no typedef, but props slot
     /// uses `/** @type {$$ComponentProps} */({})` (mirrors official behavior).
     /// Reference: ExportedNames.ts handle$propsRune, else-branch line 393.
