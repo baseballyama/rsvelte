@@ -1502,13 +1502,13 @@ pub fn parse_destructuring_pattern<'a>(
                 && let Some(declarator) = var_decl.declarations.first()
             {
                 let adjusted_offset = offset.wrapping_sub(4);
-                let pattern_json = convert_binding_pattern_for_param(
+                let pattern_node = convert_binding_pattern_for_param_as_node(
                     arena,
                     &declarator.id,
                     adjusted_offset,
                     line_offsets,
                 );
-                return Some(Expression::from_json(pattern_json));
+                return Some(Expression::from_node(pattern_node));
             }
 
             None

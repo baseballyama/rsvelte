@@ -16,6 +16,7 @@ use crate::ast::template::{
     AwaitBlock, ConstTag, DebugTag, DeclarationTag, EachBlock, ExpressionTag, Fragment,
     FragmentType, HtmlTag, IfBlock, KeyBlock, RenderTag, SnippetBlock, TemplateNode,
 };
+use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 use crate::error::ParseResult;
 
@@ -378,8 +379,8 @@ impl<'a> Parser<'a> {
 
         let declaration = build_kind_variable_declaration(
             &self.arena,
-            &pattern_expr,
-            &init_expr,
+            pattern_expr,
+            init_expr,
             decl_start,
             body_end,
             kind,
@@ -2096,8 +2097,8 @@ impl<'a> Parser<'a> {
                     let decl_keyword_start = start + 2;
                     build_const_variable_declaration(
                         &self.arena,
-                        &pattern_expr,
-                        &init_expr,
+                        pattern_expr,
+                        init_expr,
                         decl_keyword_start,
                         expr_end,
                         declarator_end,
@@ -2543,7 +2544,7 @@ fn strip_type_annotation(pattern: &str) -> String {
     pattern.to_string()
 }
 
-/// Build a `VariableDeclaration` JSON node with a caller-supplied kind
+/// Build a `VariableDeclaration` node with a caller-supplied kind
 /// (`let` / `const` / `var`) from a pattern expression and init expression.
 /// Mirrors `build_const_variable_declaration` (which is locked to `const`)
 /// and powers both `{@const}` and the `{let x = …}` / `{const x = …}`
@@ -2562,109 +2563,82 @@ fn strip_type_annotation(pattern: &str) -> String {
 /// ```
 fn build_kind_variable_declaration<'a>(
     arena: &crate::ast::arena::ParseArena,
-    pattern: &Expression,
-    init: &Expression,
+    pattern: Expression<'a>,
+    init: Expression<'a>,
     decl_start: usize,
     decl_end: usize,
     kind: &str,
 ) -> Expression<'a> {
-    use serde_json::{Map, Value};
-
-    let pattern_value = crate::ast::arena::with_serialize_arena(arena, || pattern.as_json());
-    let init_value = crate::ast::arena::with_serialize_arena(arena, || init.as_json());
-
-    let id_start = pattern_value
-        .get("start")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(decl_start as u64);
-    let init_end = init_value
-        .get("end")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(decl_end as u64);
-
-    let mut declarator = Map::new();
-    declarator.insert(
-        "type".to_string(),
-        Value::String("VariableDeclarator".to_string()),
-    );
-    declarator.insert("id".to_string(), pattern_value.clone());
-    declarator.insert("init".to_string(), init_value.clone());
-    declarator.insert("start".to_string(), Value::Number((id_start as i64).into()));
-    declarator.insert("end".to_string(), Value::Number((init_end as i64).into()));
-
-    let mut declaration = Map::new();
-    declaration.insert(
-        "type".to_string(),
-        Value::String("VariableDeclaration".to_string()),
-    );
-    declaration.insert("kind".to_string(), Value::String(kind.to_string()));
-    declaration.insert(
-        "declarations".to_string(),
-        Value::Array(vec![Value::Object(declarator)]),
-    );
-    declaration.insert(
-        "start".to_string(),
-        Value::Number((decl_start as i64).into()),
-    );
-    declaration.insert("end".to_string(), Value::Number((decl_end as i64).into()));
-
-    Expression::from_json(Value::Object(declaration))
+    build_variable_declaration(arena, pattern, init, decl_start, decl_end, None, kind)
 }
 
 fn build_const_variable_declaration<'a>(
     arena: &crate::ast::arena::ParseArena,
-    pattern: &Expression,
-    init: &Expression,
+    pattern: Expression<'a>,
+    init: Expression<'a>,
     decl_start: usize,
     decl_end: usize,
     declarator_end: usize,
 ) -> Expression<'a> {
-    use serde_json::{Map, Value};
+    build_variable_declaration(
+        arena,
+        pattern,
+        init,
+        decl_start,
+        decl_end,
+        Some(declarator_end),
+        "const",
+    )
+}
 
-    // Use the parser's arena for serialization context
-    let pattern_value = crate::ast::arena::with_serialize_arena(arena, || pattern.as_json());
-    let init_value = crate::ast::arena::with_serialize_arena(arena, || init.as_json());
+/// Shared typed builder behind [`build_kind_variable_declaration`] and
+/// [`build_const_variable_declaration`]. `declarator_end` overrides the
+/// declarator's end (upstream captures `parser.index` just past the
+/// initializer text, which differs from `init.end` inside wrapping parens);
+/// `None` falls back to the initializer's own end.
+fn build_variable_declaration<'a>(
+    arena: &crate::ast::arena::ParseArena,
+    pattern: Expression<'a>,
+    init: Expression<'a>,
+    decl_start: usize,
+    decl_end: usize,
+    declarator_end: Option<usize>,
+    kind: &str,
+) -> Expression<'a> {
+    let pattern_node = expression_into_node(pattern);
+    let init_node = expression_into_node(init);
 
-    // Get positions from the pattern and init for the declarator
-    let id_start = pattern_value
-        .get("start")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(decl_start as u64);
+    let id_start = pattern_node.start().unwrap_or(decl_start as u32);
+    let init_end = init_node.end().unwrap_or(decl_end as u32);
 
-    // Build VariableDeclarator
-    let mut declarator = Map::new();
-    declarator.insert(
-        "type".to_string(),
-        Value::String("VariableDeclarator".to_string()),
-    );
-    declarator.insert("id".to_string(), pattern_value.clone());
-    declarator.insert("init".to_string(), init_value.clone());
-    declarator.insert("start".to_string(), Value::Number((id_start as i64).into()));
-    // `declarator_end` is the parser position just past the initializer text
-    // (including any wrapping parens) but before trailing whitespace, mirroring
-    // upstream's `declarator_end = parser.index` (Svelte 5.56.4) rather than the
-    // bare `init.end` (which stops inside the parens).
-    declarator.insert(
-        "end".to_string(),
-        Value::Number((declarator_end as i64).into()),
-    );
+    let id = arena.alloc_js_node(pattern_node);
+    let init_id = arena.alloc_js_node(init_node);
 
-    // Build VariableDeclaration
-    let mut declaration = Map::new();
-    declaration.insert(
-        "type".to_string(),
-        Value::String("VariableDeclaration".to_string()),
-    );
-    declaration.insert("kind".to_string(), Value::String("const".to_string()));
-    declaration.insert(
-        "declarations".to_string(),
-        Value::Array(vec![Value::Object(declarator)]),
-    );
-    declaration.insert(
-        "start".to_string(),
-        Value::Number((decl_start as i64).into()),
-    );
-    declaration.insert("end".to_string(), Value::Number((decl_end as i64).into()));
+    let declarations = arena.alloc_js_children(vec![JsNode::VariableDeclarator {
+        start: id_start,
+        end: declarator_end.map_or(init_end, |e| e as u32),
+        loc: None,
+        id,
+        init: Some(init_id),
+    }]);
 
-    Expression::from_json(Value::Object(declaration))
+    Expression::from_node(JsNode::VariableDeclaration {
+        start: decl_start as u32,
+        end: decl_end as u32,
+        loc: None,
+        declarations,
+        kind: kind.into(),
+        declare: false,
+    })
+}
+
+/// Take ownership of an expression's typed node. `Lazy` cannot reach these
+/// builders: the declaration paths parse their pattern/init eagerly.
+fn expression_into_node(expr: Expression<'_>) -> JsNode {
+    match expr {
+        Expression::Typed(te) => te.node,
+        Expression::Lazy { .. } => {
+            panic!("Expression::Lazy must be resolved before building a declaration")
+        }
+    }
 }
