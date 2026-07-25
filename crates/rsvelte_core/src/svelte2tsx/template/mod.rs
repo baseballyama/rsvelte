@@ -14,10 +14,10 @@ mod utils;
 
 use crate::ast::template::{
     AttachTag, Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock,
-    BindDirective, ClassDirective, Comment, Component, ConstTag, DebugTag, EachBlock,
-    ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, LetDirective, OnDirective, RegularElement,
-    RenderTag, SlotElement, SnippetBlock, SpreadAttribute, StyleDirective, SvelteComponentElement,
-    SvelteDynamicElement, SvelteElement, TemplateNode, Text, TitleElement, TransitionDirective,
+    BindDirective, Comment, Component, ConstTag, DebugTag, EachBlock, ExpressionTag, Fragment,
+    HtmlTag, IfBlock, KeyBlock, LetDirective, OnDirective, RegularElement, RenderTag, SlotElement,
+    SnippetBlock, SpreadAttribute, SvelteComponentElement, SvelteDynamicElement, SvelteElement,
+    TemplateNode, Text, TitleElement,
 };
 use std::fmt::Write as _;
 
@@ -26,8 +26,15 @@ use indexmap::IndexMap;
 use super::magic_string::MagicString;
 use super::svelte2tsx::{Svelte2TsxOptions, SvelteVersion, slice_src};
 use attributes::action::format_use_directive;
+use attributes::class_style::{
+    build_class_style_directive_suffix_segments, class_style_directive_seg, format_class_directive,
+    format_style_directive,
+};
 use attributes::let_::{build_let_destructure_string, get_let_directives};
 use attributes::svg::is_svg_attribute;
+use attributes::transition::{
+    format_animate_directive_v4, format_transition_directive, format_transition_directive_v4,
+};
 use ctx::{Counter, ELEMENT_OPENER_COMMENTS, TemplateNodeExt};
 use segs::{
     Seg, bake_out_of_order_src, emit_segmented_overwrite, segs_is_empty, segs_push_lit,
@@ -5014,123 +5021,6 @@ fn format_on_directive_segments(on: &OnDirective, source: &str) -> Vec<Seg> {
     out
 }
 
-/// Lower `class:` / `style:` directives as statements appended *after* the
-/// element's `svelteHTML.createElement(...)` call, instead of as keys in the
-/// (typed) props object. Mirrors upstream `htmlxtojsx_v2/nodes/Class.ts`
-/// (`class:xx={yyy}` → `yyy;`) and `StyleDirective.ts`
-/// (`style:xx={yy}` → `__sveltets_2_ensureType(String, Number, yy);`). The
-/// expression chunks are preserved as `Seg::Src` so type errors map back to
-/// the original column.
-fn build_class_style_directive_suffix_segments(attributes: &[Attribute], source: &str) -> Vec<Seg> {
-    let mut out: Vec<Seg> = Vec::new();
-    for attr in attributes {
-        if let Some(segs) = class_style_directive_seg(attr, source) {
-            out.extend(segs);
-        }
-    }
-    out
-}
-
-/// Per-attribute variant of [`build_class_style_directive_suffix_segments`]:
-/// returns the suffix segments for a single `class:` / `style:` directive (or
-/// `None` for any other attribute). Used both by the grouped builder above and
-/// by the source-order unified element-suffix builder so each directive can be
-/// interleaved with `transition:` / `bind:` statements at its own position.
-fn class_style_directive_seg(attr: &Attribute, source: &str) -> Option<Vec<Seg>> {
-    let mut out: Vec<Seg> = Vec::new();
-    match attr {
-        Attribute::ClassDirective(class) => {
-            // `class:xx={expr}` → ` expr;` — type-check the toggle
-            // expression as a standalone statement.
-            segs_push_lit(&mut out, " ");
-            if let Some((s, e)) = get_expression_range(&class.expression) {
-                segs_push_src(&mut out, s, e);
-            } else {
-                segs_push_lit(&mut out, get_expression_text(&class.expression, source));
-            }
-            segs_push_lit(&mut out, ";");
-        }
-        Attribute::StyleDirective(style) => {
-            // `style:xx={expr}` → ` __sveltets_2_ensureType(String, Number, expr);`
-            segs_push_lit(&mut out, " __sveltets_2_ensureType(String, Number, ");
-            match &style.value {
-                AttributeValue::True(_) => {
-                    // Shorthand `style:color` → `…, color);` (implicit
-                    // reference to the `color` binding; synthesised from
-                    // the directive name, so no source range to pin).
-                    segs_push_lit(&mut out, &style.name);
-                }
-                AttributeValue::Expression(expr) => {
-                    if let Some((s, e)) = get_expression_range(&expr.expression) {
-                        segs_push_src(&mut out, s, e);
-                    } else {
-                        segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
-                    }
-                }
-                // Mirrors upstream StyleDirective.ts. svelte2tsx moves the
-                // value range into the element's attrs object, so the
-                // ensureType reference is left with the BLANKED text — every
-                // static text run collapses to a single space. Hence:
-                //   `style:x="red"`  → `, " ");`            (single text → " ")
-                //   `style:x={y}`    → `, y);`              (single expr → bare)
-                //   `style:x="a{b}"` → `, ` ${b}`);`        (text→space, expr kept)
-                // Empty value (`style:--c=""`): official emits the empty
-                // string `""` (single-Text branch with a zero-length text
-                // range), not an empty template literal.
-                AttributeValue::Sequence(parts) if parts.is_empty() => {
-                    segs_push_lit(&mut out, "\"\"");
-                }
-                AttributeValue::Sequence(parts) if parts.len() == 1 => match &parts[0] {
-                    AttributeValuePart::Text(_) => {
-                        segs_push_lit(&mut out, "\" \"");
-                    }
-                    AttributeValuePart::ExpressionTag(expr) => {
-                        if let Some((s, e)) = get_expression_range(&expr.expression) {
-                            segs_push_src(&mut out, s, e);
-                        } else {
-                            segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
-                        }
-                    }
-                },
-                AttributeValue::Sequence(parts) => {
-                    // Multi-part: a template literal. Official blanks each
-                    // static text run to ONLY its whitespace chars (the
-                    // element processing overwrites the non-whitespace), so
-                    // `rgb({c}, 0, 0)` → `` ` ${c}  ` `` (", 0, 0)" keeps its
-                    // two spaces). A run with no whitespace collapses to a
-                    // single space.
-                    segs_push_lit(&mut out, "`");
-                    for part in parts {
-                        match part {
-                            AttributeValuePart::Text(t) => {
-                                let ws: String =
-                                    t.data.chars().filter(|c| c.is_whitespace()).collect();
-                                segs_push_lit(&mut out, if ws.is_empty() { " " } else { &ws });
-                            }
-                            AttributeValuePart::ExpressionTag(expr) => {
-                                segs_push_lit(&mut out, "${");
-                                if let Some((s, e)) = get_expression_range(&expr.expression) {
-                                    segs_push_src(&mut out, s, e);
-                                } else {
-                                    segs_push_lit(
-                                        &mut out,
-                                        get_expression_text(&expr.expression, source),
-                                    );
-                                }
-                                segs_push_lit(&mut out, "}");
-                            }
-                        }
-                    }
-                    segs_push_lit(&mut out, "`");
-                }
-            }
-            segs_push_lit(&mut out, ");");
-        }
-        _ => return None,
-    }
-    Some(out)
-}
-
 /// Structured-bake variant of the `@attach` tag's inline emission.
 fn format_attach_tag_segments(attach: &AttachTag, source: &str) -> Vec<Seg> {
     let mut out = Vec::new();
@@ -5478,85 +5368,6 @@ fn format_on_directive(on: &OnDirective, source: &str) -> String {
     }
 }
 
-/// Format a class directive: `class:active={expr}` → `"class:active":expr,`
-fn format_class_directive(class: &ClassDirective, source: &str) -> String {
-    let expr_text = get_expression_text(&class.expression, source);
-    format!("\"class:{}\":{},", class.name, expr_text)
-}
-
-/// Format a style directive: `style:color={expr}` → `"style:color":expr,`
-fn format_style_directive(style: &StyleDirective, source: &str) -> String {
-    match &style.value {
-        AttributeValue::True(_) => {
-            // Shorthand: `style:color` → `"style:color":color,`
-            format!("\"style:{}\":{},", style.name, style.name)
-        }
-        AttributeValue::Expression(expr) => {
-            let expr_text = get_expression_text(&expr.expression, source);
-            format!("\"style:{}\":{},", style.name, expr_text)
-        }
-        AttributeValue::Sequence(parts) => {
-            let mut value_parts = Vec::new();
-            for part in parts {
-                match part {
-                    AttributeValuePart::Text(text) => {
-                        // Escape backslash first so `\n` / `\t` in raw text
-                        // (e.g. a Windows path) stay literal. H-091.
-                        let escaped = text
-                            .raw
-                            .replace('\\', "\\\\")
-                            .replace('`', "\\`")
-                            .replace('$', "\\$");
-                        value_parts.push(escaped);
-                    }
-                    AttributeValuePart::ExpressionTag(expr) => {
-                        let expr_text = get_expression_text(&expr.expression, source);
-                        value_parts.push(format!("${{{}}}", expr_text));
-                    }
-                }
-            }
-            format!("\"style:{}\":`{}`,", style.name, value_parts.join(""))
-        }
-    }
-}
-
-/// Format a transition directive in the JS reference's element-suffix form:
-/// `transition:fade={params}` → `__sveltets_2_ensureTransition(fade(svelteHTML.mapElementTag('<tag>'),(params)));`
-/// (mirrors `htmlxtojsx_v2/nodes/Transition.ts`). Used as a *suffix*
-/// appended after `svelteHTML.createElement(…)`, not as a createElement
-/// prop. Expressions like `in:`, `out:`, and `animate:` use the same shape.
-fn format_transition_directive_v4(name: &str, expr: Option<&str>, tag: &str) -> String {
-    if let Some(expr_text) = expr {
-        format!(
-            "__sveltets_2_ensureTransition({}(svelteHTML.mapElementTag('{}'),({})));",
-            name, tag, expr_text
-        )
-    } else {
-        format!(
-            "__sveltets_2_ensureTransition({}(svelteHTML.mapElementTag('{}')));",
-            name, tag
-        )
-    }
-}
-
-/// Like `format_transition_directive_v4` but uses
-/// `__sveltets_2_ensureAnimation(...)` and adds the
-/// `__sveltets_2_AnimationMove` placeholder argument the JS reference
-/// passes for `animate:` directives.
-fn format_animate_directive_v4(name: &str, expr: Option<&str>, tag: &str) -> String {
-    if let Some(expr_text) = expr {
-        format!(
-            "__sveltets_2_ensureAnimation({}(svelteHTML.mapElementTag('{}'),__sveltets_2_AnimationMove,({})));",
-            name, tag, expr_text
-        )
-    } else {
-        format!(
-            "__sveltets_2_ensureAnimation({}(svelteHTML.mapElementTag('{}'),__sveltets_2_AnimationMove));",
-            name, tag
-        )
-    }
-}
-
 /// Build the directive prefix (action declarations) and suffix
 /// (transition / animate calls) that wrap `svelteHTML.createElement(...)`
 /// for an HTML element. Mirrors the JS reference's
@@ -5637,24 +5448,6 @@ fn build_directive_prefix_suffix(
     }
 
     (prefix, suffix, action_count)
-}
-
-/// Legacy V5-style transition formatter — kept for non-Element callers
-/// (svelte:dynamic-element handlers) that haven't been ported to the V4
-/// suffix form yet.
-fn format_transition_directive(transition: &TransitionDirective, source: &str) -> Option<String> {
-    if let Some(ref expr) = transition.expression {
-        let expr_text = get_expression_text(expr, source);
-        Some(format!(
-            "__sveltets_2_ensureTransition({})(svelteHTML.mapElementTag('{}'), {}),",
-            transition.name, "", expr_text
-        ))
-    } else {
-        Some(format!(
-            "__sveltets_2_ensureTransition({})(svelteHTML.mapElementTag('{}'), {{}}),",
-            transition.name, ""
-        ))
-    }
 }
 
 /// Lower `transition:`/`in:`/`out:`/`animate:` directives on a COMPONENT to
