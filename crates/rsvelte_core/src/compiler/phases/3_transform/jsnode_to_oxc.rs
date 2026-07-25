@@ -79,34 +79,6 @@ pub fn jsnode_to_oxc_program<'a>(
     ))
 }
 
-/// Convert a slice of top-level [`JsNode`] statements into an oxc
-/// [`oxc_ast::ast::Program`]. Returns `None` on any unhandled statement.
-pub fn jsnode_stmts_to_oxc_program<'a>(
-    stmts: &[JsNode],
-    arena: &ParseArena,
-    allocator: &'a Allocator,
-) -> Option<oxc_ast::ast::Program<'a>> {
-    let cx = Cx {
-        ab: AstBuilder::new(allocator),
-        arena,
-    };
-    let body: Vec<Statement<'a>> = stmts
-        .iter()
-        .map(|s| cx.stmt(s))
-        .collect::<Option<Vec<_>>>()?;
-    let body = ArenaVec::from_iter_in(body, &cx.ab);
-    Some(Program::new(
-        SPAN,
-        oxc_span::SourceType::mjs(),
-        "",
-        ArenaVec::new_in(&cx.ab),
-        None,
-        ArenaVec::new_in(&cx.ab),
-        body,
-        &cx.ab,
-    ))
-}
-
 /// Conversion context: holds the oxc [`AstBuilder`] and the parse arena used to
 /// resolve [`JsNodeId`] / [`IdRange`] handles.
 struct Cx<'a, 'arena> {

@@ -254,9 +254,15 @@ impl FuzzySet {
 
         let vector_normal = (sum_of_squares as f64).sqrt();
 
-        // Build results list
+        // Build results list. Upstream keys `matches` by integer index and walks it with
+        // `for...in`, which visits integer-like keys in ascending order; both sorts below are
+        // stable, so this order is what breaks score ties.
+        let mut matched_indices: Vec<usize> = matches.keys().copied().collect();
+        matched_indices.sort_unstable();
+
         let mut results: Vec<(f64, String)> = Vec::new();
-        for (&index, &match_score) in &matches {
+        for index in matched_indices {
+            let match_score = matches[&index];
             if let Some((item_normal, item_value)) = items.get(index)
                 && *item_normal > 0.0
                 && vector_normal > 0.0

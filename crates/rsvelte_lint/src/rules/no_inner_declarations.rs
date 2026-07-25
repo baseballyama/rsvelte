@@ -15,7 +15,7 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_start, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_start, node_type};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-inner-declarations",
@@ -39,7 +39,7 @@ impl ScriptRule for NoInnerDeclarations {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         let opts = ctx.options();
         let mode = opts
             .and_then(|a| a.get(0))
@@ -56,7 +56,7 @@ impl ScriptRule for NoInnerDeclarations {
         let check_functions = block_scoped_functions == "disallow";
 
         let mut reports: Vec<(u32, &'static str, &'static str)> = Vec::new();
-        walk_js(program, |node, ancestors| {
+        program.walk(|node, ancestors| {
             let kind = match node_type(node) {
                 Some("FunctionDeclaration") if check_functions => "function",
                 Some("VariableDeclaration")

@@ -28,7 +28,7 @@ Upstream reference repos live under `submodules/`:
 submodules/
 ├── svelte/                  # Svelte 5 compiler (mirror target)
 ├── language-tools/          # svelte2tsx, language-server, svelte-check, typescript-plugin, svelte-vscode
-└── typescript-go/           # tsgo — type-check backend for Wave 2 svelte-check
+└── typescript-go/           # tsgo — type-check backend for svelte-check (CLI) and the LSP (server mode)
 ```
 
 The `@rsvelte/vite-plugin-svelte` Vite plugin (a fork of `@sveltejs/vite-plugin-svelte`)
@@ -161,13 +161,27 @@ re-checks every skipped fixture after a Svelte bump.
 | Runtime Browser | 32/32 |
 | Print | 43/43 |
 | Preprocess | 19/19 |
-| Sourcemaps | 0/0 (no fixtures yet) |
+| Sourcemaps | 0/0 (report only — see the source-map gate below) |
 | svelte2tsx | 253/253 |
 | Migrate | 0/76 (out of scope) |
 
 All in-scope fixtures pass (100.0%). The 76 `migrate` fixtures (Svelte 4 → 5 migrator) are
 intentionally out of scope: rsvelte is a Svelte 5 compiler port, not a migration tool. Do
 not start migrate work without an explicit scope change.
+
+### Source-map gate
+
+The `Sourcemaps` row above reads 0/0 because `compatibility_report.rs` looks for a
+`main.svelte` in each sample and the sourcemaps samples use `input.svelte` — the fixtures
+themselves (official `client.js{,.map}` / `server.js{,.map}` for all 29 samples) have always
+been generated. Map *correctness* is gated by
+`crates/rsvelte_core/tests/sourcemaps_gate.rs`, which ports the `_config.js` anchor assertions
+from `packages/svelte/tests/sourcemaps` and adds two structural budgets (official segments
+reproduced; segments pointing outside the source), ratcheted shrink-only through
+`compatibility/sourcemap-known-failures.json` with per-entry justification in the paired `.md`.
+Server maps are accurate; client maps are chunk-granular (issue #1781) and are the burndown
+target — regenerate the baseline with `UPDATE_SOURCEMAP_RATCHET=1 cargo test -p rsvelte_core
+--test sourcemaps_gate -- --ignored sourcemap_gate_measure`.
 
 ### Formatter parity corpus (svelte.dev)
 
@@ -186,6 +200,10 @@ absent. **Hard gate, no baseline tolerance:** any divergence fails CI.
 `oxfmt`-subprocess path. Native-CSS parity is covered by
 `crates/rsvelte_formatter/tests/css_native.rs` and `crates/rsvelte_fmt/tests/cli.rs`.
 
+`rsvelte_fmt` is a lib + bin: `rsvelte_fmt::FormatSession` runs the CLI's
+`--stdin --stdin-filepath` pipeline (config discovery, option layering, extension
+dispatch) in process, so an embedder never re-implements it.
+
 ## Ecosystem Port
 
 | Wave | Scope | Status |
@@ -193,12 +211,42 @@ absent. **Hard gate, no baseline tolerance:** any divergence fails CI.
 | 1 | svelte2tsx | ✅ 253/253, wired into the compatibility report |
 | 2 | svelte-check | ✅ v1.0 — walker + overlay + tsgo + incremental cache + watch + parallel compile + hires source maps + SvelteKit kit-file augmentation; reads diagnostic-relevant `compilerOptions` from `svelte.config.*` and `vite.config.*` |
 | 3 | vite-plugin-svelte | 🟢 v1.0 — Rust NAPI bindings (`hmr_diff` / `resolve_id` / `preprocess`) + `@rsvelte/vite-plugin-svelte` shim at `apps/npm/vite-plugin-svelte`; supports Vite 6/7/8 |
-| 4 | svelte-language-server | ⛔ Deferred — CLI type checking is covered by svelte-check; LSP waits on tsgo `tsserver` mode upstream |
+| 4 | svelte-language-server | 🚧 In progress — target is a full replacement for `svelte-language-server` + `svelte-vscode`, not a companion. M0 landed: `crates/rsvelte_language_server` (binary `rsvelte-language-server`) does document sync, formatting and push diagnostics in process |
+
+Wave 4 architecture (decided; tsgo ships an LSP server as of TypeScript 7, so the earlier
+"waits on tsgo `tsserver` mode" blocker no longer applies):
+
+- The server is a **Rust binary** (`crates/rsvelte_language_server`) calling `rsvelte_core`
+  directly. `@rsvelte/language-server` becomes a thin launcher — the JS boundary is dropped
+  because `forward_map`, source maps and lint `Fix`/`Suggestion` data never crossed it.
+- **TypeScript features proxy a child tsgo LSP** over an in-memory `.svelte` → virtual `.tsx`
+  overlay, reusing `svelte_check/{overlay,mapper,kit_file}.rs`. tsgo has no plugin API, so the
+  server owns `.ts`/`.js` documents too instead of porting upstream's `typescript-plugin`.
+- **HTML/CSS language features are implemented natively in Rust** (vendored MDN data), not
+  delegated to `vscode-{html,css}-languageservice`.
+- Ships its own TextMate grammar / language definition and accepts upstream `svelte.*`
+  settings, so users replace the official extension rather than running both.
 
 `rsvelte_lint` (native Svelte linter: validator/a11y wrap + a native port of
 `eslint-plugin-svelte`'s rules, `crates/rsvelte_lint`) ships as its own npm package,
 [`@rsvelte/lint`](apps/npm/lint), fixed-versioned with `@rsvelte/compiler` via Changesets.
 Its real-world parity corpus ratchet lives at `compatibility/lint-known-failures.json`.
+
+### Type-aware lint suite (out-of-workspace)
+
+`crates/rsvelte_lint_types` (the corsa/`tsgo` type-aware backend) is its **own Cargo
+workspace** — it path-depends on `submodules/corsa-bind`, whose corsa client stack
+nothing else needs, so the root `cargo test` and the CI shards never build it (nor
+does the root `cargo fmt` / `clippy`). `submodules/corsa-bind` is **public**; it
+clones with no credentials. Run the suite with `pnpm run test:type-aware-lint`,
+which checks out the submodules, installs the **pinned**
+`@typescript/native-preview` (`scripts/dev/type-aware-lint/package.json` — exact
+version because upstream publishes dated dev builds and the tests assert exact
+diagnostic text), and runs the 9 tests. A missing binary **fails** instead of
+skipping. Do not point it at `$TSGO_BIN`: that names a batch `tsc`/`tsgo` for
+`rsvelte-check`, whereas this backend needs a `--api` server (`$CORSA_EXECUTABLE`).
+`.github/workflows/type-aware-lint.yml` runs fmt + clippy + the suite on changes to
+the crate, weekly, and on dispatch.
 
 ## Quick Reference
 

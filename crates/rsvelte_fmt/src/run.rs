@@ -9,7 +9,7 @@ use crate::config::OxfmtConfig;
 use crate::native_css::{CssOptionsResolver, run_native_css};
 use crate::native_js::{JsOptionsResolver, run_native_js};
 use crate::native_json::{JsonOptionsResolver, run_native_json};
-use crate::options::{build_css_options, build_format_options, build_json_options};
+use crate::options::{OptionFlags, build_css_options, build_format_options, build_json_options};
 use crate::oxfmt::{load_oxfmt_runtime_sidecar, run_oxfmt, set_oxfmt_node};
 use crate::oxfmt_ignore;
 use crate::status::{Mode, PipelineStatus, combine};
@@ -18,7 +18,7 @@ use crate::svelte_pipeline::run_svelte_files;
 use crate::tailwind_sort::{collect_svelte_classes, resolve_js_class_sorter};
 use crate::walk::partition_files;
 
-pub(crate) fn run() -> Result<ExitCode> {
+pub fn run() -> Result<ExitCode> {
     let mut cli = Cli::parse();
 
     // Native-direct install: when not launched via the npm JS launcher (which
@@ -54,10 +54,11 @@ pub(crate) fn run() -> Result<ExitCode> {
         .unwrap_or_else(|| cwd.clone());
     let cfg = OxfmtConfig::resolve(cli.config.as_deref(), &config_start).map_err(|e| anyhow!(e))?;
 
-    let (mut options, pending_js) = build_format_options(&cli, &cfg);
+    let flags = OptionFlags::from_cli(&cli);
+    let (mut options, pending_js) = build_format_options(&flags, &cfg);
 
     if cli.stdin {
-        return run_stdin(&cli, &options, &cfg, pending_js.as_ref());
+        return run_stdin(&cli, &flags, &options, &cfg, pending_js.as_ref());
     }
 
     // No paths given (and not stdin mode): default to the current directory,
@@ -112,13 +113,13 @@ pub(crate) fn run() -> Result<ExitCode> {
 
     // Per-file JSON options resolver (native JSON; `package.json` + overrides +
     // parse errors delegate to oxfmt).
-    let json_options = build_json_options(&cli, &cfg);
+    let json_options = build_json_options(&flags, &cfg);
     let base_print_width = cli.print_width.or(cfg.print_width).unwrap_or(80);
     let json_resolver = JsonOptionsResolver::new(json_options, base_print_width, &cfg, &cwd);
 
     // Per-file CSS options resolver (native CSS; overrides + over-width delegate
     // to oxfmt, mirroring native JSON).
-    let css_options = build_css_options(&cli, &cfg);
+    let css_options = build_css_options(&flags, &cfg);
     let css_resolver = CssOptionsResolver::new(css_options, base_print_width, &cfg, &cwd);
 
     // Run the pipelines in parallel: the oxfmt subprocess overlaps with the

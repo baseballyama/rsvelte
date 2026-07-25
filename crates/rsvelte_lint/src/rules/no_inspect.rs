@@ -53,7 +53,7 @@ impl Rule for NoInspect {
 
     fn check_root(&self, ctx: &mut LintContext, _root: &rsvelte_core::ast::template::Root) {
         let source = ctx.source();
-        for (start, end) in find_inspect_idents(source) {
+        for (start, end) in find_inspect_idents(source, ctx.script_spans()) {
             ctx.report(start, end, MESSAGE);
         }
     }
@@ -61,20 +61,12 @@ impl Rule for NoInspect {
 
 /// Locate every whole-word `$inspect` identifier in the file's `<script>` bodies.
 /// Returns `(start, end)` byte-offset spans (absolute, into `source`).
-fn find_inspect_idents(source: &str) -> Vec<(u32, u32)> {
+fn find_inspect_idents(source: &str, spans: &[(u32, u32)]) -> Vec<(u32, u32)> {
     let mut out = Vec::new();
-    let Ok(root) = rsvelte_core::parse(
-        source,
-        &rsvelte_core::Allocator::default(),
-        rsvelte_core::ParseOptions::default(),
-    ) else {
-        return out;
-    };
-    for script in [root.instance.as_ref(), root.module.as_ref()]
-        .into_iter()
-        .flatten()
-    {
-        let (lo, hi) = (script.content_offset as usize, script.end as usize);
+    // Script bounds come from the `Root` the lint pass already parsed — this
+    // used to re-parse the whole source just to read `content_offset`/`end`.
+    for &(content_offset, end) in spans {
+        let (lo, hi) = (content_offset as usize, end as usize);
         if lo > hi || hi > source.len() {
             continue;
         }
@@ -214,7 +206,8 @@ mod tests {
     #[test]
     fn full_file_absolute_offsets() {
         let src = "<script>\n  $inspect(1);\n</script>";
-        let hits = find_inspect_idents(src);
+        // `<script>` body spans as the lint pass supplies them.
+        let hits = find_inspect_idents(src, &[(8, src.len() as u32)]);
         assert_eq!(hits.len(), 1);
         let (start, end) = hits[0];
         assert_eq!(&src[start as usize..end as usize], "$inspect");

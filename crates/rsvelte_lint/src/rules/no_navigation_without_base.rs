@@ -13,7 +13,6 @@
 
 use std::collections::{HashMap, HashSet};
 
-use rsvelte_core::ast::arena::with_serialize_arena;
 use rsvelte_core::ast::template::Root;
 use serde_json::Value;
 
@@ -359,10 +358,10 @@ impl Rule for NoNavigationWithoutBase {
     }
 
     fn check_root(&self, ctx: &mut LintContext, root: &Root) {
-        let Some(json) = with_serialize_arena(&root.arena, || serde_json::to_value(root).ok())
-        else {
+        let json = ctx.root_json(root);
+        if json.is_null() {
             return;
-        };
+        }
         let im = collect_imports(&json);
         let var_inits = collect_var_inits(&json);
         let cx = Ctx {

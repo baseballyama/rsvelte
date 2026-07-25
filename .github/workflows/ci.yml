@@ -32,7 +32,6 @@ jobs:
       - name: Require changeset for fix/feat PRs
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           SKIP: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changeset') }}
         shell: bash
         run: |
@@ -49,8 +48,18 @@ jobs:
             exit 0
           fi
 
+          # Diff against the actual merge-base with main, not
+          # github.event.pull_request.base.sha: that field is fixed at PR-open
+          # (or last-sync) time and never tracks main's current tip, so on this
+          # `pull_request`-triggered checkout (whose HEAD is the ephemeral
+          # `refs/pull/<n>/merge` commit) it would misread changesets added by
+          # OTHER PRs merged into main since as "added by this PR" — a false
+          # negative that can let a real fix/feat PR through without one. See #1799.
+          git fetch --quiet origin +main:refs/remotes/origin/main
+          base="$(git merge-base HEAD origin/main)"
+
           # New changeset markdown files added in this PR (README.md is pre-existing).
-          added=$(git diff --name-only --diff-filter=A "$BASE_SHA"...HEAD -- '.changeset/*.md' \
+          added=$(git diff --name-only --diff-filter=A "$base"...HEAD -- '.changeset/*.md' \
             | grep -vE '\.changeset/README\.md$' || true)
 
           if [[ -z "$added" ]]; then
@@ -64,7 +73,6 @@ jobs:
 
       - name: Require consumer changesets for shared-core changes
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           SKIP: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changeset') }}
         shell: bash
         # A single Rust crate (rsvelte_core) is compiled into several separate

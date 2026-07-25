@@ -3,6 +3,14 @@
 //! A trimmed port of `vize_carton::corsa_resolver`: environment overrides
 //! first, then the `@typescript/native-preview` npm layout discovered by
 //! walking up from a starting directory, then `PATH`.
+//!
+//! NOT the same thing as `rsvelte_core::svelte_check::tsgo::find_compiler`,
+//! which resolves a BATCH compiler run as `<bin> -p tsconfig --pretty false`
+//! and is overridden by `$TSGO_BIN`. What we need here is a long-lived corsa
+//! API worker (`<bin> --api --cwd …`, msgpack/JSON-RPC over stdio) — a mode
+//! only `typescript-go` builds have, so `$TSGO_BIN` is deliberately not read:
+//! CI points it at a stock TypeScript 5 `tsc`, which would resolve here and
+//! then fail to speak the protocol.
 
 use std::path::{Path, PathBuf};
 
@@ -13,6 +21,21 @@ const ENV_VARS: &[&str] = &[
     "TSGO_PATH",
     "TSGO_EXECUTABLE",
 ];
+
+/// Setup instructions shown when no API-capable binary can be found.
+pub const MISSING_TSGO_HELP: &str = "\
+no tsgo / corsa binary found — the type-aware lint backend cannot run.
+
+Provide one of:
+  * `npm i @typescript/native-preview` at the repo root (the resolver walks
+    up from this crate and picks up `node_modules/@typescript/native-preview*`), or
+  * set $CORSA_EXECUTABLE (or $CORSA_PATH / $TSGO_PATH / $TSGO_EXECUTABLE)
+    to an API-capable binary, or
+  * put `tsgo` / `corsa` on $PATH.
+
+`pnpm run test:type-aware-lint` does all of this for you.
+Note: $TSGO_BIN is NOT read here — it names a batch `tsc`/`tsgo` for
+rsvelte-check, which cannot serve the corsa `--api` protocol.";
 
 /// Resolve a `tsgo`/`corsa` executable, searching from `start_dir` upward for
 /// an `@typescript/native-preview` install. Returns `None` when none is found,
@@ -36,6 +59,20 @@ pub fn resolve_tsgo(start_dir: &Path) -> Option<PathBuf> {
     }
 
     which_on_path("tsgo").or_else(|| which_on_path("corsa"))
+}
+
+/// [`resolve_tsgo`], but panics with [`MISSING_TSGO_HELP`] instead of returning
+/// `None`.
+///
+/// For the test suite: this crate is an opt-in, out-of-workspace target you
+/// only build when you mean to exercise the type-aware backend, so a missing
+/// binary is a setup error. Skipping quietly made all nine tests report green
+/// while covering nothing (issue #1790).
+pub fn require_tsgo(start_dir: &Path) -> PathBuf {
+    match resolve_tsgo(start_dir) {
+        Some(p) => p,
+        None => panic!("{MISSING_TSGO_HELP}"),
+    }
 }
 
 /// Look for `node_modules/@typescript/native-preview-<platform>/lib/tsgo[.exe]`

@@ -7,6 +7,11 @@ description = "Fast Svelte + JS/TS/CSS formatter — dispatches .svelte to rsvel
 license = "MIT"
 publish = false
 
+[lib]
+# rlib only — the CLI binary and the language server both link the same
+# formatting pipeline from here.
+crate-type = ["rlib"]
+
 [[bin]]
 name = "rsvelte-fmt"
 path = "src/main.rs"

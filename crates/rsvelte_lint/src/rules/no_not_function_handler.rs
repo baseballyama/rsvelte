@@ -445,22 +445,12 @@ fn find_root_expression<'a>(
 /// that and is sufficient for the literal/object/array/class shapes the rule
 /// distinguishes.
 ///
-/// Perf note: this re-parses the component source once per linted file (built
-/// lazily, only when a candidate handler is found) to locate the script spans.
-fn build_const_map(source: &str) -> std::collections::HashMap<String, Value> {
+/// Script spans come from the `Root` the lint pass already parsed; this used to
+/// re-parse the whole source per file just to locate them.
+fn build_const_map(source: &str, spans: &[(u32, u32)]) -> std::collections::HashMap<String, Value> {
     let mut map = std::collections::HashMap::new();
-    let Ok(root) = rsvelte_core::parse(
-        source,
-        &rsvelte_core::Allocator::default(),
-        rsvelte_core::ParseOptions::default(),
-    ) else {
-        return map;
-    };
-    for script in [root.instance.as_ref(), root.module.as_ref()]
-        .into_iter()
-        .flatten()
-    {
-        let (lo, hi) = (script.content_offset as usize, script.end as usize);
+    for &(content_offset, end) in spans {
+        let (lo, hi) = (content_offset as usize, end as usize);
         if lo > hi || hi > source.len() {
             continue;
         }
@@ -733,7 +723,8 @@ impl NoNotFunctionHandler {
         node: &Value,
         const_map: &mut Option<std::collections::HashMap<String, Value>>,
     ) {
-        let map = const_map.get_or_insert_with(|| build_const_map(ctx.source()));
+        let map =
+            const_map.get_or_insert_with(|| build_const_map(ctx.source(), ctx.script_spans()));
         let root = find_root_expression(node, map);
         if let Some(p) = phrase(root) {
             ctx.report(start, end, format!("Unexpected {p} in event handler."));

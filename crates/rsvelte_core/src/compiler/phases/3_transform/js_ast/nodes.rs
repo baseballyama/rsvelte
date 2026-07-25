@@ -22,10 +22,6 @@ impl JsProgram {
     pub fn with_body(body: Vec<JsStatement>) -> Self {
         Self { body }
     }
-
-    pub fn push(&mut self, stmt: JsStatement) {
-        self.body.push(stmt);
-    }
 }
 
 impl Default for JsProgram {
@@ -271,10 +267,6 @@ impl JsBlockStatement {
 
     pub fn with_body(body: Vec<JsStatement>) -> Self {
         Self { body }
-    }
-
-    pub fn push(&mut self, stmt: JsStatement) {
-        self.body.push(stmt);
     }
 }
 

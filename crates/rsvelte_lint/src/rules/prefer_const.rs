@@ -20,7 +20,7 @@ use rsvelte_core::ast::template::{DeclarationTag, Fragment, Root, TemplateNode};
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_start, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_start, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/prefer-const",
@@ -71,34 +71,19 @@ fn init_rune_callee(init: &Value) -> Option<&str> {
 /// `prefer-const` rule, which only bails on a write reference to the binding
 /// itself. Used to cover template positions the compiler scope walk skips
 /// (e.g. `{@render}` arguments).
-fn collect_template_reassignments(source: &str, out: &mut HashSet<String>) {
-    // Re-parse (cheap; the analyzed `ComponentAnalysis` keeps only the scope
-    // tree, not the template AST) and serialize the template fragment so the
-    // assignment walk runs over the ESTree expressions inside every tag. The
-    // fragment's JS expressions live in the parse arena, which must be installed
-    // for the duration of the serialize.
-    use rsvelte_core::ast::arena::with_serialize_arena;
-    let Ok(root) = rsvelte_core::parse(
-        source,
-        &rsvelte_core::Allocator::default(),
-        rsvelte_core::ParseOptions::default(),
-    ) else {
-        return;
-    };
-    let Some(value) =
-        with_serialize_arena(&root.arena, || serde_json::to_value(&root.fragment).ok())
-    else {
-        return;
-    };
-    walk_assignments(&value, out);
+fn collect_template_reassignments(ctx: &LintContext, out: &mut HashSet<String>) {
+    // The template fragment is serialized once per file by the context (this
+    // rule alone would otherwise re-parse + re-serialize the source on each of
+    // its two call sites, for each script block).
+    walk_assignments(&ctx.template_fragment_json(), out);
 }
 
 /// Add names that are declared by more than one `let`/`var`/`const` declarator
 /// in `program` (a redeclaration), which the core `prefer-const` rule treats as
 /// having multiple writes. Used only on the parse-only fallback path.
-fn add_redeclared_names(program: &Value, out: &mut HashSet<String>) {
+fn add_redeclared_names(program: &ProgramView<'_>, out: &mut HashSet<String>) {
     let mut counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
-    walk_js(program, |node, _| {
+    program.walk(|node, _| {
         if node_type(node) != Some("VariableDeclaration") {
             return;
         }
@@ -417,8 +402,8 @@ fn check_template_declaration_tags(
     reports
 }
 
-fn collect_forin_forof_reassignments(program: &Value, out: &mut HashSet<String>) {
-    walk_js(program, |node, _| {
+fn collect_forin_forof_reassignments(program: &ProgramView<'_>, out: &mut HashSet<String>) {
+    program.walk(|node, _| {
         let ty = node_type(node);
         if !matches!(ty, Some("ForOfStatement") | Some("ForInStatement")) {
             return;
@@ -495,9 +480,11 @@ struct AssignInfo {
 /// target of an `AssignmentExpression` and how many of those are destructuring.
 /// `UpdateExpression` increments `total` (not destructuring) so the name is
 /// excluded from the single-destructuring-assignment fast path.
-fn collect_assignment_info(program: &Value) -> std::collections::HashMap<String, AssignInfo> {
+fn collect_assignment_info(
+    program: &ProgramView<'_>,
+) -> std::collections::HashMap<String, AssignInfo> {
     let mut map: std::collections::HashMap<String, AssignInfo> = std::collections::HashMap::new();
-    walk_js(program, |node, ancestors| match node_type(node) {
+    program.walk(|node, ancestors| match node_type(node) {
         Some("AssignmentExpression") => {
             let Some(left) = node.get("left") else {
                 return;
@@ -608,7 +595,7 @@ impl ScriptRule for PreferConst {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, kind: ScriptKind) {
         // Reassignment info from the analyzed scope (reliable per the R9 audit).
         // `analyze_scope` runs the full Phase-2 analysis, which returns `Err`
         // (→ `None`) when the component has *any* analysis/validation error
@@ -616,7 +603,7 @@ impl ScriptRule for PreferConst {
         // svelte-eslint-parser only parses, so it still lints such a file; to
         // match, fall back to a parse-only assignment scan of the script +
         // template when the analysis is unavailable.
-        let mut reassigned: HashSet<String> = match crate::scope::analyze_scope(ctx.source()) {
+        let mut reassigned: HashSet<String> = match ctx.scope_analysis() {
             Some(analysis) => analysis
                 .root
                 .bindings
@@ -648,7 +635,7 @@ impl ScriptRule for PreferConst {
         // ONCE here and reused below for the no-init-let check, avoiding a second
         // re-parse of the source.
         let mut template_reassign: HashSet<String> = HashSet::new();
-        collect_template_reassignments(ctx.source(), &mut template_reassign);
+        collect_template_reassignments(ctx, &mut template_reassign);
         reassigned.extend(template_reassign.iter().cloned());
         // `for (x of …)` / `for (x in …)` with a bare pattern (not
         // `VariableDeclaration`) reassign the binding. The rsvelte scope builder
@@ -680,7 +667,7 @@ impl ScriptRule for PreferConst {
             == Some("all");
 
         let mut reports: Vec<(u32, u32, String, Option<u32>)> = Vec::new();
-        walk_js(program, |node, ancestors| {
+        program.walk(|node, ancestors| {
             if node_type(node) != Some("VariableDeclaration")
                 || node.get("kind").and_then(Value::as_str) != Some("let")
             {
@@ -887,7 +874,7 @@ impl Rule for PreferConst {
 
         // Build the reassigned set from the template itself.
         let mut reassigned: HashSet<String> = HashSet::new();
-        collect_template_reassignments(ctx.source(), &mut reassigned);
+        collect_template_reassignments(ctx, &mut reassigned);
 
         let tag_reports =
             check_template_declaration_tags(ctx.source(), &reassigned, destructuring_all);

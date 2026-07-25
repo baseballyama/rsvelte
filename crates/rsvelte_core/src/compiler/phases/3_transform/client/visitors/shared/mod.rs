@@ -29,6 +29,4 @@ pub mod declarations;
 pub mod element;
 pub mod events;
 pub mod fragment;
-pub mod function;
-pub mod special_element;
 pub mod utils;

@@ -21,14 +21,11 @@
 
 use std::collections::HashSet;
 
-use rsvelte_core::ParseOptions;
-use rsvelte_core::ast::arena::with_serialize_arena;
-use rsvelte_core::compiler::phases::parse;
 use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-immutable-reactive-statements",
@@ -93,8 +90,8 @@ const KNOWN_GLOBALS: &[&str] = &[
 ];
 
 /// Collect names declared by `export let` / `export var` (props).
-fn collect_export_let_props(program: &Value, out: &mut HashSet<String>) {
-    walk_js(program, |node, _| {
+fn collect_export_let_props(program: &ProgramView<'_>, out: &mut HashSet<String>) {
+    program.walk(|node, _| {
         if node_type(node) != Some("ExportNamedDeclaration") {
             return;
         }
@@ -163,9 +160,9 @@ fn expr_base_name(e: Option<&Value>) -> Option<&str> {
 /// program (`delete obj.prop` ⇒ `obj`). Such a delete mutates the object, so the
 /// base name is mutable — mirrors upstream's `hasWriteMember` handling of
 /// `UnaryExpression { operator: 'delete' }`.
-fn collect_delete_mutated(program: &Value) -> HashSet<String> {
+fn collect_delete_mutated(program: &ProgramView<'_>) -> HashSet<String> {
     let mut out = HashSet::new();
-    walk_js(program, |node, _| {
+    program.walk(|node, _| {
         if node_type(node) != Some("UnaryExpression") {
             return;
         }
@@ -214,20 +211,9 @@ fn is_written(name: &str, scope: &Value) -> bool {
 
 /// The base variables of every `{#each}` source whose context is written — these
 /// are mutated through the loop and so are *not* immutable.
-fn collect_mutable_via_each(source: &str) -> HashSet<String> {
+fn collect_mutable_via_each(ctx: &LintContext) -> HashSet<String> {
     let mut out = HashSet::new();
-    let Ok(root) = parse(
-        source,
-        &rsvelte_core::Allocator::default(),
-        ParseOptions::default(),
-    ) else {
-        return out;
-    };
-    let Some(frag) =
-        with_serialize_arena(&root.arena, || serde_json::to_value(&root.fragment).ok())
-    else {
-        return out;
-    };
+    let frag = ctx.template_fragment_json();
     walk_js(&frag, |node, _| {
         if node_type(node) != Some("EachBlock") {
             return;
@@ -418,13 +404,13 @@ impl ScriptRule for NoImmutableReactiveStatements {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         // Try to get full scope analysis. If it fails (e.g. constant_assignment
         // or constant_binding errors that the upstream ESLint scope manager
         // wouldn't reject), continue with empty binding maps — the write-only
         // LHS detection and the "unknown identifier → skip" guard ensure we
         // only report structurally obvious non-reactive statements.
-        let analysis = crate::scope::analyze_scope(ctx.source());
+        let analysis = ctx.scope_analysis();
 
         let (binding_names, mutable_bindings): (HashSet<&str>, HashSet<&str>) =
             if let Some(ref a) = analysis {
@@ -443,7 +429,7 @@ impl ScriptRule for NoImmutableReactiveStatements {
 
         let mut props: HashSet<String> = HashSet::new();
         collect_export_let_props(program, &mut props);
-        let mutable_via_each = collect_mutable_via_each(ctx.source());
+        let mutable_via_each = collect_mutable_via_each(ctx);
         let delete_mutated = collect_delete_mutated(program);
         let globals: HashSet<&str> = KNOWN_GLOBALS.iter().copied().collect();
 
@@ -470,7 +456,7 @@ impl ScriptRule for NoImmutableReactiveStatements {
         };
 
         let mut reports: Vec<(u32, u32)> = Vec::new();
-        walk_js(program, |node, _| {
+        program.walk(|node, _| {
             if node_type(node) != Some("LabeledStatement")
                 || node
                     .get("label")

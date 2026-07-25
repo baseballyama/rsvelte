@@ -5,9 +5,6 @@
 //!
 //! This visitor handles regular HTML elements like `<div>`, `<span>`, etc.
 
-// Allow dead code for TODO event handler stubs
-#![allow(dead_code)]
-
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, BindDirective, ClassDirective, Fragment,
     LetDirective, RegularElement as RegularElementNode, StyleDirective, TemplateNode,
@@ -1696,37 +1693,6 @@ fn is_load_error_element(name: &str) -> bool {
     )
 }
 
-/// Check if an attribute is a boolean attribute.
-fn is_boolean_attribute(name: &str) -> bool {
-    matches!(
-        name,
-        "allowfullscreen"
-            | "async"
-            | "autofocus"
-            | "autoplay"
-            | "checked"
-            | "controls"
-            | "default"
-            | "defer"
-            | "disabled"
-            | "formnovalidate"
-            | "hidden"
-            | "indeterminate"
-            | "ismap"
-            | "loop"
-            | "multiple"
-            | "muted"
-            | "nomodule"
-            | "novalidate"
-            | "open"
-            | "playsinline"
-            | "readonly"
-            | "required"
-            | "reversed"
-            | "selected"
-    )
-}
-
 /// Normalize attribute name to DOM property name (returns owned String).
 /// Lowercases the name and maps through ATTRIBUTE_ALIASES.
 /// Reference: svelte/packages/svelte/src/utils.js ATTRIBUTE_ALIASES and normalize_attribute
@@ -1758,29 +1724,6 @@ fn normalize_attribute_string(name: &str) -> String {
                 name.to_string()
             }
         }
-    }
-}
-
-/// Normalize attribute name to DOM property name (returns &str reference).
-/// For cases where the result doesn't need to be owned.
-/// Reference: svelte/packages/svelte/src/utils.js ATTRIBUTE_ALIASES and normalize_attribute
-fn normalize_attribute(name: &str) -> &str {
-    // Use case-insensitive comparison to avoid allocating a lowercase copy.
-    // Match on length first to minimize comparisons.
-    match name.len() {
-        5 if name.eq_ignore_ascii_case("ismap") => "isMap",
-        8 if name.eq_ignore_ascii_case("readonly") => "readOnly",
-        8 if name.eq_ignore_ascii_case("nomodule") => "noModule",
-        9 if name.eq_ignore_ascii_case("srcobject") => "srcObject",
-        10 if name.eq_ignore_ascii_case("novalidate") => "noValidate",
-        11 if name.eq_ignore_ascii_case("playsinline") => "playsInline",
-        12 if name.eq_ignore_ascii_case("defaultvalue") => "defaultValue",
-        14 if name.eq_ignore_ascii_case("defaultchecked") => "defaultChecked",
-        14 if name.eq_ignore_ascii_case("formnovalidate") => "formNoValidate",
-        15 if name.eq_ignore_ascii_case("allowfullscreen") => "allowFullscreen",
-        21 if name.eq_ignore_ascii_case("disableremoteplayback") => "disableRemotePlayback",
-        23 if name.eq_ignore_ascii_case("disablepictureinpicture") => "disablePictureInPicture",
-        _ => name,
     }
 }
 
@@ -2308,15 +2251,6 @@ fn build_element_special_value_attribute(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_is_boolean_attribute() {
-        assert!(is_boolean_attribute("checked"));
-        assert!(is_boolean_attribute("disabled"));
-        assert!(is_boolean_attribute("readonly"));
-        assert!(!is_boolean_attribute("value"));
-        assert!(!is_boolean_attribute("class"));
-    }
 
     #[test]
     fn test_is_dom_property() {

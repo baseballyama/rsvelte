@@ -101,6 +101,8 @@ compatibility/verify-svelte-compat/
 # they're outputs of local tooling (benchmarks, profilers, code-review
 # skills) that get regenerated on demand and should not pollute git.
 .benchmark-files.txt
+.benchmark-lint-rules.json
+.benchmark-lint-config.json
 benchmark-results.json
 .perf-log.md
 .perf/

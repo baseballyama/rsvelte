@@ -17,7 +17,6 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use im::{HashMap as ImHashMap, HashSet as ImHashSet};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::{Cell, RefCell};
-use std::fmt::Write as _;
 use std::rc::Rc;
 
 /// Component transformation context.
@@ -61,16 +60,6 @@ impl<'a> ComponentContext<'a> {
             path: Vec::new(),
             visit,
         }
-    }
-
-    /// Push a node onto the path stack.
-    pub fn push_path(&mut self, node: &'a TemplateNode<'a>) {
-        self.path.push(node);
-    }
-
-    /// Pop a node from the path stack.
-    pub fn pop_path(&mut self) -> Option<&'a TemplateNode<'a>> {
-        self.path.pop()
     }
 
     /// Get the current parent node.
@@ -2388,26 +2377,6 @@ impl<'a> ComponentClientTransformState<'a> {
         self.has_blockers_for_names(&name_refs)
     }
 
-    /// Get blocker expressions from the const_blocker_map for identifiers in a JS expression.
-    /// Returns const-tag-level blocker expressions (e.g., `promises_1[0]`).
-    pub fn get_const_blockers_for_expr(&self, expr: &JsExpr, arena: &JsArena) -> Vec<JsExpr> {
-        let names = collect_identifiers_from_expr(expr, arena);
-        let const_map = self.const_blocker_map.borrow();
-        let mut exprs: Vec<JsExpr> = Vec::new();
-        // Deduplicate by pointer identity from the map (same map value = same expression).
-        let mut seen_ptrs: Vec<*const JsExpr> = Vec::new();
-        for name in &names {
-            if let Some(blocker_expr) = const_map.get(name.as_str()) {
-                let ptr = blocker_expr as *const JsExpr;
-                if !seen_ptrs.contains(&ptr) {
-                    seen_ptrs.push(ptr);
-                    exprs.push(blocker_expr.clone());
-                }
-            }
-        }
-        exprs
-    }
-
     /// Get all blocker expressions (both instance-level and const-tag-level)
     /// for identifiers referenced in a JS expression.
     pub fn get_all_blockers_for_expr(&self, expr: &JsExpr, arena: &JsArena) -> Vec<JsExpr> {
@@ -2644,67 +2613,6 @@ impl Default for ComponentMetadata {
     }
 }
 
-/// Template builder.
-///
-/// Accumulates HTML template parts during traversal.
-#[derive(Debug, Default, Clone)]
-pub struct TemplateBuilder {
-    /// HTML parts being accumulated
-    parts: Vec<String>,
-
-    /// Element stack for tracking open elements
-    element_stack: Vec<String>,
-}
-
-impl TemplateBuilder {
-    /// Create a new template builder.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Push an opening element tag.
-    pub fn push_element(&mut self, tag: &str, _start: u32) {
-        self.parts.push(format!("<{}>", tag));
-        self.element_stack.push(tag.to_string());
-    }
-
-    /// Pop the last opened element and close it.
-    pub fn pop_element(&mut self) {
-        if let Some(tag) = self.element_stack.pop() {
-            self.parts.push(format!("</{}>", tag));
-        }
-    }
-
-    /// Push a comment placeholder.
-    pub fn push_comment(&mut self) {
-        self.parts.push("<!---->".to_string());
-    }
-
-    /// Set a property on the current element.
-    pub fn set_prop(&mut self, name: &str, value: &str) {
-        // This should be called before the element is closed
-        if !self.element_stack.is_empty()
-            // Insert before the last '>'
-            && let Some(last) = self.parts.last_mut()
-            && last.ends_with('>')
-        {
-            last.pop(); // Remove the '>'
-            let _ = write!(last, " {}=\"{}\"", name, value);
-            last.push('>');
-        }
-    }
-
-    /// Get the combined HTML template string.
-    pub fn get_html(&self) -> String {
-        self.parts.join("")
-    }
-
-    /// Push raw HTML content.
-    pub fn push_raw(&mut self, html: &str) {
-        self.parts.push(html.to_string());
-    }
-}
-
 /// A memoized expression entry.
 #[derive(Debug, Clone)]
 pub struct MemoEntry {
@@ -2723,12 +2631,6 @@ pub struct MemoEntry {
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/utils.js`.
 #[derive(Debug, Default, Clone)]
 pub struct Memoizer {
-    /// Counter for generating unique memoization variable names
-    counter: usize,
-
-    /// Map from expression hash to memoized variable name
-    memos: FxHashMap<String, String>,
-
     /// Shared set of conflicting names to avoid collisions across all scopes.
     /// Uses Rc<RefCell<...>> so that parent and child memoizers share the SAME
     /// conflicts set, matching the official Svelte compiler's single shared
@@ -2749,8 +2651,6 @@ impl Memoizer {
     /// Create a new memoizer.
     pub fn new() -> Self {
         Self {
-            counter: 0,
-            memos: FxHashMap::default(),
             conflicts: Rc::new(RefCell::new(FxHashSet::default())),
             next_suffix: Rc::new(RefCell::new(FxHashMap::default())),
             sync: Vec::new(),
@@ -2779,8 +2679,6 @@ impl Memoizer {
         // (avoids cloning the entire FxHashSet). This mirrors scope.root.conflicts
         // in the official Svelte compiler.
         Self {
-            counter: 0,
-            memos: FxHashMap::default(),
             conflicts: Rc::clone(&scope_root.conflicts),
             sync: Vec::new(),
             async_entries: Vec::new(),
@@ -2794,8 +2692,6 @@ impl Memoizer {
     /// a single shared `ScopeRoot.conflicts` set across all scopes.
     pub fn with_parent_conflicts(parent: &Memoizer) -> Self {
         Self {
-            counter: 0,
-            memos: FxHashMap::default(),
             conflicts: Rc::clone(&parent.conflicts),
             next_suffix: Rc::clone(&parent.next_suffix),
             sync: Vec::new(),
@@ -2907,11 +2803,6 @@ impl Memoizer {
                 )
             })
             .collect()
-    }
-
-    /// Check if there are any sync memoized expressions that need to be output.
-    pub fn has_deriveds(&self) -> bool {
-        !self.sync.is_empty()
     }
 
     /// Add an expression to be memoized for template effects.
@@ -3057,23 +2948,12 @@ impl Memoizer {
         exprs
     }
 
-    /// Check if there are any async memoized expressions.
-    pub fn has_async(&self) -> bool {
-        !self.async_entries.is_empty()
-    }
-
     /// Get the async parameter identifiers for the $.async() arrow function.
     ///
     /// Returns the list of async parameter identifiers ($0, $1, etc.) that will
     /// be passed as parameters to the arrow function in $.async() calls.
     pub fn async_ids(&self) -> Vec<JsExpr> {
         self.async_entries.iter().map(|e| e.id.clone()).collect()
-    }
-
-    /// Clear all memoized expressions (but keep conflicts).
-    pub fn clear_memoized(&mut self) {
-        self.sync.clear();
-        self.async_entries.clear();
     }
 
     /// Generate a unique identifier with a given base name.
@@ -3198,16 +3078,6 @@ impl Memoizer {
         name
     }
 
-    /// Reset the memoizer state.
-    pub fn reset(&mut self) {
-        self.counter = 0;
-        self.memos.clear();
-        self.conflicts.borrow_mut().clear();
-        self.next_suffix.borrow_mut().clear();
-        self.sync.clear();
-        self.async_entries.clear();
-    }
-
     /// Merge conflicts from another memoizer.
     /// With shared Rc<RefCell<...>> conflicts, this is a no-op.
     pub fn merge_conflicts(&mut self, _other: &Memoizer) {
@@ -3268,7 +3138,6 @@ const FLAG_HAS_CALL: u8 = 1 << 1;
 const FLAG_HAS_AWAIT: u8 = 1 << 2;
 const FLAG_HAS_MEMBER_EXPRESSION: u8 = 1 << 3;
 const FLAG_HAS_ASSIGNMENT: u8 = 1 << 4;
-const FLAG_DYNAMIC: u8 = 1 << 5;
 
 /// Expression metadata for analysis.
 ///
@@ -3292,11 +3161,6 @@ pub struct ExpressionMetadata {
 }
 
 impl ExpressionMetadata {
-    /// Create a new expression metadata.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// Create ExpressionMetadata from the template's ExpressionMetadata.
     /// This is a helper to convert from phase 2 metadata to phase 3 metadata.
     /// Uses direct flag byte copy (bits 0-4 are aligned between the two types).
@@ -3392,32 +3256,6 @@ impl ExpressionMetadata {
         }
     }
 
-    /// Whether the expression is dynamic (needs reactive tracking)
-    #[inline]
-    pub fn dynamic(&self) -> bool {
-        self.flags & FLAG_DYNAMIC != 0
-    }
-
-    /// Set whether the expression is dynamic
-    #[inline]
-    pub fn set_dynamic(&mut self, v: bool) {
-        if v {
-            self.flags |= FLAG_DYNAMIC;
-        } else {
-            self.flags &= !FLAG_DYNAMIC;
-        }
-    }
-
-    /// Check if the expression has any blocking dependencies.
-    pub fn has_blockers(&self) -> bool {
-        !self.blockers.is_empty()
-    }
-
-    /// Check if the expression is async (has await or blockers).
-    pub fn is_async(&self) -> bool {
-        self.has_await() || self.has_blockers()
-    }
-
     /// Get the blocking dependencies as a JS array expression.
     pub fn blockers(&self) -> JsExpr {
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
@@ -3480,17 +3318,6 @@ fn build_slot_async_thunk(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_template_builder() {
-        let mut builder = TemplateBuilder::new();
-        builder.push_element("div", 0);
-        builder.push_comment();
-        builder.pop_element();
-
-        let html = builder.get_html();
-        assert_eq!(html, "<div><!----></div>");
-    }
 
     #[test]
     fn test_memoizer_simple_expression() {

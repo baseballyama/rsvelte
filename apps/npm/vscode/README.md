@@ -8,6 +8,11 @@ and launches it over stdio.
 
 ## Features
 
+- **Syntax highlighting** for `.svelte` files (including `<script lang="ts">`,
+  `<style lang="scss|less|postcss|sass|stylus">`, `<template lang="pug">`, and
+  ` ```svelte ` code blocks in Markdown), plus Svelte-aware bracket matching,
+  auto-closing, folding, and snippets. The official Svelte extension is **not**
+  required.
 - **Format on demand / on save** via the native `rsvelte-fmt` CLI. Works for
   `.svelte` plus the JS/TS/CSS/JSON families (everything is dispatched to oxfmt
   internally for a complete format).
@@ -35,6 +40,15 @@ The extension resolves `node_modules/.bin/rsvelte-fmt` from the workspace. If
 it isn't found, formatting is disabled (linting still works). You can point at a
 specific binary with `rsvelte.rsvelteFmtPath`.
 
+## Using it alongside the official Svelte extension
+
+This extension ships its own Svelte grammar and language definition, so it is a
+standalone replacement for `svelte.svelte-vscode`. Running both at once
+duplicates diagnostics, completions and hovers, makes VS Code prompt for which
+formatter to use, and leaves it up to activation order which copy of the
+`source.svelte` grammar ends up registered. The extension warns once if it
+detects the official extension — disable one of the two.
+
 ## Setup as the default formatter
 
 To format Svelte files with rsvelte, set it as the default formatter (so it
@@ -59,4 +73,6 @@ doesn't conflict with the official Svelte extension):
 
 ## License
 
-MIT
+MIT. The bundled grammars, snippets and language configurations are copied from
+[`sveltejs/language-tools`](https://github.com/sveltejs/language-tools) (MIT) —
+see [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).

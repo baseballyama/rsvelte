@@ -1,0 +1,8 @@
+{
+  "name": "rsvelte-type-aware-lint-tsgo",
+  "private": true,
+  "description": "Pins the tsgo binary that crates/rsvelte_lint_types tests run against. Installed by scripts/dev/test-type-aware-lint.mjs, never by the workspace install. The version is EXACT on purpose: @typescript/native-preview publishes dated dev builds, and the suite asserts exact diagnostic text, so `latest` would let an upstream nightly change results with no change in this repo. Renovate tracks it like any other npm dep. 20260707 matches the typescript-go commit corsa-bind pins in corsa_ref.lock.toml.",
+  "dependencies": {
+    "@typescript/native-preview": "7.0.0-dev.20260707.2"
+  }
+}

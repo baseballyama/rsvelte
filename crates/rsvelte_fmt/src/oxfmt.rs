@@ -104,6 +104,63 @@ pub(crate) fn oxfmt_ext(lang: &str) -> &'static str {
 
 // ─── oxfmt delegation ───────────────────────────────────────────────────
 
+/// The captured result of one `oxfmt` stdin invocation.
+pub(crate) struct OxfmtStdinOutput {
+    pub(crate) code: i32,
+    pub(crate) stdout: Vec<u8>,
+}
+
+/// Format `source` for `path` by piping it to `oxfmt`. stdout is captured so
+/// both the CLI (which forwards it verbatim) and in-process embedders (which
+/// consume the formatted text) go through one implementation; stderr stays
+/// inherited so oxfmt's own diagnostics reach the user.
+pub(crate) fn oxfmt_stdin(
+    oxfmt: &Path,
+    config: Option<&Path>,
+    path: &Path,
+    source: &str,
+    check: bool,
+) -> Result<OxfmtStdinOutput> {
+    let mut cmd = oxfmt_command(oxfmt);
+    // oxfmt reads stdin implicitly given `--stdin-filepath`; passing `--stdin`
+    // is rejected (#680). Forward an explicit `--config` when the user set one
+    // so stdin formatting matches the rest of the project; otherwise oxfmt
+    // discovers `.oxfmtrc` from cwd on its own.
+    if let Some(c) = config {
+        cmd.arg("-c").arg(c);
+    }
+    cmd.arg("--stdin-filepath").arg(path);
+    if check {
+        cmd.arg("--check");
+    }
+    cmd.stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit());
+    let mut child = cmd.spawn().with_context(|| {
+        format!(
+            "failed to spawn `{}` — is oxfmt installed?",
+            oxfmt.display()
+        )
+    })?;
+    // Feed stdin from its own thread: with stdout captured, a child that starts
+    // writing output before it has consumed all of its input would otherwise
+    // deadlock against us once either pipe's buffer fills.
+    let writer = child.stdin.take().map(|mut stdin| {
+        let source = source.to_owned();
+        std::thread::spawn(move || stdin.write_all(source.as_bytes()))
+    });
+    let out = child.wait_with_output()?;
+    if let Some(writer) = writer {
+        // A child that exited without reading everything is not our error —
+        // its exit code already says what happened.
+        let _ = writer.join();
+    }
+    Ok(OxfmtStdinOutput {
+        code: out.status.code().unwrap_or(1),
+        stdout: out.stdout,
+    })
+}
+
 /// Delegate every non-`.svelte` path to a single `oxfmt` invocation.
 ///
 /// `paths` are the user's directory / file inputs verbatim; a `!**/*.svelte`

@@ -2,20 +2,20 @@
 //! TypeScript types for `svelte/no-unused-props` on cases the syntactic path
 //! cannot handle (`extends`, intersection, nested object props).
 //!
-//! Gated on a discoverable `tsgo` binary (install with
-//! `npm i @typescript/native-preview` at the repo root). Skips with a notice
-//! when none is found, so the suite is a no-op in environments without it.
+//! Requires a discoverable `tsgo` binary; run via `pnpm run test:type-aware-lint`,
+//! which installs one. A missing binary FAILS the test rather than skipping it —
+//! see `resolver::require_tsgo`.
 
 use std::path::{Path, PathBuf};
 
 use rsvelte_lint::config::LintConfig;
 use rsvelte_lint::rule::Severity;
 use rsvelte_lint::rules::no_unused_props;
-use rsvelte_lint_types::{CorsaTypeBackend, resolve_tsgo};
+use rsvelte_lint_types::{CorsaTypeBackend, require_tsgo};
 
-fn tsgo() -> Option<PathBuf> {
+fn tsgo() -> PathBuf {
     // Walk up from this crate to the worktree root, where node_modules lives.
-    resolve_tsgo(Path::new(env!("CARGO_MANIFEST_DIR")))
+    require_tsgo(Path::new(env!("CARGO_MANIFEST_DIR")))
 }
 
 /// Write `source` to a fresh temp dir as `<name>` and lint it with the typed
@@ -51,10 +51,7 @@ fn assert_unused(msgs: &[String], expected: &[&str]) {
 
 #[test]
 fn extends_resolves_inherited_unused() {
-    let Some(tsgo) = tsgo() else {
-        eprintln!("SKIP extends_resolves_inherited_unused: no tsgo binary found");
-        return;
-    };
+    let tsgo = tsgo();
     // Mirrors eslint-plugin-svelte `no-unused-props/invalid/extends-unused`.
     let src = r#"<script lang="ts">
 	interface BaseProps {
@@ -84,10 +81,7 @@ fn extends_resolves_inherited_unused() {
 
 #[test]
 fn intersection_resolves_unused() {
-    let Some(tsgo) = tsgo() else {
-        eprintln!("SKIP intersection_resolves_unused: no tsgo binary found");
-        return;
-    };
+    let tsgo = tsgo();
     // Mirrors `no-unused-props/invalid/intersection-unused`.
     let src = r#"<script lang="ts">
 	type WithId = {
@@ -121,10 +115,7 @@ fn intersection_resolves_unused() {
 
 #[test]
 fn nested_object_prop_unused() {
-    let Some(tsgo) = tsgo() else {
-        eprintln!("SKIP nested_object_prop_unused: no tsgo binary found");
-        return;
-    };
+    let tsgo = tsgo();
     // Mirrors `no-unused-props/invalid/nested-unused`.
     let src = r#"<script lang="ts">
 	interface Props {
@@ -143,10 +134,7 @@ fn nested_object_prop_unused() {
 
 #[test]
 fn fully_used_props_report_nothing() {
-    let Some(tsgo) = tsgo() else {
-        eprintln!("SKIP fully_used_props_report_nothing: no tsgo binary found");
-        return;
-    };
+    let tsgo = tsgo();
     let src = r#"<script lang="ts">
 	interface Base { a: string }
 	interface Props extends Base { b: number }

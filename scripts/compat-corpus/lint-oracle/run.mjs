@@ -49,10 +49,16 @@ const browserGlobals = {
 const args = process.argv.slice(2);
 let rulesPath = null;
 let useStdin = false;
+let bench = false;
+let iterations = 3;
+let warmup = 1;
 const files = [];
 for (let i = 0; i < args.length; i++) {
 	if (args[i] === '--rules') rulesPath = args[++i];
 	else if (args[i] === '--stdin') useStdin = true;
+	else if (args[i] === '--bench') bench = true;
+	else if (args[i] === '--iterations') iterations = Number(args[++i]);
+	else if (args[i] === '--warmup') warmup = Number(args[++i]);
 	else files.push(args[i]);
 }
 
@@ -135,6 +141,38 @@ const eslint = new ESLint({
 		}
 	]
 });
+
+if (bench) {
+	const sources = [];
+	for (const f of targets) {
+		try {
+			sources.push([f, readFileSync(f, 'utf8')]);
+		} catch {
+			// Unreadable file: skipped on this side exactly as the Rust runner
+			// skips it, so both time the same set.
+		}
+	}
+	const pass = async () => {
+		for (const [f, source] of sources) {
+			try {
+				await eslint.lintText(source, { filePath: f, warnIgnored: false });
+			} catch {
+				// A file the parser rejects still costs work on both sides; the
+				// benchmark times work, not correctness.
+			}
+		}
+	};
+	for (let i = 0; i < warmup; i++) await pass();
+	const times = [];
+	for (let i = 0; i < iterations; i++) {
+		const start = performance.now();
+		await pass();
+		times.push(performance.now() - start);
+	}
+	process.stderr.write(`[lint-oracle] benched ${sources.length} files\n`);
+	process.stdout.write(JSON.stringify({ times }));
+	process.exit(0);
+}
 
 // Lint each file via `lintText` with its real path, so the config's
 // extension-based processor/parser selection applies regardless of where the

@@ -7,6 +7,7 @@ members = [
     "crates/rsvelte_fmt",
     "crates/rsvelte_fmt_wasm",
     "crates/rsvelte_formatter",
+    "crates/rsvelte_language_server",
     "crates/rsvelte_lint",
     "crates/rsvelte_lint_bindings",
     "crates/rsvelte_napi",
@@ -43,6 +44,17 @@ strip = "symbols"
 # file can be skipped instead of aborting the entire lint pass. Build the CLI
 # with `--profile dist-lint`.
 [profile.dist-lint]
+inherits = "dist"
+panic = "unwind"
+
+# Distribution profile for the `rsvelte-language-server` binary. Its analysis
+# worker isolates a per-document compiler panic via `catch_unwind` (see
+# `crates/rsvelte_language_server/src/worker.rs`), which only holds when the
+# binary UNWINDS — the shared `release`/`dist` profiles set `panic = "abort"`,
+# turning that isolation into an immediate `SIGABRT` that kills the editor's
+# whole language server. Same reasoning as `dist-lint` above. Build the server
+# with `--profile dist-lsp`.
+[profile.dist-lsp]
 inherits = "dist"
 panic = "unwind"
 

@@ -299,14 +299,6 @@ fn test_normalize_js_arrow_expression_body() {
 }
 
 #[test]
-fn test_detect_indent_level() {
-    assert_eq!(detect_indent_level("\n\tlet x = 1;"), 1);
-    assert_eq!(detect_indent_level("\tlet x = 1;"), 1);
-    assert_eq!(detect_indent_level("let x = 1;"), 0);
-    assert_eq!(detect_indent_level("\n\n\t\tlet x = 1;"), 2);
-}
-
-#[test]
 fn test_find_matching_paren() {
     assert_eq!(find_matching_paren("abc)"), Some(3));
     assert_eq!(find_matching_paren("(a))"), Some(3));
@@ -535,69 +527,6 @@ fn test_wrap_prop_source_reads_skips_nullish_assign() {
         !result.contains("value() ??= 100"),
         "value on LHS of ??= should NOT be wrapped: {}",
         result
-    );
-}
-
-#[test]
-fn test_is_on_left_side_of_assignment_nullish_assign() {
-    let chars: Vec<char> = "value ??= 100".chars().collect();
-    assert!(
-        is_on_left_side_of_assignment(&chars, 0, 5),
-        "value ??= should be detected as assignment"
-    );
-}
-
-#[test]
-fn test_is_on_left_side_of_assignment_logical_and_assign() {
-    let chars: Vec<char> = "value &&= true".chars().collect();
-    assert!(
-        is_on_left_side_of_assignment(&chars, 0, 5),
-        "value &&= should be detected as assignment"
-    );
-}
-
-#[test]
-fn test_is_on_left_side_of_assignment_logical_or_assign() {
-    let chars: Vec<char> = "value ||= false".chars().collect();
-    assert!(
-        is_on_left_side_of_assignment(&chars, 0, 5),
-        "value ||= should be detected as assignment"
-    );
-}
-
-#[test]
-fn test_is_on_left_side_of_assignment_modulo_assign() {
-    let chars: Vec<char> = "value %= 3".chars().collect();
-    assert!(
-        is_on_left_side_of_assignment(&chars, 0, 5),
-        "value %= should be detected as assignment"
-    );
-}
-
-#[test]
-fn test_is_on_left_side_of_assignment_simple_equals() {
-    let chars: Vec<char> = "value = 1".chars().collect();
-    assert!(
-        is_on_left_side_of_assignment(&chars, 0, 5),
-        "value = should be detected as assignment"
-    );
-}
-
-#[test]
-fn test_is_on_left_side_of_assignment_equality_not_assignment() {
-    let chars: Vec<char> = "value == 1".chars().collect();
-    assert!(
-        !is_on_left_side_of_assignment(&chars, 0, 5),
-        "value == should NOT be detected as assignment"
-    );
-}
-
-#[test]
-fn test_is_on_left_side_of_assignment_strict_equality_not_assignment() {
-    let chars: Vec<char> = "value === 1".chars().collect();
-    assert!(
-        !is_on_left_side_of_assignment(&chars, 0, 5),
-        "value === should NOT be detected as assignment"
     );
 }
 

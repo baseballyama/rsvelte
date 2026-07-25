@@ -2198,14 +2198,6 @@ fn build_slot_function(
     ))
 }
 
-/// Public wrapper for visit_slot_children, used by SlotElement visitor.
-pub fn visit_slot_children_pub(
-    children: &[&TemplateNode],
-    context: &mut ComponentContext,
-) -> Vec<JsStatement> {
-    visit_slot_children(children, context)
-}
-
 /// Visit slot children and collect generated statements.
 ///
 /// This function visits each child node in the slot and collects the generated

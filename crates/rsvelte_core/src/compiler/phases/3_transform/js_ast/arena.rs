@@ -90,21 +90,6 @@ impl JsArena {
         }
     }
 
-    /// Get a mutable reference to an expression by handle.
-    ///
-    /// # Safety
-    /// The caller must ensure no shared or mutable references to the same
-    /// expression are live for the duration of the returned borrow.
-    #[inline(always)]
-    #[allow(clippy::mut_from_ref)]
-    pub unsafe fn get_expr_mut(&self, id: ExprId) -> &mut JsExpr {
-        // SAFETY: Enforced by the caller's contract above.
-        unsafe {
-            let vec = &mut *self.exprs.get();
-            vec[id.0 as usize].as_mut()
-        }
-    }
-
     /// Take an expression out of the arena, replacing it with a placeholder.
     /// Useful when you need ownership (e.g., to transform an expression).
     ///
@@ -149,54 +134,6 @@ impl JsArena {
         unsafe {
             let vec = &*self.stmts.get();
             vec[id.0 as usize].as_ref()
-        }
-    }
-
-    /// Get a mutable reference to a statement by handle.
-    ///
-    /// # Safety
-    /// The caller must ensure no shared or mutable references to the same
-    /// statement are live for the duration of the returned borrow.
-    #[inline(always)]
-    #[allow(clippy::mut_from_ref)]
-    pub unsafe fn get_stmt_mut(&self, id: StmtId) -> &mut JsStatement {
-        // SAFETY: Enforced by the caller's contract above.
-        unsafe {
-            let vec = &mut *self.stmts.get();
-            vec[id.0 as usize].as_mut()
-        }
-    }
-
-    /// Take a statement out of the arena, replacing it with Empty.
-    ///
-    /// Takes `&self` for the same reasons as `take_expr`.
-    ///
-    /// # Safety
-    /// The caller must ensure no shared or mutable references to the same
-    /// statement are live while the slot is replaced.
-    #[inline(always)]
-    pub unsafe fn take_stmt(&self, id: StmtId) -> JsStatement {
-        // SAFETY: Enforced by the caller's contract above.
-        unsafe {
-            let vec = &mut *self.stmts.get();
-            std::mem::replace(vec[id.0 as usize].as_mut(), JsStatement::Empty)
-        }
-    }
-}
-
-impl JsArena {
-    /// Clear all stored expressions and statements, keeping the allocated buffer
-    /// for reuse. This is O(n) for dropping stored elements but the next compilation
-    /// benefits from zero allocation (the Vec buffer is already sized).
-    ///
-    /// # Safety
-    /// The caller must ensure no shared or mutable references into this arena
-    /// are live while the arena is cleared.
-    pub unsafe fn reset(&self) {
-        // SAFETY: Enforced by the caller's contract above.
-        unsafe {
-            (*self.exprs.get()).clear();
-            (*self.stmts.get()).clear();
         }
     }
 }
@@ -273,34 +210,6 @@ mod tests {
             arena.get_expr(id),
             JsExpr::Literal(super::super::nodes::JsLiteral::Null)
         ));
-    }
-
-    #[test]
-    fn test_take_stmt() {
-        let arena = JsArena::new();
-        let id = arena.alloc_stmt(JsStatement::Debugger);
-
-        // SAFETY: `id` was just allocated and no reference into its slot is
-        // live here, satisfying `take_stmt`'s no-aliasing contract.
-        let taken = unsafe { arena.take_stmt(id) };
-        assert!(matches!(taken, JsStatement::Debugger));
-        // After take, slot should contain Empty
-        assert!(matches!(arena.get_stmt(id), JsStatement::Empty));
-    }
-
-    #[test]
-    fn test_get_expr_mut() {
-        let arena = JsArena::new();
-        let id = arena.alloc_expr(JsExpr::Identifier(CompactString::new("x")));
-
-        // SAFETY: `id` was just allocated and no other reference into its slot
-        // is live here, satisfying `get_expr_mut`'s no-aliasing contract.
-        *unsafe { arena.get_expr_mut(id) } = JsExpr::Identifier(CompactString::new("y"));
-
-        match arena.get_expr(id) {
-            JsExpr::Identifier(name) => assert_eq!(name.as_str(), "y"),
-            _ => panic!("expected identifier"),
-        }
     }
 
     #[test]

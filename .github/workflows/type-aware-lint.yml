@@ -1,0 +1,98 @@
+name: Type-aware Lint
+
+# Runs the type-aware lint backend suite (crates/rsvelte_lint_types).
+#
+# Separate from the `CI` workflow because that crate is its own Cargo
+# workspace: it path-depends on `submodules/corsa-bind`, whose corsa/tsgo
+# client stack is a heavy build nobody else needs, so the CI shards skip the
+# submodule and never compile the crate. That is also why `ci.yml`'s
+# `cargo fmt --check` / `cargo clippy` do not reach it — this workflow is the
+# only place those run, so it does them itself.
+on:
+  workflow_dispatch:
+  # NOTE: the two `paths` lists must be kept in sync by hand — the GitHub
+  # Actions workflow parser does not support YAML anchors/aliases.
+  push:
+    branches: [main]
+    paths:
+      - 'crates/rsvelte_lint_types/**'
+      - 'crates/rsvelte_lint/**'
+      - 'crates/rsvelte_core/src/svelte2tsx/**'
+      - 'scripts/dev/type-aware-lint/**'
+      - 'scripts/dev/test-type-aware-lint.mjs'
+      - '.github/workflows/type-aware-lint.yml'
+      - '.gitmodules'
+  pull_request:
+    paths:
+      - 'crates/rsvelte_lint_types/**'
+      - 'crates/rsvelte_lint/**'
+      - 'crates/rsvelte_core/src/svelte2tsx/**'
+      - 'scripts/dev/type-aware-lint/**'
+      - 'scripts/dev/test-type-aware-lint.mjs'
+      - '.github/workflows/type-aware-lint.yml'
+      - '.gitmodules'
+  # The suite drives a real tsgo against upstream eslint-plugin-svelte
+  # fixtures, so it can also break without a local change.
+  schedule:
+    - cron: '41 4 * * 2' # Tuesdays 04:41 UTC
+
+permissions:
+  contents: read
+
+concurrency:
+  group: type-aware-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  type-aware-lint:
+    name: Type-aware lint suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Only the two submodules this suite needs, checked out shallow below.
+          submodules: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.97.1
+          components: rustfmt, clippy
+
+      - name: Setup mold linker
+        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+
+      # MUST come before the cache step: rust-cache runs `cargo metadata` to
+      # build its key, and the crate path-depends on corsa-bind. Without the
+      # submodule that fails ("failed to load manifest for dependency
+      # `corsa_client`") and the action silently proceeds with an EMPTY cache
+      # key — the job still goes green while caching nothing.
+      # Both submodules are public, so no credentials are involved.
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1 submodules/corsa-bind submodules/eslint-plugin-svelte
+
+      # Its own workspace ⇒ its own target dir; keyed separately from the CI cache.
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: crates/rsvelte_lint_types
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      # This crate is outside the root workspace, so ci.yml's fmt / clippy jobs
+      # never see it.
+      - name: cargo fmt --check
+        working-directory: crates/rsvelte_lint_types
+        run: cargo fmt --all --check
+
+      - name: cargo clippy
+        working-directory: crates/rsvelte_lint_types
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      # Installs the pinned @typescript/native-preview, verifies the binary
+      # runs, then `cargo test --locked`s the crate. A missing binary FAILS.
+      - name: Run type-aware lint suite
+        run: node scripts/dev/test-type-aware-lint.mjs --locked

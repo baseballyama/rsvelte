@@ -3,16 +3,21 @@
 //! corsa-free oracle skips) through the graph path + real `tsgo`, asserting
 //! `(line, column, message)` parity with the sibling `*-errors.yaml`.
 //!
-//! Gated on a discoverable `tsgo` binary and the `eslint-plugin-svelte`
-//! submodule; no-ops with a notice when either is absent.
+//! Requires a discoverable `tsgo` binary and the `eslint-plugin-svelte`
+//! submodule; FAILS (rather than skipping) when either is absent.
+//! `pnpm run test:type-aware-lint` sets both up.
 
 use std::path::{Path, PathBuf};
 
 use rsvelte_lint::config::LintConfig;
-use rsvelte_lint::line_index::LineIndex;
 use rsvelte_lint::rules::no_unused_props;
-use rsvelte_lint_types::{CorsaTypeBackend, resolve_tsgo};
+use rsvelte_lint_types::{CorsaTypeBackend, require_tsgo};
 use serde::Deserialize;
+
+/// Lower bound on the fixture count, so a moved/renamed upstream directory
+/// surfaces as a failure instead of an empty-but-green run. Upstream had 76 at
+/// eslint-plugin-svelte 32ba9159; the bound only has to catch collapse.
+const MIN_FIXTURES: usize = 60;
 
 #[derive(Debug, Deserialize)]
 struct ExpectedError {
@@ -31,11 +36,16 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn fixture_root() -> Option<PathBuf> {
+fn fixture_root() -> PathBuf {
     let p = repo_root().join(
         "submodules/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props",
     );
-    p.is_dir().then_some(p)
+    assert!(
+        p.is_dir(),
+        "no-unused-props fixtures missing at {p:?} — run \
+         `git submodule update --init --depth 1 submodules/eslint-plugin-svelte`"
+    );
+    p
 }
 
 /// Build a `LintConfig` enabling the rule at `warn` with the fixture's options
@@ -85,7 +95,6 @@ fn run_fixture(input: &Path, tsgo: &Path) -> Vec<(u32, u32, String)> {
     drop(backend);
     let _ = std::fs::remove_dir_all(&dir);
 
-    let li = LineIndex::new(&source);
     let mut out: Vec<(u32, u32, String)> = diags
         .into_iter()
         .filter_map(|d| {
@@ -94,7 +103,6 @@ fn run_fixture(input: &Path, tsgo: &Path) -> Vec<(u32, u32, String)> {
             Some((r.start.line, r.start.column + 1, d.message))
         })
         .collect();
-    let _ = &li;
     out.sort();
     out
 }
@@ -106,7 +114,10 @@ fn expected_for(input: &Path) -> Vec<(u32, u32, String)> {
     let Ok(text) = std::fs::read_to_string(&yaml) else {
         return Vec::new();
     };
-    let errs: Vec<ExpectedError> = serde_yaml::from_str(&text).unwrap_or_default();
+    // Not `unwrap_or_default`: an unparseable expectations file would silently
+    // become "expects nothing" and pass.
+    let errs: Vec<ExpectedError> =
+        serde_yaml::from_str(&text).unwrap_or_else(|e| panic!("malformed {yaml:?}: {e}"));
     let mut out: Vec<(u32, u32, String)> = errs
         .into_iter()
         .map(|e| (e.line, e.column, e.message))
@@ -135,14 +146,8 @@ fn collect_inputs(dir: &Path) -> Vec<PathBuf> {
 
 #[test]
 fn no_unused_props_typed_oracle() {
-    let Some(tsgo) = resolve_tsgo(Path::new(env!("CARGO_MANIFEST_DIR"))) else {
-        eprintln!("SKIP no_unused_props_typed_oracle: no tsgo binary found");
-        return;
-    };
-    let Some(root) = fixture_root() else {
-        eprintln!("SKIP no_unused_props_typed_oracle: eslint-plugin-svelte submodule absent");
-        return;
-    };
+    let tsgo = require_tsgo(Path::new(env!("CARGO_MANIFEST_DIR")));
+    let root = fixture_root();
 
     let mut failures = Vec::new();
     let mut checked = 0;
@@ -160,6 +165,11 @@ fn no_unused_props_typed_oracle() {
         }
     }
 
+    assert!(
+        checked >= MIN_FIXTURES,
+        "typed oracle ran only {checked} fixtures (expected >= {MIN_FIXTURES}) \
+         — upstream directory layout changed?"
+    );
     assert!(
         failures.is_empty(),
         "{}/{} no-unused-props fixtures diverged:\n{}",

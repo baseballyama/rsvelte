@@ -6,17 +6,18 @@
 //! Uses a locally-aliased branded type named `ResolvedPathname` so the test is
 //! self-contained (no `$app/types` ambient package required); the rule's
 //! `goto`/`<a>` detection is syntactic and works regardless of `$app/*`
-//! resolving. Gated on a discoverable `tsgo` binary.
+//! resolving. Requires a discoverable `tsgo` binary — a missing one FAILS the
+//! test rather than skipping it (`pnpm run test:type-aware-lint` installs one).
 
 use std::path::{Path, PathBuf};
 
 use rsvelte_lint::config::LintConfig;
 use rsvelte_lint::rule::Severity;
 use rsvelte_lint::rules::no_navigation_without_resolve as nav;
-use rsvelte_lint_types::{CorsaTypeBackend, resolve_tsgo};
+use rsvelte_lint_types::{CorsaTypeBackend, require_tsgo};
 
-fn tsgo() -> Option<PathBuf> {
-    resolve_tsgo(Path::new(env!("CARGO_MANIFEST_DIR")))
+fn tsgo() -> PathBuf {
+    require_tsgo(Path::new(env!("CARGO_MANIFEST_DIR")))
 }
 
 fn typed_messages(name: &str, source: &str, tsgo: &Path) -> Vec<String> {
@@ -42,10 +43,7 @@ fn typed_messages(name: &str, source: &str, tsgo: &Path) -> Vec<String> {
 
 #[test]
 fn goto_with_resolved_pathname_is_allowed() {
-    let Some(tsgo) = tsgo() else {
-        eprintln!("SKIP goto_with_resolved_pathname_is_allowed: no tsgo binary found");
-        return;
-    };
+    let tsgo = tsgo();
     let src = r#"<script lang="ts">
 	import { goto } from '$app/navigation';
 	type ResolvedPathname = string & { __brand: 'resolved' };
@@ -62,10 +60,7 @@ fn goto_with_resolved_pathname_is_allowed() {
 
 #[test]
 fn goto_with_plain_string_is_reported() {
-    let Some(tsgo) = tsgo() else {
-        eprintln!("SKIP goto_with_plain_string_is_reported: no tsgo binary found");
-        return;
-    };
+    let tsgo = tsgo();
     // Control: a plain-string target is NOT allowed and must be reported, even
     // through the type-aware path.
     let src = r#"<script lang="ts">
@@ -84,10 +79,7 @@ fn goto_with_plain_string_is_reported() {
 
 #[test]
 fn link_with_resolved_pathname_is_allowed() {
-    let Some(tsgo) = tsgo() else {
-        eprintln!("SKIP link_with_resolved_pathname_is_allowed: no tsgo binary found");
-        return;
-    };
+    let tsgo = tsgo();
     // Exercises forward-mapping of a TEMPLATE expression (`<a {href}>`).
     let src = r#"<script lang="ts">
 	type ResolvedPathname = string & { __brand: 'resolved' };
@@ -106,10 +98,7 @@ fn link_with_resolved_pathname_is_allowed() {
 
 #[test]
 fn link_with_nullish_href_is_allowed() {
-    let Some(tsgo) = tsgo() else {
-        eprintln!("SKIP link_with_nullish_href_is_allowed: no tsgo binary found");
-        return;
-    };
+    let tsgo = tsgo();
     // Mirrors `no-navigation-without-resolve/valid/link-nullish02`: a `null`-typed
     // href on a link is allowed (links permit nullish).
     let src = r#"<script lang="ts">
