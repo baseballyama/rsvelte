@@ -2681,19 +2681,35 @@ fn attach_param_type_annotation<'a>(
     let Some(type_ann) = &param.type_annotation else {
         return expr;
     };
-    let mut json = expr.as_json().clone();
-    if let Some(obj) = json.as_object_mut() {
-        let start = obj.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-        let end = adjusted_offset + type_ann.span.end as usize;
-        obj.insert("end".to_string(), Value::Number((end as i64).into()));
-        if let Some(loc) = create_loc(start, end, line_offsets) {
-            obj.insert("loc".to_string(), loc);
+    let annotation =
+        convert_type_annotation_adjusted(arena, type_ann, adjusted_offset, line_offsets);
+    let annotated_end = adjusted_offset + type_ann.span.end as usize;
+    let mut node = expr_to_node(expr);
+    let (start, end, loc, type_annotation) = match &mut node {
+        JsNode::ObjectPattern {
+            start,
+            end,
+            loc,
+            type_annotation,
+            ..
         }
-        let type_ann_obj =
-            convert_type_annotation_adjusted(arena, type_ann, adjusted_offset, line_offsets);
-        obj.insert("typeAnnotation".to_string(), type_ann_obj);
+        | JsNode::ArrayPattern {
+            start,
+            end,
+            loc,
+            type_annotation,
+            ..
+        } => (start, end, loc, type_annotation),
+        // The two callers only pass object/array patterns; anything else keeps
+        // its spans rather than silently dropping the annotation.
+        _ => return Expression::from_node(node),
+    };
+    *end = annotated_end as u32;
+    if let Some(new_loc) = create_typed_loc(*start as usize, annotated_end, line_offsets) {
+        *loc = Some(new_loc);
     }
-    Expression::from_json(json)
+    *type_annotation = Some(Box::new(annotation));
+    Expression::from_node(node)
 }
 
 /// Convert oxc ObjectPattern to our Expression format (for function parameters).

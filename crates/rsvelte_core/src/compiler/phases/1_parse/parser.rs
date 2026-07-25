@@ -60,6 +60,10 @@ pub struct Parser<'a> {
     pub(crate) bytes: &'a [u8],
     /// Current byte position in the source.
     pub(crate) index: usize,
+    /// Index just past the last non-whitespace char. Nothing at or after it can
+    /// be anything but trailing whitespace, so `remaining_is_whitespace_only`
+    /// rejects every earlier position without scanning.
+    pub(crate) content_end: usize,
     /// Parser options.
     pub(crate) options: ParseOptions,
     /// Stack of open elements/blocks for validation.
@@ -205,6 +209,7 @@ impl<'a> Parser<'a> {
             source,
             bytes: source.as_bytes(),
             index: 0,
+            content_end: source.trim_end().len(),
             options,
             stack,
             line_offsets,
@@ -231,6 +236,7 @@ impl<'a> Parser<'a> {
         self.source = source;
         self.bytes = source.as_bytes();
         self.index = 0;
+        self.content_end = source.trim_end().len();
         self.options = options;
 
         self.stack.clear();

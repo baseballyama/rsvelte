@@ -12,8 +12,8 @@
 use std::borrow::Cow;
 
 use compact_str::CompactString;
-use memchr::memchr;
 use memchr::memmem;
+use memchr::{memchr, memchr3};
 use smallvec::SmallVec;
 
 use crate::ast::js::Expression;
@@ -2364,19 +2364,34 @@ impl<'a> Parser<'a> {
             } else {
                 // Text content - use byte-level scanning for speed
                 let text_start = self.index;
+                let mut entity_before_stop = None;
                 if let Some(q) = quote {
-                    // Quoted: scan for '{' or closing quote using memchr
-                    while self.index < self.bytes.len() {
-                        let b = self.bytes[self.index];
-                        if b == b'{' || b == q {
-                            break;
-                        }
-                        if b < 0x80 {
-                            self.index += 1;
-                        } else {
-                            self.advance();
+                    // Quoted: the terminators are ASCII and no UTF-8
+                    // continuation byte can equal one, so a raw byte search
+                    // stops exactly where the char-wise scan did. Reaching a
+                    // terminator also proves no '&' preceded it, so the
+                    // no-entity majority needs one pass instead of two.
+                    let rest = &self.bytes[self.index..];
+                    let mut offset = 0;
+                    let mut seen = false;
+                    loop {
+                        match memchr3(b'{', q, b'&', &rest[offset..]) {
+                            Some(hit) if rest[offset + hit] == b'&' => {
+                                seen = true;
+                                offset += hit + 1;
+                            }
+                            Some(hit) => {
+                                offset += hit;
+                                break;
+                            }
+                            None => {
+                                offset = rest.len();
+                                break;
+                            }
                         }
                     }
+                    self.index += offset;
+                    entity_before_stop = Some(seen);
                 } else {
                     // Unquoted: scan for '{', whitespace, '>', or '/>'
                     while self.index < self.bytes.len() {
@@ -2413,7 +2428,9 @@ impl<'a> Parser<'a> {
                 if text_end > text_start {
                     let raw = &self.source[text_start..text_end];
                     // Fast path: skip entity decoding when no '&' present
-                    let has_entity = memchr(b'&', &self.bytes[text_start..text_end]).is_some();
+                    let has_entity = entity_before_stop.unwrap_or_else(|| {
+                        memchr(b'&', &self.bytes[text_start..text_end]).is_some()
+                    });
                     if has_entity {
                         let data = decode_html_entities(raw, true);
                         parts.push(AttributeValuePart::Text(Text {
