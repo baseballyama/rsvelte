@@ -39,7 +39,7 @@
 
 use super::arena::{ExprId, JsArena};
 use super::nodes::*;
-use oxc_allocator::{ArenaBox, ArenaVec};
+use oxc_allocator::{ArenaBox, ArenaVec, ReplaceWith};
 use oxc_ast::AstBuilder;
 use oxc_ast::ast::*;
 use oxc_span::{GetSpanMut, SPAN, Span};
@@ -1075,11 +1075,13 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         self.take_chunk_region(None);
         for stmt in stmts {
             if let Statement::ExpressionStatement(es) = stmt {
-                let mut e = es.unbox().expression;
-                while let Expression::ParenthesizedExpression(p) = e {
-                    e = p.unbox().expression;
-                }
-                return Some(e);
+                let e = es.unbox().expression;
+                // Strip exactly ONE layer — the wrapper added above. Any further
+                // `ParenthesizedExpression` belongs to the chunk text itself.
+                return Some(match e {
+                    Expression::ParenthesizedExpression(p) => p.unbox().expression,
+                    other => other,
+                });
             }
         }
         None
@@ -1088,7 +1090,58 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     /// Parse a raw JS statement source string into a vec of oxc [`Statement`]s
     /// (`Raw` may hold several statements). Returns `None` on a parse error.
     fn parse_raw_statements(&self, code: &str) -> Option<Vec<Statement<'a>>> {
-        self.parse_chunk(code.trim())
+        let mut stmts = self.parse_chunk(code.trim())?;
+        self.restore_legacy_pre_effect_deps(&mut stmts);
+        Some(stmts)
+    }
+
+    /// Upstream builds the `$.legacy_pre_effect` dependency thunk as
+    /// `b.thunk(b.sequence(deps))`, and esrap prints a `SequenceExpression` with
+    /// parentheses even for a single element — so a one-dependency thunk prints
+    /// as `() => (dep)`. Re-parsing that generated text yields a
+    /// `ParenthesizedExpression`, which the printer drops (as esrap must, since
+    /// acorn elides source parens); rebuild the sequence so the parens survive.
+    fn restore_legacy_pre_effect_deps(&self, stmts: &mut [Statement<'a>]) {
+        for stmt in stmts {
+            let Statement::ExpressionStatement(es) = stmt else {
+                continue;
+            };
+            let Expression::CallExpression(call) = &mut es.expression else {
+                continue;
+            };
+            if !is_dollar_call(&call.callee, "legacy_pre_effect") {
+                continue;
+            }
+            let Some(Argument::ArrowFunctionExpression(arrow)) = call.arguments.first_mut() else {
+                continue;
+            };
+            if !arrow.expression {
+                continue;
+            }
+            let Some(Statement::ExpressionStatement(body)) = arrow.body.statements.first_mut()
+            else {
+                continue;
+            };
+            // A multi-dependency thunk re-parses as `Paren(Sequence)`, which the
+            // printer already prints with the sequence's own parens.
+            let single = matches!(&body.expression, Expression::ParenthesizedExpression(p)
+                if !matches!(p.expression, Expression::SequenceExpression(_)));
+            if !single {
+                continue;
+            }
+            // `SPAN` mirrors upstream, where this node is builder-made and so
+            // carries no `loc` for the printer to place comments against.
+            body.expression.replace_with(|e| {
+                let Expression::ParenthesizedExpression(p) = e else {
+                    unreachable!()
+                };
+                Expression::SequenceExpression(SequenceExpression::boxed(
+                    SPAN,
+                    ArenaVec::from_value_in(p.unbox().expression, &self.ab),
+                    &self.ab,
+                ))
+            });
+        }
     }
 
     /// Parse one opaque chunk of generated JS. A comment-free chunk parses in
@@ -1946,6 +1999,15 @@ fn update_op(op: JsUpdateOp) -> UpdateOperator {
         JsUpdateOp::Increment => UpdateOperator::Increment,
         JsUpdateOp::Decrement => UpdateOperator::Decrement,
     }
+}
+
+/// Whether `callee` is `$.<name>` — the runtime-namespace call shape the client
+/// codegen emits.
+fn is_dollar_call(callee: &Expression, name: &str) -> bool {
+    let Expression::StaticMemberExpression(m) = callee else {
+        return false;
+    };
+    matches!(&m.object, Expression::Identifier(id) if id.name == "$") && m.property.name == name
 }
 
 fn unary_op(op: JsUnaryOp) -> UnaryOperator {
