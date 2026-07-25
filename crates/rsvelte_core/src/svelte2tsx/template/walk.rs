@@ -7,19 +7,18 @@ use super::nodes::comment::handle_comment;
 use super::nodes::const_tag::handle_const_tag;
 use super::nodes::debug_tag::handle_debug_tag;
 use super::nodes::declaration_tag::handle_declaration_tag;
+use super::nodes::dynamic_element::handle_svelte_dynamic_element;
 use super::nodes::each_block::handle_each_block;
+use super::nodes::element::{handle_regular_element, handle_title_element};
 use super::nodes::if_else_block::handle_if_block;
 use super::nodes::key_block::handle_key_block;
 use super::nodes::mustache_tag::handle_expression_tag;
 use super::nodes::raw_mustache_tag::handle_html_tag;
 use super::nodes::render_tag::handle_render_tag;
 use super::nodes::snippet_block::handle_snippet_block;
+use super::nodes::special_element::handle_svelte_special_element;
 use super::nodes::text::handle_text;
-use super::{
-    handle_component, handle_regular_element, handle_slot_element, handle_svelte_component,
-    handle_svelte_dynamic_element, handle_svelte_self, handle_svelte_special_element,
-    handle_title_element,
-};
+use super::{handle_component, handle_slot_element, handle_svelte_component, handle_svelte_self};
 use crate::ast::template::{Fragment, TemplateNode};
 use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions;
