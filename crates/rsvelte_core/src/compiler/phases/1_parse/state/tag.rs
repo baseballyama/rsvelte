@@ -1946,6 +1946,18 @@ impl<'a> Parser<'a> {
                 let trimmed = expr_content.trim_ws();
                 let expression = self.parse_js_expression_lenient(trimmed, expr_start);
 
+                // Upstream rejects anything but a call (optionally chained) here:
+                // `new foo()` and `foo` are parse errors, `foo?.()` is not.
+                if !is_render_tag_call_expression(&self.arena, &expression) {
+                    let err_start = expression.start().map(|s| s as usize).unwrap_or(expr_start);
+                    let err_end = expression.end().map(|e| e as usize).unwrap_or(end);
+                    return Err(crate::error::ParseError::svelte(
+                        "render_tag_invalid_expression",
+                        "`{@render ...}` tags can only contain call expressions",
+                        (err_start, err_end),
+                    ));
+                }
+
                 Ok(Some(TemplateNode::RenderTag(Box::new(RenderTag {
                     start: start as u32,
                     end: self.index as u32,
@@ -2455,14 +2467,6 @@ impl<'a> Parser<'a> {
     }
 }
 
-/// Strip a TypeScript type annotation from a pattern string.
-///
-/// For simple identifiers: `area: number` -> `area`
-/// For destructuring: `{ x, y }: Point` -> `{ x, y }`
-///
-/// This handles nested braces/brackets so that colons inside destructuring
-/// patterns (like `{ x: aliasX }`) are not mistakenly treated as type
-/// annotations.
 /// Whether `s` contains a `//` or `/*` comment opener. A `/` inside a string or
 /// regex can produce a false positive, which only costs an eager parse.
 fn contains_js_comment(s: &str) -> bool {
@@ -2475,6 +2479,28 @@ fn contains_js_comment(s: &str) -> bool {
         }
     }
     false
+}
+
+/// Whether a `{@render ...}` expression is a call, optionally optional-chained,
+/// mirroring upstream's `1-parse/state/tag.js` check.
+fn is_render_tag_call_expression(arena: &crate::ast::arena::ParseArena, expr: &Expression) -> bool {
+    let Some(node) = expr.try_as_node_ref() else {
+        // A `Lazy` expression is not resolved yet; leave it to analysis.
+        return true;
+    };
+    match node {
+        JsNode::CallExpression { .. } => true,
+        JsNode::ChainExpression { expression, .. } => {
+            matches!(
+                arena.get_js_node(*expression),
+                JsNode::CallExpression { .. }
+            )
+        }
+        // The empty-identifier sentinel means the JS itself failed to parse;
+        // reporting it as an invalid render tag would mask that.
+        JsNode::Identifier { name, .. } => name.is_empty(),
+        _ => false,
+    }
 }
 
 /// Find the byte offset of the first top-level assignment `=` in a declaration
