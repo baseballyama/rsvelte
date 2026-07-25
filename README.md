@@ -149,7 +149,7 @@ println!("{}", result.js.code);
 
 The Rust API honours **every** compile option, including `css_hash` and `warning_filter` as real closures.
 
-For everything else there's a stable **C ABI** ([`crates/rsvelte_capi`](crates/rsvelte_capi)): one shared library + one header, JSON in / JSON out, with prebuilt binaries on [GitHub Releases](https://github.com/baseballyama/rsvelte/releases) (`capi-vX.Y.Z` tags) and ready-to-run examples for C, Go, Python, Ruby, PHP, Zig, and Java.
+For everything else there's a stable **C ABI** ([`crates/rsvelte_capi`](crates/rsvelte_capi)): one shared library + one header, JSON in / JSON out (plus optional `cssHash` / `warningFilter` callbacks), with prebuilt binaries on [GitHub Releases](https://github.com/baseballyama/rsvelte/releases) (`capi-vX.Y.Z` tags) and ready-to-run examples for C, Go, Python, Ruby, PHP, Zig, and Java.
 
 ## Packages
 
@@ -170,20 +170,20 @@ All npm packages ship under the `@rsvelte` scope.
 
 ## Performance
 
-Multi-threaded rsvelte vs. the official JavaScript tool, same machine, same corpus (3,404 real `.svelte` files; Apple M4 Pro, 12-core; 10 iterations after 3 warmup):
+Multi-threaded rsvelte vs. the official JavaScript tool, same machine, same corpus (3,412 real `.svelte` files; Apple M1 Pro, 10-core; 10 iterations after 3 warmup):
 
 | Task | JS baseline | Rust (1 thread) | Rust (multi) | Multi vs JS |
 |---|---:|---:|---:|---:|
-| Compile — client (full pipeline) | 519.5 ms | 187.6 ms | 25.5 ms | **20.4×** |
-| Compile — server (SSR) | 451.5 ms | 106.3 ms | 15.7 ms | **28.8×** |
-| Parse only | 127.2 ms | 7.3 ms | 1.7 ms | **75.7×** |
-| `svelte2tsx` | 206.0 ms | 76.3 ms | 11.4 ms | **18.1×** |
-| Format (vs prettier-plugin-svelte) | 2,320.6 ms | 99.5 ms | 23.0 ms | **101.0×** |
-| `svelte-check` (500-file workspace) | 828.5 ms | 44.7 ms | 14.7 ms | **56.5×** |
+| Compile — client (full pipeline) | 750.8 ms | 245.2 ms | 34.9 ms | **21.5×** |
+| Compile — server (SSR) | 600.1 ms | 138.7 ms | 20.6 ms | **29.2×** |
+| Parse only | 173.9 ms | 9.3 ms | 2.9 ms | **60.5×** |
+| `svelte2tsx` | 288.5 ms | 95.1 ms | 13.3 ms | **21.7×** |
+| Format (vs prettier-plugin-svelte) | 3,060.0 ms | 79.1 ms | 15.1 ms | **202.2×** |
+| `svelte-check` (500-file workspace) | 1,105.7 ms | 39.3 ms | 13.3 ms | **82.9×** |
 
-The corpus is Svelte's own test suite, restricted to the 3,404 of 3,857 files the official compiler
+The corpus is Svelte's own test suite, restricted to the 3,412 of 3,869 files the official compiler
 accepts under the benchmark's options — otherwise the numbers would partly measure how fast each
-compiler throws. Of the 453 excluded, 286 are valid sources that merely need `experimental.async`
+compiler throws. Of the 457 excluded, 290 are valid sources that merely need `experimental.async`
 (which the benchmark does not enable) and 167 are deliberately invalid error-case fixtures.
 
 Because the corpus is Svelte's test suite, files are small (~236 bytes on average) and the numbers
@@ -206,27 +206,29 @@ What "in-scope" excludes:
 
 ### Verified against real-world code, not just fixtures
 
-On top of the fixture suite, a continuously growing **output-equality corpus** compiles ~12,000 units of real Svelte source — every `.svelte` / `.svelte.(js|ts)` file and markdown code block from [32 pinned repositories](scripts/compat-corpus/corpus-sources.json), including bits-ui, shadcn-svelte, melt-ui, and flowbite-svelte — with both the official tool and rsvelte, and asserts the outputs match:
+On top of the fixture suite, a continuously growing **output-equality corpus** compiles ~13,200 units of real Svelte source — every `.svelte` / `.svelte.(js|ts)` file and markdown code block from [32 pinned repositories](scripts/compat-corpus/corpus-sources.json), including bits-ui, shadcn-svelte, melt-ui, and flowbite-svelte — with both the official tool and rsvelte, and asserts the outputs match:
 
-| Track | Compared against | Known divergences |
-|---|---|---:|
-| Compiler (CSR + SSR) | `svelte/compiler` | **8** client / **0** server (~99.9% parity) |
-| `svelte2tsx` | official `svelte2tsx` | **0** |
-| Formatter | `oxfmt` + `prettier-plugin-svelte`, byte-for-byte | **46** |
-| Linter | [`eslint-plugin-svelte`](https://github.com/sveltejs/eslint-plugin-svelte) (compared rules) | **102** |
+| Track | Compared against | Units compared | Known divergences |
+|---|---|---:|---:|
+| Compiler (CSR + SSR) | `svelte/compiler` | 13,203 | **0** client / **0** server (full parity) |
+| `svelte2tsx` | official `svelte2tsx` | 12,840 | **0** |
+| Formatter | `oxfmt` + `prettier-plugin-svelte`, byte-for-byte | 12,648 | **16** |
+| Linter | [`eslint-plugin-svelte`](https://github.com/sveltejs/eslint-plugin-svelte) (compared rules) | 5,916 | **80** |
 
-Each count is a CI **ratchet**: the baselines in [`compat/`](compat) may only shrink, so a new divergence turns CI red and parity can only improve. Normalization (formatting, blank lines) runs on the comparison side only — never inside the compiler — so real differences can't hide. Details: [`scripts/compat-corpus/README.md`](scripts/compat-corpus/README.md).
+Each count is a CI **ratchet**: the baselines in [`compatibility/`](compatibility) may only shrink, so a new divergence turns CI red and parity can only improve. Normalization (formatting, blank lines) runs on the comparison side only — never inside the compiler — so real differences can't hide. Details: [`scripts/compat-corpus/README.md`](scripts/compat-corpus/README.md).
 
 ### Compiler option compatibility
 
-The drop-in JS surface ([`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native), which the Vite plugin uses) and the C ABI accept the full `svelte/compiler` options shape, but **function-valued options can't cross the language boundary** — they are accepted (keeping the TypeScript types drop-in) and silently ignored:
+Every binding accepts the full `svelte/compiler` options shape, **including the function-valued options** — `customElement` / `css` / `runes` are resolved at the boundary, and `cssHash` / `warningFilter` are bridged back into the compiler as real callbacks. The one restriction left is where a dynamic `cssHash` can run:
 
-| Option | Workaround |
-|---|---|
-| `cssHash(...) => string` | Falls back to upstream's default `svelte-<hash>` scheme. To force a specific value, pass the rsvelte-specific `cssHashOverride: '<hash>'`. |
-| `warningFilter(warning) => boolean` | All warnings are returned; filter `result.warnings` yourself. |
+| Surface | `cssHash(...) => string` | `warningFilter(warning) => boolean` |
+|---|---|---|
+| Rust API | ✅ closure | ✅ closure |
+| wasm [`@rsvelte/compiler`](apps/npm/compiler) | ✅ | ✅ |
+| C ABI ([`rsvelte_capi`](crates/rsvelte_capi)) | ✅ `rsvelte_compile_with_callbacks` (fn pointer + userdata) | ✅ same entry point |
+| NAPI ([`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native)) | ✅ on `compileAsync`; `compile` / `compileBatch` throw a directing error (no JS event loop to service the callback) — a constant hash can use `cssHashOverride: '<hash>'` | ✅ every path |
 
-Every other option matches upstream exactly. The Rust API has no such restriction, and the wasm `@rsvelte/compiler` is unaffected — it exposes a smaller fixed surface with no options object at all.
+Every other option matches upstream exactly.
 
 ## Architecture
 
