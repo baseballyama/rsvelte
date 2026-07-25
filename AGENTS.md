@@ -28,7 +28,7 @@ Upstream reference repos live under `submodules/`:
 submodules/
 ├── svelte/                  # Svelte 5 compiler (mirror target)
 ├── language-tools/          # svelte2tsx, language-server, svelte-check, typescript-plugin, svelte-vscode
-└── typescript-go/           # tsgo — type-check backend for Wave 2 svelte-check
+└── typescript-go/           # tsgo — type-check backend for svelte-check (CLI) and the LSP (server mode)
 ```
 
 The `@rsvelte/vite-plugin-svelte` Vite plugin (a fork of `@sveltejs/vite-plugin-svelte`)
@@ -193,7 +193,21 @@ absent. **Hard gate, no baseline tolerance:** any divergence fails CI.
 | 1 | svelte2tsx | ✅ 253/253, wired into the compatibility report |
 | 2 | svelte-check | ✅ v1.0 — walker + overlay + tsgo + incremental cache + watch + parallel compile + hires source maps + SvelteKit kit-file augmentation; reads diagnostic-relevant `compilerOptions` from `svelte.config.*` and `vite.config.*` |
 | 3 | vite-plugin-svelte | 🟢 v1.0 — Rust NAPI bindings (`hmr_diff` / `resolve_id` / `preprocess`) + `@rsvelte/vite-plugin-svelte` shim at `apps/npm/vite-plugin-svelte`; supports Vite 6/7/8 |
-| 4 | svelte-language-server | ⛔ Deferred — CLI type checking is covered by svelte-check; LSP waits on tsgo `tsserver` mode upstream |
+| 4 | svelte-language-server | 🚧 In progress — target is a full replacement for `svelte-language-server` + `svelte-vscode`, not a companion |
+
+Wave 4 architecture (decided; tsgo ships an LSP server as of TypeScript 7, so the earlier
+"waits on tsgo `tsserver` mode" blocker no longer applies):
+
+- The server is a **Rust binary** (`crates/rsvelte_language_server`) calling `rsvelte_core`
+  directly. `@rsvelte/language-server` becomes a thin launcher — the JS boundary is dropped
+  because `forward_map`, source maps and lint `Fix`/`Suggestion` data never crossed it.
+- **TypeScript features proxy a child tsgo LSP** over an in-memory `.svelte` → virtual `.tsx`
+  overlay, reusing `svelte_check/{overlay,mapper,kit_file}.rs`. tsgo has no plugin API, so the
+  server owns `.ts`/`.js` documents too instead of porting upstream's `typescript-plugin`.
+- **HTML/CSS language features are implemented natively in Rust** (vendored MDN data), not
+  delegated to `vscode-{html,css}-languageservice`.
+- Ships its own TextMate grammar / language definition and accepts upstream `svelte.*`
+  settings, so users replace the official extension rather than running both.
 
 `rsvelte_lint` (native Svelte linter: validator/a11y wrap + a native port of
 `eslint-plugin-svelte`'s rules, `crates/rsvelte_lint`) ships as its own npm package,
