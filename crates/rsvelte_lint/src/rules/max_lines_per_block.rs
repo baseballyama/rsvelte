@@ -264,9 +264,12 @@ impl Rule for MaxLinesPerBlock {
         let skip_blank = opt_bool(opts, "skipBlankLines");
         let skip_comments = opt_bool(opts, "skipComments");
 
-        let Some(json) = serialize_root(root) else {
+        // Shared with the other rules that walk the template (serializing the
+        // whole root is one of the most expensive things a lint pass does).
+        let json = ctx.root_json(root);
+        if json.is_null() {
             return;
-        };
+        }
         let span = |key: &str| -> Option<(u32, u32)> {
             let n = json.get(key).filter(|v| !v.is_null())?;
             Some((
@@ -382,8 +385,4 @@ fn first_template_node(json: &Value) -> Option<(u32, u32)> {
         }
     }
     None
-}
-
-fn serialize_root(root: &Root) -> Option<Value> {
-    rsvelte_core::ast::arena::with_serialize_arena(&root.arena, || serde_json::to_value(root).ok())
 }

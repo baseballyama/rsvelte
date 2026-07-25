@@ -7,9 +7,13 @@ mod common;
 use std::fs;
 use std::path::Path;
 
-use common::get_svelte_test_samples;
+use common::{FixtureCoverage, SkipReason, get_svelte_test_samples, sample_name};
 use rsvelte_core::compiler::print::print_with_source;
 use rsvelte_core::{ParseOptions, parse};
+
+/// Grow-only fixture floor, measured against the pinned Svelte submodule: 44
+/// samples minus the one on `PRINT_SKIP_NAMES`. Never lower it.
+const MIN_PRINT_FIXTURES: usize = 43;
 
 /// A Print test fixture.
 #[allow(dead_code)]
@@ -25,18 +29,24 @@ fn get_print_samples() -> Vec<std::path::PathBuf> {
 }
 
 /// Load a Print test fixture from Svelte test suite.
-fn load_print_fixture(sample_dir: &Path) -> Option<PrintFixture> {
-    let name = sample_dir.file_name()?.to_str()?.to_string();
+fn load_print_fixture(sample_dir: &Path) -> Result<PrintFixture, SkipReason> {
+    let name = sample_name(sample_dir).to_string();
 
     // Load input from Svelte test suite
     let input_path = sample_dir.join("input.svelte");
-    let input = fs::read_to_string(&input_path).ok()?;
+    let input =
+        fs::read_to_string(&input_path).map_err(|_| SkipReason::MissingInput("input.svelte"))?;
 
     // Load expected output from Svelte test suite
     let output_path = sample_dir.join("output.svelte");
-    let expected_output = fs::read_to_string(&output_path).ok()?;
+    let expected_output =
+        fs::read_to_string(&output_path).map_err(|_| SkipReason::MissingInput("output.svelte"))?;
 
-    Some(PrintFixture {
+    if PRINT_SKIP_NAMES.contains(&name.as_str()) {
+        return Err(SkipReason::Justified);
+    }
+
+    Ok(PrintFixture {
         name,
         input,
         expected_output,
@@ -141,15 +151,18 @@ const PRINT_SKIP_NAMES: &[&str] = &[
 fn test_print() {
     let samples = get_print_samples();
 
-    if samples.is_empty() {
-        panic!("No print fixtures found. Run `npm run generate-fixtures` first.");
+    let mut coverage = FixtureCoverage::new("print", samples.len());
+    let mut fixtures: Vec<PrintFixture> = Vec::new();
+    for sample_dir in &samples {
+        match load_print_fixture(sample_dir.as_path()) {
+            Ok(fixture) => {
+                coverage.ran();
+                fixtures.push(fixture);
+            }
+            Err(reason) => coverage.skipped(sample_name(sample_dir), reason),
+        }
     }
-
-    let fixtures: Vec<PrintFixture> = samples
-        .iter()
-        .filter_map(|sample_dir| load_print_fixture(sample_dir.as_path()))
-        .filter(|f| !PRINT_SKIP_NAMES.contains(&f.name.as_str()))
-        .collect();
+    coverage.assert(MIN_PRINT_FIXTURES);
 
     println!("Running {} print tests...", fixtures.len());
     let results: Vec<TestResult> = fixtures

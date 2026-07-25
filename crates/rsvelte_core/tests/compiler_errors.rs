@@ -9,12 +9,16 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 // use rayon::prelude::*;  // Disabled for sequential execution
-use common::get_svelte_test_samples;
+use common::{FixtureCoverage, SkipReason, get_svelte_test_samples, sample_name};
 use rsvelte_core::{
     CompileOptions, ExperimentalOptions, GenerateMode, ModuleCompileOptions, compile,
     compile_module,
 };
 use serde::Deserialize;
+
+/// Grow-only fixture floor, measured against the pinned Svelte submodule: all
+/// 145 compiler-error samples are runnable. Never lower it.
+const MIN_COMPILER_ERROR_FIXTURES: usize = 145;
 
 /// Get all compiler-errors test samples.
 fn get_compiler_error_samples() -> Vec<PathBuf> {
@@ -159,27 +163,37 @@ fn extract_position(content: &str) -> Option<[u32; 2]> {
 }
 
 /// Load a compiler error test fixture.
-fn load_error_fixture(sample_dir: &Path) -> Option<ErrorFixture> {
+fn load_error_fixture(sample_dir: &Path) -> Result<ErrorFixture, SkipReason> {
     let config_path = sample_dir.join("_config.js");
     let svelte_path = sample_dir.join("main.svelte");
     let module_path = sample_dir.join("main.svelte.js");
 
     // Read and parse config
-    let config_content = fs::read_to_string(&config_path).ok()?;
-    let config = parse_config(&config_content)?;
+    let config_content =
+        fs::read_to_string(&config_path).map_err(|_| SkipReason::MissingInput("_config.js"))?;
+    let config =
+        parse_config(&config_content).ok_or(SkipReason::MissingInput("parsable _config.js"))?;
 
     // Determine input type and read input
     let (input, input_type) = if svelte_path.exists() {
-        (fs::read_to_string(&svelte_path).ok()?, InputType::Svelte)
+        (
+            fs::read_to_string(&svelte_path)
+                .map_err(|_| SkipReason::MissingInput("readable main.svelte"))?,
+            InputType::Svelte,
+        )
     } else if module_path.exists() {
-        (fs::read_to_string(&module_path).ok()?, InputType::Module)
+        (
+            fs::read_to_string(&module_path)
+                .map_err(|_| SkipReason::MissingInput("readable main.svelte.js"))?,
+            InputType::Module,
+        )
     } else {
-        return None;
+        return Err(SkipReason::MissingInput("main.svelte / main.svelte.js"));
     };
 
-    let name = sample_dir.file_name()?.to_str()?.to_string();
+    let name = sample_name(sample_dir).to_string();
 
-    Some(ErrorFixture {
+    Ok(ErrorFixture {
         name,
         input,
         input_type,
@@ -296,17 +310,18 @@ fn run_error_test(fixture: &ErrorFixture) -> TestResult {
 fn test_compiler_errors() {
     let samples = get_compiler_error_samples();
 
-    if samples.is_empty() {
-        eprintln!(
-            "Warning: No compiler-errors samples found. Make sure the Svelte submodule is initialized."
-        );
-        return;
+    let mut coverage = FixtureCoverage::new("compiler-errors", samples.len());
+    let mut fixtures: Vec<ErrorFixture> = Vec::new();
+    for sample_dir in &samples {
+        match load_error_fixture(sample_dir.as_path()) {
+            Ok(fixture) => {
+                coverage.ran();
+                fixtures.push(fixture);
+            }
+            Err(reason) => coverage.skipped(sample_name(sample_dir), reason),
+        }
     }
-
-    let fixtures: Vec<ErrorFixture> = samples
-        .iter()
-        .filter_map(|sample_dir| load_error_fixture(sample_dir.as_path()))
-        .collect();
+    coverage.assert(MIN_COMPILER_ERROR_FIXTURES);
 
     // Run sequentially. Previous attempts at `par_iter()` hung; leading
     // hypothesis is bumpalo arena retention causing memory pressure on small

@@ -1,16 +1,36 @@
 //! Conversion from rsvelte's lint diagnostics to LSP `Diagnostic`s.
 
-use lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range};
+use std::str::FromStr;
+
+use lsp_types::{
+    CodeDescription, Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range, Uri,
+};
 use rsvelte_core::svelte_check::diagnostic::{
     Diagnostic as LintDiagnostic, DiagnosticSeverity as LintSeverity,
 };
 
-/// The `source` field every diagnostic this server publishes carries.
+use crate::settings::{CompilerWarnings, WarningLevel};
+
+/// The `source` of a finding from one of rsvelte's own lint rules.
 const SOURCE: &str = "rsvelte";
 
-/// Convert one lint diagnostic. rsvelte reports 1-based lines with 0-based
-/// UTF-16 columns (the encoding LSP uses), so only the line needs rebasing.
-pub fn to_lsp(diagnostic: &LintDiagnostic) -> Diagnostic {
+/// The `source` of a compiler warning or error. `svelte` is what the official
+/// language server publishes, and what a `svelte-ignore` quickfix keys off.
+pub const COMPILER_SOURCE: &str = "svelte";
+
+const WARNING_DOCS: &str = "https://svelte.dev/docs/svelte/compiler-warnings#";
+const ERROR_DOCS: &str = "https://svelte.dev/docs/svelte/compiler-errors#";
+
+/// Whether a code names a compiler warning/error rather than one of rsvelte's
+/// own rules, whose ids are always namespaced (`svelte/no-at-html-tags`).
+pub fn is_compiler_code(code: &str) -> bool {
+    !code.contains('/')
+}
+
+/// Convert one lint diagnostic, or drop it when the client asked for its code
+/// to be ignored. rsvelte reports 1-based lines with 0-based UTF-16 columns
+/// (the encoding LSP uses), so only the line needs rebasing.
+pub fn to_lsp(diagnostic: &LintDiagnostic, warnings: &CompilerWarnings) -> Option<Diagnostic> {
     let range = diagnostic.range.map_or_else(
         || Range::new(Position::new(0, 0), Position::new(0, 0)),
         |r| {
@@ -20,14 +40,47 @@ pub fn to_lsp(diagnostic: &LintDiagnostic) -> Diagnostic {
             )
         },
     );
-    Diagnostic {
+    let code = diagnostic.code.as_deref();
+    let compiler = code.is_some_and(is_compiler_code);
+    let level = match code.filter(|_| compiler) {
+        Some(code) => warnings.get(code).copied(),
+        None => None,
+    };
+    if level == Some(WarningLevel::Ignore) {
+        return None;
+    }
+    let mut severity = severity(diagnostic.severity);
+    if level == Some(WarningLevel::Error) {
+        severity = DiagnosticSeverity::ERROR;
+    }
+    Some(Diagnostic {
         range,
-        severity: Some(severity(diagnostic.severity)),
+        severity: Some(severity),
         code: diagnostic.code.clone().map(NumberOrString::String),
-        source: Some(SOURCE.to_string()),
+        code_description: code.filter(|_| compiler).and_then(|code| {
+            // The page a code is documented on follows how the compiler
+            // reported it, not the severity the client then asked for.
+            code_description(code, diagnostic.severity)
+        }),
+        source: Some(if compiler { COMPILER_SOURCE } else { SOURCE }.to_string()),
         message: diagnostic.message.clone(),
         ..Diagnostic::default()
+    })
+}
+
+/// The documentation link for a compiler code, mirroring the official server:
+/// only lower-case, word-separated codes are documented, and the anchor always
+/// spells them with underscores.
+fn code_description(code: &str, severity: LintSeverity) -> Option<CodeDescription> {
+    if !code.starts_with(|c: char| c.is_ascii_lowercase()) || !code.contains(['-', '_']) {
+        return None;
     }
+    let base = match severity {
+        LintSeverity::Error => ERROR_DOCS,
+        _ => WARNING_DOCS,
+    };
+    let href = Uri::from_str(&format!("{base}{}", code.replace('-', "_"))).ok()?;
+    Some(CodeDescription { href })
 }
 
 fn severity(severity: LintSeverity) -> DiagnosticSeverity {
@@ -43,7 +96,9 @@ fn severity(severity: LintSeverity) -> DiagnosticSeverity {
 mod tests {
     use super::*;
     use rsvelte_core::svelte_check::diagnostic::{Position as LintPosition, Range as LintRange};
+    use std::collections::HashMap;
     use std::path::PathBuf;
+    use std::sync::Arc;
 
     fn diagnostic(range: Option<LintRange>) -> LintDiagnostic {
         LintDiagnostic {
@@ -56,9 +111,30 @@ mod tests {
         }
     }
 
+    fn compiler_diagnostic(code: &str, severity: LintSeverity) -> LintDiagnostic {
+        LintDiagnostic {
+            code: Some(code.to_string()),
+            severity,
+            ..diagnostic(None)
+        }
+    }
+
+    fn convert(diagnostic: &LintDiagnostic) -> Diagnostic {
+        to_lsp(diagnostic, &CompilerWarnings::default()).unwrap()
+    }
+
+    fn warnings(entries: &[(&str, WarningLevel)]) -> CompilerWarnings {
+        Arc::new(
+            entries
+                .iter()
+                .map(|(code, level)| ((*code).to_string(), *level))
+                .collect::<HashMap<_, _>>(),
+        )
+    }
+
     #[test]
     fn lines_become_zero_based() {
-        let d = to_lsp(&diagnostic(Some(LintRange {
+        let d = convert(&diagnostic(Some(LintRange {
             start: LintPosition { line: 3, column: 4 },
             end: LintPosition { line: 3, column: 9 },
         })));
@@ -72,15 +148,89 @@ mod tests {
             Some(NumberOrString::String("svelte/no-at-html-tags".to_string()))
         );
         assert_eq!(d.source.as_deref(), Some("rsvelte"));
+        // A rule of rsvelte's own is not documented on the compiler's pages.
+        assert!(d.code_description.is_none());
     }
 
     #[test]
     fn a_missing_range_maps_to_the_start_of_the_file() {
-        let d = to_lsp(&diagnostic(None));
+        let d = convert(&diagnostic(None));
         assert_eq!(
             d.range,
             Range::new(Position::new(0, 0), Position::new(0, 0))
         );
+    }
+
+    #[test]
+    fn a_compiler_warning_carries_the_svelte_source_and_its_docs_link() {
+        let d = convert(&compiler_diagnostic(
+            "a11y_missing_attribute",
+            LintSeverity::Warning,
+        ));
+        assert_eq!(d.source.as_deref(), Some("svelte"));
+        assert_eq!(
+            d.code_description.unwrap().href.as_str(),
+            "https://svelte.dev/docs/svelte/compiler-warnings#a11y_missing_attribute"
+        );
+    }
+
+    #[test]
+    fn a_compiler_error_links_to_the_error_docs() {
+        let d = convert(&compiler_diagnostic(
+            "invalid_rune_args",
+            LintSeverity::Error,
+        ));
+        assert_eq!(
+            d.code_description.unwrap().href.as_str(),
+            "https://svelte.dev/docs/svelte/compiler-errors#invalid_rune_args"
+        );
+    }
+
+    /// The official rule spells the anchor with underscores whichever separator
+    /// the code used, and documents nothing that is not a lower-case word code.
+    #[test]
+    fn only_word_separated_lowercase_codes_are_documented() {
+        let d = convert(&compiler_diagnostic(
+            "css-unused-selector",
+            LintSeverity::Warning,
+        ));
+        assert_eq!(
+            d.code_description.unwrap().href.as_str(),
+            "https://svelte.dev/docs/svelte/compiler-warnings#css_unused_selector"
+        );
+
+        for code in ["Uppercase_code", "nodash"] {
+            let d = convert(&compiler_diagnostic(code, LintSeverity::Warning));
+            assert!(d.code_description.is_none(), "{code} should not be linked");
+        }
+    }
+
+    #[test]
+    fn compiler_warning_settings_escalate_and_drop() {
+        let ignored = compiler_diagnostic("a11y_missing_attribute", LintSeverity::Warning);
+        let escalated = compiler_diagnostic("state_referenced_locally", LintSeverity::Warning);
+        let levels = warnings(&[
+            ("a11y_missing_attribute", WarningLevel::Ignore),
+            ("state_referenced_locally", WarningLevel::Error),
+        ]);
+
+        assert!(to_lsp(&ignored, &levels).is_none());
+        let d = to_lsp(&escalated, &levels).unwrap();
+        assert_eq!(d.severity, Some(DiagnosticSeverity::ERROR));
+        // Escalating does not move the code off the warning docs page.
+        assert_eq!(
+            d.code_description.unwrap().href.as_str(),
+            "https://svelte.dev/docs/svelte/compiler-warnings#state_referenced_locally"
+        );
+    }
+
+    /// The setting names compiler codes, so a rule of rsvelte's own that happens
+    /// to be listed keeps its severity.
+    #[test]
+    fn compiler_warning_settings_leave_lint_rules_alone() {
+        let levels = warnings(&[("svelte/no-at-html-tags", WarningLevel::Ignore)]);
+        let d = to_lsp(&diagnostic(None), &levels).unwrap();
+        assert_eq!(d.severity, Some(DiagnosticSeverity::WARNING));
     }
 
     /// End-to-end over the real linter with a hand-computed expectation, so a
@@ -102,7 +252,7 @@ mod tests {
             .expect("the fixture should report svelte/no-at-html-tags");
 
         assert_eq!(
-            to_lsp(at_html).range,
+            convert(at_html).range,
             Range::new(Position::new(0, 9), Position::new(0, 18))
         );
     }

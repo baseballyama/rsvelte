@@ -14,14 +14,11 @@
 
 use std::collections::HashSet;
 
-use rsvelte_core::ParseOptions;
-use rsvelte_core::ast::arena::with_serialize_arena;
-use rsvelte_core::compiler::phases::parse;
 use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-dom-manipulating",
@@ -149,20 +146,9 @@ fn collect_pattern_idents(id: Option<&Value>, out: &mut HashSet<String>) {
 
 /// Identifiers captured by `bind:this` on an HTML element / `<svelte:element>`
 /// that resolve to a top-level binding.
-fn collect_dom_vars(source: &str, binding_names: &HashSet<String>) -> HashSet<String> {
+fn collect_dom_vars(ctx: &LintContext, binding_names: &HashSet<String>) -> HashSet<String> {
     let mut out = HashSet::new();
-    let Ok(root) = parse(
-        source,
-        &rsvelte_core::Allocator::default(),
-        ParseOptions::default(),
-    ) else {
-        return out;
-    };
-    let Some(frag) =
-        with_serialize_arena(&root.arena, || serde_json::to_value(&root.fragment).ok())
-    else {
-        return out;
-    };
+    let frag = ctx.template_fragment_json();
     walk_js(&frag, |node, ancestors| {
         if node_type(node) != Some("BindDirective")
             || node.get("name").and_then(Value::as_str) != Some("this")
@@ -203,10 +189,10 @@ impl ScriptRule for NoDomManipulating {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         let mut toplevel: HashSet<String> = HashSet::new();
         collect_toplevel_decls(program, &mut toplevel);
-        let dom_vars = collect_dom_vars(ctx.source(), &toplevel);
+        let dom_vars = collect_dom_vars(ctx, &toplevel);
         if dom_vars.is_empty() {
             return;
         }
@@ -214,7 +200,7 @@ impl ScriptRule for NoDomManipulating {
         let properties: HashSet<&str> = DOM_PROPERTIES.iter().copied().collect();
 
         let mut reports: Vec<(u32, u32)> = Vec::new();
-        walk_js(program, |node, ancestors| {
+        program.walk(|node, ancestors| {
             if node_type(node) != Some("MemberExpression") {
                 return;
             }

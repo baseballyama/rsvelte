@@ -5143,7 +5143,10 @@ fn create_assignment_expression<'a>(
     line_offsets: &[usize],
 ) -> Expression<'a> {
     let operator = assignment_operator_to_str(&assign.operator);
-    let left = convert_assignment_target(arena, &assign.left, offset, line_offsets);
+    let left = match simple_assignment_lhs_inner(assign) {
+        Some(inner) => expr_to_node(convert_expression(arena, inner, offset, line_offsets)),
+        None => convert_assignment_target(arena, &assign.left, offset, line_offsets),
+    };
     let right = convert_expression(arena, &assign.right, offset, line_offsets);
 
     Expression::from_node(JsNode::AssignmentExpression {
@@ -5154,6 +5157,27 @@ fn create_assignment_expression<'a>(
         left: arena.alloc_js_node(left),
         right: arena.alloc_js_node(expr_to_node(right)),
     })
+}
+
+/// The expression a **plain `=`** LHS unwraps to when it carries TS assertion
+/// wrappers (`x! = 1` -> `x`), or `None` when the LHS must be kept as-is.
+///
+/// svelte/compiler gets this from acorn-typescript's `toAssignable`, which
+/// unwraps the wrapper but whose return value only `parseMaybeAssign` (the `=`
+/// case) uses. So a compound assignment (`x! += 1`), an update (`x!++`) and every
+/// nested destructuring position keep the wrapper, while a plain `=` loses it.
+fn simple_assignment_lhs_inner<'x>(
+    assign: &'x oxc_ast::ast::AssignmentExpression<'x>,
+) -> Option<&'x oxc_ast::ast::Expression<'x>> {
+    if assign.operator != oxc_ast::ast::AssignmentOperator::Assign {
+        return None;
+    }
+    let inner = assign
+        .left
+        .as_simple_assignment_target()?
+        .get_expression()?
+        .get_inner_expression();
+    Some(inner)
 }
 
 fn assignment_operator_to_str(op: &oxc_ast::ast::AssignmentOperator) -> &'static str {
@@ -5493,10 +5517,91 @@ fn convert_assignment_target(
                 line_offsets,
             ))
         }
-        _ => {
-            // Fallback for other complex patterns (e.g., TSAsExpression, TSNonNullExpression)
-            JsNode::Null
+        _ => target
+            .as_simple_assignment_target()
+            .map(|simple| convert_ts_wrapper_target(arena, simple, offset, line_offsets))
+            .unwrap_or(JsNode::Null),
+    }
+}
+
+/// Rebuild a TS assertion wrapper (`x!`, `x as T`, `x satisfies T`, `<T>x`) that
+/// sits in an assignment-target position — `x!++`, `x! += 1`, `[x!] = …`. oxc
+/// models those as `SimpleAssignmentTarget` variants rather than `Expression`s,
+/// so they need their own conversion; dropping them (the old `JsNode::Null`)
+/// erased the whole target, and svelte/compiler keeps the wrapper there.
+/// Template-path spans carry the `-1` synthetic-paren adjustment, so the
+/// type-annotation blob uses base `offset - 1`, matching `convert_expression`.
+fn convert_ts_wrapper_target(
+    arena: &ParseArena,
+    target: &oxc_ast::ast::SimpleAssignmentTarget,
+    offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    use oxc_ast::ast::SimpleAssignmentTarget;
+
+    match target {
+        SimpleAssignmentTarget::TSAsExpression(ts_as) => {
+            let start = offset + ts_as.span.start as usize - 1;
+            let end = offset + ts_as.span.end as usize - 1;
+            let inner = convert_expression(arena, &ts_as.expression, offset, line_offsets);
+            let type_annotation =
+                convert_ts_type(arena, &ts_as.type_annotation, offset - 1, line_offsets);
+            JsNode::TSAsExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+                type_annotation: Box::new(type_annotation),
+            }
         }
+        SimpleAssignmentTarget::TSSatisfiesExpression(ts_satisfies) => {
+            let start = offset + ts_satisfies.span.start as usize - 1;
+            let end = offset + ts_satisfies.span.end as usize - 1;
+            let inner = convert_expression(arena, &ts_satisfies.expression, offset, line_offsets);
+            let type_annotation = convert_ts_type(
+                arena,
+                &ts_satisfies.type_annotation,
+                offset - 1,
+                line_offsets,
+            );
+            JsNode::TSSatisfiesExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+                type_annotation: Box::new(type_annotation),
+            }
+        }
+        SimpleAssignmentTarget::TSNonNullExpression(ts_non_null) => {
+            let start = offset + ts_non_null.span.start as usize - 1;
+            let end = offset + ts_non_null.span.end as usize - 1;
+            let inner = convert_expression(arena, &ts_non_null.expression, offset, line_offsets);
+            JsNode::TSNonNullExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+            }
+        }
+        SimpleAssignmentTarget::TSTypeAssertion(ts_assertion) => {
+            let start = offset + ts_assertion.span.start as usize - 1;
+            let end = offset + ts_assertion.span.end as usize - 1;
+            let inner = convert_expression(arena, &ts_assertion.expression, offset, line_offsets);
+            let type_annotation = convert_ts_type(
+                arena,
+                &ts_assertion.type_annotation,
+                offset - 1,
+                line_offsets,
+            );
+            JsNode::TSTypeAssertion {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+                type_annotation: Box::new(type_annotation),
+            }
+        }
+        _ => JsNode::Null,
     }
 }
 
@@ -5601,7 +5706,7 @@ fn convert_simple_assignment_target(
                 line_offsets,
             ))
         }
-        _ => JsNode::Null,
+        _ => convert_ts_wrapper_target(arena, target, offset, line_offsets),
     }
 }
 
@@ -8871,8 +8976,17 @@ fn convert_expression_for_program<'a>(
             let start = offset + assign.span.start as usize;
             let end = offset + assign.span.end as usize;
 
-            let left =
-                convert_assignment_target_for_program(arena, &assign.left, offset, line_offsets);
+            let left = match simple_assignment_lhs_inner(assign) {
+                Some(inner) => expr_to_node(convert_expression_for_program(
+                    arena,
+                    inner,
+                    offset,
+                    line_offsets,
+                )),
+                None => {
+                    convert_assignment_target_for_program(arena, &assign.left, offset, line_offsets)
+                }
+            };
             let right = convert_expression_for_program(arena, &assign.right, offset, line_offsets);
             let operator = assignment_operator_to_str(&assign.operator);
 
@@ -10229,10 +10343,95 @@ fn convert_assignment_target_for_program(
                 optional: member.optional,
             }
         }
-        _ => {
-            // For other complex patterns (e.g., TSAsExpression, TSNonNullExpression)
-            JsNode::Null
+        _ => target
+            .as_simple_assignment_target()
+            .map(|simple| {
+                convert_ts_wrapper_target_for_program(arena, simple, offset, line_offsets)
+            })
+            .unwrap_or(JsNode::Null),
+    }
+}
+
+/// `convert_ts_wrapper_target` for the program path (no `-1` paren adjustment).
+fn convert_ts_wrapper_target_for_program(
+    arena: &ParseArena,
+    target: &oxc_ast::ast::SimpleAssignmentTarget,
+    offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    use oxc_ast::ast::SimpleAssignmentTarget;
+
+    match target {
+        SimpleAssignmentTarget::TSAsExpression(ts_as) => {
+            let start = offset + ts_as.span.start as usize;
+            let end = offset + ts_as.span.end as usize;
+            let inner =
+                convert_expression_for_program(arena, &ts_as.expression, offset, line_offsets);
+            let type_annotation =
+                convert_ts_type(arena, &ts_as.type_annotation, offset, line_offsets);
+            JsNode::TSAsExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+                type_annotation: Box::new(type_annotation),
+            }
         }
+        SimpleAssignmentTarget::TSSatisfiesExpression(ts_satisfies) => {
+            let start = offset + ts_satisfies.span.start as usize;
+            let end = offset + ts_satisfies.span.end as usize;
+            let inner = convert_expression_for_program(
+                arena,
+                &ts_satisfies.expression,
+                offset,
+                line_offsets,
+            );
+            let type_annotation =
+                convert_ts_type(arena, &ts_satisfies.type_annotation, offset, line_offsets);
+            JsNode::TSSatisfiesExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+                type_annotation: Box::new(type_annotation),
+            }
+        }
+        SimpleAssignmentTarget::TSNonNullExpression(ts_non_null) => {
+            let start = offset + ts_non_null.span.start as usize;
+            let end = offset + ts_non_null.span.end as usize;
+            let inner = convert_expression_for_program(
+                arena,
+                &ts_non_null.expression,
+                offset,
+                line_offsets,
+            );
+            JsNode::TSNonNullExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+            }
+        }
+        SimpleAssignmentTarget::TSTypeAssertion(ts_assertion) => {
+            let start = offset + ts_assertion.span.start as usize;
+            let end = offset + ts_assertion.span.end as usize;
+            let inner = convert_expression_for_program(
+                arena,
+                &ts_assertion.expression,
+                offset,
+                line_offsets,
+            );
+            let type_annotation =
+                convert_ts_type(arena, &ts_assertion.type_annotation, offset, line_offsets);
+            JsNode::TSTypeAssertion {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: arena.alloc_js_node(expr_to_node(inner)),
+                type_annotation: Box::new(type_annotation),
+            }
+        }
+        _ => JsNode::Null,
     }
 }
 
@@ -10499,7 +10698,7 @@ fn convert_simple_assignment_target_for_program(
                 optional: member.optional,
             }
         }
-        _ => JsNode::Null,
+        _ => convert_ts_wrapper_target_for_program(arena, target, offset, line_offsets),
     }
 }
 

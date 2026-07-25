@@ -40,7 +40,7 @@ use serde_json::Value;
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type};
 
 const MESSAGE: &str =
     "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead.";
@@ -86,9 +86,9 @@ impl ScriptRule for NoAddEventListener {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         let mut reports: Vec<Report> = Vec::new();
-        walk_js(program, |node, _ancestors| {
+        program.walk(|node, _ancestors| {
             if node_type(node) != Some("CallExpression") {
                 return;
             }

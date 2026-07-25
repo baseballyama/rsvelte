@@ -17,11 +17,15 @@ use std::thread::JoinHandle;
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use lsp_server::RequestId;
-use lsp_types::{Diagnostic, Range, TextEdit, Uri};
+use lsp_types::{
+    CodeActionOrCommand, CompletionList, Diagnostic, DocumentSymbolResponse, FoldingRange, Hover,
+    Range, SelectionRange, TextEdit, Uri,
+};
 
 use crate::format::FormatSessions;
 use crate::lint::LintConfigCache;
 use crate::log;
+use crate::settings::CompilerWarnings;
 
 /// `rsvelte_core`'s own deeply-nested-AST tests reserve the same 256 MiB. It is
 /// address space, not resident memory — pages are committed only as the
@@ -35,12 +39,51 @@ pub enum Job {
         version: i32,
         path: PathBuf,
         text: Arc<String>,
+        warnings: CompilerWarnings,
     },
     Format {
         id: RequestId,
         path: PathBuf,
         text: Arc<String>,
         range: Range,
+    },
+    Complete {
+        id: RequestId,
+        path: PathBuf,
+        text: Arc<String>,
+        offset: usize,
+    },
+    Hover {
+        id: RequestId,
+        path: PathBuf,
+        text: Arc<String>,
+        offset: usize,
+    },
+    CodeAction {
+        id: RequestId,
+        uri: Uri,
+        path: PathBuf,
+        text: Arc<String>,
+        diagnostics: Vec<Diagnostic>,
+    },
+    FoldingRange {
+        id: RequestId,
+        path: PathBuf,
+        text: Arc<String>,
+        line_folding_only: bool,
+    },
+    SelectionRange {
+        id: RequestId,
+        path: PathBuf,
+        text: Arc<String>,
+        offsets: Vec<usize>,
+    },
+    DocumentSymbol {
+        id: RequestId,
+        uri: Uri,
+        path: PathBuf,
+        text: Arc<String>,
+        hierarchical: bool,
     },
     /// Drop the resolved `rsvelte-lint.json` / `.oxfmtrc` caches so the next
     /// job re-reads them from disk.
@@ -57,6 +100,30 @@ pub enum Outcome {
     Formatted {
         id: RequestId,
         edits: Vec<TextEdit>,
+    },
+    Completed {
+        id: RequestId,
+        list: Option<CompletionList>,
+    },
+    Hovered {
+        id: RequestId,
+        hover: Option<Hover>,
+    },
+    CodeActions {
+        id: RequestId,
+        actions: Vec<CodeActionOrCommand>,
+    },
+    FoldingRanges {
+        id: RequestId,
+        ranges: Vec<FoldingRange>,
+    },
+    SelectionRanges {
+        id: RequestId,
+        ranges: Option<Vec<SelectionRange>>,
+    },
+    DocumentSymbols {
+        id: RequestId,
+        symbols: DocumentSymbolResponse,
     },
 }
 
@@ -114,12 +181,13 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                 version,
                 path,
                 text,
+                warnings,
             } => {
                 let config = lint_configs.get(path.parent().unwrap_or(Path::new(".")));
                 let diagnostics = guard("lint", &path, || {
                     crate::lint::lint(&path, &text, &config)
                         .iter()
-                        .map(crate::diagnostics::to_lsp)
+                        .filter_map(|d| crate::diagnostics::to_lsp(d, &warnings))
                         .collect()
                 })
                 .unwrap_or_default();
@@ -139,6 +207,77 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                 let edits = format(&mut format_sessions, &path, &text, range);
                 Outcome::Formatted { id, edits }
             }
+            Job::Complete {
+                id,
+                path,
+                text,
+                offset,
+            } => Outcome::Completed {
+                id,
+                list: guard("completion", &path, || {
+                    crate::completions::completions(&text, offset)
+                })
+                .flatten(),
+            },
+            Job::Hover {
+                id,
+                path,
+                text,
+                offset,
+            } => Outcome::Hovered {
+                id,
+                hover: guard("hover", &path, || crate::hover::hover(&text, offset)).flatten(),
+            },
+            Job::CodeAction {
+                id,
+                uri,
+                path,
+                text,
+                diagnostics,
+            } => {
+                let actions = guard("code action", &path, || {
+                    crate::code_actions::quickfixes(&text, &uri, &diagnostics)
+                })
+                .unwrap_or_default();
+                Outcome::CodeActions { id, actions }
+            }
+            Job::FoldingRange {
+                id,
+                path,
+                text,
+                line_folding_only,
+            } => Outcome::FoldingRanges {
+                id,
+                ranges: guard("folding range", &path, || {
+                    crate::folding::folding_ranges(&text, line_folding_only)
+                })
+                .unwrap_or_default(),
+            },
+            Job::SelectionRange {
+                id,
+                path,
+                text,
+                offsets,
+            } => Outcome::SelectionRanges {
+                id,
+                ranges: guard("selection range", &path, || {
+                    crate::selection_ranges::selection_ranges(&text, &offsets)
+                })
+                .flatten(),
+            },
+            Job::DocumentSymbol {
+                id,
+                uri,
+                path,
+                text,
+                hierarchical,
+            } => Outcome::DocumentSymbols {
+                id,
+                symbols: guard("document symbol", &path, || {
+                    crate::symbols::document_symbols(&text, &uri, hierarchical)
+                })
+                .unwrap_or_else(|| DocumentSymbolResponse::Nested(Vec::new())),
+            },
         };
         if outcomes.send(outcome).is_err() {
             break;

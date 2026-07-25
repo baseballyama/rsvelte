@@ -41,6 +41,19 @@ impl LineIndex {
         self.line_starts.len()
     }
 
+    /// The content of one line, without its terminator. Out-of-range lines are
+    /// empty.
+    pub fn line_text<'a>(&self, text: &'a str, line: usize) -> &'a str {
+        let Some(&start) = self.line_starts.get(line) else {
+            return "";
+        };
+        let end = self
+            .line_starts
+            .get(line + 1)
+            .map_or(text.len(), |&n| n as usize);
+        strip_line_terminator(&text[start as usize..end])
+    }
+
     /// The byte offset `position` refers to. Out-of-range lines clamp to the
     /// end of the text and out-of-range characters to the end of their line's
     /// content; a character landing inside a surrogate pair rounds down to the
@@ -177,6 +190,16 @@ mod tests {
         assert_eq!(position(text, 999), Position::new(1, 2));
         // Mid-character offsets round down rather than panic.
         assert_eq!(position("💡", 2), Position::new(0, 0));
+    }
+
+    #[test]
+    fn line_text_drops_the_terminator() {
+        let text = "a\r\nbé\nc";
+        let index = LineIndex::new(text);
+        assert_eq!(index.line_text(text, 0), "a");
+        assert_eq!(index.line_text(text, 1), "bé");
+        assert_eq!(index.line_text(text, 2), "c");
+        assert_eq!(index.line_text(text, 3), "");
     }
 
     #[test]

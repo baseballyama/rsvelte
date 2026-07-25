@@ -1041,9 +1041,8 @@ fn collect_ts_removals_from_expression(
         E::UnaryExpression(unary) => {
             collect_ts_removals_from_expression(&unary.argument, source, removals);
         }
-        E::UpdateExpression(_update) => {
-            // UpdateExpression.argument is SimpleAssignmentTarget, not Expression
-            // No TS-specific removals needed here
+        E::UpdateExpression(update) => {
+            collect_ts_removals_from_simple_assignment_target(&update.argument, source, removals);
         }
         E::SequenceExpression(seq) => {
             for e in &seq.expressions {
@@ -1216,40 +1215,56 @@ fn collect_ts_removals_from_assignment_target(
     source: &str,
     removals: &mut Vec<(u32, u32)>,
 ) {
-    use oxc_ast::ast::AssignmentTarget as AT;
+    if let Some(simple) = target.as_simple_assignment_target() {
+        collect_ts_removals_from_simple_assignment_target(simple, source, removals);
+    }
+}
+
+/// Collect TS removals from a simple assignment target.
+///
+/// Shared by `AssignmentExpression.left` and `UpdateExpression.argument`: the
+/// latter is a `SimpleAssignmentTarget` too, and it can carry a TS wrapper
+/// (`count!++`), which used to be skipped here and leak an invalid `!` into the
+/// generated JS.
+fn collect_ts_removals_from_simple_assignment_target(
+    target: &oxc_ast::ast::SimpleAssignmentTarget,
+    source: &str,
+    removals: &mut Vec<(u32, u32)>,
+) {
+    use oxc_ast::ast::SimpleAssignmentTarget as SAT;
     use oxc_span::GetSpan;
 
     match target {
-        AT::TSAsExpression(ts_as) => {
+        SAT::TSAsExpression(ts_as) => {
             removals.push((ts_as.expression.span().end, ts_as.span.end));
             collect_ts_removals_from_expression(&ts_as.expression, source, removals);
         }
-        AT::TSSatisfiesExpression(ts_sat) => {
+        SAT::TSSatisfiesExpression(ts_sat) => {
             removals.push((ts_sat.expression.span().end, ts_sat.span.end));
             collect_ts_removals_from_expression(&ts_sat.expression, source, removals);
         }
-        AT::TSNonNullExpression(ts_nn) => {
+        SAT::TSNonNullExpression(ts_nn) => {
             removals.push((ts_nn.expression.span().end, ts_nn.span.end));
             collect_ts_removals_from_expression(&ts_nn.expression, source, removals);
         }
-        AT::TSTypeAssertion(ts_assertion) => {
+        SAT::TSTypeAssertion(ts_assertion) => {
             removals.push((
                 ts_assertion.span.start,
                 ts_assertion.expression.span().start,
             ));
             collect_ts_removals_from_expression(&ts_assertion.expression, source, removals);
         }
-        AT::ComputedMemberExpression(computed) => {
+        SAT::ComputedMemberExpression(computed) => {
             collect_ts_removals_from_expression(&computed.object, source, removals);
             collect_ts_removals_from_expression(&computed.expression, source, removals);
         }
-        AT::StaticMemberExpression(static_member) => {
+        SAT::StaticMemberExpression(static_member) => {
             collect_ts_removals_from_expression(&static_member.object, source, removals);
         }
-        AT::PrivateFieldExpression(pfe) => {
+        SAT::PrivateFieldExpression(pfe) => {
             collect_ts_removals_from_expression(&pfe.object, source, removals);
         }
-        _ => {}
+        SAT::AssignmentTargetIdentifier(_) => {}
     }
 }
 

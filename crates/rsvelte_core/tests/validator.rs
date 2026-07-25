@@ -14,9 +14,14 @@ mod common;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use common::get_svelte_test_samples;
+use common::{FixtureCoverage, SkipReason, get_svelte_test_samples, sample_name};
 use rsvelte_core::{CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module};
 use serde::Deserialize;
+
+/// Grow-only fixture floor, measured against the pinned Svelte submodule: 334
+/// samples, 2 of which opt out through `_config.js` (`skip: true` /
+/// `warningFilter`). Never lower it.
+const MIN_VALIDATOR_FIXTURES: usize = 332;
 
 /// Get all validator test samples.
 fn get_validator_samples() -> Vec<PathBuf> {
@@ -116,11 +121,11 @@ fn parse_test_config(sample_dir: &Path) -> TestConfig {
 }
 
 /// Load a validator test fixture.
-fn load_validator_fixture(sample_dir: &Path) -> Option<ValidatorFixture> {
+fn load_validator_fixture(sample_dir: &Path) -> Result<ValidatorFixture, SkipReason> {
     // Parse config (includes skip check)
     let config = parse_test_config(sample_dir);
     if config.skip {
-        return None;
+        return Err(SkipReason::Justified);
     }
 
     let svelte_path = sample_dir.join("input.svelte");
@@ -130,16 +135,25 @@ fn load_validator_fixture(sample_dir: &Path) -> Option<ValidatorFixture> {
 
     // Determine input type and read input
     let (input, input_type) = if svelte_path.exists() {
-        (fs::read_to_string(&svelte_path).ok()?, InputType::Svelte)
+        (
+            fs::read_to_string(&svelte_path)
+                .map_err(|_| SkipReason::MissingInput("readable input.svelte"))?,
+            InputType::Svelte,
+        )
     } else if module_path.exists() {
-        (fs::read_to_string(&module_path).ok()?, InputType::Module)
+        (
+            fs::read_to_string(&module_path)
+                .map_err(|_| SkipReason::MissingInput("readable input.svelte.js"))?,
+            InputType::Module,
+        )
     } else {
-        return None;
+        return Err(SkipReason::MissingInput("input.svelte / input.svelte.js"));
     };
 
     // Load expected warnings
     let expected_warnings: Vec<ExpectedWarning> = if warnings_path.exists() {
-        let content = fs::read_to_string(&warnings_path).ok()?;
+        let content = fs::read_to_string(&warnings_path)
+            .map_err(|_| SkipReason::MissingInput("readable warnings.json"))?;
         serde_json::from_str(&content).unwrap_or_default()
     } else {
         Vec::new()
@@ -147,16 +161,17 @@ fn load_validator_fixture(sample_dir: &Path) -> Option<ValidatorFixture> {
 
     // Load expected error (if any)
     let expected_error: Option<ExpectedError> = if errors_path.exists() {
-        let content = fs::read_to_string(&errors_path).ok()?;
+        let content = fs::read_to_string(&errors_path)
+            .map_err(|_| SkipReason::MissingInput("readable errors.json"))?;
         let errors: Vec<ExpectedError> = serde_json::from_str(&content).unwrap_or_default();
         errors.into_iter().next()
     } else {
         None
     };
 
-    let name = sample_dir.file_name()?.to_str()?.to_string();
+    let name = sample_name(sample_dir).to_string();
 
-    Some(ValidatorFixture {
+    Ok(ValidatorFixture {
         name,
         input,
         input_type,
@@ -339,17 +354,18 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
 fn test_validator() {
     let samples = get_validator_samples();
 
-    if samples.is_empty() {
-        eprintln!(
-            "Warning: No validator samples found. Make sure the Svelte submodule is initialized."
-        );
-        return;
+    let mut coverage = FixtureCoverage::new("validator", samples.len());
+    let mut fixtures: Vec<ValidatorFixture> = Vec::new();
+    for sample_dir in &samples {
+        match load_validator_fixture(sample_dir.as_path()) {
+            Ok(fixture) => {
+                coverage.ran();
+                fixtures.push(fixture);
+            }
+            Err(reason) => coverage.skipped(sample_name(sample_dir), reason),
+        }
     }
-
-    let fixtures: Vec<ValidatorFixture> = samples
-        .iter()
-        .filter_map(|sample_dir| load_validator_fixture(sample_dir.as_path()))
-        .collect();
+    coverage.assert(MIN_VALIDATOR_FIXTURES);
 
     // Run sequentially to avoid hangs
     println!("Running {} validator tests...", fixtures.len());

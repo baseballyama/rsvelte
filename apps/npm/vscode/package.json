@@ -42,7 +42,22 @@
     "onLanguage:scss",
     "onLanguage:less"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "restrictedConfigurations": [
+        "rsvelte.languageServer.path"
+      ],
+      "description": "The extension can execute a language server binary/script specified by the workspace."
+    }
+  },
   "contributes": {
+    "commands": [
+      {
+        "command": "rsvelte.restartLanguageServer",
+        "title": "rsvelte: Restart Language Server"
+      }
+    ],
     "languages": [
       {
         "id": "svelte",
@@ -199,6 +214,21 @@
           "type": "string",
           "default": "",
           "description": "Absolute path to a rsvelte-fmt binary. When empty, the extension resolves node_modules/.bin/rsvelte-fmt from the workspace."
+        },
+        "rsvelte.languageServer.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to a language server entry script/binary, for development. Relative paths resolve against the first workspace folder. When empty, the extension uses its own bundled server."
+        },
+        "rsvelte.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the rsvelte language server, shown in the \"rsvelte Language Server\" output channel."
         }
       }
     }

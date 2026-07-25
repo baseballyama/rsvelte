@@ -14,7 +14,7 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_start, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_start, node_type};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-store-async",
@@ -57,13 +57,13 @@ impl ScriptRule for NoStoreAsync {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         // Resolve `svelte/store` imports: local names bound to a store creator,
         // and any namespace import alias.
         let mut direct: Vec<String> = Vec::new(); // local names of writable/readable/derived
         let mut namespaces: Vec<String> = Vec::new(); // `import * as X`
 
-        walk_js(program, |node, _| {
+        program.walk(|node, _| {
             if node_type(node) != Some("ImportDeclaration") {
                 return;
             }
@@ -113,7 +113,7 @@ impl ScriptRule for NoStoreAsync {
 
         // Find store-creator calls and report an async second argument.
         let mut reports: Vec<u32> = Vec::new();
-        walk_js(program, |node, _| {
+        program.walk(|node, _| {
             if node_type(node) != Some("CallExpression") {
                 return;
             }

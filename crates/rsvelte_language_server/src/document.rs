@@ -54,6 +54,10 @@ impl Document {
         self.index.position(&self.text, offset)
     }
 
+    pub fn offset_at(&self, position: Position) -> usize {
+        self.index.offset(&self.text, position)
+    }
+
     /// The range covering the whole document.
     pub fn full_range(&self) -> Range {
         Range::new(Position::new(0, 0), self.position_at(self.text.len()))

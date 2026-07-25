@@ -27,6 +27,9 @@
 //! Port of `eslint-plugin-svelte/src/rules/sort-attributes.ts`.
 //! Upstream: `meta.fixable = 'code'`, `type: 'layout'`.
 
+use std::borrow::Cow;
+use std::sync::LazyLock;
+
 use regex::Regex;
 
 use rsvelte_core::ast::template::{
@@ -60,6 +63,7 @@ static META: RuleMeta = RuleMeta {
 // ─── Pattern / option compilation ────────────────────────────────────────────
 
 /// A single compiled pattern (from a string entry in the order array).
+#[derive(Clone)]
 struct Pattern {
     negative: bool,
     re: Regex,
@@ -72,6 +76,7 @@ impl Pattern {
 }
 
 /// A compiled group (one entry in the order array).
+#[derive(Clone)]
 struct Group {
     patterns: Vec<Pattern>,
     sort: Sort,
@@ -205,6 +210,7 @@ fn patterns_match(patterns: &[Pattern], key: &str) -> bool {
 }
 
 /// The compiled option: a list of groups (in order).
+#[derive(Clone)]
 struct CompiledOption {
     groups: Vec<Group>,
 }
@@ -272,17 +278,24 @@ const DEFAULT_ORDER_JSON: &str = r#"[
     { "match": "/^let:/u", "sort": "alphabetical" }
 ]"#;
 
-fn load_compiled_option(ctx: &LintContext) -> CompiledOption {
-    let order_val: Option<serde_json::Value> = ctx.option0().and_then(|v| v.get("order")).cloned();
+/// The default order compiled once. Compiling it means building ~13 regexes,
+/// which is far more expensive than the check it configures — and every start
+/// tag in every file would otherwise redo it.
+static DEFAULT_OPTION: LazyLock<CompiledOption> = LazyLock::new(|| {
+    let entries: Vec<serde_json::Value> =
+        serde_json::from_str(DEFAULT_ORDER_JSON).unwrap_or_default();
+    CompiledOption {
+        groups: entries.iter().filter_map(compile_group).collect(),
+    }
+});
 
-    let entries: Vec<serde_json::Value> = if let Some(serde_json::Value::Array(arr)) = order_val {
-        arr
-    } else {
-        serde_json::from_str(DEFAULT_ORDER_JSON).unwrap_or_default()
-    };
-
-    let groups: Vec<Group> = entries.iter().filter_map(compile_group).collect();
-    CompiledOption { groups }
+fn load_compiled_option(ctx: &LintContext) -> Cow<'static, CompiledOption> {
+    match ctx.option0().and_then(|v| v.get("order")) {
+        Some(serde_json::Value::Array(arr)) => Cow::Owned(CompiledOption {
+            groups: arr.iter().filter_map(compile_group).collect(),
+        }),
+        _ => Cow::Borrowed(&DEFAULT_OPTION),
+    }
 }
 
 // ─── Key text extraction ──────────────────────────────────────────────────────
@@ -473,7 +486,7 @@ impl SortAttributes {
         if entries.len() < 2 {
             return;
         }
-        let src = ctx.source().to_string();
+        let src = ctx.source();
         let opt = load_compiled_option(ctx);
 
         // valid_previous_nodes: indices of non-spread, non-ignored entries already
@@ -509,7 +522,7 @@ impl SortAttributes {
 
                 if !entry.is_plain_attr || !has_spread_between {
                     // Standard report + fix.
-                    let fix = build_fix(&src, entries, prev_idx, i);
+                    let fix = build_fix(src, entries, prev_idx, i);
                     ctx.report_with_fix(
                         entry.start,
                         entry.end,
@@ -520,7 +533,7 @@ impl SortAttributes {
                     // Spread exists between; use the "spread" verification:
                     // only compare against attributes between the last spread
                     // before `i` and `i`.
-                    self.verify_for_spread(ctx, &src, entries, &opt, i);
+                    self.verify_for_spread(ctx, src, entries, &opt, i);
                 }
                 // Skip adding to valid_previous (we already reported).
                 continue;
@@ -539,8 +552,8 @@ impl SortAttributes {
     }
 
     fn check_tag(&self, ctx: &mut LintContext, attributes: &[Attribute]) {
-        let src = ctx.source().to_string();
-        let entries = Self::entries_from_attrs(&src, attributes);
+        let src = ctx.source();
+        let entries = Self::entries_from_attrs(src, attributes);
         self.check_entries(ctx, &entries);
     }
 
@@ -683,14 +696,14 @@ impl Rule for SortAttributes {
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
-        let src = ctx.source().to_string();
-        let entries = Self::entries_for_svelte_component(&src, el);
+        let src = ctx.source();
+        let entries = Self::entries_for_svelte_component(src, el);
         self.check_entries(ctx, &entries);
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
-        let src = ctx.source().to_string();
-        let entries = Self::entries_for_svelte_dynamic_element(&src, el);
+        let src = ctx.source();
+        let entries = Self::entries_for_svelte_dynamic_element(src, el);
         self.check_entries(ctx, &entries);
     }
 

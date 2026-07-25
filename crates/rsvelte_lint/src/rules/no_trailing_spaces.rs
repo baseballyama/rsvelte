@@ -157,17 +157,19 @@ impl Rule for NoTrailingSpaces {
         let mut ignore_lines: HashSet<u32> = HashSet::new();
 
         // Template-literal interior lines from instance/module scripts.
-        let programs: Vec<Value> = with_serialize_arena(&root.arena, || {
+        // Borrowed from each program's own JSON cache — copying them out would
+        // deep-clone a whole ESTree tree per file just to scan for line numbers.
+        let programs: Vec<&Value> = with_serialize_arena(&root.arena, || {
             let mut out = Vec::new();
             if let Some(s) = root.instance.as_ref() {
-                out.push(s.content.as_json().clone());
+                out.push(s.content.as_json());
             }
             if let Some(s) = root.module.as_ref() {
-                out.push(s.content.as_json().clone());
+                out.push(s.content.as_json());
             }
             out
         });
-        for program in &programs {
+        for program in programs {
             collect_template_elements(program, &li, &mut ignore_lines);
         }
 

@@ -14,7 +14,6 @@
 
 use std::collections::HashMap;
 
-use rsvelte_core::ast::arena::with_serialize_arena;
 use rsvelte_core::ast::template::Root;
 use serde_json::Value;
 
@@ -216,10 +215,10 @@ impl Rule for RequireStoreReactiveAccess {
     }
 
     fn check_root(&self, ctx: &mut LintContext, root: &Root) {
-        let Some(root_json) = with_serialize_arena(&root.arena, || serde_json::to_value(root).ok())
-        else {
+        let root_json = ctx.root_json(root);
+        if root_json.is_null() {
             return;
-        };
+        }
         let stores = collect_store_vars(&root_json);
         if stores.is_empty() {
             return;

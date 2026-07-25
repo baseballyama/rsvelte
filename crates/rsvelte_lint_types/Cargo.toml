@@ -2,13 +2,17 @@
 #
 # This crate is DELIBERATELY ITS OWN WORKSPACE (note the `[workspace]` table
 # below) and is NOT a member of the root rsvelte workspace. Reason: it depends
-# on `corsa` via a path into the PRIVATE `submodules/corsa-bind` submodule
-# (`git@github.com:ubugeeei-prod/corsa-bind`). A path dependency — even an
-# optional one — is resolved by Cargo at metadata time, so listing it in the
-# root workspace would break `cargo build` / CI for everyone who cannot clone
-# that private submodule. Isolating it keeps the default build and CI 100%
-# corsa-free; this crate is built/tested only locally, where corsa-bind +
-# typescript-go are available. This is the Wave-3 "gated spike" made runnable.
+# on `corsa` via a path into `submodules/corsa-bind`. A path dependency — even
+# an optional one — is resolved by Cargo at metadata time, so listing it in the
+# root workspace would force every `cargo build` / `cargo test` in the repo to
+# check out that submodule and compile the whole corsa client stack, which
+# nothing else needs. Isolating it keeps the default build and CI 100%
+# corsa-free.
+#
+# `ubugeeei-prod/corsa-bind` is PUBLIC and clones with no credentials. An
+# earlier revision of this header said it was private, and #1790 fell out of
+# that: the suite was treated as unrunnable-in-CI and its nine tests silently
+# skipped for months. `.github/workflows/type-aware-lint.yml` runs them.
 #
 # Because it is a separate workspace root, it must re-declare the workspace keys
 # the path-dep crates (rsvelte_core / rsvelte_lint) reference via

@@ -539,10 +539,10 @@ impl Rule for PreferDestructuredStoreProps {
     }
 
     fn check_root(&self, ctx: &mut LintContext, root: &Root) {
-        // Serialize only the fragment for the detection walk (cheap path).
-        let Some(frag) =
-            with_serialize_arena(&root.arena, || serde_json::to_value(&root.fragment).ok())
-        else {
+        // The whole-root JSON is serialized once per file by the context and
+        // shared with the other rules that walk the template.
+        let root_json = ctx.root_json(root);
+        let Some(frag) = root_json.get("fragment") else {
             return;
         };
 
@@ -557,11 +557,11 @@ impl Rule for PreferDestructuredStoreProps {
             .filter(|s| s.context == ScriptContext::Default);
 
         // Serialize the script content for analysis (only if we have a script).
-        let script_content: Option<Value> = if instance_script.is_some() {
+        // The script program's own JSON cache — re-serializing it would rebuild
+        // a whole ESTree tree the engine already materialised for this file.
+        let script_content: Option<&Value> = if instance_script.is_some() {
             with_serialize_arena(&root.arena, || {
-                root.instance
-                    .as_ref()
-                    .and_then(|s| serde_json::to_value(&s.content).ok())
+                root.instance.as_ref().map(|s| s.content.as_json())
             })
         } else {
             None
@@ -573,13 +573,12 @@ impl Rule for PreferDestructuredStoreProps {
 
         // Collect top-level variable names (for hasTopLevelVariable).
         let top_level_names: HashSet<String> = script_content
-            .as_ref()
             .map(collect_top_level_names)
             .unwrap_or_default();
 
         // Walk the fragment and collect reports.
         let mut reports: Vec<PendingReport> = Vec::new();
-        walk_js(&frag, |node, ancestors| {
+        walk_js(frag, |node, ancestors| {
             if node_type(node) != Some("MemberExpression") {
                 return;
             }

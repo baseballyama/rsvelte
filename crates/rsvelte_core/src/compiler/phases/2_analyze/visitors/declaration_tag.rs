@@ -16,7 +16,7 @@
 use super::super::AnalysisError;
 use super::super::errors;
 use super::super::warnings;
-use super::shared::utils::{walk_js_expression, walk_js_expression_node};
+use super::shared::utils::walk_js_expression_node;
 use super::{FragmentOwnerType, VisitorContext};
 use crate::ast::template::DeclarationTag;
 use crate::ast::typed_expr::JsNode;
@@ -98,6 +98,8 @@ pub fn visit(tag: &mut DeclarationTag, context: &mut VisitorContext) -> Result<(
     let decl_node = tag.declaration.as_node();
     let arena = context.parse_arena;
 
+    // Any other declaration shape carries no init to walk; the JSON fallback
+    // this replaced re-tested the same type and so was already a no-op.
     if let JsNode::VariableDeclaration { declarations, .. } = &*decl_node {
         let decls = arena.get_js_children(*declarations);
         for d in decls {
@@ -114,24 +116,6 @@ pub fn visit(tag: &mut DeclarationTag, context: &mut VisitorContext) -> Result<(
                 );
             }
         }
-    } else {
-        // Fallback: walk via JSON shape.
-        let value = tag.declaration.as_json();
-        if value.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
-            && let Some(declarations) = value.get("declarations").and_then(|d| d.as_array())
-        {
-            for declaration in declarations {
-                if let Some(init) = declaration.get("init")
-                    && !init.is_null()
-                {
-                    walk_js_expression(init, context, &mut tag.metadata.expression)?;
-                    super::await_block::collect_pickled_awaits(
-                        init,
-                        &mut context.analysis.pickled_awaits,
-                    );
-                }
-            }
-        }
     }
 
     // `state_referenced_locally` warning (Svelte 5.56.1 #18348). A declaration
@@ -139,7 +123,7 @@ pub fn visit(tag: &mut DeclarationTag, context: &mut VisitorContext) -> Result<(
     // closure or a `$state(…)` / `$derived(…)` call argument — only captures the
     // initial value (e.g. `{let e = $state(0), f = e}`). rsvelte's main
     // Identifier visitor, which normally emits this warning, does not run on
-    // declaration tags (they use the specialized `walk_js_expression` walker for
+    // declaration tags (they use the specialized `walk_js_expression_node` walker for
     // metadata discovery), so we replicate the structural check here: any
     // reactive binding referenced at the "top level" of an initializer warns.
     if context.analysis.runes && !context.is_ignored("state_referenced_locally") {

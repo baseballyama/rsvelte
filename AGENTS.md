@@ -141,7 +141,7 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (Svelte **v5.56.7**). Re-run `pnpm run test-and-update`
+Source: `pnpm run compatibility-report` (Svelte **v5.56.8**). Re-run `pnpm run test-and-update`
 to refresh. Skip lists live in `crates/rsvelte_core/tests/compatibility_report.rs` and
 `crates/rsvelte_core/tests/runtime.rs`; `crates/rsvelte_core/tests/audit_skipped.rs`
 re-checks every skipped fixture after a Svelte bump.
@@ -161,13 +161,27 @@ re-checks every skipped fixture after a Svelte bump.
 | Runtime Browser | 32/32 |
 | Print | 43/43 |
 | Preprocess | 19/19 |
-| Sourcemaps | 0/0 (no fixtures yet) |
+| Sourcemaps | 0/0 (report only — see the source-map gate below) |
 | svelte2tsx | 253/253 |
 | Migrate | 0/76 (out of scope) |
 
 All in-scope fixtures pass (100.0%). The 76 `migrate` fixtures (Svelte 4 → 5 migrator) are
 intentionally out of scope: rsvelte is a Svelte 5 compiler port, not a migration tool. Do
 not start migrate work without an explicit scope change.
+
+### Source-map gate
+
+The `Sourcemaps` row above reads 0/0 because `compatibility_report.rs` looks for a
+`main.svelte` in each sample and the sourcemaps samples use `input.svelte` — the fixtures
+themselves (official `client.js{,.map}` / `server.js{,.map}` for all 29 samples) have always
+been generated. Map *correctness* is gated by
+`crates/rsvelte_core/tests/sourcemaps_gate.rs`, which ports the `_config.js` anchor assertions
+from `packages/svelte/tests/sourcemaps` and adds two structural budgets (official segments
+reproduced; segments pointing outside the source), ratcheted shrink-only through
+`compatibility/sourcemap-known-failures.json` with per-entry justification in the paired `.md`.
+Server maps are accurate; client maps are chunk-granular (issue #1781) and are the burndown
+target — regenerate the baseline with `UPDATE_SOURCEMAP_RATCHET=1 cargo test -p rsvelte_core
+--test sourcemaps_gate -- --ignored sourcemap_gate_measure`.
 
 ### Formatter parity corpus (svelte.dev)
 
@@ -217,6 +231,22 @@ Wave 4 architecture (decided; tsgo ships an LSP server as of TypeScript 7, so th
 `eslint-plugin-svelte`'s rules, `crates/rsvelte_lint`) ships as its own npm package,
 [`@rsvelte/lint`](apps/npm/lint), fixed-versioned with `@rsvelte/compiler` via Changesets.
 Its real-world parity corpus ratchet lives at `compatibility/lint-known-failures.json`.
+
+### Type-aware lint suite (out-of-workspace)
+
+`crates/rsvelte_lint_types` (the corsa/`tsgo` type-aware backend) is its **own Cargo
+workspace** — it path-depends on `submodules/corsa-bind`, whose corsa client stack
+nothing else needs, so the root `cargo test` and the CI shards never build it (nor
+does the root `cargo fmt` / `clippy`). `submodules/corsa-bind` is **public**; it
+clones with no credentials. Run the suite with `pnpm run test:type-aware-lint`,
+which checks out the submodules, installs the **pinned**
+`@typescript/native-preview` (`scripts/dev/type-aware-lint/package.json` — exact
+version because upstream publishes dated dev builds and the tests assert exact
+diagnostic text), and runs the 9 tests. A missing binary **fails** instead of
+skipping. Do not point it at `$TSGO_BIN`: that names a batch `tsc`/`tsgo` for
+`rsvelte-check`, whereas this backend needs a `--api` server (`$CORSA_EXECUTABLE`).
+`.github/workflows/type-aware-lint.yml` runs fmt + clippy + the suite on changes to
+the crate, weekly, and on dispatch.
 
 ## Quick Reference
 

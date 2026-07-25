@@ -12,7 +12,7 @@ use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::utils::{
-    validate_block_not_empty, validate_opening_tag, walk_js_expression, walk_js_expression_node,
+    validate_block_not_empty, validate_opening_tag, walk_js_expression_node,
 };
 use crate::ast::template::AwaitBlock;
 use crate::ast::typed_expr::JsNode;
@@ -116,39 +116,29 @@ pub fn visit<'a, 'b: 'a>(
 
     // Visit the expression to populate metadata (has_await, has_state, dependencies, etc.)
     // In the JS version: context.visit(node.expression, { ...context.state, expression: node.metadata.expression });
-    if let Some(node_ref) = block.expression.try_as_node_ref() {
-        walk_js_expression_node(node_ref, context, &mut block.metadata.expression)?;
-        collect_pickled_awaits_node(
-            node_ref,
-            &mut context.analysis.pickled_awaits,
-            context.parse_arena,
-        );
-    } else {
-        let value = block.expression.as_json();
-        walk_js_expression(value, context, &mut block.metadata.expression)?;
-        collect_pickled_awaits(value, &mut context.analysis.pickled_awaits);
-    }
+    // `Expression::Lazy` is only ever built for a bare `{expr}` tag, and
+    // `resolve_lazy_expressions()` resolves every one of them before analysis —
+    // so panicking here is the same contract the old `as_json()` fallback had.
+    let node_ref = block.expression.as_node_ref();
+    walk_js_expression_node(node_ref, context, &mut block.metadata.expression)?;
+    collect_pickled_awaits_node(
+        node_ref,
+        &mut context.analysis.pickled_awaits,
+        context.parse_arena,
+    );
 
     // Walk the value pattern's computed property key expressions to detect mutations.
     // For example: {#await promise then { [`prop${num++}`]: ... }}
     // The `num++` in the computed key needs to be detected as a reassignment.
     if let Some(ref value_pattern) = block.value {
         let mut dummy_metadata = crate::ast::template::ExpressionMetadata::default();
-        if let Some(node_ref) = value_pattern.try_as_node_ref() {
-            walk_pattern_computed_keys_node(node_ref, context, &mut dummy_metadata)?;
-        } else {
-            walk_pattern_computed_keys(value_pattern.as_json(), context, &mut dummy_metadata)?;
-        }
+        walk_pattern_computed_keys_node(value_pattern.as_node_ref(), context, &mut dummy_metadata)?;
     }
 
     // Also walk the error pattern's computed property key expressions
     if let Some(ref error_pattern) = block.error {
         let mut dummy_metadata = crate::ast::template::ExpressionMetadata::default();
-        if let Some(node_ref) = error_pattern.try_as_node_ref() {
-            walk_pattern_computed_keys_node(node_ref, context, &mut dummy_metadata)?;
-        } else {
-            walk_pattern_computed_keys(error_pattern.as_json(), context, &mut dummy_metadata)?;
-        }
+        walk_pattern_computed_keys_node(error_pattern.as_node_ref(), context, &mut dummy_metadata)?;
     }
 
     // Increment block depth for child analysis
@@ -225,162 +215,6 @@ pub fn visit<'a, 'b: 'a>(
 /// Walk a destructuring pattern and visit any computed property key expressions.
 /// This ensures that expressions like `num++` inside `{ [`prop${num++}`]: ... }`
 /// are properly analyzed for mutations and reassignments.
-fn walk_pattern_computed_keys(
-    pattern: &serde_json::Value,
-    context: &mut VisitorContext,
-    metadata: &mut crate::ast::template::ExpressionMetadata,
-) -> Result<(), AnalysisError> {
-    let pattern_type = pattern.get("type").and_then(|t| t.as_str());
-
-    match pattern_type {
-        Some("ObjectPattern") => {
-            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
-                for prop in properties {
-                    let prop_type = prop.get("type").and_then(|t| t.as_str());
-                    if prop_type == Some("RestElement") {
-                        if let Some(argument) = prop.get("argument") {
-                            walk_pattern_computed_keys(argument, context, metadata)?;
-                        }
-                    } else {
-                        // Property node - check if it has a computed key
-                        let computed = prop
-                            .get("computed")
-                            .and_then(|c| c.as_bool())
-                            .unwrap_or(false);
-                        if computed && let Some(key) = prop.get("key") {
-                            walk_expression_for_mutations(key, context, metadata)?;
-                        }
-                        // Also recurse into the value pattern
-                        if let Some(value) = prop.get("value") {
-                            walk_pattern_computed_keys(value, context, metadata)?;
-                        }
-                    }
-                }
-            }
-        }
-        Some("ArrayPattern") => {
-            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
-                for elem in elements {
-                    if !elem.is_null() {
-                        walk_pattern_computed_keys(elem, context, metadata)?;
-                    }
-                }
-            }
-        }
-        Some("AssignmentPattern") => {
-            if let Some(left) = pattern.get("left") {
-                walk_pattern_computed_keys(left, context, metadata)?;
-            }
-        }
-        _ => {}
-    }
-
-    Ok(())
-}
-
-/// Walk a JavaScript expression and detect mutations (UpdateExpression, AssignmentExpression).
-/// This first calls walk_js_expression for metadata tracking, then recursively looks for
-/// mutation expressions and marks the affected bindings.
-fn walk_expression_for_mutations(
-    expression: &serde_json::Value,
-    context: &mut VisitorContext,
-    metadata: &mut crate::ast::template::ExpressionMetadata,
-) -> Result<(), AnalysisError> {
-    // Walk for metadata (dependency tracking, state detection, etc.)
-    walk_js_expression(expression, context, metadata)?;
-
-    // Additionally, recursively walk all sub-expressions looking for mutations
-    mark_mutations_recursive(expression, context);
-
-    Ok(())
-}
-
-/// Recursively walk an expression tree to find and mark UpdateExpression and
-/// AssignmentExpression nodes, calling mark_binding_mutation for each.
-fn mark_mutations_recursive(expression: &serde_json::Value, context: &mut VisitorContext) {
-    let expr_type = expression.get("type").and_then(|t| t.as_str());
-
-    match expr_type {
-        Some("UpdateExpression") => {
-            if let Some(argument) = expression.get("argument") {
-                super::assignment_expression::mark_binding_mutation(argument, context);
-            }
-        }
-        Some("AssignmentExpression") => {
-            if let Some(left) = expression.get("left") {
-                super::assignment_expression::mark_binding_mutation(left, context);
-            }
-            // Also recurse into the right-hand side
-            if let Some(right) = expression.get("right") {
-                mark_mutations_recursive(right, context);
-            }
-        }
-        Some("TemplateLiteral") => {
-            if let Some(expressions) = expression.get("expressions").and_then(|e| e.as_array()) {
-                for expr in expressions {
-                    mark_mutations_recursive(expr, context);
-                }
-            }
-        }
-        Some("BinaryExpression") | Some("LogicalExpression") => {
-            if let Some(left) = expression.get("left") {
-                mark_mutations_recursive(left, context);
-            }
-            if let Some(right) = expression.get("right") {
-                mark_mutations_recursive(right, context);
-            }
-        }
-        Some("ConditionalExpression") => {
-            if let Some(test) = expression.get("test") {
-                mark_mutations_recursive(test, context);
-            }
-            if let Some(consequent) = expression.get("consequent") {
-                mark_mutations_recursive(consequent, context);
-            }
-            if let Some(alternate) = expression.get("alternate") {
-                mark_mutations_recursive(alternate, context);
-            }
-        }
-        Some("CallExpression") | Some("NewExpression") => {
-            if let Some(callee) = expression.get("callee") {
-                mark_mutations_recursive(callee, context);
-            }
-            if let Some(arguments) = expression.get("arguments").and_then(|a| a.as_array()) {
-                for arg in arguments {
-                    mark_mutations_recursive(arg, context);
-                }
-            }
-        }
-        Some("SequenceExpression") => {
-            if let Some(expressions) = expression.get("expressions").and_then(|e| e.as_array()) {
-                for expr in expressions {
-                    mark_mutations_recursive(expr, context);
-                }
-            }
-        }
-        Some("MemberExpression") => {
-            if let Some(object) = expression.get("object") {
-                mark_mutations_recursive(object, context);
-            }
-            let computed = expression
-                .get("computed")
-                .and_then(|c| c.as_bool())
-                .unwrap_or(false);
-            if computed && let Some(property) = expression.get("property") {
-                mark_mutations_recursive(property, context);
-            }
-        }
-        Some("UnaryExpression") => {
-            if let Some(argument) = expression.get("argument") {
-                mark_mutations_recursive(argument, context);
-            }
-        }
-        _ => {}
-    }
-}
-
-/// Walk a destructuring pattern and visit any computed property key expressions.
-/// JsNode-based version of `walk_pattern_computed_keys`.
 fn walk_pattern_computed_keys_node(
     pattern: &JsNode,
     context: &mut VisitorContext,
@@ -435,7 +269,6 @@ fn walk_pattern_computed_keys_node(
 }
 
 /// Walk a JavaScript expression and detect mutations (UpdateExpression, AssignmentExpression).
-/// JsNode-based version of `walk_expression_for_mutations`.
 fn walk_expression_for_mutations_node(
     expression: &JsNode,
     context: &mut VisitorContext,
@@ -522,152 +355,10 @@ fn mark_mutations_recursive_node(expression: &JsNode, context: &mut VisitorConte
     }
 }
 
-/// Collect pickled await positions from an expression tree.
-///
-/// An await expression is "pickled" when it's NOT the last evaluated expression
-/// in the reactive context. This means there are more expressions to evaluate
-/// after the await, and the reactive context needs to be preserved.
-///
-/// This is a post-processing pass that walks the expression tree and checks
-/// each AwaitExpression's position relative to its parent.
-pub fn collect_pickled_awaits(expr: &serde_json::Value, pickled: &mut rustc_hash::FxHashSet<u32>) {
-    collect_pickled_awaits_inner(expr, pickled, true);
-}
-
-fn collect_pickled_awaits_inner(
-    expr: &serde_json::Value,
-    pickled: &mut rustc_hash::FxHashSet<u32>,
-    is_last: bool,
-) {
-    let expr_type = expr.get("type").and_then(|t| t.as_str());
-
-    match expr_type {
-        Some("AwaitExpression") => {
-            if !is_last && let Some(start) = expr.get("start").and_then(|s| s.as_u64()) {
-                pickled.insert(start as u32);
-            }
-            // Also recurse into argument
-            if let Some(argument) = expr.get("argument") {
-                collect_pickled_awaits_inner(argument, pickled, true);
-            }
-        }
-        Some("BinaryExpression") | Some("LogicalExpression") | Some("AssignmentExpression") => {
-            // Left side is NOT last (right side evaluates after it)
-            if let Some(left) = expr.get("left") {
-                collect_pickled_awaits_inner(left, pickled, false);
-            }
-            // Right side inherits parent's is_last
-            if let Some(right) = expr.get("right") {
-                collect_pickled_awaits_inner(right, pickled, is_last);
-            }
-        }
-        Some("CallExpression") | Some("NewExpression") => {
-            // Callee is not last if there are arguments
-            if let Some(callee) = expr.get("callee") {
-                let has_args = expr
-                    .get("arguments")
-                    .and_then(|a| a.as_array())
-                    .map(|a| !a.is_empty())
-                    .unwrap_or(false);
-                collect_pickled_awaits_inner(
-                    callee,
-                    pickled,
-                    if has_args { false } else { is_last },
-                );
-            }
-            if let Some(serde_json::Value::Array(args)) = expr.get("arguments") {
-                for (i, arg) in args.iter().enumerate() {
-                    let arg_is_last = i == args.len() - 1 && is_last;
-                    collect_pickled_awaits_inner(arg, pickled, arg_is_last);
-                }
-            }
-        }
-        Some("ConditionalExpression") => {
-            if let Some(test) = expr.get("test") {
-                collect_pickled_awaits_inner(test, pickled, false);
-            }
-            if let Some(consequent) = expr.get("consequent") {
-                collect_pickled_awaits_inner(consequent, pickled, is_last);
-            }
-            if let Some(alternate) = expr.get("alternate") {
-                collect_pickled_awaits_inner(alternate, pickled, is_last);
-            }
-        }
-        Some("SequenceExpression") => {
-            if let Some(serde_json::Value::Array(exprs)) = expr.get("expressions") {
-                for (i, e) in exprs.iter().enumerate() {
-                    let e_is_last = i == exprs.len() - 1 && is_last;
-                    collect_pickled_awaits_inner(e, pickled, e_is_last);
-                }
-            }
-        }
-        Some("ArrayExpression") => {
-            if let Some(serde_json::Value::Array(elements)) = expr.get("elements") {
-                for (i, e) in elements.iter().enumerate() {
-                    let e_is_last = i == elements.len() - 1 && is_last;
-                    collect_pickled_awaits_inner(e, pickled, e_is_last);
-                }
-            }
-        }
-        Some("MemberExpression") => {
-            if let Some(object) = expr.get("object") {
-                let computed = expr
-                    .get("computed")
-                    .and_then(|c| c.as_bool())
-                    .unwrap_or(false);
-                collect_pickled_awaits_inner(
-                    object,
-                    pickled,
-                    if computed { false } else { is_last },
-                );
-            }
-            if let Some(property) = expr.get("property") {
-                let computed = expr
-                    .get("computed")
-                    .and_then(|c| c.as_bool())
-                    .unwrap_or(false);
-                if computed {
-                    collect_pickled_awaits_inner(property, pickled, is_last);
-                }
-            }
-        }
-        Some("TemplateLiteral") => {
-            if let Some(serde_json::Value::Array(exprs)) = expr.get("expressions") {
-                for (i, e) in exprs.iter().enumerate() {
-                    let e_is_last = i == exprs.len() - 1 && is_last;
-                    collect_pickled_awaits_inner(e, pickled, e_is_last);
-                }
-            }
-        }
-        Some("ObjectExpression") => {
-            if let Some(serde_json::Value::Array(props)) = expr.get("properties") {
-                for (i, p) in props.iter().enumerate() {
-                    let p_is_last = i == props.len() - 1 && is_last;
-                    if let Some(value) = p.get("value") {
-                        collect_pickled_awaits_inner(value, pickled, p_is_last);
-                    }
-                }
-            }
-        }
-        Some("UnaryExpression") => {
-            if let Some(argument) = expr.get("argument") {
-                collect_pickled_awaits_inner(argument, pickled, is_last);
-            }
-        }
-        Some("ArrowFunctionExpression") | Some("FunctionExpression") => {
-            // Don't cross function boundaries
-        }
-        _ => {
-            // For other nodes, recursively walk children
-            // This handles ExpressionStatement, VariableDeclarator, etc.
-        }
-    }
-}
-
 /// Collect pickled await positions from a JsNode expression tree.
 ///
 /// An await expression is "pickled" when it's NOT the last evaluated expression
-/// in the reactive context. This is a JsNode-based version of `collect_pickled_awaits`.
+/// in the reactive context.
 pub fn collect_pickled_awaits_node(
     expr: &JsNode,
     pickled: &mut rustc_hash::FxHashSet<u32>,
