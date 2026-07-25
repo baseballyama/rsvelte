@@ -557,11 +557,11 @@ impl Rule for PreferDestructuredStoreProps {
             .filter(|s| s.context == ScriptContext::Default);
 
         // Serialize the script content for analysis (only if we have a script).
-        let script_content: Option<Value> = if instance_script.is_some() {
+        // The script program's own JSON cache — re-serializing it would rebuild
+        // a whole ESTree tree the engine already materialised for this file.
+        let script_content: Option<&Value> = if instance_script.is_some() {
             with_serialize_arena(&root.arena, || {
-                root.instance
-                    .as_ref()
-                    .and_then(|s| serde_json::to_value(&s.content).ok())
+                root.instance.as_ref().map(|s| s.content.as_json())
             })
         } else {
             None
@@ -573,7 +573,6 @@ impl Rule for PreferDestructuredStoreProps {
 
         // Collect top-level variable names (for hasTopLevelVariable).
         let top_level_names: HashSet<String> = script_content
-            .as_ref()
             .map(collect_top_level_names)
             .unwrap_or_default();
 

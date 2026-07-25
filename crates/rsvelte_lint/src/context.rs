@@ -118,7 +118,7 @@ impl<'a> LintContext<'a> {
         root: &rsvelte_core::ast::template::Root,
     ) -> Option<Rc<Value>> {
         let json = self.root_json(root);
-        json.get("fragment").is_some().then(|| json)
+        json.get("fragment").is_some().then_some(json)
     }
 
     /// The template fragment as ESTree JSON, parsed with the *default* options
