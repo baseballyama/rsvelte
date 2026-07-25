@@ -55,34 +55,28 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
         JsNode::Identifier { name, .. } => Some(name.as_str()),
         _ => None,
     };
-    let binding = if matches!(callee_node, JsNode::Identifier { .. }) {
-        if let Some(name) = callee_name {
-            context
-                .analysis
-                .root
-                .get_binding(name, context.scope)
-                .filter(|&idx| {
-                    // The scope builder merges all child-scope declarations into
-                    // all_scopes[0] for backward compatibility.  A raw get_binding walk
-                    // therefore finds bindings declared in *descendant* scopes (e.g. `y`
-                    // declared inside snippet x's body) when the lookup starts from an
-                    // ancestor scope (e.g. the enclosing <div>).  Filter those out:
-                    // only accept a binding if its declared scope is an ancestor of (or
-                    // equal to) the current render-site scope — mirroring upstream
-                    // `scope.get(name)` which traverses `parent` links, never children.
-                    let declared_scope = context.analysis.root.bindings[idx].scope_index;
-                    context
-                        .analysis
-                        .root
-                        .is_scope_ancestor_of(declared_scope, context.scope)
-                })
-                .map(|idx| &context.analysis.root.bindings[idx])
-        } else {
-            None
-        }
-    } else {
-        None
-    };
+    let binding = callee_name.and_then(|name| {
+        context
+            .analysis
+            .root
+            .get_binding(name, context.scope)
+            .filter(|&idx| {
+                // The scope builder merges all child-scope declarations into
+                // all_scopes[0] for backward compatibility.  A raw get_binding walk
+                // therefore finds bindings declared in *descendant* scopes (e.g. `y`
+                // declared inside snippet x's body) when the lookup starts from an
+                // ancestor scope (e.g. the enclosing <div>).  Filter those out:
+                // only accept a binding if its declared scope is an ancestor of (or
+                // equal to) the current render-site scope — mirroring upstream
+                // `scope.get(name)` which traverses `parent` links, never children.
+                let declared_scope = context.analysis.root.bindings[idx].scope_index;
+                context
+                    .analysis
+                    .root
+                    .is_scope_ancestor_of(declared_scope, context.scope)
+            })
+            .map(|idx| &context.analysis.root.bindings[idx])
+    });
 
     // Determine if this render tag is dynamic
     // It's dynamic if:

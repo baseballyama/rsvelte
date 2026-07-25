@@ -116,31 +116,29 @@ pub fn visit<'a, 'b: 'a>(
 
     // Visit the expression to populate metadata (has_await, has_state, dependencies, etc.)
     // In the JS version: context.visit(node.expression, { ...context.state, expression: node.metadata.expression });
-    if let Some(node_ref) = block.expression.try_as_node_ref() {
-        walk_js_expression_node(node_ref, context, &mut block.metadata.expression)?;
-        collect_pickled_awaits_node(
-            node_ref,
-            &mut context.analysis.pickled_awaits,
-            context.parse_arena,
-        );
-    }
+    // `Expression::Lazy` is only ever built for a bare `{expr}` tag, and
+    // `resolve_lazy_expressions()` resolves every one of them before analysis —
+    // so panicking here is the same contract the old `as_json()` fallback had.
+    let node_ref = block.expression.as_node_ref();
+    walk_js_expression_node(node_ref, context, &mut block.metadata.expression)?;
+    collect_pickled_awaits_node(
+        node_ref,
+        &mut context.analysis.pickled_awaits,
+        context.parse_arena,
+    );
 
     // Walk the value pattern's computed property key expressions to detect mutations.
     // For example: {#await promise then { [`prop${num++}`]: ... }}
     // The `num++` in the computed key needs to be detected as a reassignment.
     if let Some(ref value_pattern) = block.value {
         let mut dummy_metadata = crate::ast::template::ExpressionMetadata::default();
-        if let Some(node_ref) = value_pattern.try_as_node_ref() {
-            walk_pattern_computed_keys_node(node_ref, context, &mut dummy_metadata)?;
-        }
+        walk_pattern_computed_keys_node(value_pattern.as_node_ref(), context, &mut dummy_metadata)?;
     }
 
     // Also walk the error pattern's computed property key expressions
     if let Some(ref error_pattern) = block.error {
         let mut dummy_metadata = crate::ast::template::ExpressionMetadata::default();
-        if let Some(node_ref) = error_pattern.try_as_node_ref() {
-            walk_pattern_computed_keys_node(node_ref, context, &mut dummy_metadata)?;
-        }
+        walk_pattern_computed_keys_node(error_pattern.as_node_ref(), context, &mut dummy_metadata)?;
     }
 
     // Increment block depth for child analysis

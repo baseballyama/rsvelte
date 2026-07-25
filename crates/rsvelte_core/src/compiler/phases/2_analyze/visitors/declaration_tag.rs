@@ -98,6 +98,8 @@ pub fn visit(tag: &mut DeclarationTag, context: &mut VisitorContext) -> Result<(
     let decl_node = tag.declaration.as_node();
     let arena = context.parse_arena;
 
+    // Any other declaration shape carries no init to walk; the JSON fallback
+    // this replaced re-tested the same type and so was already a no-op.
     if let JsNode::VariableDeclaration { declarations, .. } = &*decl_node {
         let decls = arena.get_js_children(*declarations);
         for d in decls {

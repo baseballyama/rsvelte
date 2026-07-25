@@ -84,6 +84,8 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
                 arena,
             );
         }
+        // Any other declaration shape carries no init to walk; the JSON fallback
+        // this replaced re-tested the same two types and so was already a no-op.
         _ => {}
     }
 

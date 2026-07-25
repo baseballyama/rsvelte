@@ -624,10 +624,6 @@ pub fn validate_attribute_name(
 pub fn is_invalid_attribute_name(name: &str) -> bool {
     REGEX_ILLEGAL_ATTRIBUTE_CHARACTER.is_match(name)
 }
-// =============================================================================
-// JsNode-based helper functions (mirrors of JSON-based functions above)
-// =============================================================================
-
 /// Get the leftmost identifier name from a MemberExpression chain.
 /// Returns None if the base is not an Identifier. Corresponds to `object` in ast.js.
 pub fn object_node(expression: &JsNode, arena: &crate::ast::arena::ParseArena) -> Option<String> {
@@ -1195,10 +1191,6 @@ fn get_rune_name_node(callee: &JsNode, context: &VisitorContext) -> Option<Strin
         _ => None,
     }
 }
-
-// =============================================================================
-// JsNode-based walker functions (WITH Raw fallback fix)
-// =============================================================================
 
 /// Visit a JavaScript expression (typed JsNode) and track identifier references.
 pub fn walk_js_expression_node(
