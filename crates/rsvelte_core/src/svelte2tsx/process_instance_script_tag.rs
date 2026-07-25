@@ -123,476 +123,275 @@ pub(crate) fn process_instance_script_tag(
     // Find import declarations in the instance script content
     let imports = find_instance_imports(instance, source);
 
-    if !imports.is_empty() {
-        // Lift imports above $$render(). Each import is collected
-        // individually (without leading whitespace), then inserted
-        // into the <script> tag replacement. The original import
-        // positions are blanked with whitespace-preserving content.
+    let has_imports = !imports.is_empty();
+    // Lift imports above $$render(): each import is collected individually
+    // (without leading whitespace) and inserted into the <script> tag
+    // replacement, with the original positions blanked out.
+    let import_text = if has_imports {
+        collect_lifted_imports(&imports, source, content_start, str)
+    } else {
+        String::new()
+    };
+    // With imports the `\n` separating the type alias from what precedes it
+    // already comes from `import_text`; without them the alias has to carry it.
+    let type_decl_prefix = if has_imports { "" } else { "\n" };
 
-        let import_text = collect_lifted_imports(&imports, source, content_start, str);
-
-        // Build $$ComponentProps type declaration for TS files
-        //
-        // Determine if the $$ComponentProps type must go INSIDE $$render
-        // rather than before it. This is needed when the type references:
-        // - `typeof x` (runtime value dependency on instance variables)
-        // - generic type parameters from the `generics` attribute on <script>
-        // - types that shadow module-level types
-        let force_inside_render = exported_names.has_component_props_typedef
-            && exported_names.props_type_text.is_some()
-            && !exported_names.type_already_inserted
-            && {
-                let type_text = exported_names.props_type_text.as_ref().unwrap();
-                // Check if type references an instance-local value via
-                // `typeof` (an imported `typeof` stays hoistable).
-                let has_typeof = type_text_typeof_references_local_value(
-                    type_text,
-                    &exported_names.instance_value_names,
-                    &exported_names.instance_import_names,
-                    &exported_names.module_import_names,
-                );
-                // Check if type references generics from $$render
-                let has_generic_dep = !render_generics.is_empty()
-                    && generics_param
-                        .as_ref()
-                        .map(|g| {
-                            // Extract generic param names and check if any appear in the type
-                            split_generic_param_names(g)
-                                .iter()
-                                .any(|name| type_text.contains(name.as_str()))
-                        })
-                        .unwrap_or(false);
-                // Check if type references a type/interface name that is
-                // declared at the top level of the instance script AND
-                // *isn't* also slated for hoisting. References to a
-                // hoisted type are fine — the hoisted declaration sits
-                // above `function $$render()`, so referring to it from
-                // a hoisted `$$ComponentProps` resolves correctly.
-                let non_hoistable_instance_types: std::collections::HashSet<String> =
-                    exported_names
-                        .instance_type_names
-                        .difference(&exported_names.hoistable_instance_type_names)
-                        .cloned()
-                        .collect();
-                let has_shadowed_type =
-                    type_text_references_any(type_text, &non_hoistable_instance_types);
-                has_typeof || has_generic_dep || has_shadowed_type
-            };
-
-        let ts_component_props_before_render = if exported_names.has_component_props_typedef
-            && !exported_names.type_already_inserted
-            && !force_inside_render
-            && let Some(type_text) = exported_names.props_type_text.as_ref()
-        {
-            format!(";type $$ComponentProps =  {};", type_text)
-        } else {
-            String::new()
+    // Build $$ComponentProps type declaration for TS files
+    //
+    // Determine if the $$ComponentProps type must go INSIDE $$render
+    // rather than before it. This is needed when the type references:
+    // - `typeof x` (runtime value dependency on instance variables)
+    // - generic type parameters from the `generics` attribute on <script>
+    // - types that shadow module-level types
+    let force_inside_render = exported_names.has_component_props_typedef
+        && exported_names.props_type_text.is_some()
+        && !exported_names.type_already_inserted
+        && {
+            let type_text = exported_names.props_type_text.as_ref().unwrap();
+            // Check if type references an instance-local value via
+            // `typeof` (an imported `typeof` stays hoistable).
+            let has_typeof = type_text_typeof_references_local_value(
+                type_text,
+                &exported_names.instance_value_names,
+                &exported_names.instance_import_names,
+                &exported_names.module_import_names,
+            );
+            // Check if type references generics from $$render
+            let has_generic_dep = !render_generics.is_empty()
+                && generics_param
+                    .as_ref()
+                    .map(|g| {
+                        // Extract generic param names and check if any appear in the type
+                        split_generic_param_names(g)
+                            .iter()
+                            .any(|name| type_text.contains(name.as_str()))
+                    })
+                    .unwrap_or(false);
+            // Check if type references a type/interface name that is
+            // declared at the top level of the instance script AND
+            // *isn't* also slated for hoisting. References to a
+            // hoisted type are fine — the hoisted declaration sits
+            // above `function $$render()`, so referring to it from
+            // a hoisted `$$ComponentProps` resolves correctly.
+            let non_hoistable_instance_types: std::collections::HashSet<String> = exported_names
+                .instance_type_names
+                .difference(&exported_names.hoistable_instance_type_names)
+                .cloned()
+                .collect();
+            let has_shadowed_type =
+                type_text_references_any(type_text, &non_hoistable_instance_types);
+            has_typeof || has_generic_dep || has_shadowed_type
         };
 
-        // For best-effort auto-generated types, insert INSIDE $$render.
-        //
-        // If we have an explicit `props_let_abs_pos`, defer the insertion to
-        // a `str.append_left` after the overwrite so the
-        // `;type $$ComponentProps = ...;` lands right before the
-        // `let { ... } = $props()` statement, matching the JS reference's
-        // `preprendStr(node.parent.pos + astOffset, ...)` /
-        // `move(generic_arg.pos, generic_arg.end, node.parent.pos)`.
-        let inline_type_at_let = (force_inside_render || exported_names.type_already_inserted)
-            && exported_names.props_let_abs_pos.is_some()
-            && exported_names.props_type_text.is_some();
-        let ts_component_props_inside_render = if (exported_names.type_already_inserted
-            || force_inside_render)
-            && !inline_type_at_let
-            && let Some(type_text) = exported_names.props_type_text.as_ref()
-        {
-            if force_inside_render {
-                format!("\n;type $$ComponentProps =  {};", type_text)
-            } else {
-                format!(
-                    "\n/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
-                    type_text
-                )
-            }
-        } else {
-            String::new()
-        };
+    let ts_component_props_before_render = if exported_names.has_component_props_typedef
+        && !exported_names.type_already_inserted
+        && !force_inside_render
+        && let Some(type_text) = exported_names.props_type_text.as_ref()
+    {
+        format!(
+            "{};type $$ComponentProps =  {};",
+            type_decl_prefix, type_text
+        )
+    } else {
+        String::new()
+    };
 
-        // Build the <script> replacement, split into two parts so that
-        // module-hoistable snippets and types can be moved into the gap:
-        //   Part A: `;\n[\n if module]<imports>`
-        //   Part B: `<before_render_type><async_prefix>function $$render(){...`
-        //
-        // The synthesised `;type $$ComponentProps = ...;` lives in part_b
-        // (not part_a) so it lands AFTER any hoisted type/interface
-        // declarations — `$$ComponentProps` may reference them, so it has
-        // to appear after them in the output.
-        // `import_text` provides its own leading `\n` (or absorbs it
-        // into a leading-line-comment) — see the new-line accounting
-        // above. `part_a` only carries the `;` (which replaces the `<`)
-        // plus an extra `\n` when there is also a module script (mirrors
-        // `'\n' + (hasModuleScript ? '\n' : '')` in
-        // `handleFirstInstanceImport`).
-        let mut part_a = String::from(";");
+    // For best-effort auto-generated types, insert INSIDE $$render.
+    //
+    // If we have an explicit `props_let_abs_pos`, defer the insertion to
+    // a `str.append_left` after the overwrite so the
+    // `;type $$ComponentProps = ...;` lands right before the
+    // `let { ... } = $props()` statement, matching the JS reference's
+    // `preprendStr(node.parent.pos + astOffset, ...)` /
+    // `move(generic_arg.pos, generic_arg.end, node.parent.pos)`.
+    let inline_type_at_let = (force_inside_render || exported_names.type_already_inserted)
+        && exported_names.props_let_abs_pos.is_some()
+        && exported_names.props_type_text.is_some();
+    let ts_component_props_inside_render = if (exported_names.type_already_inserted
+        || force_inside_render)
+        && !inline_type_at_let
+        && let Some(type_text) = exported_names.props_type_text.as_ref()
+    {
+        if force_inside_render {
+            format!("\n;type $$ComponentProps =  {};", type_text)
+        } else {
+            format!(
+                "\n/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
+                type_text
+            )
+        }
+    } else {
+        String::new()
+    };
+
+    // Build the <script> replacement, split into two parts so that
+    // module-hoistable snippets and types can be moved into the gap:
+    //   Part A: `;\n[\n if module]<imports>`
+    //   Part B: `<before_render_type><async_prefix>function $$render(){...`
+    //
+    // The synthesised `;type $$ComponentProps = ...;` lives in part_b
+    // (not part_a) so it lands AFTER any hoisted type/interface
+    // declarations — `$$ComponentProps` may reference them, so it has
+    // to appear after them in the output.
+    // `import_text` provides its own leading `\n` (or absorbs it
+    // into a leading-line-comment) — see the new-line accounting
+    // above. `part_a` only carries the `;` (which replaces the `<`)
+    // plus an extra `\n` when there is also a module script (mirrors
+    // `'\n' + (hasModuleScript ? '\n' : '')` in
+    // `handleFirstInstanceImport`).
+    let mut part_a = String::from(";");
+    if has_imports {
         if has_module_script {
             part_a.push('\n');
         }
         part_a.push_str(&import_text);
-        // When there are hoistable snippets and a $$ComponentProps typedef to
-        // emit before $$render, the typedef must appear BEFORE the snippets in
-        // the output. Because snippets are moved to `sp` (after `part_a`) and
-        // `part_b` is placed after them, we append the typedef to `part_a` so
-        // it lands between the imports and the snippets. A `\n` separator is
-        // also added to match the blank line the JS reference produces.
-        let ts_component_props_in_part_a =
-            !hoistable_snippet_ranges.is_empty() && !ts_component_props_before_render.is_empty();
-        if ts_component_props_in_part_a {
-            part_a.push('\n');
-            part_a.push_str(&ts_component_props_before_render);
-        }
-        let trailing_newline = if ts_component_props_inside_render.is_empty() {
-            "\n"
-        } else {
-            ""
-        };
-        // When there's a hoistable type/interface, JS reference puts a
-        // newline between the moved declaration and the synthesised
-        // `;type $$ComponentProps = ...;function $$render() {` (which
-        // sits in `ts_component_props_before_render`). Mirror that with
-        // a `\n` prefix on part_b in that case.
-        let part_b_prefix = if !exported_names.hoistable_type_ranges.is_empty()
-            && !ts_component_props_before_render.is_empty()
-            && !ts_component_props_in_part_a
-        {
-            "\n"
-        } else {
-            ""
-        };
-        let part_b_component_props = if ts_component_props_in_part_a {
-            ""
-        } else {
-            &ts_component_props_before_render
-        };
-        let part_b = format!(
-            "{}{}{}{}function $$render{}() {{{}{}{}",
-            part_b_prefix,
-            part_b_component_props,
-            template_comment,
-            async_prefix,
-            render_generics,
-            dollar_decls,
-            ts_component_props_inside_render,
-            trailing_newline
-        );
-
-        let has_hoistable_chunks = !hoistable_snippet_ranges.is_empty()
-            || !exported_names.hoistable_type_ranges.is_empty()
-            || !exported_names.dollar_generic_referenced_ranges.is_empty()
-            || exported_names.props_type_arg_hoist.is_some();
-        // Split position: right after the `<` of `<script>`. This matches
-        // the JS reference's `scriptTag.start + 1`, so moved chunks land
-        // between the `;` (from the `<` overwrite) and the function
-        // declaration that replaces the rest of the script tag.
-        let split_pos = if has_hoistable_chunks && content_start > script_start + 1 {
-            Some(script_start + 1)
-        } else {
-            None
-        };
-        if let Some(sp) = split_pos {
-            if script_start < sp {
-                str.overwrite(script_start, sp, &part_a);
-            }
-            // Move hoistable type/interface declarations first so they
-            // sit BEFORE the snippets in the chunk list, matching the JS
-            // reference's `scriptTag.start + 1` ordering.
-            //
-            // Each chunk already extends backward through the original
-            // leading whitespace (see `resolve_hoistable_type_decls`),
-            // so a single `;` prepend is enough — the chunk supplies
-            // its own newline + indent, and the trailing `;` mirrors
-            // `appendLeft(node.end, ';')` from the JS reference so the
-            // declaration is statement-terminated.
-            // Preserve the promotion (topological) order produced by
-            // `resolve_hoistable_type_decls`, which mirrors the JS
-            // reference's `Map` insertion order: a dependency is moved
-            // BEFORE the interface that depends on it, even when it appears
-            // later in source. Sorting by start position would wrongly
-            // restore source order.
-            let type_ranges = exported_names.hoistable_type_ranges.clone();
-            for (s, e) in type_ranges {
-                if s < e && (e as usize) <= source.len() {
-                    // `prepend_right` / `append_left` add to the moved
-                    // chunk itself (intro / outro of the [s..e] chunk),
-                    // so the `;` markers travel with the chunk to its
-                    // hoist target — `prepend_left` would leave the
-                    // semicolon stranded at the original location.
-                    str.prepend_right(s, ";");
-                    str.append_left(e, ";");
-                    str.move_range(s, e, sp);
-                }
-            }
-            // Move the inline type arg from `$props<{ ... }>()` to the hoist target.
-            // `\ntype $$ComponentProps = ` and `;` were already added via
-            // `prepend_right`/`append_left` in `apply_props_typedef`.
-            // Mirrors upstream's `moveHoistableInterfaces` for `$$ComponentProps`.
-            if let Some((s, e)) = exported_names.props_type_arg_hoist
-                && s < e
-                && (e as usize) <= source.len()
-            {
-                str.move_range(s, e, sp);
-            }
-            // Move `$$Generic<X>`-referenced types. Mirrors the JS
-            // reference's `nodesToMove` path (`moveNode`) — uses
-            // `node.getStart()` (no leading trivia) and ends the chunk
-            // with `\n` so the following text in `part_b` (`function
-            // $$render`) starts on its own line.
-            let mut nodes_to_move = exported_names.dollar_generic_referenced_ranges.clone();
-            nodes_to_move.sort_by_key(|(s, _)| *s);
-            for (s, e) in nodes_to_move {
-                if s < e && (e as usize) <= source.len() {
-                    str.prepend_right(s, "\n");
-                    str.append_left(e, "\n");
-                    str.move_range(s, e, sp);
-                }
-            }
-            for (s, e) in hoistable_snippet_ranges.iter() {
-                str.move_range(*s, *e, sp);
-            }
-            str.overwrite(sp, content_start, &part_b);
-        } else if script_start < content_start {
-            str.overwrite(
-                script_start,
-                content_start,
-                &format!("{}{}", part_a, part_b),
-            );
-        }
-
-        if inline_type_at_let
-            && let (Some(let_pos), Some(type_text)) = (
-                exported_names.props_let_abs_pos,
-                exported_names.props_type_text.as_ref(),
-            )
-        {
-            let snippet = if force_inside_render {
-                format!(";type $$ComponentProps =  {};", type_text)
-            } else {
-                // type_already_inserted (auto-generated SvelteKit / fallback type).
-                // JS reference wraps in surroundWithIgnoreComments.
-                format!(
-                    "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
-                    type_text
-                )
-            };
-            str.append_left(let_pos, &snippet);
-        }
+    }
+    // When there are hoistable snippets and a $$ComponentProps typedef to
+    // emit before $$render, the typedef must appear BEFORE the snippets in
+    // the output. Because snippets are moved to `sp` (after `part_a`) and
+    // `part_b` is placed after them, we append the typedef to `part_a` so
+    // it lands between the imports and the snippets. A `\n` separator is
+    // also added to match the blank line the JS reference produces.
+    let ts_component_props_in_part_a =
+        !hoistable_snippet_ranges.is_empty() && !ts_component_props_before_render.is_empty();
+    if ts_component_props_in_part_a {
+        part_a.push('\n');
+        part_a.push_str(&ts_component_props_before_render);
+    }
+    let trailing_newline = if ts_component_props_inside_render.is_empty() {
+        "\n"
     } else {
-        // No imports: overwrite the entire <script> tag at once
-        let force_inside_render_no_imports = exported_names.has_component_props_typedef
-            && exported_names.props_type_text.is_some()
-            && !exported_names.type_already_inserted
-            && {
-                let type_text = exported_names.props_type_text.as_ref().unwrap();
-                let has_typeof = type_text_typeof_references_local_value(
-                    type_text,
-                    &exported_names.instance_value_names,
-                    &exported_names.instance_import_names,
-                    &exported_names.module_import_names,
-                );
-                let has_generic_dep = !render_generics.is_empty()
-                    && generics_param
-                        .as_ref()
-                        .map(|g| {
-                            split_generic_param_names(g)
-                                .iter()
-                                .any(|name| type_text.contains(name.as_str()))
-                        })
-                        .unwrap_or(false);
-                // Match the imports branch: skip names that are
-                // themselves slated for hoisting — referencing them
-                // from `$$ComponentProps` is fine when the hoisted
-                // declaration sits above `$$render`.
-                let non_hoistable_instance_types: std::collections::HashSet<String> =
-                    exported_names
-                        .instance_type_names
-                        .difference(&exported_names.hoistable_instance_type_names)
-                        .cloned()
-                        .collect();
-                let has_shadowed_type =
-                    type_text_references_any(type_text, &non_hoistable_instance_types);
-                has_typeof || has_generic_dep || has_shadowed_type
-            };
+        ""
+    };
+    // When there's a hoistable type/interface, JS reference puts a
+    // newline between the moved declaration and the synthesised
+    // `;type $$ComponentProps = ...;function $$render() {` (which
+    // sits in `ts_component_props_before_render`). Mirror that with
+    // a `\n` prefix on part_b in that case.
+    let part_b_prefix = if !exported_names.hoistable_type_ranges.is_empty()
+        && !ts_component_props_before_render.is_empty()
+        && !ts_component_props_in_part_a
+    {
+        "\n"
+    } else {
+        ""
+    };
+    let part_b_component_props = if ts_component_props_in_part_a {
+        ""
+    } else {
+        &ts_component_props_before_render
+    };
+    let part_b = format!(
+        "{}{}{}{}function $$render{}() {{{}{}{}",
+        part_b_prefix,
+        part_b_component_props,
+        template_comment,
+        async_prefix,
+        render_generics,
+        dollar_decls,
+        ts_component_props_inside_render,
+        trailing_newline
+    );
 
-        let ts_component_props_before_render = if exported_names.has_component_props_typedef
-            && !exported_names.type_already_inserted
-            && !force_inside_render_no_imports
-            && let Some(type_text) = exported_names.props_type_text.as_ref()
-        {
-            format!("\n;type $$ComponentProps =  {};", type_text)
-        } else {
-            String::new()
-        };
-
-        // For best-effort auto-generated types, insert INSIDE $$render.
-        // See the imports branch above for the `inline_type_at_let` rationale.
-        let inline_type_at_let = (force_inside_render_no_imports
-            || exported_names.type_already_inserted)
-            && exported_names.props_let_abs_pos.is_some()
-            && exported_names.props_type_text.is_some();
-        let ts_component_props_inside_render = if (exported_names.type_already_inserted
-            || force_inside_render_no_imports)
-            && !inline_type_at_let
-            && let Some(type_text) = exported_names.props_type_text.as_ref()
-        {
-            if force_inside_render_no_imports {
-                format!("\n;type $$ComponentProps =  {};", type_text)
-            } else {
-                format!(
-                    "\n/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
-                    type_text
-                )
-            }
-        } else {
-            String::new()
-        };
-
-        let trailing_newline = if ts_component_props_inside_render.is_empty() {
-            "\n"
-        } else {
-            ""
-        };
-        // No-imports branch: same split rationale as the imports branch
-        // above — keep the synthesised `;type $$ComponentProps = ...;` in
-        // part_b so it follows any hoisted type/interface declarations.
-        // When there are hoistable snippets, move it to part_a so it
-        // appears before them (mirrors the imports-branch behaviour).
-        let ts_component_props_in_part_a =
-            !hoistable_snippet_ranges.is_empty() && !ts_component_props_before_render.is_empty();
-        let mut part_a = String::from(";");
-        if ts_component_props_in_part_a {
-            part_a.push('\n');
-            part_a.push_str(&ts_component_props_before_render);
+    let has_hoistable_chunks = !hoistable_snippet_ranges.is_empty()
+        || !exported_names.hoistable_type_ranges.is_empty()
+        || !exported_names.dollar_generic_referenced_ranges.is_empty()
+        || exported_names.props_type_arg_hoist.is_some();
+    // Split position: right after the `<` of `<script>`. This matches
+    // the JS reference's `scriptTag.start + 1`, so moved chunks land
+    // between the `;` (from the `<` overwrite) and the function
+    // declaration that replaces the rest of the script tag.
+    let split_pos = if has_hoistable_chunks && content_start > script_start + 1 {
+        Some(script_start + 1)
+    } else {
+        None
+    };
+    if let Some(sp) = split_pos {
+        if script_start < sp {
+            str.overwrite(script_start, sp, &part_a);
         }
-        let part_b_prefix = if !exported_names.hoistable_type_ranges.is_empty()
-            && !ts_component_props_before_render.is_empty()
-            && !ts_component_props_in_part_a
-        {
-            "\n"
-        } else {
-            ""
-        };
-        let part_b_component_props = if ts_component_props_in_part_a {
-            ""
-        } else {
-            &ts_component_props_before_render
-        };
-        let part_b = format!(
-            "{}{}{}{}function $$render{}() {{{}{}{}",
-            part_b_prefix,
-            part_b_component_props,
-            template_comment,
-            async_prefix,
-            render_generics,
-            dollar_decls,
-            ts_component_props_inside_render,
-            trailing_newline
-        );
-        let has_hoistable_chunks = !hoistable_snippet_ranges.is_empty()
-            || !exported_names.hoistable_type_ranges.is_empty()
-            || !exported_names.dollar_generic_referenced_ranges.is_empty()
-            || exported_names.props_type_arg_hoist.is_some();
-        // Split position: right after the `<` of `<script>`. This matches
-        // the JS reference's `scriptTag.start + 1`, so moved chunks land
-        // between the `;` (from the `<` overwrite) and the function
-        // declaration that replaces the rest of the script tag.
-        let split_pos = if has_hoistable_chunks && content_start > script_start + 1 {
-            Some(script_start + 1)
-        } else {
-            None
-        };
-        if let Some(sp) = split_pos {
-            if script_start < sp {
-                str.overwrite(script_start, sp, &part_a);
-            }
-            // Move hoistable type/interface declarations first so they
-            // sit BEFORE the snippets in the chunk list, matching the JS
-            // reference's `scriptTag.start + 1` ordering.
-            //
-            // Each chunk already extends backward through the original
-            // leading whitespace (see `resolve_hoistable_type_decls`),
-            // so a single `;` prepend is enough — the chunk supplies
-            // its own newline + indent, and the trailing `;` mirrors
-            // `appendLeft(node.end, ';')` from the JS reference so the
-            // declaration is statement-terminated.
-            // Preserve the promotion (topological) order produced by
-            // `resolve_hoistable_type_decls`, which mirrors the JS
-            // reference's `Map` insertion order: a dependency is moved
-            // BEFORE the interface that depends on it, even when it appears
-            // later in source. Sorting by start position would wrongly
-            // restore source order.
-            let type_ranges = exported_names.hoistable_type_ranges.clone();
-            for (s, e) in type_ranges {
-                if s < e && (e as usize) <= source.len() {
-                    // `prepend_right` / `append_left` add to the moved
-                    // chunk itself (intro / outro of the [s..e] chunk),
-                    // so the `;` markers travel with the chunk to its
-                    // hoist target — `prepend_left` would leave the
-                    // semicolon stranded at the original location.
-                    str.prepend_right(s, ";");
-                    str.append_left(e, ";");
-                    str.move_range(s, e, sp);
-                }
-            }
-            // Move the inline type arg from `$props<{ ... }>()` to the hoist target.
-            // `\ntype $$ComponentProps = ` and `;` were already added via
-            // `prepend_right`/`append_left` in `apply_props_typedef`.
-            // Mirrors upstream's `moveHoistableInterfaces` for `$$ComponentProps`.
-            if let Some((s, e)) = exported_names.props_type_arg_hoist
-                && s < e
-                && (e as usize) <= source.len()
-            {
+        // Move hoistable type/interface declarations first so they
+        // sit BEFORE the snippets in the chunk list, matching the JS
+        // reference's `scriptTag.start + 1` ordering.
+        //
+        // Each chunk already extends backward through the original
+        // leading whitespace (see `resolve_hoistable_type_decls`),
+        // so a single `;` prepend is enough — the chunk supplies
+        // its own newline + indent, and the trailing `;` mirrors
+        // `appendLeft(node.end, ';')` from the JS reference so the
+        // declaration is statement-terminated.
+        // Preserve the promotion (topological) order produced by
+        // `resolve_hoistable_type_decls`, which mirrors the JS
+        // reference's `Map` insertion order: a dependency is moved
+        // BEFORE the interface that depends on it, even when it appears
+        // later in source. Sorting by start position would wrongly
+        // restore source order.
+        let type_ranges = exported_names.hoistable_type_ranges.clone();
+        for (s, e) in type_ranges {
+            if s < e && (e as usize) <= source.len() {
+                // `prepend_right` / `append_left` add to the moved
+                // chunk itself (intro / outro of the [s..e] chunk),
+                // so the `;` markers travel with the chunk to its
+                // hoist target — `prepend_left` would leave the
+                // semicolon stranded at the original location.
+                str.prepend_right(s, ";");
+                str.append_left(e, ";");
                 str.move_range(s, e, sp);
             }
-            // Move `$$Generic<X>`-referenced types. Mirrors the JS
-            // reference's `nodesToMove` path (`moveNode`) — uses
-            // `node.getStart()` (no leading trivia) and ends the chunk
-            // with `\n` so the following text in `part_b` (`function
-            // $$render`) starts on its own line.
-            let mut nodes_to_move = exported_names.dollar_generic_referenced_ranges.clone();
-            nodes_to_move.sort_by_key(|(s, _)| *s);
-            for (s, e) in nodes_to_move {
-                if s < e && (e as usize) <= source.len() {
-                    str.prepend_right(s, "\n");
-                    str.append_left(e, "\n");
-                    str.move_range(s, e, sp);
-                }
-            }
-            for (s, e) in hoistable_snippet_ranges.iter() {
-                str.move_range(*s, *e, sp);
-            }
-            str.overwrite(sp, content_start, &part_b);
-        } else if script_start < content_start {
-            str.overwrite(
-                script_start,
-                content_start,
-                &format!("{}{}", part_a, part_b),
-            );
         }
-
-        if inline_type_at_let
-            && let (Some(let_pos), Some(type_text)) = (
-                exported_names.props_let_abs_pos,
-                exported_names.props_type_text.as_ref(),
-            )
+        // Move the inline type arg from `$props<{ ... }>()` to the hoist target.
+        // `\ntype $$ComponentProps = ` and `;` were already added via
+        // `prepend_right`/`append_left` in `apply_props_typedef`.
+        // Mirrors upstream's `moveHoistableInterfaces` for `$$ComponentProps`.
+        if let Some((s, e)) = exported_names.props_type_arg_hoist
+            && s < e
+            && (e as usize) <= source.len()
         {
-            let snippet = if force_inside_render_no_imports {
-                format!(";type $$ComponentProps =  {};", type_text)
-            } else {
-                format!(
-                    "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
-                    type_text
-                )
-            };
-            str.append_left(let_pos, &snippet);
+            str.move_range(s, e, sp);
         }
+        // Move `$$Generic<X>`-referenced types. Mirrors the JS
+        // reference's `nodesToMove` path (`moveNode`) — uses
+        // `node.getStart()` (no leading trivia) and ends the chunk
+        // with `\n` so the following text in `part_b` (`function
+        // $$render`) starts on its own line.
+        let mut nodes_to_move = exported_names.dollar_generic_referenced_ranges.clone();
+        nodes_to_move.sort_by_key(|(s, _)| *s);
+        for (s, e) in nodes_to_move {
+            if s < e && (e as usize) <= source.len() {
+                str.prepend_right(s, "\n");
+                str.append_left(e, "\n");
+                str.move_range(s, e, sp);
+            }
+        }
+        for (s, e) in hoistable_snippet_ranges.iter() {
+            str.move_range(*s, *e, sp);
+        }
+        str.overwrite(sp, content_start, &part_b);
+    } else if script_start < content_start {
+        str.overwrite(
+            script_start,
+            content_start,
+            &format!("{}{}", part_a, part_b),
+        );
+    }
+
+    if inline_type_at_let
+        && let (Some(let_pos), Some(type_text)) = (
+            exported_names.props_let_abs_pos,
+            exported_names.props_type_text.as_ref(),
+        )
+    {
+        let snippet = if force_inside_render {
+            format!(";type $$ComponentProps =  {};", type_text)
+        } else {
+            // type_already_inserted (auto-generated SvelteKit / fallback type).
+            // JS reference wraps in surroundWithIgnoreComments.
+            format!(
+                "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
+                type_text
+            )
+        };
+        str.append_left(let_pos, &snippet);
     }
 
     // Overwrite `</script>` with slot declaration + `async () => {`.
