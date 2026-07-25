@@ -1,3 +1,4 @@
+pub mod interfaces;
 #[allow(
     clippy::inherent_to_string_shadow_display,
     reason = "MagicString::to_string mirrors JS `MagicString.toString()`; the inherent name is the ported public API"
@@ -10,6 +11,7 @@ pub mod script;
 )]
 pub mod svelte2tsx;
 pub mod template;
+pub mod utils;
 
 pub use svelte2tsx::{
     RewriteExternalImportsOptions, Svelte2TsxError, Svelte2TsxMode, Svelte2TsxNamespace,
