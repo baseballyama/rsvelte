@@ -12,14 +12,41 @@ mod common;
 use std::fs;
 
 use common::{
-    CategoryResult, CompatibilityReport, SampleDetails, SampleResult, TestCategory, TestStatus,
-    canonicalize_css, compare_js, ensure_fixtures_exist, fixtures_path, get_fixture_samples,
-    get_svelte_test_samples, load_fixture_output, svelte_path, write_actual_output,
+    CategoryResult, CompatibilityReport, FixtureCoverage, SampleDetails, SampleResult, SkipReason,
+    TestCategory, TestStatus, canonicalize_css, compare_js, ensure_fixtures_exist, fixtures_path,
+    get_fixture_samples, get_svelte_test_samples, load_fixture_output, svelte_path,
+    write_actual_output,
 };
 use rsvelte_core::{
     CompileOptions, ExperimentalOptions, GenerateMode, ModuleCompileOptions, ParseOptions, compile,
     compile_module, compiler::CssMode, convert_to_legacy, parse,
 };
+
+/// Grow-only per-category fixture floors, measured against the pinned Svelte
+/// submodule. Every discovered sample must end up either compared or recorded
+/// as a justified skip; these floors additionally catch a category quietly
+/// shrinking. Raise them when upstream adds samples; never lower them.
+fn min_fixtures(category: &str) -> usize {
+    match category {
+        "parser-modern" => 27,
+        "parser-legacy" => 81,
+        "snapshot" => 30,
+        "css" => 181,
+        "validator" => 333,
+        "compiler-errors" => 145,
+        "runtime-runes" => 1008,
+        "runtime-legacy" => 1206,
+        "runtime-browser" => 32,
+        "hydration" => 80,
+        "server-side-rendering" => 99,
+        "sourcemaps" => 29,
+        "print" => 43,
+        "preprocess" => 19,
+        // Out-of-scope categories are reported as fully skipped.
+        "migrate" => 0,
+        other => panic!("no fixture floor recorded for category `{other}`"),
+    }
+}
 
 // ============================================================================
 // Parser Tests
@@ -29,6 +56,7 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
     let svelte_dir = category.svelte_dir();
     let samples = get_svelte_test_samples(svelte_dir);
     let mut result = CategoryResult::new(svelte_dir);
+    let mut coverage = FixtureCoverage::new(svelte_dir, samples.len());
 
     // Tests to skip for parser-legacy and parser-modern.
     //
@@ -71,18 +99,20 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
         let input_path = sample_dir.join("input.svelte");
         let output_path = sample_dir.join("output.json");
 
-        if !input_path.exists() || !output_path.exists() {
-            continue;
-        }
-
         let input = match fs::read_to_string(&input_path) {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(_) => {
+                coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
+                continue;
+            }
         };
 
         let expected = match fs::read_to_string(&output_path) {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(_) => {
+                coverage.skipped(&name, SkipReason::MissingInput("output.json"));
+                continue;
+            }
         };
 
         let loose = name.contains("loose");
@@ -153,7 +183,17 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
         }
     }
 
+    assert_coverage(&mut coverage, &result, svelte_dir);
     result
+}
+
+/// Fold a category's tallied results into its coverage ledger and enforce it.
+fn assert_coverage(coverage: &mut FixtureCoverage, result: &CategoryResult, category: &str) {
+    coverage.tally(
+        result.stats.total - result.stats.skipped,
+        result.stats.skipped,
+    );
+    coverage.assert(min_fixtures(category));
 }
 
 fn normalize_parser_json(json: &str) -> serde_json::Value {
@@ -209,6 +249,7 @@ fn run_snapshot_tests() -> CategoryResult {
 
     let samples = get_fixture_samples("snapshot");
     let mut result = CategoryResult::new("snapshot");
+    let mut coverage = FixtureCoverage::new("snapshot", samples.len());
 
     // Snapshot fixtures intentionally skipped. These exercise codegen clusters
     // tracked elsewhere in this file (and in tests/runtime.rs):
@@ -244,10 +285,6 @@ fn run_snapshot_tests() -> CategoryResult {
             .join(&name)
             .join("index.svelte");
 
-        if !input_path.exists() {
-            continue;
-        }
-
         // Check for unsupported options
         let config_path = svelte_path()
             .join("packages/svelte/tests/snapshot/samples")
@@ -263,13 +300,18 @@ fn run_snapshot_tests() -> CategoryResult {
 
         let input = match fs::read_to_string(&input_path) {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(_) => {
+                coverage.skipped(&name, SkipReason::MissingInput("index.svelte"));
+                continue;
+            }
         };
 
         let expected_client = load_fixture_output("snapshot", &name, "client.js");
         let expected_server = load_fixture_output("snapshot", &name, "server.js");
 
+        // No generated output at all: the official compiler emitted none.
         if expected_client.is_none() && expected_server.is_none() {
+            coverage.skipped(&name, SkipReason::Justified);
             continue;
         }
 
@@ -366,6 +408,7 @@ fn run_snapshot_tests() -> CategoryResult {
         });
     }
 
+    assert_coverage(&mut coverage, &result, "snapshot");
     result
 }
 
@@ -378,6 +421,7 @@ fn run_css_tests() -> CategoryResult {
 
     let samples = get_fixture_samples("css");
     let mut result = CategoryResult::new("css");
+    let mut coverage = FixtureCoverage::new("css", samples.len());
 
     // CSS samples that exercise pruning/scoping edge cases rsvelte doesn't
     // fully match upstream on yet. Empty for now — the previous
@@ -412,13 +456,12 @@ fn run_css_tests() -> CategoryResult {
             .join(&name)
             .join("input.svelte");
 
-        if !input_path.exists() {
-            continue;
-        }
-
         let input = match fs::read_to_string(&input_path) {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(_) => {
+                coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
+                continue;
+            }
         };
 
         let expected_css = load_fixture_output("css", &name, "css.css");
@@ -517,6 +560,7 @@ fn run_css_tests() -> CategoryResult {
         }
     }
 
+    assert_coverage(&mut coverage, &result, "css");
     result
 }
 
@@ -527,6 +571,7 @@ fn run_css_tests() -> CategoryResult {
 fn run_validator_tests() -> CategoryResult {
     let samples = get_svelte_test_samples("validator");
     let mut result = CategoryResult::new("validator");
+    let mut coverage = FixtureCoverage::new("validator", samples.len());
     let warning_code_re = regex::Regex::new(r"'(\w+)'").unwrap();
 
     for sample_dir in &samples {
@@ -558,6 +603,7 @@ fn run_validator_tests() -> CategoryResult {
         let is_module_test = module_path.exists() && !svelte_path.exists();
 
         if !svelte_path.exists() && !module_path.exists() {
+            coverage.skipped(&name, SkipReason::MissingInput("input.svelte(.js)"));
             continue;
         }
 
@@ -568,7 +614,13 @@ fn run_validator_tests() -> CategoryResult {
         };
         let input = match fs::read_to_string(input_file) {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(_) => {
+                coverage.skipped(
+                    &name,
+                    SkipReason::MissingInput("readable input.svelte(.js)"),
+                );
+                continue;
+            }
         };
 
         // Load expected warnings/errors
@@ -779,6 +831,7 @@ fn run_validator_tests() -> CategoryResult {
         }
     }
 
+    assert_coverage(&mut coverage, &result, "validator");
     result
 }
 
@@ -789,6 +842,7 @@ fn run_validator_tests() -> CategoryResult {
 fn run_compiler_error_tests() -> CategoryResult {
     let samples = get_svelte_test_samples("compiler-errors");
     let mut result = CategoryResult::new("compiler-errors");
+    let mut coverage = FixtureCoverage::new("compiler-errors", samples.len());
 
     for sample_dir in &samples {
         let name = sample_dir
@@ -801,20 +855,27 @@ fn run_compiler_error_tests() -> CategoryResult {
         let svelte_path = sample_dir.join("main.svelte");
         let module_path = sample_dir.join("main.svelte.js");
 
-        if !svelte_path.exists() && !module_path.exists() || !config_path.exists() {
+        if !svelte_path.exists() && !module_path.exists() {
+            coverage.skipped(&name, SkipReason::MissingInput("main.svelte(.js)"));
             continue;
         }
 
         let config_content = match fs::read_to_string(&config_path) {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(_) => {
+                coverage.skipped(&name, SkipReason::MissingInput("_config.js"));
+                continue;
+            }
         };
 
         let requires_async = config_content.contains("async: true");
 
         let expected_code = match extract_error_code(&config_content) {
             Some(c) => c,
-            None => continue,
+            None => {
+                coverage.skipped(&name, SkipReason::MissingInput("error code in _config.js"));
+                continue;
+            }
         };
 
         let is_module = module_path.exists() && !svelte_path.exists();
@@ -826,7 +887,10 @@ fn run_compiler_error_tests() -> CategoryResult {
 
         let input = match fs::read_to_string(input_file) {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(_) => {
+                coverage.skipped(&name, SkipReason::MissingInput("readable main.svelte(.js)"));
+                continue;
+            }
         };
 
         let compile_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -903,6 +967,7 @@ fn run_compiler_error_tests() -> CategoryResult {
         }
     }
 
+    assert_coverage(&mut coverage, &result, "compiler-errors");
     result
 }
 
@@ -947,6 +1012,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
 
     let samples = get_fixture_samples(category);
     let mut result = CategoryResult::new(category);
+    let mut coverage = FixtureCoverage::new(category, samples.len());
 
     // Runtime samples whose expected output exercises infrastructure rsvelte
     // doesn't fully implement yet, so we mark them skipped instead of failing.
@@ -1077,16 +1143,36 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
             continue;
         }
 
-        let input_path = svelte_path()
+        // Most categories name their entry point `main.svelte`; the
+        // `sourcemaps` samples use `input.svelte`. Hardcoding `main.svelte`
+        // used to drop all 29 sourcemap samples silently (`Sourcemaps 0/0`).
+        let sample_root = svelte_path()
             .join("packages/svelte/tests")
             .join(category)
             .join("samples")
-            .join(&name)
-            .join("main.svelte");
-
-        if !input_path.exists() {
-            continue;
-        }
+            .join(&name);
+        let input_path = ["main.svelte", "input.svelte"]
+            .iter()
+            .map(|entry| sample_root.join(entry))
+            .find(|path| path.exists());
+        let input_path = match input_path {
+            Some(path) => path,
+            None => {
+                coverage.skipped(
+                    &name,
+                    SkipReason::MissingInput("main.svelte / input.svelte"),
+                );
+                continue;
+            }
+        };
+        // The fixtures were generated with the sample's own entry-point name,
+        // and `filename` reaches the generated code (component name, css hash),
+        // so it has to follow the resolved entry point rather than be hardcoded.
+        let input_filename = input_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("main.svelte")
+            .to_string();
 
         // Check for unsupported options
         let config_path = svelte_path()
@@ -1112,13 +1198,19 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
 
         let input = match fs::read_to_string(&input_path) {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(_) => {
+                coverage.skipped(&name, SkipReason::MissingInput("readable entry point"));
+                continue;
+            }
         };
 
         let expected_client = load_fixture_output(category, &name, "client.js");
         let expected_server = load_fixture_output(category, &name, "server.js");
 
+        // No generated output at all: the official compiler errored on this
+        // sample, so the fixture holds only `warnings.json` / `error.json`.
         if expected_client.is_none() && expected_server.is_none() {
+            coverage.skipped(&name, SkipReason::Justified);
             continue;
         }
 
@@ -1150,7 +1242,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         if let Some(expected) = &expected_client {
             let options = CompileOptions {
                 generate: GenerateMode::Client,
-                filename: Some("main.svelte".to_string()),
+                filename: Some(input_filename.clone()),
                 css: CssMode::External,
                 experimental: ExperimentalOptions { r#async: use_async },
                 hmr: config_has_hmr,
@@ -1182,7 +1274,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         if let Some(expected) = &expected_server {
             let options = CompileOptions {
                 generate: GenerateMode::Server,
-                filename: Some("main.svelte".to_string()),
+                filename: Some(input_filename.clone()),
                 css: CssMode::External,
                 experimental: ExperimentalOptions { r#async: use_async },
                 hmr: config_has_hmr,
@@ -1228,6 +1320,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         });
     }
 
+    assert_coverage(&mut coverage, &result, category);
     result
 }
 
@@ -1245,6 +1338,7 @@ fn run_print_tests() -> CategoryResult {
 
     let samples = get_svelte_test_samples("print");
     let mut result = CategoryResult::new("print");
+    let mut coverage = FixtureCoverage::new("print", samples.len());
 
     // Print samples whose upstream re-formatter changed in Svelte 5.55.8
     // (upstream commit `ca3f35bf7` "fix(print): handle svelte:body and fix
@@ -1276,11 +1370,17 @@ fn run_print_tests() -> CategoryResult {
 
         let input = match fs::read_to_string(sample_dir.join("input.svelte")) {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(_) => {
+                coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
+                continue;
+            }
         };
         let expected = match fs::read_to_string(sample_dir.join("output.svelte")) {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(_) => {
+                coverage.skipped(&name, SkipReason::MissingInput("output.svelte"));
+                continue;
+            }
         };
 
         let options = ParseOptions {
@@ -1311,6 +1411,7 @@ fn run_print_tests() -> CategoryResult {
         });
     }
 
+    assert_coverage(&mut coverage, &result, "print");
     result
 }
 
@@ -1337,6 +1438,7 @@ fn run_preprocess_tests() -> CategoryResult {
 
     let samples = get_svelte_test_samples("preprocess");
     let mut result = CategoryResult::new("preprocess");
+    let mut coverage = FixtureCoverage::new("preprocess", samples.len());
 
     let runtime = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -1360,6 +1462,7 @@ fn run_preprocess_tests() -> CategoryResult {
                     details: None,
                 });
             }
+            assert_coverage(&mut coverage, &result, "preprocess");
             return result;
         }
     };
@@ -1373,11 +1476,17 @@ fn run_preprocess_tests() -> CategoryResult {
 
         let input = match fs::read_to_string(sample_dir.join("input.svelte")) {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(_) => {
+                coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
+                continue;
+            }
         };
         let expected = match fs::read_to_string(sample_dir.join("output.svelte")) {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(_) => {
+                coverage.skipped(&name, SkipReason::MissingInput("output.svelte"));
+                continue;
+            }
         };
 
         let preprocessors = match common::preprocess_fixtures::build_preprocessors(&name) {
@@ -1418,12 +1527,14 @@ fn run_preprocess_tests() -> CategoryResult {
         });
     }
 
+    assert_coverage(&mut coverage, &result, "preprocess");
     result
 }
 
 fn run_not_implemented_tests(category: &str, reason: &str) -> CategoryResult {
     let samples = get_svelte_test_samples(category);
     let mut result = CategoryResult::new(category);
+    let mut coverage = FixtureCoverage::new(category, samples.len());
 
     for sample_dir in &samples {
         let name = sample_dir
@@ -1441,6 +1552,7 @@ fn run_not_implemented_tests(category: &str, reason: &str) -> CategoryResult {
         });
     }
 
+    assert_coverage(&mut coverage, &result, category);
     result
 }
 
@@ -1450,8 +1562,10 @@ fn run_not_implemented_tests(category: &str, reason: &str) -> CategoryResult {
 
 // `#[ignore]` by default: this is a *reporting* artifact, not a correctness
 // gate. It re-runs every category (parser, css, validator, runtime, …) purely
-// to assemble `compatibility-report.json`, and it deliberately never fails
-// (see the comment at the end of the body). Those categories are each already
+// to assemble `compatibility-report.json`, and it deliberately never fails on
+// output mismatches (see the comment at the end of the body) — it does still
+// fail when a category loses coverage, because a silently empty category
+// invalidates the whole report. Those categories are each already
 // gated by their own dedicated test binaries (tests/runtime.rs, tests/css.rs,
 // tests/validator.rs, …), so running this in the default `cargo test` /
 // `cargo nextest run` only duplicates ~all of the suite (it was the single

@@ -78,6 +78,56 @@ pub struct LintDiagnostic {
     pub suggestions: Vec<Suggestion>,
 }
 
+/// One finding of a full lint pass: the output-ready [`Diagnostic`] plus the
+/// fix payload the editor needs for code actions.
+///
+/// Findings reach the output list from two sources with different position
+/// models — native rules carry UTF-8 byte spans, the validator wrap carries
+/// compiler line/column positions (and none at all for a hard compile error).
+/// Keeping the output `Diagnostic` verbatim and attaching the byte-span payload
+/// only where it exists means neither side is round-tripped through the other's
+/// coordinates.
+#[cfg(feature = "native")]
+#[derive(Debug, Clone)]
+pub struct LintMessage {
+    /// Identical to the element [`lint_source`](crate::lint_source) yields.
+    pub diagnostic: Diagnostic,
+    /// `(start, end)` UTF-8 byte offsets; `None` for validator-wrap findings.
+    pub span: Option<(u32, u32)>,
+    pub help: Option<String>,
+    /// The `--fix` autofix, when the rule offers one.
+    pub fix: Option<Fix>,
+    /// Editor-offered suggestions (never auto-applied).
+    pub suggestions: Vec<Suggestion>,
+}
+
+#[cfg(feature = "native")]
+impl LintMessage {
+    /// Wrap a rule finding, keeping its fix payload alongside the converted
+    /// line/column diagnostic.
+    pub(crate) fn from_lint(d: LintDiagnostic, file: &Path, line_index: &LineIndex) -> Self {
+        Self {
+            diagnostic: d.to_output(file, line_index),
+            span: Some((d.start, d.end)),
+            help: d.help,
+            fix: d.fix,
+            suggestions: d.suggestions,
+        }
+    }
+
+    /// Wrap a diagnostic that has no fix payload (validator wrap, source-scan
+    /// meta rules).
+    pub(crate) fn from_diagnostic(diagnostic: Diagnostic) -> Self {
+        Self {
+            diagnostic,
+            span: None,
+            help: None,
+            fix: None,
+            suggestions: Vec::new(),
+        }
+    }
+}
+
 #[cfg(feature = "native")]
 impl LintDiagnostic {
     /// Convert to the shared output diagnostic. `Off`-severity findings should

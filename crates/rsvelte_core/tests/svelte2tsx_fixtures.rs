@@ -137,14 +137,18 @@ fn test_svelte2tsx_fixtures() {
     }
 
     let total_tested = passed + failed;
-    if total_tested > 0 {
-        println!(
-            "\nPass rate: {:.1}% ({}/{})",
-            (passed as f64 / total_tested as f64) * 100.0,
-            passed,
-            total_tested
-        );
-    }
+    assert!(
+        total_tested > 0,
+        "[s2tsx-fixtures] no fixture ran ({} discovered, {skipped} skipped) — \
+         the language-tools fixture layout changed?",
+        outcomes.len(),
+    );
+    println!(
+        "\nPass rate: {:.1}% ({}/{})",
+        (passed as f64 / total_tested as f64) * 100.0,
+        passed,
+        total_tested
+    );
 
     if std::env::var("UPDATE_S2TSX_FIXTURES_BASELINE").is_ok() {
         write_baseline(&failing);

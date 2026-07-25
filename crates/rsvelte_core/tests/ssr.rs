@@ -9,10 +9,15 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    compare_js, ensure_fixtures_exist, get_fixture_samples, load_fixture_output, svelte_path,
-    write_actual_output,
+    FixtureCoverage, SkipReason, compare_js, ensure_fixtures_exist, get_fixture_samples,
+    load_fixture_output, sample_name, svelte_path, write_actual_output,
 };
 use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+
+/// Grow-only fixture floor, measured against the pinned Svelte submodule.
+/// 126 samples are generated; 27 of them hold only an `error.json` because the
+/// official compiler errors on them, leaving 99 with comparable server output.
+const MIN_SSR_FIXTURES: usize = 99;
 
 /// Load input from Svelte test suite. Normalizes CRLF→LF so byte offsets
 /// in the compiled output match LF-authored fixtures on Windows runners.
@@ -51,19 +56,24 @@ struct SsrFixture {
 }
 
 /// Load an SSR test fixture.
-fn load_ssr_fixture(sample_dir: &Path) -> Option<SsrFixture> {
-    let name = sample_dir.file_name()?.to_str()?.to_string();
+fn load_ssr_fixture(sample_dir: &Path) -> Result<SsrFixture, SkipReason> {
+    let name = sample_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or(SkipReason::MissingInput("valid sample directory name"))?
+        .to_string();
 
-    let input = load_input(&name)?;
-    let expected_server_js = load_fixture_output("server-side-rendering", &name, "server.js");
+    let input = load_input(&name).ok_or(SkipReason::MissingInput("main.svelte"))?;
 
-    // Skip if no expected output
-    expected_server_js.as_ref()?;
+    // No `server.js` means the official compiler errored on this sample and
+    // the fixture holds only `error.json` — nothing to compare.
+    let expected_server_js = load_fixture_output("server-side-rendering", &name, "server.js")
+        .ok_or(SkipReason::Justified)?;
 
-    Some(SsrFixture {
+    Ok(SsrFixture {
         name: name.clone(),
         input,
-        expected_server_js,
+        expected_server_js: Some(expected_server_js),
         requires_unsupported_options: requires_unsupported_options(&name),
     })
 }
@@ -170,20 +180,18 @@ fn test_ssr() {
 
     let samples = get_fixture_samples("server-side-rendering");
 
-    if samples.is_empty() {
-        println!("No SSR fixtures found. Run `npm run generate-fixtures` first.");
-        return;
+    let mut coverage = FixtureCoverage::new("server-side-rendering", samples.len());
+    let mut fixtures: Vec<SsrFixture> = Vec::new();
+    for sample_dir in &samples {
+        match load_ssr_fixture(sample_dir.as_path()) {
+            Ok(fixture) => {
+                coverage.ran();
+                fixtures.push(fixture);
+            }
+            Err(reason) => coverage.skipped(sample_name(sample_dir), reason),
+        }
     }
-
-    let fixtures: Vec<SsrFixture> = samples
-        .iter()
-        .filter_map(|sample_dir| load_ssr_fixture(sample_dir.as_path()))
-        .collect();
-
-    if fixtures.is_empty() {
-        println!("No SSR fixtures with expected output found.");
-        return;
-    }
+    coverage.assert(MIN_SSR_FIXTURES);
 
     // Run tests in parallel for better performance
     let results: Vec<TestResult> = fixtures.par_iter().map(run_ssr_fixture_test).collect();

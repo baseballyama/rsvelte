@@ -11,10 +11,14 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    compare_js, ensure_fixtures_exist, get_fixture_samples, load_fixture_output, svelte_path,
-    write_actual_output,
+    FixtureCoverage, SkipReason, compare_js, ensure_fixtures_exist, get_fixture_samples,
+    load_fixture_output, sample_name, svelte_path, write_actual_output,
 };
 use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+
+/// Grow-only fixture floor, measured against the pinned Svelte submodule: all
+/// 29 sourcemap samples have comparable output. Never lower it.
+const MIN_SOURCEMAP_FIXTURES: usize = 29;
 
 /// Load input from Svelte test suite. Normalizes CRLF→LF so byte offsets
 /// in the compiled output match LF-authored fixtures on Windows runners.
@@ -48,19 +52,23 @@ struct SourcemapFixture {
 }
 
 /// Load a sourcemap test fixture.
-fn load_sourcemap_fixture(sample_dir: &Path) -> Option<SourcemapFixture> {
-    let name = sample_dir.file_name()?.to_str()?.to_string();
+fn load_sourcemap_fixture(sample_dir: &Path) -> Result<SourcemapFixture, SkipReason> {
+    let name = sample_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or(SkipReason::MissingInput("valid sample directory name"))?
+        .to_string();
 
-    let input = load_input(&name)?;
+    let input = load_input(&name).ok_or(SkipReason::MissingInput("input.svelte"))?;
     let expected_client_js = load_fixture_output("sourcemaps", &name, "client.js");
     let expected_server_js = load_fixture_output("sourcemaps", &name, "server.js");
 
-    // Skip if no expected output
+    // Neither output means the official compiler emitted no code for this sample.
     if expected_client_js.is_none() && expected_server_js.is_none() {
-        return None;
+        return Err(SkipReason::Justified);
     }
 
-    Some(SourcemapFixture {
+    Ok(SourcemapFixture {
         name,
         input,
         expected_client_js,
@@ -77,21 +85,9 @@ struct TestResult {
     error: Option<String>,
 }
 
-/// Known test failures that are pre-existing server-side codegen issues,
-/// not related to sourcemap generation.
-const KNOWN_SERVER_FAILURES: &[&str] = &[
-    "effects", // Missing $$renderer.component(...) wrapping in server transform
-];
-
 impl TestResult {
     fn passed(&self) -> bool {
-        let server_ok = if KNOWN_SERVER_FAILURES.contains(&self.name.as_str()) {
-            // Skip server JS check for known failures
-            true
-        } else {
-            self.server_js_passed.unwrap_or(true)
-        };
-        self.client_js_passed.unwrap_or(true) && server_ok
+        self.client_js_passed.unwrap_or(true) && self.server_js_passed.unwrap_or(true)
     }
 }
 
@@ -187,20 +183,18 @@ fn test_sourcemaps() {
 
     let samples = get_fixture_samples("sourcemaps");
 
-    if samples.is_empty() {
-        println!("No sourcemap fixtures found. Run `npm run generate-fixtures` first.");
-        return;
+    let mut coverage = FixtureCoverage::new("sourcemaps", samples.len());
+    let mut fixtures: Vec<SourcemapFixture> = Vec::new();
+    for sample_dir in &samples {
+        match load_sourcemap_fixture(sample_dir.as_path()) {
+            Ok(fixture) => {
+                coverage.ran();
+                fixtures.push(fixture);
+            }
+            Err(reason) => coverage.skipped(sample_name(sample_dir), reason),
+        }
     }
-
-    let fixtures: Vec<SourcemapFixture> = samples
-        .iter()
-        .filter_map(|sample_dir| load_sourcemap_fixture(sample_dir.as_path()))
-        .collect();
-
-    if fixtures.is_empty() {
-        println!("No sourcemap fixtures with expected output found.");
-        return;
-    }
+    coverage.assert(MIN_SOURCEMAP_FIXTURES);
 
     // Run tests in parallel for better performance
     let results: Vec<TestResult> = fixtures

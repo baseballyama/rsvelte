@@ -14,10 +14,20 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    compare_js_with_debug as compare_js_debug, ensure_fixtures_exist, get_fixture_samples,
-    load_fixture_output, svelte_path, write_actual_output,
+    FixtureCoverage, SkipReason, compare_js_with_debug as compare_js_debug, ensure_fixtures_exist,
+    get_fixture_samples, load_fixture_output, sample_name, svelte_path, write_actual_output,
 };
 use rsvelte_core::{CompileOptions, ExperimentalOptions, GenerateMode, compile, compiler::CssMode};
+
+/// Grow-only fixture floors, measured against the pinned Svelte submodule.
+/// The gap to the sample count is samples whose fixture holds only
+/// `warnings.json` / `error.json` — the official compiler emitted no code for
+/// them, so there is nothing to compare. Raise these when upstream adds
+/// samples; never lower them.
+const MIN_HYDRATION_FIXTURES: usize = 80;
+const MIN_RUNTIME_BROWSER_FIXTURES: usize = 32;
+const MIN_RUNTIME_LEGACY_FIXTURES: usize = 1206;
+const MIN_RUNTIME_RUNES_FIXTURES: usize = 1009;
 
 /// Load input from Svelte test suite.
 fn load_input(category: &str, sample_name: &str) -> Option<String> {
@@ -107,19 +117,25 @@ struct RuntimeFixture {
 }
 
 /// Load a runtime test fixture from fixtures directory.
-fn load_runtime_fixture(category: &str, sample_dir: &Path) -> Option<RuntimeFixture> {
-    let name = sample_dir.file_name()?.to_str()?.to_string();
+fn load_runtime_fixture(category: &str, sample_dir: &Path) -> Result<RuntimeFixture, SkipReason> {
+    let name = sample_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or(SkipReason::MissingInput("valid sample directory name"))?
+        .to_string();
 
-    let input = load_input(category, &name)?;
+    let input = load_input(category, &name).ok_or(SkipReason::MissingInput("main.svelte"))?;
 
     let expected_client_js = load_fixture_output(category, &name, "client.js");
     let expected_server_js = load_fixture_output(category, &name, "server.js");
 
+    // Neither output means the official compiler emitted no code for this
+    // sample (the fixture holds only `warnings.json` / `error.json`).
     if expected_client_js.is_none() && expected_server_js.is_none() {
-        return None;
+        return Err(SkipReason::Justified);
     }
 
-    Some(RuntimeFixture {
+    Ok(RuntimeFixture {
         name: name.clone(),
         input,
         expected_client_js,
@@ -354,17 +370,12 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
 }
 
 /// Run tests for a specific runtime category.
-fn run_runtime_tests(category: &str) {
+fn run_runtime_tests(category: &str, min_fixtures: usize) {
     use rayon::prelude::*;
 
     ensure_fixtures_exist();
 
     let samples = get_fixture_samples(category);
-
-    if samples.is_empty() {
-        println!("No {} fixtures found.", category);
-        return;
-    }
 
     // Limit parallelism to avoid memory explosion
     // (845 tests * many parallel threads can consume excessive memory)
@@ -374,15 +385,18 @@ fn run_runtime_tests(category: &str) {
         .expect("Failed to build thread pool");
 
     // Load fixtures sequentially (fast, low memory)
-    let fixtures: Vec<RuntimeFixture> = samples
-        .iter()
-        .filter_map(|sample_dir| load_runtime_fixture(category, sample_dir.as_path()))
-        .collect();
-
-    if fixtures.is_empty() {
-        println!("No {} fixtures with expected output found.", category);
-        return;
+    let mut coverage = FixtureCoverage::new(category, samples.len());
+    let mut fixtures: Vec<RuntimeFixture> = Vec::new();
+    for sample_dir in &samples {
+        match load_runtime_fixture(category, sample_dir.as_path()) {
+            Ok(fixture) => {
+                coverage.ran();
+                fixtures.push(fixture);
+            }
+            Err(reason) => coverage.skipped(sample_name(sample_dir), reason),
+        }
     }
+    coverage.assert(min_fixtures);
 
     // Run tests with limited parallelism (4 threads max)
     let results: Vec<TestResult> = pool.install(|| {
@@ -471,22 +485,22 @@ fn run_runtime_tests(category: &str) {
 
 #[test]
 fn test_hydration() {
-    run_runtime_tests("hydration");
+    run_runtime_tests("hydration", MIN_HYDRATION_FIXTURES);
 }
 
 #[test]
 fn test_runtime_browser() {
-    run_runtime_tests("runtime-browser");
+    run_runtime_tests("runtime-browser", MIN_RUNTIME_BROWSER_FIXTURES);
 }
 
 #[test]
 fn test_runtime_legacy() {
-    run_runtime_tests("runtime-legacy");
+    run_runtime_tests("runtime-legacy", MIN_RUNTIME_LEGACY_FIXTURES);
 }
 
 #[test]
 fn test_runtime_runes() {
-    run_runtime_tests("runtime-runes");
+    run_runtime_tests("runtime-runes", MIN_RUNTIME_RUNES_FIXTURES);
 }
 
 /// List all available runtime fixtures.
