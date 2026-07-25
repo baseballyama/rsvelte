@@ -23,7 +23,9 @@ use super::span::SourceLocation;
 // =============================================================================
 
 /// The root node of a Svelte component AST.
-#[derive(Debug, Clone, Serialize)]
+// Not `Clone`: the owned `ParseArena` is chunked, append-only storage that
+// cannot be duplicated cheaply, and nothing in production cloned a `Root`.
+#[derive(Debug, Serialize)]
 pub struct Root<'a> {
     /// CSS stylesheet, or null if none.
     pub css: Option<Box<StyleSheet>>,
