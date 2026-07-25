@@ -12,6 +12,7 @@ pub mod script;
 pub mod svelte2tsx;
 pub mod template;
 pub mod utils;
+pub mod validation;
 
 pub use svelte2tsx::{
     RewriteExternalImportsOptions, Svelte2TsxError, Svelte2TsxMode, Svelte2TsxNamespace,
