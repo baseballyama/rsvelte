@@ -11,10 +11,14 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    canonicalize_css, ensure_fixtures_exist, get_fixture_samples, load_fixture_output, svelte_path,
-    write_actual_output,
+    FixtureCoverage, SkipReason, canonicalize_css, ensure_fixtures_exist, get_fixture_samples,
+    load_fixture_output, svelte_path, write_actual_output,
 };
 use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+
+/// Grow-only fixture floor, measured against the pinned Svelte submodule: all
+/// 181 CSS samples are runnable. Never lower it.
+const MIN_CSS_FIXTURES: usize = 181;
 
 /// Load input from Svelte test suite. Normalizes CRLF→LF so byte offsets
 /// in the compiled output match LF-authored fixtures on Windows runners.
@@ -38,16 +42,16 @@ struct CssFixture {
 }
 
 /// Load a CSS test fixture from fixtures directory.
-fn load_css_fixture(sample_dir: &Path) -> Option<CssFixture> {
-    let name = sample_dir.file_name()?.to_str()?.to_string();
+fn load_css_fixture(sample_dir: &Path) -> Result<CssFixture, SkipReason> {
+    let name = common::sample_name(sample_dir).to_string();
 
     // Load input from Svelte test suite
-    let input = load_input(&name)?;
+    let input = load_input(&name).ok_or(SkipReason::MissingInput("input.svelte"))?;
 
     // Load expected CSS from fixtures
     let expected_css = load_fixture_output("css", &name, "css.css");
 
-    Some(CssFixture {
+    Ok(CssFixture {
         name,
         input,
         expected_css,
@@ -189,14 +193,18 @@ fn test_css() {
 
     let samples = get_fixture_samples("css");
 
-    if samples.is_empty() {
-        panic!("No CSS fixtures found. Run `npm run generate-fixtures` first.");
+    let mut coverage = FixtureCoverage::new("css", samples.len());
+    let mut fixtures: Vec<CssFixture> = Vec::new();
+    for sample_dir in &samples {
+        match load_css_fixture(sample_dir.as_path()) {
+            Ok(fixture) => {
+                coverage.ran();
+                fixtures.push(fixture);
+            }
+            Err(reason) => coverage.skipped(common::sample_name(sample_dir), reason),
+        }
     }
-
-    let fixtures: Vec<CssFixture> = samples
-        .iter()
-        .filter_map(|sample_dir| load_css_fixture(sample_dir.as_path()))
-        .collect();
+    coverage.assert(MIN_CSS_FIXTURES);
 
     // Note: this suite previously ran sequentially "to avoid hangs". The most
     // likely cause was unbounded `par_iter()` exhausting memory under bumpalo

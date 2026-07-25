@@ -8,8 +8,13 @@ mod common;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use common::get_svelte_test_samples;
+use common::{FixtureCoverage, SkipReason, get_svelte_test_samples, sample_name};
 use rayon::prelude::*;
+
+/// Grow-only fixture floors, measured against the pinned Svelte submodule.
+/// Raise them when upstream adds samples; never lower them.
+const MIN_PARSER_MODERN_FIXTURES: usize = 27;
+const MIN_PARSER_LEGACY_FIXTURES: usize = 81;
 use rsvelte_core::ast::arena::with_serialize_arena;
 use rsvelte_core::{ParseOptions, convert_to_legacy, parse};
 
@@ -19,22 +24,33 @@ fn get_parser_samples(test_type: &str) -> Vec<PathBuf> {
 }
 
 /// Load a test fixture.
-fn load_fixture(sample_dir: &Path) -> Option<(String, String, String)> {
+fn load_fixture(sample_dir: &Path) -> Result<(String, String, String), SkipReason> {
     let input_path = sample_dir.join("input.svelte");
     let output_path = sample_dir.join("output.json");
 
-    if !input_path.exists() || !output_path.exists() {
-        return None;
+    if !input_path.exists() {
+        return Err(SkipReason::MissingInput("input.svelte"));
+    }
+    if !output_path.exists() {
+        return Err(SkipReason::MissingInput("output.json"));
     }
 
     // Normalize CRLF to LF so AST byte offsets line up regardless of how the
     // submodule was checked out (Windows runners default to autocrlf=true,
     // which would otherwise shift every span by one byte per line).
-    let input = fs::read_to_string(&input_path).ok()?.replace("\r\n", "\n");
-    let expected_output = fs::read_to_string(&output_path).ok()?.replace("\r\n", "\n");
-    let name = sample_dir.file_name()?.to_str()?.to_string();
+    let input = fs::read_to_string(&input_path)
+        .map_err(|_| SkipReason::MissingInput("readable input.svelte"))?
+        .replace("\r\n", "\n");
+    let expected_output = fs::read_to_string(&output_path)
+        .map_err(|_| SkipReason::MissingInput("readable output.json"))?
+        .replace("\r\n", "\n");
+    let name = sample_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or(SkipReason::MissingInput("valid sample directory name"))?
+        .to_string();
 
-    Some((name, input, expected_output))
+    Ok((name, input, expected_output))
 }
 
 /// Normalize JSON for comparison.
@@ -116,12 +132,16 @@ const LEGACY_SKIP_TESTS: &[&str] = &[
 const MODERN_SKIP_TESTS: &[&str] = &[];
 
 /// Run a single fixture test.
-fn run_fixture_test(sample_dir: &Path, modern: bool, skip_tests: &[&str]) -> Option<TestResult> {
+fn run_fixture_test(
+    sample_dir: &Path,
+    modern: bool,
+    skip_tests: &[&str],
+) -> Result<TestResult, SkipReason> {
     let (name, input, expected) = load_fixture(sample_dir)?;
 
     // Check if this test should be skipped
     if skip_tests.contains(&name.as_str()) {
-        return Some(TestResult {
+        return Ok(TestResult {
             name,
             passed: true,
             skipped: true,
@@ -169,7 +189,7 @@ fn run_fixture_test(sample_dir: &Path, modern: bool, skip_tests: &[&str]) -> Opt
             }
 
             if actual_normalized == expected_normalized {
-                Some(TestResult {
+                Ok(TestResult {
                     name,
                     passed: true,
                     skipped: false,
@@ -180,7 +200,7 @@ fn run_fixture_test(sample_dir: &Path, modern: bool, skip_tests: &[&str]) -> Opt
                 let actual_path = sample_dir.join("_actual.json");
                 let _ = fs::write(&actual_path, &actual_json);
 
-                Some(TestResult {
+                Ok(TestResult {
                     name,
                     passed: false,
                     skipped: false,
@@ -191,7 +211,7 @@ fn run_fixture_test(sample_dir: &Path, modern: bool, skip_tests: &[&str]) -> Opt
                 })
             }
         }
-        Err(e) => Some(TestResult {
+        Err(e) => Ok(TestResult {
             name,
             passed: false,
             skipped: false,
@@ -200,21 +220,42 @@ fn run_fixture_test(sample_dir: &Path, modern: bool, skip_tests: &[&str]) -> Opt
     }
 }
 
+/// Split per-sample outcomes into comparable results and a coverage ledger.
+fn tally(
+    what: &str,
+    samples: &[PathBuf],
+    outcomes: Vec<Result<TestResult, SkipReason>>,
+) -> (Vec<TestResult>, FixtureCoverage) {
+    let mut coverage = FixtureCoverage::new(what, samples.len());
+    let mut results = Vec::new();
+
+    for (sample_dir, outcome) in samples.iter().zip(outcomes) {
+        match outcome {
+            Ok(result) => {
+                if result.skipped {
+                    coverage.skipped(&result.name, SkipReason::Justified);
+                } else {
+                    coverage.ran();
+                }
+                results.push(result);
+            }
+            Err(reason) => coverage.skipped(sample_name(sample_dir), reason),
+        }
+    }
+
+    (results, coverage)
+}
+
 #[test]
 fn test_parser_modern_fixtures() {
     let samples = get_parser_samples("parser-modern");
 
-    if samples.is_empty() {
-        eprintln!(
-            "Warning: No parser-modern samples found. Make sure the Svelte submodule is initialized."
-        );
-        return;
-    }
-
-    let results: Vec<TestResult> = samples
+    let outcomes: Vec<Result<TestResult, SkipReason>> = samples
         .par_iter()
-        .filter_map(|sample_dir| run_fixture_test(sample_dir, true, MODERN_SKIP_TESTS))
+        .map(|sample_dir| run_fixture_test(sample_dir, true, MODERN_SKIP_TESTS))
         .collect();
+    let (results, coverage) = tally("parser-modern", &samples, outcomes);
+    coverage.assert(MIN_PARSER_MODERN_FIXTURES);
 
     let incompatible = results.iter().filter(|r| r.skipped).count();
     let passed = results.iter().filter(|r| r.passed && !r.skipped).count();
@@ -252,17 +293,12 @@ fn test_parser_modern_fixtures() {
 fn test_parser_legacy_fixtures() {
     let samples = get_parser_samples("parser-legacy");
 
-    if samples.is_empty() {
-        eprintln!(
-            "Warning: No parser-legacy samples found. Make sure the Svelte submodule is initialized."
-        );
-        return;
-    }
-
-    let results: Vec<TestResult> = samples
+    let outcomes: Vec<Result<TestResult, SkipReason>> = samples
         .par_iter()
-        .filter_map(|sample_dir| run_fixture_test(sample_dir, false, LEGACY_SKIP_TESTS))
+        .map(|sample_dir| run_fixture_test(sample_dir, false, LEGACY_SKIP_TESTS))
         .collect();
+    let (results, coverage) = tally("parser-legacy", &samples, outcomes);
+    coverage.assert(MIN_PARSER_LEGACY_FIXTURES);
 
     let incompatible = results.iter().filter(|r| r.skipped).count();
     let passed = results.iter().filter(|r| r.passed && !r.skipped).count();

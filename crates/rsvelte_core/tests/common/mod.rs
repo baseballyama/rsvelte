@@ -205,6 +205,122 @@ pub fn get_svelte_test_samples(category: &str) -> Vec<PathBuf> {
 }
 
 // ============================================================================
+// Fixture coverage guards
+// ============================================================================
+
+/// Why a discovered sample directory did not yield a runnable fixture.
+#[derive(Debug, Clone, Copy)]
+pub enum SkipReason {
+    /// Legitimate: the sample opts out via `_config.js`, sits on a suite's
+    /// documented skip list, or upstream generated no expected output for it
+    /// (the official compiler errors on the sample).
+    Justified,
+    /// A coverage hole: the loader looked for the named input file and it was
+    /// not on disk. A single upstream rename silently zeroes out a whole
+    /// category this way — `Sourcemaps 0/0` was exactly this.
+    MissingInput(&'static str),
+}
+
+/// Directory name of a sample, for coverage diagnostics.
+pub fn sample_name(sample_dir: &std::path::Path) -> &str {
+    sample_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("<unnamed>")
+}
+
+/// Ledger that turns "this suite measured nothing" into a red test.
+///
+/// libtest reports an early `return` as PASS, so a fixture suite that finds no
+/// samples — or silently drops every sample it found — is indistinguishable
+/// from a green run. Every discovered sample must be accounted for as either
+/// run or justified-skipped, and the run count carries a grow-only floor.
+pub struct FixtureCoverage {
+    what: String,
+    found: usize,
+    ran: usize,
+    justified: usize,
+    missing: Vec<String>,
+}
+
+impl FixtureCoverage {
+    pub fn new(what: impl Into<String>, found: usize) -> Self {
+        Self {
+            what: what.into(),
+            found,
+            ran: 0,
+            justified: 0,
+            missing: Vec::new(),
+        }
+    }
+
+    /// Record a sample that was actually compared against its expected output.
+    pub fn ran(&mut self) {
+        self.ran += 1;
+    }
+
+    /// Record final run / justified-skip counts in one go, for callers that
+    /// already tally their own results and only report missing inputs inline.
+    pub fn tally(&mut self, ran: usize, justified: usize) {
+        self.ran += ran;
+        self.justified += justified;
+    }
+
+    /// Record a sample dropped for the given reason.
+    pub fn skipped(&mut self, sample: &str, reason: SkipReason) {
+        match reason {
+            SkipReason::Justified => self.justified += 1,
+            SkipReason::MissingInput(wanted) => {
+                self.missing.push(format!("{sample} (no {wanted})"));
+            }
+        }
+    }
+
+    /// `min_ran` is a grow-only floor measured against the pinned Svelte
+    /// submodule. Lower it only together with a documented skip-list entry —
+    /// lowering it to make CI green defeats the whole guard.
+    #[track_caller]
+    pub fn assert(&self, min_ran: usize) {
+        let what = &self.what;
+
+        assert!(
+            self.found > 0,
+            "{what}: no sample directories were discovered. The fixture layout \
+             changed, the Svelte submodule is not initialized, or \
+             `pnpm run generate-fixtures` has not been run."
+        );
+
+        assert!(
+            self.missing.is_empty(),
+            "{what}: {} of {} sample(s) were dropped because an expected input \
+             file is missing — an upstream rename silently removes coverage \
+             this way. Fix the lookup, do not relax the guard.\n  {}",
+            self.missing.len(),
+            self.found,
+            self.missing.join("\n  ")
+        );
+
+        assert_eq!(
+            self.ran + self.justified,
+            self.found,
+            "{what}: {} of {} sample(s) were dropped without being recorded as \
+             run or justified-skipped. Some loader path returns early without \
+             telling the coverage ledger.",
+            self.found.saturating_sub(self.ran + self.justified),
+            self.found
+        );
+
+        assert!(
+            self.ran >= min_ran,
+            "{what}: only {} fixture(s) ran, floor is {min_ran}. This floor is \
+             grow-only — find the samples that stopped running; lower it only \
+             alongside a documented skip-list entry, never to make CI green.",
+            self.ran
+        );
+    }
+}
+
+// ============================================================================
 // Normalization utilities
 // ============================================================================
 

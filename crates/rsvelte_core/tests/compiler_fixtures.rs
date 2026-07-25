@@ -9,11 +9,21 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    compare_js, ensure_fixtures_exist, get_fixture_samples, load_fixture_output, svelte_path,
-    write_actual_output,
+    FixtureCoverage, SkipReason, compare_js, ensure_fixtures_exist, get_fixture_samples,
+    load_fixture_output, svelte_path, write_actual_output,
 };
 use rayon::prelude::*;
 use rsvelte_core::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
+
+/// Grow-only fixture floor, measured against the pinned Svelte submodule: 31
+/// samples minus the one on `SKIP_SNAPSHOT`. Never lower it.
+const MIN_SNAPSHOT_FIXTURES: usize = 30;
+
+/// Fixtures intentionally skipped here — they exercise codegen clusters
+/// tracked separately in tests/compatibility_report.rs and tests/runtime.rs.
+/// Running them as snapshot tests would surface already-known divergences
+/// (e.g. nested async-grouping inside `$derived` for `async-in-derived`).
+const SKIP_SNAPSHOT: &[&str] = &["async-in-derived"];
 
 /// Load input from Svelte test suite. Normalizes CRLF→LF so byte offsets
 /// in the compiled output match LF-authored fixtures on Windows runners.
@@ -77,11 +87,11 @@ struct SnapshotFixture {
 }
 
 /// Load a snapshot test fixture from fixtures directory.
-fn load_snapshot_fixture(sample_dir: &Path) -> Option<SnapshotFixture> {
-    let name = sample_dir.file_name()?.to_str()?.to_string();
+fn load_snapshot_fixture(sample_dir: &Path) -> Result<SnapshotFixture, SkipReason> {
+    let name = common::sample_name(sample_dir).to_string();
 
     // Load input from Svelte test suite
-    let input = load_input(&name)?;
+    let input = load_input(&name).ok_or(SkipReason::MissingInput("index.svelte"))?;
 
     // Load expected outputs from fixtures
     let expected_client_js = load_fixture_output("snapshot", &name, "client.js");
@@ -89,10 +99,14 @@ fn load_snapshot_fixture(sample_dir: &Path) -> Option<SnapshotFixture> {
 
     // If neither expected output exists, skip this fixture
     if expected_client_js.is_none() && expected_server_js.is_none() {
-        return None;
+        return Err(SkipReason::Justified);
     }
 
-    Some(SnapshotFixture {
+    if SKIP_SNAPSHOT.contains(&name.as_str()) {
+        return Err(SkipReason::Justified);
+    }
+
+    Ok(SnapshotFixture {
         name: name.clone(),
         input,
         expected_client_js,
@@ -235,27 +249,18 @@ fn test_compiler_snapshot_fixtures() {
 
     let samples = get_fixture_samples("snapshot");
 
-    if samples.is_empty() {
-        panic!("No snapshot fixtures found. Run `npm run generate-fixtures` first.");
-    }
-
-    // Fixtures intentionally skipped here — they exercise codegen clusters
-    // tracked separately in tests/compatibility_report.rs and
-    // tests/runtime.rs. Running them as snapshot tests would surface
-    // already-known divergences (e.g. nested async-grouping inside
-    // `$derived` for `async-in-derived`).
-    let skip_snapshot: &[&str] = &["async-in-derived"];
-
-    let fixtures: Vec<SnapshotFixture> = samples
-        .iter()
-        .filter_map(|sample_dir| {
-            let name = sample_dir.file_name()?.to_str()?;
-            if skip_snapshot.contains(&name) {
-                return None;
+    let mut coverage = FixtureCoverage::new("snapshot", samples.len());
+    let mut fixtures: Vec<SnapshotFixture> = Vec::new();
+    for sample_dir in &samples {
+        match load_snapshot_fixture(sample_dir.as_path()) {
+            Ok(fixture) => {
+                coverage.ran();
+                fixtures.push(fixture);
             }
-            load_snapshot_fixture(sample_dir.as_path())
-        })
-        .collect();
+            Err(reason) => coverage.skipped(common::sample_name(sample_dir), reason),
+        }
+    }
+    coverage.assert(MIN_SNAPSHOT_FIXTURES);
 
     let results: Vec<TestResult> = fixtures.par_iter().map(run_snapshot_fixture_test).collect();
 

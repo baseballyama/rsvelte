@@ -14,9 +14,13 @@ mod common;
 use std::fs;
 use std::path::Path;
 
-use common::get_svelte_test_samples;
 use common::preprocess_fixtures::{build_preprocessors, filename_for};
+use common::{FixtureCoverage, SkipReason, get_svelte_test_samples, sample_name};
 use rsvelte_core::compiler::preprocess::preprocess;
+
+/// Grow-only fixture floor, measured against the pinned Svelte submodule: all
+/// 19 preprocess samples are runnable. Never lower it.
+const MIN_PREPROCESS_FIXTURES: usize = 19;
 
 #[derive(Debug, Clone)]
 pub struct PreprocessFixture {
@@ -33,12 +37,14 @@ pub struct PreprocessResult {
     pub error: Option<String>,
 }
 
-fn load_fixture(sample_dir: &Path) -> Option<PreprocessFixture> {
-    let name = sample_dir.file_name()?.to_str()?.to_string();
-    let input = fs::read_to_string(sample_dir.join("input.svelte")).ok()?;
-    let expected_output = fs::read_to_string(sample_dir.join("output.svelte")).ok()?;
+fn load_fixture(sample_dir: &Path) -> Result<PreprocessFixture, SkipReason> {
+    let name = sample_name(sample_dir).to_string();
+    let input = fs::read_to_string(sample_dir.join("input.svelte"))
+        .map_err(|_| SkipReason::MissingInput("input.svelte"))?;
+    let expected_output = fs::read_to_string(sample_dir.join("output.svelte"))
+        .map_err(|_| SkipReason::MissingInput("output.svelte"))?;
     let filename = filename_for(&name);
-    Some(PreprocessFixture {
+    Ok(PreprocessFixture {
         name,
         input,
         expected_output,
@@ -108,21 +114,28 @@ pub fn run_preprocess_fixture(fixture: &PreprocessFixture) -> PreprocessResult {
     }
 }
 
-pub fn load_preprocess_fixtures() -> Vec<PreprocessFixture> {
-    get_svelte_test_samples("preprocess")
-        .into_iter()
-        .filter_map(|d| load_fixture(d.as_path()))
-        .collect()
+pub fn load_preprocess_fixtures() -> (Vec<PreprocessFixture>, FixtureCoverage) {
+    let samples = get_svelte_test_samples("preprocess");
+    let mut coverage = FixtureCoverage::new("preprocess", samples.len());
+    let mut fixtures = Vec::new();
+
+    for sample_dir in &samples {
+        match load_fixture(sample_dir.as_path()) {
+            Ok(fixture) => {
+                coverage.ran();
+                fixtures.push(fixture);
+            }
+            Err(reason) => coverage.skipped(sample_name(sample_dir), reason),
+        }
+    }
+
+    (fixtures, coverage)
 }
 
 #[test]
 fn test_preprocess_fixtures() {
-    let fixtures = load_preprocess_fixtures();
-    if fixtures.is_empty() {
-        panic!(
-            "No preprocess fixtures found. Run `git submodule update --init --recursive` and `pnpm run generate-fixtures`."
-        );
-    }
+    let (fixtures, coverage) = load_preprocess_fixtures();
+    coverage.assert(MIN_PREPROCESS_FIXTURES);
 
     println!("Running {} preprocess tests...", fixtures.len());
     let results: Vec<PreprocessResult> = fixtures.iter().map(run_preprocess_fixture).collect();
