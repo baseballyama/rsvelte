@@ -129,134 +129,7 @@ pub(crate) fn process_instance_script_tag(
         // into the <script> tag replacement. The original import
         // positions are blanked with whitespace-preserving content.
 
-        let mut import_text = String::new();
-        for (i, &(comments_start, import_start_rel, import_end)) in imports.iter().enumerate() {
-            let abs_comments_start = comments_start + content_start;
-            let abs_import_start = import_start_rel + content_start;
-            let abs_end = import_end + content_start;
-
-            // Split into the leading comment region and the import
-            // statement itself so they can be processed independently.
-            // The JS reference (`utils/tsAst.ts::moveNode`) moves each
-            // leading comment as its own chunk and drops the trivia
-            // between them; for the first import,
-            // `handleFirstInstanceImport` inserts an extra `\n` either
-            // before a leading multiline comment or before the `import`
-            // keyword.
-            let comments_raw = slice_src(
-                source,
-                abs_comments_start as usize,
-                abs_import_start as usize,
-            );
-            let import_raw = slice_src(source, abs_import_start as usize, abs_end as usize);
-
-            // Collect leading comment lines while preserving block-comment
-            // interior indentation verbatim.  The JS reference (`moveNode`)
-            // uses `str.move()` which copies source text byte-for-byte, so
-            // `/* … */` inner lines must retain their original leading spaces.
-            // Only the opener line (`/*...`) is fully trimmed (leading indent
-            // is dropped; trailing spaces after `/*` are stripped); all other
-            // block-comment lines are preserved as-is.  Lines that are purely
-            // whitespace outside a block comment are filtered out.
-            let comment_lines: Vec<String> = {
-                let mut lines: Vec<String> = Vec::new();
-                let mut in_block = false;
-                for line in comments_raw.lines() {
-                    if in_block {
-                        // Preserve interior indentation verbatim.
-                        if line.contains("*/") {
-                            in_block = false;
-                        }
-                        lines.push(line.to_string());
-                    } else {
-                        let trimmed = line.trim();
-                        if trimmed.is_empty() {
-                            continue; // skip whitespace-only lines
-                        }
-                        if trimmed.starts_with("/*") {
-                            // Block-comment opener: trim fully so the
-                            // leading indent and any trailing spaces after
-                            // `/*` are dropped (e.g. `  /*  ` → `/*`).
-                            in_block = !trimmed.contains("*/");
-                            lines.push(trimmed.to_string());
-                        } else {
-                            // Line comment (`//`) or other: fully trim.
-                            lines.push(trimmed.to_string());
-                        }
-                    }
-                }
-                lines
-            };
-
-            // Was the last comment on the same line as the `import`
-            // keyword? True when `comments_raw`'s final line is not
-            // whitespace-only — e.g. `/*hi*/import X` keeps the comment
-            // and the import on a single line.
-            let last_comment_inline = !comments_raw.is_empty()
-                && comments_raw
-                    .lines()
-                    .last()
-                    .is_some_and(|l| !l.trim().is_empty());
-
-            let import_text_clean: String = import_raw
-                .lines()
-                .map(|line| line.trim_start())
-                .collect::<Vec<_>>()
-                .join("\n");
-
-            // Preserve gap when this import is part of a separate group
-            // (a blank line in the source between this import and the
-            // previous one).
-            if i > 0 {
-                let prev_end = imports[i - 1].2 + content_start;
-                let between = slice_src(source, prev_end as usize, abs_comments_start as usize);
-                let newline_count = between.chars().filter(|&c| c == '\n').count();
-                if newline_count >= 2 {
-                    import_text.push('\n');
-                }
-            }
-
-            let first_comment_is_block = comment_lines.first().is_some_and(|c| c.starts_with("/*"));
-            let needs_leading_newline =
-                i == 0 && (comment_lines.is_empty() || first_comment_is_block);
-
-            if needs_leading_newline {
-                import_text.push('\n');
-            }
-            for (idx, line) in comment_lines.iter().enumerate() {
-                import_text.push_str(line);
-                let is_last = idx + 1 == comment_lines.len();
-                if !(is_last && last_comment_inline) {
-                    import_text.push('\n');
-                }
-            }
-            if i == 0 && !first_comment_is_block && !comment_lines.is_empty() {
-                // `appendRight(firstImport.getStart(), '\n')` —
-                // separating the trailing leading-line-comment from the
-                // import keyword with an explicit blank line.
-                import_text.push('\n');
-            }
-
-            import_text.push_str(&import_text_clean);
-
-            // Add semicolon to the last import if it doesn't have one
-            if i == imports.len() - 1 {
-                // `.last()` avoids a `len() - 1` underflow when the cleaned
-                // import text is empty (zero-length span edge case).
-                if import_text_clean.as_bytes().last() != Some(&b';') {
-                    import_text.push_str(";\n");
-                } else {
-                    import_text.push('\n');
-                }
-            } else {
-                import_text.push('\n');
-            }
-
-            // Blank out the original [leading comments .. import] span.
-            // The indentation before the comments stays because it's
-            // outside the captured span.
-            str.overwrite(abs_comments_start, abs_end, "");
-        }
+        let import_text = collect_lifted_imports(&imports, source, content_start, str);
 
         // Build $$ComponentProps type declaration for TS files
         //
@@ -760,4 +633,144 @@ pub(crate) fn process_instance_script_tag(
     // output oxfmt cannot reformat (so only blank-line stripping applies).
 
     has_top_level_await
+}
+
+/// Collect the instance script's top-level imports into the text that will be
+/// spliced above `$$render()`, blanking each original `[leading comments .. import]`
+/// span in `str`.
+fn collect_lifted_imports(
+    imports: &[(u32, u32, u32)],
+    source: &str,
+    content_start: u32,
+    str: &mut MagicString,
+) -> String {
+    let mut import_text = String::new();
+    for (i, &(comments_start, import_start_rel, import_end)) in imports.iter().enumerate() {
+        let abs_comments_start = comments_start + content_start;
+        let abs_import_start = import_start_rel + content_start;
+        let abs_end = import_end + content_start;
+
+        // Split into the leading comment region and the import
+        // statement itself so they can be processed independently.
+        // The JS reference (`utils/tsAst.ts::moveNode`) moves each
+        // leading comment as its own chunk and drops the trivia
+        // between them; for the first import,
+        // `handleFirstInstanceImport` inserts an extra `\n` either
+        // before a leading multiline comment or before the `import`
+        // keyword.
+        let comments_raw = slice_src(
+            source,
+            abs_comments_start as usize,
+            abs_import_start as usize,
+        );
+        let import_raw = slice_src(source, abs_import_start as usize, abs_end as usize);
+
+        // Collect leading comment lines while preserving block-comment
+        // interior indentation verbatim.  The JS reference (`moveNode`)
+        // uses `str.move()` which copies source text byte-for-byte, so
+        // `/* … */` inner lines must retain their original leading spaces.
+        // Only the opener line (`/*...`) is fully trimmed (leading indent
+        // is dropped; trailing spaces after `/*` are stripped); all other
+        // block-comment lines are preserved as-is.  Lines that are purely
+        // whitespace outside a block comment are filtered out.
+        let comment_lines: Vec<String> = {
+            let mut lines: Vec<String> = Vec::new();
+            let mut in_block = false;
+            for line in comments_raw.lines() {
+                if in_block {
+                    // Preserve interior indentation verbatim.
+                    if line.contains("*/") {
+                        in_block = false;
+                    }
+                    lines.push(line.to_string());
+                } else {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() {
+                        continue; // skip whitespace-only lines
+                    }
+                    if trimmed.starts_with("/*") {
+                        // Block-comment opener: trim fully so the
+                        // leading indent and any trailing spaces after
+                        // `/*` are dropped (e.g. `  /*  ` → `/*`).
+                        in_block = !trimmed.contains("*/");
+                        lines.push(trimmed.to_string());
+                    } else {
+                        // Line comment (`//`) or other: fully trim.
+                        lines.push(trimmed.to_string());
+                    }
+                }
+            }
+            lines
+        };
+
+        // Was the last comment on the same line as the `import`
+        // keyword? True when `comments_raw`'s final line is not
+        // whitespace-only — e.g. `/*hi*/import X` keeps the comment
+        // and the import on a single line.
+        let last_comment_inline = !comments_raw.is_empty()
+            && comments_raw
+                .lines()
+                .last()
+                .is_some_and(|l| !l.trim().is_empty());
+
+        let import_text_clean: String = import_raw
+            .lines()
+            .map(|line| line.trim_start())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        // Preserve gap when this import is part of a separate group
+        // (a blank line in the source between this import and the
+        // previous one).
+        if i > 0 {
+            let prev_end = imports[i - 1].2 + content_start;
+            let between = slice_src(source, prev_end as usize, abs_comments_start as usize);
+            let newline_count = between.chars().filter(|&c| c == '\n').count();
+            if newline_count >= 2 {
+                import_text.push('\n');
+            }
+        }
+
+        let first_comment_is_block = comment_lines.first().is_some_and(|c| c.starts_with("/*"));
+        let needs_leading_newline = i == 0 && (comment_lines.is_empty() || first_comment_is_block);
+
+        if needs_leading_newline {
+            import_text.push('\n');
+        }
+        for (idx, line) in comment_lines.iter().enumerate() {
+            import_text.push_str(line);
+            let is_last = idx + 1 == comment_lines.len();
+            if !(is_last && last_comment_inline) {
+                import_text.push('\n');
+            }
+        }
+        if i == 0 && !first_comment_is_block && !comment_lines.is_empty() {
+            // `appendRight(firstImport.getStart(), '\n')` —
+            // separating the trailing leading-line-comment from the
+            // import keyword with an explicit blank line.
+            import_text.push('\n');
+        }
+
+        import_text.push_str(&import_text_clean);
+
+        // Add semicolon to the last import if it doesn't have one
+        if i == imports.len() - 1 {
+            // `.last()` avoids a `len() - 1` underflow when the cleaned
+            // import text is empty (zero-length span edge case).
+            if import_text_clean.as_bytes().last() != Some(&b';') {
+                import_text.push_str(";\n");
+            } else {
+                import_text.push('\n');
+            }
+        } else {
+            import_text.push('\n');
+        }
+
+        // Blank out the original [leading comments .. import] span.
+        // The indentation before the comments stays because it's
+        // outside the captured span.
+        str.overwrite(abs_comments_start, abs_end, "");
+    }
+
+    import_text
 }
