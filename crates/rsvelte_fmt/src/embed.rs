@@ -53,7 +53,7 @@ impl FormatSession {
     /// never guaranteed for a process an editor spawns, unlike the CLI, which
     /// always has an explicit `--oxfmt-bin` from its own npm launcher.
     /// `RSVELTE_FMT_NODE`, if set, is honored automatically by every `oxfmt`
-    /// invocation regardless of this value — see [`crate::oxfmt::oxfmt_node`].
+    /// invocation regardless of this value — see `crate::oxfmt::oxfmt_node`.
     pub fn resolve_with_oxfmt_bin(path: &Path, oxfmt_bin: Option<PathBuf>) -> Result<Self> {
         let cfg = OxfmtConfig::resolve(None, path).map_err(|e| anyhow!(e))?;
         let mut flags = OptionFlags::default();
