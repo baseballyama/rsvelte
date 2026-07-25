@@ -2532,11 +2532,7 @@ fn convert_formal_parameter<'a>(
             "type".to_string(),
             Value::String("TSParameterProperty".to_string()),
         );
-        obj.insert("start".to_string(), Value::Number((start as i64).into()));
-        obj.insert("end".to_string(), Value::Number((end as i64).into()));
-        if let Some(loc) = create_loc(start, end, line_offsets) {
-            obj.insert("loc".to_string(), loc);
-        }
+        push_span_fields(&mut obj, start, end, line_offsets);
         if param.readonly {
             obj.insert("readonly".to_string(), Value::Bool(true));
         }
@@ -2581,11 +2577,7 @@ fn convert_formal_parameter_inner<'a>(
 
                 let mut obj = Map::new();
                 obj.insert("type".to_string(), Value::String("Identifier".to_string()));
-                obj.insert("start".to_string(), Value::Number((start as i64).into()));
-                obj.insert("end".to_string(), Value::Number((end as i64).into()));
-                if let Some(loc) = create_loc(start, end, line_offsets) {
-                    obj.insert("loc".to_string(), loc);
-                }
+                push_span_fields(&mut obj, start, end, line_offsets);
                 obj.insert("name".to_string(), Value::String(name.to_string()));
 
                 // TS optional marker (`b?: T`); acorn emits it after `name`.
@@ -2872,11 +2864,7 @@ fn convert_binding_pattern_for_param(
             let mut obj = Map::new();
             obj.insert("type".to_string(), Value::String("Identifier".to_string()));
             obj.insert("name".to_string(), Value::String(id.name.to_string()));
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
             Value::Object(obj)
         }
         BindingPattern::ObjectPattern(obj_pat) => {
@@ -2895,11 +2883,7 @@ fn convert_binding_pattern_for_param(
                 "type".to_string(),
                 Value::String("ArrayPattern".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
 
             // Convert elements
             let mut elements = Vec::new();
@@ -2955,11 +2939,7 @@ fn convert_binding_pattern_for_param(
                 "type".to_string(),
                 Value::String("AssignmentPattern".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
 
             // Convert left (the pattern)
             let left = convert_binding_pattern_for_param(
@@ -3111,11 +3091,7 @@ fn convert_type_annotation_adjusted(
         "type".to_string(),
         Value::String("TSTypeAnnotation".to_string()),
     );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_span_fields(&mut obj, start, end, line_offsets);
 
     // Convert the inner type
     let inner_type = convert_ts_type_adjusted(
@@ -3142,11 +3118,7 @@ fn ts_assertion_value(
 ) -> Value {
     let mut obj = Map::new();
     obj.insert("type".to_string(), Value::String(type_name.to_string()));
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_span_fields(&mut obj, start, end, line_offsets);
     obj.insert("expression".to_string(), expression);
     if let Some(ta) = type_annotation {
         obj.insert("typeAnnotation".to_string(), ta);
@@ -3182,11 +3154,7 @@ fn convert_ts_type_name_adjusted(
 
             let mut obj = Map::new();
             obj.insert("type".to_string(), Value::String("Identifier".to_string()));
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
             obj.insert("name".to_string(), Value::String(id.name.to_string()));
 
             Value::Object(obj)
@@ -3202,11 +3170,7 @@ fn convert_ts_type_name_adjusted(
                 "type".to_string(),
                 Value::String("TSQualifiedName".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
 
             // `left` recurses (it may itself be a qualified name); `right` is a
             // plain Identifier. Matches svelte/compiler's TSQualifiedName shape.
@@ -3233,11 +3197,7 @@ fn convert_ts_type_name_adjusted(
                 "type".to_string(),
                 Value::String("ThisExpression".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
 
             Value::Object(obj)
         }
@@ -3268,11 +3228,7 @@ fn convert_ts_type(
     let base = |type_name: &str| -> Map<String, Value> {
         let mut obj = Map::new();
         obj.insert("type".to_string(), Value::String(type_name.to_string()));
-        obj.insert("start".to_string(), Value::Number((start as i64).into()));
-        obj.insert("end".to_string(), Value::Number((end as i64).into()));
-        if let Some(loc) = create_loc(start, end, line_offsets) {
-            obj.insert("loc".to_string(), loc);
-        }
+        push_span_fields(&mut obj, start, end, line_offsets);
         obj
     };
 
@@ -3511,11 +3467,7 @@ fn convert_ts_type_parameter_declaration(
         "type".to_string(),
         Value::String("TSTypeParameterDeclaration".to_string()),
     );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_span_fields(&mut obj, start, end, line_offsets);
     let params: Vec<Value> = decl
         .params
         .iter()
@@ -3539,11 +3491,7 @@ fn convert_ts_type_parameter(
         "type".to_string(),
         Value::String("TSTypeParameter".to_string()),
     );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_span_fields(&mut obj, start, end, line_offsets);
     obj.insert(
         "name".to_string(),
         Value::String(param.name.name.to_string()),
@@ -3583,11 +3531,7 @@ fn convert_ts_function_like_params(
         let end = offset + this_param.span.end as usize;
         let mut obj = Map::new();
         obj.insert("type".to_string(), Value::String("Identifier".to_string()));
-        obj.insert("start".to_string(), Value::Number((start as i64).into()));
-        obj.insert("end".to_string(), Value::Number((end as i64).into()));
-        if let Some(loc) = create_loc(start, end, line_offsets) {
-            obj.insert("loc".to_string(), loc);
-        }
+        push_span_fields(&mut obj, start, end, line_offsets);
         obj.insert("name".to_string(), Value::String("this".to_string()));
         if let Some(type_ann) = &this_param.type_annotation {
             obj.insert(
@@ -3613,11 +3557,7 @@ fn convert_ts_function_like_params(
             convert_binding_pattern_for_param(arena, &rest.rest.argument, offset, line_offsets);
         let mut obj = Map::new();
         obj.insert("type".to_string(), Value::String("RestElement".to_string()));
-        obj.insert("start".to_string(), Value::Number((start as i64).into()));
-        obj.insert("end".to_string(), Value::Number((end as i64).into()));
-        if let Some(loc) = create_loc(start, end, line_offsets) {
-            obj.insert("loc".to_string(), loc);
-        }
+        push_span_fields(&mut obj, start, end, line_offsets);
         obj.insert("argument".to_string(), argument);
         if let Some(type_ann) = &rest.type_annotation {
             obj.insert(
@@ -3652,11 +3592,7 @@ fn convert_ts_signature(
                 "type".to_string(),
                 Value::String("TSPropertySignature".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
             obj.insert("computed".to_string(), Value::Bool(prop.computed));
             // svelte/compiler omits `optional` / `readonly` when false.
             if prop.optional {
@@ -3694,11 +3630,7 @@ fn convert_ts_signature(
             };
             let mut obj = Map::new();
             obj.insert("type".to_string(), Value::String(type_name.to_string()));
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
             Value::Object(obj)
         }
     }
@@ -3806,11 +3738,7 @@ fn convert_ts_literal(
 fn ts_identifier_value(name: &str, start: usize, end: usize, line_offsets: &[usize]) -> Value {
     let mut obj = Map::new();
     obj.insert("type".to_string(), Value::String("Identifier".to_string()));
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_span_fields(&mut obj, start, end, line_offsets);
     obj.insert("name".to_string(), Value::String(name.to_string()));
     Value::Object(obj)
 }
@@ -3825,11 +3753,7 @@ fn ts_literal_value(
 ) -> Value {
     let mut obj = Map::new();
     obj.insert("type".to_string(), Value::String("Literal".to_string()));
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_span_fields(&mut obj, start, end, line_offsets);
     obj.insert("value".to_string(), value);
     if let Some(raw) = raw {
         obj.insert("raw".to_string(), Value::String(raw));
@@ -3864,11 +3788,7 @@ fn convert_ts_type_param_instantiation(
         "type".to_string(),
         Value::String("TSTypeParameterInstantiation".to_string()),
     );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_span_fields(&mut obj, start, end, line_offsets);
     let params: Vec<Value> = args
         .params
         .iter()
@@ -3882,11 +3802,7 @@ fn convert_ts_type_param_instantiation(
 fn create_ts_keyword(type_name: &str, start: usize, end: usize, line_offsets: &[usize]) -> Value {
     let mut obj = Map::new();
     obj.insert("type".to_string(), Value::String(type_name.to_string()));
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_span_fields(&mut obj, start, end, line_offsets);
     Value::Object(obj)
 }
 
@@ -5004,11 +4920,7 @@ fn convert_class_body_for_expr(
 
     let mut obj = Map::new();
     obj.insert("type".to_string(), Value::String("ClassBody".to_string()));
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_span_fields(&mut obj, start, end, line_offsets);
 
     let body_elements: Vec<Value> = body
         .body
@@ -5036,11 +4948,7 @@ fn convert_class_element_for_expr(
                 "type".to_string(),
                 Value::String("MethodDefinition".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
             obj.insert("static".to_string(), Value::Bool(method.r#static));
             obj.insert("computed".to_string(), Value::Bool(method.computed));
 
@@ -5083,11 +4991,7 @@ fn convert_class_element_for_expr(
                 "type".to_string(),
                 Value::String("PropertyDefinition".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
             obj.insert("static".to_string(), Value::Bool(prop.r#static));
             obj.insert("computed".to_string(), Value::Bool(prop.computed));
 
@@ -5110,11 +5014,7 @@ fn convert_class_element_for_expr(
             let end = offset + static_block.span.end as usize - 1;
             let mut obj = Map::new();
             obj.insert("type".to_string(), Value::String("StaticBlock".to_string()));
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
 
             let body_statements: Vec<Value> = static_block
                 .body
@@ -6409,35 +6309,67 @@ fn update_operator_to_str(op: &oxc_ast::ast::UpdateOperator) -> &'static str {
     }
 }
 
+/// Insert the ESTree span fields in acorn's emission order (`start`, `end`, then
+/// `loc` when line offsets are available). `serde_json`'s `preserve_order` makes
+/// that insertion order part of the JSON output contract.
+fn push_span_fields(
+    obj: &mut Map<String, Value>,
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+) {
+    push_span_fields_with(obj, start, end, line_offsets, get_line_column);
+}
+
+/// `push_span_fields` for binding patterns, which use the empty-line-adjusted
+/// column calculation.
+fn push_binding_span_fields(
+    obj: &mut Map<String, Value>,
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+) {
+    push_span_fields_with(obj, start, end, line_offsets, get_line_column_for_binding);
+}
+
+fn push_span_fields_with(
+    obj: &mut Map<String, Value>,
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+    line_column: fn(usize, &[usize]) -> (u32, u32),
+) {
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    if let Some(loc) = create_loc_with(start, end, line_offsets, line_column) {
+        obj.insert("loc".to_string(), loc);
+    }
+}
+
 fn create_loc(start: usize, end: usize, line_offsets: &[usize]) -> Option<Value> {
+    create_loc_with(start, end, line_offsets, get_line_column)
+}
+
+fn create_loc_with(
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+    line_column: fn(usize, &[usize]) -> (u32, u32),
+) -> Option<Value> {
     if line_offsets.is_empty() {
         return None;
     }
-    let start_loc = get_line_column(start, line_offsets);
-    let end_loc = get_line_column(end, line_offsets);
+    let point = |pos: usize| {
+        let (line, column) = line_column(pos, line_offsets);
+        let mut obj = Map::new();
+        obj.insert("line".to_string(), Value::Number((line as i64).into()));
+        obj.insert("column".to_string(), Value::Number((column as i64).into()));
+        Value::Object(obj)
+    };
 
     let mut loc = Map::new();
-
-    let mut start_obj = Map::new();
-    start_obj.insert(
-        "line".to_string(),
-        Value::Number((start_loc.0 as i64).into()),
-    );
-    start_obj.insert(
-        "column".to_string(),
-        Value::Number((start_loc.1 as i64).into()),
-    );
-
-    let mut end_obj = Map::new();
-    end_obj.insert("line".to_string(), Value::Number((end_loc.0 as i64).into()));
-    end_obj.insert(
-        "column".to_string(),
-        Value::Number((end_loc.1 as i64).into()),
-    );
-
-    loc.insert("start".to_string(), Value::Object(start_obj));
-    loc.insert("end".to_string(), Value::Object(end_obj));
-
+    loc.insert("start".to_string(), point(start));
+    loc.insert("end".to_string(), point(end));
     Some(Value::Object(loc))
 }
 
@@ -6480,35 +6412,7 @@ fn get_line_column_for_binding(pos: usize, line_offsets: &[usize]) -> (u32, u32)
 /// Create loc for binding patterns (complex patterns like ObjectPattern, ArrayPattern).
 /// Uses adjusted column calculation for empty lines, no character field.
 fn create_loc_for_binding(start: usize, end: usize, line_offsets: &[usize]) -> Option<Value> {
-    if line_offsets.is_empty() {
-        return None;
-    }
-    let start_loc = get_line_column_for_binding(start, line_offsets);
-    let end_loc = get_line_column_for_binding(end, line_offsets);
-
-    let mut loc = Map::new();
-
-    let mut start_obj = Map::new();
-    start_obj.insert(
-        "line".to_string(),
-        Value::Number((start_loc.0 as i64).into()),
-    );
-    start_obj.insert(
-        "column".to_string(),
-        Value::Number((start_loc.1 as i64).into()),
-    );
-
-    let mut end_obj = Map::new();
-    end_obj.insert("line".to_string(), Value::Number((end_loc.0 as i64).into()));
-    end_obj.insert(
-        "column".to_string(),
-        Value::Number((end_loc.1 as i64).into()),
-    );
-
-    loc.insert("start".to_string(), Value::Object(start_obj));
-    loc.insert("end".to_string(), Value::Object(end_obj));
-
-    Some(Value::Object(loc))
+    create_loc_with(start, end, line_offsets, get_line_column_for_binding)
 }
 
 // ============================================================================
@@ -8242,11 +8146,7 @@ fn convert_declaration_for_program(
                 "type".to_string(),
                 Value::String("VariableDeclaration".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
 
             let declarations: Vec<Value> = var_decl
                 .declarations
@@ -8301,11 +8201,7 @@ fn convert_declaration_for_program(
                 "type".to_string(),
                 Value::String("FunctionDeclaration".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
 
             if let Some(id) = &func_decl.id {
                 let id_start = offset + id.span.start as usize;
@@ -8373,11 +8269,7 @@ fn convert_declaration_for_program(
                 "type".to_string(),
                 Value::String("ClassDeclaration".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
 
             if let Some(id) = &class_decl.id {
                 let id_start = offset + id.span.start as usize;
@@ -8416,11 +8308,7 @@ fn convert_declaration_for_program(
                 "type".to_string(),
                 Value::String("TSEnumDeclaration".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
             Value::Object(obj)
         }
         // TypeScript module/namespace declarations
@@ -8443,11 +8331,7 @@ fn convert_declaration_for_program(
                 "type".to_string(),
                 Value::String("TSModuleDeclaration".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
 
             // Include body for non-type node detection
             if let Some(ref body) = module_decl.body {
@@ -8628,11 +8512,7 @@ fn convert_variable_declarator_for_program(
             "type".to_string(),
             Value::String("TSTypeAnnotation".to_string()),
         );
-        ts_obj.insert("start".to_string(), Value::Number((ts_start as i64).into()));
-        ts_obj.insert("end".to_string(), Value::Number((ts_end as i64).into()));
-        if let Some(loc) = create_loc(ts_start, ts_end, line_offsets) {
-            ts_obj.insert("loc".to_string(), loc);
-        }
+        push_span_fields(&mut ts_obj, ts_start, ts_end, line_offsets);
         let type_value = convert_ts_type(
             arena,
             &type_annotation.type_annotation,
@@ -9732,11 +9612,7 @@ fn convert_class_body_for_program(
 
     let mut obj = Map::new();
     obj.insert("type".to_string(), Value::String("ClassBody".to_string()));
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_span_fields(&mut obj, start, end, line_offsets);
 
     let body_elements: Vec<Value> = body
         .body
@@ -9922,11 +9798,7 @@ fn convert_class_element_for_program(
                 "type".to_string(),
                 Value::String("MethodDefinition".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
             obj.insert("static".to_string(), Value::Bool(method.r#static));
             obj.insert("computed".to_string(), Value::Bool(method.computed));
 
@@ -9962,11 +9834,7 @@ fn convert_class_element_for_program(
                 "type".to_string(),
                 Value::String("PropertyDefinition".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
             obj.insert("static".to_string(), Value::Bool(prop.r#static));
             obj.insert("computed".to_string(), Value::Bool(prop.computed));
 
@@ -9999,11 +9867,7 @@ fn convert_class_element_for_program(
                 "type".to_string(),
                 Value::String("PropertyDefinition".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_span_fields(&mut obj, start, end, line_offsets);
             obj.insert("accessor".to_string(), Value::Bool(true));
             obj.insert("static".to_string(), Value::Bool(prop.r#static));
             obj.insert("computed".to_string(), Value::Bool(prop.computed));
@@ -10038,11 +9902,7 @@ fn convert_function_expression_for_program(
         "type".to_string(),
         Value::String("FunctionExpression".to_string()),
     );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_span_fields(&mut obj, start, end, line_offsets);
     obj.insert("id".to_string(), Value::Null);
     obj.insert("generator".to_string(), Value::Bool(func.generator));
     obj.insert("async".to_string(), Value::Bool(func.r#async));
@@ -10194,11 +10054,7 @@ fn convert_function_body_for_program(
         "type".to_string(),
         Value::String("BlockStatement".to_string()),
     );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_span_fields(&mut obj, start, end, line_offsets);
 
     let statements: Vec<Value> = body
         .statements
@@ -10997,11 +10853,7 @@ fn convert_object_pattern_with_adjustment(
         "type".to_string(),
         Value::String("ObjectPattern".to_string()),
     );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_binding_span_fields(&mut obj, start, end, line_offsets);
 
     let mut properties: Vec<Value> = obj_pat
         .properties
@@ -11065,11 +10917,7 @@ fn convert_array_pattern_with_adjustment(
         "type".to_string(),
         Value::String("ArrayPattern".to_string()),
     );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_binding_span_fields(&mut obj, start, end, line_offsets);
 
     let mut elements: Vec<Value> = arr_pat
         .elements
@@ -11134,11 +10982,7 @@ fn convert_assignment_pattern_with_adjustment(
         "type".to_string(),
         Value::String("AssignmentPattern".to_string()),
     );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_binding_span_fields(&mut obj, start, end, line_offsets);
 
     obj.insert(
         "left".to_string(),
@@ -11177,11 +11021,7 @@ fn convert_binding_property_with_adjustment(
 
     let mut obj = Map::new();
     obj.insert("type".to_string(), Value::String("Property".to_string()));
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_binding_span_fields(&mut obj, start, end, line_offsets);
     obj.insert("method".to_string(), Value::Bool(false));
     obj.insert("shorthand".to_string(), Value::Bool(prop.shorthand));
     obj.insert("computed".to_string(), Value::Bool(prop.computed));
@@ -11431,11 +11271,7 @@ fn convert_expression_with_adjustment(
                 "type".to_string(),
                 Value::String("BinaryExpression".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_binding_span_fields(&mut obj, start, end, line_offsets);
             obj.insert("left".to_string(), left);
             obj.insert("operator".to_string(), Value::String(operator.to_string()));
             obj.insert("right".to_string(), right);
@@ -11457,11 +11293,7 @@ fn convert_expression_with_adjustment(
                 "type".to_string(),
                 Value::String("UnaryExpression".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_binding_span_fields(&mut obj, start, end, line_offsets);
             obj.insert("operator".to_string(), Value::String(operator.to_string()));
             obj.insert("prefix".to_string(), Value::Bool(true));
             obj.insert("argument".to_string(), argument);
@@ -11490,11 +11322,7 @@ fn convert_expression_with_adjustment(
                 "type".to_string(),
                 Value::String("LogicalExpression".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_binding_span_fields(&mut obj, start, end, line_offsets);
             obj.insert("left".to_string(), left);
             obj.insert("operator".to_string(), Value::String(operator.to_string()));
             obj.insert("right".to_string(), right);
@@ -11529,11 +11357,7 @@ fn convert_expression_with_adjustment(
                 "type".to_string(),
                 Value::String("ConditionalExpression".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_binding_span_fields(&mut obj, start, end, line_offsets);
             obj.insert("test".to_string(), test);
             obj.insert("consequent".to_string(), consequent);
             obj.insert("alternate".to_string(), alternate);
@@ -11563,11 +11387,7 @@ fn convert_expression_with_adjustment(
                 "type".to_string(),
                 Value::String("MemberExpression".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_binding_span_fields(&mut obj, start, end, line_offsets);
             obj.insert("object".to_string(), object);
             obj.insert("property".to_string(), property);
             obj.insert("computed".to_string(), Value::Bool(false));
@@ -11596,11 +11416,7 @@ fn convert_expression_with_adjustment(
                 "type".to_string(),
                 Value::String("MemberExpression".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_binding_span_fields(&mut obj, start, end, line_offsets);
             obj.insert("object".to_string(), object);
             obj.insert("property".to_string(), property);
             obj.insert("computed".to_string(), Value::Bool(true));
@@ -11645,11 +11461,7 @@ fn convert_expression_with_adjustment(
                 "type".to_string(),
                 Value::String("MemberExpression".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_binding_span_fields(&mut obj, start, end, line_offsets);
             obj.insert("object".to_string(), object);
             obj.insert("property".to_string(), Value::Object(prop));
             obj.insert("computed".to_string(), Value::Bool(false));
@@ -11695,11 +11507,7 @@ fn convert_expression_with_adjustment(
                 "type".to_string(),
                 Value::String("UpdateExpression".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_binding_span_fields(&mut obj, start, end, line_offsets);
             obj.insert("operator".to_string(), Value::String(operator.to_string()));
             obj.insert("prefix".to_string(), Value::Bool(update.prefix));
             obj.insert("argument".to_string(), argument);
@@ -11743,11 +11551,7 @@ fn create_template_literal_with_adjustment(
         "type".to_string(),
         Value::String("TemplateLiteral".to_string()),
     );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_binding_span_fields(&mut obj, start, end, line_offsets);
 
     // Convert quasis
     let quasis: Vec<Value> = template
@@ -11762,11 +11566,7 @@ fn create_template_literal_with_adjustment(
                 "type".to_string(),
                 Value::String("TemplateElement".to_string()),
             );
-            q_obj.insert("start".to_string(), Value::Number((q_start as i64).into()));
-            q_obj.insert("end".to_string(), Value::Number((q_end as i64).into()));
-            if let Some(loc) = create_loc_for_binding(q_start, q_end, line_offsets) {
-                q_obj.insert("loc".to_string(), loc);
-            }
+            push_binding_span_fields(&mut q_obj, q_start, q_end, line_offsets);
             q_obj.insert("tail".to_string(), Value::Bool(quasi.tail));
 
             let mut value_obj = Map::new();
@@ -11817,11 +11617,7 @@ fn create_call_expression_with_adjustment(
         "type".to_string(),
         Value::String("CallExpression".to_string()),
     );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_binding_span_fields(&mut obj, start, end, line_offsets);
 
     let callee = convert_expression_with_adjustment(
         arena,
@@ -11894,11 +11690,7 @@ fn create_arrow_function_with_adjustment(
         "type".to_string(),
         Value::String("ArrowFunctionExpression".to_string()),
     );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_binding_span_fields(&mut obj, start, end, line_offsets);
     obj.insert("id".to_string(), Value::Null);
     obj.insert("expression".to_string(), Value::Bool(arrow.expression));
     obj.insert("generator".to_string(), Value::Bool(false));
@@ -11970,11 +11762,7 @@ fn convert_function_body_with_adjustment(
         "type".to_string(),
         Value::String("BlockStatement".to_string()),
     );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
+    push_binding_span_fields(&mut obj, start, end, line_offsets);
 
     let statements: Vec<Value> = body
         .statements
@@ -12005,11 +11793,7 @@ fn convert_statement_with_adjustment(
                 "type".to_string(),
                 Value::String("ReturnStatement".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_binding_span_fields(&mut obj, start, end, line_offsets);
 
             if let Some(arg) = &ret.argument {
                 obj.insert(
@@ -12037,11 +11821,7 @@ fn convert_statement_with_adjustment(
                 "type".to_string(),
                 Value::String("ExpressionStatement".to_string()),
             );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            push_binding_span_fields(&mut obj, start, end, line_offsets);
             obj.insert(
                 "expression".to_string(),
                 convert_expression_with_adjustment(
