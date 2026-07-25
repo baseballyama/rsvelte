@@ -70,22 +70,22 @@ justifies it — never to make a red run go green.
 
 ## Baseline at the time this gate was added
 
-Measured on Svelte `b29d7002ecf9`, 29 samples × {client, server} (54 of the 58
-pairs are byte-identical to the official output, so 54 take part in
+Measured on Svelte `b29d7002ecf9`, 29 samples × {client, server} (55 of the 58
+pairs are byte-identical to the official output, so 55 take part in
 `map-parity`):
 
 | measure | client | server | total |
 |---|---|---|---|
-| official segments reproduced | 0 / 428 | 164 / 284 | **164 / 712 (23.0%)** |
-| — of which missing / wrong | 353 / 75 | 113 / 7 | 466 / 82 |
-| out-of-range segments | 32 | 0 | **32 / 559 (5.7%)** |
+| official segments reproduced | 0 / 480 | 164 / 284 | **164 / 764 (21.5%)** |
+| — of which missing / wrong | 393 / 87 | 113 / 7 | 506 / 94 |
+| out-of-range segments | 37 | 0 | **37 / 545 (6.8%)** |
 | ported `_config.js` anchors passing | 0 / 12 | 9 / 10 | **10 / 23** (incl. 1 CSS) |
 
 The split is nearly, but not entirely, along the client/server line:
 
 - **Client maps reproduce nothing.** Every client sample scores `0 exact` — not
   one segment of the official client map is reproduced at the same generated
-  position with the same origin — all 12 client anchors fail, and all 32
+  position with the same origin — all 12 client anchors fail, and all 37
   out-of-range segments are client.
 - **Server maps are directionally correct but coarser than official.** 164 of
   284 official server segments are reproduced exactly and no server map has an
@@ -97,6 +97,30 @@ The split is nearly, but not entirely, along the client/server line:
   burndown is tractable, not where it is finished.
 - The single CSS anchor passes: CSS maps come from a separate
   `string_wizard`-based path that the client JS refactor does not touch.
+
+### First catch: #1772
+
+The baseline above was re-measured when this branch was rebased onto a main that
+had gained #1772 ("keep `<script>` comments on the direct-AST codegen path"),
+and the gate moved. The delta is confined to the two sourcemaps samples that
+have a `//` comment inside `<script>` — exactly the files #1772 switches from
+the text generator to the direct-AST path:
+
+| | before #1772 | after |
+|---|---|---|
+| `typescript` client — byte-identical to official | no | **yes** |
+| `typescript` client — official segments reproduced | not measured | 0 / 52 (40 missing, 12 wrong) |
+| `typescript` client — out-of-range | 0 | **4** |
+| `sourcemap-offsets` client — out-of-range | 0 | **1** |
+
+Both directions in one change: generated-code parity *improved* (54 → 55
+byte-identical, which is why `typescript` newly qualifies for `map-parity` at
+all), while map quality *regressed* (0 → 5 new out-of-range segments). Server
+totals are byte-for-byte unchanged, confirming the change is client-only.
+
+This is the degradation issue #1781 describes, and it is the reason this gate
+exists: the same change passed every other suite. No other sample's counts
+moved, so nothing else on main has touched source maps.
 
 ## Root cause
 
@@ -134,10 +158,10 @@ No entry is accepted as correct behaviour; all are burndown targets.
   chunk is anchored at the file start, so the whole block is off by the
   `<script module>` line) and `sourcemap-empty-source`/client maps to `0:8`
   instead of `2:1`.
-- **`map-parity` (44)** — one per byte-identical pair that loses official
-  segments. Client counts (4–36) are dominated by `missing`; server counts (4–13)
+- **`map-parity` (45)** — one per byte-identical pair that loses official
+  segments. Client counts (4–52) are dominated by `missing`; server counts (4–13)
   are mostly `missing`-only, except `preprocessed-styles` and
   `source-map-generator`, which contribute the 7 server `wrong` segments.
-- **`out-of-range` (14)** — 1–4 segments per client map. These are the segments
+- **`out-of-range` (16)** — 1–4 segments per client map. These are the segments
   that break downstream consumers outright (a devtools frame resolving past the
   end of a line), so this is the budget to burn down first.

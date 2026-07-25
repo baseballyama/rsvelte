@@ -56,6 +56,7 @@
   "map-parity\tstatic-no-script\tclient\t4",
   "map-parity\ttwo-scripts\tclient\t24",
   "map-parity\ttwo-scripts\tserver\t13",
+  "map-parity\ttypescript\tclient\t52",
   "out-of-range\tattached-sourcemap\tclient\t3",
   "out-of-range\tbasic\tclient\t2",
   "out-of-range\tbinding\tclient\t2",
@@ -68,6 +69,8 @@
   "out-of-range\tscript-after-comment\tclient\t4",
   "out-of-range\tsourcemap-empty-source\tclient\t3",
   "out-of-range\tsourcemap-names\tclient\t3",
+  "out-of-range\tsourcemap-offsets\tclient\t1",
   "out-of-range\tsourcemap-sources\tclient\t2",
-  "out-of-range\ttwo-scripts\tclient\t1"
+  "out-of-range\ttwo-scripts\tclient\t1",
+  "out-of-range\ttypescript\tclient\t4"
 ]
