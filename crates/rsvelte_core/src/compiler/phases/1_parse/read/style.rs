@@ -21,7 +21,7 @@ use crate::ast::css::{StyleSheet, StyleSheetContent, StyleSheetType};
 use crate::ast::template::{AttributeValue, AttributeValuePart, TemplateNode};
 use crate::error::ParseResult;
 
-use super::super::parser::Parser;
+use super::super::parser::{MAX_NESTING_DEPTH, Parser};
 
 /// Returns `true` when the `<style>` has a `lang` attribute whose value is not
 /// plain CSS (e.g. `sass`, `scss`, `stylus`, `less`, `postcss`). Such a block
@@ -66,6 +66,16 @@ pub(crate) fn parse_css_strict(
         return Err(err);
     }
     Ok(rules)
+}
+
+/// Helper: build a CSS `Block` node.
+fn block_value(start: usize, end: usize, children: Vec<Value>) -> Value {
+    let mut obj = Map::new();
+    obj.insert("type".to_string(), Value::String("Block".to_string()));
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("children".to_string(), Value::Array(children));
+    Value::Object(obj)
 }
 
 /// Helper: record a selector-level error on a `CssParser`'s shared error
@@ -398,6 +408,8 @@ struct CssParser<'a> {
     /// so that helper methods which take `&self` (because they mutate only
     /// `self.index` indirectly via sub-parsers) can still record errors.
     error: std::cell::Cell<Option<crate::error::ParseError>>,
+    /// Current nested-rule depth, bounded by `MAX_NESTING_DEPTH`.
+    depth: u32,
 }
 
 impl<'a> CssParser<'a> {
@@ -407,6 +419,7 @@ impl<'a> CssParser<'a> {
             offset,
             index: 0,
             error: std::cell::Cell::new(None),
+            depth: 0,
         }
     }
 
@@ -481,59 +494,7 @@ impl<'a> CssParser<'a> {
         let block = if self.current_char() == '{' {
             let block_start = self.offset + self.index;
             self.advance(); // consume '{'
-            self.skip_whitespace();
-
-            // Parse rules inside the block
-            let mut children = Vec::new();
-            while !self.is_eof() && self.current_char() != '}' {
-                self.skip_whitespace();
-                if self.is_eof() || self.current_char() == '}' {
-                    break;
-                }
-
-                // Skip comments so they don't get folded into the next child's
-                // span (they're preserved via source gap copying in the printer).
-                if self.match_str("/*") {
-                    self.skip_block_comment();
-                    continue;
-                }
-
-                // Check for nested at-rule
-                if self.current_char() == '@' {
-                    if let Some(rule) = self.parse_atrule() {
-                        children.push(rule);
-                    }
-                } else if self.peek_block_item_is_rule() {
-                    // Selector followed by `{` → rule (e.g. `0% { ... }` in @keyframes,
-                    // `.foo { ... }` in @media/@supports).
-                    if let Some(rule) = self.parse_rule() {
-                        children.push(rule);
-                    }
-                } else if let Some(decl) = self.parse_declaration() {
-                    // `prop: value;` declaration (used by @page, @font-face,
-                    // @counter-style, @property, etc., which take declarations
-                    // directly inside their block instead of nested rules).
-                    children.push(decl);
-                } else {
-                    // Couldn't make progress — bail to avoid infinite loop.
-                    self.advance();
-                }
-                self.skip_whitespace();
-            }
-
-            // Consume closing brace
-            self.eat_optional("}");
-            let block_end = self.offset + self.index;
-
-            let mut block_obj = Map::new();
-            block_obj.insert("type".to_string(), Value::String("Block".to_string()));
-            block_obj.insert(
-                "start".to_string(),
-                Value::Number((block_start as i64).into()),
-            );
-            block_obj.insert("end".to_string(), Value::Number((block_end as i64).into()));
-            block_obj.insert("children".to_string(), Value::Array(children));
-            Value::Object(block_obj)
+            self.with_block_depth(block_start, |parser| parser.parse_atrule_block(block_start))
         } else {
             self.eat_optional(";");
             Value::Null
@@ -550,6 +511,55 @@ impl<'a> CssParser<'a> {
         obj.insert("block".to_string(), block);
 
         Some(Value::Object(obj))
+    }
+
+    /// Parse the body of an at-rule, whose `{` has already been consumed.
+    fn parse_atrule_block(&mut self, block_start: usize) -> Value {
+        self.skip_whitespace();
+
+        // Parse rules inside the block
+        let mut children = Vec::new();
+        while !self.is_eof() && self.current_char() != '}' {
+            self.skip_whitespace();
+            if self.is_eof() || self.current_char() == '}' {
+                break;
+            }
+
+            // Skip comments so they don't get folded into the next child's
+            // span (they're preserved via source gap copying in the printer).
+            if self.match_str("/*") {
+                self.skip_block_comment();
+                continue;
+            }
+
+            // Check for nested at-rule
+            if self.current_char() == '@' {
+                if let Some(rule) = self.parse_atrule() {
+                    children.push(rule);
+                }
+            } else if self.peek_block_item_is_rule() {
+                // Selector followed by `{` → rule (e.g. `0% { ... }` in @keyframes,
+                // `.foo { ... }` in @media/@supports).
+                if let Some(rule) = self.parse_rule() {
+                    children.push(rule);
+                }
+            } else if let Some(decl) = self.parse_declaration() {
+                // `prop: value;` declaration (used by @page, @font-face,
+                // @counter-style, @property, etc., which take declarations
+                // directly inside their block instead of nested rules).
+                children.push(decl);
+            } else {
+                // Couldn't make progress — bail to avoid infinite loop.
+                self.advance();
+            }
+            self.skip_whitespace();
+        }
+
+        // Consume closing brace
+        self.eat_optional("}");
+        let block_end = self.offset + self.index;
+
+        block_value(block_start, block_end, children)
     }
 
     /// Peek ahead from the current position (without advancing) to decide
@@ -1226,8 +1236,40 @@ impl<'a> CssParser<'a> {
         result
     }
 
+    /// Parse a `{ … }` body one level deeper. Nested rules and at-rules recurse
+    /// through here, so this is where CSS nesting is bounded: past the limit the
+    /// body is skipped rather than descended into, and the error is recorded for
+    /// `parse_css_strict` to report.
+    fn with_block_depth(
+        &mut self,
+        block_start: usize,
+        parse: impl FnOnce(&mut Self) -> Value,
+    ) -> Value {
+        if self.depth >= MAX_NESTING_DEPTH {
+            record_first_error(
+                &self.error,
+                crate::error::ParseError::svelte(
+                    "css_nesting_too_deep",
+                    format!("CSS is nested more than {MAX_NESTING_DEPTH} levels deep"),
+                    (block_start, block_start + 1),
+                ),
+            );
+            self.skip_until_block_end();
+            return block_value(block_start, self.offset + self.index, Vec::new());
+        }
+
+        self.depth += 1;
+        let block = parse(self);
+        self.depth -= 1;
+        block
+    }
+
     fn parse_block(&mut self) -> Value {
         let start = self.offset + self.index - 1; // -1 to include the '{'
+        self.with_block_depth(start, |parser| parser.parse_block_inner(start))
+    }
+
+    fn parse_block_inner(&mut self, start: usize) -> Value {
         let mut declarations = Vec::new();
 
         self.skip_whitespace();
@@ -1277,13 +1319,58 @@ impl<'a> CssParser<'a> {
         self.eat_optional("}");
         let end = self.offset + self.index;
 
-        let mut obj = Map::new();
-        obj.insert("type".to_string(), Value::String("Block".to_string()));
-        obj.insert("start".to_string(), Value::Number((start as i64).into()));
-        obj.insert("end".to_string(), Value::Number((end as i64).into()));
-        obj.insert("children".to_string(), Value::Array(declarations));
+        block_value(start, end, declarations)
+    }
 
-        Value::Object(obj)
+    /// Consume the remainder of the block whose `{` was already eaten, without
+    /// recursing into it.
+    fn skip_until_block_end(&mut self) {
+        let mut brace_depth = 1;
+        let mut in_string = false;
+        let mut string_char = '\0';
+
+        while !self.is_eof() {
+            let c = self.current_char();
+
+            if c == '\\' {
+                self.advance();
+                if !self.is_eof() {
+                    self.advance();
+                }
+                continue;
+            }
+
+            if in_string {
+                if c == string_char {
+                    in_string = false;
+                }
+                self.advance();
+                continue;
+            }
+
+            if c == '"' || c == '\'' {
+                in_string = true;
+                string_char = c;
+                self.advance();
+                continue;
+            }
+
+            if self.match_str("/*") {
+                self.skip_block_comment();
+                continue;
+            }
+
+            if c == '{' {
+                brace_depth += 1;
+            } else if c == '}' {
+                brace_depth -= 1;
+                if brace_depth == 0 {
+                    self.advance();
+                    return;
+                }
+            }
+            self.advance();
+        }
     }
 
     /// Check if the current position looks like a nested rule (selector followed by {)
@@ -1707,7 +1794,13 @@ struct SelectorParser<'a> {
     /// First parse error encountered while reading selector tokens. Mirrors the
     /// "throw on first invalid identifier" behaviour of the official Svelte
     /// CSS parser without adding a `Result` return type to every helper.
-    error: Option<crate::error::ParseError>,
+    /// `Cell` so the `&self` helpers that spawn sub-parsers for pseudo-class
+    /// arguments can hand the sub-parser's error back up.
+    error: std::cell::Cell<Option<crate::error::ParseError>>,
+    /// Depth of enclosing pseudo-class argument lists (`:is(:is(…))`), bounded
+    /// by `MAX_NESTING_DEPTH`. Carried across sub-parsers because the
+    /// recursion runs through freshly constructed `SelectorParser`s.
+    depth: u32,
 }
 
 impl<'a> SelectorParser<'a> {
@@ -1716,7 +1809,37 @@ impl<'a> SelectorParser<'a> {
             source,
             offset,
             index: 0,
-            error: None,
+            error: std::cell::Cell::new(None),
+            depth: 0,
+        }
+    }
+
+    /// A sub-parser for the arguments of a pseudo-class inside this selector.
+    /// See [`Self::absorb_nesting_error`] for how its errors are handled.
+    fn nested(&self, source: &'a str, offset: usize) -> Self {
+        Self {
+            source,
+            offset,
+            index: 0,
+            error: std::cell::Cell::new(None),
+            depth: self.depth + 1,
+        }
+    }
+
+    /// Take over a sub-parser's nesting error. Its other diagnostics stay
+    /// where they are: the enclosing parser re-reads the same text and
+    /// upstream raises nothing for constructs the sub-parser trips on (a `,`
+    /// inside an attribute-selector string, say). Hitting the nesting bound is
+    /// different — it means the arguments were dropped rather than parsed, so
+    /// it must reach the caller.
+    fn absorb_nesting_error(&self, sub: &Self) {
+        let Some(err) = sub.error.take() else {
+            return;
+        };
+        if matches!(&err, crate::error::ParseError::SvelteError { code, .. }
+            if code == "css_nesting_too_deep")
+        {
+            record_first_error(&self.error, err);
         }
     }
 
@@ -1803,14 +1926,15 @@ impl<'a> SelectorParser<'a> {
                     // An empty identifier here would leave `self.index`
                     // unchanged and spin the loop; mirror the official
                     // `read_identifier` empty-identifier error and stop.
-                    if self.error.is_none() {
-                        let pos = self.offset + self.index;
-                        self.error = Some(crate::error::ParseError::svelte(
+                    let pos = self.offset + self.index;
+                    record_first_error(
+                        &self.error,
+                        crate::error::ParseError::svelte(
                             "css_expected_identifier",
                             "Expected a valid CSS identifier",
                             (pos, pos),
-                        ));
-                    }
+                        ),
+                    );
                     break;
                 }
             } else if c.is_ascii_digit() || (c == '.' && self.peek_next_char().is_ascii_digit()) {
@@ -1821,14 +1945,15 @@ impl<'a> SelectorParser<'a> {
                     selectors.push(selector);
                 } else {
                     // Not a valid percentage — fall through to the identifier error.
-                    if self.error.is_none() {
-                        let pos = self.offset + self.index;
-                        self.error = Some(crate::error::ParseError::svelte(
+                    let pos = self.offset + self.index;
+                    record_first_error(
+                        &self.error,
+                        crate::error::ParseError::svelte(
                             "css_expected_identifier",
                             "Expected a valid CSS identifier",
                             (pos, pos),
-                        ));
-                    }
+                        ),
+                    );
                     break;
                 }
             } else {
@@ -1836,14 +1961,15 @@ impl<'a> SelectorParser<'a> {
                 // falls through to `read_identifier` and the first character
                 // is not a valid identifier-start, `read_identifier` returns
                 // an empty string and raises `css_expected_identifier`.
-                if self.error.is_none() {
-                    let pos = self.offset + self.index;
-                    self.error = Some(crate::error::ParseError::svelte(
+                let pos = self.offset + self.index;
+                record_first_error(
+                    &self.error,
+                    crate::error::ParseError::svelte(
                         "css_expected_identifier",
                         "Expected a valid CSS identifier",
                         (pos, pos),
-                    ));
-                }
+                    ),
+                );
                 // Stop parsing further selectors once we've recorded an error;
                 // the surrounding parser will surface it.
                 break;
@@ -1992,7 +2118,20 @@ impl<'a> SelectorParser<'a> {
                 "nth-child" | "nth-last-child" | "nth-of-type" | "nth-last-of-type"
             );
 
-            if is_nth_pseudo {
+            // The arguments are the only recursive part of selector parsing, so
+            // this is where the nesting bound applies. The parenthesised text is
+            // already consumed above, so bailing out costs only the args AST.
+            if self.depth >= MAX_NESTING_DEPTH {
+                record_first_error(
+                    &self.error,
+                    crate::error::ParseError::svelte(
+                        "css_nesting_too_deep",
+                        format!("CSS is nested more than {MAX_NESTING_DEPTH} levels deep"),
+                        (start, start + 1),
+                    ),
+                );
+                None
+            } else if is_nth_pseudo {
                 // For nth-* pseudo-classes, parse the An+B syntax and optional 'of S' selector
                 let trimmed = content.trim();
                 let leading_ws = content.len() - content.trim_start().len();
@@ -2090,8 +2229,10 @@ impl<'a> SelectorParser<'a> {
 
                 // Parse selector part if present
                 if let Some((sel_text, sel_start)) = selector_part {
-                    let sel_parser = SelectorParser::new(sel_text, sel_start);
-                    let parsed = sel_parser.parse_simple_selectors();
+                    let mut sel_parser = self.nested(sel_text, sel_start);
+                    let mut parsed = Vec::new();
+                    sel_parser.parse_selectors(&mut parsed);
+                    self.absorb_nesting_error(&sel_parser);
                     selectors.extend(parsed);
                 }
 
@@ -2497,8 +2638,9 @@ impl<'a> SelectorParser<'a> {
         let end = offset + text.len();
 
         let mut selectors = Vec::new();
-        let mut parser = SelectorParser::new(text, offset);
+        let mut parser = self.nested(text, offset);
         parser.parse_selectors(&mut selectors);
+        self.absorb_nesting_error(&parser);
 
         let combinator_value = if let Some((c, comb_start, comb_end)) = combinator {
             let mut comb_obj = Map::new();
@@ -2830,12 +2972,5 @@ impl<'a> SelectorParser<'a> {
         }
 
         self.source[start..self.index].to_string()
-    }
-
-    /// Parse simple selectors from the current source and return them as a Vec.
-    fn parse_simple_selectors(mut self) -> Vec<Value> {
-        let mut selectors = Vec::new();
-        self.parse_selectors(&mut selectors);
-        selectors
     }
 }
