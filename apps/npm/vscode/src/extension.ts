@@ -27,7 +27,12 @@ import {
 
 let client: LanguageClient | undefined;
 let outputChannel: LogOutputChannel | undefined;
+let extensionContext: ExtensionContext | undefined;
 let restarting = false;
+let deactivated = false;
+
+/** How long a restart waits for a hung `initialize` before giving up and forcing a new instance/process. */
+const RESTART_WAIT_TIMEOUT_MS = 10_000;
 
 /** Languages the server attaches to (formatting + diagnostics). */
 const DOCUMENT_SELECTOR = [
@@ -143,40 +148,150 @@ async function warnAboutOfficialExtension(
   }
 }
 
-/** Resolves once `c` has left the `Starting` state, so `stop`/`restart` never race an in-flight `start`. */
-function waitWhileStarting(c: LanguageClient): Promise<void> {
-  if (c.state !== State.Starting) return Promise.resolve();
+/**
+ * Resolves once `c` has left the `Starting` state — so `stop`/`dispose`
+ * never race an in-flight `start` — or after `timeoutMs`, whichever comes
+ * first. `vscode-languageclient`'s `initialize()` has no timeout of its own,
+ * so a server that hangs before responding would otherwise leave `c` stuck
+ * in `Starting` forever and this would never resolve. The boolean tells the
+ * caller which happened.
+ */
+function waitWhileStarting(
+  c: LanguageClient,
+  timeoutMs: number,
+): Promise<{ timedOut: boolean }> {
+  if (c.state !== State.Starting) return Promise.resolve({ timedOut: false });
   return new Promise((resolve) => {
+    let settled = false;
     const disposable = c.onDidChangeState((event) => {
-      if (event.newState !== State.Starting) {
-        disposable.dispose();
-        resolve();
-      }
+      if (settled || event.newState === State.Starting) return;
+      settled = true;
+      clearTimeout(timer);
+      disposable.dispose();
+      resolve({ timedOut: false });
     });
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      disposable.dispose();
+      resolve({ timedOut: true });
+    }, timeoutMs);
   });
 }
 
+function buildServerOptions(context: ExtensionContext): ServerOptions {
+  const serverModule = resolveServerModule(context);
+  return {
+    run: { module: serverModule, transport: TransportKind.stdio },
+    debug: {
+      module: serverModule,
+      transport: TransportKind.stdio,
+      options: { execArgv: ["--nolazy", "--inspect=6009"] },
+    },
+  };
+}
+
+/** Builds a fresh, unstarted client. Called on every (re)start so a changed `rsvelte.languageServer.path` takes effect. */
+function createClient(
+  context: ExtensionContext,
+  channel: LogOutputChannel,
+): LanguageClient {
+  const clientOptions: LanguageClientOptions = {
+    documentSelector: DOCUMENT_SELECTOR,
+    outputChannel: channel,
+    synchronize: {
+      // Forward `rsvelte.*` configuration changes to the server.
+      configurationSection: "rsvelte",
+    },
+  };
+  return new LanguageClient(
+    "rsvelte",
+    "rsvelte Language Server",
+    buildServerOptions(context),
+    clientOptions,
+  );
+}
+
 /**
- * Restarts the running client, or starts it if it never came up (e.g. a
- * previous `StartFailed`). `BaseLanguageClient.restart()` calls `stop()`
- * first, which throws unless the client is `Running`, so those states go
- * through `start()` instead. The `restarting` guard collapses concurrent
- * triggers (command + several config saves in a row) into one restart.
+ * Creates and starts a new client, assigning it to the module-level `client`.
+ * Used both for the initial activation and after `restartLanguageServer`
+ * discards the previous instance.
+ */
+async function startClient(
+  context: ExtensionContext,
+  channel: LogOutputChannel,
+): Promise<void> {
+  const next = createClient(context, channel);
+  client = next;
+  try {
+    await next.start();
+  } catch {
+    // The client already surfaces start failures via its own error UI;
+    // `client` stays assigned to `next` (now `StartFailed`) so a later
+    // restart discards it and spins up a fresh instance/process — retrying
+    // `start()` on the same instance would just return the old rejection
+    // (vscode-languageclient@10.1.0 never clears `_onStart` on StartFailed).
+  }
+  if (deactivated) {
+    // `deactivate()` ran while we were starting — don't leave an orphaned
+    // client running past it.
+    if (client === next) client = undefined;
+    await next.dispose().catch(() => undefined);
+    return;
+  }
+  if (client === next && next.state === State.Running) {
+    await next.setTrace(traceFromConfig());
+  }
+}
+
+/**
+ * Replaces the client with a brand-new instance and process rather than
+ * reusing `restart()`/`start()` on the same one, for two reasons:
+ *  - a `StartFailed` instance can never recover via `start()` (see
+ *    `startClient`), so restarting after a failed launch needs a new
+ *    instance regardless;
+ *  - `rsvelte.languageServer.path` is only read when building `ServerOptions`
+ *    (`buildServerOptions`), so reusing the instance would silently keep
+ *    running the old path after the setting changes.
+ * The `restarting` guard collapses concurrent triggers (the command plus
+ * several config saves in a row) into one restart. Module state (`client`,
+ * `outputChannel`, `extensionContext`) is captured into locals up front so a
+ * concurrent `deactivate()` clearing those globals mid-restart can't turn an
+ * await-resumed access into a `TypeError`.
  */
 async function restartLanguageServer(): Promise<void> {
-  if (!client || restarting) return;
+  const context = extensionContext;
+  const channel = outputChannel;
+  const previous = client;
+  if (!context || !channel || !previous || restarting) return;
+
   restarting = true;
   try {
-    await waitWhileStarting(client);
-    outputChannel?.clear();
-    if (client.state === State.Running) {
-      await client.restart();
-    } else {
-      await client.start();
+    const { timedOut } = await waitWhileStarting(
+      previous,
+      RESTART_WAIT_TIMEOUT_MS,
+    );
+    if (timedOut) {
+      void window.showWarningMessage(
+        "rsvelte: the language server did not respond to initialize within " +
+          `${RESTART_WAIT_TIMEOUT_MS / 1000}s — restarting anyway.`,
+      );
     }
-    if (client.state === State.Running) {
-      await client.setTrace(traceFromConfig());
+
+    channel.clear();
+    if (client === previous) client = undefined;
+    try {
+      // Rejects when `previous` never reached `Running` (StartFailed, or
+      // still Starting after the timeout above) — the underlying process is
+      // still reaped asynchronously by LanguageClient's own
+      // `checkProcessDied`, so it's safe to ignore and move on.
+      await previous.dispose();
+    } catch {
+      // Expected in the states described above.
     }
+
+    if (deactivated) return;
+    await startClient(context, channel);
   } finally {
     restarting = false;
   }
@@ -226,43 +341,16 @@ export function activate(context: ExtensionContext): void {
   registerSvelteLanguageConfiguration(context);
   void warnAboutOfficialExtension(context);
 
-  const serverModule = resolveServerModule(context);
+  extensionContext = context;
+  deactivated = false;
 
-  const serverOptions: ServerOptions = {
-    run: { module: serverModule, transport: TransportKind.stdio },
-    debug: {
-      module: serverModule,
-      transport: TransportKind.stdio,
-      options: { execArgv: ["--nolazy", "--inspect=6009"] },
-    },
-  };
-
-  outputChannel = window.createOutputChannel("rsvelte Language Server", {
+  const channel = window.createOutputChannel("rsvelte Language Server", {
     log: true,
   });
-  context.subscriptions.push(outputChannel);
+  outputChannel = channel;
+  context.subscriptions.push(channel);
 
-  const clientOptions: LanguageClientOptions = {
-    documentSelector: DOCUMENT_SELECTOR,
-    outputChannel,
-    synchronize: {
-      // Forward `rsvelte.*` configuration changes to the server.
-      configurationSection: "rsvelte",
-    },
-  };
-
-  client = new LanguageClient(
-    "rsvelte",
-    "rsvelte Language Server",
-    serverOptions,
-    clientOptions,
-  );
-
-  void client
-    .start()
-    .then(() => client?.setTrace(traceFromConfig()))
-    // The client already surfaces start failures via its own error UI.
-    .catch(() => undefined);
+  void startClient(context, channel);
 
   context.subscriptions.push(
     commands.registerCommand(RESTART_COMMAND_ID, () =>
@@ -274,22 +362,24 @@ export function activate(context: ExtensionContext): void {
       }
     }),
     workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration("rsvelte.trace.server")) {
-        void client?.setTrace(traceFromConfig());
+      if (event.affectsConfiguration("rsvelte.trace.server") && client) {
+        void client.setTrace(traceFromConfig());
       }
     }),
   );
 }
 
 export async function deactivate(): Promise<void> {
+  deactivated = true;
   const toStop = client;
   client = undefined;
   outputChannel = undefined;
+  extensionContext = undefined;
   if (!toStop) return;
-  // Mirrors the restart guard: `stop()` throws unless the client is
-  // `Running`, so wait out an in-flight `start()` before stopping.
-  await waitWhileStarting(toStop);
-  if (toStop.state === State.Running) {
-    await toStop.stop();
-  }
+  // Mirrors the restart guard: `dispose()`/`stop()` throws unless the client
+  // is `Running`, so wait out an in-flight `start()` (bounded, in case it's
+  // hung) before disposing, and ignore the rejection for any state that
+  // slips through anyway (e.g. `StartFailed`).
+  await waitWhileStarting(toStop, RESTART_WAIT_TIMEOUT_MS);
+  await toStop.dispose().catch(() => undefined);
 }
