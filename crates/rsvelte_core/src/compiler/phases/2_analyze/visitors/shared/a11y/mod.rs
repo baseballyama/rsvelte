@@ -663,7 +663,7 @@ fn has_disabled_attribute(attribute_map: &FxHashMap<String, &AttributeNode>) -> 
 
 fn match_schemas_by_index(
     schemas: &[RoleRelationConcept],
-    index: &FxHashMap<String, Vec<usize>>,
+    index: &FxHashMap<&'static str, Vec<usize>>,
     tag_name: &str,
     attribute_map: &FxHashMap<String, &AttributeNode>,
 ) -> bool {
@@ -681,10 +681,10 @@ fn match_schema_attrs(
     schema: &RoleRelationConcept,
     attribute_map: &FxHashMap<String, &AttributeNode>,
 ) -> bool {
-    if let Some(schema_attrs) = &schema.attributes {
+    if let Some(schema_attrs) = schema.attributes {
         for schema_attr in schema_attrs {
-            if let Some(attribute) = attribute_map.get(&schema_attr.name) {
-                if let Some(expected_value) = &schema_attr.value {
+            if let Some(attribute) = attribute_map.get(schema_attr.name) {
+                if let Some(expected_value) = schema_attr.value {
                     if let Some(actual_value) = get_static_value(attribute) {
                         if actual_value != expected_value {
                             return false;
@@ -706,7 +706,7 @@ fn element_interactivity(
     attribute_map: &FxHashMap<String, &AttributeNode>,
 ) -> &'static str {
     if match_schemas_by_index(
-        &INTERACTIVE_ELEMENT_ROLE_SCHEMAS,
+        INTERACTIVE_ELEMENT_ROLE_SCHEMAS,
         &INTERACTIVE_ELEMENT_ROLE_INDEX,
         tag_name,
         attribute_map,
@@ -716,7 +716,7 @@ fn element_interactivity(
 
     if tag_name != "header"
         && match_schemas_by_index(
-            &NON_INTERACTIVE_ELEMENT_ROLE_SCHEMAS,
+            NON_INTERACTIVE_ELEMENT_ROLE_SCHEMAS,
             &NON_INTERACTIVE_ELEMENT_ROLE_INDEX,
             tag_name,
             attribute_map,
@@ -726,7 +726,7 @@ fn element_interactivity(
     }
 
     if match_schemas_by_index(
-        &INTERACTIVE_ELEMENT_AX_OBJECT_SCHEMAS,
+        INTERACTIVE_ELEMENT_AX_OBJECT_SCHEMAS,
         &INTERACTIVE_ELEMENT_AX_OBJECT_INDEX,
         tag_name,
         attribute_map,
@@ -735,7 +735,7 @@ fn element_interactivity(
     }
 
     if match_schemas_by_index(
-        &NON_INTERACTIVE_ELEMENT_AX_OBJECT_SCHEMAS,
+        NON_INTERACTIVE_ELEMENT_AX_OBJECT_SCHEMAS,
         &NON_INTERACTIVE_ELEMENT_AX_OBJECT_INDEX,
         tag_name,
         attribute_map,
