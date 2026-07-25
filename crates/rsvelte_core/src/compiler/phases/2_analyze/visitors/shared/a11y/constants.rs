@@ -209,44 +209,43 @@ pub mod element_interactivity {
 /// Invisible elements.
 pub const INVISIBLE_ELEMENTS: &[&str] = &["meta", "html", "script", "style"];
 
-/// Abstract ARIA roles. Also part of `ARIA_ROLES`.
+/// Abstract ARIA roles. Also the first 12 entries of `ARIA_ROLE_NAMES`.
 #[rustfmt::skip]
 const ABSTRACT_ROLE_NAMES: &[&str] = &[
     "command", "composite", "input", "landmark", "range", "roletype", "section", "sectionhead",
     "select", "structure", "widget", "window",
 ];
 
-/// Every ARIA role that is not abstract.
+/// All ARIA roles, in aria-query's `roles` map key order. The order is load-bearing:
+/// `fuzzymatch` breaks score ties by first occurrence, so `ARIA_ROLES` (a set) must never
+/// be the source for suggestion lists.
 #[rustfmt::skip]
-const CONCRETE_ROLE_NAMES: &[&str] = &[
-    "alert", "alertdialog", "application", "article", "banner", "blockquote", "button", "caption",
-    "cell", "checkbox", "code", "columnheader", "combobox", "complementary", "contentinfo",
-    "definition", "deletion", "dialog", "directory", "doc-abstract", "doc-acknowledgments",
-    "doc-afterword", "doc-appendix", "doc-backlink", "doc-biblioentry", "doc-bibliography",
-    "doc-biblioref", "doc-chapter", "doc-colophon", "doc-conclusion", "doc-cover", "doc-credit",
-    "doc-credits", "doc-dedication", "doc-endnote", "doc-endnotes", "doc-epigraph", "doc-epilogue",
-    "doc-errata", "doc-example", "doc-footnote", "doc-foreword", "doc-glossary", "doc-glossref",
-    "doc-index", "doc-introduction", "doc-noteref", "doc-notice", "doc-pagebreak", "doc-pagefooter",
+pub const ARIA_ROLE_NAMES: &[&str] = &[
+    "command", "composite", "input", "landmark", "range", "roletype", "section", "sectionhead",
+    "select", "structure", "widget", "window", "alert", "alertdialog", "application", "article",
+    "banner", "blockquote", "button", "caption", "cell", "checkbox", "code", "columnheader",
+    "combobox", "complementary", "contentinfo", "definition", "deletion", "dialog", "directory",
+    "document", "emphasis", "feed", "figure", "form", "generic", "grid", "gridcell", "group",
+    "heading", "img", "insertion", "link", "list", "listbox", "listitem", "log", "main", "mark",
+    "marquee", "math", "menu", "menubar", "menuitem", "menuitemcheckbox", "menuitemradio", "meter",
+    "navigation", "none", "note", "option", "paragraph", "presentation", "progressbar", "radio",
+    "radiogroup", "region", "row", "rowgroup", "rowheader", "scrollbar", "search", "searchbox",
+    "separator", "slider", "spinbutton", "status", "strong", "subscript", "superscript", "switch",
+    "tab", "table", "tablist", "tabpanel", "term", "textbox", "time", "timer", "toolbar", "tooltip",
+    "tree", "treegrid", "treeitem", "doc-abstract", "doc-acknowledgments", "doc-afterword",
+    "doc-appendix", "doc-backlink", "doc-biblioentry", "doc-bibliography", "doc-biblioref",
+    "doc-chapter", "doc-colophon", "doc-conclusion", "doc-cover", "doc-credit", "doc-credits",
+    "doc-dedication", "doc-endnote", "doc-endnotes", "doc-epigraph", "doc-epilogue", "doc-errata",
+    "doc-example", "doc-footnote", "doc-foreword", "doc-glossary", "doc-glossref", "doc-index",
+    "doc-introduction", "doc-noteref", "doc-notice", "doc-pagebreak", "doc-pagefooter",
     "doc-pageheader", "doc-pagelist", "doc-part", "doc-preface", "doc-prologue", "doc-pullquote",
-    "doc-qna", "doc-subtitle", "doc-tip", "doc-toc", "document", "emphasis", "feed", "figure",
-    "form", "generic", "graphics-document", "graphics-object", "graphics-symbol", "grid",
-    "gridcell", "group", "heading", "img", "insertion", "link", "list", "listbox", "listitem",
-    "log", "main", "mark", "marquee", "math", "menu", "menubar", "menuitem", "menuitemcheckbox",
-    "menuitemradio", "meter", "navigation", "none", "note", "option", "paragraph", "presentation",
-    "progressbar", "radio", "radiogroup", "region", "row", "rowgroup", "rowheader", "scrollbar",
-    "search", "searchbox", "separator", "slider", "spinbutton", "status", "strong", "subscript",
-    "superscript", "switch", "tab", "table", "tablist", "tabpanel", "term", "textbox", "time",
-    "timer", "toolbar", "tooltip", "tree", "treegrid", "treeitem",
+    "doc-qna", "doc-subtitle", "doc-tip", "doc-toc", "graphics-document", "graphics-object",
+    "graphics-symbol",
 ];
 
 /// All ARIA roles.
-pub static ARIA_ROLES: LazyLock<FxHashSet<&'static str>> = LazyLock::new(|| {
-    ABSTRACT_ROLE_NAMES
-        .iter()
-        .chain(CONCRETE_ROLE_NAMES)
-        .copied()
-        .collect()
-});
+pub static ARIA_ROLES: LazyLock<FxHashSet<&'static str>> =
+    LazyLock::new(|| ARIA_ROLE_NAMES.iter().copied().collect());
 
 /// Abstract ARIA roles.
 pub static ABSTRACT_ROLES: LazyLock<FxHashSet<&'static str>> =
@@ -584,8 +583,11 @@ macro_rules! aria_props {
     };
 }
 
+/// Shared by 46 roles.
 const PROPS_ROLETYPE: &[&str] = aria_props![];
+/// Shared by: alertdialog, dialog, window.
 const PROPS_ALERTDIALOG: &[&str] = aria_props!["aria-modal"];
+/// Shared by: application, graphics-object.
 #[rustfmt::skip]
 const PROPS_APPLICATION: &[&str] = aria_props![
     "aria-activedescendant", "aria-disabled", "aria-errormessage", "aria-expanded", "aria-haspopup",
@@ -600,11 +602,13 @@ const PROPS_BUTTON: &[&str] = aria_props![
 const PROPS_CELL: &[&str] = aria_props![
     "aria-colindex", "aria-colspan", "aria-rowindex", "aria-rowspan",
 ];
+/// Shared by: checkbox, switch.
 #[rustfmt::skip]
 const PROPS_CHECKBOX: &[&str] = aria_props![
     "aria-checked", "aria-disabled", "aria-errormessage", "aria-expanded", "aria-invalid",
     "aria-readonly", "aria-required",
 ];
+/// Shared by: columnheader, rowheader.
 #[rustfmt::skip]
 const PROPS_COLUMNHEADER: &[&str] = aria_props![
     "aria-colindex", "aria-colspan", "aria-disabled", "aria-errormessage", "aria-expanded",
@@ -616,11 +620,14 @@ const PROPS_COMBOBOX: &[&str] = aria_props![
     "aria-activedescendant", "aria-autocomplete", "aria-disabled", "aria-errormessage",
     "aria-expanded", "aria-haspopup", "aria-invalid", "aria-readonly", "aria-required",
 ];
+/// Shared by: composite, group.
 const PROPS_COMPOSITE: &[&str] = aria_props!["aria-activedescendant", "aria-disabled"];
+/// Shared by 37 roles.
 #[rustfmt::skip]
 const PROPS_DOC_ABSTRACT: &[&str] = aria_props![
     "aria-disabled", "aria-errormessage", "aria-expanded", "aria-haspopup", "aria-invalid",
 ];
+/// Shared by: doc-biblioentry, doc-endnote.
 #[rustfmt::skip]
 const PROPS_DOC_BIBLIOENTRY: &[&str] = aria_props![
     "aria-disabled", "aria-errormessage", "aria-expanded", "aria-haspopup", "aria-invalid",
@@ -631,6 +638,7 @@ const PROPS_DOC_PAGEBREAK: &[&str] = aria_props![
     "aria-disabled", "aria-errormessage", "aria-expanded", "aria-haspopup", "aria-invalid",
     "aria-orientation", "aria-valuemax", "aria-valuemin", "aria-valuenow", "aria-valuetext",
 ];
+/// Shared by: doc-pagefooter, doc-pageheader.
 #[rustfmt::skip]
 const PROPS_DOC_PAGEFOOTER: &[&str] = aria_props![
     "aria-braillelabel", "aria-brailleroledescription", "aria-description", "aria-disabled",
@@ -660,6 +668,7 @@ const PROPS_LISTITEM: &[&str] = aria_props!["aria-level", "aria-posinset", "aria
 const PROPS_MARK: &[&str] = aria_props![
     "aria-braillelabel", "aria-brailleroledescription", "aria-description",
 ];
+/// Shared by: menu, menubar, select, toolbar.
 #[rustfmt::skip]
 const PROPS_MENU: &[&str] = aria_props![
     "aria-activedescendant", "aria-disabled", "aria-orientation",
@@ -668,11 +677,13 @@ const PROPS_MENU: &[&str] = aria_props![
 const PROPS_MENUITEM: &[&str] = aria_props![
     "aria-disabled", "aria-expanded", "aria-haspopup", "aria-posinset", "aria-setsize",
 ];
+/// Shared by: menuitemcheckbox, menuitemradio.
 #[rustfmt::skip]
 const PROPS_MENUITEMCHECKBOX: &[&str] = aria_props![
     "aria-checked", "aria-disabled", "aria-errormessage", "aria-expanded", "aria-haspopup",
     "aria-invalid", "aria-posinset", "aria-readonly", "aria-required", "aria-setsize",
 ];
+/// Shared by: meter, progressbar.
 #[rustfmt::skip]
 const PROPS_METER: &[&str] = aria_props![
     "aria-valuemax", "aria-valuemin", "aria-valuenow", "aria-valuetext",
@@ -696,11 +707,13 @@ const PROPS_ROW: &[&str] = aria_props![
     "aria-activedescendant", "aria-colindex", "aria-disabled", "aria-expanded", "aria-level",
     "aria-posinset", "aria-rowindex", "aria-selected", "aria-setsize",
 ];
+/// Shared by: scrollbar, separator.
 #[rustfmt::skip]
 const PROPS_SCROLLBAR: &[&str] = aria_props![
     "aria-disabled", "aria-orientation", "aria-valuemax", "aria-valuemin", "aria-valuenow",
     "aria-valuetext",
 ];
+/// Shared by: searchbox, textbox.
 #[rustfmt::skip]
 const PROPS_SEARCHBOX: &[&str] = aria_props![
     "aria-activedescendant", "aria-autocomplete", "aria-disabled", "aria-errormessage",

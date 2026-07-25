@@ -154,8 +154,8 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                         if is_abstract_role(current_role) {
                             warnings.push(w::a11y_no_abstract_role(current_role));
                         } else if !ARIA_ROLES.contains(current_role) {
-                            let aria_roles_vec: Vec<&str> = ARIA_ROLES.iter().copied().collect();
-                            let suggestion = fuzzymatch(current_role, &aria_roles_vec);
+                            // Ordered list, not the set: fuzzymatch breaks ties by first occurrence.
+                            let suggestion = fuzzymatch(current_role, ARIA_ROLE_NAMES);
                             warnings
                                 .push(w::a11y_unknown_role(current_role, suggestion.as_deref()));
                         }
