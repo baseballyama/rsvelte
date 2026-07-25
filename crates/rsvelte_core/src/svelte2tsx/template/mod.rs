@@ -9,15 +9,15 @@
 mod attributes;
 mod collect;
 mod ctx;
+mod nodes;
 mod segs;
 mod utils;
 mod walk;
 
 use crate::ast::template::{
-    AttachTag, Attribute, AttributeValue, AttributeValuePart, AwaitBlock, Comment, Component,
-    ConstTag, DebugTag, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock,
-    LetDirective, RegularElement, RenderTag, SlotElement, SnippetBlock, SvelteComponentElement,
-    SvelteDynamicElement, SvelteElement, TemplateNode, Text, TitleElement,
+    Attribute, AttributeValue, AttributeValuePart, AwaitBlock, Component, EachBlock, Fragment,
+    IfBlock, KeyBlock, LetDirective, RegularElement, SlotElement, SnippetBlock,
+    SvelteComponentElement, SvelteDynamicElement, SvelteElement, TemplateNode, TitleElement,
 };
 use std::fmt::Write as _;
 
@@ -44,10 +44,10 @@ use attributes::{
     build_attribute_segments, build_attributes_string, build_component_props_segments,
     build_component_props_string,
 };
-use ctx::{Counter, ELEMENT_OPENER_COMMENTS, TemplateNodeExt};
+use ctx::{Counter, TemplateNodeExt};
 use segs::{
-    Seg, bake_out_of_order_src, emit_segmented_overwrite, segs_is_empty, segs_push_lit,
-    segs_push_src, segs_to_string, segs_trim_start,
+    Seg, bake_out_of_order_src, emit_segmented_overwrite, segs_is_empty, segs_to_string,
+    segs_trim_start,
 };
 use utils::expr::{
     extend_expr_end_with_ts_postfix, get_binding_lhs_text, get_expression_end_stripping_ts,
@@ -60,6 +60,7 @@ use utils::source::{
 };
 
 pub(crate) use ctx::{clear_element_opener_comments, set_element_opener_comments};
+use nodes::attach_tag::format_attach_tag_segments;
 use walk::{process_fragment_inplace, process_node_inplace};
 
 // =============================================================================
@@ -195,338 +196,9 @@ fn hoist_snippet_blocks(fragment: &Fragment, source: &str, str: &mut MagicString
 // Text and Comments
 // =============================================================================
 
-/// Handle a text node.
-///
-/// Text nodes in svelte2tsx have their non-whitespace characters removed
-/// (replaced with empty). Whitespace characters are kept as-is.
-/// If the result is empty but the original text had content, at least 1
-/// space is preserved (to prevent hover artifacts in the language server).
-fn handle_text(text: &Text, _source: &str, str: &mut MagicString) {
-    if text.start >= text.end {
-        return;
-    }
-    // Mirror JS reference (`htmlxtojsx_v2/nodes/Text.ts`) exactly: it inspects
-    // `node.data` — the *decoded* inner text (HTML entities resolved, e.g.
-    // `&nbsp;` → U+00A0) — and emits `node.data.replace(/\S/g, '')`, i.e. it
-    // strips every non-whitespace character and keeps the whitespace as-is.
-    // If nothing survives but the data was non-empty, a single space is kept
-    // (so hovering over text doesn't surface the containing tag's info).
-    //
-    // Using `node.data` rather than the raw source range is essential: the raw
-    // range for `&nbsp;` is the literal `&nbsp;`, which is invalid JS and made
-    // oxfmt reject the whole output. The decoded U+00A0 is a JS whitespace
-    // character, so it formats away cleanly like any other whitespace.
-    if text.data.is_empty() {
-        return;
-    }
-    let mut replacement: String = text.data.chars().filter(|c| c.is_whitespace()).collect();
-    if replacement.is_empty() {
-        replacement = " ".to_string();
-    }
-    str.overwrite(text.start, text.end, &replacement);
-}
-
-/// Handle an HTML comment node.
-///
-/// Comments are blanked out in the TSX output.
-fn handle_comment(comment: &Comment, str: &mut MagicString) {
-    if comment.start >= comment.end {
-        return;
-    }
-    str.overwrite(comment.start, comment.end, "");
-}
-
 // =============================================================================
 // Expression Tags
 // =============================================================================
-
-/// Handle an expression tag: `{expression}`.
-///
-/// Overwrites `{` with empty and `}` with `;` so the expression is preserved
-/// as a statement: `{count}` → `count;`
-/// Comments (from the per-compile set) whose source range lies fully within
-/// `[start, end)`, sorted by start. Used to preserve `{/* c */ expr}` comments.
-fn comments_in_opener_range(start: u32, end: u32) -> Vec<(u32, u32)> {
-    if start >= end {
-        return Vec::new();
-    }
-    ELEMENT_OPENER_COMMENTS.with(|c| {
-        let mut v: Vec<(u32, u32)> = c
-            .borrow()
-            .iter()
-            .copied()
-            .filter(|&(s, e)| s >= start && e <= end)
-            .collect();
-        v.sort_by_key(|&(s, _)| s);
-        v
-    })
-}
-
-fn handle_expression_tag(expr: &ExpressionTag, source: &str, str: &mut MagicString) {
-    if expr.start >= expr.end {
-        return;
-    }
-
-    if let Some((expr_start, expr_end)) = get_expression_range(&expr.expression) {
-        // Leading: keep any `{/* c */ expr}` comments between the `{` and the
-        // expression (official preserves them, stripping only the `{` and a
-        // wrapping `(`). Strip from `{` up to the first such comment.
-        let lead_keep = comments_in_opener_range(expr.start, expr_start)
-            .first()
-            .map(|&(cs, _)| cs)
-            .unwrap_or(expr_start);
-        if expr.start < lead_keep {
-            str.overwrite(expr.start, lead_keep, "");
-        }
-        // The parser narrows the expression span past a trailing TS postfix —
-        // `name as string`, `x satisfies T`, `x!`. Those must be PRESERVED
-        // (official keeps them), unlike wrapping parens (`(foo)`) which the
-        // narrowing strips symmetrically and which must stay stripped. So if the
-        // text between `expr_end` and the closing `}` is a TS postfix, keep it
-        // (overwrite only the `}`); otherwise overwrite from `expr_end` (which
-        // drops a trailing `)` to match the stripped leading `(`).
-        let close = {
-            let bytes = source.as_bytes();
-            let mut c = expr.end as usize;
-            while c > expr_end as usize && bytes[c - 1] != b'}' {
-                c -= 1;
-            }
-            c
-        };
-        let tail = source
-            .get(expr_end as usize..close.saturating_sub(1))
-            .unwrap_or("")
-            .trim_start();
-        let is_ts_postfix =
-            tail.starts_with("as ") || tail.starts_with("satisfies ") || tail.starts_with('!');
-        if is_ts_postfix && close > expr_end as usize {
-            str.overwrite((close - 1) as u32, expr.end, ";");
-        } else {
-            // Trailing: keep any `{expr /* c */}` comments between the expression
-            // and `}` (emit `;` right after the expression, strip a wrapping `)`
-            // and the `}`).
-            let trailing = comments_in_opener_range(expr_end, close.saturating_sub(1) as u32);
-            match (trailing.first(), trailing.last()) {
-                (Some(&(first_cs, _)), Some(&(_, last_ce))) => {
-                    if expr_end < first_cs {
-                        str.overwrite(expr_end, first_cs, "; ");
-                    }
-                    if last_ce < expr.end {
-                        str.overwrite(last_ce, expr.end, "");
-                    }
-                }
-                _ if expr_end < expr.end => {
-                    str.overwrite(expr_end, expr.end, ";");
-                }
-                _ => {}
-            }
-        }
-    } else {
-        // Fallback: overwrite the whole thing with a space
-        str.overwrite(expr.start, expr.end, " ");
-    }
-}
-
-/// Handle an HTML tag: `{@html expression}`.
-///
-/// The expression needs type checking even though it's raw HTML.
-fn handle_html_tag(html: &HtmlTag, _source: &str, str: &mut MagicString) {
-    if html.start >= html.end {
-        return;
-    }
-
-    if let Some((expr_start, expr_end)) = get_expression_range(&html.expression) {
-        // Overwrite `{@html ` prefix
-        if html.start < expr_start {
-            str.overwrite(html.start, expr_start, "");
-        }
-        // Overwrite closing `}` with `;`
-        if expr_end < html.end {
-            str.overwrite(expr_end, html.end, ";");
-        }
-    } else {
-        str.overwrite(html.start, html.end, " ");
-    }
-}
-
-/// Handle a const tag: `{@const declaration}`.
-///
-/// The const declaration is emitted as a regular `const` statement.
-fn handle_const_tag(tag: &ConstTag, source: &str, str: &mut MagicString) {
-    if tag.start >= tag.end {
-        return;
-    }
-
-    // Mirror upstream svelte2tsx `handleConstTag`: overwrite `{@const ` →
-    // `const ` up to `constTag.expression.start` (the pattern id) and the
-    // closing `}` → `;` from `constTag.expression.end` (the initializer end).
-    // The declaration's AST offsets are unreliable here — the template-expression
-    // arena isn't resolved in the svelte2tsx parse path (so `as_json()` has no
-    // declarator children), and since Svelte 5.56.4 the `VariableDeclaration`
-    // `start` points at the `const` keyword (part of `@const`), which would
-    // duplicate it (`const const area = …`). Derive the id start and initializer
-    // end from the source text instead.
-    if let Some((id_start, init_end)) = const_tag_spans(source, tag.start, tag.end) {
-        // Overwrite `{@const ` prefix with `const `
-        if tag.start < id_start {
-            str.overwrite(tag.start, id_start, "const ");
-        }
-        // Overwrite trailing `}` (and any whitespace before it) with `;`
-        if init_end < tag.end {
-            str.overwrite(init_end, tag.end, ";");
-        }
-    } else {
-        str.overwrite(tag.start, tag.end, " ");
-    }
-}
-
-/// Byte offsets of a `{@const …}` tag's pattern id start and initializer end,
-/// derived from the source between `tag_start` (`{`) and `tag_end` (past `}`).
-/// The id start is the first non-whitespace byte after the `@const` keyword; the
-/// initializer end is the last non-whitespace byte before the closing `}`.
-fn const_tag_spans(source: &str, tag_start: u32, tag_end: u32) -> Option<(u32, u32)> {
-    let bytes = source.as_bytes();
-    let (lo, hi) = (tag_start as usize, tag_end as usize);
-    if hi > bytes.len() || lo >= hi {
-        return None;
-    }
-    // Skip `{`, `@`, the `const` keyword, then any whitespace → pattern id start.
-    let inner = &source[lo..hi];
-    let at = inner.find("@const")? + "@const".len();
-    let mut i = lo + at;
-    while i < hi && bytes[i].is_ascii_whitespace() {
-        i += 1;
-    }
-    let id_start = i;
-    // Scan back from the closing `}` over whitespace → initializer end.
-    let mut j = hi.saturating_sub(1); // the `}` (tag_end is one past it)
-    while j > id_start && bytes[j] != b'}' {
-        j -= 1;
-    }
-    // j is now at `}`; step back over whitespace to the initializer's last byte.
-    let mut end = j;
-    while end > id_start && bytes[end - 1].is_ascii_whitespace() {
-        end -= 1;
-    }
-    if id_start >= end {
-        return None;
-    }
-    Some((id_start as u32, end as u32))
-}
-
-/// Handle a declaration tag: `{let x = expr}` / `{const x = expr}`
-/// (Svelte 5.56.0 #18282).
-///
-/// In TSX output the declaration is emitted as a regular `let` / `const`
-/// statement, mirroring `{@const}` handling. The leading `{` becomes the
-/// declaration kind keyword and a trailing space, and the closing `}` becomes
-/// `;` so the resulting code is parseable TS at the spot where the user wrote
-/// the tag.
-fn handle_declaration_tag(
-    tag: &crate::ast::template::DeclarationTag,
-    _source: &str,
-    str: &mut MagicString,
-) {
-    if tag.start >= tag.end {
-        return;
-    }
-    if let Some((decl_start, decl_end)) = get_expression_range(&tag.declaration) {
-        // Overwrite the opening `{` (and any whitespace before the kind
-        // keyword) with no leading prefix — the source already contains the
-        // `let ` / `const ` keyword. Just drop the `{`.
-        if tag.start < decl_start {
-            str.overwrite(tag.start, decl_start, "");
-        }
-        // Overwrite closing `}` with `;`.
-        if decl_end < tag.end {
-            str.overwrite(decl_end, tag.end, ";");
-        }
-    } else {
-        str.overwrite(tag.start, tag.end, " ");
-    }
-}
-
-/// Handle a debug tag: `{@debug identifiers}`.
-///
-/// `{@debug myfile}` → `;myfile;`
-/// `{@debug a, b}` → `;a;b;`
-///
-/// Each identifier is left as an unchanged source chunk (with `;`
-/// inserted before and after) so per-character source-map segments
-/// resolve diagnostics to the user's identifier position, not the
-/// `{@debug` anchor.
-fn handle_debug_tag(tag: &DebugTag, source: &str, str: &mut MagicString) {
-    if tag.start >= tag.end {
-        return;
-    }
-    let mut idents: Vec<(u32, u32)> = Vec::with_capacity(tag.identifiers.len());
-    for ident in &tag.identifiers {
-        if let Some(range) = get_expression_range(ident) {
-            idents.push(range);
-        }
-    }
-    // Fall back to the previous one-shot rewrite when no identifiers
-    // expose a usable span — keeps the synthesised path identical.
-    if idents.is_empty() {
-        let mut replacement = String::new();
-        replacement.push(';');
-        for ident in &tag.identifiers {
-            let text = get_expression_text(ident, source);
-            replacement.push_str(text);
-            replacement.push(';');
-        }
-        str.overwrite(tag.start, tag.end, &replacement);
-        return;
-    }
-    // Replace `{@debug ` with `;`, then between every identifier replace
-    // the source separator (`,` plus optional whitespace) with `;`, then
-    // replace the trailing `}` with `;`.
-    let first_start = idents[0].0;
-    str.overwrite(tag.start, first_start, ";");
-    for window in idents.windows(2) {
-        let prev_end = window[0].1;
-        let next_start = window[1].0;
-        if prev_end < next_start {
-            str.overwrite(prev_end, next_start, ";");
-        }
-    }
-    let last_end = idents.last().unwrap().1;
-    if last_end < tag.end {
-        str.overwrite(last_end, tag.end, ";");
-    }
-}
-
-/// Handle a render tag: `{@render snippet(args)}`.
-///
-/// `{@render foo(1)}` → `;__sveltets_2_ensureSnippet(foo(1));`
-///
-/// The wrapper is split into a prefix `;__sveltets_2_ensureSnippet(`
-/// and a suffix `);` so the inner expression stays as an unchanged
-/// source chunk in MagicString. That preserves per-character source-map
-/// segments inside the snippet expression — a TS diagnostic at e.g.
-/// `foo(1)`'s `1` resolves to its exact `.svelte` column instead of
-/// snapping to the `{@render` anchor.
-fn handle_render_tag(tag: &RenderTag, _source: &str, str: &mut MagicString) {
-    if tag.start >= tag.end {
-        return;
-    }
-
-    if let Some((expr_start, expr_end)) = get_expression_range(&tag.expression) {
-        str.overwrite(tag.start, expr_start, ";__sveltets_2_ensureSnippet(");
-        str.overwrite(expr_end, tag.end, ");");
-    } else {
-        str.overwrite(tag.start, tag.end, " ");
-    }
-}
-
-/// Handle an attach tag: `{@attach expression}`.
-fn handle_attach_tag(tag: &AttachTag, str: &mut MagicString) {
-    if tag.start >= tag.end {
-        return;
-    }
-    // Attach tags are removed in TSX output
-    str.overwrite(tag.start, tag.end, "");
-}
 
 // =============================================================================
 // Block Nodes
@@ -3886,19 +3558,6 @@ fn handle_svelte_special_element(
             str.append_left(el.end, &format!("}}{}", extra_close));
         }
     }
-}
-
-/// Structured-bake variant of the `@attach` tag's inline emission.
-fn format_attach_tag_segments(attach: &AttachTag, source: &str) -> Vec<Seg> {
-    let mut out = Vec::new();
-    segs_push_lit(&mut out, "[Symbol(\"@attach\")]:");
-    if let Some((s, e)) = get_expression_range(&attach.expression) {
-        segs_push_src(&mut out, s, e);
-    } else {
-        segs_push_lit(&mut out, get_expression_text(&attach.expression, source));
-    }
-    segs_push_lit(&mut out, ",");
-    out
 }
 
 // =============================================================================

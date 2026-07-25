@@ -1,12 +1,19 @@
 //! Template walk: fragment iteration and per-node handler dispatch.
 
 use super::ctx::Counter;
+use super::nodes::attach_tag::handle_attach_tag;
+use super::nodes::comment::handle_comment;
+use super::nodes::const_tag::handle_const_tag;
+use super::nodes::debug_tag::handle_debug_tag;
+use super::nodes::declaration_tag::handle_declaration_tag;
+use super::nodes::mustache_tag::handle_expression_tag;
+use super::nodes::raw_mustache_tag::handle_html_tag;
+use super::nodes::render_tag::handle_render_tag;
+use super::nodes::text::handle_text;
 use super::{
-    handle_attach_tag, handle_await_block, handle_comment, handle_component, handle_const_tag,
-    handle_debug_tag, handle_declaration_tag, handle_each_block, handle_expression_tag,
-    handle_html_tag, handle_if_block, handle_key_block, handle_regular_element, handle_render_tag,
-    handle_slot_element, handle_snippet_block, handle_svelte_component,
-    handle_svelte_dynamic_element, handle_svelte_self, handle_svelte_special_element, handle_text,
+    handle_await_block, handle_component, handle_each_block, handle_if_block, handle_key_block,
+    handle_regular_element, handle_slot_element, handle_snippet_block, handle_svelte_component,
+    handle_svelte_dynamic_element, handle_svelte_self, handle_svelte_special_element,
     handle_title_element,
 };
 use crate::ast::template::{Fragment, TemplateNode};
