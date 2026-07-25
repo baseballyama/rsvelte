@@ -539,10 +539,10 @@ impl Rule for PreferDestructuredStoreProps {
     }
 
     fn check_root(&self, ctx: &mut LintContext, root: &Root) {
-        // Serialize only the fragment for the detection walk (cheap path).
-        let Some(frag) =
-            with_serialize_arena(&root.arena, || serde_json::to_value(&root.fragment).ok())
-        else {
+        // The whole-root JSON is serialized once per file by the context and
+        // shared with the other rules that walk the template.
+        let root_json = ctx.root_json(root);
+        let Some(frag) = root_json.get("fragment") else {
             return;
         };
 
@@ -579,7 +579,7 @@ impl Rule for PreferDestructuredStoreProps {
 
         // Walk the fragment and collect reports.
         let mut reports: Vec<PendingReport> = Vec::new();
-        walk_js(&frag, |node, ancestors| {
+        walk_js(frag, |node, ancestors| {
             if node_type(node) != Some("MemberExpression") {
                 return;
             }

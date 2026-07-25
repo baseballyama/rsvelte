@@ -21,9 +21,6 @@
 
 use std::collections::HashSet;
 
-use rsvelte_core::ParseOptions;
-use rsvelte_core::ast::arena::with_serialize_arena;
-use rsvelte_core::compiler::phases::parse;
 use serde_json::Value;
 
 use crate::context::LintContext;
@@ -214,20 +211,9 @@ fn is_written(name: &str, scope: &Value) -> bool {
 
 /// The base variables of every `{#each}` source whose context is written — these
 /// are mutated through the loop and so are *not* immutable.
-fn collect_mutable_via_each(source: &str) -> HashSet<String> {
+fn collect_mutable_via_each(ctx: &LintContext) -> HashSet<String> {
     let mut out = HashSet::new();
-    let Ok(root) = parse(
-        source,
-        &rsvelte_core::Allocator::default(),
-        ParseOptions::default(),
-    ) else {
-        return out;
-    };
-    let Some(frag) =
-        with_serialize_arena(&root.arena, || serde_json::to_value(&root.fragment).ok())
-    else {
-        return out;
-    };
+    let frag = ctx.template_fragment_json();
     walk_js(&frag, |node, _| {
         if node_type(node) != Some("EachBlock") {
             return;
@@ -443,7 +429,7 @@ impl ScriptRule for NoImmutableReactiveStatements {
 
         let mut props: HashSet<String> = HashSet::new();
         collect_export_let_props(program, &mut props);
-        let mutable_via_each = collect_mutable_via_each(ctx.source());
+        let mutable_via_each = collect_mutable_via_each(ctx);
         let delete_mutated = collect_delete_mutated(program);
         let globals: HashSet<&str> = KNOWN_GLOBALS.iter().copied().collect();
 
