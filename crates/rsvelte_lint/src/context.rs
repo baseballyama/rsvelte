@@ -111,6 +111,16 @@ impl<'a> LintContext<'a> {
             .clone()
     }
 
+    /// The `fragment` of the shared root JSON (same lenient parse the lint pass
+    /// already did), for rules that hold the `Root` and only walk the template.
+    pub fn root_fragment_json(
+        &self,
+        root: &rsvelte_core::ast::template::Root,
+    ) -> Option<Rc<Value>> {
+        let json = self.root_json(root);
+        json.get("fragment").is_some().then(|| json)
+    }
+
     /// The template fragment as ESTree JSON, parsed with the *default* options
     /// (not the lenient lint options — a script rule scanning template
     /// expressions must see what the strict parse produces) and cached per

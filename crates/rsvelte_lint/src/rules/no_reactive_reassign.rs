@@ -16,9 +16,6 @@
 
 use std::collections::HashSet;
 
-use rsvelte_core::ParseOptions;
-use rsvelte_core::ast::arena::with_serialize_arena;
-use rsvelte_core::compiler::phases::parse;
 use serde_json::Value;
 
 use crate::context::LintContext;
@@ -356,15 +353,8 @@ impl ScriptRule for NoReactiveReassign {
         let mut reports: Vec<(u32, u32, String)> = Vec::new();
         scan_refs(program, &reactive, &def_lhs, props, &mut reports);
         // Reassignments via a two-way `bind:` live in the template.
-        if let Ok(root) = parse(
-            ctx.source(),
-            &rsvelte_core::Allocator::default(),
-            ParseOptions::default(),
-        ) && let Some(frag) =
-            with_serialize_arena(&root.arena, || serde_json::to_value(&root.fragment).ok())
-        {
-            scan_refs(&frag, &reactive, &def_lhs, props, &mut reports);
-        }
+        let frag = ctx.template_fragment_json();
+        scan_refs(&frag, &reactive, &def_lhs, props, &mut reports);
 
         for (start, end, msg) in reports {
             ctx.report(start, end, msg);
