@@ -96,9 +96,9 @@ function registerSvelteLanguageConfiguration(context: ExtensionContext): void {
 }
 
 /**
- * Both extensions contribute the `source.svelte` grammar and Svelte
- * diagnostics, so running them together duplicates problems and makes which
- * grammar wins non-deterministic.
+ * Both extensions contribute the `source.svelte` grammar and register
+ * providers for the `svelte` language, so running them together duplicates
+ * every feature and makes which grammar wins depend on activation order.
  */
 async function warnAboutOfficialExtension(
   context: ExtensionContext,
@@ -109,7 +109,9 @@ async function warnAboutOfficialExtension(
   const dismiss = "Don't show again";
   const choice = await window.showWarningMessage(
     "rsvelte and the official Svelte extension (svelte.svelte-vscode) are both enabled. " +
-      "They contribute the same Svelte grammar and overlapping diagnostics — disable one of them.",
+      "They contribute the same Svelte grammar and overlapping diagnostics, and both register " +
+      "providers for Svelte files — expect duplicate problems, duplicate completions and hovers, " +
+      "and a formatter-picker prompt on every format. Disable one of them.",
     dismiss,
   );
   if (choice === dismiss) {

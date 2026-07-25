@@ -44,9 +44,10 @@ specific binary with `rsvelte.rsvelteFmtPath`.
 
 This extension ships its own Svelte grammar and language definition, so it is a
 standalone replacement for `svelte.svelte-vscode`. Running both at once
-duplicates diagnostics and makes it non-deterministic which copy of the
-`source.svelte` grammar VS Code loads, so the extension warns once if it detects
-the official extension. Disable one of the two.
+duplicates diagnostics, completions and hovers, makes VS Code prompt for which
+formatter to use, and leaves it up to activation order which copy of the
+`source.svelte` grammar ends up registered. The extension warns once if it
+detects the official extension — disable one of the two.
 
 ## Setup as the default formatter
 
