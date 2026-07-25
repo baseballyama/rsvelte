@@ -54,7 +54,14 @@ fn walk_inner<'a, F: FnMut(&'a Value, &[&'a Value])>(
 ) {
     match node {
         Value::Object(map) => {
-            let is_node = map.get("type").and_then(Value::as_str).is_some();
+            // ESTree nodes always serialize `type` first, so the first entry
+            // answers "is this a node?" without hashing the key — this runs on
+            // every object of every walk, and every script rule walks the tree.
+            let is_node = match map.iter().next() {
+                Some((k, v)) if k == "type" => v.is_string(),
+                Some(_) => map.get("type").and_then(Value::as_str).is_some(),
+                None => false,
+            };
             if is_node {
                 f(node, stack);
                 stack.push(node);
