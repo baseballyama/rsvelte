@@ -15,9 +15,8 @@ mod utils;
 use crate::ast::template::{
     AttachTag, Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock,
     BindDirective, Comment, Component, ConstTag, DebugTag, EachBlock, ExpressionTag, Fragment,
-    HtmlTag, IfBlock, KeyBlock, LetDirective, OnDirective, RegularElement, RenderTag, SlotElement,
-    SnippetBlock, SpreadAttribute, SvelteComponentElement, SvelteDynamicElement, SvelteElement,
-    TemplateNode, Text, TitleElement,
+    HtmlTag, IfBlock, KeyBlock, LetDirective, RegularElement, RenderTag, SlotElement, SnippetBlock,
+    SvelteComponentElement, SvelteDynamicElement, SvelteElement, TemplateNode, Text, TitleElement,
 };
 use std::fmt::Write as _;
 
@@ -30,7 +29,11 @@ use attributes::class_style::{
     build_class_style_directive_suffix_segments, class_style_directive_seg, format_class_directive,
     format_style_directive,
 };
+use attributes::event_handler::{
+    build_on_calls, format_on_directive, format_on_directive_segments, get_on_directives,
+};
 use attributes::let_::{build_let_destructure_string, get_let_directives};
+use attributes::spread::{format_spread_attribute, format_spread_attribute_segments};
 use attributes::svg::is_svg_attribute;
 use attributes::transition::{
     format_animate_directive_v4, format_transition_directive, format_transition_directive_v4,
@@ -4388,34 +4391,6 @@ fn build_component_props_segments(
     }
 }
 
-/// Collect references to all `on:` directives from an attribute list.
-fn get_on_directives<'a>(attributes: &'a [Attribute<'a>]) -> Vec<&'a OnDirective<'a>> {
-    attributes
-        .iter()
-        .filter_map(|attr| match attr {
-            Attribute::OnDirective(on) => Some(on),
-            _ => None,
-        })
-        .collect()
-}
-
-/// Build `.$on()` call strings for a set of on directives.
-///
-/// Each directive becomes `inst.$on("eventName", handler);`
-/// If no handler expression, uses `() => {}`.
-fn build_on_calls(inst_var: &str, on_directives: &[&OnDirective], source: &str) -> String {
-    let mut calls = String::new();
-    for on in on_directives {
-        let handler = if let Some(ref expr) = on.expression {
-            get_expression_text(expr, source).to_string()
-        } else {
-            "() => {}".to_string()
-        };
-        let _ = write!(calls, "{}.$on(\"{}\", {});", inst_var, on.name, handler);
-    }
-    calls
-}
-
 /// Format a regular attribute: `name="value"` → `"name":\`value\`,`
 ///
 /// Shorthand attributes like `{propB}` (where name equals expression text)
@@ -4950,34 +4925,6 @@ fn format_attribute_node_segments(
     }
 }
 
-/// Structured-bake variant of [`format_spread_attribute`].
-/// When a trailing TS postfix is present the spread operand is parenthesised:
-/// `{...expr as T}` → `...(expr as T),` (mirrors upstream Spread.ts + paren rule).
-fn format_spread_attribute_segments(spread: &SpreadAttribute, source: &str) -> Option<Vec<Seg>> {
-    let mut out = Vec::new();
-    if let Some((s, e)) = get_expression_range(&spread.expression) {
-        let extended = extend_expr_end_with_ts_postfix(source, e, spread.end);
-        if extended > e {
-            // Has TS postfix — wrap in parens.
-            segs_push_lit(&mut out, "...(");
-            segs_push_src(&mut out, s, e);
-            // The postfix text (e.g. " as T") is a literal because it's outside
-            // the expression's AST span; include it then close the paren.
-            segs_push_lit(&mut out, slice_src(source, e as usize, extended as usize));
-            segs_push_lit(&mut out, "),");
-        } else {
-            segs_push_lit(&mut out, "...");
-            segs_push_src(&mut out, s, e);
-            segs_push_lit(&mut out, ",");
-        }
-    } else {
-        segs_push_lit(&mut out, "...");
-        segs_push_lit(&mut out, get_expression_text(&spread.expression, source));
-        segs_push_lit(&mut out, ",");
-    }
-    Some(out)
-}
-
 /// Structured-bake variant of [`format_bind_directive`].
 fn format_bind_directive_segments(bind: &BindDirective, source: &str) -> Vec<Seg> {
     let mut out = Vec::new();
@@ -5003,24 +4950,6 @@ fn format_bind_directive_segments(bind: &BindDirective, source: &str) -> Vec<Seg
     out
 }
 
-/// Structured-bake variant of [`format_on_directive`].
-fn format_on_directive_segments(on: &OnDirective, source: &str) -> Vec<Seg> {
-    let mut out = Vec::new();
-    if let Some(ref expr) = on.expression {
-        segs_push_lit(&mut out, &format!("\"on:{}\":", on.name));
-        if let Some((s, e)) = get_expression_range(expr) {
-            segs_push_src(&mut out, s, e);
-        } else {
-            segs_push_lit(&mut out, get_expression_text(expr, source));
-        }
-        segs_push_lit(&mut out, ",");
-    } else {
-        // Event forwarding has no expression to preserve.
-        segs_push_lit(&mut out, &format!("\"on:{}\":undefined,", on.name));
-    }
-    out
-}
-
 /// Structured-bake variant of the `@attach` tag's inline emission.
 fn format_attach_tag_segments(attach: &AttachTag, source: &str) -> Vec<Seg> {
     let mut out = Vec::new();
@@ -5032,27 +4961,6 @@ fn format_attach_tag_segments(attach: &AttachTag, source: &str) -> Vec<Seg> {
     }
     segs_push_lit(&mut out, ",");
     out
-}
-
-/// Format a spread attribute: `{...expr}` → `...expr,`, or `{...expr as T}` → `...(expr as T),`.
-/// When a trailing TS postfix (`as T`, `satisfies T`, `!`) is present the
-/// spread operand must be parenthesised — `...expr as T` is a parse error in
-/// TSX, but `...(expr as T)` is valid (mirrors upstream Spread.ts slicing
-/// `[node.start+1, node.end-1]` and Element/InlineComponent context).
-fn format_spread_attribute(spread: &SpreadAttribute, source: &str) -> Option<String> {
-    if let Some((s, e)) = get_expression_range(&spread.expression) {
-        let extended = extend_expr_end_with_ts_postfix(source, e, spread.end);
-        if extended > e {
-            // Has TS postfix — wrap in parens so `...expr as T` becomes `...(expr as T)`.
-            let postfix = slice_src(source, e as usize, extended as usize);
-            let expr_text = slice_src(source, s as usize, e as usize);
-            return Some(format!("...({}{postfix}),", expr_text));
-        }
-        let expr_text = slice_src(source, s as usize, e as usize);
-        return Some(format!("...{},", expr_text));
-    }
-    let expr_text = get_expression_text(&spread.expression, source);
-    Some(format!("...{},", expr_text))
 }
 
 /// Format a bind directive: `bind:name={expr}` → `"bind:name":expr,`. A Svelte
@@ -5355,17 +5263,6 @@ fn sanitize_tag_for_var(name: &str) -> String {
             }
         })
         .collect()
-}
-
-/// Format an on directive: `on:click={handler}` → `"on:click":handler,`
-fn format_on_directive(on: &OnDirective, source: &str) -> String {
-    if let Some(ref expr) = on.expression {
-        let expr_text = get_expression_text(expr, source);
-        format!("\"on:{}\":{},", on.name, expr_text)
-    } else {
-        // Event forwarding: `on:click` → `"on:click":undefined,`
-        format!("\"on:{}\":undefined,", on.name)
-    }
 }
 
 /// Build the directive prefix (action declarations) and suffix
