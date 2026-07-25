@@ -154,7 +154,7 @@ fn enabled_script_rules<'a>(
 
 /// Run each enabled script rule over every `(kind, program)` pair.
 fn run_over_programs(
-    programs: &[(ScriptKind, Value)],
+    programs: &[(ScriptKind, &Value)],
     source: &str,
     filename: &str,
     config: &LintConfig,
@@ -286,17 +286,19 @@ pub(crate) fn run_script_rules_on_root(
         return Vec::new();
     }
 
-    // Materialise each script program to an owned ESTree JSON value. The
+    // Materialise each script program as an ESTree JSON value. The
     // serialization MUST run inside the arena scope (the program body resolves
     // arena-indexed children) and BEFORE any out-of-scope `as_json` would cache
-    // an empty body — so we serialize immediately inside the arena guard.
-    let programs: Vec<(ScriptKind, Value)> = with_serialize_arena(&root.arena, || {
+    // an empty body — so we serialize immediately inside the arena guard. The
+    // values stay borrowed from the program's own `OnceCell` cache: copying
+    // them out would deep-clone an entire ESTree tree per file.
+    let programs: Vec<(ScriptKind, &Value)> = with_serialize_arena(&root.arena, || {
         let mut out = Vec::new();
         if let Some(s) = root.instance.as_ref() {
-            out.push((ScriptKind::Instance, s.content.as_json().clone()));
+            out.push((ScriptKind::Instance, s.content.as_json()));
         }
         if let Some(s) = root.module.as_ref() {
-            out.push((ScriptKind::Module, s.content.as_json().clone()));
+            out.push((ScriptKind::Module, s.content.as_json()));
         }
         out
     });
@@ -331,7 +333,7 @@ pub fn run_script_rules_module(
         return Vec::new();
     }
     let program = rsvelte_core::compiler::phases::parse_module_to_estree(source, is_ts);
-    let programs = [(ScriptKind::Module, program)];
+    let programs = [(ScriptKind::Module, &program)];
     // A standalone module is its own scope; the whole file is the script body
     // (base offset 0).
     let resolver = needs_scope_resolver(&enabled).then(|| {
