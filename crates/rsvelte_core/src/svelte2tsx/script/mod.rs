@@ -62,10 +62,6 @@ use stores::{
 };
 use type_assertion::{disambiguate_arrow_type_params, rewrite_type_assertions_with_program};
 
-// =============================================================================
-// Script Processing
-// =============================================================================
-
 /// Classify a Svelte component basename for SvelteKit autotype injection.
 ///
 /// Returns:
@@ -920,18 +916,6 @@ mod tests {
         // Smoke check: the prop identifiers survived into the overlay.
         assert!(out.code.contains("imageSrc"));
     }
-
-    // =========================================================================
-    // Integration tests using the full svelte2tsx pipeline
-    // =========================================================================
-
-    // -- export let (Svelte 4 props) --
-
-    // -- export const (non-prop exports) --
-
-    // -- export function --
-
-    // -- $props() rune (Svelte 5) --
 
     // -- Empty / no script --
 
