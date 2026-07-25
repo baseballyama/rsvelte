@@ -204,36 +204,6 @@ impl Svelte2TsxError {
     }
 }
 
-// =============================================================================
-// Main entry point
-// =============================================================================
-
-/// Convert a Svelte component source to TypeScript/TSX for type checking.
-///
-/// This is the main entry point for the svelte2tsx module. It:
-/// 1. Parses the Svelte source using the existing parser
-/// 2. Processes the template nodes to generate TSX element expressions
-/// 3. Processes script blocks to extract exports, props, and events
-/// 4. Wraps everything in a `$$render()` function and component class/const export
-///
-/// # Arguments
-///
-/// * `source` - The Svelte component source code
-/// * `options` - Conversion options (filename, mode, version, etc.)
-///
-/// # Returns
-///
-/// A `Svelte2TsxResult` containing the generated TypeScript code and metadata.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// use rsvelte_core::svelte2tsx::{svelte2tsx, Svelte2TsxOptions};
-///
-/// let source = "<h1>Hello</h1>";
-/// let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
-/// println!("{}", result.code);
-/// ```
 /// Case-insensitive byte search: position of the first occurrence of
 /// `needle` in `haystack[from..]` (absolute index). ASCII-only folding —
 /// exactly what `to_ascii_lowercase` matching gave, without allocating a
@@ -383,13 +353,6 @@ fn validate_debug_tag_arguments(ast: &Root, source: &str) -> Result<(), Svelte2T
     check_fragment(&ast.fragment, source)
 }
 
-/// Validate `<svelte:window/body/document/head/options>` placement and
-/// uniqueness, mirroring svelte's PARSE-time `svelte_meta_duplicate` /
-/// `svelte_meta_invalid_placement` checks (1-parse/state/element.js). rsvelte's
-/// compiler defers these to phase-2 analysis, which svelte2tsx skips — but
-/// official svelte2tsx parses with svelte and so rejects these at parse. Each
-/// of these five "root-only meta tags" must appear at most once and only as a
-/// direct child of the component root (not inside any element or block).
 /// True when a component carries a `use:` action directive. svelte rejects ALL
 /// of `use:`/`transition:`/`animate:`/`class:`/`style:` on a component
 /// (`component_invalid_directive`) at 2-analyze, but official **svelte2tsx**
@@ -402,6 +365,13 @@ fn component_has_invalid_directive(attributes: &[crate::ast::Attribute<'_>]) -> 
     attributes.iter().any(|a| matches!(a, A::UseDirective(_)))
 }
 
+/// Validate `<svelte:window/body/document/head/options>` placement and
+/// uniqueness, mirroring svelte's PARSE-time `svelte_meta_duplicate` /
+/// `svelte_meta_invalid_placement` checks (1-parse/state/element.js). rsvelte's
+/// compiler defers these to phase-2 analysis, which svelte2tsx skips — but
+/// official svelte2tsx parses with svelte and so rejects these at parse. Each
+/// of these five "root-only meta tags" must appear at most once and only as a
+/// direct child of the component root (not inside any element or block).
 fn validate_meta_element_placement(ast: &Root<'_>, source: &str) -> Result<(), Svelte2TsxError> {
     use crate::ast::template::{Fragment, TemplateNode as N};
     use std::collections::HashSet;
@@ -539,6 +509,32 @@ fn validate_meta_element_placement(ast: &Root<'_>, source: &str) -> Result<(), S
     check_fragment(&ast.fragment, true, &mut seen, source)
 }
 
+/// Convert a Svelte component source to TypeScript/TSX for type checking.
+///
+/// This is the main entry point for the svelte2tsx module. It:
+/// 1. Parses the Svelte source using the existing parser
+/// 2. Processes the template nodes to generate TSX element expressions
+/// 3. Processes script blocks to extract exports, props, and events
+/// 4. Wraps everything in a `$$render()` function and component class/const export
+///
+/// # Arguments
+///
+/// * `source` - The Svelte component source code
+/// * `options` - Conversion options (filename, mode, version, etc.)
+///
+/// # Returns
+///
+/// A `Svelte2TsxResult` containing the generated TypeScript code and metadata.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use rsvelte_core::svelte2tsx::{svelte2tsx, Svelte2TsxOptions};
+///
+/// let source = "<h1>Hello</h1>";
+/// let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
+/// println!("{}", result.code);
+/// ```
 pub fn svelte2tsx(
     source: &str,
     options: Svelte2TsxOptions,
@@ -3949,14 +3945,6 @@ fn expr_contains_await_deep(expr: &oxc_ast::ast::Expression) -> bool {
     }
 }
 
-// =============================================================================
-// Internal helpers
-// =============================================================================
-
-/// Derive a safe component name from the filename.
-///
-/// Converts "App.svelte" -> "App", "my-component.svelte" -> "My_component",
-/// handles path separators and special characters.
 /// Count whitespace between tag name and first attribute in source.
 fn count_tag_to_attr_spaces_in_source(tag_name: &str, el_start: u32, source: &str) -> usize {
     let name_end = el_start as usize + 1 + tag_name.len(); // +1 for '<'
@@ -4000,6 +3988,11 @@ fn extract_generics_from_script_tag(tag_text: &str) -> Option<String> {
     None
 }
 
+/// Derive a safe component name from the filename.
+///
+/// Converts "App.svelte" -> "App", "my-component.svelte" -> "My_component",
+/// handles path separators and special characters.
+///
 /// Port of `classNameFromFilename` from
 /// `submodules/language-tools/packages/svelte2tsx/src/svelte2tsx/addComponentExport.ts`.
 ///
@@ -4245,7 +4238,6 @@ fn fragment_has_template_await(
     false
 }
 
-/// Check a single template node for `{await ...}` patterns, recursing into children.
 /// True if the template fragment contains a real `<slot>` element anywhere
 /// (recursing through elements, components, control-flow blocks, and snippets).
 /// AST-based replacement for a naive `source.contains("<slot")` scan.
@@ -4289,6 +4281,7 @@ fn node_has_slot_element(node: &crate::ast::template::TemplateNode) -> bool {
     }
 }
 
+/// Check a single template node for `{await ...}` patterns, recursing into children.
 fn template_node_has_await(
     node: &crate::ast::template::TemplateNode,
     source: &str,
