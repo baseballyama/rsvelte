@@ -2,17 +2,21 @@
 
 use super::ctx::Counter;
 use super::nodes::attach_tag::handle_attach_tag;
+use super::nodes::await_block::handle_await_block;
 use super::nodes::comment::handle_comment;
 use super::nodes::const_tag::handle_const_tag;
 use super::nodes::debug_tag::handle_debug_tag;
 use super::nodes::declaration_tag::handle_declaration_tag;
+use super::nodes::each_block::handle_each_block;
+use super::nodes::if_else_block::handle_if_block;
+use super::nodes::key_block::handle_key_block;
 use super::nodes::mustache_tag::handle_expression_tag;
 use super::nodes::raw_mustache_tag::handle_html_tag;
 use super::nodes::render_tag::handle_render_tag;
+use super::nodes::snippet_block::handle_snippet_block;
 use super::nodes::text::handle_text;
 use super::{
-    handle_await_block, handle_component, handle_each_block, handle_if_block, handle_key_block,
-    handle_regular_element, handle_slot_element, handle_snippet_block, handle_svelte_component,
+    handle_component, handle_regular_element, handle_slot_element, handle_svelte_component,
     handle_svelte_dynamic_element, handle_svelte_self, handle_svelte_special_element,
     handle_title_element,
 };
