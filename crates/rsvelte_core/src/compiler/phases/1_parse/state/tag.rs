@@ -1444,27 +1444,33 @@ impl<'a> Parser<'a> {
         let adjusted_end = expr_end - (expr_content.len() - trimmed_content.trim_end().len());
         // For await blocks, we parse the expression with a known end position
         // to avoid find_matching_bracket finding the block's closing }
-        let expression = super::super::expression::parse_expression_with_end(
-            &self.arena,
-            trimmed_content.trim(),
-            adjusted_start,
-            adjusted_end,
-            self.expression_line_offsets(),
-            self.source,
-            self.options.loose,
-            false,
-            '{',
-            self.ts,
-        )
-        .unwrap_or_else(|(_, pos)| {
-            // Return an invalid identifier on parse error (empty name)
-            super::super::expression::create_identifier_with_character(
-                "",
-                pos,
+        let expression = if let Some(lazy) =
+            self.defer_expression(trimmed_content.trim(), adjusted_start, LazyKind::Lenient)
+        {
+            lazy
+        } else {
+            super::super::expression::parse_expression_with_end(
+                &self.arena,
+                trimmed_content.trim(),
+                adjusted_start,
                 adjusted_end,
                 self.expression_line_offsets(),
+                self.source,
+                self.options.loose,
+                false,
+                '{',
+                self.ts,
             )
-        });
+            .unwrap_or_else(|(_, pos)| {
+                // Return an invalid identifier on parse error (empty name)
+                super::super::expression::create_identifier_with_character(
+                    "",
+                    pos,
+                    adjusted_end,
+                    self.expression_line_offsets(),
+                )
+            })
+        };
 
         // Parse 'then' value if present
         if has_then {
@@ -1936,7 +1942,7 @@ impl<'a> Parser<'a> {
                 // not reject it here at parse time (svelte2tsx, which only parses,
                 // would otherwise diverge from official by erroring).
                 let trimmed = expr_content.trim();
-                let expression = self.parse_js_expression(trimmed, expr_start);
+                let expression = self.parse_js_expression_lenient(trimmed, expr_start);
 
                 Ok(Some(TemplateNode::RenderTag(Box::new(RenderTag {
                     start: start as u32,
@@ -2314,6 +2320,18 @@ impl<'a> Parser<'a> {
             ts: self.ts,
             kind,
         })
+    }
+
+    /// Parse an expression whose parse failures are swallowed into an empty
+    /// identifier: `{@render …}` (its invalid-call check is an analysis-phase
+    /// error) and the `{#await …}` head.
+    pub fn parse_js_expression_lenient(&self, content: &str, offset: usize) -> Expression<'a> {
+        let leading_ws = content.len() - content.trim_start().len();
+        let trimmed = content.trim();
+        match self.defer_expression(trimmed, offset + leading_ws, LazyKind::Lenient) {
+            Some(lazy) => lazy,
+            None => self.parse_js_expression_internal(content, offset, false, '{'),
+        }
     }
 
     /// Parse an attribute-value expression, propagating `js_parse_error` for

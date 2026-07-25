@@ -85,6 +85,9 @@ pub enum LazyKind {
     HeadBrace,
     /// `{#each … (key)}` head terminated by `)`.
     HeadParen,
+    /// Error-swallowing head (`{@render …}`, the `{#await …}` expression): a
+    /// parse failure recovers with an empty identifier and raises nothing.
+    Lenient,
 }
 
 /// A JavaScript expression.

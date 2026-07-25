@@ -430,7 +430,7 @@ fn resolve_expression(
         Err((msg, pos)) => {
             // Store the first parse error encountered
             if first_error.is_none() {
-                *first_error = Some(lazy_parse_error(kind, msg, content, start));
+                *first_error = lazy_parse_error(kind, msg, content, start);
             }
             // Still set the expression to something valid to allow continued processing
             *expr = super::read::expression::create_empty_identifier("", pos, pos + content.len());
@@ -439,14 +439,16 @@ fn resolve_expression(
 }
 
 /// Rebuild the diagnostic the eager parse-time entry point behind `kind` would
-/// have raised for `content` at `start`.
+/// have raised for `content` at `start`. `None` when that entry point swallows
+/// the failure instead.
 fn lazy_parse_error(
     kind: LazyKind,
     msg: String,
     content: &str,
     start: usize,
-) -> crate::error::ParseError {
-    match kind {
+) -> Option<crate::error::ParseError> {
+    Some(match kind {
+        LazyKind::Lenient => return None,
         // Upstream's `read_expression` parses ONE maximal expression with acorn
         // and then `eat('}', true)`: a complete leading expression followed by
         // leftover tokens (e.g. `{foo();}` — the `;` is left over) surfaces as
@@ -486,11 +488,11 @@ fn lazy_parse_error(
                 "}"
             };
             if let Some(pos) = super::read::expression::trailing_token_offset(content) {
-                return crate::error::ParseError::expected_token(close, start + pos);
+                return Some(crate::error::ParseError::expected_token(close, start + pos));
             }
             let abs_pos = super::read::expression::check_js_parse_error_with_pos(content)
                 .map_or(start + content.len(), |(_, pos)| start + pos);
             crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
         }
-    }
+    })
 }
