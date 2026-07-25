@@ -9,7 +9,7 @@
 //! does for them as well while its TypeScript and CSS services are the ones
 //! reading the contents.
 
-use lsp_types::{FoldingRange, FoldingRangeKind};
+use lsp_types::{FoldingRange, FoldingRangeKind, Position};
 use rsvelte_core::Allocator;
 use rsvelte_core::ast::arena::ParseArena;
 use rsvelte_core::ast::js::Expression;
@@ -17,7 +17,7 @@ use rsvelte_core::ast::template::{Root, Script, TemplateNode};
 
 use crate::context::body_of;
 use crate::indent_folding::{LineRange, body_lines, indent_folding};
-use crate::nodes::{Span, Top, parse_root, top_level, view};
+use crate::nodes::{Top, parse_root, top_level, view};
 use crate::text::LineIndex;
 
 pub fn folding_ranges(text: &str, line_folding_only: bool) -> Vec<FoldingRange> {
@@ -40,8 +40,8 @@ pub fn folding_ranges(text: &str, line_folding_only: bool) -> Vec<FoldingRange> 
 
 /// A range before the client's `lineFoldingOnly` capability is applied.
 struct Raw {
-    start: Span,
-    end: Span,
+    start: Position,
+    end: Position,
     kind: Option<FoldingRangeKind>,
     /// Whether `end` is the line of a closing tag, which a line-folding client
     /// wants left visible.
@@ -168,8 +168,8 @@ impl Collector<'_> {
     fn indented(&mut self, ranges: &[LineRange]) {
         for fold in indent_folding(self.text, self.index, ranges) {
             self.ranges.push(Raw {
-                start: (fold.start_line, 0),
-                end: (fold.end_line, 0),
+                start: Position::new(fold.start_line, 0),
+                end: Position::new(fold.end_line, 0),
                 kind: None,
                 closing: false,
             });
@@ -177,11 +177,9 @@ impl Collector<'_> {
     }
 
     fn fold(&mut self, start: u32, end: u32, kind: Option<FoldingRangeKind>, closing: bool) {
-        let start = self.index.position(self.text, start as usize);
-        let end = self.index.position(self.text, end as usize);
         self.ranges.push(Raw {
-            start: (start.line, start.character),
-            end: (end.line, end.character),
+            start: self.index.position(self.text, start as usize),
+            end: self.index.position(self.text, end as usize),
             kind,
             closing,
         });
@@ -192,12 +190,12 @@ impl Collector<'_> {
             return self
                 .ranges
                 .into_iter()
-                .filter(|raw| raw.start.0 <= raw.end.0)
+                .filter(|raw| raw.start.line <= raw.end.line)
                 .map(|raw| FoldingRange {
-                    start_line: raw.start.0,
-                    start_character: Some(raw.start.1),
-                    end_line: raw.end.0,
-                    end_character: Some(raw.end.1),
+                    start_line: raw.start.line,
+                    start_character: Some(raw.start.character),
+                    end_line: raw.end.line,
+                    end_character: Some(raw.end.character),
                     kind: raw.kind,
                     collapsed_text: None,
                 })
@@ -209,11 +207,11 @@ impl Collector<'_> {
         // is the one it should get.
         let mut folds: Vec<FoldingRange> = Vec::new();
         for raw in self.ranges {
-            let start_line = raw.start.0;
+            let start_line = raw.start.line;
             let end_line = if raw.closing {
-                raw.end.0.saturating_sub(1).max(start_line)
+                raw.end.line.saturating_sub(1).max(start_line)
             } else {
-                raw.end.0
+                raw.end.line
             };
             if start_line >= end_line || folds.iter().any(|fold| fold.start_line == start_line) {
                 continue;
