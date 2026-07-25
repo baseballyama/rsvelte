@@ -321,6 +321,110 @@ impl FixtureCoverage {
 }
 
 // ============================================================================
+// Runtime fixture compile options and skip lists
+// ============================================================================
+
+/// The compile options a runtime fixture's expected output was generated with.
+///
+/// Mirrors `scripts/fixtures/generate-fixtures.mjs::generateRuntimeFixture`, so
+/// every runner that compares against those fixtures — `tests/runtime.rs`,
+/// `tests/ssr.rs`, `tests/compatibility_report.rs` and `tests/audit_skipped.rs`
+/// — must build its `CompileOptions` from here. Hand-rolled copies drift, and a
+/// runner that compiles with different options than the fixture was generated
+/// with can only report noise.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RuntimeFixtureOptions {
+    pub r#async: bool,
+    pub hmr: bool,
+    /// The generator only passes `accessors` to the client compile.
+    pub accessors: bool,
+}
+
+/// Read the fixture-generation options back out of a sample's `_config.js`.
+pub fn runtime_fixture_options(category: &str, sample: &str) -> RuntimeFixtureOptions {
+    let config = fs::read_to_string(
+        svelte_path()
+            .join("packages/svelte/tests")
+            .join(category)
+            .join("samples")
+            .join(sample)
+            .join("_config.js"),
+    )
+    .unwrap_or_default();
+
+    // `skip_no_async` / `skip_async` are runner mode markers, not compile options.
+    let without_skip_markers = config
+        .replace("skip_no_async", "")
+        .replace("skip_async", "");
+
+    RuntimeFixtureOptions {
+        r#async: category == "runtime-runes" || without_skip_markers.contains("async: true"),
+        hmr: config.contains("hmr: true"),
+        // The official runner defaults runtime-legacy to `accessors: true`
+        // (svelte/packages/svelte/tests/runtime-legacy/shared.ts).
+        accessors: category == "runtime-legacy"
+            && !config.contains("accessors: false")
+            && !config.contains("accessors:false"),
+    }
+}
+
+/// runtime-runes fixtures still failing on the rsvelte port. Each entry is
+/// audited by `tests/audit_skipped.rs`, which fails the build once a skipped
+/// fixture starts passing. Remove an entry as soon as the port lands.
+pub const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
+    // Svelte 5.56.0 #18309 (`e705369de` "fix: propagate async @const blockers
+    // through closure references"): rsvelte's per-template_effect blocker
+    // scanner does not yet propagate awaited `@const` blockers across closure
+    // boundaries (IIFE in template expressions).
+    "async-each-const-await-iife",
+    // template_effect double-counts `$$promises` inside an `$.async(...)`
+    // wrapper for the IfBlock branch. Same blocker-scanner cluster as
+    // `async-each-const-await-iife`.
+    "async-style-after-await",
+    // Svelte 5.56.4 #18453 (`36ae0622a`): client output matches, but the server
+    // async-derived template-mutation codegen emits `$.save(a)` where upstream
+    // emits `$.save(a())`.
+    "async-parallel-derived-template-mutation",
+    // Svelte 5.56.x #18525 (`bfbb026f2`): `<svelte:boundary {pending}>` with a
+    // `$derived` pending attribute. The server `pending` ATTRIBUTE branch
+    // (`build_pending_attribute_block` + the `is_pending_attr_nullish` wrapper)
+    // is a pre-existing gap in `svelte_boundary.rs` — only the `pending`
+    // SNIPPET branch is ported. Client matches, server=MISMATCH.
+    "async-batch-derived",
+    // `hmr: true` fixtures whose SERVER output drops the `<!---->` anchor the
+    // official compiler emits around a dev-mode dynamic component (and, for
+    // `hmr-each-keyed-unshift`, a preserved JSDoc comment). Client output
+    // matches for both; the other four `hmr: true` fixtures pass outright.
+    "hmr-removal",
+    "hmr-each-keyed-unshift",
+];
+
+/// runtime-legacy fixtures still failing on the rsvelte port.
+pub const RUNTIME_LEGACY_SKIP_NAMES: &[&str] = &[];
+
+/// hydration fixtures still failing on the rsvelte port.
+pub const HYDRATION_SKIP_NAMES: &[&str] = &[
+    // Same server `pending` ATTRIBUTE gap as `runtime-runes/async-batch-derived`:
+    // the `if (pending()) {…} else {…}` wrapper around the boundary body is not
+    // emitted. Client output matches.
+    "boundary-pending-attribute",
+];
+
+/// server-side-rendering fixtures still failing on the rsvelte port.
+pub const SSR_SKIP_NAMES: &[&str] = &[];
+
+/// The documented skip list for a runtime-style fixture category.
+pub fn runtime_skip_names(category: &str) -> &'static [&'static str] {
+    match category {
+        "runtime-runes" => RUNTIME_RUNES_SKIP_NAMES,
+        "runtime-legacy" => RUNTIME_LEGACY_SKIP_NAMES,
+        "hydration" => HYDRATION_SKIP_NAMES,
+        "server-side-rendering" => SSR_SKIP_NAMES,
+        _ => &[],
+    }
+}
+
+// ============================================================================
 // Normalization utilities
 // ============================================================================
 

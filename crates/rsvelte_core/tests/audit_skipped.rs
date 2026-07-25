@@ -6,11 +6,12 @@
 //! Run: `cargo test --release --test audit_skipped -- --nocapture`
 //!
 //! When this fails with `STALE SKIP ENTRIES`, remove the listed fixtures from
-//! `tests/compatibility_report.rs::runtime_skip_tests` and from the matching
-//! `RUNTIME_*_SKIP_NAMES` / `HYDRATION_SKIP_NAMES` arrays in `tests/runtime.rs`
-//! (or from the per-category `skip_*` arrays for parser / css / print).
+//! the `RUNTIME_*_SKIP_NAMES` / `HYDRATION_SKIP_NAMES` / `SSR_SKIP_NAMES`
+//! arrays in `tests/common/mod.rs` (or from the per-category `skip_*` arrays
+//! for parser / css / print).
 //!
-//! The audited names are parsed out of those sibling test sources rather than
+//! The runtime names come straight from those shared constants; the remaining
+//! per-suite lists are parsed out of the sibling test sources rather than
 //! duplicated here, so the audit cannot silently drift away from the lists it
 //! polices.
 
@@ -19,7 +20,9 @@ mod common;
 use std::fs;
 
 use common::{
-    canonicalize_css, compare_js, ensure_fixtures_exist, load_fixture_output, svelte_path,
+    HYDRATION_SKIP_NAMES, RUNTIME_LEGACY_SKIP_NAMES, RUNTIME_RUNES_SKIP_NAMES, SSR_SKIP_NAMES,
+    canonicalize_css, compare_js, ensure_fixtures_exist, load_fixture_output,
+    runtime_fixture_options, svelte_path,
 };
 use rsvelte_core::ast::arena::with_serialize_arena;
 use rsvelte_core::{
@@ -75,7 +78,6 @@ const KNOWN_STALE_SKIPS: &[(&str, &str)] = &[];
 
 /// Sibling test sources are embedded so the audited names come from the real
 /// skip lists instead of a hand-copied duplicate that silently rots.
-const RUNTIME_SRC: &str = include_str!("runtime.rs");
 const PRINT_SRC: &str = include_str!("print.rs");
 const CSS_SRC: &str = include_str!("css.rs");
 const REPORT_SRC: &str = include_str!("compatibility_report.rs");
@@ -164,22 +166,7 @@ fn audit_runtime(category: &str, name: &str) -> Outcome {
         return out;
     };
 
-    let config_path = svelte_path()
-        .join("packages/svelte/tests")
-        .join(category)
-        .join("samples")
-        .join(name)
-        .join("_config.js");
-
-    let mut config_has_async = false;
-    let mut config_has_hmr = false;
-    if let Ok(config) = fs::read_to_string(&config_path) {
-        let without_skip = config
-            .replace("skip_no_async", "")
-            .replace("skip_async", "");
-        config_has_async = without_skip.contains("async: true");
-        config_has_hmr = config.contains("hmr: true");
-    }
+    let fixture_options = runtime_fixture_options(category, name);
 
     let expected_client = load_fixture_output(category, name, "client.js");
     let expected_server = load_fixture_output(category, name, "server.js");
@@ -189,26 +176,16 @@ fn audit_runtime(category: &str, name: &str) -> Outcome {
         return out;
     }
 
-    let is_runtime_runes = category == "runtime-runes";
-    let use_async = is_runtime_runes || config_has_async;
-
-    let is_legacy = category == "runtime-legacy";
-    let use_accessors = if is_legacy {
-        fs::read_to_string(&config_path)
-            .map(|c| !c.contains("accessors: false") && !c.contains("accessors:false"))
-            .unwrap_or(true)
-    } else {
-        false
-    };
-
     if let Some(expected) = &expected_client {
         let options = CompileOptions {
             generate: GenerateMode::Client,
             filename: Some("main.svelte".to_string()),
             css: CssMode::External,
-            experimental: ExperimentalOptions { r#async: use_async },
-            hmr: config_has_hmr,
-            accessors: use_accessors,
+            experimental: ExperimentalOptions {
+                r#async: fixture_options.r#async,
+            },
+            hmr: fixture_options.hmr,
+            accessors: fixture_options.accessors,
             ..Default::default()
         };
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| compile(&input, options))) {
@@ -229,8 +206,10 @@ fn audit_runtime(category: &str, name: &str) -> Outcome {
             generate: GenerateMode::Server,
             filename: Some("main.svelte".to_string()),
             css: CssMode::External,
-            experimental: ExperimentalOptions { r#async: use_async },
-            hmr: config_has_hmr,
+            experimental: ExperimentalOptions {
+                r#async: fixture_options.r#async,
+            },
+            hmr: fixture_options.hmr,
             ..Default::default()
         };
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| compile(&input, options))) {
@@ -442,30 +421,17 @@ fn audit_skipped_fixtures() {
     // are not skip lists and stay out of the audit. svelte2tsx
     // `expected.error.json` fixtures run as regular samples via
     // `tests/common/svelte2tsx.rs`, so they aren't skipped either.
+    // The runtime lists are shared constants, so they are used directly — a
+    // rename breaks the build instead of silently emptying the audit.
     let mut runtime_skipped: Vec<(String, String)> = Vec::new();
     for (list, category) in [
-        ("RUNTIME_RUNES_SKIP_NAMES: &[&str] = ", "runtime-runes"),
-        ("RUNTIME_LEGACY_SKIP_NAMES: &[&str] = ", "runtime-legacy"),
-        ("HYDRATION_SKIP_NAMES: &[&str] = ", "hydration"),
+        (RUNTIME_RUNES_SKIP_NAMES, "runtime-runes"),
+        (RUNTIME_LEGACY_SKIP_NAMES, "runtime-legacy"),
+        (HYDRATION_SKIP_NAMES, "hydration"),
+        (SSR_SKIP_NAMES, "server-side-rendering"),
     ] {
-        for name in skip_list(RUNTIME_SRC, "tests/runtime.rs", list) {
-            runtime_skipped.push((category.to_string(), name));
-        }
-    }
-    // `runtime_skip_tests` is a `&[(category, name)]` list, so its literals
-    // alternate category / name.
-    let report_runtime = skip_list(
-        REPORT_SRC,
-        "tests/compatibility_report.rs",
-        "runtime_skip_tests: &[(&str, &str)] = ",
-    );
-    for pair in report_runtime.chunks(2) {
-        let [category, name] = pair else {
-            panic!("runtime_skip_tests has a dangling entry: {pair:?}");
-        };
-        let entry = (category.clone(), name.clone());
-        if !runtime_skipped.contains(&entry) {
-            runtime_skipped.push(entry);
+        for name in list {
+            runtime_skipped.push((category.to_string(), (*name).to_string()));
         }
     }
 

@@ -9,10 +9,11 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    FixtureCoverage, SkipReason, compare_js, ensure_fixtures_exist, get_fixture_samples,
-    load_fixture_output, sample_name, svelte_path, write_actual_output,
+    FixtureCoverage, RuntimeFixtureOptions, SkipReason, compare_js, ensure_fixtures_exist,
+    get_fixture_samples, load_fixture_output, runtime_fixture_options, runtime_skip_names,
+    sample_name, svelte_path, write_actual_output,
 };
-use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, ExperimentalOptions, GenerateMode, compile, compiler::CssMode};
 
 /// Grow-only fixture floor, measured against the pinned Svelte submodule.
 /// 126 samples are generated; 27 of them hold only an `error.json` because the
@@ -32,27 +33,13 @@ fn load_input(sample_name: &str) -> Option<String> {
         .map(|s| s.replace("\r\n", "\n"))
 }
 
-/// Check if a test requires unsupported compile options.
-fn requires_unsupported_options(sample_name: &str) -> bool {
-    let config_path = svelte_path()
-        .join("packages/svelte/tests/server-side-rendering/samples")
-        .join(sample_name)
-        .join("_config.js");
-
-    if let Ok(config) = fs::read_to_string(&config_path)
-        && config.contains("async: true")
-    {
-        return true;
-    }
-    false
-}
-
 /// An SSR test fixture.
 struct SsrFixture {
     name: String,
     input: String,
     expected_server_js: Option<String>,
-    requires_unsupported_options: bool,
+    /// The options the expected output was generated with.
+    options: RuntimeFixtureOptions,
 }
 
 /// Load an SSR test fixture.
@@ -71,10 +58,10 @@ fn load_ssr_fixture(sample_dir: &Path) -> Result<SsrFixture, SkipReason> {
         .ok_or(SkipReason::Justified)?;
 
     Ok(SsrFixture {
-        name: name.clone(),
+        options: runtime_fixture_options("server-side-rendering", &name),
+        name,
         input,
         expected_server_js: Some(expected_server_js),
-        requires_unsupported_options: requires_unsupported_options(&name),
     })
 }
 
@@ -87,24 +74,9 @@ struct TestResult {
     skipped: bool,
 }
 
-/// Fixtures whose expected SSR output exercises infrastructure rsvelte doesn't
-/// yet implement. Mirrors the corresponding entries in `tests/compatibility_report.rs`
-/// so `test_ssr` stops blocking unrelated work; remove an entry as soon as the
-/// upstream behaviour is matched.
-const SSR_SKIP_NAMES: &[&str] = &[];
-
 /// Run a single SSR fixture test.
 fn run_ssr_fixture_test(fixture: &SsrFixture) -> TestResult {
-    if fixture.requires_unsupported_options {
-        return TestResult {
-            name: fixture.name.clone(),
-            passed: None,
-            error: None,
-            skipped: true,
-        };
-    }
-
-    if SSR_SKIP_NAMES.contains(&fixture.name.as_str()) {
+    if runtime_skip_names("server-side-rendering").contains(&fixture.name.as_str()) {
         return TestResult {
             name: fixture.name.clone(),
             passed: None,
@@ -117,6 +89,10 @@ fn run_ssr_fixture_test(fixture: &SsrFixture) -> TestResult {
         generate: GenerateMode::Server,
         filename: Some("main.svelte".to_string()),
         css: CssMode::External,
+        experimental: ExperimentalOptions {
+            r#async: fixture.options.r#async,
+        },
+        hmr: fixture.options.hmr,
         ..Default::default()
     };
 

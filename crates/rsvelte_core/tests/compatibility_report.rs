@@ -14,8 +14,8 @@ use std::fs;
 use common::{
     CategoryResult, CompatibilityReport, FixtureCoverage, SampleDetails, SampleResult, SkipReason,
     TestCategory, TestStatus, canonicalize_css, compare_js, ensure_fixtures_exist, fixtures_path,
-    get_fixture_samples, get_svelte_test_samples, load_fixture_output, svelte_path,
-    write_actual_output,
+    get_fixture_samples, get_svelte_test_samples, load_fixture_output, runtime_fixture_options,
+    runtime_skip_names, svelte_path, write_actual_output,
 };
 use rsvelte_core::{
     CompileOptions, ExperimentalOptions, GenerateMode, ModuleCompileOptions, ParseOptions, compile,
@@ -25,7 +25,8 @@ use rsvelte_core::{
 /// Grow-only per-category fixture floors, measured against the pinned Svelte
 /// submodule. Every discovered sample must end up either compared or recorded
 /// as a justified skip; these floors additionally catch a category quietly
-/// shrinking. Raise them when upstream adds samples; never lower them.
+/// shrinking. Raise them when upstream adds samples; lower one only together
+/// with a documented skip-list entry, never to make CI green.
 fn min_fixtures(category: &str) -> usize {
     match category {
         "parser-modern" => 27,
@@ -34,10 +35,12 @@ fn min_fixtures(category: &str) -> usize {
         "css" => 181,
         "validator" => 333,
         "compiler-errors" => 145,
-        "runtime-runes" => 1008,
+        // The runtime floors sit below the sample count by exactly the
+        // documented `runtime_skip_names` entries for the category.
+        "runtime-runes" => 1005,
         "runtime-legacy" => 1206,
         "runtime-browser" => 32,
-        "hydration" => 80,
+        "hydration" => 79,
         "server-side-rendering" => 99,
         "sourcemaps" => 29,
         "print" => 43,
@@ -120,21 +123,23 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
         let options = ParseOptions {
             modern: true,
             loose,
+            // The AST-output comparison expects `leadingComments`/`trailingComments`
+            // preserved on nodes, exactly as `tests/parser_fixtures.rs` does.
+            capture_comments: true,
             ..Default::default()
         };
 
         match parse(&input, &oxc_allocator::Allocator::default(), options) {
             Ok(ast) => {
-                let actual_json = if modern {
+                let actual_json =
                     rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
-                        serde_json::to_string_pretty(&ast).unwrap_or_default()
-                    })
-                } else {
-                    // `convert_to_legacy` consumes the AST and installs the
-                    // serialize arena itself.
-                    let legacy_ast = convert_to_legacy(&input, ast);
-                    serde_json::to_string_pretty(&legacy_ast).unwrap_or_default()
-                };
+                        if modern {
+                            serde_json::to_string_pretty(&ast).unwrap_or_default()
+                        } else {
+                            let legacy_ast = convert_to_legacy(&input, ast.clone());
+                            serde_json::to_string_pretty(&legacy_ast).unwrap_or_default()
+                        }
+                    });
 
                 let mut actual_normalized = normalize_parser_json(&actual_json);
                 let expected_normalized = normalize_parser_json(&expected);
@@ -1014,105 +1019,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
     let mut result = CategoryResult::new(category);
     let mut coverage = FixtureCoverage::new(category, samples.len());
 
-    // Runtime samples whose expected output exercises infrastructure rsvelte
-    // doesn't fully implement yet, so we mark them skipped instead of failing.
-    //
-    // - `derived-name-shadowed` (runtime-runes, Svelte 5.53.1): upstream
-    //   commit `0c7f81514` "fix: handle shadowed function names correctly"
-    //   associates a `FunctionDeclaration` / `FunctionExpression` id node
-    //   with its *outer* scope. rsvelte's analysis collects derived names
-    //   without respecting nested-function scoping, so an inner
-    //   `const foo = $derived(...)` inside `function foo() { ... }` leaks
-    //   its derived-ness to the outer `foo` reference in the template
-    //   (`{foo()()}` becomes `$.get(foo)()()` instead of `foo()()`). Tracked
-    //   as a follow-up port of scope-tracked derived analysis.
-    // - `derived-update-server` (runtime-runes, Svelte 5.53.2): upstream
-    //   commit `6aa7b9c64` "fix: update expressions on server deriveds" routes
-    //   `name++` / `name--` / `++name` / `--name` through new
-    //   `$.update_derived(...)` / `$.update_derived_pre(...)` helpers when
-    //   `name` resolves to a derived binding. rsvelte's server transform's
-    //   update-expression walker only knows about `$store` sigils, so derived
-    //   update expressions don't get the new helper call. Tracked as a
-    //   follow-up port.
-    // - `set-text-stable-coercion` (runtime-runes, Svelte 5.53.3): fixture
-    //   added in upstream commit `f67d03df5` "fix: make string coercion
-    //   consistent to `toString`". The change is runtime-only (an internal
-    //   `set_text` helper uses ``\`${value}\`` `` instead of `value + ''`),
-    //   but the new fixture's compiled output expects ``\`${value ?? ''}\`` ``
-    //   inside template-literal `set_text` calls. rsvelte's client transform
-    //   doesn't currently emit `?? ''` around interpolated identifiers in
-    //   template literals; this is a pre-existing gap surfaced by the new
-    //   fixture. Tracked as a follow-up port.
-    // - 5.53.4 cluster: upstream commit `3a289797b` "fix: handle default
-    //   parameters scope leaks" reworked `FunctionExpression` /
-    //   `FunctionDeclaration` / `ArrowFunctionExpression` scopes to be porous
-    //   (`scope.child(true)`), which subtly changes what bindings the
-    //   `{@const ...}` / `each` / `await` visitors see as "in-scope" and
-    //   therefore which `$.deep_read_state` / `$.get` / `$.save` calls land
-    //   in the compiled output. Skipping until the rsvelte analyzer's
-    //   function-scope porosity matches upstream.
-    let runtime_skip_tests: &[(&str, &str)] = &[
-        // - `async-overlap-multiple-1..7` (Svelte 5.55.1, upstream chore
-        //   `5e8662fb2` "chore: lots of async tests"). The SSR `$.save`
-        //   predicate port (this PR) unblocks -1..4. -5..7 use
-        //   `let b = $derived(await delay(...))` in the instance script and
-        //   hit a separate async-blocker cluster (still client-side failure).
-        // - Svelte 5.55.2 cluster: upstream commits `8966601dc` "handle parens
-        //   in template expressions more robustly" + `edcbb0e64` "invalidate
-        //   `@const` tags based on visible references in legacy mode".
-        //   `async-if-block-unskip` was unblocked by the SSR `$.save`
-        //   predicate port (this PR).
-        // - Svelte 5.55.3 cluster: upstream commit `3937ec03b` "fix: correctly
-        //   calculate `@const` blockers". The 5.55.3 port (this PR) flipped
-        //   `async-const`, `async-const-wait`, and `async-derived-const-blocker`.
-        // - Svelte 5.55.4 (upstream commit `0ed8c282f` "fix: reset context
-        //   after waiting on blockers of @const expressions"): the
-        //   `apply_const_async_wrapping` pass now runs in the
-        //   `$$renderer.component(...)` wrapper path too (server `build.rs`),
-        //   so `{@const foo = bar}` where `bar` is a top-level
-        //   `$$promises[N]` blocker correctly wraps dependent text
-        //   expressions in `$$renderer.async([promises[M]], ...)`.
-        //   Unblocked `async-context-after-await-const`.
-        //   `async-effect-pending-eager` (added in upstream `273f1a85a`)
-        //   needs additional fixes — `$effect.pending()` rewrite for
-        //   `{#if}` test expressions and `<p>...</p>` trailing-whitespace
-        //   normalisation — tracked separately.
-        // - `derived-dep-set-while-rendering` (Svelte 5.55.5, runtime-only
-        //   commit `b771df3` adds a fixture): SSR `const x = $derived(visible)`
-        //   where the arg is a bare identifier referring to another derived
-        //   should emit `$.derived(visible)` (no thunk wrap). rsvelte's
-        //   `wrap_derived_reads` re-wraps `visible` to `visible()` inside the
-        //   thunk, producing `$.derived(() => visible())`. Tracked as a
-        //   follow-up.
-        // - Svelte 5.55.6 cluster: upstream commits `e00944ffd`/`89b6a939f`/
-        // - Svelte 5.55.9 cluster: upstream commits `a5df6616e` "fix: avoid
-        //   unnecessary stringify in server attributes" (inlines static
-        //   string interpolations into the literal HTML push instead of
-        //   wrapping them in `$.attr_style(\`…${$.stringify(x)}…\`)`) and
-        //   `000c594e0` "fix: `{#await await ...}` and async dependencies
-        //   fixes" (refines the async-batching / await-merge codegen).
-        //   `async-await` is unblocked by the 5.55.9 `000c594e0` port; the
-        //   remaining two still fail on orthogonal axes (`$derived(await
-        //   ...)` lowering, `wrap_derived_reads` shadowing in `then` body
-        //   args, etc.). Tracked as follow-up ports.
-        // The hydration `boundary-pending-attribute` fixture (Svelte 5.54.x)
-        // is now unblocked by the 5.55.3 `@const` blocker port (this PR),
-        // which switches the server `@const` assignment thunks from
-        // block-form (`async () => { data = ...; }`) to upstream's
-        // single-expression form (`async () => data = ...`).
-        // - HtmlTag is_controlled cluster (Svelte 5.53.8, upstream commit
-        //   `0206a2019`) is now ported in `client/visitors/shared/fragment.rs`
-        //   + `client/visitors/html_tag.rs` — all 13 fixtures (runtime-runes,
-        //   runtime-legacy, hydration) now pass. `head-raw-elements-content`
-        //   above survives as the only remaining HtmlTag-adjacent skip and
-        //   actually belongs to the SSR `$.stringify` elide cluster, not
-        //   is_controlled.
-        // - `select-option-store-implicit-value` (server-side-rendering,
-        //   Svelte 5.53.6, upstream `e3d277b00`): now ported in
-        //   `select_element.rs` — synthetic `<option>` value goes through
-        //   `transform_store_refs`.
-    ];
-
     for sample_dir in &samples {
         let name = sample_dir
             .file_name()
@@ -1120,18 +1026,16 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
             .unwrap_or("unknown")
             .to_string();
 
-        if runtime_skip_tests
-            .iter()
-            .any(|(cat, sample)| *cat == category && *sample == name)
-        {
+        // The documented skip lists live in `tests/common/mod.rs` so this
+        // report and the gate that actually blocks CI (`tests/runtime.rs`,
+        // `tests/ssr.rs`) can never disagree about what is skipped.
+        if runtime_skip_names(category).contains(&name.as_str()) {
             result.add_sample(SampleResult {
                 name,
                 status: TestStatus::Skipped,
                 error: None,
                 skip_reason: Some(
-                    "Async-derived $$promises blockers not yet threaded through \
-                     template effects (introduced in Svelte 5.53.0)"
-                        .to_string(),
+                    "On the documented runtime skip list in tests/common/mod.rs".to_string(),
                 ),
                 details: None,
             });
@@ -1169,27 +1073,9 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
             .unwrap_or("main.svelte")
             .to_string();
 
-        // Check for unsupported options
-        let config_path = svelte_path()
-            .join("packages/svelte/tests")
-            .join(category)
-            .join("samples")
-            .join(&name)
-            .join("_config.js");
-
-        // Detect async and hmr options from config
-        let mut config_has_async = false;
-        let mut config_has_hmr = false;
-        // dev option is not used for runtime tests - fixtures are generated with dev=false equivalent output
-        if let Ok(config) = fs::read_to_string(&config_path) {
-            let config_without_skip = config
-                .replace("skip_no_async", "")
-                .replace("skip_async", "");
-            config_has_async = config_without_skip.contains("async: true");
-            config_has_hmr = config.contains("hmr: true");
-            // Note: dev option is not used - fixtures are generated without dev-specific output
-            let _ = &config;
-        }
+        // The very options the fixture was generated with, shared with the
+        // gates so the report cannot measure something else than they do.
+        let fixture_options = runtime_fixture_options(category, &name);
 
         let input = match fs::read_to_string(&input_path) {
             Ok(s) => s,
@@ -1214,34 +1100,17 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         let mut server_ok = true;
         let mut error_msg = None;
 
-        // Enable experimental.async for runtime-runes tests (fixtures were generated with it enabled)
-        // Also enable it for individual tests that have async: true in config
-        let is_runtime_runes = category == "runtime-runes";
-        let use_async = is_runtime_runes || config_has_async;
-
-        // Enable accessors for runtime-legacy tests (matches official test runner behavior)
-        // See svelte/packages/svelte/tests/runtime-legacy/shared.ts line 224:
-        //   accessors: 'accessors' in config ? config.accessors : true
-        let is_legacy = category == "runtime-legacy";
-        let use_accessors = if is_legacy {
-            if let Ok(config) = fs::read_to_string(&config_path) {
-                !config.contains("accessors: false") && !config.contains("accessors:false")
-            } else {
-                true
-            }
-        } else {
-            false
-        };
-
         // Test client
         if let Some(expected) = &expected_client {
             let options = CompileOptions {
                 generate: GenerateMode::Client,
                 filename: Some(input_filename.clone()),
                 css: CssMode::External,
-                experimental: ExperimentalOptions { r#async: use_async },
-                hmr: config_has_hmr,
-                accessors: use_accessors,
+                experimental: ExperimentalOptions {
+                    r#async: fixture_options.r#async,
+                },
+                hmr: fixture_options.hmr,
+                accessors: fixture_options.accessors,
                 ..Default::default()
             };
 
@@ -1271,8 +1140,10 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
                 generate: GenerateMode::Server,
                 filename: Some(input_filename.clone()),
                 css: CssMode::External,
-                experimental: ExperimentalOptions { r#async: use_async },
-                hmr: config_has_hmr,
+                experimental: ExperimentalOptions {
+                    r#async: fixture_options.r#async,
+                },
+                hmr: fixture_options.hmr,
                 ..Default::default()
             };
 

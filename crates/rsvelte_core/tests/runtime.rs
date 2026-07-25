@@ -14,8 +14,9 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    FixtureCoverage, SkipReason, compare_js_with_debug as compare_js_debug, ensure_fixtures_exist,
-    get_fixture_samples, load_fixture_output, sample_name, svelte_path, write_actual_output,
+    FixtureCoverage, RuntimeFixtureOptions, SkipReason, compare_js_with_debug as compare_js_debug,
+    ensure_fixtures_exist, get_fixture_samples, load_fixture_output, runtime_fixture_options,
+    runtime_skip_names, sample_name, svelte_path, write_actual_output,
 };
 use rsvelte_core::{CompileOptions, ExperimentalOptions, GenerateMode, compile, compiler::CssMode};
 
@@ -46,74 +47,14 @@ fn load_input(category: &str, sample_name: &str) -> Option<String> {
         .map(|s| s.replace("\r\n", "\n"))
 }
 
-/// Check if a test requires unsupported compile options by reading _config.js
-fn requires_unsupported_options(category: &str, sample_name: &str) -> bool {
-    let config_path = svelte_path()
-        .join("packages/svelte/tests")
-        .join(category)
-        .join("samples")
-        .join(sample_name)
-        .join("_config.js");
-
-    if let Ok(config) = fs::read_to_string(&config_path) {
-        {
-            let config_without_skip = config
-                .replace("skip_no_async", "")
-                .replace("skip_async", "");
-            if config_without_skip.contains("async: true") {
-                return true;
-            }
-        }
-        if config.contains("hmr: true") {
-            return true;
-        }
-        if config.contains("compileOptions") && config.contains("preserveComments") {
-            return true;
-        }
-    }
-    false
-}
-
-/// Read the `accessors` setting from a test's _config.js.
-///
-/// The official Svelte test runner defaults to `accessors: true` for runtime-legacy tests
-/// (see svelte/packages/svelte/tests/runtime-legacy/shared.ts line 224):
-///   accessors: 'accessors' in config ? config.accessors : true
-///
-/// Returns `true` if `accessors` should be enabled (default true unless `accessors: false` in config).
-fn get_accessors_option(category: &str, sample_name: &str) -> bool {
-    if category != "runtime-legacy" {
-        return false;
-    }
-
-    let config_path = svelte_path()
-        .join("packages/svelte/tests")
-        .join(category)
-        .join("samples")
-        .join(sample_name)
-        .join("_config.js");
-
-    if let Ok(config) = fs::read_to_string(&config_path) {
-        // Check for explicit `accessors: false`
-        if config.contains("accessors: false") || config.contains("accessors:false") {
-            return false;
-        }
-    }
-    // Default: true for runtime-legacy (matches official test runner behavior)
-    true
-}
-
 /// A runtime test fixture.
 struct RuntimeFixture {
     name: String,
     input: String,
     expected_client_js: Option<String>,
     expected_server_js: Option<String>,
-    requires_unsupported_options: bool,
-    /// Whether to use accessors=true in CompileOptions.
-    /// Defaults to true for runtime-legacy (matches official test runner behavior).
-    #[allow(dead_code)]
-    accessors: bool,
+    /// The options the expected output was generated with.
+    options: RuntimeFixtureOptions,
 }
 
 /// Load a runtime test fixture from fixtures directory.
@@ -136,12 +77,11 @@ fn load_runtime_fixture(category: &str, sample_dir: &Path) -> Result<RuntimeFixt
     }
 
     Ok(RuntimeFixture {
-        name: name.clone(),
+        options: runtime_fixture_options(category, &name),
+        name,
         input,
         expected_client_js,
         expected_server_js,
-        requires_unsupported_options: requires_unsupported_options(category, &name),
-        accessors: get_accessors_option(category, &name),
     })
 }
 
@@ -167,63 +107,6 @@ fn should_write_actual_output() -> bool {
     std::env::var("WRITE_ACTUAL_OUTPUT").is_ok()
 }
 
-/// Fixtures that started failing on `main` after the Svelte submodule upgrades
-/// in #322 / #335 and aren't tied to a particular upstream change. Tracked
-/// separately so the runtime suite stops blocking unrelated work; remove an
-/// entry as soon as the upstream behaviour is matched.
-const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
-    // async-overlap-multiple-5..7 still fail on the client side (the SSR
-    // `$.save` predicate port unblocked -1..4). -5..7 use
-    // `let b = $derived(await delay(...))` in the instance script and hit a
-    // separate async-blocker cluster.
-    // Svelte 5.55.9 cluster (upstream `a5df6616e` "fix: avoid unnecessary
-    // stringify in server attributes"). The `<div title=...>` snapshot path
-    // is handled; the runes fixtures below also hit code paths that aren't
-    // ported yet (attribute parts, async-await codegen). Mirrors the
-    // entries in `tests/compatibility_report.rs`.
-    //
-    // `async-await` was unblocked by the 5.55.9 `000c594e0` `{#await await
-    // ...}` async-batching port; the remaining two still fail on orthogonal
-    // axes ($derived(await ...) → `(await $.save($.async_derived(...)))()`
-    // lowering, etc.).
-
-    // Svelte 5.56.0 #18282 (`59d3a36f8` "feat: allow declarations in the
-    // template"). `async-declaration-tag` (`{let x = $state(await …)}` /
-    // `{const y = $derived(await …)}`) now FULLY passes on both client and
-    // server — the async-declaration lowering (`add_async_declaration` in
-    // upstream's DeclarationTag.js) is ported: root-fragment `$$renderer.run`
-    // flush, cross-block `const_blocker_map` shadow scoping, the
-    // `await $.async_derived(async () => (await $.save(X))())` save-wrap shape,
-    // and element-block `async_consts` reset + cross-group blocker. Only
-    // `async-declaration-tag-2` (svelte:boundary + snippet + destructured await
-    // + each) now ALSO fully passes — the boundary keeps non-special snippets
-    // inside the `$.boundary(...)` callback when the fragment has DeclarationTags
-    // (`has_const || has_declaration`), the cross-const / destructured-await
-    // declaration tags route into the shared `$.run([…])` async group, the
-    // awaited `$derived` reads register the `$.get` transform, and the each
-    // collection + index param + per-binding blocker dedup all match upstream.
-    // Pre-existing: template_effect double-counts `$$promises` inside an
-    // `$.async(...)` wrapper for the IfBlock branch.
-    "async-style-after-await",
-    // New 5.56.x fixture (#18525, `bfbb026f2`): `<svelte:boundary {pending}>`
-    // with a `$derived` pending attribute. The SERVER `pending` ATTRIBUTE branch
-    // (`build_pending_attribute_block` + the `is_pending_attr_nullish`
-    // `if (pending()) {…} else {…}` wrapper) is a pre-existing GAP in
-    // `svelte_boundary.rs` — only the `pending` SNIPPET branch is ported. Client
-    // output matches; server=MISMATCH. Unaffected by the 5.56.7 bump
-    // (`SvelteBoundary.js` is byte-identical across 5.56.4..5.56.7).
-    "async-batch-derived",
-];
-
-/// runtime-legacy fixtures still failing on the rsvelte port. Each cluster is
-/// labelled with the upstream commit responsible. Remove an entry once the
-/// underlying port lands.
-const RUNTIME_LEGACY_SKIP_NAMES: &[&str] = &[];
-
-/// hydration fixtures still failing. All HtmlTag is_controlled fixtures now pass
-/// post-port (Svelte 5.53.8 upstream `0206a2019`).
-const HYDRATION_SKIP_NAMES: &[&str] = &[];
-
 /// Run a single runtime fixture test.
 fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestResult {
     let mut result = TestResult {
@@ -235,30 +118,12 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
         skipped: false,
     };
 
-    if fixture.requires_unsupported_options {
-        result.skipped = true;
-        return result;
-    }
-
-    if category == "runtime-runes" && RUNTIME_RUNES_SKIP_NAMES.contains(&fixture.name.as_str()) {
-        result.skipped = true;
-        return result;
-    }
-
-    if category == "runtime-legacy" && RUNTIME_LEGACY_SKIP_NAMES.contains(&fixture.name.as_str()) {
-        result.skipped = true;
-        return result;
-    }
-
-    if category == "hydration" && HYDRATION_SKIP_NAMES.contains(&fixture.name.as_str()) {
+    if runtime_skip_names(category).contains(&fixture.name.as_str()) {
         result.skipped = true;
         return result;
     }
 
     let write_output = should_write_actual_output();
-
-    // Enable experimental.async for runtime-runes tests (matches fixture generation)
-    let use_async = category == "runtime-runes";
 
     // Test client-side compilation
     if let Some(expected_client) = &fixture.expected_client_js {
@@ -266,8 +131,11 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
             generate: GenerateMode::Client,
             filename: Some("main.svelte".to_string()),
             css: CssMode::External,
-            experimental: ExperimentalOptions { r#async: use_async },
-            accessors: fixture.accessors,
+            experimental: ExperimentalOptions {
+                r#async: fixture.options.r#async,
+            },
+            hmr: fixture.options.hmr,
+            accessors: fixture.options.accessors,
             ..Default::default()
         };
 
@@ -314,7 +182,10 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
             generate: GenerateMode::Server,
             filename: Some("main.svelte".to_string()),
             css: CssMode::External,
-            experimental: ExperimentalOptions { r#async: use_async },
+            experimental: ExperimentalOptions {
+                r#async: fixture.options.r#async,
+            },
+            hmr: fixture.options.hmr,
             // Let runes mode be auto-detected from source (matches official compiler behavior)
             ..Default::default()
         };

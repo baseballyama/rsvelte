@@ -142,9 +142,11 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 ## Test Status
 
 Source: `pnpm run compatibility-report` (Svelte **v5.56.8**). Re-run `pnpm run test-and-update`
-to refresh. Skip lists live in `crates/rsvelte_core/tests/compatibility_report.rs` and
-`crates/rsvelte_core/tests/runtime.rs`; `crates/rsvelte_core/tests/audit_skipped.rs`
-re-checks every skipped fixture after a Svelte bump.
+to refresh. The runtime skip lists and the fixture-generation compile options are shared
+constants in `crates/rsvelte_core/tests/common/mod.rs`, so the report and the gates
+(`tests/runtime.rs`, `tests/ssr.rs`) always measure the same thing;
+`crates/rsvelte_core/tests/audit_skipped.rs` re-checks every skipped fixture after a
+Svelte bump.
 
 | Suite | Pass/Total |
 |-------|------------|
@@ -155,13 +157,13 @@ re-checks every skipped fixture after a Svelte bump.
 | CSS | 181/181 |
 | Validator | 333/333 |
 | SSR | 99/99 |
-| Hydration | 80/80 |
-| Runtime Legacy | 1206/1206 |
-| Runtime Runes | 1006/1006 |
+| Hydration | 79/79 |
+| Runtime Legacy | 1207/1207 |
+| Runtime Runes | 1005/1005 |
 | Runtime Browser | 32/32 |
 | Print | 43/43 |
 | Preprocess | 19/19 |
-| Sourcemaps | 0/0 (report only — see the source-map gate below) |
+| Sourcemaps | 29/29 (output equality; map correctness has its own gate below) |
 | svelte2tsx | 253/253 |
 | Migrate | 0/76 (out of scope) |
 
@@ -171,10 +173,8 @@ not start migrate work without an explicit scope change.
 
 ### Source-map gate
 
-The `Sourcemaps` row above reads 0/0 because `compatibility_report.rs` looks for a
-`main.svelte` in each sample and the sourcemaps samples use `input.svelte` — the fixtures
-themselves (official `client.js{,.map}` / `server.js{,.map}` for all 29 samples) have always
-been generated. Map *correctness* is gated by
+The `Sourcemaps` row above only compares generated `client.js` / `server.js` output. Map
+*correctness* is gated by
 `crates/rsvelte_core/tests/sourcemaps_gate.rs`, which ports the `_config.js` anchor assertions
 from `packages/svelte/tests/sourcemaps` and adds two structural budgets (official segments
 reproduced; segments pointing outside the source), ratcheted shrink-only through
