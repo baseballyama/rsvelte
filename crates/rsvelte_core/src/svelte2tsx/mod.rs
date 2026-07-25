@@ -5,6 +5,7 @@ pub mod interfaces;
     reason = "MagicString::to_string mirrors JS `MagicString.toString()`; the inherent name is the ported public API"
 )]
 pub mod magic_string;
+pub mod nodes;
 pub mod script;
 #[allow(
     clippy::module_inception,
