@@ -186,6 +186,10 @@ absent. **Hard gate, no baseline tolerance:** any divergence fails CI.
 `oxfmt`-subprocess path. Native-CSS parity is covered by
 `crates/rsvelte_formatter/tests/css_native.rs` and `crates/rsvelte_fmt/tests/cli.rs`.
 
+`rsvelte_fmt` is a lib + bin: `rsvelte_fmt::FormatSession` runs the CLI's
+`--stdin --stdin-filepath` pipeline (config discovery, option layering, extension
+dispatch) in process, so an embedder never re-implements it.
+
 ## Ecosystem Port
 
 | Wave | Scope | Status |
@@ -193,7 +197,7 @@ absent. **Hard gate, no baseline tolerance:** any divergence fails CI.
 | 1 | svelte2tsx | ✅ 253/253, wired into the compatibility report |
 | 2 | svelte-check | ✅ v1.0 — walker + overlay + tsgo + incremental cache + watch + parallel compile + hires source maps + SvelteKit kit-file augmentation; reads diagnostic-relevant `compilerOptions` from `svelte.config.*` and `vite.config.*` |
 | 3 | vite-plugin-svelte | 🟢 v1.0 — Rust NAPI bindings (`hmr_diff` / `resolve_id` / `preprocess`) + `@rsvelte/vite-plugin-svelte` shim at `apps/npm/vite-plugin-svelte`; supports Vite 6/7/8 |
-| 4 | svelte-language-server | 🚧 In progress — target is a full replacement for `svelte-language-server` + `svelte-vscode`, not a companion |
+| 4 | svelte-language-server | 🚧 In progress — target is a full replacement for `svelte-language-server` + `svelte-vscode`, not a companion. M0 landed: `crates/rsvelte_language_server` (binary `rsvelte-language-server`) does document sync, formatting and push diagnostics in process |
 
 Wave 4 architecture (decided; tsgo ships an LSP server as of TypeScript 7, so the earlier
 "waits on tsgo `tsserver` mode" blocker no longer applies):

@@ -17,13 +17,49 @@ use crate::tailwind;
 use crate::tailwind_sidecar;
 use crate::tailwind_sort::{PendingJsSort, js_sort_env};
 
+/// The option-resolution inputs the command line contributes, split out of
+/// [`Cli`] so an in-process embedder (the language server) resolves options
+/// through exactly the same layering as the CLI instead of reimplementing it.
+#[derive(Debug, Clone)]
+pub(crate) struct OptionFlags {
+    pub(crate) print_width: Option<u16>,
+    pub(crate) tab_width: Option<u8>,
+    pub(crate) use_tabs: bool,
+    pub(crate) no_native_css: bool,
+    pub(crate) oxfmt_bin: PathBuf,
+}
+
+impl Default for OptionFlags {
+    fn default() -> Self {
+        Self {
+            print_width: None,
+            tab_width: None,
+            use_tabs: false,
+            no_native_css: false,
+            oxfmt_bin: PathBuf::from("oxfmt"),
+        }
+    }
+}
+
+impl OptionFlags {
+    pub(crate) fn from_cli(cli: &Cli) -> Self {
+        Self {
+            print_width: cli.print_width,
+            tab_width: cli.tab_width,
+            use_tabs: cli.use_tabs,
+            no_native_css: cli.no_native_css,
+            oxfmt_bin: cli.oxfmt_bin.clone(),
+        }
+    }
+}
+
 /// Build the [`FormatOptions`] for the in-process Svelte formatter, layering
 /// the resolved `.oxfmtrc` under any explicit CLI flags. Precedence for the
 /// keys that exist in both places (`--print-width`/`--tab-width`/`--use-tabs`):
 /// CLI flag > `.oxfmtrc` > built-in default. Keys with no CLI equivalent
 /// (`singleQuote`, `semi`, `trailingComma`, …) come straight from `.oxfmtrc`.
 pub(crate) fn build_format_options(
-    cli: &Cli,
+    cli: &OptionFlags,
     cfg: &OxfmtConfig,
 ) -> (FormatOptions, Option<PendingJsSort>) {
     let use_tabs = cli.use_tabs || cfg.use_tabs.unwrap_or(false);
@@ -142,7 +178,7 @@ pub(crate) fn build_format_options(
 /// resolved exactly as the JS path, plus `bracketSpacing`. `objectWrap` is left
 /// at oxc's default (`Expand::Auto` = Prettier `preserve`), matching `oxfmt`.
 /// `variant` is set per file by [`json_variant`].
-pub(crate) fn build_json_options(cli: &Cli, cfg: &OxfmtConfig) -> JsonFormatOptions {
+pub(crate) fn build_json_options(cli: &OptionFlags, cfg: &OxfmtConfig) -> JsonFormatOptions {
     let use_tabs = cli.use_tabs || cfg.use_tabs.unwrap_or(false);
     let indent_style = if use_tabs {
         IndentStyle::Tab
@@ -184,7 +220,7 @@ pub(crate) fn json_variant(ext: &str) -> JsonVariant {
 /// (the only Prettier keys the CSS languages consume). `variant` is set per
 /// file/block by the caller; `line_width` is narrowed per embedded `<style>`
 /// block to its column.
-pub(crate) fn build_css_options(cli: &Cli, cfg: &OxfmtConfig) -> CssFormatOptions {
+pub(crate) fn build_css_options(cli: &OptionFlags, cfg: &OxfmtConfig) -> CssFormatOptions {
     let use_tabs = cli.use_tabs || cfg.use_tabs.unwrap_or(false);
     let indent_style = if use_tabs {
         IndentStyle::Tab
