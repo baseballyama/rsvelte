@@ -23,6 +23,9 @@ pub struct Settings {
     pub lint_enable: bool,
     pub completion_enable: bool,
     pub hover_enable: bool,
+    pub folding_range_enable: bool,
+    pub selection_range_enable: bool,
+    pub document_symbol_enable: bool,
     pub compiler_warnings: CompilerWarnings,
 }
 
@@ -33,6 +36,9 @@ impl Default for Settings {
             lint_enable: true,
             completion_enable: true,
             hover_enable: true,
+            folding_range_enable: true,
+            selection_range_enable: true,
+            document_symbol_enable: true,
             compiler_warnings: CompilerWarnings::default(),
         }
     }
@@ -48,6 +54,12 @@ impl Settings {
             lint_enable: enabled(value, "lint").unwrap_or(default.lint_enable),
             completion_enable: enabled(value, "completion").unwrap_or(default.completion_enable),
             hover_enable: enabled(value, "hover").unwrap_or(default.hover_enable),
+            folding_range_enable: enabled(value, "foldingRange")
+                .unwrap_or(default.folding_range_enable),
+            selection_range_enable: enabled(value, "selectionRange")
+                .unwrap_or(default.selection_range_enable),
+            document_symbol_enable: enabled(value, "documentSymbol")
+                .unwrap_or(default.document_symbol_enable),
             compiler_warnings: compiler_warnings(value),
         }
     }
@@ -83,7 +95,10 @@ mod tests {
             "format": { "enable": false },
             "lint": { "enable": true },
             "completion": { "enable": false },
-            "hover": { "enable": false }
+            "hover": { "enable": false },
+            "foldingRange": { "enable": false },
+            "selectionRange": { "enable": true },
+            "documentSymbol": { "enable": false }
         }));
         assert_eq!(
             s,
@@ -92,6 +107,9 @@ mod tests {
                 lint_enable: true,
                 completion_enable: false,
                 hover_enable: false,
+                folding_range_enable: false,
+                selection_range_enable: true,
+                document_symbol_enable: false,
                 compiler_warnings: CompilerWarnings::default(),
             }
         );

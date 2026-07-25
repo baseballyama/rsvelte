@@ -53,7 +53,7 @@ fn parsed(text: &str) -> Option<Vec<Range<usize>>> {
 }
 
 /// The content of a `<tag …>…</tag>` spanning `start..end`.
-fn body_of(text: &str, start: usize, end: usize) -> Option<Range<usize>> {
+pub fn body_of(text: &str, start: usize, end: usize) -> Option<Range<usize>> {
     let outer = text.get(start..end)?;
     let open = outer.find('>')? + 1;
     let close = outer.rfind("</").unwrap_or(outer.len());
@@ -265,7 +265,7 @@ fn scan_start_tag<'a>(text: &'a str, from: usize, offset: usize, tag: &'a str) -
 }
 
 /// The offset just past the `{…}` starting at `from`, strings included.
-fn skip_braces(text: &str, from: usize) -> usize {
+pub fn skip_braces(text: &str, from: usize) -> usize {
     let bytes = text.as_bytes();
     let mut depth = 0u32;
     let mut i = from;

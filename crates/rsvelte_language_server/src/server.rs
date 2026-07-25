@@ -11,10 +11,12 @@ use lsp_types::{
     CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
     CodeActionProviderCapability, CompletionOptions, CompletionParams, ConfigurationItem,
     ConfigurationParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams, HoverParams,
-    HoverProviderCapability, OneOf, PublishDiagnosticsParams, ServerCapabilities,
-    TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind,
-    TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Uri,
+    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
+    DocumentSymbolParams, DocumentSymbolResponse, FoldingRange, FoldingRangeParams,
+    FoldingRangeProviderCapability, HoverParams, HoverProviderCapability, OneOf,
+    PublishDiagnosticsParams, SelectionRangeParams, SelectionRangeProviderCapability,
+    ServerCapabilities, TextDocumentPositionParams, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Uri,
 };
 
 use crate::client::ClientState;
@@ -90,6 +92,9 @@ fn capabilities() -> ServerCapabilities {
             code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
             ..CodeActionOptions::default()
         })),
+        folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
+        selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
+        document_symbol_provider: Some(OneOf::Left(true)),
         ..ServerCapabilities::default()
     }
 }
@@ -102,6 +107,9 @@ enum Pending {
     Completion,
     Hover,
     CodeAction,
+    FoldingRange,
+    SelectionRange,
+    DocumentSymbol,
 }
 
 /// A request this server sent to the client, keyed by the id the client will
@@ -208,6 +216,9 @@ impl Server {
             "textDocument/completion" => self.on_completion(request),
             "textDocument/hover" => self.on_hover(request),
             "textDocument/codeAction" => self.on_code_action(request),
+            "textDocument/foldingRange" => self.on_folding_range(request),
+            "textDocument/selectionRange" => self.on_selection_range(request),
+            "textDocument/documentSymbol" => self.on_document_symbol(request),
             _ => self.respond(Response::new_err(
                 request.id,
                 ErrorCode::MethodNotFound as i32,
@@ -355,6 +366,109 @@ impl Server {
         self.worker.submit(job);
     }
 
+    fn on_folding_range(&mut self, request: Request) {
+        let id = request.id;
+        let params = match serde_json::from_value::<FoldingRangeParams>(request.params) {
+            Ok(params) => params,
+            Err(err) => {
+                log::warn(format_args!("textDocument/foldingRange: {err}"));
+                self.respond_no_ranges(id);
+                return;
+            }
+        };
+        if !self.settings.folding_range_enable {
+            self.respond_no_ranges(id);
+            return;
+        }
+        match self.component(&params.text_document.uri) {
+            Some((path, text)) => {
+                self.pending.insert(id.clone(), Pending::FoldingRange);
+                self.worker.submit(Job::FoldingRange {
+                    id,
+                    path,
+                    text,
+                    line_folding_only: self.client.line_folding_only,
+                });
+            }
+            None => self.respond_no_ranges(id),
+        }
+    }
+
+    fn on_selection_range(&mut self, request: Request) {
+        let id = request.id;
+        let params = match serde_json::from_value::<SelectionRangeParams>(request.params) {
+            Ok(params) => params,
+            Err(err) => {
+                log::warn(format_args!("textDocument/selectionRange: {err}"));
+                self.respond_nothing(id);
+                return;
+            }
+        };
+        if !self.settings.selection_range_enable {
+            self.respond_nothing(id);
+            return;
+        }
+        let Some(document) = self.component_document(&params.text_document.uri) else {
+            self.respond_nothing(id);
+            return;
+        };
+        let offsets = params
+            .positions
+            .iter()
+            .map(|&position| document.offset_at(position))
+            .collect();
+        let job = Job::SelectionRange {
+            id: id.clone(),
+            path: uri_to_path(params.text_document.uri.as_str()),
+            text: document.shared_text(),
+            offsets,
+        };
+        self.pending.insert(id, Pending::SelectionRange);
+        self.worker.submit(job);
+    }
+
+    fn on_document_symbol(&mut self, request: Request) {
+        let id = request.id;
+        let params = match serde_json::from_value::<DocumentSymbolParams>(request.params) {
+            Ok(params) => params,
+            Err(err) => {
+                log::warn(format_args!("textDocument/documentSymbol: {err}"));
+                self.respond_no_symbols(id);
+                return;
+            }
+        };
+        if !self.settings.document_symbol_enable {
+            self.respond_no_symbols(id);
+            return;
+        }
+        let uri = params.text_document.uri;
+        match self.component(&uri) {
+            Some((path, text)) => {
+                self.pending.insert(id.clone(), Pending::DocumentSymbol);
+                self.worker.submit(Job::DocumentSymbol {
+                    id,
+                    uri,
+                    path,
+                    text,
+                    hierarchical: self.client.hierarchical_document_symbols,
+                });
+            }
+            None => self.respond_no_symbols(id),
+        }
+    }
+
+    /// An open component, as the worker needs it. Only components have Svelte
+    /// template structure to report.
+    fn component(&self, uri: &Uri) -> Option<(std::path::PathBuf, std::sync::Arc<String>)> {
+        let document = self.component_document(uri)?;
+        Some((uri_to_path(uri.as_str()), document.shared_text()))
+    }
+
+    fn component_document(&self, uri: &Uri) -> Option<&Document> {
+        let document = self.documents.get(uri)?;
+        (document.language_id == "svelte").then_some(document)
+    }
+
     fn on_notification(&mut self, notification: Notification) {
         let method = notification.method.clone();
         match method.as_str() {
@@ -470,6 +584,21 @@ impl Server {
                     self.respond(Response::new_ok(id, actions));
                 }
             }
+            Outcome::FoldingRanges { id, ranges } => {
+                if self.pending.remove(&id).is_some() {
+                    self.respond(Response::new_ok(id, ranges));
+                }
+            }
+            Outcome::SelectionRanges { id, ranges } => {
+                if self.pending.remove(&id).is_some() {
+                    self.respond(Response::new_ok(id, ranges));
+                }
+            }
+            Outcome::DocumentSymbols { id, symbols } => {
+                if self.pending.remove(&id).is_some() {
+                    self.respond(Response::new_ok(id, symbols));
+                }
+            }
             Outcome::Diagnostics {
                 key,
                 uri,
@@ -581,6 +710,17 @@ impl Server {
 
     fn respond_no_actions(&self, id: RequestId) {
         self.respond(Response::new_ok(id, Vec::<CodeActionOrCommand>::new()));
+    }
+
+    fn respond_no_ranges(&self, id: RequestId) {
+        self.respond(Response::new_ok(id, Vec::<FoldingRange>::new()));
+    }
+
+    fn respond_no_symbols(&self, id: RequestId) {
+        self.respond(Response::new_ok(
+            id,
+            DocumentSymbolResponse::Nested(Vec::new()),
+        ));
     }
 
     fn respond(&self, response: Response) {

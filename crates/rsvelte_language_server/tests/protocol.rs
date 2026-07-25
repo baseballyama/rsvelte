@@ -156,6 +156,30 @@ impl Server {
         self.response(id)
     }
 
+    fn folding_ranges(&mut self, uri: &str) -> Vec<Value> {
+        let id = self.request(
+            "textDocument/foldingRange",
+            json!({ "textDocument": { "uri": uri } }),
+        );
+        self.response(id).as_array().cloned().unwrap_or_default()
+    }
+
+    fn selection_ranges(&mut self, uri: &str, positions: Value) -> Value {
+        let id = self.request(
+            "textDocument/selectionRange",
+            json!({ "textDocument": { "uri": uri }, "positions": positions }),
+        );
+        self.response(id)
+    }
+
+    fn document_symbols(&mut self, uri: &str) -> Vec<Value> {
+        let id = self.request(
+            "textDocument/documentSymbol",
+            json!({ "textDocument": { "uri": uri } }),
+        );
+        self.response(id).as_array().cloned().unwrap_or_default()
+    }
+
     fn hover(&mut self, uri: &str, line: u32, character: u32) -> Value {
         let id = self.request(
             "textDocument/hover",
@@ -302,6 +326,50 @@ fn initialized_server() -> Server {
     server.notify("initialized", json!({}));
     server
 }
+
+/// The same, with `textDocument` capabilities of the client's choosing, and the
+/// capabilities the server answered with.
+fn server_with(text_document: Value) -> (Server, Value) {
+    let mut server = Server::start();
+    let id = server.request(
+        "initialize",
+        json!({
+            "processId": Value::Null,
+            "rootUri": Value::Null,
+            "capabilities": {
+                "workspace": { "configuration": true },
+                "textDocument": text_document,
+            },
+        }),
+    );
+    let capabilities = server.response(id)["capabilities"].clone();
+    server.notify("initialized", json!({}));
+    (server, capabilities)
+}
+
+/// A component with something for each of the structure providers to find.
+const STRUCTURED: &str = concat!(
+    "<script>\n",
+    "  import { onMount } from 'svelte';\n",
+    "  import { get } from 'svelte/store';\n",
+    "\n",
+    "  let value = 1;\n",
+    "</script>\n",
+    "\n",
+    "<!-- #region layout -->\n",
+    "<div class=\"wrap\">\n",
+    "  {#each [1, 2] as n}\n",
+    "    <p title=\"row\">{n}</p>\n",
+    "  {/each}\n",
+    "</div>\n",
+    "<!-- #endregion -->\n",
+    "\n",
+    "<style>\n",
+    "  .wrap {\n",
+    "    color: red;\n",
+    "  }\n",
+    "</style>\n",
+);
 
 fn did_open(server: &mut Server, uri: &str, text: &str) {
     server.notify(
@@ -780,6 +848,218 @@ fn a_config_change_invalidates_the_resolved_lint_config() {
     // The re-lint re-reads the config from disk rather than serving the one it
     // resolved on open, so the rule is gone.
     server.diagnostics_matching(&uri, |d| !reports_at_html(d));
+
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+/// What a VS Code-like client — folding whole lines, reading a symbol tree —
+/// gets for a component with elements, blocks, regions, imports and both
+/// embedded languages.
+#[test]
+fn serves_folding_selection_and_symbols() {
+    let dir = temp_dir("structure");
+    let uri = file_uri(&dir.join("App.svelte"));
+    let (mut server, capabilities) = server_with(json!({
+        "foldingRange": { "lineFoldingOnly": true },
+        "documentSymbol": { "hierarchicalDocumentSymbolSupport": true },
+    }));
+    assert_eq!(capabilities["foldingRangeProvider"], json!(true));
+    assert_eq!(capabilities["selectionRangeProvider"], json!(true));
+    assert_eq!(capabilities["documentSymbolProvider"], json!(true));
+
+    did_open(&mut server, &uri, STRUCTURED);
+
+    let mut folds = server.folding_ranges(&uri);
+    folds.sort_by_key(|fold| fold["startLine"].as_u64().unwrap());
+    assert_eq!(
+        folds,
+        json!([
+            // The `<script>`, ending on the line before `</script>`.
+            { "startLine": 0, "endLine": 4 },
+            { "startLine": 1, "endLine": 2, "kind": "imports" },
+            { "startLine": 7, "endLine": 13, "kind": "region" },
+            { "startLine": 8, "endLine": 11 },
+            { "startLine": 9, "endLine": 10 },
+            { "startLine": 15, "endLine": 18 },
+            // The `<style>` body, folded by indentation.
+            { "startLine": 16, "endLine": 17 },
+        ])
+        .as_array()
+        .unwrap()
+        .clone(),
+        "a line-folding client gets lines only, and one fold per line"
+    );
+
+    // The cursor inside `title="row"` on the `<p>`.
+    let ranges = server.selection_ranges(&uri, json!([{ "line": 10, "character": 15 }]));
+    let ranges = ranges.as_array().expect("one range per position");
+    assert_eq!(ranges.len(), 1);
+    let mut chain = Vec::new();
+    let mut node = &ranges[0];
+    loop {
+        chain.push(node["range"].clone());
+        match node.get("parent") {
+            Some(parent) if !parent.is_null() => node = parent,
+            _ => break,
+        }
+    }
+    assert_eq!(
+        chain,
+        vec![
+            json!({ "start": { "line": 10, "character": 14 }, "end": { "line": 10, "character": 17 } }),
+            json!({ "start": { "line": 10, "character": 7 }, "end": { "line": 10, "character": 18 } }),
+            json!({ "start": { "line": 10, "character": 4 }, "end": { "line": 10, "character": 19 } }),
+            json!({ "start": { "line": 10, "character": 4 }, "end": { "line": 10, "character": 26 } }),
+            json!({ "start": { "line": 9, "character": 2 }, "end": { "line": 11, "character": 9 } }),
+            json!({ "start": { "line": 8, "character": 0 }, "end": { "line": 12, "character": 6 } }),
+        ],
+        "value, attribute, start tag, element, each block, div"
+    );
+
+    let symbols = server.document_symbols(&uri);
+    let names: Vec<Value> = symbols.iter().map(|s| s["name"].clone()).collect();
+    assert_eq!(
+        names,
+        json!(["script", "div.wrap", "style"])
+            .as_array()
+            .unwrap()
+            .clone()
+    );
+    let each = &symbols[1]["children"][0];
+    assert_eq!(each["name"], json!("{#each [1, 2] as n}"));
+    // 3 == SymbolKind.Namespace, 8 == SymbolKind.Field
+    assert_eq!(each["kind"], json!(3));
+    assert_eq!(each["children"][0]["name"], json!("p"));
+    assert_eq!(each["children"][0]["kind"], json!(8));
+    assert!(
+        symbols[0]["location"].is_null(),
+        "a tree carries ranges, not locations"
+    );
+
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+/// A client that declares neither capability gets folding ranges with
+/// characters and a flat `SymbolInformation` list.
+#[test]
+fn a_client_without_the_modern_capabilities_is_served_the_old_shapes() {
+    let dir = temp_dir("structure-flat");
+    let path = dir.join("App.svelte");
+    let uri = file_uri(&path);
+    let (mut server, _) = server_with(json!({}));
+    did_open(&mut server, &uri, STRUCTURED);
+
+    let folds = server.folding_ranges(&uri);
+    let script = folds
+        .iter()
+        .find(|fold| fold["startLine"] == json!(0))
+        .expect("the script folds");
+    assert_eq!(
+        *script,
+        json!({
+            "startLine": 0,
+            "startCharacter": 0,
+            "endLine": 5,
+            "endCharacter": 9,
+        }),
+        "without lineFoldingOnly the whole span is reported"
+    );
+
+    let symbols = server.document_symbols(&uri);
+    let flat: Vec<(Value, Value)> = symbols
+        .iter()
+        .map(|s| (s["name"].clone(), s["containerName"].clone()))
+        .collect();
+    assert_eq!(
+        flat,
+        vec![
+            (json!("script"), Value::Null),
+            (json!("div.wrap"), Value::Null),
+            (json!("{#each [1, 2] as n}"), json!("div.wrap")),
+            (json!("p"), json!("{#each [1, 2] as n}")),
+            (json!("style"), Value::Null),
+        ]
+    );
+    assert_eq!(symbols[0]["location"]["uri"], json!(uri));
+    assert!(
+        symbols[0]["children"].is_null(),
+        "a flat list has no children"
+    );
+
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+/// The three `rsvelte.*` switches, and the shapes a switched-off provider still
+/// has to answer with.
+#[test]
+fn the_settings_switch_the_structure_providers_off() {
+    let dir = temp_dir("structure-disabled");
+    let uri = file_uri(&dir.join("App.svelte"));
+
+    let mut server = Server::start();
+    server.settings = json!({
+        "foldingRange": { "enable": false },
+        "selectionRange": { "enable": false },
+        "documentSymbol": { "enable": false },
+    });
+    let id = server.request(
+        "initialize",
+        json!({
+            "processId": Value::Null,
+            "rootUri": Value::Null,
+            "capabilities": { "workspace": { "configuration": true } },
+        }),
+    );
+    server.response(id);
+    server.notify("initialized", json!({}));
+    server.settle_configuration();
+    did_open(&mut server, &uri, STRUCTURED);
+
+    assert_eq!(server.folding_ranges(&uri), Vec::<Value>::new());
+    assert_eq!(
+        server.selection_ranges(&uri, json!([{ "line": 10, "character": 15 }])),
+        Value::Null
+    );
+    assert_eq!(server.document_symbols(&uri), Vec::<Value>::new());
+
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+/// A half-written or pathological document must cost at most an empty answer.
+#[test]
+fn the_structure_providers_survive_documents_that_do_not_parse() {
+    let dir = temp_dir("structure-broken");
+    let mut server = initialized_server();
+
+    for (name, text) in [
+        ("stray-close", "<div>x</div>\n</span>".to_string()),
+        ("half-block", "<p>💡</p>\n{#each items as ".to_string()),
+        (
+            "half-script",
+            "<script>\n  const a = {\n</script>".to_string(),
+        ),
+        (
+            "deep",
+            format!("{}{}", "<div>\n".repeat(300), "</div>\n".repeat(300)),
+        ),
+    ] {
+        let uri = file_uri(&dir.join(format!("{name}.svelte")));
+        did_open(&mut server, &uri, &text);
+        // Every one of these must come back, whatever it comes back with.
+        server.folding_ranges(&uri);
+        server.document_symbols(&uri);
+        server.selection_ranges(&uri, json!([{ "line": 1, "character": 1 }]));
+        assert!(server.is_alive(), "server died on {name}");
+    }
+
+    // An unknown document is answered too, rather than left pending.
+    let missing = file_uri(&dir.join("Missing.svelte"));
+    assert_eq!(server.folding_ranges(&missing), Vec::<Value>::new());
+    assert_eq!(server.document_symbols(&missing), Vec::<Value>::new());
+    assert_eq!(
+        server.selection_ranges(&missing, json!([{ "line": 0, "character": 0 }])),
+        Value::Null
+    );
 
     assert_eq!(server.shutdown(), Some(0));
 }

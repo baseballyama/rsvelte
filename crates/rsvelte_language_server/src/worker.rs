@@ -17,7 +17,10 @@ use std::thread::JoinHandle;
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use lsp_server::RequestId;
-use lsp_types::{CodeActionOrCommand, CompletionList, Diagnostic, Hover, Range, TextEdit, Uri};
+use lsp_types::{
+    CodeActionOrCommand, CompletionList, Diagnostic, DocumentSymbolResponse, FoldingRange, Hover,
+    Range, SelectionRange, TextEdit, Uri,
+};
 
 use crate::format::FormatSessions;
 use crate::lint::LintConfigCache;
@@ -63,6 +66,25 @@ pub enum Job {
         text: Arc<String>,
         diagnostics: Vec<Diagnostic>,
     },
+    FoldingRange {
+        id: RequestId,
+        path: PathBuf,
+        text: Arc<String>,
+        line_folding_only: bool,
+    },
+    SelectionRange {
+        id: RequestId,
+        path: PathBuf,
+        text: Arc<String>,
+        offsets: Vec<usize>,
+    },
+    DocumentSymbol {
+        id: RequestId,
+        uri: Uri,
+        path: PathBuf,
+        text: Arc<String>,
+        hierarchical: bool,
+    },
     /// Drop the resolved `rsvelte-lint.json` / `.oxfmtrc` caches so the next
     /// job re-reads them from disk.
     ClearCaches,
@@ -90,6 +112,18 @@ pub enum Outcome {
     CodeActions {
         id: RequestId,
         actions: Vec<CodeActionOrCommand>,
+    },
+    FoldingRanges {
+        id: RequestId,
+        ranges: Vec<FoldingRange>,
+    },
+    SelectionRanges {
+        id: RequestId,
+        ranges: Option<Vec<SelectionRange>>,
+    },
+    DocumentSymbols {
+        id: RequestId,
+        symbols: DocumentSymbolResponse,
     },
 }
 
@@ -207,6 +241,43 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                 .unwrap_or_default();
                 Outcome::CodeActions { id, actions }
             }
+            Job::FoldingRange {
+                id,
+                path,
+                text,
+                line_folding_only,
+            } => Outcome::FoldingRanges {
+                id,
+                ranges: guard("folding range", &path, || {
+                    crate::folding::folding_ranges(&text, line_folding_only)
+                })
+                .unwrap_or_default(),
+            },
+            Job::SelectionRange {
+                id,
+                path,
+                text,
+                offsets,
+            } => Outcome::SelectionRanges {
+                id,
+                ranges: guard("selection range", &path, || {
+                    crate::selection_ranges::selection_ranges(&text, &offsets)
+                })
+                .flatten(),
+            },
+            Job::DocumentSymbol {
+                id,
+                uri,
+                path,
+                text,
+                hierarchical,
+            } => Outcome::DocumentSymbols {
+                id,
+                symbols: guard("document symbol", &path, || {
+                    crate::symbols::document_symbols(&text, &uri, hierarchical)
+                })
+                .unwrap_or_else(|| DocumentSymbolResponse::Nested(Vec::new())),
+            },
         };
         if outcomes.send(outcome).is_err() {
             break;

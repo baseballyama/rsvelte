@@ -22,6 +22,12 @@ pub struct ClientState {
     pub position_encodings: Vec<PositionEncodingKind>,
     /// Whether the client answers `workspace/configuration`.
     pub pull_configuration: bool,
+    /// Whether the client folds whole lines only, and so cannot use the
+    /// characters a folding range carries.
+    pub line_folding_only: bool,
+    /// Whether the client understands a tree of document symbols rather than a
+    /// flat list.
+    pub hierarchical_document_symbols: bool,
 }
 
 impl ClientState {
@@ -32,12 +38,24 @@ impl ClientState {
             client_info: field(params.get("clientInfo")),
             position_encodings: field(params.pointer("/capabilities/general/positionEncodings"))
                 .unwrap_or_default(),
-            pull_configuration: params
-                .pointer("/capabilities/workspace/configuration")
-                .and_then(Value::as_bool)
-                .unwrap_or(false),
+            pull_configuration: flag(params, "/capabilities/workspace/configuration"),
+            line_folding_only: flag(
+                params,
+                "/capabilities/textDocument/foldingRange/lineFoldingOnly",
+            ),
+            hierarchical_document_symbols: flag(
+                params,
+                "/capabilities/textDocument/documentSymbol/hierarchicalDocumentSymbolSupport",
+            ),
         }
     }
+}
+
+fn flag(params: &Value, pointer: &str) -> bool {
+    params
+        .pointer(pointer)
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
 }
 
 fn field<T: DeserializeOwned>(value: Option<&Value>) -> Option<T> {
@@ -58,6 +76,10 @@ mod tests {
             "capabilities": {
                 "workspace": { "configuration": true },
                 "general": { "positionEncodings": ["utf-16"] },
+                "textDocument": {
+                    "foldingRange": { "lineFoldingOnly": true },
+                    "documentSymbol": { "hierarchicalDocumentSymbolSupport": true },
+                },
             },
         }));
         assert_eq!(
@@ -71,6 +93,17 @@ mod tests {
         );
         assert_eq!(state.position_encodings.len(), 1);
         assert!(state.pull_configuration);
+        assert!(state.line_folding_only);
+        assert!(state.hierarchical_document_symbols);
+    }
+
+    #[test]
+    fn structure_capabilities_default_to_off() {
+        let state = ClientState::from_initialize(&json!({
+            "capabilities": { "textDocument": { "foldingRange": {} } },
+        }));
+        assert!(!state.line_folding_only);
+        assert!(!state.hierarchical_document_symbols);
     }
 
     #[test]
