@@ -38,7 +38,7 @@ use rsvelte_core::ast::template::{Fragment, Root, TemplateNode};
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-top-level-browser-globals",
@@ -542,7 +542,7 @@ impl ScriptRule for NoTopLevelBrowserGlobals {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         let source = ctx.source();
         // --- 1. Resolve browser-checker module imports. ---
         // local names bound to `browser`/`BROWSER` reads, and namespace imports.

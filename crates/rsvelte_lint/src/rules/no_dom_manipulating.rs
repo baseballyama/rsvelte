@@ -21,7 +21,7 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-dom-manipulating",
@@ -203,7 +203,7 @@ impl ScriptRule for NoDomManipulating {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         let mut toplevel: HashSet<String> = HashSet::new();
         collect_toplevel_decls(program, &mut toplevel);
         let dom_vars = collect_dom_vars(ctx.source(), &toplevel);
@@ -214,7 +214,7 @@ impl ScriptRule for NoDomManipulating {
         let properties: HashSet<&str> = DOM_PROPERTIES.iter().copied().collect();
 
         let mut reports: Vec<(u32, u32)> = Vec::new();
-        walk_js(program, |node, ancestors| {
+        program.walk(|node, ancestors| {
             if node_type(node) != Some("MemberExpression") {
                 return;
             }

@@ -4,7 +4,9 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js};
+use crate::script::{
+    ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/infinite-reactive-loop",
@@ -760,13 +762,13 @@ impl ScriptRule for InfiniteReactiveLoop {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         let (func_map, top_level_names) = collect_top_level(program);
         let task_names = collect_task_names(program, &top_level_names);
 
         let mut all_reports: Vec<Rep> = Vec::new();
 
-        walk_js(program, |node, _| {
+        program.walk(|node, _| {
             if node_type(node) != Some("LabeledStatement") {
                 return;
             }
