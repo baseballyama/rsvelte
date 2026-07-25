@@ -5,7 +5,7 @@
 //! the AST and resolves them into `Expression::Typed` by invoking OXC.
 
 use crate::ast::arena::ParseArena;
-use crate::ast::js::Expression;
+use crate::ast::js::{Expression, LazyKind};
 use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, Fragment, Root, TemplateNode,
 };
@@ -393,57 +393,104 @@ fn resolve_expression(
     source: &str,
     first_error: &mut Option<crate::error::ParseError>,
 ) {
-    if let Expression::Lazy { start, end, ts } = expr {
-        let content = &source[*start as usize..*end as usize];
-        let result = super::read::expression::parse_expression(
-            arena,
-            content,
-            *start as usize,
-            line_offsets,
-            "",    // source not needed for loose/disallow_loose=false
-            false, // loose
-            false, // disallow_loose
-            '{',
-            *ts,
-        );
-        match result {
-            Ok(parsed) => {
-                *expr = parsed;
+    let Expression::Lazy {
+        start,
+        end,
+        ts,
+        kind,
+    } = *expr
+    else {
+        return;
+    };
+    let start = start as usize;
+    let content = &source[start..end as usize];
+    // Only mustaches were ever resolved against a populated line-offset table.
+    // Every other kind replaces an eager call that ran with the compile
+    // pipeline's `skip_expression_loc`, i.e. an empty table and `loc: null`.
+    let line_offsets: &[usize] = if kind == LazyKind::Mustache {
+        line_offsets
+    } else {
+        &[]
+    };
+    let result = super::read::expression::parse_expression(
+        arena,
+        content,
+        start,
+        line_offsets,
+        "",    // source not needed for loose/disallow_loose=false
+        false, // loose
+        false, // disallow_loose
+        '{',
+        ts,
+    );
+    match result {
+        Ok(parsed) => {
+            *expr = parsed;
+        }
+        Err((msg, pos)) => {
+            // Store the first parse error encountered
+            if first_error.is_none() {
+                *first_error = Some(lazy_parse_error(kind, msg, content, start));
             }
-            Err((msg, pos)) => {
-                // Store the first parse error encountered
-                if first_error.is_none() {
-                    // Upstream's `read_expression` parses ONE maximal
-                    // expression with acorn and then `eat('}', true)`: a
-                    // complete leading expression followed by leftover tokens
-                    // (e.g. `{foo();}` — the `;` is left over) surfaces as
-                    // `expected_token` (Expected token }), while a malformed
-                    // expression (e.g. `{42 = nope}`, where the error is
-                    // *inside* the expression) is a `js_parse_error`. The
-                    // prefix re-parse guards against the probe mislabelling
-                    // an in-expression error as leftover input.
-                    let trailing =
-                        super::read::expression::trailing_token_offset(content).filter(|&off| {
-                            off > 0
-                                && content.get(..off).is_some_and(|prefix| {
-                                    super::read::expression::check_js_parse_error_with_pos(prefix)
-                                        .is_none()
-                                })
-                        });
-                    *first_error = Some(if let Some(offset) = trailing {
-                        crate::error::ParseError::expected_token("}", *start as usize + offset)
-                    } else {
-                        crate::error::ParseError::svelte(
-                            "js_parse_error",
-                            msg,
-                            (pos, pos + content.len()),
-                        )
-                    });
-                }
-                // Still set the expression to something valid to allow continued processing
-                *expr =
-                    super::read::expression::create_empty_identifier("", pos, pos + content.len());
+            // Still set the expression to something valid to allow continued processing
+            *expr = super::read::expression::create_empty_identifier("", pos, pos + content.len());
+        }
+    }
+}
+
+/// Rebuild the diagnostic the eager parse-time entry point behind `kind` would
+/// have raised for `content` at `start`.
+fn lazy_parse_error(
+    kind: LazyKind,
+    msg: String,
+    content: &str,
+    start: usize,
+) -> crate::error::ParseError {
+    match kind {
+        // Upstream's `read_expression` parses ONE maximal expression with acorn
+        // and then `eat('}', true)`: a complete leading expression followed by
+        // leftover tokens (e.g. `{foo();}` — the `;` is left over) surfaces as
+        // `expected_token` (Expected token }), while a malformed expression
+        // (e.g. `{42 = nope}`, where the error is *inside* the expression) is a
+        // `js_parse_error`. The prefix re-parse guards against the probe
+        // mislabelling an in-expression error as leftover input.
+        LazyKind::Mustache => {
+            let trailing = super::read::expression::trailing_token_offset(content).filter(|&off| {
+                off > 0
+                    && content.get(..off).is_some_and(|prefix| {
+                        super::read::expression::check_js_parse_error_with_pos(prefix).is_none()
+                    })
+            });
+            match trailing {
+                Some(offset) => crate::error::ParseError::expected_token("}", start + offset),
+                None => crate::error::ParseError::svelte(
+                    "js_parse_error",
+                    msg,
+                    (start, start + content.len()),
+                ),
             }
+        }
+        // `parse_js_expression_attribute`: a point error at the byte where OXC
+        // stopped consuming input.
+        LazyKind::Attribute => {
+            let abs_pos = super::read::expression::check_js_parse_error_with_pos(content)
+                .map_or(start, |(_, content_pos)| start + content_pos);
+            crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
+        }
+        // `parse_head_expression`: leftover input after a complete expression is
+        // a missing close token; anything else is a point `js_parse_error`.
+        LazyKind::HeadBrace | LazyKind::HeadParen => {
+            let close = if kind == LazyKind::HeadParen {
+                ")"
+            } else {
+                "}"
+            };
+            if let Some(pos) = super::read::expression::trailing_token_offset(content) {
+                return crate::error::ParseError::expected_token(close, start + pos);
+            }
+            let abs_pos = super::read::expression::check_js_parse_error_with_pos(content)
+                .map_or(start + content.len(), |(_, pos)| start + pos);
+            crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
         }
     }
 }

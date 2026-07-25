@@ -89,6 +89,11 @@ pub struct Parser<'a> {
     /// `generics="T extends { foo: number }"`) are plain text, never JS
     /// expressions — and must not raise `js_parse_error`.
     pub(crate) in_root_script_or_style: bool,
+    /// Whether `<svelte:options>` attributes are currently being parsed.
+    /// `read_options` inspects their values (`runes={false}`,
+    /// `customElement={{…}}`) during the parse itself, so they can never be
+    /// deferred into `Expression::Lazy`.
+    pub(crate) in_svelte_options: bool,
     /// Meta tags (e.g., svelte:head, svelte:options).
     ///
     /// Corresponds to `meta_tags` field in JavaScript Parser.
@@ -207,6 +212,7 @@ impl<'a> Parser<'a> {
             ts,
             script_ts: false,
             in_root_script_or_style: false,
+            in_svelte_options: false,
             meta_tags: FxHashMap::default(),
             last_auto_closed_tag: None,
             parse_warnings: Vec::new(),
@@ -242,6 +248,7 @@ impl<'a> Parser<'a> {
         self.ts = options.force_typescript || Self::detect_typescript_mode(source);
         self.script_ts = false;
         self.in_root_script_or_style = false;
+        self.in_svelte_options = false;
         self.instance_script = None;
         self.module_script = None;
         self.stylesheet = None;

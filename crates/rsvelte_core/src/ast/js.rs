@@ -69,6 +69,24 @@ impl<'a> std::fmt::Debug for TypedExpr<'a> {
     }
 }
 
+/// How a deferred expression's parse failure must be reported, and whether the
+/// eager parser it replaces built `loc` objects. Each variant mirrors one
+/// parse-time entry point so `resolve_lazy_expressions` reproduces its
+/// diagnostics byte-for-byte.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[repr(u8)]
+pub enum LazyKind {
+    /// `{expr}` mustache: leftover input after a complete expression is an
+    /// `expected_token`, anything else a `js_parse_error` spanning the body.
+    Mustache,
+    /// Attribute value / quoted-value chunk: always a point `js_parse_error`.
+    Attribute,
+    /// Block or directive head terminated by `}`.
+    HeadBrace,
+    /// `{#each … (key)}` head terminated by `)`.
+    HeadParen,
+}
+
 /// A JavaScript expression.
 ///
 /// Backed by a typed `JsNode`. The parser produces `Typed` (or `Lazy`, which is
@@ -90,6 +108,8 @@ pub enum Expression<'a> {
         end: u32,
         /// Whether source is TypeScript.
         ts: bool,
+        /// Which parse-time entry point deferred this expression.
+        kind: LazyKind,
     },
 }
 
@@ -433,10 +453,16 @@ impl<'a> Clone for Expression<'a> {
     fn clone(&self) -> Self {
         match self {
             Expression::Typed(te) => Expression::Typed(Box::new((**te).clone())),
-            Expression::Lazy { start, end, ts } => Expression::Lazy {
+            Expression::Lazy {
+                start,
+                end,
+                ts,
+                kind,
+            } => Expression::Lazy {
                 start: *start,
                 end: *end,
                 ts: *ts,
+                kind: *kind,
             },
         }
     }
@@ -451,13 +477,15 @@ impl<'a> PartialEq for Expression<'a> {
                     start: s1,
                     end: e1,
                     ts: t1,
+                    kind: k1,
                 },
                 Expression::Lazy {
                     start: s2,
                     end: e2,
                     ts: t2,
+                    kind: k2,
                 },
-            ) => s1 == s2 && e1 == e2 && t1 == t2,
+            ) => s1 == s2 && e1 == e2 && t1 == t2 && k1 == k2,
             // Cross-variant comparison: convert to JSON
             (a, b) => a.as_json() == b.as_json(),
         }
@@ -468,11 +496,17 @@ impl<'a> std::fmt::Debug for Expression<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expression::Typed(te) => f.debug_tuple("Expression::Typed").field(&te.node).finish(),
-            Expression::Lazy { start, end, ts } => f
+            Expression::Lazy {
+                start,
+                end,
+                ts,
+                kind,
+            } => f
                 .debug_tuple("Expression::Lazy")
                 .field(start)
                 .field(end)
                 .field(ts)
+                .field(kind)
                 .finish(),
         }
     }

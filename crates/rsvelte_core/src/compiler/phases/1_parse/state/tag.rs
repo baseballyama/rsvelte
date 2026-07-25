@@ -11,7 +11,7 @@
 
 use compact_str::CompactString;
 
-use crate::ast::js::Expression;
+use crate::ast::js::{Expression, LazyKind};
 use crate::ast::template::{
     AwaitBlock, ConstTag, DebugTag, DeclarationTag, EachBlock, ExpressionTag, Fragment,
     FragmentType, HtmlTag, IfBlock, KeyBlock, RenderTag, SnippetBlock, TemplateNode,
@@ -2245,6 +2245,7 @@ impl<'a> Parser<'a> {
                     start: (offset + leading_ws) as u32,
                     end: (offset + leading_ws + trimmed.len()) as u32,
                     ts: self.ts,
+                    kind: LazyKind::Mustache,
                 });
             }
         }
@@ -2286,12 +2287,40 @@ impl<'a> Parser<'a> {
         self.parse_js_expression_internal(content, offset, false, '{')
     }
 
-    /// Like `parse_js_expression_strict`, but always parses eagerly (never
-    /// creates a `Lazy` expression). Used for attribute values, which may be
-    /// inspected at parse time (e.g. `<svelte:options runes={false} />`), so
-    /// they cannot be deferred — while still propagating `js_parse_error` for
-    /// invalid expressions like upstream's `read_expression`.
-    pub fn parse_js_expression_strict_eager(
+    /// Defer `trimmed` (already whitespace-trimmed, starting at
+    /// `trimmed_offset`) into an `Expression::Lazy` when the parse options and
+    /// the current context allow it. `resolve_lazy_expressions` reproduces the
+    /// eager entry point's diagnostics from `kind`.
+    ///
+    /// Loose (editor) mode is excluded: it recovers from broken expressions
+    /// with placeholder identifiers, which the resolver cannot reconstruct.
+    /// Comment-bearing bodies are excluded too: the JS comment sink is drained
+    /// into `root.comments` when the parse ends, long before the resolver runs.
+    #[inline]
+    fn defer_expression(
+        &self,
+        trimmed: &str,
+        trimmed_offset: usize,
+        kind: LazyKind,
+    ) -> Option<Expression<'a>> {
+        (self.options.defer_script_parse
+            && !self.options.loose
+            && !self.in_svelte_options
+            && !trimmed.is_empty()
+            && !contains_js_comment(trimmed))
+        .then(|| Expression::Lazy {
+            start: trimmed_offset as u32,
+            end: (trimmed_offset + trimmed.len()) as u32,
+            ts: self.ts,
+            kind,
+        })
+    }
+
+    /// Parse an attribute-value expression, propagating `js_parse_error` for
+    /// invalid expressions like upstream's `read_expression`. Deferred unless
+    /// the value belongs to `<svelte:options>`, whose values `read_options`
+    /// inspects during the parse itself (e.g. `runes={false}`).
+    pub fn parse_js_expression_attribute(
         &self,
         content: &str,
         offset: usize,
@@ -2300,6 +2329,9 @@ impl<'a> Parser<'a> {
         let leading_ws = content.len() - content.trim_start().len();
         let trimmed = content.trim();
         let trimmed_offset = offset + leading_ws;
+        if let Some(lazy) = self.defer_expression(trimmed, trimmed_offset, LazyKind::Attribute) {
+            return Ok(lazy);
+        }
         super::super::expression::parse_expression(
             &self.arena,
             trimmed,
@@ -2346,6 +2378,15 @@ impl<'a> Parser<'a> {
         let trimmed = content.trim();
         let trimmed_offset = offset + leading_ws;
         let opening_token = if close_char == ')' { '(' } else { '{' };
+
+        let kind = if close_char == ')' {
+            LazyKind::HeadParen
+        } else {
+            LazyKind::HeadBrace
+        };
+        if let Some(lazy) = self.defer_expression(trimmed, trimmed_offset, kind) {
+            return Ok(lazy);
+        }
 
         match super::super::read::expression::parse_expression(
             &self.arena,
@@ -2402,6 +2443,20 @@ impl<'a> Parser<'a> {
 /// This handles nested braces/brackets so that colons inside destructuring
 /// patterns (like `{ x: aliasX }`) are not mistakenly treated as type
 /// annotations.
+/// Whether `s` contains a `//` or `/*` comment opener. A `/` inside a string or
+/// regex can produce a false positive, which only costs an eager parse.
+fn contains_js_comment(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while let Some(off) = memchr::memchr(b'/', &bytes[i..]) {
+        i += off + 1;
+        if matches!(bytes.get(i), Some(b'/') | Some(b'*')) {
+            return true;
+        }
+    }
+    false
+}
+
 /// Find the byte offset of the first top-level assignment `=` in a declaration
 /// body, skipping `==` / `===` / `!=` / `<=` / `>=` / `=>` and any `=` inside
 /// strings or `()` / `[]` / `{}` nesting. Returns `None` when there is none.

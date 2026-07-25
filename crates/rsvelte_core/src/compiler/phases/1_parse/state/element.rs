@@ -188,7 +188,12 @@ impl<'a> Parser<'a> {
             (name == "script" || name == "style") && self.stack.len() == 1;
         let prev_in_root_script_or_style = self.in_root_script_or_style;
         self.in_root_script_or_style = is_top_level_script_or_style;
+        // `parse_svelte_options` reads these values below, before
+        // `resolve_lazy_expressions` ever runs, so they must be parsed eagerly.
+        let prev_in_svelte_options = self.in_svelte_options;
+        self.in_svelte_options = name == "svelte:options";
         let attributes_result = self.parse_attributes();
+        self.in_svelte_options = prev_in_svelte_options;
         self.in_root_script_or_style = prev_in_root_script_or_style;
         let attributes = attributes_result?;
 
@@ -1816,7 +1821,7 @@ impl<'a> Parser<'a> {
                         parts.push(AttributeValuePart::ExpressionTag(ExpressionTag {
                             start: expr_start as u32,
                             end: self.index as u32,
-                            expression: self.parse_js_expression_strict_eager(
+                            expression: self.parse_js_expression_attribute(
                                 &self.source[inner_start..inner_end],
                                 inner_start,
                             )?,
@@ -1877,7 +1882,7 @@ impl<'a> Parser<'a> {
                         parts.push(AttributeValuePart::ExpressionTag(ExpressionTag {
                             start: expr_start as u32,
                             end: self.index as u32,
-                            expression: self.parse_js_expression_strict_eager(
+                            expression: self.parse_js_expression_attribute(
                                 &self.source[inner_start..inner_end],
                                 inner_start,
                             )?,
@@ -2343,7 +2348,7 @@ impl<'a> Parser<'a> {
                     // parse leniently and never raise `js_parse_error`.
                     self.parse_js_expression(expr_content, expr_start + 1)
                 } else {
-                    self.parse_js_expression_strict_eager(expr_content, expr_start + 1)?
+                    self.parse_js_expression_attribute(expr_content, expr_start + 1)?
                 };
                 parts.push(AttributeValuePart::ExpressionTag(ExpressionTag {
                     start: expr_start as u32,
