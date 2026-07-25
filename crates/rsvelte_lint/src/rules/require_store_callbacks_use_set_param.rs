@@ -18,7 +18,9 @@ use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
 use crate::rules::store_refs::{collect_store_creators, is_function_expr};
-use crate::script::{ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js};
+use crate::script::{
+    ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/require-store-callbacks-use-set-param",
@@ -257,7 +259,7 @@ impl ScriptRule for RequireStoreCallbacksUseSetParam {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         let creators = collect_store_creators(program);
         if creators.is_empty() {
             return;
@@ -266,7 +268,7 @@ impl ScriptRule for RequireStoreCallbacksUseSetParam {
         let source = ctx.source().to_string();
         let mut reports: Vec<ReportInfo> = Vec::new();
 
-        walk_js(program, |node, _| {
+        program.walk(|node, _| {
             if node_type(node) != Some("CallExpression") {
                 return;
             }

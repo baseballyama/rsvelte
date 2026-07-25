@@ -27,7 +27,7 @@ use rsvelte_core::ast::template::Root;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_start, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_start, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/prefer-svelte-reactivity",
@@ -250,7 +250,7 @@ impl ScriptRule for PreferSvelteReactivity {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         let shadowed = collect_shadowed(program);
         let instances = collect_instances(program, &shadowed);
         // Live instances are already filtered for shadowing inside

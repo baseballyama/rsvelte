@@ -20,7 +20,7 @@ use rsvelte_core::ast::template::{DeclarationTag, Fragment, Root, TemplateNode};
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_start, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_start, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/prefer-const",
@@ -81,9 +81,9 @@ fn collect_template_reassignments(ctx: &LintContext, out: &mut HashSet<String>) 
 /// Add names that are declared by more than one `let`/`var`/`const` declarator
 /// in `program` (a redeclaration), which the core `prefer-const` rule treats as
 /// having multiple writes. Used only on the parse-only fallback path.
-fn add_redeclared_names(program: &Value, out: &mut HashSet<String>) {
+fn add_redeclared_names(program: &ProgramView<'_>, out: &mut HashSet<String>) {
     let mut counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
-    walk_js(program, |node, _| {
+    program.walk(|node, _| {
         if node_type(node) != Some("VariableDeclaration") {
             return;
         }
@@ -402,8 +402,8 @@ fn check_template_declaration_tags(
     reports
 }
 
-fn collect_forin_forof_reassignments(program: &Value, out: &mut HashSet<String>) {
-    walk_js(program, |node, _| {
+fn collect_forin_forof_reassignments(program: &ProgramView<'_>, out: &mut HashSet<String>) {
+    program.walk(|node, _| {
         let ty = node_type(node);
         if !matches!(ty, Some("ForOfStatement") | Some("ForInStatement")) {
             return;
@@ -480,9 +480,11 @@ struct AssignInfo {
 /// target of an `AssignmentExpression` and how many of those are destructuring.
 /// `UpdateExpression` increments `total` (not destructuring) so the name is
 /// excluded from the single-destructuring-assignment fast path.
-fn collect_assignment_info(program: &Value) -> std::collections::HashMap<String, AssignInfo> {
+fn collect_assignment_info(
+    program: &ProgramView<'_>,
+) -> std::collections::HashMap<String, AssignInfo> {
     let mut map: std::collections::HashMap<String, AssignInfo> = std::collections::HashMap::new();
-    walk_js(program, |node, ancestors| match node_type(node) {
+    program.walk(|node, ancestors| match node_type(node) {
         Some("AssignmentExpression") => {
             let Some(left) = node.get("left") else {
                 return;
@@ -593,7 +595,7 @@ impl ScriptRule for PreferConst {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, kind: ScriptKind) {
         // Reassignment info from the analyzed scope (reliable per the R9 audit).
         // `analyze_scope` runs the full Phase-2 analysis, which returns `Err`
         // (→ `None`) when the component has *any* analysis/validation error
@@ -665,7 +667,7 @@ impl ScriptRule for PreferConst {
             == Some("all");
 
         let mut reports: Vec<(u32, u32, String, Option<u32>)> = Vec::new();
-        walk_js(program, |node, ancestors| {
+        program.walk(|node, ancestors| {
             if node_type(node) != Some("VariableDeclaration")
                 || node.get("kind").and_then(Value::as_str) != Some("let")
             {

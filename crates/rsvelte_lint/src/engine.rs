@@ -17,7 +17,7 @@ use crate::diagnostic::LintDiagnostic;
 use crate::registry::{all_rules, all_script_rules};
 use crate::rule::{RuleMeta, Severity};
 use crate::scope::ScopeResolver;
-use crate::script::{ScriptKind, ScriptRule};
+use crate::script::{ProgramView, ScriptKind, ScriptRule};
 use crate::visitor::{EnabledRule, LintVisitor};
 
 /// The lenient parse options every lint pass uses. `lenient_script: true` keeps
@@ -166,9 +166,12 @@ fn run_over_programs(
         .with_path(path)
         .with_scope_resolver(scope_resolver);
     for (kind, program) in programs {
+        // One DFS index per program, shared by every rule (each used to
+        // re-descend the whole JSON tree itself).
+        let view = ProgramView::new(program);
         for (rule, meta, severity) in enabled {
             ctx.enter_rule(meta, *severity);
-            rule.check_program(&mut ctx, program, *kind);
+            rule.check_program(&mut ctx, &view, *kind);
         }
     }
     ctx.into_diagnostics()

@@ -28,7 +28,7 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-immutable-reactive-statements",
@@ -93,8 +93,8 @@ const KNOWN_GLOBALS: &[&str] = &[
 ];
 
 /// Collect names declared by `export let` / `export var` (props).
-fn collect_export_let_props(program: &Value, out: &mut HashSet<String>) {
-    walk_js(program, |node, _| {
+fn collect_export_let_props(program: &ProgramView<'_>, out: &mut HashSet<String>) {
+    program.walk(|node, _| {
         if node_type(node) != Some("ExportNamedDeclaration") {
             return;
         }
@@ -163,9 +163,9 @@ fn expr_base_name(e: Option<&Value>) -> Option<&str> {
 /// program (`delete obj.prop` ⇒ `obj`). Such a delete mutates the object, so the
 /// base name is mutable — mirrors upstream's `hasWriteMember` handling of
 /// `UnaryExpression { operator: 'delete' }`.
-fn collect_delete_mutated(program: &Value) -> HashSet<String> {
+fn collect_delete_mutated(program: &ProgramView<'_>) -> HashSet<String> {
     let mut out = HashSet::new();
-    walk_js(program, |node, _| {
+    program.walk(|node, _| {
         if node_type(node) != Some("UnaryExpression") {
             return;
         }
@@ -418,7 +418,7 @@ impl ScriptRule for NoImmutableReactiveStatements {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         // Try to get full scope analysis. If it fails (e.g. constant_assignment
         // or constant_binding errors that the upstream ESLint scope manager
         // wouldn't reject), continue with empty binding maps — the write-only
@@ -470,7 +470,7 @@ impl ScriptRule for NoImmutableReactiveStatements {
         };
 
         let mut reports: Vec<(u32, u32)> = Vec::new();
-        walk_js(program, |node, _| {
+        program.walk(|node, _| {
             if node_type(node) != Some("LabeledStatement")
                 || node
                     .get("label")

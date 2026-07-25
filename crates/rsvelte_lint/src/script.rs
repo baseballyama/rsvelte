@@ -35,8 +35,62 @@ pub enum ScriptKind {
 pub trait ScriptRule: Send + Sync {
     fn meta(&self) -> &'static RuleMeta;
 
-    /// Called once per script block with the full ESTree program `Value`.
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, kind: ScriptKind);
+    /// Called once per script block with the full ESTree program.
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, kind: ScriptKind);
+}
+
+/// A script program plus its depth-first node index.
+///
+/// Every script rule walks the whole program, so the tree is traversed once
+/// here and each rule replays the flat index instead of re-descending the JSON
+/// (which costs a `type` probe and a child scan per object, per rule).
+/// Derefs to the underlying `Value`, so field access reads as before.
+pub struct ProgramView<'a> {
+    value: &'a Value,
+    /// Nodes in DFS pre-order, with each node's ancestor count. Replaying them
+    /// against a truncate-then-push stack reproduces `walk_js` exactly.
+    nodes: Vec<&'a Value>,
+    depths: Vec<u32>,
+}
+
+impl<'a> ProgramView<'a> {
+    pub fn new(value: &'a Value) -> Self {
+        let mut nodes = Vec::new();
+        let mut depths = Vec::new();
+        let mut stack: Vec<&'a Value> = Vec::new();
+        walk_inner(value, &mut stack, &mut |node, ancestors| {
+            nodes.push(node);
+            depths.push(ancestors.len() as u32);
+        });
+        Self {
+            value,
+            nodes,
+            depths,
+        }
+    }
+
+    /// The underlying program value.
+    pub fn value(&self) -> &'a Value {
+        self.value
+    }
+
+    /// Walk every node of the program, exactly as [`walk_js`] would.
+    pub fn walk<F: FnMut(&'a Value, &[&'a Value])>(&self, mut f: F) {
+        let mut stack: Vec<&'a Value> = Vec::with_capacity(16);
+        for (i, node) in self.nodes.iter().enumerate() {
+            stack.truncate(self.depths[i] as usize);
+            f(node, &stack);
+            stack.push(node);
+        }
+    }
+}
+
+impl std::ops::Deref for ProgramView<'_> {
+    type Target = Value;
+
+    fn deref(&self) -> &Self::Target {
+        self.value
+    }
 }
 
 /// Depth-first walk over an ESTree JSON tree. `f` is called for every node (an

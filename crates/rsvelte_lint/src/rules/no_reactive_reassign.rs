@@ -23,7 +23,7 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-reactive-reassign",
@@ -244,12 +244,12 @@ fn collect_toplevel_decls(program: &Value, out: &mut HashSet<String>) {
 /// Reactive value names (`$: name = …`, `name` not explicitly declared) and the
 /// positions of those defining-LHS identifiers (skipped when scanning refs).
 fn collect_reactive_values(
-    program: &Value,
+    program: &ProgramView<'_>,
     toplevel: &HashSet<String>,
 ) -> (HashSet<String>, HashSet<(u64, u64)>) {
     let mut names = HashSet::new();
     let mut def_lhs = HashSet::new();
-    walk_js(program, |node, _| {
+    program.walk(|node, _| {
         if node_type(node) != Some("LabeledStatement")
             || node
                 .get("label")
@@ -340,7 +340,7 @@ impl ScriptRule for NoReactiveReassign {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         let mut toplevel = HashSet::new();
         collect_toplevel_decls(program, &mut toplevel);
         let (reactive, def_lhs) = collect_reactive_values(program, &toplevel);
