@@ -1412,3 +1412,16 @@ pub struct ComponentNodeMetadata {
     /// Set during Phase 2 analysis from preceding svelte-ignore comments.
     pub ignored_codes: Vec<String>,
 }
+
+// Upper bounds on the expression-bearing template nodes. These are moved by
+// value into `Vec<TemplateNode>` / `Vec<AttributeValuePart>` during parsing, so
+// a size regression here shows up directly as parse-time memcpy.
+const _: () = {
+    use std::mem::size_of;
+    assert!(size_of::<ExpressionTag>() <= 176);
+    assert!(size_of::<Attribute>() <= 296);
+    assert!(size_of::<AttributeValuePart>() <= 176);
+    assert!(size_of::<EachBlock>() <= 384);
+    assert!(size_of::<AwaitBlock>() <= 280);
+    assert!(size_of::<TemplateNode>() <= 128);
+};

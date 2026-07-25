@@ -19,7 +19,9 @@ use super::typed_expr::{JsNode, Loc, SourcePosition};
 /// while still avoiding repeated serialization during analysis/transform.
 pub struct TypedExpr<'a> {
     pub node: JsNode,
-    json_cache: std::cell::OnceCell<serde_json::Value>,
+    /// Boxed so an unpopulated cache costs one null pointer (8 B) rather than
+    /// an inline `serde_json::Value` (72 B) in every expression.
+    json_cache: std::cell::OnceCell<Box<serde_json::Value>>,
     /// Reserves the borrowed-AST lifetime `'a` ahead of M5-B, when the typed
     /// node's verbatim strings (operators, `Literal.raw`) borrow from source.
     _marker: PhantomData<&'a ()>,
@@ -39,7 +41,8 @@ impl<'a> TypedExpr<'a> {
     /// First call is expensive (serde serialization), subsequent calls are O(1).
     #[inline]
     pub fn as_json(&self) -> &serde_json::Value {
-        self.json_cache.get_or_init(|| self.node.to_value())
+        self.json_cache
+            .get_or_init(|| Box::new(self.node.to_value()))
     }
 }
 
@@ -71,14 +74,13 @@ impl<'a> std::fmt::Debug for TypedExpr<'a> {
 /// Backed by a typed `JsNode`. The parser produces `Typed` (or `Lazy`, which is
 /// resolved before analysis); consumers access via `as_json()` (lazy JSON
 /// conversion) or `as_node()` (direct).
-// `Typed` is the overwhelmingly common (hot) variant; `Lazy` is a small,
-// transient placeholder resolved before analysis. Boxing `Typed` to equalize
-// variant sizes would add an allocation + indirection to every expression on
-// the hot path, so we intentionally keep it inline.
-#[allow(clippy::large_enum_variant)]
 pub enum Expression<'a> {
     /// A typed JavaScript expression (performance-optimized).
-    Typed(TypedExpr<'a>),
+    // Boxed: an inline `TypedExpr` made `Expression` 152 B, which the template
+    // AST then embeds up to three times per node — the resulting `Vec` growth
+    // memcpy and struct moves cost more than the one allocation per expression
+    // that boxing adds (A/B: parse −3% fixtures / −6% real-world).
+    Typed(Box<TypedExpr<'a>>),
     /// A deferred expression — stores source byte offsets (zero allocation).
     /// Resolved by `resolve_lazy_expressions()` before analysis.
     Lazy {
@@ -90,6 +92,11 @@ pub enum Expression<'a> {
         ts: bool,
     },
 }
+
+// `Expression` is embedded by value in every expression-bearing template node
+// (`ExpressionTag`, `Attribute`, `EachBlock`, `AwaitBlock`, …), so its width
+// multiplies into `Vec` growth memcpy and struct moves on the parse hot path.
+const _: () = assert!(std::mem::size_of::<Expression<'static>>() == 16);
 
 impl<'a> Expression<'a> {
     /// Create a new identifier expression.
@@ -113,14 +120,14 @@ impl<'a> Expression<'a> {
                 },
             })
         });
-        Expression::Typed(TypedExpr::new(JsNode::Identifier {
+        Expression::Typed(Box::new(TypedExpr::new(JsNode::Identifier {
             start,
             end,
             loc: typed_loc,
             name: name.into(),
             optional: false,
             type_annotation: None,
-        }))
+        })))
     }
 
     /// Create an expression from a JSON value (types it eagerly via `from_value`).
@@ -130,7 +137,7 @@ impl<'a> Expression<'a> {
 
     /// Create an expression from a typed JsNode.
     pub fn from_node(node: JsNode) -> Self {
-        Expression::Typed(TypedExpr::new(node))
+        Expression::Typed(Box::new(TypedExpr::new(node)))
     }
 
     /// Get the underlying JSON value. Cached for Typed variant.
@@ -425,7 +432,7 @@ impl<'a> Expression<'a> {
 impl<'a> Clone for Expression<'a> {
     fn clone(&self) -> Self {
         match self {
-            Expression::Typed(te) => Expression::Typed(te.clone()),
+            Expression::Typed(te) => Expression::Typed(Box::new((**te).clone())),
             Expression::Lazy { start, end, ts } => Expression::Lazy {
                 start: *start,
                 end: *end,
