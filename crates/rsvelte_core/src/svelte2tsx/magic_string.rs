@@ -1330,4 +1330,26 @@ mod tests {
         let t = sm.lookup_token(0, 4).expect("token at generated col 4");
         assert_eq!(t.get_src_col(), 4);
     }
+
+    /// `overwrite` and `remove` walk by ORIGINAL position, not by the chunk
+    /// linked list, so a `move_range` that interleaves a foreign chunk into the
+    /// target range cannot blank it. Locking this in: the property is what
+    /// makes svelte2tsx's phase ordering forgiving, and only a comment guarded
+    /// it before.
+    #[test]
+    fn overwrite_and_remove_ignore_chunks_relocated_into_the_range() {
+        // A=[0,3) B=[3,6) C=[6,9); move C between A and B.
+        let mut s = MagicString::new("AAABBBCCC");
+        s.move_range(6, 9, 3);
+        assert_eq!(s.to_string(), "AAACCCBBB");
+        // [0,6) is A+B in original coordinates; a next-pointer walk would also
+        // reach the relocated C.
+        s.overwrite(0, 6, "X");
+        assert_eq!(s.to_string(), "XCCC");
+
+        let mut s = MagicString::new("AAABBBCCC");
+        s.move_range(6, 9, 3);
+        s.remove(0, 6);
+        assert_eq!(s.to_string(), "CCC");
+    }
 }
