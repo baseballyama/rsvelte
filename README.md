@@ -170,19 +170,19 @@ All npm packages ship under the `@rsvelte` scope.
 
 ## Performance
 
-Multi-threaded rsvelte vs. the official JavaScript tool, same machine, same corpus (3,412 real `.svelte` files; Apple M1 Pro, 10-core; 10 iterations after 3 warmup):
+Multi-threaded rsvelte vs. the official JavaScript tool, same machine, same corpus (3,417 real `.svelte` files; Apple M1 Pro, 10-core; 10 iterations after 3 warmup):
 
 | Task | JS baseline | Rust (1 thread) | Rust (multi) | Multi vs JS |
 |---|---:|---:|---:|---:|
-| Compile — client (full pipeline) | 1,730.1 ms | 494.7 ms | 144.6 ms | **12.0×** |
-| Compile — server (SSR) | 1,470.0 ms | 242.8 ms | 72.0 ms | **20.4×** |
-| Parse only | 310.4 ms | 5.9 ms | 1.9 ms | **162.2×** |
-| `svelte2tsx` | 807.0 ms | 125.8 ms | 36.1 ms | **22.4×** |
-| Format (vs prettier-plugin-svelte) | 7,002.8 ms | 90.9 ms | 25.2 ms | **277.6×** |
-| Lint (vs eslint + eslint-plugin-svelte) | 10,981.7 ms | 1,375.7 ms | 398.9 ms | **27.5×** |
-| `svelte-check` (500-file workspace) | 1,942.8 ms | 91.4 ms | 44.2 ms | **44.0×** |
+| Compile — client (full pipeline) | 742.5 ms | 236.7 ms | 35.1 ms | **21.2×** |
+| Compile — server (SSR) | 602.5 ms | 136.1 ms | 21.6 ms | **27.9×** |
+| Parse only | 174.2 ms | 4.0 ms | 0.8 ms | **217.1×** |
+| `svelte2tsx` | 285.7 ms | 87.5 ms | 13.1 ms | **21.9×** |
+| Format (vs prettier-plugin-svelte) | 3,055.7 ms | 64.0 ms | 10.8 ms | **281.7×** |
+| Lint (vs eslint + eslint-plugin-svelte) | 6,141.0 ms | 720.0 ms | 112.9 ms | **54.4×** |
+| `svelte-check` (500-file workspace) | 1,098.5 ms | 39.0 ms | 12.9 ms | **84.8×** |
 
-The corpus is Svelte's own test suite, restricted to the 3,412 of 3,869 files the official compiler
+The corpus is Svelte's own test suite, restricted to the 3,417 of 3,874 files the official compiler
 accepts under the benchmark's options — otherwise the numbers would partly measure how fast each
 compiler throws. Of the 457 excluded, 290 are valid sources that merely need `experimental.async`
 (which the benchmark does not enable) and 167 are deliberately invalid error-case fixtures.
