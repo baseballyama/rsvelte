@@ -174,13 +174,13 @@ Multi-threaded rsvelte vs. the official JavaScript tool, same machine, same corp
 
 | Task | JS baseline | Rust (1 thread) | Rust (multi) | Multi vs JS |
 |---|---:|---:|---:|---:|
-| Compile — client (full pipeline) | 751.8 ms | 248.3 ms | 34.7 ms | **21.7×** |
-| Compile — server (SSR) | 608.3 ms | 140.9 ms | 22.5 ms | **27.0×** |
-| Parse only | 186.0 ms | 9.9 ms | 2.8 ms | **65.6×** |
-| `svelte2tsx` | 302.1 ms | 99.5 ms | 15.2 ms | **19.9×** |
-| Format (vs prettier-plugin-svelte) | 3,099.2 ms | 82.8 ms | 14.8 ms | **210.1×** |
-| Lint (vs eslint + eslint-plugin-svelte) | 6,158.7 ms | 800.3 ms | 136.1 ms | **45.3×** |
-| `svelte-check` (500-file workspace) | 1,129.5 ms | 39.7 ms | 13.0 ms | **86.8×** |
+| Compile — client (full pipeline) | 1,730.1 ms | 494.7 ms | 144.6 ms | **12.0×** |
+| Compile — server (SSR) | 1,470.0 ms | 242.8 ms | 72.0 ms | **20.4×** |
+| Parse only | 310.4 ms | 5.9 ms | 1.9 ms | **162.2×** |
+| `svelte2tsx` | 807.0 ms | 125.8 ms | 36.1 ms | **22.4×** |
+| Format (vs prettier-plugin-svelte) | 7,002.8 ms | 90.9 ms | 25.2 ms | **277.6×** |
+| Lint (vs eslint + eslint-plugin-svelte) | 10,981.7 ms | 1,375.7 ms | 398.9 ms | **27.5×** |
+| `svelte-check` (500-file workspace) | 1,942.8 ms | 91.4 ms | 44.2 ms | **44.0×** |
 
 The corpus is Svelte's own test suite, restricted to the 3,412 of 3,869 files the official compiler
 accepts under the benchmark's options — otherwise the numbers would partly measure how fast each
