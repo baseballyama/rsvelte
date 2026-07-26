@@ -312,7 +312,7 @@ pub fn process_children<F>(
     // Helper: flush a single node
     let flush_node = |is_text: bool,
                       name: &str,
-                      _loc: Option<&str>,
+                      loc: Option<u32>,
                       prev_fn: &mut SiblingPrev<F>,
                       skip_count: &mut usize,
                       ctx: &mut ComponentContext|
@@ -326,9 +326,12 @@ pub fn process_children<F>(
             // Generate a unique identifier
             let id_name = ctx.state.memoizer.generate_id(name);
             id = b::id(&id_name);
-            ctx.state
-                .init
-                .push(b::var_decl(arena_ref, &id_name, Some(expression)));
+            ctx.state.init.push(b::var_decl_anchored(
+                arena_ref,
+                &id_name,
+                Some(expression),
+                loc,
+            ));
         }
 
         // Update prev to return this id (no allocation — enum variant swap).
@@ -528,13 +531,13 @@ pub fn process_children<F>(
                     }
                 } else {
                     // Get node name for identifier
-                    let name = if let TemplateNode::RegularElement(elem) = node {
-                        elem.name.as_str()
+                    let (name, name_loc) = if let TemplateNode::RegularElement(elem) = node {
+                        (elem.name.as_str(), Some(elem.start))
                     } else {
-                        "node"
+                        ("node", None)
                     };
 
-                    let id = flush_node(false, name, None, &mut prev, &mut skipped, context);
+                    let id = flush_node(false, name, name_loc, &mut prev, &mut skipped, context);
                     // Save original node and temporarily replace it
                     let saved_node = std::mem::replace(&mut context.state.node, id);
                     let result = context.visit_node(node, None);

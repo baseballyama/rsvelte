@@ -10,7 +10,6 @@ mod config;
 mod daemon;
 mod delegation;
 mod native;
-mod sidecar;
 mod stdin;
 mod style;
 mod tailwind;

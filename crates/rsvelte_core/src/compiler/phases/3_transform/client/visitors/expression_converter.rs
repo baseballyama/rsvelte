@@ -3682,7 +3682,11 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                                 let __tmp = convert_json_value(i, context);
                                 context.arena.alloc_expr(__tmp)
                             });
-                            Some(JsVariableDeclarator { id: pattern, init })
+                            Some(JsVariableDeclarator {
+                                id: pattern,
+                                init,
+                                comment_anchor: None,
+                            })
                         })
                         .collect()
                 })
@@ -3831,6 +3835,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                                     Some(JsVariableDeclarator {
                                         id: pattern,
                                         init: init_val,
+                                        comment_anchor: None,
                                     })
                                 })
                                 .collect()
@@ -3932,6 +3937,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                                     Some(JsVariableDeclarator {
                                         id: pattern,
                                         init: init_val,
+                                        comment_anchor: None,
                                     })
                                 })
                                 .collect()
@@ -5021,6 +5027,7 @@ fn try_destructure_assignment(
                 declarations: vec![JsVariableDeclarator {
                     id: JsPattern::Identifier(insert.id.clone().into()),
                     init: Some(context.arena.alloc_expr(insert.value.clone())),
+                    comment_anchor: None,
                 }],
             }));
         }
@@ -5809,6 +5816,7 @@ fn convert_statement_from_jsnode(
                         Some(JsVariableDeclarator {
                             id: pattern,
                             init: init_expr,
+                            comment_anchor: None,
                         })
                     }
                     _ => None,

@@ -4,8 +4,10 @@
 //! These go through `to_oxc`'s comment coordinate space (`Synth`): the script
 //! chunk is re-parsed at its own region of a unified buffer so esrap can place
 //! its comments positionally, while the surrounding synthesized nodes carry no
-//! location. Before that existed, a comment-bearing chunk bailed to the string
-//! codegen — which produced *different* output for every one of these.
+//! location — except the generated element identifiers, which are anchored just
+//! past the chunk they follow so a dangling comment flushes there rather than at
+//! the body tail. Before that existed, a comment-bearing chunk bailed to the
+//! string codegen — which produced *different* output for every one of these.
 //!
 //! Expected outputs are the official Svelte compiler's, verbatim.
 
@@ -32,25 +34,27 @@ fn leading_script_comment_matches_upstream() {
     assert_eq!(client("leading", source), expected);
 }
 
-/// KNOWN DIVERGENCE (#1784): a comment after the script's last statement
-/// migrates to the end of the enclosing function body, because the only span
-/// bracketing it is the function body's. Upstream flushes it at the next
-/// generated node instead (`var // trailing note\n\tp = root();`). The comment is
-/// never lost — only repositioned. Pinned so the position cannot drift further
-/// unnoticed.
+/// A comment after the script's last statement is flushed at the next node
+/// upstream gives a source location — the element identifier of
+/// `var p = root();` — not at the end of the enclosing function body (#1784).
 #[test]
-fn trailing_script_comment_moves_to_the_body_tail() {
+fn trailing_script_comment_flushes_at_the_next_located_node() {
     let source =
         "<script>\n\t// leading note\n\tlet x = 1;\n\t// trailing note\n</script>\n\n<p>{x}</p>\n";
-    let actual = client("leading_and_trailing", source);
-    assert!(
-        actual.contains("\t// leading note\n\tlet x = 1;"),
-        "{actual}"
-    );
-    assert!(
-        actual.contains("\t$.append($$anchor, p);\n\t// trailing note\n}"),
-        "{actual}"
-    );
+    let expected = "import 'svelte/internal/disclose-version';\nimport 'svelte/internal/flags/legacy';\nimport * as $ from 'svelte/internal/client';\n\nvar root = $.from_html(`<p></p>`);\n\nexport default function Leading_and_trailing($$anchor) {\n\t// leading note\n\tlet x = 1;\n\n\tvar // trailing note\n\tp = root();\n\n\tp.textContent = '1';\n\t$.append($$anchor, p);\n}";
+    assert_eq!(client("leading_and_trailing", source), expected);
+}
+
+/// The mirror image: when the element precedes the `<script>`, upstream's
+/// element identifier sits *before* the comment in the source, so nothing is
+/// flushed there and the comment lands at the body tail instead. The anchor
+/// must compare in source order, not in emission order.
+#[test]
+fn trailing_script_comment_stays_at_the_body_tail_when_the_element_comes_first() {
+    let source =
+        "<p>{x}</p>\n\n<script>\n\t// leading note\n\tlet x = 1;\n\t// trailing note\n</script>\n";
+    let expected = "import 'svelte/internal/disclose-version';\nimport 'svelte/internal/flags/legacy';\nimport * as $ from 'svelte/internal/client';\n\nvar root = $.from_html(`<p></p>`);\n\nexport default function Element_first($$anchor) {\n\t// leading note\n\tlet x = 1;\n\n\tvar p = root();\n\n\tp.textContent = '1';\n\t$.append($$anchor, p);\n\t// trailing note\n}";
+    assert_eq!(client("element_first", source), expected);
 }
 
 #[test]

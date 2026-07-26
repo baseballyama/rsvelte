@@ -33,7 +33,7 @@
 use crate::ast::template::{Fragment, FragmentType, Root, RootType, TemplateNode};
 use crate::error::ParseResult;
 
-use super::super::parser::Parser;
+use super::super::parser::{MAX_NESTING_DEPTH, Parser};
 
 impl<'a> Parser<'a> {
     /// Parse the source into a Root AST node.
@@ -274,7 +274,26 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a fragment (sequence of nodes).
+    ///
+    /// Every nested element and block re-enters here, so this is the single
+    /// choke point where template recursion is bounded.
     pub fn parse_fragment(&mut self) -> ParseResult<Fragment<'a>> {
+        if self.depth >= MAX_NESTING_DEPTH {
+            return Err(crate::error::ParseError::svelte(
+                "template_nesting_too_deep",
+                format!(
+                    "Template is nested more than {MAX_NESTING_DEPTH} levels deep. Split the markup into components"
+                ),
+                (self.index, self.index),
+            ));
+        }
+        self.depth += 1;
+        let result = self.parse_fragment_inner();
+        self.depth -= 1;
+        result
+    }
+
+    fn parse_fragment_inner(&mut self) -> ParseResult<Fragment<'a>> {
         use super::super::parser::StackEntry;
         use super::super::utils::is_void_element;
 

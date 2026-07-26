@@ -1313,6 +1313,7 @@ pub fn const_decl(arena: &JsArena, name: impl Into<CompactString>, init: JsExpr)
         declarations: vec![JsVariableDeclarator {
             id: id_pattern(name),
             init: Some(arena.alloc_expr(init)),
+            comment_anchor: None,
         }],
     })
 }
@@ -1328,6 +1329,7 @@ pub fn let_decl(
         declarations: vec![JsVariableDeclarator {
             id: id_pattern(name),
             init: init.map(|e| arena.alloc_expr(e)),
+            comment_anchor: None,
         }],
     })
 }
@@ -1344,6 +1346,26 @@ pub fn var_decl(
         declarations: vec![JsVariableDeclarator {
             id: id_pattern(name),
             init: init.map(|e| arena.alloc_expr(e)),
+            comment_anchor: None,
+        }],
+    })
+}
+
+/// `var name = init;` whose identifier carries the original-source offset
+/// upstream stamps on it (`b.var(b.id(name, element.name_loc), …)`). See
+/// [`JsVariableDeclarator::comment_anchor`].
+pub fn var_decl_anchored(
+    arena: &JsArena,
+    name: impl Into<CompactString>,
+    init: Option<JsExpr>,
+    comment_anchor: Option<u32>,
+) -> JsStatement {
+    JsStatement::VariableDeclaration(JsVariableDeclaration {
+        kind: JsVariableKind::Var,
+        declarations: vec![JsVariableDeclarator {
+            id: id_pattern(name),
+            init: init.map(|e| arena.alloc_expr(e)),
+            comment_anchor,
         }],
     })
 }
@@ -1360,6 +1382,7 @@ pub fn var_decl_pattern(
         declarations: vec![JsVariableDeclarator {
             id: pattern,
             init: init.map(|e| arena.alloc_expr(e)),
+            comment_anchor: None,
         }],
     })
 }

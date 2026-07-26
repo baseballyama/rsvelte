@@ -360,11 +360,6 @@ impl ParseArena {
             let store = &*self.js_nodes.get();
             let index = id.0 as usize;
             if index >= store.len {
-                #[cfg(debug_assertions)]
-                eprintln!(
-                    "ARENA MISMATCH: get_js_node(id={}) but arena has {} nodes",
-                    id.0, store.len
-                );
                 static NULL_NODE: JsNode = JsNode::Null;
                 return &NULL_NODE;
             }
@@ -405,11 +400,6 @@ impl ParseArena {
             let start = range.start as usize;
             let len = range.len as usize;
             if start + len > store.len {
-                #[cfg(debug_assertions)]
-                eprintln!(
-                    "ARENA CHILDREN MISMATCH: range({},{}) but arena has {} children",
-                    range.start, range.len, store.len
-                );
                 return &[];
             }
             std::slice::from_raw_parts(store.ptr(start), len)

@@ -71,10 +71,7 @@ fn remove_internal_fields(value: &mut serde_json::Value) {
 /// files this change does not own, so they are ratcheted here and tracked in
 /// issue #1808. Shrink-only in both directions: a new stale entry fails, and an
 /// entry that stops applying must be dropped from the list.
-const KNOWN_STALE_SKIPS: &[(&str, &str)] = &[
-    ("runtime-runes", "async-each-const-await-iife"),
-    ("runtime-runes", "async-parallel-derived-template-mutation"),
-];
+const KNOWN_STALE_SKIPS: &[(&str, &str)] = &[];
 
 /// Sibling test sources are embedded so the audited names come from the real
 /// skip lists instead of a hand-copied duplicate that silently rots.

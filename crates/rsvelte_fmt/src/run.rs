@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 use anyhow::{Result, anyhow};
@@ -10,7 +10,7 @@ use crate::native_css::{CssOptionsResolver, run_native_css};
 use crate::native_js::{JsOptionsResolver, run_native_js};
 use crate::native_json::{JsonOptionsResolver, run_native_json};
 use crate::options::{OptionFlags, build_css_options, build_format_options, build_json_options};
-use crate::oxfmt::{load_oxfmt_runtime_sidecar, run_oxfmt, set_oxfmt_node};
+use crate::oxfmt::run_oxfmt;
 use crate::oxfmt_ignore;
 use crate::status::{Mode, PipelineStatus, combine};
 use crate::stdin::run_stdin;
@@ -20,25 +20,6 @@ use crate::walk::partition_files;
 
 pub fn run() -> Result<ExitCode> {
     let mut cli = Cli::parse();
-
-    // Native-direct install: when not launched via the npm JS launcher (which
-    // passes `--oxfmt-bin` + `RSVELTE_FMT_NODE`) and the user didn't override
-    // `--oxfmt-bin`, recover the consumer's `oxfmt` launcher + Node interpreter
-    // from the `postinstall` sidecar written next to this binary. This is what
-    // lets the JS launcher be dropped from the hot path (#1177 follow-up): the
-    // platform binary runs directly, then finds oxfmt the same way the launcher
-    // would have.
-    let launched_via_js_launcher = std::env::var_os("RSVELTE_FMT_NODE")
-        .filter(|v| !v.is_empty())
-        .is_some();
-    let user_set_oxfmt_bin = cli.oxfmt_bin != Path::new("oxfmt");
-    if !launched_via_js_launcher
-        && !user_set_oxfmt_bin
-        && let Some((oxfmt_bin, node)) = load_oxfmt_runtime_sidecar()
-    {
-        cli.oxfmt_bin = oxfmt_bin;
-        set_oxfmt_node(node);
-    }
 
     // Resolve the project's `.oxfmtrc` once. Standalone files delegated to
     // `oxfmt` discover it themselves; we resolve it here so inline `<script>`

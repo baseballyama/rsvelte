@@ -63,10 +63,8 @@ pub(crate) fn fragment_has_collapse_candidate(fragment: &Fragment) -> bool {
         // top-level text and `{@html}` runs are collapse targets too, not just
         // element bodies.
         match n {
-            TemplateNode::Text(t) => {
-                if !crate::is_blank_text(t.data.as_ref()) {
-                    return true;
-                }
+            TemplateNode::Text(t) if !crate::is_blank_text(t.data.as_ref()) => {
+                return true;
             }
             TemplateNode::ExpressionTag(_)
             | TemplateNode::HtmlTag(_)

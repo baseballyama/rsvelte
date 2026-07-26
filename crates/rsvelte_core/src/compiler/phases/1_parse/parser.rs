@@ -124,7 +124,24 @@ pub struct Parser<'a> {
     pub(crate) root_comments: std::cell::RefCell<Vec<crate::ast::template::JsComment>>,
     /// Arena allocator for JsNode instances created during parsing.
     pub(crate) arena: ParseArena,
+    /// Current template nesting depth, bounded by [`MAX_NESTING_DEPTH`].
+    pub(crate) depth: u32,
 }
+
+/// Maximum nesting depth accepted by the parser, for both template markup and
+/// the CSS inside `<style>`.
+///
+/// Nothing in the source bounds this recursion, so without the cap deeply
+/// nested input overflows the stack — an abort no embedder can contain, since
+/// a stack overflow is not a panic. Upstream Svelte needs no equivalent limit
+/// because a JS engine turns the same input into a catchable `RangeError`.
+///
+/// 128 is generous but conservative: the deepest component in the Svelte repo
+/// (4,461 files) and in this one nests 21 levels, while a whole compile at the
+/// limit stays under ~0.5 MiB of stack in a release build and ~2 MiB in a debug
+/// build — inside the 1 MiB a wasm build gets, the 2 MiB of a spawned worker,
+/// and the 8 MiB of a default main thread.
+pub const MAX_NESTING_DEPTH: u32 = 128;
 
 /// An entry on the parser stack.
 #[derive(Debug, Clone)]
@@ -227,6 +244,7 @@ impl<'a> Parser<'a> {
             parse_warnings: Vec::new(),
             root_comments: std::cell::RefCell::new(Vec::new()),
             arena: ParseArena::new(),
+            depth: 0,
         }
     }
 
@@ -268,6 +286,7 @@ impl<'a> Parser<'a> {
         self.last_auto_closed_tag = None;
         self.parse_warnings.clear();
         self.root_comments.borrow_mut().clear();
+        self.depth = 0;
         let _ = crate::compiler::phases::phase1_parse::read::expression::take_expr_comments();
         self.arena = ParseArena::new(); // Fresh arena per file
     }

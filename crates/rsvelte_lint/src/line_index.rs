@@ -15,12 +15,23 @@ pub struct LineIndex<'a> {
 
 impl<'a> LineIndex<'a> {
     pub fn new(source: &'a str) -> Self {
-        let mut line_starts = Vec::with_capacity(source.len() / 32 + 1);
+        let bytes = source.as_bytes();
+        let mut line_starts = Vec::with_capacity(bytes.len() / 32 + 1);
         line_starts.push(0);
-        for (i, b) in source.bytes().enumerate() {
-            if b == b'\n' {
-                line_starts.push(i as u32 + 1);
+        let mut i = 0;
+        while i < bytes.len() {
+            match bytes[i] {
+                b'\n' => line_starts.push(i as u32 + 1),
+                // A lone `\r` also terminates a line, matching ESLint/the LSP text model.
+                b'\r' => {
+                    if bytes.get(i + 1) == Some(&b'\n') {
+                        i += 1;
+                    }
+                    line_starts.push(i as u32 + 1);
+                }
+                _ => {}
             }
+            i += 1;
         }
         Self {
             source,
@@ -78,5 +89,41 @@ mod tests {
         let idx = LineIndex::new(src);
         let x_off = "💡".len() as u32;
         assert_eq!(idx.position(x_off), (1, 2));
+    }
+
+    #[test]
+    fn lf_terminates_lines() {
+        let idx = LineIndex::new("a\nb\nc");
+        assert_eq!(idx.position(0), (1, 0)); // 'a'
+        assert_eq!(idx.position(2), (2, 0)); // 'b'
+        assert_eq!(idx.position(4), (3, 0)); // 'c'
+    }
+
+    #[test]
+    fn crlf_terminates_lines() {
+        let idx = LineIndex::new("a\r\nb\r\nc");
+        assert_eq!(idx.position(0), (1, 0)); // 'a'
+        assert_eq!(idx.position(3), (2, 0)); // 'b'
+        assert_eq!(idx.position(6), (3, 0)); // 'c'
+    }
+
+    #[test]
+    fn lone_cr_terminates_lines() {
+        // Classic Mac line endings: a lone `\r` (not followed by `\n`) still
+        // starts a new line, matching ESLint/eslint-plugin-svelte.
+        let idx = LineIndex::new("a\rb\rc");
+        assert_eq!(idx.position(0), (1, 0)); // 'a'
+        assert_eq!(idx.position(2), (2, 0)); // 'b'
+        assert_eq!(idx.position(4), (3, 0)); // 'c'
+    }
+
+    #[test]
+    fn issue_1793_reproduction() {
+        // From #1793: three lone-CR-terminated tags; the `{@html v}` offset
+        // must land on line 3, not be swallowed into line 1.
+        let src = "<p>aaa</p>\r<p>bbb</p>\r<div>{@html v}</div>\r";
+        let idx = LineIndex::new(src);
+        let html_offset = src.find("{@html").unwrap() as u32;
+        assert_eq!(idx.position(html_offset), (3, 5));
     }
 }

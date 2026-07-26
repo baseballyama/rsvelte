@@ -262,10 +262,11 @@ pub fn fragment(
             // Initialize element: `var <id_name> = root();`
             context.state.init.insert(
                 0,
-                b::var_decl(
+                b::var_decl_anchored(
                     &context.arena,
                     &id_name,
                     Some(b::call(&context.arena, template_id_expr, vec![])),
+                    Some(element.start),
                 ),
             );
 

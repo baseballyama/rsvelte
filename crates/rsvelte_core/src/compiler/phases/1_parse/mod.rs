@@ -66,7 +66,7 @@ pub(crate) use read::expression;
 use crate::ast::Root;
 use crate::error::ParseResult;
 
-pub use parser::Parser;
+pub use parser::{MAX_NESTING_DEPTH, Parser};
 
 /// Parse options.
 #[derive(Debug, Clone, Copy, Default)]

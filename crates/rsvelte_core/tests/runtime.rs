@@ -202,19 +202,9 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // declaration tags route into the shared `$.run([…])` async group, the
     // awaited `$derived` reads register the `$.get` transform, and the each
     // collection + index param + per-binding blocker dedup all match upstream.
-    // Svelte 5.56.0 #18309 (`e705369de` "fix: propagate async @const
-    // blockers through closure references"): rsvelte's per-template_effect
-    // blocker scanner does not yet propagate awaited `@const` blockers
-    // across closure boundaries (IIFE in template expressions).
-    "async-each-const-await-iife",
     // Pre-existing: template_effect double-counts `$$promises` inside an
-    // `$.async(...)` wrapper for the IfBlock branch. Same blocker-scanner
-    // cluster as `async-each-const-await-iife`.
+    // `$.async(...)` wrapper for the IfBlock branch.
     "async-style-after-await",
-    // New 5.56.4 fixture (#18453, `36ae0622a` server-side
-    // async-derived-template-mutation). Client output matches; the server
-    // async-derived template-mutation codegen is not yet ported (server=MISMATCH).
-    "async-parallel-derived-template-mutation",
     // New 5.56.x fixture (#18525, `bfbb026f2`): `<svelte:boundary {pending}>`
     // with a `$derived` pending attribute. The SERVER `pending` ATTRIBUTE branch
     // (`build_pending_attribute_block` + the `is_pending_attr_nullish`

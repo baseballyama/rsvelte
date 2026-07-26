@@ -200,7 +200,7 @@ const EXPECTED_ANCHOR_COUNT: usize = 23;
 /// `<sample>/<target>` pairs whose generated code is byte-identical to the
 /// official compiler's — the population `map-parity` can observe at all. A drop
 /// means byte-parity regressed and the map check silently shrank with it.
-const EXPECTED_IDENTICAL_OUTPUTS: usize = 55;
+const EXPECTED_IDENTICAL_OUTPUTS: usize = 56;
 
 /// What `scripts/fixtures/generate-fixtures.mjs` compiled the oracle with. Every
 /// sourcemaps `_config.js` fails to import under the generator (it pulls in the
