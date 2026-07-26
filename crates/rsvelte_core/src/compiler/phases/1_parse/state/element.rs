@@ -2540,10 +2540,7 @@ impl<'a> Parser<'a> {
                         .collect();
                     return Err(crate::error::ParseError::svelte(
                         "tag_invalid_placement",
-                        format!(
-                            "{{@{} ...}} tag cannot be inside a <textarea>",
-                            tag_name_str
-                        ),
+                        format!("{{@{} ...}} tag cannot be inside <textarea>", tag_name_str),
                         (mustache_start, mustache_start),
                     ));
                 }

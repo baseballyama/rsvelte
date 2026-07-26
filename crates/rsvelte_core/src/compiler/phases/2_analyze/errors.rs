@@ -45,8 +45,8 @@ diagnostics! {
     /// `%rune%` cannot be used with arguments
     rune_invalid_arguments(rune: &str) => "`{}` cannot be used with arguments", rune;
 
-    /// `%rune%` cannot be used with spread arguments
-    rune_invalid_spread(rune: &str) => "`{}` cannot be used with spread arguments", rune;
+    /// `%rune%` cannot be called with a spread argument
+    rune_invalid_spread(rune: &str) => "`{}` cannot be called with a spread argument", rune;
 
     /// `%rune%` requires %expected%
     rune_invalid_arguments_length(rune: &str, expected: &str) => "`{}` requires {}", rune, expected;
@@ -65,8 +65,14 @@ diagnostics! {
 
     // Binding-related errors
 
-    /// `%name%` can only be bound to %target%
-    bind_invalid_target(name: &str, target: &str) => "`{}` can only be bound to {}", name, target;
+    /// `bind:%name%` can only be used with %elements%
+    bind_invalid_target(name: &str, elements: &str) => "`bind:{}` can only be used with {}", name, elements;
+
+    /// `bind:group` can only bind to an Identifier or MemberExpression
+    bind_group_invalid_expression() => "`bind:group` can only bind to an Identifier or MemberExpression";
+
+    /// Cannot `bind:group` to a snippet parameter
+    bind_group_invalid_snippet_parameter() => "Cannot `bind:group` to a snippet parameter";
 
     /// Cannot assign to %thing%
     constant_assignment(thing: &str) => "Cannot assign to {}", thing;
@@ -79,8 +85,8 @@ diagnostics! {
     /// Attributes need to be unique
     attribute_duplicate() => "Attributes need to be unique";
 
-    /// '%name%' attribute cannot be dynamic
-    attribute_invalid_type(name: &str) => "'{}' attribute cannot be dynamic", name;
+    /// 'type' attribute must be a static text value if input uses two-way binding
+    attribute_invalid_type() => "'type' attribute must be a static text value if input uses two-way binding";
 
     /// The 'multiple' attribute must be static if select uses two-way binding
     attribute_invalid_multiple() => "'multiple' attribute must be static if select uses two-way binding\nhttps://svelte.dev/e/attribute_invalid_multiple";
@@ -98,8 +104,8 @@ diagnostics! {
     /// `%name%` has already been declared on this class
     state_field_duplicate(name: &str) => "`{}` has already been declared on this class", name;
 
-    /// Cannot declare a variable with the same name as an import inside `<script module>`
-    declaration_duplicate_module_import() => "Cannot declare a variable with the same name as an import inside `<script module>`";
+    /// Cannot declare a variable with the same name as an import from `<script module>`
+    declaration_duplicate_module_import() => "Cannot declare a variable with the same name as an import from `<script module>`";
 
     // Export-related errors
 
@@ -170,8 +176,8 @@ diagnostics! {
     /// `{#each}` block with a key requires an `as` binding
     each_key_without_as() => "An `{#each ...}` block without an `as` clause cannot have a key";
 
-    /// Cannot assign to %thing% before initialization
-    state_field_invalid_assignment() => "Cannot assign to state field before initialization in constructor";
+    /// Cannot assign to a state field before its declaration
+    state_field_invalid_assignment() => "Cannot assign to a state field before its declaration";
 
     /// %name% cannot have children
     svelte_meta_invalid_content(name: &str) => "`<{}>` cannot have children", name;
@@ -218,11 +224,11 @@ diagnostics! {
 
     // Transition/animation directive errors
 
-    /// An element can only have one '%name%' directive
-    transition_duplicate(directive_name: &str) => "An element can only have one '{}' directive", directive_name;
+    /// Cannot use multiple `%type%:` directives on a single element
+    transition_duplicate(directive_name: &str) => "Cannot use multiple `{}:` directives on a single element", directive_name;
 
-    /// An element cannot have both '%a%' and '%b%' directives
-    transition_conflict(a: &str, b: &str) => "An element cannot have both '{}' and '{}' directives", a, b;
+    /// Cannot use `%type%:` alongside existing `%existing%:` directive
+    transition_conflict(a: &str, b: &str) => "Cannot use `{}:` alongside existing `{}:` directive", a, b;
 
     /// An element can only have one animate directive
     animation_duplicate() => "An element can only have one 'animate' directive\nhttps://svelte.dev/e/animation_duplicate";
@@ -268,8 +274,8 @@ diagnostics! {
     /// Nesting selectors can only be used inside a rule or as the first selector inside a lone `:global(...)`
     css_nesting_selector_invalid_placement() => "Nesting selectors can only be used inside a rule or as the first selector inside a lone `:global(...)`";
 
-    /// Type selector cannot appear after `:global(...)`
-    css_type_selector_invalid_placement() => "Type selector cannot appear after `:global(...)`";
+    /// `:global(...)` must not be followed by a type selector
+    css_type_selector_invalid_placement() => "`:global(...)` must not be followed by a type selector";
 
     /// Declaration cannot be empty
     css_empty_declaration() => "Declaration cannot be empty";
@@ -401,14 +407,14 @@ diagnostics! {
     /// Event attribute must be a JavaScript expression, not a string
     attribute_invalid_event_handler() => "Event attribute must be a JavaScript expression, not a string\nhttps://svelte.dev/e/attribute_invalid_event_handler";
 
-    /// A component can only have one instance-level `<script>` element
-    script_duplicate() => "A component can only have one instance-level `<script>` element\nhttps://svelte.dev/e/script_duplicate";
+    /// A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element
+    script_duplicate() => "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate";
 
     /// `let:` directive at invalid position
     let_directive_invalid_placement() => "`let:` directive at invalid position\nhttps://svelte.dev/e/let_directive_invalid_placement";
 
-    /// `<svelte:element>` or `<svelte:window>` cannot have spread attributes
-    illegal_element_attribute(element: &str) => "`<{}>` cannot have spread attributes\nhttps://svelte.dev/e/illegal_element_attribute", element;
+    /// `<%name%>` does not support non-event attributes or spread attributes
+    illegal_element_attribute(element: &str) => "`<{}>` does not support non-event attributes or spread attributes\nhttps://svelte.dev/e/illegal_element_attribute", element;
 
     /// `{@debug ...}` arguments must be identifiers
     debug_tag_invalid_arguments() => "{@debug ...} arguments must be identifiers, not arbitrary expressions\nhttps://svelte.dev/e/debug_tag_invalid_arguments";

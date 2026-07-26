@@ -13,9 +13,11 @@ use std::fs;
 
 use common::{
     CategoryResult, CompatibilityReport, FixtureCoverage, SampleDetails, SampleResult, SkipReason,
-    TestCategory, TestStatus, canonicalize_css, compare_js, ensure_fixtures_exist, fixtures_path,
-    get_fixture_samples, get_svelte_test_samples, load_fixture_output, runtime_fixture_options,
-    runtime_skip_names, svelte_path, write_actual_output,
+    TestCategory, TestStatus, canonicalize_css, check_validator_error, compare_js,
+    ensure_fixtures_exist, error_code_matches, fixtures_path, get_fixture_samples,
+    get_svelte_test_samples, load_expected_validator_error, load_fixture_output, read_fixture_file,
+    runtime_fixture_options, runtime_skip_names, svelte_path, validator_error_result,
+    write_actual_output,
 };
 use rsvelte_core::{
     CompileOptions, ExperimentalOptions, GenerateMode, ModuleCompileOptions, ParseOptions, compile,
@@ -102,17 +104,17 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
         let input_path = sample_dir.join("input.svelte");
         let output_path = sample_dir.join("output.json");
 
-        let input = match fs::read_to_string(&input_path) {
-            Ok(s) => s,
-            Err(_) => {
+        let input = match read_fixture_file(&input_path) {
+            Some(s) => s,
+            None => {
                 coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
                 continue;
             }
         };
 
-        let expected = match fs::read_to_string(&output_path) {
-            Ok(s) => s,
-            Err(_) => {
+        let expected = match read_fixture_file(&output_path) {
+            Some(s) => s,
+            None => {
                 coverage.skipped(&name, SkipReason::MissingInput("output.json"));
                 continue;
             }
@@ -304,9 +306,9 @@ fn run_snapshot_tests() -> CategoryResult {
                 (false, false)
             };
 
-        let input = match fs::read_to_string(&input_path) {
-            Ok(s) => s,
-            Err(_) => {
+        let input = match read_fixture_file(&input_path) {
+            Some(s) => s,
+            None => {
                 coverage.skipped(&name, SkipReason::MissingInput("index.svelte"));
                 continue;
             }
@@ -462,9 +464,9 @@ fn run_css_tests() -> CategoryResult {
             .join(&name)
             .join("input.svelte");
 
-        let input = match fs::read_to_string(&input_path) {
-            Ok(s) => s,
-            Err(_) => {
+        let input = match read_fixture_file(&input_path) {
+            Some(s) => s,
+            None => {
                 coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
                 continue;
             }
@@ -618,9 +620,9 @@ fn run_validator_tests() -> CategoryResult {
         } else {
             &svelte_path
         };
-        let input = match fs::read_to_string(input_file) {
-            Ok(s) => s,
-            Err(_) => {
+        let input = match read_fixture_file(input_file) {
+            Some(s) => s,
+            None => {
                 coverage.skipped(
                     &name,
                     SkipReason::MissingInput("readable input.svelte(.js)"),
@@ -634,19 +636,14 @@ fn run_validator_tests() -> CategoryResult {
         let errors_path = sample_dir.join("errors.json");
 
         let expected_warnings: Vec<serde_json::Value> = if warnings_path.exists() {
-            let content = fs::read_to_string(&warnings_path).unwrap_or_default();
+            let content = read_fixture_file(&warnings_path).unwrap_or_default();
             serde_json::from_str(&content).unwrap_or_default()
         } else {
             Vec::new()
         };
 
-        let expected_error: Option<serde_json::Value> = if errors_path.exists() {
-            let content = fs::read_to_string(&errors_path).unwrap_or_default();
-            let errors: Vec<serde_json::Value> = serde_json::from_str(&content).unwrap_or_default();
-            errors.into_iter().next()
-        } else {
-            None
-        };
+        let expected_error = load_expected_validator_error(&errors_path)
+            .unwrap_or_else(|e| panic!("{}: {e}", sample_dir.display()));
 
         // Parse compileOptions and warningFilter from _config.js
         let mut warning_filter_codes: Vec<String> = Vec::new();
@@ -770,58 +767,28 @@ fn run_validator_tests() -> CategoryResult {
                 }
                 Err(e) => {
                     if let Some(expected) = &expected_error {
-                        let error_str = format!("{:?}", e);
-                        let expected_code =
-                            expected.get("code").and_then(|v| v.as_str()).unwrap_or("");
-
-                        let code_matches = error_str.contains(expected_code)
-                            || error_str
-                                .to_lowercase()
-                                .contains(&expected_code.replace('_', " ").to_lowercase())
-                            // Transform parse errors (OxcDiagnostic) should match js_parse_error
-                            || (expected_code == "js_parse_error"
-                                && error_str.contains("Parse errors"))
-                            // TypeScript feature errors from OXC should match typescript_invalid_feature
-                            || (expected_code == "typescript_invalid_feature"
-                                && (error_str.contains("Parameter modifiers can only be used in TypeScript")
-                                    || error_str.contains("namespace")
-                                    || error_str.contains("TypeScriptInvalidFeature")
-                                    || error_str.contains("decorator")
-                                    || error_str.contains("accessor")
-                                    || error_str.contains("enum")
-                                    || error_str.contains("Parse errors")))
-                            // Reserved words cause parse errors
-                            || (expected_code == "unexpected_reserved_word"
-                                && (error_str.contains("Parse errors")
-                                    || error_str.contains("Unexpected token")))
-                            // Rune spread errors may cause parse errors
-                            || (expected_code == "rune_invalid_spread"
-                                && error_str.contains("Parse errors"));
-
+                        let verdict = check_validator_error(expected, &e);
+                        let outcome = validator_error_result(&name, verdict);
                         let details = SampleDetails {
-                            errors_matched: Some(code_matches),
+                            errors_matched: Some(outcome.is_ok()),
                             ..Default::default()
                         };
 
-                        if code_matches {
-                            result.add_sample(SampleResult {
+                        match outcome {
+                            Ok(()) => result.add_sample(SampleResult {
                                 name,
                                 status: TestStatus::Passed,
                                 error: None,
                                 skip_reason: None,
                                 details: Some(details),
-                            });
-                        } else {
-                            result.add_sample(SampleResult {
+                            }),
+                            Err(detail) => result.add_sample(SampleResult {
                                 name,
                                 status: TestStatus::Failed,
-                                error: Some(format!(
-                                    "Expected error '{}', got: {}",
-                                    expected_code, error_str
-                                )),
+                                error: Some(detail),
                                 skip_reason: None,
                                 details: Some(details),
-                            });
+                            }),
                         }
                     } else {
                         result.add_sample(SampleResult {
@@ -891,9 +858,9 @@ fn run_compiler_error_tests() -> CategoryResult {
             &svelte_path
         };
 
-        let input = match fs::read_to_string(input_file) {
-            Ok(s) => s,
-            Err(_) => {
+        let input = match read_fixture_file(input_file) {
+            Some(s) => s,
+            None => {
                 coverage.skipped(&name, SkipReason::MissingInput("readable main.svelte(.js)"));
                 continue;
             }
@@ -944,10 +911,8 @@ fn run_compiler_error_tests() -> CategoryResult {
             }
             Ok(Err(e)) => {
                 let error_str = format!("{:?}", e);
-                let code_matches = error_str.contains(&expected_code)
-                    || error_str
-                        .to_lowercase()
-                        .contains(&expected_code.replace('_', " ").to_lowercase());
+                let display_str = format!("{}", e);
+                let code_matches = error_code_matches(&expected_code, &[&error_str, &display_str]);
 
                 if code_matches {
                     result.add_sample(SampleResult {
@@ -1078,9 +1043,9 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         // gates so the report cannot measure something else than they do.
         let fixture_options = runtime_fixture_options(category, &name);
 
-        let input = match fs::read_to_string(&input_path) {
-            Ok(s) => s,
-            Err(_) => {
+        let input = match read_fixture_file(&input_path) {
+            Some(s) => s,
+            None => {
                 coverage.skipped(&name, SkipReason::MissingInput("readable entry point"));
                 continue;
             }
@@ -1235,16 +1200,16 @@ fn run_print_tests() -> CategoryResult {
             continue;
         }
 
-        let input = match fs::read_to_string(sample_dir.join("input.svelte")) {
-            Ok(s) => s,
-            Err(_) => {
+        let input = match read_fixture_file(&sample_dir.join("input.svelte")) {
+            Some(s) => s,
+            None => {
                 coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
                 continue;
             }
         };
-        let expected = match fs::read_to_string(sample_dir.join("output.svelte")) {
-            Ok(s) => s,
-            Err(_) => {
+        let expected = match read_fixture_file(&sample_dir.join("output.svelte")) {
+            Some(s) => s,
+            None => {
                 coverage.skipped(&name, SkipReason::MissingInput("output.svelte"));
                 continue;
             }
@@ -1341,16 +1306,16 @@ fn run_preprocess_tests() -> CategoryResult {
             .unwrap_or("unknown")
             .to_string();
 
-        let input = match fs::read_to_string(sample_dir.join("input.svelte")) {
-            Ok(s) => s,
-            Err(_) => {
+        let input = match read_fixture_file(&sample_dir.join("input.svelte")) {
+            Some(s) => s,
+            None => {
                 coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
                 continue;
             }
         };
-        let expected = match fs::read_to_string(sample_dir.join("output.svelte")) {
-            Ok(s) => s,
-            Err(_) => {
+        let expected = match read_fixture_file(&sample_dir.join("output.svelte")) {
+            Some(s) => s,
+            None => {
                 coverage.skipped(&name, SkipReason::MissingInput("output.svelte"));
                 continue;
             }

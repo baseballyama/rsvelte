@@ -4,10 +4,11 @@
 
 mod common;
 
-use std::fs;
 use std::path::Path;
 
-use common::{FixtureCoverage, SkipReason, get_svelte_test_samples, sample_name};
+use common::{
+    FixtureCoverage, SkipReason, get_svelte_test_samples, read_fixture_file, sample_name,
+};
 use rsvelte_core::compiler::print::print_with_source;
 use rsvelte_core::{ParseOptions, parse};
 
@@ -34,13 +35,12 @@ fn load_print_fixture(sample_dir: &Path) -> Result<PrintFixture, SkipReason> {
 
     // Load input from Svelte test suite
     let input_path = sample_dir.join("input.svelte");
-    let input =
-        fs::read_to_string(&input_path).map_err(|_| SkipReason::MissingInput("input.svelte"))?;
+    let input = read_fixture_file(&input_path).ok_or(SkipReason::MissingInput("input.svelte"))?;
 
     // Load expected output from Svelte test suite
     let output_path = sample_dir.join("output.svelte");
     let expected_output =
-        fs::read_to_string(&output_path).map_err(|_| SkipReason::MissingInput("output.svelte"))?;
+        read_fixture_file(&output_path).ok_or(SkipReason::MissingInput("output.svelte"))?;
 
     if PRINT_SKIP_NAMES.contains(&name.as_str()) {
         return Err(SkipReason::Justified);

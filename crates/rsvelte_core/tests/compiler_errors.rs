@@ -5,11 +5,13 @@
 
 mod common;
 
-use std::fs;
 use std::path::{Path, PathBuf};
 
 // use rayon::prelude::*;  // Disabled for sequential execution
-use common::{FixtureCoverage, SkipReason, get_svelte_test_samples, sample_name};
+use common::{
+    FixtureCoverage, SkipReason, error_code_matches, get_svelte_test_samples, read_fixture_file,
+    sample_name,
+};
 use rsvelte_core::{
     CompileOptions, ExperimentalOptions, GenerateMode, ModuleCompileOptions, compile,
     compile_module,
@@ -170,21 +172,21 @@ fn load_error_fixture(sample_dir: &Path) -> Result<ErrorFixture, SkipReason> {
 
     // Read and parse config
     let config_content =
-        fs::read_to_string(&config_path).map_err(|_| SkipReason::MissingInput("_config.js"))?;
+        read_fixture_file(&config_path).ok_or(SkipReason::MissingInput("_config.js"))?;
     let config =
         parse_config(&config_content).ok_or(SkipReason::MissingInput("parsable _config.js"))?;
 
     // Determine input type and read input
     let (input, input_type) = if svelte_path.exists() {
         (
-            fs::read_to_string(&svelte_path)
-                .map_err(|_| SkipReason::MissingInput("readable main.svelte"))?,
+            read_fixture_file(&svelte_path)
+                .ok_or(SkipReason::MissingInput("readable main.svelte"))?,
             InputType::Svelte,
         )
     } else if module_path.exists() {
         (
-            fs::read_to_string(&module_path)
-                .map_err(|_| SkipReason::MissingInput("readable main.svelte.js"))?,
+            read_fixture_file(&module_path)
+                .ok_or(SkipReason::MissingInput("readable main.svelte.js"))?,
             InputType::Module,
         )
     } else {
@@ -267,21 +269,8 @@ fn run_error_test(fixture: &ErrorFixture) -> TestResult {
                 let error_str = format!("{:?}", e);
                 let display_str = format!("{}", e);
 
-                // Tighten the previous loose `contains()` check while still
-                // accepting more-specific sub-codes that rsvelte sometimes
-                // emits. We treat a match as either:
-                //   * exact code (e.g. expected `block_open`, actual `block_open`)
-                //   * sub-code   (e.g. expected `element_invalid_closing_tag`,
-                //                  actual `element_invalid_closing_tag_autoclosed`)
-                // but reject unrelated codes that happened to contain the
-                // expected as a substring.
-                let expected_code = &fixture.expected_error.code;
-                let escaped = regex::escape(expected_code);
-                // `\b<expected>(_[a-z_]*)?\b` — exact OR snake_case extension.
-                let pattern = format!(r"\b{}(_[a-z_]+)?\b", escaped);
-                let code_matches = regex::Regex::new(&pattern)
-                    .map(|re| re.is_match(&error_str) || re.is_match(&display_str))
-                    .unwrap_or(false);
+                let code_matches =
+                    error_code_matches(&fixture.expected_error.code, &[&error_str, &display_str]);
 
                 if code_matches {
                     TestResult {

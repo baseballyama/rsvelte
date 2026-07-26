@@ -229,10 +229,7 @@ pub fn validate_element(
                         );
                         return Err(AnalysisError::validation(
                             "event_handler_invalid_modifier",
-                            format!(
-                                "Invalid event modifier '{}'. Valid modifiers are: {}",
-                                modifier, list
-                            ),
+                            format!("Valid event modifiers are {}", list),
                         ));
                     }
 

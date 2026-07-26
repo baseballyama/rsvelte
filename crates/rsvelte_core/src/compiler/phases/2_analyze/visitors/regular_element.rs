@@ -265,19 +265,19 @@ pub(super) fn is_tag_valid_with_parent(child_tag: &str, parent_tag: &str) -> Opt
             match child_tag {
                 "body" | "caption" | "col" | "colgroup" | "frameset" | "frame" | "head"
                 | "html" => Some(format!(
-                    "`<{}>` cannot be a child of `<{}>",
+                    "`<{}>` cannot be a child of `<{}>`",
                     child_tag, parent_tag
                 )),
                 "thead" | "tbody" | "tfoot" => Some(format!(
-                    "`<{}>` must be the child of a `<table>`, not a `<{}>",
+                    "`<{}>` must be the child of a `<table>`, not a `<{}>`",
                     child_tag, parent_tag
                 )),
                 "td" | "th" => Some(format!(
-                    "`<{}>` must be the child of a `<tr>`, not a `<{}>",
+                    "`<{}>` must be the child of a `<tr>`, not a `<{}>`",
                     child_tag, parent_tag
                 )),
                 "tr" => Some(format!(
-                    "`<tr>` must be the child of a `<thead>`, `<tbody>`, or `<tfoot>`, not a `<{}>",
+                    "`<tr>` must be the child of a `<thead>`, `<tbody>`, or `<tfoot>`, not a `<{}>`",
                     parent_tag
                 )),
                 _ => None,

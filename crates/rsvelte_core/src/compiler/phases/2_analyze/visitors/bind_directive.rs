@@ -50,10 +50,7 @@ fn visit_common(
     // Handle getter/setter syntax (SequenceExpression)
     if directive.expression.node_type() == Some("SequenceExpression") {
         if directive.name == "group" {
-            return Err(AnalysisError::ValidationWithCode {
-                code: "bind_group_invalid_expression".to_string(),
-                message: "bind:group cannot use getter/setter syntax".to_string(),
-            });
+            return Err(errors::bind_group_invalid_expression());
         }
 
         // Check for invalid parentheses in the binding expression, ignoring any
@@ -219,10 +216,7 @@ fn visit_common(
             binding.kind,
             crate::compiler::phases::phase2_analyze::BindingKind::SnippetParam
         ) {
-            return Err(AnalysisError::ValidationWithCode {
-                code: "bind_group_invalid_snippet_parameter".to_string(),
-                message: "Cannot use bind:group with snippet parameters".to_string(),
-            });
+            return Err(errors::bind_group_invalid_snippet_parameter());
         }
 
         // Note: Binding group name registration (populating analysis.binding_groups) is done
@@ -523,10 +517,7 @@ fn validate_input_binding(
         // Check if type attribute is dynamic
         if !is_text_attribute(type_attr) {
             if binding_name != "value" || matches!(type_attr.value, AttributeValue::True(_)) {
-                return Err(AnalysisError::ValidationWithCode {
-                    code: "attribute_invalid_type".to_string(),
-                    message: "The 'type' attribute cannot be dynamic".to_string(),
-                });
+                return Err(errors::attribute_invalid_type());
             }
         } else {
             // Get the static type value

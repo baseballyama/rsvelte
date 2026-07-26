@@ -11,11 +11,12 @@
 
 mod common;
 
-use std::fs;
 use std::path::Path;
 
 use common::preprocess_fixtures::{build_preprocessors, filename_for};
-use common::{FixtureCoverage, SkipReason, get_svelte_test_samples, sample_name};
+use common::{
+    FixtureCoverage, SkipReason, get_svelte_test_samples, read_fixture_file, sample_name,
+};
 use rsvelte_core::compiler::preprocess::preprocess;
 
 /// Grow-only fixture floor, measured against the pinned Svelte submodule: all
@@ -39,10 +40,10 @@ pub struct PreprocessResult {
 
 fn load_fixture(sample_dir: &Path) -> Result<PreprocessFixture, SkipReason> {
     let name = sample_name(sample_dir).to_string();
-    let input = fs::read_to_string(sample_dir.join("input.svelte"))
-        .map_err(|_| SkipReason::MissingInput("input.svelte"))?;
-    let expected_output = fs::read_to_string(sample_dir.join("output.svelte"))
-        .map_err(|_| SkipReason::MissingInput("output.svelte"))?;
+    let input = read_fixture_file(&sample_dir.join("input.svelte"))
+        .ok_or(SkipReason::MissingInput("input.svelte"))?;
+    let expected_output = read_fixture_file(&sample_dir.join("output.svelte"))
+        .ok_or(SkipReason::MissingInput("output.svelte"))?;
     let filename = filename_for(&name);
     Ok(PreprocessFixture {
         name,

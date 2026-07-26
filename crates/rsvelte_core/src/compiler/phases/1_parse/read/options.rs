@@ -18,6 +18,10 @@ use serde_json::Value as JsonValue;
 
 use super::super::parser::Parser;
 
+// Upstream emits one message per code regardless of which check failed.
+const INVALID_TAGNAME: &str = "Tag name must be lowercase and hyphenated";
+const CUSTOM_ELEMENT_INVALID: &str = "\"customElement\" must be a string literal defining a valid custom element name or an object of the form { tag?: string; shadow?: \"open\" | \"none\" | `ShadowRootInit`; props?: { [key: string]: { attribute?: string; reflect?: boolean; type: .. } } }";
+
 // Reserved tag names for custom elements (from HTML spec)
 const RESERVED_TAG_NAMES: &[&str] = &[
     "annotation-xml",
@@ -158,10 +162,7 @@ impl<'a> Parser<'a> {
                             _ => {
                                 return Err(ParseError::svelte(
                                     "svelte_options_invalid_attribute_value",
-                                    format!(
-                                        "\"{}\" is not a valid namespace (must be \"html\", \"mathml\" or \"svg\")",
-                                        value.as_deref().unwrap_or("")
-                                    ),
+                                    "Value must be \"html\", \"mathml\" or \"svg\", if specified",
                                     (attr_node.start as usize, attr_node.end as usize),
                                 ));
                             }
@@ -172,10 +173,7 @@ impl<'a> Parser<'a> {
                         if value.as_deref() != Some("injected") {
                             return Err(ParseError::svelte(
                                 "svelte_options_invalid_attribute_value",
-                                format!(
-                                    "\"{}\" is not a valid value for the \"css\" option (must be \"injected\")",
-                                    value.as_deref().unwrap_or("")
-                                ),
+                                "Value must be \"injected\", if specified",
                                 (attr_node.start as usize, attr_node.end as usize),
                             ));
                         }
@@ -298,10 +296,7 @@ fn get_boolean_value<'a>(attr: &crate::ast::template::AttributeNode<'a>) -> Pars
 
             Err(ParseError::svelte(
                 "svelte_options_invalid_attribute_value",
-                format!(
-                    "\"{}\" is not a valid value (expected true or false)",
-                    attr.name
-                ),
+                "Value must be true or false, if specified",
                 (attr.start as usize, attr.end as usize),
             ))
         }
@@ -318,10 +313,7 @@ fn get_boolean_value<'a>(attr: &crate::ast::template::AttributeNode<'a>) -> Pars
 
             Err(ParseError::svelte(
                 "svelte_options_invalid_attribute_value",
-                format!(
-                    "\"{}\" is not a valid value (expected true or false)",
-                    attr.name
-                ),
+                "Value must be true or false, if specified",
                 (attr.start as usize, attr.end as usize),
             ))
         }
@@ -375,7 +367,7 @@ fn parse_custom_element_option<'a>(
         AttributeValue::True(_) => {
             return Err(ParseError::svelte(
                 "svelte_options_invalid_customelement",
-                "`customElement` must be a string or object",
+                CUSTOM_ELEMENT_INVALID,
                 (attr.start as usize, attr.end as usize),
             ));
         }
@@ -399,7 +391,7 @@ fn parse_custom_element_option<'a>(
 
     Err(ParseError::svelte(
         "svelte_options_invalid_customelement",
-        "`customElement` must be a string or object",
+        CUSTOM_ELEMENT_INVALID,
         (attr.start as usize, attr.end as usize),
     ))
 }
@@ -503,7 +495,7 @@ fn validate_tag_name<'a>(
     if tag.is_empty() {
         return Err(ParseError::svelte(
             "svelte_options_invalid_tagname",
-            "Tag name cannot be empty",
+            INVALID_TAGNAME,
             (attr.start as usize, attr.end as usize),
         ));
     }
@@ -512,7 +504,7 @@ fn validate_tag_name<'a>(
     if !tag.chars().next().unwrap().is_ascii_lowercase() {
         return Err(ParseError::svelte(
             "svelte_options_invalid_tagname",
-            "Tag name must start with a lowercase letter",
+            INVALID_TAGNAME,
             (attr.start as usize, attr.end as usize),
         ));
     }
@@ -521,7 +513,7 @@ fn validate_tag_name<'a>(
     if !tag.contains('-') {
         return Err(ParseError::svelte(
             "svelte_options_invalid_tagname",
-            "Tag name must contain a hyphen",
+            INVALID_TAGNAME,
             (attr.start as usize, attr.end as usize),
         ));
     }
@@ -530,7 +522,7 @@ fn validate_tag_name<'a>(
     if RESERVED_TAG_NAMES.contains(&tag) {
         return Err(ParseError::svelte(
             "svelte_options_reserved_tagname",
-            format!("\"{}\" is a reserved tag name", tag),
+            "Tag name is reserved",
             (attr.start as usize, attr.end as usize),
         ));
     }
@@ -541,7 +533,7 @@ fn validate_tag_name<'a>(
         if !c.is_alphanumeric() && c != '-' && c != '_' && c != '.' && (c as u32) < 0xB7 {
             return Err(ParseError::svelte(
                 "svelte_options_invalid_tagname",
-                format!("Tag name contains invalid character '{}'", c),
+                INVALID_TAGNAME,
                 (attr.start as usize, attr.end as usize),
             ));
         }

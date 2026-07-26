@@ -9,6 +9,9 @@ use oxc_allocator::Allocator;
 use oxc_codegen::{Codegen, CodegenOptions, CommentOptions, LegalComment};
 use oxc_parser::Parser;
 use oxc_span::SourceType;
+use rsvelte_core::CompileError;
+use rsvelte_core::compiler::AnalysisError;
+use rsvelte_core::error::ParseError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -142,11 +145,21 @@ pub fn ensure_fixtures_fresh() {
 // Fixture loading
 // ============================================================================
 
+/// Read a fixture file with CRLF normalised to LF.
+///
+/// Windows checkouts default to `autocrlf=true`; without this every AST span
+/// shifts by one byte per line and every text comparison diverges.
+pub fn read_fixture_file(path: &std::path::Path) -> Option<String> {
+    fs::read_to_string(path)
+        .ok()
+        .map(|s| s.replace("\r\n", "\n"))
+}
+
 /// Load expected output from fixture.
 pub fn load_fixture_output(category: &str, sample: &str, file: &str) -> Option<String> {
     let path = fixtures_path().join(category).join(sample).join(file);
 
-    fs::read_to_string(&path).ok()
+    read_fixture_file(&path)
 }
 
 /// Get all sample directories for a category from fixtures.
@@ -611,6 +624,164 @@ pub struct FixtureError {
     pub end: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub position: Option<serde_json::Value>,
+}
+
+// ============================================================================
+// Expected-error matching (shared by the gates and the compatibility report)
+// ============================================================================
+
+/// Does a rendered compiler error name the expected Svelte error code?
+///
+/// `\b<code>(_[a-z_]+)?\b` — the exact code or a more specific snake_case
+/// sub-code (`element_invalid_closing_tag` → `…_autoclosed`), never an
+/// unrelated code that merely contains the expected one as a substring.
+pub fn error_code_matches(expected_code: &str, rendered: &[&str]) -> bool {
+    if expected_code.is_empty() {
+        return false;
+    }
+    let pattern = format!(r"\b{}(_[a-z_]+)?\b", regex::escape(expected_code));
+    let Ok(re) = regex::Regex::new(&pattern) else {
+        return false;
+    };
+    rendered.iter().any(|text| re.is_match(text))
+}
+
+/// Line/column pair as pinned by a validator fixture.
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+pub struct ExpectedPosition {
+    pub line: u32,
+    pub column: u32,
+}
+
+/// One entry of a validator sample's `errors.json`.
+#[derive(Debug, Deserialize)]
+pub struct ExpectedValidatorError {
+    pub code: String,
+    pub message: String,
+    #[serde(default)]
+    pub start: Option<ExpectedPosition>,
+    #[serde(default)]
+    pub end: Option<ExpectedPosition>,
+}
+
+/// Read the first entry of a validator sample's `errors.json`.
+///
+/// Typed on purpose: an entry without a `code` must be a hard parse failure,
+/// not an empty expectation that every actual error satisfies.
+pub fn load_expected_validator_error(
+    errors_path: &std::path::Path,
+) -> Result<Option<ExpectedValidatorError>, String> {
+    if !errors_path.exists() {
+        return Ok(None);
+    }
+    let content = read_fixture_file(errors_path)
+        .ok_or_else(|| format!("unreadable {}", errors_path.display()))?;
+    let errors: Vec<ExpectedValidatorError> = serde_json::from_str(&content)
+        .map_err(|e| format!("malformed {}: {e}", errors_path.display()))?;
+    Ok(errors.into_iter().next())
+}
+
+/// Upstream `validator/test.ts::strip_link` — drop the trailing
+/// `https://svelte.dev/e/<code>` line the compiler appends to every message.
+pub fn strip_error_link(message: &str) -> &str {
+    match message.rsplit_once('\n') {
+        Some((head, tail)) if tail.starts_with("https://svelte.dev/e/") => head,
+        _ => message,
+    }
+}
+
+/// The `(code, message)` pair carried by an rsvelte compile failure, when it
+/// has one. Raw OXC parse failures carry neither.
+pub fn svelte_error_parts(err: &CompileError) -> Option<(&str, &str)> {
+    match err {
+        CompileError::Parse(ParseError::SvelteError { code, message, .. }) => Some((code, message)),
+        CompileError::Analysis(AnalysisError::ValidationWithCode { code, message }) => {
+            Some((code, message))
+        }
+        _ => None,
+    }
+}
+
+/// Codes whose upstream fixture fails inside OXC's JavaScript parser, before
+/// rsvelte can attach a Svelte code — the rendered error is a bare parse
+/// failure, so only the shape of the failure can be asserted.
+fn untyped_error_matches(expected_code: &str, rendered: &str) -> bool {
+    matches!(
+        expected_code,
+        "js_parse_error" | "typescript_invalid_feature" | "unexpected_reserved_word"
+    ) && rendered.contains("Parse errors")
+}
+
+/// Outcome of comparing an rsvelte compile failure with a validator fixture's
+/// pinned error. The message verdict is separate from the code verdict so a
+/// caller can honour [`VALIDATOR_MESSAGE_DIVERGENCES`] without weakening the
+/// code check.
+pub enum ValidatorErrorVerdict {
+    Match,
+    MessageMismatch(String),
+    CodeMismatch(String),
+}
+
+/// Validator fixtures whose expected *message* is an acorn diagnostic that
+/// OXC words differently. The code still has to match, and a fixture that
+/// starts matching is reported as a stale entry — the list can only shrink.
+pub const VALIDATOR_MESSAGE_DIVERGENCES: &[&str] = &[
+    // acorn "Unexpected token" vs OXC "Identifier expected. 'case' is a reserved word …"
+    "each-block-invalid-context-destructured",
+    // acorn "Unexpected keyword 'case'" vs OXC "Expected `:` but found `}`"
+    "each-block-invalid-context-destructured-object",
+    // acorn "Comma is not permitted after the rest element" vs OXC
+    // "A rest element must be last in a destructuring pattern"
+    "each-block-destructured-object-rest-comma-after",
+];
+
+/// Compare an rsvelte compile failure against a validator fixture's pinned
+/// error, upstream-style: exact code plus exact message (minus the doc link).
+pub fn check_validator_error(
+    expected: &ExpectedValidatorError,
+    err: &CompileError,
+) -> ValidatorErrorVerdict {
+    if let Some((code, message)) = svelte_error_parts(err) {
+        if code != expected.code {
+            return ValidatorErrorVerdict::CodeMismatch(format!(
+                "Expected error code '{}', got '{}'",
+                expected.code, code
+            ));
+        }
+        let actual_message = strip_error_link(message);
+        if actual_message != expected.message {
+            return ValidatorErrorVerdict::MessageMismatch(format!(
+                "Error message mismatch for '{}':\n  expected: {}\n  actual:   {}",
+                expected.code, expected.message, actual_message
+            ));
+        }
+        return ValidatorErrorVerdict::Match;
+    }
+
+    let rendered = format!("{err:?}");
+    if untyped_error_matches(&expected.code, &rendered) {
+        ValidatorErrorVerdict::Match
+    } else {
+        ValidatorErrorVerdict::CodeMismatch(format!(
+            "Expected error code '{}', got: {rendered}",
+            expected.code
+        ))
+    }
+}
+
+/// Resolve a verdict for `sample`, honouring the documented message
+/// divergences and flagging entries that have become stale.
+pub fn validator_error_result(sample: &str, verdict: ValidatorErrorVerdict) -> Result<(), String> {
+    let known = VALIDATOR_MESSAGE_DIVERGENCES.contains(&sample);
+    match verdict {
+        ValidatorErrorVerdict::Match if known => Err(format!(
+            "'{sample}' now matches upstream — remove it from VALIDATOR_MESSAGE_DIVERGENCES"
+        )),
+        ValidatorErrorVerdict::Match => Ok(()),
+        ValidatorErrorVerdict::MessageMismatch(_) if known => Ok(()),
+        ValidatorErrorVerdict::MessageMismatch(detail)
+        | ValidatorErrorVerdict::CodeMismatch(detail) => Err(detail),
+    }
 }
 
 // ============================================================================

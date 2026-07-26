@@ -14,7 +14,11 @@ mod common;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use common::{FixtureCoverage, SkipReason, get_svelte_test_samples, sample_name};
+use common::{
+    ExpectedValidatorError, FixtureCoverage, SkipReason, check_validator_error,
+    get_svelte_test_samples, load_expected_validator_error, read_fixture_file, sample_name,
+    validator_error_result,
+};
 use rsvelte_core::{CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module};
 use serde::Deserialize;
 
@@ -45,23 +49,13 @@ struct ExpectedWarning {
     end: Position,
 }
 
-/// Expected error from errors.json.
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct ExpectedError {
-    code: String,
-    message: String,
-    start: Option<Position>,
-    end: Option<Position>,
-}
-
 /// A validator test fixture.
 struct ValidatorFixture {
     name: String,
     input: String,
     input_type: InputType,
     expected_warnings: Vec<ExpectedWarning>,
-    expected_error: Option<ExpectedError>,
+    expected_error: Option<ExpectedValidatorError>,
     /// Compile option: runes mode (None = auto-detect, Some(true) = forced on, Some(false) = forced off)
     runes: Option<bool>,
     /// Compile option: custom element mode
@@ -136,14 +130,14 @@ fn load_validator_fixture(sample_dir: &Path) -> Result<ValidatorFixture, SkipRea
     // Determine input type and read input
     let (input, input_type) = if svelte_path.exists() {
         (
-            fs::read_to_string(&svelte_path)
-                .map_err(|_| SkipReason::MissingInput("readable input.svelte"))?,
+            read_fixture_file(&svelte_path)
+                .ok_or(SkipReason::MissingInput("readable input.svelte"))?,
             InputType::Svelte,
         )
     } else if module_path.exists() {
         (
-            fs::read_to_string(&module_path)
-                .map_err(|_| SkipReason::MissingInput("readable input.svelte.js"))?,
+            read_fixture_file(&module_path)
+                .ok_or(SkipReason::MissingInput("readable input.svelte.js"))?,
             InputType::Module,
         )
     } else {
@@ -152,22 +146,15 @@ fn load_validator_fixture(sample_dir: &Path) -> Result<ValidatorFixture, SkipRea
 
     // Load expected warnings
     let expected_warnings: Vec<ExpectedWarning> = if warnings_path.exists() {
-        let content = fs::read_to_string(&warnings_path)
-            .map_err(|_| SkipReason::MissingInput("readable warnings.json"))?;
+        let content = read_fixture_file(&warnings_path)
+            .ok_or(SkipReason::MissingInput("readable warnings.json"))?;
         serde_json::from_str(&content).unwrap_or_default()
     } else {
         Vec::new()
     };
 
-    // Load expected error (if any)
-    let expected_error: Option<ExpectedError> = if errors_path.exists() {
-        let content = fs::read_to_string(&errors_path)
-            .map_err(|_| SkipReason::MissingInput("readable errors.json"))?;
-        let errors: Vec<ExpectedError> = serde_json::from_str(&content).unwrap_or_default();
-        errors.into_iter().next()
-    } else {
-        None
-    };
+    let expected_error = load_expected_validator_error(&errors_path)
+        .unwrap_or_else(|e| panic!("{}: {e}", sample_dir.display()));
 
     let name = sample_name(sample_dir).to_string();
 
@@ -288,51 +275,25 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
                 Err(e) => {
                     // Check if we expected an error
                     if let Some(expected_error) = &fixture.expected_error {
-                        let error_str = format!("{:?}", e);
-                        let code_matches = error_str.contains(&expected_error.code)
-                            || error_str
-                                .to_lowercase()
-                                .contains(&expected_error.code.replace('_', " ").to_lowercase())
-                            // Transform parse errors (OxcDiagnostic) should match js_parse_error
-                            || (expected_error.code == "js_parse_error"
-                                && error_str.contains("Parse errors"))
-                            // TypeScript feature errors from OXC should match typescript_invalid_feature
-                            || (expected_error.code == "typescript_invalid_feature"
-                                && (error_str.contains("Parameter modifiers can only be used in TypeScript")
-                                    || error_str.contains("namespace")
-                                    || error_str.contains("TypeScriptInvalidFeature")
-                                    // Enum declarations cause parse errors
-                                    || error_str.contains("Parse errors")))
-                            // Reserved words cause parse errors
-                            || (expected_error.code == "unexpected_reserved_word"
-                                && (error_str.contains("Parse errors")
-                                    || error_str.contains("js_parse_error")))
-                            // Rune spread errors may cause parse errors due to spread in invalid context
-                            || (expected_error.code == "rune_invalid_spread"
-                                && error_str.contains("Parse errors"));
-
-                        if code_matches {
-                            return TestResult {
+                        let verdict = check_validator_error(expected_error, &e);
+                        return match validator_error_result(&fixture.name, verdict) {
+                            Ok(()) => TestResult {
                                 name: fixture.name.clone(),
                                 passed: true,
                                 error_message: None,
                                 skipped: false,
                                 warnings_matched: 0,
                                 warnings_expected: fixture.expected_warnings.len(),
-                            };
-                        } else {
-                            return TestResult {
+                            },
+                            Err(detail) => TestResult {
                                 name: fixture.name.clone(),
                                 passed: false,
-                                error_message: Some(format!(
-                                    "Expected error code '{}', got: {}",
-                                    expected_error.code, error_str
-                                )),
+                                error_message: Some(detail),
                                 skipped: false,
                                 warnings_matched: 0,
                                 warnings_expected: fixture.expected_warnings.len(),
-                            };
-                        }
+                            },
+                        };
                     }
 
                     // Unexpected error
