@@ -37,6 +37,17 @@ fn warning(code: &str, message: impl Into<String>) -> AnalysisWarning {
     AnalysisWarning::new(code, message)
 }
 
+#[cfg(test)]
+impl super::diagnostic::DiagnosticDump for AnalysisWarning {
+    fn dump_code(&self) -> &str {
+        &self.code
+    }
+
+    fn dump_message(&self) -> &str {
+        &self.message
+    }
+}
+
 // Component creation warnings
 
 diagnostics! {
