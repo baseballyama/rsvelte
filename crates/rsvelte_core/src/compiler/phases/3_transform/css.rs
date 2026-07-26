@@ -2371,7 +2371,10 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
             // like `:global(.a .z)` becomes a `Chain` so the `.a` ancestor of a
             // candidate `.z` sibling is verified (rather than left unresolved,
             // which over-prunes even when the ancestor really exists).
-            let inner_matcher = resolve_global_inner_matcher(&rel_selectors[0]);
+            let inner_matcher = resolve_global_inner_matcher(&rel_selectors[0], ctx);
+            if matches!(inner_matcher, SiblingMatcher::Unresolvable) {
+                return false;
+            }
 
             // `:global(X) + Y` is used when some Y is preceded by a node X could
             // be: a real previous sibling matching X, an opaque boundary, or a
@@ -2487,6 +2490,11 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         // matching nothing; single-relative parents keep the `Info` path.
         let before_m = resolve_sibling_matcher(before, ctx);
         let after_m = resolve_sibling_matcher(after, ctx);
+        if matches!(before_m, SiblingMatcher::Unresolvable)
+            || matches!(after_m, SiblingMatcher::Unresolvable)
+        {
+            return false;
+        }
 
         // Find all elements that match 'after' selector
         let mut found_after_element = false;
@@ -2726,6 +2734,11 @@ fn global_inner_selector_info(rel: &Value) -> SelectorInfo {
 enum SiblingMatcher {
     Info(SelectorInfo),
     Chain(Vec<Value>),
+    /// A chain whose ancestor constraint cannot be verified because the lexical
+    /// parent walk does not model the real ancestry. Dropping to the
+    /// compound-only `Info` would silently discard the constraint and let the
+    /// rule be pruned, so callers must bail conservatively instead.
+    Unresolvable,
 }
 
 fn matcher_matches_at(matcher: &SiblingMatcher, idx: usize, ctx: &CssContext) -> bool {
@@ -2738,6 +2751,8 @@ fn matcher_matches_at(matcher: &SiblingMatcher, idx: usize, ctx: &CssContext) ->
             structural_element_matches_compound(el, &rels[rels.len() - 1])
                 && structural_ancestors_satisfy_links(rels, rels.len() - 1, idx, ctx)
         }
+        // Callers bail before matching; `true` keeps the conservative direction.
+        SiblingMatcher::Unresolvable => true,
     }
 }
 
@@ -2759,6 +2774,17 @@ fn global_inner_complex_rels(rel: &Value) -> Option<&Vec<Value>> {
         .and_then(|c| c.as_array())
         .and_then(|c| c.first())?;
     complex.get("children").and_then(|c| c.as_array())
+}
+
+/// True when the lexical `parent_idx` walk models the real DOM ancestry: a
+/// `{#snippet}`-declared element's real ancestors are its `{@render}` sites and
+/// `<selectedcontent>` mirrors the selected option's subtree — neither is
+/// reachable from `parent_idx`.
+fn structural_ancestry_is_lexical(ctx: &CssContext) -> bool {
+    !ctx.dom_structure
+        .elements
+        .iter()
+        .any(|el| el.in_snippet || el.tag_name.eq_ignore_ascii_case("selectedcontent"))
 }
 
 /// True when a descendant/child chain (subject last) can be evaluated by the
@@ -2789,12 +2815,15 @@ fn chain_is_structurally_evaluable(rels: &[Value]) -> bool {
 
 /// Resolve a leading `:global(X)` relative selector into a [`SiblingMatcher`]:
 /// a `Chain` when `X` is a structurally-evaluable descendant/child chain (so the
-/// `.a` ancestor of `:global(.a .z)` is verified), otherwise the single-compound
-/// `Info` (unchanged behaviour).
-fn resolve_global_inner_matcher(rel: &Value) -> SiblingMatcher {
+/// `.a` ancestor of `:global(.a .z)` is verified), `Unresolvable` when that
+/// chain's ancestors are not lexical, otherwise the single-compound `Info`.
+fn resolve_global_inner_matcher(rel: &Value, ctx: &CssContext) -> SiblingMatcher {
     if let Some(rels) = global_inner_complex_rels(rel)
         && chain_is_structurally_evaluable(rels)
     {
+        if !structural_ancestry_is_lexical(ctx) {
+            return SiblingMatcher::Unresolvable;
+        }
         return SiblingMatcher::Chain(rels.clone());
     }
     SiblingMatcher::Info(global_inner_selector_info(rel))
@@ -2900,9 +2929,13 @@ fn resolve_bare_nesting_chain(rel: &Value, ctx: &CssContext) -> Option<Vec<Value
 
 /// Resolve a sibling operand relative selector into a [`SiblingMatcher`],
 /// preferring an ancestor-aware `Chain` for a bare `&` with a multi-relative
-/// parent, else the existing compound `Info`.
+/// parent (`Unresolvable` when that chain's ancestors are not lexical), else the
+/// existing compound `Info`.
 fn resolve_sibling_matcher(rel: &Value, ctx: &CssContext) -> SiblingMatcher {
     if let Some(chain) = resolve_bare_nesting_chain(rel, ctx) {
+        if !structural_ancestry_is_lexical(ctx) {
+            return SiblingMatcher::Unresolvable;
+        }
         return SiblingMatcher::Chain(chain);
     }
     SiblingMatcher::Info(extract_selector_info_resolving_nesting(rel, ctx))
@@ -3336,18 +3369,7 @@ fn is_structural_descendant_chain_unused(rel_selectors: &[Value], ctx: &CssConte
     if rel_selectors.len() < 2 || ctx.dom_structure.elements.is_empty() {
         return false;
     }
-    if ctx.has_dynamic_elements {
-        return false;
-    }
-    // A snippet-declared element's real ancestors are its render sites, and
-    // `<selectedcontent>` mirrors the selected option's subtree — the lexical
-    // parent walk cannot model either, so stay conservative.
-    if ctx
-        .dom_structure
-        .elements
-        .iter()
-        .any(|el| el.in_snippet || el.tag_name.eq_ignore_ascii_case("selectedcontent"))
-    {
+    if ctx.has_dynamic_elements || !structural_ancestry_is_lexical(ctx) {
         return false;
     }
     for rel in rel_selectors.iter().skip(1) {
