@@ -2483,7 +2483,10 @@ fn contains_js_comment(s: &str) -> bool {
 
 /// Whether a `{@render ...}` expression is a call, optionally optional-chained,
 /// mirroring upstream's `1-parse/state/tag.js` check.
-fn is_render_tag_call_expression(arena: &crate::ast::arena::ParseArena, expr: &Expression) -> bool {
+pub(crate) fn is_render_tag_call_expression(
+    arena: &crate::ast::arena::ParseArena,
+    expr: &Expression,
+) -> bool {
     let Some(node) = expr.try_as_node_ref() else {
         // A `Lazy` expression is not resolved yet; leave it to analysis.
         return true;

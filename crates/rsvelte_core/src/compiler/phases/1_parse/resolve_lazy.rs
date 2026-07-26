@@ -139,6 +139,19 @@ fn resolve_template_node(
                 source,
                 first_error,
             );
+            // The eager parse path rejects non-call render expressions inline;
+            // a deferred expression only becomes checkable here.
+            if !super::state::tag::is_render_tag_call_expression(arena, &tag.expression)
+                && first_error.is_none()
+            {
+                let err_start = tag.expression.start().unwrap_or(tag.start) as usize;
+                let err_end = tag.expression.end().unwrap_or(tag.end) as usize;
+                *first_error = Some(crate::error::ParseError::svelte(
+                    "render_tag_invalid_expression",
+                    "`{@render ...}` tags can only contain call expressions",
+                    (err_start, err_end),
+                ));
+            }
         }
         TemplateNode::AttachTag(tag) => {
             resolve_expression(

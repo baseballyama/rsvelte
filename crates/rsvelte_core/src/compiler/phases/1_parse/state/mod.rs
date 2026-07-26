@@ -5,5 +5,5 @@
 
 mod element;
 mod fragment;
-mod tag;
+pub(super) mod tag;
 mod text;
