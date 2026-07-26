@@ -131,15 +131,16 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
 
         match parse(&input, &oxc_allocator::Allocator::default(), options) {
             Ok(ast) => {
-                let actual_json =
+                let actual_json = if modern {
                     rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
-                        if modern {
-                            serde_json::to_string_pretty(&ast).unwrap_or_default()
-                        } else {
-                            let legacy_ast = convert_to_legacy(&input, ast.clone());
-                            serde_json::to_string_pretty(&legacy_ast).unwrap_or_default()
-                        }
-                    });
+                        serde_json::to_string_pretty(&ast).unwrap_or_default()
+                    })
+                } else {
+                    // `convert_to_legacy` consumes the AST and installs the
+                    // serialize arena itself.
+                    let legacy_ast = convert_to_legacy(&input, ast);
+                    serde_json::to_string_pretty(&legacy_ast).unwrap_or_default()
+                };
 
                 let mut actual_normalized = normalize_parser_json(&actual_json);
                 let expected_normalized = normalize_parser_json(&expected);
