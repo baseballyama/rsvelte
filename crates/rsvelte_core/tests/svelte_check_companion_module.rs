@@ -1,4 +1,6 @@
-//! Regression test for issue #751.
+//! Regression tests for the `Foo.svelte` + `Foo.svelte.{ts,js}` companion
+//! split: #751 (named imports resolved *from* the companion) and the structural
+//! half of #800 (the component module reached *through* the companion).
 //!
 //! A `Foo.svelte` component and a sibling companion module
 //! `Foo.svelte.ts` (or `.js`) collide on the same TypeScript basename:
@@ -106,4 +108,78 @@ fn nested_component_reexport_path_is_correct() {
         tsx.contains("export * from \"../../../../src/lib/Tip.svelte.js\";"),
         "nested companion re-export path wrong:\n{tsx}"
     );
+}
+
+/// #800 (the other direction): `./Foo.svelte` resolves to the companion, so the
+/// overlay augments *that* module with the component's default + `<script
+/// module>` exports. Structural check; the real-compiler e2e lives in
+/// `svelte_check_companion_800.rs`.
+#[test]
+fn companion_augmentation_declares_the_component_module() {
+    let ws = workspace("aug");
+    fs::create_dir_all(ws.join("src")).unwrap();
+    fs::write(
+        ws.join("src/Tip.svelte.ts"),
+        "export const tip = (x: number): number => x * 2;\n",
+    )
+    .unwrap();
+    fs::write(
+        ws.join("src/Tip.svelte"),
+        "<script module lang=\"ts\">export const ATTR = 'data-x';\nexport type Kind = 'a';</script>\n<p>hi</p>\n",
+    )
+    .unwrap();
+
+    let files = vec![ws.join("src/Tip.svelte")];
+    materialize_overlay(&ws, &files, None).expect("overlay");
+
+    let aug = fs::read_to_string(ws.join(".svelte-check/companion-augment.d.ts")).unwrap();
+    assert!(
+        aug.contains("declare module \"../src/Tip.svelte\" {"),
+        "augmentation must target the `.svelte` specifier:\n{aug}"
+    );
+    assert!(
+        aug.contains("export default _default;"),
+        "component default export must be forwarded:\n{aug}"
+    );
+    // `export import` carries the value *and* the type meaning of each name.
+    assert!(
+        aug.contains("export import ATTR ="),
+        "module-context value export missing:\n{aug}"
+    );
+    assert!(
+        aug.contains("export import Kind ="),
+        "module-context type export missing:\n{aug}"
+    );
+    // The companion's own exports stay with the companion — re-declaring them
+    // in the augmentation would be a duplicate identifier.
+    assert!(
+        !aug.contains("export import tip ="),
+        "companion export must not be re-declared:\n{aug}"
+    );
+
+    let tsconfig = fs::read_to_string(ws.join(".svelte-check/tsconfig.json")).unwrap();
+    assert!(
+        tsconfig.contains("./companion-augment.d.ts"),
+        "augmentation must be a program root:\n{tsconfig}"
+    );
+}
+
+/// No companion → no augmentation file, and a stale one from a previous run is
+/// cleaned up (it would otherwise keep augmenting a module that no longer
+/// resolves to the companion).
+#[test]
+fn companion_augmentation_is_removed_when_the_companion_goes_away() {
+    let ws = workspace("aug_stale");
+    fs::write(ws.join("Tip.svelte.ts"), "export const tip = 1;\n").unwrap();
+    fs::write(ws.join("Tip.svelte"), "<p>hi</p>\n").unwrap();
+    let files = vec![ws.join("Tip.svelte")];
+    materialize_overlay(&ws, &files, None).expect("overlay");
+    assert!(ws.join(".svelte-check/companion-augment.d.ts").is_file());
+
+    fs::remove_file(ws.join("Tip.svelte.ts")).unwrap();
+    materialize_overlay(&ws, &files, None).expect("overlay");
+    assert!(!ws.join(".svelte-check/companion-augment.d.ts").exists());
+
+    let tsconfig = fs::read_to_string(ws.join(".svelte-check/tsconfig.json")).unwrap();
+    assert!(!tsconfig.contains("./companion-augment.d.ts"));
 }

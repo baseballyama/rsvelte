@@ -19,6 +19,11 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use oxc_allocator::Allocator;
+use oxc_ast::ast as oxc;
+use oxc_parser::Parser as OxcParser;
+use oxc_span::SourceType;
+
 use super::kit_file::{self, AddedCode, KitFilesSettings};
 use super::manifest::{self, Manifest, ManifestEntry, current_stats};
 use crate::svelte2tsx::{
@@ -181,6 +186,7 @@ pub fn materialize_overlay_with(
     let svelte_resolver = build_svelte_import_resolver(tsconfig_path);
 
     let mut entries = Vec::with_capacity(files.len());
+    let mut augments: Vec<CompanionAugment> = Vec::new();
     for abs_source in &abs_files {
         let rel = safe_relative(abs_source, workspace);
         let tsx_rel = append_extension(&rel, ".tsx");
@@ -301,6 +307,16 @@ pub fn materialize_overlay_with(
             result.map
         };
 
+        // A duplicated input would emit the same `declare module` block twice.
+        if let Some(companion) = find_companion_module(abs_source)
+            && !augments.iter().any(|a| a.source_path == *abs_source)
+        {
+            let augment = build_companion_augment(abs_source, &tsx_path, &companion);
+            if augment.forward_default || !augment.names.is_empty() {
+                augments.push(augment);
+            }
+        }
+
         entries.push(OverlayEntry {
             source_path: abs_source.clone(),
             tsx_path,
@@ -308,6 +324,7 @@ pub fn materialize_overlay_with(
             source_map,
         });
     }
+    let has_augments = write_companion_augmentation(&cache_dir, &augments)?;
 
     // Materialise the svelte2tsx shims into the cache dir so the overlay
     // tsconfig can reference them by a stable relative path regardless of
@@ -333,6 +350,7 @@ pub fn materialize_overlay_with(
         workspace,
         &ext_root_dir_pairs,
         incremental,
+        has_augments,
     );
     fs::write(&overlay_tsconfig, tsconfig_json)?;
 
@@ -730,6 +748,7 @@ fn build_overlay_tsconfig(
     workspace: &Path,
     ext_root_dir_pairs: &[(PathBuf, PathBuf)],
     incremental: bool,
+    has_companion_augmentation: bool,
 ) -> String {
     let mut obj: BTreeMap<&str, serde_json::Value> = BTreeMap::new();
     if let Some(orig) = original {
@@ -869,6 +888,9 @@ fn build_overlay_tsconfig(
         .iter()
         .map(|(name, _)| format!("./{name}"))
         .collect();
+    if has_companion_augmentation {
+        files_entries.push(format!("./{COMPANION_AUGMENT_FILE}"));
+    }
     files_entries.extend(user_specs.files);
     files_entries.sort();
     files_entries.dedup();
@@ -1216,6 +1238,20 @@ fn resolve_root_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
     Vec::new()
 }
 
+/// Sibling companion module (`Foo.svelte.ts` / `Foo.svelte.js`) of a
+/// `…/Foo.svelte` component source, when one exists on disk.
+fn find_companion_module(abs_source: &Path) -> Option<PathBuf> {
+    for ext in [".ts", ".js"] {
+        let mut cand = abs_source.as_os_str().to_os_string();
+        cand.push(ext);
+        let cand = PathBuf::from(cand);
+        if cand.is_file() {
+            return Some(cand);
+        }
+    }
+    None
+}
+
 /// If `abs_source` (`…/Foo.svelte`) has a sibling companion module
 /// (`Foo.svelte.ts` or `Foo.svelte.js`), return a module specifier — relative
 /// to the component shadow's directory and ending in `.js` so TS strips it and
@@ -1223,24 +1259,225 @@ fn resolve_root_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
 /// to the shadow `.tsx`. Returns `None` when no companion exists.
 fn companion_reexport_specifier(abs_source: &Path, tsx_path: &Path) -> Option<String> {
     let from_dir = tsx_path.parent()?;
-    for ext in [".ts", ".js"] {
-        let mut cand = abs_source.as_os_str().to_os_string();
-        cand.push(ext);
-        let cand = PathBuf::from(cand);
-        if cand.is_file() {
-            let mut spec = path_relative(from_dir, &cand);
-            if !spec.starts_with('.') {
-                spec = format!("./{spec}");
+    let companion = find_companion_module(abs_source)?;
+    let mut spec = path_relative(from_dir, &companion);
+    if !spec.starts_with('.') {
+        spec = format!("./{spec}");
+    }
+    // TS resolves `./x.svelte.js` by stripping `.js` and finding the
+    // real `.ts`/`.js`; normalise a `.ts` companion's specifier to `.js`.
+    if let Some(stripped) = spec.strip_suffix(".ts") {
+        spec = format!("{stripped}.js");
+    }
+    Some(spec)
+}
+
+/// Filename of the generated module-augmentation declaration, written into the
+/// cache dir next to the shims.
+const COMPANION_AUGMENT_FILE: &str = "companion-augment.d.ts";
+
+/// One `Foo.svelte` + same-name companion pair that needs a module
+/// augmentation (see [`write_companion_augmentation`]).
+struct CompanionAugment {
+    /// The `.svelte` source; `path_relative` from the cache dir gives the
+    /// specifier whose resolution we are augmenting.
+    source_path: PathBuf,
+    /// The component shadow that supplies the augmented types.
+    tsx_path: PathBuf,
+    /// Component exports to forward, minus anything the companion already
+    /// exports itself (re-declaring those would be a duplicate identifier).
+    names: Vec<String>,
+    /// Whether the component's default export still needs forwarding — a
+    /// companion that already re-exports it must not get a second one.
+    forward_default: bool,
+}
+
+fn build_companion_augment(
+    abs_source: &Path,
+    tsx_path: &Path,
+    companion: &Path,
+) -> CompanionAugment {
+    let shadow = fs::read_to_string(tsx_path)
+        .map(|src| module_exports(&src, SourceType::tsx()))
+        .unwrap_or_default();
+    let companion_source_type = if companion.extension().and_then(|e| e.to_str()) == Some("ts") {
+        SourceType::ts()
+    } else {
+        SourceType::default()
+    };
+    let companion = fs::read_to_string(companion)
+        .map(|src| module_exports(&src, companion_source_type))
+        .unwrap_or_default();
+    let names = shadow
+        .names
+        .into_iter()
+        .filter(|n| !companion.names.contains(n))
+        .collect();
+    CompanionAugment {
+        source_path: abs_source.to_path_buf(),
+        tsx_path: tsx_path.to_path_buf(),
+        names,
+        forward_default: !companion.has_default,
+    }
+}
+
+/// Write the module augmentation that restores `./Foo.svelte`'s component
+/// identity when a same-name `Foo.svelte.ts` / `.js` companion exists (#800).
+///
+/// TypeScript resolves `./Foo.svelte` by appending extensions in the
+/// *importer's own* directory, so a sibling `Foo.svelte.ts` always wins over
+/// the overlay's `Foo.svelte.tsx` shadow — `rootDirs` is only consulted after
+/// that lookup fails, and `paths` never applies to relative specifiers. The
+/// specifier therefore lands on the companion, and the component's default
+/// export plus its `<script module>` named exports vanish. Since the module
+/// TypeScript picked is a real user file we cannot rewrite, we instead
+/// *augment* it with the shadow's exports, so one resolvable module carries
+/// both halves. Returns whether anything was written.
+fn write_companion_augmentation(
+    cache_dir: &Path,
+    augments: &[CompanionAugment],
+) -> io::Result<bool> {
+    let path = cache_dir.join(COMPANION_AUGMENT_FILE);
+    if augments.is_empty() {
+        // A previous run may have left a stale file that `files` no longer
+        // lists; drop it so it can't shadow a companion that has since gone.
+        let _ = fs::remove_file(&path);
+        return Ok(false);
+    }
+    let mut out = String::new();
+    for (i, aug) in augments.iter().enumerate() {
+        let ns = format!("__rsvelte_companion_{i}");
+        let shadow_spec = dot_relative(cache_dir, &aug.tsx_path);
+        let module_spec = dot_relative(cache_dir, &aug.source_path);
+        let _ = writeln!(out, "import * as {ns} from \"{shadow_spec}\";");
+        let _ = writeln!(out, "declare module \"{module_spec}\" {{");
+        if aug.forward_default {
+            let _ = writeln!(out, "    const _default: (typeof {ns})[\"default\"];");
+            // TS applies a default export inside an augmentation but still
+            // grammar-errors on it (TS2666); this file is ours, not user code.
+            let _ = writeln!(out, "    // @ts-ignore");
+            let _ = writeln!(out, "    export default _default;");
+        }
+        for name in &aug.names {
+            // `export import` aliases the value *and* the type meaning of the
+            // name; a plain `export const` would drop `export type` members.
+            let _ = writeln!(out, "    export import {name} = {ns}.{name};");
+        }
+        let _ = writeln!(out, "}}");
+    }
+    fs::write(&path, out)?;
+    Ok(true)
+}
+
+/// [`path_relative`] forced into an explicitly-relative module specifier.
+fn dot_relative(from_dir: &Path, to_path: &Path) -> String {
+    let spec = path_relative(from_dir, to_path);
+    if spec.starts_with('.') {
+        spec
+    } else {
+        format!("./{spec}")
+    }
+}
+
+/// A module's top-level exports. Bare `export * from` contributes nothing —
+/// its names are not knowable without resolving the target.
+#[derive(Default)]
+struct ModuleExports {
+    /// Named exports, excluding `default` and any non-identifier name
+    /// (`export { x as "a-b" }`) that cannot appear in an `export import`.
+    names: Vec<String>,
+    has_default: bool,
+}
+
+fn module_exports(source: &str, source_type: SourceType) -> ModuleExports {
+    let allocator = Allocator::default();
+    let parsed = OxcParser::new(&allocator, source, source_type).parse();
+    let mut names: Vec<String> = Vec::new();
+    let mut has_default = false;
+    for stmt in &parsed.program.body {
+        match stmt {
+            oxc::Statement::ExportNamedDeclaration(decl) => {
+                if let Some(declaration) = &decl.declaration {
+                    collect_declaration_names(declaration, &mut names);
+                }
+                for spec in &decl.specifiers {
+                    names.push(spec.exported.name().to_string());
+                }
             }
-            // TS resolves `./x.svelte.js` by stripping `.js` and finding the
-            // real `.ts`/`.js`; normalise a `.ts` companion's specifier to `.js`.
-            if let Some(stripped) = spec.strip_suffix(".ts") {
-                spec = format!("{stripped}.js");
+            oxc::Statement::ExportAllDeclaration(decl) => {
+                if let Some(exported) = &decl.exported {
+                    names.push(exported.name().to_string());
+                }
             }
-            return Some(spec);
+            oxc::Statement::ExportDefaultDeclaration(_) => has_default = true,
+            _ => {}
         }
     }
-    None
+    has_default |= names.iter().any(|n| n == "default");
+    names.retain(|n| n != "default" && is_js_identifier(n));
+    names.sort();
+    names.dedup();
+    ModuleExports { names, has_default }
+}
+
+fn collect_declaration_names(declaration: &oxc::Declaration, names: &mut Vec<String>) {
+    match declaration {
+        oxc::Declaration::VariableDeclaration(var) => {
+            for declarator in &var.declarations {
+                collect_binding_pattern_names(&declarator.id, names);
+            }
+        }
+        oxc::Declaration::FunctionDeclaration(func) => {
+            if let Some(id) = &func.id {
+                names.push(id.name.to_string());
+            }
+        }
+        oxc::Declaration::ClassDeclaration(class) => {
+            if let Some(id) = &class.id {
+                names.push(id.name.to_string());
+            }
+        }
+        oxc::Declaration::TSTypeAliasDeclaration(alias) => names.push(alias.id.name.to_string()),
+        oxc::Declaration::TSInterfaceDeclaration(iface) => names.push(iface.id.name.to_string()),
+        oxc::Declaration::TSEnumDeclaration(enum_decl) => names.push(enum_decl.id.name.to_string()),
+        // `declare module`/`namespace` bodies can re-open across files; aliasing
+        // them into an augmentation is not worth the ambiguity.
+        _ => {}
+    }
+}
+
+fn collect_binding_pattern_names(pattern: &oxc::BindingPattern, names: &mut Vec<String>) {
+    match pattern {
+        oxc::BindingPattern::BindingIdentifier(id) => names.push(id.name.to_string()),
+        oxc::BindingPattern::ObjectPattern(obj) => {
+            for prop in &obj.properties {
+                collect_binding_pattern_names(&prop.value, names);
+            }
+            if let Some(rest) = &obj.rest {
+                collect_binding_pattern_names(&rest.argument, names);
+            }
+        }
+        oxc::BindingPattern::ArrayPattern(arr) => {
+            for el in arr.elements.iter().flatten() {
+                collect_binding_pattern_names(el, names);
+            }
+            if let Some(rest) = &arr.rest {
+                collect_binding_pattern_names(&rest.argument, names);
+            }
+        }
+        oxc::BindingPattern::AssignmentPattern(assign) => {
+            collect_binding_pattern_names(&assign.left, names)
+        }
+    }
+}
+
+fn is_js_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    match chars.next() {
+        Some(c) if c.is_alphabetic() || c == '_' || c == '$' => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$')
 }
 
 /// Build the module resolver used to re-point tsconfig-alias `.svelte` imports
