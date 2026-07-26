@@ -1,5 +1,43 @@
 # @rsvelte/compiler
 
+## 0.9.3
+
+### Patch Changes
+
+- ad807a8: fix(client): keep `<script>` comments on the direct-AST codegen path
+
+  Client codegen bailed to the legacy string codegen for any generated chunk
+  carrying a comment, because esrap places comments positionally and a program
+  reassembled from independently-parsed chunks had no shared coordinate space to
+  place them in. Each comment-bearing chunk is now re-parsed at its own region of
+  one unified buffer, with generated nodes reading as "no location" the way
+  `svelte/compiler` distinguishes user-derived nodes from synthesized ones. The
+  fallback rate over the Svelte test corpus drops from 122/3834 (3.18%) to 1/3834,
+  and 62 components whose output the string codegen got wrong now match
+  `svelte/compiler` byte-for-byte. Source-map positions inside a rewritten chunk
+  now resolve to the chunk's start rather than per-statement.
+
+- 4af9b35: fix(parse): keep the assignment target when it carries a TS assertion
+
+  `count!++`, `count! += 1` and `[count!] = …` model their target as an
+  `AssignmentTarget` / `SimpleAssignmentTarget` TS-wrapper variant in oxc, which
+  the ESTree conversion had no arm for — the whole target was emitted as `null`,
+  so any consumer of `parse()` lost the write. A plain `=` LHS now unwraps the
+  assertion and every other target position keeps the wrapper, matching
+  `svelte/compiler`. The TS stripper also skipped `UpdateExpression.argument`,
+  which leaked an invalid `count!++` into generated JS and left the write
+  non-reactive; it now lowers to the same `$.update(count)` as `count++`.
+
+- a3d0c7c: perf(parse): 2.4x faster template parsing (CI benchmark: 60.5x → 175x vs `svelte/compiler`)
+
+  Eight output-identical optimizations: typed `{@const}`/destructuring/binding-pattern
+  builders replace every serde_json round-trip on the parse path, `<script>` bodies and
+  block-head / attribute / directive expressions defer their JS parse under
+  `defer_script_parse`, `Expression` shrinks from 216 to 16 bytes (EachBlock 976→376,
+  Attribute 488→288), `ParseArena` stores nodes in chunks, and the quoted-attribute
+  scanner uses memchr. AST output is byte-identical across the full Svelte test corpus
+  and 4011 real-world components in both eager and deferred modes.
+
 ## 0.9.2
 
 ### Patch Changes

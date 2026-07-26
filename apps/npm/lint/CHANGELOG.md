@@ -1,5 +1,11 @@
 # @rsvelte/lint
 
+## 0.9.3
+
+### Patch Changes
+
+- a3d0c7c: feat(lint): expose fix data alongside the validator wrap
+
 ## 0.9.2
 
 ## 0.9.1

@@ -1,5 +1,15 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.1
+
+### Patch Changes
+
+- b6c4b87: chore(vite-plugin-svelte-native): report Svelte `5.56.8` from the `VERSION` export
+
+  The hardcoded `VERSION` export is what consumers feature-detect against
+  (`gte(VERSION, '5.36.0')`), so it has to track the Svelte version rsvelte is
+  compiled against — now 5.56.8.
+
 ## 0.3.0
 
 ### Minor Changes

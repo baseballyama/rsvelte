@@ -1,5 +1,7 @@
 # @rsvelte/vite-plugin-svelte-native-win32-x64-msvc
 
+## 0.3.1
+
 ## 0.3.0
 
 ## 0.2.8
