@@ -8,6 +8,7 @@
 mod common;
 mod config;
 mod daemon;
+mod deep_nesting;
 mod delegation;
 mod native;
 mod stdin;

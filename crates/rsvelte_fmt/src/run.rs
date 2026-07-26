@@ -18,6 +18,25 @@ use crate::svelte_pipeline::run_svelte_files;
 use crate::tailwind_sort::{collect_svelte_classes, resolve_js_class_sorter};
 use crate::walk::partition_files;
 
+/// Default rayon workers get the platform's default thread stack (~2 MiB),
+/// but the formatter's own recursive printer can overflow that in an
+/// unoptimized build at a nesting depth the parser still accepts (just under
+/// `MAX_NESTING_DEPTH`, see #1838). Every rayon call in the pipeline —
+/// `collect_svelte_classes`, the per-file Svelte/JS/JSON/CSS passes, and the
+/// `oxfmt`-overlap `join` — runs inside a dedicated pool sized like the
+/// 8 MiB default main-thread stack the parser's own overflow tests use,
+/// rather than the process-wide global pool: `build_global` can only
+/// succeed once per process, which would make `run()` unsafe to call twice
+/// in the same process (e.g. from tests).
+const FMT_POOL_STACK_SIZE: usize = 8 * 1024 * 1024;
+
+fn fmt_thread_pool() -> rayon::ThreadPool {
+    rayon::ThreadPoolBuilder::new()
+        .stack_size(FMT_POOL_STACK_SIZE)
+        .build()
+        .expect("build rsvelte-fmt's rayon pool")
+}
+
 pub fn run() -> Result<ExitCode> {
     let mut cli = Cli::parse();
 
@@ -54,12 +73,17 @@ pub fn run() -> Result<ExitCode> {
     let (svelte, native, native_json, native_css_files, oxfmt_paths) =
         partition_files(&cli.paths, &ignore, &cwd, native_js, native_css)?;
 
+    // Every rayon call below — this collection scan, and the per-file join
+    // tree further down — runs on this dedicated pool rather than the
+    // process-wide global one (see `fmt_thread_pool`).
+    let pool = fmt_thread_pool();
+
     // Custom Tailwind config (`SortViaJs`): collect every class string across the
     // `.svelte` files, sort them in one sidecar call, and install a map-backed
     // sorter for the real formatting pass below. Only `.svelte` files carry the
     // class sorter, so nothing else needs the collection pass.
     if let Some(pending) = &pending_js {
-        let classes = collect_svelte_classes(&svelte, &options);
+        let classes = pool.install(|| collect_svelte_classes(&svelte, &options));
         options.class_sorter = resolve_js_class_sorter(pending, classes);
     }
 
@@ -109,67 +133,70 @@ pub fn run() -> Result<ExitCode> {
     let exclude_native = native_js && !native.is_empty();
     let exclude_native_json = native_js && !native_json.is_empty();
     let exclude_native_css = native_css && !native_css_files.is_empty();
-    let (((svelte_result, native_result), (json_result, css_result)), oxfmt_result) = rayon::join(
-        || {
+    let (((svelte_result, native_result), (json_result, css_result)), oxfmt_result) =
+        pool.install(|| {
             rayon::join(
                 || {
                     rayon::join(
                         || {
-                            run_svelte_files(
-                                &svelte,
-                                &options,
-                                &cli.oxfmt_bin,
-                                &cfg,
-                                mode,
-                                use_style_cache,
-                                native_css,
+                            rayon::join(
+                                || {
+                                    run_svelte_files(
+                                        &svelte,
+                                        &options,
+                                        &cli.oxfmt_bin,
+                                        &cfg,
+                                        mode,
+                                        use_style_cache,
+                                        native_css,
+                                    )
+                                },
+                                || run_native_js(&native, &resolver, &cwd, &cli.oxfmt_bin, mode),
                             )
                         },
-                        || run_native_js(&native, &resolver, &cwd, &cli.oxfmt_bin, mode),
+                        || {
+                            rayon::join(
+                                || {
+                                    run_native_json(
+                                        &native_json,
+                                        &json_resolver,
+                                        &cwd,
+                                        &cli.oxfmt_bin,
+                                        mode,
+                                    )
+                                },
+                                || {
+                                    run_native_css(
+                                        &native_css_files,
+                                        &css_resolver,
+                                        &cwd,
+                                        &cli.oxfmt_bin,
+                                        mode,
+                                    )
+                                },
+                            )
+                        },
                     )
                 },
                 || {
-                    rayon::join(
-                        || {
-                            run_native_json(
-                                &native_json,
-                                &json_resolver,
-                                &cwd,
-                                &cli.oxfmt_bin,
-                                mode,
-                            )
-                        },
-                        || {
-                            run_native_css(
-                                &native_css_files,
-                                &css_resolver,
-                                &cwd,
-                                &cli.oxfmt_bin,
-                                mode,
-                            )
-                        },
+                    run_oxfmt(
+                        &oxfmt_paths,
+                        &cli.oxfmt_bin,
+                        mode,
+                        exclude_native,
+                        exclude_native_json,
+                        exclude_native_css,
+                        // A Svelte-only or CSS-only tree legitimately leaves oxfmt's
+                        // own share empty, so suppress its unmatched-pattern error —
+                        // but not when every in-process pass is *also* empty: oxfmt
+                        // is then the only thing that can tell (via its own ignore
+                        // rules and supported-extension set) whether anything really
+                        // exists to format, so it must be allowed to error for real.
+                        !in_process_empty,
                     )
                 },
             )
-        },
-        || {
-            run_oxfmt(
-                &oxfmt_paths,
-                &cli.oxfmt_bin,
-                mode,
-                exclude_native,
-                exclude_native_json,
-                exclude_native_css,
-                // A Svelte-only or CSS-only tree legitimately leaves oxfmt's
-                // own share empty, so suppress its unmatched-pattern error —
-                // but not when every in-process pass is *also* empty: oxfmt
-                // is then the only thing that can tell (via its own ignore
-                // rules and supported-extension set) whether anything really
-                // exists to format, so it must be allowed to error for real.
-                !in_process_empty,
-            )
-        },
-    );
+        });
 
     let svelte_status = svelte_result?;
     let native_status = native_result?;
