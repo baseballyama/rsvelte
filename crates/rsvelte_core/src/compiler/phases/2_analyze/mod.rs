@@ -21,6 +21,9 @@ pub mod control_flow;
 pub mod css;
 mod css_scoping;
 mod diagnostic;
+#[cfg(test)]
+#[path = "diagnostics_test.rs"]
+mod diagnostics_test;
 pub mod errors;
 mod pattern_ids;
 pub mod scope;

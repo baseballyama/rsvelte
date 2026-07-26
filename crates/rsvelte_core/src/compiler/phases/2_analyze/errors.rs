@@ -16,6 +16,25 @@ fn error(code: &str, message: impl Into<String>) -> AnalysisError {
     }
 }
 
+// Every constructor in this file goes through `error()`, so `ValidationWithCode` is the
+// only variant a snapshot test ever sees here.
+#[cfg(test)]
+impl super::diagnostic::DiagnosticDump for AnalysisError {
+    fn dump_code(&self) -> &str {
+        match self {
+            AnalysisError::ValidationWithCode { code, .. } => code,
+            _ => unreachable!("errors.rs constructors only ever produce ValidationWithCode"),
+        }
+    }
+
+    fn dump_message(&self) -> &str {
+        match self {
+            AnalysisError::ValidationWithCode { message, .. } => message,
+            _ => unreachable!("errors.rs constructors only ever produce ValidationWithCode"),
+        }
+    }
+}
+
 // Rune-related errors
 
 diagnostics! {

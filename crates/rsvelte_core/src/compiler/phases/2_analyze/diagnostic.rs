@@ -40,7 +40,36 @@ macro_rules! diagnostics {
                 )
             }
         )*
+
+        // Every constructor above is invoked here with its parameter names standing in
+        // for the (all-`&str`) arguments, so adding/removing/renaming a constructor in
+        // this macro invocation automatically changes what the pinned-digest test in
+        // `diagnostics_test.rs` covers, instead of relying on someone to update a
+        // hand-written call list.
+        #[cfg(test)]
+        pub(crate) fn __diagnostics_dump() -> Vec<(String, String)> {
+            vec![
+                $(
+                    {
+                        let diagnostic = $name($(stringify!($param)),*);
+                        (
+                            super::diagnostic::DiagnosticDump::dump_code(&diagnostic).to_string(),
+                            super::diagnostic::DiagnosticDump::dump_message(&diagnostic).to_string(),
+                        )
+                    }
+                ),*
+            ]
+        }
     };
 }
 
 pub(super) use diagnostics;
+
+/// Test-only accessor so the macro above can read back `(code, message)` from either
+/// [`super::errors::AnalysisError`] or [`super::warnings::AnalysisWarning`] without the
+/// macro itself needing to know their concrete shapes.
+#[cfg(test)]
+pub(super) trait DiagnosticDump {
+    fn dump_code(&self) -> &str;
+    fn dump_message(&self) -> &str;
+}
