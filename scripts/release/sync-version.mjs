@@ -58,7 +58,11 @@ const MAPPINGS = [
 	},
 ];
 
-const cargoLockPath = resolve(repoRoot, 'Cargo.lock');
+// Every Cargo.lock that pins these crates. `crates/rsvelte_lint_types` is its
+// own out-of-workspace workspace (it path-depends on `submodules/corsa-bind`),
+// so the root lock does not cover it and its `--locked` CI job breaks on the
+// next release unless the bump is mirrored here too.
+const CARGO_LOCKS = ['Cargo.lock', 'crates/rsvelte_lint_types/Cargo.lock'];
 
 function readTargetVersion(npmRelPath) {
 	const npmPkgPath = resolve(repoRoot, npmRelPath);
@@ -85,7 +89,7 @@ function patchCargoToml(cargoRelPath, targetVersion) {
 	writeFileSync(cargoTomlPath, original.replace(re, `$1${targetVersion}$3`));
 }
 
-function patchCargoLock(original, lockName, targetVersion) {
+function patchCargoLock(original, lockName, targetVersion, { required }) {
 	// Each package entry in Cargo.lock looks like:
 	//   [[package]]
 	//   name = "rsvelte_fmt"
@@ -96,21 +100,36 @@ function patchCargoLock(original, lockName, targetVersion) {
 	);
 	const match = original.match(re);
 	if (!match) {
+		// A secondary lock only pins the crates that workspace depends on
+		// (rsvelte_lint_types has no rsvelte_fmt edge), so a miss there is fine.
+		if (!required) return original;
 		throw new Error(`Failed to find ${lockName} entry in Cargo.lock`);
 	}
 	if (match[2] === targetVersion) return original;
 	return original.replace(re, `$1${targetVersion}$3`);
 }
 
-let lock = readFileSync(cargoLockPath, 'utf8');
 const synced = [];
+const locks = CARGO_LOCKS.map((rel) => ({
+	rel,
+	path: resolve(repoRoot, rel),
+	text: readFileSync(resolve(repoRoot, rel), 'utf8'),
+	// The root lock must pin every crate we publish; a miss there is a real bug.
+	required: rel === 'Cargo.lock',
+}));
+
 for (const { npm, cargoToml, lockName } of MAPPINGS) {
 	const targetVersion = readTargetVersion(npm);
 	patchCargoToml(cargoToml, targetVersion);
-	lock = patchCargoLock(lock, lockName, targetVersion);
+	for (const lock of locks) {
+		lock.text = patchCargoLock(lock.text, lockName, targetVersion, {
+			required: lock.required,
+		});
+	}
 	synced.push(`${lockName}@${targetVersion}`);
 }
-writeFileSync(cargoLockPath, lock);
+
+for (const lock of locks) writeFileSync(lock.path, lock.text);
 console.log(
-	`Synced versions into Cargo.toml and Cargo.lock: ${synced.join(', ')}`,
+	`Synced versions into Cargo.toml and ${CARGO_LOCKS.join(' + ')}: ${synced.join(', ')}`,
 );
