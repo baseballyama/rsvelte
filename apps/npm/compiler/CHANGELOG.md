@@ -1,5 +1,97 @@
 # @rsvelte/compiler
 
+## 0.9.4
+
+### Patch Changes
+
+- 11b66f6: fix: bind: diagnostic "Possible bindings" enumeration now matches the official
+  compiler's sorted order and is deterministic
+
+  `Possible bindings for <…> are …` was built by iterating an `FxHashMap`, so
+  the reported order was arbitrary and could diverge between runs, unlike the
+  official compiler, which sorts the list. `BINDING_PROPERTIES` is now backed
+  by an ordered const slice in upstream `bindings.js` definition order, the
+  enumeration is sorted like upstream's `.sort()`, and the related
+  `check_graph_for_cycles` root visitation and `{@const}` dependency collection
+  are now insertion-ordered as well.
+
+- 6a48717: fix: compiler error messages now match the official compiler's wording
+
+  Asserting the validator fixtures' pinned message text (not just the error
+  code) surfaced 35 diagnostics whose wording had drifted from upstream
+  `errors.js` — among them `bind_invalid_target`, `transition_duplicate`,
+  `transition_conflict`, `rune_invalid_spread`, `script_duplicate`,
+  `illegal_element_attribute`, `event_handler_invalid_modifier`,
+  `attribute_invalid_type`, `state_field_invalid_assignment`,
+  `css_type_selector_invalid_placement`, `declaration_duplicate_module_import`
+  and the whole `svelte_options_*` family. All now emit upstream's exact text,
+  including the missing closing backtick in the `node_invalid_placement`
+  "not a `<div>`" suffix.
+
+- f5df43e: fix: stop writing "ARENA MISMATCH" debug output to stderr from library code
+
+  Debug builds of `rsvelte_core` printed `ARENA CHILDREN MISMATCH` /
+  `ARENA MISMATCH` diagnostics to stderr from `get_js_node` and its callers
+  whenever the fallback `NULL_NODE` sentinel was returned. Library code should
+  never write to stderr unasked; the fallback behavior itself is unchanged.
+
+- e65772c: fix(css): guard multi-relative chain resolution against non-lexical ancestry (#1735)
+
+  The `+`/`~` prune check resolves a multi-relative operand (`:global(.a .z) + .b`,
+  or a bare `&` against a `.foo > .a` parent prelude) into an ancestor chain
+  verified by walking `parent_idx`. That walk is lexical, so it silently
+  mis-answers for `{#snippet}` bodies (whose real ancestors come from their
+  `{@render}` call sites) and for `<selectedcontent>` (which mirrors the selected
+  `<option>`'s subtree). Both `Chain` producers now share the predicate the
+  descendant-chain check already used and bail conservatively when the ancestry is
+  not lexical, fixing `selectedcontent > .a { & + & }` being emitted as
+  `/* (empty) */` where the official compiler keeps it.
+
+- 131d138: fix(client): preserve pre-existing parens in `parse_raw_expression` (#1783)
+
+  `parse_raw_expression` stripped every `ParenthesizedExpression` layer, not just
+  its own synthetic wrapper, so a single-dependency `$.legacy_pre_effect` thunk
+  printed as `() => $.get(y)` where the official compiler emits `() => ($.get(y))`
+  (upstream builds it as a one-element `SequenceExpression`, which esrap prints
+  with parens). The wrapper now strips exactly one layer, and the one-element
+  sequence is rebuilt for `$.legacy_pre_effect` dependency thunks; user-written
+  parens are still dropped exactly as acorn + esrap do.
+
+- 8e11dcb: fix(parse): bound parser recursion so deeply nested input errors instead of aborting
+
+  Template and CSS nesting recursed without a bound, so input such as a few
+  hundred nested elements overflowed the stack. That aborts the process
+  (SIGABRT) rather than panicking, so no embedder — the lint CLI, `svelte-check`,
+  the NAPI/wasm bindings, the language server — could contain it with
+  `catch_unwind`; a single such file took down the whole session. Nesting deeper
+  than 128 levels is now reported as an ordinary diagnostic
+  (`template_nesting_too_deep` / `css_nesting_too_deep`). Real components nest
+  around 20 levels, so valid code is unaffected.
+
+- bb6993d: fix(parse): reject non-call expressions in `{@render}` like the official compiler
+
+  `{@render new foo()}` compiled instead of erroring: the `CallExpression` /
+  `ChainExpression` check that `svelte/compiler` performs at parse time was
+  missing, and the phase-2 fallback only looked for a `callee` — which a
+  `NewExpression` also has. The parser now raises
+  `render_tag_invalid_expression` with the same message and span as the official
+  compiler, while `{@render foo()}`, `{@render foo?.()}` and
+  `{@render (cond ? a : b)()}` keep compiling.
+
+- e771779: fix(client): keep trailing `<script>` comments in place
+
+  A comment sitting after the last statement of a `<script>` was emitted at the
+  end of the generated component function instead of next to the code it was
+  written beside. In `svelte/compiler` the element identifier of `var p = root();`
+  carries the element's source location (`b.id(name, element.name_loc)`), so esrap
+  flushes the leftover comment there; every node rsvelte generated read as "no
+  location", leaving the enclosing body as the only span that bracketed the
+  comment. Generated element identifiers now carry that anchor, and only when the
+  element really does follow the comment in the _source_ — an element written
+  before the `<script>` still leaves the comment at the body tail, as upstream
+  does. Over the Svelte test corpus four more components now match
+  `svelte/compiler` byte-for-byte and none regress.
+
 ## 0.9.3
 
 ### Patch Changes

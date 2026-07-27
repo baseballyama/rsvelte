@@ -1,5 +1,73 @@
 # @rsvelte/fmt
 
+## 0.7.3
+
+### Patch Changes
+
+- 736b603: fix(fmt): stop the postinstall binary swap breaking pnpm's `.bin` shim (#1725)
+
+  `postinstall` used to copy the platform-native `rsvelte-fmt` binary over
+  `bin/rsvelte-fmt` (the file `package.json`'s `bin` field points at), so the
+  package manager's `.bin/rsvelte-fmt` entry would run the native binary
+  directly with no Node startup cost. It also wrote a `rsvelte-fmt.runtime.json`
+  sidecar next to the binary with the consumer's `oxfmt` + Node paths, since the
+  native-direct binary has no launcher to pass them via `--oxfmt-bin` /
+  `RSVELTE_FMT_NODE`.
+
+  pnpm's `.bin` entry is a generated shell shim, not a symlink, and it decides
+  its interpreter by reading the _target file's shebang at shim-generation
+  time_ — before `postinstall` has necessarily run. If that read sees this
+  file's original `#!/usr/bin/env node` shebang, pnpm bakes `exec node
+".../bin/rsvelte-fmt" "$@"` into the shim permanently. `postinstall`'s later
+  swap to a native Mach-O/ELF binary then makes that baked-in Node try to parse
+  binary bytes as JS: `SyntaxError: Invalid or unexpected token` on `pnpm exec
+rsvelte-fmt` (the same bug fixed for `@rsvelte/lint` in #1723 / #1726).
+
+  `bin/rsvelte-fmt` is now always the Node launcher (never mutated at install
+  time); it already resolves and execs the platform-native binary itself,
+  forwarding argv/stdio, the exit code/signal, and the consumer's `oxfmt` +
+  Node paths via `--oxfmt-bin` / `RSVELTE_FMT_NODE`. This is correct under
+  every package manager's `.bin` mechanism — symlink (npm, yarn classic) or
+  generated shim (pnpm) — at the cost of one Node cold start per invocation,
+  the same trade-off already accepted whenever `postinstall` didn't run
+  (`--ignore-scripts`, gated build scripts, Windows).
+
+  `install.js` and the now-dead `rsvelte-fmt.runtime.json` sidecar reader
+  (`load_oxfmt_runtime_sidecar` in `crates/rsvelte_fmt/src/oxfmt.rs`) are
+  removed, along with its dedicated tests — the JS launcher already forwards
+  the same information on every invocation, so the sidecar had nothing left to
+  do.
+
+- 38cbbe7: fix(fmt): give rsvelte-fmt's rayon pool an explicit 8 MiB stack (#1838)
+
+  `rsvelte-fmt` formats files in parallel on rayon workers, which fall back to
+  `RUST_MIN_STACK` / the platform default (~2 MiB) unless a pool sets its own
+  `stack_size`. In an unoptimized (debug) build, the formatter's own recursive
+  printer can overflow that stack at a nesting depth the parser itself still
+  accepts — just under `MAX_NESTING_DEPTH` (see #1794/#1837) — crashing a
+  debug-build worker on otherwise valid input. `run()` now builds a dedicated
+  rayon `ThreadPool` with an explicit 8 MiB stack and runs every rayon call in
+  the pipeline (the Tailwind class-collection scan and the
+  Svelte/JS/JSON/CSS/`oxfmt` join tree) through it, so the override always
+  wins regardless of `RUST_MIN_STACK`.
+
+- 379df54: fix(fmt): let `FormatSession` embedders pin the `oxfmt` binary (#1792)
+
+  `rsvelte_fmt::FormatSession` — the in-process pipeline the (upcoming) Rust
+  language server embeds instead of spawning the `rsvelte-fmt` CLI — always
+  built `OptionFlags::default()`, which pins `oxfmt` to a bare `oxfmt` on
+  `$PATH`. That's fine for the CLI, which always gets an explicit `--oxfmt-bin`
+  from its own npm launcher, but a process an editor spawns directly does not
+  generally have the consumer's `oxfmt` on `$PATH`.
+
+  `FormatSession::resolve_with_oxfmt_bin(path, oxfmt_bin)` lets an embedder pin
+  the binary explicitly — the embedder-facing equivalent of `--oxfmt-bin` — and
+  falls back to the new `RSVELTE_FMT_OXFMT_BIN` env var when `None`, mirroring
+  the `RSVELTE_FMT_NODE` convention the CLI's own npm launcher already uses to
+  forward its `oxfmt` resolution into the native binary. `FormatSession::resolve`
+  is unchanged in signature and is now equivalent to
+  `resolve_with_oxfmt_bin(path, None)`.
+
 ## 0.7.2
 
 ### Patch Changes
