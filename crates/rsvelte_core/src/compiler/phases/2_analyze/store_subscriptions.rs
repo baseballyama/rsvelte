@@ -53,6 +53,10 @@ pub fn detect_store_subscriptions(
     options_runes: Option<bool>,
     is_module_file: bool,
 ) -> Result<(), AnalysisError> {
+    if memchr::memchr(b'$', analysis.source.as_bytes()).is_none() {
+        return Ok(());
+    }
+
     // Collect all $xxx references from the AST with context
     let mut store_refs: Vec<StoreRef> = Vec::new();
     let mut template_refs: Vec<StoreRef> = Vec::new();

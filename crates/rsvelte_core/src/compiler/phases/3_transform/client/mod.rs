@@ -402,16 +402,8 @@ fn transform_client_with_visitors(
     // based on node type - the visit function pointer is not actually used
     let mut context = ComponentContext::new(state, |_, _, _| TransformResult::None);
 
-    // Set up state transformers ($.get, $.set wrappers for $state variables)
-    // This must be called before processing the template so that state variable
-    // references in event handlers get properly transformed
-    use crate::compiler::phases::phase3_transform::client::visitors::shared::declarations::add_state_transformers;
-    add_state_transformers(&mut context);
-
     // Visit the program to set up transforms for props, store subscriptions, etc.
-    // This handles legacy mode props ($.prop() getters) and store subscriptions
-    // NOTE: visit_program calls add_state_transformers again internally, so any
-    // transform removals must happen AFTER this call.
+    // This handles state, legacy props, and store subscriptions.
     use crate::compiler::phases::phase3_transform::client::visitors::program::visit_program;
     let _vp_start = super::profile::timer_start();
     visit_program(&mut context);
@@ -466,12 +458,15 @@ fn transform_client_with_visitors(
         if let Some(instance_script) = &analysis.instance_script_content {
             let (imports, script_body) = extract_imports(&instance_script.raw);
             instance_script_imports = imports;
+            let split_top_level_declarations =
+                instance_has_top_level_multi_declarator(ast, &instance_script.raw);
             let _script_start = super::profile::timer_start();
             let mut transformed = transform_instance_script_for_visitors(
                 &script_body,
                 analysis,
                 options.dev,
                 &reactive_import_names,
+                split_top_level_declarations,
             );
             rest_excludes_hoists = extract_rest_excludes_hoists(&mut transformed);
             super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
@@ -2211,14 +2206,9 @@ fn transform_client_with_visitors(
     super::profile::record_assembly_after_fragment(super::profile::timer_elapsed(_assembly_start));
     let _codegen_start = super::profile::timer_start();
 
-    // Direct-AST codegen via to_oxc + esrap — the DEFAULT client codegen path.
-    // The string codegen (`generate` / `generate_with_sourcemap`) is the fallback
-    // for the ~0.03% of components carrying a node shape `to_oxc` does not model
-    // yet (`{@const}` computed destructuring is the only one left in the Svelte
-    // corpus). `RSVELTE_CLIENT_NO_OXC` forces the legacy string path (escape
-    // hatch). Span-stamping (`Spanned` / `RawMapped` → original-source offsets)
-    // feeds esrap `print_with_map` for the sourcemap branch.
-    if !*CLIENT_NO_OXC {
+    // Scriptless components use the faster handwritten printer. Scripts need
+    // OXC/esrap for official formatting and coordinate-aware comment placement.
+    if *CLIENT_USE_OXC || ast.instance.is_some() || ast.module.is_some() {
         let converted = CLIENT_TO_OXC_ALLOCATOR.with(|cell| {
             let mut alloc = cell.borrow_mut();
             alloc.reset();
@@ -2317,8 +2307,8 @@ thread_local! {
         std::cell::RefCell::new(oxc_allocator::Allocator::default());
 }
 
-static CLIENT_NO_OXC: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("RSVELTE_CLIENT_NO_OXC").is_some());
+static CLIENT_USE_OXC: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("RSVELTE_CLIENT_TO_OXC").is_some());
 static CLIENT_TO_OXC_DEBUG: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("RSVELTE_CLIENT_TO_OXC_DEBUG").is_some());
 
@@ -3236,6 +3226,12 @@ pub(super) fn is_variable_reassigned_in_text(script: &str, var_name: &str) -> bo
 }
 
 pub(super) fn extract_local_reactive_vars(script: &str) -> Vec<(String, bool, bool)> {
+    if memmem::find(script.as_bytes(), b"$state").is_none()
+        && memmem::find(script.as_bytes(), b"$derived").is_none()
+    {
+        return Vec::new();
+    }
+
     let mut vars = Vec::new();
 
     // Pattern: (let|const|var) varname = $state(...) or (let|const|var) varname = $derived(...)
@@ -3873,7 +3869,13 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
     dev: bool,
     reactive_import_names: &[String],
 ) -> String {
-    transform_instance_script_for_visitors(script, analysis, dev, reactive_import_names)
+    transform_instance_script_for_visitors(
+        script,
+        analysis,
+        dev,
+        reactive_import_names,
+        might_have_comma_separated_declaration(script),
+    )
 }
 
 /// True when a legacy-mode script contains a `$`-token that the fragile
@@ -3897,11 +3899,60 @@ fn legacy_script_has_dollar_token(script: &str) -> bool {
     false
 }
 
+fn might_have_comma_separated_declaration(script: &str) -> bool {
+    let bytes = script.as_bytes();
+    if memmem::find(bytes, b", ").is_none()
+        && memmem::find(bytes, b",\n").is_none()
+        && memmem::find(bytes, b",\t").is_none()
+    {
+        return false;
+    }
+
+    script.lines().any(|line| {
+        let trimmed = line.trim_start();
+        let declaration = trimmed
+            .strip_prefix("export ")
+            .map(str::trim_start)
+            .unwrap_or(trimmed);
+        declaration.starts_with("const ")
+            || declaration.starts_with("let ")
+            || declaration.starts_with("var ")
+    })
+}
+
+fn instance_has_top_level_multi_declarator(ast: &Root, script: &str) -> bool {
+    use crate::ast::typed_expr::JsNode;
+
+    let Some(instance) = ast.instance.as_ref() else {
+        return false;
+    };
+    let program = instance.content.as_node();
+    let JsNode::Program { body, .. } = program.as_ref() else {
+        return might_have_comma_separated_declaration(script);
+    };
+
+    ast.arena.get_js_children(*body).iter().any(|statement| {
+        let declaration = match statement {
+            JsNode::VariableDeclaration { declarations, .. } => Some(*declarations),
+            JsNode::ExportNamedDeclaration {
+                declaration: Some(declaration),
+                ..
+            } => match ast.arena.get_js_node(*declaration) {
+                JsNode::VariableDeclaration { declarations, .. } => Some(*declarations),
+                _ => None,
+            },
+            _ => None,
+        };
+        declaration.is_some_and(|declarations| ast.arena.get_js_children(declarations).len() > 1)
+    })
+}
+
 fn transform_instance_script_for_visitors(
     script: &str,
     analysis: &ComponentAnalysis,
     dev: bool,
     reactive_import_names: &[String],
+    split_top_level_declarations: bool,
 ) -> String {
     if script.is_empty() {
         return String::new();
@@ -3910,9 +3961,7 @@ fn transform_instance_script_for_visitors(
     // Instance imports are removed by the caller before this pipeline.
     let has_dollar = script.contains('$');
     let has_export = memmem::find(script.as_bytes(), b"export ").is_some();
-    let has_comma_decl = memmem::find(script.as_bytes(), b", ").is_some()
-        || memmem::find(script.as_bytes(), b",\n").is_some()
-        || memmem::find(script.as_bytes(), b",\t").is_some();
+    let has_comma_decl = split_top_level_declarations;
     if !has_dollar
         && !has_export
         && analysis.root.bindings.iter().all(|b| {
@@ -3974,9 +4023,11 @@ fn transform_instance_script_for_visitors(
     };
 
     // Split comma-separated variable declarations only if needed
-    let script: std::borrow::Cow<str> = if memmem::find(script.as_bytes(), b", ").is_some()
-        || memmem::find(script.as_bytes(), b",\n").is_some()
-        || memmem::find(script.as_bytes(), b",\t").is_some()
+    let class_transform_can_add_declarations = memmem::find(script.as_bytes(), b"class ").is_some()
+        && (memmem::find(script.as_bytes(), b"$state").is_some()
+            || memmem::find(script.as_bytes(), b"$derived").is_some());
+    let script: std::borrow::Cow<str> = if split_top_level_declarations
+        || (class_transform_can_add_declarations && might_have_comma_separated_declaration(&script))
     {
         std::borrow::Cow::Owned(crate::compiler::phases::phase3_transform::server::transform_script::split_comma_separated_declarations(&script))
     } else {
@@ -5170,30 +5221,36 @@ fn transform_instance_script_for_visitors(
 
         // Store transforms: skip entirely when there are no store subscriptions
         // In runes mode, deferred to AST-based transform after main loop.
-        let transformed = if !store_sub_vars.is_empty() && !analysis.runes {
-            // Filter out store_sub_vars that appear as function parameters in this statement.
-            let effective_store_sub_vars: Vec<String> = if store_sub_vars
+        let transformed = if !store_sub_vars.is_empty()
+            && !analysis.runes
+            && store_sub_vars
                 .iter()
-                .any(|s| transformed.contains(s.as_str()))
-            {
-                store_sub_vars
-                    .iter()
-                    .filter(|s| !is_function_parameter_in_statement(&transformed, s))
-                    .cloned()
-                    .collect()
-            } else {
-                store_sub_vars.to_vec()
-            };
+                .any(|store| transformed.contains(store.as_str()))
+        {
+            // Filter out store_sub_vars that appear as function parameters in this statement.
+            let mut filtered_store_sub_vars = Vec::new();
+            let effective_store_sub_vars =
+                if transformed.contains("=>") || transformed.contains("function") {
+                    filtered_store_sub_vars.extend(
+                        store_sub_vars
+                            .iter()
+                            .filter(|s| !is_function_parameter_in_statement(&transformed, s))
+                            .cloned(),
+                    );
+                    filtered_store_sub_vars.as_slice()
+                } else {
+                    store_sub_vars
+                };
 
-            let transformed = transform_store_sub_calls(&transformed, &effective_store_sub_vars);
+            let transformed = transform_store_sub_calls(&transformed, effective_store_sub_vars);
             let transformed = transform_store_assignments_client(
                 &transformed,
-                &effective_store_sub_vars,
+                effective_store_sub_vars,
                 prop_assignment_transform_vars,
                 state_vars,
                 non_reactive_state_vars,
             );
-            transform_store_reads_client(&transformed, &effective_store_sub_vars)
+            transform_store_reads_client(&transformed, effective_store_sub_vars)
         } else {
             transformed
         };

@@ -282,9 +282,16 @@ pub(crate) fn analyze_prepared_component(
         rustc_hash::FxHashSet::default()
     };
 
+    let can_have_features = memchr::memchr(b'$', source.as_bytes()).is_some()
+        || memchr::memmem::find(source.as_bytes(), b"await").is_some();
+
     // Check the template fragment for both await expressions and rune references
     // in a single traversal (previously done as two separate walks).
-    let fragment_results = fragment_check_features(&ast.fragment, &ast.arena, &store_sub_names);
+    let fragment_results = if can_have_features {
+        fragment_check_features(&ast.fragment, &ast.arena, &store_sub_names)
+    } else {
+        FragmentCheckResults::default()
+    };
 
     // Check the instance script for both await expressions and rune references
     // in a single traversal. The store-sub exclusion set applies to scripts
@@ -293,18 +300,21 @@ pub(crate) fn analyze_prepared_component(
     // `module.scope.references` *before* runes detection reads it
     // (2-analyze/index.js, `module.scope.references.delete(name)`), so a
     // store-subscribed rune name in the script must not flip runes mode on.
-    let (instance_has_await, instance_has_rune_reference) = ast
-        .instance
-        .as_ref()
-        .map(|inst| {
-            let r = expression_check_features(&inst.content, &ast.arena, &store_sub_names);
-            (r.has_await, r.has_rune_reference)
-        })
-        .unwrap_or((false, false));
+    let (instance_has_await, instance_has_rune_reference) = if can_have_features {
+        ast.instance
+            .as_ref()
+            .map(|inst| {
+                let r = expression_check_features(&inst.content, &ast.arena, &store_sub_names);
+                (r.has_await, r.has_rune_reference)
+            })
+            .unwrap_or((false, false))
+    } else {
+        (false, false)
+    };
 
     // Check the module script for rune references (module scripts don't need await check
     // since the original code only checked instance script for await).
-    let module_has_rune_reference = if needs_rune_detection {
+    let module_has_rune_reference = if needs_rune_detection && can_have_features {
         ast.module
             .as_ref()
             .map(|module| {
@@ -365,7 +375,8 @@ pub(crate) fn analyze_prepared_component(
     // This MUST happen BEFORE the script visitor walk so that is_safe_identifier
     // correctly identifies bindable_prop bindings and sets needs_context = true
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L562-616
-    if !analysis.runes {
+    let has_export = memchr::memmem::find(source.as_bytes(), b"export").is_some();
+    if !analysis.runes && has_export {
         process_legacy_exports(ast, &mut analysis);
     }
 
@@ -411,7 +422,7 @@ pub(crate) fn analyze_prepared_component(
     // script analysis. Scope data is populated during Phase 1 scope building, so we can
     // do this before analyzing the instance script.
     // Reference: ensure_no_module_import_conflict checks module.scope.get(id.name)?.declaration_kind === 'import'
-    {
+    if ast.module.is_some() {
         let module_decls: rustc_hash::FxHashMap<String, usize> = analysis
             .root
             .scope
@@ -599,7 +610,8 @@ pub(crate) fn analyze_prepared_component(
     //    This correctly handles shadowing (e.g., `{#each a as { a }}`).
     // 2. The `promote_each_expression_bindings` fallback handles cases where the EachItem
     //    binding name doesn't shadow the collection name.
-    if !analysis.runes {
+    let has_each_block = memchr::memmem::find(source.as_bytes(), b"{#each").is_some();
+    if !analysis.runes && has_each_block {
         promote_each_collection_from_scope_info(&mut analysis);
         promote_each_expression_bindings(&ast.fragment, &mut analysis);
     }
