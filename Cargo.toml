@@ -1,8 +1,13 @@
 [workspace]
 resolver = "3"
 members = [
+    "crates/rsvelte",
     "crates/rsvelte_capi",
+    "crates/rsvelte_bindings_support",
+    "crates/rsvelte_check",
     "crates/rsvelte_core",
+    "crates/rsvelte_devtools",
+    "crates/rsvelte_diagnostics",
     "crates/rsvelte_esrap",
     "crates/rsvelte_fmt",
     "crates/rsvelte_fmt_wasm",
@@ -12,6 +17,7 @@ members = [
     "crates/rsvelte_lint_bindings",
     "crates/rsvelte_napi",
     "crates/rsvelte_preprocess",
+    "crates/rsvelte_projection",
     "crates/tailwind_class_order",
 ]
 

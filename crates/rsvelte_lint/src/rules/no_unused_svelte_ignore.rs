@@ -46,8 +46,8 @@ use std::path::Path;
 
 use rsvelte_core::ast::arena::with_serialize_arena;
 use rsvelte_core::ast::template::{Fragment, Root, TemplateNode};
-use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 use rsvelte_core::{CompileOptions, GenerateMode, ParseOptions, compile, parse};
+use rsvelte_diagnostics::Diagnostic;
 use serde_json::Value;
 
 use crate::config::LintConfig;

@@ -154,7 +154,7 @@ function parseConfigText(configPath) {
 
     // Propagate `compileOptions: { hmr: true }` so HMR-specific fixtures are
     // generated with HMR-aware official output. The test runner
-    // (tests/compatibility_report.rs) already passes `hmr` based on the same
+    // (rsvelte_devtools/tests/compatibility_report.rs) already passes `hmr` based on the same
     // marker. We deliberately do NOT propagate `dev: true` here — the dev-mode
     // SSR codegen still has small divergences from the official compiler that
     // would cause many cross-suite regressions.

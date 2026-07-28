@@ -16,10 +16,7 @@ fn print_indented(indent: &str) -> String {
         "parse error: {:?}",
         ret.diagnostics
     );
-    let opts = PrintOptions {
-        indent: indent.to_string(),
-        ..Default::default()
-    };
+    let opts = PrintOptions::default().with_indent(indent);
     print_with(&ret.program, SRC, &opts)
 }
 

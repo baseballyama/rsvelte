@@ -121,7 +121,7 @@ jobs:
         shell: bash
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
-        run: cargo build --profile dist --bin svelte_check --target ${{ matrix.target }}
+        run: cargo build --profile dist -p rsvelte_check --bin svelte_check --target ${{ matrix.target }}
 
       - name: Stage binary
         shell: bash

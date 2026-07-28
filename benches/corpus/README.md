@@ -1,7 +1,7 @@
 # Benchmark corpus
 
 A **pinned, in-repo** set of representative Svelte sources used by the Rust
-micro-benchmarks (`crates/rsvelte_core/benches/{parser,compiler}.rs` and
+micro-benchmarks (`crates/rsvelte_devtools/benches/{parser,compiler}.rs` and
 `crates/rsvelte_formatter/benches/formatter.rs`).
 
 ## Why this exists

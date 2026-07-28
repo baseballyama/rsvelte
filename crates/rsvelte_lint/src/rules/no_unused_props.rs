@@ -18,7 +18,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use crate::type_backend::TypeId;
-use rsvelte_core::svelte_check::diagnostic::Diagnostic;
+use rsvelte_diagnostics::Diagnostic;
 
 use crate::config::LintConfig;
 use crate::line_index::LineIndex;
