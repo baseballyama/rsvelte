@@ -31,6 +31,7 @@ use super::props_transforms::transform_props_destructuring;
 use super::rune_transforms::{process_derived_destructuring_pattern, wrap_state_value};
 use super::{DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER, VAR_STATE_VARS};
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+use crate::compiler::phases::phase2_analyze::types::ScriptProjection;
 
 thread_local! {
     static AST_TRANSFORM_ALLOCATOR: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -3892,6 +3893,148 @@ fn state_assignment_needs_semantic(program: &Program<'_>, state_vars: &FxHashSet
     finder.found
 }
 
+fn projected_statement_is_type_only(statement: &Statement<'_>) -> bool {
+    match statement {
+        Statement::ImportDeclaration(_)
+        | Statement::TSTypeAliasDeclaration(_)
+        | Statement::TSInterfaceDeclaration(_)
+        | Statement::TSEnumDeclaration(_)
+        | Statement::TSModuleDeclaration(_) => true,
+        Statement::VariableDeclaration(declaration) => declaration.declare,
+        Statement::FunctionDeclaration(function) => {
+            function.r#type == FunctionType::TSDeclareFunction
+                || function.declare
+                || function.body.is_none()
+        }
+        Statement::ClassDeclaration(class) => class.declare,
+        Statement::ExportNamedDeclaration(export) => {
+            export.export_kind == ImportOrExportKind::Type
+                || export.declaration.as_ref().is_some_and(|declaration| {
+                    matches!(
+                        declaration,
+                        Declaration::TSTypeAliasDeclaration(_)
+                            | Declaration::TSInterfaceDeclaration(_)
+                            | Declaration::TSEnumDeclaration(_)
+                            | Declaration::TSModuleDeclaration(_)
+                    ) || matches!(
+                        declaration,
+                        Declaration::FunctionDeclaration(function)
+                            if function.r#type == FunctionType::TSDeclareFunction
+                                || function.declare
+                                || function.body.is_none()
+                    ) || matches!(
+                        declaration,
+                        Declaration::VariableDeclaration(declaration) if declaration.declare
+                    ) || matches!(
+                        declaration,
+                        Declaration::ClassDeclaration(class) if class.declare
+                    )
+                })
+        }
+        Statement::ExportDefaultDeclaration(export) => {
+            matches!(
+                &export.declaration,
+                ExportDefaultDeclarationKind::TSInterfaceDeclaration(_)
+            ) || matches!(
+                &export.declaration,
+                ExportDefaultDeclarationKind::FunctionDeclaration(function)
+                    if function.r#type == FunctionType::TSDeclareFunction
+                        || function.declare
+                        || function.body.is_none()
+            ) || matches!(
+                &export.declaration,
+                ExportDefaultDeclarationKind::ClassDeclaration(class) if class.declare
+            )
+        }
+        Statement::ExportAllDeclaration(export) => export.export_kind == ImportOrExportKind::Type,
+        _ => false,
+    }
+}
+
+fn projected_state_transform_requires_fallback(
+    program: &Program<'_>,
+    state_vars: &[String],
+) -> bool {
+    struct Finder<'a> {
+        state_vars: &'a [String],
+        found: bool,
+    }
+
+    impl<'a, 'ast> Visit<'ast> for Finder<'a> {
+        fn visit_assignment_expression(&mut self, expression: &AssignmentExpression<'ast>) {
+            if self.found {
+                return;
+            }
+            if let AssignmentTarget::AssignmentTargetIdentifier(target) = &expression.left {
+                let needs_site_resolution = matches!(
+                    expression.operator,
+                    AssignmentOperator::Assign
+                        | AssignmentOperator::LogicalOr
+                        | AssignmentOperator::LogicalAnd
+                        | AssignmentOperator::LogicalNullish
+                ) && matches!(
+                    expression.right.get_inner_expression(),
+                    Expression::Identifier(_)
+                );
+                if needs_site_resolution
+                    && self
+                        .state_vars
+                        .iter()
+                        .any(|name| name == target.name.as_str())
+                {
+                    self.found = true;
+                    return;
+                }
+            }
+            walk::walk_assignment_expression(self, expression);
+        }
+
+        fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'ast>) {
+            if self.found {
+                return;
+            }
+            let Some(init) = &declarator.init else {
+                return;
+            };
+            if !matches!(
+                init,
+                Expression::TSAsExpression(_)
+                    | Expression::TSSatisfiesExpression(_)
+                    | Expression::TSNonNullExpression(_)
+                    | Expression::TSTypeAssertion(_)
+                    | Expression::TSInstantiationExpression(_)
+            ) {
+                walk::walk_variable_declarator(self, declarator);
+                return;
+            }
+            let Expression::CallExpression(call) = init.get_inner_expression() else {
+                walk::walk_variable_declarator(self, declarator);
+                return;
+            };
+            let rune_name = match &call.callee {
+                Expression::Identifier(identifier) => Some(identifier.name.as_str()),
+                Expression::StaticMemberExpression(member) => match &member.object {
+                    Expression::Identifier(object) => Some(object.name.as_str()),
+                    _ => None,
+                },
+                _ => None,
+            };
+            self.found = rune_name
+                .is_some_and(|name| matches!(name, "$state" | "$derived" | "$props" | "$bindable"));
+            if !self.found {
+                walk::walk_variable_declarator(self, declarator);
+            }
+        }
+    }
+
+    let mut finder = Finder {
+        state_vars,
+        found: false,
+    };
+    finder.visit_program(program);
+    finder.found
+}
+
 pub(super) fn transform_state_vars_ast(
     script: &str,
     config: &AstTransformConfig,
@@ -3947,12 +4090,116 @@ pub(super) fn transform_state_vars_ast_range_from_program(
     transform_state_vars_ast_from_program_unchecked(script, program, output_range, config)
 }
 
+pub(super) fn transform_state_vars_ast_projected_from_program(
+    script: &str,
+    program: &Program<'_>,
+    candidate: &str,
+    projection: &ScriptProjection,
+    projection_output_range: std::ops::Range<usize>,
+    config: &AstTransformConfig,
+) -> Result<Option<String>, ()> {
+    debug_assert_eq!(script, program.source_text);
+    if !has_state_transform_candidate(candidate, config) {
+        return Ok(None);
+    }
+    if projection.source_len as usize != script.len()
+        || projection_output_range.end > projection.output_len as usize
+        || projection_output_range.end - projection_output_range.start != candidate.len()
+    {
+        return Err(());
+    }
+
+    if projected_state_transform_requires_fallback(program, config.state_vars) {
+        return Err(());
+    }
+
+    let mut mapped = Vec::new();
+    for replacement in collect_state_var_replacements_without_semantic_scan(script, program, config)
+    {
+        let source_range = replacement.start..replacement.end;
+        if let Some(output_range) = projection.output_range_for_source(source_range.clone()) {
+            let output_start = output_range.start as usize;
+            let output_end = output_range.end as usize;
+            if output_end <= projection_output_range.start
+                || output_start >= projection_output_range.end
+            {
+                continue;
+            }
+            if output_start < projection_output_range.start
+                || output_end > projection_output_range.end
+            {
+                return Err(());
+            }
+            let candidate_start = output_start - projection_output_range.start;
+            let candidate_end = output_end - projection_output_range.start;
+            if script.get(source_range.start as usize..source_range.end as usize)
+                != candidate.get(candidate_start..candidate_end)
+            {
+                return Err(());
+            }
+            mapped.push(Replacement {
+                start: candidate_start as u32,
+                end: candidate_end as u32,
+                text: replacement.text,
+            });
+            continue;
+        }
+
+        let overlaps_copied_source = projection.copied_chunks.iter().any(|chunk| {
+            source_range.start < chunk.source.end && source_range.end > chunk.source.start
+        });
+        if source_range.is_empty() || overlaps_copied_source {
+            return Err(());
+        }
+    }
+
+    if mapped.is_empty() {
+        return Ok(None);
+    }
+    mapped.sort_by_key(|replacement| std::cmp::Reverse(replacement.start));
+    let mut output = candidate.to_string();
+    for replacement in mapped {
+        output.replace_range(
+            replacement.start as usize..replacement.end as usize,
+            &replacement.text,
+        );
+    }
+    Ok(Some(output))
+}
+
 fn transform_state_vars_ast_from_program_unchecked(
     script: &str,
     program: &Program<'_>,
     output_range: std::ops::Range<usize>,
     config: &AstTransformConfig,
 ) -> Option<String> {
+    let mut replacements = collect_state_var_replacements(script, program, config);
+    replacements.retain(|replacement| {
+        replacement.start as usize >= output_range.start
+            && replacement.end as usize <= output_range.end
+    });
+    if replacements.is_empty() {
+        return None;
+    }
+
+    replacements.sort_by_key(|r| std::cmp::Reverse(r.start));
+
+    let mut result = script[output_range.clone()].to_string();
+    for rep in &replacements {
+        result.replace_range(
+            rep.start as usize - output_range.start..rep.end as usize - output_range.start,
+            &rep.text,
+        );
+    }
+
+    Some(result)
+}
+
+fn collect_state_var_replacements(
+    script: &str,
+    program: &Program<'_>,
+    config: &AstTransformConfig,
+) -> Vec<Replacement> {
     let var_set: FxHashSet<&str> = config.state_vars.iter().map(String::as_str).collect();
     let non_reactive_set: FxHashSet<&str> = config
         .non_reactive_vars
@@ -3989,28 +4236,48 @@ fn transform_state_vars_ast_from_program_unchecked(
     );
     collector.semantic = semantic_ret.as_ref().map(|ret| &ret.semantic);
     collector.visit_program(program);
+    collector.replacements
+}
 
-    collector.replacements.retain(|replacement| {
-        replacement.start as usize >= output_range.start
-            && replacement.end as usize <= output_range.end
-    });
-    if collector.replacements.is_empty() {
-        return None;
+fn collect_state_var_replacements_without_semantic_scan(
+    script: &str,
+    program: &Program<'_>,
+    config: &AstTransformConfig,
+) -> Vec<Replacement> {
+    let var_set: FxHashSet<&str> = config.state_vars.iter().map(String::as_str).collect();
+    let non_reactive_set: FxHashSet<&str> = config
+        .non_reactive_vars
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let raw_set: FxHashSet<&str> = config.raw_state_vars.iter().map(String::as_str).collect();
+    let mut collector = StateVarCollector::new(
+        script,
+        &var_set,
+        &non_reactive_set,
+        &raw_set,
+        config.derived_vars,
+        config.non_proxy_vars,
+        config.reassign_non_proxy_vars,
+        config.is_runes,
+        config.dev,
+        config.analysis_source,
+        config.filename,
+        config.prop_source_vars,
+        config.non_bindable_prop_vars,
+        config.store_sub_vars,
+        config.read_only_props,
+        config.rest_prop_vars,
+        config.prop_assignment_transform_vars,
+        config.analysis,
+        config.exported_names,
+    );
+    for statement in &program.body {
+        if !projected_statement_is_type_only(statement) {
+            collector.visit_statement(statement);
+        }
     }
-
-    collector
-        .replacements
-        .sort_by_key(|r| std::cmp::Reverse(r.start));
-
-    let mut result = script[output_range.clone()].to_string();
-    for rep in &collector.replacements {
-        result.replace_range(
-            rep.start as usize - output_range.start..rep.end as usize - output_range.start,
-            &rep.text,
-        );
-    }
-
-    Some(result)
+    collector.replacements
 }
 
 #[cfg(test)]
@@ -4118,6 +4385,64 @@ mod tests {
         assert_eq!(retained, reparsed);
         assert!(retained.starts_with("\n\n"));
         assert!(retained.ends_with("\n\n"));
+    }
+
+    #[test]
+    fn projected_typescript_type_declaration_does_not_shadow_runtime_state() {
+        let script = "type count = number;\nenum Removed { Value = count }\nlet count = $state(0);\nconst read = () => count;\n";
+        let allocator = Allocator::default();
+        let parsed = Parser::new(&allocator, script, SourceType::ts()).parse();
+        assert!(parsed.diagnostics.is_empty());
+        let (candidate, projection) =
+            crate::compiler::phases::phase2_analyze::types::strip_typescript_from_program_with_projection(
+                script,
+                &parsed.program,
+            );
+        let projection = projection.expect("type declaration must be omitted");
+        let state_vars = vec!["count".to_string()];
+        let config = AstTransformConfig {
+            state_vars: &state_vars,
+            non_reactive_vars: &[],
+            raw_state_vars: &[],
+            derived_vars: &[],
+            non_proxy_vars: &[],
+            reassign_non_proxy_vars: &[],
+            is_runes: true,
+            dev: false,
+            analysis_source: None,
+            filename: None,
+            prop_source_vars: &[],
+            prop_assignment_transform_vars: &[],
+            non_bindable_prop_vars: &[],
+            store_sub_vars: &[],
+            read_only_props: &[],
+            rest_prop_vars: &[],
+            analysis: None,
+            exported_names: &[],
+        };
+        let runtime_start = script.find("let count").unwrap() as u32;
+        assert!(
+            collect_state_var_replacements_without_semantic_scan(script, &parsed.program, &config)
+                .iter()
+                .all(|replacement| replacement.start >= runtime_start),
+            "removed enum initializers must not participate in runtime state transforms"
+        );
+
+        let transformed = transform_state_vars_ast_projected_from_program(
+            script,
+            &parsed.program,
+            &candidate,
+            &projection,
+            0..candidate.len(),
+            &config,
+        )
+        .expect("type-only omission is safe to project")
+        .expect("runtime state references must be transformed");
+
+        assert_eq!(
+            transformed,
+            "\n\nlet count = $.state(0);\nconst read = () => $.get(count);\n"
+        );
     }
 
     #[test]

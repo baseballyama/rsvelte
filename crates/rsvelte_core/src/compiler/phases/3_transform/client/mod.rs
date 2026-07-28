@@ -98,6 +98,7 @@ use crate::ast::template::Root;
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::{BindingKind, DeclarationKind};
+use crate::compiler::phases::phase2_analyze::types::{CopiedSourceChunk, ScriptProjection};
 
 // Import new visitor system types
 use types::{ComponentClientTransformState, ComponentContext, TransformOptions, TransformResult};
@@ -456,44 +457,80 @@ fn transform_client_with_visitors(
     // This also determines how many $$array names it consumes (for template generation)
     // and is used for blocker_map computation and the final output.
     let mut instance_script_imports = Vec::new();
-    let mut pre_transformed_script =
-        if let Some(instance_script) = &analysis.instance_script_content {
-            let (imports, script_body) = extract_imports(&instance_script.raw);
-            instance_script_imports = imports;
-            let split_top_level_declarations =
-                instance_has_top_level_multi_declarator(ast, &instance_script.raw);
-            let _script_start = super::profile::timer_start();
-            let mut transformed = transform_instance_script_for_visitors(
-                &script_body,
-                analysis,
-                options.dev,
-                &reactive_import_names,
-                split_top_level_declarations,
-                retained_scripts.and_then(|scripts| scripts.instance.as_ref()),
-            );
-            rest_excludes_hoists = extract_rest_excludes_hoists(&mut transformed);
-            super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
-            // Transfer the script's $$array counter to the context state so that the template
-            // visitor continues numbering from where the script left off.
-            let script_array_count = SCRIPT_ARRAY_COUNTER.with(|c| c.get());
-            context
-                .state
-                .destructure_array_counter
-                .set(script_array_count);
-            // Also seed the memoizer's conflicts set with names already used by the script,
-            // so that generate_array_name() (which uses the memoizer) won't reuse them.
-            for i in 0..script_array_count {
-                let name = if i == 0 {
-                    "$$array".to_string()
-                } else {
-                    format!("$$array_{}", i)
-                };
-                context.state.memoizer.add_conflict(&name);
-            }
-            Some(transformed)
+    let mut pre_transformed_script = if let Some(instance_script) =
+        &analysis.instance_script_content
+    {
+        let retained_instance = retained_scripts.and_then(|scripts| scripts.instance.as_ref());
+        let needs_projection = analysis.runes
+            && retained_instance.is_some()
+            && instance_script.source_projection.is_some();
+        let can_borrow_projection = needs_projection
+            && memmem::find(instance_script.raw.as_bytes(), b"import").is_none()
+            && !instance_script.raw.as_bytes().contains(&b'\r');
+        let (imports, script_body, body_chunks) = if can_borrow_projection {
+            (
+                Vec::new(),
+                instance_script
+                    .raw
+                    .strip_suffix('\n')
+                    .unwrap_or(&instance_script.raw)
+                    .to_string(),
+                Vec::new(),
+            )
+        } else if needs_projection {
+            extract_imports_with_projection(&instance_script.raw)
         } else {
-            None
+            let (imports, script_body) = extract_imports(&instance_script.raw);
+            (imports, script_body, Vec::new())
         };
+        let composed_body_projection = (needs_projection && !can_borrow_projection).then(|| {
+            compose_script_projection(
+                instance_script.source_projection.as_ref().unwrap(),
+                &body_chunks,
+                script_body.len(),
+            )
+        });
+        let body_projection = if can_borrow_projection {
+            instance_script.source_projection.as_ref()
+        } else {
+            composed_body_projection.as_ref()
+        };
+        instance_script_imports = imports;
+        let split_top_level_declarations =
+            instance_has_top_level_multi_declarator(ast, &instance_script.raw);
+        let _script_start = super::profile::timer_start();
+        let mut transformed = transform_instance_script_for_visitors(
+            &script_body,
+            analysis,
+            options.dev,
+            &reactive_import_names,
+            split_top_level_declarations,
+            retained_instance,
+            body_projection,
+        );
+        rest_excludes_hoists = extract_rest_excludes_hoists(&mut transformed);
+        super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
+        // Transfer the script's $$array counter to the context state so that the template
+        // visitor continues numbering from where the script left off.
+        let script_array_count = SCRIPT_ARRAY_COUNTER.with(|c| c.get());
+        context
+            .state
+            .destructure_array_counter
+            .set(script_array_count);
+        // Also seed the memoizer's conflicts set with names already used by the script,
+        // so that generate_array_name() (which uses the memoizer) won't reuse them.
+        for i in 0..script_array_count {
+            let name = if i == 0 {
+                "$$array".to_string()
+            } else {
+                format!("$$array_{}", i)
+            };
+            context.state.memoizer.add_conflict(&name);
+        }
+        Some(transformed)
+    } else {
+        None
+    };
 
     // Pre-compute blocker map for async components.
     if options.experimental.r#async
@@ -2755,14 +2792,10 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
     let mut scan = ScanState::default();
 
     for line in script.lines() {
-        // Only treat a line as import-eligible when it begins in pure-code state
-        // (not inside a multi-line template literal / block comment).
         let line_starts_in_code = scan.in_code();
         scan.advance(line);
         let scan = line_starts_in_code; // shadow for the decision below
         if let Some(ref mut import_lines) = current_import {
-            // We're inside a multi-line import. The closing line may carry
-            // trailing statements after the import terminator; split them off.
             let trimmed = line.trim();
             let closes = trimmed.contains(';')
                 || trimmed.ends_with('\'')
@@ -2830,6 +2863,195 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
     (imports, rest.join("\n"))
 }
 
+struct ExtractedSourcePart {
+    text: String,
+    source: std::ops::Range<u32>,
+}
+
+fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<CopiedSourceChunk>) {
+    let mut imports = Vec::new();
+    let mut rest: Vec<ExtractedSourcePart> = Vec::new();
+    let mut current_import: Option<Vec<String>> = None;
+    let mut scan = ScanState::default();
+    let mut line_start = 0usize;
+
+    for physical_line in script.split_inclusive('\n') {
+        let line = if let Some(line_without_lf) = physical_line.strip_suffix('\n') {
+            line_without_lf
+                .strip_suffix('\r')
+                .unwrap_or(line_without_lf)
+        } else {
+            physical_line
+        };
+        let line_starts_in_code = scan.in_code();
+        scan.advance(line);
+        let scan = line_starts_in_code;
+        if let Some(ref mut import_lines) = current_import {
+            let trimmed = line.trim();
+            let closes = trimmed.contains(';')
+                || trimmed.ends_with('\'')
+                || trimmed.ends_with('"')
+                || trimmed.ends_with('`');
+            if closes {
+                if let Some(end) = import_statement_end(trimmed)
+                    && end < trimmed.len()
+                    && !trimmed[end..].trim().is_empty()
+                {
+                    import_lines.push(trimmed[..end].to_string());
+                    imports.push(import_lines.join("\n"));
+                    current_import = None;
+                    let trimmed_start = line.len() - line.trim_start().len();
+                    let remainder_source_start = trimmed_start + end;
+                    let (remainder, remainder_offset) =
+                        peel_leading_imports_ref(&trimmed[end..], &mut imports);
+                    if !remainder.trim().is_empty() {
+                        rest.push(ExtractedSourcePart {
+                            text: remainder.to_string(),
+                            source: (line_start + remainder_source_start + remainder_offset) as u32
+                                ..(line_start
+                                    + remainder_source_start
+                                    + remainder_offset
+                                    + remainder.len()) as u32,
+                        });
+                    }
+                } else {
+                    import_lines.push(line.to_string());
+                    imports.push(import_lines.join("\n"));
+                    current_import = None;
+                }
+            } else {
+                import_lines.push(line.to_string());
+            }
+        } else {
+            let trimmed = line.trim();
+            if scan && (trimmed.starts_with("import ") || trimmed.starts_with("import{")) {
+                if trimmed.contains(';')
+                    || is_complete_side_effect_import(trimmed)
+                    || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
+                        && (trimmed.ends_with('\'')
+                            || trimmed.ends_with('"')
+                            || trimmed.ends_with('`')))
+                {
+                    let trimmed_start = line.len() - line.trim_start().len();
+                    let (remainder, remainder_offset) =
+                        peel_leading_imports_ref(trimmed, &mut imports);
+                    if !remainder.trim().is_empty() {
+                        rest.push(ExtractedSourcePart {
+                            text: remainder.to_string(),
+                            source: (line_start + trimmed_start + remainder_offset) as u32
+                                ..(line_start + trimmed_start + remainder_offset + remainder.len())
+                                    as u32,
+                        });
+                    }
+                } else {
+                    current_import = Some(vec![line.to_string()]);
+                }
+            } else {
+                rest.push(ExtractedSourcePart {
+                    text: line.to_string(),
+                    source: line_start as u32..(line_start + line.len()) as u32,
+                });
+            }
+        }
+        line_start += physical_line.len();
+    }
+
+    if let Some(import_lines) = current_import {
+        imports.push(import_lines.join("\n"));
+    }
+
+    let mut output = String::new();
+    let mut copied_chunks = Vec::with_capacity(rest.len().saturating_mul(2));
+    for (index, part) in rest.iter().enumerate() {
+        if index != 0 {
+            let output_start = output.len() as u32;
+            output.push('\n');
+            let previous = &rest[index - 1];
+            if previous.source.end + 1 == part.source.start
+                && script.as_bytes().get(previous.source.end as usize) == Some(&b'\n')
+            {
+                push_projection_chunk(
+                    &mut copied_chunks,
+                    previous.source.end..part.source.start,
+                    output_start..output.len() as u32,
+                );
+            }
+        }
+
+        let output_start = output.len() as u32;
+        output.push_str(&part.text);
+        push_projection_chunk(
+            &mut copied_chunks,
+            part.source.clone(),
+            output_start..output.len() as u32,
+        );
+    }
+
+    (imports, output, copied_chunks)
+}
+
+fn push_projection_chunk(
+    chunks: &mut Vec<CopiedSourceChunk>,
+    source: std::ops::Range<u32>,
+    output: std::ops::Range<u32>,
+) {
+    if source.is_empty() {
+        return;
+    }
+    debug_assert_eq!(source.end - source.start, output.end - output.start);
+    if let Some(previous) = chunks.last_mut()
+        && previous.source.end == source.start
+        && previous.output.end == output.start
+    {
+        previous.source.end = source.end;
+        previous.output.end = output.end;
+    } else {
+        chunks.push(CopiedSourceChunk { source, output });
+    }
+}
+
+fn compose_script_projection(
+    source_projection: &ScriptProjection,
+    raw_to_body: &[CopiedSourceChunk],
+    body_len: usize,
+) -> ScriptProjection {
+    let mut copied_chunks = Vec::new();
+    let mut source_index = 0usize;
+    for body_chunk in raw_to_body {
+        while source_index < source_projection.copied_chunks.len()
+            && source_projection.copied_chunks[source_index].output.end <= body_chunk.source.start
+        {
+            source_index += 1;
+        }
+
+        for source_chunk in &source_projection.copied_chunks[source_index..] {
+            if source_chunk.output.start >= body_chunk.source.end {
+                break;
+            }
+            let intersection_start = source_chunk.output.start.max(body_chunk.source.start);
+            let intersection_end = source_chunk.output.end.min(body_chunk.source.end);
+            if intersection_start >= intersection_end {
+                continue;
+            }
+            let source_start =
+                source_chunk.source.start + intersection_start - source_chunk.output.start;
+            let output_start =
+                body_chunk.output.start + intersection_start - body_chunk.source.start;
+            push_projection_chunk(
+                &mut copied_chunks,
+                source_start..source_start + intersection_end - intersection_start,
+                output_start..output_start + intersection_end - intersection_start,
+            );
+        }
+    }
+
+    ScriptProjection {
+        copied_chunks,
+        source_len: source_projection.source_len,
+        output_len: body_len as u32,
+    }
+}
+
 /// Check whether `trimmed` is a complete *side-effect* import statement —
 /// `import "module"` or `import 'module'` with no `from` clause and no
 /// terminating semicolon. ASI in real JavaScript allows this form to stand
@@ -2883,16 +3105,23 @@ fn import_statement_end(s: &str) -> Option<usize> {
 /// the first non-import token or an *incomplete* import (one that continues on a
 /// following line) and returns it so the caller can route it.
 fn peel_leading_imports(s: &str, imports: &mut Vec<String>) -> String {
-    let mut cur = s.trim_start();
+    peel_leading_imports_ref(s, imports).0.to_string()
+}
+
+fn peel_leading_imports_ref<'a>(s: &'a str, imports: &mut Vec<String>) -> (&'a str, usize) {
+    let mut offset = s.len() - s.trim_start().len();
+    let mut cur = &s[offset..];
     while cur.starts_with("import ") || cur.starts_with("import{") {
         let Some(end) = import_statement_end(cur) else {
             break;
         };
         let (import_part, remainder) = cur.split_at(end);
         imports.push(import_part.trim().to_string());
-        cur = remainder.trim_start();
+        let whitespace = remainder.len() - remainder.trim_start().len();
+        offset += end + whitespace;
+        cur = &s[offset..];
     }
-    cur.to_string()
+    (cur, offset)
 }
 
 fn is_complete_side_effect_import(trimmed: &str) -> bool {
@@ -3917,6 +4146,7 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
         reactive_import_names,
         might_have_comma_separated_declaration(script),
         None,
+        None,
     )
 }
 
@@ -3996,6 +4226,7 @@ fn transform_instance_script_for_visitors(
     reactive_import_names: &[String],
     split_top_level_declarations: bool,
     retained_program: Option<&crate::ast::oxc_program::RetainedProgram<'_>>,
+    source_projection: Option<&ScriptProjection>,
 ) -> String {
     if script.is_empty() {
         return String::new();
@@ -5782,27 +6013,46 @@ fn transform_instance_script_for_visitors(
                 if retained_core != result_core {
                     return None;
                 }
-                let mut retained_matches = program.source().match_indices(retained_core);
-                let (retained_core_start, _) = retained_matches.next()?;
-                if retained_matches.next().is_some() {
-                    return None;
-                }
-                let retained_core_end = retained_core_start + retained_core.len();
                 let result_core_start = result.find(result_core).unwrap_or(0);
                 let result_core_end = result_core_start + result_core.len();
                 let prefix = &result[..result_core_start];
                 let suffix = &result[result_core_end..];
+
+                let transformed = if let Some(projection) = source_projection {
+                    let projection_core_start =
+                        original_script.len() - original_script.trim_start().len();
+                    let projection_core_end = projection_core_start + original_script.trim().len();
+                    match ast_state_transform::transform_state_vars_ast_projected_from_program(
+                        program.source(),
+                        program.program(),
+                        result_core,
+                        projection,
+                        projection_core_start..projection_core_end,
+                        &ast_config,
+                    ) {
+                        Ok(transformed) => transformed,
+                        Err(()) => return None,
+                    }
+                } else {
+                    let mut retained_matches = program.source().match_indices(retained_core);
+                    let (retained_core_start, _) = retained_matches.next()?;
+                    if retained_matches.next().is_some() {
+                        return None;
+                    }
+                    let retained_core_end = retained_core_start + retained_core.len();
+                    ast_state_transform::transform_state_vars_ast_range_from_program(
+                        program.source(),
+                        program.program(),
+                        result_core,
+                        retained_core_start..retained_core_end,
+                        &ast_config,
+                    )
+                };
+
                 used_retained = true;
                 #[cfg(test)]
                 AST_STATE_RETAINED_USES.with(|count| count.set(count.get() + 1));
-                ast_state_transform::transform_state_vars_ast_range_from_program(
-                    program.source(),
-                    program.program(),
-                    result_core,
-                    retained_core_start..retained_core_end,
-                    &ast_config,
-                )
-                .map(|transformed| {
+                transformed.map(|transformed| {
                     let mut output =
                         String::with_capacity(prefix.len() + transformed.len() + suffix.len());
                     output.push_str(prefix);

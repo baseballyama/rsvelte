@@ -1,9 +1,10 @@
 //! Type definitions for the analysis phase.
 
 use super::scope::{Scope, ScopeRoot};
-use crate::ast::template::{Root, Script};
+use crate::ast::template::{Root, Script, ScriptContext};
 use crate::compiler::CompileOptions;
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::ops::Range;
 
 #[cfg(test)]
 thread_local! {
@@ -23,6 +24,43 @@ pub struct ScriptContent {
     pub end: u32,
     /// Whether this script uses runes ($state, $derived, $effect, $props).
     pub uses_runes: bool,
+    /// Mapping from the original TypeScript source to `raw`.
+    ///
+    /// `None` means the mapping is the identity.
+    pub(crate) source_projection: Option<ScriptProjection>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CopiedSourceChunk {
+    pub(crate) source: Range<u32>,
+    pub(crate) output: Range<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ScriptProjection {
+    /// Exact source slices copied into the output, including re-emitted comments.
+    pub(crate) copied_chunks: Vec<CopiedSourceChunk>,
+    /// Original script-content length in bytes.
+    pub(crate) source_len: u32,
+    /// Stripped script-content length in bytes.
+    pub(crate) output_len: u32,
+}
+
+impl ScriptProjection {
+    /// Map a range only when all of its bytes were copied contiguously and unchanged.
+    pub(crate) fn output_range_for_source(&self, source: Range<u32>) -> Option<Range<u32>> {
+        if source.start > source.end || source.end > self.source_len {
+            return None;
+        }
+
+        self.copied_chunks.iter().find_map(|chunk| {
+            if source.start < chunk.source.start || source.end > chunk.source.end {
+                return None;
+            }
+            let start = chunk.output.start + (source.start - chunk.source.start);
+            Some(start..start + (source.end - source.start))
+        })
+    }
 }
 
 /// A reactive statement ($: statement) in legacy mode (Svelte 4).
@@ -96,7 +134,6 @@ impl ScriptContent {
             program.source().len() == raw_source.len()
                 && std::ptr::eq(program.source().as_ptr(), raw_source.as_ptr())
         });
-        let raw = raw_source.to_string();
         // Check if this script uses TypeScript
         let is_typescript = force_typescript
             || script.attributes.iter().any(|attr| {
@@ -109,9 +146,12 @@ impl ScriptContent {
                 }
                 false
             });
+        let needs_state_projection = is_typescript
+            && script.context == ScriptContext::Default
+            && raw_source.as_bytes().contains(&b'$');
 
         // Strip TypeScript from the raw content if this is a TypeScript script
-        let raw = if is_typescript && !raw.is_empty() {
+        let (raw, source_projection) = if is_typescript && !raw_source.is_empty() {
             retained_program
                 .filter(|program| {
                     !program.panicked()
@@ -119,11 +159,23 @@ impl ScriptContent {
                         && retained_matches_source
                 })
                 .map_or_else(
-                    || strip_typescript(&raw),
-                    |program| strip_typescript_from_program(&raw, program.program()),
+                    || (strip_typescript(raw_source), None),
+                    |program| {
+                        if needs_state_projection {
+                            strip_typescript_from_program_with_projection(
+                                raw_source,
+                                program.program(),
+                            )
+                        } else {
+                            (
+                                strip_typescript_from_program(raw_source, program.program()),
+                                None,
+                            )
+                        }
+                    },
                 )
         } else {
-            raw
+            (raw_source.to_string(), None)
         };
 
         if !raw.as_bytes().contains(&b'$') {
@@ -132,6 +184,7 @@ impl ScriptContent {
                 start,
                 end,
                 uses_runes: false,
+                source_projection,
             };
         }
 
@@ -156,6 +209,7 @@ impl ScriptContent {
             start,
             end,
             uses_runes,
+            source_projection,
         }
     }
 }
@@ -533,6 +587,21 @@ pub(crate) fn strip_typescript_from_program(
     source: &str,
     program: &oxc_ast::ast::Program<'_>,
 ) -> String {
+    strip_typescript_from_program_impl(source, program, false).0
+}
+
+pub(crate) fn strip_typescript_from_program_with_projection(
+    source: &str,
+    program: &oxc_ast::ast::Program<'_>,
+) -> (String, Option<ScriptProjection>) {
+    strip_typescript_from_program_impl(source, program, true)
+}
+
+fn strip_typescript_from_program_impl(
+    source: &str,
+    program: &oxc_ast::ast::Program<'_>,
+    include_projection: bool,
+) -> (String, Option<ScriptProjection>) {
     debug_assert_eq!(source, program.source_text);
 
     let mut removals: Vec<(u32, u32)> = Vec::new();
@@ -590,7 +659,7 @@ pub(crate) fn strip_typescript_from_program(
     }
 
     if removals.is_empty() {
-        return source.to_string();
+        return (source.to_string(), None);
     }
 
     // Sort removals by start position
@@ -610,11 +679,18 @@ pub(crate) fn strip_typescript_from_program(
 
     // Build output by skipping removed regions
     let mut output = String::with_capacity(source.len());
+    let mut copied_chunks =
+        include_projection.then(|| Vec::with_capacity(merged.len().saturating_add(1)));
     let mut pos = 0u32;
 
     for (remove_start, remove_end) in &merged {
         if *remove_start > pos {
-            output.push_str(&source[pos as usize..*remove_start as usize]);
+            push_source_range(
+                source,
+                pos..*remove_start,
+                &mut output,
+                copied_chunks.as_mut(),
+            );
         }
         // The official compiler PARSES TypeScript and only removes the
         // type-only nodes — comments inside a removed declaration (e.g. the
@@ -643,11 +719,27 @@ pub(crate) fn strip_typescript_from_program(
                 && removed.contains('\n')
                 && (removed.contains("/*") || removed.contains("//"))
             {
-                for comment in
-                    crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet(removed)
-                {
-                    output.push_str(&comment);
-                    output.push('\n');
+                if let Some(copied_chunks) = copied_chunks.as_mut() {
+                    for (comment_offset, comment) in
+                        crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(removed)
+                    {
+                        let comment_start = *remove_start + comment_offset as u32;
+                        let comment_end = comment_start + comment.len() as u32;
+                        push_source_range(
+                            source,
+                            comment_start..comment_end,
+                            &mut output,
+                            Some(copied_chunks),
+                        );
+                        output.push('\n');
+                    }
+                } else {
+                    for comment in
+                        crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet(removed)
+                    {
+                        output.push_str(&comment);
+                        output.push('\n');
+                    }
                 }
             }
         }
@@ -656,10 +748,51 @@ pub(crate) fn strip_typescript_from_program(
 
     // Add remaining content
     if (pos as usize) < source.len() {
-        output.push_str(&source[pos as usize..]);
+        push_source_range(
+            source,
+            pos..source.len() as u32,
+            &mut output,
+            copied_chunks.as_mut(),
+        );
     }
 
-    output
+    let projection = copied_chunks.map(|copied_chunks| ScriptProjection {
+        copied_chunks,
+        source_len: source.len() as u32,
+        output_len: output.len() as u32,
+    });
+
+    (output, projection)
+}
+
+fn push_source_range(
+    source: &str,
+    source_range: Range<u32>,
+    output: &mut String,
+    copied_chunks: Option<&mut Vec<CopiedSourceChunk>>,
+) {
+    if source_range.is_empty() {
+        return;
+    }
+
+    let output_start = output.len() as u32;
+    output.push_str(&source[source_range.start as usize..source_range.end as usize]);
+    let output_end = output.len() as u32;
+
+    if let Some(copied_chunks) = copied_chunks {
+        if let Some(last) = copied_chunks.last_mut()
+            && last.source.end == source_range.start
+            && last.output.end == output_start
+        {
+            last.source.end = source_range.end;
+            last.output.end = output_end;
+        } else {
+            copied_chunks.push(CopiedSourceChunk {
+                source: source_range,
+                output: output_start..output_end,
+            });
+        }
+    }
 }
 
 /// Blank TypeScript-specific syntax with spaces instead of removing it, so the
@@ -2567,8 +2700,13 @@ pub struct CustomElementConfig {
 
 #[cfg(test)]
 mod strip_typescript_tests {
-    use super::{strip_typescript, strip_typescript_from_program};
+    use super::{
+        STRIP_TYPESCRIPT_REPARSES, ScriptContent, ScriptProjection, strip_typescript,
+        strip_typescript_from_program, strip_typescript_from_program_with_projection,
+    };
+    use crate::ast::js::{Expression, LazyKind};
     use crate::ast::oxc_program::RetainedProgram;
+    use crate::ast::template::{Script, ScriptContext, ScriptType};
 
     #[test]
     fn retained_program_matches_parser_entry_point() {
@@ -2586,6 +2724,161 @@ count! += 1;
             strip_typescript_from_program(source, retained.program()),
             strip_typescript(source)
         );
+    }
+
+    #[test]
+    fn identity_strip_does_not_allocate_a_projection() {
+        let source = "const answer = 42;\n";
+        let retained = RetainedProgram::parse(source, true);
+        let (output, projection) =
+            strip_typescript_from_program_with_projection(source, retained.program());
+
+        assert_eq!(output, source);
+        assert!(projection.is_none());
+    }
+
+    #[test]
+    fn script_content_stores_projection_without_reparsing_retained_program() {
+        let source = "let count: number = $state<number>(0);\n";
+        let script = Script {
+            node_type: ScriptType::Script,
+            start: 0,
+            end: source.len() as u32,
+            context: ScriptContext::Default,
+            content: Expression::Lazy {
+                start: 0,
+                end: source.len() as u32,
+                ts: true,
+                kind: LazyKind::Lenient,
+            },
+            attributes: Vec::new(),
+            raw_content: "",
+            content_offset: 0,
+            is_typescript: true,
+        };
+        let retained = RetainedProgram::parse(source, true);
+        STRIP_TYPESCRIPT_REPARSES.with(|count| count.set(0));
+
+        let content = ScriptContent::from_script_with_ts(&script, source, true, Some(&retained));
+
+        assert_eq!(content.raw, "let count = $state(0);\n");
+        assert!(content.source_projection.is_some());
+        STRIP_TYPESCRIPT_REPARSES.with(|count| assert_eq!(count.get(), 0));
+    }
+
+    #[test]
+    fn projection_tracks_copied_chunks_and_typescript_omissions() {
+        let source = "let count: number = $state<number>(0);\ncount! += 1;\n";
+        let retained = RetainedProgram::parse(source, true);
+        let (output, projection) =
+            strip_typescript_from_program_with_projection(source, retained.program());
+        let projection = projection.expect("TypeScript syntax should create a projection");
+
+        assert_eq!(output, "let count = $state(0);\ncount += 1;\n");
+        assert_projection_chunks_are_exact(source, &output, &projection);
+        assert_eq!(projection.source_len, source.len() as u32);
+        assert_eq!(projection.output_len, output.len() as u32);
+
+        let rune_start = source.find("$state").unwrap() as u32;
+        let rune_source = rune_start..rune_start + "$state".len() as u32;
+        let rune_output = projection
+            .output_range_for_source(rune_source.clone())
+            .expect("unchanged rune name should be mapped");
+        assert_eq!(
+            &source[rune_source.start as usize..rune_source.end as usize],
+            &output[rune_output.start as usize..rune_output.end as usize]
+        );
+
+        let annotation_start = source.find(':').unwrap() as u32;
+        assert!(
+            !projection
+                .copied_chunks
+                .iter()
+                .any(|chunk| chunk.source.start <= annotation_start
+                    && annotation_start < chunk.source.end)
+        );
+        let count_start = source.find("count").unwrap() as u32;
+        assert!(
+            projection
+                .output_range_for_source(count_start..annotation_start + 1)
+                .is_none(),
+            "a range crossing an omitted type annotation must not map exactly"
+        );
+    }
+
+    #[test]
+    fn projection_records_comments_reemitted_from_removed_declarations() {
+        let source = "\
+interface Props {
+\t/** Documentation. */
+\tvalue: string;
+}
+const answer: number = 42;
+";
+        let retained = RetainedProgram::parse(source, true);
+        let (output, projection) =
+            strip_typescript_from_program_with_projection(source, retained.program());
+        let projection = projection.expect("TypeScript syntax should create a projection");
+
+        assert_eq!(output, "/** Documentation. */\n\nconst answer = 42;\n");
+        assert_projection_chunks_are_exact(source, &output, &projection);
+
+        let comment_start = source.find("/** Documentation. */").unwrap() as u32;
+        let comment_source = comment_start..comment_start + "/** Documentation. */".len() as u32;
+        let comment_output = projection
+            .output_range_for_source(comment_source)
+            .expect("re-emitted comments are exact copied chunks");
+        assert_eq!(
+            &output[comment_output.start as usize..comment_output.end as usize],
+            "/** Documentation. */"
+        );
+
+        let declaration_start = source.find("interface").unwrap() as u32;
+        assert!(
+            !projection
+                .copied_chunks
+                .iter()
+                .any(|chunk| chunk.source.start <= declaration_start
+                    && declaration_start < chunk.source.end)
+        );
+    }
+
+    #[test]
+    fn projection_includes_declare_text_fallback_omissions() {
+        let source = "\
+declare global {
+\tinterface Window { answer: number }
+}
+const answer = 42;
+";
+        let retained = RetainedProgram::parse(source, true);
+        let (output, projection) =
+            strip_typescript_from_program_with_projection(source, retained.program());
+        let projection = projection.expect("declare global should create a projection");
+
+        assert_eq!(output, "\nconst answer = 42;\n");
+        assert_projection_chunks_are_exact(source, &output, &projection);
+        let declaration_start = source.find("declare global").unwrap() as u32;
+        assert!(
+            !projection
+                .copied_chunks
+                .iter()
+                .any(|chunk| chunk.source.start <= declaration_start
+                    && declaration_start < chunk.source.end)
+        );
+    }
+
+    fn assert_projection_chunks_are_exact(
+        source: &str,
+        output: &str,
+        projection: &ScriptProjection,
+    ) {
+        for chunk in &projection.copied_chunks {
+            assert_eq!(
+                &source[chunk.source.start as usize..chunk.source.end as usize],
+                &output[chunk.output.start as usize..chunk.output.end as usize]
+            );
+        }
     }
 
     /// Regression: `strip_typescript` must NOT re-emit JSDoc comments that live
