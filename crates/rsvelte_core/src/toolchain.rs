@@ -22,7 +22,7 @@ pub const RUNTIME_ABI_VERSION: u32 = 1;
 /// Version of the IDE projection artifact contract.
 pub const PROJECTION_ABI_VERSION: u32 = 1;
 /// Version of the normalized facts contract.
-pub const FACTS_ABI_VERSION: u32 = 1;
+pub const FACTS_ABI_VERSION: u32 = 2;
 
 const SVELTE_VERSION: &str = match option_env!("SVELTE_VERSION") {
     Some(version) => version,
@@ -230,6 +230,8 @@ pub struct ComponentExport {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ComponentFacts {
     pub runes: bool,
+    /// Scope class frozen by component analysis, when a style block exists.
+    pub css_scope_hash: Option<String>,
     /// Whether legacy `$$props` is referenced.
     pub uses_legacy_props: bool,
     /// Whether legacy `$$restProps` is referenced.
@@ -303,6 +305,7 @@ impl ComponentFacts {
 
         Self {
             runes,
+            css_scope_hash: style.as_ref().map(|_| analysis.css.hash.clone()),
             uses_legacy_props: analysis.uses_props,
             uses_legacy_rest_props: analysis.uses_rest_props,
             uses_legacy_slots: analysis.uses_slots,

@@ -115,7 +115,8 @@ fn preparation_runs_analysis_once_for_multiple_emits() {
     let mut compile_options = options(GenerateMode::Client);
     compile_options.css_hash = Some(Arc::new(move |input: &CssHashInput| {
         calls.fetch_add(1, Ordering::SeqCst);
-        format!("svelte-{}", (input.hash)(&input.css))
+        let _ = input;
+        "scope-from-embedder".to_string()
     }));
 
     let toolchain = Toolchain::new();
@@ -127,6 +128,11 @@ fn preparation_runs_analysis_once_for_multiple_emits() {
         .expect("prepare component");
     let calls_after_prepare = css_hash_calls.load(Ordering::SeqCst);
     assert!(calls_after_prepare > 0);
+    assert_eq!(
+        prepared.facts().css_scope_hash.as_deref(),
+        Some("scope-from-embedder"),
+        "prepared facts must expose the hash frozen by analysis"
+    );
 
     prepared
         .compile(RuntimeTarget::Client)
@@ -287,5 +293,5 @@ fn fingerprint_exposes_independent_phase_abis() {
     assert!(fingerprint.toolchain_abi > 0);
     assert!(fingerprint.runtime_abi > 0);
     assert!(fingerprint.projection_abi > 0);
-    assert!(fingerprint.facts_abi > 0);
+    assert_eq!(fingerprint.facts_abi, 2);
 }
