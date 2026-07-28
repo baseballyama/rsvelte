@@ -469,12 +469,7 @@ fn transform_client_with_visitors(
                 options.dev,
                 &reactive_import_names,
                 split_top_level_declarations,
-                retained_scripts.and_then(|scripts| {
-                    scripts
-                        .instance
-                        .as_ref()
-                        .filter(|_| !analysis.is_typescript)
-                }),
+                retained_scripts.and_then(|scripts| scripts.instance.as_ref()),
             );
             rest_excludes_hoists = extract_rest_excludes_hoists(&mut transformed);
             super::profile::record_script_text(super::profile::timer_elapsed(_script_start));

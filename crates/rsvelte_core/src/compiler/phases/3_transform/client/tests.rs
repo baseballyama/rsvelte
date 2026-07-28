@@ -61,6 +61,33 @@ noop(read);
 }
 
 #[test]
+fn retained_typescript_program_avoids_reparse_when_stripping_is_a_noop() {
+    AST_STATE_REPARSES.with(|count| count.set(0));
+    AST_STATE_RETAINED_USES.with(|count| count.set(0));
+    let source = r#"<script lang="ts">
+let count = $state(0);
+const read = () => count;
+</script>
+
+<button onclick={() => count++}>{read()}</button>
+"#;
+    let result = crate::compiler::compile(
+        source,
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("retained-state-typescript-js-subset/index.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(result.js.code.contains("let count = $.state(0)"));
+    assert!(result.js.code.contains("() => $.get(count)"));
+    AST_STATE_RETAINED_USES.with(|count| assert_eq!(count.get(), 1));
+    AST_STATE_REPARSES.with(|count| assert_eq!(count.get(), 0));
+}
+
+#[test]
 fn retained_instance_program_is_repeatable() {
     let source = "<script>let count = $state(0); const read = () => count;</script><p>{read()}</p>";
     let mut prepared = crate::toolchain::Toolchain::new()
