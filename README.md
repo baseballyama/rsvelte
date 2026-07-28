@@ -137,7 +137,7 @@ Need the exact `svelte/compiler` surface (`compile`, `compileModule`, `parse`, `
 
 ```toml
 [dependencies]
-rsvelte_core = { git = "https://github.com/baseballyama/rsvelte" }
+rsvelte_core = { git = "https://github.com/baseballyama/rsvelte", default-features = false }
 ```
 
 ```rust
@@ -148,6 +148,9 @@ println!("{}", result.js.code);
 ```
 
 The Rust API honours **every** compile option, including `css_hash` and `warning_filter` as real closures.
+Compiler-only embedders should disable the default `native` feature as shown
+above. The default feature adds rsvelte's CLI, file-watching, module-resolution,
+parallelism, and allocator integrations; none are required by `Toolchain`.
 
 Native toolchains that need more than a one-shot compile can use the policy-free
 `rsvelte_core::toolchain` facade:

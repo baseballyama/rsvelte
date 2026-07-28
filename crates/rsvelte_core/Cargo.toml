@@ -22,7 +22,17 @@ default = ["native"]
 # A/B-measured ~11% faster than jemalloc on the compile workload (mold itself
 # links mimalloc for the same allocation-bound reason). jemalloc is kept
 # available for comparison.
-native = ["rayon", "miette/fancy", "jemalloc", "mimalloc-alloc"]
+native = [
+    "rayon",
+    "miette/fancy",
+    "jemalloc",
+    "mimalloc-alloc",
+    "dep:oxc_resolver",
+    "dep:walkdir",
+    "dep:notify",
+    "dep:clap",
+    "dep:chrono",
+]
 trace-fastpath = []
 jemalloc = ["dep:tikv-jemallocator"]
 # Profiling-only: use mimalloc instead of jemalloc in the profiling bins (A/B).
@@ -62,17 +72,14 @@ oxc_ast = { version = "0.141", features = ["serialize"] }
 oxc_span = "0.141"
 oxc_diagnostics = "0.141"
 oxc_codegen = "0.141"
-rsvelte_esrap = { path = "../rsvelte_esrap" }
+rsvelte_esrap = { version = "0.7.11", path = "../rsvelte_esrap" }
 oxc_syntax = "0.141"
 oxc_semantic = "0.141"
 
 # Module resolution for the svelte-check overlay: resolves `.svelte` imports
 # (including tsconfig `paths`/`baseUrl` aliases like `$lib/...`) so aliased
 # imports can be rewritten to point straight at their generated shadow `.tsx`.
-oxc_resolver = "11"
-
-# SPIKE: oxc_formatter is publish=false in oxc; pull via git from main HEAD
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "83abe3b49c0913b1a984a7eec5e433a59fd76eae" }
+oxc_resolver = { version = "11", optional = true }
 
 # Error handling
 thiserror = "2.0"
@@ -102,19 +109,16 @@ sourcemap = "9.0"
 string_wizard = "1.0.0"
 
 # File system
-walkdir = "2.5"
+walkdir = { version = "2.5", optional = true }
 
-# Watch mode for the svelte-check CLI (Wave 2). `notify` is intentionally
-# a regular dep, not feature-gated, because the only consumer is the
-# Wave 2 binary and gating it would just add a feature combo to manage.
-notify = { version = "8", default-features = false, features = ["macos_kqueue"] }
+# Watch mode for the svelte-check CLI (Wave 2).
+notify = { version = "8", default-features = false, features = ["macos_kqueue"], optional = true }
 
 # CLI argument parsing (svelte-check binary, Wave 2)
-clap = { version = "4.5", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"], optional = true }
 
 # Time
-chrono = "0.4"
-
+chrono = { version = "0.4", optional = true }
 
 # WASM support (optional)
 wasm-bindgen = { version = "0.2", optional = true }
@@ -144,10 +148,14 @@ glob = "0.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 # Unified diff output for test failure messages
 similar = { version = "3.0", features = ["text"] }
+# This dependency is intentionally test-only: it is unpublished and must not
+# leak into the embeddable compiler graph.
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "83abe3b49c0913b1a984a7eec5e433a59fd76eae" }
 
 [[bin]]
 name = "test_reporter"
 path = "src/bin/test_reporter.rs"
+required-features = ["native"]
 
 [[bin]]
 name = "benchmark_runner"
@@ -156,6 +164,7 @@ path = "src/bin/benchmark_runner.rs"
 [[bin]]
 name = "profiler"
 path = "src/bin/profiler.rs"
+required-features = ["native"]
 
 [[bin]]
 name = "parse_profile"

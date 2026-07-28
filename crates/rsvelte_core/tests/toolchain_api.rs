@@ -280,7 +280,10 @@ fn projection_does_not_claim_exact_mappings_after_text_postprocessing() {
 fn fingerprint_exposes_independent_phase_abis() {
     let fingerprint = Toolchain::new().fingerprint();
     assert_eq!(fingerprint.rsvelte_version, env!("CARGO_PKG_VERSION"));
-    assert!(!fingerprint.svelte_version.is_empty());
+    assert_eq!(
+        fingerprint.svelte_version,
+        include_str!("../svelte-version.txt").trim()
+    );
     assert!(fingerprint.toolchain_abi > 0);
     assert!(fingerprint.runtime_abi > 0);
     assert!(fingerprint.projection_abi > 0);
