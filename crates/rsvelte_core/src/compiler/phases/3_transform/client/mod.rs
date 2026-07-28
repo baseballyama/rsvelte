@@ -469,6 +469,12 @@ fn transform_client_with_visitors(
                 options.dev,
                 &reactive_import_names,
                 split_top_level_declarations,
+                retained_scripts.and_then(|scripts| {
+                    scripts
+                        .instance
+                        .as_ref()
+                        .filter(|_| !analysis.is_typescript)
+                }),
             );
             rest_excludes_hoists = extract_rest_excludes_hoists(&mut transformed);
             super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
@@ -2534,6 +2540,8 @@ pub(crate) fn strip_module_toplevel_comments(src: &str) -> String {
 #[cfg(test)]
 thread_local! {
     static MODULE_COMMENT_REPARSES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static AST_STATE_REPARSES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static AST_STATE_RETAINED_USES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 fn strip_module_toplevel_comments_from_program(
@@ -3913,6 +3921,7 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
         dev,
         reactive_import_names,
         might_have_comma_separated_declaration(script),
+        None,
     )
 }
 
@@ -3991,10 +4000,12 @@ fn transform_instance_script_for_visitors(
     dev: bool,
     reactive_import_names: &[String],
     split_top_level_declarations: bool,
+    retained_program: Option<&crate::ast::oxc_program::RetainedProgram<'_>>,
 ) -> String {
     if script.is_empty() {
         return String::new();
     }
+    let original_script = script;
 
     // Instance imports are removed by the caller before this pipeline.
     let has_dollar = script.contains('$');
@@ -5769,9 +5780,52 @@ fn transform_instance_script_for_visitors(
                 analysis: Some(analysis),
                 exported_names: &exported_names,
             };
-            if let Some(ast_result) =
+            let mut used_retained = false;
+            let ast_result = retained_program.and_then(|program| {
+                let retained_core = original_script.trim();
+                let result_core = result.trim();
+                if retained_core != result_core {
+                    return None;
+                }
+                let mut retained_matches = program.source().match_indices(retained_core);
+                let (retained_core_start, _) = retained_matches.next()?;
+                if retained_matches.next().is_some() {
+                    return None;
+                }
+                let retained_core_end = retained_core_start + retained_core.len();
+                let result_core_start = result.find(result_core).unwrap_or(0);
+                let result_core_end = result_core_start + result_core.len();
+                let prefix = &result[..result_core_start];
+                let suffix = &result[result_core_end..];
+                used_retained = true;
+                #[cfg(test)]
+                AST_STATE_RETAINED_USES.with(|count| count.set(count.get() + 1));
+                ast_state_transform::transform_state_vars_ast_range_from_program(
+                    program.source(),
+                    program.program(),
+                    result_core,
+                    retained_core_start..retained_core_end,
+                    &ast_config,
+                )
+                .map(|transformed| {
+                    let mut output =
+                        String::with_capacity(prefix.len() + transformed.len() + suffix.len());
+                    output.push_str(prefix);
+                    output.push_str(&transformed);
+                    output.push_str(suffix);
+                    output
+                })
+            });
+            let ast_result = if used_retained {
+                ast_result
+            } else {
+                #[cfg(test)]
+                {
+                    AST_STATE_REPARSES.with(|count| count.set(count.get() + 1));
+                }
                 ast_state_transform::transform_state_vars_ast(&result, &ast_config)
-            {
+            };
+            if let Some(ast_result) = ast_result {
                 result = ast_result;
             }
             // Apply store_unsub wrapping after AST transform (searches for $.set patterns)

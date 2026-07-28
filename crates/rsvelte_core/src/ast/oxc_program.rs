@@ -61,6 +61,10 @@ impl<'source> RetainedProgram<'source> {
         &self.borrow_dependent().program
     }
 
+    pub(crate) fn source(&self) -> &str {
+        self.borrow_owner().source()
+    }
+
     pub(crate) fn diagnostics(&self) -> &[OxcDiagnostic] {
         &self.borrow_dependent().diagnostics
     }

@@ -3,11 +3,8 @@
 //! Replaces the text-based `transform_state_in_expr` and `transform_state_assignments`
 //! with a single OXC parse + AST walk, eliminating O(M*N) text scanning.
 //!
-//! The main entry point is [`transform_state_vars_ast`], which:
-//! 1. Parses the script text once with OXC (using a thread-local allocator)
-//! 2. Walks the AST to find ALL identifier references and assignments to state variables
-//! 3. Collects replacements as (byte_start, byte_end, replacement_string)
-//! 4. Applies all replacements in a single pass (right-to-left to preserve offsets)
+//! The entry points parse script text or accept a retained OXC program, then walk the AST,
+//! collect replacements, and apply them right-to-left to preserve offsets.
 
 use std::cell::RefCell;
 use std::fmt::Write as _;
@@ -3737,20 +3734,10 @@ pub(super) struct AstTransformConfig<'a> {
     pub exported_names: &'a [String],
 }
 
-pub(super) fn transform_state_vars_ast(
-    script: &str,
-    config: &AstTransformConfig,
-) -> Option<String> {
+fn has_state_transform_candidate(script: &str, config: &AstTransformConfig) -> bool {
     let state_vars = config.state_vars;
-    let non_reactive_vars = config.non_reactive_vars;
-    let raw_state_vars = config.raw_state_vars;
-    let derived_vars = config.derived_vars;
-    let non_proxy_vars = config.non_proxy_vars;
-    let reassign_non_proxy_vars = config.reassign_non_proxy_vars;
     let is_runes = config.is_runes;
-    let prop_source_vars = config.prop_source_vars;
     let prop_assignment_transform_vars = config.prop_assignment_transform_vars;
-    let non_bindable_prop_vars = config.non_bindable_prop_vars;
     let store_sub_vars = config.store_sub_vars;
     let read_only_props = config.read_only_props;
     let rest_prop_vars = config.rest_prop_vars;
@@ -3803,7 +3790,7 @@ pub(super) fn transform_state_vars_ast(
         && !has_host_calls
         && !has_strict_equals
     {
-        return None;
+        return false;
     }
 
     // Quick check: if none of the variable names appear as identifiers in the text, skip.
@@ -3835,7 +3822,7 @@ pub(super) fn transform_state_vars_ast(
         }
         set
     };
-    let has_any_match = (has_state && state_vars.iter().any(|v| script_ids.contains(v.as_str())))
+    (has_state && state_vars.iter().any(|v| script_ids.contains(v.as_str())))
         || (has_props
             && prop_assignment_transform_vars
                 .iter()
@@ -3857,15 +3844,61 @@ pub(super) fn transform_state_vars_ast(
         || (has_derived_calls && script_ids.contains("$derived"))
         || (has_props_calls && script_ids.contains("$props"))
         || (has_host_calls && script_ids.contains("$host"))
-        || has_strict_equals;
+        || has_strict_equals
+}
 
-    if !has_any_match {
-        return None;
+fn state_assignment_needs_semantic(program: &Program<'_>, state_vars: &FxHashSet<&str>) -> bool {
+    if state_vars.is_empty() {
+        return false;
     }
 
-    let var_set: FxHashSet<&str> = state_vars.iter().map(|s| s.as_str()).collect();
-    let non_reactive_set: FxHashSet<&str> = non_reactive_vars.iter().map(|s| s.as_str()).collect();
-    let raw_set: FxHashSet<&str> = raw_state_vars.iter().map(|s| s.as_str()).collect();
+    struct Finder<'a> {
+        state_vars: &'a FxHashSet<&'a str>,
+        found: bool,
+    }
+
+    impl<'a, 'ast> Visit<'ast> for Finder<'a> {
+        fn visit_assignment_expression(&mut self, expression: &AssignmentExpression<'ast>) {
+            if self.found {
+                return;
+            }
+            let AssignmentTarget::AssignmentTargetIdentifier(target) = &expression.left else {
+                walk::walk_assignment_expression(self, expression);
+                return;
+            };
+            let needs_site_resolution = matches!(
+                expression.operator,
+                AssignmentOperator::Assign
+                    | AssignmentOperator::LogicalOr
+                    | AssignmentOperator::LogicalAnd
+                    | AssignmentOperator::LogicalNullish
+            ) && matches!(
+                expression.right.get_inner_expression(),
+                Expression::Identifier(_)
+            );
+            if needs_site_resolution && self.state_vars.contains(target.name.as_str()) {
+                self.found = true;
+                return;
+            }
+            walk::walk_assignment_expression(self, expression);
+        }
+    }
+
+    let mut finder = Finder {
+        state_vars,
+        found: false,
+    };
+    finder.visit_program(program);
+    finder.found
+}
+
+pub(super) fn transform_state_vars_ast(
+    script: &str,
+    config: &AstTransformConfig,
+) -> Option<String> {
+    if !has_state_transform_candidate(script, config) {
+        return None;
+    }
 
     with_ast_transform_allocator(|alloc| {
         let source_type = SourceType::mjs();
@@ -3876,53 +3909,108 @@ pub(super) fn transform_state_vars_ast(
             return None;
         }
 
-        let semantic_ret = oxc_semantic::SemanticBuilder::new()
-            .with_build_nodes(true)
-            .build(&parsed.program);
-        let semantic = &semantic_ret.semantic;
-
-        let mut collector = StateVarCollector::new(
+        transform_state_vars_ast_from_program_unchecked(
             script,
-            &var_set,
-            &non_reactive_set,
-            &raw_set,
-            derived_vars,
-            non_proxy_vars,
-            reassign_non_proxy_vars,
-            is_runes,
-            config.dev,
-            config.analysis_source,
-            config.filename,
-            prop_source_vars,
-            non_bindable_prop_vars,
-            store_sub_vars,
-            read_only_props,
-            rest_prop_vars,
-            prop_assignment_transform_vars,
-            config.analysis,
-            config.exported_names,
-        );
-        collector.semantic = Some(semantic);
-        collector.visit_program(&parsed.program);
-
-        if collector.replacements.is_empty() {
-            return None;
-        }
-
-        // Sort replacements by start position descending (right-to-left)
-        // so that applying them doesn't invalidate earlier positions
-        collector
-            .replacements
-            .sort_by_key(|r| std::cmp::Reverse(r.start));
-
-        // Apply replacements
-        let mut result = script.to_string();
-        for rep in &collector.replacements {
-            result.replace_range(rep.start as usize..rep.end as usize, &rep.text);
-        }
-
-        Some(result)
+            &parsed.program,
+            0..script.len(),
+            config,
+        )
     })
+}
+
+#[cfg(test)]
+pub(super) fn transform_state_vars_ast_from_program(
+    script: &str,
+    program: &Program<'_>,
+    config: &AstTransformConfig,
+) -> Option<String> {
+    debug_assert_eq!(script, program.source_text);
+    if !has_state_transform_candidate(script, config) {
+        return None;
+    }
+
+    transform_state_vars_ast_from_program_unchecked(script, program, 0..script.len(), config)
+}
+
+pub(super) fn transform_state_vars_ast_range_from_program(
+    script: &str,
+    program: &Program<'_>,
+    candidate: &str,
+    output_range: std::ops::Range<usize>,
+    config: &AstTransformConfig,
+) -> Option<String> {
+    debug_assert_eq!(script, program.source_text);
+    if !has_state_transform_candidate(candidate, config) {
+        return None;
+    }
+
+    transform_state_vars_ast_from_program_unchecked(script, program, output_range, config)
+}
+
+fn transform_state_vars_ast_from_program_unchecked(
+    script: &str,
+    program: &Program<'_>,
+    output_range: std::ops::Range<usize>,
+    config: &AstTransformConfig,
+) -> Option<String> {
+    let var_set: FxHashSet<&str> = config.state_vars.iter().map(String::as_str).collect();
+    let non_reactive_set: FxHashSet<&str> = config
+        .non_reactive_vars
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let raw_set: FxHashSet<&str> = config.raw_state_vars.iter().map(String::as_str).collect();
+    let semantic_ret = state_assignment_needs_semantic(program, &var_set).then(|| {
+        oxc_semantic::SemanticBuilder::new()
+            .with_build_nodes(true)
+            .build(program)
+    });
+
+    let mut collector = StateVarCollector::new(
+        script,
+        &var_set,
+        &non_reactive_set,
+        &raw_set,
+        config.derived_vars,
+        config.non_proxy_vars,
+        config.reassign_non_proxy_vars,
+        config.is_runes,
+        config.dev,
+        config.analysis_source,
+        config.filename,
+        config.prop_source_vars,
+        config.non_bindable_prop_vars,
+        config.store_sub_vars,
+        config.read_only_props,
+        config.rest_prop_vars,
+        config.prop_assignment_transform_vars,
+        config.analysis,
+        config.exported_names,
+    );
+    collector.semantic = semantic_ret.as_ref().map(|ret| &ret.semantic);
+    collector.visit_program(program);
+
+    collector.replacements.retain(|replacement| {
+        replacement.start as usize >= output_range.start
+            && replacement.end as usize <= output_range.end
+    });
+    if collector.replacements.is_empty() {
+        return None;
+    }
+
+    collector
+        .replacements
+        .sort_by_key(|r| std::cmp::Reverse(r.start));
+
+    let mut result = script[output_range.clone()].to_string();
+    for rep in &collector.replacements {
+        result.replace_range(
+            rep.start as usize - output_range.start..rep.end as usize - output_range.start,
+            &rep.text,
+        );
+    }
+
+    Some(result)
 }
 
 #[cfg(test)]
@@ -3996,6 +4084,43 @@ mod tests {
     }
 
     #[test]
+    fn retained_program_matches_reparsed_output_and_whitespace() {
+        let script = "\n\nlet count = $state(0);\nconst read = () => count;\n\n";
+        let state_vars = vec!["count".to_string()];
+        let config = AstTransformConfig {
+            state_vars: &state_vars,
+            non_reactive_vars: &[],
+            raw_state_vars: &[],
+            derived_vars: &[],
+            non_proxy_vars: &[],
+            reassign_non_proxy_vars: &[],
+            is_runes: true,
+            dev: false,
+            analysis_source: None,
+            filename: None,
+            prop_source_vars: &[],
+            prop_assignment_transform_vars: &[],
+            non_bindable_prop_vars: &[],
+            store_sub_vars: &[],
+            read_only_props: &[],
+            rest_prop_vars: &[],
+            analysis: None,
+            exported_names: &[],
+        };
+        let allocator = Allocator::default();
+        let parsed = Parser::new(&allocator, script, SourceType::mjs()).parse();
+        assert!(parsed.diagnostics.is_empty());
+
+        let retained =
+            transform_state_vars_ast_from_program(script, &parsed.program, &config).unwrap();
+        let reparsed = transform_state_vars_ast(script, &config).unwrap();
+
+        assert_eq!(retained, reparsed);
+        assert!(retained.starts_with("\n\n"));
+        assert!(retained.ends_with("\n\n"));
+    }
+
+    #[test]
     fn test_get_wrapping_in_expression() {
         assert_eq!(transform("count + 1", &["count"]), "$.get(count) + 1");
     }
@@ -4051,6 +4176,25 @@ mod tests {
     #[test]
     fn test_simple_assignment() {
         assert_eq!(transform("count = 5", &["count"]), "$.set(count, 5)");
+    }
+
+    #[test]
+    fn test_bare_assignment_rhs_uses_site_semantics() {
+        let local = transform(
+            r#"items.forEach((item) => {
+                const id = `${item}`;
+                highlighted = id;
+            });"#,
+            &["highlighted"],
+        );
+        assert!(local.contains("$.set(highlighted, id)"));
+        assert!(!local.contains("$.set(highlighted, id, true)"));
+
+        let parameter = transform(
+            "const handler = (id) => { highlighted = id; };",
+            &["highlighted"],
+        );
+        assert!(parameter.contains("$.set(highlighted, id, true)"));
     }
 
     #[test]

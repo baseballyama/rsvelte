@@ -31,6 +31,93 @@ export function nested() {
 }
 
 #[test]
+fn retained_instance_program_avoids_state_transform_reparse() {
+    AST_STATE_REPARSES.with(|count| count.set(0));
+    AST_STATE_RETAINED_USES.with(|count| count.set(0));
+    let source = r#"<script>
+import { noop } from 'helpers';
+
+let count = $state(0);
+const read = () => count;
+noop(read);
+</script>
+
+<button onclick={() => count++}>{count}</button>
+"#;
+    let result = crate::compiler::compile(
+        source,
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("retained-state/index.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(result.js.code.contains("let count = $.state(0)"));
+    assert!(result.js.code.contains("() => $.get(count)"));
+    AST_STATE_RETAINED_USES.with(|count| assert_eq!(count.get(), 1));
+    AST_STATE_REPARSES.with(|count| assert_eq!(count.get(), 0));
+}
+
+#[test]
+fn retained_instance_program_is_repeatable() {
+    let source = "<script>let count = $state(0); const read = () => count;</script><p>{read()}</p>";
+    let mut prepared = crate::toolchain::Toolchain::new()
+        .prepare(
+            source,
+            crate::compiler::CompileOptions {
+                generate: crate::compiler::GenerateMode::Client,
+                filename: Some("retained-state-repeat/index.svelte".to_string()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    AST_STATE_REPARSES.with(|count| count.set(0));
+    AST_STATE_RETAINED_USES.with(|count| count.set(0));
+
+    let first = prepared
+        .compile(crate::toolchain::RuntimeTarget::Client)
+        .unwrap();
+    let second = prepared
+        .compile(crate::toolchain::RuntimeTarget::Client)
+        .unwrap();
+
+    assert_eq!(first.js.code, second.js.code);
+    AST_STATE_RETAINED_USES.with(|count| assert_eq!(count.get(), 2));
+    AST_STATE_REPARSES.with(|count| assert_eq!(count.get(), 0));
+}
+
+#[test]
+fn changed_instance_source_falls_back_to_state_transform_reparse() {
+    for (filename, source) in [
+        (
+            "retained-state-class/index.svelte",
+            "<script>class Counter { value = $state(0); } let count = $state(0);</script><p>{count + new Counter().value}</p>",
+        ),
+        (
+            "retained-state-typescript/index.svelte",
+            r#"<script lang="ts">let count: number = $state(0);</script><button>{count}</button>"#,
+        ),
+    ] {
+        AST_STATE_REPARSES.with(|count| count.set(0));
+        AST_STATE_RETAINED_USES.with(|count| count.set(0));
+        crate::compiler::compile(
+            source,
+            crate::compiler::CompileOptions {
+                generate: crate::compiler::GenerateMode::Client,
+                filename: Some(filename.to_string()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        AST_STATE_RETAINED_USES.with(|count| assert_eq!(count.get(), 0, "{filename}"));
+        AST_STATE_REPARSES.with(|count| assert_eq!(count.get(), 1, "{filename}"));
+    }
+}
+
+#[test]
 fn test_starts_export_specifier() {
     // M-021: recognise `export { ... }` regardless of whitespace before `{`.
     assert!(starts_export_specifier("export { a, b }"));
