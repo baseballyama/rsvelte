@@ -100,6 +100,15 @@ impl ScriptContent {
             raw
         };
 
+        if !raw.as_bytes().contains(&b'$') {
+            return Self {
+                raw,
+                start,
+                end,
+                uses_runes: false,
+            };
+        }
+
         // Extract imported names to avoid false-positive rune detection.
         // If `state` is imported (e.g., `import { state } from './store'`), then
         // `$state` is a store subscription, not a rune call.
@@ -2404,6 +2413,7 @@ pub struct CssAnalysis {
 pub struct DomStructure {
     /// All elements in the template, with their relationships
     pub elements: Vec<CssDomElement>,
+    pub general_siblings_linked: bool,
 }
 
 /// Certainty level of sibling relationships.

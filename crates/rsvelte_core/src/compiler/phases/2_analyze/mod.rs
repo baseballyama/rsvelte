@@ -76,7 +76,11 @@ pub fn analyze_component(
     // Resolve deferred lazy expressions in template AST
     // If any expression has a parse error, return it immediately
     if let Some(parse_err) =
-        crate::compiler::phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(ast, source)
+        crate::compiler::phases::phase1_parse::resolve_lazy::resolve_lazy_expressions_with_line_offsets(
+            ast,
+            source,
+            &line_offsets,
+        )
     {
         return Err(parse_err.into());
     }
@@ -114,6 +118,7 @@ pub(crate) fn analyze_prepared_component(
     options: &CompileOptions,
 ) -> Result<ComponentAnalysis, AnalysisError> {
     let mut analysis = ComponentAnalysis::new(source, options);
+    analysis.css.has_css = ast.css.is_some();
 
     // Forward parser-level warnings to the analysis warnings.
     // These include warnings like `element_implicitly_closed` that are
@@ -609,9 +614,20 @@ pub(crate) fn analyze_prepared_component(
         mark_each_block_group_bindings(&mut ast.fragment, &mut index_counter, &mut analysis);
     }
 
-    // Build sibling relationships for CSS analysis
-    // This must happen after template analysis builds the DOM structure
-    control_flow::build_sibling_relationships(&mut analysis.css.dom_structure, &ast.fragment);
+    if ast
+        .css
+        .as_deref()
+        .is_some_and(control_flow::stylesheet_has_sibling_combinator)
+    {
+        if control_flow::supports_static_sibling_relationships(&ast.fragment) {
+            control_flow::build_static_sibling_relationships(&mut analysis.css.dom_structure);
+        } else {
+            control_flow::build_sibling_relationships(
+                &mut analysis.css.dom_structure,
+                &ast.fragment,
+            );
+        }
+    }
 
     // In runes mode, warn on any nonstate declarations that are:
     // a) reassigned and b) referenced in the template

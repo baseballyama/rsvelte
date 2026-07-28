@@ -743,10 +743,16 @@ impl NapiCompileOptions {
         if let Some(v) = &self.filename {
             opts.filename = Some(coerce_string("filename", v)?);
         }
-        // rootDir defaults to the process's cwd (matches official Svelte).
+        // An absolute cwd cannot affect a relative filename, so defer the
+        // filesystem query unless the default rootDir can actually strip it.
         if let Some(v) = &self.root_dir {
             opts.root_dir = Some(coerce_string("rootDir", v)?);
-        } else if let Ok(cwd) = std::env::current_dir() {
+        } else if opts
+            .filename
+            .as_deref()
+            .is_some_and(|filename| std::path::Path::new(filename).is_absolute())
+            && let Ok(cwd) = std::env::current_dir()
+        {
             opts.root_dir = Some(cwd.to_string_lossy().to_string());
         }
         if let Some(v) = &self.name {
@@ -860,13 +866,7 @@ impl NapiModuleCompileOptions {
 fn options_to_compile(opts: Option<NapiCompileOptions>) -> napi::Result<CompileOptions> {
     match opts {
         Some(o) => o.into_compile_options(),
-        None => {
-            let mut o = CompileOptions::default();
-            if let Ok(cwd) = std::env::current_dir() {
-                o.root_dir = Some(cwd.to_string_lossy().to_string());
-            }
-            Ok(o)
-        }
+        None => Ok(CompileOptions::default()),
     }
 }
 

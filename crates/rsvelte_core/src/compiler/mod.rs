@@ -524,10 +524,16 @@ pub(crate) fn prepare_and_analyze(
     source: &str,
     mut options: CompileOptions,
 ) -> Result<(CompileOptions, ComponentAnalysis, bool), CompileError> {
+    let line_offsets = phases::phase1_parse::compute_line_offsets(source, false);
+
     // Resolve lazy expressions (deferred template expressions). If any
     // expression has a parse error, return it immediately.
     if let Some(parse_err) =
-        phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(ast, source)
+        phases::phase1_parse::resolve_lazy::resolve_lazy_expressions_with_line_offsets(
+            ast,
+            source,
+            &line_offsets,
+        )
     {
         return Err(parse_err.into());
     }
@@ -536,7 +542,6 @@ pub(crate) fn prepare_and_analyze(
     // When defer_script_parse is enabled, script content is stored as raw text;
     // parse it first so remove_typescript_nodes can inspect the AST.
     {
-        let line_offsets = phases::phase1_parse::compute_line_offsets(source, false);
         if let Some(ref mut instance) = ast.instance
             && let Some(parse_err) = phases::phase1_parse::read::script::ensure_script_parsed(
                 &ast.arena,

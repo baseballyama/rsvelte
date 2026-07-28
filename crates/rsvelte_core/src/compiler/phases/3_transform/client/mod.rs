@@ -461,38 +461,41 @@ fn transform_client_with_visitors(
     // Transform the instance script once with the real reactive_import_names.
     // This also determines how many $$array names it consumes (for template generation)
     // and is used for blocker_map computation and the final output.
-    let pre_transformed_script = if let Some(instance_script) = &analysis.instance_script_content {
-        let raw = &instance_script.raw;
-        let _script_start = super::profile::timer_start();
-        let mut transformed = transform_instance_script_for_visitors(
-            raw,
-            analysis,
-            options.dev,
-            &reactive_import_names,
-        );
-        rest_excludes_hoists = extract_rest_excludes_hoists(&mut transformed);
-        super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
-        // Transfer the script's $$array counter to the context state so that the template
-        // visitor continues numbering from where the script left off.
-        let script_array_count = SCRIPT_ARRAY_COUNTER.with(|c| c.get());
-        context
-            .state
-            .destructure_array_counter
-            .set(script_array_count);
-        // Also seed the memoizer's conflicts set with names already used by the script,
-        // so that generate_array_name() (which uses the memoizer) won't reuse them.
-        for i in 0..script_array_count {
-            let name = if i == 0 {
-                "$$array".to_string()
-            } else {
-                format!("$$array_{}", i)
-            };
-            context.state.memoizer.add_conflict(&name);
-        }
-        Some(transformed)
-    } else {
-        None
-    };
+    let mut instance_script_imports = Vec::new();
+    let mut pre_transformed_script =
+        if let Some(instance_script) = &analysis.instance_script_content {
+            let (imports, script_body) = extract_imports(&instance_script.raw);
+            instance_script_imports = imports;
+            let _script_start = super::profile::timer_start();
+            let mut transformed = transform_instance_script_for_visitors(
+                &script_body,
+                analysis,
+                options.dev,
+                &reactive_import_names,
+            );
+            rest_excludes_hoists = extract_rest_excludes_hoists(&mut transformed);
+            super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
+            // Transfer the script's $$array counter to the context state so that the template
+            // visitor continues numbering from where the script left off.
+            let script_array_count = SCRIPT_ARRAY_COUNTER.with(|c| c.get());
+            context
+                .state
+                .destructure_array_counter
+                .set(script_array_count);
+            // Also seed the memoizer's conflicts set with names already used by the script,
+            // so that generate_array_name() (which uses the memoizer) won't reuse them.
+            for i in 0..script_array_count {
+                let name = if i == 0 {
+                    "$$array".to_string()
+                } else {
+                    format!("$$array_{}", i)
+                };
+                context.state.memoizer.add_conflict(&name);
+            }
+            Some(transformed)
+        } else {
+            None
+        };
 
     // Pre-compute blocker map for async components.
     if options.experimental.r#async
@@ -1088,7 +1091,7 @@ fn transform_client_with_visitors(
     // This includes $state, $derived, $effect, $props transformations
     // Reuse the pre_transformed_script from above (already has reactive_import_names).
     if let Some(ref content) = analysis.instance_script_content {
-        let mut transformed_script = pre_transformed_script.clone().unwrap_or_default();
+        let mut transformed_script = pre_transformed_script.take().unwrap_or_default();
 
         // Post-process reactive imports: replace $.get(X)/$.mutate(X,...) with $$_import_X()
         for name in &reactive_import_names {
@@ -1856,9 +1859,8 @@ fn transform_client_with_visitors(
 
     // Extract and add imports from instance script
     // These are in state.hoisted after import * as $ (from analysis.instance_body.hoisted)
-    if let Some(ref instance_content) = analysis.instance_script_content {
-        let (script_imports, _) = extract_imports(&instance_content.raw);
-        for import_line in script_imports {
+    if analysis.instance_script_content.is_some() {
+        for import_line in instance_script_imports {
             let cleaned = cleanup_import_line(&import_line);
             if cleaned.is_empty() {
                 continue;
@@ -2216,7 +2218,7 @@ fn transform_client_with_visitors(
     // corpus). `RSVELTE_CLIENT_NO_OXC` forces the legacy string path (escape
     // hatch). Span-stamping (`Spanned` / `RawMapped` → original-source offsets)
     // feeds esrap `print_with_map` for the sourcemap branch.
-    if std::env::var_os("RSVELTE_CLIENT_NO_OXC").is_none() {
+    if !*CLIENT_NO_OXC {
         let converted = CLIENT_TO_OXC_ALLOCATOR.with(|cell| {
             let mut alloc = cell.borrow_mut();
             alloc.reset();
@@ -2260,7 +2262,7 @@ fn transform_client_with_visitors(
         if let Some((code, mappings)) = converted {
             super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
             return Ok(CodegenResult { code, mappings });
-        } else if std::env::var_os("RSVELTE_CLIENT_TO_OXC_DEBUG").is_some() {
+        } else if *CLIENT_TO_OXC_DEBUG {
             eprintln!(
                 "CLIENT_TO_OXC_FALLBACK {}",
                 options.filename.as_deref().unwrap_or("?")
@@ -2290,7 +2292,7 @@ fn transform_client_with_visitors(
 fn esrap_mappings_to_source_mappings(
     mappings: &[Vec<rsvelte_esrap::command::Segment>],
 ) -> Vec<SourceMapping> {
-    let mut out = Vec::new();
+    let mut out = Vec::with_capacity(mappings.iter().map(Vec::len).sum());
     for (gen_line, segs) in mappings.iter().enumerate() {
         for seg in segs {
             out.push(SourceMapping {
@@ -2314,6 +2316,11 @@ thread_local! {
     static CLIENT_TO_OXC_ALLOCATOR: std::cell::RefCell<oxc_allocator::Allocator> =
         std::cell::RefCell::new(oxc_allocator::Allocator::default());
 }
+
+static CLIENT_NO_OXC: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("RSVELTE_CLIENT_NO_OXC").is_some());
+static CLIENT_TO_OXC_DEBUG: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("RSVELTE_CLIENT_TO_OXC_DEBUG").is_some());
 
 fn is_ident_char(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
@@ -3024,6 +3031,12 @@ fn collect_local_state_decls(script: &str) -> rustc_hash::FxHashSet<&str> {
 }
 
 fn extract_shadowed_state_names(script: &str) -> rustc_hash::FxHashSet<String> {
+    if memmem::find(script.as_bytes(), b"$state").is_none()
+        && memmem::find(script.as_bytes(), b"$derived").is_none()
+    {
+        return rustc_hash::FxHashSet::default();
+    }
+
     let mut top_level_non_state: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
     let mut inner_state: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
     let mut brace_depth: i32 = 0;
@@ -3894,12 +3907,7 @@ fn transform_instance_script_for_visitors(
         return String::new();
     }
 
-    // Fast path: if the script has no runes ($state, $derived, $effect, $props),
-    // no store subscriptions ($xxx), no reactive statements ($:), and no exports,
-    // the text-based transform pipeline has nothing to do. Just return the script
-    // with imports stripped.
-    // Fast path: if the script has no runes, stores, reactive statements, exports,
-    // or comma-separated declarations, the text-based transform pipeline has nothing to do.
+    // Instance imports are removed by the caller before this pipeline.
     let has_dollar = script.contains('$');
     let has_export = memmem::find(script.as_bytes(), b"export ").is_some();
     let has_comma_decl = memmem::find(script.as_bytes(), b", ").is_some()
@@ -3907,7 +3915,6 @@ fn transform_instance_script_for_visitors(
         || memmem::find(script.as_bytes(), b",\t").is_some();
     if !has_dollar
         && !has_export
-        && !has_comma_decl
         && analysis.root.bindings.iter().all(|b| {
             !matches!(
                 b.kind,
@@ -3922,9 +3929,13 @@ fn transform_instance_script_for_visitors(
             )
         })
     {
-        // No transforms needed - just strip imports and return the rest
-        let (_imports, rest) = extract_imports(script);
-        return rest.to_string();
+        return if has_comma_decl {
+            crate::compiler::phases::phase3_transform::server::transform_script::split_comma_separated_declarations(
+                script,
+            )
+        } else {
+            script.to_string()
+        };
     }
 
     // Reset the $$array counters for this component
@@ -3972,8 +3983,7 @@ fn transform_instance_script_for_visitors(
         script
     };
 
-    // Extract imports from script (they will be hoisted separately)
-    let (_script_imports, script_rest_raw) = extract_imports(&script);
+    let script_rest_raw = script.into_owned();
 
     // Strip unnecessary parentheses from arrow function expression bodies in the
     // ORIGINAL source text, before any transforms run. The official Svelte compiler

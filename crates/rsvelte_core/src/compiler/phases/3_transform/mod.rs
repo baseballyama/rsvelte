@@ -365,8 +365,12 @@ pub(crate) fn transform_component_with_sourcemap_content(
             // The VLQ encoding uses ';' to separate lines. If the last mapping is on
             // line N but the output has M>N lines, we need trailing semicolons so
             // that decode() produces an array of length M+1.
-            let output_line_count = js.chars().filter(|&c| c == '\n').count();
-            let mapped_lines = mappings_str.chars().filter(|&c| c == ';').count();
+            let output_line_count = js.as_bytes().iter().filter(|&&c| c == b'\n').count();
+            let mapped_lines = mappings_str
+                .as_bytes()
+                .iter()
+                .filter(|&&c| c == b';')
+                .count();
             for _ in mapped_lines..output_line_count {
                 mappings_str.push(';');
             }
