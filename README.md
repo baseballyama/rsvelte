@@ -149,6 +149,39 @@ println!("{}", result.js.code);
 
 The Rust API honours **every** compile option, including `css_hash` and `warning_filter` as real closures.
 
+Native toolchains that need more than a one-shot compile can use the policy-free
+`rsvelte_core::toolchain` facade:
+
+```rust
+use rsvelte_core::{
+    CompileOptions,
+    svelte2tsx::Svelte2TsxOptions,
+    toolchain::{RuntimeTarget, Toolchain},
+};
+
+let source = r#"<script>let count = $state(0)</script><button>{count}</button>"#;
+let toolchain = Toolchain::new();
+let mut component = toolchain.prepare(source, CompileOptions::default())?;
+
+let client = component.compile(RuntimeTarget::Client)?;
+let server = component.compile(RuntimeTarget::Server)?;
+let projection = toolchain.project(source, Svelte2TsxOptions::default())?;
+
+assert!(component.facts().runes);
+assert!(projection.exact_mappings.is_some());
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+`PreparedComponent` parses and analyzes once, freezes all analysis-affecting
+options, and can emit client and server output repeatedly in any order. It
+borrows the source, is `Send` but intentionally not `Sync`, and requires a
+mutable single-worker lease while emitting. Projection remains a separate
+operation because `svelte2tsx` intentionally uses different parse semantics.
+The facade performs no filesystem access and owns no cache, scheduler, or
+thread pool; embedders can namespace their own caches with
+`Toolchain::fingerprint()` and retain the returned OXC-free fact and mapping
+DTOs.
+
 For everything else there's a stable **C ABI** ([`crates/rsvelte_capi`](crates/rsvelte_capi)): one shared library + one header, JSON in / JSON out (plus optional `cssHash` / `warningFilter` callbacks), with prebuilt binaries on [GitHub Releases](https://github.com/baseballyama/rsvelte/releases) (`capi-vX.Y.Z` tags) and ready-to-run examples for C, Go, Python, Ruby, PHP, Zig, and Java.
 
 ## Packages

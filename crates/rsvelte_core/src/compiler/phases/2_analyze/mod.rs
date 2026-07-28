@@ -812,11 +812,8 @@ pub fn analyze_component(
         // Mirror that so generated template variables (e.g. a `<canvas>` local
         // named `canvas`) avoid colliding with a referenced-but-undeclared global
         // of the same name and get suffixed (`canvas_1`).
-        {
-            let mut conflicts = analysis.root.conflicts.borrow_mut();
-            for name in &global_names {
-                conflicts.insert(name.clone());
-            }
+        for name in &global_names {
+            analysis.root.conflicts.insert(name.clone());
         }
 
         let mut name = analysis.name.clone();
