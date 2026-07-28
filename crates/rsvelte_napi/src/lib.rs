@@ -52,6 +52,7 @@ use serde_json::Value;
 use rsvelte_core::compiler::{
     CompileOptions, CssMode, ExperimentalOptions, GenerateMode, ModuleCompileOptions, Namespace,
     compile as rust_compile, compile_module as rust_compile_module,
+    compile_with_external_sourcemap_content as rust_compile_with_external_sourcemap_content,
 };
 use rsvelte_core::svelte2tsx::{
     Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion,
@@ -1615,7 +1616,29 @@ pub fn napi_compile_envelope(
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<Buffer> {
     let opts = options_to_compile(options)?;
-    match rust_compile(&source, opts) {
+    compile_envelope(&source, opts, false)
+}
+
+#[napi(js_name = "compileEnvelopeExternalSources")]
+pub fn napi_compile_envelope_external_sources(
+    source: String,
+    options: Option<NapiCompileOptions>,
+) -> napi::Result<Buffer> {
+    let opts = options_to_compile(options)?;
+    compile_envelope(&source, opts, true)
+}
+
+fn compile_envelope(
+    source: &str,
+    options: CompileOptions,
+    externalize_sourcemap_content: bool,
+) -> napi::Result<Buffer> {
+    let result = if externalize_sourcemap_content {
+        rust_compile_with_external_sourcemap_content(source, options)
+    } else {
+        rust_compile(source, options)
+    };
+    match result {
         Ok(result) => {
             ensure_envelope_size(rsvelte_core::napi_raw::estimate_size(&result))?;
             Ok(Buffer::from(rsvelte_core::napi_raw::encode_to_vec(&result)))
@@ -1814,6 +1837,18 @@ pub struct CompileBatchInput {
 /// byte format.
 #[napi(js_name = "compileBatch")]
 pub fn napi_compile_batch(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer> {
+    compile_batch_envelope(inputs, false)
+}
+
+#[napi(js_name = "compileBatchExternalSources")]
+pub fn napi_compile_batch_external_sources(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer> {
+    compile_batch_envelope(inputs, true)
+}
+
+fn compile_batch_envelope(
+    inputs: Vec<CompileBatchInput>,
+    externalize_sourcemap_content: bool,
+) -> napi::Result<Buffer> {
     // Convert each entry's typed options up front. The conversion is
     // pure (no NAPI touchpoint) so it could in principle run in
     // parallel, but the per-call work is trivial and this keeps the
@@ -1829,7 +1864,11 @@ pub fn napi_compile_batch(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer
         .iter()
         .map(|(s, o)| (s.as_str(), o.clone()))
         .collect();
-    let results = rsvelte_core::compiler::compile_batch(&borrowed);
+    let results = if externalize_sourcemap_content {
+        rsvelte_core::compiler::compile_batch_with_external_sourcemap_content(&borrowed)
+    } else {
+        rsvelte_core::compiler::compile_batch(&borrowed)
+    };
 
     // Build the BatchEntry view over the results so the encoder can
     // walk them without taking ownership. Error messages format
@@ -1884,6 +1923,7 @@ use napi::bindgen_prelude::AsyncTask;
 pub struct CompileEnvelopeTask {
     source: String,
     options: CompileOptions,
+    externalize_sourcemap_content: bool,
 }
 
 impl Task for CompileEnvelopeTask {
@@ -1895,8 +1935,12 @@ impl Task for CompileEnvelopeTask {
         // `CompileOptions` isn't `Default`-cheap (the css_hash Arc
         // field has to be re-Arc'd). Clone is fine here — options are
         // small and we only pay it once per call.
-        let result = rust_compile(&self.source, self.options.clone())
-            .map_err(|e| napi::Error::from_reason(format!("{e:?}")))?;
+        let result = if self.externalize_sourcemap_content {
+            rust_compile_with_external_sourcemap_content(&self.source, self.options.clone())
+        } else {
+            rust_compile(&self.source, self.options.clone())
+        }
+        .map_err(|e| napi::Error::from_reason(format!("{e:?}")))?;
         ensure_envelope_size(rsvelte_core::napi_raw::estimate_size(&result))?;
         Ok(rsvelte_core::napi_raw::encode_to_vec(&result))
     }
@@ -1917,6 +1961,19 @@ pub fn napi_compile_envelope_async(
     Ok(AsyncTask::new(CompileEnvelopeTask {
         source,
         options: options_to_compile(options)?,
+        externalize_sourcemap_content: false,
+    }))
+}
+
+#[napi(js_name = "compileEnvelopeExternalSourcesAsync")]
+pub fn napi_compile_envelope_external_sources_async(
+    source: String,
+    options: Option<NapiCompileOptions>,
+) -> napi::Result<AsyncTask<CompileEnvelopeTask>> {
+    Ok(AsyncTask::new(CompileEnvelopeTask {
+        source,
+        options: options_to_compile(options)?,
+        externalize_sourcemap_content: true,
     }))
 }
 
@@ -1924,6 +1981,7 @@ pub fn napi_compile_envelope_async(
 /// `par_iter`) on the worker thread, same RSVB envelope back.
 pub struct CompileBatchTask {
     inputs: Vec<(String, CompileOptions)>,
+    externalize_sourcemap_content: bool,
 }
 
 impl Task for CompileBatchTask {
@@ -1936,7 +1994,11 @@ impl Task for CompileBatchTask {
             .iter()
             .map(|(s, o)| (s.as_str(), o.clone()))
             .collect();
-        let results = rsvelte_core::compiler::compile_batch(&borrowed);
+        let results = if self.externalize_sourcemap_content {
+            rsvelte_core::compiler::compile_batch_with_external_sourcemap_content(&borrowed)
+        } else {
+            rsvelte_core::compiler::compile_batch(&borrowed)
+        };
         let err_strings: Vec<Option<String>> = results
             .iter()
             .map(|r| match r {
@@ -1967,9 +2029,26 @@ impl Task for CompileBatchTask {
 pub fn napi_compile_batch_async(
     inputs: Vec<CompileBatchInput>,
 ) -> napi::Result<AsyncTask<CompileBatchTask>> {
+    compile_batch_async_task(inputs, false)
+}
+
+#[napi(js_name = "compileBatchExternalSourcesAsync")]
+pub fn napi_compile_batch_external_sources_async(
+    inputs: Vec<CompileBatchInput>,
+) -> napi::Result<AsyncTask<CompileBatchTask>> {
+    compile_batch_async_task(inputs, true)
+}
+
+fn compile_batch_async_task(
+    inputs: Vec<CompileBatchInput>,
+    externalize_sourcemap_content: bool,
+) -> napi::Result<AsyncTask<CompileBatchTask>> {
     let parsed: Vec<(String, CompileOptions)> = inputs
         .into_iter()
         .map(|item| Ok((item.source, options_to_compile(item.options)?)))
         .collect::<napi::Result<_>>()?;
-    Ok(AsyncTask::new(CompileBatchTask { inputs: parsed }))
+    Ok(AsyncTask::new(CompileBatchTask {
+        inputs: parsed,
+        externalize_sourcemap_content,
+    }))
 }

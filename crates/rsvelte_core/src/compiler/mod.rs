@@ -576,7 +576,7 @@ pub(crate) fn prepare_and_analyze(
     }
 
     // Phase 2: Analyze
-    let analysis = phases::phase2_analyze::analyze_component(ast, source, &options)?;
+    let analysis = phases::phase2_analyze::analyze_prepared_component(ast, source, &options)?;
     // Determine if runes mode was used
     let runes_mode = options.runes.unwrap_or(analysis.runes);
     Ok((options, analysis, runes_mode))
@@ -602,6 +602,16 @@ pub(crate) fn prepare_and_analyze(
 pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, CompileError> {
     let generate = options.generate;
     crate::toolchain::PreparedComponent::new(source, options)?.compile_mode(generate)
+}
+
+#[doc(hidden)]
+pub fn compile_with_external_sourcemap_content(
+    source: &str,
+    options: CompileOptions,
+) -> Result<CompileResult, CompileError> {
+    let generate = options.generate;
+    crate::toolchain::PreparedComponent::new(source, options)?
+        .compile_mode_with_sourcemap_content(generate, false)
 }
 
 /// Compile a single component to **both** client (CSR) and server (SSR) output in
@@ -659,7 +669,9 @@ pub(crate) fn finalize_compile_result(
             map: c.map,
             has_global: analysis.css.has_global,
         }),
-        warnings: {
+        warnings: if transform_result.warnings.is_empty() {
+            Vec::new()
+        } else {
             // Pre-compute warning filename once (shared across all warnings)
             let warning_filename = options.filename.as_ref().map(|f| {
                 // Only allocate if backslashes are present
@@ -892,7 +904,8 @@ pub fn compile_module(
     let _arena_guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
 
     // Phase 2: Analyze (reuses component analysis infrastructure)
-    let analysis = phases::phase2_analyze::analyze_component(&mut ast, source, &compile_options)?;
+    let analysis =
+        phases::phase2_analyze::analyze_prepared_component(&mut ast, source, &compile_options)?;
 
     // Module-specific validation: check for store subscriptions.
     // In modules, $store references (where `store` is a binding) are invalid.
@@ -922,7 +935,9 @@ pub fn compile_module(
             map: None,
         },
         css: None,
-        warnings: {
+        warnings: if analysis.warnings.is_empty() {
+            Vec::new()
+        } else {
             // One shared byte→UTF-16 position table for every module warning.
             let pos_table = legacy::Utf8ToUtf16::new(source);
             analysis
@@ -1325,6 +1340,17 @@ pub fn compile_batch(
         .collect()
 }
 
+#[doc(hidden)]
+#[cfg(feature = "native")]
+pub fn compile_batch_with_external_sourcemap_content(
+    inputs: &[(&str, CompileOptions)],
+) -> Vec<Result<CompileResult, CompileError>> {
+    inputs
+        .par_iter()
+        .map(|(source, options)| compile_with_external_sourcemap_content(source, options.clone()))
+        .collect()
+}
+
 /// Error type for compilation failures.
 #[derive(Debug)]
 pub enum CompileError {
@@ -1393,6 +1419,32 @@ mod tests {
         let options = CompileOptions::default();
         let result = compile(source, options);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_compile_can_externalize_sourcemap_content() {
+        let source = "<style>h1 { color: red }</style><h1>Hello</h1>";
+        let options = CompileOptions {
+            filename: Some("App.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let embedded = compile(source, options.clone()).unwrap();
+        let externalized = compile_with_external_sourcemap_content(source, options).unwrap();
+
+        assert_eq!(externalized.js.code, embedded.js.code);
+        let js_map: serde_json::Value =
+            serde_json::from_str(externalized.js.map.as_deref().unwrap()).unwrap();
+        let css_map: serde_json::Value = serde_json::from_str(
+            externalized
+                .css
+                .as_ref()
+                .and_then(|css| css.map.as_deref())
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(js_map["sourcesContent"], serde_json::json!([null]));
+        assert_eq!(css_map["sourcesContent"], serde_json::json!([null]));
     }
 
     #[test]

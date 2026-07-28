@@ -384,7 +384,24 @@ pub fn render_stylesheet(
     source: &str,
     options: &CompileOptions,
 ) -> Result<CssOutput, TransformError> {
-    render_stylesheet_internal(analysis, ast, source, options, false)
+    render_stylesheet_internal(analysis, ast, source, options, false, true)
+}
+
+pub(crate) fn render_stylesheet_with_sourcemap_content(
+    analysis: &ComponentAnalysis,
+    ast: Option<&crate::ast::css::StyleSheet>,
+    source: &str,
+    options: &CompileOptions,
+    include_sourcemap_content: bool,
+) -> Result<CssOutput, TransformError> {
+    render_stylesheet_internal(
+        analysis,
+        ast,
+        source,
+        options,
+        false,
+        include_sourcemap_content,
+    )
 }
 
 /// Render the stylesheet for a component with optional minification.
@@ -395,7 +412,7 @@ pub fn render_stylesheet_minified(
     source: &str,
     options: &CompileOptions,
 ) -> Result<CssOutput, TransformError> {
-    render_stylesheet_internal(analysis, ast, source, options, true)
+    render_stylesheet_internal(analysis, ast, source, options, true, true)
 }
 
 /// Internal implementation of render_stylesheet with minification option.
@@ -405,6 +422,7 @@ fn render_stylesheet_internal(
     source: &str,
     options: &CompileOptions,
     minify: bool,
+    include_sourcemap_content: bool,
 ) -> Result<CssOutput, TransformError> {
     if !analysis.css.has_css || analysis.css.hash.is_empty() {
         return Ok(CssOutput {
@@ -484,7 +502,8 @@ fn render_stylesheet_internal(
         }
 
         // Generate CSS source map
-        let map = generate_css_sourcemap(source, &code, css_start, options);
+        let map =
+            generate_css_sourcemap(source, &code, css_start, options, include_sourcemap_content);
 
         Ok(CssOutput { code, map })
     }
@@ -500,6 +519,7 @@ fn generate_css_sourcemap(
     css_code: &str,
     css_start: usize,
     options: &CompileOptions,
+    include_sourcemap_content: bool,
 ) -> Option<String> {
     use super::js_ast::codegen::{
         SourceMapping, build_line_starts, encode_vlq_mappings, generate_sourcemap_json,
@@ -637,7 +657,7 @@ fn generate_css_sourcemap(
     Some(generate_sourcemap_json(
         &file_name,
         &source_name,
-        source,
+        include_sourcemap_content.then_some(source),
         &mappings_str,
         &[],
     ))

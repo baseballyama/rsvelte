@@ -104,6 +104,15 @@ pub fn analyze_component(
         return Err(parse_err.into());
     }
 
+    analyze_prepared_component(ast, source, options)
+}
+
+/// Analyze an AST whose lazy expressions and deferred scripts are already resolved.
+pub(crate) fn analyze_prepared_component(
+    ast: &mut Root,
+    source: &str,
+    options: &CompileOptions,
+) -> Result<ComponentAnalysis, AnalysisError> {
     let mut analysis = ComponentAnalysis::new(source, options);
 
     // Forward parser-level warnings to the analysis warnings.

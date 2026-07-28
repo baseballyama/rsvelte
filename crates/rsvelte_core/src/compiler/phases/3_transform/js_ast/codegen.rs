@@ -2642,11 +2642,11 @@ fn get_basename(path: &str) -> &str {
 pub fn generate_sourcemap_json(
     file: &str,
     source_name: &str,
-    source_content: &str,
+    source_content: Option<&str>,
     mappings: &str,
     names: &[&str],
 ) -> String {
-    let mut json = String::with_capacity(256 + source_content.len() + mappings.len());
+    let mut json = String::with_capacity(256 + source_content.map_or(0, str::len) + mappings.len());
     json.push_str("{\"version\":3");
     json.push_str(",\"file\":\"");
     json_escape_str(&mut json, file);
@@ -2654,9 +2654,15 @@ pub fn generate_sourcemap_json(
     json.push_str(",\"sources\":[\"");
     json_escape_str(&mut json, source_name);
     json.push_str("\"]");
-    json.push_str(",\"sourcesContent\":[\"");
-    json_escape_str(&mut json, source_content);
-    json.push_str("\"]");
+    json.push_str(",\"sourcesContent\":[");
+    if let Some(source_content) = source_content {
+        json.push('"');
+        json_escape_str(&mut json, source_content);
+        json.push('"');
+    } else {
+        json.push_str("null");
+    }
+    json.push(']');
     json.push_str(",\"names\":[");
     for (i, name) in names.iter().enumerate() {
         if i > 0 {
@@ -2976,6 +2982,21 @@ pub fn generate_sourcemap_json_multi(
 mod tests {
     use super::*;
     use crate::compiler::phases::phase3_transform::js_ast::builders::*;
+
+    #[test]
+    fn sourcemap_can_externalize_single_source_content() {
+        let json = generate_sourcemap_json("out.js", "App.svelte", None, "AAAA", &[]);
+        let map: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(map["sourcesContent"], serde_json::json!([null]));
+    }
+
+    #[test]
+    fn sourcemap_preserves_embedded_source_content() {
+        let json =
+            generate_sourcemap_json("out.js", "App.svelte", Some("<h1>\"x\"</h1>"), "AAAA", &[]);
+        let map: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(map["sourcesContent"], serde_json::json!(["<h1>\"x\"</h1>"]));
+    }
 
     #[test]
     fn test_simple_program() {

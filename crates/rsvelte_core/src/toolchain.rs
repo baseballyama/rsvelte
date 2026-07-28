@@ -10,7 +10,10 @@ use crate::{
     ast::{AttributeValue, AttributeValuePart, Root, ScriptContext},
     compiler::{
         ComponentAnalysis,
-        phases::{phase2_analyze::BindingKind, phase3_transform::transform_component},
+        phases::{
+            phase2_analyze::BindingKind,
+            phase3_transform::{transform_component, transform_component_with_sourcemap_content},
+        },
     },
     svelte2tsx::{Svelte2TsxError, Svelte2TsxOptions, svelte2tsx},
 };
@@ -437,14 +440,32 @@ impl<'source> PreparedComponent<'source> {
         &mut self,
         generate: GenerateMode,
     ) -> Result<CompileResult, CompileError> {
+        self.compile_mode_with_sourcemap_content(generate, true)
+    }
+
+    pub(crate) fn compile_mode_with_sourcemap_content(
+        &mut self,
+        generate: GenerateMode,
+        include_sourcemap_content: bool,
+    ) -> Result<CompileResult, CompileError> {
         // SAFETY: `self.ast` cannot move for the duration of this mutable borrow.
         let _arena_guard =
             unsafe { crate::ast::arena::SerializeArenaGuard::new(&self.ast.arena as *const _) };
         let mut options = self.options.clone();
         options.generate = generate;
-        let transform_result =
+        let include_sourcemap_content = include_sourcemap_content || options.sourcemap.is_some();
+        let transform_result = if include_sourcemap_content {
             transform_component(&self.analysis, &self.ast, self.source, &options)
-                .map_err(CompileError::from)?;
+        } else {
+            transform_component_with_sourcemap_content(
+                &self.analysis,
+                &self.ast,
+                self.source,
+                &options,
+                false,
+            )
+        }
+        .map_err(CompileError::from)?;
         Ok(crate::compiler::finalize_compile_result(
             transform_result,
             &self.analysis,

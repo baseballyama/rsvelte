@@ -85,6 +85,16 @@ pub fn transform_component(
     source: &str,
     options: &CompileOptions,
 ) -> Result<TransformResult, TransformError> {
+    transform_component_with_sourcemap_content(analysis, ast, source, options, true)
+}
+
+pub(crate) fn transform_component_with_sourcemap_content(
+    analysis: &ComponentAnalysis,
+    ast: &Root,
+    source: &str,
+    options: &CompileOptions,
+    include_sourcemap_content: bool,
+) -> Result<TransformResult, TransformError> {
     use js_ast::codegen::{
         SourceMapping, encode_vlq_mappings, generate_sourcemap_json, get_source_name,
         remap_through_sourcemap,
@@ -216,7 +226,13 @@ pub fn transform_component(
 
     let css = if analysis.css.has_css && !analysis.inject_styles {
         let _css_start = profile::timer_start();
-        let mut css_output = css::render_stylesheet(analysis, ast.css.as_deref(), source, options)?;
+        let mut css_output = css::render_stylesheet_with_sourcemap_content(
+            analysis,
+            ast.css.as_deref(),
+            source,
+            options,
+            include_sourcemap_content,
+        )?;
         profile::record_css_render(profile::timer_elapsed(_css_start));
         // Apply preprocessor source map composition to CSS map if needed
         if let Some(ref pp_map_json) = options.sourcemap
@@ -435,7 +451,7 @@ pub fn transform_component(
                         Some(generate_sourcemap_json(
                             &file_name,
                             &multi_sources[0],
-                            content,
+                            include_sourcemap_content.then_some(content),
                             &mappings_str,
                             &names_refs,
                         ))
@@ -462,7 +478,7 @@ pub fn transform_component(
                     Some(generate_sourcemap_json(
                         &file_name,
                         &source_name,
-                        content,
+                        include_sourcemap_content.then_some(content),
                         &mappings_str,
                         &names_refs,
                     ))
@@ -471,7 +487,7 @@ pub fn transform_component(
                 Some(generate_sourcemap_json(
                     &file_name,
                     &source_name,
-                    source,
+                    include_sourcemap_content.then_some(source),
                     &mappings_str,
                     &[],
                 ))
@@ -509,7 +525,7 @@ pub fn transform_component(
                 Some(generate_sourcemap_json(
                     &file_name,
                     &source_name,
-                    source,
+                    include_sourcemap_content.then_some(source),
                     &mappings_str,
                     &[],
                 ))
@@ -627,11 +643,11 @@ pub(crate) fn remap_css_sourcemap(
     generate_sourcemap_json(
         file_name,
         &source_name,
-        if original_content.is_empty() {
+        Some(if original_content.is_empty() {
             ""
         } else {
             original_content
-        },
+        }),
         &mappings_str,
         &names_refs,
     )

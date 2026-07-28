@@ -3,20 +3,48 @@
 //! Common functions for building HTML templates, escaping content,
 //! and handling void elements.
 
+use std::borrow::Cow;
+
+use memchr::{memchr2, memchr3};
+
 /// Escape HTML special characters for safe insertion into HTML content.
-pub fn escape_html(s: &str) -> String {
-    // Only escape & and < for HTML content (not >)
-    // This matches the official Svelte compiler's CONTENT_REGEX = /[&<]/g
-    s.replace('&', "&amp;").replace('<', "&lt;")
+pub fn escape_html(s: &str) -> Cow<'_, str> {
+    escape(s, false)
 }
 
 /// Escape attribute value special characters.
-pub fn escape_attr(s: &str) -> String {
-    // Only escape &, ", and < for attributes (not >)
-    // This matches the official Svelte compiler's ATTR_REGEX = /[&"<]/g
-    s.replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('<', "&lt;")
+pub fn escape_attr(s: &str) -> Cow<'_, str> {
+    escape(s, true)
+}
+
+fn escape(s: &str, attribute: bool) -> Cow<'_, str> {
+    let bytes = s.as_bytes();
+    let find = |haystack: &[u8]| {
+        if attribute {
+            memchr3(b'&', b'<', b'"', haystack)
+        } else {
+            memchr2(b'&', b'<', haystack)
+        }
+    };
+    let Some(first) = find(bytes) else {
+        return Cow::Borrowed(s);
+    };
+
+    let mut escaped = String::with_capacity(s.len() + 8);
+    escaped.push_str(&s[..first]);
+    let mut start = first;
+    while let Some(offset) = find(&bytes[start..]) {
+        let position = start + offset;
+        escaped.push_str(&s[start..position]);
+        escaped.push_str(match bytes[position] {
+            b'&' => "&amp;",
+            b'<' => "&lt;",
+            _ => "&quot;",
+        });
+        start = position + 1;
+    }
+    escaped.push_str(&s[start..]);
+    Cow::Owned(escaped)
 }
 
 /// Check if an element is a void element (self-closing, no end tag).
@@ -131,6 +159,7 @@ mod tests {
         assert_eq!(escape_html("<div>"), "&lt;div>");
         assert_eq!(escape_html("a & b"), "a &amp; b");
         assert_eq!(escape_html("hello"), "hello");
+        assert!(matches!(escape_html("hello"), Cow::Borrowed(_)));
     }
 
     #[test]
@@ -138,6 +167,7 @@ mod tests {
         assert_eq!(escape_attr("\"quoted\""), "&quot;quoted&quot;");
         // Official Svelte ATTR_REGEX = /[&"<]/g - does NOT escape >
         assert_eq!(escape_attr("<tag>"), "&lt;tag>");
+        assert!(matches!(escape_attr("plain"), Cow::Borrowed(_)));
     }
 
     #[test]
