@@ -12,8 +12,8 @@ use super::declaration::{
 use super::format_core::format_expr_core;
 use super::text::{
     collapse_block_header_expanded_call, collapse_expanded_arg_form,
-    collapse_multiline_to_single_line, first_line_ends_with_logical_op, is_method_chain_break,
-    starts_with_array_or_object_literal,
+    collapse_multiline_to_single_line, compute_header_suffix_len, first_line_ends_with_logical_op,
+    is_method_chain_break, starts_with_array_or_object_literal,
 };
 use super::width::{
     format_content_expression, format_content_expression_with_prefix, format_inline_expression,
@@ -68,6 +68,27 @@ fn expression_code_range(rest: &str, options: &FormatOptions) -> Option<std::ops
     let (start, end) = (span.start as usize, span.end as usize);
     // The `(` wrapper shifts every offset by one byte.
     (start >= 1 && end >= start && end - 1 <= rest.len()).then(|| start - 1..end - 1)
+}
+
+fn is_top_level_call_expression(source: &str, options: &FormatOptions) -> bool {
+    let allocator = crate::scratch::acquire();
+    let wrapped = format!("({source});");
+    let source_type = if options.typescript {
+        SourceType::ts().with_module(true)
+    } else {
+        SourceType::default()
+    };
+    let ret = Parser::new(allocator, &wrapped, source_type)
+        .with_options(formatter_parse_options())
+        .parse();
+    if !ret.diagnostics.is_empty() {
+        return false;
+    }
+    matches!(
+        ret.program.body.first(),
+        Some(oxc_ast::ast::Statement::ExpressionStatement(stmt))
+            if matches!(stmt.expression, oxc_ast::ast::Expression::CallExpression(_))
+    )
 }
 
 pub(super) fn push_expression_tag(
@@ -391,6 +412,7 @@ pub(super) fn push_bare_expression(
     expr: &Expression,
     options: &FormatOptions,
     depth: usize,
+    prefix_len: usize,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<u32, FormatError> {
     let (Some(start), Some(end)) = (expr.start(), expr.end()) else {
@@ -403,7 +425,9 @@ pub(super) fn push_bare_expression(
     if slice.is_empty() {
         return Ok(end);
     }
+    let indent_width = options.js.indent_width.value() as usize;
     let full_width = options.js.line_width.value() as usize;
+    let suffix_len = compute_header_suffix_len(source, end as usize);
     // First format inline (single-line) to get the canonical expression text.
     let formatted = format_inline_expression(slice, options)?;
     // prettier-plugin-svelte forces block-header expressions onto one line
@@ -427,24 +451,29 @@ pub(super) fn push_bare_expression(
     } else {
         formatted
     };
-    // prettier-plugin-svelte wraps a block-header expression across lines when
-    // the expression itself is longer than the print width (OXC at `full_width`
-    // would break it).  When the expression fits within `full_width` — even if
-    // the full header line (prefix + expression + suffix) overflows 80 cols —
-    // prettier keeps it inline.  This avoids break points at logical operators
-    // (`&&`, `||`) that OXC would pick but prettier does not in block headers.
-    //
-    // When wrapping, we pass the full `line_width` to OXC.  Continuation lines
-    // carry only the block's indent (not the keyword prefix), so using the full
-    // width avoids over-wrapping inner call arguments.
+    let expression_width = UnicodeWidthStr::width(formatted.as_str());
+    let header_width = depth * indent_width + prefix_len + expression_width + suffix_len;
+    // The oracle accounts for the full header around call expressions, but keeps
+    // a fitting plain member chain inline even when its `as` suffix overflows.
+    let should_break = expression_width > full_width
+        || (header_width > full_width && is_top_level_call_expression(slice, options));
     let formatted = if !formatted.contains('\n')
-            && UnicodeWidthStr::width(formatted.as_str()) > full_width
+            && should_break
             // prettier-plugin-svelte never breaks array or object literals in
             // block headers even when they are far wider than the print width —
             // e.g. `{#each ["a", "b", "c", …] as x}` stays on one line.
             && !starts_with_array_or_object_literal(formatted.as_str())
     {
         let multi = format_expr_core(slice, options, options.js.line_width, false)?;
+        let multi = if multi.contains('\n') || expression_width > full_width {
+            multi
+        } else {
+            let narrowed_width = oxc_formatter_core::LineWidth::try_from(
+                expression_width.saturating_sub(1).max(1) as u16,
+            )
+            .unwrap_or(options.js.line_width);
+            format_expr_core(slice, options, narrowed_width, false)?
+        };
         // Only accept a method-chain break (hard `.`-led continuation lines,
         // which prettier's removeLines keeps); OXC's soft argument-wrap breaks are
         // collapsed back to one line by the oracle.

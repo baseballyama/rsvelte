@@ -130,6 +130,45 @@ pub(super) fn collapse_multiline_to_single_line(formatted: &str) -> String {
     format!("{first}{joined}{last}")
 }
 
+pub(super) fn compute_header_suffix_len(source: &str, expr_end: usize) -> usize {
+    let Some(tail) = source.get(expr_end..) else {
+        return 0;
+    };
+    let mut depth = 0i32;
+    let mut scanned_bytes = 0usize;
+    let mut quote = None;
+    let chars: Vec<char> = tail.chars().collect();
+    let mut index = 0usize;
+    while index < chars.len() {
+        let character = chars[index];
+        scanned_bytes += character.len_utf8();
+        match quote {
+            Some(delimiter) => {
+                if character == '\\' {
+                    index += 1;
+                    if index < chars.len() {
+                        scanned_bytes += chars[index].len_utf8();
+                    }
+                } else if character == delimiter {
+                    quote = None;
+                }
+            }
+            None => match character {
+                '"' | '\'' | '`' => quote = Some(character),
+                '{' | '(' | '[' => depth += 1,
+                '}' if depth == 0 => {
+                    return UnicodeWidthStr::width(&tail[..scanned_bytes]);
+                }
+                '}' | ')' | ']' if depth > 0 => depth -= 1,
+                '\n' => return 0,
+                _ => {}
+            },
+        }
+        index += 1;
+    }
+    0
+}
+
 /// Returns `true` when OXC's multi-line output represents a method-chain break —
 /// i.e. at least one continuation line starts with `.` after trimming whitespace.
 /// This distinguishes call-chain breaks (hardlines in prettier, kept by removeLines)
@@ -537,3 +576,4 @@ pub(crate) fn expand_obj_arg_call(s: &str, indent_width: usize) -> Option<String
         Some(result)
     }
 }
+use unicode_width::UnicodeWidthStr;

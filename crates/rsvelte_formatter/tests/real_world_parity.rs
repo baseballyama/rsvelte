@@ -138,6 +138,102 @@ fn each_header_keeps_fitting_member_chain_inline() {
 }
 
 #[test]
+fn each_call_chain_accounts_for_full_header_width() {
+    let source = r#"<section>
+  <div>
+    <div>
+      <div>
+        <div>
+          <div>
+            <div>
+              <div>
+                <div>
+                  {#each table.getAllColumns().filter((column) => column.getCanHide()) as column (column)}
+                    <div>{column.id}</div>
+                  {/each}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+"#;
+    let expected = r#"<section>
+  <div>
+    <div>
+      <div>
+        <div>
+          <div>
+            <div>
+              <div>
+                <div>
+                  {#each table
+                    .getAllColumns()
+                    .filter((column) => column.getCanHide()) as column (column)}
+                    <div>{column.id}</div>
+                  {/each}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+"#;
+    assert_parity(source, expected);
+}
+
+#[test]
+fn each_expanded_call_accounts_for_full_header_width() {
+    let source = r#"<section>
+  <div>
+    <div>
+      <div>
+        <div>
+          <div>
+            <div>
+              <div>
+                {#each options.filter((option) => selectedValues.has(option.value)) as option (option)}
+                  <div>{option.value}</div>
+                {/each}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+"#;
+    let expected = r#"<section>
+  <div>
+    <div>
+      <div>
+        <div>
+          <div>
+            <div>
+              <div>
+                {#each options.filter( (option) => selectedValues.has(option.value) ) as option (option)}
+                  <div>{option.value}</div>
+                {/each}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+"#;
+    assert_parity(source, expected);
+}
+
+#[test]
 fn satisfies_object_attribute_drops_statement_context_parentheses() {
     let source = r#"<script lang="ts"></script>
 
