@@ -182,13 +182,14 @@ pub(super) fn get_or_compile_regex(pattern: &str) -> Option<std::sync::Arc<Regex
 /// * `ast` - The parsed AST from Phase 1 (to avoid re-parsing)
 /// * `_source` - The original source code (for backward compatibility)
 /// * `options` - Compile options
-pub fn transform_client(
+pub(crate) fn transform_client(
     analysis: &ComponentAnalysis,
     ast: &Root,
     source: &str,
     options: &CompileOptions,
+    retained_scripts: Option<&crate::ast::oxc_program::RetainedScripts<'_>>,
 ) -> Result<CodegenResult, TransformError> {
-    transform_client_with_visitors(analysis, ast, source, options)
+    transform_client_with_visitors(analysis, ast, source, options, retained_scripts)
 }
 
 /// Transform a module (.svelte.js/.svelte.ts) into client-side JavaScript.
@@ -368,6 +369,7 @@ fn transform_client_with_visitors(
     ast: &Root,
     source: &str,
     options: &CompileOptions,
+    retained_scripts: Option<&crate::ast::oxc_program::RetainedScripts<'_>>,
 ) -> Result<CodegenResult, TransformError> {
     use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment;
 
@@ -1806,42 +1808,54 @@ fn transform_client_with_visitors(
     // Process module script content - extract imports separately from other content
     // This is needed because module_level_snippets must come after imports but before exports
     // Reference: transform-client.js line 513: body = [...imports, ...state.module_level_snippets, ...body];
-    let module_script_non_imports: Option<String> = if let Some(ref module_content) =
-        analysis.module_script_content
-    {
-        // Strip TypeScript syntax before processing
-        let raw =
-            crate::compiler::phases::phase2_analyze::types::strip_typescript(&module_content.raw);
-        let (module_imports, rest) = extract_imports(&raw);
-        // Add module script imports first (from module.body in official compiler)
-        for import_line in module_imports {
-            let cleaned = cleanup_import_line(&import_line);
-            if cleaned.is_empty() {
-                continue;
-            }
-            let trimmed = cleaned.trim();
-            // Ensure import statements end with semicolons, matching esrap behavior.
-            let with_semi = if !trimmed.ends_with(';') {
-                format!("{};", trimmed)
+    let module_script_non_imports: Option<(String, Option<String>)> =
+        if let Some(ref module_content) = analysis.module_script_content {
+            // Strip TypeScript syntax before processing
+            let raw = crate::compiler::phases::phase2_analyze::types::strip_typescript(
+                &module_content.raw,
+            );
+            let (module_imports, rest) = extract_imports(&raw);
+            let retained_comment_stripped = if !analysis.is_typescript {
+                retained_scripts
+                    .and_then(|scripts| scripts.module.as_ref())
+                    .filter(|retained| retained.program().source_text == raw)
+                    .map(|retained| {
+                        let stripped =
+                            strip_module_toplevel_comments_from_program(&raw, retained.program());
+                        extract_imports(&stripped).1.trim().to_string()
+                    })
             } else {
-                trimmed.to_string()
+                None
             };
-            body.push(JsStatement::Raw(with_semi.into()));
-        }
-        let rest_trimmed = rest.trim();
-        // A module `<script module>` whose only non-import content is comments
-        // (and whitespace) carries no statements. Upstream parses it into an
-        // empty Program and esrap emits nothing — the dangling comments are
-        // dropped (they have no node to anchor to). Mirror that: emit nothing,
-        // rather than hoisting the bare comments to module top level.
-        if rest_trimmed.is_empty() || is_js_comments_and_whitespace_only(rest_trimmed) {
-            None
+            // Add module script imports first (from module.body in official compiler)
+            for import_line in module_imports {
+                let cleaned = cleanup_import_line(&import_line);
+                if cleaned.is_empty() {
+                    continue;
+                }
+                let trimmed = cleaned.trim();
+                // Ensure import statements end with semicolons, matching esrap behavior.
+                let with_semi = if !trimmed.ends_with(';') {
+                    format!("{};", trimmed)
+                } else {
+                    trimmed.to_string()
+                };
+                body.push(JsStatement::Raw(with_semi.into()));
+            }
+            let rest_trimmed = rest.trim();
+            // A module `<script module>` whose only non-import content is comments
+            // (and whitespace) carries no statements. Upstream parses it into an
+            // empty Program and esrap emits nothing — the dangling comments are
+            // dropped (they have no node to anchor to). Mirror that: emit nothing,
+            // rather than hoisting the bare comments to module top level.
+            if rest_trimmed.is_empty() || is_js_comments_and_whitespace_only(rest_trimmed) {
+                None
+            } else {
+                Some((rest_trimmed.to_string(), retained_comment_stripped))
+            }
         } else {
-            Some(rest_trimmed.to_string())
-        }
-    } else {
-        None
-    };
+            None
+        };
 
     // Add svelte/internal/client import (namespace import as $)
     // In the official compiler (transform-client.js line 154, 506), this is the first
@@ -1885,13 +1899,18 @@ fn transform_client_with_visitors(
     // This comes after module_level_snippets so that `export { foo }` can reference `const foo`
     // Transform class fields first (before rune transforms strip the rune names)
     // Then transform remaining rune calls ($state, $derived, etc.) in module-level script
-    if let Some(non_imports) = module_script_non_imports {
+    if let Some((non_imports, retained_comment_stripped)) = module_script_non_imports {
         let class_transformed = transform_class_fields_client(&non_imports);
         let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
         // Drop module-level comments esrap's no-`loc` top-level Program omits
         // (leading JSDoc before a kept `export const`, per-field JSDoc that
         // `strip_typescript` re-emits from a removed `export type`/`interface`).
-        let transformed = strip_module_toplevel_comments(&transformed);
+        let transformed = if transformed == non_imports {
+            retained_comment_stripped
+                .unwrap_or_else(|| strip_module_toplevel_comments(&transformed))
+        } else {
+            strip_module_toplevel_comments(&transformed)
+        };
         body.push(JsStatement::Raw(transformed.into()));
     }
 
@@ -2499,10 +2518,30 @@ fn is_export_default_stmt(stmt: &JsStatement) -> bool {
 /// on a parse failure or when there is nothing to drop.
 pub(crate) fn strip_module_toplevel_comments(src: &str) -> String {
     use oxc_allocator::Allocator;
-    use oxc_ast::ast::{ClassBody, FunctionBody};
-    use oxc_ast_visit::{Visit, walk};
     use oxc_parser::Parser;
     use oxc_span::SourceType;
+
+    #[cfg(test)]
+    MODULE_COMMENT_REPARSES.with(|count| count.set(count.get() + 1));
+    let allocator = Allocator::default();
+    let ret = Parser::new(&allocator, src, SourceType::mjs()).parse();
+    if !ret.diagnostics.is_empty() {
+        return src.to_string();
+    }
+    strip_module_toplevel_comments_from_program(src, &ret.program)
+}
+
+#[cfg(test)]
+thread_local! {
+    static MODULE_COMMENT_REPARSES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+fn strip_module_toplevel_comments_from_program(
+    src: &str,
+    program: &oxc_ast::ast::Program<'_>,
+) -> String {
+    use oxc_ast::ast::{ClassBody, FunctionBody};
+    use oxc_ast_visit::{Visit, walk};
 
     struct BodyCollector {
         spans: Vec<(u32, u32)>,
@@ -2518,17 +2557,16 @@ pub(crate) fn strip_module_toplevel_comments(src: &str) -> String {
         }
     }
 
-    let allocator = Allocator::default();
-    let ret = Parser::new(&allocator, src, SourceType::mjs()).parse();
-    if !ret.diagnostics.is_empty() || ret.program.comments.is_empty() {
+    debug_assert_eq!(program.source_text, src);
+    if program.comments.is_empty() {
         return src.to_string();
     }
 
     let mut collector = BodyCollector { spans: Vec::new() };
-    collector.visit_program(&ret.program);
+    collector.visit_program(program);
 
     let mut removals: Vec<(usize, usize)> = Vec::new();
-    for c in &ret.program.comments {
+    for c in &program.comments {
         let (cs, ce) = (c.span.start, c.span.end);
         let inside = collector
             .spans

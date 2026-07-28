@@ -7,13 +7,10 @@ use std::{cell::OnceCell, ops::Range};
 
 use crate::{
     CompileError, CompileOptions, CompileResult, GenerateMode,
-    ast::{AttributeValue, AttributeValuePart, Root, ScriptContext},
+    ast::{AttributeValue, AttributeValuePart, Root, ScriptContext, oxc_program::RetainedScripts},
     compiler::{
         ComponentAnalysis,
-        phases::{
-            phase2_analyze::BindingKind,
-            phase3_transform::{transform_component, transform_component_with_sourcemap_content},
-        },
+        phases::{phase2_analyze::BindingKind, phase3_transform::transform_component_with_scripts},
     },
     svelte2tsx::{Svelte2TsxError, Svelte2TsxOptions, svelte2tsx},
 };
@@ -383,6 +380,7 @@ pub struct PreparedComponent<'source> {
     analysis: Box<ComponentAnalysis>,
     options: CompileOptions,
     runes_mode: bool,
+    retained_scripts: RetainedScripts<'source>,
     facts: OnceCell<ComponentFacts>,
 }
 
@@ -401,13 +399,13 @@ impl std::fmt::Debug for PreparedComponent<'_> {
 impl<'source> PreparedComponent<'source> {
     pub(crate) fn new(source: &'source str, options: CompileOptions) -> Result<Self, CompileError> {
         let mut ast = Box::new(crate::compiler::parse_component(source)?);
-        let (options, analysis, runes_mode) = {
+        let (options, analysis, runes_mode, retained_scripts) = {
             // SAFETY: the guard is dropped before `ast` moves into the result.
             let _arena_guard =
                 unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
-            let (options, analysis, runes_mode) =
+            let (options, analysis, runes_mode, retained_scripts) =
                 crate::compiler::prepare_and_analyze(&mut ast, source, options)?;
-            (options, Box::new(analysis), runes_mode)
+            (options, Box::new(analysis), runes_mode, retained_scripts)
         };
 
         Ok(Self {
@@ -416,6 +414,7 @@ impl<'source> PreparedComponent<'source> {
             analysis,
             options,
             runes_mode,
+            retained_scripts,
             facts: OnceCell::new(),
         })
     }
@@ -459,17 +458,14 @@ impl<'source> PreparedComponent<'source> {
         });
         let options = adjusted_options.as_ref().unwrap_or(&self.options);
         let include_sourcemap_content = include_sourcemap_content || options.sourcemap.is_some();
-        let transform_result = if include_sourcemap_content {
-            transform_component(&self.analysis, &self.ast, self.source, options)
-        } else {
-            transform_component_with_sourcemap_content(
-                &self.analysis,
-                &self.ast,
-                self.source,
-                options,
-                false,
-            )
-        }
+        let transform_result = transform_component_with_scripts(
+            &self.analysis,
+            &self.ast,
+            self.source,
+            options,
+            include_sourcemap_content,
+            Some(&self.retained_scripts),
+        )
         .map_err(CompileError::from)?;
         Ok(crate::compiler::finalize_compile_result(
             transform_result,

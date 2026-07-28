@@ -62,6 +62,38 @@ pub fn ensure_script_parsed(
     parse_error
 }
 
+pub(crate) fn ensure_script_parsed_retained<'source>(
+    arena: &ParseArena,
+    script: &mut Script<'source>,
+    line_offsets: &[usize],
+) -> (
+    Option<crate::error::ParseError>,
+    Option<crate::ast::oxc_program::RetainedProgram<'source>>,
+) {
+    if script.raw_content.is_empty() {
+        return (None, None);
+    }
+
+    let raw = std::mem::take(&mut script.raw_content);
+    let offset = script.content_offset as usize;
+    let leading_comments: Vec<String> = Vec::new();
+    let (program, parse_error, retained) = super::expression::parse_program_retained_with_error(
+        arena,
+        super::expression::ProgramParseParams {
+            content: raw,
+            offset,
+            line_offsets,
+            is_typescript: script.is_typescript,
+            leading_comments: &leading_comments,
+            script_tag_start: script.start as usize,
+            script_tag_end: script.end as usize,
+        },
+    );
+
+    script.content = program;
+    (parse_error, Some(retained))
+}
+
 static SCRIPT_END_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
     std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"</script"));
 

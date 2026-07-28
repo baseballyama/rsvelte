@@ -95,6 +95,24 @@ pub(crate) fn transform_component_with_sourcemap_content(
     options: &CompileOptions,
     include_sourcemap_content: bool,
 ) -> Result<TransformResult, TransformError> {
+    transform_component_with_scripts(
+        analysis,
+        ast,
+        source,
+        options,
+        include_sourcemap_content,
+        None,
+    )
+}
+
+pub(crate) fn transform_component_with_scripts(
+    analysis: &ComponentAnalysis,
+    ast: &Root,
+    source: &str,
+    options: &CompileOptions,
+    include_sourcemap_content: bool,
+    retained_scripts: Option<&crate::ast::oxc_program::RetainedScripts<'_>>,
+) -> Result<TransformResult, TransformError> {
     use js_ast::codegen::{
         SourceMapping, encode_vlq_mappings, generate_sourcemap_json, get_source_name,
         remap_through_sourcemap,
@@ -102,7 +120,8 @@ pub(crate) fn transform_component_with_sourcemap_content(
 
     let (js, mut js_mappings) = match options.generate {
         GenerateMode::Client => {
-            let mut result = client::transform_client(analysis, ast, source, options)?;
+            let mut result =
+                client::transform_client(analysis, ast, source, options, retained_scripts)?;
             // Strip unnecessary parens around arrow functions (e.g., (() => { ... }) → () => { ... })
             // matching the official Svelte compiler's AST printer behavior.
             result.code = server::transform_script::strip_arrow_function_parens(result.code);

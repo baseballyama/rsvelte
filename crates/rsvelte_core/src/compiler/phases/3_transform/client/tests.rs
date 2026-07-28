@@ -1,6 +1,36 @@
 use super::*;
 
 #[test]
+fn retained_module_program_avoids_comment_reparse() {
+    MODULE_COMMENT_REPARSES.with(|count| count.set(0));
+    let source = r#"<script module>
+// omitted
+export const answer = 42;
+
+export function nested() {
+    // kept
+    return answer;
+}
+</script>
+
+<p>{answer}</p>
+"#;
+    let result = crate::compiler::compile(
+        source,
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("retained/index.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(!result.js.code.contains("// omitted"));
+    assert!(result.js.code.contains("// kept"));
+    MODULE_COMMENT_REPARSES.with(|count| assert_eq!(count.get(), 0));
+}
+
+#[test]
 fn test_starts_export_specifier() {
     // M-021: recognise `export { ... }` regardless of whitespace before `{`.
     assert!(starts_export_specifier("export { a, b }"));
