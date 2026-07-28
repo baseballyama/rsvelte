@@ -154,7 +154,6 @@ fn collect_node_edits(
             // whose sole child is another IfBlock, so recursing naively would
             // add a level per branch. Mirrors `crate::indent`.
             let mut current: &rsvelte_core::ast::template::IfBlock = blk;
-            let mut is_first = true;
             loop {
                 // Normalize extra whitespace between `{` and `#`/`:` in the
                 // block opener: `{     #if cond}` → `{#if cond}`.
@@ -168,20 +167,8 @@ fn collect_node_edits(
                 // outer parens (`{#if (b)}` → `{#if b}`) and returns the
                 // effective end of the edit (which may be past the AST expression
                 // end when parens were consumed).
-                // `{#if ` = 5 chars, `{:else if ` = 10 chars.
-                let if_prefix_len = if is_first {
-                    "{#if ".len()
-                } else {
-                    "{:else if ".len()
-                };
-                let effective_end = push_bare_expression(
-                    source,
-                    &current.test,
-                    options,
-                    depth,
-                    if_prefix_len,
-                    edits,
-                )?;
+                let effective_end =
+                    push_bare_expression(source, &current.test, options, depth, edits)?;
                 // Trim trailing whitespace before the header `}` — e.g.
                 // `{#if cond }` → `{#if cond}`.
                 trim_trailing_ws_before_close_brace(source, effective_end, edits);
@@ -195,7 +182,6 @@ fn collect_node_edits(
                     Some(alt) => match crate::indent::else_if_branch(alt) {
                         Some(chained) => {
                             current = chained;
-                            is_first = false;
                         }
                         None => {
                             expand_inline_empty_block_body(alt, depth, options, edits);
@@ -215,15 +201,7 @@ fn collect_node_edits(
             if let Some(start) = blk.expression.start() {
                 normalize_leading_ws_before_expr(source, start, edits);
             }
-            // `{#each ` = 7 chars.
-            push_bare_expression(
-                source,
-                &blk.expression,
-                options,
-                depth,
-                "{#each ".len(),
-                edits,
-            )?;
+            push_bare_expression(source, &blk.expression, options, depth, edits)?;
             if let Some(ctx) = &blk.context {
                 push_pattern_at_span(source, ctx, options, edits)?;
             }
@@ -378,15 +356,8 @@ fn collect_node_edits(
                 if let Some(start) = blk.expression.start() {
                     normalize_leading_ws_before_expr(source, start, edits);
                 }
-                // `{#await ` = 8 chars.
-                let expr_end = push_bare_expression(
-                    source,
-                    &blk.expression,
-                    options,
-                    depth,
-                    "{#await ".len(),
-                    edits,
-                )?;
+                let expr_end =
+                    push_bare_expression(source, &blk.expression, options, depth, edits)?;
                 // `blk.value` is the binding from `{#await expr then binding}` (header
                 // inline) when pending is None, or from `{:then binding}` (separator)
                 // when pending is Some.  Only treat it as a header binding in the first
@@ -468,15 +439,8 @@ fn collect_node_edits(
             if let Some(start) = blk.expression.start() {
                 normalize_leading_ws_before_expr(source, start, edits);
             }
-            // `{#key ` = 6 chars.
-            let effective_end = push_bare_expression(
-                source,
-                &blk.expression,
-                options,
-                depth,
-                "{#key ".len(),
-                edits,
-            )?;
+            let effective_end =
+                push_bare_expression(source, &blk.expression, options, depth, edits)?;
             // Trim `{#key expr }` → `{#key expr}`.
             trim_trailing_ws_before_close_brace(source, effective_end, edits);
             // Expand inline-empty body `{#key expr} {/key}` → blank-line form.
@@ -488,15 +452,7 @@ fn collect_node_edits(
             normalize_block_opener_ws(source, blk.start, edits);
             if blk.parameters.is_empty() {
                 // No params — just normalize the name (`{#snippet foo()}`).
-                // `{#snippet ` = 10 chars.
-                push_bare_expression(
-                    source,
-                    &blk.expression,
-                    options,
-                    depth,
-                    "{#snippet ".len(),
-                    edits,
-                )?;
+                push_bare_expression(source, &blk.expression, options, depth, edits)?;
             } else {
                 // Format the whole header `name<…>(params)` as one function
                 // signature so a long parameter list breaks across lines like
