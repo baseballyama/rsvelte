@@ -150,6 +150,31 @@ thread_local! {
     pub(super) static VAR_STATE_VARS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
 }
 
+struct AstStateCounterSnapshot {
+    script_array: usize,
+    array_lookup: usize,
+    state_tmp: usize,
+    derived_tmp: usize,
+}
+
+impl AstStateCounterSnapshot {
+    fn capture() -> Self {
+        Self {
+            script_array: SCRIPT_ARRAY_COUNTER.with(Cell::get),
+            array_lookup: ARRAY_LOOKUP_COUNTER.with(Cell::get),
+            state_tmp: STATE_TMP_COUNTER.with(Cell::get),
+            derived_tmp: DERIVED_TMP_COUNTER.with(Cell::get),
+        }
+    }
+
+    fn restore(&self) {
+        SCRIPT_ARRAY_COUNTER.with(|counter| counter.set(self.script_array));
+        ARRAY_LOOKUP_COUNTER.with(|counter| counter.set(self.array_lookup));
+        STATE_TMP_COUNTER.with(|counter| counter.set(self.state_tmp));
+        DERIVED_TMP_COUNTER.with(|counter| counter.set(self.derived_tmp));
+    }
+}
+
 // Thread-local cache for dynamically-constructed regex patterns to avoid recompilation.
 // `Arc<Regex>` keeps the cache lookup cheap: cloning the Arc is a single
 // refcount bump rather than copying the (multi-KB) compiled NFA.
@@ -6022,6 +6047,7 @@ fn transform_instance_script_for_visitors(
                     let projection_core_start =
                         original_script.len() - original_script.trim_start().len();
                     let projection_core_end = projection_core_start + original_script.trim().len();
+                    let counters = AstStateCounterSnapshot::capture();
                     match ast_state_transform::transform_state_vars_ast_projected_from_program(
                         program.source(),
                         program.program(),
@@ -6030,8 +6056,15 @@ fn transform_instance_script_for_visitors(
                         projection_core_start..projection_core_end,
                         &ast_config,
                     ) {
-                        Ok(transformed) => transformed,
-                        Err(()) => return None,
+                        Ok(Some(transformed)) => Some(transformed),
+                        Ok(None) => {
+                            counters.restore();
+                            None
+                        }
+                        Err(()) => {
+                            counters.restore();
+                            return None;
+                        }
                     }
                 } else {
                     let mut retained_matches = program.source().match_indices(retained_core);

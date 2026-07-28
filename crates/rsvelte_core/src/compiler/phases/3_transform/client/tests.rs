@@ -223,6 +223,84 @@ let double = $derived(count! * 2)!;
 }
 
 #[test]
+fn projected_typescript_assertion_update_falls_back() {
+    AST_STATE_REPARSES.with(|count| count.set(0));
+    AST_STATE_RETAINED_USES.with(|count| count.set(0));
+    let result = crate::compiler::compile(
+        r#"<script lang="ts">
+let count: number = $state(0);
+function increment() { count!++; }
+</script>
+
+<button onclick={increment}>{count}</button>
+"#,
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("retained-state-typescript-assertion-update/index.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(result.js.code.contains("$.update(count)"));
+    assert!(!result.js.code.contains("$.get(count)++"));
+    AST_STATE_RETAINED_USES.with(|count| assert_eq!(count.get(), 0));
+    AST_STATE_REPARSES.with(|count| assert_eq!(count.get(), 1));
+}
+
+#[test]
+fn projected_fallback_restores_generated_name_counters() {
+    AST_STATE_REPARSES.with(|count| count.set(0));
+    AST_STATE_RETAINED_USES.with(|count| count.set(0));
+    let result = crate::compiler::compile(
+        r#"<script lang="ts">
+let { a }: { a: string } = $state({});
+let { b }: { b: string } = $derived(a);
+let [c]: [number] = $derived([1]);
+</script>
+
+<button onclick={() => a++}>{b}{c}</button>
+"#,
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("retained-state-typescript-counter-rollback/index.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(!result.js.code.contains("tmp_1"));
+    assert!(!result.js.code.contains("$$d_1"));
+    assert!(!result.js.code.contains("$$array_1"));
+
+    let code_wrapper = crate::compiler::compile(
+        r#"<script lang="ts">
+interface Props {
+    children?: unknown;
+    codeblock?: unknown;
+    innerClass?: string;
+    class?: string;
+}
+let { children, codeblock, innerClass, class: classname }: Props = $props();
+const { base, inner } = $derived(codewrapper());
+</script>
+
+<div class={base({ class: classname })}>{innerClass}</div>
+"#,
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("flowbite-code-wrapper-counter-rollback/index.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(!code_wrapper.js.code.contains("$$d_1"));
+    AST_STATE_RETAINED_USES.with(|count| assert_eq!(count.get(), 0));
+    AST_STATE_REPARSES.with(|count| assert_eq!(count.get(), 2));
+}
+
+#[test]
 fn retained_typescript_projection_reduces_fixture_reparses_from_five_to_one() {
     AST_STATE_REPARSES.with(|count| count.set(0));
     AST_STATE_RETAINED_USES.with(|count| count.set(0));

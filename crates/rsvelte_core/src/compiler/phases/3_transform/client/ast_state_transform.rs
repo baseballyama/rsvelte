@@ -3954,15 +3954,36 @@ fn projected_statement_is_type_only(statement: &Statement<'_>) -> bool {
 fn projected_state_transform_requires_fallback(
     program: &Program<'_>,
     state_vars: &[String],
+    projection: &ScriptProjection,
 ) -> bool {
     struct Finder<'a> {
         state_vars: &'a [String],
+        projection: &'a ScriptProjection,
         found: bool,
+    }
+
+    impl Finder<'_> {
+        fn target_crosses_omitted_source(&self, start: u32, end: u32) -> bool {
+            let source = start..end;
+            self.projection
+                .output_range_for_source(source.clone())
+                .is_none()
+                && self
+                    .projection
+                    .copied_chunks
+                    .iter()
+                    .any(|chunk| source.start < chunk.source.end && source.end > chunk.source.start)
+        }
     }
 
     impl<'a, 'ast> Visit<'ast> for Finder<'a> {
         fn visit_assignment_expression(&mut self, expression: &AssignmentExpression<'ast>) {
             if self.found {
+                return;
+            }
+            let target_span = expression.left.span();
+            if self.target_crosses_omitted_source(target_span.start, target_span.end) {
+                self.found = true;
                 return;
             }
             if let AssignmentTarget::AssignmentTargetIdentifier(target) = &expression.left {
@@ -3987,6 +4008,18 @@ fn projected_state_transform_requires_fallback(
                 }
             }
             walk::walk_assignment_expression(self, expression);
+        }
+
+        fn visit_update_expression(&mut self, expression: &UpdateExpression<'ast>) {
+            if self.found {
+                return;
+            }
+            let target_span = expression.argument.span();
+            if self.target_crosses_omitted_source(target_span.start, target_span.end) {
+                self.found = true;
+                return;
+            }
+            walk::walk_update_expression(self, expression);
         }
 
         fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'ast>) {
@@ -4029,6 +4062,7 @@ fn projected_state_transform_requires_fallback(
 
     let mut finder = Finder {
         state_vars,
+        projection,
         found: false,
     };
     finder.visit_program(program);
@@ -4109,7 +4143,7 @@ pub(super) fn transform_state_vars_ast_projected_from_program(
         return Err(());
     }
 
-    if projected_state_transform_requires_fallback(program, config.state_vars) {
+    if projected_state_transform_requires_fallback(program, config.state_vars, projection) {
         return Err(());
     }
 
