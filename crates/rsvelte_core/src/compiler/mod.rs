@@ -594,7 +594,12 @@ pub(crate) fn prepare_and_analyze<'source>(
     }
 
     // Phase 2: Analyze
-    let analysis = phases::phase2_analyze::analyze_prepared_component(ast, source, &options)?;
+    let analysis = phases::phase2_analyze::analyze_prepared_component_with_retained(
+        ast,
+        source,
+        &options,
+        Some(&retained_scripts),
+    )?;
     // Determine if runes mode was used
     let runes_mode = options.runes.unwrap_or(analysis.runes);
     Ok((options, analysis, runes_mode, retained_scripts))

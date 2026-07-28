@@ -5,6 +5,13 @@ use crate::ast::template::{Root, Script};
 use crate::compiler::CompileOptions;
 use rustc_hash::{FxHashMap, FxHashSet};
 
+#[cfg(test)]
+thread_local! {
+    pub(crate) static STRIP_TYPESCRIPT_REPARSES: std::cell::Cell<usize> = const {
+        std::cell::Cell::new(0)
+    };
+}
+
 /// Pre-extracted script content to avoid re-parsing in Phase 3.
 #[derive(Debug, Clone)]
 pub struct ScriptContent {
@@ -72,14 +79,24 @@ impl ScriptContent {
     /// Extract script content from an AST Script node and source,
     /// with optional forced TypeScript stripping.
     /// `force_typescript` is true when another script in the component has `lang="ts"`.
-    pub fn from_script_with_ts(script: &Script, source: &str, force_typescript: bool) -> Self {
+    pub(crate) fn from_script_with_ts(
+        script: &Script,
+        source: &str,
+        force_typescript: bool,
+        retained_program: Option<&crate::ast::oxc_program::RetainedProgram<'_>>,
+    ) -> Self {
         let start = script.content.start().unwrap_or(0);
         let end = script.content.end().unwrap_or(0);
-        let raw = if (end as usize) > (start as usize) && (end as usize) <= source.len() {
-            source[start as usize..end as usize].to_string()
+        let raw_source = if (end as usize) > (start as usize) && (end as usize) <= source.len() {
+            &source[start as usize..end as usize]
         } else {
-            String::new()
+            ""
         };
+        let retained_matches_source = retained_program.is_some_and(|program| {
+            program.source().len() == raw_source.len()
+                && std::ptr::eq(program.source().as_ptr(), raw_source.as_ptr())
+        });
+        let raw = raw_source.to_string();
         // Check if this script uses TypeScript
         let is_typescript = force_typescript
             || script.attributes.iter().any(|attr| {
@@ -95,7 +112,16 @@ impl ScriptContent {
 
         // Strip TypeScript from the raw content if this is a TypeScript script
         let raw = if is_typescript && !raw.is_empty() {
-            strip_typescript(&raw)
+            retained_program
+                .filter(|program| {
+                    !program.panicked()
+                        && program.diagnostics().is_empty()
+                        && retained_matches_source
+                })
+                .map_or_else(
+                    || strip_typescript(&raw),
+                    |program| strip_typescript_from_program(&raw, program.program()),
+                )
         } else {
             raw
         };
@@ -487,6 +513,9 @@ pub fn strip_typescript(source: &str) -> String {
     use oxc_parser::Parser;
     use oxc_span::SourceType;
 
+    #[cfg(test)]
+    STRIP_TYPESCRIPT_REPARSES.with(|count| count.set(count.get() + 1));
+
     let allocator = Allocator::default();
     let source_type = SourceType::ts();
     let parser = Parser::new(&allocator, source, source_type);
@@ -497,10 +526,17 @@ pub fn strip_typescript(source: &str) -> String {
         return source.to_string();
     }
 
-    // Collect source spans to remove (sorted by start position)
-    let mut removals: Vec<(u32, u32)> = Vec::new();
+    strip_typescript_from_program(source, &result.program)
+}
 
-    collect_ts_removals_from_program(&result.program, source, &mut removals);
+pub(crate) fn strip_typescript_from_program(
+    source: &str,
+    program: &oxc_ast::ast::Program<'_>,
+) -> String {
+    debug_assert_eq!(source, program.source_text);
+
+    let mut removals: Vec<(u32, u32)> = Vec::new();
+    collect_ts_removals_from_program(program, source, &mut removals);
 
     // Text-based fallback: strip `declare global { ... }`, `declare module ... { ... }`,
     // and `declare namespace ... { ... }` blocks. These may not always be parsed as
@@ -1994,7 +2030,12 @@ impl ComponentAnalysis {
 
     /// Extract and store script content from the AST.
     /// This should be called during Phase 2 to pre-extract scripts for Phase 3.
-    pub fn extract_scripts(&mut self, ast: &Root) {
+    pub(crate) fn extract_scripts(
+        &mut self,
+        ast: &Root,
+        source: &str,
+        retained_scripts: Option<&crate::ast::oxc_program::RetainedScripts<'_>>,
+    ) {
         // Check if any script in the component uses TypeScript.
         // In Svelte, if the module script has lang="ts", the instance script
         // is also treated as TypeScript (even without its own lang attribute).
@@ -2007,8 +2048,12 @@ impl ComponentAnalysis {
 
         // Extract instance script content
         if let Some(ref script) = ast.instance {
-            let mut content =
-                ScriptContent::from_script_with_ts(script, &self.source, any_script_is_typescript);
+            let mut content = ScriptContent::from_script_with_ts(
+                script,
+                source,
+                any_script_is_typescript,
+                retained_scripts.and_then(|scripts| scripts.instance.as_ref()),
+            );
             // `uses_runes` is a lexical guess; re-verify a positive with a
             // shadow-aware AST walk so rune names that only occur where they
             // are shadowed by `$`-prefixed function parameters (e.g.
@@ -2048,8 +2093,12 @@ impl ComponentAnalysis {
 
         // Extract module script content
         if let Some(ref script) = ast.module {
-            let content =
-                ScriptContent::from_script_with_ts(script, &self.source, any_script_is_typescript);
+            let content = ScriptContent::from_script_with_ts(
+                script,
+                source,
+                any_script_is_typescript,
+                retained_scripts.and_then(|scripts| scripts.module.as_ref()),
+            );
             self.module_script_content = Some(content);
         }
     }
@@ -2518,7 +2567,26 @@ pub struct CustomElementConfig {
 
 #[cfg(test)]
 mod strip_typescript_tests {
-    use super::strip_typescript;
+    use super::{strip_typescript, strip_typescript_from_program};
+    use crate::ast::oxc_program::RetainedProgram;
+
+    #[test]
+    fn retained_program_matches_parser_entry_point() {
+        let source = r#"
+import type { Widget } from './types';
+interface Props { value: number }
+let count: number = $state<number>(0);
+const doubled = (count satisfies number) * 2;
+count! += 1;
+"#;
+        let retained = RetainedProgram::parse(source, true);
+        assert!(retained.diagnostics().is_empty());
+
+        assert_eq!(
+            strip_typescript_from_program(source, retained.program()),
+            strip_typescript(source)
+        );
+    }
 
     /// Regression: `strip_typescript` must NOT re-emit JSDoc comments that live
     /// inside a TS type annotation on a `$props()` destructure.

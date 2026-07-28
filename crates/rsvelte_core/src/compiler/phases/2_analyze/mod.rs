@@ -117,6 +117,15 @@ pub(crate) fn analyze_prepared_component(
     source: &str,
     options: &CompileOptions,
 ) -> Result<ComponentAnalysis, AnalysisError> {
+    analyze_prepared_component_with_retained(ast, source, options, None)
+}
+
+pub(crate) fn analyze_prepared_component_with_retained(
+    ast: &mut Root,
+    source: &str,
+    options: &CompileOptions,
+    retained_scripts: Option<&crate::ast::oxc_program::RetainedScripts<'_>>,
+) -> Result<ComponentAnalysis, AnalysisError> {
     let mut analysis = ComponentAnalysis::new(source, options);
     analysis.css.has_css = ast.css.is_some();
 
@@ -233,7 +242,7 @@ pub(crate) fn analyze_prepared_component(
     }
 
     // Extract script content for Phase 3 (avoids re-parsing)
-    analysis.extract_scripts(ast);
+    analysis.extract_scripts(ast, source, retained_scripts);
 
     // Create scopes for the component
     analysis.create_scopes(ast, &ast.arena)?;

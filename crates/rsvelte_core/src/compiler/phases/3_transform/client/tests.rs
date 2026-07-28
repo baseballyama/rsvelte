@@ -88,6 +88,32 @@ const read = () => count;
 }
 
 #[test]
+fn retained_typescript_program_avoids_analysis_strip_reparse() {
+    use crate::compiler::phases::phase2_analyze::types::STRIP_TYPESCRIPT_REPARSES;
+
+    STRIP_TYPESCRIPT_REPARSES.with(|count| count.set(0));
+    let source = r#"<script lang="ts">
+interface Props { initial: number }
+let count: number = $state<number>(0);
+</script>
+
+<button onclick={() => count++}>{count}</button>
+"#;
+    let result = crate::compiler::compile(
+        source,
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("retained-typescript-strip/index.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(result.js.code.contains("let count = $.state(0)"));
+    STRIP_TYPESCRIPT_REPARSES.with(|count| assert_eq!(count.get(), 0));
+}
+
+#[test]
 fn retained_instance_program_is_repeatable() {
     let source = "<script>let count = $state(0); const read = () => count;</script><p>{read()}</p>";
     let mut prepared = crate::toolchain::Toolchain::new()
