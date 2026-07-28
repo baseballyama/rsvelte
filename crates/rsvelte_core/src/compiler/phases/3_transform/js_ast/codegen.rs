@@ -1439,8 +1439,11 @@ impl<'a> JsCodegen<'a> {
         is_left: bool,
     ) -> bool {
         match operand {
-            // Conditional and assignment always need parens inside binary
-            JsExpr::Conditional(_) | JsExpr::Assignment(_) | JsExpr::Sequence(_) => true,
+            // Low-precedence operands need parens inside binary expressions.
+            JsExpr::Conditional(_)
+            | JsExpr::Assignment(_)
+            | JsExpr::Sequence(_)
+            | JsExpr::Arrow(_) => true,
             JsExpr::Binary(inner) => {
                 let parent_prec = binary_op_precedence(parent_op);
                 let inner_prec = binary_op_precedence(&inner.operator);
@@ -1538,6 +1541,7 @@ impl<'a> JsCodegen<'a> {
                 | JsExpr::Assignment(_)
                 | JsExpr::Conditional(_)
                 | JsExpr::Sequence(_)
+                | JsExpr::Arrow(_)
         )
     }
 
@@ -1587,7 +1591,15 @@ impl<'a> JsCodegen<'a> {
     }
 
     fn emit_conditional_expression(&mut self, cond: &JsConditionalExpression) {
-        self.emit_expression(self.arena.get_expr(cond.test));
+        let test = self.arena.get_expr(cond.test);
+        let test_needs_parens = matches!(test, JsExpr::Arrow(_));
+        if test_needs_parens {
+            self.output.push('(');
+        }
+        self.emit_expression(test);
+        if test_needs_parens {
+            self.output.push(')');
+        }
         self.output.push_str(" ? ");
         self.emit_expression(self.arena.get_expr(cond.consequent));
         self.output.push_str(" : ");
@@ -3041,6 +3053,114 @@ mod tests {
         let code = generate(&prog, &arena).unwrap();
         println!("{}", code);
         assert!(code.contains("const add = (a, b) => a + b"));
+    }
+
+    #[test]
+    fn arrow_parentheses_match_in_both_client_printers() {
+        let arena = JsArena::new();
+        let prog = program(vec![
+            const_decl(&arena, "plain", arrow(&arena, vec![], number(1.0))),
+            const_decl(
+                &arena,
+                "iife",
+                call(&arena, arrow(&arena, vec![], number(2.0)), vec![]),
+            ),
+            const_decl(
+                &arena,
+                "conditional",
+                conditional(
+                    &arena,
+                    id("flag"),
+                    arrow(&arena, vec![], number(3.0)),
+                    arrow(&arena, vec![], number(4.0)),
+                ),
+            ),
+            const_decl(
+                &arena,
+                "nullish",
+                nullish(&arena, id("value"), arrow(&arena, vec![], number(5.0))),
+            ),
+            const_decl(
+                &arena,
+                "logical",
+                and(&arena, id("value"), arrow(&arena, vec![], number(6.0))),
+            ),
+            const_decl(
+                &arena,
+                "nested",
+                arrow(&arena, vec![], arrow(&arena, vec![], number(7.0))),
+            ),
+            const_decl(
+                &arena,
+                "binary",
+                binary(
+                    &arena,
+                    JsBinaryOp::Add,
+                    arrow(&arena, vec![], number(8.0)),
+                    number(1.0),
+                ),
+            ),
+            const_decl(
+                &arena,
+                "conditional_test",
+                conditional(
+                    &arena,
+                    arrow(&arena, vec![], boolean(true)),
+                    id("yes"),
+                    id("no"),
+                ),
+            ),
+            const_decl(
+                &arena,
+                "negated",
+                JsExpr::Unary(JsUnaryExpression {
+                    operator: JsUnaryOp::Not,
+                    argument: arena.alloc_expr(arrow(&arena, vec![], boolean(true))),
+                    prefix: true,
+                }),
+            ),
+            const_decl(&arena, "string_value", string("literal (() => marker")),
+            const_decl(
+                &arena,
+                "template_value",
+                template_string("literal (() => marker"),
+            ),
+        ]);
+
+        let handwritten = generate(&prog, &arena).unwrap();
+        let allocator = oxc_allocator::Allocator::default();
+        let converted = super::super::to_oxc::program_to_oxc(&prog, &arena, &allocator).unwrap();
+        let esrap = rsvelte_esrap::print(&converted.program, "");
+
+        for (printer, code) in [("handwritten", handwritten), ("oxc/esrap", esrap)] {
+            let parse_allocator = oxc_allocator::Allocator::default();
+            let parsed =
+                oxc_parser::Parser::new(&parse_allocator, &code, oxc_span::SourceType::mjs())
+                    .parse();
+            assert!(
+                parsed.diagnostics.is_empty(),
+                "{printer} emitted invalid JavaScript: {code}"
+            );
+
+            for expected in [
+                "const plain = () => 1;",
+                "const iife = (() => 2)();",
+                "const conditional = flag ? () => 3 : () => 4;",
+                "const nullish = value ?? (() => 5);",
+                "const logical = value && (() => 6);",
+                "const nested = () => () => 7;",
+                "const binary = (() => 8) + 1;",
+                "const conditional_test = (() => true) ? yes : no;",
+                "const negated = !(() => true);",
+                "const string_value = 'literal (() => marker';",
+                "const template_value = `literal (() => marker`;",
+            ] {
+                assert!(
+                    code.contains(expected),
+                    "{printer} did not emit `{expected}`:\n{code}"
+                );
+            }
+        }
     }
 
     #[test]
