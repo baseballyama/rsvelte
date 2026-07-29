@@ -1101,6 +1101,7 @@ dependencies = [
  "regex",
  "rsvelte_esrap",
  "rustc-hash",
+ "self_cell",
  "serde",
  "serde_json",
  "smallvec",
