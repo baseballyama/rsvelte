@@ -327,8 +327,7 @@ fn transform_script<'a>(
     // rest of this function works: the classification parse and every span re-slice
     // index into the local `src`, and the reparse helpers copy the slice text into
     // the state allocator — none of them index `state.source` directly. So binding
-    // `src` to the stripped buffer keeps offsets internally consistent. Mirrors the
-    // OLD oracle, which runs the same `strip_typescript` (over its final output).
+    // `src` to the stripped buffer keeps offsets internally consistent.
     let stripped;
     // TS is detected COMPONENT-wide, not per-script: if EITHER script carries
     // `lang="ts"` the whole component is parsed as TS (upstream `force_typescript`),

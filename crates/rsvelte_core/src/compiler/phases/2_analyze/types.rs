@@ -613,8 +613,7 @@ fn strip_typescript_from_program_impl(
     // to ensure they're removed.
     //
     // Every keyword below starts with `declare `, so one SIMD scan for that prefix
-    // decides all three at once — the common case (generated output, which this runs
-    // over in full) has none and skips three whole-source `str::find` passes.
+    // decides all three at once and skips three whole-source `str::find` passes.
     if memchr::memmem::find(source.as_bytes(), b"declare ").is_some() {
         for keyword in &["declare global", "declare module", "declare namespace"] {
             let bytes = source.as_bytes();
