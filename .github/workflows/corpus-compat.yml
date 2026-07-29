@@ -20,6 +20,12 @@ name: Corpus Compat
 # rsvelte-fmt and the oxfmt(`svelte: true`) oracle (prettier-plugin-svelte for
 # the structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 # requires byte-identical output, ratcheted by compatibility/fmt-known-failures.json.
+#
+# The check-parity job runs the committed mini-projects under
+# compatibility/check-fixtures through both the official `svelte-check` and
+# rsvelte-check and requires identical diagnostic sets. It is the only gate whose
+# unit is a type-checked PROJECT rather than per-file text, so it is where alias
+# resolution, workspace layout and the .d.ts environment are observable at all.
 
 on:
   workflow_dispatch:
@@ -367,3 +373,51 @@ jobs:
 
       - name: Verify lint parity (ratchet against lint-known-failures.json)
         run: node scripts/compat-corpus/lint-verify.mjs
+
+  check-parity:
+    name: svelte-check parity (official svelte-check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      # No submodules: the oracle is the published `svelte-check` package, and
+      # the scenarios are committed mini-projects under compatibility/check-fixtures.
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.97.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
+      - name: Build rsvelte-check
+        run: cargo build --release -p rsvelte_check
+
+      # The oracle is the pinned real svelte-check; its node_modules is also what
+      # every fixture is type-checked against, so both sides see identical deps.
+      - name: Install check oracle (real svelte-check)
+        run: npm --prefix scripts/compat-corpus/check-oracle install --no-package-lock
+
+      - name: Verify svelte-check parity (ratchet against check-known-failures.json)
+        run: node scripts/compat-corpus/check-verify.mjs
+
+      - name: Upload check report on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: corpus-check-report
+          path: compatibility/check-report.json
+          if-no-files-found: ignore
+          retention-days: 14
