@@ -343,13 +343,24 @@ pnpm run check-corpus:verify           # diff oracle vs rsvelte-check, ratchet c
 # or, all of the above:
 pnpm run test:svelte-check
 pnpm run check-corpus:update           # re-baseline check-known-failures.json after a fix
+
+# rsvelte-check's *other* backend (rsvelte-check --tsgo). The oracle stays
+# tsc-based in both cases — only rsvelte-check's own compiler switches:
+pnpm run check-corpus:tsgo-install
+pnpm run test:svelte-check:tsgo
 ```
 
 - **Oracle** (`check-oracle/`) — an isolated package pinning `svelte-check`,
   `svelte`, `typescript` and `@sveltejs/kit` at **exact** versions. Its
   `node_modules` is symlinked into each materialised fixture and also supplies
-  the `tsc` that `rsvelte-check` runs (`TSGO_BIN`), so both sides type-check
-  against byte-identical dependencies.
+  the `tsc` that `rsvelte-check` runs (`TSGO_BIN`) by default, so both sides
+  type-check against byte-identical dependencies.
+- **tsgo backend** (`check-tsgo/`) — a separate isolated package pinning
+  `@typescript/native-preview` at an **exact** version, used only when
+  `check-verify.mjs --rsvelte-backend tsgo` points rsvelte-check's `TSGO_BIN`
+  at it instead of the oracle's `tsc`. Kept out of `check-oracle/` on purpose:
+  that directory is the ground-truth environment (never swapped), this one is
+  just the other backend under test.
 - **Scenarios** (`compatibility/check-fixtures/<name>/`) — `scenario.json`
   (workspace, `--tsconfig`, extra `node_modules` symlinks) plus a `project/`
   tree. Each encodes one real-world shape: single package, pnpm sibling via a
@@ -369,7 +380,8 @@ pnpm run check-corpus:update           # re-baseline check-known-failures.json a
   ` xN` suffix when the surplus is larger than one. Justifications live in
   [compatibility/check-known-failures.md](../../compatibility/check-known-failures.md).
 
-The `check-parity` job in `.github/workflows/corpus-compat.yml` runs this track;
+The `check-parity` job in `.github/workflows/corpus-compat.yml` runs this track
+as a `backend: [tsc, tsgo]` matrix (see [check-known-failures.md](../../compatibility/check-known-failures.md#backend-matrix-tsc-vs-tsgo));
 it needs no submodules.
 
 ## Adding a repository to the corpus

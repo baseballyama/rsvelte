@@ -18,6 +18,26 @@ positions back through its own source map and TypeScript wording moves between
 patch releases, so keying on them would make the ratchet churn without telling
 anyone anything. See the header of `check-verify.mjs`.
 
+## Backend matrix (tsc vs tsgo)
+
+`check-parity` in `corpus-compat.yml` runs this gate twice: `--rsvelte-backend
+tsc` (rsvelte-check type-checks with the oracle's own `tsc`, as before) and
+`--rsvelte-backend tsgo` (rsvelte-check type-checks with the pinned
+`@typescript/native-preview` in `scripts/compat-corpus/check-tsgo` — the other
+backend the product ships, `rsvelte-check --tsgo`, previously never exercised
+in CI; #1897 Layer 4). The oracle side is unconditionally `tsc`-based in both
+legs — only rsvelte-check's own backend switches.
+
+Measured locally across every scenario at the time the matrix landed: **tsc and
+tsgo produce byte-for-byte identical diagnostic sets** (down to file/line/code
+for every diagnostic in every scenario, `basic` included). Both legs therefore
+ratchet against the same `check-known-failures.json` rather than a
+backend-specific file — see the `BACKEND`/`KNOWN` comment in
+`check-verify.mjs` for the reasoning. If a real tsc/tsgo divergence is ever
+found, split the ratchet then (a `.tsgo.json` sibling, same shrink-only +
+per-entry-justification convention) rather than papering over it in the shared
+file.
+
 ## Current baseline: 0 entries / 0 surplus diagnostics — full parity
 
 The gate landed with 16 entries across the #1883–#1889 cluster and is now empty:

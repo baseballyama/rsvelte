@@ -32,29 +32,39 @@ function resolveTriple() {
 	return null;
 }
 
-const triple = resolveTriple();
-if (!triple) {
-	console.error(
-		`[@rsvelte/svelte-check] Unsupported platform: ${process.platform}-${process.arch}.\n` +
-			`Open an issue at https://github.com/baseballyama/rsvelte/issues if you'd like this platform supported.`,
-	);
-	process.exit(1);
-}
-
-const pkgName = `@rsvelte/svelte-check-${triple}`;
-const binName = process.platform === 'win32' ? 'svelte-check.exe' : 'svelte-check';
+// Escape hatch for anything driving this launcher against a binary that
+// isn't the published platform package — e.g. the smoke test in `test/`
+// pointing it at a locally `cargo build`-ed `target/{release,debug}/svelte_check`.
+// Not documented as public API; it's a test seam, not a supported flag.
+const binOverride = process.env.RSVELTE_CHECK_BIN;
 
 let binPath;
-try {
-	binPath = require.resolve(`${pkgName}/${binName}`);
-} catch (err) {
-	console.error(
-		`[@rsvelte/svelte-check] Couldn't find the platform binary "${pkgName}".\n` +
-			`This usually means npm/pnpm skipped the optional dependency for your platform.\n` +
-			`Try reinstalling: npm install --include=optional ${pkgName}\n\n` +
-			`Original error: ${err.message}`,
-	);
-	process.exit(1);
+if (binOverride) {
+	binPath = binOverride;
+} else {
+	const triple = resolveTriple();
+	if (!triple) {
+		console.error(
+			`[@rsvelte/svelte-check] Unsupported platform: ${process.platform}-${process.arch}.\n` +
+				`Open an issue at https://github.com/baseballyama/rsvelte/issues if you'd like this platform supported.`,
+		);
+		process.exit(1);
+	}
+
+	const pkgName = `@rsvelte/svelte-check-${triple}`;
+	const binName = process.platform === 'win32' ? 'svelte-check.exe' : 'svelte-check';
+
+	try {
+		binPath = require.resolve(`${pkgName}/${binName}`);
+	} catch (err) {
+		console.error(
+			`[@rsvelte/svelte-check] Couldn't find the platform binary "${pkgName}".\n` +
+				`This usually means npm/pnpm skipped the optional dependency for your platform.\n` +
+				`Try reinstalling: npm install --include=optional ${pkgName}\n\n` +
+				`Original error: ${err.message}`,
+		);
+		process.exit(1);
+	}
 }
 
 // `pnpm pack` (used by `pnpm publish` and therefore `changeset publish` when

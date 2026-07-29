@@ -40,6 +40,12 @@
  *   node scripts/compat-corpus/check-verify.mjs --show N       # print up to N new diffs
  *   node scripts/compat-corpus/check-verify.mjs --scenario a,b # restrict to scenarios
  *   node scripts/compat-corpus/check-verify.mjs --keep         # keep the temp workspaces
+ *   node scripts/compat-corpus/check-verify.mjs --rsvelte-backend tsgo
+ *                                                               # type-check the rsvelte
+ *                                                               # side with tsgo instead of
+ *                                                               # tsc (scripts/compat-corpus/
+ *                                                               # check-tsgo); the oracle side
+ *                                                               # is always tsc-based.
  */
 
 import fs from 'node:fs';
@@ -51,9 +57,8 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
 const FIXTURES = path.join(ROOT, 'compatibility/check-fixtures');
-const KNOWN = path.join(ROOT, 'compatibility/check-known-failures.json');
-const REPORT = path.join(ROOT, 'compatibility/check-report.json');
 const ORACLE_DIR = path.join(__dirname, 'check-oracle');
+const TSGO_DIR = path.join(__dirname, 'check-tsgo');
 
 const args = process.argv.slice(2);
 const UPDATE = args.includes('--update');
@@ -62,6 +67,28 @@ const SHOW = args.includes('--show') ? Number(args[args.indexOf('--show') + 1] |
 const ONLY = args.includes('--scenario')
 	? new Set((args[args.indexOf('--scenario') + 1] || '').split(',').filter(Boolean))
 	: null;
+// Which compiler backend rsvelte-check itself type-checks with. The oracle
+// (real svelte-check) is unconditionally tsc-based regardless of this flag —
+// only the side under test switches. `tsc` keeps today's behaviour untouched;
+// `tsgo` is the product's other shipped backend (`rsvelte-check --tsgo`),
+// exercised nowhere else in CI (#1897 Layer 4).
+const BACKEND = args.includes('--rsvelte-backend')
+	? args[args.indexOf('--rsvelte-backend') + 1]
+	: 'tsc';
+if (BACKEND !== 'tsc' && BACKEND !== 'tsgo') {
+	fail(`--rsvelte-backend must be "tsc" or "tsgo", got "${BACKEND}"`);
+}
+// One ratchet shared by both backends: measured locally, tsc and tsgo produce
+// IDENTICAL diagnostic sets across every scenario (0 divergence either way —
+// see the tsc-vs-tsgo comparison in the PR that added `--rsvelte-backend`).
+// Splitting the file only pays off once the backends actually disagree; until
+// then a shared ratchet is simpler and a `tsgo`-only regression still fails
+// the gate (it shows up as a new divergence against the same known-good
+// baseline the `tsc` leg already cleared).
+const KNOWN = path.join(ROOT, 'compatibility/check-known-failures.json');
+// Report filename still varies by backend so a `--rsvelte-backend tsgo` run
+// doesn't clobber the `tsc` leg's debug artifact when run back-to-back locally.
+const REPORT = path.join(ROOT, `compatibility/check-report${BACKEND === 'tsgo' ? '.tsgo' : ''}.json`);
 
 function fail(msg) {
 	console.error(`[check-verify] ${msg}`);
@@ -96,6 +123,22 @@ function oracleModules() {
 		);
 	}
 	return nm;
+}
+
+/** Resolve the compiler binary rsvelte-check's TSGO_BIN should point at, per `--rsvelte-backend`. */
+function rsvelteCompiler(oracleNodeModules) {
+	if (BACKEND === 'tsc') {
+		const tsc = path.join(oracleNodeModules, '.bin/tsc');
+		if (!fs.existsSync(tsc)) return fail(`oracle typescript missing its tsc at ${tsc}`);
+		return tsc;
+	}
+	const tsgo = path.join(TSGO_DIR, 'node_modules/.bin/tsgo');
+	if (!fs.existsSync(tsgo)) {
+		return fail(
+			'tsgo backend not installed; run `npm --prefix scripts/compat-corpus/check-tsgo install --no-package-lock`'
+		);
+	}
+	return tsgo;
 }
 
 function scenarios() {
@@ -192,8 +235,8 @@ function diffCounts(scenario, oracle, rsvelte) {
 function main() {
 	const bin = findBinary();
 	const nodeModules = oracleModules();
-	const tsc = path.join(nodeModules, '.bin/tsc');
-	if (!fs.existsSync(tsc)) return fail(`oracle typescript missing its tsc at ${tsc}`);
+	const rsvelteTsBin = rsvelteCompiler(nodeModules);
+	console.log(`[check-verify] rsvelte-check backend: ${BACKEND} (${rsvelteTsBin})`);
 	const names = scenarios();
 	if (names.length === 0) return fail('no scenarios under compatibility/check-fixtures');
 
@@ -229,10 +272,18 @@ function main() {
 				path.join(oracleDir, ws)
 			)
 		);
+		// `TSGO_BIN` always wins over `--tsgo` (see tsgo.rs's `find_compiler`), so
+		// pointing it straight at the chosen binary is enough on its own; `--tsgo`
+		// is added too so the invocation matches how a real caller selects the
+		// backend and isn't relying on an implementation detail of the override.
+		const backendArgs = BACKEND === 'tsgo' ? ['--tsgo'] : [];
 		const actual = parseMachineVerbose(
-			runCapture(bin, ['--output', 'machine-verbose', ...common], path.join(actualDir, ws), {
-				TSGO_BIN: tsc
-			})
+			runCapture(
+				bin,
+				['--output', 'machine-verbose', ...common, ...backendArgs],
+				path.join(actualDir, ws),
+				{ TSGO_BIN: rsvelteTsBin }
+			)
 		);
 
 		diffs.push(...diffCounts(name, oracle.counts, actual.counts));

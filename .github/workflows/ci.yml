@@ -670,6 +670,16 @@ jobs:
       - name: Run @rsvelte/svelte2tsx tests (sync API)
         run: pnpm --filter @rsvelte/svelte2tsx run test
 
+      # apps/npm/svelte-check/bin/svelte-check.cjs (the npm launcher) had zero
+      # tests (#1897 Layer 4 CI hygiene). Its smoke test drives the launcher
+      # against a locally built native binary via RSVELTE_CHECK_BIN, so build
+      # that binary first; debug is enough and this job never runs --release.
+      - name: Build rsvelte-check
+        run: cargo build -p rsvelte_check --bin svelte_check
+
+      - name: Run @rsvelte/svelte-check smoke test (npm launcher)
+        run: pnpm --filter @rsvelte/svelte-check run test
+
       - name: Generate oxlint-plugin recommended config
         run: pnpm run build:oxlint-plugin
 

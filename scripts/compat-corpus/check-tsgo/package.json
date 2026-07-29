@@ -1,0 +1,8 @@
+{
+	"name": "rsvelte-check-tsgo-backend",
+	"private": true,
+	"description": "Pins the tsgo binary that scripts/compat-corpus/check-verify.mjs's --rsvelte-backend tsgo mode points rsvelte-check at (TSGO_BIN). Deliberately separate from scripts/compat-corpus/check-oracle: that directory is the ORACLE environment (the real svelte-check + the svelte/typescript/@sveltejs/kit its diagnostics are produced against, always tsc-based, never swapped), whereas this one only supplies a backend for the RSVELTE side under test — swapping it changes what rsvelte-check runs against, not what the gate compares to. The version is EXACT on purpose, same rationale as scripts/dev/type-aware-lint/package.json: @typescript/native-preview publishes dated dev builds, and a floating range would let an upstream nightly move the tsgo-backend baseline with no change in this repo. Renovate tracks it like any other npm dep.",
+	"dependencies": {
+		"@typescript/native-preview": "7.0.0-dev.20260707.2"
+	}
+}
