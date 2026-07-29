@@ -1,18 +1,6 @@
 [
 	"boundary-elements|+ERROR src/Boundary.svelte:9 7006",
-	"external-self-alias|+ERROR src/consumer.svelte:7 7006",
-	"kit-hooks-arrow-ts|+ERROR src/hooks.client.ts:1 7031 x2",
-	"kit-hooks-arrow-ts|+ERROR src/hooks.server.ts:1 7031 x2",
-	"kit-hooks-arrow-ts|+ERROR src/hooks.server.ts:5 7031 x2",
-	"kit-hooks-arrow-ts|+ERROR src/hooks.server.ts:9 7031 x2",
-	"kit-hooks-arrow-ts|+ERROR src/hooks.ts:1 7031",
-	"kit-hooks-js|+ERROR src/hooks.client.js:1 7031 x2",
 	"kit-hooks-js|+ERROR src/hooks.js:1 7031",
 	"kit-hooks-js|+ERROR src/hooks.server.js:1 7031 x2",
-	"kit-hooks-js|+ERROR src/hooks.server.js:5 7031 x2",
-	"kit-hooks-js|+ERROR src/hooks.server.js:9 7031 x2",
-	"sibling-paths-alias|+ERROR src/consumer.svelte:1 2614",
-	"sibling-symlink|+ERROR src/deep.svelte:1 2614",
-	"ts-aliased-import|+ERROR src/named.ts:1 2614",
-	"ts-aliased-import|+ERROR src/store.ts:8 2315"
+	"sibling-symlink|+ERROR src/deep.svelte:1 2614"
 ]

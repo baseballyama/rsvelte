@@ -18,34 +18,18 @@ positions back through its own source map and TypeScript wording moves between
 patch releases, so keying on them would make the ratchet churn without telling
 anyone anything. See the header of `check-verify.mjs`.
 
-## Current baseline: 16 entries / 24 surplus diagnostics (all FP, 0 FN)
+## Current baseline: 4 entries / 5 surplus diagnostics (all FP, 0 FN)
 
-Every entry is a **false positive** and every one of them is an open issue from
-the #1883–#1889 cluster. That is the point of the seed: the gate lands *before*
-the fixes so each fix shows up as a ratchet shrink instead of a claim.
+The gate landed with 16 entries across the #1883–#1889 cluster; `sibling-paths-alias`
+(#1883), `external-self-alias` (#1887), `ts-aliased-import` (#1888) and
+`kit-hooks-arrow-ts` (#1886) are now fully green and have been pruned. What
+remains:
 
 | Scenario | Entries | Diagnostics | Issue | Class |
 |---|---|---|---|---|
-| `sibling-paths-alias` | 1 | 1 | #1883 | `paths`-aliased sibling resolves to ambient `*.svelte` |
 | `sibling-symlink` | 1 | 1 | #1883 (same class) | bare-specifier deep `.svelte` import through a `node_modules` symlink |
-| `external-self-alias` | 1 | 1 | #1887 | external shadow keeps its own alias specifiers unrewritten |
-| `ts-aliased-import` | 2 | 2 | #1888 | plain `.ts` importers get no alias rewrite |
-| `kit-hooks-arrow-ts` | 5 | 9 | #1886 | arrow-const hooks are not augmented |
-| `kit-hooks-js` | 5 | 9 | #1886 | same, JS/JSDoc flavour |
+| `kit-hooks-js` | 2 | 3 | #1886 | JSDoc/JS `export function` hooks still not augmented |
 | `boundary-elements` | 1 | 1 | #1889 | vendored `svelte-jsx-v4` shim predates `svelte:boundary` |
-
-### `sibling-paths-alias` — #1883
-
-```
-sibling-paths-alias|+ERROR src/consumer.svelte:1 2614
-```
-
-`import SurveyOptions, { type WithOther } from '$libs/components/…'` where
-`$libs/*` is a plain `paths` mapping onto a sibling workspace package with no
-`node_modules` entry. rsvelte's sibling discovery walks `node_modules` symlinks,
-so this package is never discovered, no shadow is emitted, and the import falls
-back to the ambient `declare module '*.svelte'` (default-only) — hence
-`TS2614 Module '"*.svelte"' has no exported member 'WithOther'`.
 
 ### `sibling-symlink` — same class as #1883, different trigger
 
@@ -61,60 +45,28 @@ specifier, so the bridge never fires. The barrel arm of the same scenario
 (`src/barrel.svelte`, importing through the package `exports` barrel — the shape
 #782/#805 fixed) is green and must stay green.
 
-### `external-self-alias` — #1887
+### `kit-hooks-js` — #1886, JSDoc/JS `export function` path
 
 ```
-external-self-alias|+ERROR src/consumer.svelte:7 7006
-```
-
-`emit_external_shadows` never runs `rewrite_aliased_svelte_imports` on the `.tsx`
-it emits, so a design-system package importing its own components through its
-public alias leaves those specifiers pointing at the ambient fallback.
-`ComponentProps<typeof Input>['onChange']` then cannot recover a concrete
-signature and the inline callback's parameter is implicit `any`.
-
-### `ts-aliased-import` — #1888
-
-```
-ts-aliased-import|+ERROR src/named.ts:1 2614
-ts-aliased-import|+ERROR src/store.ts:8 2315
-```
-
-Only `.svelte` sources go through the svelte2tsx + alias-rewrite loop, so a plain
-`.ts` file's aliased `.svelte` import is never redirected to the shadow. Both
-documented flavours are covered: the named-type import (`TS2614`) and the generic
-default import used as a type (`TS2315 Type 'Comp' is not generic`).
-
-### `kit-hooks-arrow-ts` / `kit-hooks-js` — #1886
-
-```
-kit-hooks-arrow-ts|+ERROR src/hooks.client.ts:1 7031 x2
-kit-hooks-arrow-ts|+ERROR src/hooks.server.ts:1 7031 x2
-kit-hooks-arrow-ts|+ERROR src/hooks.server.ts:5 7031 x2
-kit-hooks-arrow-ts|+ERROR src/hooks.server.ts:9 7031 x2
-kit-hooks-arrow-ts|+ERROR src/hooks.ts:1 7031
-kit-hooks-js|+ERROR src/hooks.client.js:1 7031 x2
 kit-hooks-js|+ERROR src/hooks.js:1 7031
 kit-hooks-js|+ERROR src/hooks.server.js:1 7031 x2
-kit-hooks-js|+ERROR src/hooks.server.js:5 7031 x2
-kit-hooks-js|+ERROR src/hooks.server.js:9 7031 x2
 ```
 
-`add_hooks_type` matches only `Declaration::FunctionDeclaration`, while upstream
-accepts `FunctionDeclaration | ArrowFunction | FunctionExpression`. Every hook
-written as `export const … = (…) => {…}` therefore gets no parameter type and
-every binding element is `TS7031`. One entry per hook declaration; the `xN`
-counts the binding elements that declaration destructures (`reroute` takes only
-`{ url }`, hence no suffix).
+#1892 fixed the `const` + arrow/function-expression form (`kit-hooks-arrow-ts` is
+now fully green, and so are the arrow-const hooks inside this same JS fixture —
+`hooks.client.js`'s `handleError`, `hooks.server.js`'s `handleError`/
+`handleFetch`). What's left is the plain `export function` form under JSDoc
+(`hooks.js`'s `reroute`, `hooks.server.js`'s `handle`): still `TS7031` on every
+binding element, tracked as the JSDoc/JS-path remainder of #1886.
 
-The four `kit-hooks-*` scenarios are one matrix, and only two arms are red:
+The four `kit-hooks-*` scenarios are one matrix:
 
 | Scenario | Form | Status |
 |---|---|---|
 | `kit-hooks-fn-ts` | `export function` (TS) | green — the form the port already matches |
-| `kit-hooks-arrow-ts` | `export const … = () => {}` (TS) | red — #1886 |
-| `kit-hooks-satisfies-ts` | `satisfies` / explicit annotation / `sequence()` | green — nothing should be augmented; guards a #1886 fix against over-augmenting |
-| `kit-hooks-js` | plain JS under `checkJs`, function + arrow | red — #1886, JSDoc path |
+| `kit-hooks-arrow-ts` | `export const … = () => {}` (TS) | green — fixed by #1892 |
+| `kit-hooks-satisfies-ts` | `satisfies` / explicit annotation / `sequence()` | green — nothing should be augmented; guards the #1886 fix against over-augmenting |
+| `kit-hooks-js` | plain JS under `checkJs`, function + arrow | red (partial) — arrow/function-expression forms fixed by #1892, plain `export function` still open |
 
 ### `boundary-elements` — #1889
 
@@ -147,7 +99,11 @@ Green scenarios are load-bearing, not filler — a regression turns them red:
   Kept because the no-`--tsconfig` path is otherwise untested end to end and the
   scenario would catch the failure the moment the pin or the synthesized config
   moves.
-- **`kit-hooks-fn-ts`**, **`kit-hooks-satisfies-ts`** — see the matrix above.
+- **`sibling-paths-alias`**, **`external-self-alias`**, **`ts-aliased-import`** —
+  fixed by #1884/#1893/#1895 respectively; kept as regression guards for their
+  alias-rewrite paths.
+- **`kit-hooks-fn-ts`**, **`kit-hooks-arrow-ts`**, **`kit-hooks-satisfies-ts`** —
+  see the matrix above.
 - **`sibling-symlink` / `src/barrel.svelte`** — the cross-package shape #782/#805
   fixed.
 
