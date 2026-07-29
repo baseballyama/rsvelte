@@ -327,7 +327,7 @@ node .claude/skills/verify-svelte-compat/scripts/analyze-usage.mjs "$TARGET_PATH
 ```bash
 # rsvelte NAPI バインディング + canonicalize_js を同時にビルド
 .claude/skills/verify-svelte-compat/scripts/build-rsvelte.sh "$TARGET_PATH"
-cargo build --release --bin canonicalize_js
+cargo build --release -p rsvelte_devtools --bin canonicalize_js
 ```
 
 `build-rsvelte.sh` の挙動:
@@ -477,7 +477,7 @@ node .claude/skills/verify-svelte-compat/scripts/compare-app.mjs \
 semantic 比較は `target/release/canonicalize_js`（既存）または OXC の parse → codegen 経由で行う。なければビルドする:
 
 ```bash
-cargo build --release --bin canonicalize_js 2>/dev/null || true
+cargo build --release -p rsvelte_devtools --bin canonicalize_js 2>/dev/null || true
 ```
 
 #### Step 4-B-2: 任意：ビルド検証

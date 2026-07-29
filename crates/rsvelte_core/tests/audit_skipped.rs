@@ -80,7 +80,7 @@ const KNOWN_STALE_SKIPS: &[(&str, &str)] = &[];
 /// skip lists instead of a hand-copied duplicate that silently rots.
 const PRINT_SRC: &str = include_str!("print.rs");
 const CSS_SRC: &str = include_str!("css.rs");
-const REPORT_SRC: &str = include_str!("compatibility_report.rs");
+const REPORT_SRC: &str = include_str!("../../rsvelte_devtools/tests/compatibility_report.rs");
 
 /// Returns the string literals of the `&[…]` literal that follows `marker`.
 /// Panics when the marker is gone — a renamed skip list must fail loudly here
@@ -418,9 +418,7 @@ fn audit_skipped_fixtures() {
     ensure_fixtures_exist();
 
     // The migrate fixtures (out of scope) and validator's `_config.js` opt-out
-    // are not skip lists and stay out of the audit. svelte2tsx
-    // `expected.error.json` fixtures run as regular samples via
-    // `tests/common/svelte2tsx.rs`, so they aren't skipped either.
+    // are not skip lists and stay out of the audit.
     // The runtime lists are shared constants, so they are used directly — a
     // rename breaks the build instead of silently emptying the audit.
     let mut runtime_skipped: Vec<(String, String)> = Vec::new();
@@ -438,14 +436,21 @@ fn audit_skipped_fixtures() {
     // The parser skip list is a `if !modern { … } else { … }` expression, so the
     // modern branch is read from the source that follows the legacy branch.
     const PARSER_MARKER: &str = "skip_tests: &[&str] = if !modern {";
-    let parser_legacy_skipped =
-        skip_list(REPORT_SRC, "tests/compatibility_report.rs", PARSER_MARKER);
+    let parser_legacy_skipped = skip_list(
+        REPORT_SRC,
+        "rsvelte_devtools/tests/compatibility_report.rs",
+        PARSER_MARKER,
+    );
     let else_branch = &REPORT_SRC[REPORT_SRC.find(PARSER_MARKER).expect("parser skip list")..];
-    let parser_modern_skipped = skip_list(else_branch, "tests/compatibility_report.rs", "} else {");
+    let parser_modern_skipped = skip_list(
+        else_branch,
+        "rsvelte_devtools/tests/compatibility_report.rs",
+        "} else {",
+    );
     let mut css_skipped = skip_list(CSS_SRC, "tests/css.rs", "CSS_SKIP_NAMES: &[&str] = ");
     for name in skip_list(
         REPORT_SRC,
-        "tests/compatibility_report.rs",
+        "rsvelte_devtools/tests/compatibility_report.rs",
         "skip_css: &[&str] = ",
     ) {
         if !css_skipped.contains(&name) {
@@ -525,7 +530,7 @@ fn audit_skipped_fixtures() {
         "\n{} STALE SKIP ENTRIES — these fixtures pass but are still skipped, \
          so they contribute no coverage. Remove them from the skip lists in \
          tests/runtime.rs, tests/css.rs, tests/print.rs and \
-         tests/compatibility_report.rs:\n{}",
+         rsvelte_devtools/tests/compatibility_report.rs:\n{}",
         new_stale.len(),
         new_stale
             .iter()

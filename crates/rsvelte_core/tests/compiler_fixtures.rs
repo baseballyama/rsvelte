@@ -20,7 +20,7 @@ use rsvelte_core::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
 const MIN_SNAPSHOT_FIXTURES: usize = 30;
 
 /// Fixtures intentionally skipped here — they exercise codegen clusters
-/// tracked separately in tests/compatibility_report.rs and tests/runtime.rs.
+/// tracked separately in the devtools compatibility report and tests/runtime.rs.
 /// Running them as snapshot tests would surface already-known divergences
 /// (e.g. nested async-grouping inside `$derived` for `async-in-derived`).
 const SKIP_SNAPSHOT: &[&str] = &["async-in-derived"];

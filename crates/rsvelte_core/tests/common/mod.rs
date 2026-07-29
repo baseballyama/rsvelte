@@ -19,7 +19,6 @@ use std::path::PathBuf;
 use std::process::Command;
 
 pub mod preprocess_fixtures;
-pub mod svelte2tsx;
 
 // ============================================================================
 // Path utilities
@@ -341,7 +340,7 @@ impl FixtureCoverage {
 ///
 /// Mirrors `scripts/fixtures/generate-fixtures.mjs::generateRuntimeFixture`, so
 /// every runner that compares against those fixtures — `tests/runtime.rs`,
-/// `tests/ssr.rs`, `tests/compatibility_report.rs` and `tests/audit_skipped.rs`
+/// `tests/ssr.rs`, the devtools compatibility report, and `tests/audit_skipped.rs`
 /// — must build its `CompileOptions` from here. Hand-rolled copies drift, and a
 /// runner that compiles with different options than the fixture was generated
 /// with can only report noise.

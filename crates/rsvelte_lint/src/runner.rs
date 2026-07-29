@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use rsvelte_core::CompileOptions;
-use rsvelte_core::svelte_check::diagnostic::Diagnostic;
+use rsvelte_diagnostics::Diagnostic;
 
 use crate::config::LintConfig;
 use crate::diagnostic::{LintDiagnostic, LintMessage, TextEdit};
@@ -397,7 +397,7 @@ pub fn lint_file(path: &Path, config: &LintConfig) -> std::io::Result<Vec<Diagno
 mod tests {
     use super::*;
     use crate::rule::Severity;
-    use rsvelte_core::svelte_check::diagnostic::DiagnosticSeverity;
+    use rsvelte_diagnostics::DiagnosticSeverity;
     use std::path::PathBuf;
 
     fn lint(src: &str, config: &LintConfig) -> Vec<Diagnostic> {

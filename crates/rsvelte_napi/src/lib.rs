@@ -54,7 +54,7 @@ use rsvelte_core::compiler::{
     compile as rust_compile, compile_module as rust_compile_module,
     compile_with_external_sourcemap_content as rust_compile_with_external_sourcemap_content,
 };
-use rsvelte_core::svelte2tsx::{
+use rsvelte_projection::svelte2tsx::{
     Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion,
     svelte2tsx as rust_svelte2tsx,
 };
@@ -216,7 +216,7 @@ pub fn napi_parse_envelope(
     // pre-sized arena + finalizer plumbing outweighs the saved
     // `Vec::reserve` calls for envelopes that fit in a single growth
     // step.
-    let buf = rsvelte_core::napi_raw_parse::encode_root_to_vec_with_flags(
+    let buf = rsvelte_bindings_support::napi_raw_parse::encode_root_to_vec_with_flags(
         &ast, &source, skip_loc, skip_css,
     );
     Ok(buf.into())
@@ -1002,7 +1002,9 @@ fn parse_svelte2tsx_options(options: &Value) -> Svelte2TsxOptions {
 // vite-plugin-svelte (Wave 3) NAPI surface
 // =============================================================================
 
-use rsvelte_core::vps::{ResolveOptions, hmr_diff as rust_hmr_diff, resolve_id as rust_resolve_id};
+use rsvelte_bindings_support::vps::{
+    ResolveOptions, hmr_diff as rust_hmr_diff, resolve_id as rust_resolve_id,
+};
 
 /// Diff two `.svelte` source versions. Returns `{ change, instanceChanged,
 /// moduleChanged }` so the JS shim can decide between Vite's hot-update
@@ -1012,9 +1014,9 @@ use rsvelte_core::vps::{ResolveOptions, hmr_diff as rust_hmr_diff, resolve_id as
 pub fn napi_hmr_diff(prev: String, curr: String) -> napi::Result<Value> {
     let diff = rust_hmr_diff(&prev, &curr);
     let kind = match diff.change {
-        rsvelte_core::vps::HmrChange::HotUpdate => "hot-update",
-        rsvelte_core::vps::HmrChange::FullReload => "full-reload",
-        rsvelte_core::vps::HmrChange::Unchanged => "unchanged",
+        rsvelte_bindings_support::vps::HmrChange::HotUpdate => "hot-update",
+        rsvelte_bindings_support::vps::HmrChange::FullReload => "full-reload",
+        rsvelte_bindings_support::vps::HmrChange::Unchanged => "unchanged",
     };
     Ok(serde_json::json!({
         "change": kind,
@@ -1582,7 +1584,7 @@ fn position_to_napi(p: rsvelte_core::compiler::Position) -> NapiPosition {
 // =============================================================================
 //
 // `compileEnvelope` packs the entire `CompileResult` into one
-// fixed-layout byte buffer (`rsvelte_core::napi_raw`) and hands it to V8 as
+// fixed-layout byte buffer (`rsvelte_bindings_support::napi_raw`) and hands it to V8 as
 // a single `Buffer`. The JS shim's `decodeEnvelope` slices fields
 // out on demand — no `serde_json` on the boundary, no V8 object tree
 // construction for the warning array unless the caller actually
@@ -1599,17 +1601,17 @@ fn position_to_napi(p: rsvelte_core::compiler::Position) -> NapiPosition {
 /// buffer (M-012).
 #[inline]
 fn ensure_envelope_size(size: usize) -> napi::Result<()> {
-    rsvelte_core::napi_raw::check_envelope_size(size).map_err(|size| {
+    rsvelte_bindings_support::napi_raw::check_envelope_size(size).map_err(|size| {
         napi::Error::from_reason(format!(
             "rsvelte: compiled output is {size} bytes, exceeding the \
              {max}-byte envelope limit (header offsets are u32)",
-            max = rsvelte_core::napi_raw::MAX_ENVELOPE_SIZE
+            max = rsvelte_bindings_support::napi_raw::MAX_ENVELOPE_SIZE
         ))
     })
 }
 
 /// `compile()` returning a single packed envelope buffer.
-/// See `rsvelte_core::napi_raw` for the byte-level format.
+/// See `rsvelte_bindings_support::napi_raw` for the byte-level format.
 #[napi(js_name = "compileEnvelope")]
 pub fn napi_compile_envelope(
     source: String,
@@ -1640,8 +1642,10 @@ fn compile_envelope(
     };
     match result {
         Ok(result) => {
-            ensure_envelope_size(rsvelte_core::napi_raw::estimate_size(&result))?;
-            Ok(Buffer::from(rsvelte_core::napi_raw::encode_to_vec(&result)))
+            ensure_envelope_size(rsvelte_bindings_support::napi_raw::estimate_size(&result))?;
+            Ok(Buffer::from(
+                rsvelte_bindings_support::napi_raw::encode_to_vec(&result),
+            ))
         }
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
     }
@@ -1689,7 +1693,7 @@ fn create_zero_copy_envelope(
     env: &Env,
     result: &rsvelte_core::compiler::CompileResult,
 ) -> napi::Result<JsBuffer> {
-    let size = rsvelte_core::napi_raw::estimate_size(result);
+    let size = rsvelte_bindings_support::napi_raw::estimate_size(result);
     ensure_envelope_size(size)?;
     let bump = Box::new(bumpalo::Bump::with_capacity(size));
     let bump_ptr: *mut bumpalo::Bump = Box::into_raw(bump);
@@ -1714,7 +1718,7 @@ fn create_zero_copy_envelope(
     // aliased; we re-acquire ownership via Box::from_raw inside the
     // finalizer below.
     let bump_ref: &bumpalo::Bump = unsafe { &*bump_ptr };
-    let slice = rsvelte_core::napi_raw::encode_into_bump(bump_ref, result);
+    let slice = rsvelte_bindings_support::napi_raw::encode_into_bump(bump_ref, result);
     let ptr = slice.as_mut_ptr();
     let len = slice.len();
 
@@ -1802,8 +1806,10 @@ pub fn napi_compile_module_envelope(
                 metadata: rsvelte_core::compiler::CompileMetadata { runes: true },
                 ast: None,
             };
-            ensure_envelope_size(rsvelte_core::napi_raw::estimate_size(&cr))?;
-            Ok(Buffer::from(rsvelte_core::napi_raw::encode_to_vec(&cr)))
+            ensure_envelope_size(rsvelte_bindings_support::napi_raw::estimate_size(&cr))?;
+            Ok(Buffer::from(
+                rsvelte_bindings_support::napi_raw::encode_to_vec(&cr),
+            ))
         }
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
     }
@@ -1816,7 +1822,7 @@ pub fn napi_compile_module_envelope(
 // `compileBatch([{source, options}, …])` hands the whole worklist to
 // `rsvelte_core::compiler::compile_batch`, which uses rayon to compile in
 // parallel, and packs the resulting `Result<CompileResult, _>`s into
-// one batch envelope (`rsvelte_core::napi_raw::encode_batch_to_vec`). One
+// one batch envelope (`rsvelte_bindings_support::napi_raw::encode_batch_to_vec`). One
 // `napi_create_external_buffer` per call regardless of N — the
 // per-file boundary cost goes from O(N) to O(1).
 //
@@ -1833,7 +1839,8 @@ pub struct CompileBatchInput {
 }
 
 /// Compile multiple Svelte components in parallel via rayon, packing
-/// the results into one batch envelope. See `src/napi_raw.rs` for the
+/// the results into one batch envelope. See
+/// `crates/rsvelte_bindings_support/src/napi_raw.rs` for the
 /// byte format.
 #[napi(js_name = "compileBatch")]
 pub fn napi_compile_batch(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer> {
@@ -1881,21 +1888,23 @@ fn compile_batch_envelope(
         })
         .collect();
 
-    let entries: Vec<rsvelte_core::napi_raw::BatchEntry<'_>> = results
+    let entries: Vec<rsvelte_bindings_support::napi_raw::BatchEntry<'_>> = results
         .iter()
         .zip(err_strings.iter())
         .map(|(r, e)| match r {
-            Ok(cr) => rsvelte_core::napi_raw::BatchEntry::Ok(cr),
-            Err(_) => {
-                rsvelte_core::napi_raw::BatchEntry::Err(e.as_deref().unwrap_or("unknown error"))
-            }
+            Ok(cr) => rsvelte_bindings_support::napi_raw::BatchEntry::Ok(cr),
+            Err(_) => rsvelte_bindings_support::napi_raw::BatchEntry::Err(
+                e.as_deref().unwrap_or("unknown error"),
+            ),
         })
         .collect();
 
-    ensure_envelope_size(rsvelte_core::napi_raw::estimate_batch_size(&entries))?;
-    Ok(Buffer::from(rsvelte_core::napi_raw::encode_batch_to_vec(
+    ensure_envelope_size(rsvelte_bindings_support::napi_raw::estimate_batch_size(
         &entries,
-    )))
+    ))?;
+    Ok(Buffer::from(
+        rsvelte_bindings_support::napi_raw::encode_batch_to_vec(&entries),
+    ))
 }
 
 // =============================================================================
@@ -1941,8 +1950,8 @@ impl Task for CompileEnvelopeTask {
             rust_compile(&self.source, self.options.clone())
         }
         .map_err(|e| napi::Error::from_reason(format!("{e:?}")))?;
-        ensure_envelope_size(rsvelte_core::napi_raw::estimate_size(&result))?;
-        Ok(rsvelte_core::napi_raw::encode_to_vec(&result))
+        ensure_envelope_size(rsvelte_bindings_support::napi_raw::estimate_size(&result))?;
+        Ok(rsvelte_bindings_support::napi_raw::encode_to_vec(&result))
     }
 
     fn resolve(&mut self, _env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
@@ -2006,18 +2015,22 @@ impl Task for CompileBatchTask {
                 Err(e) => Some(format!("{e:?}")),
             })
             .collect();
-        let entries: Vec<rsvelte_core::napi_raw::BatchEntry<'_>> = results
+        let entries: Vec<rsvelte_bindings_support::napi_raw::BatchEntry<'_>> = results
             .iter()
             .zip(err_strings.iter())
             .map(|(r, e)| match r {
-                Ok(cr) => rsvelte_core::napi_raw::BatchEntry::Ok(cr),
-                Err(_) => {
-                    rsvelte_core::napi_raw::BatchEntry::Err(e.as_deref().unwrap_or("unknown error"))
-                }
+                Ok(cr) => rsvelte_bindings_support::napi_raw::BatchEntry::Ok(cr),
+                Err(_) => rsvelte_bindings_support::napi_raw::BatchEntry::Err(
+                    e.as_deref().unwrap_or("unknown error"),
+                ),
             })
             .collect();
-        ensure_envelope_size(rsvelte_core::napi_raw::estimate_batch_size(&entries))?;
-        Ok(rsvelte_core::napi_raw::encode_batch_to_vec(&entries))
+        ensure_envelope_size(rsvelte_bindings_support::napi_raw::estimate_batch_size(
+            &entries,
+        ))?;
+        Ok(rsvelte_bindings_support::napi_raw::encode_batch_to_vec(
+            &entries,
+        ))
     }
 
     fn resolve(&mut self, _env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
