@@ -384,16 +384,23 @@ impl ExportedNames {
             // `export let foo` is not a prop (it's a runes-mode error), so
             // without a `$props()` call there are no props. Named exports
             // (`export { x as y }`) are likewise not props.
-            let entries: Vec<String> = if self.has_props_rune {
-                self.get_ordered()
-                    .iter()
+            let mut entries = String::from("{");
+            let mut has_entries = false;
+            if self.has_props_rune {
+                for (en, info) in self
+                    .ordered()
                     .filter(|(_, info)| info.is_prop && !info.is_named_export)
-                    .map(|(en, info)| format!("{}: {}", en, info.local_name))
-                    .collect()
-            } else {
-                Vec::new()
-            };
-            if entries.is_empty() {
+                {
+                    if has_entries {
+                        entries.push_str(" , ");
+                    }
+                    has_entries = true;
+                    entries.push_str(en);
+                    entries.push_str(": ");
+                    entries.push_str(&info.local_name);
+                }
+            }
+            if !has_entries {
                 // Reference: addComponentExport.ts `props()` function —
                 // runes mode with no props: TS uses `{} as Record<string, never>`,
                 // JS uses `/** @type {Record<string, never>} */ ({})`.
@@ -403,7 +410,8 @@ impl ExportedNames {
                     "/** @type {Record<string, never>} */ ({})".to_string()
                 };
             }
-            return format!("{{{}}}", entries.join(" , "));
+            entries.push('}');
+            return entries;
         }
         // Legacy `$$Props` type/interface (TS only): mirror official's
         // `uses$$Props` branch — wrap the props in `__sveltets_2_ensureRightProps`
@@ -413,43 +421,28 @@ impl ExportedNames {
             // Mirror official `createReturnElementsType`: each member is prefixed
             // with its leading JSDoc (`addDoc` defaults true), so a `/** … */`
             // comment on the `export let` survives into the `$$Props` type list.
-            let type_entry = |en: &str, info: &ExportedNameInfo| -> String {
-                let optional = if info.has_default || !info.is_let {
-                    "?"
-                } else {
-                    ""
-                };
-                let doc = match &info.doc {
-                    Some(d) => format!("{} ", d),
-                    None => String::new(),
-                };
-                match &info.type_annotation {
-                    Some(ta) => format!("{}{}{}: {}", doc, en, optional, ta),
-                    None => format!("{}{}{}: typeof {}", doc, en, optional, info.local_name),
+            let mut lets = String::new();
+            let mut others = String::new();
+            for (en, info) in self.ordered() {
+                let output = if info.is_let { &mut lets } else { &mut others };
+                if !output.is_empty() {
+                    output.push(',');
                 }
-            };
-            let lets: Vec<String> = self
-                .get_ordered()
-                .iter()
-                .filter(|(_, info)| info.is_let)
-                .map(|(en, info)| type_entry(en, info))
-                .collect();
-            let others: Vec<String> = self
-                .get_ordered()
-                .iter()
-                .filter(|(_, info)| !info.is_let)
-                .map(|(en, info)| type_entry(en, info))
-                .collect();
-            let others_prefix = if others.is_empty() {
-                String::new()
-            } else {
-                format!("{{{}}} & ", others.join(","))
-            };
-            return format!(
-                "{{ ...__sveltets_2_ensureRightProps<{{{}}}>(__sveltets_2_any(\"\") as $$Props)}} as {}$$Props",
-                lets.join(","),
-                others_prefix
+                Self::write_type_entry(output, en, info);
+            }
+            let mut result = String::with_capacity(
+                85 + lets.len() + others.len() + usize::from(!others.is_empty()) * 5,
             );
+            result.push_str("{ ...__sveltets_2_ensureRightProps<{");
+            result.push_str(&lets);
+            result.push_str("}>(__sveltets_2_any(\"\") as $$Props)} as ");
+            if !others.is_empty() {
+                result.push('{');
+                result.push_str(&others);
+                result.push_str("} & ");
+            }
+            result.push_str("$$Props");
+            return result;
         }
         // Mirror official `dontAddTypeDef` (ExportedNames.ts createPropsStr):
         // omit the `as {…}` cast entirely when every export is untyped AND
@@ -459,63 +452,56 @@ impl ExportedNames {
         // up-front because it also gates whether the *value* elements carry the
         // leading JSDoc (official `createReturnElements`: doc when dontAddTypeDef).
         let dont_add_type_def = !is_ts
-            || self.get_ordered().iter().all(|(_, info)| {
-                info.type_annotation.is_none() && info.is_let && !info.has_default
-            });
+            || self
+                .names
+                .values()
+                .all(|info| info.type_annotation.is_none() && info.is_let && !info.has_default);
         // When `dontAddTypeDef`, the props object omits the `as {…}` type assert,
         // so a captured leading JSDoc `/** … */` is emitted before the prop's
         // value element — mirrors official `createReturnElements`.
-        let entries: Vec<String> = self
-            .get_ordered()
-            .iter()
-            .map(|(en, info)| match &info.doc {
-                Some(doc) if dont_add_type_def => format!("{} {}: {}", doc, en, info.local_name),
-                _ => format!("{}: {}", en, info.local_name),
-            })
-            .collect();
-        if entries.is_empty() {
+        if self.names.is_empty() {
             // Reference: ExportedNames.ts createPropsStr — non-runes mode with
             // no props. When `$$props`/`$$restProps` is used, props flattens to
             // a bare `{}`; otherwise TS uses `{} as Record<string, never>` and
             // JS uses `/** @type {Record<string, never>} */ ({})`.
-            if uses_dollar_props {
+            return if uses_dollar_props {
                 "{}".to_string()
             } else if is_ts {
                 "{} as Record<string, never>".to_string()
             } else {
                 "/** @type {Record<string, never>} */ ({})".to_string()
+            };
+        }
+        let mut entries = String::from("{");
+        let mut type_entries = String::new();
+        for (en, info) in self.ordered() {
+            if entries.len() > 1 {
+                entries.push_str(" , ");
             }
-        } else {
-            let base = format!("{{{}}}", entries.join(" , "));
+            if let Some(doc) = &info.doc
+                && dont_add_type_def
+            {
+                entries.push_str(doc);
+                entries.push(' ');
+            }
+            entries.push_str(en);
+            entries.push_str(": ");
+            entries.push_str(&info.local_name);
+
             if is_ts && !dont_add_type_def {
-                // For TS files, add `as {name1?: type, ...}` type assertion
-                let type_entries: Vec<String> = self
-                    .get_ordered()
-                    .iter()
-                    .map(|(en, info)| {
-                        let optional = if info.has_default || !info.is_let {
-                            "?"
-                        } else {
-                            ""
-                        };
-                        // A leading block comment on the export is preserved
-                        // before its type-cast entry (official emits the doc here).
-                        let doc = match &info.doc {
-                            Some(d) => format!("{} ", d),
-                            None => String::new(),
-                        };
-                        if let Some(ref ta) = info.type_annotation {
-                            format!("{}{}{}: {}", doc, en, optional, ta)
-                        } else {
-                            format!("{}{}{}: typeof {}", doc, en, optional, info.local_name)
-                        }
-                    })
-                    .collect();
-                format!("{} as {{{}}}", base, type_entries.join(", "))
-            } else {
-                base
+                if !type_entries.is_empty() {
+                    type_entries.push_str(", ");
+                }
+                Self::write_type_entry(&mut type_entries, en, info);
             }
         }
+        entries.push('}');
+        if is_ts && !dont_add_type_def {
+            entries.push_str(" as {");
+            entries.push_str(&type_entries);
+            entries.push('}');
+        }
+        entries
     }
     pub fn create_exports_str(&self, is_svelte5: bool, is_ts: bool) -> String {
         self.create_exports_str_with_accessors(is_svelte5, false, is_ts)
@@ -530,72 +516,57 @@ impl ExportedNames {
         if !is_svelte5 {
             return String::new();
         }
-        let others: Vec<(&str, &ExportedNameInfo)> = self
-            .get_ordered()
-            .into_iter()
-            .filter(|(_, info)| {
-                // In exports, include:
-                // - Non-let declarations (const, function, class)
-                // - Named exports in runes mode (even if marked as prop from export specifiers)
-                // - When accessors is true, also include `export let` props
-                // BUT exclude props from $props() destructuring (is_prop && !is_named_export)
-
-                // When accessors is true, include all exported let props
-                if accessors && info.is_let {
-                    return true;
-                }
-                if info.is_prop && !info.is_named_export {
-                    return false;
-                }
-                !info.is_let || (self.is_runes_mode() && info.is_named_export)
-            })
-            .collect();
-        if !others.is_empty() {
-            let te: Vec<String> = others
-                .iter()
-                .map(|(en, info)| {
-                    // In TS files, doc comments are included (addDoc = true in JS reference).
-                    // In JS files, addDoc = false — no doc prefix.
-                    let doc_prefix = if is_ts {
-                        match &info.doc {
-                            Some(d) => format!("\n{}", d),
-                            None => String::new(),
-                        }
-                    } else {
-                        String::new()
-                    };
-                    if let Some(ref ta) = info.type_annotation {
-                        format!("{}{}: {}", doc_prefix, en, ta)
-                    } else {
-                        format!("{}{}: typeof {}", doc_prefix, en, info.local_name)
-                    }
-                })
-                .collect();
-            // In runes mode, include values in the exports object — but ONLY for
-            // exports that carry an explicit type annotation. Official's value
-            // call is `createReturnElements(others, false, /*onlyTyped*/ true)`,
-            // which skips any entry without `value.type`. Untyped exports
-            // (`let count = $state(0)`) therefore yield an empty value object,
-            // with the names appearing only in the `as any as { … }` cast.
-            let val_str = if self.is_runes_mode() {
-                let val_entries: Vec<String> = others
-                    .iter()
-                    .filter(|(_, info)| info.type_annotation.is_some())
-                    .map(|(en, info)| format!("{}: {}", en, info.local_name))
-                    .collect();
-                val_entries.join(",")
-            } else {
-                String::new()
-            };
-            if is_ts {
-                format!(
-                    ", exports: {{{}}} as any as {{ {} }}",
-                    val_str,
-                    te.join(",")
-                )
-            } else {
-                format!(", exports: /** @type {{{{{}}}}} */ ({{}})", te.join(","))
+        let runes_mode = self.is_runes_mode();
+        let mut type_entries = String::new();
+        let mut value_entries = String::new();
+        for (en, info) in self
+            .ordered()
+            .filter(|(_, info)| Self::is_export(info, accessors, runes_mode))
+        {
+            if !type_entries.is_empty() {
+                type_entries.push(',');
             }
+            if is_ts && let Some(doc) = &info.doc {
+                type_entries.push('\n');
+                type_entries.push_str(doc);
+            }
+            match &info.type_annotation {
+                Some(type_annotation) => {
+                    type_entries.push_str(en);
+                    type_entries.push_str(": ");
+                    type_entries.push_str(type_annotation);
+                }
+                None => {
+                    type_entries.push_str(en);
+                    type_entries.push_str(": typeof ");
+                    type_entries.push_str(&info.local_name);
+                }
+            }
+
+            // Official's `onlyTyped` value list omits untyped runes exports.
+            if runes_mode && info.type_annotation.is_some() {
+                if !value_entries.is_empty() {
+                    value_entries.push(',');
+                }
+                value_entries.push_str(en);
+                value_entries.push_str(": ");
+                value_entries.push_str(&info.local_name);
+            }
+        }
+        if !type_entries.is_empty() {
+            let mut result = String::with_capacity(40 + value_entries.len() + type_entries.len());
+            if is_ts {
+                result.push_str(", exports: {");
+                result.push_str(&value_entries);
+                result.push_str("} as any as { ");
+                result.push_str(&type_entries);
+                result.push_str(" }");
+            } else {
+                result.push_str(", exports: /** @type {{");
+                result.push_str(&type_entries);
+                result.push_str("}} */ ({})");
+            }
+            result
         } else {
             ", exports: {}".to_string()
         }
@@ -650,16 +621,10 @@ impl ExportedNames {
         if !is_svelte5 {
             return "{}".to_string();
         }
-        // Check if there are actual exports (non-prop declarations)
-        let has_exports = self.get_ordered().iter().any(|(_, info)| {
-            if accessors && info.is_let {
-                return true;
-            }
-            if info.is_prop && !info.is_named_export {
-                return false;
-            }
-            !info.is_let || (self.is_runes_mode() && info.is_named_export)
-        });
+        let runes_mode = self.is_runes_mode();
+        let has_exports = self
+            .ordered()
+            .any(|(_, info)| Self::is_export(info, accessors, runes_mode));
         if has_exports {
             // Return a sentinel that signals "has exports" - the caller
             // will use $$render<gn>().exports instead of {}
@@ -690,16 +655,46 @@ impl ExportedNames {
             })
             .collect()
     }
-    fn get_ordered(&self) -> Vec<(&str, &ExportedNameInfo)> {
+    fn ordered(&self) -> impl Iterator<Item = (&str, &ExportedNameInfo)> {
         self.insertion_order
             .iter()
             .filter_map(|n| self.names.get(n).map(|i| (n.as_str(), i)))
-            .collect()
+    }
+
+    fn is_export(info: &ExportedNameInfo, accessors: bool, runes_mode: bool) -> bool {
+        if accessors && info.is_let {
+            return true;
+        }
+        if info.is_prop && !info.is_named_export {
+            return false;
+        }
+        !info.is_let || (runes_mode && info.is_named_export)
+    }
+
+    fn write_type_entry(output: &mut String, name: &str, info: &ExportedNameInfo) {
+        if let Some(doc) = &info.doc {
+            output.push_str(doc);
+            output.push(' ');
+        }
+        output.push_str(name);
+        if info.has_default || !info.is_let {
+            output.push('?');
+        }
+        output.push_str(": ");
+        match &info.type_annotation {
+            Some(type_annotation) => output.push_str(type_annotation),
+            None => {
+                output.push_str("typeof ");
+                output.push_str(&info.local_name);
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Write;
+
     use super::super::test_support::run_svelte2tsx;
     use super::*;
     use crate::svelte2tsx::svelte2tsx::svelte2tsx;
@@ -839,6 +834,64 @@ mod tests {
             result.code.contains("{} as Record<string, never>"),
             "Runes-mode TS file with no props must use `{{}} as Record<string, never>`, got:\n{}",
             result.code
+        );
+    }
+
+    #[test]
+    fn large_props_output_preserves_insertion_order() {
+        let mut names = ExportedNames::new();
+        let mut expected = String::from("{");
+        for index in 0..256 {
+            let exported = format!("prop_{index:03}");
+            let local = format!("local_{index:03}");
+            names.add_full(
+                exported.clone(),
+                local.clone(),
+                false,
+                None,
+                true,
+                true,
+                false,
+            );
+            if index != 0 {
+                expected.push_str(" , ");
+            }
+            write!(expected, "{exported}: {local}").unwrap();
+        }
+        expected.push('}');
+
+        assert_eq!(names.create_props_str(false, false), expected);
+    }
+
+    #[test]
+    fn large_runes_exports_output_preserves_insertion_order() {
+        let mut names = ExportedNames::new();
+        names.set_uses_runes(true);
+        let mut values = String::new();
+        let mut types = String::new();
+        for index in 0..256 {
+            let exported = format!("export_{index:03}");
+            let local = format!("local_{index:03}");
+            names.add_full(
+                exported.clone(),
+                local.clone(),
+                false,
+                Some("number".to_string()),
+                false,
+                false,
+                true,
+            );
+            if index != 0 {
+                values.push(',');
+                types.push(',');
+            }
+            write!(values, "{exported}: {local}").unwrap();
+            write!(types, "{exported}: number").unwrap();
+        }
+
+        assert_eq!(
+            names.create_exports_str_with_accessors(true, false, true),
+            format!(", exports: {{{values}}} as any as {{ {types} }}")
         );
     }
 }
