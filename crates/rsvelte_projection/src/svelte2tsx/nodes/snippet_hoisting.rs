@@ -1,12 +1,33 @@
 //! Relocation of top-level `{#snippet}` blocks: module-hoistable ones move to
 //! module scope, the rest to the top of the instance script.
 
+use std::collections::VecDeque;
+
 use crate::ast::template::Root;
+use rustc_hash::FxHashMap;
 
 use super::super::magic_string::MagicString;
 use super::super::script::ExportedNames;
 use super::super::svelte2tsx::slice_src;
 use super::super::utils::lexical::{lexical_identifiers, lexical_identifiers_in_expressions};
+
+fn propagate_blocked_dependencies(dependents: &[Vec<u32>], blocked: &mut [bool]) {
+    let mut blocked_queue = VecDeque::new();
+    for (index, &is_blocked) in blocked.iter().enumerate() {
+        if is_blocked {
+            blocked_queue.push_back(index as u32);
+        }
+    }
+    while let Some(dependency) = blocked_queue.pop_front() {
+        for &candidate in &dependents[dependency as usize] {
+            let candidate = candidate as usize;
+            if !blocked[candidate] {
+                blocked[candidate] = true;
+                blocked_queue.push_back(candidate as u32);
+            }
+        }
+    }
+}
 
 /// Analyze and relocate top-level `{#snippet}` blocks. Non-hoistable snippets
 /// (those closing over instance-script values, or referencing a non-hoistable
@@ -42,17 +63,6 @@ pub(crate) fn hoist_top_level_snippets(
         })
         .collect();
 
-    let snippet_names: Vec<String> = snippets
-        .iter()
-        .filter_map(|s| {
-            let exp_s = s.expression.start()? as usize;
-            let exp_e = s.expression.end()? as usize;
-            source.get(exp_s..exp_e).map(|s| s.to_string())
-        })
-        .collect();
-    let snippet_name_set: std::collections::HashSet<String> =
-        snippet_names.iter().cloned().collect();
-
     // Initial blocked set: snippets that directly reference an
     // instance-script value (or a $store of one).
     let mut blocked = vec![false; snippets.len()];
@@ -63,12 +73,24 @@ pub(crate) fn hoist_top_level_snippets(
             }
         }
 
-        // Fixed-point: a snippet that references the name of a blocked
-        // snippet is itself blocked. Matches the JS reference's `while`
-        // loop in `analyzeSnippets` that grows `disallowed_values`.
-        let mut changed = true;
-        while changed {
-            changed = false;
+        if blocked.iter().any(|&is_blocked| is_blocked) {
+            let snippet_names: Vec<Option<&str>> = snippets
+                .iter()
+                .map(|snippet| {
+                    let expression_start = snippet.expression.start()? as usize;
+                    let expression_end = snippet.expression.end()? as usize;
+                    source.get(expression_start..expression_end)
+                })
+                .collect();
+            let mut snippet_indices: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
+            for (index, &name) in snippet_names.iter().enumerate() {
+                if let Some(name) = name {
+                    snippet_indices.entry(name).or_default().push(index as u32);
+                }
+            }
+
+            let mut dependents = vec![Vec::<u32>::new(); snippets.len()];
+            let mut seen_dependencies = vec![u32::MAX; snippets.len()];
             for i in 0..snippets.len() {
                 if blocked[i] {
                     continue;
@@ -79,23 +101,22 @@ pub(crate) fn hoist_top_level_snippets(
                     continue;
                 }
                 for ident in lexical_identifiers(&source[body_start..body_end]) {
-                    if ident == snippet_names[i] {
-                        continue; // self-reference
+                    if snippet_names[i] == Some(ident.as_str()) {
+                        continue;
                     }
-                    if snippet_name_set.contains(&ident) {
-                        for (j, name) in snippet_names.iter().enumerate() {
-                            if name == &ident && blocked[j] {
-                                blocked[i] = true;
-                                changed = true;
-                                break;
+                    if let Some(dependencies) = snippet_indices.get(ident.as_str()) {
+                        for &dependency in dependencies {
+                            let dependency_index = dependency as usize;
+                            if seen_dependencies[dependency_index] != i as u32 {
+                                seen_dependencies[dependency_index] = i as u32;
+                                dependents[dependency_index].push(i as u32);
                             }
-                        }
-                        if blocked[i] {
-                            break;
                         }
                     }
                 }
             }
+
+            propagate_blocked_dependencies(&dependents, &mut blocked);
         }
     } else {
         // No module script => everything stays inside $$render (or stays
@@ -244,4 +265,114 @@ fn is_snippet_module_hoistable(
     }
 
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
+
+    fn old_propagate_blocked(dependencies: &[Vec<u32>], blocked: &mut [bool]) {
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for candidate in 0..dependencies.len() {
+                if !blocked[candidate]
+                    && dependencies[candidate]
+                        .iter()
+                        .any(|&dependency| blocked[dependency as usize])
+                {
+                    blocked[candidate] = true;
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn blocked_dependency_worklist_matches_fixed_point_oracle() {
+        let mut state = 0x243f_6a88_u32;
+        for candidate_count in 1..=32 {
+            for _ in 0..32 {
+                let mut dependencies = vec![Vec::new(); candidate_count];
+                let mut dependents = vec![Vec::new(); candidate_count];
+                let mut expected = vec![false; candidate_count];
+                for candidate in 0..candidate_count {
+                    state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                    expected[candidate] = state & 31 == 0;
+                    for (dependency, dependency_dependents) in dependents.iter_mut().enumerate() {
+                        if candidate == dependency {
+                            continue;
+                        }
+                        state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                        if state & 15 == 0 {
+                            dependencies[candidate].push(dependency as u32);
+                            dependency_dependents.push(candidate as u32);
+                        }
+                    }
+                }
+                let mut actual = expected.clone();
+                old_propagate_blocked(&dependencies, &mut expected);
+                propagate_blocked_dependencies(&dependents, &mut actual);
+                assert_eq!(actual, expected);
+            }
+        }
+    }
+
+    #[test]
+    fn self_reference_stays_module_hoistable() {
+        let source = "<script module>export const value = 1;</script>\n\
+            {#snippet recursive(n)}{#if n}{@render recursive(n - 1)}{/if}{/snippet}";
+        let code = svelte2tsx(source, Svelte2TsxOptions::default())
+            .expect("svelte2tsx")
+            .code;
+        assert!(code.find("const recursive").unwrap() < code.find("function $$render").unwrap());
+    }
+
+    #[test]
+    fn reverse_blocked_chain_moves_inside_render() {
+        let source = "<script module>export const value = 1;</script>\n\
+            <script>let local = 1;</script>\n\
+            {#snippet first()}{@render second()}{/snippet}\n\
+            {#snippet second()}{@render third()}{/snippet}\n\
+            {#snippet third()}{local}{/snippet}";
+        let code = svelte2tsx(source, Svelte2TsxOptions::default())
+            .expect("svelte2tsx")
+            .code;
+        let render = code.find("function $$render").unwrap();
+        for name in ["first", "second", "third"] {
+            assert!(code.find(&format!("const {name}")).unwrap() > render);
+        }
+    }
+
+    #[test]
+    fn duplicate_name_self_reference_does_not_inherit_blocked_peer() {
+        let source = "<script module>export const value = 1;</script>\n\
+            <script>let local = 1;</script>\n\
+            {#snippet same()}{local}{/snippet}\n\
+            {#snippet same()}{@render same()}{/snippet}";
+        let code = svelte2tsx(source, Svelte2TsxOptions::default())
+            .expect("svelte2tsx")
+            .code;
+        let render = code.find("function $$render").unwrap();
+        let first = code.find("const same").unwrap();
+        let second = code[first + 1..].find("const same").unwrap() + first + 1;
+        assert!(first < render || second < render);
+        assert!(first > render || second > render);
+    }
+
+    #[test]
+    fn hoistable_snippets_keep_source_order() {
+        let source = "<script module>export const value = 1;</script>\n\
+            {#snippet earlier()}{@render later()}{/snippet}\n\
+            {#snippet later()}ok{/snippet}";
+        let code = svelte2tsx(source, Svelte2TsxOptions::default())
+            .expect("svelte2tsx")
+            .code;
+        let earlier = code.find("const earlier").unwrap();
+        let later = code.find("const later").unwrap();
+        let render = code.find("function $$render").unwrap();
+        assert!(earlier < later);
+        assert!(later < render);
+    }
 }
