@@ -131,37 +131,66 @@ run env \
 
 for (( pass = 1; pass <= TRAINING_PASSES; pass++ )); do
   remove_work_dir "$TRAINING_WORKSPACE/.svelte-check"
+  printf -v training_output '%s/training-pass-%02d.out' "$WORK_ROOT" "$pass"
   if $dry_run; then
-    printf '+ LLVM_PROFILE_FILE=%q %q' "$PROFILE_DIR/svelte-check-%m-%p.profraw" "$INSTRUMENTED_BINARY"
+    printf '+ LLVM_PROFILE_FILE=%q %q' \
+      "$PROFILE_DIR/svelte-check-pass-$pass-%m-%p.profraw" \
+      "$INSTRUMENTED_BINARY"
     printf ' %q' \
       --workspace "$TRAINING_WORKSPACE" \
       --emit-overlay \
       --no-type-check \
       --no-tsconfig \
       --output machine
-    printf ' >/dev/null\n'
+    printf ' >%q\n' "$training_output"
   else
-    LLVM_PROFILE_FILE="$PROFILE_DIR/svelte-check-%m-%p.profraw" \
+    if ! LLVM_PROFILE_FILE="$PROFILE_DIR/svelte-check-pass-$pass-%m-%p.profraw" \
       "$INSTRUMENTED_BINARY" \
       --workspace "$TRAINING_WORKSPACE" \
       --emit-overlay \
       --no-type-check \
       --no-tsconfig \
       --output machine \
-      >/dev/null
+      >"$training_output"; then
+      sed -n '1,120p' "$training_output" >&2
+      die "training pass $pass failed"
+    fi
+    if ! grep -Eq "^[0-9]+ COMPLETED ${TRAINING_FILE_COUNT} FILES " "$training_output"; then
+      sed -n '1,120p' "$training_output" >&2
+      die "training pass $pass did not check all $TRAINING_FILE_COUNT inputs"
+    fi
   fi
 done
 
 if $dry_run; then
-  profraw_files=("$PROFILE_DIR/svelte-check-<module>-<pid>.profraw")
+  profraw_files=("$PROFILE_DIR/svelte-check-pass-<pass>-<module>-<pid>.profraw")
 else
   shopt -s nullglob
   profraw_files=("$PROFILE_DIR"/*.profraw)
   shopt -u nullglob
-  (( ${#profraw_files[@]} > 0 )) || die "instrumented training produced no .profraw files"
+  (( ${#profraw_files[@]} >= TRAINING_PASSES )) ||
+    die "instrumented training produced fewer profiles than passes"
+  for profile in "${profraw_files[@]}"; do
+    [[ -s "$profile" ]] || die "instrumented training produced an empty profile: $profile"
+  done
 fi
 
-run "$LLVM_PROFDATA" merge --output "$MERGED_PROFILE" "${profraw_files[@]}"
+run "$LLVM_PROFDATA" merge --failure-mode=any --output "$MERGED_PROFILE" "${profraw_files[@]}"
+profile_function_count=
+profile_total_count=
+if ! $dry_run; then
+  profile_summary="$("$LLVM_PROFDATA" show "$MERGED_PROFILE")"
+  profile_function_count="$(
+    awk '$1 == "Total" && $2 == "functions:" { print $3; exit }' <<<"$profile_summary"
+  )"
+  profile_total_count="$(
+    awk '$1 == "Total" && $2 == "count:" { print $3; exit }' <<<"$profile_summary"
+  )"
+  is_positive_integer "$profile_function_count" ||
+    die "merged profile contains no instrumented functions"
+  is_positive_integer "$profile_total_count" ||
+    die "merged profile contains no execution counts"
+fi
 remove_work_dir "$GENERATE_TARGET_DIR"
 if ! $dry_run && [[ -e "$GENERATE_TARGET_DIR" ]]; then
   die "generation target was not removed before the profile-use build"
@@ -190,5 +219,7 @@ if ! $dry_run && [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     echo "- Corpus SHA-256: \`$CORPUS_HASH\`"
     echo "- Training inputs: $TRAINING_FILE_COUNT files (${#corpus_files[@]} sources × $TRAINING_REPLICAS replicas)"
     echo "- Training passes: $TRAINING_PASSES"
+    echo "- Profiled functions: $profile_function_count"
+    echo "- Total profile count: $profile_total_count"
   } >> "$GITHUB_STEP_SUMMARY"
 fi
