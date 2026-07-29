@@ -118,10 +118,12 @@ function applyWarningFilter(result, warningFilter) {
 }
 
 // `compile` / `compileModule` are wrapped to route through the
-// raw-transfer envelope (`compileEnvelope`): the Rust side hands us
+// raw-transfer envelope: the Rust side hands us
 // one `Buffer`, the JS side lazy-decodes only the fields the caller
 // reads. This avoids the V8 string copy + `serde_json` round-trip
-// that the legacy JSON path pays for every call.
+// that the legacy JSON path pays for every call. The wrapper-only
+// native entry points leave `sourcesContent` external so the source
+// already owned by JavaScript is not copied into the envelope.
 //
 // Callers that need the raw envelope (e.g. to ship it across a worker
 // boundary without re-encoding) can still grab `binding.compileEnvelope`
@@ -136,7 +138,10 @@ function compile(source, options) {
 		);
 	}
 	const { options: resolved, warningFilter } = prepareCompileOptions(options);
-	return applyWarningFilter(decodeEnvelope(binding.compileEnvelope(source, resolved)), warningFilter);
+	return applyWarningFilter(
+		decodeEnvelope(binding.compileEnvelopeExternalSources(source, resolved), source),
+		warningFilter,
+	);
 }
 
 function compileModule(source, options) {
@@ -170,7 +175,11 @@ function compileBatch(inputs) {
 		if (warningFilter) filters[i] = warningFilter;
 		return options === input.options ? input : { source: input.source, options };
 	});
-	const results = decodeBatch(binding.compileBatch(prepared));
+	const sourceContents = prepared.map((input) => input.source);
+	const results = decodeBatch(
+		binding.compileBatchExternalSources(prepared),
+		sourceContents,
+	);
 	if (filters.length) {
 		results.forEach((result, i) => applyWarningFilter(result, filters[i]));
 	}
@@ -194,7 +203,10 @@ async function compileAsync(source, options) {
 		return applyWarningFilter(result, warningFilter);
 	}
 	return applyWarningFilter(
-		decodeEnvelope(await binding.compileEnvelopeAsync(source, resolved)),
+		decodeEnvelope(
+			await binding.compileEnvelopeExternalSourcesAsync(source, resolved),
+			source,
+		),
 		warningFilter,
 	);
 }
@@ -207,7 +219,11 @@ async function compileBatchAsync(inputs) {
 		if (warningFilter) filters[i] = warningFilter;
 		return options === input.options ? input : { source: input.source, options };
 	});
-	const results = decodeBatch(await binding.compileBatchAsync(prepared));
+	const sourceContents = prepared.map((input) => input.source);
+	const results = decodeBatch(
+		await binding.compileBatchExternalSourcesAsync(prepared),
+		sourceContents,
+	);
 	if (filters.length) {
 		results.forEach((result, i) => applyWarningFilter(result, filters[i]));
 	}

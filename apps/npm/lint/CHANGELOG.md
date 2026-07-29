@@ -1,5 +1,28 @@
 # @rsvelte/lint
 
+## 0.9.4
+
+### Patch Changes
+
+- 28e6867: fix(lint): treat lone CR as a line break in diagnostic line/column computation
+
+  `LineIndex` only split lines on `\n`, so a lone `\r` (old Mac-style line
+  ending) with no following `\n` was not counted as a line break. Diagnostic
+  line/column positions after such a `\r` were therefore off, unlike ESLint's
+  text model, which treats `\r`, `\n`, and `\r\n` all as line terminators.
+
+- 79d589d: feat(lint): make `svelte/no-target-blank` fixable
+
+  `--fix` now adds the missing `rel` tokens instead of only reporting. When the
+  element has no `rel`, one is inserted right after `target`; an existing static
+  `rel` is extended with only the tokens it lacks, preserving its value and
+  quoting style. `allowReferrer` narrows the required set to `noopener`, and a
+  dynamic `rel={...}` is still reported without a fix.
+
+  Svelte 5 has no `security-anchor-rel-noreferrer` compiler warning, so this rule
+  is the only place the repair can live. Upstream eslint-plugin-svelte does not
+  offer the fix; diagnostics are unchanged, so output parity is unaffected.
+
 ## 0.9.3
 
 ### Patch Changes

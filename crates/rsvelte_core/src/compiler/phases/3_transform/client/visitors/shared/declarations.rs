@@ -88,8 +88,16 @@ fn safe_get_value(arena: &JsArena, node: JsExpr) -> JsExpr {
 /// $.set(count, 5);  // Uses the assign transformer
 /// ```
 pub fn add_state_transformers(context: &mut ComponentContext) {
+    let instance_scope = context
+        .state
+        .scope_root
+        .all_scopes
+        .get(context.state.scope_root.instance_scope_index);
     // Iterate over all declarations in the current scope
-    for (name, binding_idx) in context.state.scope.declarations.iter() {
+    for (name, fallback_idx) in context.state.scope.declarations.iter() {
+        let binding_idx = instance_scope
+            .and_then(|scope| scope.declarations.get(name))
+            .unwrap_or(fallback_idx);
         // Get the binding from the root scope
         if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
             // Skip import bindings that already have a transform registered.

@@ -40,7 +40,9 @@ function assert(label, cond, extra = '') {
 }
 
 // 1. compile() — the hot path of the Vite `transform` hook
-const compiled = r.compile('<h1>{name}</h1>', {
+const compileSource =
+	"<style>h1 { color: red }</style><script>const markers = \"$& $` $'\";</script><h1>{name}</h1>";
+const compiled = r.compile(compileSource, {
 	filename: 'Foo.svelte',
 	generate: 'client',
 });
@@ -49,6 +51,59 @@ assert(
 	typeof compiled?.js?.code === 'string' && compiled.js.code.length > 0,
 );
 assert('compile() returns source map', compiled?.js?.map != null);
+assert(
+	'compile() restores JS sourcesContent',
+	compiled?.js?.map?.sourcesContent?.[0] === compileSource,
+);
+assert(
+	'compile() restores CSS sourcesContent',
+	compiled?.css?.map?.sourcesContent?.[0] === compileSource,
+);
+
+const rawCompile = r.compileEnvelope(compileSource, {
+	filename: 'Foo.svelte',
+	generate: 'client',
+});
+assert(
+	'raw envelope preserves sourcesContent',
+	r.decodeEnvelope(rawCompile)?.js?.map?.sourcesContent?.[0] === compileSource,
+);
+assert(
+	'compile() mapText restores sourcesContent',
+	JSON.parse(compiled?.js?.mapText)?.sourcesContent?.[0] === compileSource,
+);
+assert(
+	'compile() mapBytes restores sourcesContent',
+	JSON.parse(compiled?.js?.mapBytes.toString('utf8'))?.sourcesContent?.[0] === compileSource,
+);
+
+const [batchCompiled] = r.compileBatch([
+	{ source: compileSource, options: { filename: 'Foo.svelte', generate: 'client' } },
+]);
+assert(
+	'compileBatch() restores sourcesContent',
+	batchCompiled?.js?.map?.sourcesContent?.[0] === compileSource,
+);
+
+const asyncCompiled = await r.compileAsync(compileSource, {
+	filename: 'Foo.svelte',
+	generate: 'client',
+});
+assert(
+	'compileAsync() restores sourcesContent',
+	asyncCompiled?.js?.map?.sourcesContent?.[0] === compileSource,
+);
+
+const asyncBatchInputs = [
+	{ source: compileSource, options: { filename: 'Foo.svelte', generate: 'client' } },
+];
+const asyncBatchPromise = r.compileBatchAsync(asyncBatchInputs);
+asyncBatchInputs[0].source = '<p>mutated after dispatch</p>';
+const [asyncBatchCompiled] = await asyncBatchPromise;
+assert(
+	'compileBatchAsync() snapshots sourcesContent',
+	asyncBatchCompiled?.js?.map?.sourcesContent?.[0] === compileSource,
+);
 
 // 2. compileModule() — used by the `.svelte.js` / `.svelte.ts` path
 const m = r.compileModule('export const x = $state(0);', {
