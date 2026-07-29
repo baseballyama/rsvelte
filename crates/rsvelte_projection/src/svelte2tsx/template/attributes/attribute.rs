@@ -1,6 +1,8 @@
 //! Plain attributes (`name`, `name="v"`, `name={expr}`, shorthand `{name}`).
 //! Mirrors `htmlxtojsx_v2/nodes/Attribute.ts`.
 
+use std::borrow::Cow;
+
 use super::svg::is_svg_attribute;
 use crate::ast::template::{AttributeNode, AttributeValue, AttributeValuePart};
 use crate::svelte2tsx::svelte2tsx::slice_src;
@@ -216,12 +218,24 @@ pub(crate) fn is_js_numeric(data: &str) -> bool {
 /// typings, mirroring official `transformAttributeCase`. Preserves the name for
 /// SVG attributes, custom elements (tag contains `-`), and svelte-5 `on*` event
 /// attributes; non-element (component/slot) attributes are never transformed.
-pub(crate) fn transform_attribute_case(name: &str, tag: &str, is_element: bool) -> String {
+pub(crate) fn transform_attribute_case<'a>(
+    name: &'a str,
+    tag: &str,
+    is_element: bool,
+) -> Cow<'a, str> {
     let is_custom_element = tag.contains('-');
     if is_element && !is_svg_attribute(name) && !is_custom_element && !name.starts_with("on") {
-        name.to_lowercase()
+        let needs_lowercase = name.chars().any(|c| {
+            let mut lowercase = c.to_lowercase();
+            lowercase.next() != Some(c) || lowercase.next().is_some()
+        });
+        if needs_lowercase {
+            Cow::Owned(name.to_lowercase())
+        } else {
+            Cow::Borrowed(name)
+        }
     } else {
-        name.to_string()
+        Cow::Borrowed(name)
     }
 }
 
@@ -383,7 +397,7 @@ pub(crate) fn format_attribute_node_segments(
     // Element attribute names are lowercased to match intrinsic typings
     // (`defaultValue` → `defaultvalue`); component/slot names are preserved.
     let name_owned = transform_attribute_case(&node.name, tag, is_element);
-    let name = name_owned.as_str();
+    let name = name_owned.as_ref();
 
     // Helper: prepend/append the wrapper literals around a segment list that
     // already represents the `"name":value` content (no trailing comma).
@@ -642,7 +656,9 @@ mod tests {
     // Tests for data-* and --* attribute wrapping rules.
     // Mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute` / `addProp`.
 
-    use super::is_number_only_attribute;
+    use std::borrow::Cow;
+
+    use super::{is_number_only_attribute, transform_attribute_case};
     use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
 
     fn compile_template(src: &str) -> String {
@@ -703,6 +719,40 @@ mod tests {
         ] {
             assert!(!is_number_only_attribute(name), "{name}");
         }
+    }
+
+    #[test]
+    fn transform_attribute_case_borrows_unchanged_names() {
+        let lowercase = transform_attribute_case("class", "div", true);
+        assert!(matches!(lowercase, Cow::Borrowed("class")));
+        assert!(matches!(
+            transform_attribute_case("viewBox", "svg", true),
+            Cow::Borrowed("viewBox")
+        ));
+        assert!(matches!(
+            transform_attribute_case("defaultValue", "my-input", true),
+            Cow::Borrowed("defaultValue")
+        ));
+        assert!(matches!(
+            transform_attribute_case("onClick", "button", true),
+            Cow::Borrowed("onClick")
+        ));
+        assert!(matches!(
+            transform_attribute_case("defaultValue", "Component", false),
+            Cow::Borrowed("defaultValue")
+        ));
+    }
+
+    #[test]
+    fn transform_attribute_case_allocates_only_for_changed_names() {
+        assert_eq!(
+            transform_attribute_case("defaultValue", "input", true),
+            Cow::Owned::<str>("defaultvalue".to_string())
+        );
+        assert_eq!(
+            transform_attribute_case("İD", "div", true),
+            Cow::Owned::<str>("i\u{307}d".to_string())
+        );
     }
 
     #[test]
