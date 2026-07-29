@@ -14,6 +14,7 @@ pub(super) fn build_block_branch_doc(
     start: usize,
     end: usize,
     line_width: usize,
+    options: &FormatOptions,
 ) -> Option<Vec<crate::doc::Doc>> {
     use crate::children::Child;
     use crate::doc::Doc;
@@ -23,7 +24,7 @@ pub(super) fn build_block_branch_doc(
 
     let mut children: Vec<Child> = Vec::with_capacity(frag.nodes.len());
     for n in &frag.nodes {
-        children.push(node_to_child(out, n, line_width)?);
+        children.push(node_to_child(out, n, line_width, options)?);
     }
     // The branch tag owns its own outer whitespace, so trim it off the edge text
     // children (prettier's `trimTextNodeLeft` / `trimTextNodeRight`).
@@ -55,6 +56,7 @@ pub(super) fn build_if_block_doc(
     out: &str,
     blk: &rsvelte_core::ast::template::IfBlock,
     line_width: usize,
+    options: &FormatOptions,
 ) -> Option<crate::doc::Doc> {
     use crate::doc::Doc;
     let mut parts: Vec<Doc> = Vec::new();
@@ -69,6 +71,7 @@ pub(super) fn build_if_block_doc(
             cs,
             ce,
             line_width,
+            options,
         )?);
         tok_start = ce;
         let Some(alt) = &cur.alternate else { break };
@@ -77,7 +80,9 @@ pub(super) fn build_if_block_doc(
             None => {
                 let (as_, ae) = block_branch_bounds(out, alt)?;
                 parts.push(Doc::Text(out.get(tok_start..as_)?.to_string()));
-                parts.extend(build_block_branch_doc(out, alt, as_, ae, line_width)?);
+                parts.extend(build_block_branch_doc(
+                    out, alt, as_, ae, line_width, options,
+                )?);
                 tok_start = ae;
                 break;
             }
@@ -97,6 +102,7 @@ pub(super) fn build_simple_block_doc(
     end: u32,
     branches: &[&Fragment],
     line_width: usize,
+    options: &FormatOptions,
 ) -> Option<crate::doc::Doc> {
     use crate::doc::Doc;
     let mut parts: Vec<Doc> = Vec::new();
@@ -104,7 +110,9 @@ pub(super) fn build_simple_block_doc(
     for frag in branches {
         let (cs, ce) = block_branch_bounds(out, frag)?;
         parts.push(Doc::Text(out.get(tok_start..cs)?.to_string()));
-        parts.extend(build_block_branch_doc(out, frag, cs, ce, line_width)?);
+        parts.extend(build_block_branch_doc(
+            out, frag, cs, ce, line_width, options,
+        )?);
         tok_start = ce;
     }
     parts.push(Doc::Text(out.get(tok_start..end as usize)?.to_string()));
@@ -118,12 +126,13 @@ pub(super) fn build_inline_element_doc(
     out: &str,
     e: &rsvelte_core::ast::template::RegularElement,
     line_width: usize,
+    options: &FormatOptions,
 ) -> Option<crate::doc::Doc> {
     use crate::children::{Child, ElementLayout, build_element_doc};
     let attrs = build_attrs_concat(out, &e.attributes)?;
     let mut children: Vec<Child> = Vec::with_capacity(e.fragment.nodes.len());
     for n in &e.fragment.nodes {
-        children.push(node_to_child(out, n, line_width)?);
+        children.push(node_to_child(out, n, line_width, options)?);
     }
     let children = layout_children(out, &e.fragment.nodes, e.start, children);
     Some(build_element_doc(ElementLayout {
@@ -143,12 +152,13 @@ pub(super) fn build_component_doc(
     out: &str,
     c: &rsvelte_core::ast::template::Component,
     line_width: usize,
+    options: &FormatOptions,
 ) -> Option<crate::doc::Doc> {
     use crate::children::{Child, ElementLayout, build_element_doc};
     let attrs = build_attrs_concat(out, &c.attributes)?;
     let mut children: Vec<Child> = Vec::with_capacity(c.fragment.nodes.len());
     for n in &c.fragment.nodes {
-        children.push(node_to_child(out, n, line_width)?);
+        children.push(node_to_child(out, n, line_width, options)?);
     }
     let children = layout_children(out, &c.fragment.nodes, c.start, children);
     Some(build_element_doc(ElementLayout {

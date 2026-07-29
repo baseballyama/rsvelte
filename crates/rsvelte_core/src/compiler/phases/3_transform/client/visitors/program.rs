@@ -148,122 +148,101 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
     // This sets up read/assign/mutate/update transforms that wrap identifiers with $.get(), $.set(), etc.
     add_state_transformers(context);
 
-    // Handle store subscriptions, props, and state bindings for all modes
-    for (name, binding_idx) in context.state.scope.declarations.clone() {
-        // The flattened root `scope.declarations` map can be polluted by a
-        // same-named binding collapsed from an unrelated scope (e.g. a
-        // `<script module>` function parameter also named `context`), which would
-        // shadow the real instance binding and skip its prop read transform,
-        // leaving template reads as a bare identifier instead of `name()`. Reads in
-        // the instance/template resolve to the instance-scope binding, so prefer it.
-        let binding_idx = context
-            .state
-            .scope_root
-            .all_scopes
-            .get(context.state.scope_root.instance_scope_index)
-            .and_then(|s| s.declarations.get(&name).copied())
-            .unwrap_or(binding_idx);
+    let instance_scope = context
+        .state
+        .scope_root
+        .all_scopes
+        .get(context.state.scope_root.instance_scope_index);
+    let transform_bindings: Vec<(String, usize)> = context
+        .state
+        .scope
+        .declarations
+        .iter()
+        .filter_map(|(name, &fallback_idx)| {
+            let binding_idx = instance_scope
+                .and_then(|scope| scope.declarations.get(name).copied())
+                .unwrap_or(fallback_idx);
+            context
+                .state
+                .scope_root
+                .bindings
+                .get(binding_idx)
+                .is_some_and(|binding| {
+                    matches!(
+                        binding.kind,
+                        BindingKind::StoreSub | BindingKind::Prop | BindingKind::BindableProp
+                    )
+                })
+                .then(|| (name.clone(), binding_idx))
+        })
+        .collect();
+
+    // Source props and stores were registered by add_state_transformers.
+    // Keep the missing-transform branches as a fallback for incomplete scopes.
+    for (name, binding_idx) in transform_bindings {
         if let Some(binding) = context.state.scope_root.bindings.get(binding_idx) {
-            // Mark different binding types for transformation
             match binding.kind {
                 BindingKind::StoreSub => {
-                    // Store subscriptions need special transformation
-                    // Corresponds to the store_sub handling in Program.js:
-                    //
-                    // context.state.transform[name] = {
-                    //     read: b.call,                           // $store → $store()
-                    //     assign: (_, value) => b.call('$.store_set', get_store(), value),
-                    //     mutate: (node, mutation) => b.call('$.store_mutate', ...),
-                    //     update: (node) => b.call(node.prefix ? '$.update_pre_store' : '$.update_store', ...)
-                    // };
-                    //
-                    // The store variable name starts with '$', e.g., '$count'
-                    // The underlying store is 'count' (without the '$')
-
-                    let transform = IdentifierTransform {
-                        read: Some(store_sub_read),
-                        read_source: None,
-                        assign: Some(store_sub_assign),
-                        mutate: Some(store_sub_mutate),
-                        update: Some(store_sub_update),
-                        skip_proxy: false,
-                        is_defined: false,
-                        // Store subscriptions are reactive
-                        is_reactive: true,
-                        replacement_id: None,
-                    };
-
-                    context.state.transform.insert(name.clone(), transform);
-                }
-                BindingKind::Prop | BindingKind::BindableProp => {
-                    // Props need special handling based on whether they're sources.
-                    // In legacy mode, props created with `export let` become getter functions
-                    // via $.prop(), so reading them should call the getter: foo -> foo()
-                    //
-                    // Corresponds to the prop handling in Program.js:
-                    // context.state.transform[name] = {
-                    //     read: b.call,  // foo -> foo()
-                    //     assign: (node, value) => b.call(node, value),
-                    //     mutate: (node, value) => {
-                    //         if (binding.kind === 'bindable_prop') return b.call(node, value, b.true);
-                    //         return value;
-                    //     }
-                    // };
-                    //
-                    // Check if this prop should be a source (needs transformation)
-                    if is_prop_source_binding(binding, &context.state) {
-                        // For BindableProp, mutations must notify the parent: node(mutation, true)
-                        // For regular Prop, mutations are passed through unchanged.
-                        let mutate_fn = if matches!(binding.kind, BindingKind::BindableProp) {
-                            prop_bindable_mutate
-                        } else {
-                            prop_mutate
-                        };
-                        let transform = IdentifierTransform {
-                            read: Some(prop_read),
-                            read_source: None,
-                            assign: Some(prop_assign),
-                            mutate: Some(mutate_fn),
-                            update: Some(prop_update),
-                            skip_proxy: false,
-                            is_defined: false,
-                            is_reactive: true,
-                            replacement_id: None,
-                        };
-
-                        context.state.transform.insert(name.clone(), transform);
-                        // Bindable props are template-kind and require
-                        // deep_read_state wrapping in legacy reactivity.
-                        if matches!(binding.kind, BindingKind::BindableProp) {
-                            context.state.transform_deep_read.insert(name.clone(), ());
-                        }
-                    } else {
-                        // Non-source props: read from $$props.name
-                        // Corresponds to Program.js lines 125-134:
-                        // context.state.transform[name] = {
-                        //     read: (node) => b.member(b.id('$$props'), node)
-                        // };
-                        let transform = IdentifierTransform {
-                            read: Some(non_source_prop_read),
-                            read_source: None,
-                            assign: None,
-                            mutate: None,
-                            update: None,
-                            skip_proxy: false,
-                            is_defined: false,
-                            is_reactive: true,
-                            replacement_id: None,
-                        };
-
-                        context.state.transform.insert(name.clone(), transform);
+                    if !context.state.transform.contains_key(&name) {
+                        context.state.transform.insert(
+                            name,
+                            IdentifierTransform {
+                                read: Some(store_sub_read),
+                                read_source: None,
+                                assign: Some(store_sub_assign),
+                                mutate: Some(store_sub_mutate),
+                                update: Some(store_sub_update),
+                                skip_proxy: false,
+                                is_defined: false,
+                                is_reactive: true,
+                                replacement_id: None,
+                            },
+                        );
                     }
                 }
-                BindingKind::State | BindingKind::RawState | BindingKind::Derived => {
-                    // State variables need $.get() wrapping
-                    // Transforms are set up by add_state_transformers above
-                }
-                BindingKind::LegacyReactive => {
-                    // Legacy reactive statements need special handling
+                BindingKind::Prop | BindingKind::BindableProp => {
+                    if is_prop_source_binding(binding, &context.state) {
+                        if !context.state.transform.contains_key(&name) {
+                            context.state.transform.insert(
+                                name.clone(),
+                                IdentifierTransform {
+                                    read: Some(prop_read),
+                                    read_source: None,
+                                    assign: Some(prop_assign),
+                                    mutate: Some(
+                                        if matches!(binding.kind, BindingKind::BindableProp) {
+                                            prop_bindable_mutate
+                                        } else {
+                                            prop_mutate
+                                        },
+                                    ),
+                                    update: Some(prop_update),
+                                    skip_proxy: false,
+                                    is_defined: false,
+                                    is_reactive: true,
+                                    replacement_id: None,
+                                },
+                            );
+                        }
+                        if matches!(binding.kind, BindingKind::BindableProp) {
+                            context.state.transform_deep_read.insert(name, ());
+                        }
+                    } else {
+                        context.state.transform.insert(
+                            name,
+                            IdentifierTransform {
+                                read: Some(non_source_prop_read),
+                                read_source: None,
+                                assign: None,
+                                mutate: None,
+                                update: None,
+                                skip_proxy: false,
+                                is_defined: false,
+                                is_reactive: true,
+                                replacement_id: None,
+                            },
+                        );
+                    }
                 }
                 _ => {}
             }

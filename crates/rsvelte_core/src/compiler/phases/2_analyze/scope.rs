@@ -4,8 +4,6 @@
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 /// The root scope container for a component.
 #[derive(Debug, Default)]
@@ -48,8 +46,8 @@ pub struct ScopeRoot {
     /// All declaration names from all scopes, used for unique name generation.
     /// Mirrors the `conflicts` set in the official Svelte compiler's ScopeRoot.
     /// Every `declare()` call adds the name here.
-    /// Wrapped in Rc<RefCell<...>> so that Memoizer can share without cloning.
-    pub conflicts: Rc<RefCell<FxHashSet<String>>>,
+    /// Phase 3 clones this seed into transform-local mutable state.
+    pub conflicts: FxHashSet<String>,
     /// Maps binding name -> indices into `bindings`, in push order. Every
     /// `bindings.push(...)` site has a matching entry appended here (see
     /// `push_binding`), so name-based lookups that would otherwise be an
@@ -70,7 +68,7 @@ impl ScopeRoot {
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
             snippet_scope_indices: FxHashSet::default(),
-            conflicts: Rc::new(RefCell::new(FxHashSet::default())),
+            conflicts: FxHashSet::default(),
             bindings_by_name: FxHashMap::default(),
         }
     }

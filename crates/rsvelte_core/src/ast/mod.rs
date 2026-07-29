@@ -9,6 +9,7 @@
 pub mod arena;
 pub mod css;
 pub mod js;
+pub(crate) mod oxc_program;
 pub mod span;
 pub mod template;
 pub mod typed_expr;
