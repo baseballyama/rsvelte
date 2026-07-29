@@ -10,7 +10,7 @@ use crate::svelte2tsx::template::utils::expr::get_expression_range;
 ///
 /// Overwrites `{` with empty and `}` with `;` so the expression is preserved
 /// as a statement: `{count}` → `count;`
-pub(crate) fn handle_expression_tag(expr: &ExpressionTag, source: &str, str: &mut MagicString) {
+pub(crate) fn handle_expression_tag(expr: &ExpressionTag, source: &str, str: &mut MagicString<'_>) {
     if expr.start >= expr.end {
         return;
     }

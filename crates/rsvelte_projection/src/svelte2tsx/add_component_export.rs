@@ -36,7 +36,7 @@ pub(crate) struct ComponentExportParams<'a> {
 /// export itself. The caller appends the returned string to `str`.
 pub(crate) fn add_component_export(
     params: ComponentExportParams<'_>,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
 ) -> String {
     let ComponentExportParams {
         ast,

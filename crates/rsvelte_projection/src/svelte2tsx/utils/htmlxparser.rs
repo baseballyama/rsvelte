@@ -86,7 +86,7 @@ pub(crate) fn blank_style_content(source: &str) -> String {
 /// Overwriting their range with `""` truncates any attribute whose source span
 /// covers the range; the joined content is returned for injection into the
 /// `$$render()` body when the file has no top-level script.
-pub(crate) fn remove_orphan_scripts(ast: &Root, source: &str, str: &mut MagicString) -> String {
+pub(crate) fn remove_orphan_scripts(ast: &Root, source: &str, str: &mut MagicString<'_>) -> String {
     let orphan_scripts = find_orphan_scripts(ast, source);
     // Remove orphan scripts from the MagicString (must happen BEFORE
     // process_template_inplace so the overwrite is in place when the template
@@ -107,7 +107,7 @@ pub(crate) fn remove_orphan_scripts(ast: &Root, source: &str, str: &mut MagicStr
 /// blanks any style tag the parser captured in `ast.css`, then always runs a
 /// fallback scanner to catch style tags the parser did not capture (e.g.,
 /// `<style global>`, `<style lang="...">`).
-pub(crate) fn blank_style_tags(ast: &Root, source: &str, str: &mut MagicString) {
+pub(crate) fn blank_style_tags(ast: &Root, source: &str, str: &mut MagicString<'_>) {
     let mut blanked_style_ranges: Vec<(usize, usize)> = Vec::new();
     if let Some(ref css) = ast.css
         && css.start < css.end

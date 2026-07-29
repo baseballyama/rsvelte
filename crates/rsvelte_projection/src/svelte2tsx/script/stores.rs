@@ -732,7 +732,7 @@ pub(super) fn inject_store_subscriptions_with_program(
     module_program: Option<&oxc::Program>,
     offset: u32,
     context: &mut StoreScanContext<'_>,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
 ) {
     if !context.has_dollar() {
         return;
@@ -935,7 +935,7 @@ pub(super) fn inject_store_subscriptions_vars_only_with_program(
     program: &oxc::Program,
     offset: u32,
     context: &mut StoreScanContext<'_>,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
 ) {
     if !context.has_dollar() {
         return;

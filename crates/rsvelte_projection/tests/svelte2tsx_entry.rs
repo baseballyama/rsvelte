@@ -4,6 +4,17 @@
 use rsvelte_projection::svelte2tsx::{Svelte2TsxOptions, SvelteVersion, svelte2tsx};
 
 #[test]
+fn result_does_not_borrow_the_input_source() {
+    let result = {
+        let source = String::from("<h1>hello</h1>");
+        svelte2tsx(&source, Svelte2TsxOptions::default()).unwrap()
+    };
+
+    assert!(result.code.contains("svelteHTML.createElement(\"h1\","));
+    assert!(result.map.as_deref().is_some_and(|map| !map.is_empty()));
+}
+
+#[test]
 fn test_svelte2tsx_simple_template() {
     let source = "<h1>hello</h1>";
     let result = svelte2tsx(source, Svelte2TsxOptions::default());

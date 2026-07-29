@@ -22,7 +22,7 @@ pub(crate) fn handle_await_block(
     block: &AwaitBlock,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {

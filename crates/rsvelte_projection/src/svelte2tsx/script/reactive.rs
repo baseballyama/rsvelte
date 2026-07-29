@@ -39,7 +39,7 @@ fn is_invalidate_assignment_target(target: &oxc::AssignmentTarget) -> bool {
 pub(super) fn handle_reactive_statement(
     labeled: &oxc::LabeledStatement,
     offset: u32,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     raw_content: &str,
     declared_names: &HashSet<String>,
     reactive_declared_names: &mut HashSet<String>,

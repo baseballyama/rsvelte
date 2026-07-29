@@ -18,7 +18,7 @@ pub(crate) fn handle_if_block(
     block: &IfBlock,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {

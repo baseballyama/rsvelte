@@ -37,7 +37,7 @@ pub(crate) fn hoist_top_level_snippets(
     ast: &Root,
     source: &str,
     exported_names: &ExportedNames,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
 ) -> Vec<(u32, u32)> {
     let mut hoistable_snippet_ranges: Vec<(u32, u32)> = Vec::new();
     let mut nonhoistable_snippet_ranges: Vec<(u32, u32)> = Vec::new();

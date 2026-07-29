@@ -7,7 +7,7 @@ use crate::svelte2tsx::template::segs::{Seg, segs_push_lit, segs_push_src};
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 
 /// Handle an attach tag: `{@attach expression}`.
-pub(crate) fn handle_attach_tag(tag: &AttachTag, str: &mut MagicString) {
+pub(crate) fn handle_attach_tag(tag: &AttachTag, str: &mut MagicString<'_>) {
     if tag.start >= tag.end {
         return;
     }

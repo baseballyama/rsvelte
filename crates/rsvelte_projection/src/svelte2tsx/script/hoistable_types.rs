@@ -785,7 +785,7 @@ pub(super) fn rewrite_interface_to_type_dts(
     iface: &oxc_ast::ast::TSInterfaceDeclaration<'_>,
     raw_content: &str,
     offset: u32,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
 ) {
     // 1. `interface` -> `type`
     let iface_kw_start = iface.span.start;

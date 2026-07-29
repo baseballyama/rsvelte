@@ -230,7 +230,7 @@ pub(crate) fn process_component_children_with_slots(
     has_lets: bool,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -396,7 +396,7 @@ pub(crate) fn handle_named_slot_element(
     inst_var: &str,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -468,7 +468,7 @@ pub(crate) fn handle_named_slot_svelte_fragment(
     inst_var: &str,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -535,7 +535,7 @@ pub(crate) fn handle_named_slot_component(
     inst_var: &str,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {

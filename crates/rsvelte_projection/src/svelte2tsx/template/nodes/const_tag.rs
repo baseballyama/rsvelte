@@ -6,7 +6,7 @@ use crate::svelte2tsx::magic_string::MagicString;
 /// Handle a const tag: `{@const declaration}`.
 ///
 /// The const declaration is emitted as a regular `const` statement.
-pub(crate) fn handle_const_tag(tag: &ConstTag, source: &str, str: &mut MagicString) {
+pub(crate) fn handle_const_tag(tag: &ConstTag, source: &str, str: &mut MagicString<'_>) {
     if tag.start >= tag.end {
         return;
     }

@@ -28,7 +28,7 @@ pub(crate) fn create_render_function(
     source: &str,
     store_scan: &mut StoreScanContext<'_>,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     dollar_decls: &str,
     has_instance_script: bool,
     has_module_script: bool,

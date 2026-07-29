@@ -37,7 +37,7 @@ pub(crate) fn handle_svelte_special_element(
     el: &SvelteElement,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {

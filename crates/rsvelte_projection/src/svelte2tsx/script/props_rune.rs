@@ -82,7 +82,7 @@ pub(super) struct PropsRuneInfo {
 pub(super) fn apply_props_typedef(
     info: &PropsRuneInfo,
     offset: u32,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     exported_names: &mut ExportedNames,
     raw_content: &str,
     is_ts: bool,

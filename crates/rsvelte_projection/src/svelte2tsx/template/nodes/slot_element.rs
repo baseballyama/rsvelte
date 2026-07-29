@@ -23,7 +23,7 @@ pub(crate) fn handle_slot_element(
     el: &SlotElement,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {

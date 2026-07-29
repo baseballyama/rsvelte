@@ -23,7 +23,7 @@ use crate::svelte2tsx::template::walk::process_fragment_inplace;
 /// early-`continue` guards. Component / boundary containers are excluded by
 /// their callers (they treat snippets as implicit props instead), so this is
 /// only invoked for block and plain-element fragments.
-pub(crate) fn hoist_snippet_blocks(fragment: &Fragment, source: &str, str: &mut MagicString) {
+pub(crate) fn hoist_snippet_blocks(fragment: &Fragment, source: &str, str: &mut MagicString<'_>) {
     let mut target_position: Option<u32> = None;
     for node in &fragment.nodes {
         if !matches!(node, TemplateNode::SnippetBlock(_)) {
@@ -71,7 +71,7 @@ pub(crate) fn handle_snippet_block(
     block: &SnippetBlock,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -91,7 +91,7 @@ pub(crate) fn handle_snippet_block_as_component_prop(
     block: &SnippetBlock,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -102,7 +102,7 @@ pub(crate) fn handle_snippet_block_inner(
     block: &SnippetBlock,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     as_component_prop: bool,
     // Snippet bodies always start at depth 0 (official resets `element` on

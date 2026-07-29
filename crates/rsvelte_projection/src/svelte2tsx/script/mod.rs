@@ -101,7 +101,7 @@ pub fn process_instance_script(
     module_program: Option<&oxc::Program<'_>>,
     source: &str,
     store_scan: &mut StoreScanContext<'_>,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     exported_names: &mut ExportedNames,
     _events: &mut ComponentEvents,
     is_ts: bool,
@@ -720,7 +720,7 @@ pub fn process_module_script(
     script: &Script,
     parsed: &ParsedScript<'_>,
     store_scan: &mut StoreScanContext<'_>,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     exported_names: &mut ExportedNames,
 ) {
     // Module script exports are kept as-is (with the export keyword).

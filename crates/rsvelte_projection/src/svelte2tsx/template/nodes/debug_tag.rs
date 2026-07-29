@@ -14,7 +14,7 @@ use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_express
 /// inserted before and after) so per-character source-map segments
 /// resolve diagnostics to the user's identifier position, not the
 /// `{@debug` anchor.
-pub(crate) fn handle_debug_tag(tag: &DebugTag, source: &str, str: &mut MagicString) {
+pub(crate) fn handle_debug_tag(tag: &DebugTag, source: &str, str: &mut MagicString<'_>) {
     if tag.start >= tag.end {
         return;
     }

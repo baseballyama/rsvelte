@@ -9,7 +9,10 @@ use super::script_facts::TypeAssertionFacts;
 /// `handleTypeAssertion` (`nodes/handleTypeAssertion.ts`) surgically — moving the
 /// type after the expression and removing the `<` / `>` — so any inner edits on
 /// the expression (store wraps, etc.) survive untouched.
-pub(super) fn rewrite_type_assertions(assertions: &[TypeAssertionFacts], str: &mut MagicString) {
+pub(super) fn rewrite_type_assertions(
+    assertions: &[TypeAssertionFacts],
+    str: &mut MagicString<'_>,
+) {
     for assertion in assertions {
         // ` as ` before the (moved) type, which lands at the expression end.
         str.append_left(assertion.expr_end, " as ");
@@ -39,7 +42,7 @@ pub(super) fn rewrite_type_assertions(assertions: &[TypeAssertionFacts], str: &m
 /// Note: this targets arrow functions only. `function foo<T>()`, call type
 /// arguments `f<T>()`, and class / interface generics are all unambiguous in
 /// TSX and are left untouched.
-pub(super) fn disambiguate_arrow_type_params(insert_at: &[u32], str: &mut MagicString) {
+pub(super) fn disambiguate_arrow_type_params(insert_at: &[u32], str: &mut MagicString<'_>) {
     for &pos in insert_at {
         str.append_left(pos, ",");
     }

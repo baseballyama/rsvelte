@@ -35,7 +35,7 @@ pub(super) fn process_fragment_inplace(
     fragment: &Fragment,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -49,7 +49,7 @@ pub(super) fn process_node_inplace(
     node: &TemplateNode,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {

@@ -10,7 +10,7 @@ use super::super::svelte2tsx::slice_src;
 /// Emit the `<svelte:options>` tag as a `svelteHTML.createElement(...)` call.
 /// The parser stores svelte:options in `ast.options` (not in `fragment.nodes`),
 /// so it is handled separately.
-pub(crate) fn emit_svelte_options_element(ast: &Root, source: &str, str: &mut MagicString) {
+pub(crate) fn emit_svelte_options_element(ast: &Root, source: &str, str: &mut MagicString<'_>) {
     let Some(options_node) = ast.options.as_ref() else {
         return;
     };

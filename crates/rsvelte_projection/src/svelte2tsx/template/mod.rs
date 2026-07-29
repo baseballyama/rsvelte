@@ -90,7 +90,7 @@ pub fn process_template_inplace(
     fragment: &Fragment,
     source: &str,
     _options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
 ) {
     let mut counter = Counter::new();
     // depth 0 = root fragment; elements and components increment it for their children

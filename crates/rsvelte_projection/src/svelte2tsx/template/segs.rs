@@ -146,7 +146,7 @@ pub(super) fn bake_out_of_order_src(segs: Vec<Seg>, source: &str) -> Vec<Seg> {
 /// - `Src(s, e)` ranges appear in strictly increasing order.
 /// - Each `Src(s, e)` lies within `[range_start, range_end]`.
 pub(super) fn emit_segmented_overwrite(
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     range_start: u32,
     range_end: u32,
     segments: &[Seg],

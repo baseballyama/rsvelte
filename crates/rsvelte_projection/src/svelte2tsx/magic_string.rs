@@ -520,9 +520,9 @@ impl<'a> MappingState<'a> {
 
 /// A string manipulation class that preserves source positions for source-map
 /// generation.
-pub struct MagicString {
+pub struct MagicString<'source> {
     /// The original source string.
-    original: String,
+    original: &'source str,
     /// Arena of chunks (linked list stored in a Vec).
     chunks: Vec<Chunk>,
     /// Index of the first chunk in the linked list.
@@ -546,13 +546,13 @@ pub struct MagicString {
     outro: String,
 }
 
-impl MagicString {
+impl<'source> MagicString<'source> {
     // -----------------------------------------------------------------
     // Construction
     // -----------------------------------------------------------------
 
     /// Create a new `MagicString` from the given source.
-    pub fn new(source: &str) -> Self {
+    pub fn new(source: &'source str) -> Self {
         let chunk = Chunk::new(0, source.len() as u32);
         let mut by_start: std::collections::BTreeMap<u32, usize> =
             std::collections::BTreeMap::new();
@@ -561,7 +561,7 @@ impl MagicString {
         by_end.insert(source.len() as u32, 0);
 
         Self {
-            original: source.to_string(),
+            original: source,
             chunks: vec![chunk],
             first_chunk: 0,
             last_chunk: 0,
@@ -1003,7 +1003,7 @@ impl MagicString {
             file: options.file,
             sources: vec![source_name.clone()],
             sources_content: if options.include_content {
-                vec![self.original.clone()]
+                vec![self.original.to_string()]
             } else {
                 vec![]
             },
@@ -1042,7 +1042,7 @@ impl MagicString {
             &mut source_map,
             file.as_deref(),
             &source,
-            include_content.then_some(self.original.as_str()),
+            include_content.then_some(self.original),
         );
 
         let mut code = String::with_capacity(code_capacity);
@@ -1104,7 +1104,7 @@ impl MagicString {
         mappings: Option<&mut String>,
         mut forward_segments: Option<&mut Vec<(u32, u32, u32)>>,
     ) {
-        let mut mapping = mappings.map(|mappings| MappingState::new(mappings, &self.original));
+        let mut mapping = mappings.map(|mappings| MappingState::new(mappings, self.original));
         if let Some(code) = &mut code {
             code.push_str(&self.intro);
         }
@@ -1125,7 +1125,7 @@ impl MagicString {
             }
             if let Some(mapping) = &mut mapping {
                 mapping.advance_unmapped(&chunk.intro);
-                mapping.advance_chunk_body(&self.original, chunk, body);
+                mapping.advance_chunk_body(self.original, chunk, body);
                 mapping.advance_unmapped(&chunk.outro);
             }
             if let Some(segments) = &mut forward_segments {
@@ -1148,7 +1148,7 @@ impl MagicString {
     }
 }
 
-impl fmt::Display for MagicString {
+impl fmt::Display for MagicString<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_string())
     }
@@ -1221,6 +1221,15 @@ mod tests {
     fn test_basic_to_string() {
         let s = MagicString::new("hello world");
         assert_eq!(s.to_string(), "hello world");
+    }
+
+    #[test]
+    fn borrows_original_source() {
+        let source = String::from("hello world");
+        let s = MagicString::new(&source);
+
+        assert_eq!(s.original.as_ptr(), source.as_ptr());
+        assert_eq!(s.original.len(), source.len());
     }
 
     #[test]
@@ -1481,6 +1490,31 @@ mod tests {
         assert_eq!(map.sources, vec!["input.js".to_string()]);
         assert_eq!(map.sources_content, vec!["hello world".to_string()]);
         assert!(!map.mappings.is_empty());
+    }
+
+    #[test]
+    fn generated_output_and_map_content_outlive_the_source() {
+        let (output, map) = {
+            let source = String::from("hello world");
+            let mut s = MagicString::new(&source);
+            s.overwrite(6, 11, "earth");
+
+            (
+                s.to_string(),
+                s.generate_map(GenerateMapOptions {
+                    file: None,
+                    source: Some("input.svelte".to_string()),
+                    include_content: true,
+                }),
+            )
+        };
+
+        assert_eq!(output, "hello earth");
+        assert_eq!(map.sources_content, vec!["hello world".to_string()]);
+        assert!(
+            map.to_json()
+                .contains("\"sourcesContent\":[\"hello world\"]")
+        );
     }
 
     #[test]

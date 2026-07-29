@@ -15,7 +15,7 @@ use crate::svelte2tsx::template::utils::expr::get_expression_range;
 pub(crate) fn handle_declaration_tag(
     tag: &crate::ast::template::DeclarationTag,
     _source: &str,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
 ) {
     if tag.start >= tag.end {
         return;

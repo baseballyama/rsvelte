@@ -9,7 +9,7 @@ use crate::svelte2tsx::magic_string::MagicString;
 /// (replaced with empty). Whitespace characters are kept as-is.
 /// If the result is empty but the original text had content, at least 1
 /// space is preserved (to prevent hover artifacts in the language server).
-pub(crate) fn handle_text(text: &Text, _source: &str, str: &mut MagicString) {
+pub(crate) fn handle_text(text: &Text, _source: &str, str: &mut MagicString<'_>) {
     if text.start >= text.end {
         return;
     }

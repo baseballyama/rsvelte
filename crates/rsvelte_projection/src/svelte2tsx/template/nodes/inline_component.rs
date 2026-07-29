@@ -54,7 +54,7 @@ pub(crate) fn handle_component(
     comp: &Component,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -462,7 +462,7 @@ pub(crate) fn handle_svelte_component(
     comp: &SvelteComponentElement,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -628,7 +628,7 @@ pub(crate) fn handle_svelte_self(
     el: &SvelteElement,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {

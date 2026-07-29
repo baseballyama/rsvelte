@@ -10,7 +10,7 @@ use crate::svelte2tsx::template::ctx::with_element_opener_comments;
 /// Handle an HTML comment node.
 ///
 /// Comments are blanked out in the TSX output.
-pub(crate) fn handle_comment(comment: &Comment, str: &mut MagicString) {
+pub(crate) fn handle_comment(comment: &Comment, str: &mut MagicString<'_>) {
     if comment.start >= comment.end {
         return;
     }

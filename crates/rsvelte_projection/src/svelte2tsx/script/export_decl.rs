@@ -35,7 +35,7 @@ use super::ExportedNames;
 pub(super) fn handle_export_named_decl(
     export: &oxc::ExportNamedDeclaration,
     offset: u32,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     exported_names: &mut ExportedNames,
     is_instance: bool,
     possible_exports: &HashMap<String, PossibleExport>,

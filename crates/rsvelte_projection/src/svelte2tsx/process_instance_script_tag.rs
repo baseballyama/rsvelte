@@ -32,7 +32,7 @@ pub(crate) fn process_instance_script_tag(
     instance_program: &oxc_ast::ast::Program,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     exported_names: &mut ExportedNames,
     dollar_decls: &str,
     has_module_script: bool,
@@ -442,7 +442,7 @@ fn collect_lifted_imports(
     imports: &[(u32, u32, u32)],
     source: &str,
     content_start: u32,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
 ) -> String {
     let mut import_text = String::new();
     for (i, &(comments_start, import_start_rel, import_end)) in imports.iter().enumerate() {
