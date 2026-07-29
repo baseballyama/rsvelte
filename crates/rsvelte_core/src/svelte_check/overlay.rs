@@ -343,6 +343,23 @@ pub fn materialize_overlay_with(
         ext_root_dir_pairs.push((pkg.real_dir.clone(), pkg.mirror_dir.clone()));
     }
 
+    // A PLAIN `.ts`/`.js`/`.svelte.ts` source file that imports a `.svelte`
+    // component via a tsconfig `paths` alias never goes through svelte2tsx
+    // (only `.svelte` files do), so `rewrite_aliased_svelte_imports` never
+    // touches it — the alias resolves straight to the ambient `declare
+    // module '*.svelte'` fallback (#1888). For each such component, add an
+    // EXACT (non-wildcard) `paths` entry pointing straight at its shadow
+    // `.tsx` — TS prefers an exact `paths` match over a wildcard pattern, and
+    // since the resolved target no longer ends in `.svelte`, the ambient
+    // wildcard is never consulted at all, applying regardless of which kind
+    // of file does the importing.
+    let alias_path_overrides = tsconfig_path
+        .map(|tsconfig| {
+            let alias_prefixes = resolve_paths_alias_prefixes(tsconfig);
+            compute_alias_path_overrides(&entries, &external, &alias_prefixes)
+        })
+        .unwrap_or_default();
+
     let overlay_tsconfig = cache_dir.join("tsconfig.json");
     let tsconfig_json = build_overlay_tsconfig(
         &cache_dir,
@@ -351,6 +368,7 @@ pub fn materialize_overlay_with(
         &ext_root_dir_pairs,
         incremental,
         has_augments,
+        &alias_path_overrides,
     );
     fs::write(&overlay_tsconfig, tsconfig_json)?;
 
@@ -749,6 +767,7 @@ fn build_overlay_tsconfig(
     ext_root_dir_pairs: &[(PathBuf, PathBuf)],
     incremental: bool,
     has_companion_augmentation: bool,
+    alias_path_overrides: &[(String, PathBuf)],
 ) -> String {
     let mut obj: BTreeMap<&str, serde_json::Value> = BTreeMap::new();
     if let Some(orig) = original {
@@ -832,6 +851,26 @@ fn build_overlay_tsconfig(
                 .collect(),
         ),
     );
+    // `paths`: same override-wholesale gotcha as `rootDirs` above — a child
+    // `compilerOptions.paths` replaces the base's entirely, so start from the
+    // resolved chain (absolutised, since the overlay tsconfig lives in a
+    // different dir than whichever config in the chain defined them) and add
+    // our own exact-match overrides (#1888) alongside, never touching the
+    // original wildcard entries.
+    if !alias_path_overrides.is_empty() || original.is_some() {
+        let mut paths_obj = original.map(resolve_paths_object_abs).unwrap_or_default();
+        for (spec, shadow) in alias_path_overrides {
+            paths_obj.insert(
+                spec.clone(),
+                serde_json::Value::Array(vec![serde_json::Value::String(
+                    shadow.display().to_string(),
+                )]),
+            );
+        }
+        if !paths_obj.is_empty() {
+            compiler_opts.insert("paths".into(), serde_json::Value::Object(paths_obj));
+        }
+    }
     obj.insert("compilerOptions", serde_json::Value::Object(compiler_opts));
 
     // Inherited config-file specs: read the user's effective
@@ -1236,6 +1275,180 @@ fn resolve_root_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
         }
     }
     Vec::new()
+}
+
+/// Resolve a tsconfig's `compilerOptions.paths` wildcard entries
+/// (`"$lib/*": ["../lib/*"]`) to `(alias prefix, absolute target dir)` pairs,
+/// following the `extends` chain the same way [`resolve_root_dirs_abs`] does
+/// (nearest config that defines `paths` wins, wholesale — not merged with an
+/// ancestor's). Only the common `"<prefix>/*": ["<target>/*"]` shape is
+/// supported; an exact (non-wildcard) key, or a value not ending in `/*`, is
+/// skipped — there is no file *set* to reverse-map for those.
+fn resolve_paths_alias_prefixes(tsconfig_path: &Path) -> Vec<(String, PathBuf)> {
+    let mut current = Some(tsconfig_path.to_path_buf());
+    let mut hops = 0;
+    while let Some(file) = current {
+        hops += 1;
+        if hops > 32 {
+            break;
+        }
+        let Ok(raw) = fs::read_to_string(&file) else {
+            break;
+        };
+        let stripped = strip_jsonc_comments(&raw);
+        let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stripped) else {
+            break;
+        };
+        let dir = file.parent().unwrap_or(Path::new("."));
+
+        if let Some(paths) = parsed
+            .get("compilerOptions")
+            .and_then(|c| c.get("paths"))
+            .and_then(|v| v.as_object())
+        {
+            let mut out = Vec::new();
+            for (key, targets) in paths {
+                let Some(prefix) = key.strip_suffix("/*") else {
+                    continue;
+                };
+                let Some(target) = targets
+                    .as_array()
+                    .and_then(|a| a.first())
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.strip_suffix("/*"))
+                else {
+                    continue;
+                };
+                out.push((prefix.to_string(), dir.join(target)));
+            }
+            return out;
+        }
+
+        match parsed.get("extends").and_then(|v| v.as_str()) {
+            Some(ext) if ext.starts_with('.') => current = Some(resolve_extends_path(dir, ext)),
+            _ => break,
+        }
+    }
+    Vec::new()
+}
+
+/// Filename of the alias-based module-augmentation declaration (#1888), next
+/// to the companion augmentation in the cache dir.
+/// For every discovered `.svelte` file (in-workspace or external) that lies
+/// under one of `alias_prefixes`' target dirs, compute its exact alias
+/// specifier (`$lib/Foo.svelte`) paired with its shadow `.tsx`'s absolute
+/// path — for use as an exact (non-wildcard) `compilerOptions.paths` entry
+/// (see `build_overlay_tsconfig`).
+///
+/// A plain `.ts`/`.js` source file importing a `.svelte` component through an
+/// alias never goes through svelte2tsx (only `.svelte` files do), so
+/// `rewrite_aliased_svelte_imports` never touches it — it falls back to the
+/// ambient `declare module '*.svelte'` wildcard (#1888). An exact `paths`
+/// entry redirects the specifier straight to a file that doesn't end in
+/// `.svelte`, so the wildcard is never consulted, regardless of which kind of
+/// file does the importing.
+fn compute_alias_path_overrides(
+    entries: &[OverlayEntry],
+    external: &[ExternalPackage],
+    alias_prefixes: &[(String, PathBuf)],
+) -> Vec<(String, PathBuf)> {
+    if alias_prefixes.is_empty() {
+        return Vec::new();
+    }
+    // (real source path, shadow .tsx path) for every discovered .svelte file.
+    let mut candidates: Vec<(&Path, PathBuf)> = entries
+        .iter()
+        .map(|e| (e.source_path.as_path(), e.tsx_path.clone()))
+        .collect();
+    for pkg in external {
+        for abs_source in &pkg.svelte_files {
+            let rel = safe_relative(abs_source, &pkg.real_dir);
+            let tsx_path = pkg.mirror_dir.join(append_extension(&rel, ".tsx"));
+            candidates.push((abs_source.as_path(), tsx_path));
+        }
+    }
+
+    let mut out = Vec::new();
+    for (real_source, tsx_path) in &candidates {
+        let real_canon = real_source
+            .canonicalize()
+            .unwrap_or_else(|_| real_source.to_path_buf());
+        // Longest target-dir prefix wins when aliases nest.
+        let best = alias_prefixes
+            .iter()
+            .filter_map(|(prefix, target_dir)| {
+                let target_canon = target_dir
+                    .canonicalize()
+                    .unwrap_or_else(|_| target_dir.clone());
+                real_canon
+                    .strip_prefix(&target_canon)
+                    .ok()
+                    .map(|rel| (prefix, rel.to_path_buf()))
+            })
+            .max_by_key(|(_, rel)| real_canon.as_os_str().len() - rel.as_os_str().len());
+        let Some((prefix, rel)) = best else { continue };
+        let rel_posix = rel
+            .components()
+            .filter_map(|c| c.as_os_str().to_str())
+            .collect::<Vec<_>>()
+            .join("/");
+        if rel_posix.is_empty() {
+            continue;
+        }
+        out.push((format!("{prefix}/{rel_posix}"), tsx_path.clone()));
+    }
+    out
+}
+
+/// Resolve a tsconfig's effective `compilerOptions.paths` object (absolute
+/// targets), following the `extends` chain the same way
+/// [`resolve_root_dirs_abs`] does (nearest config that defines `paths` wins,
+/// wholesale — not merged with an ancestor's). Every string target is
+/// resolved relative to the directory of the config that defined it, since
+/// the overlay tsconfig that ultimately embeds this lives elsewhere.
+fn resolve_paths_object_abs(tsconfig_path: &Path) -> serde_json::Map<String, serde_json::Value> {
+    let mut current = Some(tsconfig_path.to_path_buf());
+    let mut hops = 0;
+    while let Some(file) = current {
+        hops += 1;
+        if hops > 32 {
+            break;
+        }
+        let Ok(raw) = fs::read_to_string(&file) else {
+            break;
+        };
+        let stripped = strip_jsonc_comments(&raw);
+        let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stripped) else {
+            break;
+        };
+        let dir = file.parent().unwrap_or(Path::new("."));
+
+        if let Some(paths) = parsed
+            .get("compilerOptions")
+            .and_then(|c| c.get("paths"))
+            .and_then(|v| v.as_object())
+        {
+            let mut out = serde_json::Map::new();
+            for (key, targets) in paths {
+                let Some(targets) = targets.as_array() else {
+                    continue;
+                };
+                let abs_targets: Vec<serde_json::Value> = targets
+                    .iter()
+                    .filter_map(|v| v.as_str())
+                    .map(|s| serde_json::Value::String(dir.join(s).display().to_string()))
+                    .collect();
+                out.insert(key.clone(), serde_json::Value::Array(abs_targets));
+            }
+            return out;
+        }
+
+        match parsed.get("extends").and_then(|v| v.as_str()) {
+            Some(ext) if ext.starts_with('.') => current = Some(resolve_extends_path(dir, ext)),
+            _ => break,
+        }
+    }
+    serde_json::Map::new()
 }
 
 /// Sibling companion module (`Foo.svelte.ts` / `Foo.svelte.js`) of a
@@ -2214,6 +2427,58 @@ mod tests {
         assert!(
             app_tsx.contains("Button.svelte.tsx"),
             "rewrite did not point at the shadow:\n{app_tsx}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn overlay_tsconfig_adds_exact_paths_override_for_a_plain_ts_file() {
+        // #1888: a PLAIN `.ts` file (not a `.svelte` source svelte2tsx ever
+        // touches) importing a component via a `paths` alias never gets its
+        // specifier rewritten — only the overlay tsconfig's `paths` can help
+        // it, so the fix has to live there.
+        let tmp = std::env::temp_dir().join(format!("svc_alias_paths_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/lib")).unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            "{\"compilerOptions\":{\"paths\":{\"$lib/*\":[\"./src/lib/*\"],\"$other\":[\"./src/other.ts\"]}}}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/lib/Button.svelte"),
+            "<script lang=\"ts\">let { n }: { n: number } = $props();</script>\n<button>{n}</button>\n",
+        )
+        .unwrap();
+
+        let files = vec![tmp.join("src/lib/Button.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        let paths = &cfg["compilerOptions"]["paths"];
+
+        // The original wildcard + unrelated exact entries survive the merge.
+        assert!(
+            paths["$lib/*"].is_array(),
+            "original wildcard alias dropped:\n{paths}"
+        );
+        assert!(
+            paths["$other"].is_array(),
+            "unrelated original exact alias dropped:\n{paths}"
+        );
+
+        // A new EXACT entry redirects the component's own alias specifier
+        // straight at its shadow `.tsx` (no longer ending in `.svelte`, so the
+        // ambient `*.svelte` wildcard never gets consulted for it).
+        let target = paths["$lib/Button.svelte"][0]
+            .as_str()
+            .unwrap_or_else(|| panic!("no exact override for $lib/Button.svelte:\n{paths}"));
+        assert!(
+            target.ends_with("Button.svelte.tsx"),
+            "override does not point at the shadow: {target}"
         );
 
         let _ = fs::remove_dir_all(&tmp);
