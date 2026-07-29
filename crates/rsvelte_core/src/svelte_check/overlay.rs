@@ -860,10 +860,14 @@ fn build_overlay_tsconfig(
     if !alias_path_overrides.is_empty() || original.is_some() {
         let mut paths_obj = original.map(resolve_paths_object_abs).unwrap_or_default();
         for (spec, shadow) in alias_path_overrides {
+            // `shadow` may still be CWD-relative (a relative `workspace`
+            // produces a relative `tsx_path` throughout `entries`); `paths`
+            // values are resolved relative to THIS tsconfig's own directory,
+            // not the CWD, so anchor it absolute like every other value here.
             paths_obj.insert(
                 spec.clone(),
                 serde_json::Value::Array(vec![serde_json::Value::String(
-                    shadow.display().to_string(),
+                    absolutize(shadow).display().to_string(),
                 )]),
             );
         }
@@ -1332,8 +1336,6 @@ fn resolve_paths_alias_prefixes(tsconfig_path: &Path) -> Vec<(String, PathBuf)> 
     Vec::new()
 }
 
-/// Filename of the alias-based module-augmentation declaration (#1888), next
-/// to the companion augmentation in the cache dir.
 /// For every discovered `.svelte` file (in-workspace or external) that lies
 /// under one of `alias_prefixes`' target dirs, compute its exact alias
 /// specifier (`$lib/Foo.svelte`) paired with its shadow `.tsx`'s absolute
@@ -1407,7 +1409,16 @@ fn compute_alias_path_overrides(
 /// resolved relative to the directory of the config that defined it, since
 /// the overlay tsconfig that ultimately embeds this lives elsewhere.
 fn resolve_paths_object_abs(tsconfig_path: &Path) -> serde_json::Map<String, serde_json::Value> {
-    let mut current = Some(tsconfig_path.to_path_buf());
+    // A relative `tsconfig_path` (`--tsconfig ./tsconfig.json`, the CLI's own
+    // documented usage) would otherwise compound through every `extends` hop
+    // (`file.parent()` staying relative at each step) into a garbled,
+    // unresolvable target like `././.svelte-kit/../src/utils` instead of an
+    // absolute path — same class of bug `build_svelte_import_resolver` already
+    // guards against for the same reason. A real SvelteKit project's
+    // multi-hop `tsconfig.json` → `.svelte-kit/tsconfig.json` chain hits this
+    // on every run; a single-hop config masks it.
+    let tsconfig_path = absolutize(tsconfig_path);
+    let mut current = Some(tsconfig_path);
     let mut hops = 0;
     while let Some(file) = current {
         hops += 1;
@@ -2479,6 +2490,68 @@ mod tests {
         assert!(
             target.ends_with("Button.svelte.tsx"),
             "override does not point at the shadow: {target}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn overlay_tsconfig_paths_override_survives_a_relative_multi_hop_extends_chain() {
+        // A real SvelteKit project's `tsconfig.json` extends a *generated*
+        // `.svelte-kit/tsconfig.json` that actually owns `paths` — a two-hop
+        // chain. Combined with the CLI's own documented relative
+        // `--tsconfig ./tsconfig.json` usage, `file.parent()` at each
+        // `extends` hop stayed relative and compounded into a garbled,
+        // unresolvable exact-override target (`././.svelte-kit/../src/lib/...`)
+        // instead of an absolute path — invisible on a single-hop config,
+        // where the bug doesn't get a chance to compound.
+        let tmp =
+            std::env::temp_dir().join(format!("svc_alias_paths_chain_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/lib")).unwrap();
+        fs::create_dir_all(tmp.join(".svelte-kit")).unwrap();
+        fs::write(
+            tmp.join(".svelte-kit/tsconfig.json"),
+            "{\"compilerOptions\":{\"paths\":{\"$lib/*\":[\"../src/lib/*\"]}}}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            "{\"extends\":\"./.svelte-kit/tsconfig.json\"}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/lib/Button.svelte"),
+            "<script lang=\"ts\">let { n }: { n: number } = $props();</script>\n<button>{n}</button>\n",
+        )
+        .unwrap();
+
+        let cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&tmp).unwrap();
+        let result = {
+            let files = vec![PathBuf::from("src/lib/Button.svelte")];
+            materialize_overlay_with(
+                Path::new("."),
+                &files,
+                Some(Path::new("./tsconfig.json")),
+                false,
+            )
+        };
+        std::env::set_current_dir(&cwd).unwrap();
+        result.unwrap();
+
+        let cfg: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(tmp.join(".svelte-check/tsconfig.json")).unwrap(),
+        )
+        .unwrap();
+        let paths = &cfg["compilerOptions"]["paths"];
+        let target = paths["$lib/Button.svelte"][0]
+            .as_str()
+            .unwrap_or_else(|| panic!("no exact override for $lib/Button.svelte:\n{paths}"));
+        assert!(
+            Path::new(target).is_absolute() && Path::new(target).exists(),
+            "override target must be a valid absolute path reachable through the \
+             multi-hop extends chain, got: {target}"
         );
 
         let _ = fs::remove_dir_all(&tmp);
