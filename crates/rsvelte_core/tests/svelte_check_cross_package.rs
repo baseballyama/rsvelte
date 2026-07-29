@@ -129,6 +129,82 @@ fn cross_package_svelte_gets_shadow_and_rootdirs_bridge() {
 }
 
 #[test]
+fn external_package_self_referential_alias_import_is_rewritten_to_its_own_shadow() {
+    // #1887: `SelectionMenu.svelte` (in sibling package B) imports its own
+    // sibling `Input.svelte` through the SAME public alias (`$lib/...`) that
+    // package A's tsconfig also defines — a common monorepo pattern where a
+    // design-system package imports its own components via the alias its
+    // consumers use, not a relative path. Without rewriting that import
+    // inside B's own emitted shadow, `Input` stays unresolved there and any
+    // `ComponentProps<typeof Input>` a consumer computes through
+    // `SelectionMenu` collapses to the ambient wildcard.
+    let root = target_dir("_xpkg1887");
+
+    let b = root.join("pkgB");
+    fs::create_dir_all(b.join("src")).unwrap();
+    fs::write(
+        b.join("package.json"),
+        r#"{ "name": "@scope/design-system", "version": "0.0.0" }"#,
+    )
+    .unwrap();
+    fs::write(
+        b.join("src/input.svelte"),
+        "<script lang=\"ts\">interface Props { onChange?: (v: string) => void }\nlet { onChange }: Props = $props();</script>\n<input />\n",
+    )
+    .unwrap();
+    fs::write(
+        b.join("src/selection-menu.svelte"),
+        "<script lang=\"ts\">import Input from '$lib/input.svelte';</script>\n<Input />\n",
+    )
+    .unwrap();
+
+    let a = root.join("pkgA");
+    fs::create_dir_all(a.join("src")).unwrap();
+    fs::create_dir_all(a.join("node_modules/@scope")).unwrap();
+    fs::write(
+        a.join("tsconfig.json"),
+        r#"{ "compilerOptions": { "moduleResolution": "bundler", "paths": { "$lib/*": ["../pkgB/src/*"] } }, "include": ["**/*.ts", "**/*.svelte"] }"#,
+    )
+    .unwrap();
+    fs::write(
+        a.join("src/uses.svelte"),
+        "<script lang=\"ts\">import SelectionMenu from '@scope/design-system/selection-menu.svelte';</script>\n<SelectionMenu />\n",
+    )
+    .unwrap();
+    symlink(
+        Path::new("../../../pkgB/src"),
+        a.join("node_modules/@scope/design-system"),
+    )
+    .unwrap();
+
+    let result = run(&RunOptions {
+        workspace: a.clone(),
+        emit_overlay: true,
+        tsconfig: Some(a.join("tsconfig.json")),
+        ..RunOptions::default()
+    });
+    let layout = result.overlay.expect("overlay should be materialised");
+    let ext_root = layout.cache_dir.join("ext");
+
+    let selection_menu_tsx =
+        find_shadow(&ext_root, "selection-menu.svelte.tsx").unwrap_or_else(|| {
+            panic!(
+                "no external selection-menu.svelte.tsx under {}",
+                ext_root.display()
+            )
+        });
+    let tsx_code = fs::read_to_string(&selection_menu_tsx).unwrap();
+    assert!(
+        !tsx_code.contains("'$lib/input.svelte'") && !tsx_code.contains("\"$lib/input.svelte\""),
+        "self-referential alias import should have been rewritten to a relative shadow path:\n{tsx_code}"
+    );
+    assert!(
+        tsx_code.contains("input.svelte.tsx") || tsx_code.contains("input.svelte\";"),
+        "rewritten specifier should still point at Input's own shadow:\n{tsx_code}"
+    );
+}
+
+#[test]
 fn no_external_packages_leaves_overlay_unchanged() {
     // Guard: a plain single-package workspace (no node_modules sibling links)
     // emits no `ext/` mirror and no extra rootDirs entries.
