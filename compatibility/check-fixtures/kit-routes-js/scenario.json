@@ -1,0 +1,8 @@
+{
+	"description": "The route-level JSDoc/JS augmentation paths in `kit_file.rs` that share `add_hooks_type`'s anchor bug: `+page.js`'s `load`/`entries`, `+server.js`'s `GET`, and `params/slug.js`'s `match`, all written as plain `export function` under `checkJs`. Regression guard for the same export-statement anchoring fix that closed out #1886 for `kit-hooks-js`.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		1886
+	]
+}
