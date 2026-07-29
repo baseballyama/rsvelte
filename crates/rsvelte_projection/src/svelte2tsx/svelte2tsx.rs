@@ -101,6 +101,7 @@ fn position_text_edits(code: &str, edits: &[TextEdit]) -> Result<Vec<PositionedT
     Ok(positioned)
 }
 
+#[cfg(test)]
 fn remap_generated_column(line: u32, column: u32, edits: &[PositionedTextEdit]) -> Option<u32> {
     let mut remapped = i64::from(column);
     for edit in edits.iter().filter(|edit| edit.line == line) {
@@ -115,11 +116,83 @@ fn remap_generated_column(line: u32, column: u32, edits: &[PositionedTextEdit]) 
     u32::try_from(remapped).ok()
 }
 
+struct GeneratedColumnRemapper<'a> {
+    edits: &'a [PositionedTextEdit],
+    next_edit: usize,
+    line: Option<u32>,
+    delta: i64,
+}
+
+impl<'a> GeneratedColumnRemapper<'a> {
+    fn new(edits: &'a [PositionedTextEdit]) -> Self {
+        Self {
+            edits,
+            next_edit: 0,
+            line: None,
+            delta: 0,
+        }
+    }
+
+    fn remap(&mut self, line: u32, column: u32) -> Option<u32> {
+        if self.line != Some(line) {
+            self.line = Some(line);
+            self.delta = 0;
+            while self
+                .edits
+                .get(self.next_edit)
+                .is_some_and(|edit| edit.line < line)
+            {
+                self.next_edit += 1;
+            }
+        }
+
+        while let Some(edit) = self.edits.get(self.next_edit) {
+            if edit.line != line || edit.end_col > column {
+                break;
+            }
+            self.delta += i64::from(edit.raw.replacement_utf16_len)
+                - i64::from(edit.end_col - edit.start_col);
+            self.next_edit += 1;
+        }
+
+        if self.edits.get(self.next_edit).is_some_and(|edit| {
+            edit.line == line && column >= edit.start_col && column < edit.end_col
+        }) {
+            return None;
+        }
+
+        u32::try_from(i64::from(column) + self.delta).ok()
+    }
+}
+
+struct GeneratedAnchorRemapper<'a> {
+    columns: GeneratedColumnRemapper<'a>,
+}
+
+impl<'a> GeneratedAnchorRemapper<'a> {
+    fn new(edits: &'a [PositionedTextEdit]) -> Self {
+        Self {
+            columns: GeneratedColumnRemapper::new(edits),
+        }
+    }
+
+    fn remap(&mut self, edit: &PositionedTextEdit) -> Option<u32> {
+        self.columns
+            .remap(edit.line, edit.end_col)
+            .and_then(|end| end.checked_sub(edit.raw.replacement_utf16_len))
+    }
+}
+
 fn remap_source_map(source_map: &str, code: &str, edits: &[TextEdit]) -> Result<String, String> {
     if edits.is_empty() {
         return Ok(source_map.to_string());
     }
     let positioned = position_text_edits(code, edits)?;
+    debug_assert!(
+        positioned
+            .windows(2)
+            .all(|pair| (pair[0].line, pair[0].end_col) <= (pair[1].line, pair[1].start_col))
+    );
     let original = sourcemap::SourceMap::from_slice(source_map.as_bytes())
         .map_err(|error| format!("failed to decode generated source map: {error}"))?;
     let mut builder = SourceMapBuilder::new(original.get_file());
@@ -136,10 +209,9 @@ fn remap_source_map(source_map: &str, code: &str, edits: &[TextEdit]) -> Result<
         }
     }
 
+    let mut remapper = GeneratedColumnRemapper::new(&positioned);
     for token in original.tokens() {
-        let Some(dst_col) =
-            remap_generated_column(token.get_dst_line(), token.get_dst_col(), &positioned)
-        else {
+        let Some(dst_col) = remapper.remap(token.get_dst_line(), token.get_dst_col()) else {
             continue;
         };
         builder.add(
@@ -156,13 +228,12 @@ fn remap_source_map(source_map: &str, code: &str, edits: &[TextEdit]) -> Result<
     // Replacement text is not byte-exact source, but diagnostics inside a
     // rewritten specifier still belong to the original specifier. Anchor each
     // replacement start to the source token that covered the old start.
+    let mut anchor_remapper = GeneratedAnchorRemapper::new(&positioned);
     for edit in &positioned {
-        let Some(source_token) = original.lookup_token(edit.line, edit.start_col) else {
+        let Some(dst_col) = anchor_remapper.remap(edit) else {
             continue;
         };
-        let Some(dst_col) = remap_generated_column(edit.line, edit.end_col, &positioned)
-            .and_then(|end| end.checked_sub(edit.raw.replacement_utf16_len))
-        else {
+        let Some(source_token) = original.lookup_token(edit.line, edit.start_col) else {
             continue;
         };
         builder.add(
@@ -715,8 +786,50 @@ fn validation_markers(source: &str) -> (bool, bool) {
 }
 
 #[cfg(test)]
-mod tests {
+mod source_map_remap_tests {
     use super::*;
+
+    fn positioned_edit(
+        line: u32,
+        start_col: u32,
+        end_col: u32,
+        replacement_utf16_len: u32,
+    ) -> PositionedTextEdit {
+        PositionedTextEdit {
+            raw: TextEdit {
+                start: 0,
+                end: 0,
+                replacement_len: replacement_utf16_len,
+                replacement_utf16_len,
+            },
+            line,
+            start_col,
+            end_col,
+        }
+    }
+
+    fn assert_sweep_matches_oracle(edits: &[PositionedTextEdit]) {
+        let mut remapper = GeneratedColumnRemapper::new(edits);
+        for line in 0..=3 {
+            for column in 0..=9 {
+                assert_eq!(
+                    remapper.remap(line, column),
+                    remap_generated_column(line, column, edits),
+                    "line {line}, column {column}, edits {edits:?}"
+                );
+            }
+        }
+
+        let mut anchor_remapper = GeneratedAnchorRemapper::new(edits);
+        for edit in edits {
+            assert_eq!(
+                anchor_remapper.remap(edit),
+                remap_generated_column(edit.line, edit.end_col, edits)
+                    .and_then(|end| end.checked_sub(edit.raw.replacement_utf16_len)),
+                "anchor edit {edit:?}, edits {edits:?}"
+            );
+        }
+    }
 
     fn edit(start: usize, end: usize) -> TextEdit {
         TextEdit {
@@ -818,5 +931,299 @@ mod tests {
             validation_markers("<div><svelte:window /></div>:"),
             (false, true)
         );
+    }
+
+    #[test]
+    fn generated_column_sweep_matches_oracle_exhaustively() {
+        assert_sweep_matches_oracle(&[]);
+
+        for line in 0..=2 {
+            for start in 0..=5 {
+                for end in start + 1..=7 {
+                    for replacement in 0..=5 {
+                        assert_sweep_matches_oracle(&[positioned_edit(
+                            line,
+                            start,
+                            end,
+                            replacement,
+                        )]);
+                    }
+                }
+            }
+        }
+
+        for first_start in 0..=3 {
+            for first_end in first_start + 1..=5 {
+                for second_start in first_end..=6 {
+                    for second_end in second_start + 1..=7 {
+                        for first_replacement in 0..=3 {
+                            for second_replacement in 0..=3 {
+                                assert_sweep_matches_oracle(&[
+                                    positioned_edit(1, first_start, first_end, first_replacement),
+                                    positioned_edit(
+                                        1,
+                                        second_start,
+                                        second_end,
+                                        second_replacement,
+                                    ),
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for replacement in 0..=5 {
+            assert_sweep_matches_oracle(&[
+                positioned_edit(0, 1, 4, replacement),
+                positioned_edit(0, 5, 7, 5 - replacement),
+                positioned_edit(2, 0, 2, replacement),
+            ]);
+        }
+    }
+
+    #[test]
+    fn generated_column_sweep_preserves_edit_start_and_end() {
+        let edits = [positioned_edit(0, 2, 5, 1)];
+        let mut remapper = GeneratedColumnRemapper::new(&edits);
+
+        let start = remapper.remap(0, 2);
+        assert_eq!(start, remap_generated_column(0, 2, &edits));
+        assert_eq!(start, None);
+
+        let end = remapper.remap(0, 5);
+        assert_eq!(end, remap_generated_column(0, 5, &edits));
+        assert_eq!(end, Some(3));
+    }
+
+    #[test]
+    fn generated_column_sweep_preserves_u32_boundaries() {
+        let edits = [positioned_edit(0, 0, 1, u32::MAX)];
+        let mut remapper = GeneratedColumnRemapper::new(&edits);
+
+        assert_eq!(remapper.remap(0, 0), None);
+        assert_eq!(remapper.remap(0, 1), Some(u32::MAX));
+        assert_eq!(remapper.remap(0, 2), None);
+
+        let edits = [positioned_edit(0, 0, u32::MAX, 0)];
+        let mut remapper = GeneratedColumnRemapper::new(&edits);
+
+        assert_eq!(remapper.remap(0, 0), None);
+        assert_eq!(remapper.remap(0, u32::MAX), Some(0));
+
+        let edits = [positioned_edit(0, 1, 2, u32::MAX)];
+        let mut anchor_remapper = GeneratedAnchorRemapper::new(&edits);
+        let anchor = anchor_remapper.remap(&edits[0]);
+        assert_eq!(
+            anchor,
+            remap_generated_column(0, 2, &edits).and_then(|end| end.checked_sub(u32::MAX))
+        );
+        assert_eq!(anchor, None);
+    }
+
+    fn encoded_source_map(builder: SourceMapBuilder) -> String {
+        let mut encoded = Vec::new();
+        builder.into_sourcemap().to_writer(&mut encoded).unwrap();
+        String::from_utf8(encoded).unwrap()
+    }
+
+    #[test]
+    fn source_map_anchor_preserves_intermediate_overflow() {
+        let mut original = SourceMapBuilder::new(None);
+        original.add(0, 1, 0, 1, Some("component.svelte"), Some("anchor"), false);
+        let edits = [TextEdit {
+            start: 1,
+            end: 2,
+            replacement_len: u32::MAX,
+            replacement_utf16_len: u32::MAX,
+        }];
+
+        let remapped = remap_source_map(&encoded_source_map(original), "ab", &edits).unwrap();
+        let remapped = sourcemap::SourceMap::from_slice(remapped.as_bytes()).unwrap();
+
+        assert_eq!(remapped.get_token_count(), 0);
+    }
+
+    #[test]
+    fn source_map_sweep_preserves_tokens_anchors_and_metadata() {
+        let code = "a😀bcdef\nuvwxyz";
+        let edits = [
+            TextEdit {
+                start: 1,
+                end: 6,
+                replacement_len: 1,
+                replacement_utf16_len: 1,
+            },
+            TextEdit {
+                start: 7,
+                end: 9,
+                replacement_len: 4,
+                replacement_utf16_len: 4,
+            },
+            TextEdit {
+                start: 12,
+                end: 14,
+                replacement_len: 0,
+                replacement_utf16_len: 0,
+            },
+        ];
+
+        let mut original = SourceMapBuilder::new(Some("generated.tsx"));
+        let source_id = original.add_source("component.svelte");
+        original.set_source_contents(source_id, Some("<p>source</p>"));
+        let ignored_id = original.add_source("ignored.js");
+        original.set_source_contents(ignored_id, Some("ignored"));
+        original.add_to_ignore_list(ignored_id);
+
+        original.add(0, 0, 0, 0, Some("component.svelte"), Some("before"), false);
+        original.add(
+            0,
+            1,
+            10,
+            20,
+            Some("component.svelte"),
+            Some("first_anchor"),
+            true,
+        );
+        original.add(
+            0,
+            2,
+            11,
+            21,
+            Some("component.svelte"),
+            Some("deleted"),
+            false,
+        );
+        original.add(
+            0,
+            4,
+            12,
+            22,
+            Some("component.svelte"),
+            Some("after_first"),
+            false,
+        );
+        original.add(
+            0,
+            5,
+            13,
+            23,
+            Some("ignored.js"),
+            Some("second_anchor"),
+            false,
+        );
+        original.add(
+            0,
+            7,
+            14,
+            24,
+            Some("component.svelte"),
+            Some("after_second"),
+            true,
+        );
+        original.add(
+            1,
+            0,
+            20,
+            30,
+            Some("component.svelte"),
+            Some("next_line"),
+            false,
+        );
+        original.add(
+            1,
+            1,
+            21,
+            31,
+            Some("component.svelte"),
+            Some("empty_anchor"),
+            false,
+        );
+        original.add(
+            1,
+            3,
+            22,
+            32,
+            Some("component.svelte"),
+            Some("after_empty"),
+            false,
+        );
+        original.add(2, 0, 0, 0, None, None, false);
+
+        let remapped = remap_source_map(&encoded_source_map(original), code, &edits).unwrap();
+        let remapped = sourcemap::SourceMap::from_slice(remapped.as_bytes()).unwrap();
+
+        assert_eq!(remapped.get_file(), Some("generated.tsx"));
+        assert_eq!(remapped.get_source_count(), 2);
+        assert_eq!(remapped.get_source(0), Some("component.svelte"));
+        assert_eq!(remapped.get_source_contents(0), Some("<p>source</p>"));
+        assert_eq!(remapped.get_source(1), Some("ignored.js"));
+        assert_eq!(remapped.get_source_contents(1), Some("ignored"));
+        assert_eq!(remapped.ignore_list().copied().collect::<Vec<_>>(), [1]);
+
+        let tokens = remapped.tokens().collect::<Vec<_>>();
+        let find = |name: &str| {
+            tokens
+                .iter()
+                .find(|token| token.get_name() == Some(name))
+                .copied()
+                .unwrap()
+        };
+
+        let first_anchor = find("first_anchor");
+        assert_eq!(
+            (first_anchor.get_dst_line(), first_anchor.get_dst_col()),
+            (0, 1)
+        );
+        assert_eq!(first_anchor.get_source(), Some("component.svelte"));
+        assert_eq!(
+            (first_anchor.get_src_line(), first_anchor.get_src_col()),
+            (10, 20)
+        );
+        assert!(first_anchor.is_range());
+        assert!(
+            !tokens
+                .iter()
+                .any(|token| token.get_name() == Some("deleted"))
+        );
+
+        let after_first = find("after_first");
+        assert_eq!(
+            (after_first.get_dst_line(), after_first.get_dst_col()),
+            (0, 2)
+        );
+
+        let second_anchor = find("second_anchor");
+        assert_eq!(
+            (second_anchor.get_dst_line(), second_anchor.get_dst_col()),
+            (0, 3)
+        );
+        assert_eq!(second_anchor.get_source(), Some("ignored.js"));
+
+        let after_second = find("after_second");
+        assert_eq!(
+            (after_second.get_dst_line(), after_second.get_dst_col()),
+            (0, 7)
+        );
+        assert!(after_second.is_range());
+
+        let empty_anchor = find("empty_anchor");
+        assert_eq!(
+            (empty_anchor.get_dst_line(), empty_anchor.get_dst_col()),
+            (1, 1)
+        );
+        let after_empty = find("after_empty");
+        assert_eq!(
+            (after_empty.get_dst_line(), after_empty.get_dst_col()),
+            (1, 1)
+        );
+
+        assert!(tokens.iter().any(|token| {
+            token.get_dst_line() == 2
+                && token.get_dst_col() == 0
+                && token.get_source().is_none()
+                && token.get_name().is_none()
+        }));
     }
 }
