@@ -7,6 +7,7 @@
 
 use std::fmt;
 use std::fmt::Write as _;
+use std::num::NonZeroU32;
 
 use rustc_hash::FxHashMap;
 type HashMap<K, V> = FxHashMap<K, V>;
@@ -14,6 +15,27 @@ type HashMap<K, V> = FxHashMap<K, V>;
 // ---------------------------------------------------------------------------
 // Chunk
 // ---------------------------------------------------------------------------
+
+/// A 1-based arena index so `Option<ChunkId>` uses `NonZeroU32`'s null niche.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ChunkId(NonZeroU32);
+
+impl ChunkId {
+    fn from_index(index: usize) -> Self {
+        let one_based = index
+            .checked_add(1)
+            .and_then(|value| u32::try_from(value).ok())
+            .and_then(NonZeroU32::new)
+            .expect("MagicString chunk count exceeds u32::MAX");
+        Self(one_based)
+    }
+
+    #[inline]
+    fn index(self) -> usize {
+        (self.0.get() - 1) as usize
+    }
+}
 
 /// A segment of the original string that may have been edited.
 #[derive(Debug, Clone)]
@@ -33,9 +55,9 @@ struct Chunk {
     /// Content appended after this chunk (via `append_right` / `prepend_left` on next).
     outro: String,
     /// Index of the next chunk in the arena (linked-list next pointer).
-    next: Option<usize>,
+    next: Option<ChunkId>,
     /// Index of the previous chunk in the arena (linked-list prev pointer).
-    previous: Option<usize>,
+    previous: Option<ChunkId>,
 }
 
 impl Chunk {
@@ -54,6 +76,16 @@ impl Chunk {
     #[inline]
     fn is_edited(&self) -> bool {
         self.content.is_some()
+    }
+
+    #[inline]
+    fn next_index(&self) -> Option<usize> {
+        self.next.map(ChunkId::index)
+    }
+
+    #[inline]
+    fn previous_index(&self) -> Option<usize> {
+        self.previous.map(ChunkId::index)
     }
 
     /// Split this chunk at `index` (an original-source position). Returns the new
@@ -553,12 +585,13 @@ impl<'source> MagicString<'source> {
 
     /// Create a new `MagicString` from the given source.
     pub fn new(source: &'source str) -> Self {
-        let chunk = Chunk::new(0, source.len() as u32);
+        let source_len = checked_source_len(source.len());
+        let chunk = Chunk::new(0, source_len);
         let mut by_start: std::collections::BTreeMap<u32, usize> =
             std::collections::BTreeMap::new();
         let mut by_end: HashMap<u32, usize> = HashMap::default();
         by_start.insert(0, 0);
-        by_end.insert(source.len() as u32, 0);
+        by_end.insert(source_len, 0);
 
         Self {
             original: source,
@@ -656,17 +689,17 @@ impl<'source> MagicString<'source> {
         }
 
         // `cur` is the chunk that contains `index` strictly inside it.
-        let old_next = self.chunks[cur].next;
+        let old_next = self.chunks[cur].next_index();
         let mut new_chunk = self.chunks[cur].split(index);
-        new_chunk.previous = Some(cur);
-        new_chunk.next = old_next;
 
         let new_idx = self.chunks.len();
+        let new_id = ChunkId::from_index(new_idx);
+        new_chunk.previous = Some(ChunkId::from_index(cur));
         self.chunks.push(new_chunk);
 
-        self.chunks[cur].next = Some(new_idx);
+        self.chunks[cur].next = Some(new_id);
         if let Some(old_next_idx) = old_next {
-            self.chunks[old_next_idx].previous = Some(new_idx);
+            self.chunks[old_next_idx].previous = Some(new_id);
         }
         if self.last_chunk == cur {
             self.last_chunk = new_idx;
@@ -686,10 +719,10 @@ impl<'source> MagicString<'source> {
     /// Internal: link chunk `a` → `b` in the linked list.
     fn link(&mut self, a: Option<usize>, b: Option<usize>) {
         if let Some(ai) = a {
-            self.chunks[ai].next = b;
+            self.chunks[ai].next = b.map(ChunkId::from_index);
         }
         if let Some(bi) = b {
-            self.chunks[bi].previous = a;
+            self.chunks[bi].previous = a.map(ChunkId::from_index);
         }
     }
 
@@ -908,8 +941,8 @@ impl<'source> MagicString<'source> {
             .expect("move_range: no chunk at start");
         let last_in_range = *self.by_end.get(&end).expect("move_range: no chunk at end");
 
-        let before_range = self.chunks[first_in_range].previous;
-        let after_range = self.chunks[last_in_range].next;
+        let before_range = self.chunks[first_in_range].previous_index();
+        let after_range = self.chunks[last_in_range].next_index();
 
         // Detach the range from its current position.
         self.link(before_range, after_range);
@@ -945,7 +978,7 @@ impl<'source> MagicString<'source> {
                 .by_start
                 .get(&index)
                 .expect("move_range: no chunk at target index");
-            let before_target = self.chunks[target].previous;
+            let before_target = self.chunks[target].previous_index();
             self.link(before_target, Some(first_in_range));
             self.link(Some(last_in_range), Some(target));
             if self.first_chunk == target && before_range.is_none() {
@@ -1079,7 +1112,7 @@ impl<'source> MagicString<'source> {
             if !chunk.is_edited() && chunk.end > chunk.start {
                 estimate.forward_segments = estimate.forward_segments.saturating_add(1);
             }
-            cur = chunk.next;
+            cur = chunk.next_index();
         }
 
         estimate.add_unmapped(&self.outro);
@@ -1136,7 +1169,7 @@ impl<'source> MagicString<'source> {
                 generated_bytes += body.len() as u32;
                 generated_bytes += chunk.outro.len() as u32;
             }
-            cur = chunk.next;
+            cur = chunk.next_index();
         }
 
         if let Some(code) = &mut code {
@@ -1178,6 +1211,10 @@ fn count_utf16(s: &str) -> usize {
     s.chars().map(|c| c.len_utf16()).sum()
 }
 
+fn checked_source_len(len: usize) -> u32 {
+    u32::try_from(len).expect("MagicString source length exceeds u32::MAX bytes")
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -1185,6 +1222,71 @@ fn count_utf16(s: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::mem::size_of;
+
+    fn assert_bidirectional_links(s: &MagicString) {
+        let mut forward = Vec::with_capacity(s.chunks.len());
+        let mut visited = vec![false; s.chunks.len()];
+        let mut expected_previous = None;
+        let mut current = Some(s.first_chunk);
+
+        while let Some(index) = current {
+            assert!(!visited[index], "cycle at chunk {index}");
+            visited[index] = true;
+            let chunk = &s.chunks[index];
+            assert_eq!(chunk.previous_index(), expected_previous);
+            forward.push(index);
+            expected_previous = Some(index);
+            current = chunk.next_index();
+        }
+
+        assert_eq!(forward.len(), s.chunks.len());
+        assert_eq!(forward.last().copied(), Some(s.last_chunk));
+
+        let mut backward = Vec::with_capacity(s.chunks.len());
+        let mut expected_next = None;
+        current = Some(s.last_chunk);
+        while let Some(index) = current {
+            let chunk = &s.chunks[index];
+            assert_eq!(chunk.next_index(), expected_next);
+            backward.push(index);
+            expected_next = Some(index);
+            current = chunk.previous_index();
+        }
+
+        assert_eq!(forward.iter().copied().rev().collect::<Vec<_>>(), backward);
+    }
+
+    #[test]
+    fn chunk_links_have_compact_layout() {
+        assert_eq!(size_of::<ChunkId>(), 4);
+        assert_eq!(size_of::<Option<ChunkId>>(), 4);
+        assert_eq!(size_of::<[Option<ChunkId>; 2]>(), 8);
+
+        #[cfg(target_pointer_width = "64")]
+        assert_eq!(size_of::<Chunk>(), 88);
+    }
+
+    #[test]
+    fn chunk_id_round_trips_all_representable_indices() {
+        assert_eq!(ChunkId::from_index(0).index(), 0);
+        let last_index = u32::MAX as usize - 1;
+        assert_eq!(ChunkId::from_index(last_index).index(), last_index);
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    #[should_panic(expected = "MagicString chunk count exceeds u32::MAX")]
+    fn chunk_id_rejects_an_unrepresentable_index() {
+        ChunkId::from_index(u32::MAX as usize);
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    #[should_panic(expected = "MagicString source length exceeds u32::MAX bytes")]
+    fn source_length_invariant_rejects_unrepresentable_positions() {
+        checked_source_len(u32::MAX as usize + 1);
+    }
 
     fn assert_bundle_matches_individual_outputs(value: &MagicString) {
         let options = [
@@ -1475,6 +1577,26 @@ mod tests {
         let mut s = MagicString::new("abcdefghij");
         s.move_range(0, 5, 10);
         assert_eq!(s.to_string(), "fghijabcde");
+    }
+
+    #[test]
+    fn split_move_overwrite_preserves_bidirectional_traversal() {
+        let mut s = MagicString::new("abcdefghijkl");
+        s.append_left(3, "|");
+        s.prepend_right(6, "!");
+        s.move_range(6, 9, 0);
+        assert_eq!(s.to_string(), "!ghiabc|defjkl");
+        assert_bidirectional_links(&s);
+
+        s.overwrite(0, 6, "X");
+        assert_eq!(s.to_string(), "!ghiXjkl");
+        assert_eq!(s.forward_segments(), vec![(6, 9, 1), (9, 12, 5)]);
+        assert!(
+            !s.generate_map(GenerateMapOptions::default())
+                .mappings
+                .is_empty()
+        );
+        assert_bidirectional_links(&s);
     }
 
     #[test]
