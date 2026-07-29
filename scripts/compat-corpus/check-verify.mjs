@@ -51,8 +51,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { diffCounts, parseMachineVerbose, runCapture } from './check-diagnostics.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -163,73 +163,6 @@ function materialize(name, config, dest, nodeModules) {
 		fs.mkdirSync(path.dirname(p), { recursive: true });
 		fs.symlinkSync(target, p, 'dir');
 	}
-}
-
-function runCapture(program, argv, cwd, env) {
-	try {
-		return execFileSync(program, argv, {
-			cwd,
-			encoding: 'utf8',
-			maxBuffer: 1 << 28,
-			env: { ...process.env, ...env }
-		});
-	} catch (err) {
-		// Both CLIs exit non-zero as soon as they report an error; stdout is on err.
-		if (err.stdout === undefined) throw err;
-		return err.stdout;
-	}
-}
-
-const rel = (p) => p.split(path.sep).join('/');
-const key = (severity, file, line, code) => `${severity} ${rel(file)}:${line} ${code}`;
-
-const bump = (counts, k) => counts.set(k, (counts.get(k) ?? 0) + 1);
-
-/** `TS2322` / `2322` / 2322 -> `2322`; Svelte codes stay as written. */
-function normalizeCode(code) {
-	if (code === undefined || code === null || code === '') return '?';
-	return String(code).replace(/^TS(?=\d)/, '');
-}
-
-/**
- * `--output machine-verbose`: one `<epoch-ms> <payload>` line per event, where
- * a diagnostic payload is the JSON object built by `MachineFriendlyWriter`.
- * START / COMPLETED lines are not JSON objects and are skipped. Both checkers
- * emit this same shape, so a single parser covers both sides.
- */
-function parseMachineVerbose(stdout) {
-	const counts = new Map();
-	const detail = [];
-	for (const line of stdout.split('\n')) {
-		const payload = line.slice(line.indexOf(' ') + 1).trim();
-		if (!payload.startsWith('{')) continue;
-		let d;
-		try {
-			d = JSON.parse(payload);
-		} catch {
-			continue;
-		}
-		if (d.type !== 'ERROR' && d.type !== 'WARNING') continue;
-		const k = key(d.type, d.filename, d.start.line + 1, normalizeCode(d.code));
-		bump(counts, k);
-		detail.push({ key: k, message: d.message, source: d.source });
-	}
-	return { counts, detail };
-}
-
-/**
- * Multiset difference: one entry per key whose multiplicity differs, tagged with
- * the side that has the surplus and how large it is.
- */
-function diffCounts(scenario, oracle, rsvelte) {
-	const out = [];
-	for (const k of new Set([...oracle.keys(), ...rsvelte.keys()])) {
-		const delta = (rsvelte.get(k) ?? 0) - (oracle.get(k) ?? 0);
-		if (delta === 0) continue;
-		const n = Math.abs(delta);
-		out.push(`${scenario}|${delta > 0 ? '+' : '-'}${k}${n > 1 ? ` x${n}` : ''}`);
-	}
-	return out;
 }
 
 function main() {

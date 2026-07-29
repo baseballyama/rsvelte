@@ -312,3 +312,7 @@
 	branch = main
 	ignore = dirty
 	shallow = true
+[submodule "submodules/skeleton"]
+	path = submodules/skeleton
+	url = https://github.com/skeletonlabs/skeleton.git
+	branch = main
