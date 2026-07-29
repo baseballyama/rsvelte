@@ -196,7 +196,7 @@ impl Driver<'_> {
             Command::Location { line, column } => {
                 // Anchors flush pending whitespace just like a string would (so
                 // adding source-map support doesn't shift output), then record a
-                // segment at the current generated column. Mirrors esrap's
+                // mapping at the current generated position. Mirrors esrap's
                 // `command.type === 'Location'` branch in `run`.
                 self.flush_pending();
                 self.mappings.push(Mapping {
@@ -210,9 +210,9 @@ impl Driver<'_> {
         }
     }
 
-    /// Append literal text to the output, advancing `current_column` per char
-    /// and rolling over `current_line`/`mappings` on each `\n`. A faithful port
-    /// of esrap's `append`.
+    /// Append literal text to the output, advancing the generated position per
+    /// char and rolling over to the next line on each `\n`. A faithful port of
+    /// esrap's `append`.
     fn append(&mut self, str: &str) {
         self.code.push_str(str);
         for ch in str.chars() {
