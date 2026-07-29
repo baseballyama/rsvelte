@@ -8,7 +8,8 @@
  *      see byte-identical dependencies.
  *   2. Check it with the REAL `svelte-check` — the ground truth.
  *   3. Check it with the native `rsvelte-check` binary.
- *   4. Diff the two normalized diagnostic sets.
+ *   4. Diff the two normalized diagnostic sets — both sides read via
+ *      `--output machine-verbose`, so one parser covers both.
  *
  * Unlike the compiler / fmt / svelte2tsx / lint gates, this one compares
  * *diagnostics of a type-checked project*, not per-file text: alias resolution,
@@ -17,7 +18,8 @@
  *
  * NORMALIZATION — a diagnostic collapses to `<SEVERITY> <relpath>:<line> <code>`:
  *   - path is relative to the checked workspace, `/`-separated;
- *   - line is 1-based (the oracle's machine-verbose JSON is 0-based, so +1);
+ *   - line is 1-based (both sides' machine-verbose JSON `start.line` is
+ *     0-based, so +1);
  *   - code is the bare TS error number (`TS2322` -> `2322`) or, for Svelte
  *     compiler diagnostics, the warning/error code string.
  * COLUMN and MESSAGE TEXT are deliberately dropped: both differ for reasons that
@@ -147,11 +149,12 @@ function normalizeCode(code) {
 }
 
 /**
- * Official `--output machine-verbose`: one `<epoch-ms> <payload>` line per
- * event, where a diagnostic payload is the JSON object built by
- * `MachineFriendlyWriter`. START / COMPLETED lines are not JSON objects.
+ * `--output machine-verbose`: one `<epoch-ms> <payload>` line per event, where
+ * a diagnostic payload is the JSON object built by `MachineFriendlyWriter`.
+ * START / COMPLETED lines are not JSON objects and are skipped. Both checkers
+ * emit this same shape, so a single parser covers both sides.
  */
-function parseOracle(stdout) {
+function parseMachineVerbose(stdout) {
 	const counts = new Map();
 	const detail = [];
 	for (const line of stdout.split('\n')) {
@@ -167,40 +170,6 @@ function parseOracle(stdout) {
 		const k = key(d.type, d.filename, d.start.line + 1, normalizeCode(d.code));
 		bump(counts, k);
 		detail.push({ key: k, message: d.message, source: d.source });
-	}
-	return { counts, detail };
-}
-
-/**
- * rsvelte-check's `--output github-actions`:
- *   `::<level> file=<rel>,line=<L>,col=<C>::(<source>) <message> [<code>]`
- * It is the only rsvelte output format carrying the diagnostic code, which the
- * normalization key needs. (rsvelte's own `machine-verbose` is a line-oriented
- * format rather than upstream's JSON — a separate parity gap, tracked outside
- * this gate.)
- */
-function parseRsvelte(stdout) {
-	const unescape = (s) =>
-		s
-			.replace(/%3A/g, ':')
-			.replace(/%2C/g, ',')
-			.replace(/%0A/g, '\n')
-			.replace(/%0D/g, '\r')
-			.replace(/%25/g, '%');
-	const counts = new Map();
-	const detail = [];
-	const re = /^::(error|warning|notice) file=(.*?),line=(\d+),col=(\d+)::(.*)$/;
-	for (const line of stdout.split('\n')) {
-		const m = re.exec(line.trim());
-		if (!m) continue;
-		const level = m[1] === 'error' ? 'ERROR' : m[1] === 'warning' ? 'WARNING' : null;
-		if (!level) continue;
-		// Match the trailing `[code]` on the still-escaped body: the message may
-		// carry `%0A`-encoded newlines, but a code never does.
-		const codeMatch = /\[([^\]]+)\]$/.exec(m[5]);
-		const k = key(level, unescape(m[2]), Number(m[3]), normalizeCode(codeMatch?.[1]));
-		bump(counts, k);
-		detail.push({ key: k, message: unescape(m[5]) });
 	}
 	return { counts, detail };
 }
@@ -248,7 +217,7 @@ function main() {
 		if (config.tsconfig) common.push('--tsconfig', config.tsconfig);
 		const ws = config.workspace ?? '.';
 
-		const oracle = parseOracle(
+		const oracle = parseMachineVerbose(
 			runCapture(
 				'node',
 				[
@@ -260,8 +229,8 @@ function main() {
 				path.join(oracleDir, ws)
 			)
 		);
-		const actual = parseRsvelte(
-			runCapture(bin, ['--output', 'github-actions', ...common], path.join(actualDir, ws), {
+		const actual = parseMachineVerbose(
+			runCapture(bin, ['--output', 'machine-verbose', ...common], path.join(actualDir, ws), {
 				TSGO_BIN: tsc
 			})
 		);

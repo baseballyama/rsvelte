@@ -13,7 +13,10 @@ use rsvelte_check::{
     OutputFormat, RunOptions, Threshold, run,
     runner::{DiagnosticSource, WarningOverride},
     watch::{WatchOptions, run_watch},
+    writers::count_files_with_problems,
+    writers::write_completion,
     writers::write_diagnostic,
+    writers::write_start,
     writers::write_summary,
 };
 
@@ -263,6 +266,7 @@ fn print_run(
     threshold: Threshold,
 ) {
     let mut out = String::new();
+    write_start(&mut out, workspace, format);
     for diag in &result.diagnostics {
         // The threshold filters only what is *printed*; the summary and
         // exit code are always computed from the full diagnostic set,
@@ -275,6 +279,14 @@ fn print_run(
     if matches!(format, OutputFormat::Human | OutputFormat::HumanVerbose) {
         write_summary(&mut out, &result.diagnostics, result.files_checked);
     }
+    write_completion(
+        &mut out,
+        result.files_checked,
+        result.error_count(),
+        result.warning_count(),
+        count_files_with_problems(&result.diagnostics),
+        format,
+    );
     print!("{}", out);
 }
 

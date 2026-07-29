@@ -889,6 +889,10 @@ fn build_overlay_tsconfig(
     // output is written against. The overlay tsconfig is isolated, so this
     // never leaks into the user's real build.
     compiler_opts.insert("jsx".into(), "preserve".into());
+    // An unset target falls back to tsgo/tsc's ES5/ES3 default lib, which breaks the vendored shims themselves; mirrors `service.ts#getParsedConfig`'s unconditional forcing.
+    if let Some(target) = resolve_forced_target(original) {
+        compiler_opts.insert("target".into(), target.into());
+    }
     // rootDirs: virtually overlay the emitted `.tsx`/kit shadows
     // (`<cacheDir>/svelte`) on top of the project's own rootDirs. We must
     // MERGE — not replace — the base rootDirs, otherwise frameworks that
@@ -1365,6 +1369,61 @@ fn resolve_root_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
         }
     }
     Vec::new()
+}
+
+/// Whether a tsconfig `target` is ES2015+; `None` for an unrecognized string — a year-numbered target is parsed generically so newer TS releases need no change here.
+fn is_es2015_or_newer(target: &str) -> Option<bool> {
+    Some(match target.to_ascii_lowercase().as_str() {
+        "es3" | "es5" => false,
+        "es6" | "esnext" | "latest" => true,
+        other => other.strip_prefix("es")?.parse::<u32>().ok()? >= 2015,
+    })
+}
+
+/// Nearest-definition-wins `compilerOptions.target`, found by following the `extends` chain the same way [`resolve_root_dirs_abs`] does.
+fn resolve_effective_target(tsconfig_path: Option<&Path>) -> Option<String> {
+    let mut current = tsconfig_path.map(Path::to_path_buf);
+    let mut hops = 0;
+    while let Some(file) = current {
+        hops += 1;
+        if hops > 32 {
+            break;
+        }
+        let Ok(raw) = fs::read_to_string(&file) else {
+            break;
+        };
+        let stripped = strip_jsonc_comments(&raw);
+        let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stripped) else {
+            break;
+        };
+        let dir = file.parent().unwrap_or(Path::new("."));
+
+        if let Some(target) = parsed
+            .get("compilerOptions")
+            .and_then(|c| c.get("target"))
+            .and_then(|v| v.as_str())
+        {
+            return Some(target.to_string());
+        }
+
+        match parsed.get("extends").and_then(|v| v.as_str()) {
+            Some(ext) if ext.starts_with('.') => current = Some(resolve_extends_path(dir, ext)),
+            _ => break,
+        }
+    }
+    None
+}
+
+/// The `target` the overlay tsconfig should force, or `None` to leave the inherited value alone (already ES2015+, so the `extends` chain provides it).
+fn resolve_forced_target(original: Option<&Path>) -> Option<&'static str> {
+    match resolve_effective_target(original)
+        .as_deref()
+        .map(is_es2015_or_newer)
+    {
+        None | Some(None) => Some("ESNext"),
+        Some(Some(false)) => Some("ES2015"),
+        Some(Some(true)) => None,
+    }
 }
 
 /// The nearest `compilerOptions.paths` in a tsconfig's `extends` chain, paired
@@ -2475,6 +2534,160 @@ mod tests {
         );
 
         let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// With no `--tsconfig` at all, tsgo/tsc would otherwise fall back to the ES5/ES3 default lib and the vendored shims themselves fail to compile.
+    #[test]
+    fn overlay_tsconfig_forces_modern_target_with_no_tsconfig() {
+        let tmp =
+            std::env::temp_dir().join(format!("svc_overlay_target_none_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+
+        let files = vec![tmp.join("src/App.svelte")];
+        let layout = materialize_overlay(&tmp, &files, None).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        assert_eq!(
+            cfg["compilerOptions"]["target"],
+            serde_json::json!("ESNext")
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// A target below ES2015 is bumped to ES2015 rather than left at whatever pre-ES2015 default lib it would otherwise pull in.
+    #[test]
+    fn overlay_tsconfig_bumps_low_target_to_es2015() {
+        let tmp =
+            std::env::temp_dir().join(format!("svc_overlay_target_es5_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "target": "es5" } }"#,
+        )
+        .unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+
+        let files = vec![tmp.join("src/App.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        assert_eq!(
+            cfg["compilerOptions"]["target"],
+            serde_json::json!("ES2015")
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// The overlay must not clobber a deliberate, already-modern-enough target with its own override.
+    #[test]
+    fn overlay_tsconfig_leaves_modern_target_untouched() {
+        let tmp =
+            std::env::temp_dir().join(format!("svc_overlay_target_modern_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "target": "ES2022" } }"#,
+        )
+        .unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+
+        let files = vec![tmp.join("src/App.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        assert!(
+            cfg["compilerOptions"]["target"].is_null(),
+            "overlay should not override an already-modern target: {cfg}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// A year-numbered target beyond the hardcoded aliases (`es3`/`es5`/`es6`/`esnext`) must still be recognized as modern via the generic `esNNNN` parse.
+    #[test]
+    fn overlay_tsconfig_leaves_es2025_target_untouched() {
+        let tmp =
+            std::env::temp_dir().join(format!("svc_overlay_target_es2025_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "target": "ES2025" } }"#,
+        )
+        .unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+
+        let files = vec![tmp.join("src/App.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        assert!(
+            cfg["compilerOptions"]["target"].is_null(),
+            "overlay should not override an already-modern target: {cfg}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// A target set only on a grandparent config (e.g. SvelteKit's generated `.svelte-kit/tsconfig.json`) must still be found via the `extends` chain.
+    #[test]
+    fn overlay_tsconfig_target_search_follows_extends_chain() {
+        let tmp =
+            std::env::temp_dir().join(format!("svc_overlay_target_chain_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::create_dir_all(tmp.join(".svelte-kit")).unwrap();
+        fs::write(
+            tmp.join(".svelte-kit/tsconfig.json"),
+            r#"{ "compilerOptions": { "target": "ES2020" } }"#,
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r#"{ "extends": "./.svelte-kit/tsconfig.json" }"#,
+        )
+        .unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+
+        let files = vec![tmp.join("src/App.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        assert!(
+            cfg["compilerOptions"]["target"].is_null(),
+            "inherited ES2020 target found via extends chain should not be overridden: {cfg}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn is_es2015_or_newer_parses_year_targets_generically() {
+        assert_eq!(is_es2015_or_newer("es3"), Some(false));
+        assert_eq!(is_es2015_or_newer("es5"), Some(false));
+        assert_eq!(is_es2015_or_newer("ES6"), Some(true));
+        assert_eq!(is_es2015_or_newer("es2015"), Some(true));
+        assert_eq!(is_es2015_or_newer("ES2024"), Some(true));
+        // Not a hardcoded alias — must resolve through the generic `esNNNN` parse.
+        assert_eq!(is_es2015_or_newer("es2025"), Some(true));
+        assert_eq!(is_es2015_or_newer("esnext"), Some(true));
+        assert_eq!(is_es2015_or_newer("latest"), Some(true));
+        assert_eq!(is_es2015_or_newer("nonsense"), None);
     }
 
     /// `rebase_spec` must rebase the non-glob directory prefix and keep
