@@ -826,6 +826,16 @@ impl<'source> MagicString<'source> {
         self
     }
 
+    /// Append owned content at the very end of the output.
+    pub fn append_str_owned(&mut self, content: String) -> &mut Self {
+        if self.outro.is_empty() {
+            self.outro = content;
+            self
+        } else {
+            self.append_str(&content)
+        }
+    }
+
     /// Insert `content` before the character at `index`, after any previously
     /// prepended content at this position. In the JS API this is called
     /// `appendLeft`.
@@ -1380,6 +1390,18 @@ mod tests {
     fn test_append_str() {
         let mut s = MagicString::new("hello");
         s.append_str(" world");
+        assert_eq!(s.to_string(), "hello world");
+    }
+
+    #[test]
+    fn append_str_owned_reuses_an_empty_outro() {
+        let mut s = MagicString::new("hello");
+        let content = String::from(" world");
+        let content_ptr = content.as_ptr();
+
+        s.append_str_owned(content);
+
+        assert_eq!(s.outro.as_ptr(), content_ptr);
         assert_eq!(s.to_string(), "hello world");
     }
 

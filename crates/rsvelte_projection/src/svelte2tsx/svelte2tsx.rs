@@ -776,7 +776,7 @@ pub fn svelte2tsx(
         &mut str,
     );
 
-    str.append_str(&closing);
+    str.append_str_owned(closing);
 
     let generated = str.generate_bundle(GenerateMapOptions {
         file: None,
