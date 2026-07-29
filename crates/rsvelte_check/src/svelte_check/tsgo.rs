@@ -85,7 +85,7 @@ pub struct TsgoBinary {
 /// `$TSGO_BIN` is always honoured first as an explicit override.
 ///
 /// With `prefer_tsgo` (`rsvelte-check --tsgo`) the TypeScript 7 native
-/// compiler is required: [`resolve_ts7_native`] walks up from `workspace`
+/// compiler is required: `resolve_ts7_native` walks up from `workspace`
 /// for `@typescript/native` then `@typescript/native-preview`, and a missing
 /// install is an error rather than a silent downgrade — mirroring official
 /// svelte-check, whose `--tsgo` means the same thing.

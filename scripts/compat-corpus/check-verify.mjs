@@ -289,7 +289,10 @@ function main() {
 		// pointing it straight at the chosen binary is enough on its own; `--tsgo`
 		// is added too so the invocation matches how a real caller selects the
 		// backend and isn't relying on an implementation detail of the override.
-		const backendArgs = BACKEND === 'tsgo' ? ['--tsgo'] : [];
+		// A scenario that already asks for `--tsgo` itself must not get a second
+		// copy — clap rejects a repeated flag outright.
+		const backendArgs =
+			BACKEND === 'tsgo' && !(config.args ?? []).includes('--tsgo') ? ['--tsgo'] : [];
 		const actual = parseMachineVerbose(
 			runCapture(
 				bin,
