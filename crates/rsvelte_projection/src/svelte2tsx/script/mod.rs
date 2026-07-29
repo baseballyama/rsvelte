@@ -181,7 +181,8 @@ pub fn process_instance_script(
                                     doc: leading_jsdoc_comment(
                                         raw_content,
                                         var_decl.span.start as usize,
-                                    ),
+                                    )
+                                    .map(str::to_string),
                                 },
                             );
                         } else {
@@ -298,7 +299,8 @@ pub fn process_instance_script(
                                                 doc: leading_jsdoc_comment(
                                                     raw_content,
                                                     var_decl.span.start as usize,
-                                                ),
+                                                )
+                                                .map(str::to_string),
                                             },
                                         );
                                     }

@@ -45,6 +45,7 @@ pub(super) fn handle_export_named_decl(
     emit_jsdoc: bool,
 ) {
     let node_start = export.span.start + offset;
+    let mut cached_leading_doc = None;
 
     // Case 1: export with declaration (export let/const/function/class ...)
     if let Some(ref decl) = export.declaration {
@@ -116,12 +117,15 @@ pub(super) fn handle_export_named_decl(
                         // export so it round-trips into the legacy props return
                         // (`props: { /** @type {boolean} */ visible: visible }`),
                         // mirroring official's `value.doc`.
-                        let leading_doc =
-                            leading_jsdoc_comment(raw_content, export.span.start as usize);
+                        let leading_doc = cached_leading_doc
+                            .get_or_insert_with(|| {
+                                leading_jsdoc_comment(raw_content, export.span.start as usize)
+                            })
+                            .as_ref();
                         if let Some(name) = binding_pattern_simple_name(&declarator.id)
-                            && let Some(ref doc) = leading_doc
+                            && let Some(doc) = leading_doc
                         {
-                            exported_names.set_doc(name, doc.clone());
+                            exported_names.set_doc(name, doc.to_string());
                         }
                         // For multi-declarator let exports (export let a, b, c;),
                         // replace the comma between declarators with `;let `.
@@ -158,9 +162,12 @@ pub(super) fn handle_export_named_decl(
                         // A JSDoc `/** @type {T} */` on the export is a type too,
                         // so a `/** @type {number} */ export let x = 1` widens via
                         // `x = __sveltets_2_any(x)` even with an initializer.
-                        let has_jsdoc_type =
-                            leading_jsdoc_comment(raw_content, export.span.start as usize)
-                                .is_some_and(|d| d.contains("@type"));
+                        let has_jsdoc_type = cached_leading_doc
+                            .get_or_insert_with(|| {
+                                leading_jsdoc_comment(raw_content, export.span.start as usize)
+                            })
+                            .as_deref()
+                            .is_some_and(|doc| doc.contains("@type"));
                         let do_widen = is_prop
                             && (!has_default
                                 || has_type_annotation
@@ -301,13 +308,21 @@ pub(super) fn handle_export_named_decl(
             // not a possible-export, so its declaration doc does not carry over),
             // and `propTypeAssert` is NOT re-run, so no extra widening here.
             if renamed && exported_names.has(&local) {
-                let merged_doc = leading_jsdoc_comment(raw_content, export.span.start as usize);
+                let merged_doc = cached_leading_doc
+                    .get_or_insert_with(|| {
+                        leading_jsdoc_comment(raw_content, export.span.start as usize)
+                    })
+                    .map(str::to_string);
                 exported_names.rename_export_let_in_place(&local, exported.clone(), merged_doc);
                 continue;
             }
 
             let doc = if renamed {
-                leading_jsdoc_comment(raw_content, export.span.start as usize)
+                cached_leading_doc
+                    .get_or_insert_with(|| {
+                        leading_jsdoc_comment(raw_content, export.span.start as usize)
+                    })
+                    .map(str::to_string)
                     .or_else(|| possible.and_then(|p| p.doc.clone()))
             } else {
                 possible.and_then(|p| p.doc.clone())
@@ -360,7 +375,7 @@ pub(super) fn handle_export_named_decl(
 
 /// Return the leading `/** … */` JSDoc comment immediately before `before`
 /// (skipping whitespace), or None. Mirrors official `getLastLeadingDoc`.
-pub(super) fn leading_jsdoc_comment(source: &str, before: usize) -> Option<String> {
+pub(super) fn leading_jsdoc_comment(source: &str, before: usize) -> Option<&str> {
     let bytes = source.as_bytes();
     let before = before.min(bytes.len());
     // Mirror official `getLastLeadingDoc`: walk the leading trivia and return the
@@ -390,7 +405,7 @@ pub(super) fn leading_jsdoc_comment(source: &str, before: usize) -> Option<Strin
             if source[open..p - 2].contains("*/") {
                 return None;
             }
-            return Some(source[open..p].to_string());
+            return Some(&source[open..p]);
         }
         // Otherwise, if the trivia line ending at `p` is a single-line `// …`
         // comment, skip the whole line and keep looking for an earlier block
@@ -460,5 +475,44 @@ mod tests {
 
         assert!(result.exported_names.has("greet"));
         assert!(!result.exported_names.get("greet").unwrap().is_prop);
+    }
+
+    #[test]
+    fn shared_export_doc_reaches_every_declarator() {
+        let source = concat!(
+            "<script>\n",
+            "/** @type {number} */\n",
+            "// @ts-expect-error\n",
+            "export let first = 1, second = 2;\n",
+            "</script>",
+        );
+        let result = run_svelte2tsx(source);
+
+        for name in ["first", "second"] {
+            assert_eq!(
+                result.exported_names.get(name).unwrap().doc.as_deref(),
+                Some("/** @type {number} */")
+            );
+        }
+    }
+
+    #[test]
+    fn shared_export_doc_reaches_every_renamed_specifier() {
+        let source = concat!(
+            "<script>\n",
+            "let first = 1, second = 2;\n",
+            "/** named exports */\n",
+            "// bridge\n",
+            "export { first as one, second as two };\n",
+            "</script>",
+        );
+        let result = run_svelte2tsx(source);
+
+        for name in ["one", "two"] {
+            assert_eq!(
+                result.exported_names.get(name).unwrap().doc.as_deref(),
+                Some("/** named exports */")
+            );
+        }
     }
 }
