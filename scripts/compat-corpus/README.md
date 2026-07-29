@@ -361,10 +361,12 @@ pnpm run check-corpus:update           # re-baseline check-known-failures.json a
   `<SEVERITY> <relpath>:<line> <code>`. Column and message text are dropped on
   purpose (rsvelte maps positions through its own source map, and TypeScript
   wording is version-sensitive); severity, file, line and code are what a user
-  acts on.
-- **Ratchet** — every diagnostic present on exactly one side is a *divergence*,
-  recorded in `compatibility/check-known-failures.json` (tracked), shrink-only.
-  Justifications live in
+  acts on. Because that key is lossy, the two sides are compared as **multisets**
+  — one line can carry several diagnostics with the same code, and set semantics
+  would let a known divergence mask a new one.
+- **Ratchet** — every surplus diagnostic on one side is a *divergence*, recorded
+  in `compatibility/check-known-failures.json` (tracked), shrink-only, with an
+  ` xN` suffix when the surplus is larger than one. Justifications live in
   [compatibility/check-known-failures.md](../../compatibility/check-known-failures.md).
 
 The `check-parity` job in `.github/workflows/corpus-compat.yml` runs this track;

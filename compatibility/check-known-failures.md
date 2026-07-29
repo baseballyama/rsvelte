@@ -6,30 +6,33 @@ scenario under `compatibility/check-fixtures/` through both the official
 `rsvelte-check`, and records every diagnostic that appears on exactly one side.
 The ratchet may only shrink.
 
-Entry format: `<scenario>|<+|-><SEVERITY> <relpath>:<line> <code>`.
+Entry format: `<scenario>|<+|-><SEVERITY> <relpath>:<line> <code>[ xN]`.
 `+` = rsvelte-only (a **false positive** — official reports nothing).
 `-` = official-only (a **false negative**).
+`xN` is the multiplicity of the surplus: diagnostics are compared as a multiset,
+so several diagnostics sharing one key (three binding elements in one
+destructured parameter, say) cannot mask each other.
 
 Column and message text are not part of the key on purpose — rsvelte maps
 positions back through its own source map and TypeScript wording moves between
 patch releases, so keying on them would make the ratchet churn without telling
 anyone anything. See the header of `check-verify.mjs`.
 
-## Current baseline: 16 divergences (16 FP, 0 FN)
+## Current baseline: 16 entries / 24 surplus diagnostics (all FP, 0 FN)
 
 Every entry is a **false positive** and every one of them is an open issue from
 the #1883–#1889 cluster. That is the point of the seed: the gate lands *before*
 the fixes so each fix shows up as a ratchet shrink instead of a claim.
 
-| Scenario | Entries | Issue | Class |
-|---|---|---|---|
-| `sibling-paths-alias` | 1 | #1883 | `paths`-aliased sibling resolves to ambient `*.svelte` |
-| `sibling-symlink` | 1 | #1883 (same class) | bare-specifier deep `.svelte` import through a `node_modules` symlink |
-| `external-self-alias` | 1 | #1887 | external shadow keeps its own alias specifiers unrewritten |
-| `ts-aliased-import` | 2 | #1888 | plain `.ts` importers get no alias rewrite |
-| `kit-hooks-arrow-ts` | 5 | #1886 | arrow-const hooks are not augmented |
-| `kit-hooks-js` | 5 | #1886 | same, JS/JSDoc flavour |
-| `boundary-elements` | 1 | #1889 | vendored `svelte-jsx-v4` shim predates `svelte:boundary` |
+| Scenario | Entries | Diagnostics | Issue | Class |
+|---|---|---|---|---|
+| `sibling-paths-alias` | 1 | 1 | #1883 | `paths`-aliased sibling resolves to ambient `*.svelte` |
+| `sibling-symlink` | 1 | 1 | #1883 (same class) | bare-specifier deep `.svelte` import through a `node_modules` symlink |
+| `external-self-alias` | 1 | 1 | #1887 | external shadow keeps its own alias specifiers unrewritten |
+| `ts-aliased-import` | 2 | 2 | #1888 | plain `.ts` importers get no alias rewrite |
+| `kit-hooks-arrow-ts` | 5 | 9 | #1886 | arrow-const hooks are not augmented |
+| `kit-hooks-js` | 5 | 9 | #1886 | same, JS/JSDoc flavour |
+| `boundary-elements` | 1 | 1 | #1889 | vendored `svelte-jsx-v4` shim predates `svelte:boundary` |
 
 ### `sibling-paths-alias` — #1883
 
@@ -85,23 +88,24 @@ default import used as a type (`TS2315 Type 'Comp' is not generic`).
 ### `kit-hooks-arrow-ts` / `kit-hooks-js` — #1886
 
 ```
-kit-hooks-arrow-ts|+ERROR src/hooks.client.ts:1 7031
-kit-hooks-arrow-ts|+ERROR src/hooks.server.ts:1 7031
-kit-hooks-arrow-ts|+ERROR src/hooks.server.ts:5 7031
-kit-hooks-arrow-ts|+ERROR src/hooks.server.ts:9 7031
+kit-hooks-arrow-ts|+ERROR src/hooks.client.ts:1 7031 x2
+kit-hooks-arrow-ts|+ERROR src/hooks.server.ts:1 7031 x2
+kit-hooks-arrow-ts|+ERROR src/hooks.server.ts:5 7031 x2
+kit-hooks-arrow-ts|+ERROR src/hooks.server.ts:9 7031 x2
 kit-hooks-arrow-ts|+ERROR src/hooks.ts:1 7031
-kit-hooks-js|+ERROR src/hooks.client.js:1 7031
+kit-hooks-js|+ERROR src/hooks.client.js:1 7031 x2
 kit-hooks-js|+ERROR src/hooks.js:1 7031
-kit-hooks-js|+ERROR src/hooks.server.js:1 7031
-kit-hooks-js|+ERROR src/hooks.server.js:5 7031
-kit-hooks-js|+ERROR src/hooks.server.js:9 7031
+kit-hooks-js|+ERROR src/hooks.server.js:1 7031 x2
+kit-hooks-js|+ERROR src/hooks.server.js:5 7031 x2
+kit-hooks-js|+ERROR src/hooks.server.js:9 7031 x2
 ```
 
 `add_hooks_type` matches only `Declaration::FunctionDeclaration`, while upstream
 accepts `FunctionDeclaration | ArrowFunction | FunctionExpression`. Every hook
 written as `export const … = (…) => {…}` therefore gets no parameter type and
-every binding element is `TS7031`. One entry per hook declaration (a line
-collapses the two or three binding elements it declares).
+every binding element is `TS7031`. One entry per hook declaration; the `xN`
+counts the binding elements that declaration destructures (`reroute` takes only
+`{ url }`, hence no suffix).
 
 The four `kit-hooks-*` scenarios are one matrix, and only two arms are red:
 

@@ -26,6 +26,12 @@
  * would make the ratchet churn on every upstream patch release. Severity, file,
  * line and code are what a user acts on.
  *
+ * Because that key is lossy, diagnostics are compared as a MULTISET, not a set:
+ * one line can legitimately carry several diagnostics with the same code (three
+ * binding elements in one destructured parameter, say). Comparing sets would let
+ * an already-known divergence swallow a brand-new one at the same key. A
+ * divergence of multiplicity n > 1 is recorded with an ` xN` suffix.
+ *
  * Usage:
  *   node scripts/compat-corpus/check-verify.mjs                # verify (CI gate)
  *   node scripts/compat-corpus/check-verify.mjs --update       # rewrite known-failures
@@ -63,6 +69,14 @@ function fail(msg) {
 // A partial run rewrites the ratchet from a partial diff, silently dropping
 // every entry the subset didn't produce.
 if (UPDATE && ONLY) fail('--update cannot be combined with --scenario');
+
+function readJson(file, what) {
+	try {
+		return JSON.parse(fs.readFileSync(file, 'utf8'));
+	} catch (err) {
+		return fail(`${what} is not readable JSON (${path.relative(ROOT, file)}): ${err.message}`);
+	}
+}
 
 function findBinary() {
 	for (const profile of ['release', 'debug']) {
@@ -124,6 +138,8 @@ function runCapture(program, argv, cwd, env) {
 const rel = (p) => p.split(path.sep).join('/');
 const key = (severity, file, line, code) => `${severity} ${rel(file)}:${line} ${code}`;
 
+const bump = (counts, k) => counts.set(k, (counts.get(k) ?? 0) + 1);
+
 /** `TS2322` / `2322` / 2322 -> `2322`; Svelte codes stay as written. */
 function normalizeCode(code) {
 	if (code === undefined || code === null || code === '') return '?';
@@ -136,7 +152,7 @@ function normalizeCode(code) {
  * `MachineFriendlyWriter`. START / COMPLETED lines are not JSON objects.
  */
 function parseOracle(stdout) {
-	const set = new Set();
+	const counts = new Map();
 	const detail = [];
 	for (const line of stdout.split('\n')) {
 		const payload = line.slice(line.indexOf(' ') + 1).trim();
@@ -149,10 +165,10 @@ function parseOracle(stdout) {
 		}
 		if (d.type !== 'ERROR' && d.type !== 'WARNING') continue;
 		const k = key(d.type, d.filename, d.start.line + 1, normalizeCode(d.code));
-		set.add(k);
+		bump(counts, k);
 		detail.push({ key: k, message: d.message, source: d.source });
 	}
-	return { set, detail };
+	return { counts, detail };
 }
 
 /**
@@ -171,7 +187,7 @@ function parseRsvelte(stdout) {
 			.replace(/%0A/g, '\n')
 			.replace(/%0D/g, '\r')
 			.replace(/%25/g, '%');
-	const set = new Set();
+	const counts = new Map();
 	const detail = [];
 	const re = /^::(error|warning|notice) file=(.*?),line=(\d+),col=(\d+)::(.*)$/;
 	for (const line of stdout.split('\n')) {
@@ -183,10 +199,25 @@ function parseRsvelte(stdout) {
 		// carry `%0A`-encoded newlines, but a code never does.
 		const codeMatch = /\[([^\]]+)\]$/.exec(m[5]);
 		const k = key(level, unescape(m[2]), Number(m[3]), normalizeCode(codeMatch?.[1]));
-		set.add(k);
+		bump(counts, k);
 		detail.push({ key: k, message: unescape(m[5]) });
 	}
-	return { set, detail };
+	return { counts, detail };
+}
+
+/**
+ * Multiset difference: one entry per key whose multiplicity differs, tagged with
+ * the side that has the surplus and how large it is.
+ */
+function diffCounts(scenario, oracle, rsvelte) {
+	const out = [];
+	for (const k of new Set([...oracle.keys(), ...rsvelte.keys()])) {
+		const delta = (rsvelte.get(k) ?? 0) - (oracle.get(k) ?? 0);
+		if (delta === 0) continue;
+		const n = Math.abs(delta);
+		out.push(`${scenario}|${delta > 0 ? '+' : '-'}${k}${n > 1 ? ` x${n}` : ''}`);
+	}
+	return out;
 }
 
 function main() {
@@ -202,7 +233,7 @@ function main() {
 	const report = {};
 
 	for (const name of names) {
-		const config = JSON.parse(fs.readFileSync(path.join(FIXTURES, name, 'scenario.json'), 'utf8'));
+		const config = readJson(path.join(FIXTURES, name, 'scenario.json'), `scenario ${name}`);
 		// Each side gets its own copy: a checker's emitted `.svelte-check/`
 		// overlay would otherwise become input to the other one's file walk.
 		const oracleDir = path.join(tmpRoot, name, 'oracle');
@@ -235,11 +266,10 @@ function main() {
 			})
 		);
 
-		for (const k of actual.set) if (!oracle.set.has(k)) diffs.push(`${name}|+${k}`);
-		for (const k of oracle.set) if (!actual.set.has(k)) diffs.push(`${name}|-${k}`);
+		diffs.push(...diffCounts(name, oracle.counts, actual.counts));
 		report[name] = { oracle: oracle.detail, rsvelte: actual.detail };
 		console.log(
-			`[check-verify] ${name}: oracle ${oracle.set.size}, rsvelte ${actual.set.size} diagnostic(s)`
+			`[check-verify] ${name}: oracle ${oracle.detail.length}, rsvelte ${actual.detail.length} diagnostic(s)`
 		);
 	}
 
@@ -248,7 +278,7 @@ function main() {
 	fs.writeFileSync(REPORT, JSON.stringify(report, null, '\t') + '\n');
 
 	diffs.sort();
-	const known = fs.existsSync(KNOWN) ? JSON.parse(fs.readFileSync(KNOWN, 'utf8')) : [];
+	const known = fs.existsSync(KNOWN) ? readJson(KNOWN, 'the ratchet') : [];
 	const knownSet = new Set(known);
 	const current = new Set(diffs);
 	const added = diffs.filter((d) => !knownSet.has(d));
