@@ -497,7 +497,7 @@ fn tabs_to_spaces_column(line: &str, column: usize) -> usize {
 /// Returned to the caller so the `Root` is pinned on the caller's stack before
 /// the arena guard is installed — the guard holds a raw pointer to `ast.arena`,
 /// so the `Root` must not move after the guard is created.
-fn parse_component(source: &str) -> Result<crate::ast::Root<'_>, CompileError> {
+pub(crate) fn parse_component(source: &str) -> Result<crate::ast::Root<'_>, CompileError> {
     let parse_options = crate::ParseOptions {
         modern: true,
         loose: false,
@@ -517,17 +517,31 @@ fn parse_component(source: &str) -> Result<crate::ast::Root<'_>, CompileError> {
 /// arena guard: resolve lazy expressions, finish deferred script parsing, strip
 /// TypeScript, merge `<svelte:options>` into `options`, and analyze.
 ///
-/// Returns the merged options, the analysis, and whether runes mode is active.
-/// The caller owns the arena guard so it spans the following transform pass(es).
-fn prepare_and_analyze(
-    ast: &mut crate::ast::Root,
-    source: &str,
+/// Returns the merged options, analysis, runes mode, and compile-only script programs.
+/// The caller must install the AST's serialize-arena guard for this call.
+pub(crate) fn prepare_and_analyze<'source>(
+    ast: &mut crate::ast::Root<'source>,
+    source: &'source str,
     mut options: CompileOptions,
-) -> Result<(CompileOptions, ComponentAnalysis, bool), CompileError> {
+) -> Result<
+    (
+        CompileOptions,
+        ComponentAnalysis,
+        bool,
+        crate::ast::oxc_program::RetainedScripts<'source>,
+    ),
+    CompileError,
+> {
+    let line_offsets = phases::phase1_parse::compute_line_offsets(source, false);
+
     // Resolve lazy expressions (deferred template expressions). If any
     // expression has a parse error, return it immediately.
     if let Some(parse_err) =
-        phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(ast, source)
+        phases::phase1_parse::resolve_lazy::resolve_lazy_expressions_with_line_offsets(
+            ast,
+            source,
+            &line_offsets,
+        )
     {
         return Err(parse_err.into());
     }
@@ -535,27 +549,31 @@ fn prepare_and_analyze(
     // Ensure deferred script parsing is completed before TypeScript removal.
     // When defer_script_parse is enabled, script content is stored as raw text;
     // parse it first so remove_typescript_nodes can inspect the AST.
+    let mut retained_scripts = crate::ast::oxc_program::RetainedScripts::default();
     {
-        let line_offsets = phases::phase1_parse::compute_line_offsets(source, false);
-        if let Some(ref mut instance) = ast.instance
-            && let Some(parse_err) = phases::phase1_parse::read::script::ensure_script_parsed(
-                &ast.arena,
-                instance,
-                source,
-                &line_offsets,
-            )
-        {
-            return Err(parse_err.into());
+        if let Some(ref mut instance) = ast.instance {
+            let (parse_error, retained) =
+                phases::phase1_parse::read::script::ensure_script_parsed_retained(
+                    &ast.arena,
+                    instance,
+                    &line_offsets,
+                );
+            if let Some(parse_error) = parse_error {
+                return Err(parse_error.into());
+            }
+            retained_scripts.instance = retained;
         }
-        if let Some(ref mut module) = ast.module
-            && let Some(parse_err) = phases::phase1_parse::read::script::ensure_script_parsed(
-                &ast.arena,
-                module,
-                source,
-                &line_offsets,
-            )
-        {
-            return Err(parse_err.into());
+        if let Some(ref mut module) = ast.module {
+            let (parse_error, retained) =
+                phases::phase1_parse::read::script::ensure_script_parsed_retained(
+                    &ast.arena,
+                    module,
+                    &line_offsets,
+                );
+            if let Some(parse_error) = parse_error {
+                return Err(parse_error.into());
+            }
+            retained_scripts.module = retained;
         }
     }
 
@@ -576,10 +594,15 @@ fn prepare_and_analyze(
     }
 
     // Phase 2: Analyze
-    let analysis = phases::phase2_analyze::analyze_component(ast, source, &options)?;
+    let analysis = phases::phase2_analyze::analyze_prepared_component_with_retained(
+        ast,
+        source,
+        &options,
+        Some(&retained_scripts),
+    )?;
     // Determine if runes mode was used
     let runes_mode = options.runes.unwrap_or(analysis.runes);
-    Ok((options, analysis, runes_mode))
+    Ok((options, analysis, runes_mode, retained_scripts))
 }
 
 /// Compile a Svelte component.
@@ -600,36 +623,18 @@ fn prepare_and_analyze(
 ///
 /// Returns a `CompileResult` containing the generated JavaScript and CSS.
 pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, CompileError> {
-    // Phase 1: Parse
-    let mut ast = parse_component(source)?;
+    let generate = options.generate;
+    crate::toolchain::PreparedComponent::new(source, options)?.compile_mode(generate)
+}
 
-    // Install the thread-local serialize arena via an RAII guard for the
-    // entire resolve_lazy → strip_ts → analyze → transform pipeline.
-    // The guard restores whatever pointer was set on entry when dropped
-    // (including on `?` early-return and panic unwind), so concurrent
-    // `compile()` calls reusing the same thread can't observe each
-    // other's arenas — and nested `JsNode::to_value` fallbacks to
-    // `DESER_ARENA` can't wipe the outer scope.
-    //
-    // SAFETY: `ast.arena` lives until the end of this function, which
-    // outlives `_arena_guard`.
-    let _arena_guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
-
-    // Front-half (resolve-lazy → strip-ts → options-merge → analyze), shared
-    // with `compile_both` and run under the arena guard above.
-    let (options, analysis, runes_mode) = prepare_and_analyze(&mut ast, source, options)?;
-
-    // Phase 3: Transform (pass AST to avoid re-parsing)
-    let transform_result =
-        phases::phase3_transform::transform_component(&analysis, &ast, source, &options)?;
-
-    Ok(finalize_compile_result(
-        transform_result,
-        &analysis,
-        source,
-        &options,
-        runes_mode,
-    ))
+#[doc(hidden)]
+pub fn compile_with_external_sourcemap_content(
+    source: &str,
+    options: CompileOptions,
+) -> Result<CompileResult, CompileError> {
+    let generate = options.generate;
+    crate::toolchain::PreparedComponent::new(source, options)?
+        .compile_mode_with_sourcemap_content(generate, false)
 }
 
 /// Compile a single component to **both** client (CSR) and server (SSR) output in
@@ -649,36 +654,13 @@ pub fn compile_both(
     source: &str,
     options: CompileOptions,
 ) -> Result<(CompileResult, CompileResult), CompileError> {
-    // Phase 1: Parse (identical to `compile`).
-    let mut ast = parse_component(source)?;
-
-    // SAFETY: `ast.arena` lives until the end of this function (see `compile`).
-    let _arena_guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
-
-    // Front-half (resolve-lazy → strip-ts → options-merge → analyze) — analyze
-    // runs ONCE here and is shared by both transforms (it is mode-independent).
-    let (options, analysis, runes_mode) = prepare_and_analyze(&mut ast, source, options)?;
-
-    // Phase 3: Transform twice over the shared (ast, analysis).
-    let mut client_options = options.clone();
-    client_options.generate = GenerateMode::Client;
-    let client_tr =
-        phases::phase3_transform::transform_component(&analysis, &ast, source, &client_options)?;
-    let client = finalize_compile_result(client_tr, &analysis, source, &client_options, runes_mode);
-
-    let mut server_options = options;
-    server_options.generate = GenerateMode::Server;
-    let server_tr =
-        phases::phase3_transform::transform_component(&analysis, &ast, source, &server_options)?;
-    let server = finalize_compile_result(server_tr, &analysis, source, &server_options, runes_mode);
-
-    Ok((client, server))
+    crate::toolchain::PreparedComponent::new(source, options)?.compile_both()
 }
 
 /// Build a [`CompileResult`] from a finished transform — accessors-deprecation
 /// warning, source-position resolution, frame generation, and warning filtering.
 /// Shared by [`compile`] and [`compile_both`] so the two paths are identical.
-fn finalize_compile_result(
+pub(crate) fn finalize_compile_result(
     mut transform_result: TransformResult,
     analysis: &ComponentAnalysis,
     source: &str,
@@ -710,7 +692,9 @@ fn finalize_compile_result(
             map: c.map,
             has_global: analysis.css.has_global,
         }),
-        warnings: {
+        warnings: if transform_result.warnings.is_empty() {
+            Vec::new()
+        } else {
             // Pre-compute warning filename once (shared across all warnings)
             let warning_filename = options.filename.as_ref().map(|f| {
                 // Only allocate if backslashes are present
@@ -943,7 +927,8 @@ pub fn compile_module(
     let _arena_guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
 
     // Phase 2: Analyze (reuses component analysis infrastructure)
-    let analysis = phases::phase2_analyze::analyze_component(&mut ast, source, &compile_options)?;
+    let analysis =
+        phases::phase2_analyze::analyze_prepared_component(&mut ast, source, &compile_options)?;
 
     // Module-specific validation: check for store subscriptions.
     // In modules, $store references (where `store` is a binding) are invalid.
@@ -973,7 +958,9 @@ pub fn compile_module(
             map: None,
         },
         css: None,
-        warnings: {
+        warnings: if analysis.warnings.is_empty() {
+            Vec::new()
+        } else {
             // One shared byte→UTF-16 position table for every module warning.
             let pos_table = legacy::Utf8ToUtf16::new(source);
             analysis
@@ -1376,6 +1363,17 @@ pub fn compile_batch(
         .collect()
 }
 
+#[doc(hidden)]
+#[cfg(feature = "native")]
+pub fn compile_batch_with_external_sourcemap_content(
+    inputs: &[(&str, CompileOptions)],
+) -> Vec<Result<CompileResult, CompileError>> {
+    inputs
+        .par_iter()
+        .map(|(source, options)| compile_with_external_sourcemap_content(source, options.clone()))
+        .collect()
+}
+
 /// Error type for compilation failures.
 #[derive(Debug)]
 pub enum CompileError {
@@ -1444,6 +1442,32 @@ mod tests {
         let options = CompileOptions::default();
         let result = compile(source, options);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_compile_can_externalize_sourcemap_content() {
+        let source = "<style>h1 { color: red }</style><h1>Hello</h1>";
+        let options = CompileOptions {
+            filename: Some("App.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let embedded = compile(source, options.clone()).unwrap();
+        let externalized = compile_with_external_sourcemap_content(source, options).unwrap();
+
+        assert_eq!(externalized.js.code, embedded.js.code);
+        let js_map: serde_json::Value =
+            serde_json::from_str(externalized.js.map.as_deref().unwrap()).unwrap();
+        let css_map: serde_json::Value = serde_json::from_str(
+            externalized
+                .css
+                .as_ref()
+                .and_then(|css| css.map.as_deref())
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(js_map["sourcesContent"], serde_json::json!([null]));
+        assert_eq!(css_map["sourcesContent"], serde_json::json!([null]));
     }
 
     #[test]

@@ -45,6 +45,7 @@ module path) is internal IR construction with unchanged output — a maintainabi
 - Memory-efficient layout (u32 positions, compact_str)
 - Thread-safe parser with rayon parallelism
 - Direct AST passing (no re-parsing between phases)
+- Retained Phase-1 programs are immutable; Phase 3 uses source-range transforms and falls back after text rewrites
 - No backward compatibility for internal APIs (refactor freely)
 
 ### Corpus output-equality pipeline (`scripts/compat-corpus/`)

@@ -18,11 +18,19 @@ pub fn resolve_lazy_expressions<'a>(
     source: &str,
 ) -> Option<crate::error::ParseError> {
     let line_offsets = super::compute_line_offsets(source, false);
+    resolve_lazy_expressions_with_line_offsets(ast, source, &line_offsets)
+}
+
+pub(crate) fn resolve_lazy_expressions_with_line_offsets<'a>(
+    ast: &mut Root<'a>,
+    source: &str,
+    line_offsets: &[usize],
+) -> Option<crate::error::ParseError> {
     let mut first_error = None;
     resolve_fragment(
         &ast.arena,
         &mut ast.fragment,
-        &line_offsets,
+        line_offsets,
         source,
         &mut first_error,
     );
@@ -32,7 +40,7 @@ pub fn resolve_lazy_expressions<'a>(
         resolve_expression(
             &ast.arena,
             &mut instance.content,
-            &line_offsets,
+            line_offsets,
             source,
             &mut first_error,
         );
@@ -41,7 +49,7 @@ pub fn resolve_lazy_expressions<'a>(
         resolve_expression(
             &ast.arena,
             &mut module.content,
-            &line_offsets,
+            line_offsets,
             source,
             &mut first_error,
         );

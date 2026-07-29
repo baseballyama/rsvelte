@@ -2675,11 +2675,10 @@ impl Memoizer {
         _scope: &crate::compiler::phases::phase2_analyze::scope::Scope,
         scope_root: &crate::compiler::phases::phase2_analyze::scope::ScopeRoot,
     ) -> Self {
-        // Share the conflicts set from ScopeRoot directly via Rc::clone
-        // (avoids cloning the entire FxHashSet). This mirrors scope.root.conflicts
-        // in the official Svelte compiler.
+        // Generated names belong to one transform. Keeping them out of the
+        // analysis seed makes repeated transforms deterministic.
         Self {
-            conflicts: Rc::clone(&scope_root.conflicts),
+            conflicts: Rc::new(RefCell::new(scope_root.conflicts.clone())),
             sync: Vec::new(),
             async_entries: Vec::new(),
             next_suffix: Rc::new(RefCell::new(FxHashMap::default())),
