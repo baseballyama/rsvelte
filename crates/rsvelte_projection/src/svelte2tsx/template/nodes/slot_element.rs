@@ -6,9 +6,7 @@ use crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions;
 
 use crate::svelte2tsx::template::attributes::attribute::format_attribute_node;
 use crate::svelte2tsx::template::attributes::binding::format_bind_directive;
-use crate::svelte2tsx::template::attributes::let_::{
-    build_let_destructure_string, get_let_directives,
-};
+use crate::svelte2tsx::template::attributes::let_::build_let_destructure_string;
 use crate::svelte2tsx::template::attributes::spread::format_spread_attribute;
 use crate::svelte2tsx::template::ctx::Counter;
 use crate::svelte2tsx::template::utils::expr::get_expression_text;
@@ -43,8 +41,7 @@ pub(crate) fn handle_slot_element(
         get_slot_attr_value(&el.attributes, source).map(|name| (inst.clone(), name))
     });
     if let Some((ref inst, ref target_slot)) = named_slot {
-        let lets = get_let_directives(&el.attributes);
-        let let_destructure = build_let_destructure_string(&lets, source);
+        let let_destructure = build_let_destructure_string(&el.attributes, source);
         let block_open = format!(
             "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
             let_destructure, inst, target_slot

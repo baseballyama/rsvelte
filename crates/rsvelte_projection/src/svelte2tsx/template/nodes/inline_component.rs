@@ -15,7 +15,7 @@ use crate::svelte2tsx::template::attributes::class_style::build_class_style_dire
 use crate::svelte2tsx::template::attributes::directive_suffix::build_component_directive_suffix;
 use crate::svelte2tsx::template::attributes::event_handler::{build_on_calls, get_on_directives};
 use crate::svelte2tsx::template::attributes::let_::{
-    build_let_destructure_string, get_let_directives,
+    build_let_destructure_string, has_let_directives,
 };
 use crate::svelte2tsx::template::attributes::spread::format_spread_attribute;
 use crate::svelte2tsx::template::attributes::{
@@ -107,12 +107,7 @@ pub(crate) fn handle_component(
     // consumed by the parent's `$$slot_def["x"]` destructure, so don't re-emit
     // them here as the component's own default-slot let block.
     let suppress_lets = std::mem::take(&mut counter.suppress_component_lets);
-    let let_directives = if suppress_lets {
-        Vec::new()
-    } else {
-        get_let_directives(&comp.attributes)
-    };
-    let has_lets = !let_directives.is_empty();
+    let has_lets = !suppress_lets && has_let_directives(&comp.attributes);
 
     // Check if component has meaningful children
     let has_children = has_component_slot_children(&comp.fragment, source);
@@ -346,7 +341,7 @@ pub(crate) fn handle_component(
         process_component_children_with_slots(
             comp,
             &inst_var,
-            &let_directives,
+            has_lets,
             source,
             options,
             str,
@@ -435,7 +430,7 @@ pub(crate) fn handle_component(
     let inline_block = if needs_inline_block {
         format!(
             "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;}}",
-            build_let_destructure_string(&let_directives, source),
+            build_let_destructure_string(&comp.attributes, source),
             inst_var
         )
     } else {
@@ -509,8 +504,7 @@ pub(crate) fn handle_svelte_component(
     // Check if component has meaningful children for Svelte 5 children prop
     let has_children = has_component_slot_children(&comp.fragment, source);
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
-    let let_directives_scomp = get_let_directives(&comp.attributes);
-    let has_lets_scomp = !let_directives_scomp.is_empty();
+    let has_lets_scomp = has_let_directives(&comp.attributes);
     // Emit the synthetic `children` prop whenever there is default-slot content,
     // even alongside `let:` directives — matching handle_component (which has no
     // such guard). The `let:` destructure is emitted independently below.
@@ -604,7 +598,7 @@ pub(crate) fn handle_svelte_component(
     // Mirrors `defaultSlotLetTransformation` in the JS reference's
     // `htmlxtojsx_v2/nodes/InlineComponent.ts`.
     if has_lets_scomp {
-        let destructure = build_let_destructure_string(&let_directives_scomp, source);
+        let destructure = build_let_destructure_string(&comp.attributes, source);
         let _ = write!(
             opener,
             "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
@@ -656,7 +650,7 @@ pub(crate) fn handle_svelte_self(
     // Separate on: + let: directives from regular attributes
     let mut has_on_directives = false;
     let mut on_directives = Vec::new();
-    let let_directives = get_let_directives(&el.attributes);
+    let has_lets = has_let_directives(&el.attributes);
     let mut prop_parts = Vec::new();
 
     for attr in &el.attributes {
@@ -666,7 +660,7 @@ pub(crate) fn handle_svelte_self(
                 on_directives.push(on);
             }
             Attribute::LetDirective(_) => {
-                // Handled below via `let_directives` — not emitted as a prop.
+                // Handled below — not emitted as a prop.
             }
             _ => match attr {
                 Attribute::Attribute(node) => {
@@ -714,7 +708,7 @@ pub(crate) fn handle_svelte_self(
         }
     };
 
-    let needs_inst_var = has_on_directives || !let_directives.is_empty();
+    let needs_inst_var = has_on_directives || has_lets;
     // Use depth as the instance variable index, mirroring official InlineComponent.ts
     // `this._name = '$$_svelteself' + this.computeDepth()`.
     let var_name = if needs_inst_var {
@@ -750,9 +744,8 @@ pub(crate) fn handle_svelte_self(
     // block right after the create call, with a matching `}` at the end.
     // Mirrors the JS reference's `defaultSlotLetTransformation` in
     // `htmlxtojsx_v2/nodes/InlineComponent.ts`.
-    let has_lets = !let_directives.is_empty();
     if has_lets {
-        let destructure = build_let_destructure_string(&let_directives, source);
+        let destructure = build_let_destructure_string(&el.attributes, source);
         let inst_name = var_name
             .as_ref()
             .expect("let: directive requires an instance variable name");

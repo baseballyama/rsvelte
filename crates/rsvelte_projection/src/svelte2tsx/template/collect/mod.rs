@@ -6,7 +6,7 @@ mod pattern;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, Fragment, TemplateNode};
 use pattern::{collect_pattern_bindings, expand_object_shorthands};
 
-use super::attributes::let_::get_let_directives;
+use super::attributes::let_::iter_let_directives;
 use super::nodes::slot_element::{dollar_slot_name, get_slot_attr_value, slot_name_for_type};
 use super::utils::expr::get_expression_text;
 use super::{ForwardedEventKind, TemplateInfo};
@@ -475,7 +475,7 @@ fn push_let_reflection_scope(
     scope: &mut Vec<(String, String)>,
 ) -> usize {
     let mut pushed = 0;
-    for ld in get_let_directives(attributes) {
+    for ld in iter_let_directives(attributes) {
         // The locally bound name: `let:name={n}` binds `n`; shorthand `let:name`
         // binds `name`. The reflected property is always the directive name.
         let binding = ld
