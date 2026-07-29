@@ -4,8 +4,8 @@ use crate::error::FormatError;
 use crate::options::FormatOptions;
 
 use super::directive::{
-    format_expression_at, render_directive_value, render_directive_value_narrow, render_modifiers,
-    render_spread,
+    format_expression_at, format_expression_at_extra, render_directive_value,
+    render_directive_value_narrow, render_modifiers, render_spread,
 };
 use super::util::visual_width;
 use super::value::{render_attribute_node, render_attribute_value_for_directive};
@@ -25,8 +25,26 @@ pub(super) fn render_attribute(
         }
         Attribute::SpreadAttribute(spread) => render_spread(spread, source, options, attr_depth),
         Attribute::AttachTag(attach) => {
-            let inner = format_expression_at(source, &attach.expression, options, attr_depth)?
+            let mut inner = format_expression_at(source, &attach.expression, options, attr_depth)?
                 .unwrap_or_default();
+            const ATTACH_PREFIX: &str = "{@attach ";
+            if narrow_value
+                && !inner.contains('\n')
+                && attr_depth * options.js.indent_width.value() as usize
+                    + ATTACH_PREFIX.len()
+                    + visual_width(&inner)
+                    + 1
+                    > options.js.line_width.value() as usize
+            {
+                inner = format_expression_at_extra(
+                    source,
+                    &attach.expression,
+                    options,
+                    attr_depth,
+                    ATTACH_PREFIX.len() + 1,
+                )?
+                .unwrap_or(inner);
+            }
             Ok(format!("{{@attach {inner}}}"))
         }
         Attribute::BindDirective(d) => {

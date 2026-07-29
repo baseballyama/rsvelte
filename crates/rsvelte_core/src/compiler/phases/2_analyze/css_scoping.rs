@@ -3379,6 +3379,111 @@ fn selector_contains_complex_not(selector: &CssComplexSelector) -> bool {
     selector.children.iter().any(rel_has)
 }
 
+fn relative_supports_static_sibling_match(rel: &CssRelativeSelector) -> bool {
+    rel.selectors.iter().all(|selector| match selector {
+        CssSimpleSelector::PseudoClass(name, args) => match name.as_str() {
+            "has" | "global" | "is" | "where" => false,
+            "not" => !args
+                .as_ref()
+                .is_some_and(|args| args.iter().any(|selector| selector.children.len() > 1)),
+            _ => true,
+        },
+        _ => true,
+    })
+}
+
+fn static_relative_might_apply(graph: &SGraph, rel: &CssRelativeSelector, node: usize) -> bool {
+    let Some(elem) = graph.node(node).elem.as_ref() else {
+        return false;
+    };
+
+    for selector in &rel.selectors {
+        match selector {
+            CssSimpleSelector::PseudoClass(name, _) => {
+                if name == "host" || name == "root" {
+                    return false;
+                }
+            }
+            CssSimpleSelector::PseudoElement | CssSimpleSelector::Nesting => {}
+            simple => {
+                if !element_matches_simple_selectors(elem, std::slice::from_ref(simple)) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    true
+}
+
+fn process_static_two_part_sibling_selector(
+    graph: &SGraph,
+    selector: &[CssRelativeSelector],
+    marks: &mut FxHashSet<(u32, u32)>,
+) -> bool {
+    if selector.len() != 2
+        || selector[0].combinator.is_some()
+        || !matches!(selector[1].combinator.as_deref(), Some("+") | Some("~"))
+        || !selector.iter().all(relative_supports_static_sibling_match)
+        || graph.nodes.iter().any(|node| {
+            !matches!(node.kind, SKind::Root | SKind::Regular) || node.has_slot_attribute
+        })
+    {
+        return false;
+    }
+
+    let mark = |marks: &mut FxHashSet<(u32, u32)>, node: &SNode| {
+        marks.insert((node.start, node.end));
+    };
+
+    for fragment in graph
+        .nodes
+        .iter()
+        .flat_map(|node| node.fragments.iter().flatten())
+    {
+        if fragment.len() < 2 {
+            continue;
+        }
+
+        let left: Vec<bool> = fragment
+            .iter()
+            .map(|node| static_relative_might_apply(graph, &selector[0], *node))
+            .collect();
+        let right: Vec<bool> = fragment
+            .iter()
+            .map(|node| static_relative_might_apply(graph, &selector[1], *node))
+            .collect();
+
+        if selector[1].combinator.as_deref() == Some("+") {
+            for index in 1..fragment.len() {
+                if left[index - 1] && right[index] {
+                    mark(marks, graph.node(fragment[index - 1]));
+                    mark(marks, graph.node(fragment[index]));
+                }
+            }
+            continue;
+        }
+
+        let mut has_left_before = false;
+        for index in 0..fragment.len() {
+            if right[index] && has_left_before {
+                mark(marks, graph.node(fragment[index]));
+            }
+            has_left_before |= left[index];
+        }
+
+        let mut has_right_after = false;
+        for index in (0..fragment.len()).rev() {
+            if left[index] && has_right_after {
+                mark(marks, graph.node(fragment[index]));
+            }
+            has_right_after |= right[index];
+        }
+    }
+
+    true
+}
+
 /// Run the graph-based pass: every element in the template is tested against
 /// every sibling-combinator / `:has` selector via the faithful
 /// `apply_selector` port; matched elements (subjects, siblings, ancestors and
@@ -3402,18 +3507,20 @@ fn process_graph_selectors(
     }
 
     let graph = build_sgraph(fragment, analysis);
-    let mut matcher = GMatcher {
-        graph: &graph,
-        marks,
-    };
-
-    for id in 0..matcher.graph.nodes.len() {
-        if matcher.graph.node(id).elem.is_none() {
+    for selector in graph_selectors {
+        let effective = truncate_globals(&selector.children);
+        if effective.is_empty()
+            || process_static_two_part_sibling_selector(&graph, effective, marks)
+        {
             continue;
         }
-        for selector in &graph_selectors {
-            let effective = truncate_globals(&selector.children);
-            if effective.is_empty() {
+
+        let mut matcher = GMatcher {
+            graph: &graph,
+            marks,
+        };
+        for id in 0..matcher.graph.nodes.len() {
+            if matcher.graph.node(id).elem.is_none() {
                 continue;
             }
             matcher.apply_selector(effective, 0, effective.len(), id, Dir::Backward);
