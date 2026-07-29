@@ -263,10 +263,9 @@ pub fn print_with_map(program: &Program<'_>, source: &str) -> PrintWithMap {
 pub struct PrintWithMap {
     /// The generated source text (identical to what [`print_with`] returns).
     pub code: String,
-    /// Source-map mappings: one entry per generated line, each a list of
-    /// `[generated_column, source_index, source_line_0based, source_column_0based]`
-    /// segments. Matches esrap's `sourceMapEncodeMappings: false` shape.
-    pub mappings: Vec<Vec<SourceMapSegment>>,
+    /// Source-map mappings in generated order (line/column pairs are 0-based;
+    /// the flat list replaces esrap's per-line `sourceMapEncodeMappings: false` shape).
+    pub mappings: Vec<command::Mapping>,
 }
 
 /// One decoded source-map segment:

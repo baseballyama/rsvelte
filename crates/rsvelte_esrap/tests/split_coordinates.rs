@@ -239,7 +239,7 @@ fn loc_map_resolves_chunk_positions_back_into_the_source() {
     let assembled = a.finish();
     let mapped = assembled.print_mapped(map_source);
 
-    let segs: Vec<_> = mapped.mappings.iter().flatten().collect();
+    let segs: Vec<_> = mapped.mappings.iter().collect();
     assert!(
         !segs.is_empty(),
         "no mapped segment:\n{:?}",
@@ -251,10 +251,14 @@ fn loc_map_resolves_chunk_positions_back_into_the_source() {
     // `anchor` is on 0-based line 1, column 1 (the tab). Without `loc_map` the
     // chunk's offsets (past `loc_base`) would resolve off the end of
     // `map_source` instead.
-    assert_eq!((segs[0][2], segs[0][3]), (1, 1), "{segs:?}");
+    assert_eq!(
+        (segs[0].source_line, segs[0].source_column),
+        (1, 1),
+        "{segs:?}"
+    );
     for seg in &segs {
         assert_eq!(
-            seg[2], 1,
+            seg.source_line, 1,
             "every chunk offset maps to the anchor line: {seg:?}"
         );
     }
@@ -270,7 +274,7 @@ fn unmapped_chunks_emit_no_source_positions() {
     let mapped = assembled.print_mapped(map_source);
 
     assert!(
-        mapped.mappings.iter().flatten().count() == 0,
+        mapped.mappings.is_empty(),
         "a chunk with no source anchor must not emit segments: {:?}",
         mapped.mappings
     );

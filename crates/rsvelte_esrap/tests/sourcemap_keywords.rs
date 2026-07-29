@@ -15,6 +15,7 @@ use oxc_allocator::Allocator;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
 
+use rsvelte_esrap::command::Mapping;
 use rsvelte_esrap::{PrintWithMap, print_with_map};
 
 /// Generated `(line0, col0)` of `index` within `code` — a port of the JS test's
@@ -31,28 +32,31 @@ fn generated_line_column(code: &str, index: usize) -> (usize, usize) {
 /// find the segment on that generated line whose generated column equals the
 /// needle's column, and return it. Asserts both the substring and the segment
 /// exist.
-fn mapping_at_substring(code: &str, needle: &str, mappings: &[Vec<[i64; 4]>]) -> [i64; 4] {
+fn mapping_at_substring(code: &str, needle: &str, mappings: &[Mapping]) -> [i64; 4] {
     let idx = code
         .find(needle)
         .unwrap_or_else(|| panic!("needle not in output: {needle:?}\n--- code ---\n{code}"));
     let (gen_line, gen_col) = generated_line_column(code, idx);
-    let line = mappings
-        .get(gen_line)
-        .unwrap_or_else(|| panic!("no mapping line {gen_line} for needle {needle:?}"));
-    *line
+    let m = mappings
         .iter()
-        .find(|s| s[0] == gen_col as i64)
+        .find(|m| m.gen_line as usize == gen_line && m.gen_column as usize == gen_col)
         .unwrap_or_else(|| {
             panic!(
-                "no segment at gen_col {gen_col} on line {gen_line} for needle {needle:?}: {line:?}"
+                "no mapping at line {gen_line} col {gen_col} for needle {needle:?}: {mappings:?}"
             )
-        })
+        });
+    [
+        m.gen_column as i64,
+        0,
+        m.source_line as i64,
+        m.source_column as i64,
+    ]
 }
 
 struct Mapped {
     source: String,
     code: String,
-    mappings: Vec<Vec<[i64; 4]>>,
+    mappings: Vec<Mapping>,
 }
 
 /// Parse `source` as a TS module and print it with mappings — the JS `mapped`.
@@ -220,5 +224,7 @@ fn switch_case_default() {
 fn decorator_prefixed_class_falls_back_gracefully() {
     let m = mapped("@dec\nclass D {}");
     assert!(m.code.contains("class"));
-    assert!(!m.mappings.is_empty());
+    // The decorator drops the class into the unsupported path, which anchors
+    // nothing.
+    assert!(m.mappings.is_empty());
 }

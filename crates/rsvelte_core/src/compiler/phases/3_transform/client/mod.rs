@@ -2355,27 +2355,24 @@ fn transform_client_with_visitors(
     }
 }
 
-/// Convert esrap's line-indexed source-map segments
-/// (`Vec<Vec<[gen_col, src_idx, src_line, src_col]>>`) into the flat
+/// Convert esrap's flat, generated-order mapping list into the
 /// [`SourceMapping`] list the downstream VLQ encoder (`encode_vlq_mappings`)
-/// consumes. The outer index is the 0-based generated line.
+/// consumes.
 fn esrap_mappings_to_source_mappings(
-    mappings: &[Vec<rsvelte_esrap::SourceMapSegment>],
+    mappings: &[rsvelte_esrap::command::Mapping],
 ) -> Vec<SourceMapping> {
-    let mut out = Vec::with_capacity(mappings.iter().map(Vec::len).sum());
-    for (gen_line, segs) in mappings.iter().enumerate() {
-        for seg in segs {
-            out.push(SourceMapping {
-                gen_line: gen_line as u32,
-                gen_col: seg[0] as u32,
-                source: seg[1] as u32,
-                orig_line: seg[2] as u32,
-                orig_col: seg[3] as u32,
-                name: None,
-            });
-        }
-    }
-    out
+    mappings
+        .iter()
+        .map(|m| SourceMapping {
+            gen_line: m.gen_line,
+            gen_col: m.gen_column,
+            // esrap only ever maps a single source.
+            source: 0,
+            orig_line: m.source_line,
+            orig_col: m.source_column,
+            name: None,
+        })
+        .collect()
 }
 
 // Thread-local OXC allocator for the client `to_oxc` direct-AST print path.
