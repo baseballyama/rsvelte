@@ -12,9 +12,7 @@ use super::helpers::rewrite_external_imports::{TextEdit, rewrite_external_specif
 use super::magic_string::{GenerateMapOptions, MagicString};
 use super::nodes::component_name::derive_component_name;
 use super::nodes::generics::{extract_generics_from_script_tag, split_generic_param_names};
-use super::nodes::runes_detection::{
-    detect_await_in_template, detect_rune_global_in_template, detect_runes_mode,
-};
+use super::nodes::runes_detection::detect_runes_mode;
 use super::nodes::scripts::find_script_close_tag_start;
 use super::nodes::snippet_hoisting::hoist_top_level_snippets;
 use super::nodes::svelte_options::emit_svelte_options_element;
@@ -358,38 +356,6 @@ pub fn svelte2tsx(
     }
 
     let source_features = scan_source_features(source);
-
-    // Step 7.4: Detect `{await expr}` in template expression tags.
-    // Await-in-template forces runes mode (async template expressions are
-    // Svelte 5 runes-only).
-    // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
-    //   `isRunes` doc: "True if uses runes or top level await or await in template expressions"
-    if detect_await_in_template(&ast, source, source_features.has_await_word) {
-        exported_names.set_uses_runes(true);
-    }
-
-    // Step 7.45: Detect `$state`/`$derived`/`$effect` rune-globals in TEMPLATE expressions.
-    //
-    // Official rule: `exportedNames.checkGlobalsForRunes(implicitStoreValues.getGlobals())`
-    // (svelte2tsx/index.ts) — `implicitStoreValues` collects ALL accessed undeclared
-    // globals across the entire component INCLUDING template expressions.
-    // `checkGlobalsForRunes` (svelte2tsx/nodes/ExportedNames.ts ~line 878–881) sets
-    // `hasRunesGlobals = isSvelte5Plus && globals.some(g =>
-    // ['$state','$derived','$effect'].includes(g))`.
-    //
-    // A component with NO `<script>` but with e.g. `aria-current={$state.eager(pathname) === '/'
-    // ? 'page' : null}` is therefore RUNES (because `$state` is an undeclared global
-    // referenced in the template).  rsvelte's instance-script scanner never runs for
-    // template-only components, so we need to walk the template AST here.
-    if detect_rune_global_in_template(
-        &ast,
-        source,
-        &exported_names.instance_value_names,
-        source_features.may_have_template_rune_global,
-    ) {
-        exported_names.set_uses_runes(true);
-    }
-
     // Step 7.48: Find and remove embedded `<script>` tags (those NOT matching
     // the top-level instance / module script). Mirrors official svelte2tsx's
     // `blankOtherScriptTags` / `str.move` approach.
@@ -463,12 +429,18 @@ pub fn svelte2tsx(
 
     // Step 9.5: Collect slot and event information from the template
     let template_info = template::collect_template_info_if_needed(
-        &ast.fragment,
+        &ast,
         source,
         uses_dollar_slots,
         source_features.may_need_template_info,
+        source_features.has_await_word,
+        source_features.may_have_template_rune_global,
+        &exported_names.instance_value_names,
     );
     let has_slot_elements = !template_info.slots.is_empty();
+    if template_info.uses_runes {
+        exported_names.set_uses_runes(true);
+    }
 
     // Step 10: Wrap in $$render() and add component export
     //

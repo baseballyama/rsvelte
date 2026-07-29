@@ -10,6 +10,8 @@ use super::attributes::let_::get_let_directives;
 use super::nodes::slot_element::{dollar_slot_name, get_slot_attr_value, slot_name_for_type};
 use super::utils::expr::get_expression_text;
 use super::{ForwardedEventKind, TemplateInfo};
+use crate::ast::arena::ParseArena;
+use crate::svelte2tsx::nodes::runes_detection::TemplateRunesDetector;
 
 pub(super) fn collect_info_from_fragment(
     fragment: &Fragment,
@@ -17,9 +19,11 @@ pub(super) fn collect_info_from_fragment(
     info: &mut TemplateInfo,
     scope: &mut Vec<(String, String)>,
     enclosing: Option<&str>,
+    detector: &mut TemplateRunesDetector,
+    arena: &ParseArena,
 ) {
     for node in &fragment.nodes {
-        collect_info_from_node(node, source, info, scope, enclosing);
+        collect_info_from_node(node, source, info, scope, enclosing, detector, arena);
     }
 }
 
@@ -34,6 +38,8 @@ fn collect_special_element_info(
     info: &mut TemplateInfo,
     scope: &mut Vec<(String, String)>,
     enclosing: Option<&str>,
+    detector: &mut TemplateRunesDetector,
+    arena: &ParseArena,
 ) {
     if collect_events {
         for attr in &el.attributes {
@@ -50,7 +56,15 @@ fn collect_special_element_info(
     // Slot-consumer `let:` bindings on a special element used as a slotted child
     // are gathered at the enclosing component (see
     // `push_component_slot_consumer_lets`), so just recurse here.
-    collect_info_from_fragment(&el.fragment, source, info, scope, enclosing);
+    collect_info_from_fragment(
+        &el.fragment,
+        source,
+        info,
+        scope,
+        enclosing,
+        detector,
+        arena,
+    );
 }
 
 /// `enclosing` is the name of the nearest ancestor component, used to build
@@ -61,7 +75,10 @@ fn collect_info_from_node(
     info: &mut TemplateInfo,
     scope: &mut Vec<(String, String)>,
     enclosing: Option<&str>,
+    detector: &mut TemplateRunesDetector,
+    arena: &ParseArena,
 ) {
+    detector.observe(node, source, arena);
     match node {
         TemplateNode::SlotElement(el) => {
             if let Some(names) = &mut info.dollar_slot_names {
@@ -78,7 +95,15 @@ fn collect_info_from_node(
             // accumulate), so two `<slot key="a"/><slot key="b"/>` yield only the
             // last one's props.
             info.slots.insert(slot_name, slot_props);
-            collect_info_from_fragment(&el.fragment, source, info, scope, enclosing);
+            collect_info_from_fragment(
+                &el.fragment,
+                source,
+                info,
+                scope,
+                enclosing,
+                detector,
+                arena,
+            );
         }
         TemplateNode::RegularElement(el) => {
             // Collect forwarded events (on:event without handler)
@@ -98,7 +123,15 @@ fn collect_info_from_node(
                     ));
                 }
             }
-            collect_info_from_fragment(&el.fragment, source, info, scope, enclosing);
+            collect_info_from_fragment(
+                &el.fragment,
+                source,
+                info,
+                scope,
+                enclosing,
+                detector,
+                arena,
+            );
         }
         // Forwarded events on `<svelte:window>` / `<svelte:body>` map to
         // `mapWindowEvent` / `mapBodyEvent` (official getEventDefExpressionForNonComponent);
@@ -112,10 +145,22 @@ fn collect_info_from_node(
                 info,
                 scope,
                 enclosing,
+                detector,
+                arena,
             );
         }
         TemplateNode::SvelteBody(el) => {
-            collect_special_element_info(el, "mapBodyEvent", true, source, info, scope, enclosing);
+            collect_special_element_info(
+                el,
+                "mapBodyEvent",
+                true,
+                source,
+                info,
+                scope,
+                enclosing,
+                detector,
+                arena,
+            );
         }
         TemplateNode::SvelteDocument(el)
         | TemplateNode::SvelteFragment(el)
@@ -130,6 +175,8 @@ fn collect_info_from_node(
                 info,
                 scope,
                 enclosing,
+                detector,
+                arena,
             );
         }
         // `<svelte:self>` is an `InlineComponent` (official `getTypeForComponent`
@@ -155,6 +202,8 @@ fn collect_info_from_node(
                 info,
                 scope,
                 enclosing,
+                detector,
+                arena,
             );
             for _ in 0..pushed {
                 scope.pop();
@@ -195,7 +244,15 @@ fn collect_info_from_node(
                 source,
                 scope,
             );
-            collect_info_from_fragment(&comp.fragment, source, info, scope, Some(&comp.name));
+            collect_info_from_fragment(
+                &comp.fragment,
+                source,
+                info,
+                scope,
+                Some(&comp.name),
+                detector,
+                arena,
+            );
             for _ in 0..pushed {
                 scope.pop();
             }
@@ -235,15 +292,31 @@ fn collect_info_from_node(
                 source,
                 scope,
             );
-            collect_info_from_fragment(&comp.fragment, source, info, scope, enclosing);
+            collect_info_from_fragment(
+                &comp.fragment,
+                source,
+                info,
+                scope,
+                enclosing,
+                detector,
+                arena,
+            );
             for _ in 0..pushed {
                 scope.pop();
             }
         }
         TemplateNode::IfBlock(block) => {
-            collect_info_from_fragment(&block.consequent, source, info, scope, enclosing);
+            collect_info_from_fragment(
+                &block.consequent,
+                source,
+                info,
+                scope,
+                enclosing,
+                detector,
+                arena,
+            );
             if let Some(ref alt) = block.alternate {
-                collect_info_from_fragment(alt, source, info, scope, enclosing);
+                collect_info_from_fragment(alt, source, info, scope, enclosing, detector, arena);
             }
         }
         TemplateNode::EachBlock(block) => {
@@ -277,17 +350,29 @@ fn collect_info_from_node(
             } else {
                 0usize
             };
-            collect_info_from_fragment(&block.body, source, info, scope, enclosing);
+            collect_info_from_fragment(
+                &block.body,
+                source,
+                info,
+                scope,
+                enclosing,
+                detector,
+                arena,
+            );
             for _ in 0..pushed {
                 scope.pop();
             }
             if let Some(ref fallback) = block.fallback {
-                collect_info_from_fragment(fallback, source, info, scope, enclosing);
+                collect_info_from_fragment(
+                    fallback, source, info, scope, enclosing, detector, arena,
+                );
             }
         }
         TemplateNode::AwaitBlock(block) => {
             if let Some(ref pending) = block.pending {
-                collect_info_from_fragment(pending, source, info, scope, enclosing);
+                collect_info_from_fragment(
+                    pending, source, info, scope, enclosing, detector, arena,
+                );
             }
             if let Some(ref then) = block.then {
                 // `{#await promise then value}` binds `value` to
@@ -302,23 +387,47 @@ fn collect_info_from_node(
                         scope.push((name, format!("__sveltets_2_unwrapPromiseLike({})", promise)));
                     })
                     .is_some();
-                collect_info_from_fragment(then, source, info, scope, enclosing);
+                collect_info_from_fragment(then, source, info, scope, enclosing, detector, arena);
                 if pushed {
                     scope.pop();
                 }
             }
             if let Some(ref catch) = block.catch {
-                collect_info_from_fragment(catch, source, info, scope, enclosing);
+                collect_info_from_fragment(catch, source, info, scope, enclosing, detector, arena);
             }
         }
         TemplateNode::KeyBlock(block) => {
-            collect_info_from_fragment(&block.fragment, source, info, scope, enclosing);
+            collect_info_from_fragment(
+                &block.fragment,
+                source,
+                info,
+                scope,
+                enclosing,
+                detector,
+                arena,
+            );
         }
         TemplateNode::SnippetBlock(block) => {
-            collect_info_from_fragment(&block.body, source, info, scope, enclosing);
+            collect_info_from_fragment(
+                &block.body,
+                source,
+                info,
+                scope,
+                enclosing,
+                detector,
+                arena,
+            );
         }
         TemplateNode::TitleElement(el) => {
-            collect_info_from_fragment(&el.fragment, source, info, scope, enclosing);
+            collect_info_from_fragment(
+                &el.fragment,
+                source,
+                info,
+                scope,
+                enclosing,
+                detector,
+                arena,
+            );
         }
         TemplateNode::SvelteElement(el) => {
             // `<svelte:element>` is an `Element` node in the official AST, so a
@@ -336,7 +445,15 @@ fn collect_info_from_node(
                     ));
                 }
             }
-            collect_info_from_fragment(&el.fragment, source, info, scope, enclosing);
+            collect_info_from_fragment(
+                &el.fragment,
+                source,
+                info,
+                scope,
+                enclosing,
+                detector,
+                arena,
+            );
         }
         // Leaf nodes don't have children to recurse into
         _ => {}

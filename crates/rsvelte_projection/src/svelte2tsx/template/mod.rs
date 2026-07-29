@@ -14,11 +14,12 @@ mod segs;
 mod utils;
 mod walk;
 
-use crate::ast::template::Fragment;
+use crate::ast::template::{Fragment, Root};
 
 use indexmap::{IndexMap, IndexSet};
 
 use super::magic_string::MagicString;
+use super::nodes::runes_detection::TemplateRunesDetector;
 use super::svelte2tsx::Svelte2TsxOptions;
 use ctx::Counter;
 
@@ -44,6 +45,7 @@ pub struct TemplateInfo {
     pub element_events: Vec<(String, String, ForwardedEventKind)>,
     /// Slot names for the legacy `$$slots` declaration, collected only when used.
     pub dollar_slot_names: Option<Box<IndexSet<String>>>,
+    pub uses_runes: bool,
 }
 
 impl TemplateInfo {
@@ -102,11 +104,16 @@ pub fn process_template_inplace(
 /// - Slot elements with their props (for the return statement `slots: {...}`)
 /// - Forwarded events (for the return statement `events: {...}`)
 pub fn collect_template_info(
-    fragment: &Fragment,
+    ast: &Root,
     source: &str,
     collect_dollar_slot_names: bool,
+    check_await: bool,
+    check_rune_global: bool,
+    instance_value_names: &std::collections::HashSet<String>,
 ) -> TemplateInfo {
     let mut info = TemplateInfo::empty(collect_dollar_slot_names);
+    let mut detector =
+        TemplateRunesDetector::new(check_await, check_rune_global, instance_value_names);
     // `scope` maps an in-scope template binding name (e.g. an `{#each}` context
     // variable) to the expression that types it at the top level — for an each
     // block, `__sveltets_2_unwrapArr(<collection>)`. Slot props referencing
@@ -114,18 +121,37 @@ pub fn collect_template_info(
     // `slots: { … }` return reflects the element type. Mirrors official
     // `SlotHandler.getResolveExpressionStr` (EachBlock → unwrapArr).
     let mut scope: Vec<(String, String)> = Vec::new();
-    collect::collect_info_from_fragment(fragment, source, &mut info, &mut scope, None);
+    collect::collect_info_from_fragment(
+        &ast.fragment,
+        source,
+        &mut info,
+        &mut scope,
+        None,
+        &mut detector,
+        &ast.arena,
+    );
+    info.uses_runes = detector.uses_runes();
     info
 }
 
 pub fn collect_template_info_if_needed(
-    fragment: &Fragment,
+    ast: &Root,
     source: &str,
     collect_dollar_slot_names: bool,
     may_need_template_info: bool,
+    check_await: bool,
+    check_rune_global: bool,
+    instance_value_names: &std::collections::HashSet<String>,
 ) -> TemplateInfo {
-    if may_need_template_info {
-        collect_template_info(fragment, source, collect_dollar_slot_names)
+    if may_need_template_info || check_await || check_rune_global {
+        collect_template_info(
+            ast,
+            source,
+            collect_dollar_slot_names,
+            check_await,
+            check_rune_global,
+            instance_value_names,
+        )
     } else {
         TemplateInfo::empty(collect_dollar_slot_names)
     }
@@ -136,6 +162,7 @@ mod tests {
     use super::*;
     use crate::ast::template::Fragment;
     use crate::compiler::phases::phase1_parse::{self, ParseOptions};
+    use crate::svelte2tsx::utils::source_features::scan_source_features;
 
     fn collect(source: &str, dollar_slots: bool) -> TemplateInfo {
         let ast = phase1_parse::parse_script_ts(
@@ -146,7 +173,15 @@ mod tests {
             },
         )
         .expect("fixture should parse");
-        collect_template_info(&ast.fragment, source, dollar_slots)
+        let features = scan_source_features(source);
+        collect_template_info(
+            &ast,
+            source,
+            dollar_slots,
+            features.has_await_word,
+            features.may_have_template_rune_global,
+            &std::collections::HashSet::new(),
+        )
     }
 
     fn collect_if_needed(
@@ -162,13 +197,23 @@ mod tests {
             },
         )
         .expect("fixture should parse");
-        collect_template_info_if_needed(&ast.fragment, source, dollar_slots, may_need_template_info)
+        let features = scan_source_features(source);
+        collect_template_info_if_needed(
+            &ast,
+            source,
+            dollar_slots,
+            may_need_template_info,
+            features.has_await_word,
+            features.may_have_template_rune_global,
+            &std::collections::HashSet::new(),
+        )
     }
 
     fn assert_info_eq(actual: &TemplateInfo, expected: &TemplateInfo) {
         assert_eq!(actual.slots, expected.slots);
         assert_eq!(actual.element_events, expected.element_events);
         assert_eq!(actual.dollar_slot_names, expected.dollar_slot_names);
+        assert_eq!(actual.uses_runes, expected.uses_runes);
     }
 
     #[test]
