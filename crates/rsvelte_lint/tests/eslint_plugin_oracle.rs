@@ -21,7 +21,7 @@
 use std::path::{Path, PathBuf};
 
 use rsvelte_core::CompileOptions;
-use rsvelte_core::svelte_check::diagnostic::Diagnostic;
+use rsvelte_diagnostics::Diagnostic;
 use rsvelte_lint::line_index::LineIndex;
 use rsvelte_lint::registry::registered_rule_metas;
 use rsvelte_lint::{

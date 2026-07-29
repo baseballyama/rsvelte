@@ -3,7 +3,6 @@
   "cmsaasstarter/src/routes/(marketing)/+page.svelte",
   "layercake/src/_components/AxisY.percent-range.html.svelte",
   "layercake/src/_components/AxisYRight.percent-range.html.svelte",
-  "layercake/src/routes/components/+page.svelte",
   "layerchart/docs/src/routes/+page.svelte",
   "powertable/app/src/lib/components/PowerTable.svelte",
   "powertable/app/src/routes/examples/+layout.svelte",
@@ -13,6 +12,5 @@
   "svelte-ux/packages/svelte-ux/src/lib/components/Collapse.svelte",
   "svelte-ux/packages/svelte-ux/src/routes/+error.svelte",
   "svelte-ux/packages/svelte-ux/src/routes/docs/components/Gooey/+page.svelte",
-  "svelte-ux/packages/svelte-ux/src/routes/docs/components/TextField/+page.svelte",
   "svelte/packages/svelte/tests/parser-modern/samples/const-tag-parenthesized-init/input.svelte"
 ]

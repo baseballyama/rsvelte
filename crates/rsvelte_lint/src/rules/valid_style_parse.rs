@@ -22,7 +22,7 @@
 
 use std::path::Path;
 
-use rsvelte_core::svelte_check::diagnostic::{Diagnostic, Position, Range};
+use rsvelte_diagnostics::{Diagnostic, Position, Range};
 
 use crate::config::LintConfig;
 use crate::line_index::LineIndex;

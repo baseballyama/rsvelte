@@ -222,14 +222,14 @@ jobs:
           pnpm build
 
       - name: Install language-tools deps
-        # The svelte-check golden test (tests/svelte_check_golden.rs)
+        # The svelte-check golden test (crates/rsvelte_check/tests/svelte_check_golden.rs)
         # runs the rsvelte svelte-check against the upstream test-error
         # fixture. tsc needs `node_modules/svelte` resolvable from the
         # fixture (the svelte2tsx shims `/// <reference types="svelte" />`
         # pull in the package's type definitions). pnpm install at the
         # language-tools root sets up the workspace symlinks that make
         # this work — see also `resolve_svelte2tsx_shims` in
-        # src/svelte_check/overlay.rs.
+        # crates/rsvelte_check/src/svelte_check/overlay.rs.
         run: |
           cd submodules/language-tools
           pnpm install --frozen-lockfile
@@ -272,7 +272,7 @@ jobs:
           RUST_MIN_STACK: '33554432'
           # Pin svelte-check golden tests to the TS 5.x bundled with the
           # svelte submodule install above. Without this, `which("tsc")`
-          # in src/svelte_check/tsgo.rs picks up whatever tsc the runner
+          # in crates/rsvelte_check/src/svelte_check/tsgo.rs picks up whatever tsc the runner
           # image preinstalls — on ubuntu-latest that's a TS 6 pre-release
           # that promotes `moduleResolution: "node"` to a hard TS5107
           # error and bails out before emitting the user-source diagnostics

@@ -49,7 +49,7 @@ use crate::rule::{RuleMeta, Severity};
 /// `let` named `open` / `top` / `name` / `status` — that merely shares a
 /// global's name. This resolver answers that by running oxc semantic analysis
 /// over the file's `<script>`(s) (via
-/// [`rsvelte_core::lint_scope::resolve_script_scope`]) and recording:
+/// [`crate::compiler_scope::resolve_script_scope`]) and recording:
 ///
 /// - the absolute byte spans of identifiers that are **not global references**
 ///   (declarations + reads that resolve to a local) — for the script rule
@@ -83,7 +83,7 @@ impl ScopeResolver {
     /// script body, `base` its absolute start offset in the file, and `is_ts`
     /// its language (so TS scripts parse as TS).
     pub fn add_script(&mut self, src: &str, base: u32, is_ts: bool) {
-        let scope = rsvelte_core::lint_scope::resolve_script_scope(src, is_ts);
+        let scope = crate::compiler_scope::resolve_script_scope(src, is_ts);
         for (s, e) in scope.non_global_spans {
             self.local_spans.insert((s + base, e + base));
         }

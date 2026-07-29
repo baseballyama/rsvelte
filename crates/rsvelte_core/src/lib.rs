@@ -1,13 +1,16 @@
-//! # rsvelte_core
+//! Low-level compiler implementation for the rsvelte toolchain.
 //!
-//! A high-performance Rust implementation of the Svelte compiler.
+//! Most embedders should use the compiler-neutral [`rsvelte`](https://docs.rs/rsvelte)
+//! facade. This crate exposes rsvelte's parser, AST, phases, and raw compiler
+//! options for workspace products and advanced integrations. Those low-level
+//! types follow a pre-1.0 compatibility policy and may change between minor
+//! releases as Svelte compatibility work evolves.
 //!
-//! ## Goals
+//! The default feature set is empty. `parallel` adds only batch/parser
+//! parallelism; host policy such as filesystem access, watching, CLI parsing,
+//! allocator selection, and language bindings belongs to dedicated crates.
 //!
-//! 1. **100% Test Compatibility**: Pass all tests from the official Svelte compiler test suite
-//! 2. **100x Performance**: Achieve 100 times the performance of the official Svelte compiler
-//!
-//! ## Usage
+//! # Low-level usage
 //!
 //! ```rust,no_run
 //! use rsvelte_core::{Allocator, parse, ParseOptions};
@@ -17,45 +20,29 @@
 //! let ast = parse(source, &allocator, ParseOptions::default()).unwrap();
 //! ```
 
-// `#[global_allocator]` deliberately lives in each binary entry point
-// (src/main.rs, src/bin/*.rs) and in the `rsvelte_napi` cdylib root rather
-// than here, so that linking this rlib never imposes an allocator on the
-// consumer. The system-allocator fallback for the rlib path is intentional;
-// everything that runs in production installs its own allocator (mimalloc
-// preferred, jemalloc as a fallback).
+// `#[global_allocator]` deliberately lives only in artifacts that explicitly
+// own allocator policy (for example repository profiling binaries and the
+// `rsvelte_napi` cdylib), never in this library. Ordinary CLIs inherit the
+// platform allocator, and embedding this rlib never imposes one on the host.
 
 pub mod ast;
 pub mod compiler;
 pub mod error;
-pub mod lint_scope;
-pub mod svelte2tsx;
-#[cfg(feature = "native")]
-pub mod svelte_check;
 pub mod toolchain;
-pub mod vps;
-
-// The raw-transfer envelope stays in this crate (rather than in `rsvelte_napi`)
-// so unit tests and non-NAPI consumers such as the WASM build can exercise the
-// encoder.
-pub mod napi_raw;
-pub mod napi_raw_parse;
-
-#[cfg(feature = "wasm")]
-pub mod wasm;
 
 pub use compiler::legacy::convert_to_legacy;
-#[cfg(not(feature = "native"))]
+#[cfg(not(feature = "parallel"))]
 pub use compiler::phases::phase1_parse::{ParseOptions, parse};
-#[cfg(feature = "native")]
+#[cfg(feature = "parallel")]
 pub use compiler::phases::phase1_parse::{ParseOptions, parse, parse_parallel};
 pub use compiler::print::{PrintError, PrintOptions, PrintResult, print};
-#[cfg(feature = "native")]
+#[cfg(feature = "parallel")]
 pub use compiler::{
     CompileError, CompileOptions, CompileResult, ExperimentalOptions, GenerateMode,
     ModuleCompileOptions, Warning, WarningFilterFn, compile, compile_batch, compile_both,
     compile_module,
 };
-#[cfg(not(feature = "native"))]
+#[cfg(not(feature = "parallel"))]
 pub use compiler::{
     CompileError, CompileOptions, CompileResult, ExperimentalOptions, GenerateMode,
     ModuleCompileOptions, Warning, WarningFilterFn, compile, compile_both, compile_module,

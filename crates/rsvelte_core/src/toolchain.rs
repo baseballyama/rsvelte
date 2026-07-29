@@ -1,7 +1,9 @@
-//! Stable, in-process building blocks for Svelte-aware toolchains.
+//! Low-level, in-process runtime compilation building blocks.
 //!
 //! The facade owns no filesystem, cache, scheduler, or thread pool. Embedders
 //! keep those policies and cache the returned immutable DTOs themselves.
+
+#![deny(missing_docs)]
 
 use std::{cell::OnceCell, ops::Range};
 
@@ -12,17 +14,14 @@ use crate::{
         ComponentAnalysis,
         phases::{phase2_analyze::BindingKind, phase3_transform::transform_component_with_scripts},
     },
-    svelte2tsx::{Svelte2TsxError, Svelte2TsxOptions, svelte2tsx},
 };
 
-/// Version of the public toolchain facade.
-pub const TOOLCHAIN_ABI_VERSION: u32 = 1;
+/// Version of the low-level toolchain DTO contract.
+pub const TOOLCHAIN_SCHEMA_VERSION: u32 = 1;
 /// Version of the reusable runtime preparation contract.
-pub const RUNTIME_ABI_VERSION: u32 = 1;
-/// Version of the IDE projection artifact contract.
-pub const PROJECTION_ABI_VERSION: u32 = 1;
+pub const RUNTIME_SCHEMA_VERSION: u32 = 1;
 /// Version of the normalized facts contract.
-pub const FACTS_ABI_VERSION: u32 = 2;
+pub const FACTS_SCHEMA_VERSION: u32 = 2;
 
 const SVELTE_VERSION: &str = match option_env!("SVELTE_VERSION") {
     Some(version) => version,
@@ -40,136 +39,86 @@ pub struct EngineFingerprint {
     pub rsvelte_version: &'static str,
     /// Svelte reference version compiled into rsvelte.
     pub svelte_version: &'static str,
-    /// Public facade ABI version.
-    pub toolchain_abi: u32,
-    /// Runtime preparation and generation ABI version.
-    pub runtime_abi: u32,
-    /// IDE projection ABI version.
-    pub projection_abi: u32,
-    /// Normalized facts ABI version.
-    pub facts_abi: u32,
+    /// Low-level toolchain schema version.
+    pub toolchain_schema: u32,
+    /// Runtime preparation and generation schema version.
+    pub runtime_schema: u32,
+    /// Normalized facts schema version.
+    pub facts_schema: u32,
 }
 
 /// A half-open UTF-8 byte range in the original or generated source.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct ByteRange {
-    pub start: u32,
-    pub end: u32,
+    start: u32,
+    end: u32,
 }
 
 impl ByteRange {
+    /// Construct an ordered byte range, or return `None` for inverted bounds.
     #[must_use]
-    pub const fn new(start: u32, end: u32) -> Self {
+    pub const fn new(start: u32, end: u32) -> Option<Self> {
+        if start <= end {
+            Some(Self { start, end })
+        } else {
+            None
+        }
+    }
+
+    const fn trusted(start: u32, end: u32) -> Self {
+        debug_assert!(start <= end);
         Self { start, end }
     }
 
+    /// Start byte offset.
+    #[must_use]
+    pub const fn start(self) -> u32 {
+        self.start
+    }
+
+    /// Exclusive end byte offset.
+    #[must_use]
+    pub const fn end(self) -> u32 {
+        self.end
+    }
+
+    /// Range length in bytes.
     #[must_use]
     pub const fn len(self) -> u32 {
-        self.end.saturating_sub(self.start)
+        self.end - self.start
     }
 
+    /// Whether the range contains no bytes.
     #[must_use]
     pub const fn is_empty(self) -> bool {
-        self.start >= self.end
+        self.start == self.end
     }
 
+    /// Whether the range contains `offset`.
     #[must_use]
     pub const fn contains(self, offset: u32) -> bool {
         offset >= self.start && offset < self.end
     }
 
+    /// Whether the range fully contains `range`.
     #[must_use]
     pub const fn contains_range(self, range: Self) -> bool {
-        range.start >= self.start && range.end <= self.end && range.start <= range.end
+        range.start >= self.start && range.end <= self.end
     }
 
+    /// Convert to a range usable for source-text indexing.
     #[must_use]
     pub const fn as_usize_range(self) -> Range<usize> {
         self.start as usize..self.end as usize
     }
 }
 
-/// One byte-exact, length-preserving mapping segment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ExactMapping {
-    pub source: ByteRange,
-    pub generated: ByteRange,
-}
-
-/// Byte-exact mappings for verbatim source chunks in an IDE projection.
-///
-/// Synthesized or rewritten output has no segment. Source ranges can have
-/// multiple generated candidates when a chunk is moved or duplicated.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ProjectionMap {
-    segments: Vec<ExactMapping>,
-}
-
-impl ProjectionMap {
-    #[must_use]
-    pub fn new(segments: Vec<ExactMapping>) -> Self {
-        debug_assert!(
-            segments
-                .iter()
-                .all(|segment| segment.source.len() == segment.generated.len())
-        );
-        Self { segments }
-    }
-
-    #[must_use]
-    pub fn segments(&self) -> &[ExactMapping] {
-        &self.segments
-    }
-
-    /// Map one original byte offset to every exact generated candidate.
-    #[must_use]
-    pub fn source_to_generated(&self, offset: u32) -> Vec<u32> {
-        self.segments
-            .iter()
-            .filter(|segment| segment.source.contains(offset))
-            .map(|segment| segment.generated.start + offset - segment.source.start)
-            .collect()
-    }
-
-    /// Map one generated byte offset back to its exact original offset.
-    #[must_use]
-    pub fn generated_to_source(&self, offset: u32) -> Option<u32> {
-        self.segments
-            .iter()
-            .find(|segment| segment.generated.contains(offset))
-            .map(|segment| segment.source.start + offset - segment.generated.start)
-    }
-
-    /// Map an original range to every segment that contains it completely.
-    #[must_use]
-    pub fn source_range_to_generated(&self, range: ByteRange) -> Vec<ByteRange> {
-        self.segments
-            .iter()
-            .filter(|segment| segment.source.contains_range(range))
-            .map(|segment| {
-                let start = segment.generated.start + range.start - segment.source.start;
-                ByteRange::new(start, start + range.len())
-            })
-            .collect()
-    }
-
-    /// Map a generated range when one exact segment contains it completely.
-    #[must_use]
-    pub fn generated_range_to_source(&self, range: ByteRange) -> Option<ByteRange> {
-        self.segments
-            .iter()
-            .find(|segment| segment.generated.contains_range(range))
-            .map(|segment| {
-                let start = segment.source.start + range.start - segment.generated.start;
-                ByteRange::new(start, start + range.len())
-            })
-    }
-}
-
 /// Runtime output target for a prepared component.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RuntimeTarget {
+    /// Browser runtime output.
     Client,
+    /// Server-side rendering output.
     Server,
 }
 
@@ -185,7 +134,9 @@ impl From<RuntimeTarget> for GenerateMode {
 /// The role of a component script block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ScriptKind {
+    /// Instance script visible to the component template.
     Instance,
+    /// Module-context script.
     Module,
 }
 
@@ -193,9 +144,13 @@ pub enum ScriptKind {
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScriptRegion {
+    /// Script role.
     pub kind: ScriptKind,
+    /// Full script-tag range.
     pub tag: ByteRange,
+    /// Script-content range.
     pub content: ByteRange,
+    /// Whether the script declares a TypeScript language.
     pub typescript: bool,
 }
 
@@ -203,7 +158,9 @@ pub struct ScriptRegion {
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StyleRegion {
+    /// Full style-tag range.
     pub tag: ByteRange,
+    /// Style-content range.
     pub content: ByteRange,
 }
 
@@ -211,9 +168,13 @@ pub struct StyleRegion {
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ComponentProp {
+    /// Public prop name.
     pub name: String,
+    /// Local script binding name.
     pub local_name: String,
+    /// Source range of the declaration, when known.
     pub declaration: Option<ByteRange>,
+    /// Whether consumers may bind to the prop.
     pub bindable: bool,
 }
 
@@ -221,7 +182,9 @@ pub struct ComponentProp {
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ComponentExport {
+    /// Public export name.
     pub name: String,
+    /// Local script binding name.
     pub local_name: String,
 }
 
@@ -229,6 +192,7 @@ pub struct ComponentExport {
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ComponentFacts {
+    /// Whether analysis selected runes mode.
     pub runes: bool,
     /// Scope class frozen by component analysis, when a style block exists.
     pub css_scope_hash: Option<String>,
@@ -238,11 +202,17 @@ pub struct ComponentFacts {
     pub uses_legacy_rest_props: bool,
     /// Whether legacy `$$slots` is referenced.
     pub uses_legacy_slots: bool,
+    /// Whether the template contains render tags.
     pub uses_render_tags: bool,
+    /// Whether the component contains component bindings.
     pub uses_component_bindings: bool,
+    /// Script regions in source order.
     pub scripts: Vec<ScriptRegion>,
+    /// Component style region.
     pub style: Option<StyleRegion>,
+    /// Declared component props.
     pub props: Vec<ComponentProp>,
+    /// Declared component exports.
     pub exports: Vec<ComponentExport>,
 }
 
@@ -256,8 +226,8 @@ impl ComponentFacts {
                     ScriptContext::Default => ScriptKind::Instance,
                     ScriptContext::Module => ScriptKind::Module,
                 },
-                tag: ByteRange::new(script.start, script.end),
-                content: ByteRange::new(
+                tag: ByteRange::trusted(script.start, script.end),
+                content: ByteRange::trusted(
                     script.content_offset,
                     source[script.content_offset as usize..script.end as usize]
                         .rfind("</script")
@@ -280,8 +250,8 @@ impl ComponentFacts {
         scripts.sort_by_key(|script| script.tag.start);
 
         let style = ast.css.as_ref().map(|style| StyleRegion {
-            tag: ByteRange::new(style.start, style.end),
-            content: ByteRange::new(style.content.start, style.content.end),
+            tag: ByteRange::trusted(style.start, style.end),
+            content: ByteRange::trusted(style.content.start, style.content.end),
         });
 
         let mut props = analysis
@@ -296,7 +266,7 @@ impl ComponentFacts {
                     .unwrap_or_else(|| binding.name.clone()),
                 local_name: binding.name.clone(),
                 declaration: binding.declaration_start.map(|start| {
-                    ByteRange::new(start, start.saturating_add(binding.name.len() as u32))
+                    ByteRange::trusted(start, start.saturating_add(binding.name.len() as u32))
                 }),
                 bindable: binding.kind == BindingKind::BindableProp,
             })
@@ -324,48 +294,6 @@ impl ComponentFacts {
                 .collect(),
         }
     }
-}
-
-/// A normalized prop fact from the IDE projection pass.
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProjectionProp {
-    pub name: String,
-    pub local_name: String,
-    pub optional: bool,
-    pub bindable: bool,
-    pub type_annotation: Option<String>,
-}
-
-/// A normalized named export fact from the IDE projection pass.
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProjectionExport {
-    pub name: String,
-    pub local_name: String,
-    pub type_annotation: Option<String>,
-}
-
-/// Immutable syntactic facts collected while producing the IDE projection.
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProjectionFacts {
-    pub runes: bool,
-    pub props: Vec<ProjectionProp>,
-    pub exports: Vec<ProjectionExport>,
-    pub events: Vec<String>,
-}
-
-/// Generated IDE code, its standard source map, exact mappings, and facts.
-#[non_exhaustive]
-#[derive(Debug, Clone)]
-pub struct ProjectionArtifact {
-    pub code: String,
-    pub source_map: Option<String>,
-    /// Exact mappings are unavailable when a configured post-pass rewrites
-    /// generated text after the projection chunk graph is finalized.
-    pub exact_mappings: Option<ProjectionMap>,
-    pub facts: ProjectionFacts,
 }
 
 /// A parsed and analyzed component whose runtime options are frozen.
@@ -419,6 +347,7 @@ impl<'source> PreparedComponent<'source> {
         })
     }
 
+    /// Return immutable compiler facts frozen during preparation.
     #[must_use]
     pub fn facts(&self) -> &ComponentFacts {
         self.facts.get_or_init(|| {
@@ -426,10 +355,12 @@ impl<'source> PreparedComponent<'source> {
         })
     }
 
+    /// Emit one runtime target without repeating parse or analysis.
     pub fn compile(&mut self, target: RuntimeTarget) -> Result<CompileResult, CompileError> {
         self.compile_mode(target.into())
     }
 
+    /// Emit client and server targets from the same analysis.
     pub fn compile_both(&mut self) -> Result<(CompileResult, CompileResult), CompileError> {
         let client = self.compile(RuntimeTarget::Client)?;
         let server = self.compile(RuntimeTarget::Server)?;
@@ -477,103 +408,35 @@ impl<'source> PreparedComponent<'source> {
     }
 }
 
-/// Stateless entry point for compiler and IDE products.
-#[derive(Debug, Default, Clone, Copy)]
+/// Stateless entry point for runtime compiler products.
+#[derive(Debug, Default)]
 pub struct Toolchain;
 
 impl Toolchain {
+    /// Construct a low-level compiler toolchain.
     #[must_use]
     pub const fn new() -> Self {
         Self
     }
 
+    /// Return versions and schemas for caller-owned cache namespaces.
     #[must_use]
-    pub const fn fingerprint(self) -> EngineFingerprint {
+    pub const fn fingerprint(&self) -> EngineFingerprint {
         EngineFingerprint {
             rsvelte_version: env!("CARGO_PKG_VERSION"),
             svelte_version: SVELTE_VERSION,
-            toolchain_abi: TOOLCHAIN_ABI_VERSION,
-            runtime_abi: RUNTIME_ABI_VERSION,
-            projection_abi: PROJECTION_ABI_VERSION,
-            facts_abi: FACTS_ABI_VERSION,
+            toolchain_schema: TOOLCHAIN_SCHEMA_VERSION,
+            runtime_schema: RUNTIME_SCHEMA_VERSION,
+            facts_schema: FACTS_SCHEMA_VERSION,
         }
     }
 
+    /// Parse and analyze a component once, freezing its compile options.
     pub fn prepare<'source>(
-        self,
+        &self,
         source: &'source str,
         options: CompileOptions,
     ) -> Result<PreparedComponent<'source>, CompileError> {
         PreparedComponent::new(source, options)
-    }
-
-    pub fn project(
-        self,
-        source: &str,
-        options: Svelte2TsxOptions,
-    ) -> Result<ProjectionArtifact, Svelte2TsxError> {
-        let has_postprocess = options.rewrite_external_imports.is_some();
-        let result = svelte2tsx(source, options)?;
-        let bindable_props = &result.exported_names.bindable_props;
-        let mut props = Vec::new();
-        let mut exports = Vec::new();
-        for name in result.exported_names.get_all_names() {
-            let Some(info) = result.exported_names.get(name) else {
-                continue;
-            };
-            if info.is_prop {
-                props.push(ProjectionProp {
-                    name: name.to_string(),
-                    local_name: info.local_name.clone(),
-                    optional: info.has_default,
-                    bindable: bindable_props.iter().any(|bindable| bindable == name),
-                    type_annotation: info.type_annotation.clone(),
-                });
-            }
-            if (!info.is_prop || info.is_named_export)
-                && (!info.is_let || (result.exported_names.is_runes_mode() && info.is_named_export))
-            {
-                exports.push(ProjectionExport {
-                    name: name.to_string(),
-                    local_name: info.local_name.clone(),
-                    type_annotation: info.type_annotation.clone(),
-                });
-            }
-        }
-        let facts = ProjectionFacts {
-            runes: result.exported_names.is_runes_mode(),
-            props,
-            exports,
-            events: result
-                .events
-                .get_event_names()
-                .into_iter()
-                .map(str::to_string)
-                .collect(),
-        };
-        let exact_mappings = (!has_postprocess).then(|| {
-            ProjectionMap::new(
-                result
-                    .forward_map
-                    .iter()
-                    .map(
-                        |&(source_start, source_end, generated_start)| ExactMapping {
-                            source: ByteRange::new(source_start, source_end),
-                            generated: ByteRange::new(
-                                generated_start,
-                                generated_start + source_end - source_start,
-                            ),
-                        },
-                    )
-                    .collect(),
-            )
-        });
-
-        Ok(ProjectionArtifact {
-            code: result.code,
-            source_map: result.map,
-            exact_mappings,
-            facts,
-        })
     }
 }

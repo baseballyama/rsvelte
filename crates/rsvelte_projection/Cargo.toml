@@ -1,0 +1,47 @@
+[package]
+name = "rsvelte_projection"
+version = "0.9.5"
+edition = "2024"
+rust-version = "1.95"
+description = "Svelte-to-TypeScript projection engine for rsvelte toolchains"
+license = "MIT"
+repository = "https://github.com/baseballyama/rsvelte"
+homepage = "https://baseballyama.github.io/rsvelte/"
+documentation = "https://docs.rs/rsvelte_projection"
+readme = "README.md"
+keywords = ["svelte", "typescript", "compiler", "language-server"]
+categories = ["compilers", "development-tools"]
+publish = ["crates-io"]
+autobins = false
+autobenches = false
+exclude = ["tests/**"]
+
+[lib]
+crate-type = ["rlib"]
+
+[features]
+default = []
+
+[dependencies]
+rsvelte_core = { version = "=0.9.5", path = "../rsvelte_core", default-features = false }
+indexmap = "2.13.0"
+memchr = "2.7"
+oxc_allocator = "0.141"
+oxc_ast = "0.141"
+oxc_ast_visit = "0.141"
+oxc_parser = "0.141"
+oxc_span = "0.141"
+oxc_syntax = "0.141"
+rustc-hash = "2.0"
+serde_json = "1.0"
+sourcemap = "9.0"
+
+[dev-dependencies]
+pretty_assertions = "1.4"
+regex = "1.11"
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints]
+workspace = true
