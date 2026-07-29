@@ -46,37 +46,59 @@ struct PositionedTextEdit {
     end_col: u32,
 }
 
-fn generated_location(text: &str, offset: u32) -> Result<(u32, u32), String> {
+fn generated_offset(text: &str, offset: u32) -> Result<usize, String> {
     let offset = offset as usize;
     if offset > text.len() || !text.is_char_boundary(offset) {
         return Err(format!(
             "external-import rewrite offset {offset} is not a generated-text boundary"
         ));
     }
-    let prefix = &text[..offset];
-    let line = prefix.bytes().filter(|byte| *byte == b'\n').count() as u32;
-    let line_start = prefix.rfind('\n').map_or(0, |index| index + 1);
-    let column = text[line_start..offset].encode_utf16().count() as u32;
-    Ok((line, column))
+    Ok(offset)
+}
+
+fn advance_generated_location(text: &str, line: &mut u32, column: &mut u32) {
+    for character in text.chars() {
+        if character == '\n' {
+            *line += 1;
+            *column = 0;
+        } else {
+            *column += character.len_utf16() as u32;
+        }
+    }
 }
 
 fn position_text_edits(code: &str, edits: &[TextEdit]) -> Result<Vec<PositionedTextEdit>, String> {
-    edits
-        .iter()
-        .map(|&raw| {
-            let (line, start_col) = generated_location(code, raw.start)?;
-            let (end_line, end_col) = generated_location(code, raw.end)?;
-            if line != end_line {
-                return Err("external-import rewrite unexpectedly spans lines".to_string());
-            }
-            Ok(PositionedTextEdit {
-                raw,
-                line,
-                start_col,
-                end_col,
-            })
-        })
-        .collect()
+    let mut positioned = Vec::with_capacity(edits.len());
+    let mut cursor = 0;
+    let mut line = 0;
+    let mut column = 0;
+
+    for &raw in edits {
+        let start = generated_offset(code, raw.start)?;
+        let end = generated_offset(code, raw.end)?;
+        if start < cursor || end < start {
+            return Err(
+                "external-import rewrite edits are not ordered and non-overlapping".to_string(),
+            );
+        }
+
+        advance_generated_location(&code[cursor..start], &mut line, &mut column);
+        let edit_line = line;
+        let start_col = column;
+        advance_generated_location(&code[start..end], &mut line, &mut column);
+        if line != edit_line {
+            return Err("external-import rewrite unexpectedly spans lines".to_string());
+        }
+        positioned.push(PositionedTextEdit {
+            raw,
+            line: edit_line,
+            start_col,
+            end_col: column,
+        });
+        cursor = end;
+    }
+
+    Ok(positioned)
 }
 
 fn remap_generated_column(line: u32, column: u32, edits: &[PositionedTextEdit]) -> Option<u32> {
@@ -694,7 +716,100 @@ fn validation_markers(source: &str) -> (bool, bool) {
 
 #[cfg(test)]
 mod tests {
-    use super::validation_markers;
+    use super::*;
+
+    fn edit(start: usize, end: usize) -> TextEdit {
+        TextEdit {
+            start: start as u32,
+            end: end as u32,
+            replacement_len: 0,
+            replacement_utf16_len: 0,
+        }
+    }
+
+    #[test]
+    fn positions_edits_in_utf16_columns() {
+        let code = "a😀𐐷e\u{301}z";
+        let start = code.find('😀').unwrap();
+        let end = code.find('z').unwrap();
+        let positioned = position_text_edits(code, &[edit(start, end)]).unwrap();
+
+        assert_eq!(positioned.len(), 1);
+        assert_eq!(positioned[0].line, 0);
+        assert_eq!(positioned[0].start_col, 1);
+        assert_eq!(positioned[0].end_col, 7);
+    }
+
+    #[test]
+    fn positions_multiple_edits_on_the_same_line() {
+        let positioned = position_text_edits("0123456789", &[edit(1, 3), edit(5, 8)]).unwrap();
+
+        assert_eq!(
+            positioned
+                .iter()
+                .map(|edit| (edit.line, edit.start_col, edit.end_col))
+                .collect::<Vec<_>>(),
+            vec![(0, 1, 3), (0, 5, 8)]
+        );
+    }
+
+    #[test]
+    fn only_line_feeds_advance_the_line() {
+        let positioned = position_text_edits("a\rb\r\nc", &[edit(2, 4), edit(5, 6)]).unwrap();
+
+        assert_eq!(
+            positioned
+                .iter()
+                .map(|edit| (edit.line, edit.start_col, edit.end_col))
+                .collect::<Vec<_>>(),
+            vec![(0, 2, 4), (1, 0, 1)]
+        );
+    }
+
+    #[test]
+    fn rejects_edits_that_cross_line_feeds() {
+        assert_eq!(
+            position_text_edits("a\nb", &[edit(1, 3)]).unwrap_err(),
+            "external-import rewrite unexpectedly spans lines"
+        );
+    }
+
+    #[test]
+    fn rejects_non_utf8_boundaries() {
+        assert_eq!(
+            position_text_edits("a😀b", &[edit(2, 5)]).unwrap_err(),
+            "external-import rewrite offset 2 is not a generated-text boundary"
+        );
+        assert_eq!(
+            position_text_edits("a😀b", &[edit(1, 4)]).unwrap_err(),
+            "external-import rewrite offset 4 is not a generated-text boundary"
+        );
+    }
+
+    #[test]
+    fn rejects_out_of_range_offsets() {
+        assert_eq!(
+            position_text_edits("abc", &[edit(1, 4)]).unwrap_err(),
+            "external-import rewrite offset 4 is not a generated-text boundary"
+        );
+    }
+
+    #[test]
+    fn rejects_edits_that_violate_scanner_ordering() {
+        let expected = "external-import rewrite edits are not ordered and non-overlapping";
+        assert_eq!(
+            position_text_edits("abcdef", &[edit(4, 5), edit(2, 3)]).unwrap_err(),
+            expected
+        );
+        assert_eq!(
+            position_text_edits("abcdef", &[edit(1, 4), edit(3, 5)]).unwrap_err(),
+            expected
+        );
+        assert_eq!(
+            position_text_edits("abcdef", &[edit(4, 2)]).unwrap_err(),
+            expected
+        );
+    }
 
     #[test]
     fn validation_markers_remain_set_after_unrelated_candidates() {
