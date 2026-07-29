@@ -553,11 +553,24 @@ impl<'a> MappingState<'a> {
         if content.is_empty() {
             return;
         }
-        for (index, part) in content.split('\n').enumerate() {
-            if index != 0 {
+
+        if content.is_ascii() {
+            let mut line_start = 0;
+            for newline in memchr::memchr_iter(b'\n', content.as_bytes()) {
+                self.generated_column += (newline - line_start) as i64;
                 self.advance_line();
+                line_start = newline + 1;
             }
-            self.generated_column += count_utf16(part) as i64;
+            self.generated_column += (content.len() - line_start) as i64;
+            return;
+        }
+
+        for ch in content.chars() {
+            if ch == '\n' {
+                self.advance_line();
+            } else {
+                self.generated_column += ch.len_utf16() as i64;
+            }
         }
     }
 
@@ -1282,15 +1295,6 @@ fn line_starts(s: &str) -> Vec<usize> {
         }
     }
     starts
-}
-
-/// Count the UTF-16 code units in a string.
-///
-/// Source-map generated columns are measured in UTF-16 code units (spec v3 /
-/// LSP), so an astral char (emoji, 4-byte UTF-8) counts as 2 and a BMP char as
-/// 1. For ASCII this equals both the char count and the byte length.
-fn count_utf16(s: &str) -> usize {
-    s.chars().map(|c| c.len_utf16()).sum()
 }
 
 fn checked_source_len(len: usize) -> u32 {
@@ -2119,11 +2123,20 @@ mod tests {
     }
 
     #[test]
-    fn count_utf16_counts_code_units() {
-        assert_eq!(count_utf16("abc"), 3); // ASCII: 1 unit each
-        assert_eq!(count_utf16("àb"), 2); // BMP: à is 2 bytes but 1 UTF-16 unit
-        assert_eq!(count_utf16("😀"), 2); // astral: 4 bytes, 2 UTF-16 units
-        assert_eq!(count_utf16("😀x"), 3);
+    fn advance_unmapped_fuses_line_and_utf16_scans() {
+        for (content, initial_column, expected_mappings, expected_column) in [
+            ("abc", 2, "", 5),
+            ("a\nbc\n", 2, ";;", 0),
+            ("à😀\nx", 2, ";", 1),
+            ("\n😀", 2, ";", 2),
+        ] {
+            let mut mappings = String::new();
+            let mut state = MappingState::new(&mut mappings, "");
+            state.generated_column = initial_column;
+            state.advance_unmapped(content);
+            assert_eq!(state.mappings, expected_mappings, "{content:?}");
+            assert_eq!(state.generated_column, expected_column, "{content:?}");
+        }
     }
 
     // Source-map columns must be UTF-16 code units (spec v3 / LSP), not bytes or
