@@ -184,14 +184,14 @@ const VLQ_CONTINUATION_BIT: u32 = VLQ_BASE; // 32
 
 const BASE64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-fn vlq_encode(value: i64) -> String {
+#[inline]
+fn vlq_encode(encoded: &mut String, value: i64) {
     let mut vlq = if value < 0 {
         ((-value) as u32) << 1 | 1
     } else {
         (value as u32) << 1
     };
 
-    let mut encoded = String::new();
     loop {
         let mut digit = vlq & VLQ_BASE_MASK;
         vlq >>= VLQ_BASE_SHIFT;
@@ -203,7 +203,6 @@ fn vlq_encode(value: i64) -> String {
             break;
         }
     }
-    encoded
 }
 
 // ---------------------------------------------------------------------------
@@ -781,32 +780,29 @@ impl MagicString {
             *first_segment_on_line = false;
 
             // Field 1: generated column (relative)
-            mappings.push_str(&vlq_encode(gen_col - *generated_column));
+            vlq_encode(mappings, gen_col - *generated_column);
             *generated_column = gen_col;
             // Field 2: source index (relative)
-            mappings.push_str(&vlq_encode(source_idx));
+            vlq_encode(mappings, source_idx);
             // Field 3: original line (relative)
-            mappings.push_str(&vlq_encode(orig_line - *original_line));
+            vlq_encode(mappings, orig_line - *original_line);
             *original_line = orig_line;
             // Field 4: original column (relative)
-            mappings.push_str(&vlq_encode(orig_col - *original_column));
+            vlq_encode(mappings, orig_col - *original_column);
             *original_column = orig_col;
         };
 
         // Process the intro (generated content with no source mapping).
-        let intro_lines: Vec<&str> = self.intro.split('\n').collect();
-        for (i, _) in intro_lines.iter().enumerate() {
-            if i > 0 {
-                mappings.push(';');
-                _generated_line += 1;
-                generated_column = 0;
-                first_segment_on_line = true;
-            }
+        let mut intro_lines = self.intro.split('\n');
+        let last_intro_line = intro_lines.next_back().unwrap_or_default();
+        for _ in intro_lines {
+            mappings.push(';');
+            _generated_line += 1;
+            generated_column = 0;
+            first_segment_on_line = true;
         }
         // Advance generated column for the last intro line fragment.
-        if let Some(last) = intro_lines.last() {
-            generated_column += count_utf16(last) as i64;
-        }
+        generated_column += count_utf16(last_intro_line) as i64;
 
         // Walk chunks.
         let mut cur = Some(self.first_chunk);
@@ -815,8 +811,7 @@ impl MagicString {
 
             // Process chunk intro.
             if !chunk.intro.is_empty() {
-                let parts: Vec<&str> = chunk.intro.split('\n').collect();
-                for (i, part) in parts.iter().enumerate() {
+                for (i, part) in chunk.intro.split('\n').enumerate() {
                     if i > 0 {
                         mappings.push(';');
                         _generated_line += 1;
@@ -935,8 +930,7 @@ impl MagicString {
 
             // Process chunk outro.
             if !chunk.outro.is_empty() {
-                let parts: Vec<&str> = chunk.outro.split('\n').collect();
-                for (i, part) in parts.iter().enumerate() {
+                for (i, part) in chunk.outro.split('\n').enumerate() {
                     if i > 0 {
                         mappings.push(';');
                         _generated_line += 1;
@@ -952,11 +946,8 @@ impl MagicString {
 
         // Process the outro.
         if !self.outro.is_empty() {
-            let parts: Vec<&str> = self.outro.split('\n').collect();
-            for (i, _) in parts.iter().enumerate() {
-                if i > 0 {
-                    mappings.push(';');
-                }
+            for _ in self.outro.split('\n').skip(1) {
+                mappings.push(';');
             }
         }
 
@@ -1192,11 +1183,11 @@ mod tests {
 
     #[test]
     fn test_vlq_encode() {
-        assert_eq!(vlq_encode(0), "A");
-        assert_eq!(vlq_encode(1), "C");
-        assert_eq!(vlq_encode(-1), "D");
-        assert_eq!(vlq_encode(5), "K");
-        assert_eq!(vlq_encode(16), "gB");
+        let mut encoded = "prefix:".to_string();
+        for value in [0, 1, -1, 5, 16] {
+            vlq_encode(&mut encoded, value);
+        }
+        assert_eq!(encoded, "prefix:ACDKgB");
     }
 
     #[test]
@@ -1280,6 +1271,26 @@ mod tests {
         });
         // Should have semicolons for line breaks.
         assert!(map.mappings.contains(';'));
+    }
+
+    #[test]
+    fn source_map_mappings_cover_unmapped_newlines_and_utf16_columns() {
+        let mut s = MagicString::new("à😀\nZ");
+        s.prepend_str("P😀\n\n");
+        s.append_left("à".len() as u32, "I😀\n");
+        s.prepend_right("à".len() as u32, "\nJà");
+        let z = "à😀\n".len() as u32;
+        s.overwrite(z, z + 1, "Ω\nQ😀");
+        s.append_str("\n\nTAIL");
+
+        assert_eq!(s.to_string(), "P😀\n\nàI😀\n\nJà😀\nΩ\nQ😀\n\nTAIL");
+
+        let map = s.generate_map(GenerateMapOptions {
+            file: None,
+            source: Some("in.svelte".to_string()),
+            include_content: false,
+        });
+        assert_eq!(map.mappings, ";;AAAA,AAAC;;AAAA,AAAE;AACH,AAAA;;;");
     }
 
     #[test]
