@@ -905,15 +905,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "markdown"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5cab8f2cadc416a82d2e783a1946388b31654d391d1c7d92cc1f03e295b1deb"
-dependencies = [
- "unicode-id",
-]
-
-[[package]]
 name = "memchr"
 version = "2.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -978,12 +969,6 @@ dependencies = [
  "wasi",
  "windows-sys 0.61.2",
 ]
-
-[[package]]
-name = "natord"
-version = "1.0.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "308d96db8debc727c3fd9744aac51751243420e46edf401010908da7f8d5e57c"
 
 [[package]]
 name = "nodejs-built-in-modules"
@@ -1221,46 +1206,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "oxc_formatter"
-version = "0.60.0"
-source = "git+https://github.com/oxc-project/oxc?rev=83abe3b49c0913b1a984a7eec5e433a59fd76eae#83abe3b49c0913b1a984a7eec5e433a59fd76eae"
-dependencies = [
- "cow-utils",
- "fast-glob",
- "itoa",
- "markdown",
- "natord",
- "nodejs-built-in-modules",
- "oxc_allocator",
- "oxc_ast",
- "oxc_diagnostics",
- "oxc_formatter_core",
- "oxc_jsdoc",
- "oxc_parser",
- "oxc_span",
- "oxc_str",
- "oxc_syntax",
- "phf",
- "rustc-hash",
- "smallvec",
- "unicode-width 0.2.2",
-]
-
-[[package]]
-name = "oxc_formatter_core"
-version = "0.60.0"
-source = "git+https://github.com/oxc-project/oxc?rev=83abe3b49c0913b1a984a7eec5e433a59fd76eae#83abe3b49c0913b1a984a7eec5e433a59fd76eae"
-dependencies = [
- "cow-utils",
- "oxc_allocator",
- "oxc_data_structures",
- "oxc_span",
- "rustc-hash",
- "serde_json",
- "unicode-width 0.2.2",
-]
-
-[[package]]
 name = "oxc_index"
 version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1269,16 +1214,6 @@ dependencies = [
  "nonmax",
  "rayon",
  "serde",
-]
-
-[[package]]
-name = "oxc_jsdoc"
-version = "0.141.0"
-source = "git+https://github.com/oxc-project/oxc?rev=83abe3b49c0913b1a984a7eec5e433a59fd76eae#83abe3b49c0913b1a984a7eec5e433a59fd76eae"
-dependencies = [
- "oxc_ast",
- "oxc_span",
- "rustc-hash",
 ]
 
 [[package]]
@@ -1666,7 +1601,6 @@ dependencies = [
  "oxc_ast_visit",
  "oxc_codegen",
  "oxc_diagnostics",
- "oxc_formatter",
  "oxc_parser",
  "oxc_resolver",
  "oxc_semantic",
@@ -1676,6 +1610,7 @@ dependencies = [
  "regex",
  "rsvelte_esrap",
  "rustc-hash",
+ "self_cell",
  "serde",
  "serde_json",
  "smallvec",
@@ -2131,12 +2066,6 @@ name = "typenum"
 version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
-
-[[package]]
-name = "unicode-id"
-version = "0.3.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70ba288e709927c043cbe476718d37be306be53fb1fafecd0dbe36d072be2580"
 
 [[package]]
 name = "unicode-id-start"
