@@ -19,16 +19,16 @@ use indexmap::IndexMap;
 
 /// Component node types.
 #[derive(Debug, Clone)]
-pub enum ComponentNode<'a> {
+pub enum ComponentNode<'n, 'a> {
     /// Regular component (`<MyComponent>`)
-    Component(Component<'a>),
+    Component(&'n Component<'a>),
     /// Dynamic component (`<svelte:component this={...}>`)
-    SvelteComponent(SvelteComponentElement<'a>),
+    SvelteComponent(&'n SvelteComponentElement<'a>),
     /// Self-reference (`<svelte:self>`)
-    SvelteSelf(SvelteElement<'a>),
+    SvelteSelf(&'n SvelteElement<'a>),
 }
 
-impl<'a> ComponentNode<'a> {
+impl<'a> ComponentNode<'_, 'a> {
     /// Get the start position of the component node.
     pub fn start(&self) -> u32 {
         match self {
@@ -67,7 +67,7 @@ struct DelayedProp {
 ///
 /// Returns a statement that instantiates the component.
 pub fn build_component(
-    node: ComponentNode<'_>,
+    node: ComponentNode<'_, '_>,
     component_name: String,
     context: &mut ComponentContext,
 ) -> JsStatement {
@@ -2794,7 +2794,7 @@ fn visit_slot_children(
 
 /// Build the component expression for dynamic components.
 fn build_component_expression(
-    node: &ComponentNode<'_>,
+    node: &ComponentNode<'_, '_>,
     component_name: &str,
     context: &mut ComponentContext,
 ) -> JsExpr {
@@ -3076,7 +3076,7 @@ fn build_component_meta_stmt(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 
     expression: JsExpr,
-    node: &ComponentNode<'_>,
+    node: &ComponentNode<'_, '_>,
     analysis_name: &str,
     dev: bool,
     source: &str,

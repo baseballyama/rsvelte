@@ -46,7 +46,7 @@ pub fn visit_component(node: &Component, context: &mut ComponentContext) {
 
     // Build component instantiation statement
     let component = build_component(
-        ComponentNode::Component(node.clone()),
+        ComponentNode::Component(node),
         component_name,
         context,
     );
