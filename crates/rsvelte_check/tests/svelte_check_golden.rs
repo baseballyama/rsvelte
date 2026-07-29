@@ -15,8 +15,11 @@
 //!     unconditionally and are the part this test always enforces.
 //!   * The full TypeScript assertions only run when a `tsgo` / `tsc`
 //!     binary can be located via `find_compiler` — otherwise they're
-//!     skipped with a printed notice. This keeps the test portable on
-//!     CI runners without a TS toolchain installed.
+//!     skipped with a printed notice, so the test stays runnable on a
+//!     machine without a TS toolchain. Under `CI` that same condition is
+//!     a hard failure instead: a CI job that cannot type-check is
+//!     misconfigured, and a silent skip there is indistinguishable from
+//!     a pass.
 //!
 //! Run with:
 //!     cargo test --release --test svelte_check_golden -- --nocapture
@@ -189,6 +192,15 @@ fn test_error_fixture_emits_expected_ts_error_codes() {
         return;
     }
     if find_compiler(&workspace, true).is_err() {
+        // A silent skip here is exactly how the TypeScript half of this test
+        // greened for every #1883-#1889 report; on CI a missing compiler means
+        // the job is misconfigured, not that the assertions are unavailable.
+        assert!(
+            std::env::var_os("CI").is_none(),
+            "no `tsgo` / `tsc` binary found while running under CI — the \
+             TypeScript assertions would be silently skipped. Install \
+             `typescript` / `@typescript/native-preview`, or set TSGO_BIN."
+        );
         eprintln!(
             "Skipping: no `tsgo` / `tsc` binary on this machine \
              (set TSGO_BIN or install @typescript/native-preview to enable)"
