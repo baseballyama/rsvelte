@@ -384,6 +384,49 @@ The `check-parity` job in `.github/workflows/corpus-compat.yml` runs this track
 as a `backend: [tsc, tsgo]` matrix (see [check-known-failures.md](../../compatibility/check-known-failures.md#backend-matrix-tsc-vs-tsgo));
 it needs no submodules.
 
+### Layer 2 — real-project e2e parity (`check-e2e-verify.mjs`)
+
+The scenarios above are mini-projects somebody wrote down. Layer 2 runs the same
+comparison over **real repositories**, pinned as submodules and installed with
+their own lockfiles: real `tsconfig` chains, real `svelte.config.js`, real
+`node_modules`, and — for the monorepo — real cross-package resolution. That is
+the shape all five reports in #1883–#1889 came from; every one was found by
+pointing the checker at somebody's actual repository, never by a fixture.
+
+```bash
+pnpm run test:svelte-check-e2e              # submodules + build + oracle + verify
+pnpm run check-e2e-corpus:verify            # verify only (deps already installed)
+node scripts/compat-corpus/check-e2e-verify.mjs --skip-install   # reuse an installed tree
+node scripts/compat-corpus/check-e2e-verify.mjs --update         # re-baseline
+```
+
+- **Units** — one directory with its own `tsconfig.json`, i.e. the granularity at
+  which these repositories run `svelte-check` themselves. Currently
+  `cmsaasstarter/app` (single-package SvelteKit app, npm),
+  `skeleton/playground` (SvelteKit app inside a pnpm workspace, importing two
+  sibling workspace packages) and `skeleton/library` (the 300-component package
+  those siblings resolve to). The list lives in `PROJECTS` at the top of
+  `check-e2e-verify.mjs`.
+- **Invocation** — both checkers run from the unit directory with
+  `--tsconfig ./tsconfig.json` and **no** `--workspace`, i.e. exactly what the
+  project's own `check` script runs. SvelteKit units get `svelte-kit sync` first
+  so both sides read the same generated `.svelte-kit/`.
+- **What is shared, what is not** — the projects keep their own `svelte` /
+  `@sveltejs/kit` (their types are half of what is being checked); the *checker*
+  is shared. Official `svelte-check` runs from the pinned oracle, and
+  `rsvelte-check` is pointed at that same oracle `tsc` via `TSGO_BIN`, so both
+  sides type-check the project's real dependency tree with one identical
+  compiler.
+- **Normalization and ratchet** — identical to Layer 1 (the parser, the key and
+  the multiset diff are shared in `check-diagnostics.mjs`), with the entry
+  prefixed `<project>/<unit>` instead of `<scenario>`. Baseline:
+  `compatibility/check-e2e-known-failures.json`, justified per cluster in
+  [check-e2e-known-failures.md](../../compatibility/check-e2e-known-failures.md).
+
+The `check-e2e-parity` job in `.github/workflows/corpus-compat.yml` runs this
+track. Adding a unit means adding a submodule + a `PROJECTS` entry + the
+submodule to that job's checkout step, then `--update` to seed its divergences.
+
 ## Adding a repository to the corpus
 
 The corpus grows by adding source repositories. Real-world component libraries

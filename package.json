@@ -78,6 +78,10 @@
 		"check-corpus:update": "node scripts/compat-corpus/check-verify.mjs --update",
 		"test:svelte-check": "cargo build --release -p rsvelte_check && pnpm run check-corpus:oracle-install && pnpm run check-corpus:verify",
 		"test:svelte-check:tsgo": "cargo build --release -p rsvelte_check && pnpm run check-corpus:oracle-install && pnpm run check-corpus:tsgo-install && pnpm run check-corpus:verify:tsgo",
+		"check-e2e-corpus:sync": "git submodule update --init --depth 1 submodules/cmsaasstarter submodules/skeleton",
+		"check-e2e-corpus:verify": "node scripts/compat-corpus/check-e2e-verify.mjs",
+		"check-e2e-corpus:update": "node scripts/compat-corpus/check-e2e-verify.mjs --update",
+		"test:svelte-check-e2e": "pnpm run check-e2e-corpus:sync && cargo build --release -p rsvelte_check && pnpm run check-corpus:oracle-install && pnpm run check-e2e-corpus:verify",
 		"changeset": "changeset",
 		"version-packages": "changeset version && pnpm run sync-version",
 		"release": "pnpm run sync-version && pnpm run build:wasm && pnpm run finalize-pkg && pnpm run publish-platform-binaries && pnpm run build:language-server && changeset publish"

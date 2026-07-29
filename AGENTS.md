@@ -64,6 +64,13 @@ svelte2tsx output-parity gate (`svelte2tsx-known-failures.json`), and the lint o
 (`lint-known-failures.json`). See
 [scripts/compat-corpus/README.md](scripts/compat-corpus/README.md).
 
+The svelte-check diagnostic-parity gate is the odd one out: its unit is a **type-checked project**,
+not per-file text, so module resolution / workspace layout / the `.d.ts` environment are observable
+there and nowhere else. Layer 1 (`check-verify.mjs`, ratchet `check-known-failures.json`) runs
+committed mini-projects under `compatibility/check-fixtures/`; Layer 2 (`check-e2e-verify.mjs`,
+ratchet `check-e2e-known-failures.json`) runs real repositories — `submodules/cmsaasstarter` and the
+`submodules/skeleton` pnpm monorepo — installed from their own lockfiles.
+
 ## Implementation Principles
 
 **CRITICAL**: All implementations must follow the official Svelte compiler implementation.
