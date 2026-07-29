@@ -702,7 +702,12 @@ fn add_hooks_type(
                 &f.params,
                 f.return_type.is_some(),
                 f.body.as_deref().map(|b| b.span().start),
-                f.span.start,
+                // JS-only: TypeScript's `@type` JSDoc tag only re-types a
+                // `function` declaration when it leads the whole exported
+                // statement (`ts.FunctionDeclaration.getStart()` includes the
+                // `export` modifier upstream); placed after `export` instead
+                // it's silently ignored and params stay implicit `any`.
+                ex.span.start,
                 false,
                 ty,
                 is_ts,
@@ -1034,9 +1039,32 @@ mod tests {
         let adds = build_added_code(&path, source, &KitFilesSettings::default())
             .expect("js handle should emit insertions");
         let augmented = apply_added_code(source, &adds);
+        // The JSDoc `@type` tag must precede the *whole* exported statement
+        // (`export function …`), not just the `function` keyword — TypeScript
+        // silently ignores an `@type` tag sitting between `export` and
+        // `function` and every binding element stays implicit `any`.
         assert!(
             augmented.contains(&format!(
-                "{IGNORE_START_COMMENT}/** @type {{import('@sveltejs/kit').Handle}} */ {IGNORE_END_COMMENT}function handle"
+                "{IGNORE_START_COMMENT}/** @type {{import('@sveltejs/kit').Handle}} */ {IGNORE_END_COMMENT}export function handle"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_hooks_handle_fetch_arrow_const_form_uses_jsdoc_type() {
+        // JS mirrors the TS arrow-const case above (#1886): the augmentation
+        // reaches `add_hooks_type_to_function_like` through the same
+        // `VariableDeclaration` -> `ArrowFunctionExpression` path, just with
+        // the JSDoc wrapper instead of an inline type annotation.
+        let path = PathBuf::from("src/hooks.server.js");
+        let source = "export const handleFetch = async ({ request, fetch, event }) => {\n  return fetch(request);\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("js arrow-const handleFetch should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}/** @type {{import('@sveltejs/kit').HandleFetch}} */ {IGNORE_END_COMMENT}async ({{ request, fetch, event }})"
             )),
             "augmented = {augmented:?}"
         );

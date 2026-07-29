@@ -1,6 +1,4 @@
 [
 	"boundary-elements|+ERROR src/Boundary.svelte:9 7006",
-	"kit-hooks-js|+ERROR src/hooks.js:1 7031",
-	"kit-hooks-js|+ERROR src/hooks.server.js:1 7031 x2",
 	"sibling-symlink|+ERROR src/deep.svelte:1 2614"
 ]

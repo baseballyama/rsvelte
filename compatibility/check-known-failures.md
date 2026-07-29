@@ -18,17 +18,18 @@ positions back through its own source map and TypeScript wording moves between
 patch releases, so keying on them would make the ratchet churn without telling
 anyone anything. See the header of `check-verify.mjs`.
 
-## Current baseline: 4 entries / 5 surplus diagnostics (all FP, 0 FN)
+## Current baseline: 2 entries / 2 surplus diagnostics (all FP, 0 FN)
 
-The gate landed with 16 entries across the #1883–#1889 cluster; `sibling-paths-alias`
-(#1883), `external-self-alias` (#1887), `ts-aliased-import` (#1888) and
-`kit-hooks-arrow-ts` (#1886) are now fully green and have been pruned. What
-remains:
+The gate landed with 16 entries across the #1883–#1889 cluster. `sibling-paths-alias`
+(#1883, fixed by #1884), `external-self-alias` (#1887, fixed by #1893),
+`ts-aliased-import` (#1888, fixed by #1895), `kit-hooks-arrow-ts` (#1886, fixed by
+#1892) and `kit-hooks-js` (#1886, fixed by #1892 for the arrow/function-expression
+form and a follow-up JSDoc-anchor fix for the plain `export function` form) are
+now all fully green and have been pruned. What remains:
 
 | Scenario | Entries | Diagnostics | Issue | Class |
 |---|---|---|---|---|
 | `sibling-symlink` | 1 | 1 | #1883 (same class) | bare-specifier deep `.svelte` import through a `node_modules` symlink |
-| `kit-hooks-js` | 2 | 3 | #1886 | JSDoc/JS `export function` hooks still not augmented |
 | `boundary-elements` | 1 | 1 | #1889 | vendored `svelte-jsx-v4` shim predates `svelte:boundary` |
 
 ### `sibling-symlink` — same class as #1883, different trigger
@@ -44,29 +45,6 @@ specifiers, and `libs/components/survey-options.svelte` is a bare package
 specifier, so the bridge never fires. The barrel arm of the same scenario
 (`src/barrel.svelte`, importing through the package `exports` barrel — the shape
 #782/#805 fixed) is green and must stay green.
-
-### `kit-hooks-js` — #1886, JSDoc/JS `export function` path
-
-```
-kit-hooks-js|+ERROR src/hooks.js:1 7031
-kit-hooks-js|+ERROR src/hooks.server.js:1 7031 x2
-```
-
-#1892 fixed the `const` + arrow/function-expression form (`kit-hooks-arrow-ts` is
-now fully green, and so are the arrow-const hooks inside this same JS fixture —
-`hooks.client.js`'s `handleError`, `hooks.server.js`'s `handleError`/
-`handleFetch`). What's left is the plain `export function` form under JSDoc
-(`hooks.js`'s `reroute`, `hooks.server.js`'s `handle`): still `TS7031` on every
-binding element, tracked as the JSDoc/JS-path remainder of #1886.
-
-The four `kit-hooks-*` scenarios are one matrix:
-
-| Scenario | Form | Status |
-|---|---|---|
-| `kit-hooks-fn-ts` | `export function` (TS) | green — the form the port already matches |
-| `kit-hooks-arrow-ts` | `export const … = () => {}` (TS) | green — fixed by #1892 |
-| `kit-hooks-satisfies-ts` | `satisfies` / explicit annotation / `sequence()` | green — nothing should be augmented; guards the #1886 fix against over-augmenting |
-| `kit-hooks-js` | plain JS under `checkJs`, function + arrow | red (partial) — arrow/function-expression forms fixed by #1892, plain `export function` still open |
 
 ### `boundary-elements` — #1889
 
@@ -102,8 +80,17 @@ Green scenarios are load-bearing, not filler — a regression turns them red:
 - **`sibling-paths-alias`**, **`external-self-alias`**, **`ts-aliased-import`** —
   fixed by #1884/#1893/#1895 respectively; kept as regression guards for their
   alias-rewrite paths.
-- **`kit-hooks-fn-ts`**, **`kit-hooks-arrow-ts`**, **`kit-hooks-satisfies-ts`** —
-  see the matrix above.
+- **`kit-hooks-fn-ts`**, **`kit-hooks-arrow-ts`**, **`kit-hooks-satisfies-ts`**,
+  **`kit-hooks-js`** — one matrix covering every `handle`/`handleError`/
+  `handleFetch`/`reroute` declaration shape:
+
+  | Scenario | Form | Status |
+  |---|---|---|
+  | `kit-hooks-fn-ts` | `export function` (TS) | green — the form the port already matches |
+  | `kit-hooks-arrow-ts` | `export const … = () => {}` (TS) | green — fixed by #1892 |
+  | `kit-hooks-satisfies-ts` | `satisfies` / explicit annotation / `sequence()` | green — nothing should be augmented; guards the #1886 fix against over-augmenting |
+  | `kit-hooks-js` | plain JS under `checkJs`, function + arrow | green — arrow/function-expression forms fixed by #1892, plain `export function` form fixed by anchoring its JSDoc `@type` tag at the exported statement's start instead of the `function` keyword (TypeScript ignores the tag otherwise) |
+  | `kit-routes-js` | `+page.js` `load`/`entries`, `+server.js` method handlers, `params/*.js` `match` under `checkJs` | green — regression guard for the same anchor bug across the other JSDoc-emitting paths in `kit_file.rs` |
 - **`sibling-symlink` / `src/barrel.svelte`** — the cross-package shape #782/#805
   fixed.
 
