@@ -971,19 +971,12 @@ impl MagicString {
             .len()
             .saturating_add(self.intro.len())
             .saturating_add(self.outro.len());
-        let mapping_capacity = self
-            .original
-            .len()
-            .saturating_mul(ASCII_HIRES_SEGMENT.len())
-            .saturating_add(self.chunks.len().saturating_mul(16));
-        let metadata_bytes = file.as_ref().map_or(0, String::len)
-            + source.len()
-            + usize::from(include_content) * self.original.len();
-        let mut source_map = String::with_capacity(
-            96usize
-                .saturating_add(metadata_bytes)
-                .saturating_add(mapping_capacity),
-        );
+        let metadata_bytes = file
+            .as_ref()
+            .map_or(0, String::len)
+            .saturating_add(source.len())
+            .saturating_add(usize::from(include_content).saturating_mul(self.original.len()));
+        let mut source_map = String::with_capacity(96usize.saturating_add(metadata_bytes));
         push_source_map_json_prefix(
             &mut source_map,
             file.as_deref(),
@@ -1322,6 +1315,23 @@ mod tests {
         let mut control_chars = MagicString::new("\t\u{001f}\"\\\n😀");
         control_chars.overwrite(2, 3, "\r\n");
         assert_bundle_matches_individual_outputs(&control_chars);
+    }
+
+    #[test]
+    fn edited_heavy_bundle_does_not_reserve_for_unedited_hires_mappings() {
+        let source = "x".repeat(64 * 1024);
+        let mut value = MagicString::new(&source);
+        for start in (0..source.len()).step_by(64) {
+            value.overwrite(start as u32, (start + 64) as u32, "_");
+        }
+
+        let generated = value.generate_bundle(GenerateMapOptions::default());
+        assert!(
+            generated.source_map.capacity() < source.len() * 2,
+            "edited source map reserved {} bytes for {} source bytes",
+            generated.source_map.capacity(),
+            source.len()
+        );
     }
 
     #[test]
