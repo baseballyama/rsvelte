@@ -735,7 +735,7 @@ impl<'opt> Printer<'opt> {
         mut nodes: Vec<SeqNode<'_>>,
         until: Option<u32>,
         pad: bool,
-        separator: &str,
+        separator: &'static str,
         trailing_newline: bool,
         parent: &mut Context,
     ) {
@@ -762,7 +762,7 @@ impl<'opt> Printer<'opt> {
             // esrap writes the separator for every non-final element, and also
             // for a trailing elision (`[a, ,]`): `i < n-1 || !child`.
             if i < n - 1 || node.is_elision {
-                child.write(separator.to_string());
+                child.write(separator);
             }
 
             // `next` boundary for this node's trailing comments: the next node's
