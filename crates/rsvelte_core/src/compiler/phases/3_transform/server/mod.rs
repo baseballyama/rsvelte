@@ -24,6 +24,12 @@ use crate::ast::template::Root;
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use memchr::memmem;
+use std::cell::RefCell;
+
+thread_local! {
+    static SERVER_OXC_ALLOCATOR: RefCell<oxc_allocator::Allocator> =
+        RefCell::new(oxc_allocator::Allocator::default());
+}
 
 /// Transform a component analysis into server-side JavaScript.
 ///
@@ -46,13 +52,16 @@ pub fn transform_server(
     // corpus improvement. The pipeline never returns `None` for a parseable
     // component; a `None` (only on an internal assembly failure) surfaces as an
     // error rather than silently falling back.
-    let allocator = oxc_allocator::Allocator::default();
-    match ast::server_component_ast(analysis, ast, _source, options, &allocator) {
-        Some(code) => Ok(code),
-        None => Err(TransformError::CodeGen(
-            "server AST pipeline produced no output".to_string(),
-        )),
-    }
+    SERVER_OXC_ALLOCATOR.with(|cell| {
+        let mut allocator = cell.borrow_mut();
+        allocator.reset();
+        match ast::server_component_ast(analysis, ast, _source, options, &allocator) {
+            Some(code) => Ok(code),
+            None => Err(TransformError::CodeGen(
+                "server AST pipeline produced no output".to_string(),
+            )),
+        }
+    })
 }
 
 /// Transform a module (.svelte.js/.svelte.ts) into server-side JavaScript.

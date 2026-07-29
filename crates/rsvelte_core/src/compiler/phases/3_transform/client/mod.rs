@@ -98,6 +98,7 @@ use crate::ast::template::Root;
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::{BindingKind, DeclarationKind};
+use crate::compiler::phases::phase2_analyze::types::{CopiedSourceChunk, ScriptProjection};
 
 // Import new visitor system types
 use types::{ComponentClientTransformState, ComponentContext, TransformOptions, TransformResult};
@@ -149,6 +150,31 @@ thread_local! {
     pub(super) static VAR_STATE_VARS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
 }
 
+struct AstStateCounterSnapshot {
+    script_array: usize,
+    array_lookup: usize,
+    state_tmp: usize,
+    derived_tmp: usize,
+}
+
+impl AstStateCounterSnapshot {
+    fn capture() -> Self {
+        Self {
+            script_array: SCRIPT_ARRAY_COUNTER.with(Cell::get),
+            array_lookup: ARRAY_LOOKUP_COUNTER.with(Cell::get),
+            state_tmp: STATE_TMP_COUNTER.with(Cell::get),
+            derived_tmp: DERIVED_TMP_COUNTER.with(Cell::get),
+        }
+    }
+
+    fn restore(&self) {
+        SCRIPT_ARRAY_COUNTER.with(|counter| counter.set(self.script_array));
+        ARRAY_LOOKUP_COUNTER.with(|counter| counter.set(self.array_lookup));
+        STATE_TMP_COUNTER.with(|counter| counter.set(self.state_tmp));
+        DERIVED_TMP_COUNTER.with(|counter| counter.set(self.derived_tmp));
+    }
+}
+
 // Thread-local cache for dynamically-constructed regex patterns to avoid recompilation.
 // `Arc<Regex>` keeps the cache lookup cheap: cloning the Arc is a single
 // refcount bump rather than copying the (multi-KB) compiled NFA.
@@ -182,13 +208,14 @@ pub(super) fn get_or_compile_regex(pattern: &str) -> Option<std::sync::Arc<Regex
 /// * `ast` - The parsed AST from Phase 1 (to avoid re-parsing)
 /// * `_source` - The original source code (for backward compatibility)
 /// * `options` - Compile options
-pub fn transform_client(
+pub(crate) fn transform_client(
     analysis: &ComponentAnalysis,
     ast: &Root,
     source: &str,
     options: &CompileOptions,
+    retained_scripts: Option<&crate::ast::oxc_program::RetainedScripts<'_>>,
 ) -> Result<CodegenResult, TransformError> {
-    transform_client_with_visitors(analysis, ast, source, options)
+    transform_client_with_visitors(analysis, ast, source, options, retained_scripts)
 }
 
 /// Transform a module (.svelte.js/.svelte.ts) into client-side JavaScript.
@@ -368,6 +395,7 @@ fn transform_client_with_visitors(
     ast: &Root,
     source: &str,
     options: &CompileOptions,
+    retained_scripts: Option<&crate::ast::oxc_program::RetainedScripts<'_>>,
 ) -> Result<CodegenResult, TransformError> {
     use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment;
 
@@ -402,16 +430,8 @@ fn transform_client_with_visitors(
     // based on node type - the visit function pointer is not actually used
     let mut context = ComponentContext::new(state, |_, _, _| TransformResult::None);
 
-    // Set up state transformers ($.get, $.set wrappers for $state variables)
-    // This must be called before processing the template so that state variable
-    // references in event handlers get properly transformed
-    use crate::compiler::phases::phase3_transform::client::visitors::shared::declarations::add_state_transformers;
-    add_state_transformers(&mut context);
-
     // Visit the program to set up transforms for props, store subscriptions, etc.
-    // This handles legacy mode props ($.prop() getters) and store subscriptions
-    // NOTE: visit_program calls add_state_transformers again internally, so any
-    // transform removals must happen AFTER this call.
+    // This handles state, legacy props, and store subscriptions.
     use crate::compiler::phases::phase3_transform::client::visitors::program::visit_program;
     let _vp_start = super::profile::timer_start();
     visit_program(&mut context);
@@ -461,14 +481,57 @@ fn transform_client_with_visitors(
     // Transform the instance script once with the real reactive_import_names.
     // This also determines how many $$array names it consumes (for template generation)
     // and is used for blocker_map computation and the final output.
-    let pre_transformed_script = if let Some(instance_script) = &analysis.instance_script_content {
-        let raw = &instance_script.raw;
+    let mut instance_script_imports = Vec::new();
+    let mut pre_transformed_script = if let Some(instance_script) =
+        &analysis.instance_script_content
+    {
+        let retained_instance = retained_scripts.and_then(|scripts| scripts.instance.as_ref());
+        let needs_projection = analysis.runes
+            && retained_instance.is_some()
+            && instance_script.source_projection.is_some();
+        let can_borrow_projection = needs_projection
+            && memmem::find(instance_script.raw.as_bytes(), b"import").is_none()
+            && !instance_script.raw.as_bytes().contains(&b'\r');
+        let (imports, script_body, body_chunks) = if can_borrow_projection {
+            (
+                Vec::new(),
+                instance_script
+                    .raw
+                    .strip_suffix('\n')
+                    .unwrap_or(&instance_script.raw)
+                    .to_string(),
+                Vec::new(),
+            )
+        } else if needs_projection {
+            extract_imports_with_projection(&instance_script.raw)
+        } else {
+            let (imports, script_body) = extract_imports(&instance_script.raw);
+            (imports, script_body, Vec::new())
+        };
+        let composed_body_projection = (needs_projection && !can_borrow_projection).then(|| {
+            compose_script_projection(
+                instance_script.source_projection.as_ref().unwrap(),
+                &body_chunks,
+                script_body.len(),
+            )
+        });
+        let body_projection = if can_borrow_projection {
+            instance_script.source_projection.as_ref()
+        } else {
+            composed_body_projection.as_ref()
+        };
+        instance_script_imports = imports;
+        let split_top_level_declarations =
+            instance_has_top_level_multi_declarator(ast, &instance_script.raw);
         let _script_start = super::profile::timer_start();
         let mut transformed = transform_instance_script_for_visitors(
-            raw,
+            &script_body,
             analysis,
             options.dev,
             &reactive_import_names,
+            split_top_level_declarations,
+            retained_instance,
+            body_projection,
         );
         rest_excludes_hoists = extract_rest_excludes_hoists(&mut transformed);
         super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
@@ -1088,7 +1151,7 @@ fn transform_client_with_visitors(
     // This includes $state, $derived, $effect, $props transformations
     // Reuse the pre_transformed_script from above (already has reactive_import_names).
     if let Some(ref content) = analysis.instance_script_content {
-        let mut transformed_script = pre_transformed_script.clone().unwrap_or_default();
+        let mut transformed_script = pre_transformed_script.take().unwrap_or_default();
 
         // Post-process reactive imports: replace $.get(X)/$.mutate(X,...) with $$_import_X()
         for name in &reactive_import_names {
@@ -1808,42 +1871,54 @@ fn transform_client_with_visitors(
     // Process module script content - extract imports separately from other content
     // This is needed because module_level_snippets must come after imports but before exports
     // Reference: transform-client.js line 513: body = [...imports, ...state.module_level_snippets, ...body];
-    let module_script_non_imports: Option<String> = if let Some(ref module_content) =
-        analysis.module_script_content
-    {
-        // Strip TypeScript syntax before processing
-        let raw =
-            crate::compiler::phases::phase2_analyze::types::strip_typescript(&module_content.raw);
-        let (module_imports, rest) = extract_imports(&raw);
-        // Add module script imports first (from module.body in official compiler)
-        for import_line in module_imports {
-            let cleaned = cleanup_import_line(&import_line);
-            if cleaned.is_empty() {
-                continue;
-            }
-            let trimmed = cleaned.trim();
-            // Ensure import statements end with semicolons, matching esrap behavior.
-            let with_semi = if !trimmed.ends_with(';') {
-                format!("{};", trimmed)
+    let module_script_non_imports: Option<(String, Option<String>)> =
+        if let Some(ref module_content) = analysis.module_script_content {
+            // Strip TypeScript syntax before processing
+            let raw = crate::compiler::phases::phase2_analyze::types::strip_typescript(
+                &module_content.raw,
+            );
+            let (module_imports, rest) = extract_imports(&raw);
+            let retained_comment_stripped = if !analysis.is_typescript {
+                retained_scripts
+                    .and_then(|scripts| scripts.module.as_ref())
+                    .filter(|retained| retained.program().source_text == raw)
+                    .map(|retained| {
+                        let stripped =
+                            strip_module_toplevel_comments_from_program(&raw, retained.program());
+                        extract_imports(&stripped).1.trim().to_string()
+                    })
             } else {
-                trimmed.to_string()
+                None
             };
-            body.push(JsStatement::Raw(with_semi.into()));
-        }
-        let rest_trimmed = rest.trim();
-        // A module `<script module>` whose only non-import content is comments
-        // (and whitespace) carries no statements. Upstream parses it into an
-        // empty Program and esrap emits nothing — the dangling comments are
-        // dropped (they have no node to anchor to). Mirror that: emit nothing,
-        // rather than hoisting the bare comments to module top level.
-        if rest_trimmed.is_empty() || is_js_comments_and_whitespace_only(rest_trimmed) {
-            None
+            // Add module script imports first (from module.body in official compiler)
+            for import_line in module_imports {
+                let cleaned = cleanup_import_line(&import_line);
+                if cleaned.is_empty() {
+                    continue;
+                }
+                let trimmed = cleaned.trim();
+                // Ensure import statements end with semicolons, matching esrap behavior.
+                let with_semi = if !trimmed.ends_with(';') {
+                    format!("{};", trimmed)
+                } else {
+                    trimmed.to_string()
+                };
+                body.push(JsStatement::Raw(with_semi.into()));
+            }
+            let rest_trimmed = rest.trim();
+            // A module `<script module>` whose only non-import content is comments
+            // (and whitespace) carries no statements. Upstream parses it into an
+            // empty Program and esrap emits nothing — the dangling comments are
+            // dropped (they have no node to anchor to). Mirror that: emit nothing,
+            // rather than hoisting the bare comments to module top level.
+            if rest_trimmed.is_empty() || is_js_comments_and_whitespace_only(rest_trimmed) {
+                None
+            } else {
+                Some((rest_trimmed.to_string(), retained_comment_stripped))
+            }
         } else {
-            Some(rest_trimmed.to_string())
-        }
-    } else {
-        None
-    };
+            None
+        };
 
     // Add svelte/internal/client import (namespace import as $)
     // In the official compiler (transform-client.js line 154, 506), this is the first
@@ -1856,9 +1931,8 @@ fn transform_client_with_visitors(
 
     // Extract and add imports from instance script
     // These are in state.hoisted after import * as $ (from analysis.instance_body.hoisted)
-    if let Some(ref instance_content) = analysis.instance_script_content {
-        let (script_imports, _) = extract_imports(&instance_content.raw);
-        for import_line in script_imports {
+    if analysis.instance_script_content.is_some() {
+        for import_line in instance_script_imports {
             let cleaned = cleanup_import_line(&import_line);
             if cleaned.is_empty() {
                 continue;
@@ -1888,13 +1962,18 @@ fn transform_client_with_visitors(
     // This comes after module_level_snippets so that `export { foo }` can reference `const foo`
     // Transform class fields first (before rune transforms strip the rune names)
     // Then transform remaining rune calls ($state, $derived, etc.) in module-level script
-    if let Some(non_imports) = module_script_non_imports {
+    if let Some((non_imports, retained_comment_stripped)) = module_script_non_imports {
         let class_transformed = transform_class_fields_client(&non_imports);
         let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
         // Drop module-level comments esrap's no-`loc` top-level Program omits
         // (leading JSDoc before a kept `export const`, per-field JSDoc that
         // `strip_typescript` re-emits from a removed `export type`/`interface`).
-        let transformed = strip_module_toplevel_comments(&transformed);
+        let transformed = if transformed == non_imports {
+            retained_comment_stripped
+                .unwrap_or_else(|| strip_module_toplevel_comments(&transformed))
+        } else {
+            strip_module_toplevel_comments(&transformed)
+        };
         body.push(JsStatement::Raw(transformed.into()));
     }
 
@@ -2209,14 +2288,9 @@ fn transform_client_with_visitors(
     super::profile::record_assembly_after_fragment(super::profile::timer_elapsed(_assembly_start));
     let _codegen_start = super::profile::timer_start();
 
-    // Direct-AST codegen via to_oxc + esrap — the DEFAULT client codegen path.
-    // The string codegen (`generate` / `generate_with_sourcemap`) is the fallback
-    // for the ~0.03% of components carrying a node shape `to_oxc` does not model
-    // yet (`{@const}` computed destructuring is the only one left in the Svelte
-    // corpus). `RSVELTE_CLIENT_NO_OXC` forces the legacy string path (escape
-    // hatch). Span-stamping (`Spanned` / `RawMapped` → original-source offsets)
-    // feeds esrap `print_with_map` for the sourcemap branch.
-    if std::env::var_os("RSVELTE_CLIENT_NO_OXC").is_none() {
+    // Scriptless components use the faster handwritten printer. Scripts need
+    // OXC/esrap for official formatting and coordinate-aware comment placement.
+    if *CLIENT_USE_OXC || ast.instance.is_some() || ast.module.is_some() {
         let converted = CLIENT_TO_OXC_ALLOCATOR.with(|cell| {
             let mut alloc = cell.borrow_mut();
             alloc.reset();
@@ -2258,7 +2332,7 @@ fn transform_client_with_visitors(
         if let Some((code, mappings)) = converted {
             super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
             return Ok(CodegenResult { code, mappings });
-        } else if std::env::var_os("RSVELTE_CLIENT_TO_OXC_DEBUG").is_some() {
+        } else if *CLIENT_TO_OXC_DEBUG {
             eprintln!(
                 "CLIENT_TO_OXC_FALLBACK {}",
                 options.filename.as_deref().unwrap_or("?")
@@ -2288,7 +2362,7 @@ fn transform_client_with_visitors(
 fn esrap_mappings_to_source_mappings(
     mappings: &[Vec<rsvelte_esrap::SourceMapSegment>],
 ) -> Vec<SourceMapping> {
-    let mut out = Vec::new();
+    let mut out = Vec::with_capacity(mappings.iter().map(Vec::len).sum());
     for (gen_line, segs) in mappings.iter().enumerate() {
         for seg in segs {
             out.push(SourceMapping {
@@ -2312,6 +2386,11 @@ thread_local! {
     static CLIENT_TO_OXC_ALLOCATOR: std::cell::RefCell<oxc_allocator::Allocator> =
         std::cell::RefCell::new(oxc_allocator::Allocator::default());
 }
+
+static CLIENT_USE_OXC: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("RSVELTE_CLIENT_TO_OXC").is_some());
+static CLIENT_TO_OXC_DEBUG: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("RSVELTE_CLIENT_TO_OXC_DEBUG").is_some());
 
 fn is_ident_char(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
@@ -2500,10 +2579,32 @@ fn is_export_default_stmt(stmt: &JsStatement) -> bool {
 /// on a parse failure or when there is nothing to drop.
 pub(crate) fn strip_module_toplevel_comments(src: &str) -> String {
     use oxc_allocator::Allocator;
-    use oxc_ast::ast::{ClassBody, FunctionBody};
-    use oxc_ast_visit::{Visit, walk};
     use oxc_parser::Parser;
     use oxc_span::SourceType;
+
+    #[cfg(test)]
+    MODULE_COMMENT_REPARSES.with(|count| count.set(count.get() + 1));
+    let allocator = Allocator::default();
+    let ret = Parser::new(&allocator, src, SourceType::mjs()).parse();
+    if !ret.diagnostics.is_empty() {
+        return src.to_string();
+    }
+    strip_module_toplevel_comments_from_program(src, &ret.program)
+}
+
+#[cfg(test)]
+thread_local! {
+    static MODULE_COMMENT_REPARSES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static AST_STATE_REPARSES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static AST_STATE_RETAINED_USES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+fn strip_module_toplevel_comments_from_program(
+    src: &str,
+    program: &oxc_ast::ast::Program<'_>,
+) -> String {
+    use oxc_ast::ast::{ClassBody, FunctionBody};
+    use oxc_ast_visit::{Visit, walk};
 
     struct BodyCollector {
         spans: Vec<(u32, u32)>,
@@ -2519,17 +2620,16 @@ pub(crate) fn strip_module_toplevel_comments(src: &str) -> String {
         }
     }
 
-    let allocator = Allocator::default();
-    let ret = Parser::new(&allocator, src, SourceType::mjs()).parse();
-    if !ret.diagnostics.is_empty() || ret.program.comments.is_empty() {
+    debug_assert_eq!(program.source_text, src);
+    if program.comments.is_empty() {
         return src.to_string();
     }
 
     let mut collector = BodyCollector { spans: Vec::new() };
-    collector.visit_program(&ret.program);
+    collector.visit_program(program);
 
     let mut removals: Vec<(usize, usize)> = Vec::new();
-    for c in &ret.program.comments {
+    for c in &program.comments {
         let (cs, ce) = (c.span.start, c.span.end);
         let inside = collector
             .spans
@@ -2715,14 +2815,10 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
     let mut scan = ScanState::default();
 
     for line in script.lines() {
-        // Only treat a line as import-eligible when it begins in pure-code state
-        // (not inside a multi-line template literal / block comment).
         let line_starts_in_code = scan.in_code();
         scan.advance(line);
         let scan = line_starts_in_code; // shadow for the decision below
         if let Some(ref mut import_lines) = current_import {
-            // We're inside a multi-line import. The closing line may carry
-            // trailing statements after the import terminator; split them off.
             let trimmed = line.trim();
             let closes = trimmed.contains(';')
                 || trimmed.ends_with('\'')
@@ -2790,6 +2886,195 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
     (imports, rest.join("\n"))
 }
 
+struct ExtractedSourcePart {
+    text: String,
+    source: std::ops::Range<u32>,
+}
+
+fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<CopiedSourceChunk>) {
+    let mut imports = Vec::new();
+    let mut rest: Vec<ExtractedSourcePart> = Vec::new();
+    let mut current_import: Option<Vec<String>> = None;
+    let mut scan = ScanState::default();
+    let mut line_start = 0usize;
+
+    for physical_line in script.split_inclusive('\n') {
+        let line = if let Some(line_without_lf) = physical_line.strip_suffix('\n') {
+            line_without_lf
+                .strip_suffix('\r')
+                .unwrap_or(line_without_lf)
+        } else {
+            physical_line
+        };
+        let line_starts_in_code = scan.in_code();
+        scan.advance(line);
+        let scan = line_starts_in_code;
+        if let Some(ref mut import_lines) = current_import {
+            let trimmed = line.trim();
+            let closes = trimmed.contains(';')
+                || trimmed.ends_with('\'')
+                || trimmed.ends_with('"')
+                || trimmed.ends_with('`');
+            if closes {
+                if let Some(end) = import_statement_end(trimmed)
+                    && end < trimmed.len()
+                    && !trimmed[end..].trim().is_empty()
+                {
+                    import_lines.push(trimmed[..end].to_string());
+                    imports.push(import_lines.join("\n"));
+                    current_import = None;
+                    let trimmed_start = line.len() - line.trim_start().len();
+                    let remainder_source_start = trimmed_start + end;
+                    let (remainder, remainder_offset) =
+                        peel_leading_imports_ref(&trimmed[end..], &mut imports);
+                    if !remainder.trim().is_empty() {
+                        rest.push(ExtractedSourcePart {
+                            text: remainder.to_string(),
+                            source: (line_start + remainder_source_start + remainder_offset) as u32
+                                ..(line_start
+                                    + remainder_source_start
+                                    + remainder_offset
+                                    + remainder.len()) as u32,
+                        });
+                    }
+                } else {
+                    import_lines.push(line.to_string());
+                    imports.push(import_lines.join("\n"));
+                    current_import = None;
+                }
+            } else {
+                import_lines.push(line.to_string());
+            }
+        } else {
+            let trimmed = line.trim();
+            if scan && (trimmed.starts_with("import ") || trimmed.starts_with("import{")) {
+                if trimmed.contains(';')
+                    || is_complete_side_effect_import(trimmed)
+                    || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
+                        && (trimmed.ends_with('\'')
+                            || trimmed.ends_with('"')
+                            || trimmed.ends_with('`')))
+                {
+                    let trimmed_start = line.len() - line.trim_start().len();
+                    let (remainder, remainder_offset) =
+                        peel_leading_imports_ref(trimmed, &mut imports);
+                    if !remainder.trim().is_empty() {
+                        rest.push(ExtractedSourcePart {
+                            text: remainder.to_string(),
+                            source: (line_start + trimmed_start + remainder_offset) as u32
+                                ..(line_start + trimmed_start + remainder_offset + remainder.len())
+                                    as u32,
+                        });
+                    }
+                } else {
+                    current_import = Some(vec![line.to_string()]);
+                }
+            } else {
+                rest.push(ExtractedSourcePart {
+                    text: line.to_string(),
+                    source: line_start as u32..(line_start + line.len()) as u32,
+                });
+            }
+        }
+        line_start += physical_line.len();
+    }
+
+    if let Some(import_lines) = current_import {
+        imports.push(import_lines.join("\n"));
+    }
+
+    let mut output = String::new();
+    let mut copied_chunks = Vec::with_capacity(rest.len().saturating_mul(2));
+    for (index, part) in rest.iter().enumerate() {
+        if index != 0 {
+            let output_start = output.len() as u32;
+            output.push('\n');
+            let previous = &rest[index - 1];
+            if previous.source.end + 1 == part.source.start
+                && script.as_bytes().get(previous.source.end as usize) == Some(&b'\n')
+            {
+                push_projection_chunk(
+                    &mut copied_chunks,
+                    previous.source.end..part.source.start,
+                    output_start..output.len() as u32,
+                );
+            }
+        }
+
+        let output_start = output.len() as u32;
+        output.push_str(&part.text);
+        push_projection_chunk(
+            &mut copied_chunks,
+            part.source.clone(),
+            output_start..output.len() as u32,
+        );
+    }
+
+    (imports, output, copied_chunks)
+}
+
+fn push_projection_chunk(
+    chunks: &mut Vec<CopiedSourceChunk>,
+    source: std::ops::Range<u32>,
+    output: std::ops::Range<u32>,
+) {
+    if source.is_empty() {
+        return;
+    }
+    debug_assert_eq!(source.end - source.start, output.end - output.start);
+    if let Some(previous) = chunks.last_mut()
+        && previous.source.end == source.start
+        && previous.output.end == output.start
+    {
+        previous.source.end = source.end;
+        previous.output.end = output.end;
+    } else {
+        chunks.push(CopiedSourceChunk { source, output });
+    }
+}
+
+fn compose_script_projection(
+    source_projection: &ScriptProjection,
+    raw_to_body: &[CopiedSourceChunk],
+    body_len: usize,
+) -> ScriptProjection {
+    let mut copied_chunks = Vec::new();
+    let mut source_index = 0usize;
+    for body_chunk in raw_to_body {
+        while source_index < source_projection.copied_chunks.len()
+            && source_projection.copied_chunks[source_index].output.end <= body_chunk.source.start
+        {
+            source_index += 1;
+        }
+
+        for source_chunk in &source_projection.copied_chunks[source_index..] {
+            if source_chunk.output.start >= body_chunk.source.end {
+                break;
+            }
+            let intersection_start = source_chunk.output.start.max(body_chunk.source.start);
+            let intersection_end = source_chunk.output.end.min(body_chunk.source.end);
+            if intersection_start >= intersection_end {
+                continue;
+            }
+            let source_start =
+                source_chunk.source.start + intersection_start - source_chunk.output.start;
+            let output_start =
+                body_chunk.output.start + intersection_start - body_chunk.source.start;
+            push_projection_chunk(
+                &mut copied_chunks,
+                source_start..source_start + intersection_end - intersection_start,
+                output_start..output_start + intersection_end - intersection_start,
+            );
+        }
+    }
+
+    ScriptProjection {
+        copied_chunks,
+        source_len: source_projection.source_len,
+        output_len: body_len as u32,
+    }
+}
+
 /// Check whether `trimmed` is a complete *side-effect* import statement —
 /// `import "module"` or `import 'module'` with no `from` clause and no
 /// terminating semicolon. ASI in real JavaScript allows this form to stand
@@ -2843,16 +3128,23 @@ fn import_statement_end(s: &str) -> Option<usize> {
 /// the first non-import token or an *incomplete* import (one that continues on a
 /// following line) and returns it so the caller can route it.
 fn peel_leading_imports(s: &str, imports: &mut Vec<String>) -> String {
-    let mut cur = s.trim_start();
+    peel_leading_imports_ref(s, imports).0.to_string()
+}
+
+fn peel_leading_imports_ref<'a>(s: &'a str, imports: &mut Vec<String>) -> (&'a str, usize) {
+    let mut offset = s.len() - s.trim_start().len();
+    let mut cur = &s[offset..];
     while cur.starts_with("import ") || cur.starts_with("import{") {
         let Some(end) = import_statement_end(cur) else {
             break;
         };
         let (import_part, remainder) = cur.split_at(end);
         imports.push(import_part.trim().to_string());
-        cur = remainder.trim_start();
+        let whitespace = remainder.len() - remainder.trim_start().len();
+        offset += end + whitespace;
+        cur = &s[offset..];
     }
-    cur.to_string()
+    (cur, offset)
 }
 
 fn is_complete_side_effect_import(trimmed: &str) -> bool {
@@ -3022,6 +3314,12 @@ fn collect_local_state_decls(script: &str) -> rustc_hash::FxHashSet<&str> {
 }
 
 fn extract_shadowed_state_names(script: &str) -> rustc_hash::FxHashSet<String> {
+    if memmem::find(script.as_bytes(), b"$state").is_none()
+        && memmem::find(script.as_bytes(), b"$derived").is_none()
+    {
+        return rustc_hash::FxHashSet::default();
+    }
+
     let mut top_level_non_state: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
     let mut inner_state: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
     let mut brace_depth: i32 = 0;
@@ -3221,6 +3519,12 @@ pub(super) fn is_variable_reassigned_in_text(script: &str, var_name: &str) -> bo
 }
 
 pub(super) fn extract_local_reactive_vars(script: &str) -> Vec<(String, bool, bool)> {
+    if memmem::find(script.as_bytes(), b"$state").is_none()
+        && memmem::find(script.as_bytes(), b"$derived").is_none()
+    {
+        return Vec::new();
+    }
+
     let mut vars = Vec::new();
 
     // Pattern: (let|const|var) varname = $state(...) or (let|const|var) varname = $derived(...)
@@ -3858,7 +4162,15 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
     dev: bool,
     reactive_import_names: &[String],
 ) -> String {
-    transform_instance_script_for_visitors(script, analysis, dev, reactive_import_names)
+    transform_instance_script_for_visitors(
+        script,
+        analysis,
+        dev,
+        reactive_import_names,
+        might_have_comma_separated_declaration(script),
+        None,
+        None,
+    )
 }
 
 /// True when a legacy-mode script contains a `$`-token that the fragile
@@ -3882,30 +4194,74 @@ fn legacy_script_has_dollar_token(script: &str) -> bool {
     false
 }
 
+fn might_have_comma_separated_declaration(script: &str) -> bool {
+    let bytes = script.as_bytes();
+    if memmem::find(bytes, b", ").is_none()
+        && memmem::find(bytes, b",\n").is_none()
+        && memmem::find(bytes, b",\t").is_none()
+    {
+        return false;
+    }
+
+    script.lines().any(|line| {
+        let trimmed = line.trim_start();
+        let declaration = trimmed
+            .strip_prefix("export ")
+            .map(str::trim_start)
+            .unwrap_or(trimmed);
+        declaration.starts_with("const ")
+            || declaration.starts_with("let ")
+            || declaration.starts_with("var ")
+    })
+}
+
+fn instance_has_top_level_multi_declarator(ast: &Root, script: &str) -> bool {
+    use crate::ast::typed_expr::JsNode;
+
+    let Some(instance) = ast.instance.as_ref() else {
+        return false;
+    };
+    let program = instance.content.as_node();
+    let JsNode::Program { body, .. } = program.as_ref() else {
+        return might_have_comma_separated_declaration(script);
+    };
+
+    ast.arena.get_js_children(*body).iter().any(|statement| {
+        let declaration = match statement {
+            JsNode::VariableDeclaration { declarations, .. } => Some(*declarations),
+            JsNode::ExportNamedDeclaration {
+                declaration: Some(declaration),
+                ..
+            } => match ast.arena.get_js_node(*declaration) {
+                JsNode::VariableDeclaration { declarations, .. } => Some(*declarations),
+                _ => None,
+            },
+            _ => None,
+        };
+        declaration.is_some_and(|declarations| ast.arena.get_js_children(declarations).len() > 1)
+    })
+}
+
 fn transform_instance_script_for_visitors(
     script: &str,
     analysis: &ComponentAnalysis,
     dev: bool,
     reactive_import_names: &[String],
+    split_top_level_declarations: bool,
+    retained_program: Option<&crate::ast::oxc_program::RetainedProgram<'_>>,
+    source_projection: Option<&ScriptProjection>,
 ) -> String {
     if script.is_empty() {
         return String::new();
     }
+    let original_script = script;
 
-    // Fast path: if the script has no runes ($state, $derived, $effect, $props),
-    // no store subscriptions ($xxx), no reactive statements ($:), and no exports,
-    // the text-based transform pipeline has nothing to do. Just return the script
-    // with imports stripped.
-    // Fast path: if the script has no runes, stores, reactive statements, exports,
-    // or comma-separated declarations, the text-based transform pipeline has nothing to do.
+    // Instance imports are removed by the caller before this pipeline.
     let has_dollar = script.contains('$');
     let has_export = memmem::find(script.as_bytes(), b"export ").is_some();
-    let has_comma_decl = memmem::find(script.as_bytes(), b", ").is_some()
-        || memmem::find(script.as_bytes(), b",\n").is_some()
-        || memmem::find(script.as_bytes(), b",\t").is_some();
+    let has_comma_decl = split_top_level_declarations;
     if !has_dollar
         && !has_export
-        && !has_comma_decl
         && analysis.root.bindings.iter().all(|b| {
             !matches!(
                 b.kind,
@@ -3920,9 +4276,13 @@ fn transform_instance_script_for_visitors(
             )
         })
     {
-        // No transforms needed - just strip imports and return the rest
-        let (_imports, rest) = extract_imports(script);
-        return rest.to_string();
+        return if has_comma_decl {
+            crate::compiler::phases::phase3_transform::server::transform_script::split_comma_separated_declarations(
+                script,
+            )
+        } else {
+            script.to_string()
+        };
     }
 
     // Reset the $$array counters for this component
@@ -3961,17 +4321,18 @@ fn transform_instance_script_for_visitors(
     };
 
     // Split comma-separated variable declarations only if needed
-    let script: std::borrow::Cow<str> = if memmem::find(script.as_bytes(), b", ").is_some()
-        || memmem::find(script.as_bytes(), b",\n").is_some()
-        || memmem::find(script.as_bytes(), b",\t").is_some()
+    let class_transform_can_add_declarations = memmem::find(script.as_bytes(), b"class ").is_some()
+        && (memmem::find(script.as_bytes(), b"$state").is_some()
+            || memmem::find(script.as_bytes(), b"$derived").is_some());
+    let script: std::borrow::Cow<str> = if split_top_level_declarations
+        || (class_transform_can_add_declarations && might_have_comma_separated_declaration(&script))
     {
         std::borrow::Cow::Owned(crate::compiler::phases::phase3_transform::server::transform_script::split_comma_separated_declarations(&script))
     } else {
         script
     };
 
-    // Extract imports from script (they will be hoisted separately)
-    let (_script_imports, script_rest_raw) = extract_imports(&script);
+    let script_rest_raw = script.into_owned();
 
     // Strip unnecessary parentheses from arrow function expression bodies in the
     // ORIGINAL source text, before any transforms run. The official Svelte compiler
@@ -5158,30 +5519,36 @@ fn transform_instance_script_for_visitors(
 
         // Store transforms: skip entirely when there are no store subscriptions
         // In runes mode, deferred to AST-based transform after main loop.
-        let transformed = if !store_sub_vars.is_empty() && !analysis.runes {
-            // Filter out store_sub_vars that appear as function parameters in this statement.
-            let effective_store_sub_vars: Vec<String> = if store_sub_vars
+        let transformed = if !store_sub_vars.is_empty()
+            && !analysis.runes
+            && store_sub_vars
                 .iter()
-                .any(|s| transformed.contains(s.as_str()))
-            {
-                store_sub_vars
-                    .iter()
-                    .filter(|s| !is_function_parameter_in_statement(&transformed, s))
-                    .cloned()
-                    .collect()
-            } else {
-                store_sub_vars.to_vec()
-            };
+                .any(|store| transformed.contains(store.as_str()))
+        {
+            // Filter out store_sub_vars that appear as function parameters in this statement.
+            let mut filtered_store_sub_vars = Vec::new();
+            let effective_store_sub_vars =
+                if transformed.contains("=>") || transformed.contains("function") {
+                    filtered_store_sub_vars.extend(
+                        store_sub_vars
+                            .iter()
+                            .filter(|s| !is_function_parameter_in_statement(&transformed, s))
+                            .cloned(),
+                    );
+                    filtered_store_sub_vars.as_slice()
+                } else {
+                    store_sub_vars
+                };
 
-            let transformed = transform_store_sub_calls(&transformed, &effective_store_sub_vars);
+            let transformed = transform_store_sub_calls(&transformed, effective_store_sub_vars);
             let transformed = transform_store_assignments_client(
                 &transformed,
-                &effective_store_sub_vars,
+                effective_store_sub_vars,
                 prop_assignment_transform_vars,
                 state_vars,
                 non_reactive_state_vars,
             );
-            transform_store_reads_client(&transformed, &effective_store_sub_vars)
+            transform_store_reads_client(&transformed, effective_store_sub_vars)
         } else {
             transformed
         };
@@ -5662,9 +6029,79 @@ fn transform_instance_script_for_visitors(
                 analysis: Some(analysis),
                 exported_names: &exported_names,
             };
-            if let Some(ast_result) =
+            let mut used_retained = false;
+            let ast_result = retained_program.and_then(|program| {
+                let retained_core = original_script.trim();
+                let result_core = result.trim();
+                if retained_core != result_core {
+                    return None;
+                }
+                let result_core_start = result.find(result_core).unwrap_or(0);
+                let result_core_end = result_core_start + result_core.len();
+                let prefix = &result[..result_core_start];
+                let suffix = &result[result_core_end..];
+
+                let transformed = if let Some(projection) = source_projection {
+                    let projection_core_start =
+                        original_script.len() - original_script.trim_start().len();
+                    let projection_core_end = projection_core_start + original_script.trim().len();
+                    let counters = AstStateCounterSnapshot::capture();
+                    match ast_state_transform::transform_state_vars_ast_projected_from_program(
+                        program.source(),
+                        program.program(),
+                        result_core,
+                        projection,
+                        projection_core_start..projection_core_end,
+                        &ast_config,
+                    ) {
+                        Ok(Some(transformed)) => Some(transformed),
+                        Ok(None) => {
+                            counters.restore();
+                            None
+                        }
+                        Err(()) => {
+                            counters.restore();
+                            return None;
+                        }
+                    }
+                } else {
+                    let mut retained_matches = program.source().match_indices(retained_core);
+                    let (retained_core_start, _) = retained_matches.next()?;
+                    if retained_matches.next().is_some() {
+                        return None;
+                    }
+                    let retained_core_end = retained_core_start + retained_core.len();
+                    ast_state_transform::transform_state_vars_ast_range_from_program(
+                        program.source(),
+                        program.program(),
+                        result_core,
+                        retained_core_start..retained_core_end,
+                        &ast_config,
+                    )
+                };
+
+                used_retained = true;
+                #[cfg(test)]
+                AST_STATE_RETAINED_USES.with(|count| count.set(count.get() + 1));
+                transformed.map(|transformed| {
+                    let mut output =
+                        String::with_capacity(prefix.len() + transformed.len() + suffix.len());
+                    output.push_str(prefix);
+                    output.push_str(&transformed);
+                    output.push_str(suffix);
+                    output
+                })
+            });
+            let ast_result = if used_retained {
+                ast_result
+            } else {
+                #[cfg(test)]
+                {
+                    AST_STATE_REPARSES.with(|count| count.set(count.get() + 1));
+                }
                 ast_state_transform::transform_state_vars_ast(&result, &ast_config)
-            {
+            };
+            if let Some(ast_result) = ast_result {
                 result = ast_result;
             }
             // Apply store_unsub wrapping after AST transform (searches for $.set patterns)

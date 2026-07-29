@@ -526,17 +526,31 @@ pub(crate) fn parse_component(source: &str) -> Result<crate::ast::Root<'_>, Comp
 /// arena guard: resolve lazy expressions, finish deferred script parsing, strip
 /// TypeScript, merge `<svelte:options>` into `options`, and analyze.
 ///
-/// Returns the merged options, the analysis, and whether runes mode is active.
+/// Returns the merged options, analysis, runes mode, and compile-only script programs.
 /// The caller must install the AST's serialize-arena guard for this call.
-pub(crate) fn prepare_and_analyze(
-    ast: &mut crate::ast::Root,
-    source: &str,
+pub(crate) fn prepare_and_analyze<'source>(
+    ast: &mut crate::ast::Root<'source>,
+    source: &'source str,
     mut options: CompileOptions,
-) -> Result<(CompileOptions, ComponentAnalysis, bool), CompileError> {
+) -> Result<
+    (
+        CompileOptions,
+        ComponentAnalysis,
+        bool,
+        crate::ast::oxc_program::RetainedScripts<'source>,
+    ),
+    CompileError,
+> {
+    let line_offsets = phases::phase1_parse::compute_line_offsets(source, false);
+
     // Resolve lazy expressions (deferred template expressions). If any
     // expression has a parse error, return it immediately.
     if let Some(parse_err) =
-        phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(ast, source)
+        phases::phase1_parse::resolve_lazy::resolve_lazy_expressions_with_line_offsets(
+            ast,
+            source,
+            &line_offsets,
+        )
     {
         return Err(parse_err.into());
     }
@@ -544,27 +558,31 @@ pub(crate) fn prepare_and_analyze(
     // Ensure deferred script parsing is completed before TypeScript removal.
     // When defer_script_parse is enabled, script content is stored as raw text;
     // parse it first so remove_typescript_nodes can inspect the AST.
+    let mut retained_scripts = crate::ast::oxc_program::RetainedScripts::default();
     {
-        let line_offsets = phases::phase1_parse::compute_line_offsets(source, false);
-        if let Some(ref mut instance) = ast.instance
-            && let Some(parse_err) = phases::phase1_parse::read::script::ensure_script_parsed(
-                &ast.arena,
-                instance,
-                source,
-                &line_offsets,
-            )
-        {
-            return Err(parse_err.into());
+        if let Some(ref mut instance) = ast.instance {
+            let (parse_error, retained) =
+                phases::phase1_parse::read::script::ensure_script_parsed_retained(
+                    &ast.arena,
+                    instance,
+                    &line_offsets,
+                );
+            if let Some(parse_error) = parse_error {
+                return Err(parse_error.into());
+            }
+            retained_scripts.instance = retained;
         }
-        if let Some(ref mut module) = ast.module
-            && let Some(parse_err) = phases::phase1_parse::read::script::ensure_script_parsed(
-                &ast.arena,
-                module,
-                source,
-                &line_offsets,
-            )
-        {
-            return Err(parse_err.into());
+        if let Some(ref mut module) = ast.module {
+            let (parse_error, retained) =
+                phases::phase1_parse::read::script::ensure_script_parsed_retained(
+                    &ast.arena,
+                    module,
+                    &line_offsets,
+                );
+            if let Some(parse_error) = parse_error {
+                return Err(parse_error.into());
+            }
+            retained_scripts.module = retained;
         }
     }
 
@@ -585,10 +603,15 @@ pub(crate) fn prepare_and_analyze(
     }
 
     // Phase 2: Analyze
-    let analysis = phases::phase2_analyze::analyze_prepared_component(ast, source, &options)?;
+    let analysis = phases::phase2_analyze::analyze_prepared_component_with_retained(
+        ast,
+        source,
+        &options,
+        Some(&retained_scripts),
+    )?;
     // Determine if runes mode was used
     let runes_mode = options.runes.unwrap_or(analysis.runes);
-    Ok((options, analysis, runes_mode))
+    Ok((options, analysis, runes_mode, retained_scripts))
 }
 
 /// Compile a Svelte component.

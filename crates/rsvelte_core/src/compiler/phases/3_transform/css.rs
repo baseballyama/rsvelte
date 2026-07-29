@@ -2220,6 +2220,37 @@ fn is_sibling_combinator_no_match(complex: &Value, ctx: &CssContext) -> bool {
 }
 
 /// Implementation of no-match check for sibling combinators
+fn visit_possible_siblings(
+    ctx: &CssContext,
+    element_idx: usize,
+    forward: bool,
+    general: bool,
+    mut visitor: impl FnMut(usize) -> bool,
+) -> bool {
+    let relations = |idx: usize| {
+        let element = &ctx.dom_structure.elements[idx];
+        match (forward, general) {
+            (true, true) => &element.possible_next_general,
+            (true, false) => &element.possible_next_adjacent,
+            (false, true) => &element.possible_prev_general,
+            (false, false) => &element.possible_prev_adjacent,
+        }
+    };
+
+    if general && ctx.dom_structure.general_siblings_linked {
+        let mut current = relations(element_idx).first().map(|(idx, _)| *idx);
+        while let Some(idx) = current {
+            if visitor(idx) {
+                return true;
+            }
+            current = relations(idx).first().map(|(next, _)| *next);
+        }
+        false
+    } else {
+        relations(element_idx).iter().any(|(idx, _)| visitor(*idx))
+    }
+}
+
 fn is_sibling_combinator_no_match_impl(rel_selectors: &[Value], ctx: &CssContext) -> bool {
     if rel_selectors.len() < 2 || ctx.dom_structure.elements.is_empty() {
         return false;
@@ -2266,26 +2297,16 @@ fn is_sibling_combinator_no_match_impl(rel_selectors: &[Value], ctx: &CssContext
         let mut found_before_element = false;
         let mut found_any_match = false;
 
-        for el in ctx.dom_structure.elements.iter() {
+        for (el_idx, el) in ctx.dom_structure.elements.iter().enumerate() {
             if selector_matches_element(&before_info, el) {
                 found_before_element = true;
-
-                // Check if any possible sibling matches 'after'
-                let possible_siblings = if combinator == "+" {
-                    &el.possible_next_adjacent
-                } else {
-                    &el.possible_next_general
-                };
-
-                for (sibling_idx, _certainty) in possible_siblings {
-                    if let Some(sibling) = ctx.dom_structure.elements.get(*sibling_idx)
-                        && selector_matches_element(&after_info, sibling)
-                    {
-                        // Found a possible match
-                        found_any_match = true;
-                        break;
-                    }
-                }
+                found_any_match =
+                    visit_possible_siblings(ctx, el_idx, true, combinator == "~", |sibling_idx| {
+                        ctx.dom_structure
+                            .elements
+                            .get(sibling_idx)
+                            .is_some_and(|sibling| selector_matches_element(&after_info, sibling))
+                    });
 
                 if found_any_match {
                     break;
@@ -2401,27 +2422,27 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
             // root-level Y (X may be injected by the parent). The opaque and root
             // predicates alone are insufficient because await/snippet fragments
             // mark their elements opaque yet can hold a real X sibling.
-            let matches = ctx.dom_structure.elements.iter().any(|el| {
-                if !selector_matches_element(&second_info, el) {
-                    return false;
-                }
-                let opaque = if combinator == "+" {
-                    el.prev_is_opaque_boundary
-                } else {
-                    el.prev_has_opaque_boundary
-                };
-                if opaque || el.is_root_child {
-                    return true;
-                }
-                let prevs = if combinator == "+" {
-                    &el.possible_prev_adjacent
-                } else {
-                    &el.possible_prev_general
-                };
-                prevs
-                    .iter()
-                    .any(|(idx, _)| matcher_matches_at(&inner_matcher, *idx, ctx))
-            });
+            let matches = ctx
+                .dom_structure
+                .elements
+                .iter()
+                .enumerate()
+                .any(|(el_idx, el)| {
+                    if !selector_matches_element(&second_info, el) {
+                        return false;
+                    }
+                    let opaque = if combinator == "+" {
+                        el.prev_is_opaque_boundary
+                    } else {
+                        el.prev_has_opaque_boundary
+                    };
+                    if opaque || el.is_root_child {
+                        return true;
+                    }
+                    visit_possible_siblings(ctx, el_idx, false, combinator == "~", |sibling_idx| {
+                        matcher_matches_at(&inner_matcher, sibling_idx, ctx)
+                    })
+                });
 
             return !matches;
         }
@@ -2522,19 +2543,10 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         for (el_idx, el) in ctx.dom_structure.elements.iter().enumerate() {
             if matcher_matches_at(&after_m, el_idx, ctx) {
                 found_after_element = true;
-                // Check possible previous siblings based on combinator type
-                let possible_siblings = if combinator == "+" {
-                    &el.possible_prev_adjacent
-                } else {
-                    // ~ combinator
-                    &el.possible_prev_general
-                };
-
-                // Check if any possible previous sibling matches 'before' selector
-                for (sibling_idx, _certainty) in possible_siblings {
-                    if matcher_matches_at(&before_m, *sibling_idx, ctx) {
-                        return false; // Found a match, not unused
-                    }
+                if visit_possible_siblings(ctx, el_idx, false, combinator == "~", |sibling_idx| {
+                    matcher_matches_at(&before_m, sibling_idx, ctx)
+                }) {
+                    return false;
                 }
 
                 // If this element has empty sibling lists AND there are opaque boundaries,
@@ -2558,15 +2570,14 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
             for (el_idx, el) in ctx.dom_structure.elements.iter().enumerate() {
                 if matcher_matches_at(&before_m, el_idx, ctx) {
                     found_before_element = true;
-                    let possible_siblings = if combinator == "+" {
-                        &el.possible_next_adjacent
-                    } else {
-                        &el.possible_next_general
-                    };
-                    for (sibling_idx, _certainty) in possible_siblings {
-                        if matcher_matches_at(&after_m, *sibling_idx, ctx) {
-                            return false; // Found a match
-                        }
+                    if visit_possible_siblings(
+                        ctx,
+                        el_idx,
+                        true,
+                        combinator == "~",
+                        |sibling_idx| matcher_matches_at(&after_m, sibling_idx, ctx),
+                    ) {
+                        return false;
                     }
                     // Check for incomplete siblings
                     if ctx.has_opaque_sibling_boundaries
@@ -2622,21 +2633,15 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
 
         // Check if any element matching 'after' has 'before' as a possible previous sibling
         let mut found_match = false;
-        for el in ctx.dom_structure.elements.iter() {
+        for (el_idx, el) in ctx.dom_structure.elements.iter().enumerate() {
             if selector_matches_element(&after_info, el) {
-                let possible_siblings = if comb_b == "+" {
-                    &el.possible_prev_adjacent
-                } else {
-                    &el.possible_prev_general
-                };
-                for (sibling_idx, _certainty) in possible_siblings {
-                    if let Some(sibling) = ctx.dom_structure.elements.get(*sibling_idx)
-                        && selector_matches_element(&before_info, sibling)
-                    {
-                        found_match = true;
-                        break;
-                    }
-                }
+                found_match =
+                    visit_possible_siblings(ctx, el_idx, false, comb_b == "~", |sibling_idx| {
+                        ctx.dom_structure
+                            .elements
+                            .get(sibling_idx)
+                            .is_some_and(|sibling| selector_matches_element(&before_info, sibling))
+                    });
                 if found_match {
                     break;
                 }
@@ -2657,21 +2662,15 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         let after_info = extract_selector_info_resolving_nesting(after, ctx);
 
         let mut found_match = false;
-        for el in ctx.dom_structure.elements.iter() {
+        for (el_idx, el) in ctx.dom_structure.elements.iter().enumerate() {
             if selector_matches_element(&after_info, el) {
-                let possible_siblings = if first_comb == "+" {
-                    &el.possible_prev_adjacent
-                } else {
-                    &el.possible_prev_general
-                };
-                for (sibling_idx, _certainty) in possible_siblings {
-                    if let Some(sibling) = ctx.dom_structure.elements.get(*sibling_idx)
-                        && selector_matches_element(&before_info, sibling)
-                    {
-                        found_match = true;
-                        break;
-                    }
-                }
+                found_match =
+                    visit_possible_siblings(ctx, el_idx, false, first_comb == "~", |sibling_idx| {
+                        ctx.dom_structure
+                            .elements
+                            .get(sibling_idx)
+                            .is_some_and(|sibling| selector_matches_element(&before_info, sibling))
+                    });
                 if found_match {
                     break;
                 }
@@ -3962,21 +3961,17 @@ fn is_has_argument_unused_globally(has_complex: &Value, ctx: &CssContext) -> boo
         "+" | "~" => {
             // For sibling selectors from :root/:global context,
             // check if any root-level element has matching siblings
-            for el in ctx.dom_structure.elements.iter() {
+            for (el_idx, el) in ctx.dom_structure.elements.iter().enumerate() {
                 if !el.is_root_child {
                     continue;
                 }
-                let possible_siblings = if combinator == "+" {
-                    &el.possible_next_adjacent
-                } else {
-                    &el.possible_next_general
-                };
-                for (sibling_idx, _) in possible_siblings {
-                    if let Some(sibling) = ctx.dom_structure.elements.get(*sibling_idx)
-                        && selector_matches_element(&first_info, sibling)
-                    {
-                        return false; // Found a match
-                    }
+                if visit_possible_siblings(ctx, el_idx, true, combinator == "~", |sibling_idx| {
+                    ctx.dom_structure
+                        .elements
+                        .get(sibling_idx)
+                        .is_some_and(|sibling| selector_matches_element(&first_info, sibling))
+                }) {
+                    return false;
                 }
             }
             true
@@ -4062,12 +4057,13 @@ fn is_has_argument_unused(
             // This checks siblings of x, not descendants, so opaque content inside x doesn't matter
             for &subject_idx in subject_elements {
                 let subject = &ctx.dom_structure.elements[subject_idx];
-                for &(sibling_idx, _) in &subject.possible_next_adjacent {
-                    if let Some(sibling) = ctx.dom_structure.elements.get(sibling_idx)
-                        && selector_matches_element(&first_info, sibling)
-                    {
-                        return false; // Found a match
-                    }
+                if visit_possible_siblings(ctx, subject_idx, true, false, |sibling_idx| {
+                    ctx.dom_structure
+                        .elements
+                        .get(sibling_idx)
+                        .is_some_and(|sibling| selector_matches_element(&first_info, sibling))
+                }) {
+                    return false;
                 }
                 // If opaque boundaries exist and this element has incomplete sibling data,
                 // be conservative - elements from render tags/slots could be siblings
@@ -4086,12 +4082,13 @@ fn is_has_argument_unused(
             // :has(~ c) - check if any subject element has a following general sibling matching c
             for &subject_idx in subject_elements {
                 let subject = &ctx.dom_structure.elements[subject_idx];
-                for &(sibling_idx, _) in &subject.possible_next_general {
-                    if let Some(sibling) = ctx.dom_structure.elements.get(sibling_idx)
-                        && selector_matches_element(&first_info, sibling)
-                    {
-                        return false; // Found a match
-                    }
+                if visit_possible_siblings(ctx, subject_idx, true, true, |sibling_idx| {
+                    ctx.dom_structure
+                        .elements
+                        .get(sibling_idx)
+                        .is_some_and(|sibling| selector_matches_element(&first_info, sibling))
+                }) {
+                    return false;
                 }
                 // If opaque boundaries exist and this element has incomplete sibling data,
                 // be conservative
@@ -7158,13 +7155,9 @@ fn get_selector_text(node: &Value) -> String {
 /// Generate a raw hash string (matches Svelte's hash() function in utils.js).
 /// This is the base hash without the "svelte-" prefix.
 pub fn generate_raw_hash(source: &str) -> String {
-    // Collect chars in reverse, skipping \r (avoids allocating a replacement string)
     let mut hash: i32 = 5381;
-    let chars: Vec<char> = source.chars().filter(|&c| c != '\r').collect();
-
-    // Iterate backwards like Svelte does
-    for i in (0..chars.len()).rev() {
-        hash = ((hash << 5).wrapping_sub(hash)) ^ (chars[i] as i32);
+    for c in source.chars().rev().filter(|&c| c != '\r') {
+        hash = ((hash << 5).wrapping_sub(hash)) ^ (c as i32);
     }
 
     // Convert to unsigned and then to base-36

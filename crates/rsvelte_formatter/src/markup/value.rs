@@ -37,7 +37,7 @@ pub(super) fn expression_tag_inner<'a>(tag: &ExpressionTag, source: &'a str) -> 
 /// `name={` prefix (that over-wraps the body). Detected syntactically: no arrow
 /// and no leading object/array/function token.
 pub(super) fn is_shallow_value(src: &str) -> bool {
-    if src.contains("=>") {
+    if has_top_level_arrow(src) {
         return false;
     }
     let t = src.trim_start();
@@ -45,6 +45,37 @@ pub(super) fn is_shallow_value(src: &str) -> bool {
     // (`(a ?? b) === c`), not a block body — only arrows open a body, and those
     // are already excluded by the `=>` check above.
     !(t.starts_with('{') || t.starts_with('[') || t.starts_with("function"))
+}
+
+fn has_top_level_arrow(src: &str) -> bool {
+    let bytes = src.as_bytes();
+    let mut depth = 0usize;
+    let mut quote: Option<u8> = None;
+    let mut escaped = false;
+    let mut index = 0usize;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if let Some(delimiter) = quote {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == delimiter {
+                quote = None;
+            }
+            index += 1;
+            continue;
+        }
+        match byte {
+            b'\'' | b'"' | b'`' => quote = Some(byte),
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth = depth.saturating_sub(1),
+            b'=' if depth == 0 && bytes.get(index + 1) == Some(&b'>') => return true,
+            _ => {}
+        }
+        index += 1;
+    }
+    false
 }
 
 /// Render an attribute whose value is a single `{expr}` mustache (whether the
@@ -142,6 +173,27 @@ fn render_single_expression_value(
                     let prefix_result =
                         format_attribute_value_expression(inner_src, options, attr_depth, prefix)?;
                     if prefix_result.contains('\n') {
+                        let has_chain_break = prefix_result.lines().skip(1).any(|line| {
+                            let line = line.trim_start();
+                            line.starts_with('.') || line.starts_with("?.")
+                        });
+                        if has_chain_break {
+                            let prefix_first =
+                                prefix_result.lines().next().unwrap_or("").trim_end();
+                            let prefix_total =
+                                indent_cols + prefix + visual_width(prefix_first) + 1;
+                            if prefix_total <= line_width {
+                                return Ok(format!("{}={{{prefix_result}}}", node.name));
+                            }
+                            let overflow = prefix_total - line_width;
+                            let tighter = format_attribute_value_expression(
+                                inner_src,
+                                options,
+                                attr_depth,
+                                prefix + overflow + 1,
+                            )?;
+                            return Ok(format!("{}={{{tighter}}}", node.name));
+                        }
                         // The `prefix` narrowing forced a break. Try widening to
                         // `single_line_len` to give inner content more room.
                         let base_width = line_width.saturating_sub(indent_cols);
@@ -166,7 +218,7 @@ fn render_single_expression_value(
                     } else {
                         prefix_result
                     }
-                } else if inner_src.contains("=>") {
+                } else if has_top_level_arrow(inner_src) {
                     // Arrow function: narrow so the arrow body breaks when the
                     // attribute line overflows.
                     //
@@ -217,6 +269,19 @@ fn render_single_expression_value(
             // Multi-line shallow: check the first line to decide whether to
             // re-format with extra_lead.
             let first_line = formatted.lines().next().unwrap_or("").trim_end();
+            let first_line_total = indent_cols + prefix + visual_width(first_line) + 1;
+            if first_line_total > line_width {
+                let overflow = first_line_total - line_width;
+                let tighter = format_attribute_value_expression(
+                    inner_src,
+                    options,
+                    attr_depth,
+                    prefix + overflow + 1,
+                )?;
+                if tighter.lines().next().unwrap_or("").trim_end() != first_line {
+                    return Ok(format!("{}={{{tighter}}}", node.name));
+                }
+            }
             // If the first line ends with `{` or `[`, an inner block/array is
             // being expanded — the continuation lines are inside that block and
             // do NOT start at the attribute column with the `name={` prefix.

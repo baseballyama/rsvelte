@@ -95,6 +95,24 @@ pub(crate) fn transform_component_with_sourcemap_content(
     options: &CompileOptions,
     include_sourcemap_content: bool,
 ) -> Result<TransformResult, TransformError> {
+    transform_component_with_scripts(
+        analysis,
+        ast,
+        source,
+        options,
+        include_sourcemap_content,
+        None,
+    )
+}
+
+pub(crate) fn transform_component_with_scripts(
+    analysis: &ComponentAnalysis,
+    ast: &Root,
+    source: &str,
+    options: &CompileOptions,
+    include_sourcemap_content: bool,
+    retained_scripts: Option<&crate::ast::oxc_program::RetainedScripts<'_>>,
+) -> Result<TransformResult, TransformError> {
     use js_ast::codegen::{
         SourceMapping, encode_vlq_mappings, generate_sourcemap_json, get_source_name,
         remap_through_sourcemap,
@@ -102,10 +120,8 @@ pub(crate) fn transform_component_with_sourcemap_content(
 
     let (js, mut js_mappings) = match options.generate {
         GenerateMode::Client => {
-            let mut result = client::transform_client(analysis, ast, source, options)?;
-            // Strip unnecessary parens around arrow functions (e.g., (() => { ... }) → () => { ... })
-            // matching the official Svelte compiler's AST printer behavior.
-            result.code = server::transform_script::strip_arrow_function_parens(result.code);
+            let result =
+                client::transform_client(analysis, ast, source, options, retained_scripts)?;
 
             if options.enable_sourcemap {
                 // Merge codegen-tracked mappings with full token-level mappings.
@@ -365,8 +381,12 @@ pub(crate) fn transform_component_with_sourcemap_content(
             // The VLQ encoding uses ';' to separate lines. If the last mapping is on
             // line N but the output has M>N lines, we need trailing semicolons so
             // that decode() produces an array of length M+1.
-            let output_line_count = js.chars().filter(|&c| c == '\n').count();
-            let mapped_lines = mappings_str.chars().filter(|&c| c == ';').count();
+            let output_line_count = js.as_bytes().iter().filter(|&&c| c == b'\n').count();
+            let mapped_lines = mappings_str
+                .as_bytes()
+                .iter()
+                .filter(|&&c| c == b';')
+                .count();
             for _ in mapped_lines..output_line_count {
                 mappings_str.push(';');
             }

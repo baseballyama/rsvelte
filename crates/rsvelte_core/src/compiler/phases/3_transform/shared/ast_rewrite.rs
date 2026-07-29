@@ -71,18 +71,34 @@ pub fn with_program<R>(
 /// is what makes nested rewrites such as `a = b = 1` resolve correctly without
 /// the collector having to reason about overlap. Passes whose edits provably
 /// never nest pass `false` and skip the O(n²) containment check.
-pub fn splice(source: &str, mut edits: Vec<Edit>, innermost_only: bool) -> Option<String> {
+pub fn splice(source: &str, edits: Vec<Edit>, innermost_only: bool) -> Option<String> {
+    splice_with_deferred(source, edits, innermost_only).map(|(rewritten, _)| rewritten)
+}
+
+/// [`splice`] plus whether an outer edit was deferred by `innermost_only`.
+///
+/// A caller whose collector finds every target in the current AST, and whose
+/// replacements cannot create fresh targets, may stop after this pass when the
+/// returned flag is `false` instead of re-parsing only to confirm a no-op.
+pub fn splice_with_deferred(
+    source: &str,
+    mut edits: Vec<Edit>,
+    innermost_only: bool,
+) -> Option<(String, bool)> {
     if edits.is_empty() {
         return None;
     }
 
+    let mut deferred = false;
     if innermost_only {
+        let edit_count = edits.len();
         let spans: Vec<(u32, u32)> = edits.iter().map(|&(s, e, _)| (s, e)).collect();
         edits.retain(|&(s, e, _)| {
             !spans
                 .iter()
                 .any(|&(s2, e2)| (s2 > s && e2 <= e) || (s2 >= s && e2 < e))
         });
+        deferred = edits.len() != edit_count;
         if edits.is_empty() {
             return None;
         }
@@ -94,7 +110,7 @@ pub fn splice(source: &str, mut edits: Vec<Edit>, innermost_only: bool) -> Optio
     for (start, end, replacement) in &edits {
         out.replace_range(*start as usize..*end as usize, replacement);
     }
-    Some(out)
+    Some((out, deferred))
 }
 
 /// Convenience: [`with_program`] + collect + [`splice`] in one pass. The
@@ -153,6 +169,30 @@ pub fn fixed_point(source: &str, mut pass: impl FnMut(&str) -> Option<String>) -
     Some(current)
 }
 
+/// Drive `pass` only while its previous splice deferred an overlapping edit.
+///
+/// This is narrower than [`fixed_point`]: callers must guarantee that a pass
+/// without deferred edits has exhausted every target in the rewritten source.
+pub fn fixed_point_while_deferred(
+    source: &str,
+    mut pass: impl FnMut(&str) -> Option<(String, bool)>,
+) -> Option<String> {
+    let (mut current, mut deferred) = pass(source)?;
+    for _ in 1..MAX_FIXED_POINT_ITERS {
+        if !deferred {
+            break;
+        }
+        match pass(&current) {
+            Some((next, next_deferred)) => {
+                current = next;
+                deferred = next_deferred;
+            }
+            None => break,
+        }
+    }
+    Some(current)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -185,6 +225,24 @@ mod tests {
     }
 
     #[test]
+    fn splice_reports_deferred_outer_edit() {
+        let edits = vec![(0, 5, "OUTER".to_string()), (2, 3, "I".to_string())];
+        assert_eq!(
+            splice_with_deferred("abcde", edits, true),
+            Some(("abIde".to_string(), true))
+        );
+    }
+
+    #[test]
+    fn splice_reports_no_deferred_disjoint_edit() {
+        let edits = vec![(0, 1, "X".to_string()), (2, 3, "Y".to_string())];
+        assert_eq!(
+            splice_with_deferred("abc", edits, true),
+            Some(("XbY".to_string(), false))
+        );
+    }
+
+    #[test]
     fn fixed_point_returns_none_when_first_pass_noop() {
         assert!(fixed_point("x", |_| None).is_none());
     }
@@ -212,5 +270,38 @@ mod tests {
             Some(format!("{s}."))
         });
         assert_eq!(calls, MAX_FIXED_POINT_ITERS);
+    }
+
+    #[test]
+    fn fixed_point_while_deferred_stops_without_confirmation_pass() {
+        let mut calls = 0;
+        let out = fixed_point_while_deferred("x", |_| {
+            calls += 1;
+            Some(("y".to_string(), false))
+        });
+        assert_eq!(out.as_deref(), Some("y"));
+        assert_eq!(calls, 1);
+    }
+
+    #[test]
+    fn fixed_point_while_deferred_runs_required_follow_up() {
+        let mut calls = 0;
+        let out = fixed_point_while_deferred("x", |_| {
+            calls += 1;
+            Some((calls.to_string(), calls == 1))
+        });
+        assert_eq!(out.as_deref(), Some("2"));
+        assert_eq!(calls, 2);
+    }
+
+    #[test]
+    fn fixed_point_while_deferred_returns_none_for_initial_noop() {
+        let mut calls = 0;
+        let out = fixed_point_while_deferred("x", |_| {
+            calls += 1;
+            None
+        });
+        assert_eq!(out, None);
+        assert_eq!(calls, 1);
     }
 }
