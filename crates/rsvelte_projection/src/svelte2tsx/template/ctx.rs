@@ -77,10 +77,9 @@ impl TemplateNodeExt for TemplateNode<'_> {
     }
 }
 
-/// Counter for generating unique variable names.
-/// Uses per-name counters so each unique component/element name gets its own counter.
+/// Counter for generated template variable names.
 pub(super) struct Counter {
-    pub(super) counters: std::collections::HashMap<String, u32>,
+    slot: u32,
     /// When set (to a component instance var), a `slot="name"` element/component
     /// encountered while processing that component's children — at any depth
     /// inside `{#each}`/`{#if}`/etc. control-flow blocks — is lowered to the
@@ -108,21 +107,34 @@ pub(super) struct Counter {
 impl Counter {
     pub(super) fn new() -> Self {
         Self {
-            counters: std::collections::HashMap::new(),
+            slot: 0,
             slot_inst: None,
             named_slot_component_close: false,
             suppress_component_lets: false,
         }
     }
-    #[allow(dead_code)]
-    pub(super) fn next(&mut self) -> u32 {
-        self.next_for("")
-    }
-    pub(super) fn next_for(&mut self, name: &str) -> u32 {
-        let entry = self.counters.entry(name.to_string()).or_insert(0);
-        let v = *entry;
-        *entry += 1;
+    pub(super) fn next_slot(&mut self) -> u32 {
+        let v = self.slot;
+        self.slot += 1;
         v
+    }
+    pub(super) fn last_slot(&self) -> u32 {
+        self.slot.saturating_sub(1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Counter;
+
+    #[test]
+    fn slot_counter_is_monotonic() {
+        let mut counter = Counter::new();
+
+        assert_eq!(counter.next_slot(), 0);
+        assert_eq!(counter.next_slot(), 1);
+        assert_eq!(counter.next_slot(), 2);
+        assert_eq!(counter.last_slot(), 2);
     }
 }
 

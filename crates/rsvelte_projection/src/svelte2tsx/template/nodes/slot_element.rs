@@ -77,7 +77,7 @@ pub(crate) fn handle_slot_element(
     let opener = if bind_this_expr.is_some() {
         format!(
             " {{ const $$_slot{} = __sveltets_createSlot(\"{}\", {});",
-            counter.next_for("slot"),
+            counter.next_slot(),
             slot_name,
             slot_props_obj
         )
@@ -100,16 +100,7 @@ pub(crate) fn handle_slot_element(
             str.overwrite(
                 closing_tag_start,
                 el.end,
-                &format!(
-                    "{} = $$_slot{};}}",
-                    bind_expr,
-                    counter
-                        .counters
-                        .get("slot")
-                        .copied()
-                        .unwrap_or(0)
-                        .saturating_sub(1)
-                ),
+                &format!("{} = $$_slot{};}}", bind_expr, counter.last_slot()),
             );
         } else {
             str.overwrite(closing_tag_start, el.end, " }");
@@ -117,12 +108,7 @@ pub(crate) fn handle_slot_element(
     } else {
         // Self-closing slot
         if let Some(ref bind_expr) = bind_this_expr {
-            let slot_idx = counter
-                .counters
-                .get("slot")
-                .copied()
-                .unwrap_or(0)
-                .saturating_sub(1);
+            let slot_idx = counter.last_slot();
             str.overwrite(
                 el.end - 2, // rewrite the `/>` portion
                 el.end,
