@@ -1887,8 +1887,9 @@ fn build_svelte_import_resolver(tsconfig: Option<&Path>) -> Option<oxc_resolver:
 /// sibling package discovered by [`discover_external_svelte_packages`], via
 /// either a `node_modules` symlink or a `paths` alias) is rewritten to that
 /// package's mirror shadow instead — `rootDirs` cannot bridge a non-relative
-/// alias (#782), so the specifier itself has to point at the shadow. Bare
-/// packages and anything resolving outside both are left untouched.
+/// alias (#782), so the specifier itself has to point at the shadow. A bare
+/// package specifier deep-importing a `.svelte` file from such a package is
+/// rewritten the same way; anything resolving outside both is left untouched.
 ///
 /// `confine_to` restricts what counts as a valid target: when emitting an
 /// external package's own shadows the alias was resolved with a `paths` map
@@ -1907,6 +1908,11 @@ fn rewrite_aliased_svelte_imports(
     let (Some(source_dir), Some(generated_dir)) = (abs_source.parent(), tsx_path.parent()) else {
         return tsx.to_string();
     };
+    // `--workspace .` makes every walked source path relative, and a relative
+    // resolution base has no parent to climb, so oxc_resolver's `node_modules`
+    // walk-up never leaves the workspace and every bare specifier fails.
+    let source_dir = absolutize(source_dir);
+    let source_dir = source_dir.as_path();
     // oxc_resolver returns canonicalised paths (symlinks resolved), so compare
     // against a canonicalised workspace — otherwise a symlinked root (e.g.
     // macOS `/var` → `/private/var`) makes `strip_prefix` spuriously fail and

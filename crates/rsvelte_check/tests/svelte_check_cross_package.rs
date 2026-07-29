@@ -24,6 +24,12 @@ use std::path::{Path, PathBuf};
 
 use rsvelte_check::{RunOptions, run};
 
+/// The current directory is process-wide while tests run in parallel, so every
+/// test that has to exercise a CLI-relative path takes this first. The other
+/// tests here drive `run` with an absolute workspace and tsconfig, which never
+/// consults the CWD.
+static CWD_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 fn target_dir(name: &str) -> PathBuf {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../target")
@@ -201,6 +207,73 @@ fn external_package_self_referential_alias_import_is_rewritten_to_its_own_shadow
     assert!(
         tsx_code.contains("input.svelte.tsx"),
         "rewritten specifier should still point at Input's own shadow:\n{tsx_code}"
+    );
+}
+
+/// A bare package specifier deep-importing a `.svelte` file from a symlinked
+/// sibling (`import X from 'libs/components/x.svelte'`) has to be rewritten to
+/// the mirror shadow: `rootDirs` only bridges relative specifiers. The CLI is
+/// documented as `--workspace .`, which makes every walked source path
+/// relative — and a relative resolution base has no parent to climb, so the
+/// resolver's `node_modules` walk-up never reaches the symlink.
+#[test]
+fn bare_deep_specifier_is_rewritten_under_a_relative_workspace() {
+    let root = target_dir("_xpkg1900");
+
+    let libs = root.join("pkg-libs");
+    fs::create_dir_all(libs.join("src/components")).unwrap();
+    fs::write(
+        libs.join("package.json"),
+        r#"{ "name": "libs", "version": "0.0.0", "type": "module", "exports": { "./components/*": "./src/components/*" } }"#,
+    )
+    .unwrap();
+    fs::write(
+        libs.join("src/components/survey-options.svelte"),
+        "<script module lang=\"ts\">export type WithOther<T extends string> = T | `OTHER: ${string}`;</script>\n<script lang=\"ts\">let { id }: { id: string } = $props();</script>\n<div>{id}</div>\n",
+    )
+    .unwrap();
+
+    let a = root.join("pkg-a");
+    fs::create_dir_all(a.join("src")).unwrap();
+    fs::create_dir_all(a.join("node_modules")).unwrap();
+    fs::write(
+        a.join("package.json"),
+        r#"{ "name": "pkg-a", "version": "0.0.0", "type": "module" }"#,
+    )
+    .unwrap();
+    fs::write(
+        a.join("tsconfig.json"),
+        r#"{ "compilerOptions": { "moduleResolution": "bundler" }, "include": ["src/**/*.svelte"] }"#,
+    )
+    .unwrap();
+    fs::write(
+        a.join("src/deep.svelte"),
+        "<script lang=\"ts\">import SurveyOptions, { type WithOther } from 'libs/components/survey-options.svelte';\nconst answer: WithOther<'a'> = 'OTHER: c';</script>\n<SurveyOptions id={answer} />\n",
+    )
+    .unwrap();
+    symlink(Path::new("../../pkg-libs"), a.join("node_modules/libs")).unwrap();
+
+    let _cwd_guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let cwd = std::env::current_dir().unwrap();
+    std::env::set_current_dir(&a).unwrap();
+    let result = run(&RunOptions {
+        workspace: PathBuf::from("."),
+        emit_overlay: true,
+        tsconfig: Some(PathBuf::from("./tsconfig.json")),
+        ..RunOptions::default()
+    });
+    std::env::set_current_dir(&cwd).unwrap();
+
+    result.overlay.expect("overlay should be materialised");
+    // `emit_dir` is relative to the (now restored) CWD, so re-anchor on `a`.
+    let deep_tsx = fs::read_to_string(a.join(".svelte-check/svelte/src/deep.svelte.tsx")).unwrap();
+    assert!(
+        !deep_tsx.contains("'libs/components/survey-options.svelte'"),
+        "bare deep specifier was not rewritten:\n{deep_tsx}"
+    );
+    assert!(
+        deep_tsx.contains("ext/0/src/components/survey-options.svelte.tsx"),
+        "bare deep specifier should point at the sibling's mirror shadow:\n{deep_tsx}"
     );
 }
 

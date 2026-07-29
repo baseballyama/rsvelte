@@ -1,4 +1,3 @@
 [
-	"boundary-elements|+ERROR src/Boundary.svelte:9 7006",
-	"sibling-symlink|+ERROR src/deep.svelte:1 2614"
+	"boundary-elements|+ERROR src/Boundary.svelte:9 7006"
 ]

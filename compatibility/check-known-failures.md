@@ -18,33 +18,19 @@ positions back through its own source map and TypeScript wording moves between
 patch releases, so keying on them would make the ratchet churn without telling
 anyone anything. See the header of `check-verify.mjs`.
 
-## Current baseline: 2 entries / 2 surplus diagnostics (all FP, 0 FN)
+## Current baseline: 1 entry / 1 surplus diagnostic (all FP, 0 FN)
 
 The gate landed with 16 entries across the #1883–#1889 cluster. `sibling-paths-alias`
 (#1883, fixed by #1884), `external-self-alias` (#1887, fixed by #1893),
 `ts-aliased-import` (#1888, fixed by #1895), `kit-hooks-arrow-ts` (#1886, fixed by
-#1892) and `kit-hooks-js` (#1886, fixed by #1892 for the arrow/function-expression
-form and a follow-up JSDoc-anchor fix for the plain `export function` form) are
-now all fully green and have been pruned. What remains:
+#1892), `kit-hooks-js` (#1886, fixed by #1892 for the arrow/function-expression
+form and a follow-up JSDoc-anchor fix for the plain `export function` form) and
+`sibling-symlink` (#1900, fixed by #1907) are now all fully green and have been
+pruned. What remains:
 
 | Scenario | Entries | Diagnostics | Issue | Class |
 |---|---|---|---|---|
-| `sibling-symlink` | 1 | 1 | #1883 (same class) | bare-specifier deep `.svelte` import through a `node_modules` symlink |
 | `boundary-elements` | 1 | 1 | #1889 | vendored `svelte-jsx-v4` shim predates `svelte:boundary` |
-
-### `sibling-symlink` — same class as #1883, different trigger
-
-```
-sibling-symlink|+ERROR src/deep.svelte:1 2614
-```
-
-Found while building this gate, not previously reported. The sibling *is*
-discovered here (there is a `node_modules/libs` symlink) and a shadow *is*
-emitted with a `rootDirs` bridge — but `rootDirs` only applies to **relative**
-specifiers, and `libs/components/survey-options.svelte` is a bare package
-specifier, so the bridge never fires. The barrel arm of the same scenario
-(`src/barrel.svelte`, importing through the package `exports` barrel — the shape
-#782/#805 fixed) is green and must stay green.
 
 ### `boundary-elements` — #1889
 
@@ -91,8 +77,9 @@ Green scenarios are load-bearing, not filler — a regression turns them red:
   | `kit-hooks-satisfies-ts` | `satisfies` / explicit annotation / `sequence()` | green — nothing should be augmented; guards the #1886 fix against over-augmenting |
   | `kit-hooks-js` | plain JS under `checkJs`, function + arrow | green — arrow/function-expression forms fixed by #1892, plain `export function` form fixed by anchoring its JSDoc `@type` tag at the exported statement's start instead of the `function` keyword (TypeScript ignores the tag otherwise) |
   | `kit-routes-js` | `+page.js` `load`/`entries`, `+server.js` method handlers, `params/*.js` `match` under `checkJs` | green — regression guard for the same anchor bug across the other JSDoc-emitting paths in `kit_file.rs` |
-- **`sibling-symlink` / `src/barrel.svelte`** — the cross-package shape #782/#805
-  fixed.
+- **`sibling-symlink`** — both cross-package shapes: `src/barrel.svelte` through
+  the package `exports` barrel (#782/#805) and `src/deep.svelte` through a bare
+  deep specifier (#1900).
 
 ## Burning an entry down
 
