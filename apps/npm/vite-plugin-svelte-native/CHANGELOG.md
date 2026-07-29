@@ -1,5 +1,12 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.2
+
+### Patch Changes
+
+- d1671d5: Reduce compile overhead by avoiding duplicate analysis setup, allocation-free escaping for static templates, and source-text copies in wrapper-managed source maps.
+- 36ec7b5: Reduce serial compile overhead and make static CSS sibling analysis linear in the number of elements.
+
 ## 0.3.1
 
 ### Patch Changes
