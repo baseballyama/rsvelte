@@ -9,9 +9,6 @@ use std::fmt;
 use std::fmt::Write as _;
 use std::num::NonZeroU32;
 
-use rustc_hash::FxHashMap;
-type HashMap<K, V> = FxHashMap<K, V>;
-
 // ---------------------------------------------------------------------------
 // Chunk
 // ---------------------------------------------------------------------------
@@ -570,12 +567,16 @@ pub struct MagicString<'source> {
     /// start is kept here and entries are never removed, so the greatest start
     /// `<= index` is always the chunk that contains `index`.
     by_start: std::collections::BTreeMap<u32, usize>,
-    /// Map from original-source position → chunk index that *ends* at that position.
-    by_end: HashMap<u32, usize>,
     /// Content prepended before everything.
     intro: String,
     /// Content appended after everything.
     outro: String,
+}
+
+#[derive(Clone, Copy, Default)]
+struct ChunkBoundary {
+    left: Option<usize>,
+    right: Option<usize>,
 }
 
 impl<'source> MagicString<'source> {
@@ -589,9 +590,7 @@ impl<'source> MagicString<'source> {
         let chunk = Chunk::new(0, source_len);
         let mut by_start: std::collections::BTreeMap<u32, usize> =
             std::collections::BTreeMap::new();
-        let mut by_end: HashMap<u32, usize> = HashMap::default();
         by_start.insert(0, 0);
-        by_end.insert(source_len, 0);
 
         Self {
             original: source,
@@ -599,7 +598,6 @@ impl<'source> MagicString<'source> {
             first_chunk: 0,
             last_chunk: 0,
             by_start,
-            by_end,
             intro: String::new(),
             outro: String::new(),
         }
@@ -622,47 +620,28 @@ impl<'source> MagicString<'source> {
     // -----------------------------------------------------------------
 
     /// Ensure there is a chunk boundary at the given original position.
-    /// Returns the index of the chunk that *starts* at `index`.
-    ///
-    /// When `index` equals the source length, there is no chunk starting there.
-    /// In that case we return `usize::MAX` as a sentinel — callers that need
-    /// a real start-chunk (like `overwrite`) should not use this value, but
-    /// callers that only need the split side-effect (ensuring `by_end` has an
-    /// entry) are fine.
+    /// Returns the chunks immediately before and after that boundary in
+    /// original-source order.
     ///
     /// If `index` falls outside `[0, original.len()]` we treat it as the
-    /// "nothing to split" sentinel (`usize::MAX`) instead of panicking. This
+    /// "nothing to split" sentinel instead of panicking. This
     /// keeps a misbehaving upstream (e.g. an AST with stale positions) from
     /// crashing the entire compiler in release builds. Debug builds print a
     /// diagnostic so the upstream bug is still surfaced during development.
-    fn split_at(&mut self, index: u32) -> usize {
-        if let Some(&chunk_idx) = self.by_start.get(&index) {
-            return chunk_idx;
-        }
-
-        // If index is at the very end of the source, there is nothing to split.
-        // The last chunk already ends at this position.
-        if index as usize >= self.original.len() {
+    fn split_at(&mut self, index: u32) -> ChunkBoundary {
+        if index as usize > self.original.len() {
             #[cfg(debug_assertions)]
-            if index as usize > self.original.len() {
-                eprintln!(
-                    "split_at({}): position out of range [0, {})",
-                    index,
-                    self.original.len()
-                );
-            }
-            return usize::MAX;
+            eprintln!(
+                "split_at({}): position out of range [0, {})",
+                index,
+                self.original.len()
+            );
+            return ChunkBoundary::default();
         }
 
-        // Find the chunk containing `index` via the sorted start index in
-        // O(log n). `by_start` holds every chunk's start and chunks partition
-        // the source contiguously, so the greatest start `<= index` is the
-        // chunk that contains `index`. (The `by_start.get(&index)` fast-path
-        // above already handled the case where `index` is itself a boundary,
-        // so here `start < index`.) This replaces an O(n) walk from the head
-        // that made repeated splits O(n²).
-        let cur = match self.by_start.range(..=index).next_back() {
-            Some((_, &chunk_idx)) => chunk_idx,
+        let mut starts = self.by_start.range(..=index);
+        let (start, cur) = match starts.next_back() {
+            Some((&start, &chunk_idx)) => (start, chunk_idx),
             None => {
                 #[cfg(debug_assertions)]
                 eprintln!(
@@ -670,12 +649,25 @@ impl<'source> MagicString<'source> {
                     index,
                     self.original.len()
                 );
-                return usize::MAX;
+                return ChunkBoundary::default();
             }
         };
-        // Defensive: confirm `index` really falls strictly inside `cur`. With a
-        // well-formed chunk list this always holds; if not, fall back to the
-        // sentinel rather than producing a corrupt split.
+
+        if start == index {
+            return ChunkBoundary {
+                left: starts.next_back().map(|(_, &chunk_idx)| chunk_idx),
+                right: Some(cur),
+            };
+        }
+
+        // The source-end boundary has no chunk on its right.
+        if index as usize == self.original.len() {
+            return ChunkBoundary {
+                left: Some(cur),
+                right: None,
+            };
+        }
+
         {
             let chunk = &self.chunks[cur];
             if !(index > chunk.start && index < chunk.end) {
@@ -684,7 +676,7 @@ impl<'source> MagicString<'source> {
                     "split_at({}): located chunk [{}, {}) does not strictly contain index",
                     index, chunk.start, chunk.end
                 );
-                return usize::MAX;
+                return ChunkBoundary::default();
             }
         }
 
@@ -705,15 +697,12 @@ impl<'source> MagicString<'source> {
             self.last_chunk = new_idx;
         }
 
-        // Update indices.
         self.by_start.insert(index, new_idx);
-        self.by_end.insert(index, cur);
-        // The end of the new chunk is the old end – already in by_end pointing to cur,
-        // but it should now point to new_idx.
-        let new_end = self.chunks[new_idx].end;
-        self.by_end.insert(new_end, new_idx);
 
-        new_idx
+        ChunkBoundary {
+            left: Some(cur),
+            right: Some(new_idx),
+        }
     }
 
     /// Internal: link chunk `a` → `b` in the linked list.
@@ -745,13 +734,10 @@ impl<'source> MagicString<'source> {
         );
 
         // Ensure chunk boundaries at start and end.
-        self.split_at(start);
+        let start_boundary = self.split_at(start);
         self.split_at(end);
 
-        let first = *self
-            .by_start
-            .get(&start)
-            .expect("overwrite: no chunk at start");
+        let first = start_boundary.right.expect("overwrite: no chunk at start");
 
         // Set the content of the first chunk and blank out subsequent ones.
         self.chunks[first].content = Some(content.to_string());
@@ -794,21 +780,21 @@ impl<'source> MagicString<'source> {
             self.original.len()
         );
 
-        self.split_at(start);
+        let start_boundary = self.split_at(start);
         self.split_at(end);
 
         // Walk by original position (see comment in `overwrite`) so chunks
         // relocated via `move_range` aren't incorrectly cleared.
-        let mut cur_start = start;
-        while cur_start < end {
-            let ci = match self.by_start.get(&cur_start) {
-                Some(&i) => i,
-                None => break,
-            };
+        let mut current = start_boundary.right;
+        while let Some(ci) = current {
             self.chunks[ci].content = Some(String::new());
             self.chunks[ci].intro.clear();
             self.chunks[ci].outro.clear();
-            cur_start = self.chunks[ci].end;
+            let cur_start = self.chunks[ci].end;
+            if cur_start >= end {
+                break;
+            }
+            current = self.by_start.get(&cur_start).copied();
         }
 
         self
@@ -851,10 +837,9 @@ impl<'source> MagicString<'source> {
             return self;
         }
 
-        self.split_at(index);
-        let chunk_idx = *self
-            .by_end
-            .get(&index)
+        let chunk_idx = self
+            .split_at(index)
+            .left
             .expect("append_left: no chunk ending at index");
         self.chunks[chunk_idx].outro.push_str(content);
         self
@@ -877,10 +862,9 @@ impl<'source> MagicString<'source> {
             return self;
         }
 
-        self.split_at(index);
-        let chunk_idx = *self
-            .by_start
-            .get(&index)
+        let chunk_idx = self
+            .split_at(index)
+            .right
             .expect("prepend_right: no chunk at index");
         self.chunks[chunk_idx].intro.insert_str(0, content);
         self
@@ -900,10 +884,9 @@ impl<'source> MagicString<'source> {
             return self;
         }
 
-        self.split_at(index);
-        let chunk_idx = *self
-            .by_end
-            .get(&index)
+        let chunk_idx = self
+            .split_at(index)
+            .left
             .expect("prepend_left: no chunk ending at index");
         self.chunks[chunk_idx].outro.insert_str(0, content);
         self
@@ -922,10 +905,9 @@ impl<'source> MagicString<'source> {
             return self;
         }
 
-        self.split_at(index);
-        let chunk_idx = *self
-            .by_start
-            .get(&index)
+        let chunk_idx = self
+            .split_at(index)
+            .right
             .expect("append_right: no chunk at index");
         self.chunks[chunk_idx].intro.push_str(content);
         self
@@ -939,17 +921,12 @@ impl<'source> MagicString<'source> {
             "move_range: cannot move a range into itself"
         );
 
-        self.split_at(start);
-        self.split_at(end);
-        if index != 0 && index != self.original.len() as u32 {
-            self.split_at(index);
-        }
+        let start_boundary = self.split_at(start);
+        let end_boundary = self.split_at(end);
+        let target_boundary = self.split_at(index);
 
-        let first_in_range = *self
-            .by_start
-            .get(&start)
-            .expect("move_range: no chunk at start");
-        let last_in_range = *self.by_end.get(&end).expect("move_range: no chunk at end");
+        let first_in_range = start_boundary.right.expect("move_range: no chunk at start");
+        let last_in_range = end_boundary.left.expect("move_range: no chunk at end");
 
         let before_range = self.chunks[first_in_range].previous_index();
         let after_range = self.chunks[last_in_range].next_index();
@@ -984,9 +961,8 @@ impl<'source> MagicString<'source> {
             self.last_chunk = last_in_range;
         } else {
             // Insert before the chunk that starts at `index`.
-            let target = *self
-                .by_start
-                .get(&index)
+            let target = target_boundary
+                .right
                 .expect("move_range: no chunk at target index");
             let before_target = self.chunks[target].previous_index();
             self.link(before_target, Some(first_in_range));
@@ -1619,6 +1595,22 @@ mod tests {
                 .is_empty()
         );
         assert_bidirectional_links(&s);
+    }
+
+    #[test]
+    fn repeated_boundary_edits_keep_original_sides_after_move() {
+        let mut s = MagicString::new("abcdef");
+        s.move_range(2, 4, 6);
+        assert_eq!(s.to_string(), "abefcd");
+
+        s.append_left(2, "L");
+        s.append_left(2, "R");
+        s.prepend_left(2, "X");
+        s.prepend_right(2, "P");
+        s.prepend_right(2, "Q");
+        s.append_right(2, "A");
+
+        assert_eq!(s.to_string(), "abXLRefQPAcd");
     }
 
     #[test]
