@@ -249,7 +249,7 @@ pub(super) fn detect_create_event_dispatcher(
             // call sites can be scanned — and order-gated against this position —
             // to populate the events return.
             let decl_pos = content_offset + declarator.span.start;
-            events.dispatcher_decls.push((name, decl_pos));
+            events.dispatcher_decls.push((name.to_owned(), decl_pos));
             // Record the callee end (before `(`) so a `$$Events` interface can
             // inject `<__sveltets_2_CustomEvents<$$Events>>` onto the untyped call.
             events

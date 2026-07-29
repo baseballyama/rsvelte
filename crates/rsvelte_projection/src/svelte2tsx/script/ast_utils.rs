@@ -115,9 +115,11 @@ pub(super) fn extract_names_from_binding_pattern_full(
 }
 
 /// Get a simple name from a binding pattern (only works for BindingIdentifier).
-pub(super) fn binding_pattern_simple_name(pattern: &oxc::BindingPattern) -> Option<String> {
+pub(super) fn binding_pattern_simple_name<'a>(
+    pattern: &'a oxc::BindingPattern<'_>,
+) -> Option<&'a str> {
     match pattern {
-        oxc::BindingPattern::BindingIdentifier(id) => Some(id.name.to_string()),
+        oxc::BindingPattern::BindingIdentifier(id) => Some(id.name.as_str()),
         _ => None,
     }
 }
@@ -356,5 +358,34 @@ fn collect_assignment_target_names(target: &oxc::AssignmentTarget, names: &mut V
             }
         }
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use oxc_allocator::Allocator;
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    use super::{binding_pattern_simple_name, oxc};
+
+    #[test]
+    fn simple_binding_name_borrows_the_ast_identifier() {
+        let allocator = Allocator::default();
+        let parsed = Parser::new(&allocator, "let exported = 1;", SourceType::mjs()).parse();
+        let oxc::Statement::VariableDeclaration(declaration) = &parsed.program.body[0] else {
+            panic!("expected variable declaration");
+        };
+        let pattern = &declaration.declarations[0].id;
+        let oxc::BindingPattern::BindingIdentifier(identifier) = pattern else {
+            panic!("expected binding identifier");
+        };
+
+        let name = binding_pattern_simple_name(pattern).unwrap();
+        assert_eq!(name, "exported");
+        assert!(std::ptr::eq(
+            name.as_ptr(),
+            identifier.name.as_str().as_ptr()
+        ));
     }
 }

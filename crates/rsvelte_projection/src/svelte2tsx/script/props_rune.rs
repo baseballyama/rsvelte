@@ -616,7 +616,7 @@ pub(super) fn extract_props_from_binding_pattern_runes(
                 };
 
                 if let Some(ref key) = key_name {
-                    let local = local_name.unwrap_or_else(|| key.clone());
+                    let local = local_name.unwrap_or(key).to_owned();
                     exported_names.add(key.clone(), local, has_default, None, true);
                     if is_bindable {
                         exported_names.bindable_props.push(key.clone());
@@ -739,7 +739,7 @@ pub(super) fn collect_props_rune_info(
                             // The bindable marker statement uses the LOCAL binding
                             // name, not the prop key: `{ count: definedCount =
                             // $bindable() }` → `definedCount;`.
-                            bindable_names.push(local_name);
+                            bindable_names.push(local_name.to_owned());
                         }
                     }
                     oxc::BindingPattern::BindingIdentifier(_) => {

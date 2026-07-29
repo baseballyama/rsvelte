@@ -107,7 +107,7 @@ pub(super) fn handle_export_named_decl(
                         // Update the type annotation on the exported name
                         if let Some(ref ta_text) = type_annotation_text
                             && let Some(name) = binding_pattern_simple_name(&declarator.id)
-                            && let Some(info) = exported_names.get_mut(&name)
+                            && let Some(info) = exported_names.get_mut(name)
                         {
                             info.type_annotation = Some(ta_text.clone());
                         }
@@ -121,7 +121,7 @@ pub(super) fn handle_export_named_decl(
                         if let Some(name) = binding_pattern_simple_name(&declarator.id)
                             && let Some(ref doc) = leading_doc
                         {
-                            exported_names.set_doc(&name, doc.clone());
+                            exported_names.set_doc(name, doc.clone());
                         }
                         // For multi-declarator let exports (export let a, b, c;),
                         // replace the comma between declarators with `;let `.
@@ -177,12 +177,12 @@ pub(super) fn handle_export_named_decl(
                             binding_pattern_simple_name(&declarator.id).and_then(|name| {
                                 classify_kit_route_file(basename).and_then(|layout| {
                                     if !is_let {
-                                        match name.as_str() {
+                                        match name {
                                             "snapshot" => Some("import('./$types.js').Snapshot"),
                                             _ => None,
                                         }
                                     } else {
-                                        match (name.as_str(), layout) {
+                                        match (name, layout) {
                                             ("data", true) => {
                                                 Some("import('./$types.js').LayoutData")
                                             }
