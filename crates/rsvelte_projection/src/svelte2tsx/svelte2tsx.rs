@@ -23,6 +23,7 @@ use super::process_instance_script_tag::process_instance_script_tag;
 use super::script::{ComponentEvents, ExportedNames, StoreScanContext};
 use super::template;
 use super::utils::htmlxparser::{blank_style_content, blank_style_tags, remove_orphan_scripts};
+use super::utils::source_features::scan_source_features;
 use super::validation::{validate_debug_tag_arguments, validate_meta_element_placement};
 
 pub use super::interfaces::{
@@ -357,12 +358,14 @@ pub fn svelte2tsx(
         );
     }
 
+    let source_features = scan_source_features(source);
+
     // Step 7.4: Detect `{await expr}` in template expression tags.
     // Await-in-template forces runes mode (async template expressions are
     // Svelte 5 runes-only).
     // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
     //   `isRunes` doc: "True if uses runes or top level await or await in template expressions"
-    if detect_await_in_template(&ast, source) {
+    if detect_await_in_template(&ast, source, source_features.has_await_word) {
         exported_names.set_uses_runes(true);
     }
 
@@ -379,7 +382,12 @@ pub fn svelte2tsx(
     // ? 'page' : null}` is therefore RUNES (because `$state` is an undeclared global
     // referenced in the template).  rsvelte's instance-script scanner never runs for
     // template-only components, so we need to walk the template AST here.
-    if detect_rune_global_in_template(&ast, source, &exported_names.instance_value_names) {
+    if detect_rune_global_in_template(
+        &ast,
+        source,
+        &exported_names.instance_value_names,
+        source_features.may_have_template_rune_global,
+    ) {
         exported_names.set_uses_runes(true);
     }
 
@@ -433,9 +441,9 @@ pub fn svelte2tsx(
     blank_style_tags(&ast, source, &mut str);
 
     // Step 8.5: Detect $$props, $$restProps, $$slots usage in source (before wrapping)
-    let uses_dollar_props = source.contains("$$props");
-    let uses_dollar_rest_props = source.contains("$$restProps");
-    let uses_dollar_slots = source.contains("$$slots");
+    let uses_dollar_props = source_features.uses_dollar_props;
+    let uses_dollar_rest_props = source_features.uses_dollar_rest_props;
+    let uses_dollar_slots = source_features.uses_dollar_slots;
 
     // Step 9: Process template nodes in-place via MagicString. Publish the
     // element-opener comment ranges first so attribute emission can re-attach

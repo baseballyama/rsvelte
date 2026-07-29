@@ -43,9 +43,12 @@ pub(crate) fn detect_runes_mode(ast: &Root) -> bool {
 /// Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
 ///   `isRunes = true when component has AWAIT INSIDE A TEMPLATE EXPRESSION`
 ///   ("True if uses runes or top level await or await in template expressions")
-pub(crate) fn detect_await_in_template(ast: &Root, source: &str) -> bool {
-    // Fast path: if the source doesn't contain `await` as a word, bail immediately.
-    if !contains_word(source.as_bytes(), b"await") {
+pub(crate) fn detect_await_in_template(
+    ast: &Root,
+    source: &str,
+    source_has_await_word: bool,
+) -> bool {
+    if !source_has_await_word {
         return false;
     }
 
@@ -318,12 +321,13 @@ pub(crate) fn detect_rune_global_in_template(
     ast: &Root,
     source: &str,
     instance_value_names: &std::collections::HashSet<String>,
+    source_may_contain_rune_global: bool,
 ) -> bool {
     // Fast path: if neither $state, $derived, nor $effect appears in the source
     // as a word start, bail immediately.  These identifiers always start with `$`
     // so a simple substring check is conservative (won't false-positive on
     // e.g. `some_$state_like_string` since we still walk the AST after this).
-    if !source.contains("$state") && !source.contains("$derived") && !source.contains("$effect") {
+    if !source_may_contain_rune_global {
         return false;
     }
 
