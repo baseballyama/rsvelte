@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - 'crates/rsvelte_core/**'
+      - 'crates/rsvelte_devtools/**'
       - 'crates/rsvelte_formatter/**'
+      - 'crates/rsvelte_projection/**'
       - 'benches/corpus/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -92,7 +94,8 @@ jobs:
         # Local `cargo bench` is unaffected — it keeps Criterion's full-accuracy
         # defaults and renders the HTML reports.
         run: >-
-          cargo bench --bench parser --bench compiler --bench formatter --
+          cargo bench -p rsvelte_devtools -p rsvelte_formatter
+          --bench parser --bench compiler --bench formatter --
           --save-baseline pr --noplot
           --warm-up-time 1 --measurement-time 2 --sample-size 10
         # Cold-cache flake guard, not an expected duration: oxc-from-git deps

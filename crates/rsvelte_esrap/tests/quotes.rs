@@ -28,10 +28,7 @@ fn print_stripped(source: &str, quote: QuoteStyle) -> String {
         ret.diagnostics
     );
     StripRaw.visit_program(&mut ret.program);
-    let opts = PrintOptions {
-        quote,
-        ..Default::default()
-    };
+    let opts = PrintOptions::default().with_quote_style(quote);
     print_with(&ret.program, source, &opts)
 }
 

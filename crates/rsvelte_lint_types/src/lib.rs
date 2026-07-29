@@ -4,7 +4,7 @@
 //! `corsa::ProjectSession` driving a `typescript-go` (`tsgo`) worker, following
 //! the proven `vize_patina` `corsa_session` driver. It:
 //!
-//! 1. runs [`rsvelte_core::svelte2tsx`] to lower the component to TSX (carrying
+//! 1. runs [`rsvelte_projection::svelte2tsx`] to lower the component to TSX (carrying
 //!    a forward-mapping table for verbatim regions),
 //! 2. appends a universal probe anchor
 //!    (`ReturnType<typeof $$render>["props"]`) so the fully-resolved props type
@@ -21,13 +21,13 @@ use std::path::{Path, PathBuf};
 
 use corsa_client::api::{ApiMode, ApiSpawnConfig, ProjectSession, TypeHandle, TypeProbeOptions};
 use corsa_runtime::block_on;
-use rsvelte_core::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
 use rsvelte_lint::type_backend::{PropMeta, TypeBackend, TypeFacts, TypeId, TypeMeta};
+use rsvelte_projection::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
 
 mod resolver;
 pub use resolver::{MISSING_TSGO_HELP, require_tsgo, resolve_tsgo};
 
-use rsvelte_core::svelte_check::diagnostic::Diagnostic;
+use rsvelte_diagnostics::Diagnostic;
 
 /// Lint a single Svelte component with the **type-aware** rules, using a real
 /// `tsgo` checker spawned via [`CorsaTypeBackend`]. Runs every rule that has a

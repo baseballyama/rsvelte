@@ -12,13 +12,13 @@
 //!
 //! ## Model
 //!
-//! Printing is two layers, mirroring esrap:
-//! - a [`command`] buffer with a flattening driver (whitespace/indent
+//! Printing is two internal layers, mirroring esrap:
+//! - a command buffer with a flattening driver (whitespace/indent
 //!   sentinels + literal strings), and
-//! - a [`context::Context`] the visitors push commands onto, tracking the
+//! - a context the visitors push commands onto, tracking the
 //!   `multiline` signal used to choose layouts.
 //!
-//! The visitor ([`printer`]) walks the oxc AST. Where esrap dispatches through a
+//! The printer walks the oxc AST. Where esrap dispatches through a
 //! `visitors[node.type]` map, this port matches on oxc node kinds; the layout
 //! logic (precedence-based parens, `sequence`, `body`, length-based line
 //! breaking) is ported 1:1.
@@ -30,9 +30,14 @@
 //! this crate, and assert byte-identity. The `golden` integration test reports
 //! the round-trip rate; it only ever ratchets up as visitor coverage grows.
 
-pub mod command;
-pub mod context;
-pub mod printer;
+#![deny(missing_docs)]
+
+mod command;
+mod context;
+mod printer;
+
+#[cfg(test)]
+mod internal_tests;
 
 use oxc_ast::ast::Program;
 
@@ -41,22 +46,25 @@ use oxc_ast::ast::Program;
 #[derive(Debug, Clone)]
 pub struct PrintOptions {
     /// The indentation unit for one level (default `"\t"`).
-    pub indent: String,
+    indent: String,
     /// Preferred quote character for string literals without a preserved `raw`
     /// (default single quote).
-    pub quote: QuoteStyle,
+    quote: QuoteStyle,
     /// Keep `EmptyStatement` (`;`) nodes in statement-list bodies instead of
     /// filtering them (esrap's default, matching the server AST). The rsvelte
     /// client `to_oxc` path parses string-codegen `Raw` chunks whose `;;` become
     /// real `EmptyStatement` nodes that the official *compiler* output keeps, so
     /// that path sets this to byte-match. Default `false` (filter, = esrap/server).
-    pub keep_empty_statements: bool,
+    keep_empty_statements: bool,
 }
 
 /// Quote preference for synthesized string literals.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum QuoteStyle {
+    /// Prefer single-quoted string literals.
     Single,
+    /// Prefer double-quoted string literals.
     Double,
 }
 
@@ -67,6 +75,29 @@ impl Default for PrintOptions {
             quote: QuoteStyle::Single,
             keep_empty_statements: false,
         }
+    }
+}
+
+impl PrintOptions {
+    /// Set the indentation unit used for one nesting level.
+    #[must_use]
+    pub fn with_indent(mut self, indent: impl Into<String>) -> Self {
+        self.indent = indent.into();
+        self
+    }
+
+    /// Set the preferred quote style for synthesized string literals.
+    #[must_use]
+    pub fn with_quote_style(mut self, quote: QuoteStyle) -> Self {
+        self.quote = quote;
+        self
+    }
+
+    /// Control whether empty statements are retained in statement lists.
+    #[must_use]
+    pub fn with_empty_statements(mut self, keep: bool) -> Self {
+        self.keep_empty_statements = keep;
+        self
     }
 }
 
@@ -137,8 +168,8 @@ pub fn print_split(
 /// text (without delimiters).
 #[derive(Debug, Clone)]
 pub struct SynthComment {
-    pub block: bool,
-    pub value: String,
+    block: bool,
+    value: String,
 }
 
 impl SynthComment {
@@ -161,7 +192,8 @@ impl SynthComment {
 
 /// A callback that returns the synthetic comments to attach to a statement
 /// (esrap's `getLeadingComments` / `getTrailingComments` options).
-pub type CommentCallback<'h> = Box<dyn Fn(&oxc_ast::ast::Statement) -> Vec<SynthComment> + 'h>;
+pub type CommentCallback<'h> =
+    Box<dyn Fn(&oxc_ast::ast::Statement) -> Vec<SynthComment> + Send + Sync + 'h>;
 
 /// Caller hooks that inject synthetic comments around statements, mirroring
 /// esrap's `getLeadingComments` / `getTrailingComments` options. Each callback
@@ -169,8 +201,36 @@ pub type CommentCallback<'h> = Box<dyn Fn(&oxc_ast::ast::Statement) -> Vec<Synth
 /// comments precede the node; trailing comments follow it on the same line).
 #[derive(Default)]
 pub struct CommentHooks<'h> {
-    pub get_leading: Option<CommentCallback<'h>>,
-    pub get_trailing: Option<CommentCallback<'h>>,
+    get_leading: Option<CommentCallback<'h>>,
+    get_trailing: Option<CommentCallback<'h>>,
+}
+
+impl<'h> CommentHooks<'h> {
+    /// Create an empty hook set.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Register the callback that supplies comments before each statement.
+    #[must_use]
+    pub fn with_leading(
+        mut self,
+        callback: impl Fn(&oxc_ast::ast::Statement) -> Vec<SynthComment> + Send + Sync + 'h,
+    ) -> Self {
+        self.get_leading = Some(Box::new(callback));
+        self
+    }
+
+    /// Register the callback that supplies comments after each statement.
+    #[must_use]
+    pub fn with_trailing(
+        mut self,
+        callback: impl Fn(&oxc_ast::ast::Statement) -> Vec<SynthComment> + Send + Sync + 'h,
+    ) -> Self {
+        self.get_trailing = Some(Box::new(callback));
+        self
+    }
 }
 
 /// Like [`print_with`], but invokes `hooks` to inject synthetic leading/trailing
@@ -198,6 +258,7 @@ pub fn print_with_map(program: &Program<'_>, source: &str) -> PrintWithMap {
 }
 
 /// The decoded result of [`print_with_map`].
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct PrintWithMap {
     /// The generated source text (identical to what [`print_with`] returns).
@@ -205,8 +266,12 @@ pub struct PrintWithMap {
     /// Source-map mappings: one entry per generated line, each a list of
     /// `[generated_column, source_index, source_line_0based, source_column_0based]`
     /// segments. Matches esrap's `sourceMapEncodeMappings: false` shape.
-    pub mappings: Vec<Vec<command::Segment>>,
+    pub mappings: Vec<Vec<SourceMapSegment>>,
 }
+
+/// One decoded source-map segment:
+/// `[generated_column, source_index, source_line, source_column]`.
+pub type SourceMapSegment = [i64; 4];
 
 /// Like [`print_with_map`] but with explicit options.
 pub fn print_with_map_opts(

@@ -11,8 +11,8 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::Path;
 
-use rsvelte_core::svelte_check::diagnostic::{Diagnostic, DiagnosticSeverity};
-use rsvelte_core::svelte_check::writers::{OutputFormat, write_diagnostic};
+use rsvelte_diagnostics::{Diagnostic, DiagnosticSeverity};
+use rsvelte_diagnostics::{OutputFormat, write_diagnostic};
 use serde_json::{Value, json};
 
 use crate::registry::all_rules;
@@ -174,7 +174,7 @@ fn sarif_result(d: &Diagnostic, workspace_root: &Path) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rsvelte_core::svelte_check::diagnostic::{Position, Range};
+    use rsvelte_diagnostics::{Position, Range};
     use std::path::PathBuf;
 
     fn diag() -> Diagnostic {

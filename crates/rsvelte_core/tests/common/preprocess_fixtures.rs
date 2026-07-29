@@ -1,6 +1,6 @@
 //! Shared per-fixture preprocessor closures for the Svelte preprocess test
 //! suite. Both `tests/preprocess.rs` (the standalone runner) and
-//! `tests/compatibility_report.rs` (the dashboard) hand-port each fixture's
+//! the devtools compatibility-report dashboard hand-ports each fixture's
 //! `_config.js` JS preprocessor into Rust closures here.
 
 use rsvelte_core::compiler::preprocess::types::{

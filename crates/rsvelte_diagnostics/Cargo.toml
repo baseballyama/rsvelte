@@ -1,0 +1,17 @@
+[package]
+name = "rsvelte_diagnostics"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Shared diagnostic records and renderers for rsvelte workspace tools"
+license = "MIT"
+repository = "https://github.com/baseballyama/rsvelte"
+publish = false
+autobins = false
+autobenches = false
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+
+[lints]
+workspace = true

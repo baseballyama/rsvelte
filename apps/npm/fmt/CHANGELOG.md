@@ -1,5 +1,11 @@
 # @rsvelte/fmt
 
+## 0.7.4
+
+### Patch Changes
+
+- 5c93f01: Match oxfmt's Svelte output for deep attribute expressions, adjacent interpolations, block headers, attach tags, TypeScript assertions, and nested component children.
+
 ## 0.7.3
 
 ### Patch Changes

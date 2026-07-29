@@ -67,7 +67,7 @@ fn mapped(source: &str) -> Mapped {
         "parse errors for {source:?}: {:?}",
         ret.diagnostics
     );
-    let PrintWithMap { code, mappings } = print_with_map(&ret.program, source);
+    let PrintWithMap { code, mappings, .. } = print_with_map(&ret.program, source);
     assert!(!mappings.is_empty(), "no mappings produced for {source:?}");
     Mapped {
         source: source.to_string(),

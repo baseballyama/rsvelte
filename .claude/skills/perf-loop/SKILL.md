@@ -243,7 +243,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 ./scripts/bench/bench.sh --criterion  # 統計的マイクロベンチ
 
 # プロファイル（samply 推奨）
-cargo build --profile profiling --bin profiler
+cargo build --profile profiling -p rsvelte_devtools --bin profiler
 samply record ./target/profiling/profiler --file path/to/large.svelte --iterations 100
 # macOS なら Instruments も可
 instruments -t "Time Profiler" ./target/profiling/profiler -- --file path/to/large.svelte --iterations 100

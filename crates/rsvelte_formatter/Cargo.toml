@@ -2,7 +2,7 @@
 name = "rsvelte_formatter"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 description = "Fast Svelte 5 formatter built on rsvelte + oxc_formatter"
 license = "MIT"
 publish = false
@@ -16,8 +16,8 @@ default = ["native"]
 # miette / jemalloc; `wasm` swaps them for the wasm-bindgen toolchain so the
 # formatter (and the parser it reuses) link cleanly on wasm32 — see
 # `crates/rsvelte_fmt_wasm`.
-native = ["rsvelte_core/native"]
-wasm = ["rsvelte_core/wasm-deps"]
+native = ["rsvelte_core/parallel"]
+wasm = ["rsvelte_core/wasm-target"]
 
 [dependencies]
 rsvelte_core = { path = "../rsvelte_core", default-features = false }

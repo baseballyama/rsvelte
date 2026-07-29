@@ -2,7 +2,7 @@
 name = "rsvelte_fmt_wasm"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 description = "WebAssembly bindings for the rsvelte Svelte formatter"
 license = "MIT"
 publish = false

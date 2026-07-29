@@ -11,8 +11,8 @@
 //! matching the output `Diagnostic`, so these don't round-trip through byte
 //! offsets the way native-rule findings do.
 
-use rsvelte_core::svelte_check::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
 use rsvelte_core::{CompileError, CompileOptions, GenerateMode, compile};
+use rsvelte_diagnostics::{Diagnostic, DiagnosticSeverity, Position, Range};
 use std::path::Path;
 
 use crate::config::LintConfig;
