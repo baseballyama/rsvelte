@@ -1,16 +1,21 @@
-//! TypeScript compiler subprocess driver. Spawns `tsc` (the default) or
-//! Microsoft's legacy `tsgo` preview binary (with `--tsgo` / `prefer_tsgo`
-//! on TypeScript 6 projects) against the overlay tsconfig produced by
+//! TypeScript compiler subprocess driver. Spawns the workspace's own `tsc`
+//! (the default) or the TypeScript 7 native compiler (with `--tsgo` /
+//! `prefer_tsgo`) against the overlay tsconfig produced by
 //! `super::overlay::materialize_overlay`, captures the textual diagnostic
 //! stream, and parses it into the `RawTsDiagnostic` shape consumed by
-//! `super::mapper`. The two compilers are wire-compatible (`--pretty false`
-//! output + flags), so the same driver handles both; `find_compiler` decides
-//! which binary to run.
+//! `super::mapper`. The compilers are wire-compatible (`--pretty false`
+//! output + flags), so the same driver handles all of them; `find_compiler`
+//! decides which one to run.
 //!
-//! TypeScript 7.0+ ships the native compiler as `tsc` — no separate `tsgo`
-//! package needed. When the workspace resolves `typescript@>=7`, `--tsgo`
-//! prefers that `tsc` and only falls back to a legacy `tsgo` binary when
-//! present (e.g. a leftover `@typescript/native-preview` install).
+//! `--tsgo` means "use the TypeScript 7 native compiler", mirroring official
+//! svelte-check (`svelte-check/src/tsgo.ts::tryParseTsGoVersion`, sveltejs/
+//! language-tools#3073): TS 7 is looked up as `@typescript/native` — the npm
+//! alias TS 7 stable is installed under alongside a TS 6 `typescript` — and
+//! then as the legacy `@typescript/native-preview`, accepting only major >= 7.
+//! Resolution goes through the package directory rather than
+//! `node_modules/.bin`, because an aliased TS 7 declares the same `tsc` bin
+//! name as the real `typescript` and whichever install wins the shim is an
+//! install-order coin flip.
 //!
 //! The JS reference (`incremental.ts::runTypeScriptDiagnostics`) spawns
 //! `node <tsgo_js> -p <tsconfig> --pretty true --noErrorTruncation`. Our
@@ -39,6 +44,11 @@ pub struct RawTsDiagnostic {
 pub enum TsgoError {
     /// No tsgo / tsc binary could be located (and no override was set).
     NotFound,
+    /// `--tsgo` was requested but no TypeScript 7 install was found.
+    Ts7NotFound {
+        /// The flag the user passed, for the error message.
+        flag: &'static str,
+    },
     /// Spawning the subprocess failed at the OS level.
     Spawn(std::io::Error),
 }
@@ -48,7 +58,14 @@ impl std::fmt::Display for TsgoError {
         match self {
             TsgoError::NotFound => write!(
                 f,
-                "tsc / tsgo not found (set TSGO_BIN, install typescript@^7 for native tsc, or @typescript/native-preview on TypeScript 6)"
+                "tsc / tsgo not found (set TSGO_BIN, or install typescript in the workspace)"
+            ),
+            // Same wording as official svelte-check's `formatTsGoNotFoundError`.
+            TsgoError::Ts7NotFound { flag } => write!(
+                f,
+                "rsvelte-check {flag} requires TypeScript 7 to be installed in the workspace.\
+                 You can setup TypeScript 7 with an npm alias via the following command.\n\
+                 npm install --save-dev typescript@~6 @typescript/native@npm:typescript@7\n"
             ),
             TsgoError::Spawn(e) => write!(f, "failed to spawn TypeScript compiler: {e}"),
         }
@@ -65,25 +82,21 @@ pub struct TsgoBinary {
 
 /// Locate a TypeScript compiler binary.
 ///
-/// `$TSGO_BIN` is always honoured first as an explicit override. After
-/// that the search order depends on `prefer_tsgo` and the resolved
-/// `typescript` package version:
-///   * `prefer_tsgo == false` (the default, `rsvelte-check` without
-///     `--tsgo`) — prefer the stock `tsc`, falling back to `tsgo`:
-///       1. `node_modules/.bin/tsc` in `workspace` or any ancestor, then `…/tsgo`
-///       2. Globally on `$PATH`: `tsc`, then `tsgo`.
-///   * `prefer_tsgo == true` on a **TypeScript 7+** workspace — the native
-///     compiler ships as `tsc`, so prefer that over a legacy preview `tsgo`:
-///       1. `node_modules/.bin/tsc` … then `…/tsgo`
-///       2. `$PATH`: `tsc`, then `tsgo`.
-///   * `prefer_tsgo == true` on **TypeScript 6** (or no `typescript` pkg) —
-///     keep the historical order (preview `tsgo` first, `tsc` fallback):
-///       1. `node_modules/.bin/tsgo` … then `…/tsc`
-///       2. `$PATH`: `tsgo`, then `tsc`.
+/// `$TSGO_BIN` is always honoured first as an explicit override.
 ///
-/// Each name is searched across the full ancestor chain before the next,
-/// so a workspace-hoisted binary (pnpm puts it at the monorepo root, not in
-/// a deeply-nested package) still wins over a locally-resolvable fallback.
+/// With `prefer_tsgo` (`rsvelte-check --tsgo`) the TypeScript 7 native
+/// compiler is required: [`resolve_ts7_native`] walks up from `workspace`
+/// for `@typescript/native` then `@typescript/native-preview`, and a missing
+/// install is an error rather than a silent downgrade — mirroring official
+/// svelte-check, whose `--tsgo` means the same thing.
+///
+/// Without it the workspace's own `tsc` is used, whatever major it is:
+///   1. `node_modules/.bin/tsc` in `workspace` or any ancestor, then `…/tsgo`
+///   2. Globally on `$PATH`: `tsc`, then `tsgo`.
+///
+/// Each name is searched across the full ancestor chain before the next, so a
+/// workspace-hoisted binary (pnpm puts it at the monorepo root, not in a
+/// deeply-nested package) still wins over a locally-resolvable fallback.
 pub fn find_compiler(workspace: &Path, prefer_tsgo: bool) -> Result<TsgoBinary, TsgoError> {
     if let Ok(explicit) = std::env::var("TSGO_BIN")
         && !explicit.is_empty()
@@ -93,16 +106,14 @@ pub fn find_compiler(workspace: &Path, prefer_tsgo: bool) -> Result<TsgoBinary, 
             args_prefix: Vec::new(),
         });
     }
+    if prefer_tsgo {
+        return match resolve_ts7_native(workspace) {
+            Some(bin) => Ok(bin),
+            None => Err(TsgoError::Ts7NotFound { flag: "--tsgo" }),
+        };
+    }
     // Binary names in preference order.
-    let names: [&str; 2] = if prefer_tsgo {
-        if resolve_typescript_major(workspace).is_some_and(|major| major >= 7) {
-            ["tsc", "tsgo"]
-        } else {
-            ["tsgo", "tsc"]
-        }
-    } else {
-        ["tsc", "tsgo"]
-    };
+    let names: [&str; 2] = ["tsc", "tsgo"];
     // 1. `node_modules/.bin` in `workspace` AND every ancestor directory,
     //    in preference order. pnpm (and npm/yarn workspaces) hoist workspace
     //    binaries to the repo-root `node_modules/.bin`, so a package nested
@@ -136,26 +147,64 @@ pub fn find_compiler(workspace: &Path, prefer_tsgo: bool) -> Result<TsgoBinary, 
     Err(TsgoError::NotFound)
 }
 
-/// Resolved major version of the nearest `typescript` package walking up from
-/// `workspace` (hoisted monorepo installs included). `None` when no install
-/// is found or the version string is unparseable.
-fn resolve_typescript_major(workspace: &Path) -> Option<u32> {
-    let mut dir: Option<&Path> = Some(workspace);
+/// The TypeScript 7 native compiler installed at or above `from`, as a ready
+/// to spawn `node <bin>` command.
+///
+/// Mirrors official svelte-check's `tryParseTsGoVersion`: `@typescript/native`
+/// (the alias TS 7 stable is installed under when a TS 6 `typescript` has to
+/// stay alongside it) is preferred over the legacy `@typescript/native-preview`,
+/// and only a manifest naming itself `typescript` or `@typescript/native-preview`
+/// at major >= 7 is accepted.
+///
+/// The launcher comes from the package's own `bin` entry, not
+/// `node_modules/.bin`: an aliased TS 7 declares the very same `tsc` bin name
+/// as the real `typescript`, so the shim points at whichever package the
+/// installer happened to link last.
+fn resolve_ts7_native(from: &Path) -> Option<TsgoBinary> {
+    let mut dir: Option<&Path> = Some(from);
     while let Some(d) = dir {
-        let pkg_json = d.join("node_modules/typescript/package.json");
-        if let Ok(raw) = std::fs::read_to_string(&pkg_json)
-            && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&raw)
-            && let Some(major) = parsed
-                .get("version")
-                .and_then(|v| v.as_str())
-                .and_then(|v| v.split('.').next())
-                .and_then(|m| m.parse::<u32>().ok())
-        {
-            return Some(major);
+        for pkg in ["@typescript/native", "@typescript/native-preview"] {
+            let pkg_dir = d.join("node_modules").join(pkg);
+            if let Some(bin) = ts7_native_bin(&pkg_dir) {
+                return Some(TsgoBinary {
+                    program: "node".to_string(),
+                    args_prefix: vec![bin.display().to_string()],
+                });
+            }
         }
         dir = d.parent();
     }
     None
+}
+
+/// The `bin` launcher of `pkg_dir` when it holds a TypeScript 7 native
+/// compiler. `None` when the manifest is missing, names an unrelated package,
+/// is older than 7, or declares no usable `bin`.
+fn ts7_native_bin(pkg_dir: &Path) -> Option<PathBuf> {
+    let raw = std::fs::read_to_string(pkg_dir.join("package.json")).ok()?;
+    let parsed: serde_json::Value = serde_json::from_str(&raw).ok()?;
+    let name = parsed.get("name").and_then(|v| v.as_str())?;
+    if !matches!(name, "typescript" | "@typescript/native-preview") {
+        return None;
+    }
+    let major: u32 = parsed
+        .get("version")
+        .and_then(|v| v.as_str())
+        .and_then(|v| v.split('.').next())
+        .and_then(|m| m.parse().ok())?;
+    if major < 7 {
+        return None;
+    }
+    let bin = parsed.get("bin")?;
+    // `{ "tsc": "./bin/tsc" }` (TS 7) or `{ "tsgo": "bin/tsgo" }` (preview).
+    let rel = bin
+        .get("tsc")
+        .or_else(|| bin.get("tsgo"))
+        .or_else(|| bin.as_object().and_then(|o| o.values().next()))
+        .or(Some(bin))
+        .and_then(|v| v.as_str())?;
+    let path = pkg_dir.join(rel);
+    path.is_file().then_some(path)
 }
 
 fn which(program: &str) -> bool {
@@ -242,116 +291,6 @@ mod tests {
     }
 
     #[test]
-    fn find_compiler_prefers_tsc_on_typescript_7_when_tsgo_present() {
-        if std::env::var_os("TSGO_BIN").is_some() {
-            eprintln!("skip: TSGO_BIN is set in the environment");
-            return;
-        }
-        let dir =
-            std::env::temp_dir().join(format!("rsvelte_find_compiler_ts7_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        let bin = dir.join("node_modules/.bin");
-        let typescript = dir.join("node_modules/typescript");
-        std::fs::create_dir_all(&bin).unwrap();
-        std::fs::create_dir_all(&typescript).unwrap();
-        std::fs::write(bin.join("tsc"), "").unwrap();
-        std::fs::write(bin.join("tsgo"), "").unwrap();
-        std::fs::write(
-            typescript.join("package.json"),
-            r#"{"name":"typescript","version":"7.0.2"}"#,
-        )
-        .unwrap();
-
-        let found = find_compiler(&dir, true).expect("tsc found");
-        assert!(
-            found.program.ends_with("tsc"),
-            "typescript@7 + --tsgo should prefer native tsc over legacy tsgo, got {}",
-            found.program
-        );
-
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn find_compiler_respects_backend_preference() {
-        // `TSGO_BIN` is checked before everything else, so this layout-based
-        // test is only meaningful when the override isn't set in the env.
-        if std::env::var_os("TSGO_BIN").is_some() {
-            eprintln!("skip: TSGO_BIN is set in the environment");
-            return;
-        }
-        let dir =
-            std::env::temp_dir().join(format!("rsvelte_find_compiler_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        let bin = dir.join("node_modules/.bin");
-        std::fs::create_dir_all(&bin).unwrap();
-        // Both binaries present locally — preference decides the winner.
-        std::fs::write(bin.join("tsc"), "").unwrap();
-        std::fs::write(bin.join("tsgo"), "").unwrap();
-
-        let tsc = find_compiler(&dir, false).expect("tsc found");
-        assert!(
-            tsc.program.ends_with("tsc"),
-            "prefer_tsgo=false should pick tsc, got {}",
-            tsc.program
-        );
-        let tsgo = find_compiler(&dir, true).expect("tsgo found");
-        assert!(
-            tsgo.program.ends_with("tsgo"),
-            "prefer_tsgo=true should pick tsgo, got {}",
-            tsgo.program
-        );
-
-        // Only the non-preferred binary present → fall back to it.
-        std::fs::remove_file(bin.join("tsgo")).unwrap();
-        let fallback = find_compiler(&dir, true).expect("falls back to tsc");
-        assert!(
-            fallback.program.ends_with("tsc"),
-            "prefer_tsgo=true with only tsc present should fall back to tsc, got {}",
-            fallback.program
-        );
-
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn find_compiler_walks_up_to_hoisted_monorepo_bin() {
-        if std::env::var_os("TSGO_BIN").is_some() {
-            eprintln!("skip: TSGO_BIN is set in the environment");
-            return;
-        }
-        // Monorepo layout: `tsgo` hoisted to the repo root, only `tsc`
-        // resolvable from the nested package — `--tsgo` must still pick the
-        // hoisted `tsgo` (regression for the silent tsc fallback).
-        let root =
-            std::env::temp_dir().join(format!("rsvelte_find_compiler_mono_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
-        let root_bin = root.join("node_modules/.bin");
-        let pkg = root.join("apps/foo/frontend/app");
-        let pkg_bin = pkg.join("node_modules/.bin");
-        std::fs::create_dir_all(&root_bin).unwrap();
-        std::fs::create_dir_all(&pkg_bin).unwrap();
-        std::fs::write(root_bin.join("tsgo"), "").unwrap();
-        std::fs::write(pkg_bin.join("tsc"), "").unwrap();
-
-        let found = find_compiler(&pkg, true).expect("tsgo found via ancestor");
-        assert!(
-            found.program.ends_with("tsgo"),
-            "hoisted tsgo must win over a nested tsc, got {}",
-            found.program
-        );
-        assert!(
-            found
-                .program
-                .contains(&root.join("node_modules").display().to_string()),
-            "tsgo must resolve from the root, got {}",
-            found.program
-        );
-
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[test]
     fn parse_ignores_non_diagnostic_lines() {
         let sample = "Found 0 errors.\n\
                       src/x.ts(1,1): error TS9999: oops.\n\
@@ -359,5 +298,139 @@ mod tests {
         let diags = parse_diagnostics(sample);
         assert_eq!(diags.len(), 1);
         assert_eq!(diags[0].code, "TS9999");
+    }
+
+    /// A TS 7 install under the `@typescript/native` alias, plus a stale
+    /// `.bin/tsc` that the alias and the real `typescript` both claim.
+    fn write_ts7_alias(dir: &Path, name: &str, version: &str, bin_key: &str) {
+        let pkg = dir.join("node_modules").join(name);
+        std::fs::create_dir_all(pkg.join("bin")).unwrap();
+        std::fs::write(pkg.join("bin/entry.js"), "").unwrap();
+        std::fs::write(
+            pkg.join("package.json"),
+            format!(
+                r#"{{"name":"{}","version":"{version}","bin":{{"{bin_key}":"./bin/entry.js"}}}}"#,
+                if name == "@typescript/native" {
+                    "typescript"
+                } else {
+                    name
+                }
+            ),
+        )
+        .unwrap();
+    }
+
+    fn scratch(tag: &str) -> Option<PathBuf> {
+        if std::env::var_os("TSGO_BIN").is_some() {
+            eprintln!("skip: TSGO_BIN is set in the environment");
+            return None;
+        }
+        let dir = std::env::temp_dir().join(format!(
+            "rsvelte_find_compiler_{tag}_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        Some(dir)
+    }
+
+    #[test]
+    fn without_the_flag_the_workspaces_own_tsc_wins() {
+        let Some(dir) = scratch("plain") else { return };
+        let bin = dir.join("node_modules/.bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        std::fs::write(bin.join("tsc"), "").unwrap();
+        std::fs::write(bin.join("tsgo"), "").unwrap();
+
+        let found = find_compiler(&dir, false).expect("tsc found");
+        assert!(
+            found.program.ends_with("tsc"),
+            "the default must run the workspace's own tsc, got {}",
+            found.program
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn tsgo_flag_resolves_typescript_7_through_the_native_alias() {
+        let Some(dir) = scratch("alias") else { return };
+        // A TS 6 `tsc` shim is present and points at the real typescript —
+        // `--tsgo` must ignore it and run the aliased TS 7 package's own bin.
+        let bin = dir.join("node_modules/.bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        std::fs::write(bin.join("tsc"), "").unwrap();
+        write_ts7_alias(&dir, "typescript", "6.0.3", "tsc");
+        write_ts7_alias(&dir, "@typescript/native", "7.0.2", "tsc");
+
+        let found = find_compiler(&dir, true).expect("TS 7 found");
+        assert_eq!(found.program, "node", "the package bin is a node script");
+        assert!(
+            found.args_prefix[0].contains("@typescript/native"),
+            "--tsgo must run the aliased TS 7, got {:?}",
+            found.args_prefix
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn tsgo_flag_falls_back_to_the_legacy_preview_package() {
+        let Some(dir) = scratch("preview") else {
+            return;
+        };
+        write_ts7_alias(
+            &dir,
+            "@typescript/native-preview",
+            "7.0.0-dev.20260707.2",
+            "tsgo",
+        );
+
+        let found = find_compiler(&dir, true).expect("native-preview found");
+        assert!(
+            found.args_prefix[0].contains("native-preview"),
+            "got {:?}",
+            found.args_prefix
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn tsgo_flag_without_typescript_7_is_an_error_not_a_silent_downgrade() {
+        let Some(dir) = scratch("no_ts7") else { return };
+        // Only a TS 6 install: official svelte-check errors here rather than
+        // quietly type-checking with a different compiler, and so do we.
+        let bin = dir.join("node_modules/.bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        std::fs::write(bin.join("tsc"), "").unwrap();
+        write_ts7_alias(&dir, "typescript", "6.0.3", "tsc");
+
+        let err = find_compiler(&dir, true).expect_err("must not fall back");
+        assert!(matches!(err, TsgoError::Ts7NotFound { .. }), "got {err:?}");
+        assert!(
+            err.to_string()
+                .contains("@typescript/native@npm:typescript@7"),
+            "the error should tell the user how to install it: {err}"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn tsgo_flag_finds_typescript_7_hoisted_to_the_monorepo_root() {
+        let Some(root) = scratch("mono") else { return };
+        let pkg = root.join("apps/foo/frontend/app");
+        std::fs::create_dir_all(pkg.join("node_modules/.bin")).unwrap();
+        std::fs::write(pkg.join("node_modules/.bin/tsc"), "").unwrap();
+        write_ts7_alias(&root, "@typescript/native", "7.0.2", "tsc");
+
+        let found = find_compiler(&pkg, true).expect("hoisted TS 7 found");
+        assert!(
+            found.args_prefix[0].starts_with(&root.join("node_modules").display().to_string()),
+            "TS 7 must resolve from the monorepo root, got {:?}",
+            found.args_prefix
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

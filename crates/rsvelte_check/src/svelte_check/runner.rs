@@ -333,8 +333,7 @@ fn run_type_check_phase(
                 severity: DiagnosticSeverity::Warning,
                 code: Some("ts-compiler-not-found".into()),
                 message: "Skipping TypeScript diagnostics: no `tsc` or `tsgo` binary found. \
-                     Install `typescript@^7` (native `tsc` for `--tsgo`) or \
-                     `@typescript/native-preview` on TypeScript 6, or set `TSGO_BIN`."
+                     Install `typescript` in the workspace, or set `TSGO_BIN`."
                     .into(),
                 range: None,
                 source: "ts",

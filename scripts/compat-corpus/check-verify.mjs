@@ -192,7 +192,12 @@ function diffCounts(scenario, oracle, rsvelte) {
 function main() {
 	const bin = findBinary();
 	const nodeModules = oracleModules();
-	const tsc = path.join(nodeModules, '.bin/tsc');
+	// The real TypeScript 6's own launcher, NOT `.bin/tsc`: the oracle also
+	// installs TypeScript 7 under the `@typescript/native` alias, which
+	// declares the same `tsc` bin name, so the shim points at whichever of the
+	// two npm linked last. Every scenario except `ts7-native` must type-check
+	// with TS 6, the version svelte-check itself runs on.
+	const tsc = path.join(nodeModules, 'typescript/bin/tsc');
 	if (!fs.existsSync(tsc)) return fail(`oracle typescript missing its tsc at ${tsc}`);
 	const names = scenarios();
 	if (names.length === 0) return fail('no scenarios under compatibility/check-fixtures');
@@ -215,7 +220,15 @@ function main() {
 		// it against the workspace, rsvelte-check against cwd).
 		const common = ['--workspace', '.'];
 		if (config.tsconfig) common.push('--tsconfig', config.tsconfig);
+		// `args` opts a scenario into a flag both checkers understand — the
+		// point being to compare the diagnostics that flag produces, so it has
+		// to reach both sides identically.
+		for (const extra of config.args ?? []) common.push(extra);
 		const ws = config.workspace ?? '.';
+		// `TSGO_BIN` pins rsvelte-check to the oracle's own `tsc` so the two
+		// sides type-check with the same compiler. A scenario whose whole
+		// subject IS compiler discovery has to be allowed to do its own.
+		const actualEnv = config.discoverCompiler ? {} : { TSGO_BIN: tsc };
 
 		const oracle = parseMachineVerbose(
 			runCapture(
@@ -230,9 +243,12 @@ function main() {
 			)
 		);
 		const actual = parseMachineVerbose(
-			runCapture(bin, ['--output', 'machine-verbose', ...common], path.join(actualDir, ws), {
-				TSGO_BIN: tsc
-			})
+			runCapture(
+				bin,
+				['--output', 'machine-verbose', ...common],
+				path.join(actualDir, ws),
+				actualEnv
+			)
 		);
 
 		diffs.push(...diffCounts(name, oracle.counts, actual.counts));

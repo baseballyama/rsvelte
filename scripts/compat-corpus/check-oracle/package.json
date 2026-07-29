@@ -2,9 +2,10 @@
   "name": "rsvelte-check-oracle",
   "private": true,
   "type": "module",
-  "description": "Isolated environment holding the REAL svelte-check, used as the diagnostic oracle by scripts/compat-corpus/check-verify.mjs, plus the `svelte` / `typescript` / `@sveltejs/kit` its diagnostics are produced against. This node_modules is symlinked into every materialised fixture, so both checkers resolve the same dependency tree. The versions below are EXACT on purpose: the gate compares diagnostic sets against this oracle, so a floating range would let an upstream release move the baseline with no change in this repo. That pins the top level only — installs run with --no-package-lock, so transitive versions are re-resolved each time. Renovate tracks them like any other npm dep. `svelte` matches submodules/svelte; `typescript` is the newest major svelte-check 4.x declares support for (peer `^5 || ^6`) and also supplies the `tsc` that rsvelte-check's TSGO_BIN points at.",
+  "description": "Isolated environment holding the REAL svelte-check, used as the diagnostic oracle by scripts/compat-corpus/check-verify.mjs, plus the `svelte` / `typescript` / `@sveltejs/kit` its diagnostics are produced against. This node_modules is symlinked into every materialised fixture, so both checkers resolve the same dependency tree. The versions below are EXACT on purpose: the gate compares diagnostic sets against this oracle, so a floating range would let an upstream release move the baseline with no change in this repo. That pins the top level only \u2014 installs run with --no-package-lock, so transitive versions are re-resolved each time. Renovate tracks them like any other npm dep. `svelte` matches submodules/svelte; `typescript` is the newest major svelte-check 4.x declares support for (peer `^5 || ^6`) and also supplies the `tsc` that rsvelte-check's TSGO_BIN points at; `@typescript/native` is TypeScript 7 under the npm alias both checkers look it up by (sveltejs/language-tools#3073), installed alongside \u2014 not instead of \u2014 the TS 6 `typescript`, which is what the `ts7-native` scenario needs.",
   "dependencies": {
     "@sveltejs/kit": "2.70.1",
+    "@typescript/native": "npm:typescript@7.0.2",
     "svelte": "5.56.8",
     "svelte-check": "4.7.4",
     "typescript": "6.0.3"
