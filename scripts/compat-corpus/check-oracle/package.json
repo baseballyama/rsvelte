@@ -1,0 +1,12 @@
+{
+  "name": "rsvelte-check-oracle",
+  "private": true,
+  "type": "module",
+  "description": "Isolated environment holding the REAL svelte-check, used as the diagnostic oracle by scripts/compat-corpus/check-verify.mjs, plus the `svelte` / `typescript` / `@sveltejs/kit` its diagnostics are produced against. This node_modules is symlinked into every materialised fixture, so both checkers resolve the same dependency tree. The versions below are EXACT on purpose: the gate compares diagnostic sets against this oracle, so a floating range would let an upstream release move the baseline with no change in this repo. That pins the top level only — installs run with --no-package-lock, so transitive versions are re-resolved each time. Renovate tracks them like any other npm dep. `svelte` matches submodules/svelte; `typescript` is the newest major svelte-check 4.x declares support for (peer `^5 || ^6`) and also supplies the `tsc` that rsvelte-check's TSGO_BIN points at.",
+  "dependencies": {
+    "@sveltejs/kit": "2.70.1",
+    "svelte": "5.56.8",
+    "svelte-check": "4.7.4",
+    "typescript": "6.0.3"
+  }
+}

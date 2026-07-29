@@ -1,0 +1,8 @@
+{
+	"description": "Hooks that already carry their own type — `satisfies`, an explicit annotation, and a `sequence()` composition. Nothing should be augmented here, so this arm of the #1886 matrix proves a fix for the arrow-const form does not start double-annotating already-typed hooks.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		1886
+	]
+}

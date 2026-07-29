@@ -215,6 +215,10 @@ pub fn map_tsgo_diagnostics(
     // across every diagnostic on the same file (kit files often produce
     // many diagnostics — re-reading + re-scanning each was O(n) per diag).
     let mut kit_texts: HashMap<PathBuf, String> = HashMap::new();
+    // Generated (post-injection) kit-file text per `out_path`, read on
+    // demand to test whether a diagnostic falls inside one of `kit_file.rs`'s
+    // `Ωignore`-wrapped insertions (see its `IGNORE_START_COMMENT` doc comment).
+    let mut kit_generated_texts: HashMap<PathBuf, String> = HashMap::new();
     let mut out: Vec<Diagnostic> = Vec::with_capacity(raw.len());
     // `.svelte` sources whose generated overlay produced a TS1xxx syntax
     // diagnostic, in first-seen order (deduped). Recorded regardless of
@@ -247,6 +251,22 @@ pub fn map_tsgo_diagnostics(
             .or_else(|| by_kit.get(&absolute).copied())
             .or_else(|| by_kit.get(&diag.file).copied());
         if let Some(entry) = kit_match {
+            // Drop diagnostics an injected type stub alone provokes (e.g. an
+            // async hook's `ReturnType<HandleFetch>` tripping TS1064, since
+            // `HandleFetch` returns `MaybePromise<Response>` rather than a
+            // literal `Promise<T>`) — official svelte-check keeps only a
+            // small allowlist of codes here (stale/missing `./$types`, or a
+            // function whose declared return type isn't satisfied), everything
+            // else inside the injection is scaffolding noise, not a user error.
+            let generated = kit_generated_texts
+                .entry(entry.out_path.clone())
+                .or_insert_with(|| std::fs::read_to_string(&entry.out_path).unwrap_or_default());
+            let off = line_col_to_byte_offset(generated, diag.line as usize, diag.column as usize);
+            if is_in_generated_code(generated, off, off)
+                && !matches!(diag.code.as_str(), "TS2307" | "TS2694" | "TS2355")
+            {
+                continue;
+            }
             let original = kit_texts
                 .entry(entry.source_path.clone())
                 .or_insert_with(|| std::fs::read_to_string(&entry.source_path).unwrap_or_default());
@@ -618,5 +638,99 @@ mod tests {
             "consumer-file diagnostic must survive:\n{:#?}",
             mapped.diagnostics
         );
+    }
+
+    #[test]
+    fn drops_kit_diagnostic_only_the_injected_type_stub_provoked() {
+        // An async `const handleFetch = async ({...}) => {...}` gets
+        // `kit_file.rs`'s injected `: ReturnType<HandleFetch>` wrapped in
+        // `Ωignore` markers. `HandleFetch` returns `MaybePromise<Response>`,
+        // not a literal `Promise<T>`, so tsc's TS1064 ("the return type of an
+        // async function must be the global Promise<T> type") fires squarely
+        // inside that injected span — official svelte-check drops it (it's an
+        // artefact of the injection, not a user error); a real error on the
+        // user's own code in the same file must still surface.
+        use super::super::kit_file::{KitFilesSettings, apply_added_code, build_added_code};
+
+        let tmp =
+            std::env::temp_dir().join(format!("rsvelte_mapper_kit_ignore_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("src")).unwrap();
+        let source_path = tmp.join("src").join("hooks.server.ts");
+        let out_path = tmp.join("src").join("hooks.server.ts.generated.ts");
+        let source = "export const handleFetch = async ({ request, fetch, event }) => {\n  return fetch(request);\n};\n";
+        std::fs::write(&source_path, source).unwrap();
+        let adds = build_added_code(&source_path, source, &KitFilesSettings::default())
+            .expect("arrow-const handleFetch should emit insertions");
+        let generated = apply_added_code(source, &adds);
+        std::fs::write(&out_path, &generated).unwrap();
+
+        let return_type_pos = generated
+            .find("ReturnType<import('@sveltejs/kit').HandleFetch>")
+            .expect("generated text should contain the injected return type");
+        let (ret_line, ret_col) = line_col_at_byte(&generated, return_type_pos);
+        let user_code_pos = generated
+            .find("return fetch(request)")
+            .expect("generated text should still contain the user's own code");
+        let (user_line, user_col) = line_col_at_byte(&generated, user_code_pos);
+
+        let overlay = OverlayLayout {
+            kit_entries: vec![KitOverlayEntry {
+                source_path: source_path.clone(),
+                out_path: out_path.clone(),
+                added_code: adds,
+            }],
+            ..empty_layout(&tmp)
+        };
+        let diags = [
+            RawTsDiagnostic {
+                file: out_path.clone(),
+                line: ret_line,
+                column: ret_col,
+                severity: "error".into(),
+                code: "TS1064".into(),
+                message: "The return type of an async function or method must be the global Promise<T> type.".into(),
+            },
+            RawTsDiagnostic {
+                file: out_path,
+                line: user_line,
+                column: user_col,
+                severity: "error".into(),
+                code: "TS2304".into(),
+                message: "Cannot find name 'fetch'.".into(),
+            },
+        ];
+        let mapped = map_tsgo_diagnostics(&diags, &overlay, &tmp);
+        assert_eq!(
+            mapped.diagnostics.len(),
+            1,
+            "the injection-only TS1064 should be dropped:\n{:#?}",
+            mapped.diagnostics
+        );
+        assert!(
+            mapped.diagnostics[0]
+                .message
+                .contains("Cannot find name 'fetch'"),
+            "the user-code diagnostic must survive:\n{:#?}",
+            mapped.diagnostics
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// 1-indexed (line, column) of a byte offset, for constructing test
+    /// `RawTsDiagnostic`s from a known substring position.
+    fn line_col_at_byte(text: &str, byte_pos: usize) -> (u32, u32) {
+        let mut line = 1u32;
+        let mut col = 1u32;
+        for ch in text[..byte_pos].chars() {
+            if ch == '\n' {
+                line += 1;
+                col = 1;
+            } else {
+                col += 1;
+            }
+        }
+        (line, col)
     }
 }

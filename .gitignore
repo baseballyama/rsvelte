@@ -149,6 +149,10 @@ compatibility/.oxfmt-ignore-nothing
 # fmt-parity stage (generated; the fmt-known-failures.json ratchet is checked in)
 compatibility/fmt/
 compatibility/fmt-report.json
+# svelte-check diagnostic-parity gate (generated; check-known-failures.json is tracked)
+scripts/compat-corpus/check-oracle/node_modules/
+scripts/compat-corpus/check-oracle/package-lock.json
+compatibility/check-report.json
 
 # Dedicated CARGO_TARGET_DIRs used during Phase-3 corpus burndown (never commit)
 /target-ast/

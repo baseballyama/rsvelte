@@ -326,6 +326,52 @@ pnpm run lint-corpus:update            # re-baseline lint-known-failures.json af
 The `lint-parity` job in `.github/workflows/corpus-compat.yml` runs this track
 on PRs/pushes touching the linter, the pipeline, or either pin.
 
+## svelte-check diagnostic parity (official `svelte-check`)
+
+A fourth track verifies that `rsvelte-check` reports the **same diagnostics** as
+the official `svelte-check` on a set of committed mini-projects. Its unit is a
+**type-checked project**, not a file: module resolution, workspace layout,
+`tsconfig` `paths` and the `.d.ts` environment only exist at project scope, and
+every other track discards them by construction (`collect.mjs` flat-extracts
+sources by extension and compares text). That blind spot is what let the
+false-positive cluster #1883–#1889 ship — see #1897.
+
+```bash
+pnpm run check-corpus:oracle-install   # install the pinned real svelte-check (oracle)
+cargo build --release -p rsvelte_check
+pnpm run check-corpus:verify           # diff oracle vs rsvelte-check, ratchet check-known-failures.json
+# or, all of the above:
+pnpm run test:svelte-check
+pnpm run check-corpus:update           # re-baseline check-known-failures.json after a fix
+```
+
+- **Oracle** (`check-oracle/`) — an isolated package pinning `svelte-check`,
+  `svelte`, `typescript` and `@sveltejs/kit` at **exact** versions. Its
+  `node_modules` is symlinked into each materialised fixture and also supplies
+  the `tsc` that `rsvelte-check` runs (`TSGO_BIN`), so both sides type-check
+  against byte-identical dependencies.
+- **Scenarios** (`compatibility/check-fixtures/<name>/`) — `scenario.json`
+  (workspace, `--tsconfig`, extra `node_modules` symlinks) plus a `project/`
+  tree. Each encodes one real-world shape: single package, pnpm sibling via a
+  `node_modules` symlink, sibling via a `paths` alias only, an external package
+  aliasing itself, a plain `.ts` importing an aliased `.svelte`, the SvelteKit
+  hooks declaration-form matrix, post-shim-snapshot `svelte/elements` tags, and
+  a no-`--tsconfig` run. `basic` is the positive control: it must stay green.
+- **Normalization** — a diagnostic collapses to
+  `<SEVERITY> <relpath>:<line> <code>`. Column and message text are dropped on
+  purpose (rsvelte maps positions through its own source map, and TypeScript
+  wording is version-sensitive); severity, file, line and code are what a user
+  acts on. Because that key is lossy, the two sides are compared as **multisets**
+  — one line can carry several diagnostics with the same code, and set semantics
+  would let a known divergence mask a new one.
+- **Ratchet** — every surplus diagnostic on one side is a *divergence*, recorded
+  in `compatibility/check-known-failures.json` (tracked), shrink-only, with an
+  ` xN` suffix when the surplus is larger than one. Justifications live in
+  [compatibility/check-known-failures.md](../../compatibility/check-known-failures.md).
+
+The `check-parity` job in `.github/workflows/corpus-compat.yml` runs this track;
+it needs no submodules.
+
 ## Adding a repository to the corpus
 
 The corpus grows by adding source repositories. Real-world component libraries

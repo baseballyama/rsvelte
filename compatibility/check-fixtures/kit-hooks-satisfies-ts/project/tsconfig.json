@@ -1,0 +1,17 @@
+{
+	"compilerOptions": {
+		"target": "esnext",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"strict": true,
+		"skipLibCheck": true,
+		"noEmit": true,
+		"types": [
+			"@sveltejs/kit"
+		]
+	},
+	"include": [
+		"src/**/*.ts",
+		"src/**/*.svelte"
+	]
+}

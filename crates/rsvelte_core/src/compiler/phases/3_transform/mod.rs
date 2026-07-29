@@ -754,48 +754,62 @@ impl std::error::Error for TransformError {}
 fn generate_token_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen::SourceMapping> {
     use js_ast::codegen::{build_line_starts, offset_to_line_col};
 
-    let gen_tokens = extract_tokens_simple(generated);
-    let src_tokens = extract_tokens_simple(source);
     let gen_line_starts = build_line_starts(generated);
     let src_line_starts = build_line_starts(source);
 
-    // Build a map: token_text -> list of source positions (byte offsets)
-    let mut src_positions: rustc_hash::FxHashMap<&str, Vec<usize>> =
-        rustc_hash::FxHashMap::default();
-    for token in &src_tokens {
-        src_positions
-            .entry(token.text)
-            .or_default()
-            .push(token.output_offset);
+    /// Every source offset a token occurs at, plus how many of them the
+    /// generated side has already claimed. Fusing the position list and the
+    /// cursor into one entry keeps the match loop to a single hash lookup.
+    #[derive(Default)]
+    struct Slot {
+        positions: smallvec::SmallVec<[u32; 2]>,
+        consumed: u32,
     }
 
-    // For each token name, track how many generated occurrences we've consumed
-    let mut src_consumed: rustc_hash::FxHashMap<&str, usize> = rustc_hash::FxHashMap::default();
+    // Build a map: token_text -> list of source positions (byte offsets).
+    // Tokens the generated side always skips are never looked up, so leaving
+    // them out keeps the map to the names that can actually match.
+    let mut src_positions: rustc_hash::FxHashMap<&str, Slot> = rustc_hash::FxHashMap::default();
+    for_each_token(source, |text, offset| {
+        if !should_skip_token(text) {
+            src_positions
+                .entry(text)
+                .or_default()
+                .positions
+                .push(offset as u32);
+        }
+    });
 
     let mut mappings = Vec::new();
+    // Generated offsets arrive in non-decreasing order, so a forward cursor over
+    // the line table answers what `offset_to_line_col` would binary-search for.
+    let mut gen_cursor = 0usize;
+    let mut gen_line_col = |offset: usize| {
+        while gen_cursor + 1 < gen_line_starts.len() && gen_line_starts[gen_cursor + 1] <= offset {
+            gen_cursor += 1;
+        }
+        (gen_cursor, offset - gen_line_starts[gen_cursor])
+    };
 
-    for gen_token in &gen_tokens {
+    for_each_token(generated, |text, gen_offset| {
         // Skip framework-generated tokens
-        if should_skip_token(gen_token.text) {
-            continue;
+        if should_skip_token(text) {
+            return;
         }
 
         // Look up this token's source positions
-        let positions = match src_positions.get(gen_token.text) {
-            Some(p) => p,
-            None => continue,
+        let Some(slot) = src_positions.get_mut(text) else {
+            return;
         };
 
         // Get the next unused source position for this token
-        let consumed = src_consumed.entry(gen_token.text).or_insert(0);
-        if *consumed >= positions.len() {
-            continue;
+        if slot.consumed as usize >= slot.positions.len() {
+            return;
         }
+        let src_pos = slot.positions[slot.consumed as usize] as usize;
+        slot.consumed += 1;
 
-        let src_pos = positions[*consumed];
-        *consumed += 1;
-
-        let (gen_line, gen_col) = offset_to_line_col(&gen_line_starts, gen_token.output_offset);
+        let (gen_line, gen_col) = gen_line_col(gen_offset);
         let (orig_line, orig_col) = offset_to_line_col(&src_line_starts, src_pos);
 
         // Start of token
@@ -809,10 +823,15 @@ fn generate_token_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen
         });
 
         // End of token
-        let end_gen = gen_token.output_offset + gen_token.text.len();
-        let end_src = src_pos + gen_token.text.len();
-        let (gen_line_end, gen_col_end) = offset_to_line_col(&gen_line_starts, end_gen);
-        let (orig_line_end, orig_col_end) = offset_to_line_col(&src_line_starts, end_src);
+        let end_gen = gen_offset + text.len();
+        let (gen_line_end, gen_col_end) = gen_line_col(end_gen);
+        // A token without a newline cannot cross a line boundary, so its end
+        // sits on the same source line as its start.
+        let (orig_line_end, orig_col_end) = if text.as_bytes().contains(&b'\n') {
+            offset_to_line_col(&src_line_starts, src_pos + text.len())
+        } else {
+            (orig_line, orig_col + text.len())
+        };
         mappings.push(js_ast::codegen::SourceMapping {
             gen_line: gen_line_end as u32,
             gen_col: gen_col_end as u32,
@@ -821,7 +840,7 @@ fn generate_token_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen
             orig_col: orig_col_end as u32,
             name: None,
         });
-    }
+    });
 
     // Sort and dedup
     mappings.sort_by(|a, b| a.gen_line.cmp(&b.gen_line).then(a.gen_col.cmp(&b.gen_col)));
@@ -931,13 +950,6 @@ fn generate_rune_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen:
     mappings
 }
 
-/// Simple token extraction from generated code. Returns identifier and
-/// numeric literal tokens with their byte offsets.
-struct SimpleToken<'a> {
-    text: &'a str,
-    output_offset: usize,
-}
-
 /// Returns true if a token should be skipped during source map matching.
 /// Framework-generated tokens, JS keywords, and common internal identifiers
 /// should be skipped to avoid false matches against the user's source code.
@@ -1006,10 +1018,9 @@ fn should_skip_token(text: &str) -> bool {
     )
 }
 
-fn extract_tokens_simple(code: &str) -> Vec<SimpleToken<'_>> {
+fn for_each_token<'a>(code: &'a str, mut f: impl FnMut(&'a str, usize)) {
     let bytes = code.as_bytes();
     let len = bytes.len();
-    let mut tokens = Vec::new();
     let mut i = 0;
 
     while i < len {
@@ -1030,10 +1041,7 @@ fn extract_tokens_simple(code: &str) -> Vec<SimpleToken<'_>> {
             {
                 i += 1;
             }
-            tokens.push(SimpleToken {
-                text: &code[start..i],
-                output_offset: start,
-            });
+            f(&code[start..i], start);
             continue;
         }
 
@@ -1049,10 +1057,7 @@ fn extract_tokens_simple(code: &str) -> Vec<SimpleToken<'_>> {
             if i < len && bytes[i] == b'n' {
                 i += 1;
             }
-            tokens.push(SimpleToken {
-                text: &code[start..i],
-                output_offset: start,
-            });
+            f(&code[start..i], start);
             continue;
         }
 
@@ -1071,10 +1076,7 @@ fn extract_tokens_simple(code: &str) -> Vec<SimpleToken<'_>> {
             if i < len {
                 i += 1;
             }
-            tokens.push(SimpleToken {
-                text: &code[start..i],
-                output_offset: start,
-            });
+            f(&code[start..i], start);
             continue;
         }
 
@@ -1115,10 +1117,7 @@ fn extract_tokens_simple(code: &str) -> Vec<SimpleToken<'_>> {
                             {
                                 i += 1;
                             }
-                            tokens.push(SimpleToken {
-                                text: &code[start..i],
-                                output_offset: start,
-                            });
+                            f(&code[start..i], start);
                         } else if eb.is_ascii_digit() {
                             let start = i;
                             i += 1;
@@ -1129,10 +1128,7 @@ fn extract_tokens_simple(code: &str) -> Vec<SimpleToken<'_>> {
                             {
                                 i += 1;
                             }
-                            tokens.push(SimpleToken {
-                                text: &code[start..i],
-                                output_offset: start,
-                            });
+                            f(&code[start..i], start);
                         } else {
                             i += 1;
                         }
@@ -1168,6 +1164,4 @@ fn extract_tokens_simple(code: &str) -> Vec<SimpleToken<'_>> {
 
         i += 1;
     }
-
-    tokens
 }
