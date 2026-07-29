@@ -1,0 +1,5 @@
+{
+	"name": "check-fixture-no-tsconfig",
+	"private": true,
+	"type": "module"
+}

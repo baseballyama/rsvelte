@@ -1,0 +1,9 @@
+{
+	"name": "check-fixture-kit-hooks-arrow-ts",
+	"private": true,
+	"type": "module",
+	"devDependencies": {
+		"@sveltejs/kit": "*",
+		"svelte": "*"
+	}
+}

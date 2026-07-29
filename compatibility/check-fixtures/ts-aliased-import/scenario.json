@@ -1,0 +1,8 @@
+{
+	"description": "Plain .ts files (never run through svelte2tsx) importing an aliased .svelte component — both the named-type and the generic-default flavor. Covers #1888 (only .svelte importers get their alias specifiers rewritten, so a .ts importer resolves to the ambient `*.svelte` fallback).",
+	"workspace": "pkg-a",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		1888
+	]
+}

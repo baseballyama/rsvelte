@@ -1,0 +1,5 @@
+{
+	"description": "Single package, no aliases: one clean component plus one intentional type error. Positive control — a green `basic` is what proves the harness itself resolves, type-checks and normalizes correctly.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json"
+}

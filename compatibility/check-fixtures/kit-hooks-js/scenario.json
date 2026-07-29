@@ -1,0 +1,8 @@
+{
+	"description": "The same hooks in plain JS under `checkJs`, where the augmentation has to insert a JSDoc `@type` instead of a TS annotation — `export function` and `export const … = () => {}` side by side. JSDoc arm of the #1886 matrix.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		1886
+	]
+}

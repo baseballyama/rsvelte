@@ -1,0 +1,8 @@
+{
+	"description": "External package that imports its OWN components through the same public alias its consumers use, surfaced via `ComponentProps<typeof X>[\"prop\"]`. Covers #1887 (the external shadow never gets its alias specifiers rewritten, so the prop signature loses its parameter types).",
+	"workspace": "pkg-a",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		1887
+	]
+}
