@@ -99,6 +99,7 @@ impl Chunk {
 // ---------------------------------------------------------------------------
 
 /// A v3 source map.
+#[allow(dead_code, reason = "preserved as the standalone MagicString API")]
 #[derive(Debug, Clone)]
 pub struct SourceMap {
     pub version: u8,
@@ -109,6 +110,7 @@ pub struct SourceMap {
     pub mappings: String,
 }
 
+#[allow(dead_code, reason = "preserved as the standalone MagicString API")]
 impl SourceMap {
     /// Serialize to a JSON string.
     pub fn to_json(&self) -> String {
@@ -149,6 +151,7 @@ impl SourceMap {
 }
 
 #[inline]
+#[allow(dead_code, reason = "used by the standalone SourceMap API")]
 fn push_json_string_array(json: &mut String, values: &[String]) {
     json.push('[');
     for (index, value) in values.iter().enumerate() {
@@ -161,6 +164,7 @@ fn push_json_string_array(json: &mut String, values: &[String]) {
 }
 
 #[inline]
+#[allow(dead_code, reason = "used by the standalone SourceMap API")]
 fn push_mappings_json(json: &mut String, mappings: &str) {
     let needs_escape = mappings
         .bytes()
@@ -177,6 +181,31 @@ fn push_mappings_json(json: &mut String, mappings: &str) {
         json.push_str(mappings);
         json.push('"');
     }
+}
+
+fn push_source_map_json_prefix(
+    json: &mut String,
+    file: Option<&str>,
+    source: &str,
+    source_content: Option<&str>,
+) {
+    json.push_str(r#"{"version":3,"file":"#);
+    match file {
+        Some(file) => push_json_string(json, file),
+        None => json.push_str("null"),
+    }
+    json.push_str(r#","sources":["#);
+    push_json_string(json, source);
+    json.push_str(r#"],"sourcesContent":"#);
+    match source_content {
+        Some(content) => {
+            json.push('[');
+            push_json_string(json, content);
+            json.push(']');
+        }
+        None => json.push_str("[]"),
+    }
+    json.push_str(r#","names":[],"mappings":""#);
 }
 
 #[cfg(test)]
@@ -225,6 +254,14 @@ pub struct GenerateMapOptions {
     pub source: Option<String>,
     /// Whether to include `sourcesContent`.
     pub include_content: bool,
+}
+
+/// Code and both mapping directions produced by one chunk traversal.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GeneratedBundle {
+    pub code: String,
+    pub source_map: String,
+    pub forward_segments: Vec<(u32, u32, u32)>,
 }
 
 // ---------------------------------------------------------------------------
@@ -284,6 +321,143 @@ fn push_ascii_hires_segments(mappings: &mut String, count: usize) {
         remaining -= ASCII_HIRES_BLOCK_SEGMENTS;
     }
     mappings.push_str(&ASCII_HIRES_BLOCK[..remaining * ASCII_HIRES_SEGMENT.len()]);
+}
+
+struct MappingState<'a> {
+    mappings: &'a mut String,
+    original_line_starts: Vec<usize>,
+    generated_column: i64,
+    original_line: i64,
+    original_column: i64,
+    first_segment_on_line: bool,
+}
+
+impl<'a> MappingState<'a> {
+    fn new(mappings: &'a mut String, original: &str) -> Self {
+        Self {
+            mappings,
+            original_line_starts: line_starts(original),
+            generated_column: 0,
+            original_line: 0,
+            original_column: 0,
+            first_segment_on_line: true,
+        }
+    }
+
+    #[inline]
+    fn original_location(&self, original: &str, offset: u32) -> (i64, i64) {
+        let offset = offset as usize;
+        let line = match self.original_line_starts.binary_search(&offset) {
+            Ok(index) => index,
+            Err(index) => index - 1,
+        };
+        let line_start = self.original_line_starts[line];
+        let column = original[line_start..offset]
+            .chars()
+            .map(char::len_utf16)
+            .sum::<usize>();
+        (line as i64, column as i64)
+    }
+
+    #[inline]
+    fn advance_line(&mut self) {
+        self.mappings.push(';');
+        self.generated_column = 0;
+        self.first_segment_on_line = true;
+    }
+
+    fn advance_unmapped(&mut self, content: &str) {
+        if content.is_empty() {
+            return;
+        }
+        for (index, part) in content.split('\n').enumerate() {
+            if index != 0 {
+                self.advance_line();
+            }
+            self.generated_column += count_utf16(part) as i64;
+        }
+    }
+
+    #[inline]
+    fn emit_segment(&mut self, generated_column: i64, original_line: i64, original_column: i64) {
+        if !self.first_segment_on_line {
+            self.mappings.push(',');
+        }
+        self.first_segment_on_line = false;
+
+        vlq_encode(self.mappings, generated_column - self.generated_column);
+        self.generated_column = generated_column;
+        vlq_encode(self.mappings, 0);
+        vlq_encode(self.mappings, original_line - self.original_line);
+        self.original_line = original_line;
+        vlq_encode(self.mappings, original_column - self.original_column);
+        self.original_column = original_column;
+    }
+
+    fn advance_chunk_body(&mut self, original: &str, chunk: &Chunk, body: &str) {
+        if body.is_empty() {
+            return;
+        }
+
+        let (source_line, source_column) = self.original_location(original, chunk.start);
+        self.emit_segment(self.generated_column, source_line, source_column);
+
+        if chunk.is_edited() {
+            for ch in body.chars() {
+                if ch == '\n' {
+                    self.advance_line();
+                } else {
+                    self.generated_column += ch.len_utf16() as i64;
+                }
+            }
+            return;
+        }
+
+        let mut current_source_line = source_line;
+        let mut current_source_column = source_column;
+        let bytes = body.as_bytes();
+        let mut byte_index = 0;
+        while byte_index < bytes.len() {
+            if bytes[byte_index] == b'\n' {
+                self.advance_line();
+                current_source_line += 1;
+                current_source_column = 0;
+                self.emit_segment(
+                    self.generated_column,
+                    current_source_line,
+                    current_source_column,
+                );
+                byte_index += 1;
+            } else if bytes[byte_index].is_ascii() {
+                let run_start = byte_index;
+                while byte_index < bytes.len()
+                    && bytes[byte_index].is_ascii()
+                    && bytes[byte_index] != b'\n'
+                {
+                    byte_index += 1;
+                }
+                let run_len = byte_index - run_start;
+                push_ascii_hires_segments(self.mappings, run_len);
+                self.generated_column += run_len as i64;
+                current_source_column += run_len as i64;
+                self.original_column = current_source_column;
+            } else {
+                let ch = body[byte_index..]
+                    .chars()
+                    .next()
+                    .expect("non-ASCII byte starts a character");
+                let width = ch.len_utf16() as i64;
+                self.generated_column += width;
+                current_source_column += width;
+                self.emit_segment(
+                    self.generated_column,
+                    current_source_line,
+                    current_source_column,
+                );
+                byte_index += ch.len_utf8();
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -736,20 +910,7 @@ impl MagicString {
     #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         let mut result = String::with_capacity(self.original.len());
-        result.push_str(&self.intro);
-
-        let mut cur = Some(self.first_chunk);
-        while let Some(ci) = cur {
-            let chunk = &self.chunks[ci];
-            result.push_str(&chunk.intro);
-            // Avoid cloning the per-chunk slice for unedited chunks.
-            let body = self.chunk_content(ci);
-            result.push_str(body);
-            result.push_str(&chunk.outro);
-            cur = chunk.next;
-        }
-
-        result.push_str(&self.outro);
+        self.traverse_outputs(Some(&mut result), None, None);
         result
     }
 
@@ -770,25 +931,15 @@ impl MagicString {
     /// [`MagicString::to_string`] *before* any text-level post-pass. Callers
     /// that apply such a post-pass (e.g. import-specifier rewriting) must
     /// account for drift after the rewrite point themselves.
+    #[allow(dead_code, reason = "preserved as the standalone MagicString API")]
     pub fn forward_segments(&self) -> Vec<(u32, u32, u32)> {
-        let mut segments = Vec::new();
-        let mut generated: u32 = self.intro.len() as u32;
-        let mut cur = Some(self.first_chunk);
-        while let Some(ci) = cur {
-            let chunk = &self.chunks[ci];
-            generated += chunk.intro.len() as u32;
-            let body = self.chunk_content(ci);
-            if !chunk.is_edited() && chunk.end > chunk.start {
-                segments.push((chunk.start, chunk.end, generated));
-            }
-            generated += body.len() as u32;
-            generated += chunk.outro.len() as u32;
-            cur = chunk.next;
-        }
+        let mut segments = Vec::with_capacity(self.chunks.len());
+        self.traverse_outputs(None, None, Some(&mut segments));
         segments
     }
 
     /// Generate a v3 source map.
+    #[allow(dead_code, reason = "preserved as the standalone MagicString API")]
     pub fn generate_map(&self, options: GenerateMapOptions) -> SourceMap {
         let source_name = options.source.unwrap_or_default();
         let mappings = self.generate_mappings();
@@ -807,253 +958,114 @@ impl MagicString {
         }
     }
 
+    /// Generate code and both mapping directions in one chunk traversal.
+    pub fn generate_bundle(&self, options: GenerateMapOptions) -> GeneratedBundle {
+        let GenerateMapOptions {
+            file,
+            source,
+            include_content,
+        } = options;
+        let source = source.unwrap_or_default();
+        let code_capacity = self
+            .original
+            .len()
+            .saturating_add(self.intro.len())
+            .saturating_add(self.outro.len());
+        let mapping_capacity = self
+            .original
+            .len()
+            .saturating_mul(ASCII_HIRES_SEGMENT.len())
+            .saturating_add(self.chunks.len().saturating_mul(16));
+        let metadata_bytes = file.as_ref().map_or(0, String::len)
+            + source.len()
+            + usize::from(include_content) * self.original.len();
+        let mut source_map = String::with_capacity(
+            96usize
+                .saturating_add(metadata_bytes)
+                .saturating_add(mapping_capacity),
+        );
+        push_source_map_json_prefix(
+            &mut source_map,
+            file.as_deref(),
+            &source,
+            include_content.then_some(self.original.as_str()),
+        );
+
+        let mut code = String::with_capacity(code_capacity);
+        let mut forward_segments = Vec::with_capacity(self.chunks.len());
+        self.traverse_outputs(
+            Some(&mut code),
+            Some(&mut source_map),
+            Some(&mut forward_segments),
+        );
+        source_map.push_str("\"}");
+
+        GeneratedBundle {
+            code,
+            source_map,
+            forward_segments,
+        }
+    }
+
     // -----------------------------------------------------------------
     // Source-map internals
     // -----------------------------------------------------------------
 
     /// Build the VLQ-encoded `mappings` string.
-    #[allow(unused_assignments)]
+    #[allow(dead_code, reason = "used by the standalone MagicString API")]
     fn generate_mappings(&self) -> String {
         let mut mappings = String::new();
+        self.traverse_outputs(None, Some(&mut mappings), None);
+        mappings
+    }
 
-        // Running state for relative VLQ encoding.
-        let mut _generated_line: u32 = 0;
-        let mut generated_column: i64 = 0;
-        let mut original_line: i64 = 0;
-        let mut original_column: i64 = 0;
-
-        // Pre-compute line starts for the original source.
-        let original_line_starts = line_starts(&self.original);
-
-        // Helper closure: given an original byte offset, return (line, col) both 0-based.
-        // Source-map columns are UTF-16 code units (source-map spec v3 / LSP), not
-        // bytes — so a multibyte char before `offset` must count its UTF-16 width,
-        // not its byte length. For ASCII this is identical to the byte delta.
-        let orig_loc = |offset: u32| -> (i64, i64) {
-            let offset = offset as usize;
-            let line = match original_line_starts.binary_search(&offset) {
-                Ok(i) => i,
-                Err(i) => i - 1,
-            };
-            let line_start = original_line_starts[line];
-            let col: usize = self.original[line_start..offset]
-                .chars()
-                .map(|c| c.len_utf16())
-                .sum();
-            (line as i64, col as i64)
-        };
-
-        let mut first_segment_on_line = true;
-
-        // Emit a mapping segment.
-        let emit_segment = |mappings: &mut String,
-                            gen_col: i64,
-                            generated_column: &mut i64,
-                            source_idx: i64,
-                            orig_line: i64,
-                            original_line: &mut i64,
-                            orig_col: i64,
-                            original_column: &mut i64,
-                            first_segment_on_line: &mut bool| {
-            if !*first_segment_on_line {
-                mappings.push(',');
-            }
-            *first_segment_on_line = false;
-
-            // Field 1: generated column (relative)
-            vlq_encode(mappings, gen_col - *generated_column);
-            *generated_column = gen_col;
-            // Field 2: source index (relative)
-            vlq_encode(mappings, source_idx);
-            // Field 3: original line (relative)
-            vlq_encode(mappings, orig_line - *original_line);
-            *original_line = orig_line;
-            // Field 4: original column (relative)
-            vlq_encode(mappings, orig_col - *original_column);
-            *original_column = orig_col;
-        };
-
-        // Process the intro (generated content with no source mapping).
-        let mut intro_lines = self.intro.split('\n');
-        let last_intro_line = intro_lines.next_back().unwrap_or_default();
-        for _ in intro_lines {
-            mappings.push(';');
-            _generated_line += 1;
-            generated_column = 0;
-            first_segment_on_line = true;
+    fn traverse_outputs(
+        &self,
+        mut code: Option<&mut String>,
+        mappings: Option<&mut String>,
+        mut forward_segments: Option<&mut Vec<(u32, u32, u32)>>,
+    ) {
+        let mut mapping = mappings.map(|mappings| MappingState::new(mappings, &self.original));
+        if let Some(code) = &mut code {
+            code.push_str(&self.intro);
         }
-        // Advance generated column for the last intro line fragment.
-        generated_column += count_utf16(last_intro_line) as i64;
+        if let Some(mapping) = &mut mapping {
+            mapping.advance_unmapped(&self.intro);
+        }
 
-        // Walk chunks.
+        let mut generated_bytes = self.intro.len() as u32;
         let mut cur = Some(self.first_chunk);
         while let Some(ci) = cur {
             let chunk = &self.chunks[ci];
+            let body = self.chunk_content(ci);
 
-            // Process chunk intro.
-            if !chunk.intro.is_empty() {
-                for (i, part) in chunk.intro.split('\n').enumerate() {
-                    if i > 0 {
-                        mappings.push(';');
-                        _generated_line += 1;
-                        generated_column = 0;
-                        first_segment_on_line = true;
-                    }
-                    generated_column += count_utf16(part) as i64;
-                }
+            if let Some(code) = &mut code {
+                code.push_str(&chunk.intro);
+                code.push_str(body);
+                code.push_str(&chunk.outro);
             }
-
-            // Process chunk content. Effective body is the replacement
-            // text for edited chunks, or `original[start..end]` for
-            // unedited ones.
-            let edited = chunk.is_edited();
-            let body: &str = match &chunk.content {
-                Some(s) => s.as_str(),
-                None => &self.original[chunk.start as usize..chunk.end as usize],
-            };
-            if !body.is_empty() {
-                if !edited {
-                    // Unedited: emit one segment per character ("hires"
-                    // mode). Per-line-only mapping forces consumers to
-                    // interpolate, which breaks at edited-chunk
-                    // boundaries; per-character segments let
-                    // `lookup_token` return the exact original column
-                    // for any generated position inside an unedited
-                    // region.
-                    let (src_line, src_col) = orig_loc(chunk.start);
-                    let mut cur_src_line = src_line;
-                    let mut cur_src_col = src_col;
-
-                    // Emit a segment at the start of this chunk.
-                    emit_segment(
-                        &mut mappings,
-                        generated_column,
-                        &mut generated_column,
-                        0,
-                        cur_src_line,
-                        &mut original_line,
-                        cur_src_col,
-                        &mut original_column,
-                        &mut first_segment_on_line,
-                    );
-
-                    // ASCII characters after an anchor all encode to the same
-                    // segment, so copy those runs without re-running VLQ.
-                    let bytes = body.as_bytes();
-                    let mut byte_index = 0;
-                    while byte_index < bytes.len() {
-                        if bytes[byte_index] == b'\n' {
-                            mappings.push(';');
-                            _generated_line += 1;
-                            generated_column = 0;
-                            first_segment_on_line = true;
-                            cur_src_line += 1;
-                            cur_src_col = 0;
-
-                            // Emit mapping at start of new line.
-                            emit_segment(
-                                &mut mappings,
-                                generated_column,
-                                &mut generated_column,
-                                0,
-                                cur_src_line,
-                                &mut original_line,
-                                cur_src_col,
-                                &mut original_column,
-                                &mut first_segment_on_line,
-                            );
-                            byte_index += 1;
-                        } else if bytes[byte_index].is_ascii() {
-                            let run_start = byte_index;
-                            while byte_index < bytes.len()
-                                && bytes[byte_index].is_ascii()
-                                && bytes[byte_index] != b'\n'
-                            {
-                                byte_index += 1;
-                            }
-                            let run_len = byte_index - run_start;
-                            push_ascii_hires_segments(&mut mappings, run_len);
-                            generated_column += run_len as i64;
-                            cur_src_col += run_len as i64;
-                            original_column = cur_src_col;
-                        } else {
-                            let ch = body[byte_index..]
-                                .chars()
-                                .next()
-                                .expect("non-ASCII byte starts a character");
-                            // Advance by UTF-16 width so generated and original
-                            // columns stay in UTF-16 units (1 for BMP, 2 for astral).
-                            let w = ch.len_utf16() as i64;
-                            generated_column += w;
-                            cur_src_col += w;
-                            emit_segment(
-                                &mut mappings,
-                                generated_column,
-                                &mut generated_column,
-                                0,
-                                cur_src_line,
-                                &mut original_line,
-                                cur_src_col,
-                                &mut original_column,
-                                &mut first_segment_on_line,
-                            );
-                            byte_index += ch.len_utf8();
-                        }
-                    }
-                } else {
-                    // Edited chunk: map the start of the replacement to the original position.
-                    let (src_line, src_col) = orig_loc(chunk.start);
-
-                    emit_segment(
-                        &mut mappings,
-                        generated_column,
-                        &mut generated_column,
-                        0,
-                        src_line,
-                        &mut original_line,
-                        src_col,
-                        &mut original_column,
-                        &mut first_segment_on_line,
-                    );
-
-                    // Advance through the replacement content.
-                    for ch in body.chars() {
-                        if ch == '\n' {
-                            mappings.push(';');
-                            _generated_line += 1;
-                            generated_column = 0;
-                            first_segment_on_line = true;
-                        } else {
-                            generated_column += ch.len_utf16() as i64;
-                        }
-                    }
-                }
+            if let Some(mapping) = &mut mapping {
+                mapping.advance_unmapped(&chunk.intro);
+                mapping.advance_chunk_body(&self.original, chunk, body);
+                mapping.advance_unmapped(&chunk.outro);
             }
-
-            // Process chunk outro.
-            if !chunk.outro.is_empty() {
-                for (i, part) in chunk.outro.split('\n').enumerate() {
-                    if i > 0 {
-                        mappings.push(';');
-                        _generated_line += 1;
-                        generated_column = 0;
-                        first_segment_on_line = true;
-                    }
-                    generated_column += count_utf16(part) as i64;
+            if let Some(segments) = &mut forward_segments {
+                generated_bytes += chunk.intro.len() as u32;
+                if !chunk.is_edited() && chunk.end > chunk.start {
+                    segments.push((chunk.start, chunk.end, generated_bytes));
                 }
+                generated_bytes += body.len() as u32;
+                generated_bytes += chunk.outro.len() as u32;
             }
-
             cur = chunk.next;
         }
 
-        // Process the outro.
-        if !self.outro.is_empty() {
-            for _ in self.outro.split('\n').skip(1) {
-                mappings.push(';');
-            }
+        if let Some(code) = &mut code {
+            code.push_str(&self.outro);
         }
-
-        mappings
+        if let Some(mapping) = &mut mapping {
+            mapping.advance_unmapped(&self.outro);
+        }
     }
 }
 
@@ -1094,6 +1106,32 @@ fn count_utf16(s: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn assert_bundle_matches_individual_outputs(value: &MagicString) {
+        let options = [
+            GenerateMapOptions::default(),
+            GenerateMapOptions {
+                file: Some("out\"\\雪\n.tsx".to_string()),
+                source: Some("src\"\\é.svelte".to_string()),
+                include_content: false,
+            },
+            GenerateMapOptions {
+                file: Some("out\"\\雪\n.tsx".to_string()),
+                source: Some("src\"\\é.svelte".to_string()),
+                include_content: true,
+            },
+        ];
+        for options in options {
+            let expected_code = value.to_string();
+            let expected_source_map = value.generate_map(options.clone()).to_json();
+            let expected_forward_segments = value.forward_segments();
+
+            let actual = value.generate_bundle(options);
+            assert_eq!(actual.code, expected_code);
+            assert_eq!(actual.source_map, expected_source_map);
+            assert_eq!(actual.forward_segments, expected_forward_segments);
+        }
+    }
 
     #[test]
     fn test_basic_to_string() {
@@ -1202,6 +1240,88 @@ mod tests {
         s.overwrite(4, 10, "question");
         s.overwrite(13, 15, "'???'");
         assert_eq!(s.to_string(), "var question = '???';");
+    }
+
+    #[test]
+    fn generated_bundle_matches_exhaustive_overwrites() {
+        let source = "a😀\nb";
+        let mut boundaries = source
+            .char_indices()
+            .map(|(offset, _)| offset as u32)
+            .collect::<Vec<_>>();
+        boundaries.push(source.len() as u32);
+
+        assert_bundle_matches_individual_outputs(&MagicString::new(""));
+        assert_bundle_matches_individual_outputs(&MagicString::new(source));
+        for (start_index, &start) in boundaries.iter().enumerate() {
+            for &end in &boundaries[start_index + 1..] {
+                for replacement in ["", "X", "Ω\n😀"] {
+                    let mut value = MagicString::new(source);
+                    value.overwrite(start, end, replacement);
+                    assert_bundle_matches_individual_outputs(&value);
+                }
+            }
+        }
+
+        let mut fully_overwritten = MagicString::new(source);
+        fully_overwritten.overwrite(0, source.len() as u32, "\n全😀\n");
+        assert_bundle_matches_individual_outputs(&fully_overwritten);
+    }
+
+    #[test]
+    fn generated_bundle_matches_moved_chunks() {
+        for start in 0..5 {
+            for end in start + 1..=5 {
+                if start == 0 && end == 5 {
+                    continue;
+                }
+                for target in 0..=5 {
+                    if target >= start && target < end {
+                        continue;
+                    }
+                    let mut value = MagicString::new("abcde");
+                    value.move_range(start, end, target);
+                    assert_bundle_matches_individual_outputs(&value);
+                }
+            }
+        }
+
+        let source = "A😀\nBC";
+        let mut value = MagicString::new(source);
+        value.append_left(1, "<");
+        value.prepend_right(1, ">");
+        value.move_range(1, 5, source.len() as u32);
+        value.overwrite(6, 7, "Ω\n");
+        assert_bundle_matches_individual_outputs(&value);
+    }
+
+    #[test]
+    fn generated_bundle_matches_insert_ordering_and_empty_source() {
+        let mut value = MagicString::new("ab");
+        value.append_left(1, "a1");
+        value.append_left(1, "a2");
+        value.prepend_left(1, "p1");
+        value.prepend_left(1, "p2");
+        value.append_right(1, "r1");
+        value.append_right(1, "r2");
+        value.prepend_right(1, "q1");
+        value.prepend_right(1, "q2");
+        value.prepend_str("I😀\n");
+        value.append_str("\nO雪");
+        assert_bundle_matches_individual_outputs(&value);
+
+        let mut empty = MagicString::new("");
+        empty.append_left(0, "left");
+        empty.prepend_left(0, "<");
+        empty.append_right(0, "right");
+        empty.prepend_right(0, ">");
+        empty.prepend_str("\n");
+        empty.append_str("😀\n");
+        assert_bundle_matches_individual_outputs(&empty);
+
+        let mut control_chars = MagicString::new("\t\u{001f}\"\\\n😀");
+        control_chars.overwrite(2, 3, "\r\n");
+        assert_bundle_matches_individual_outputs(&control_chars);
     }
 
     #[test]

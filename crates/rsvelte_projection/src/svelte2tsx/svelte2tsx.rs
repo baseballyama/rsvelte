@@ -778,15 +778,14 @@ pub fn svelte2tsx(
 
     str.append_str(&closing);
 
-    let source_map = str
-        .generate_map(GenerateMapOptions {
-            file: None,
-            source: Some(options.filename.clone()),
-            include_content: false,
-        })
-        .to_json();
-    let forward_map = str.forward_segments();
-    let code = str.to_string();
+    let generated = str.generate_bundle(GenerateMapOptions {
+        file: None,
+        source: Some(options.filename.clone()),
+        include_content: false,
+    });
+    let code = generated.code;
+    let source_map = generated.source_map;
+    let forward_map = generated.forward_segments;
 
     // Final post-pass: rewrite `../`-relative import specifiers in the
     // assembled output. We apply this here (rather than as a pre-pass on
