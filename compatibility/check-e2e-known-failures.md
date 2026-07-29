@@ -32,10 +32,11 @@ message text are not part of the key — see the header of `check-verify.mjs`.
 ## Current baseline: 404 entries / 405 surplus diagnostics
 
 All four clusters are **rsvelte-only false positives**; there are no false
-negatives. Nothing here is a wontfix — each cluster is a live bug with a
-reproduction, and the ratchet shrinks as they land.
+negatives. Nothing here is a wontfix — each cluster is a live bug filed with a
+reproduction (E1 + E3 → #1916, E2 → #1917, E4 → #1918), and the ratchet shrinks
+as they land.
 
-### Cluster E1 — ambient `*.svelte` shadows real resolution for named imports (372 entries, `TS2614`)
+### Cluster E1 — ambient `*.svelte` shadows real resolution for named imports (372 entries, `TS2614`, #1916)
 
 `skeleton/library`, every entry `Module '"*.svelte"' has no exported member 'X'`.
 The overlay's vendored shim declares `declare module "*.svelte"`, and any
@@ -62,7 +63,7 @@ already does exactly that for **aliased** specifiers (#1888, fixed by #1895) but
 returns early for anything starting with `.`, and it never runs over real
 `.ts`/`.js` sources at all.
 
-### Cluster E2 — `$props` treated as a store subscription in runes mode (30 entries, `TS2448`)
+### Cluster E2 — `$props` treated as a store subscription in runes mode (30 entries, `TS2448`, #1917)
 
 `skeleton/library`, every entry `Block-scoped variable '$props' used before its
 declaration`. The shape is a component that declares a variable literally named
@@ -87,7 +88,7 @@ should not be emitted at all. This is a `.tsx`-text divergence, which means the
 svelte2tsx parity gate would also catch it — once these sources are in the
 compile corpus (see "Enrolling skeleton in the compile corpus" below).
 
-### Cluster E3 — snippet parameter implicit `any` (1 entry, `TS7006`)
+### Cluster E3 — snippet parameter implicit `any` (1 entry, `TS7006`, #1916)
 
 `skeleton/library`, `test/components/toast.svelte:8`, `Parameter 'toast'
 implicitly has an 'any' type` for `{#snippet children(toast)}`. The snippet
@@ -96,7 +97,7 @@ useToast>]>` prop, and `useToast` is imported from a `.svelte.ts` rune module �
 i.e. exactly the import cluster E1 breaks. Kept as a separate entry because it is
 a different code and file, but it is expected to disappear with E1.
 
-### Cluster E4 — `+server.js` handlers in arrow-const form are not augmented (1 entry ×2, `TS7031`)
+### Cluster E4 — `+server.js` handlers in arrow-const form are not augmented (1 entry ×2, `TS7031`, #1918)
 
 `cmsaasstarter/app`, `src/routes/(marketing)/auth/callback/+server.js:5`,
 `Binding element 'url' / 'supabase' implicitly has an 'any' type` for
@@ -127,7 +128,7 @@ a second place.
   in-workspace targets, so the rewrite fires where it should not. Layer 2 runs
   both checkers exactly the way the projects' own `check` scripts do — from the
   package directory, `--tsconfig ./tsconfig.json`, no `--workspace` — so this does
-  not appear here. It is tracked separately.
+  not appear here. Tracked as #1919.
 
 ## Enrolling skeleton in the compile corpus
 
