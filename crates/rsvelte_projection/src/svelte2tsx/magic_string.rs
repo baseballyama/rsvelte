@@ -112,50 +112,104 @@ pub struct SourceMap {
 impl SourceMap {
     /// Serialize to a JSON string.
     pub fn to_json(&self) -> String {
-        let sources: Vec<String> = self.sources.iter().map(|s| json_escape(s)).collect();
-        let sources_content: Vec<String> = self
-            .sources_content
+        let metadata_bytes = self
+            .sources
             .iter()
-            .map(|s| json_escape(s))
-            .collect();
-        let names: Vec<String> = self.names.iter().map(|s| json_escape(s)).collect();
+            .chain(&self.sources_content)
+            .chain(&self.names)
+            .map(String::len)
+            .fold(
+                self.file.as_ref().map_or(0, String::len),
+                usize::saturating_add,
+            );
+        let mut json = String::with_capacity(
+            96usize
+                .saturating_add(metadata_bytes)
+                .saturating_add(self.mappings.len()),
+        );
 
-        let file_str = match &self.file {
-            Some(f) => json_escape(f),
-            None => "null".to_string(),
-        };
-
-        format!(
-            r#"{{"version":{},"file":{},"sources":[{}],"sourcesContent":[{}],"names":[{}],"mappings":{}}}"#,
-            self.version,
-            file_str,
-            sources.join(","),
-            sources_content.join(","),
-            names.join(","),
-            json_escape(&self.mappings),
-        )
+        json.push_str(r#"{"version":"#);
+        let _ = write!(json, "{}", self.version);
+        json.push_str(r#","file":"#);
+        match &self.file {
+            Some(file) => push_json_string(&mut json, file),
+            None => json.push_str("null"),
+        }
+        json.push_str(r#","sources":"#);
+        push_json_string_array(&mut json, &self.sources);
+        json.push_str(r#","sourcesContent":"#);
+        push_json_string_array(&mut json, &self.sources_content);
+        json.push_str(r#","names":"#);
+        push_json_string_array(&mut json, &self.names);
+        json.push_str(r#","mappings":"#);
+        push_mappings_json(&mut json, &self.mappings);
+        json.push('}');
+        json
     }
 }
 
-/// Wrap a string value in double-quotes with JSON escaping.
-fn json_escape(s: &str) -> String {
-    let mut out = String::with_capacity(s.len() + 2);
-    out.push('"');
-    for ch in s.chars() {
+#[inline]
+fn push_json_string_array(json: &mut String, values: &[String]) {
+    json.push('[');
+    for (index, value) in values.iter().enumerate() {
+        if index != 0 {
+            json.push(',');
+        }
+        push_json_string(json, value);
+    }
+    json.push(']');
+}
+
+#[inline]
+fn push_mappings_json(json: &mut String, mappings: &str) {
+    let needs_escape = mappings
+        .bytes()
+        .any(|byte| byte < 0x20 || matches!(byte, b'"' | b'\\'));
+
+    if needs_escape {
+        #[cfg(test)]
+        MAPPINGS_ESCAPE_FALLBACKS.with(|calls| calls.set(calls.get() + 1));
+        push_json_string(json, mappings);
+    } else {
+        #[cfg(test)]
+        MAPPINGS_DIRECT_WRITES.with(|calls| calls.set(calls.get() + 1));
+        json.push('"');
+        json.push_str(mappings);
+        json.push('"');
+    }
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static JSON_STRING_WRITES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static JSON_STRING_INPUT_BYTES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static MAPPINGS_DIRECT_WRITES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static MAPPINGS_ESCAPE_FALLBACKS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Append a string value with JSON escaping.
+fn push_json_string(json: &mut String, value: &str) {
+    #[cfg(test)]
+    {
+        JSON_STRING_WRITES.with(|writes| writes.set(writes.get() + 1));
+        JSON_STRING_INPUT_BYTES.with(|bytes| bytes.set(bytes.get() + value.len()));
+    }
+
+    json.push('"');
+    for ch in value.chars() {
         match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
+            '"' => json.push_str("\\\""),
+            '\\' => json.push_str("\\\\"),
+            '\n' => json.push_str("\\n"),
+            '\r' => json.push_str("\\r"),
+            '\t' => json.push_str("\\t"),
             c if (c as u32) < 0x20 => {
-                let _ = write!(out, "\\u{:04x}", c as u32);
+                let _ = write!(json, "\\u{:04x}", c as u32);
             }
-            c => out.push(c),
+            c => json.push(c),
         }
     }
-    out.push('"');
-    out
+    json.push('"');
 }
 
 // ---------------------------------------------------------------------------
@@ -1210,6 +1264,81 @@ mod tests {
         assert!(json.contains("\"version\":3"));
         assert!(json.contains("\"file\":\"out.js\""));
         assert!(json.contains("\"sources\":[\"in.js\"]"));
+    }
+
+    #[test]
+    fn source_map_json_escapes_metadata_but_not_encoded_mappings() {
+        let map = SourceMap {
+            version: 3,
+            file: Some("out\"\\雪\n.js".to_string()),
+            sources: vec!["src\"\\é.svelte".to_string(), "二.svelte".to_string()],
+            sources_content: vec!["line \"one\"\\\n\t\u{001f}雪".to_string()],
+            names: vec!["na\"\\mé".to_string()],
+            mappings: "AAAA,CAAC;AACA+/09".to_string(),
+        };
+
+        assert_eq!(
+            map.to_json(),
+            r#"{"version":3,"file":"out\"\\雪\n.js","sources":["src\"\\é.svelte","二.svelte"],"sourcesContent":["line \"one\"\\\n\t\u001f雪"],"names":["na\"\\mé"],"mappings":"AAAA,CAAC;AACA+/09"}"#
+        );
+    }
+
+    #[test]
+    fn large_mappings_do_not_add_json_escape_work() {
+        let mappings = "AAAA,AAAC;".repeat(32 * 1024);
+        let file = "out\"\\雪.js".to_string();
+        let source = "src\"\\é.svelte".to_string();
+        let content = "line \"one\"\\\n雪".to_string();
+        let name = "na\"\\mé".to_string();
+        let map = SourceMap {
+            version: 3,
+            file: Some(file.clone()),
+            sources: vec![source.clone()],
+            sources_content: vec![content.clone()],
+            names: vec![name.clone()],
+            mappings: mappings.clone(),
+        };
+
+        JSON_STRING_WRITES.with(|writes| writes.set(0));
+        JSON_STRING_INPUT_BYTES.with(|bytes| bytes.set(0));
+        MAPPINGS_DIRECT_WRITES.with(|calls| calls.set(0));
+        MAPPINGS_ESCAPE_FALLBACKS.with(|calls| calls.set(0));
+        let json = map.to_json();
+
+        assert_eq!(JSON_STRING_WRITES.with(std::cell::Cell::get), 4);
+        assert_eq!(
+            JSON_STRING_INPUT_BYTES.with(std::cell::Cell::get),
+            file.len() + source.len() + content.len() + name.len()
+        );
+        assert_eq!(MAPPINGS_DIRECT_WRITES.with(std::cell::Cell::get), 1);
+        assert_eq!(MAPPINGS_ESCAPE_FALLBACKS.with(std::cell::Cell::get), 0);
+        assert_eq!(
+            json,
+            [
+                r#"{"version":3,"file":"out\"\\雪.js","sources":["src\"\\é.svelte"],"sourcesContent":["line \"one\"\\\n雪"],"names":["na\"\\mé"],"mappings":""#,
+                &mappings,
+                r#""}"#,
+            ]
+            .concat()
+        );
+    }
+
+    #[test]
+    fn externally_mutated_mappings_fall_back_to_json_escaping() {
+        let mut map = MagicString::new("x").generate_map(GenerateMapOptions::default());
+        map.sources.clear();
+        map.mappings = "AA\"\\\n\t\u{0001}雪".to_string();
+
+        JSON_STRING_WRITES.with(|writes| writes.set(0));
+        MAPPINGS_DIRECT_WRITES.with(|calls| calls.set(0));
+        MAPPINGS_ESCAPE_FALLBACKS.with(|calls| calls.set(0));
+        assert_eq!(
+            map.to_json(),
+            r#"{"version":3,"file":null,"sources":[],"sourcesContent":[],"names":[],"mappings":"AA\"\\\n\t\u0001雪"}"#
+        );
+        assert_eq!(JSON_STRING_WRITES.with(std::cell::Cell::get), 1);
+        assert_eq!(MAPPINGS_DIRECT_WRITES.with(std::cell::Cell::get), 0);
+        assert_eq!(MAPPINGS_ESCAPE_FALLBACKS.with(std::cell::Cell::get), 1);
     }
 
     #[test]
