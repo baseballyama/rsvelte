@@ -611,50 +611,58 @@ fn strip_typescript_from_program_impl(
     // and `declare namespace ... { ... }` blocks. These may not always be parsed as
     // TSModuleDeclaration depending on the OXC version, so do a simple text-based scan
     // to ensure they're removed.
-    for keyword in &["declare global", "declare module", "declare namespace"] {
-        let bytes = source.as_bytes();
-        let mut search_from = 0;
-        while let Some(rel) = source[search_from..].find(keyword) {
-            let start = search_from + rel;
-            // Ensure it's at start of line (or preceded only by whitespace)
-            let line_start = source[..start].rfind('\n').map(|n| n + 1).unwrap_or(0);
-            let prefix = &source[line_start..start];
-            if !prefix.chars().all(char::is_whitespace) {
-                search_from = start + keyword.len();
-                continue;
-            }
-            // Find the matching `{` after the keyword
-            let after = &source[start + keyword.len()..];
-            if let Some(brace_rel) = after.find('{') {
-                let brace_pos = start + keyword.len() + brace_rel;
-                // Find matching `}` by depth tracking
-                let mut depth = 1i32;
-                let mut i = brace_pos + 1;
-                while i < bytes.len() && depth > 0 {
-                    match bytes[i] {
-                        b'{' => depth += 1,
-                        b'}' => depth -= 1,
-                        b'"' | b'\'' | b'`' => {
-                            let q = bytes[i];
-                            i += 1;
-                            while i < bytes.len() && bytes[i] != q {
-                                if bytes[i] == b'\\' {
-                                    i += 1;
-                                }
-                                i += 1;
-                            }
-                        }
-                        _ => {}
-                    }
-                    i += 1;
-                }
-                if depth == 0 {
-                    removals.push((start as u32, i as u32));
-                    search_from = i;
+    //
+    // Every keyword below starts with `declare `, so one SIMD scan for that prefix
+    // decides all three at once — the common case (generated output, which this runs
+    // over in full) has none and skips three whole-source `str::find` passes.
+    if memchr::memmem::find(source.as_bytes(), b"declare ").is_some() {
+        for keyword in &["declare global", "declare module", "declare namespace"] {
+            let bytes = source.as_bytes();
+            let mut search_from = 0;
+            while let Some(rel) =
+                memchr::memmem::find(&source.as_bytes()[search_from..], keyword.as_bytes())
+            {
+                let start = search_from + rel;
+                // Ensure it's at start of line (or preceded only by whitespace)
+                let line_start = source[..start].rfind('\n').map(|n| n + 1).unwrap_or(0);
+                let prefix = &source[line_start..start];
+                if !prefix.chars().all(char::is_whitespace) {
+                    search_from = start + keyword.len();
                     continue;
                 }
+                // Find the matching `{` after the keyword
+                let after = &source[start + keyword.len()..];
+                if let Some(brace_rel) = after.find('{') {
+                    let brace_pos = start + keyword.len() + brace_rel;
+                    // Find matching `}` by depth tracking
+                    let mut depth = 1i32;
+                    let mut i = brace_pos + 1;
+                    while i < bytes.len() && depth > 0 {
+                        match bytes[i] {
+                            b'{' => depth += 1,
+                            b'}' => depth -= 1,
+                            b'"' | b'\'' | b'`' => {
+                                let q = bytes[i];
+                                i += 1;
+                                while i < bytes.len() && bytes[i] != q {
+                                    if bytes[i] == b'\\' {
+                                        i += 1;
+                                    }
+                                    i += 1;
+                                }
+                            }
+                            _ => {}
+                        }
+                        i += 1;
+                    }
+                    if depth == 0 {
+                        removals.push((start as u32, i as u32));
+                        search_from = i;
+                        continue;
+                    }
+                }
+                search_from = start + keyword.len();
             }
-            search_from = start + keyword.len();
         }
     }
 
