@@ -9,6 +9,46 @@ use super::types::{DomStructure, SiblingCertainty};
 use crate::ast::template::{Attribute, Fragment, TemplateNode};
 use rustc_hash::FxHashMap;
 
+pub fn stylesheet_has_sibling_combinator(stylesheet: &crate::ast::css::StyleSheet) -> bool {
+    let mut pending: Vec<&serde_json::Value> = stylesheet.children.iter().collect();
+    while let Some(value) = pending.pop() {
+        match value {
+            serde_json::Value::Object(object) => {
+                if object.get("type").and_then(serde_json::Value::as_str) == Some("Combinator")
+                    && object
+                        .get("name")
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|name| matches!(name, "+" | "~"))
+                {
+                    return true;
+                }
+                pending.extend(object.values());
+            }
+            serde_json::Value::Array(values) => pending.extend(values),
+            _ => {}
+        }
+    }
+    false
+}
+
+pub fn supports_static_sibling_relationships(fragment: &Fragment) -> bool {
+    let mut pending = vec![fragment];
+    while let Some(fragment) = pending.pop() {
+        for node in &fragment.nodes {
+            match node {
+                TemplateNode::RegularElement(element) => pending.push(&element.fragment),
+                TemplateNode::Text(_)
+                | TemplateNode::Comment(_)
+                | TemplateNode::ExpressionTag(_)
+                | TemplateNode::ConstTag(_)
+                | TemplateNode::DebugTag(_) => {}
+                _ => return false,
+            }
+        }
+    }
+    true
+}
+
 /// Node existence values, mirroring Svelte's NODE_DEFINITELY_EXISTS / NODE_PROBABLY_EXISTS.
 const NODE_DEFINITELY_EXISTS: u8 = 1;
 const NODE_PROBABLY_EXISTS: u8 = 2;
@@ -73,6 +113,28 @@ pub fn build_sibling_relationships(dom_structure: &mut DomStructure, root_fragme
     // Third pass: mark elements that are adjacent to opaque boundaries
     // (slots, render tags, components). This is used for :global(X) + Y detection.
     mark_opaque_boundary_adjacency(dom_structure, root_fragment, &node_to_dom_idx);
+}
+
+pub fn build_static_sibling_relationships(dom_structure: &mut DomStructure) {
+    let mut previous_by_parent: FxHashMap<Option<usize>, usize> = FxHashMap::default();
+    for current_idx in 0..dom_structure.elements.len() {
+        let parent_idx = dom_structure.elements[current_idx].parent_idx;
+        if let Some(previous_idx) = previous_by_parent.insert(parent_idx, current_idx) {
+            dom_structure.elements[current_idx]
+                .possible_prev_adjacent
+                .push((previous_idx, SiblingCertainty::Definite));
+            dom_structure.elements[current_idx]
+                .possible_prev_general
+                .push((previous_idx, SiblingCertainty::Definite));
+            dom_structure.elements[previous_idx]
+                .possible_next_adjacent
+                .push((current_idx, SiblingCertainty::Definite));
+            dom_structure.elements[previous_idx]
+                .possible_next_general
+                .push((current_idx, SiblingCertainty::Definite));
+        }
+    }
+    dom_structure.general_siblings_linked = true;
 }
 
 /// Convert results map to Vec of (dom_idx, certainty) pairs.

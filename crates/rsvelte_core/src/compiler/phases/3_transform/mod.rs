@@ -85,6 +85,34 @@ pub fn transform_component(
     source: &str,
     options: &CompileOptions,
 ) -> Result<TransformResult, TransformError> {
+    transform_component_with_sourcemap_content(analysis, ast, source, options, true)
+}
+
+pub(crate) fn transform_component_with_sourcemap_content(
+    analysis: &ComponentAnalysis,
+    ast: &Root,
+    source: &str,
+    options: &CompileOptions,
+    include_sourcemap_content: bool,
+) -> Result<TransformResult, TransformError> {
+    transform_component_with_scripts(
+        analysis,
+        ast,
+        source,
+        options,
+        include_sourcemap_content,
+        None,
+    )
+}
+
+pub(crate) fn transform_component_with_scripts(
+    analysis: &ComponentAnalysis,
+    ast: &Root,
+    source: &str,
+    options: &CompileOptions,
+    include_sourcemap_content: bool,
+    retained_scripts: Option<&crate::ast::oxc_program::RetainedScripts<'_>>,
+) -> Result<TransformResult, TransformError> {
     use js_ast::codegen::{
         SourceMapping, encode_vlq_mappings, generate_sourcemap_json, get_source_name,
         remap_through_sourcemap,
@@ -92,10 +120,8 @@ pub fn transform_component(
 
     let (js, mut js_mappings) = match options.generate {
         GenerateMode::Client => {
-            let mut result = client::transform_client(analysis, ast, source, options)?;
-            // Strip unnecessary parens around arrow functions (e.g., (() => { ... }) → () => { ... })
-            // matching the official Svelte compiler's AST printer behavior.
-            result.code = server::transform_script::strip_arrow_function_parens(result.code);
+            let result =
+                client::transform_client(analysis, ast, source, options, retained_scripts)?;
 
             if options.enable_sourcemap {
                 // Merge codegen-tracked mappings with full token-level mappings.
@@ -216,7 +242,13 @@ pub fn transform_component(
 
     let css = if analysis.css.has_css && !analysis.inject_styles {
         let _css_start = profile::timer_start();
-        let mut css_output = css::render_stylesheet(analysis, ast.css.as_deref(), source, options)?;
+        let mut css_output = css::render_stylesheet_with_sourcemap_content(
+            analysis,
+            ast.css.as_deref(),
+            source,
+            options,
+            include_sourcemap_content,
+        )?;
         profile::record_css_render(profile::timer_elapsed(_css_start));
         // Apply preprocessor source map composition to CSS map if needed
         if let Some(ref pp_map_json) = options.sourcemap
@@ -349,8 +381,12 @@ pub fn transform_component(
             // The VLQ encoding uses ';' to separate lines. If the last mapping is on
             // line N but the output has M>N lines, we need trailing semicolons so
             // that decode() produces an array of length M+1.
-            let output_line_count = js.chars().filter(|&c| c == '\n').count();
-            let mapped_lines = mappings_str.chars().filter(|&c| c == ';').count();
+            let output_line_count = js.as_bytes().iter().filter(|&&c| c == b'\n').count();
+            let mapped_lines = mappings_str
+                .as_bytes()
+                .iter()
+                .filter(|&&c| c == b';')
+                .count();
             for _ in mapped_lines..output_line_count {
                 mappings_str.push(';');
             }
@@ -435,7 +471,7 @@ pub fn transform_component(
                         Some(generate_sourcemap_json(
                             &file_name,
                             &multi_sources[0],
-                            content,
+                            include_sourcemap_content.then_some(content),
                             &mappings_str,
                             &names_refs,
                         ))
@@ -462,7 +498,7 @@ pub fn transform_component(
                     Some(generate_sourcemap_json(
                         &file_name,
                         &source_name,
-                        content,
+                        include_sourcemap_content.then_some(content),
                         &mappings_str,
                         &names_refs,
                     ))
@@ -471,7 +507,7 @@ pub fn transform_component(
                 Some(generate_sourcemap_json(
                     &file_name,
                     &source_name,
-                    source,
+                    include_sourcemap_content.then_some(source),
                     &mappings_str,
                     &[],
                 ))
@@ -509,7 +545,7 @@ pub fn transform_component(
                 Some(generate_sourcemap_json(
                     &file_name,
                     &source_name,
-                    source,
+                    include_sourcemap_content.then_some(source),
                     &mappings_str,
                     &[],
                 ))
@@ -627,11 +663,11 @@ pub(crate) fn remap_css_sourcemap(
     generate_sourcemap_json(
         file_name,
         &source_name,
-        if original_content.is_empty() {
+        Some(if original_content.is_empty() {
             ""
         } else {
             original_content
-        },
+        }),
         &mappings_str,
         &names_refs,
     )

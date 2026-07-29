@@ -138,9 +138,9 @@ export interface CompileResultJs {
 	map: unknown;
 	/**
 	 * Zero-copy `Buffer` / `Uint8Array` view over the raw sourcemap
-	 * JSON bytes in the envelope. `null` if no map was produced. Stable
-	 * for the lifetime of the parent `CompileResult` (becomes invalid
-	 * once a `compileEnvelopeZeroCopy` buffer is GC'd).
+	 * JSON bytes in a raw envelope. The standard `compile` wrappers
+	 * externalize the source text and materialize a complete buffer on
+	 * access instead. `null` if no map was produced.
 	 */
 	mapBytes: Buffer | Uint8Array | null;
 	/** Raw sourcemap JSON as a string — no `JSON.parse`. `null` if no map. */
@@ -214,8 +214,8 @@ export function compileModuleEnvelopeZeroCopy(
 	options?: ModuleCompileOptions,
 ): Buffer;
 
-/** Decode a buffer produced by {@link compileEnvelope}. */
-export function decodeEnvelope(buf: Buffer | Uint8Array): CompileResult;
+/** Decode an envelope, optionally restoring externally supplied source text. */
+export function decodeEnvelope(buf: Buffer | Uint8Array, sourceContent?: string): CompileResult;
 
 /**
  * Single entry in a {@link compileBatch} worklist. `options` is
@@ -249,8 +249,11 @@ export function compileBatch(
  */
 export function compileBatchRaw(inputs: CompileBatchInput[]): Buffer;
 
-/** Decode a batch envelope produced by {@link compileBatchRaw}. */
-export function decodeBatch(buf: Buffer | Uint8Array): Array<CompileResult | Error>;
+/** Decode a batch envelope, optionally restoring externally supplied source text. */
+export function decodeBatch(
+	buf: Buffer | Uint8Array,
+	sourceContents?: string[],
+): Array<CompileResult | Error>;
 
 /**
  * Async variant of {@link compile}. The Rust side runs on a libuv

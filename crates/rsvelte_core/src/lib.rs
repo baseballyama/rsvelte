@@ -31,6 +31,7 @@ pub mod lint_scope;
 pub mod svelte2tsx;
 #[cfg(feature = "native")]
 pub mod svelte_check;
+pub mod toolchain;
 pub mod vps;
 
 // The raw-transfer envelope stays in this crate (rather than in `rsvelte_napi`)

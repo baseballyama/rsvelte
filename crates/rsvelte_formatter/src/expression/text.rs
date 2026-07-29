@@ -130,62 +130,41 @@ pub(super) fn collapse_multiline_to_single_line(formatted: &str) -> String {
     format!("{first}{joined}{last}")
 }
 
-/// Computes the length of the block-header "suffix" — the text from the end of the
-/// block's expression to the closing `}` of the header line (inclusive).
-///
-/// For `{#each items as x (k)}`, if `expr_end` points right after `items`, the suffix
-/// is ` as x (k)}` (length 12).  For `{#if cond}` with `expr_end` after `cond`, the
-/// suffix is `}` (length 1).
-///
-/// We scan forward through `source` starting at `expr_end`, tracking brace/paren/bracket
-/// depth, and stop at the first `}` that returns us to depth 0.
 pub(super) fn compute_header_suffix_len(source: &str, expr_end: usize) -> usize {
-    let tail = match source.get(expr_end..) {
-        Some(t) => t,
-        None => return 0,
+    let Some(tail) = source.get(expr_end..) else {
+        return 0;
     };
-    let mut depth: i32 = 0;
-    let mut len = 0usize;
-    let mut in_string: Option<char> = None;
+    let mut depth = 0i32;
+    let mut scanned_bytes = 0usize;
+    let mut quote = None;
     let chars: Vec<char> = tail.chars().collect();
-    let mut i = 0;
-    while i < chars.len() {
-        let c = chars[i];
-        len += c.len_utf8();
-        match in_string {
-            Some(q) => {
-                if c == '\\' {
-                    // skip next char
-                    i += 1;
-                    if i < chars.len() {
-                        len += chars[i].len_utf8();
+    let mut index = 0usize;
+    while index < chars.len() {
+        let character = chars[index];
+        scanned_bytes += character.len_utf8();
+        match quote {
+            Some(delimiter) => {
+                if character == '\\' {
+                    index += 1;
+                    if index < chars.len() {
+                        scanned_bytes += chars[index].len_utf8();
                     }
-                } else if c == q {
-                    in_string = None;
+                } else if character == delimiter {
+                    quote = None;
                 }
             }
-            None => match c {
-                '"' | '\'' | '`' => in_string = Some(c),
+            None => match character {
+                '"' | '\'' | '`' => quote = Some(character),
                 '{' | '(' | '[' => depth += 1,
-                '}' => {
-                    if depth == 0 {
-                        // This `}` closes the block header — include it and stop.
-                        return len;
-                    }
-                    depth -= 1;
+                '}' if depth == 0 => {
+                    return UnicodeWidthStr::width(&tail[..scanned_bytes]);
                 }
-                ')' | ']' if depth > 0 => {
-                    depth -= 1;
-                }
-                '\n' => {
-                    // If we hit a newline before finding the closing `}`, the
-                    // header closes on the next line — return current len (0 suffix).
-                    return 0;
-                }
+                '}' | ')' | ']' if depth > 0 => depth -= 1,
+                '\n' => return 0,
                 _ => {}
             },
         }
-        i += 1;
+        index += 1;
     }
     0
 }
@@ -597,3 +576,4 @@ pub(crate) fn expand_obj_arg_call(s: &str, indent_width: usize) -> Option<String
         Some(result)
     }
 }
+use unicode_width::UnicodeWidthStr;

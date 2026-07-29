@@ -1,7 +1,7 @@
 //! Arena allocator for JavaScript AST nodes.
 //!
-//! We store all expressions and statements behind stable boxes and reference
-//! them by index (`ExprId` / `StmtId`).  This gives:
+//! We store expressions and statements in stable chunks and reference them by
+//! index (`ExprId` / `StmtId`). This gives:
 //!
 //! - **Zero-cost reads** (`arena.get_expr(id)` is a single array index)
 //! - **Stable shared references** (pushing more handles cannot move nodes)
@@ -17,8 +17,7 @@
 //!
 //! The arena is single-threaded (not `Sync`) and append-only for safe APIs.
 //! `UnsafeCell` is safe here because:
-//! - Safe allocation stores nodes behind `Box`, so `Vec` reallocation cannot
-//!   move values referenced by previously returned shared references
+//! - Growing the chunk-pointer `Vec` cannot move nodes in existing chunks
 //! - Builders return handles or owned values, not mutable references into
 //!   arena storage
 //! - Mutable/destructive access is `unsafe` and requires callers to prove no
@@ -26,6 +25,7 @@
 
 use super::nodes::{JsExpr, JsStatement};
 use std::cell::UnsafeCell;
+use std::mem::MaybeUninit;
 
 /// Handle to an expression stored in the arena.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -35,16 +35,67 @@ pub struct ExprId(pub u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct StmtId(pub u32);
 
+const NODE_CHUNK_BITS: usize = 5;
+const NODE_CHUNK_SIZE: usize = 1 << NODE_CHUNK_BITS;
+const NODE_CHUNK_MASK: usize = NODE_CHUNK_SIZE - 1;
+
+struct NodeStore<T> {
+    chunks: Vec<Box<[MaybeUninit<T>]>>,
+    len: usize,
+}
+
+impl<T> NodeStore<T> {
+    fn new() -> Self {
+        Self {
+            chunks: Vec::new(),
+            len: 0,
+        }
+    }
+
+    #[inline(always)]
+    fn push(&mut self, value: T) -> usize {
+        if self.len & NODE_CHUNK_MASK == 0 {
+            self.chunks
+                .push(Box::<[T]>::new_uninit_slice(NODE_CHUNK_SIZE));
+        }
+        let index = self.len;
+        self.len += 1;
+        // SAFETY: the chunk was allocated above and this slot is written once.
+        unsafe { self.ptr(index).write(value) };
+        index
+    }
+
+    #[inline(always)]
+    unsafe fn ptr(&self, index: usize) -> *mut T {
+        // SAFETY: callers only pass initialized indices below `len`.
+        unsafe {
+            self.chunks
+                .get_unchecked(index >> NODE_CHUNK_BITS)
+                .as_ptr()
+                .add(index & NODE_CHUNK_MASK)
+                .cast_mut()
+                .cast::<T>()
+        }
+    }
+}
+
+impl<T> Drop for NodeStore<T> {
+    fn drop(&mut self) {
+        for index in 0..self.len {
+            // SAFETY: slots below `len` were initialized exactly once.
+            unsafe { self.ptr(index).drop_in_place() };
+        }
+    }
+}
+
 /// Arena that owns all `JsExpr` and `JsStatement` nodes for a single
 /// compilation unit.
 ///
 /// Allocation takes `&self` (not `&mut self`) so that builder functions
 /// can nest calls without borrow-checker conflicts.
 pub struct JsArena {
-    #[allow(clippy::vec_box)] // Box keeps expression addresses stable across handle Vec growth.
-    exprs: UnsafeCell<Vec<Box<JsExpr>>>,
-    #[allow(clippy::vec_box)] // Box keeps statement addresses stable across handle Vec growth.
-    stmts: UnsafeCell<Vec<Box<JsStatement>>>,
+    exprs: UnsafeCell<NodeStore<JsExpr>>,
+    stmts: UnsafeCell<NodeStore<JsStatement>>,
 }
 
 // JsArena is explicitly NOT Sync - it's single-threaded only.
@@ -55,11 +106,11 @@ pub struct JsArena {
 unsafe impl Send for JsArena {}
 
 impl JsArena {
-    /// Create a new arena with pre-allocated capacity for typical component size.
+    /// Create an empty arena. The first node allocates one fixed-size chunk.
     pub fn new() -> Self {
         Self {
-            exprs: UnsafeCell::new(Vec::with_capacity(256)),
-            stmts: UnsafeCell::new(Vec::with_capacity(64)),
+            exprs: UnsafeCell::new(NodeStore::new()),
+            stmts: UnsafeCell::new(NodeStore::new()),
         }
     }
 
@@ -70,13 +121,10 @@ impl JsArena {
     /// Takes `&self` (not `&mut self`) to allow nested builder calls.
     #[inline(always)]
     pub fn alloc_expr(&self, expr: JsExpr) -> ExprId {
-        // SAFETY: single-threaded append. Values are stored behind `Box`, so
-        // growing the handle Vec cannot move expressions referenced earlier.
+        // SAFETY: single-threaded append into stable chunks.
         unsafe {
-            let vec = &mut *self.exprs.get();
-            let id = ExprId(vec.len() as u32);
-            vec.push(Box::new(expr));
-            id
+            let store = &mut *self.exprs.get();
+            ExprId(store.push(expr) as u32)
         }
     }
 
@@ -85,8 +133,8 @@ impl JsArena {
     pub fn get_expr(&self, id: ExprId) -> &JsExpr {
         // SAFETY: single-threaded read from stable boxed storage.
         unsafe {
-            let vec = &*self.exprs.get();
-            vec[id.0 as usize].as_ref()
+            let store = &*self.exprs.get();
+            &*store.ptr(id.0 as usize)
         }
     }
 
@@ -103,9 +151,9 @@ impl JsArena {
     pub unsafe fn take_expr(&self, id: ExprId) -> JsExpr {
         // SAFETY: Enforced by the caller's contract above.
         unsafe {
-            let vec = &mut *self.exprs.get();
+            let store = &mut *self.exprs.get();
             std::mem::replace(
-                vec[id.0 as usize].as_mut(),
+                &mut *store.ptr(id.0 as usize),
                 JsExpr::Literal(super::nodes::JsLiteral::Null),
             )
         }
@@ -120,10 +168,8 @@ impl JsArena {
     pub fn alloc_stmt(&self, stmt: JsStatement) -> StmtId {
         // SAFETY: same as alloc_expr
         unsafe {
-            let vec = &mut *self.stmts.get();
-            let id = StmtId(vec.len() as u32);
-            vec.push(Box::new(stmt));
-            id
+            let store = &mut *self.stmts.get();
+            StmtId(store.push(stmt) as u32)
         }
     }
 
@@ -132,8 +178,8 @@ impl JsArena {
     pub fn get_stmt(&self, id: StmtId) -> &JsStatement {
         // SAFETY: same as get_expr
         unsafe {
-            let vec = &*self.stmts.get();
-            vec[id.0 as usize].as_ref()
+            let store = &*self.stmts.get();
+            &*store.ptr(id.0 as usize)
         }
     }
 }
@@ -148,7 +194,7 @@ impl std::fmt::Debug for JsArena {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // SAFETY: only reading len, no mutation
         let (exprs_count, stmts_count) =
-            unsafe { ((*self.exprs.get()).len(), (*self.stmts.get()).len()) };
+            unsafe { ((*self.exprs.get()).len, (*self.stmts.get()).len) };
         f.debug_struct("JsArena")
             .field("exprs_count", &exprs_count)
             .field("stmts_count", &stmts_count)
