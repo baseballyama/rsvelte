@@ -113,7 +113,8 @@ impl Utf8ToUtf16 {
         }
     }
 
-    pub(crate) fn convert(&self, utf8_pos: usize) -> usize {
+    #[doc(hidden)]
+    pub fn convert(&self, utf8_pos: usize) -> usize {
         if utf8_pos >= self.utf16_pos.len() {
             self.utf16_pos.last().copied().unwrap_or(0) as usize
         } else {
@@ -137,7 +138,8 @@ impl Utf8ToUtf16 {
 
     /// Convert a column from byte offset to UTF-16 code unit offset within a line.
     /// line is 1-based, column is 0-based byte offset from line start.
-    pub(crate) fn convert_column(&self, line: usize, byte_column: usize) -> usize {
+    #[doc(hidden)]
+    pub fn convert_column(&self, line: usize, byte_column: usize) -> usize {
         if line == 0 || line > self.line_starts_byte.len() {
             return byte_column;
         }

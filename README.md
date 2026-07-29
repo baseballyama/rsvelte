@@ -137,38 +137,25 @@ Need the exact `svelte/compiler` surface (`compile`, `compileModule`, `parse`, `
 
 ```toml
 [dependencies]
-rsvelte_core = { git = "https://github.com/baseballyama/rsvelte", default-features = false }
+rsvelte = { version = "0.9.4", features = ["projection"] }
 ```
 
 ```rust
-use rsvelte_core::{compile, CompileOptions};
-
-let result = compile("<h1>Hello, {name}!</h1>", CompileOptions::default()).unwrap();
-println!("{}", result.js.code);
-```
-
-The Rust API honours **every** compile option, including `css_hash` and `warning_filter` as real closures.
-Compiler-only embedders should disable the default `native` feature as shown
-above. The default feature adds rsvelte's CLI, file-watching, module-resolution,
-parallelism, and allocator integrations; none are required by `Toolchain`.
-
-Native toolchains that need more than a one-shot compile can use the policy-free
-`rsvelte_core::toolchain` facade:
-
-```rust
-use rsvelte_core::{
-    CompileOptions,
-    svelte2tsx::Svelte2TsxOptions,
-    toolchain::{RuntimeTarget, Toolchain},
-};
+use rsvelte::{ComponentOptions, Engine, ProjectionOptions, RuntimeTarget};
 
 let source = r#"<script>let count = $state(0)</script><button>{count}</button>"#;
-let toolchain = Toolchain::new();
-let mut component = toolchain.prepare(source, CompileOptions::default())?;
+let engine = Engine::new();
+let mut component = engine.prepare(
+    source,
+    ComponentOptions::new().filename("Counter.svelte"),
+)?;
 
 let client = component.compile(RuntimeTarget::Client)?;
 let server = component.compile(RuntimeTarget::Server)?;
-let projection = toolchain.project(source, Svelte2TsxOptions::default())?;
+let projection = engine.project(
+    source,
+    ProjectionOptions::new().filename("Counter.svelte"),
+)?;
 
 assert!(component.facts().runes);
 assert!(projection.exact_mappings.is_some());
@@ -180,10 +167,15 @@ options, and can emit client and server output repeatedly in any order. It
 borrows the source, is `Send` but intentionally not `Sync`, and requires a
 mutable single-worker lease while emitting. Projection remains a separate
 operation because `svelte2tsx` intentionally uses different parse semantics.
-The facade performs no filesystem access and owns no cache, scheduler, or
-thread pool; embedders can namespace their own caches with
-`Toolchain::fingerprint()` and retain the returned OXC-free fact and mapping
-DTOs.
+The `rsvelte` facade has an empty default feature set, performs no filesystem
+access, and owns no cache, scheduler, thread pool, or global allocator.
+Embedders can namespace caches with `Engine::fingerprint()` and retain the
+returned owned, OXC-free artifacts, diagnostics, facts, and mapping DTOs.
+
+`rsvelte_core` and `rsvelte_projection` remain available as low-level `0.x`
+implementation crates for consumers that intentionally need compiler-specific
+types or the full raw option surface. Their APIs are not the stable embedding
+boundary.
 
 For everything else there's a stable **C ABI** ([`crates/rsvelte_capi`](crates/rsvelte_capi)): one shared library + one header, JSON in / JSON out (plus optional `cssHash` / `warningFilter` callbacks), with prebuilt binaries on [GitHub Releases](https://github.com/baseballyama/rsvelte/releases) (`capi-vX.Y.Z` tags) and ready-to-run examples for C, Go, Python, Ruby, PHP, Zig, and Java.
 

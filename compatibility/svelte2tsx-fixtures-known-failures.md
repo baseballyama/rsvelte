@@ -1,7 +1,7 @@
 # svelte2tsx-fixtures-known-failures.json — why entries are accepted
 
-The svelte2tsx **fixture** gate (`crates/rsvelte_core/tests/svelte2tsx_fixtures.rs`,
-logic in `crates/rsvelte_core/tests/common/svelte2tsx.rs`) runs every sample under
+The svelte2tsx **fixture** gate (`crates/rsvelte_projection/tests/svelte2tsx_fixtures.rs`,
+logic in `crates/rsvelte_projection/tests/common/svelte2tsx.rs`) runs every sample under
 `submodules/language-tools/packages/svelte2tsx/test/svelte2tsx/samples` and compares
 rsvelte's TSX against the checked-in `expectedv2.ts`. The ratchet may only shrink.
 
@@ -48,7 +48,7 @@ which is how you check whether an entry is still needed.
   All three declare a binding literally named `props` and then call `$props.id()`
   (the Svelte 5 component-id rune). rsvelte's text-level `$name` scan
   (`collect_store_references` / `collect_loose_dollar_names_from_script` in
-  `crates/rsvelte_core/src/svelte2tsx/script/mod.rs`) sees the `$props`
+  `crates/rsvelte_projection/src/svelte2tsx/script/mod.rs`) sees the `$props`
   token, finds a declared binding `props`, and injects a store subscription:
 
   ```

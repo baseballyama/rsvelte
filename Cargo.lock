@@ -161,15 +161,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "backtrace-ext"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "537beee3be4a18fb023b570f80e3ae28003db9167a751266b259926e25539d50"
-dependencies = [
- "backtrace",
-]
-
-[[package]]
 name = "base64-simd"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1193,12 +1184,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "is_ci"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7655c9839580ee829dfacba1d1278c2b7883e50a277ff7541299489d6bdfdc45"
-
-[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1397,16 +1382,8 @@ version = "7.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f98efec8807c63c752b5bd61f862c165c115b0a35685bdcfd9238c7aeb592b7"
 dependencies = [
- "backtrace",
- "backtrace-ext",
  "cfg-if",
  "miette-derive",
- "owo-colors",
- "supports-color",
- "supports-hyperlinks",
- "supports-unicode",
- "terminal_size",
- "textwrap",
  "unicode-width 0.1.14",
 ]
 
@@ -2386,6 +2363,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
+name = "rsvelte"
+version = "0.9.5"
+dependencies = [
+ "rsvelte_core",
+ "rsvelte_projection",
+ "static_assertions",
+]
+
+[[package]]
+name = "rsvelte_bindings_support"
+version = "0.1.0"
+dependencies = [
+ "bumpalo",
+ "compact_str 0.10.0",
+ "oxc_allocator",
+ "rsvelte_core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rsvelte_capi"
 version = "0.1.1"
 dependencies = [
@@ -2396,39 +2394,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_check"
+version = "0.5.2"
+dependencies = [
+ "clap",
+ "notify",
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_parser",
+ "oxc_resolver",
+ "oxc_span",
+ "rayon",
+ "regex",
+ "rsvelte_core",
+ "rsvelte_diagnostics",
+ "rsvelte_projection",
+ "serde",
+ "serde_json",
+ "sourcemap",
+ "walkdir",
+]
+
+[[package]]
 name = "rsvelte_core"
 version = "0.9.5"
 dependencies = [
  "bumpalo",
  "chrono",
- "clap",
- "codspeed-criterion-compat",
  "compact_str 0.10.0",
- "console_error_panic_hook",
  "getrandom 0.4.3",
  "glob",
  "im",
  "indexmap",
  "insta",
  "itoa",
- "js-sys",
  "lazy_static",
  "memchr",
  "miette",
- "mimalloc",
- "notify",
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",
  "oxc_codegen",
  "oxc_diagnostics",
- "oxc_formatter",
  "oxc_parser",
- "oxc_resolver",
  "oxc_semantic",
  "oxc_span",
  "oxc_syntax",
- "pprof",
  "pretty_assertions",
  "rayon",
  "regex",
@@ -2443,15 +2454,46 @@ dependencies = [
  "string_wizard",
  "test-generator",
  "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "rsvelte_devtools"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "codspeed-criterion-compat",
+ "mimalloc",
+ "oxc_allocator",
+ "oxc_codegen",
+ "oxc_formatter",
+ "oxc_parser",
+ "oxc_span",
+ "pprof",
+ "rayon",
+ "regex",
+ "rsvelte_core",
+ "rsvelte_esrap",
+ "rsvelte_projection",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "similar 3.1.1",
  "tikv-jemallocator",
  "tokio",
  "walkdir",
- "wasm-bindgen",
+]
+
+[[package]]
+name = "rsvelte_diagnostics"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
 name = "rsvelte_esrap"
-version = "0.7.11"
+version = "0.8.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -2520,7 +2562,9 @@ dependencies = [
  "crossbeam-channel",
  "lsp-server",
  "lsp-types",
+ "rsvelte_check",
  "rsvelte_core",
+ "rsvelte_diagnostics",
  "rsvelte_fmt",
  "rsvelte_lint",
  "serde",
@@ -2538,10 +2582,12 @@ dependencies = [
  "oxc_ast",
  "oxc_ast_visit",
  "oxc_parser",
+ "oxc_semantic",
  "oxc_span",
  "rayon",
  "regex",
  "rsvelte_core",
+ "rsvelte_diagnostics",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -2552,11 +2598,16 @@ dependencies = [
 name = "rsvelte_lint_bindings"
 version = "0.8.0"
 dependencies = [
+ "console_error_panic_hook",
+ "js-sys",
  "napi",
  "napi-build",
  "napi-derive",
+ "oxc_allocator",
  "rsvelte_core",
  "rsvelte_lint",
+ "rsvelte_projection",
+ "serde_json",
  "wasm-bindgen",
 ]
 
@@ -2569,7 +2620,9 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "rsvelte_bindings_support",
  "rsvelte_core",
+ "rsvelte_projection",
  "rustc-hash",
  "serde_json",
  "tikv-jemallocator",
@@ -2582,6 +2635,26 @@ dependencies = [
  "grass",
  "rsvelte_core",
  "tokio",
+]
+
+[[package]]
+name = "rsvelte_projection"
+version = "0.9.5"
+dependencies = [
+ "indexmap",
+ "memchr",
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_ast_visit",
+ "oxc_parser",
+ "oxc_span",
+ "oxc_syntax",
+ "pretty_assertions",
+ "regex",
+ "rsvelte_core",
+ "rustc-hash",
+ "serde_json",
+ "sourcemap",
 ]
 
 [[package]]
@@ -2877,27 +2950,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
-name = "supports-color"
-version = "3.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c64fc7232dd8d2e4ac5ce4ef302b1d81e0b80d055b9d77c7c4f51f6aa4c867d6"
-dependencies = [
- "is_ci",
-]
-
-[[package]]
-name = "supports-hyperlinks"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e396b6523b11ccb83120b115a0b7366de372751aa6edf19844dfb13a6af97e91"
-
-[[package]]
-name = "supports-unicode"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7401a30af6cb5818bb64852270bb722533397edcfc7344954a38f420819ece2"
-
-[[package]]
 name = "symbolic-common"
 version = "12.18.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2986,16 +3038,6 @@ dependencies = [
  "fastrand",
  "getrandom 0.4.3",
  "once_cell",
- "rustix",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "terminal_size"
-version = "0.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "230a1b821ccbd75b185820a1f1ff7b14d21da1e442e22c0863ea5f08771a8874"
-dependencies = [
  "rustix",
  "windows-sys 0.61.2",
 ]

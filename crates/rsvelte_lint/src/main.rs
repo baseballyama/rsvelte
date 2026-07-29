@@ -10,7 +10,7 @@ use std::process::ExitCode;
 
 use clap::Parser;
 use rayon::prelude::*;
-use rsvelte_core::svelte_check::diagnostic::{Diagnostic, DiagnosticSeverity};
+use rsvelte_diagnostics::{Diagnostic, DiagnosticSeverity};
 
 use rsvelte_lint::rule::Severity;
 use rsvelte_lint::{LintConfig, LintFormat, fix_source, lint_file, presets, render};

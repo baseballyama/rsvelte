@@ -2,7 +2,7 @@
 name = "rsvelte_lint"
 version = "0.9.5"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 description = "Fast native Svelte linter built on the rsvelte compiler (validator wrap + native rule engine)"
 license = "MIT"
 publish = false
@@ -32,19 +32,17 @@ default = ["cli"]
 # The CLI: native compiler backend + ESLint-config import + the bin's runtime
 # deps (clap/walkdir/rayon).
 cli = ["native", "eslint-import", "dep:clap", "dep:walkdir", "dep:rayon"]
-# Native backend — pulls in rsvelte_core's `native` feature (svelte_check etc.).
-native = ["rsvelte_core/native"]
+# Native product surface (CLI diagnostics, validation, and source-scan rules).
+# Compiler parallelism is an independent opt-in owned by binary callers.
+native = []
 # `--config-from-eslint` importer (OXC). Off in the wasm build.
 eslint-import = [
-    "dep:oxc_allocator",
-    "dep:oxc_parser",
-    "dep:oxc_ast",
     "dep:oxc_ast_visit",
-    "dep:oxc_span",
 ]
 
 [dependencies]
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
+rsvelte_diagnostics = { path = "../rsvelte_diagnostics" }
 anyhow = "1.0"
 compact_str = { version = "0.10", features = ["serde"] }
 # Minimal regex feature set (see rsvelte_core's regex dep) — only `(?i)`/`\w \s`
@@ -60,11 +58,12 @@ rayon = { version = "1.10", optional = true }
 
 # OXC — same git rev as rsvelte_core (unified by the workspace `[patch]`),
 # used only to statically parse `eslint.config.js` for the config importer.
-oxc_allocator = { version = "0.141", optional = true }
-oxc_parser = { version = "0.141", optional = true }
-oxc_ast = { version = "0.141", optional = true }
+oxc_allocator = "0.141"
+oxc_parser = "0.141"
+oxc_ast = "0.141"
 oxc_ast_visit = { version = "0.141", optional = true }
-oxc_span = { version = "0.141", optional = true }
+oxc_span = "0.141"
+oxc_semantic = "0.141"
 
 [dev-dependencies]
 serde_json = "1.0"

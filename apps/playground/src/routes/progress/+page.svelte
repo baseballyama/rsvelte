@@ -84,7 +84,8 @@
 			<p class="lede">{data.error}</p>
 			<pre class="empty-code"><code
 					><span class="c-cmt"># From the repo root</span>
-<span class="c-prompt">$</span> cargo run <span class="c-flag">--release --bin</span
+<span class="c-prompt">$</span> cargo run <span class="c-flag"
+						>--release -p rsvelte_devtools --bin</span
 					> test_reporter <span class="c-op">--</span> <span class="c-op">\</span>
     <span class="c-flag">--output</span> apps/playground/static/test-results.json</code
 				></pre>

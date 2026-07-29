@@ -4,7 +4,7 @@
 //! first, then the `@typescript/native-preview` npm layout discovered by
 //! walking up from a starting directory, then `PATH`.
 //!
-//! NOT the same thing as `rsvelte_core::svelte_check::tsgo::find_compiler`,
+//! NOT the same thing as `rsvelte_check::tsgo::find_compiler`,
 //! which resolves a BATCH compiler run as `<bin> -p tsconfig --pretty false`
 //! and is overridden by `$TSGO_BIN`. What we need here is a long-lived corsa
 //! API worker (`<bin> --api --cwd …`, msgpack/JSON-RPC over stdio) — a mode

@@ -2,7 +2,7 @@
 name = "rsvelte_fmt"
 version = "0.7.4"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 description = "Fast Svelte + JS/TS/CSS formatter — dispatches .svelte to rsvelte_formatter and other files to oxfmt"
 license = "MIT"
 publish = false
@@ -17,7 +17,7 @@ name = "rsvelte-fmt"
 path = "src/main.rs"
 
 # Benchmark driver invoked by `scripts/bench/run-benchmark.mjs` for the `fmt`
-# task. Lives here (not in `rsvelte_core`'s `benchmark_runner`) because the
+# task. Lives here (not in `rsvelte_devtools`' `benchmark_runner`) because the
 # formatter sits in `rsvelte_formatter`, which depends on `rsvelte_core` —
 # the reverse dependency would be a cycle.
 [[bin]]

@@ -1,0 +1,150 @@
+name: crates.io packages
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/crates-io-packages.yml"
+      - ".github/workflows/publish-crates.yml"
+      - ".changeset/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "apps/npm/compiler/package.json"
+      - "crates/rsvelte/**"
+      - "crates/rsvelte_core/**"
+      - "crates/rsvelte_esrap/**"
+      - "crates/rsvelte_projection/**"
+      - "docs/crates-io-publishing.md"
+      - "package.json"
+      - "scripts/ci/check-crates-io-packages.mjs"
+      - "scripts/ci/verify-registry-dependency-surface.sh"
+      - "scripts/release/check-core-consumer-changesets.mjs"
+      - "scripts/release/check-esrap-version-bump.mjs"
+      - "scripts/release/sync-version.mjs"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/crates-io-packages.yml"
+      - ".github/workflows/publish-crates.yml"
+      - ".changeset/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "apps/npm/compiler/package.json"
+      - "crates/rsvelte/**"
+      - "crates/rsvelte_core/**"
+      - "crates/rsvelte_esrap/**"
+      - "crates/rsvelte_projection/**"
+      - "docs/crates-io-publishing.md"
+      - "package.json"
+      - "scripts/ci/check-crates-io-packages.mjs"
+      - "scripts/ci/verify-registry-dependency-surface.sh"
+      - "scripts/release/check-core-consumer-changesets.mjs"
+      - "scripts/release/check-esrap-version-bump.mjs"
+      - "scripts/release/sync-version.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crates-io-packages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package-policy:
+    name: MSRV, package, and docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Rust MSRV
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: "1.95"
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          key: crates-io-msrv
+
+      - name: Check package policy
+        run: node scripts/ci/check-crates-io-packages.mjs
+
+      - name: Verify registry dependency surface without workspace patches
+        run: bash scripts/ci/verify-registry-dependency-surface.sh
+
+      - name: Check minimal libraries on the declared MSRV
+        run: |
+          cargo check --locked -p rsvelte_esrap --lib
+          cargo check --locked -p rsvelte_core --no-default-features --lib
+          cargo check --locked -p rsvelte_projection --no-default-features --lib
+          cargo check --locked -p rsvelte --all-features --lib
+
+      - name: Test minimal libraries on the declared MSRV
+        run: |
+          cargo test --locked -p rsvelte_esrap --lib
+          cargo test --locked -p rsvelte_core --no-default-features --lib
+          cargo test --locked -p rsvelte_projection --no-default-features --lib
+          cargo test --locked -p rsvelte --all-features
+
+      - name: Build docs with warnings denied
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: |
+          cargo doc --locked -p rsvelte_esrap --no-deps
+          cargo doc --locked -p rsvelte_core --no-default-features --no-deps
+          cargo doc --locked -p rsvelte_projection --no-default-features --no-deps
+          cargo doc --locked -p rsvelte --all-features --no-deps
+
+      - name: Build and verify the rsvelte_esrap package
+        run: cargo package --locked -p rsvelte_esrap
+
+      - name: Enforce the crates.io archive size limit
+        run: |
+          version="$(cargo metadata --locked --no-deps --format-version 1 \
+            | jq -er '.packages[] | select(.name == "rsvelte_esrap") | .version')"
+          archive="target/package/rsvelte_esrap-${version}.crate"
+          test -f "$archive"
+          test "$(stat -c '%s' "$archive")" -lt 10485760
+
+      - name: Detect whether this exact release set exists on crates.io
+        id: registry-release
+        shell: bash
+        run: |
+          set -euo pipefail
+          metadata="$(cargo metadata --locked --no-deps --format-version 1)"
+          version_of() {
+            jq -er --arg name "$1" '.packages[] | select(.name == $name) | .version' <<<"$metadata"
+          }
+          ready=true
+          for crate in rsvelte_esrap rsvelte_core rsvelte_projection; do
+            version="$(version_of "$crate")"
+            if ! cargo info "${crate}@${version}" --registry crates-io >/dev/null 2>&1; then
+              ready=false
+            fi
+          done
+          echo "ready=$ready" >>"$GITHUB_OUTPUT"
+
+      # Exact internal versions must exist in the registry before Cargo can
+      # verify normalized dependent manifests. Before publication, the
+      # registry-surface check above exercises the same sources without
+      # workspace patches; publish-crates.yml performs the final dry-runs in
+      # dependency order.
+      - name: Build and verify dependent packages against crates.io
+        if: steps.registry-release.outputs.ready == 'true'
+        run: |
+          cargo package --locked -p rsvelte_core --all-features
+          cargo package --locked -p rsvelte_projection --all-features
+          cargo package --locked -p rsvelte --all-features
+
+      - name: Enforce dependent archive size limits
+        if: steps.registry-release.outputs.ready == 'true'
+        run: |
+          metadata="$(cargo metadata --locked --no-deps --format-version 1)"
+          for crate in rsvelte_core rsvelte_projection rsvelte; do
+            version="$(jq -er --arg name "$crate" \
+              '.packages[] | select(.name == $name) | .version' <<<"$metadata")"
+            archive="target/package/${crate}-${version}.crate"
+            test -f "$archive"
+            test "$(stat -c '%s' "$archive")" -lt 10485760
+          done

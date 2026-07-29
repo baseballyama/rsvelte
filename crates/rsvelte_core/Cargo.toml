@@ -2,12 +2,19 @@
 name = "rsvelte_core"
 version = "0.9.5"
 edition = "2024"
-rust-version = "1.90"
-description = "A high-performance Rust implementation of the Svelte compiler"
+rust-version = "1.95"
+description = "Low-level compiler implementation for the rsvelte Svelte toolchain"
 license = "MIT"
 repository = "https://github.com/baseballyama/rsvelte"
-homepage = "https://github.com/baseballyama/rsvelte"
-keywords = ["svelte", "compiler", "wasm"]
+homepage = "https://baseballyama.github.io/rsvelte/"
+documentation = "https://docs.rs/rsvelte_core"
+readme = "README.md"
+keywords = ["svelte", "compiler", "frontend"]
+categories = ["compilers", "parser-implementations"]
+publish = ["crates-io"]
+autobins = false
+autobenches = false
+exclude = ["benches/**", "src/bin/**", "tests/**"]
 
 [lib]
 # rlib only. Emitting a cdylib here too would write unhashed
@@ -17,37 +24,12 @@ keywords = ["svelte", "compiler", "wasm"]
 crate-type = ["rlib"]
 
 [features]
-default = ["native"]
-# `mimalloc-alloc` is included so the profiling bins default to mimalloc, which
-# A/B-measured ~11% faster than jemalloc on the compile workload (mold itself
-# links mimalloc for the same allocation-bound reason). jemalloc is kept
-# available for comparison.
-native = [
-    "rayon",
-    "miette/fancy",
-    "jemalloc",
-    "mimalloc-alloc",
-    "dep:oxc_resolver",
-    "dep:walkdir",
-    "dep:notify",
-    "dep:clap",
-    "dep:chrono",
-]
+default = []
+parallel = ["dep:rayon"]
 trace-fastpath = []
-jemalloc = ["dep:tikv-jemallocator"]
-# Profiling-only: use mimalloc instead of jemalloc in the profiling bins (A/B).
-mimalloc-alloc = ["dep:mimalloc"]
-pprof = ["dep:pprof"]
-# `wasm` exports this crate's own `#[wasm_bindgen]` surface (the `wasm`
-# module — `parse_svelte`, `compile_client`, `svelte2tsx`, …) and is what
-# `pkg/` is built with.
-wasm = ["wasm-deps", "dep:js-sys"]
-# `wasm-deps` pulls only the wasm-bindgen toolchain + the wasm `getrandom`
-# backend, *without* enabling the `wasm` bindings module. Downstream wasm
-# crates (e.g. `rsvelte_fmt_wasm`) depend on `rsvelte_core` with this
-# feature so they reuse the parser on a wasm target without re-exporting
-# `rsvelte_core`'s `#[wasm_bindgen]` symbols (which collide at link time).
-wasm-deps = ["wasm-bindgen", "console_error_panic_hook", "getrandom/wasm_js"]
+# Select the JavaScript entropy backend when the compiler is embedded in wasm.
+# Binding exports live in `rsvelte_lint_bindings`, not in this library.
+wasm-target = ["dep:getrandom", "getrandom/wasm_js"]
 
 [dependencies]
 # Serialization
@@ -73,14 +55,9 @@ oxc_ast = { version = "0.141", features = ["serialize"] }
 oxc_span = "0.141"
 oxc_diagnostics = "0.141"
 oxc_codegen = "0.141"
-rsvelte_esrap = { version = "0.7.11", path = "../rsvelte_esrap" }
+rsvelte_esrap = { version = "=0.8.0", path = "../rsvelte_esrap" }
 oxc_syntax = "0.141"
 oxc_semantic = "0.141"
-
-# Module resolution for the svelte-check overlay: resolves `.svelte` imports
-# (including tsconfig `paths`/`baseUrl` aliases like `$lib/...`) so aliased
-# imports can be rewritten to point straight at their generated shadow `.tsx`.
-oxc_resolver = { version = "11", optional = true }
 
 # Error handling
 thiserror = "2.0"
@@ -109,112 +86,25 @@ sourcemap = "9.0"
 # MagicString (Rolldown's port)
 string_wizard = "1.0.0"
 
-# File system
-walkdir = { version = "2.5", optional = true }
-
-# Watch mode for the svelte-check CLI (Wave 2).
-notify = { version = "8", default-features = false, features = ["macos_kqueue"], optional = true }
-
-# CLI argument parsing (svelte-check binary, Wave 2)
-clap = { version = "4.5", features = ["derive"], optional = true }
-
-# Time
-chrono = { version = "0.4", optional = true }
-
-# WASM support (optional)
-wasm-bindgen = { version = "0.2", optional = true }
-# wasm-only: reading JS option objects and bridging JS callbacks (`cssHash`,
-# `warningFilter`) for the compiler's function-form compile options.
-js-sys = { version = "0.3", optional = true }
-console_error_panic_hook = { version = "0.1", optional = true }
 getrandom = { version = "0.4", optional = true }
 lazy_static = "1.5.0"
 indexmap = { version = "2.13.0", features = ["serde"] }
 oxc_ast_visit = "0.141"
 
-# Better multi-threaded memory allocator (optional, Unix/Mac only)
-[target.'cfg(all(not(windows), not(target_arch = "wasm32")))'.dependencies]
-tikv-jemallocator = { version = "0.7", optional = true }
-# mimalloc: production allocator (mold itself links mimalloc).
-mimalloc = { version = "0.1", optional = true, features = ["local_dynamic_tls"] }
-pprof = { version = "0.15", default-features = false, optional = true }
-
 [dev-dependencies]
 # Testing
 insta = { version = "1.42", features = ["json", "glob"] }
 pretty_assertions = "1.4"
-criterion = { version = "5.0.0", features = ["html_reports"], package = "codspeed-criterion-compat" }
+chrono = "0.4"
 test-generator = "0.3"
 glob = "0.3"
+rayon = "1.10"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 # Unified diff output for test failure messages
 similar = { version = "3.0", features = ["text"] }
-# This dependency is intentionally test-only: it is unpublished and must not
-# leak into the embeddable compiler graph.
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "83abe3b49c0913b1a984a7eec5e433a59fd76eae" }
 
-[[bin]]
-name = "test_reporter"
-path = "src/bin/test_reporter.rs"
-required-features = ["native"]
-
-[[bin]]
-name = "benchmark_runner"
-path = "src/bin/benchmark_runner.rs"
-
-[[bin]]
-name = "profiler"
-path = "src/bin/profiler.rs"
-required-features = ["native"]
-
-[[bin]]
-name = "parse_profile"
-path = "src/bin/parse_profile.rs"
-
-[[bin]]
-name = "samply_target"
-path = "src/bin/samply_target.rs"
-
-[[bin]]
-name = "compile_profile"
-path = "src/bin/compile_profile.rs"
-
-[[bin]]
-name = "min_parse_cost"
-path = "src/bin/min_parse_cost.rs"
-
-[[bin]]
-name = "oxc_call_counter"
-path = "src/bin/oxc_call_counter.rs"
-
-[[bin]]
-name = "parse_bottleneck"
-path = "src/bin/parse_bottleneck.rs"
-
-[[bin]]
-name = "fastpath_coverage"
-path = "src/bin/fastpath_coverage.rs"
-
-# The svelte-check CLI links `rsvelte_core::svelte_check::*`, which is gated on
-# the `native` feature (see `lib.rs`). Declare that dependency explicitly so
-# cargo skips the bin under any feature resolution that omits `native` (e.g. the
-# `cargo codspeed build` bench graph) instead of trying to build it and failing
-# to link. Default builds enable `native`, so this is a no-op for them.
-[[bin]]
-name = "svelte_check"
-path = "src/bin/svelte_check.rs"
-required-features = ["native"]
-
-[[bench]]
-name = "parser"
-harness = false
-
-[[bench]]
-name = "compiler"
-harness = false
-
-# wasm-pack reads `package.metadata.wasm-pack` only from the crate passed to
-# `wasm-pack build`, so the wasm-opt config lives in rsvelte_lint / rsvelte_fmt_wasm.
+[package.metadata.docs.rs]
+all-features = true
 
 [lints]
 workspace = true

@@ -5,8 +5,8 @@
 //! verbatim with the NAPI export, so native and wasm return byte-identical
 //! JSON). The rsvelte_core compiler's own wasm exports (`parse_svelte`,
 //! `compile_client`, `compile_server`, `version`) are linked in transitively
-//! from the `rsvelte_core/wasm` dependency, so a single wasm module serves the
-//! whole playground.
+//! from this bindings crate too, so a single wasm module serves the whole
+//! playground without adding host bindings to `rsvelte_core`.
 
 use wasm_bindgen::prelude::*;
 
