@@ -7,6 +7,7 @@ pub(crate) struct SourceFeatures {
     pub uses_dollar_slots: bool,
     pub may_have_template_rune_global: bool,
     pub has_await_word: bool,
+    pub may_need_template_info: bool,
 }
 
 impl SourceFeatures {
@@ -30,7 +31,11 @@ fn scan_source_features_with(
     mut visit_candidate: impl FnMut(usize),
 ) -> SourceFeatures {
     let bytes = source.as_bytes();
-    let mut features = SourceFeatures::default();
+    let mut features = SourceFeatures {
+        may_need_template_info: memchr::memmem::find(bytes, b"<slot").is_some()
+            || memchr::memmem::find(bytes, b"on:").is_some(),
+        ..SourceFeatures::default()
+    };
     let mut cursor = 0;
 
     loop {
@@ -112,6 +117,10 @@ mod tests {
             features.has_await_word,
             contains_word(source.as_bytes(), b"await")
         );
+        assert_eq!(
+            features.may_need_template_info,
+            source.contains("<slot") || source.contains("on:")
+        );
     }
 
     #[test]
@@ -168,5 +177,39 @@ mod tests {
 
         assert_eq!(features, SourceFeatures::default());
         assert_eq!(visits, expected_candidates);
+    }
+
+    #[test]
+    fn conservatively_detects_template_info_markers() {
+        for source in [
+            "<slot />",
+            r#"<slot name="named" />"#,
+            "<div on:click />",
+            "<Component on:change />",
+            "<slot-machine />",
+            r#"<div title="on:" />"#,
+            r#"<script>const text = "<slot>";</script>"#,
+            "<!-- on:click -->",
+        ] {
+            assert!(
+                scan_source_features(source).may_need_template_info,
+                "{source}"
+            );
+        }
+
+        for source in [
+            "",
+            "<div />",
+            "<Slot />",
+            "<SlotMachine />",
+            "slot",
+            "one:two",
+            "<script>const slot = true;</script>",
+        ] {
+            assert!(
+                !scan_source_features(source).may_need_template_info,
+                "{source}"
+            );
+        }
     }
 }

@@ -46,6 +46,15 @@ pub struct TemplateInfo {
     pub dollar_slot_names: Option<Box<IndexSet<String>>>,
 }
 
+impl TemplateInfo {
+    fn empty(collect_dollar_slot_names: bool) -> Self {
+        Self {
+            dollar_slot_names: collect_dollar_slot_names.then(|| Box::new(IndexSet::new())),
+            ..Self::default()
+        }
+    }
+}
+
 /// How a forwarded event (`on:event` with no handler) combines with an existing
 /// entry for the same event name, mirroring the official
 /// `event-handler.ts` `EventHandler` map.
@@ -97,10 +106,7 @@ pub fn collect_template_info(
     source: &str,
     collect_dollar_slot_names: bool,
 ) -> TemplateInfo {
-    let mut info = TemplateInfo {
-        dollar_slot_names: collect_dollar_slot_names.then(|| Box::new(IndexSet::new())),
-        ..TemplateInfo::default()
-    };
+    let mut info = TemplateInfo::empty(collect_dollar_slot_names);
     // `scope` maps an in-scope template binding name (e.g. an `{#each}` context
     // variable) to the expression that types it at the top level — for an each
     // block, `__sveltets_2_unwrapArr(<collection>)`. Slot props referencing
@@ -110,6 +116,19 @@ pub fn collect_template_info(
     let mut scope: Vec<(String, String)> = Vec::new();
     collect::collect_info_from_fragment(fragment, source, &mut info, &mut scope, None);
     info
+}
+
+pub fn collect_template_info_if_needed(
+    fragment: &Fragment,
+    source: &str,
+    collect_dollar_slot_names: bool,
+    may_need_template_info: bool,
+) -> TemplateInfo {
+    if may_need_template_info {
+        collect_template_info(fragment, source, collect_dollar_slot_names)
+    } else {
+        TemplateInfo::empty(collect_dollar_slot_names)
+    }
 }
 
 #[cfg(test)]
@@ -128,6 +147,28 @@ mod tests {
         )
         .expect("fixture should parse");
         collect_template_info(&ast.fragment, source, dollar_slots)
+    }
+
+    fn collect_if_needed(
+        source: &str,
+        dollar_slots: bool,
+        may_need_template_info: bool,
+    ) -> TemplateInfo {
+        let ast = phase1_parse::parse_script_ts(
+            source,
+            ParseOptions {
+                modern: true,
+                ..Default::default()
+            },
+        )
+        .expect("fixture should parse");
+        collect_template_info_if_needed(&ast.fragment, source, dollar_slots, may_need_template_info)
+    }
+
+    fn assert_info_eq(actual: &TemplateInfo, expected: &TemplateInfo) {
+        assert_eq!(actual.slots, expected.slots);
+        assert_eq!(actual.element_events, expected.element_events);
+        assert_eq!(actual.dollar_slot_names, expected.dollar_slot_names);
     }
 
     #[test]
@@ -178,5 +219,54 @@ mod tests {
         let info = collect("<slot name=\"named\" /><slot />", false);
         assert_eq!(info.slots.len(), 2);
         assert!(info.dollar_slot_names.is_none());
+    }
+
+    #[test]
+    fn negative_gate_matches_collection_for_empty_template_info() {
+        for (source, dollar_slots) in [
+            ("<div>plain text</div><Component />", false),
+            (
+                r#"<script>void $$slots;</script><div>plain text</div>"#,
+                true,
+            ),
+        ] {
+            let gated = collect_if_needed(source, dollar_slots, false);
+            let collected = collect(source, dollar_slots);
+            assert_info_eq(&gated, &collected);
+        }
+    }
+
+    #[test]
+    fn conservative_false_positives_match_collection() {
+        for source in [
+            r#"<script>const marker = "<slot>";</script><div />"#,
+            r#"<script>const marker = "on:";</script><div />"#,
+            "<!-- <slot on:click> --><div />",
+            r#"<div title="<slot" data-event="on:" />"#,
+        ] {
+            let gated = collect_if_needed(source, true, true);
+            let collected = collect(source, true);
+            assert_info_eq(&gated, &collected);
+        }
+    }
+
+    #[test]
+    fn positive_gate_collects_slots_and_forwarded_events() {
+        for source in [
+            r#"<slot name="named" value={item} />"#,
+            "<button on:click />",
+            "<Component on:change />",
+            r#"{#if visible}
+                <section>
+                    <slot name="nested" value={item} />
+                    <button on:click />
+                </section>
+            {/if}
+            <Component on:change />"#,
+        ] {
+            let gated = collect_if_needed(source, true, true);
+            let collected = collect(source, true);
+            assert_info_eq(&gated, &collected);
+        }
     }
 }

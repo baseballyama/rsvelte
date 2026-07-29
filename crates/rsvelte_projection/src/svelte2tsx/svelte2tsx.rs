@@ -462,7 +462,12 @@ pub fn svelte2tsx(
         hoist_top_level_snippets(&ast, source, &exported_names, &mut str);
 
     // Step 9.5: Collect slot and event information from the template
-    let template_info = template::collect_template_info(&ast.fragment, source, uses_dollar_slots);
+    let template_info = template::collect_template_info_if_needed(
+        &ast.fragment,
+        source,
+        uses_dollar_slots,
+        source_features.may_need_template_info,
+    );
     let has_slot_elements = !template_info.slots.is_empty();
 
     // Step 10: Wrap in $$render() and add component export
