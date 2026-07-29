@@ -492,11 +492,11 @@ fn visit_route_statement(
                             inserted: format!(": {load_type}Event"),
                         });
                     } else {
-                        // JSDoc `@param {LoadEvent} paramName` prepended to function start.
+                        // JSDoc `@param` must precede the whole exported statement, not just
+                        // `function` — TypeScript ignores a tag sandwiched after `export`.
                         let param_name = binding_pattern_name(&param.pattern).unwrap_or("arg0");
-                        let fn_start = f.span.start;
                         adds.push(AddedCode {
-                            original_pos: fn_start,
+                            original_pos: ex.span.start,
                             inserted: format!(
                                 "/** @param {{{}Event}} {} */ ",
                                 load_type, param_name
@@ -519,15 +519,15 @@ fn visit_route_statement(
                             inserted: ": ReturnType<import('./$types.js').EntryGenerator> ".into(),
                         });
                     } else {
-                        // `/** @type {import('./$types.js').EntryGenerator} */ ` prepended to fn
+                        // Same export-statement anchoring as the `load` branch above.
                         adds.push(AddedCode {
-                            original_pos: f.span.start,
+                            original_pos: ex.span.start,
                             inserted: "/** @type {import('./$types.js').EntryGenerator} */ ".into(),
                         });
                     }
                 }
                 "GET" | "PUT" | "POST" | "PATCH" | "DELETE" | "OPTIONS" | "HEAD" | "fallback" => {
-                    add_api_method_types(f, is_ts, adds);
+                    add_api_method_types(f, ex.span.start, is_ts, adds);
                 }
                 _ => {}
             }
@@ -536,7 +536,12 @@ fn visit_route_statement(
     }
 }
 
-fn add_api_method_types(f: &oxc::Function, is_ts: bool, adds: &mut Vec<AddedCode>) {
+fn add_api_method_types(
+    f: &oxc::Function,
+    export_start: u32,
+    is_ts: bool,
+    adds: &mut Vec<AddedCode>,
+) {
     if f.params.items.len() != 1 {
         return;
     }
@@ -563,15 +568,15 @@ fn add_api_method_types(f: &oxc::Function, is_ts: bool, adds: &mut Vec<AddedCode
             });
         }
     } else {
-        // JS: `/** @type {(event: RequestEvent) => Response | Promise<Response>} */`
-        // prepended to the function declaration.
+        // JS: `/** @type {(event: RequestEvent) => Response | Promise<Response>} */`,
+        // anchored on the exported statement (see the `load` branch above for why).
         let ret_ty = if f.r#async {
             "Promise<Response>"
         } else {
             "Response | Promise<Response>"
         };
         adds.push(AddedCode {
-            original_pos: f.span.start,
+            original_pos: export_start,
             inserted: format!(
                 "/** @type {{(event: import('./$types.js').RequestEvent) => {ret_ty}}} */ "
             ),
@@ -608,9 +613,10 @@ fn visit_param_statement(stmt: &oxc::Statement, is_ts: bool, adds: &mut Vec<Adde
             inserted: ": boolean ".into(),
         });
     } else {
-        // JS: `/** @type {(param: string) => boolean} */` prepended to fn.
+        // JS: `/** @type {(param: string) => boolean} */`, anchored on the exported
+        // statement (see `add_hooks_type`'s `FunctionDeclaration` arm for why).
         adds.push(AddedCode {
-            original_pos: f.span.start,
+            original_pos: ex.span.start,
             inserted: "/** @type {(param: string) => boolean} */ ".into(),
         });
     }
@@ -702,7 +708,8 @@ fn add_hooks_type(
                 &f.params,
                 f.return_type.is_some(),
                 f.body.as_deref().map(|b| b.span().start),
-                f.span.start,
+                // JS-only: a JSDoc `@type` tag on a `function` declaration is ignored unless it leads the whole exported statement.
+                ex.span.start,
                 false,
                 ty,
                 is_ts,
@@ -1034,9 +1041,32 @@ mod tests {
         let adds = build_added_code(&path, source, &KitFilesSettings::default())
             .expect("js handle should emit insertions");
         let augmented = apply_added_code(source, &adds);
+        // The JSDoc `@type` tag must precede the *whole* exported statement
+        // (`export function …`), not just the `function` keyword — TypeScript
+        // silently ignores an `@type` tag sitting between `export` and
+        // `function` and every binding element stays implicit `any`.
         assert!(
             augmented.contains(&format!(
-                "{IGNORE_START_COMMENT}/** @type {{import('@sveltejs/kit').Handle}} */ {IGNORE_END_COMMENT}function handle"
+                "{IGNORE_START_COMMENT}/** @type {{import('@sveltejs/kit').Handle}} */ {IGNORE_END_COMMENT}export function handle"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_hooks_handle_fetch_arrow_const_form_uses_jsdoc_type() {
+        // JS mirrors the TS arrow-const case above (#1886): the augmentation
+        // reaches `add_hooks_type_to_function_like` through the same
+        // `VariableDeclaration` -> `ArrowFunctionExpression` path, just with
+        // the JSDoc wrapper instead of an inline type annotation.
+        let path = PathBuf::from("src/hooks.server.js");
+        let source = "export const handleFetch = async ({ request, fetch, event }) => {\n  return fetch(request);\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("js arrow-const handleFetch should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}/** @type {{import('@sveltejs/kit').HandleFetch}} */ {IGNORE_END_COMMENT}async ({{ request, fetch, event }})"
             )),
             "augmented = {augmented:?}"
         );
@@ -1049,9 +1079,10 @@ mod tests {
         let adds = build_added_code(&path, source, &KitFilesSettings::default())
             .expect("js params should emit insertions");
         let augmented = apply_added_code(source, &adds);
+        // Anchored before `export`, not just `function` — see the hooks test above.
         assert!(
             augmented.contains(&format!(
-                "{IGNORE_START_COMMENT}/** @type {{(param: string) => boolean}} */ {IGNORE_END_COMMENT}function match"
+                "{IGNORE_START_COMMENT}/** @type {{(param: string) => boolean}} */ {IGNORE_END_COMMENT}export function match"
             )),
             "augmented = {augmented:?}"
         );
@@ -1066,7 +1097,37 @@ mod tests {
         let augmented = apply_added_code(source, &adds);
         assert!(
             augmented.contains(&format!(
-                "{IGNORE_START_COMMENT}/** @type {{(event: import('./$types.js').RequestEvent) => Response | Promise<Response>}} */ {IGNORE_END_COMMENT}function GET"
+                "{IGNORE_START_COMMENT}/** @type {{(event: import('./$types.js').RequestEvent) => Response | Promise<Response>}} */ {IGNORE_END_COMMENT}export function GET"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_route_load_function_uses_jsdoc_param() {
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "export function load(event) { return event; }\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("js route load should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "{IGNORE_START_COMMENT}/** @param {{import('./$types.js').PageLoadEvent}} event */ {IGNORE_END_COMMENT}export function load"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_route_entries_function_uses_jsdoc_type() {
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "export function entries() { return []; }\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("js route entries should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "{IGNORE_START_COMMENT}/** @type {{import('./$types.js').EntryGenerator}} */ {IGNORE_END_COMMENT}export function entries"
             )),
             "augmented = {augmented:?}"
         );

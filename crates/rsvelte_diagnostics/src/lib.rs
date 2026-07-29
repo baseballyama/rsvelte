@@ -7,4 +7,7 @@ mod diagnostic;
 mod writers;
 
 pub use diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
-pub use writers::{OutputFormat, Threshold, write_diagnostic, write_summary};
+pub use writers::{
+    OutputFormat, Threshold, count_files_with_problems, write_completion, write_diagnostic,
+    write_start, write_summary,
+};

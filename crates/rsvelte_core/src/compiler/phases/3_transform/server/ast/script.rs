@@ -1169,10 +1169,10 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
                             oxc_ast::ast::PrivateIdentifier::new(
                                 oxc_span::SPAN,
                                 b.str(backing_name),
-                                &b.ab,
+                                &b.ab(),
                             ),
                             false,
-                            &b.ab,
+                            &b.ab(),
                         ),
                     );
                 }
@@ -1204,17 +1204,17 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
             false,
             false,
             false,
-            oxc_ast::NONE,
-            oxc_ast::NONE,
+            oxc_ast::builder::NONE,
+            oxc_ast::builder::NONE,
             b.empty_params(),
-            oxc_ast::NONE,
+            oxc_ast::builder::NONE,
             Some(getter_body),
-            &b.ab,
+            &b.ab(),
         );
         new_body.push(oxc_ast::ast::ClassElement::new_method_definition(
             oxc_span::SPAN,
             oxc_ast::ast::MethodDefinitionType::MethodDefinition,
-            oxc_allocator::ArenaVec::new_in(&b.ab),
+            oxc_allocator::ArenaVec::new_in(&b.ab()),
             b.key(public_name),
             getter_fn,
             MethodDefinitionKind::Get,
@@ -1223,7 +1223,7 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
             false,
             false,
             None,
-            &b.ab,
+            &b.ab(),
         ));
 
         let setter_body = {
@@ -1239,17 +1239,17 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
             false,
             false,
             false,
-            oxc_ast::NONE,
-            oxc_ast::NONE,
+            oxc_ast::builder::NONE,
+            oxc_ast::builder::NONE,
             setter_params,
-            oxc_ast::NONE,
+            oxc_ast::builder::NONE,
             Some(setter_body),
-            &b.ab,
+            &b.ab(),
         );
         new_body.push(oxc_ast::ast::ClassElement::new_method_definition(
             oxc_span::SPAN,
             oxc_ast::ast::MethodDefinitionType::MethodDefinition,
-            oxc_allocator::ArenaVec::new_in(&b.ab),
+            oxc_allocator::ArenaVec::new_in(&b.ab()),
             b.key(public_name),
             setter_fn,
             MethodDefinitionKind::Set,
@@ -1258,7 +1258,7 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
             false,
             false,
             None,
-            &b.ab,
+            &b.ab(),
         ));
     }
 }
@@ -1389,10 +1389,12 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
         }
 
         // Take ownership of the existing body and rebuild it element-by-element.
-        let old_body =
-            std::mem::replace(&mut class.body.body, oxc_allocator::ArenaVec::new_in(&b.ab));
+        let old_body = std::mem::replace(
+            &mut class.body.body,
+            oxc_allocator::ArenaVec::new_in(&b.ab()),
+        );
         let mut new_body: oxc_allocator::Vec<'a, ClassElement<'a>> =
-            oxc_allocator::ArenaVec::new_in(&b.ab);
+            oxc_allocator::ArenaVec::new_in(&b.ab());
 
         // Insert backing fields + get/set accessors for constructor-declared PUBLIC
         // `$derived` / `$derived.by` fields, at the TOP of the body (写经 server
@@ -1407,14 +1409,14 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
             let private_key = oxc_ast::ast::PropertyKey::new_private_identifier(
                 oxc_span::SPAN,
                 b.str(&backing_name),
-                &b.ab,
+                &b.ab(),
             );
             new_body.push(oxc_ast::ast::ClassElement::new_property_definition(
                 oxc_span::SPAN,
                 oxc_ast::ast::PropertyDefinitionType::PropertyDefinition,
-                oxc_allocator::ArenaVec::new_in(&b.ab),
+                oxc_allocator::ArenaVec::new_in(&b.ab()),
                 private_key,
-                oxc_ast::NONE,
+                oxc_ast::builder::NONE,
                 None,
                 false,
                 false,
@@ -1424,7 +1426,7 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
                 false,
                 false,
                 None,
-                &b.ab,
+                &b.ab(),
             ));
             self.push_accessors(&mut new_body, &cf.name, &backing_name);
         }
@@ -1497,7 +1499,7 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
             let private_key = oxc_ast::ast::PropertyKey::new_private_identifier(
                 oxc_span::SPAN,
                 b.str(&deconflicted),
-                &b.ab,
+                &b.ab(),
             );
             prop_box.key = private_key;
             new_body.push(ClassElement::PropertyDefinition(prop_box));
@@ -2364,7 +2366,7 @@ fn expand_props_pattern<'a>(
     use oxc_ast::ast::BindingPattern;
     use oxc_span::SPAN;
     let b = state.b;
-    let ab = b.ab;
+    let ab = b.ab();
     let slots_name = if state.analysis.uses_slots {
         "$$slots_"
     } else {

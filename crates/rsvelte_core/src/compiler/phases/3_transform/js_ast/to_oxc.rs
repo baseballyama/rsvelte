@@ -39,9 +39,9 @@
 
 use super::arena::{ExprId, JsArena};
 use super::nodes::*;
-use oxc_allocator::{ArenaBox, ArenaVec, ReplaceWith};
-use oxc_ast::AstBuilder;
+use oxc_allocator::{ArenaBox, ArenaVec, GetAllocator, ReplaceWith};
 use oxc_ast::ast::*;
+use oxc_ast::builder::AstBuilder;
 use oxc_span::{GetSpanMut, SPAN, Span};
 use oxc_syntax::number::{BigintBase, NumberBase};
 use oxc_syntax::operator::{
@@ -93,9 +93,8 @@ fn convert_once<'a>(
     allocator: &'a oxc_allocator::Allocator,
     loc_base: Option<u32>,
 ) -> Option<(Converted<'a>, Synth)> {
-    let ab = AstBuilder::new(allocator);
     let cx = Cx {
-        ab,
+        ab: AstBuilder::new(allocator),
         arena,
         synth: RefCell::new(Synth::new(loc_base)),
     };
@@ -111,6 +110,7 @@ fn convert_once<'a>(
     })?;
 
     let synth = cx.synth.into_inner();
+    let ab = AstBuilder::new(allocator);
     let body = ArenaVec::from_iter_in(body, &ab);
     let comments = ArenaVec::from_iter_in(synth.comments.iter().cloned(), &ab);
     let program = Program::new(
@@ -203,7 +203,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     /// the builder helpers.
     #[inline]
     fn str(&self, s: &str) -> &'a str {
-        self.ab.allocator.alloc_str(s)
+        self.ab.allocator().alloc_str(s)
     }
 
     /// Resolve an `ExprId` handle and convert the pointed-to expression.
@@ -507,7 +507,12 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                     None => None,
                     Some(pat) => {
                         let pattern = self.binding_pattern(pat)?;
-                        Some(CatchParameter::new(SPAN, pattern, oxc_ast::NONE, &self.ab))
+                        Some(CatchParameter::new(
+                            SPAN,
+                            pattern,
+                            oxc_ast::builder::NONE,
+                            &self.ab,
+                        ))
                     }
                 };
                 let (body_stmts, body_span) = self.statements(&catch.body.body)?;
@@ -594,7 +599,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             specifiers,
             source,
             None,
-            oxc_ast::NONE,
+            oxc_ast::builder::NONE,
             ImportOrExportKind::Value,
             &self.ab,
         );
@@ -632,7 +637,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             specifiers,
             None,
             ImportOrExportKind::Value,
-            oxc_ast::NONE,
+            oxc_ast::builder::NONE,
             &self.ab,
         );
         Some(Statement::from(decl))
@@ -676,10 +681,10 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             func.is_generator,
             func.is_async,
             false,
-            oxc_ast::NONE,
-            oxc_ast::NONE,
+            oxc_ast::builder::NONE,
+            oxc_ast::builder::NONE,
             params,
-            oxc_ast::NONE,
+            oxc_ast::builder::NONE,
             Some(body),
             &self.ab,
         ))
@@ -735,7 +740,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 self.comment_anchor(d.comment_anchor),
                 kind,
                 binding,
-                oxc_ast::NONE,
+                oxc_ast::builder::NONE,
                 init,
                 false,
                 &self.ab,
@@ -880,7 +885,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 Some(Expression::CallExpression(CallExpression::boxed(
                     SPAN,
                     callee,
-                    oxc_ast::NONE,
+                    oxc_ast::builder::NONE,
                     args,
                     c.optional,
                     &self.ab,
@@ -892,7 +897,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 Some(Expression::NewExpression(NewExpression::boxed(
                     SPAN,
                     callee,
-                    oxc_ast::NONE,
+                    oxc_ast::builder::NONE,
                     args,
                     &self.ab,
                 )))
@@ -997,7 +1002,13 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 let tag = self.expr_id(t.tag)?;
                 let quasi = self.template_literal(&t.quasi)?;
                 Some(Expression::TaggedTemplateExpression(
-                    TaggedTemplateExpression::boxed(SPAN, tag, oxc_ast::NONE, quasi, &self.ab),
+                    TaggedTemplateExpression::boxed(
+                        SPAN,
+                        tag,
+                        oxc_ast::builder::NONE,
+                        quasi,
+                        &self.ab,
+                    ),
                 ))
             }
             JsExpr::Assignment(a) => {
@@ -1149,9 +1160,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     /// `pad + text` buffer so its spans land at the chunk's own region of the
     /// unified comment buffer, and its comments are collected there.
     fn parse_chunk(&self, text: &str) -> Option<Vec<Statement<'a>>> {
-        let owned = self.ab.allocator.alloc_str(text);
-        let ret =
-            oxc_parser::Parser::new(self.ab.allocator, owned, oxc_span::SourceType::mjs()).parse();
+        let owned = self.ab.allocator().alloc_str(text);
+        let ret = oxc_parser::Parser::new(self.ab.allocator(), owned, oxc_span::SourceType::mjs())
+            .parse();
         if !ret.diagnostics.is_empty() {
             return None;
         }
@@ -1174,9 +1185,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         padded.extend(std::iter::repeat_n(' ', base as usize - 1));
         padded.push('\n');
         padded.push_str(text);
-        let owned = self.ab.allocator.alloc_str(&padded);
-        let ret =
-            oxc_parser::Parser::new(self.ab.allocator, owned, oxc_span::SourceType::mjs()).parse();
+        let owned = self.ab.allocator().alloc_str(&padded);
+        let ret = oxc_parser::Parser::new(self.ab.allocator(), owned, oxc_span::SourceType::mjs())
+            .parse();
         if !ret.diagnostics.is_empty() {
             return None;
         }
@@ -1291,7 +1302,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                         PropertyDefinitionType::PropertyDefinition,
                         ArenaVec::new_in(&self.ab),
                         key,
-                        oxc_ast::NONE,
+                        oxc_ast::builder::NONE,
                         value,
                         prop.computed,
                         prop.is_static,
@@ -1316,9 +1327,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             ClassType::ClassExpression,
             ArenaVec::new_in(&self.ab),
             id,
-            oxc_ast::NONE,
+            oxc_ast::builder::NONE,
             super_class,
-            oxc_ast::NONE,
+            oxc_ast::builder::NONE,
             ArenaVec::new_in(&self.ab),
             body,
             false,
@@ -1367,10 +1378,10 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             func.is_generator,
             func.is_async,
             false,
-            oxc_ast::NONE,
-            oxc_ast::NONE,
+            oxc_ast::builder::NONE,
+            oxc_ast::builder::NONE,
             params,
-            oxc_ast::NONE,
+            oxc_ast::builder::NONE,
             Some(body),
             &self.ab,
         ))
@@ -1811,9 +1822,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 SPAN,
                 is_expr,
                 arrow.is_async,
-                oxc_ast::NONE,
+                oxc_ast::builder::NONE,
                 params,
-                oxc_ast::NONE,
+                oxc_ast::builder::NONE,
                 body,
                 &self.ab,
             ),
@@ -1833,8 +1844,14 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             JsExpr::Call(c) => {
                 let callee = self.expr_id(c.callee)?;
                 let args = self.arguments(&c.arguments)?;
-                let call =
-                    CallExpression::boxed(SPAN, callee, oxc_ast::NONE, args, c.optional, &self.ab);
+                let call = CallExpression::boxed(
+                    SPAN,
+                    callee,
+                    oxc_ast::builder::NONE,
+                    args,
+                    c.optional,
+                    &self.ab,
+                );
                 ChainElement::CallExpression(call)
             }
             _ => return None,
@@ -1861,10 +1878,10 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             func.is_generator,
             func.is_async,
             false,
-            oxc_ast::NONE,
-            oxc_ast::NONE,
+            oxc_ast::builder::NONE,
+            oxc_ast::builder::NONE,
             params,
-            oxc_ast::NONE,
+            oxc_ast::builder::NONE,
             Some(body),
             &self.ab,
         )))
@@ -1891,7 +1908,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                     SPAN,
                     ArenaVec::new_in(&self.ab),
                     rest_el,
-                    oxc_ast::NONE,
+                    oxc_ast::builder::NONE,
                     &self.ab,
                 ));
                 continue;
@@ -1901,8 +1918,8 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 SPAN,
                 ArenaVec::new_in(&self.ab),
                 pattern,
-                oxc_ast::NONE,
-                oxc_ast::NONE,
+                oxc_ast::builder::NONE,
+                oxc_ast::builder::NONE,
                 false,
                 None,
                 false,
