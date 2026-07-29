@@ -67,12 +67,12 @@ struct Cli {
     #[arg(long = "config")]
     config: Option<PathBuf>,
 
-    /// Prefer Microsoft's native `tsgo` over the stock `tsc` when
-    /// type-checking the overlay. Without this flag type-checking still
-    /// runs, using `tsc`. (`tsgo` falls back to `tsc` and vice-versa if
-    /// the preferred binary isn't installed.) `--tsgo-experimental-api`
-    /// is accepted as an alias — rsvelte has a single native tsgo
-    /// backend, so the experimental in-process API has no separate mode.
+    /// Select the native TypeScript compiler backend for the overlay
+    /// type-check pass. On `typescript@^7`, native `tsc` is already the
+    /// default — this flag is optional and only changes behaviour on
+    /// TypeScript 6 projects (prefers `@typescript/native-preview`'s
+    /// `tsgo` over stock `tsc`). Each backend falls back to the other
+    /// when missing. `--tsgo-experimental-api` is accepted as an alias.
     #[arg(
         long = "tsgo",
         alias = "tsgo-experimental-api",
