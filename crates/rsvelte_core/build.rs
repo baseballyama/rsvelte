@@ -1,30 +1,26 @@
 fn main() {
-    // Read the Svelte version from the submodule's package.json
-    // so that the generated code can include the correct version string.
-    // The submodule lives at the workspace root (two levels above this
-    // crate's manifest dir), so resolve relative to CARGO_MANIFEST_DIR.
+    let pinned_version = include_str!("svelte-version.txt").trim();
+    println!("cargo::rerun-if-changed=svelte-version.txt");
+    println!("cargo::rustc-env=SVELTE_VERSION={pinned_version}");
+
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default();
     let svelte_pkg = std::path::Path::new(&manifest_dir)
         .join("../../submodules/svelte/packages/svelte/package.json");
     println!("cargo::rerun-if-changed={}", svelte_pkg.display());
     if svelte_pkg.exists()
         && let Ok(contents) = std::fs::read_to_string(&svelte_pkg)
+        && let Some(version) = package_version(&contents)
     {
-        // Simple JSON parsing for "version": "X.Y.Z"
-        if let Some(start) = contents.find("\"version\"") {
-            let rest = &contents[start..];
-            if let Some(colon) = rest.find(':') {
-                let after_colon = rest[colon + 1..].trim_start();
-                if after_colon.starts_with('"') {
-                    let version_start = 1;
-                    if let Some(version_end) = after_colon[version_start..].find('"') {
-                        let version = &after_colon[version_start..version_start + version_end];
-                        println!("cargo::rustc-env=SVELTE_VERSION={}", version);
-                    }
-                }
-            }
-        }
+        assert_eq!(
+            version, pinned_version,
+            "crates/rsvelte_core/svelte-version.txt must match the Svelte submodule"
+        );
     }
-    // Fallback: if the submodule doesn't exist, the env var won't be set
-    // and the code will use a default.
+}
+
+fn package_version(contents: &str) -> Option<&str> {
+    let rest = &contents[contents.find("\"version\"")?..];
+    let after_colon = rest[rest.find(':')? + 1..].trim_start();
+    let after_quote = after_colon.strip_prefix('"')?;
+    Some(&after_quote[..after_quote.find('"')?])
 }

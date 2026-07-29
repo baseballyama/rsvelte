@@ -23,7 +23,8 @@
 use std::cell::RefCell;
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::Expression as OxcExpression;
+use oxc_ast::ast::{Expression as OxcExpression, Program as OxcProgram};
+use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::Parser as OxcParser;
 use oxc_span::{GetSpan, SourceType};
 use serde_json::{Map, Value};
@@ -6628,14 +6629,15 @@ fn create_typed_loc_for_script(
 
 /// Parameters for [`parse_program_with_error`], grouped into a struct to keep
 /// the function signature under clippy's argument-count lint.
-pub struct ProgramParseParams<'a> {
-    pub content: &'a str,
+#[derive(Clone, Copy)]
+pub struct ProgramParseParams<'source, 'context> {
+    pub content: &'source str,
     pub offset: usize,
-    pub line_offsets: &'a [usize],
+    pub line_offsets: &'context [usize],
     /// Set to true if the script contains TypeScript.
     pub is_typescript: bool,
     /// HTML comments that appeared before the script tag.
-    pub leading_comments: &'a [String],
+    pub leading_comments: &'context [String],
     /// Positions for loc calculation (Svelte uses locator(start) for
     /// loc.start and locator(parser.index) for loc.end).
     pub script_tag_start: usize,
@@ -6653,6 +6655,38 @@ pub fn parse_program_with_error<'a>(
     arena: &ParseArena,
     params: ProgramParseParams,
 ) -> (Expression<'a>, Option<crate::error::ParseError>) {
+    with_oxc_allocator(|allocator| {
+        let source_type = if params.is_typescript {
+            SourceType::ts()
+        } else {
+            SourceType::mjs()
+        };
+        let result = OxcParser::new(allocator, params.content, source_type).parse();
+        convert_parsed_program(arena, &result.program, &result.diagnostics, params)
+    })
+}
+
+pub fn parse_program_retained_with_error<'ast, 'source>(
+    arena: &ParseArena,
+    params: ProgramParseParams<'source, '_>,
+) -> (
+    Expression<'ast>,
+    Option<crate::error::ParseError>,
+    crate::ast::oxc_program::RetainedProgram<'source>,
+) {
+    let retained =
+        crate::ast::oxc_program::RetainedProgram::parse(params.content, params.is_typescript);
+    let (program, parse_error) =
+        convert_parsed_program(arena, retained.program(), retained.diagnostics(), params);
+    (program, parse_error, retained)
+}
+
+fn convert_parsed_program<'ast>(
+    arena: &ParseArena,
+    program: &OxcProgram<'_>,
+    diagnostics: &[OxcDiagnostic],
+    params: ProgramParseParams<'_, '_>,
+) -> (Expression<'ast>, Option<crate::error::ParseError>) {
     let ProgramParseParams {
         content,
         offset,
@@ -6662,19 +6696,11 @@ pub fn parse_program_with_error<'a>(
         script_tag_start,
         script_tag_end,
     } = params;
-    with_oxc_allocator(|allocator| {
-        let source_type = if is_typescript {
-            SourceType::ts()
-        } else {
-            SourceType::mjs()
-        };
-        let parser = OxcParser::new(allocator, content, source_type);
-        let result = parser.parse();
-
+    {
         // Mirror upstream acorn's throw-on-error behaviour: capture the first
         // parse error (acorn reports `err.pos` where it stopped consuming
         // input; OXC's first label is the closest equivalent).
-        let mut parse_error = result.diagnostics.first().map(|first_error| {
+        let mut parse_error = diagnostics.first().map(|first_error| {
             let pos = first_error
                 .labels
                 .first()
@@ -6703,7 +6729,7 @@ pub fn parse_program_with_error<'a>(
                 }
             }
             let mut finder = FindDecorator(None);
-            finder.visit_program(&result.program);
+            finder.visit_program(program);
             if let Some(at) = finder.0 {
                 let pos = at as usize + offset;
                 parse_error = Some(crate::error::ParseError::svelte(
@@ -6713,8 +6739,6 @@ pub fn parse_program_with_error<'a>(
                 ));
             }
         }
-
-        let program = &result.program;
 
         // Calculate actual positions within the document
         let start = offset + program.span.start as usize;
@@ -6728,7 +6752,7 @@ pub fn parse_program_with_error<'a>(
         // Convert body statements and attach leading comments to each statement.
         // The official Svelte compiler (via acorn) attaches leadingComments to AST nodes.
         // OXC stores all comments at the program level, so we distribute them here.
-        let all_comments: Vec<_> = result.program.comments.iter().collect();
+        let all_comments: Vec<_> = program.comments.iter().collect();
         let has_comments = !all_comments.is_empty();
 
         // The per-statement `to_value()` + comment-distribution + harvest pass
@@ -6899,7 +6923,7 @@ pub fn parse_program_with_error<'a>(
             }),
             parse_error,
         )
-    })
+    }
 }
 
 /// Build a comment JSON value from an OXC comment.

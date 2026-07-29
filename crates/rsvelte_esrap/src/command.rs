@@ -53,7 +53,70 @@ pub type Segment = [i64; 4];
 /// of spaces) for each indentation level. Faithful port of the `run`/`append`
 /// loop in esrap's `print`.
 pub fn print(commands: &[Command], indent: &str) -> String {
-    flatten_with_map(commands, indent).0
+    flatten_without_map(commands, indent)
+}
+
+fn flatten_without_map(commands: &[Command], indent: &str) -> String {
+    let mut driver = CodeDriver {
+        code: String::new(),
+        current_newline: String::from("\n"),
+        indent,
+        needs_newline: false,
+        needs_margin: false,
+        needs_space: false,
+    };
+    for command in commands {
+        driver.run(command);
+    }
+    driver.code
+}
+
+struct CodeDriver<'a> {
+    code: String,
+    current_newline: String,
+    indent: &'a str,
+    needs_newline: bool,
+    needs_margin: bool,
+    needs_space: bool,
+}
+
+impl CodeDriver<'_> {
+    fn run(&mut self, command: &Command) {
+        match command {
+            Command::Nested(inner) => {
+                for command in inner {
+                    self.run(command);
+                }
+            }
+            Command::Newline => self.needs_newline = true,
+            Command::Margin => self.needs_margin = true,
+            Command::Space => self.needs_space = true,
+            Command::Indent => self.current_newline.push_str(self.indent),
+            Command::Dedent => {
+                let len = self.current_newline.len().saturating_sub(self.indent.len());
+                self.current_newline.truncate(len);
+            }
+            Command::Str(string) => {
+                self.flush_pending();
+                self.code.push_str(string);
+            }
+            Command::Location { .. } => self.flush_pending(),
+        }
+    }
+
+    fn flush_pending(&mut self) {
+        if self.needs_newline {
+            if self.needs_margin {
+                self.code.push('\n');
+            }
+            self.code.push_str(&self.current_newline);
+        } else if self.needs_space {
+            self.code.push(' ');
+        }
+        self.needs_newline = false;
+        self.needs_margin = false;
+        self.needs_space = false;
+    }
 }
 
 /// Flatten `commands` into both the source text and its source-map `mappings`
@@ -300,6 +363,35 @@ mod tests {
                 Command::Str("x".into()),
             ]),
             "\n\t\tx"
+        );
+    }
+
+    #[test]
+    fn no_map_output_matches_mapping_driver() {
+        let commands = vec![
+            Command::Location { line: 1, column: 0 },
+            Command::Str("const".into()),
+            Command::Space,
+            Command::Location { line: 1, column: 6 },
+            Command::Str("π".into()),
+            Command::Space,
+            Command::Str("=".into()),
+            Command::Nested(vec![
+                Command::Indent,
+                Command::Margin,
+                Command::Newline,
+                Command::Location { line: 2, column: 0 },
+                Command::Str("\"line 1\\nline 2\"".into()),
+                Command::Dedent,
+            ]),
+            Command::Newline,
+            Command::Str(";".into()),
+            Command::Space,
+        ];
+
+        assert_eq!(
+            flatten_without_map(&commands, "  "),
+            flatten_with_map(&commands, "  ").0
         );
     }
 }

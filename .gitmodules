@@ -14,6 +14,7 @@
 [submodule "submodules/vize"]
 	path = submodules/vize
 	url = git@github.com:ubugeeei-prod/vize.git
+	update = none
 
 # Backs the type-aware lint crate (crates/rsvelte_lint_types). HTTPS, not SSH:
 # the repo is public, so CI clones it with no credentials.

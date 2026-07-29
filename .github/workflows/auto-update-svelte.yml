@@ -126,6 +126,8 @@ jobs:
 
           # Advance the svelte gitlink (mode 160000 = gitlink).
           git update-index --cacheinfo "160000,${new},submodules/svelte"
+          printf '%s\n' "${LATEST_VERSION}" > crates/rsvelte_core/svelte-version.txt
+          git add crates/rsvelte_core/svelte-version.txt
 
           # Bump the playground preview runtime + rsvelte shim version strings,
           # mirroring scripts/dev/upgrade-svelte.sh steps [5]/[6].

@@ -104,7 +104,10 @@ export function compile(source, options) {
 	// Raw-transfer fast path: NAPI hands us a single Buffer with the
 	// whole compile result packed, and `decodeEnvelope` lifts only
 	// the fields the caller reads.
-	return decodeEnvelope(binding.compileEnvelope(source, sanitiseOptions(options)));
+	return decodeEnvelope(
+		binding.compileEnvelopeExternalSources(source, sanitiseOptions(options)),
+		source,
+	);
 }
 
 export function compileModule(source, options) {

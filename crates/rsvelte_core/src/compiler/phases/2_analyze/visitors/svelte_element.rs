@@ -29,115 +29,115 @@ pub fn visit<'a, 'b: 'a>(
     element: &mut SvelteDynamicElement<'b>,
     context: &mut VisitorContext<'a>,
 ) -> Result<(), AnalysisError> {
-    // Mark that we have dynamic elements (can't safely prune type selectors)
-    context.analysis.css.has_dynamic_elements = true;
-
-    // Extract class names and ID from svelte:element attributes for CSS selector detection.
-    // Since svelte:element can resolve to any element, we still need to know which classes
-    // are used so the CSS pruner can keep the right selectors.
+    let collect_css = context.analysis.css.has_css;
     let mut element_classes = rustc_hash::FxHashSet::default();
     let mut element_id = None;
 
-    for attr in &element.attributes {
-        match attr {
-            Attribute::Attribute(attr_node) if attr_node.name == "class" => {
-                match &attr_node.value {
-                    AttributeValue::Sequence(parts) => {
-                        for part in parts {
-                            match part {
-                                AttributeValuePart::Text(text) => {
-                                    for class_name in text.data.split_whitespace() {
-                                        context
-                                            .analysis
-                                            .css
-                                            .used_classes
-                                            .insert(class_name.to_string());
-                                        element_classes.insert(class_name.to_string());
+    if collect_css {
+        context.analysis.css.has_dynamic_elements = true;
+        for attr in &element.attributes {
+            match attr {
+                Attribute::Attribute(attr_node) if attr_node.name == "class" => {
+                    match &attr_node.value {
+                        AttributeValue::Sequence(parts) => {
+                            for part in parts {
+                                match part {
+                                    AttributeValuePart::Text(text) => {
+                                        for class_name in text.data.split_whitespace() {
+                                            context
+                                                .analysis
+                                                .css
+                                                .used_classes
+                                                .insert(class_name.to_string());
+                                            element_classes.insert(class_name.to_string());
+                                        }
                                     }
-                                }
-                                AttributeValuePart::ExpressionTag(_) => {
-                                    context.analysis.css.has_dynamic_classes = true;
+                                    AttributeValuePart::ExpressionTag(_) => {
+                                        context.analysis.css.has_dynamic_classes = true;
+                                    }
                                 }
                             }
                         }
+                        AttributeValue::Expression(_) => {
+                            context.analysis.css.has_dynamic_classes = true;
+                        }
+                        _ => {}
+                    }
+                }
+                Attribute::Attribute(attr_node) if attr_node.name == "id" => match &attr_node.value
+                {
+                    AttributeValue::Sequence(parts) => {
+                        let has_dynamic_part = parts
+                            .iter()
+                            .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
+                        if has_dynamic_part {
+                            context.analysis.css.has_dynamic_ids = true;
+                        } else if parts.len() == 1
+                            && let Some(AttributeValuePart::Text(text)) = parts.first()
+                        {
+                            element_id = Some(text.data.to_string());
+                        }
                     }
                     AttributeValue::Expression(_) => {
-                        context.analysis.css.has_dynamic_classes = true;
+                        context.analysis.css.has_dynamic_ids = true;
                     }
                     _ => {}
-                }
-            }
-            Attribute::Attribute(attr_node) if attr_node.name == "id" => match &attr_node.value {
-                AttributeValue::Sequence(parts) => {
-                    let has_dynamic_part = parts
-                        .iter()
-                        .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
-                    if has_dynamic_part {
-                        context.analysis.css.has_dynamic_ids = true;
-                    } else if parts.len() == 1
-                        && let Some(AttributeValuePart::Text(text)) = parts.first()
-                    {
-                        element_id = Some(text.data.to_string());
-                    }
-                }
-                AttributeValue::Expression(_) => {
-                    context.analysis.css.has_dynamic_ids = true;
+                },
+                Attribute::ClassDirective(cd) => {
+                    context
+                        .analysis
+                        .css
+                        .used_classes
+                        .insert(cd.name.to_string());
+                    element_classes.insert(cd.name.to_string());
                 }
                 _ => {}
-            },
-            Attribute::ClassDirective(cd) => {
-                context
-                    .analysis
-                    .css
-                    .used_classes
-                    .insert(cd.name.to_string());
-                element_classes.insert(cd.name.to_string());
             }
-            _ => {}
         }
     }
 
-    // Create DOM element for CSS sibling combinator detection
     let parent_idx = context.current_parent_idx();
     let is_root_child = context.dom_element_stack.is_empty();
-    let dom_element = super::super::types::CssDomElement {
-        tag_name: String::new(), // Dynamic tag, will use is_dynamic_tag
-        classes: element_classes,
-        id: element_id,
-        static_attributes: Vec::new(), // Dynamic element, no static attributes
-        dynamic_attribute_names: FxHashSet::default(),
-        has_spread: false,
-        has_class_directive: false,
-        class_directive_names: FxHashSet::default(),
-        has_style_directive: false,
-        parent_idx,
-        children_idx: Vec::new(),
-        is_root_child,
-        possible_prev_adjacent: Vec::new(),
-        possible_next_adjacent: Vec::new(),
-        possible_prev_general: Vec::new(),
-        possible_next_general: Vec::new(),
-        has_content: !element.fragment.nodes.is_empty(),
-        has_opaque_content: false, // Dynamic element, conservatively handled via is_dynamic_tag
-        is_dynamic_tag: true,
-        in_snippet: context
-            .fragment_owner_stack
-            .iter()
-            .any(|o| matches!(o, super::FragmentOwnerType::SnippetBlock(..))),
-        prev_is_opaque_boundary: false,
-        prev_has_opaque_boundary: false,
+    let element_idx = if collect_css {
+        let dom_element = super::super::types::CssDomElement {
+            tag_name: String::new(),
+            classes: element_classes,
+            id: element_id,
+            static_attributes: Vec::new(),
+            dynamic_attribute_names: FxHashSet::default(),
+            has_spread: false,
+            has_class_directive: false,
+            class_directive_names: FxHashSet::default(),
+            has_style_directive: false,
+            parent_idx,
+            children_idx: Vec::new(),
+            is_root_child,
+            possible_prev_adjacent: Vec::new(),
+            possible_next_adjacent: Vec::new(),
+            possible_prev_general: Vec::new(),
+            possible_next_general: Vec::new(),
+            has_content: !element.fragment.nodes.is_empty(),
+            has_opaque_content: false,
+            is_dynamic_tag: true,
+            in_snippet: context
+                .fragment_owner_stack
+                .iter()
+                .any(|o| matches!(o, super::FragmentOwnerType::SnippetBlock(..))),
+            prev_is_opaque_boundary: false,
+            prev_has_opaque_boundary: false,
+        };
+        let element_idx = context.add_dom_element(dom_element);
+        if let Some(parent_idx) = parent_idx
+            && parent_idx < context.analysis.css.dom_structure.elements.len()
+        {
+            context.analysis.css.dom_structure.elements[parent_idx]
+                .children_idx
+                .push(element_idx);
+        }
+        element_idx
+    } else {
+        usize::MAX
     };
-
-    let element_idx = context.add_dom_element(dom_element);
-
-    // Update parent's children list
-    if let Some(parent_idx) = parent_idx
-        && parent_idx < context.analysis.css.dom_structure.elements.len()
-    {
-        context.analysis.css.dom_structure.elements[parent_idx]
-            .children_idx
-            .push(element_idx);
-    }
 
     // Check that svelte:element has a 'this' attribute with a value
     // The 'tag' field is populated from the 'this' attribute during parsing
@@ -282,8 +282,9 @@ pub fn visit<'a, 'b: 'a>(
         .fragment_owner_stack
         .push(super::FragmentOwnerType::SvelteElement);
 
-    // Push this element index to DOM element stack for tracking children
-    context.dom_element_stack.push(element_idx);
+    if collect_css {
+        context.dom_element_stack.push(element_idx);
+    }
 
     // Save and update the SVG/MathML namespace state for child analysis.
     // Child svelte:element nodes will check these fields to determine their namespace.
@@ -335,8 +336,9 @@ pub fn visit<'a, 'b: 'a>(
     context.analysis.component_namespace_is_svg = saved_svg;
     context.analysis.component_namespace_is_mathml = saved_mathml;
 
-    // Pop this element from DOM element stack
-    context.dom_element_stack.pop();
+    if collect_css {
+        context.dom_element_stack.pop();
+    }
 
     // Restore context
     context.fragment_owner_stack.pop();
