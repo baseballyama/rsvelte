@@ -113,9 +113,9 @@ pub fn print(program: &Program<'_>, source: &str) -> String {
 
 /// Print `program` to JavaScript with explicit options, interleaving comments.
 pub fn print_with(program: &Program<'_>, source: &str, options: &PrintOptions) -> String {
-    let comments = printer::build_comments(program, source);
-    let mut printer =
-        printer::Printer::with_comments(options, comments, printer::line_starts(source));
+    let line_starts = printer::line_starts(source);
+    let comments = printer::build_comments(program, source, &line_starts);
+    let mut printer = printer::Printer::with_comments(options, comments, line_starts);
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     let commands = ctx.into_commands();
@@ -150,11 +150,11 @@ pub fn print_split(
     loc_map: &[(u32, u32, Option<u32>)],
     options: &PrintOptions,
 ) -> PrintWithMap {
-    let comments = printer::build_comments(program, comment_source);
+    let line_starts = printer::line_starts(comment_source);
+    let comments = printer::build_comments(program, comment_source, &line_starts);
     let map_line_starts = map_source.map(printer::line_starts).unwrap_or_default();
-    let mut printer =
-        printer::Printer::with_comments(options, comments, printer::line_starts(comment_source))
-            .with_split_coordinates(map_line_starts, loc_base, loc_map);
+    let mut printer = printer::Printer::with_comments(options, comments, line_starts)
+        .with_split_coordinates(map_line_starts, loc_base, loc_map);
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     let commands = ctx.into_commands();
@@ -249,10 +249,10 @@ pub fn print_with_hooks(
     options: &PrintOptions,
     hooks: &CommentHooks<'_>,
 ) -> String {
-    let comments = printer::build_comments(program, source);
+    let line_starts = printer::line_starts(source);
+    let comments = printer::build_comments(program, source, &line_starts);
     let mut printer =
-        printer::Printer::with_comments(options, comments, printer::line_starts(source))
-            .with_hooks(hooks);
+        printer::Printer::with_comments(options, comments, line_starts).with_hooks(hooks);
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     let commands = ctx.into_commands();
@@ -289,9 +289,9 @@ pub fn print_with_map_opts(
     source: &str,
     options: &PrintOptions,
 ) -> PrintWithMap {
-    let comments = printer::build_comments(program, source);
-    let mut printer =
-        printer::Printer::with_comments(options, comments, printer::line_starts(source));
+    let line_starts = printer::line_starts(source);
+    let comments = printer::build_comments(program, source, &line_starts);
+    let mut printer = printer::Printer::with_comments(options, comments, line_starts);
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     let commands = ctx.into_commands();

@@ -64,7 +64,7 @@ pub struct Printer<'opt> {
     /// Byte offsets of each line start in the buffer source-map positions are
     /// resolved against. Same as `line_starts` unless the caller split the two
     /// coordinate spaces (see [`crate::print_split`]).
-    map_line_starts: Vec<u32>,
+    map_line_starts: Option<Vec<u32>>,
     /// Spans below this offset are synthesized and carry no source location, so
     /// they take no part in comment placement — the Rust equivalent of esrap's
     /// `if (node.loc)` guards. `None` = every span is a real location.
@@ -109,12 +109,11 @@ fn write_comment_parts(block: bool, value: &str, ctx: &mut Context) {
 
 /// Byte offsets at which each source line begins (line 1 starts at 0).
 pub fn line_starts(source: &str) -> Vec<u32> {
-    let mut starts = vec![0];
-    for (i, b) in source.bytes().enumerate() {
-        if b == b'\n' {
-            starts.push(i as u32 + 1);
-        }
-    }
+    // Sized off an assumed ~32 bytes per line so a long source does not walk the
+    // whole doubling sequence.
+    let mut starts = Vec::with_capacity(source.len() / 32 + 8);
+    starts.push(0);
+    starts.extend(memchr::memchr_iter(b'\n', source.as_bytes()).map(|i| i as u32 + 1));
     starts
 }
 
@@ -133,8 +132,7 @@ pub struct Cmt {
 
 /// Resolve a program's oxc comments into [`Cmt`]s in source order. `source` is
 /// the text the program was parsed from (for the comment bodies + line numbers).
-pub fn build_comments(program: &Program<'_>, source: &str) -> Vec<Cmt> {
-    let starts = line_starts(source);
+pub fn build_comments(program: &Program<'_>, source: &str, starts: &[u32]) -> Vec<Cmt> {
     let line_of = |offset: u32| -> u32 {
         // 1-based line: number of line starts <= offset.
         starts.partition_point(|&s| s <= offset) as u32
@@ -406,7 +404,7 @@ impl<'opt> Printer<'opt> {
             comments: Vec::new(),
             comment_index: 0,
             line_starts: Vec::new(),
-            map_line_starts: Vec::new(),
+            map_line_starts: None,
             loc_base: None,
             loc_map: Vec::new(),
             hooks: None,
@@ -425,7 +423,7 @@ impl<'opt> Printer<'opt> {
             missing: None,
             comments,
             comment_index: 0,
-            map_line_starts: line_starts.clone(),
+            map_line_starts: None,
             line_starts,
             loc_base: None,
             loc_map: Vec::new(),
@@ -443,7 +441,7 @@ impl<'opt> Printer<'opt> {
         loc_base: u32,
         loc_map: &[(u32, u32, Option<u32>)],
     ) -> Self {
-        self.map_line_starts = map_line_starts;
+        self.map_line_starts = Some(map_line_starts);
         self.loc_base = Some(loc_base);
         self.loc_map = loc_map.to_vec();
         self
@@ -472,7 +470,8 @@ impl<'opt> Printer<'opt> {
     /// source this equals the UTF-16 column esrap uses. Returns `None` when
     /// there are no line starts (printing without source context).
     fn offset_to_line_col(&self, offset: u32) -> Option<(u32, u32)> {
-        if self.map_line_starts.is_empty() {
+        let map_line_starts = self.map_line_starts.as_deref().unwrap_or(&self.line_starts);
+        if map_line_starts.is_empty() {
             return None;
         }
         let offset = if self.loc_map.is_empty() {
@@ -497,9 +496,9 @@ impl<'opt> Printer<'opt> {
                 None => offset,
             }
         };
-        let line = self.map_line_starts.partition_point(|&s| s <= offset) as u32;
+        let line = map_line_starts.partition_point(|&s| s <= offset) as u32;
         // `line` is 1-based; its start offset lives at index `line - 1`.
-        let line_start = self.map_line_starts[(line - 1) as usize];
+        let line_start = map_line_starts[(line - 1) as usize];
         Some((line, offset.saturating_sub(line_start)))
     }
 
@@ -3911,7 +3910,7 @@ mod tests {
             ret.diagnostics
         );
         let opts = PrintOptions::default();
-        let comments = build_comments(&ret.program, src);
+        let comments = build_comments(&ret.program, src, &line_starts(src));
         let mut printer = Printer::with_comments(&opts, comments, line_starts(src));
         let mut ctx = Context::new();
         printer.print_program(&ret.program, &mut ctx);

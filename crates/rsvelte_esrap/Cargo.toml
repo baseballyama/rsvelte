@@ -21,6 +21,7 @@ crate-type = ["rlib"]
 
 [dependencies]
 compact_str = "0.10"
+memchr = "2.7"
 oxc_allocator = "0.141"
 oxc_ast = "0.141"
 oxc_span = "0.141"

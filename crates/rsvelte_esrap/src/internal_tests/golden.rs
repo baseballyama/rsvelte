@@ -90,8 +90,9 @@ fn reprint(source: &str) -> Option<Reprint> {
         return None; // not parseable as a module — skip (e.g. TS-only constructs)
     }
     let opts = PrintOptions::default();
-    let comments = crate::printer::build_comments(&ret.program, source);
-    let mut printer = Printer::with_comments(&opts, comments, crate::printer::line_starts(source));
+    let line_starts = crate::printer::line_starts(source);
+    let comments = crate::printer::build_comments(&ret.program, source, &line_starts);
+    let mut printer = Printer::with_comments(&opts, comments, line_starts);
     let mut ctx = Context::new();
     printer.print_program(&ret.program, &mut ctx);
     Some(Reprint {
