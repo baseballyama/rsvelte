@@ -184,8 +184,23 @@ const VLQ_CONTINUATION_BIT: u32 = VLQ_BASE; // 32
 
 const BASE64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
+const ASCII_HIRES_SEGMENT: &str = ",AAAC";
+const ASCII_HIRES_BLOCK_SEGMENTS: usize = 16;
+const ASCII_HIRES_BLOCK: &str = concat!(
+    ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC",
+    ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC",
+);
+
+#[cfg(test)]
+std::thread_local! {
+    static VLQ_ENCODE_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 #[inline]
 fn vlq_encode(encoded: &mut String, value: i64) {
+    #[cfg(test)]
+    VLQ_ENCODE_CALLS.with(|calls| calls.set(calls.get() + 1));
+
     let mut vlq = if value < 0 {
         ((-value) as u32) << 1 | 1
     } else {
@@ -203,6 +218,18 @@ fn vlq_encode(encoded: &mut String, value: i64) {
             break;
         }
     }
+}
+
+#[inline]
+fn push_ascii_hires_segments(mappings: &mut String, count: usize) {
+    mappings.reserve(count * ASCII_HIRES_SEGMENT.len());
+
+    let mut remaining = count;
+    while remaining >= ASCII_HIRES_BLOCK_SEGMENTS {
+        mappings.push_str(ASCII_HIRES_BLOCK);
+        remaining -= ASCII_HIRES_BLOCK_SEGMENTS;
+    }
+    mappings.push_str(&ASCII_HIRES_BLOCK[..remaining * ASCII_HIRES_SEGMENT.len()]);
 }
 
 // ---------------------------------------------------------------------------
@@ -856,10 +883,12 @@ impl MagicString {
                         &mut first_segment_on_line,
                     );
 
-                    // Walk character-by-character, emitting one segment
-                    // per character anchored to its original position.
-                    for ch in body.chars() {
-                        if ch == '\n' {
+                    // ASCII characters after an anchor all encode to the same
+                    // segment, so copy those runs without re-running VLQ.
+                    let bytes = body.as_bytes();
+                    let mut byte_index = 0;
+                    while byte_index < bytes.len() {
+                        if bytes[byte_index] == b'\n' {
                             mappings.push(';');
                             _generated_line += 1;
                             generated_column = 0;
@@ -879,7 +908,25 @@ impl MagicString {
                                 &mut original_column,
                                 &mut first_segment_on_line,
                             );
+                            byte_index += 1;
+                        } else if bytes[byte_index].is_ascii() {
+                            let run_start = byte_index;
+                            while byte_index < bytes.len()
+                                && bytes[byte_index].is_ascii()
+                                && bytes[byte_index] != b'\n'
+                            {
+                                byte_index += 1;
+                            }
+                            let run_len = byte_index - run_start;
+                            push_ascii_hires_segments(&mut mappings, run_len);
+                            generated_column += run_len as i64;
+                            cur_src_col += run_len as i64;
+                            original_column = cur_src_col;
                         } else {
+                            let ch = body[byte_index..]
+                                .chars()
+                                .next()
+                                .expect("non-ASCII byte starts a character");
                             // Advance by UTF-16 width so generated and original
                             // columns stay in UTF-16 units (1 for BMP, 2 for astral).
                             let w = ch.len_utf16() as i64;
@@ -896,6 +943,7 @@ impl MagicString {
                                 &mut original_column,
                                 &mut first_segment_on_line,
                             );
+                            byte_index += ch.len_utf8();
                         }
                     }
                 } else {
@@ -1291,6 +1339,48 @@ mod tests {
             include_content: false,
         });
         assert_eq!(map.mappings, ";;AAAA,AAAC;;AAAA,AAAE;AACH,AAAA;;;");
+    }
+
+    #[test]
+    fn source_map_ascii_runs_are_exact_across_moved_and_edited_chunks() {
+        let mut s = MagicString::new("abcdef\nghijkl");
+        s.append_left(3, "<>");
+        s.overwrite(9, 10, "Ω");
+        s.move_range(10, 13, 0);
+
+        assert_eq!(s.to_string(), "jklabc<>def\nghΩ");
+
+        let map = s.generate_map(GenerateMapOptions {
+            file: None,
+            source: Some("in.svelte".to_string()),
+            include_content: false,
+        });
+        assert_eq!(
+            map.mappings,
+            "AACG,AAAC,AAAC,AAAC,AADN,AAAC,AAAC,AAAC,AAAA,AAAC,AAAC,AAAC;\
+             AACN,AAAC,AAAC,AAAA"
+        );
+    }
+
+    #[test]
+    fn ascii_hires_run_avoids_per_character_vlq_work() {
+        let source = "a".repeat(32 * 1024);
+        VLQ_ENCODE_CALLS.with(|calls| calls.set(0));
+
+        let mappings = MagicString::new(&source).generate_mappings();
+        let vlq_calls = VLQ_ENCODE_CALLS.with(std::cell::Cell::get);
+
+        assert_eq!(mappings.len(), 4 + source.len() * ASCII_HIRES_SEGMENT.len());
+        assert_eq!(vlq_calls, 4);
+    }
+
+    #[test]
+    fn ascii_hires_segment_batches_are_exact() {
+        for count in 0..=ASCII_HIRES_BLOCK_SEGMENTS * 2 {
+            let mut actual = String::new();
+            push_ascii_hires_segments(&mut actual, count);
+            assert_eq!(actual, ASCII_HIRES_SEGMENT.repeat(count));
+        }
     }
 
     #[test]
