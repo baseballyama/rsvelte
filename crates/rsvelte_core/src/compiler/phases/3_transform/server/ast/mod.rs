@@ -708,7 +708,7 @@ fn reparse_expression<'a>(src: &str, allocator: &'a Allocator) -> Option<OxcExpr
 fn strip_ts_expression_wrappers<'a>(expr: &mut OxcExpression<'a>, allocator: &'a Allocator) {
     use oxc_ast_visit::VisitMut;
     struct TsStrip<'b> {
-        ab: oxc_ast::AstBuilder<'b>,
+        ab: oxc_ast::builder::AstBuilder<'b>,
     }
     impl<'b> VisitMut<'b> for TsStrip<'b> {
         fn visit_expression(&mut self, expr: &mut OxcExpression<'b>) {
@@ -738,7 +738,7 @@ fn strip_ts_expression_wrappers<'a>(expr: &mut OxcExpression<'a>, allocator: &'a
         }
     }
     let mut v = TsStrip {
-        ab: oxc_ast::AstBuilder::new(allocator),
+        ab: oxc_ast::builder::AstBuilder::new(allocator),
     };
     v.visit_expression(expr);
 }
@@ -1210,7 +1210,7 @@ pub fn server_component_ast<'a>(
                     b.id("$$opts"),
                     b.id_name("context"),
                     true,
-                    &b.ab,
+                    &b.ab(),
                 ),
             ));
         let render_obj = b.object(vec![
