@@ -6,9 +6,8 @@ use std::collections::HashSet;
 use std::fmt::Write as _;
 
 use oxc_ast::ast as oxc;
-use oxc_ast_visit::Visit;
 
-use super::ast_utils::{collect_binding_names, extract_all_names_from_binding_pattern};
+use super::ast_utils::extract_all_names_from_binding_pattern;
 use super::reactive::extract_names_from_labeled_body;
 use super::runes::excluded_rune_init;
 
@@ -484,57 +483,6 @@ fn is_dollar_binding_shadowed(
     }
 }
 
-/// Collect, from the instance-script AST, every `$`-prefixed function / arrow
-/// parameter binding mapped (sans `$`) to the source span of its enclosing
-/// function. A `$name` reference inside such a span is a local binding read, not
-/// a store auto-subscription (official tracks this via `Scope.declared`).
-pub(super) fn collect_dollar_param_shadow(
-    program: &oxc::Program,
-    offset: u32,
-) -> HashMap<String, Vec<(u32, u32)>> {
-    let mut collector = DollarParamShadowCollector {
-        offset,
-        spans: HashMap::new(),
-    };
-    collector.visit_program(program);
-    collector.spans
-}
-
-struct DollarParamShadowCollector {
-    offset: u32,
-    spans: HashMap<String, Vec<(u32, u32)>>,
-}
-
-impl DollarParamShadowCollector {
-    fn add_params(&mut self, params: &oxc::FormalParameters, span: oxc_span::Span) {
-        let src_span = (span.start + self.offset, span.end + self.offset);
-        for item in params.items.iter() {
-            let mut names = Vec::new();
-            collect_binding_names(&item.pattern, &mut names);
-            for n in names {
-                if let Some(base) = n.strip_prefix('$') {
-                    self.spans
-                        .entry(base.to_string())
-                        .or_default()
-                        .push(src_span);
-                }
-            }
-        }
-    }
-}
-
-impl<'a> Visit<'a> for DollarParamShadowCollector {
-    fn visit_function(&mut self, it: &oxc::Function<'a>, flags: oxc_syntax::scope::ScopeFlags) {
-        self.add_params(&it.params, it.span);
-        oxc_ast_visit::walk::walk_function(self, it, flags);
-    }
-
-    fn visit_arrow_function_expression(&mut self, it: &oxc::ArrowFunctionExpression<'a>) {
-        self.add_params(&it.params, it.span);
-        oxc_ast_visit::walk::walk_arrow_function_expression(self, it);
-    }
-}
-
 /// Create the store subscription declaration string for a list of store names.
 ///
 /// Returns a string like `/*Ωignore_startΩ*/;let $a = __sveltets_2_store_get(a);;let $b = __sveltets_2_store_get(b);/*Ωignore_endΩ*/`
@@ -610,15 +558,15 @@ pub(super) fn inject_store_subscriptions_with_program(
     module_program: Option<&oxc::Program>,
     offset: u32,
     source: &str,
+    shadow: &HashMap<String, Vec<(u32, u32)>>,
     str: &mut MagicString,
 ) {
     // Exclude `$name` references that are shadowed by a `$`-prefixed function /
     // arrow parameter binding in the instance script (official `resolveStore`
     // scope-chain check). The shadow map is keyed by source byte ranges.
-    let shadow = collect_dollar_param_shadow(program, offset);
     let self_named_rune_calls = collect_self_named_rune_call_positions(program, offset);
     let accessed_stores =
-        collect_store_references_with_shadow(source, &shadow, &self_named_rune_calls);
+        collect_store_references_with_shadow(source, shadow, &self_named_rune_calls);
     if accessed_stores.is_empty() {
         return;
     }

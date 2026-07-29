@@ -15,6 +15,7 @@ mod parse;
 mod props_rune;
 mod reactive;
 mod runes;
+mod script_facts;
 mod stores;
 #[cfg(test)]
 mod test_support;
@@ -55,11 +56,12 @@ use runes::{
     detect_rune_in_class_body, detect_rune_in_expr, detect_rune_in_nested_body, detect_runes_call,
     detect_runes_expr_stmt, scope_with_params,
 };
+use script_facts::ScriptFacts;
 use stores::{
     collect_loose_dollar_names_from_script, inject_store_subscriptions_vars_only_with_program,
     inject_store_subscriptions_with_program,
 };
-use type_assertion::{disambiguate_arrow_type_params, rewrite_type_assertions_with_program};
+use type_assertion::{disambiguate_arrow_type_params, rewrite_type_assertions};
 
 /// Classify a Svelte component basename for SvelteKit autotype injection.
 ///
@@ -110,6 +112,8 @@ pub fn process_instance_script(
 ) {
     let offset = script.content_offset;
     with_parsed_script(parsed, |program, raw_content| {
+        let script_facts = ScriptFacts::collect(program, offset, raw_content, true);
+
         // Pass 1: collect top-level declared names and possible exports
         let mut possible_exports: HashMap<String, PossibleExport> = HashMap::new();
         // Pre-populate with ALL top-level declared names so rune-vs-store
@@ -684,16 +688,23 @@ pub fn process_instance_script(
 
         // Pass 5: store subscriptions. Reuses the already-parsed program
         // so we don't re-parse the instance script content with OXC.
-        inject_store_subscriptions_with_program(program, module_program, offset, source, str);
+        inject_store_subscriptions_with_program(
+            program,
+            module_program,
+            offset,
+            source,
+            &script_facts.dollar_param_shadow,
+            str,
+        );
 
         // Pass 6: disambiguate generic arrow type-parameter lists for the
         // `.tsx` overlay (`<T>` → `<T,>`) so they aren't misparsed as JSX.
-        disambiguate_arrow_type_params(program, offset, raw_content, str);
+        disambiguate_arrow_type_params(&script_facts.arrow_generic_commas, str);
 
         // Pass 7: rewrite TS angle-bracket type assertions (`<X>e` → `e as X`)
         // anywhere in the instance script — TSX cannot parse the `<X>e` form.
         // Mirrors official `handleTypeAssertion`, applied during the same walk.
-        rewrite_type_assertions_with_program(program, offset as usize, str);
+        rewrite_type_assertions(&script_facts.type_assertions, str);
     });
 }
 /// Process a module script block (`<script context="module">`).
@@ -725,6 +736,8 @@ pub fn process_module_script(
     // Parse once and share the program across all three passes.
     let offset = script.content_offset;
     with_parsed_script(parsed, |program, raw_content| {
+        let script_facts = ScriptFacts::collect(program, offset, raw_content, false);
+
         // Inject store subscriptions for module-level variable declarations
         // only. Import-based store subscriptions are NOT injected here
         // because they need to go inside the $$render function body.
@@ -734,12 +747,12 @@ pub fn process_module_script(
         // the `e as X` form. Inside the module script the rewrite is
         // required because the generated `.tsx` parses the module-script
         // body at top level, where `<X>e` would be lexed as JSX.
-        rewrite_type_assertions_with_program(program, offset as usize, str);
+        rewrite_type_assertions(&script_facts.type_assertions, str);
 
         // Disambiguate generic arrow type-parameter lists (`<T>` → `<T,>`) so
         // the module-script body, parsed at the top level of the `.tsx`
         // overlay, doesn't lex a single-parameter arrow generic as JSX.
-        disambiguate_arrow_type_params(program, offset, raw_content, str);
+        disambiguate_arrow_type_params(&script_facts.arrow_generic_commas, str);
 
         // Snapshot top-level module-script names for the snippet hoist analysis.
         for stmt in program.body.iter() {
