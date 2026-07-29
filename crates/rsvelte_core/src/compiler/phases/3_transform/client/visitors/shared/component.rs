@@ -2215,7 +2215,7 @@ fn visit_slot_children(
     context: &mut ComponentContext,
 ) -> Vec<JsStatement> {
     use crate::compiler::phases::phase3_transform::client::transform_template::Namespace;
-    use crate::compiler::phases::phase3_transform::utils::clean_nodes;
+    use crate::compiler::phases::phase3_transform::utils::clean_nodes_refs;
 
     // SAFETY: `JsArena` allocates via interior mutability (`UnsafeCell`) with
     // nodes behind stable `Box`es, so a shared `&JsArena` stays valid while
@@ -2223,9 +2223,6 @@ fn visit_slot_children(
     // and traversal is single-threaded (no aliasing).
     let arena_local2: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena =
         unsafe { &*(&context.arena as *const _) };
-
-    // Convert &[&TemplateNode] to Vec<TemplateNode> for clean_nodes
-    let nodes: Vec<TemplateNode> = children.iter().map(|n| (*n).clone()).collect();
 
     // Slot content is its own fragment, so its namespace is RE-INFERRED from the
     // children (a component is a namespace-reset boundary), NOT inherited from
@@ -2239,15 +2236,15 @@ fn visit_slot_children(
     let inferred_ns = crate::compiler::phases::phase3_transform::utils::infer_namespace(
         &context.state.metadata.namespace,
         crate::compiler::phases::phase3_transform::utils::ParentRef::None,
-        &nodes,
+        children,
         context.state.analysis,
         true,
     );
 
     // Clean the nodes (trim whitespace, etc.)
-    let cleaned = clean_nodes(
+    let cleaned = clean_nodes_refs(
         crate::compiler::phases::phase3_transform::utils::ParentRef::None, // No parent in slot context
-        &nodes,
+        children,
         &context.path,
         inferred_ns,
         context.state.scope,

@@ -182,7 +182,7 @@ pub fn svelte_trim_end(s: &str) -> &str {
 /// correct, so cloning to return an identical Vec was pure waste — and the
 /// common case for `clean_nodes`, which runs over every sibling group in the
 /// tree in legacy mode.
-fn sort_const_tags<'a>(nodes: &[TemplateNode<'a>]) -> Option<Vec<TemplateNode<'a>>> {
+fn sort_const_tags<'a, L: NodeList<'a>>(nodes: &L) -> Option<Vec<TemplateNode<'a>>> {
     // Collect const tags with their indices, declared names, and dependencies
     struct ConstTagInfo {
         index: usize,
@@ -193,8 +193,8 @@ fn sort_const_tags<'a>(nodes: &[TemplateNode<'a>]) -> Option<Vec<TemplateNode<'a
     let mut const_infos: Vec<ConstTagInfo> = Vec::new();
     let mut other_indices: Vec<usize> = Vec::new();
 
-    for (i, node) in nodes.iter().enumerate() {
-        if let TemplateNode::ConstTag(tag) = node {
+    for i in 0..nodes.count() {
+        if let TemplateNode::ConstTag(tag) = nodes.get(i) {
             let (declared, referenced) = extract_const_tag_names_and_deps(&tag.declaration);
             const_infos.push(ConstTagInfo {
                 index: i,
@@ -265,17 +265,17 @@ fn sort_const_tags<'a>(nodes: &[TemplateNode<'a>]) -> Option<Vec<TemplateNode<'a
     // index sets partition `0..nodes.len()`), so cloning per index clones every
     // node exactly once — the same total work as the previous move-based path,
     // but only on this rare reorder branch rather than on every call.
-    let mut result: Vec<TemplateNode> = Vec::with_capacity(nodes.len());
+    let mut result: Vec<TemplateNode> = Vec::with_capacity(nodes.count());
 
     // Add sorted const tags first
     for &tag_idx in &sorted_tag_indices {
         let original_index = const_infos[tag_idx].index;
-        result.push(nodes[original_index].clone());
+        result.push(nodes.get(original_index).clone());
     }
 
     // Add other nodes in original order
     for &other_idx in &other_indices {
-        result.push(nodes[other_idx].clone());
+        result.push(nodes.get(other_idx).clone());
     }
 
     Some(result)
@@ -573,6 +573,36 @@ pub struct CleanedNodes<'a> {
     pub is_text_first: bool,
 }
 
+/// A list of template nodes that can be viewed as `&'a TemplateNode<'a>` by index,
+/// so [`clean_nodes`] works off either a slice of nodes or a slice of *pointers*
+/// to nodes without the caller having to deep-clone one into the other.
+trait NodeList<'a> {
+    fn count(&self) -> usize;
+    fn get(&self, i: usize) -> &'a TemplateNode<'a>;
+}
+
+impl<'a> NodeList<'a> for &'a [TemplateNode<'a>] {
+    #[inline]
+    fn count(&self) -> usize {
+        self.len()
+    }
+    #[inline]
+    fn get(&self, i: usize) -> &'a TemplateNode<'a> {
+        &self[i]
+    }
+}
+
+impl<'a> NodeList<'a> for &[&'a TemplateNode<'a>] {
+    #[inline]
+    fn count(&self) -> usize {
+        self.len()
+    }
+    #[inline]
+    fn get(&self, i: usize) -> &'a TemplateNode<'a> {
+        self[i]
+    }
+}
+
 /// Clean and organize template nodes.
 ///
 /// Extracts nodes that are hoisted and trims whitespace according to the following rules:
@@ -600,6 +630,53 @@ pub struct CleanedNodes<'a> {
 pub fn clean_nodes<'a>(
     parent: ParentRef<'_>,
     nodes: &'a [TemplateNode<'a>],
+    path: &[&TemplateNode<'_>],
+    namespace: &str,
+    scope: &Scope,
+    analysis: &ComponentAnalysis,
+    preserve_whitespace: bool,
+    preserve_comments: bool,
+) -> CleanedNodes<'a> {
+    clean_node_list(
+        parent,
+        nodes,
+        path,
+        namespace,
+        scope,
+        analysis,
+        preserve_whitespace,
+        preserve_comments,
+    )
+}
+
+/// [`clean_nodes`] over a slice of node *references* — the shape the slot-content
+/// and fragment visitors hold, which would otherwise have to deep-clone every
+/// child subtree just to hand over a contiguous `&[TemplateNode]`.
+pub fn clean_nodes_refs<'a>(
+    parent: ParentRef<'_>,
+    nodes: &[&'a TemplateNode<'a>],
+    path: &[&TemplateNode<'_>],
+    namespace: &str,
+    scope: &Scope,
+    analysis: &ComponentAnalysis,
+    preserve_whitespace: bool,
+    preserve_comments: bool,
+) -> CleanedNodes<'a> {
+    clean_node_list(
+        parent,
+        nodes,
+        path,
+        namespace,
+        scope,
+        analysis,
+        preserve_whitespace,
+        preserve_comments,
+    )
+}
+
+fn clean_node_list<'a, L: NodeList<'a>>(
+    parent: ParentRef<'_>,
+    nodes: L,
     _path: &[&TemplateNode<'_>],
     namespace: &str,
     _scope: &Scope,
@@ -614,14 +691,14 @@ pub fn clean_nodes<'a>(
     // borrowing `nodes` below instead of cloning the whole slice every call.
     let is_legacy = !analysis.runes;
     let sorted_nodes = if is_legacy {
-        sort_const_tags(nodes)
+        sort_const_tags(&nodes)
     } else {
         None
     };
 
     // Pre-allocate based on input size
-    let mut hoisted: Vec<Cow<'a, TemplateNode<'a>>> = Vec::with_capacity(nodes.len().min(8));
-    let mut regular: Vec<Cow<'a, TemplateNode<'a>>> = Vec::with_capacity(nodes.len());
+    let mut hoisted: Vec<Cow<'a, TemplateNode<'a>>> = Vec::with_capacity(nodes.count().min(8));
+    let mut regular: Vec<Cow<'a, TemplateNode<'a>>> = Vec::with_capacity(nodes.count());
 
     // Helper: process a single node into hoisted or regular
     let mut process_node = |node: Cow<'a, TemplateNode<'a>>| {
@@ -656,8 +733,8 @@ pub fn clean_nodes<'a>(
         }
     } else {
         // Runes mode: borrow from input
-        for node in nodes {
-            process_node(Cow::Borrowed(node));
+        for i in 0..nodes.count() {
+            process_node(Cow::Borrowed(nodes.get(i)));
         }
     }
 
