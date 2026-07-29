@@ -191,13 +191,88 @@ fn is_bindable_valid_placement(context: &VisitorContext) -> bool {
         return false;
     }
 
-    // Check that VariableDeclarator init is $props()
+    // Check that VariableDeclarator init is $props().
+    //
+    // Read `init` straight off the typed node when there is one: `as_value()`
+    // would lower the whole declarator — including the `$props()` destructuring
+    // pattern, which real components make very large — into a `Value` just to
+    // reach this one field.
+    if let Some(JsNode::VariableDeclarator { init, .. }) = var_declarator.as_js_node() {
+        let Some(init) = init else {
+            return false;
+        };
+        let init_node = context.parse_arena.get_js_node(*init);
+        return get_rune_node(init_node, context).as_deref() == Some("$props");
+    }
+
     if let Some(init) = var_declarator.as_value().get("init") {
         let rune = get_rune(init, context);
         return rune.as_deref() == Some("$props");
     }
 
     false
+}
+
+/// Typed mirror of [`get_rune`].
+fn get_rune_node(node: &JsNode, context: &VisitorContext) -> Option<String> {
+    let JsNode::CallExpression { callee, .. } = node else {
+        return None;
+    };
+    let callee = context.parse_arena.get_js_node(*callee);
+    let keypath = get_global_keypath_node(callee, context)?;
+    if super::shared::function::is_rune(&keypath) {
+        Some(keypath)
+    } else {
+        None
+    }
+}
+
+/// Typed mirror of [`get_global_keypath`].
+fn get_global_keypath_node(node: &JsNode, context: &VisitorContext) -> Option<String> {
+    let arena = context.parse_arena;
+    let mut n = node;
+    let mut joined = String::new();
+
+    while let JsNode::MemberExpression {
+        object,
+        property,
+        computed,
+        ..
+    } = n
+    {
+        if *computed {
+            return None;
+        }
+        let JsNode::Identifier { name, .. } = arena.get_js_node(*property) else {
+            return None;
+        };
+        joined = format!(".{}{}", name, joined);
+        n = arena.get_js_node(*object);
+    }
+
+    if let JsNode::CallExpression { callee, .. } = n {
+        let callee = arena.get_js_node(*callee);
+        if !matches!(callee, JsNode::Identifier { .. }) {
+            return None;
+        }
+        joined = format!("(){}", joined);
+        n = callee;
+    }
+
+    let JsNode::Identifier { name, .. } = n else {
+        return None;
+    };
+
+    if context
+        .analysis
+        .root
+        .find_binding_any_scope(name.as_str())
+        .is_some()
+    {
+        return None;
+    }
+
+    Some(format!("{}{}", name, joined))
 }
 
 /// Check if $props is in a valid placement.
@@ -308,7 +383,14 @@ fn is_props_id_valid_placement(context: &VisitorContext) -> bool {
     }
 
     // The id field of VariableDeclarator must be an Identifier (not ObjectPattern or ArrayPattern)
-    if let Some(id) = parent.as_value().get("id") {
+    if let Some(JsNode::VariableDeclarator { id, .. }) = parent.as_js_node() {
+        if !matches!(
+            context.parse_arena.get_js_node(*id),
+            JsNode::Identifier { .. }
+        ) {
+            return false;
+        }
+    } else if let Some(id) = parent.as_value().get("id") {
         let id_type = id.get("type").and_then(|t| t.as_str());
         if id_type != Some("Identifier") {
             return false;
