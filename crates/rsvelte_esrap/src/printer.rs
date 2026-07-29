@@ -396,6 +396,7 @@ fn arrow_concise_body_needs_wrap(body: &Expression) -> bool {
 }
 
 impl<'opt> Printer<'opt> {
+    #[cfg(test)]
     pub fn new(options: &'opt PrintOptions) -> Self {
         Self {
             options,

@@ -5,9 +5,7 @@ use std::str::FromStr;
 use lsp_types::{
     CodeDescription, Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range, Uri,
 };
-use rsvelte_core::svelte_check::diagnostic::{
-    Diagnostic as LintDiagnostic, DiagnosticSeverity as LintSeverity,
-};
+use rsvelte_diagnostics::{Diagnostic as LintDiagnostic, DiagnosticSeverity as LintSeverity};
 
 use crate::settings::{CompilerWarnings, WarningLevel};
 
@@ -95,7 +93,7 @@ fn severity(severity: LintSeverity) -> DiagnosticSeverity {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rsvelte_core::svelte_check::diagnostic::{Position as LintPosition, Range as LintRange};
+    use rsvelte_diagnostics::{Position as LintPosition, Range as LintRange};
     use std::collections::HashMap;
     use std::path::PathBuf;
     use std::sync::Arc;

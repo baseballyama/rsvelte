@@ -2,7 +2,7 @@
 name = "rsvelte_language_server"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 description = "Language server exposing rsvelte's formatter and linter over LSP"
 license = "MIT"
 publish = false
@@ -12,7 +12,9 @@ name = "rsvelte-language-server"
 path = "src/main.rs"
 
 [dependencies]
-rsvelte_core = { path = "../rsvelte_core" }
+rsvelte_core = { path = "../rsvelte_core", default-features = false }
+rsvelte_check = { path = "../rsvelte_check" }
+rsvelte_diagnostics = { path = "../rsvelte_diagnostics" }
 rsvelte_fmt = { path = "../rsvelte_fmt" }
 rsvelte_lint = { path = "../rsvelte_lint", default-features = false, features = ["native"] }
 anyhow = "1.0"

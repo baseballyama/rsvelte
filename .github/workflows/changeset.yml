@@ -82,3 +82,8 @@ jobs:
         # Some share no npm dependency edge, so Changesets can't cascade a core
         # change between them — each must be named explicitly or it ships stale.
         run: node scripts/release/check-core-consumer-changesets.mjs
+
+      - name: Require an rsvelte_esrap crate version bump
+        env:
+          SKIP: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changeset') }}
+        run: node scripts/release/check-esrap-version-bump.mjs

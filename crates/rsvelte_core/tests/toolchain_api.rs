@@ -6,8 +6,7 @@ use std::sync::{
 use rsvelte_core::{
     CompileOptions, GenerateMode,
     compiler::CssHashInput,
-    svelte2tsx::{RewriteExternalImportsOptions, Svelte2TsxOptions},
-    toolchain::{RuntimeTarget, ScriptKind, Toolchain},
+    toolchain::{ByteRange, RuntimeTarget, ScriptKind, Toolchain},
 };
 
 fn options(generate: GenerateMode) -> CompileOptions {
@@ -192,97 +191,6 @@ let { value = $bindable(0) } = $props(); export { value as version };
 }
 
 #[test]
-fn projection_has_bidirectional_exact_byte_mappings_and_frozen_facts() {
-    let source = r#"<script lang="ts">
-  export let greeting: string = "héllo";
-  export const answer = 42;
-</script>
-<h1>{greeting}</h1>"#;
-    let toolchain = Toolchain::new();
-    let projection = toolchain
-        .project(
-            source,
-            Svelte2TsxOptions {
-                filename: "Greeting.svelte".to_string(),
-                is_ts_file: true,
-                ..Default::default()
-            },
-        )
-        .expect("project component");
-    let mappings = projection.exact_mappings.as_ref().expect("exact mappings");
-
-    let original = source.find("greeting: string").unwrap() as u32;
-    let generated_candidates = mappings.source_to_generated(original);
-    assert!(!generated_candidates.is_empty());
-    for generated in generated_candidates {
-        assert_eq!(
-            &projection.code[generated as usize..generated as usize + "greeting".len()],
-            "greeting"
-        );
-        assert_eq!(mappings.generated_to_source(generated), Some(original));
-    }
-
-    let original_range =
-        rsvelte_core::toolchain::ByteRange::new(original, original + "greeting".len() as u32);
-    let generated_ranges = mappings.source_range_to_generated(original_range);
-    assert!(!generated_ranges.is_empty());
-    assert!(generated_ranges.iter().all(|range| {
-        &projection.code[range.as_usize_range()] == "greeting"
-            && mappings.generated_range_to_source(*range) == Some(original_range)
-    }));
-
-    let synthetic = projection
-        .code
-        .find("__sveltets")
-        .expect("synthesized helper") as u32;
-    assert_eq!(mappings.generated_to_source(synthetic), None);
-
-    let multibyte = source.find("é").expect("multibyte source character") as u32;
-    let generated_multibyte = mappings.source_to_generated(multibyte);
-    assert!(!generated_multibyte.is_empty());
-    assert!(generated_multibyte.iter().all(|&generated| {
-        &projection.code[generated as usize..generated as usize + "é".len()] == "é"
-            && mappings.generated_to_source(generated) == Some(multibyte)
-    }));
-
-    assert!(!projection.facts.runes);
-    assert!(projection.facts.props.iter().any(|prop| {
-        prop.name == "greeting"
-            && prop.local_name == "greeting"
-            && prop.optional
-            && prop.type_annotation.as_deref() == Some("string")
-    }));
-    assert!(
-        projection
-            .facts
-            .exports
-            .iter()
-            .any(|export| export.name == "answer")
-    );
-}
-
-#[test]
-fn projection_does_not_claim_exact_mappings_after_text_postprocessing() {
-    let toolchain = Toolchain::new();
-    let source = r#"<script>import x from "../../outside.js";</script><p>{x}</p>"#;
-    let projection = toolchain
-        .project(
-            source,
-            Svelte2TsxOptions {
-                rewrite_external_imports: Some(RewriteExternalImportsOptions {
-                    source_path: "/workspace/src/App.svelte".to_string(),
-                    generated_path: "/workspace/.generated/App.svelte.tsx".to_string(),
-                    workspace_path: "/workspace".to_string(),
-                }),
-                ..Default::default()
-            },
-        )
-        .expect("project component");
-
-    assert!(projection.exact_mappings.is_none());
-}
-
-#[test]
 fn fingerprint_exposes_independent_phase_abis() {
     let fingerprint = Toolchain::new().fingerprint();
     assert_eq!(fingerprint.rsvelte_version, env!("CARGO_PKG_VERSION"));
@@ -290,8 +198,17 @@ fn fingerprint_exposes_independent_phase_abis() {
         fingerprint.svelte_version,
         include_str!("../svelte-version.txt").trim()
     );
-    assert!(fingerprint.toolchain_abi > 0);
-    assert!(fingerprint.runtime_abi > 0);
-    assert!(fingerprint.projection_abi > 0);
-    assert_eq!(fingerprint.facts_abi, 2);
+    assert!(fingerprint.toolchain_schema > 0);
+    assert!(fingerprint.runtime_schema > 0);
+    assert_eq!(fingerprint.facts_schema, 2);
+}
+
+#[test]
+fn byte_ranges_enforce_order_at_construction() {
+    let range = ByteRange::new(2, 5).expect("ordered range");
+    assert_eq!(range.start(), 2);
+    assert_eq!(range.end(), 5);
+    assert_eq!(range.len(), 3);
+    assert_eq!(range.as_usize_range(), 2..5);
+    assert!(ByteRange::new(5, 2).is_none());
 }

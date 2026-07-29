@@ -59,7 +59,9 @@ jobs:
         run: cargo install cargo-codspeed --locked
 
       - name: Build the benchmark targets
-        run: cargo codspeed build --bench parser --bench compiler --bench formatter
+        run: >-
+          cargo codspeed build -p rsvelte_devtools -p rsvelte_formatter
+          --bench parser --bench compiler --bench formatter
 
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@f22792bfac16f3e14eb9fbea76f4a48e9cc22b93 # v4.19.1

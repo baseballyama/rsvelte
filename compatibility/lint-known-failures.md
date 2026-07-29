@@ -14,7 +14,7 @@ real-world volume check.
 ## Current baseline: 80 divergences (32 FP, 48 FN)
 
 The former largest cluster — `no-top-level-browser-globals` (136 FP) — is now
-resolved: an oxc-semantic scope resolver (`rsvelte_core::lint_scope` +
+resolved: an oxc-semantic scope resolver (`rsvelte_lint::compiler_scope` +
 `rsvelte_lint::scope::ScopeResolver`) distinguishes a real browser global
 (`window`) from a local binding that shares its name (`open` / `top` / `name` /
 `status` — a prop / import / `let`) in both the `<script>` and template paths.

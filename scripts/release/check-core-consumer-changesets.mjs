@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Guard: a single Rust crate (`rsvelte_core`) is compiled into several
+// Guard: Rust compiler and projection crates are compiled into several
 // *separate* npm artifacts. Some of them share no npm dependency edge, so
-// Changesets cannot cascade a core change from one to another — each must be
+// Changesets cannot cascade a Rust change from one to another — each must be
 // named in a changeset explicitly or it silently ships stale.
 //
-// Concretely, `@rsvelte/svelte-check` embeds the same `rsvelte_core` svelte2tsx
+// Concretely, `@rsvelte/svelte-check` embeds the same `rsvelte_projection`
 // code that `@rsvelte/svelte2tsx` (via the `@rsvelte/compiler` wasm) exposes,
 // but svelte-check is a self-contained native binary with no dependency on
 // either package. A changeset naming only `@rsvelte/svelte2tsx` can therefore
@@ -40,14 +40,35 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 // unless you want them named directly.
 const RULES = [
   {
-    prefix: 'crates/rsvelte_core/src/svelte2tsx/',
+    prefix: 'crates/rsvelte/src/',
+    // The stable Rust facade is versioned with the compiler release set.
+    requires: ['@rsvelte/compiler'],
+  },
+  {
+    prefix: 'crates/rsvelte_core/src/',
+    // @rsvelte/compiler owns the shared Rust toolchain release version.
+    requires: ['@rsvelte/compiler'],
+  },
+  {
+    prefix: 'crates/rsvelte_core/Cargo.toml',
+    // Exact dependency updates create a new compiler release-set artifact.
+    requires: ['@rsvelte/compiler'],
+  },
+  {
+    prefix: 'crates/rsvelte_projection/src/',
+    // Every projection change must advance the Rust release-set version even
+    // when it does not touch the language-tools-compatible converter.
+    requires: ['@rsvelte/compiler'],
+  },
+  {
+    prefix: 'crates/rsvelte_projection/src/svelte2tsx/',
     // svelte2tsx code ships two ways: the wasm export consumed by
     // @rsvelte/svelte2tsx, and the overlay generator inside the svelte-check
     // binary. The latter has no cascade edge, so it must be named too.
-    requires: ['@rsvelte/svelte2tsx', '@rsvelte/svelte-check'],
+    requires: ['@rsvelte/compiler', '@rsvelte/svelte2tsx', '@rsvelte/svelte-check'],
   },
   {
-    prefix: 'crates/rsvelte_core/src/svelte_check/',
+    prefix: 'crates/rsvelte_check/src/',
     requires: ['@rsvelte/svelte-check'],
   },
   // NOTE: `crates/rsvelte_lint/**` and `crates/rsvelte_lint_bindings/**` are

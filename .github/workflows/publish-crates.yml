@@ -1,0 +1,332 @@
+name: Publish crates.io
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_toolchain_version:
+        description: Version shared by rsvelte_core, rsvelte_projection, and rsvelte
+        required: true
+        type: string
+      expected_esrap_version:
+        description: Independent rsvelte_esrap version
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crates-io-publish
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Verify immutable release candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      toolchain_version: ${{ steps.versions.outputs.toolchain_version }}
+      esrap_version: ${{ steps.versions.outputs.esrap_version }}
+      esrap_exists: ${{ steps.registry.outputs.esrap_exists }}
+      core_exists: ${{ steps.registry.outputs.core_exists }}
+      projection_exists: ${{ steps.registry.outputs.projection_exists }}
+      facade_exists: ${{ steps.registry.outputs.facade_exists }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust MSRV
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: "1.95"
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          key: crates-io-publish-preflight
+
+      - name: Verify tag, main ancestry, versions, and lockfile
+        id: versions
+        env:
+          EXPECTED_TOOLCHAIN_VERSION: ${{ inputs.expected_toolchain_version }}
+          EXPECTED_ESRAP_VERSION: ${{ inputs.expected_esrap_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_ref="refs/tags/rsvelte-crates-v${EXPECTED_TOOLCHAIN_VERSION}"
+          if [[ "$GITHUB_REF" != "$expected_ref" ]]; then
+            echo "::error::Dispatch this workflow from immutable tag ${expected_ref}; got ${GITHUB_REF}"
+            exit 1
+          fi
+
+          git fetch --no-tags origin +main:refs/remotes/origin/main
+          test "$(git rev-parse "${GITHUB_REF}^{commit}")" = "$GITHUB_SHA"
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          git diff --exit-code
+          test -z "$(git status --short)"
+
+          metadata="$(cargo metadata --locked --no-deps --format-version 1)"
+          version_of() {
+            jq -er --arg name "$1" '.packages[] | select(.name == $name) | .version' <<<"$metadata"
+          }
+
+          esrap_version="$(version_of rsvelte_esrap)"
+          core_version="$(version_of rsvelte_core)"
+          projection_version="$(version_of rsvelte_projection)"
+          facade_version="$(version_of rsvelte)"
+
+          test "$esrap_version" = "$EXPECTED_ESRAP_VERSION"
+          test "$core_version" = "$EXPECTED_TOOLCHAIN_VERSION"
+          test "$projection_version" = "$EXPECTED_TOOLCHAIN_VERSION"
+          test "$facade_version" = "$EXPECTED_TOOLCHAIN_VERSION"
+
+          echo "toolchain_version=$core_version" >>"$GITHUB_OUTPUT"
+          echo "esrap_version=$esrap_version" >>"$GITHUB_OUTPUT"
+
+      - name: Verify package policy and registry dependency surface
+        run: |
+          node scripts/ci/check-crates-io-packages.mjs
+          bash scripts/ci/verify-registry-dependency-surface.sh
+
+      - name: Test every public feature on the declared MSRV
+        run: |
+          cargo test --locked -p rsvelte_esrap --all-features
+          cargo test --locked -p rsvelte_core --all-features --lib
+          cargo test --locked -p rsvelte_projection --all-features
+          cargo test --locked -p rsvelte --all-features
+
+      - name: Build public documentation with warnings denied
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: |
+          cargo doc --locked -p rsvelte_esrap --all-features --no-deps
+          cargo doc --locked -p rsvelte_core --all-features --no-deps
+          cargo doc --locked -p rsvelte_projection --all-features --no-deps
+          cargo doc --locked -p rsvelte --all-features --no-deps
+
+      - name: Verify the prerequisite package archive
+        env:
+          ESRAP_VERSION: ${{ steps.versions.outputs.esrap_version }}
+        run: |
+          cargo package --locked -p rsvelte_esrap --all-features
+          archive="target/package/rsvelte_esrap-${ESRAP_VERSION}.crate"
+          test -f "$archive"
+          test "$(stat -c '%s' "$archive")" -lt 10485760
+
+      - name: Build retry-safe registry plan
+        id: registry
+        env:
+          TOOLCHAIN_VERSION: ${{ steps.versions.outputs.toolchain_version }}
+          ESRAP_VERSION: ${{ steps.versions.outputs.esrap_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          existing=0
+          check_version() {
+            local output="$1"
+            local crate="$2"
+            local version="$3"
+            local exists=false
+            if cargo info "${crate}@${version}" --registry crates-io >/dev/null 2>&1; then
+              exists=true
+              existing=$((existing + 1))
+            fi
+            echo "${output}=${exists}" >>"$GITHUB_OUTPUT"
+            printf '%-20s %-12s %s\n' "$crate" "$version" "$([[ "$exists" == true ]] && echo skip || echo publish)" \
+              >>"$GITHUB_STEP_SUMMARY"
+          }
+
+          echo "### crates.io publication plan" >>"$GITHUB_STEP_SUMMARY"
+          echo '```text' >>"$GITHUB_STEP_SUMMARY"
+          check_version esrap_exists rsvelte_esrap "$ESRAP_VERSION"
+          check_version core_exists rsvelte_core "$TOOLCHAIN_VERSION"
+          check_version projection_exists rsvelte_projection "$TOOLCHAIN_VERSION"
+          check_version facade_exists rsvelte "$TOOLCHAIN_VERSION"
+          echo '```' >>"$GITHUB_STEP_SUMMARY"
+
+          if [[ "$existing" -eq 4 ]]; then
+            echo "::error::All requested crate versions already exist; refusing a no-op publish approval."
+            exit 1
+          fi
+
+  publish:
+    name: Publish approved release set
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: crates-io
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust MSRV
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: "1.95"
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          key: crates-io-publish
+
+      - name: Re-verify approved ref and package policy
+        env:
+          TOOLCHAIN_VERSION: ${{ needs.preflight.outputs.toolchain_version }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/tags/rsvelte-crates-v${TOOLCHAIN_VERSION}"
+          test "$(git rev-parse "${GITHUB_REF}^{commit}")" = "$GITHUB_SHA"
+          git diff --exit-code
+          test -z "$(git status --short)"
+          node scripts/ci/check-crates-io-packages.mjs
+
+      - name: Dry-run rsvelte_esrap
+        if: needs.preflight.outputs.esrap_exists != 'true'
+        run: cargo publish --dry-run --locked -p rsvelte_esrap --all-features
+
+      - name: Authenticate rsvelte_esrap
+        if: needs.preflight.outputs.esrap_exists != 'true'
+        id: auth-esrap
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18
+
+      - name: Publish rsvelte_esrap
+        if: needs.preflight.outputs.esrap_exists != 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth-esrap.outputs.token }}
+          VERSION: ${{ needs.preflight.outputs.esrap_version }}
+        run: |
+          set -uo pipefail
+          status=0
+          cargo publish --locked -p rsvelte_esrap --all-features || status=$?
+          if [[ "$status" -ne 0 ]] && ! cargo info "rsvelte_esrap@${VERSION}" --registry crates-io >/dev/null 2>&1; then
+            exit "$status"
+          fi
+
+      - name: Wait for rsvelte_esrap index visibility
+        env:
+          VERSION: ${{ needs.preflight.outputs.esrap_version }}
+        run: |
+          for attempt in $(seq 1 30); do
+            cargo info "rsvelte_esrap@${VERSION}" --registry crates-io >/dev/null 2>&1 && exit 0
+            sleep 10
+          done
+          echo "::error::rsvelte_esrap@${VERSION} did not become visible in time"
+          exit 1
+
+      - name: Dry-run rsvelte_core with every feature
+        if: needs.preflight.outputs.core_exists != 'true'
+        run: cargo publish --dry-run --locked -p rsvelte_core --all-features
+
+      - name: Authenticate rsvelte_core
+        if: needs.preflight.outputs.core_exists != 'true'
+        id: auth-core
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18
+
+      - name: Publish rsvelte_core
+        if: needs.preflight.outputs.core_exists != 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth-core.outputs.token }}
+          VERSION: ${{ needs.preflight.outputs.toolchain_version }}
+        run: |
+          set -uo pipefail
+          status=0
+          cargo publish --locked -p rsvelte_core --all-features || status=$?
+          if [[ "$status" -ne 0 ]] && ! cargo info "rsvelte_core@${VERSION}" --registry crates-io >/dev/null 2>&1; then
+            exit "$status"
+          fi
+
+      - name: Wait for rsvelte_core index visibility
+        env:
+          VERSION: ${{ needs.preflight.outputs.toolchain_version }}
+        run: |
+          for attempt in $(seq 1 30); do
+            cargo info "rsvelte_core@${VERSION}" --registry crates-io >/dev/null 2>&1 && exit 0
+            sleep 10
+          done
+          echo "::error::rsvelte_core@${VERSION} did not become visible in time"
+          exit 1
+
+      - name: Dry-run rsvelte_projection with every feature
+        if: needs.preflight.outputs.projection_exists != 'true'
+        run: cargo publish --dry-run --locked -p rsvelte_projection --all-features
+
+      - name: Authenticate rsvelte_projection
+        if: needs.preflight.outputs.projection_exists != 'true'
+        id: auth-projection
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18
+
+      - name: Publish rsvelte_projection
+        if: needs.preflight.outputs.projection_exists != 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth-projection.outputs.token }}
+          VERSION: ${{ needs.preflight.outputs.toolchain_version }}
+        run: |
+          set -uo pipefail
+          status=0
+          cargo publish --locked -p rsvelte_projection --all-features || status=$?
+          if [[ "$status" -ne 0 ]] && ! cargo info "rsvelte_projection@${VERSION}" --registry crates-io >/dev/null 2>&1; then
+            exit "$status"
+          fi
+
+      - name: Wait for rsvelte_projection index visibility
+        env:
+          VERSION: ${{ needs.preflight.outputs.toolchain_version }}
+        run: |
+          for attempt in $(seq 1 30); do
+            cargo info "rsvelte_projection@${VERSION}" --registry crates-io >/dev/null 2>&1 && exit 0
+            sleep 10
+          done
+          echo "::error::rsvelte_projection@${VERSION} did not become visible in time"
+          exit 1
+
+      - name: Dry-run rsvelte facade with every feature
+        if: needs.preflight.outputs.facade_exists != 'true'
+        run: cargo publish --dry-run --locked -p rsvelte --all-features
+
+      - name: Authenticate rsvelte facade
+        if: needs.preflight.outputs.facade_exists != 'true'
+        id: auth-facade
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18
+
+      - name: Publish rsvelte facade
+        if: needs.preflight.outputs.facade_exists != 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth-facade.outputs.token }}
+          VERSION: ${{ needs.preflight.outputs.toolchain_version }}
+        run: |
+          set -uo pipefail
+          status=0
+          cargo publish --locked -p rsvelte --all-features || status=$?
+          if [[ "$status" -ne 0 ]] && ! cargo info "rsvelte@${VERSION}" --registry crates-io >/dev/null 2>&1; then
+            exit "$status"
+          fi
+
+      - name: Wait for rsvelte index visibility
+        env:
+          VERSION: ${{ needs.preflight.outputs.toolchain_version }}
+        run: |
+          for attempt in $(seq 1 30); do
+            cargo info "rsvelte@${VERSION}" --registry crates-io >/dev/null 2>&1 && exit 0
+            sleep 10
+          done
+          echo "::error::rsvelte@${VERSION} did not become visible in time"
+          exit 1
+
+      - name: Verify a registry-only facade consumer
+        env:
+          VERSION: ${{ needs.preflight.outputs.toolchain_version }}
+        run: |
+          set -euo pipefail
+          consumer="$(mktemp -d)"
+          cargo init --lib --name rsvelte_registry_consumer "$consumer"
+          {
+            echo
+            echo "[dependencies]"
+            echo "rsvelte = { version = \"=${VERSION}\", features = [\"projection\"] }"
+          } >>"$consumer/Cargo.toml"
+          cargo check --manifest-path "$consumer/Cargo.toml"

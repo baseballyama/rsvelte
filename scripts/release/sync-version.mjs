@@ -42,8 +42,18 @@ const repoRoot = resolve(here, '../..');
 const MAPPINGS = [
 	{
 		npm: 'apps/npm/compiler/package.json',
+		cargoToml: 'crates/rsvelte/Cargo.toml',
+		lockName: 'rsvelte',
+	},
+	{
+		npm: 'apps/npm/compiler/package.json',
 		cargoToml: 'crates/rsvelte_core/Cargo.toml',
 		lockName: 'rsvelte_core',
+	},
+	{
+		npm: 'apps/npm/compiler/package.json',
+		cargoToml: 'crates/rsvelte_projection/Cargo.toml',
+		lockName: 'rsvelte_projection',
 	},
 	{
 		// The crate `build:wasm:core` actually builds into `pkg/` → `@rsvelte/compiler`.
@@ -55,6 +65,33 @@ const MAPPINGS = [
 		npm: 'apps/npm/fmt/package.json',
 		cargoToml: 'crates/rsvelte_fmt/Cargo.toml',
 		lockName: 'rsvelte_fmt',
+	},
+	{
+		npm: 'apps/npm/svelte-check/package.json',
+		cargoToml: 'crates/rsvelte_check/Cargo.toml',
+		lockName: 'rsvelte_check',
+	},
+];
+
+// Exact crates.io edges whose requirement must move with the mapped compiler
+// crate versions. `rsvelte_core -> rsvelte_esrap` is intentionally absent:
+// esrap is versioned independently and that edge is updated when esrap itself
+// is released.
+const EXACT_INTERNAL_EDGES = [
+	{
+		cargoToml: 'crates/rsvelte_projection/Cargo.toml',
+		dependency: 'rsvelte_core',
+		versionFrom: 'crates/rsvelte_core/Cargo.toml',
+	},
+	{
+		cargoToml: 'crates/rsvelte/Cargo.toml',
+		dependency: 'rsvelte_core',
+		versionFrom: 'crates/rsvelte_core/Cargo.toml',
+	},
+	{
+		cargoToml: 'crates/rsvelte/Cargo.toml',
+		dependency: 'rsvelte_projection',
+		versionFrom: 'crates/rsvelte_projection/Cargo.toml',
 	},
 ];
 
@@ -87,6 +124,32 @@ function patchCargoToml(cargoRelPath, targetVersion) {
 	}
 	if (match[2] === targetVersion) return;
 	writeFileSync(cargoTomlPath, original.replace(re, `$1${targetVersion}$3`));
+}
+
+function readCargoVersion(cargoRelPath) {
+	const cargoTomlPath = resolve(repoRoot, cargoRelPath);
+	const contents = readFileSync(cargoTomlPath, 'utf8');
+	const match = contents.match(/\[package\][\s\S]*?\nversion\s*=\s*"([^"]+)"/);
+	if (!match) {
+		throw new Error(`Failed to find [package].version in ${cargoRelPath}`);
+	}
+	return match[1];
+}
+
+function patchExactDependency(cargoRelPath, dependency, targetVersion) {
+	const cargoTomlPath = resolve(repoRoot, cargoRelPath);
+	const original = readFileSync(cargoTomlPath, 'utf8');
+	const escapedDependency = dependency.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const re = new RegExp(
+		`(^${escapedDependency}\\s*=\\s*\\{[^\\n]*\\bversion\\s*=\\s*")=[^"]+(")`,
+		'm',
+	);
+	if (!re.test(original)) {
+		throw new Error(
+			`Failed to find exact ${dependency} dependency requirement in ${cargoRelPath}`,
+		);
+	}
+	writeFileSync(cargoTomlPath, original.replace(re, `$1=${targetVersion}$2`));
 }
 
 function patchCargoLock(original, lockName, targetVersion, { required }) {
@@ -127,6 +190,10 @@ for (const { npm, cargoToml, lockName } of MAPPINGS) {
 		});
 	}
 	synced.push(`${lockName}@${targetVersion}`);
+}
+
+for (const { cargoToml, dependency, versionFrom } of EXACT_INTERNAL_EDGES) {
+	patchExactDependency(cargoToml, dependency, readCargoVersion(versionFrom));
 }
 
 for (const lock of locks) writeFileSync(lock.path, lock.text);
