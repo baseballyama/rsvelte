@@ -117,7 +117,7 @@ pub fn process_instance_script(
         // `state`) sees the complete scope — incl. a name declared by the very
         // statement whose initializer we're checking. See
         // collect_top_level_declared_names.
-        let mut declared_names: HashSet<String> = collect_top_level_declared_names(&program.body);
+        let declared_names: HashSet<String> = collect_top_level_declared_names(&program.body);
         // Top-level `type` / `interface` declarations that may be hoistable
         // out of `function $$render()`. Resolved (with `instance_value_names`
         // and `module_*_names`) into `hoistable_type_ranges` after Pass 1.
@@ -153,11 +153,8 @@ pub fn process_instance_script(
                         ) {
                             props_rune_infos.push(info);
                         }
-                        let names = extract_all_names_from_binding_pattern(&declarator.id);
-                        for name in &names {
-                            declared_names.insert(name.clone());
-                        }
-                        if let Some(name) = binding_pattern_simple_name(&declarator.id) {
+                        if let oxc::BindingPattern::BindingIdentifier(id) = &declarator.id {
+                            let name = id.name.to_string();
                             let ta_text = declarator.type_annotation.as_ref().and_then(|ta| {
                                 let ts_type = &ta.type_annotation;
                                 let start = ts_type.span().start as usize;
@@ -189,9 +186,9 @@ pub fn process_instance_script(
                             // re-exported via `export { a, c }`. Record them as
                             // possible exports so the specifier handler resolves
                             // the correct `is_let` (a `let` destructure → prop).
-                            for name in &names {
+                            for name in extract_all_names_from_binding_pattern(&declarator.id) {
                                 possible_exports.insert(
-                                    name.clone(),
+                                    name,
                                     PossibleExport {
                                         is_let,
                                         has_init: declarator.init.is_some(),
@@ -220,15 +217,11 @@ pub fn process_instance_script(
                                     s.local.name.to_string()
                                 }
                             };
-                            declared_names.insert(name.clone());
                             exported_names.instance_import_names.insert(name);
                         }
                     }
                 }
                 oxc::Statement::FunctionDeclaration(func) => {
-                    if let Some(ref id) = func.id {
-                        declared_names.insert(id.name.to_string());
-                    }
                     // Detect rune calls nested inside the function body.
                     // The official svelte2tsx `checkGlobalsForRunes` walks the
                     // entire TypeScript AST (including function bodies) and flags
@@ -246,9 +239,6 @@ pub fn process_instance_script(
                     }
                 }
                 oxc::Statement::ClassDeclaration(class) => {
-                    if let Some(ref id) = class.id {
-                        declared_names.insert(id.name.to_string());
-                    }
                     // Detect rune calls nested inside class method bodies.
                     if class.body.body.iter().any(|member| match member {
                         oxc::ClassElement::MethodDefinition(method) => {
@@ -265,18 +255,6 @@ pub fn process_instance_script(
                         exported_names.set_uses_runes(true);
                     }
                 }
-                // Track instance-script namespace and enum names so the
-                // hoist analyser treats `A.Abc` references as blocking when
-                // `A` is bound in the instance script. Mirrors the JS
-                // reference's `disallowed_types.add(...)` for namespaces.
-                oxc::Statement::TSModuleDeclaration(module) => {
-                    if let oxc_ast::ast::TSModuleDeclarationName::Identifier(id) = &module.id {
-                        declared_names.insert(id.name.to_string());
-                    }
-                }
-                oxc::Statement::TSEnumDeclaration(enum_decl) => {
-                    declared_names.insert(enum_decl.id.name.to_string());
-                }
                 oxc::Statement::ExportNamedDeclaration(export) => {
                     // Also check exports for declared names
                     if let Some(ref decl) = export.declaration {
@@ -287,11 +265,6 @@ pub fn process_instance_script(
                                 let is_let =
                                     matches!(var_decl.kind, oxc::VariableDeclarationKind::Let);
                                 for declarator in var_decl.declarations.iter() {
-                                    let names =
-                                        extract_all_names_from_binding_pattern(&declarator.id);
-                                    for name in &names {
-                                        declared_names.insert(name.clone());
-                                    }
                                     if let Some(name) = binding_pattern_simple_name(&declarator.id)
                                     {
                                         let ta_text =
@@ -328,9 +301,6 @@ pub fn process_instance_script(
                                 }
                             }
                             oxc::Declaration::FunctionDeclaration(func) => {
-                                if let Some(ref id) = func.id {
-                                    declared_names.insert(id.name.to_string());
-                                }
                                 // Runes inside an exported function body still
                                 // put the component in runes mode.
                                 if let Some(ref body) = func.body {
@@ -341,9 +311,6 @@ pub fn process_instance_script(
                                 }
                             }
                             oxc::Declaration::ClassDeclaration(class) => {
-                                if let Some(ref id) = class.id {
-                                    declared_names.insert(id.name.to_string());
-                                }
                                 // `export class C { x = $state(0) }` → runes mode.
                                 if detect_rune_in_class_body(class, &declared_names) {
                                     exported_names.set_uses_runes(true);
@@ -618,9 +585,7 @@ pub fn process_instance_script(
         // Snapshot instance-script value declarations so callers (in particular
         // the force-inside-render heuristic for `$$ComponentProps`) can detect
         // when the props type references an instance-scope binding.
-        for name in declared_names.iter() {
-            exported_names.instance_value_names.insert(name.clone());
-        }
+        exported_names.instance_value_names = declared_names;
 
         // Collect loose `$name` references from the instance script WITHOUT the
         // rune-exclusion filter.  The official JS svelte2tsx's `is_rune` check is
@@ -896,7 +861,7 @@ pub fn process_module_script(
 
 #[cfg(test)]
 mod tests {
-    use super::test_support::run_svelte2tsx;
+    use super::test_support::{run_svelte2tsx, run_svelte2tsx_ts};
     use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
 
     #[test]
@@ -968,5 +933,118 @@ mod tests {
         assert!(result.exported_names.has("name"));
         assert!(result.exported_names.get("name").unwrap().is_prop);
         assert_eq!(result.exported_names.get_prop_names(), vec!["name"]);
+    }
+
+    #[test]
+    fn top_level_binding_inventory_covers_every_prepass_declaration() {
+        let source = r#"<script lang="ts">
+import default_import, { named as aliased_import } from "pkg";
+import * as namespace_import from "other";
+var plain_var;
+let plain_let = 1;
+const plain_const = 2;
+function plain_function() {}
+class PlainClass {}
+namespace PlainNamespace {}
+enum PlainEnum { Value }
+export let exported_var = 3;
+export function exported_function() {}
+export class ExportedClass {}
+</script>"#;
+        let result = run_svelte2tsx_ts(source);
+        let expected = [
+            "default_import",
+            "aliased_import",
+            "namespace_import",
+            "plain_var",
+            "plain_let",
+            "plain_const",
+            "plain_function",
+            "PlainClass",
+            "PlainNamespace",
+            "PlainEnum",
+            "exported_var",
+            "exported_function",
+            "ExportedClass",
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+
+        assert_eq!(result.exported_names.instance_value_names, expected);
+    }
+
+    #[test]
+    fn top_level_binding_inventory_flattens_deep_destructuring_and_rest() {
+        let source = r#"<script lang="ts">
+let {
+    direct,
+    nested: { assigned = 1, ...object_rest },
+    list: [array_first, , { deep }, ...array_rest],
+    ...outer_rest
+} = {} as any;
+</script>"#;
+        let result = run_svelte2tsx_ts(source);
+        let expected = [
+            "direct",
+            "assigned",
+            "object_rest",
+            "array_first",
+            "deep",
+            "array_rest",
+            "outer_rest",
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+
+        assert_eq!(result.exported_names.instance_value_names, expected);
+    }
+
+    #[test]
+    fn late_same_name_binding_keeps_earlier_dollar_call_out_of_runes_mode() {
+        let source = r#"<script>
+let answer = $state(0);
+let state;
+</script>"#;
+        let result = run_svelte2tsx(source);
+
+        assert!(!result.exported_names.is_runes_mode());
+        assert!(
+            result.code.contains("bindings: \"\""),
+            "legacy bindings marker missing:\n{}",
+            result.code
+        );
+    }
+
+    #[test]
+    fn binding_inventory_does_not_affect_output_or_source_maps() {
+        let source = r#"<script lang="ts">
+import { readable as mapped_import } from "svelte/store";
+let { nested: { mapped_binding }, ...mapped_rest } = {} as any;
+export { mapped_binding };
+</script>
+<p>{mapped_binding}{mapped_rest}{mapped_import}</p>"#;
+        let first = run_svelte2tsx_ts(source);
+        let second = run_svelte2tsx_ts(source);
+
+        assert_eq!(first.code, second.code);
+        assert_eq!(first.map, second.map);
+        assert_eq!(first.forward_map, second.forward_map);
+
+        let binding_offset = source.find("mapped_binding").unwrap() as u32;
+        let generated_offset = first
+            .map_offset_forward(binding_offset)
+            .expect("binding declaration should remain forward-mapped")
+            as usize;
+        assert_eq!(
+            &first.code[generated_offset..generated_offset + "mapped_binding".len()],
+            "mapped_binding"
+        );
+
+        let raw_map = first.map.as_deref().expect("source map");
+        let map = sourcemap::SourceMap::from_slice(raw_map.as_bytes()).expect("valid source map");
+        assert_eq!(map.get_source(0), Some("Component.svelte"));
+        assert!(map.tokens().next().is_some());
     }
 }

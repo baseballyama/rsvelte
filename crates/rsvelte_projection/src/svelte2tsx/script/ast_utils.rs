@@ -162,13 +162,39 @@ pub(super) fn module_export_name_to_string(name: &oxc::ModuleExportName) -> Stri
 /// initializer was checked, over-detecting runes. Mirrors upstream
 /// `ImplicitStoreValues` / `checkGlobalsForRunes`.
 pub(super) fn collect_top_level_declared_names(body: &[oxc::Statement]) -> HashSet<String> {
+    fn add_binding(pattern: &oxc::BindingPattern, names: &mut HashSet<String>) {
+        if let oxc::BindingPattern::BindingIdentifier(id) = pattern {
+            names.insert(id.name.to_string());
+            return;
+        }
+        visit_binding_names(pattern, &mut |name| {
+            names.insert(name.to_string());
+        });
+    }
+
     fn add_var(vd: &oxc::VariableDeclaration, names: &mut HashSet<String>) {
         for d in vd.declarations.iter() {
-            for n in extract_all_names_from_binding_pattern(&d.id) {
-                names.insert(n);
-            }
+            add_binding(&d.id, names);
         }
     }
+
+    fn add_declaration(decl: &oxc::Declaration, names: &mut HashSet<String>) {
+        match decl {
+            oxc::Declaration::VariableDeclaration(vd) => add_var(vd, names),
+            oxc::Declaration::FunctionDeclaration(f) => {
+                if let Some(id) = &f.id {
+                    names.insert(id.name.to_string());
+                }
+            }
+            oxc::Declaration::ClassDeclaration(c) => {
+                if let Some(id) = &c.id {
+                    names.insert(id.name.to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+
     let mut names = HashSet::new();
     for stmt in body {
         match stmt {
@@ -211,20 +237,7 @@ pub(super) fn collect_top_level_declared_names(body: &[oxc::Statement]) -> HashS
             }
             oxc::Statement::ExportNamedDeclaration(ex) => {
                 if let Some(decl) = &ex.declaration {
-                    match decl {
-                        oxc::Declaration::VariableDeclaration(vd) => add_var(vd, &mut names),
-                        oxc::Declaration::FunctionDeclaration(f) => {
-                            if let Some(id) = &f.id {
-                                names.insert(id.name.to_string());
-                            }
-                        }
-                        oxc::Declaration::ClassDeclaration(c) => {
-                            if let Some(id) = &c.id {
-                                names.insert(id.name.to_string());
-                            }
-                        }
-                        _ => {}
-                    }
+                    add_declaration(decl, &mut names);
                 }
             }
             _ => {}
@@ -245,28 +258,35 @@ pub(super) fn extract_all_names_from_binding_pattern(pattern: &oxc::BindingPatte
 }
 
 pub(super) fn collect_binding_names(pattern: &oxc::BindingPattern, names: &mut Vec<String>) {
+    visit_binding_names(pattern, &mut |name| names.push(name.to_string()));
+}
+
+fn visit_binding_names<F>(pattern: &oxc::BindingPattern, visit: &mut F)
+where
+    F: FnMut(&str),
+{
     match pattern {
         oxc::BindingPattern::BindingIdentifier(id) => {
-            names.push(id.name.to_string());
+            visit(id.name.as_str());
         }
         oxc::BindingPattern::ObjectPattern(obj) => {
             for prop in obj.properties.iter() {
-                collect_binding_names(&prop.value, names);
+                visit_binding_names(&prop.value, visit);
             }
             if let Some(ref rest) = obj.rest {
-                collect_binding_names(&rest.argument, names);
+                visit_binding_names(&rest.argument, visit);
             }
         }
         oxc::BindingPattern::ArrayPattern(arr) => {
             for el in arr.elements.iter().flatten() {
-                collect_binding_names(el, names);
+                visit_binding_names(el, visit);
             }
             if let Some(ref rest) = arr.rest {
-                collect_binding_names(&rest.argument, names);
+                visit_binding_names(&rest.argument, visit);
             }
         }
         oxc::BindingPattern::AssignmentPattern(assign) => {
-            collect_binding_names(&assign.left, names);
+            visit_binding_names(&assign.left, visit);
         }
     }
 }
