@@ -3,17 +3,14 @@
 //! The facade owns no filesystem, cache, scheduler, or thread pool. Embedders
 //! keep those policies and cache the returned immutable DTOs themselves.
 
-use std::ops::Range;
+use std::{cell::OnceCell, ops::Range};
 
 use crate::{
     CompileError, CompileOptions, CompileResult, GenerateMode,
-    ast::{AttributeValue, AttributeValuePart, Root, ScriptContext},
+    ast::{AttributeValue, AttributeValuePart, Root, ScriptContext, oxc_program::RetainedScripts},
     compiler::{
         ComponentAnalysis,
-        phases::{
-            phase2_analyze::BindingKind,
-            phase3_transform::{transform_component, transform_component_with_sourcemap_content},
-        },
+        phases::{phase2_analyze::BindingKind, phase3_transform::transform_component_with_scripts},
     },
     svelte2tsx::{Svelte2TsxError, Svelte2TsxOptions, svelte2tsx},
 };
@@ -383,7 +380,8 @@ pub struct PreparedComponent<'source> {
     analysis: Box<ComponentAnalysis>,
     options: CompileOptions,
     runes_mode: bool,
-    facts: ComponentFacts,
+    retained_scripts: RetainedScripts<'source>,
+    facts: OnceCell<ComponentFacts>,
 }
 
 impl std::fmt::Debug for PreparedComponent<'_> {
@@ -393,7 +391,7 @@ impl std::fmt::Debug for PreparedComponent<'_> {
             .field("source_len", &self.source.len())
             .field("options", &self.options)
             .field("runes_mode", &self.runes_mode)
-            .field("facts", &self.facts)
+            .field("facts_initialized", &self.facts.get().is_some())
             .finish_non_exhaustive()
     }
 }
@@ -401,14 +399,13 @@ impl std::fmt::Debug for PreparedComponent<'_> {
 impl<'source> PreparedComponent<'source> {
     pub(crate) fn new(source: &'source str, options: CompileOptions) -> Result<Self, CompileError> {
         let mut ast = Box::new(crate::compiler::parse_component(source)?);
-        let (options, analysis, runes_mode, facts) = {
+        let (options, analysis, runes_mode, retained_scripts) = {
             // SAFETY: the guard is dropped before `ast` moves into the result.
             let _arena_guard =
                 unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
-            let (options, analysis, runes_mode) =
+            let (options, analysis, runes_mode, retained_scripts) =
                 crate::compiler::prepare_and_analyze(&mut ast, source, options)?;
-            let facts = ComponentFacts::collect(source, &ast, &analysis, runes_mode);
-            (options, Box::new(analysis), runes_mode, facts)
+            (options, Box::new(analysis), runes_mode, retained_scripts)
         };
 
         Ok(Self {
@@ -417,13 +414,16 @@ impl<'source> PreparedComponent<'source> {
             analysis,
             options,
             runes_mode,
-            facts,
+            retained_scripts,
+            facts: OnceCell::new(),
         })
     }
 
     #[must_use]
     pub fn facts(&self) -> &ComponentFacts {
-        &self.facts
+        self.facts.get_or_init(|| {
+            ComponentFacts::collect(self.source, &self.ast, &self.analysis, self.runes_mode)
+        })
     }
 
     pub fn compile(&mut self, target: RuntimeTarget) -> Result<CompileResult, CompileError> {
@@ -451,26 +451,27 @@ impl<'source> PreparedComponent<'source> {
         // SAFETY: `self.ast` cannot move for the duration of this mutable borrow.
         let _arena_guard =
             unsafe { crate::ast::arena::SerializeArenaGuard::new(&self.ast.arena as *const _) };
-        let mut options = self.options.clone();
-        options.generate = generate;
+        let adjusted_options = (self.options.generate != generate).then(|| {
+            let mut options = self.options.clone();
+            options.generate = generate;
+            options
+        });
+        let options = adjusted_options.as_ref().unwrap_or(&self.options);
         let include_sourcemap_content = include_sourcemap_content || options.sourcemap.is_some();
-        let transform_result = if include_sourcemap_content {
-            transform_component(&self.analysis, &self.ast, self.source, &options)
-        } else {
-            transform_component_with_sourcemap_content(
-                &self.analysis,
-                &self.ast,
-                self.source,
-                &options,
-                false,
-            )
-        }
+        let transform_result = transform_component_with_scripts(
+            &self.analysis,
+            &self.ast,
+            self.source,
+            options,
+            include_sourcemap_content,
+            Some(&self.retained_scripts),
+        )
         .map_err(CompileError::from)?;
         Ok(crate::compiler::finalize_compile_result(
             transform_result,
             &self.analysis,
             self.source,
-            &options,
+            options,
             self.runes_mode,
         ))
     }

@@ -70,6 +70,27 @@ fn expression_code_range(rest: &str, options: &FormatOptions) -> Option<std::ops
     (start >= 1 && end >= start && end - 1 <= rest.len()).then(|| start - 1..end - 1)
 }
 
+fn is_top_level_call_expression(source: &str, options: &FormatOptions) -> bool {
+    let allocator = crate::scratch::acquire();
+    let wrapped = format!("({source});");
+    let source_type = if options.typescript {
+        SourceType::ts().with_module(true)
+    } else {
+        SourceType::default()
+    };
+    let ret = Parser::new(allocator, &wrapped, source_type)
+        .with_options(formatter_parse_options())
+        .parse();
+    if !ret.diagnostics.is_empty() {
+        return false;
+    }
+    matches!(
+        ret.program.body.first(),
+        Some(oxc_ast::ast::Statement::ExpressionStatement(stmt))
+            if matches!(stmt.expression, oxc_ast::ast::Expression::CallExpression(_))
+    )
+}
+
 pub(super) fn push_expression_tag(
     source: &str,
     tag: &ExpressionTag,
@@ -132,7 +153,19 @@ pub(super) fn push_expression_tag(
         return Ok(());
     }
 
-    let formatted = format_content_expression(inner, options, depth)?;
+    let prefix_lead =
+        if tag.start > 0 && source.as_bytes().get(tag.start as usize - 1) == Some(&b'}') {
+            let line_start = source[..tag.start as usize]
+                .rfind('\n')
+                .map_or(0, |index| index + 1);
+            let source_column =
+                UnicodeWidthStr::width(source.get(line_start..tag.start as usize).unwrap_or(""));
+            let indent = depth * options.js.indent_width.value() as usize;
+            source_column.saturating_sub(indent) + 1
+        } else {
+            1
+        };
+    let formatted = format_content_expression_with_prefix(inner, options, depth, prefix_lead)?;
     edits.push((tag.start, tag.end, format!("{{{formatted}}}")));
     Ok(())
 }
@@ -394,10 +427,6 @@ pub(super) fn push_bare_expression(
     }
     let indent_width = options.js.indent_width.value() as usize;
     let full_width = options.js.line_width.value() as usize;
-    // Compute the header suffix length — the text from the expression end to the
-    // closing `}` of the block header (inclusive).  For `{#each expr as x (k)}`,
-    // this is ` as x (k)}`.  For `{#if cond}`, it is `}`.  We scan the source
-    // looking for the first `}` that is not nested inside `{…}`, `(…)`, or `[…]`.
     let suffix_len = compute_header_suffix_len(source, end as usize);
     // First format inline (single-line) to get the canonical expression text.
     let formatted = format_inline_expression(slice, options)?;
@@ -422,57 +451,28 @@ pub(super) fn push_bare_expression(
     } else {
         formatted
     };
-    // prettier-plugin-svelte wraps a block-header expression across lines when
-    // the expression itself is longer than the print width (OXC at `full_width`
-    // would break it).  When the expression fits within `full_width` — even if
-    // the full header line (prefix + expression + suffix) overflows 80 cols —
-    // prettier keeps it inline.  This avoids break points at logical operators
-    // (`&&`, `||`) that OXC would pick but prettier does not in block headers.
-    //
-    // When wrapping, we pass the full `line_width` to OXC.  Continuation lines
-    // carry only the block's indent (not the keyword prefix), so using the full
-    // width avoids over-wrapping inner call arguments.
-    // Compute the full visible start-of-line width: indentation + block keyword prefix.
-    // prettier-plugin-svelte breaks a block-header expression when the COMPLETE header
-    // line (indent + keyword + expression + suffix-after-expression) would overflow the
-    // print width, not just when the expression alone is wider than the print width.
-    // E.g. `{#each table.call().filter() as column (column)}` can overflow even though
-    // `table.call().filter()` alone fits within 80 chars.
-    let lead_width = depth * indent_width + prefix_len;
+    let expression_width = UnicodeWidthStr::width(formatted.as_str());
+    let header_width = depth * indent_width + prefix_len + expression_width + suffix_len;
+    // The oracle accounts for the full header around call expressions, but keeps
+    // a fitting plain member chain inline even when its `as` suffix overflows.
+    let should_break = expression_width > full_width
+        || (header_width > full_width && is_top_level_call_expression(slice, options));
     let formatted = if !formatted.contains('\n')
-            && lead_width + UnicodeWidthStr::width(formatted.as_str()) + suffix_len > full_width
+            && should_break
             // prettier-plugin-svelte never breaks array or object literals in
             // block headers even when they are far wider than the print width —
             // e.g. `{#each ["a", "b", "c", …] as x}` stays on one line.
             && !starts_with_array_or_object_literal(formatted.as_str())
     {
-        // First, try at the full line width — OXC may already decide to break
-        // when the expression alone overflows.
         let multi = format_expr_core(slice, options, options.js.line_width, false)?;
-        // If full-width didn't break, try a narrower width computed from how
-        // much room the expression actually has in the block header:
-        //   available = full_width − lead_width − suffix_len
-        // This mirrors the oracle's decision: a method chain breaks when the
-        // complete header line overflows, even if the expression alone fits
-        // within `full_width`.  We only use the narrowed result when OXC breaks
-        // it as a method chain (hard line breaks starting with `.`).
-        let multi = if multi.contains('\n') {
+        let multi = if multi.contains('\n') || expression_width > full_width {
             multi
         } else {
-            let expr_len = UnicodeWidthStr::width(formatted.as_str());
-            let available = full_width.saturating_sub(lead_width + suffix_len);
-            // Only narrow when the expression genuinely doesn't fit in the
-            // available space; use `expr_len - 1` as the narrowed width to
-            // force the break while giving inner content maximum room.
-            if expr_len > available {
-                let narrowed_width = oxc_formatter_core::LineWidth::try_from(
-                    (expr_len.saturating_sub(1)).max(1) as u16,
-                )
-                .unwrap_or(options.js.line_width);
-                format_expr_core(slice, options, narrowed_width, false)?
-            } else {
-                multi
-            }
+            let narrowed_width = oxc_formatter_core::LineWidth::try_from(
+                expression_width.saturating_sub(1).max(1) as u16,
+            )
+            .unwrap_or(options.js.line_width);
+            format_expr_core(slice, options, narrowed_width, false)?
         };
         // Only accept a method-chain break (hard `.`-led continuation lines,
         // which prettier's removeLines keeps); OXC's soft argument-wrap breaks are

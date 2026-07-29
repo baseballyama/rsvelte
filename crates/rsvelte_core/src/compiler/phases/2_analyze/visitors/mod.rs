@@ -80,7 +80,7 @@ mod update_expression;
 mod variable_declarator;
 
 use super::AnalysisError;
-use super::types::{ComponentAnalysis, CssDomElement, DomStructure, SiblingCertainty};
+use super::types::{ComponentAnalysis, CssDomElement};
 use crate::ast::arena::ParseArena;
 use crate::ast::template::{Root, TemplateNode};
 
@@ -668,9 +668,6 @@ pub fn analyze_template(
     context.scope = instance_scope_index;
     fragment::analyze(&mut ast.fragment, &mut context)?;
 
-    // Build sibling relationships for CSS sibling combinator detection
-    build_sibling_relationships(&mut context.analysis.css.dom_structure);
-
     // Check for mixed event handler syntaxes (on:event and onevent mixed)
     if let Some(ref event_name) = context.event_directive_node
         && context.uses_event_attributes
@@ -738,67 +735,4 @@ pub fn visit_node<'a, 'b: 'a>(
     };
     context.path.pop();
     result
-}
-
-/// Build sibling relationships for CSS sibling combinator detection.
-/// This populates possible_prev_adjacent, possible_next_adjacent,
-/// possible_prev_general, and possible_next_general fields in CssDomElement.
-fn build_sibling_relationships(dom_structure: &mut DomStructure) {
-    // Group elements by their parent
-    let mut parent_children: rustc_hash::FxHashMap<Option<usize>, Vec<usize>> =
-        rustc_hash::FxHashMap::default();
-
-    for (idx, element) in dom_structure.elements.iter().enumerate() {
-        parent_children
-            .entry(element.parent_idx)
-            .or_default()
-            .push(idx);
-    }
-
-    // For each parent, build sibling relationships among its children
-    for children_indices in parent_children.values() {
-        if children_indices.len() < 2 {
-            continue; // No siblings if only one child
-        }
-
-        // Build adjacent sibling relationships (+ combinator)
-        for i in 0..children_indices.len() {
-            let current_idx = children_indices[i];
-
-            // Previous adjacent sibling
-            if i > 0 {
-                let prev_idx = children_indices[i - 1];
-                dom_structure.elements[current_idx]
-                    .possible_prev_adjacent
-                    .push((prev_idx, SiblingCertainty::Definite));
-            }
-
-            // Next adjacent sibling
-            if i < children_indices.len() - 1 {
-                let next_idx = children_indices[i + 1];
-                dom_structure.elements[current_idx]
-                    .possible_next_adjacent
-                    .push((next_idx, SiblingCertainty::Definite));
-            }
-        }
-
-        // Build general sibling relationships (~ combinator)
-        for i in 0..children_indices.len() {
-            let current_idx = children_indices[i];
-
-            // All previous siblings
-            for &prev_idx in children_indices.iter().take(i) {
-                dom_structure.elements[current_idx]
-                    .possible_prev_general
-                    .push((prev_idx, SiblingCertainty::Definite));
-            }
-
-            // All next siblings
-            for &next_idx in children_indices.iter().skip(i + 1) {
-                dom_structure.elements[current_idx]
-                    .possible_next_general
-                    .push((next_idx, SiblingCertainty::Definite));
-            }
-        }
-    }
 }

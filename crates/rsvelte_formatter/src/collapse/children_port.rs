@@ -26,8 +26,10 @@ pub(super) fn collect_children_port_only(
         {
             continue;
         }
-        if matches!(node, TemplateNode::RegularElement(_))
-            && let Some(maybe_edit) = try_children_port(out, node, line_width, options)
+        if matches!(
+            node,
+            TemplateNode::RegularElement(_) | TemplateNode::Component(_)
+        ) && let Some(maybe_edit) = try_children_port(out, node, line_width, options)
         {
             if let Some(edit) = maybe_edit {
                 edits.push(edit);
@@ -49,6 +51,7 @@ pub(super) fn node_to_child(
     out: &str,
     node: &TemplateNode,
     line_width: usize,
+    options: &FormatOptions,
 ) -> Option<crate::children::Child> {
     use crate::children::Child;
     use crate::doc::Doc;
@@ -84,7 +87,7 @@ pub(super) fn node_to_child(
                 && !is_whitespace_preserving(ve.name.as_str()) =>
         {
             Some(Child::Inline(build_inline_element_doc(
-                out, ve, line_width,
+                out, ve, line_width, options,
             )?))
         }
         // Block-display element (`<div>`, `<h1>`, `<ul>`, …). prettier classifies
@@ -94,9 +97,13 @@ pub(super) fn node_to_child(
             if is_block_display(ve.name.as_str())
                 && !is_whitespace_preserving(ve.name.as_str()) =>
         {
-            Some(Child::Block(build_inline_element_doc(out, ve, line_width)?))
+            Some(Child::Block(build_inline_element_doc(
+                out, ve, line_width, options,
+            )?))
         }
-        TemplateNode::Component(c) => Some(Child::Other(build_component_doc(out, c, line_width)?)),
+        TemplateNode::Component(c) => Some(Child::Other(build_component_doc(
+            out, c, line_width, options,
+        )?)),
         // Cut 3: mustache atoms (`{expr}`, `{@html …}`). prettier-plugin-svelte's
         // `isInlineElement` requires `type === 'RegularElement'`, so a MustacheTag
         // is NOT inline — it goes through `printChildren`'s `else` branch: pushed
@@ -115,7 +122,10 @@ pub(super) fn node_to_child(
         TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_) | TemplateNode::RenderTag(_) => {
             let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
             if span.contains('\n') {
-                return None;
+                return matches!(node, TemplateNode::ExpressionTag(_))
+                    .then(|| content_tag_breakable_doc(out, node, options))
+                    .flatten()
+                    .map(Child::Other);
             }
             Some(Child::Other(Doc::Text(span.to_string())))
         }
@@ -124,12 +134,14 @@ pub(super) fn node_to_child(
         // `printChildren`'s `else` branch and are pushed bare. Their own print is
         // `group([def, breakParent])`, so they force every enclosing group to break
         // even when the whole element would fit on one line.
-        TemplateNode::IfBlock(blk) => Some(Child::Other(build_if_block_doc(out, blk, line_width)?)),
+        TemplateNode::IfBlock(blk) => Some(Child::Other(build_if_block_doc(
+            out, blk, line_width, options,
+        )?)),
         TemplateNode::EachBlock(blk) => {
             let mut branches: Vec<&Fragment> = vec![&blk.body];
             branches.extend(blk.fallback.as_ref());
             Some(Child::Other(build_simple_block_doc(
-                out, blk.start, blk.end, &branches, line_width,
+                out, blk.start, blk.end, &branches, line_width, options,
             )?))
         }
         TemplateNode::KeyBlock(blk) => Some(Child::Other(build_simple_block_doc(
@@ -138,6 +150,7 @@ pub(super) fn node_to_child(
             blk.end,
             &[&blk.fragment],
             line_width,
+            options,
         )?)),
         _ => None,
     }
@@ -179,19 +192,33 @@ pub(super) fn try_children_port(
     options: &FormatOptions,
 ) -> Option<Option<(u32, u32, String)>> {
     use crate::children::{Child, ElementLayout, build_element_doc};
-    let TemplateNode::RegularElement(e) = node else {
-        return None;
+    let (tag, attributes, fragment, start, end, is_inline, self_closing) = match node {
+        TemplateNode::RegularElement(e) => (
+            e.name.as_str(),
+            e.attributes.as_slice(),
+            &e.fragment,
+            e.start,
+            e.end,
+            !is_block_display(e.name.as_str()),
+            did_self_close(out, e.end) || is_html_void_element(e.name.as_str()),
+        ),
+        TemplateNode::Component(c) => (
+            c.name.as_str(),
+            c.attributes.as_slice(),
+            &c.fragment,
+            c.start,
+            c.end,
+            true,
+            did_self_close(out, c.end),
+        ),
+        _ => return None,
     };
-    let tag = e.name.as_str();
     // Cut 1: inline or block elements (not pre/textarea/script/style, not
     // inline-block like button/select/input). `is_inline` follows prettier's
     // `isInlineElement` = not in the block-element list.
     if is_whitespace_preserving(tag) || is_inline_block(tag) {
         return None;
     }
-    let is_inline = !is_block_display(tag);
-    let fragment = &e.fragment;
-    let (start, end) = (e.start, e.end);
     let (s, ee) = (start as usize, end as usize);
     let whole = out.get(s..ee)?;
 
@@ -280,10 +307,10 @@ pub(super) fn try_children_port(
 
     // Build the ElementLayout from the AST, recursively converting each child via
     // the faithful port (`node_to_child` bails on any unsupported child).
-    let attrs = build_attrs_concat(out, &e.attributes)?;
+    let attrs = build_attrs_concat(out, attributes)?;
     let mut children: Vec<Child> = Vec::with_capacity(fragment.nodes.len());
     for n in &fragment.nodes {
-        children.push(node_to_child(out, n, line_width)?);
+        children.push(node_to_child(out, n, line_width, options)?);
     }
     let doc = build_element_doc(ElementLayout {
         name: tag.to_string(),
@@ -293,7 +320,7 @@ pub(super) fn try_children_port(
         // Inert at this call site — the gate above requires a non-text child, so
         // `is_empty` is never true here. Only the recursive descent into children
         // (`build_inline_element_doc`) reaches the self-closing branch.
-        self_closing: did_self_close(out, end) || is_html_void_element(tag),
+        self_closing,
         omit_softline_allowed: omit_softline_allowed(out, end),
     });
     let doc = crate::doc::propagate_breaks(doc);
