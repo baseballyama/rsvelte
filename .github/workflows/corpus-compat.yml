@@ -26,6 +26,10 @@ name: Corpus Compat
 # rsvelte-check and requires identical diagnostic sets. It is the only gate whose
 # unit is a type-checked PROJECT rather than per-file text, so it is where alias
 # resolution, workspace layout and the .d.ts environment are observable at all.
+#
+# The check-e2e-parity job is the same comparison over REAL project trees
+# (submodules/cmsaasstarter, submodules/skeleton) installed from their own
+# lockfiles — the shape every report in the #1883-#1889 cluster came from.
 
 on:
   workflow_dispatch:
@@ -70,6 +74,7 @@ on:
       - 'submodules/svelte-toggle'
       - 'submodules/svelthree'
       - 'submodules/cmsaasstarter'
+      - 'submodules/skeleton'
       - 'scripts/compat-corpus/corpus-sources.json'
       - '.gitmodules'
       - 'Cargo.toml'
@@ -115,6 +120,7 @@ on:
       - 'submodules/svelte-toggle'
       - 'submodules/svelthree'
       - 'submodules/cmsaasstarter'
+      - 'submodules/skeleton'
       - 'scripts/compat-corpus/corpus-sources.json'
       - '.gitmodules'
       - 'Cargo.toml'
@@ -441,5 +447,80 @@ jobs:
           path: |
             compatibility/check-report.json
             compatibility/check-report.tsgo.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  check-e2e-parity:
+    name: svelte-check e2e parity (real projects)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      # Only the two e2e projects: a single-package SvelteKit app (npm) and a
+      # pnpm workspace monorepo whose playground resolves sibling packages.
+      - name: Checkout e2e project submodules (shallow)
+        run: git submodule update --init --depth 1 submodules/cmsaasstarter submodules/skeleton
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.97.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
+      - name: Build rsvelte-check
+        run: cargo build --release -p rsvelte_check
+
+      # The oracle is the pinned real svelte-check. Unlike the Layer 1 job it is
+      # NOT injected into the projects (they keep their own dependency trees) —
+      # it supplies the checker on both sides, including the `tsc` rsvelte-check
+      # runs via TSGO_BIN, so one identical compiler type-checks both.
+      - name: Install check oracle (real svelte-check)
+        run: npm --prefix scripts/compat-corpus/check-oracle install --no-package-lock
+
+      - name: Resolve e2e project pins
+        id: e2e-pins
+        run: echo "sources=$(git submodule status submodules/cmsaasstarter submodules/skeleton | awk '{print $1}' | sed 's/^[+-]//' | sort | git hash-object --stdin)" >> "$GITHUB_OUTPUT"
+
+      # Queried from inside the monorepo so it is the store of the pnpm its
+      # `packageManager` field pins, not the one the root repo pins.
+      - name: Resolve pnpm store path
+        id: pnpm-store
+        working-directory: submodules/skeleton
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      # The package stores, not the projects' node_modules: pnpm links its
+      # node_modules into a content-addressable store, which actions/cache
+      # cannot round-trip intact. Restoring the stores keeps the installs
+      # offline-ish while `--frozen-lockfile` / `npm ci` keep them exact.
+      - name: Cache project dependency stores
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ steps.pnpm-store.outputs.path }}
+            ~/.npm
+          key: check-e2e-deps-v1-${{ runner.os }}-${{ steps.e2e-pins.outputs.sources }}
+
+      - name: Verify svelte-check e2e parity (ratchet against check-e2e-known-failures.json)
+        run: node scripts/compat-corpus/check-e2e-verify.mjs
+
+      - name: Upload e2e check report on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: corpus-check-e2e-report
+          path: compatibility/check-e2e-report.json
           if-no-files-found: ignore
           retention-days: 14
