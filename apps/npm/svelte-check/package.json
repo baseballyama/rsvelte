@@ -26,6 +26,10 @@
     "bin/svelte-check.cjs",
     "lib/warning-filter.mjs"
   ],
+  "scripts": {
+    "pretest": "node test/setup-ts-toolchain.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  },
   "optionalDependencies": {
     "@rsvelte/svelte-check-darwin-arm64": "workspace:^",
     "@rsvelte/svelte-check-darwin-x64": "workspace:^",

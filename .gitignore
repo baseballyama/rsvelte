@@ -152,7 +152,10 @@ compatibility/fmt-report.json
 # svelte-check diagnostic-parity gate (generated; check-known-failures.json is tracked)
 scripts/compat-corpus/check-oracle/node_modules/
 scripts/compat-corpus/check-oracle/package-lock.json
+scripts/compat-corpus/check-tsgo/node_modules/
+scripts/compat-corpus/check-tsgo/package-lock.json
 compatibility/check-report.json
+compatibility/check-report.tsgo.json
 
 # Dedicated CARGO_TARGET_DIRs used during Phase-3 corpus burndown (never commit)
 /target-ast/

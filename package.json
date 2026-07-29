@@ -72,9 +72,12 @@
 		"lint-corpus:update": "node scripts/compat-corpus/lint-verify.mjs --update",
 		"lint-corpus": "pnpm run lint-corpus:sync && pnpm run lint-corpus:oracle-install && pnpm run lint-corpus:collect && pnpm run lint-corpus:verify",
 		"check-corpus:oracle-install": "npm --prefix scripts/compat-corpus/check-oracle install --no-package-lock",
+		"check-corpus:tsgo-install": "npm --prefix scripts/compat-corpus/check-tsgo install --no-package-lock",
 		"check-corpus:verify": "node scripts/compat-corpus/check-verify.mjs",
+		"check-corpus:verify:tsgo": "node scripts/compat-corpus/check-verify.mjs --rsvelte-backend tsgo",
 		"check-corpus:update": "node scripts/compat-corpus/check-verify.mjs --update",
 		"test:svelte-check": "cargo build --release -p rsvelte_check && pnpm run check-corpus:oracle-install && pnpm run check-corpus:verify",
+		"test:svelte-check:tsgo": "cargo build --release -p rsvelte_check && pnpm run check-corpus:oracle-install && pnpm run check-corpus:tsgo-install && pnpm run check-corpus:verify:tsgo",
 		"changeset": "changeset",
 		"version-packages": "changeset version && pnpm run sync-version",
 		"release": "pnpm run sync-version && pnpm run build:wasm && pnpm run finalize-pkg && pnpm run publish-platform-binaries && pnpm run build:language-server && changeset publish"

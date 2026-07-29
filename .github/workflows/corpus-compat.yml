@@ -375,9 +375,20 @@ jobs:
         run: node scripts/compat-corpus/lint-verify.mjs
 
   check-parity:
-    name: svelte-check parity (official svelte-check)
+    name: svelte-check parity (official svelte-check vs ${{ matrix.backend }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oracle (official svelte-check) is always tsc-based; only the
+        # rsvelte-check side under test switches backend. `tsgo` is rsvelte's
+        # other shipped backend (`rsvelte-check --tsgo`) and was, before this
+        # matrix, never exercised by any CI job (#1897 Layer 4). Measured
+        # locally: tsc and tsgo produce identical diagnostics across every
+        # scenario, so both legs ratchet against the same
+        # check-known-failures.json (see check-verify.mjs's BACKEND comment).
+        backend: [tsc, tsgo]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -401,6 +412,8 @@ jobs:
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          shared-key: check-parity
 
       - name: Build rsvelte-check
         run: cargo build --release -p rsvelte_check
@@ -410,14 +423,23 @@ jobs:
       - name: Install check oracle (real svelte-check)
         run: npm --prefix scripts/compat-corpus/check-oracle install --no-package-lock
 
+      # Only the tsgo leg needs this: the tsc leg type-checks against the
+      # oracle's own tsc (scripts/compat-corpus/check-oracle), same as before
+      # this matrix existed.
+      - name: Install tsgo backend
+        if: matrix.backend == 'tsgo'
+        run: npm --prefix scripts/compat-corpus/check-tsgo install --no-package-lock
+
       - name: Verify svelte-check parity (ratchet against check-known-failures.json)
-        run: node scripts/compat-corpus/check-verify.mjs
+        run: node scripts/compat-corpus/check-verify.mjs --rsvelte-backend ${{ matrix.backend }}
 
       - name: Upload check report on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: corpus-check-report
-          path: compatibility/check-report.json
+          name: corpus-check-report-${{ matrix.backend }}
+          path: |
+            compatibility/check-report.json
+            compatibility/check-report.tsgo.json
           if-no-files-found: ignore
           retention-days: 14
