@@ -266,7 +266,7 @@ function benchmarkJavaScript(files, iterations, task) {
  *
  * `binName` selects which Cargo binary drives the task. Compiler tasks
  * (compile-client / parse / svelte2tsx) use `benchmark_runner` in
- * `rsvelte_core`; the `fmt` task uses `fmt_benchmark_runner` in
+ * `rsvelte_devtools`; the `fmt` task uses `fmt_benchmark_runner` in
  * `rsvelte_fmt` (the formatter can't live in the compiler crate without a
  * dependency cycle). Both share the same CLI + JSON-output contract.
  */
@@ -285,11 +285,13 @@ async function benchmarkRust(files, singleThread, task, binName = 'benchmark_run
 	// representative). Compiler tasks don't panic on this corpus, so they
 	// keep the faster-to-link release profile.
 	const profileFlag = binName === 'benchmark_runner' ? '--release' : '--profile=bench';
+	const packageArgs = binName === 'benchmark_runner' ? ['-p', 'rsvelte_devtools'] : [];
 
 	return new Promise((resolve, reject) => {
 		const args = [
 			'run',
 			profileFlag,
+			...packageArgs,
 			'--bin',
 			binName,
 			'--',
@@ -746,11 +748,17 @@ function ensureRsvelteSvelteCheckBuilt() {
 	// cargo prints to its own stdout would corrupt it. Redirect both
 	// streams to our stderr so logs still surface in the terminal but
 	// never leak into the JSON.
-	const r = spawnSync('cargo', ['build', '--release', '--bin', 'svelte_check'], {
-		cwd: REPO_ROOT,
-		stdio: ['ignore', 2, 'inherit'],
-	});
-	if (r.status !== 0) throw new Error('cargo build --bin svelte_check failed');
+	const r = spawnSync(
+		'cargo',
+		['build', '--release', '-p', 'rsvelte_check', '--bin', 'svelte_check'],
+		{
+			cwd: REPO_ROOT,
+			stdio: ['ignore', 2, 'inherit'],
+		},
+	);
+	if (r.status !== 0) {
+		throw new Error('cargo build -p rsvelte_check --bin svelte_check failed');
+	}
 }
 
 function timeSvelteCheckRun(label, bin, args, env) {

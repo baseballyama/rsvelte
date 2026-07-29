@@ -1,0 +1,69 @@
+[package]
+name = "rsvelte_devtools"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Repository-local benchmarks, profilers, and diagnostic utilities for rsvelte"
+license = "MIT"
+repository = "https://github.com/baseballyama/rsvelte"
+publish = false
+
+[features]
+default = ["native"]
+native = [
+    "dep:rayon",
+    "jemalloc",
+    "mimalloc-alloc",
+    "rsvelte_core/parallel",
+]
+jemalloc = ["dep:tikv-jemallocator"]
+mimalloc-alloc = ["dep:mimalloc"]
+pprof = ["dep:pprof"]
+
+[dependencies]
+rsvelte_core = { path = "../rsvelte_core", default-features = false }
+rsvelte_esrap = { path = "../rsvelte_esrap" }
+rsvelte_projection = { path = "../rsvelte_projection" }
+
+chrono = "0.4"
+oxc_allocator = "0.141"
+oxc_codegen = "0.141"
+oxc_parser = "0.141"
+oxc_span = "0.141"
+rayon = { version = "1.10", optional = true }
+regex = "1.11"
+rustc-hash = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+walkdir = "2.5"
+
+[target.'cfg(all(not(windows), not(target_arch = "wasm32")))'.dependencies]
+mimalloc = { version = "0.1", optional = true, features = ["local_dynamic_tls"] }
+pprof = { version = "0.15", default-features = false, optional = true }
+tikv-jemallocator = { version = "0.7", optional = true }
+
+[dev-dependencies]
+criterion = { version = "5.0.0", features = [
+    "html_reports",
+], package = "codspeed-criterion-compat" }
+# Repository-only compatibility probe for the unreleased OXC formatter.
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "83abe3b49c0913b1a984a7eec5e433a59fd76eae" }
+similar = { version = "3.0", features = ["text"] }
+tokio = { version = "1", features = ["rt"] }
+
+[[bin]]
+name = "rsvelte_core"
+path = "src/main.rs"
+doc = false
+
+[[bench]]
+name = "parser"
+harness = false
+required-features = ["native"]
+
+[[bench]]
+name = "compiler"
+harness = false
+
+[lints]
+workspace = true

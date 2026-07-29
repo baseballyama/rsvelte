@@ -50,7 +50,7 @@ use std::sync::Arc;
 
 use crate::ast::arena::SerializeArenaGuard;
 
-#[cfg(feature = "native")]
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 // Re-export phase types
@@ -177,6 +177,11 @@ pub struct CssHashInput {
 }
 
 /// Warning filter function type.
+///
+/// Prepared components invoke this callback independently for each emitted
+/// target. Callbacks used with cached or repeated output must therefore be
+/// referentially transparent. The stable `rsvelte` facade avoids this concern
+/// by returning all diagnostics for the embedder to filter after compilation.
 pub type WarningFilterFn = Arc<dyn Fn(&Warning) -> bool + Send + Sync>;
 
 /// Experimental options.
@@ -199,6 +204,10 @@ pub struct CompileOptions {
     /// Root directory for relative path resolution.
     pub root_dir: Option<String>,
     /// Warning filter function.
+    ///
+    /// Stateful filters make repeated prepared-component emissions
+    /// non-deterministic and must not participate in persistent caches without
+    /// a caller-owned stable identity.
     pub warning_filter: Option<WarningFilterFn>,
     /// Experimental options.
     pub experimental: ExperimentalOptions,
@@ -1353,7 +1362,7 @@ fn strip_ts_from_attribute_value(
 ///     }
 /// }
 /// ```
-#[cfg(feature = "native")]
+#[cfg(feature = "parallel")]
 pub fn compile_batch(
     inputs: &[(&str, CompileOptions)],
 ) -> Vec<Result<CompileResult, CompileError>> {
@@ -1364,7 +1373,7 @@ pub fn compile_batch(
 }
 
 #[doc(hidden)]
-#[cfg(feature = "native")]
+#[cfg(feature = "parallel")]
 pub fn compile_batch_with_external_sourcemap_content(
     inputs: &[(&str, CompileOptions)],
 ) -> Vec<Result<CompileResult, CompileError>> {

@@ -1,13 +1,20 @@
 [package]
 name = "rsvelte_esrap"
-version = "0.7.11"
+version = "0.8.0"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 description = "A Rust port of esrap — prints an oxc AST to JavaScript with esrap's exact layout"
 license = "MIT"
 repository = "https://github.com/baseballyama/rsvelte"
-homepage = "https://github.com/baseballyama/rsvelte"
+homepage = "https://baseballyama.github.io/rsvelte/"
+documentation = "https://docs.rs/rsvelte_esrap"
+readme = "README.md"
 keywords = ["svelte", "compiler", "esrap", "printer"]
+categories = ["compilers", "development-tools"]
+publish = ["crates-io"]
+autobins = false
+autobenches = false
+exclude = ["tests/**", "benches/**", "examples/**"]
 
 [lib]
 crate-type = ["rlib"]
@@ -24,3 +31,6 @@ oxc_ast_visit = "0.141"
 
 [lints]
 workspace = true
+
+[package.metadata.docs.rs]
+all-features = true

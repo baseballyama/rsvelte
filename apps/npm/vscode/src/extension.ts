@@ -75,7 +75,7 @@ const RESTART_COMMAND_ID = "rsvelte.restartLanguageServer";
 /**
  * Basenames of files whose content changes the server's effective
  * compiler/format/lint config, matched against the extensions rsvelte
- * actually resolves (see `crates/rsvelte_core/src/svelte_check/config.rs`,
+ * actually resolves (see `crates/rsvelte_check/src/svelte_check/config.rs`,
  * `crates/rsvelte_fmt/src/config.rs`, `crates/rsvelte_lint/src/main.rs`).
  */
 const RESTART_ON_SAVE_PATTERNS: readonly RegExp[] = [

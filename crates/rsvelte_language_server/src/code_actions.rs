@@ -496,10 +496,7 @@ mod tests {
         }
     }
 
-    fn find_warning(
-        source: &str,
-        code: &str,
-    ) -> Option<rsvelte_core::svelte_check::diagnostic::Diagnostic> {
+    fn find_warning(source: &str, code: &str) -> Option<rsvelte_diagnostics::Diagnostic> {
         rsvelte_lint::lint_source(
             source,
             std::path::Path::new("App.svelte"),

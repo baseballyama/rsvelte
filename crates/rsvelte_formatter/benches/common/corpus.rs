@@ -1,6 +1,6 @@
 //! Loader for the pinned, in-repo benchmark corpus at `<repo>/benches/corpus/`.
 //!
-//! Mirrors `crates/rsvelte_core/benches/common/corpus.rs` but without the
+//! Mirrors `crates/rsvelte_devtools/benches/common/corpus.rs` but without the
 //! compiler-side `assert_parses` / `assert_compiles` helpers (this crate does
 //! not depend on `rsvelte_core`). The corpus is committed to the repo so the
 //! formatter benchmark workload stays identical across `svelte` submodule

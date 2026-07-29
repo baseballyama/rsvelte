@@ -262,7 +262,7 @@ pub fn ts_snippet_is_valid(source: &str, is_typescript: bool) -> bool {
 /// Parse multiple Svelte components in parallel.
 ///
 /// Uses rayon to parse files concurrently for maximum performance.
-#[cfg(feature = "native")]
+#[cfg(feature = "parallel")]
 pub fn parse_parallel<'a>(
     sources: impl IntoIterator<Item = (&'a str, &'a str)> + Send,
     options: ParseOptions,

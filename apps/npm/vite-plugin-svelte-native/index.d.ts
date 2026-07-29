@@ -180,7 +180,8 @@ export function compileModule(
 /**
  * Lower-level raw-transfer entry point. Returns a single `Buffer`
  * containing the entire compile result in the rsvelte envelope format
- * (see `src/napi_raw.rs`). Pair with {@link decodeEnvelope} to obtain
+ * (see `crates/rsvelte_bindings_support/src/napi_raw.rs`). Pair with
+ * {@link decodeEnvelope} to obtain
  * the legacy {@link CompileResult} shape; or pass the buffer through
  * worker `postMessage` (transferable) to avoid a copy.
  */

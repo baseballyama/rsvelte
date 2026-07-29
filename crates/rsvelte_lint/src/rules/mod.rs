@@ -11,7 +11,7 @@ pub mod derived_has_same_inputs_outputs;
 pub mod scss_selector;
 mod shared;
 // Source-scan "meta" rules: these run only in the native `runner::lint_source`
-// pipeline (they produce `rsvelte_core::svelte_check::Diagnostic` and use the
+// pipeline (they produce `rsvelte_check::Diagnostic` and use the
 // `compile`-based `validator`), never in the wasm `lint` export (which is
 // `run_native_rules`-only). Native-gated so the wasm build stays free of the
 // native-only `svelte_check` / `validator` deps.

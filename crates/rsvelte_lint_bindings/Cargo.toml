@@ -2,7 +2,7 @@
 name = "rsvelte_lint_bindings"
 version = "0.8.0"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 description = "cdylib bindings (wasm playground + Node NAPI addon) for the rsvelte linter engine"
 license = "MIT"
 publish = false
@@ -35,18 +35,31 @@ doc = false
 # Browser build (playground): the rule engine plus rsvelte_core's compiler +
 # svelte2tsx wasm exports, linked transitively so a single wasm module serves the
 # whole playground.
-wasm = ["rsvelte_core/wasm", "dep:wasm-bindgen"]
+wasm = [
+    "rsvelte_core/wasm-target",
+    "dep:rsvelte_projection",
+    "dep:wasm-bindgen",
+    "dep:console_error_panic_hook",
+    "dep:js-sys",
+    "dep:serde_json",
+    "dep:oxc_allocator",
+]
 # Native Node addon (`.node`): the same engine exposed via NAPI, on rsvelte_core's
 # native backend. No `#[global_allocator]` is installed, so the addon is
 # dlopen-safe on the system allocator with no TLS setup.
-napi = ["rsvelte_core/native", "dep:napi", "dep:napi-derive", "dep:napi-build"]
+napi = ["rsvelte_lint/native", "dep:napi", "dep:napi-derive", "dep:napi-build"]
 
 [dependencies]
 rsvelte_lint = { path = "../rsvelte_lint", default-features = false }
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
+rsvelte_projection = { path = "../rsvelte_projection", optional = true }
 
 # wasm-only.
 wasm-bindgen = { version = "0.2", optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
+js-sys = { version = "0.3", optional = true }
+serde_json = { version = "1.0", features = ["preserve_order"], optional = true }
+oxc_allocator = { version = "0.141", optional = true }
 
 # napi-only (the `.node` addon). Minimal feature set — only sync string exports.
 napi = { version = "3", default-features = false, features = ["napi9"], optional = true }

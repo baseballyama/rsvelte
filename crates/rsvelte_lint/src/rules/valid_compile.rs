@@ -21,8 +21,8 @@
 use std::path::Path;
 
 use rsvelte_core::compiler::Position;
-use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
+use rsvelte_diagnostics::Diagnostic;
 use serde_json::Value;
 
 use crate::config::LintConfig;
