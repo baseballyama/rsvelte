@@ -341,6 +341,8 @@ fn push_source_map_json_prefix(
 std::thread_local! {
     static JSON_STRING_WRITES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static JSON_STRING_INPUT_BYTES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static JSON_STRING_DIRECT_WRITES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static JSON_STRING_ESCAPE_FALLBACKS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static MAPPINGS_DIRECT_WRITES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static MAPPINGS_ESCAPE_FALLBACKS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static BUNDLE_SOURCE_MAP_CAPACITY_GREW: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
@@ -355,18 +357,30 @@ fn push_json_string(json: &mut String, value: &str) {
     }
 
     json.push('"');
-    for ch in value.chars() {
-        match ch {
-            '"' => json.push_str("\\\""),
-            '\\' => json.push_str("\\\\"),
-            '\n' => json.push_str("\\n"),
-            '\r' => json.push_str("\\r"),
-            '\t' => json.push_str("\\t"),
-            c if (c as u32) < 0x20 => {
-                let _ = write!(json, "\\u{:04x}", c as u32);
+    let needs_escape = value
+        .as_bytes()
+        .iter()
+        .any(|&byte| byte < 0x20 || matches!(byte, b'"' | b'\\'));
+    if needs_escape {
+        #[cfg(test)]
+        JSON_STRING_ESCAPE_FALLBACKS.with(|calls| calls.set(calls.get() + 1));
+        for ch in value.chars() {
+            match ch {
+                '"' => json.push_str("\\\""),
+                '\\' => json.push_str("\\\\"),
+                '\n' => json.push_str("\\n"),
+                '\r' => json.push_str("\\r"),
+                '\t' => json.push_str("\\t"),
+                c if (c as u32) < 0x20 => {
+                    let _ = write!(json, "\\u{:04x}", c as u32);
+                }
+                c => json.push(c),
             }
-            c => json.push(c),
         }
+    } else {
+        #[cfg(test)]
+        JSON_STRING_DIRECT_WRITES.with(|calls| calls.set(calls.get() + 1));
+        json.push_str(value);
     }
     json.push('"');
 }
@@ -1968,6 +1982,91 @@ mod tests {
             map.to_json(),
             r#"{"version":3,"file":"out\"\\雪\n.js","sources":["src\"\\é.svelte","二.svelte"],"sourcesContent":["line \"one\"\\\n\t\u001f雪"],"names":["na\"\\mé"],"mappings":"AAAA,CAAC;AACA+/09"}"#
         );
+    }
+
+    #[test]
+    fn json_strings_preserve_the_ascii_byte_escape_contract() {
+        for byte in 0..=0x7f {
+            let value = char::from(byte).to_string();
+            let escaped = match byte {
+                b'"' => "\\\"".to_string(),
+                b'\\' => "\\\\".to_string(),
+                b'\n' => "\\n".to_string(),
+                b'\r' => "\\r".to_string(),
+                b'\t' => "\\t".to_string(),
+                0x00..=0x1f => format!("\\u{byte:04x}"),
+                _ => value.clone(),
+            };
+            let expected = format!("sentinel:\"{escaped}\"");
+            let mut actual = String::from("sentinel:");
+
+            push_json_string(&mut actual, &value);
+
+            assert_eq!(actual, expected, "byte 0x{byte:02x}");
+            assert_eq!(
+                serde_json::from_str::<String>(&actual["sentinel:".len()..]).unwrap(),
+                value,
+                "byte 0x{byte:02x}"
+            );
+        }
+    }
+
+    #[test]
+    fn json_strings_bulk_write_safe_bytes_and_fall_back_for_each_hazard_position() {
+        let safe_ascii = (0x20..=0x7f)
+            .filter(|&byte| !matches!(byte, b'"' | b'\\'))
+            .map(char::from)
+            .collect::<String>();
+        let safe_values = ["", safe_ascii.as_str(), "é雪😀\u{2028}\u{2029}"];
+
+        JSON_STRING_DIRECT_WRITES.with(|calls| calls.set(0));
+        JSON_STRING_ESCAPE_FALLBACKS.with(|calls| calls.set(0));
+        for value in safe_values {
+            let mut actual = String::new();
+            push_json_string(&mut actual, value);
+            assert_eq!(actual, serde_json::to_string(value).unwrap());
+        }
+        assert_eq!(JSON_STRING_DIRECT_WRITES.with(std::cell::Cell::get), 3);
+        assert_eq!(JSON_STRING_ESCAPE_FALLBACKS.with(std::cell::Cell::get), 0);
+
+        let hazards = [
+            "\"tail",
+            "head\"tail",
+            "head\"",
+            "\\tail",
+            "head\\tail",
+            "head\\",
+            "\u{0000}tail",
+            "head\u{001f}tail",
+            "head\n",
+        ];
+        JSON_STRING_DIRECT_WRITES.with(|calls| calls.set(0));
+        JSON_STRING_ESCAPE_FALLBACKS.with(|calls| calls.set(0));
+        for value in hazards {
+            let mut actual = String::new();
+            push_json_string(&mut actual, value);
+            assert_eq!(
+                serde_json::from_str::<String>(&actual).unwrap(),
+                value,
+                "{value:?}"
+            );
+        }
+        assert_eq!(JSON_STRING_DIRECT_WRITES.with(std::cell::Cell::get), 0);
+        assert_eq!(
+            JSON_STRING_ESCAPE_FALLBACKS.with(std::cell::Cell::get),
+            hazards.len()
+        );
+    }
+
+    #[test]
+    fn json_string_scalar_fallback_preserves_unicode_and_control_escapes() {
+        let value = "\u{0000}\u{0001}\u{0008}\t\n\u{000c}\r\u{001f}\"\\é雪😀";
+        let mut actual = String::new();
+
+        push_json_string(&mut actual, value);
+
+        assert_eq!(actual, r#""\u0000\u0001\u0008\t\n\u000c\r\u001f\"\\é雪😀""#);
+        assert_eq!(serde_json::from_str::<String>(&actual).unwrap(), value);
     }
 
     #[test]
