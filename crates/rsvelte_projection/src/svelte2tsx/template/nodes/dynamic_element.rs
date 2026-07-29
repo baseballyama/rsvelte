@@ -79,7 +79,12 @@ pub(crate) fn handle_svelte_dynamic_element(
     let attrs_str = if named_slot.is_some() {
         build_named_slot_element_attrs(&el.attributes, source)
     } else {
-        build_attributes_string(&el.attributes, source, saved_slot.is_some())
+        build_attributes_string(
+            &el.attributes,
+            source,
+            &counter.element_opener_comments,
+            saved_slot.is_some(),
+        )
     };
 
     // `use:` / `transition:` / `animate:` directives, same V4 emission as on a

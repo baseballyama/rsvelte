@@ -171,7 +171,12 @@ pub(crate) fn handle_component(
     // When this component is named-slot-routed (`named_slot_close`), its static
     // `slot="…"` attribute is consumed by the `$$slot_def[…]` wrapper, so drop it
     // from the props object; otherwise (root, or dynamic `slot={…}`) keep it.
-    let mut attr_segs = build_component_props_segments(&comp.attributes, source, named_slot_close);
+    let mut attr_segs = build_component_props_segments(
+        &comp.attributes,
+        source,
+        &counter.element_opener_comments,
+        named_slot_close,
+    );
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior
     let attrs_empty_before_pad = segs_is_empty(&attr_segs);
@@ -482,7 +487,8 @@ pub(crate) fn handle_svelte_component(
     let has_events = !on_directives.is_empty();
 
     // Build attribute/props string (excluding on: directives)
-    let mut attrs_str = build_component_props_string(&comp.attributes, source);
+    let mut attrs_str =
+        build_component_props_string(&comp.attributes, source, &counter.element_opener_comments);
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior
     if !comp.attributes.is_empty() && !attrs_str.is_empty() {

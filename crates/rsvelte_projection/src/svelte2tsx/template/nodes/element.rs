@@ -111,6 +111,7 @@ pub(crate) fn handle_regular_element(
     let mut attr_segs = build_attribute_segments(
         &el.attributes,
         source,
+        &counter.element_opener_comments,
         &el.name,
         saved_slot.is_some(),
         Some(opener_content_start),
@@ -289,7 +290,12 @@ pub(crate) fn handle_title_element(
     }
 
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
-    let attrs_str = build_attributes_string(&el.attributes, source, counter.slot_inst.is_some());
+    let attrs_str = build_attributes_string(
+        &el.attributes,
+        source,
+        &counter.element_opener_comments,
+        counter.slot_inst.is_some(),
+    );
 
     let opener = format!(
         " {{ svelteHTML.createElement(\"title\", {{{}}});",

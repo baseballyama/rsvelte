@@ -16,6 +16,7 @@ pub(super) mod transition;
 
 use crate::ast::template::Attribute;
 use crate::svelte2tsx::svelte2tsx::slice_src;
+use crate::svelte2tsx::template::ctx::ElementOpenerCommentIndex;
 use crate::svelte2tsx::template::nodes::attach_tag::format_attach_tag_segments;
 use crate::svelte2tsx::template::segs::{
     Seg, segs_is_empty, segs_push_fmt, segs_push_lit, segs_push_src, segs_to_string,
@@ -115,18 +116,27 @@ fn splice_trailing_text(part: &mut String, trailing: &str) {
 pub(super) fn build_attributes_string(
     attributes: &[Attribute],
     source: &str,
+    comments: &ElementOpenerCommentIndex,
     in_slot_context: bool,
 ) -> String {
-    build_attributes_string_with_tag(attributes, source, "", in_slot_context)
+    build_attributes_string_with_tag(attributes, source, comments, "", in_slot_context)
 }
 
 pub(super) fn build_attributes_string_with_tag(
     attributes: &[Attribute],
     source: &str,
+    comments: &ElementOpenerCommentIndex,
     parent_tag: &str,
     in_slot_context: bool,
 ) -> String {
-    let segs = build_attribute_segments(attributes, source, parent_tag, in_slot_context, None);
+    let segs = build_attribute_segments(
+        attributes,
+        source,
+        comments,
+        parent_tag,
+        in_slot_context,
+        None,
+    );
     segs_to_string(&segs, source)
 }
 
@@ -142,6 +152,7 @@ pub(super) fn build_attributes_string_with_tag(
 pub(super) fn build_attribute_segments(
     attributes: &[Attribute],
     source: &str,
+    comments: &ElementOpenerCommentIndex,
     parent_tag: &str,
     in_slot_context: bool,
     opener_content_start: Option<u32>,
@@ -182,9 +193,9 @@ pub(super) fn build_attribute_segments(
                     }
                     _ => "",
                 };
-                if let Some(part) =
-                    format_attribute_node_segments(node, source, true, parent_tag, leading)
-                {
+                if let Some(part) = format_attribute_node_segments(
+                    node, source, comments, true, parent_tag, leading,
+                ) {
                     push_with_separator(&mut segs, part);
                     any_pushed = true;
                 }
@@ -266,7 +277,7 @@ pub(super) fn build_attribute_segments(
     }
 
     if any_pushed && let Some(end) = opener_trailing_comment_range(attributes) {
-        let trailing = trailing_attr_comment_segs(end, source);
+        let trailing = trailing_attr_comment_segs(end, source, comments);
         splice_trailing_segs(&mut segs, &trailing);
     }
 
@@ -290,7 +301,11 @@ pub(super) fn build_attribute_segments(
 ///
 /// When `on:` directives are present but filtered out, a space is added inside
 /// the empty braces to match the JS svelte2tsx output: `props: { }`.
-pub(super) fn build_component_props_string(attributes: &[Attribute], source: &str) -> String {
+pub(super) fn build_component_props_string(
+    attributes: &[Attribute],
+    source: &str,
+    comments: &ElementOpenerCommentIndex,
+) -> String {
     let mut parts: Vec<String> = Vec::new();
     let mut has_on_directives = false;
     let mut let_count = 0u32;
@@ -383,7 +398,7 @@ pub(super) fn build_component_props_string(attributes: &[Attribute], source: &st
     if let Some(end) = opener_trailing_comment_range(attributes)
         && let Some(last) = parts.last_mut()
     {
-        splice_trailing_text(last, &trailing_attr_comment_text(end, source));
+        splice_trailing_text(last, &trailing_attr_comment_text(end, source, comments));
     }
 
     let result = parts.join("");
@@ -412,6 +427,7 @@ pub(super) fn build_component_props_string(attributes: &[Attribute], source: &st
 pub(super) fn build_component_props_segments(
     attributes: &[Attribute],
     source: &str,
+    comments: &ElementOpenerCommentIndex,
     drop_slot: bool,
 ) -> Vec<Seg> {
     let mut inner: Vec<Seg> = Vec::new();
@@ -440,7 +456,9 @@ pub(super) fn build_component_props_segments(
                 // is_element=false: --* attrs get __sveltets_2_cssProp wrapping
                 // inside format_attribute_node_segments (mirrors Attribute.ts).
                 // Components preserve attribute-name case, so the tag is unused.
-                if let Some(part) = format_attribute_node_segments(node, source, false, "", "") {
+                if let Some(part) =
+                    format_attribute_node_segments(node, source, comments, false, "", "")
+                {
                     extend_segs(&mut inner, part);
                 }
             }
@@ -522,7 +540,7 @@ pub(super) fn build_component_props_segments(
     }
 
     if let Some(end) = opener_trailing_comment_range(attributes) {
-        let trailing = trailing_attr_comment_segs(end, source);
+        let trailing = trailing_attr_comment_segs(end, source, comments);
         splice_trailing_segs(&mut inner, &trailing);
     }
 

@@ -4,13 +4,19 @@ use crate::ast::template::ExpressionTag;
 use crate::svelte2tsx::magic_string::MagicString;
 
 use super::comment::comments_in_opener_range;
+use crate::svelte2tsx::template::ctx::ElementOpenerCommentIndex;
 use crate::svelte2tsx::template::utils::expr::get_expression_range;
 
 /// Handle an expression tag: `{expression}`.
 ///
 /// Overwrites `{` with empty and `}` with `;` so the expression is preserved
 /// as a statement: `{count}` → `count;`
-pub(crate) fn handle_expression_tag(expr: &ExpressionTag, source: &str, str: &mut MagicString<'_>) {
+pub(crate) fn handle_expression_tag(
+    expr: &ExpressionTag,
+    source: &str,
+    str: &mut MagicString<'_>,
+    comments: &ElementOpenerCommentIndex,
+) {
     if expr.start >= expr.end {
         return;
     }
@@ -19,7 +25,7 @@ pub(crate) fn handle_expression_tag(expr: &ExpressionTag, source: &str, str: &mu
         // Leading: keep any `{/* c */ expr}` comments between the `{` and the
         // expression (official preserves them, stripping only the `{` and a
         // wrapping `(`). Strip from `{` up to the first such comment.
-        let lead_keep = comments_in_opener_range(expr.start, expr_start)
+        let lead_keep = comments_in_opener_range(comments, expr.start, expr_start)
             .first()
             .map(|&(cs, _)| cs)
             .unwrap_or(expr_start);
@@ -53,7 +59,8 @@ pub(crate) fn handle_expression_tag(expr: &ExpressionTag, source: &str, str: &mu
             // Trailing: keep any `{expr /* c */}` comments between the expression
             // and `}` (emit `;` right after the expression, strip a wrapping `)`
             // and the `}`).
-            let trailing = comments_in_opener_range(expr_end, close.saturating_sub(1) as u32);
+            let trailing =
+                comments_in_opener_range(comments, expr_end, close.saturating_sub(1) as u32);
             match (trailing.first(), trailing.last()) {
                 (Some(&(first_cs, _)), Some(&(_, last_ce))) => {
                     if expr_end < first_cs {

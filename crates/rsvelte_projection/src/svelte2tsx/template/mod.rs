@@ -23,7 +23,6 @@ use super::nodes::runes_detection::TemplateRunesDetector;
 use super::svelte2tsx::Svelte2TsxOptions;
 use ctx::Counter;
 
-pub(crate) use ctx::{clear_element_opener_comments, set_element_opener_comments};
 use walk::process_fragment_inplace;
 
 // =============================================================================
@@ -91,8 +90,9 @@ pub fn process_template_inplace(
     source: &str,
     _options: &Svelte2TsxOptions,
     str: &mut MagicString<'_>,
+    element_opener_comments: impl IntoIterator<Item = (u32, u32)>,
 ) {
-    let mut counter = Counter::new();
+    let mut counter = Counter::new(element_opener_comments);
     // depth 0 = root fragment; elements and components increment it for their children
     process_fragment_inplace(fragment, source, _options, str, &mut counter, 0);
 
@@ -233,7 +233,7 @@ mod tests {
         let fragment = Fragment::default();
         let options = Svelte2TsxOptions::default();
         let mut str = MagicString::new("");
-        process_template_inplace(&fragment, "", &options, &mut str);
+        process_template_inplace(&fragment, "", &options, &mut str, []);
         assert_eq!(str.to_string(), "");
     }
 

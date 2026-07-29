@@ -46,8 +46,12 @@ pub(crate) fn handle_svelte_special_element(
     }
 
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
-    let mut attrs_str =
-        build_attributes_string(&el.attributes, source, counter.slot_inst.is_some());
+    let mut attrs_str = build_attributes_string(
+        &el.attributes,
+        source,
+        &counter.element_opener_comments,
+        counter.slot_inst.is_some(),
+    );
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior
     if !el.attributes.is_empty() && !attrs_str.is_empty() {
