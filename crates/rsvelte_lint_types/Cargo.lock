@@ -1162,7 +1162,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_projection"
-version = "0.9.4"
+version = "0.9.5"
 dependencies = [
  "indexmap",
  "memchr",
