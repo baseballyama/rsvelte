@@ -256,7 +256,71 @@ fn remap_source_map(source_map: &str, code: &str, edits: &[TextEdit]) -> Result<
         .map_err(|error| format!("rewritten source map was not UTF-8: {error}"))
 }
 
-fn remap_generated_boundary(offset: u32, edits: &[TextEdit]) -> Option<u32> {
+fn remap_generated_boundary(offset: u32, byte_delta: i64) -> Option<u32> {
+    u32::try_from(i64::from(offset) + byte_delta).ok()
+}
+
+fn edit_byte_delta(edit: &TextEdit) -> i64 {
+    i64::from(edit.replacement_len) - i64::from(edit.end - edit.start)
+}
+
+fn remap_forward_segments(
+    segments: Vec<(u32, u32, u32)>,
+    edits: &[TextEdit],
+) -> Vec<(u32, u32, u32)> {
+    if edits.is_empty() {
+        return segments;
+    }
+    let mut remapped = Vec::with_capacity(segments.len());
+    let mut edit_cursor = 0;
+    let mut byte_delta = 0;
+
+    for (source_start, source_end, generated_start) in segments {
+        let generated_end = generated_start + source_end - source_start;
+        let mut cursor = generated_start;
+
+        while let Some(edit) = edits.get(edit_cursor) {
+            if edit.end > cursor {
+                break;
+            }
+            byte_delta += edit_byte_delta(edit);
+            edit_cursor += 1;
+        }
+
+        while let Some(edit) = edits.get(edit_cursor) {
+            if edit.start >= generated_end {
+                break;
+            }
+
+            let unchanged_end = edit.start.min(generated_end);
+            if cursor < unchanged_end {
+                let source_part_start = source_start + cursor - generated_start;
+                let source_part_end = source_start + unchanged_end - generated_start;
+                if let Some(post_start) = remap_generated_boundary(cursor, byte_delta) {
+                    remapped.push((source_part_start, source_part_end, post_start));
+                }
+            }
+
+            cursor = cursor.max(edit.end.min(generated_end));
+            if edit.end > generated_end {
+                break;
+            }
+            byte_delta += edit_byte_delta(edit);
+            edit_cursor += 1;
+        }
+
+        if cursor < generated_end {
+            let source_part_start = source_start + cursor - generated_start;
+            if let Some(post_start) = remap_generated_boundary(cursor, byte_delta) {
+                remapped.push((source_part_start, source_end, post_start));
+            }
+        }
+    }
+    remapped
+}
+
+#[cfg(test)]
+fn remap_generated_boundary_oracle(offset: u32, edits: &[TextEdit]) -> Option<u32> {
     let mut remapped = i64::from(offset);
     for edit in edits {
         if edit.end <= offset {
@@ -266,7 +330,8 @@ fn remap_generated_boundary(offset: u32, edits: &[TextEdit]) -> Option<u32> {
     u32::try_from(remapped).ok()
 }
 
-fn remap_forward_segments(
+#[cfg(test)]
+fn remap_forward_segments_oracle(
     segments: Vec<(u32, u32, u32)>,
     edits: &[TextEdit],
 ) -> Vec<(u32, u32, u32)> {
@@ -285,7 +350,7 @@ fn remap_forward_segments(
             if cursor < unchanged_end {
                 let source_part_start = source_start + cursor - generated_start;
                 let source_part_end = source_start + unchanged_end - generated_start;
-                if let Some(post_start) = remap_generated_boundary(cursor, edits) {
+                if let Some(post_start) = remap_generated_boundary_oracle(cursor, edits) {
                     remapped.push((source_part_start, source_part_end, post_start));
                 }
             }
@@ -293,7 +358,7 @@ fn remap_forward_segments(
         }
         if cursor < generated_end {
             let source_part_start = source_start + cursor - generated_start;
-            if let Some(post_start) = remap_generated_boundary(cursor, edits) {
+            if let Some(post_start) = remap_generated_boundary_oracle(cursor, edits) {
                 remapped.push((source_part_start, source_end, post_start));
             }
         }
@@ -1225,5 +1290,181 @@ mod source_map_remap_tests {
                 && token.get_source().is_none()
                 && token.get_name().is_none()
         }));
+    }
+}
+
+#[cfg(test)]
+mod forward_map_rewrite_tests {
+    use super::*;
+
+    fn edit(start: u32, end: u32, replacement_len: u32) -> TextEdit {
+        TextEdit {
+            start,
+            end,
+            replacement_len,
+            replacement_utf16_len: replacement_len,
+        }
+    }
+
+    fn interval_layouts(limit: u32) -> Vec<Vec<(u32, u32)>> {
+        fn extend(
+            minimum_start: u32,
+            limit: u32,
+            current: &mut Vec<(u32, u32)>,
+            layouts: &mut Vec<Vec<(u32, u32)>>,
+        ) {
+            layouts.push(current.clone());
+            for start in minimum_start..limit {
+                for end in start + 1..=limit {
+                    current.push((start, end));
+                    extend(end, limit, current, layouts);
+                    current.pop();
+                }
+            }
+        }
+
+        let mut layouts = Vec::new();
+        extend(0, limit, &mut Vec::new(), &mut layouts);
+        layouts
+    }
+
+    fn forward_segments(layout: &[(u32, u32)]) -> Vec<(u32, u32, u32)> {
+        layout
+            .iter()
+            .enumerate()
+            .map(|(index, &(generated_start, generated_end))| {
+                let source_start = 500 + (layout.len() - index) as u32 * 20;
+                (
+                    source_start,
+                    source_start + generated_end - generated_start,
+                    generated_start,
+                )
+            })
+            .collect()
+    }
+
+    fn edit_variants(layout: &[(u32, u32)]) -> Vec<Vec<TextEdit>> {
+        fn extend(
+            layout: &[(u32, u32)],
+            index: usize,
+            current: &mut Vec<TextEdit>,
+            variants: &mut Vec<Vec<TextEdit>>,
+        ) {
+            let Some(&(start, end)) = layout.get(index) else {
+                variants.push(current.clone());
+                return;
+            };
+            let old_len = end - start;
+            let mut replacement_lengths = Vec::with_capacity(4);
+            for replacement_len in [0, 1, old_len, old_len + 2] {
+                if !replacement_lengths.contains(&replacement_len) {
+                    replacement_lengths.push(replacement_len);
+                }
+            }
+            for replacement_len in replacement_lengths {
+                current.push(edit(start, end, replacement_len));
+                extend(layout, index + 1, current, variants);
+                current.pop();
+            }
+        }
+
+        let mut variants = Vec::new();
+        extend(layout, 0, &mut Vec::new(), &mut variants);
+        variants
+    }
+
+    fn next_random(state: &mut u64) -> u32 {
+        *state = state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        (*state >> 32) as u32
+    }
+
+    fn random_intervals(state: &mut u64, limit: u32) -> Vec<(u32, u32)> {
+        let mut intervals = Vec::new();
+        let mut cursor = next_random(state) % 5;
+        while cursor < limit && intervals.len() < 24 {
+            let remaining = limit - cursor;
+            let len = 1 + next_random(state) % remaining.min(12);
+            let end = cursor + len;
+            intervals.push((cursor, end));
+            cursor = end.saturating_add(next_random(state) % 5);
+        }
+        intervals
+    }
+
+    #[test]
+    fn preserves_boundaries_when_an_edit_crosses_segments_and_gaps() {
+        let segments = vec![(100, 104, 0), (200, 204, 6), (300, 304, 12)];
+        let edits = vec![edit(2, 14, 3)];
+
+        assert_eq!(
+            remap_forward_segments(segments, &edits),
+            vec![(100, 102, 0), (302, 304, 5)]
+        );
+    }
+
+    #[test]
+    fn handles_zero_length_edits_at_equal_boundaries() {
+        let segments = vec![(10, 15, 5), (20, 22, 10)];
+        let edits = vec![edit(5, 5, 3), edit(7, 7, 0), edit(10, 10, 2)];
+
+        assert_eq!(
+            remap_forward_segments(segments, &edits),
+            vec![(10, 12, 8), (12, 15, 10), (20, 22, 15)]
+        );
+    }
+
+    #[test]
+    fn zero_length_segments_and_edits_match_the_oracle() {
+        let segments = vec![(10, 10, 5), (20, 22, 5), (30, 30, 7)];
+        let edits = vec![edit(5, 5, 3), edit(7, 7, 2)];
+
+        assert_eq!(
+            remap_forward_segments(segments.clone(), &edits),
+            vec![(20, 22, 8)]
+        );
+        assert_eq!(
+            remap_forward_segments(segments.clone(), &edits),
+            remap_forward_segments_oracle(segments, &edits)
+        );
+    }
+
+    #[test]
+    fn exhaustive_small_interval_layouts_match_the_oracle() {
+        let layouts = interval_layouts(5);
+        for segment_layout in &layouts {
+            let segments = forward_segments(segment_layout);
+            for edit_layout in &layouts {
+                for edits in edit_variants(edit_layout) {
+                    assert_eq!(
+                        remap_forward_segments(segments.clone(), &edits),
+                        remap_forward_segments_oracle(segments.clone(), &edits),
+                        "segments={segments:?}, edits={edits:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn deterministic_generated_order_cases_match_the_oracle() {
+        let mut state = 0x5eed_f04d_cafe_babe;
+        for _ in 0..8_192 {
+            let limit = 10 + next_random(&mut state) % 240;
+            let segment_layout = random_intervals(&mut state, limit);
+            let segments = forward_segments(&segment_layout);
+            let edit_layout = random_intervals(&mut state, limit);
+            let edits: Vec<_> = edit_layout
+                .into_iter()
+                .map(|(start, end)| edit(start, end, next_random(&mut state) % 32))
+                .collect();
+
+            assert_eq!(
+                remap_forward_segments(segments.clone(), &edits),
+                remap_forward_segments_oracle(segments.clone(), &edits),
+                "segments={segments:?}, edits={edits:?}"
+            );
+        }
     }
 }
