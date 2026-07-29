@@ -451,6 +451,13 @@ fn discover_external_svelte_packages(
         if real.starts_with(&ws_real) {
             continue;
         }
+        // A `paths` alias can name any directory, including one that CONTAINS
+        // the workspace (`"@/*": ["../../*"]` in a monorepo). Mirroring a tree
+        // the workspace itself lives in is never right, and it would walk the
+        // whole repository looking for `.svelte` files.
+        if ws_real.starts_with(&real) {
+            continue;
+        }
         if !seen.insert(real.clone()) {
             continue;
         }
@@ -1265,18 +1272,25 @@ fn resolve_root_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
 /// rule as [`resolve_root_dirs_abs`]) — a child `compilerOptions.paths`
 /// replaces the parent's wholesale, mirroring TypeScript.
 ///
-/// Each target glob (`"../../../libs/*"`) has its trailing `/*` (or bare
-/// `*`) stripped and is resolved relative to `baseUrl` when the *same*
-/// config object sets one, else relative to that config file's own
-/// directory (TypeScript's default since `paths` no longer requires
-/// `baseUrl`). A target that resolves to a file rather than a directory
-/// contributes that file's parent directory instead. Used to extend
-/// [`discover_external_svelte_packages`] to sibling packages reached
-/// through a bundler/tsconfig alias rather than a `node_modules` symlink
-/// (#782's fix only covers the latter).
+/// Each target glob (`"../../../libs/*"`) has its trailing `/*` (or bare `*`)
+/// stripped and is resolved against `baseUrl` when one is set anywhere in the
+/// chain (nearest wins, itself resolved against the config that declared it),
+/// else against the directory of the config that declared `paths` —
+/// TypeScript's default since `paths` stopped requiring `baseUrl`. A target
+/// that names a file contributes that file's parent directory; one that does
+/// not exist is skipped rather than widened to its parent. Used to extend
+/// [`discover_external_svelte_packages`] to sibling packages reached through a
+/// bundler/tsconfig alias rather than a `node_modules` symlink (#782's fix
+/// only covers the latter).
 fn resolve_paths_alias_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
-    let mut current = Some(tsconfig_path.to_path_buf());
+    // A relative path would otherwise compound through every `extends` hop
+    // (`file.parent()` staying relative at each step) into an unresolvable
+    // target — the same class of bug `build_svelte_import_resolver` guards
+    // against for the same reason.
+    let mut current = Some(absolutize(tsconfig_path));
     let mut hops = 0;
+    let mut paths: Option<(serde_json::Map<String, serde_json::Value>, PathBuf)> = None;
+    let mut base_url: Option<PathBuf> = None;
     while let Some(file) = current {
         hops += 1;
         if hops > 32 {
@@ -1289,51 +1303,66 @@ fn resolve_paths_alias_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
         let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stripped) else {
             break;
         };
-        let dir = file.parent().unwrap_or(Path::new("."));
+        let dir = file.parent().unwrap_or(Path::new(".")).to_path_buf();
         let compiler_opts = parsed.get("compilerOptions");
-
-        if let Some(paths) = compiler_opts
-            .and_then(|c| c.get("paths"))
-            .and_then(|v| v.as_object())
+        if paths.is_none()
+            && let Some(p) = compiler_opts
+                .and_then(|c| c.get("paths"))
+                .and_then(|v| v.as_object())
         {
-            let base = compiler_opts
+            paths = Some((p.clone(), dir.clone()));
+        }
+        if base_url.is_none()
+            && let Some(b) = compiler_opts
                 .and_then(|c| c.get("baseUrl"))
                 .and_then(|v| v.as_str())
-                .map(|b| dir.join(b))
-                .unwrap_or_else(|| dir.to_path_buf());
-            let mut out = Vec::new();
-            for targets in paths.values() {
-                let Some(targets) = targets.as_array() else {
-                    continue;
-                };
-                for target in targets.iter().filter_map(|v| v.as_str()) {
-                    let trimmed = target
-                        .strip_suffix("/*")
-                        .or_else(|| target.strip_suffix('*'));
-                    let trimmed = trimmed.unwrap_or(target);
-                    if trimmed.is_empty() {
-                        continue;
-                    }
-                    let resolved = base.join(trimmed);
-                    let resolved = if resolved.is_dir() {
-                        resolved
-                    } else if let Some(parent) = resolved.parent() {
-                        parent.to_path_buf()
-                    } else {
-                        continue;
-                    };
-                    out.push(resolved);
-                }
-            }
-            return out;
+        {
+            base_url = Some(dir.join(b));
         }
-
+        if paths.is_some() && base_url.is_some() {
+            break;
+        }
         match parsed.get("extends").and_then(|v| v.as_str()) {
-            Some(ext) if ext.starts_with('.') => current = Some(resolve_extends_path(dir, ext)),
+            Some(ext) if ext.starts_with('.') => current = Some(resolve_extends_path(&dir, ext)),
             _ => break,
         }
     }
-    Vec::new()
+    let Some((paths, paths_dir)) = paths else {
+        return Vec::new();
+    };
+    let base = base_url.unwrap_or(paths_dir);
+
+    let mut out = Vec::new();
+    for targets in paths.values() {
+        let Some(targets) = targets.as_array() else {
+            continue;
+        };
+        for target in targets.iter().filter_map(|v| v.as_str()) {
+            let trimmed = target
+                .strip_suffix("/*")
+                .or_else(|| target.strip_suffix('*'))
+                .unwrap_or(target);
+            if trimmed.is_empty() {
+                continue;
+            }
+            let resolved = base.join(trimmed);
+            // A missing target must not widen to its parent: `"$types/*":
+            // ["../../shared/types/*"]` with `shared/types` not generated yet
+            // would otherwise nominate all of `shared/` as a package to mirror.
+            let resolved = if resolved.is_dir() {
+                resolved
+            } else if resolved.is_file() {
+                match resolved.parent() {
+                    Some(parent) => parent.to_path_buf(),
+                    None => continue,
+                }
+            } else {
+                continue;
+            };
+            out.push(resolved);
+        }
+    }
+    out
 }
 
 /// Sibling companion module (`Foo.svelte.ts` / `Foo.svelte.js`) of a
@@ -1859,6 +1888,10 @@ fn path_relative(from_dir: &Path, to_path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The current directory is process-wide while tests run in parallel, so
+    /// every test that has to exercise a CLI-relative path takes this first.
+    static CWD_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
     use std::fs;
     use std::io::Write;
 
@@ -2408,6 +2441,58 @@ mod tests {
         let _ = fs::remove_dir_all(&tmp);
     }
 
+    /// A `paths` alias that names a directory CONTAINING the workspace
+    /// (`"@/*": ["../../*"]`, an ordinary monorepo shape) must not be mirrored
+    /// as an external package — the workspace's own files are already covered,
+    /// and the mirror walk would cover the whole repository. A `baseUrl`-based
+    /// alias in the same config must still resolve through `baseUrl`.
+    #[test]
+    fn paths_alias_naming_an_ancestor_of_the_workspace_is_not_mirrored() {
+        let tmp = std::env::temp_dir().join(format!("svc_alias_ancestor_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("apps/web/src")).unwrap();
+        fs::create_dir_all(tmp.join("libs")).unwrap();
+        fs::write(
+            tmp.join("apps/web/tsconfig.json"),
+            "{\"compilerOptions\":{\"baseUrl\":\"../..\",\"paths\":{\"@/*\":[\"./*\"],\"$libs/*\":[\"libs/*\"]}}}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("libs/Shared.svelte"),
+            "<script lang=\"ts\">let { n }: { n: number } = $props();</script>\n<i>{n}</i>\n",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("apps/web/src/App.svelte"),
+            "<script lang=\"ts\">import Shared from '$libs/Shared.svelte';</script>\n<Shared n={1} />\n",
+        )
+        .unwrap();
+
+        let workspace = tmp.join("apps/web");
+        let files = vec![workspace.join("src/App.svelte")];
+        let tsconfig = workspace.join("tsconfig.json");
+        materialize_overlay_with(&workspace, &files, Some(&tsconfig), false).unwrap();
+
+        let ext_root = workspace.join(".svelte-check/ext");
+        let mirrored: Vec<String> = fs::read_dir(&ext_root)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            mirrored.len(),
+            1,
+            "only the `$libs` sibling should be mirrored, got {mirrored:?}"
+        );
+        assert!(
+            ext_root.join("0/Shared.svelte.tsx").is_file(),
+            "the `$libs` sibling (resolved through baseUrl) should have a shadow"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
     /// Regression test: a relative `--tsconfig` path (`./tsconfig.json`, the
     /// CLI's own documented usage) must not silently disable alias rewriting
     /// for a `paths` target that climbs outside the CWD via `..` — exactly
@@ -2416,7 +2501,8 @@ mod tests {
     /// relative; `build_svelte_import_resolver` has to absolutise it first.
     #[test]
     fn relative_tsconfig_path_still_resolves_paths_aliases_that_escape_cwd() {
-        let tmp = std::env::temp_dir().join(format!("svc_relcfg_{}", std::process::id()));
+        let tmp =
+            std::env::temp_dir().join(format!("svc_relcfg_paths_alias_{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(tmp.join("pkg-a/src")).unwrap();
         fs::create_dir_all(tmp.join("pkg-libs/lib")).unwrap();
@@ -2437,9 +2523,10 @@ mod tests {
         .unwrap();
 
         let workspace = tmp.join("pkg-a");
+        let _cwd_guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let cwd = std::env::current_dir().unwrap();
         std::env::set_current_dir(&workspace).unwrap();
-        let result = (|| {
+        let result = {
             let files = vec![PathBuf::from("src/App.svelte")];
             materialize_overlay_with(
                 Path::new("."),
@@ -2447,7 +2534,7 @@ mod tests {
                 Some(Path::new("./tsconfig.json")),
                 false,
             )
-        })();
+        };
         std::env::set_current_dir(&cwd).unwrap();
         result.unwrap();
 
