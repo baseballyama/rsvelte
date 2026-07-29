@@ -2,7 +2,7 @@
 name = "tailwind_class_order"
 version = "0.0.0"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 description = "Pure-Rust Tailwind CSS class sorter for the default (zero-config) design system — a port of the ordering used by prettier-plugin-tailwindcss / Tailwind v4 getClassOrder"
 license = "MIT"
 repository = "https://github.com/baseballyama/rsvelte"

@@ -2,7 +2,7 @@
 name = "rsvelte_napi"
 version = "0.8.0"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 description = "Node.js N-API bindings for the rsvelte Svelte compiler"
 license = "MIT"
 repository = "https://github.com/baseballyama/rsvelte"
@@ -31,7 +31,9 @@ jemalloc = ["dep:tikv-jemallocator", "tikv-jemallocator?/disable_initial_exec_tl
 mimalloc-alloc = ["dep:mimalloc"]
 
 [dependencies]
-rsvelte_core = { path = "../rsvelte_core", default-features = false, features = ["native"] }
+rsvelte_core = { path = "../rsvelte_core", default-features = false, features = ["parallel"] }
+rsvelte_bindings_support = { path = "../rsvelte_bindings_support" }
+rsvelte_projection = { path = "../rsvelte_projection" }
 napi = { version = "3", default-features = false, features = ["napi9", "serde-json", "async", "tokio_rt", "compat-mode"] }
 napi-derive = "3"
 serde_json = { version = "1.0", features = ["preserve_order"] }

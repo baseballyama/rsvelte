@@ -111,7 +111,8 @@ jobs:
       # and surfaces build failures as their own step.)
       - name: Build Rust benchmark harnesses
         run: |
-          cargo build --release --bin benchmark_runner --bin svelte_check
+          cargo build --release -p rsvelte_devtools --bin benchmark_runner
+          cargo build --release -p rsvelte_check --bin svelte_check
           cargo build --profile=bench --bin fmt_benchmark_runner --bin lint_benchmark_runner
         timeout-minutes: 45
 

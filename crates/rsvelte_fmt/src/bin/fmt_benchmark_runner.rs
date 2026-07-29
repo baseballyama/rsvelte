@@ -1,6 +1,6 @@
 //! Benchmark runner for the `fmt` task.
 //!
-//! Mirrors `rsvelte_core`'s `benchmark_runner` (same CLI surface and JSON
+//! Mirrors `rsvelte_devtools`' `benchmark_runner` (same CLI surface and JSON
 //! output) but formats `.svelte` sources with [`rsvelte_formatter::format`]
 //! instead of compiling them. It is a separate binary in `rsvelte_fmt`
 //! because the formatter depends on `rsvelte_core`, so the compiler crate

@@ -20,7 +20,7 @@
 //! so one pathological `.svelte` file cannot take down the whole lint run.
 //!
 //! No `#[global_allocator]` is installed here. This crate's `napi` feature turns
-//! on `rsvelte_core/native`, and `rsvelte_core` only installs an allocator at its
+//! on the linter's native product surface, and the binding installs no allocator at its
 //! binary entry points — never at the lib level — so nothing pulls a
 //! `#[global_allocator]` into this cdylib. The `.node` addon therefore uses the
 //! system allocator, which is inherently dlopen-safe: there is no

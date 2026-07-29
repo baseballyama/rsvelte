@@ -23,7 +23,7 @@ use rsvelte_core::ast::template::{
 // `svelte_check` is native-only; only the source-scan fallback below produces
 // `Diagnostic`s, so these imports are gated with it.
 #[cfg(feature = "native")]
-use rsvelte_core::svelte_check::diagnostic::{Diagnostic, Position, Range};
+use rsvelte_diagnostics::{Diagnostic, Position, Range};
 use serde_json::Value;
 
 // `LintConfig` is only referenced by the native-only source-scan fallback below.
@@ -481,7 +481,7 @@ fn build_enforce_style_suggestions(allowed: &[Option<String>], source: &str) -> 
 /// When the parser succeeds, [`BlockLang::check_root`] handles the rule via the
 /// normal AST path and this function is a no-op (to avoid double-reporting).
 ///
-/// Native-only: it produces `rsvelte_core::svelte_check::Diagnostic`s and is
+/// Native-only: it produces `rsvelte_check::Diagnostic`s and is
 /// only invoked from the native `runner`, so it is excluded from the wasm build.
 #[cfg(feature = "native")]
 pub fn block_lang_source_scan_diagnostics(

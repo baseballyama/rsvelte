@@ -1,5 +1,14 @@
 # @rsvelte/compiler
 
+## 0.9.5
+
+### Patch Changes
+
+- 805ea90: Expose the analyzed CSS scope hash through the embeddable component facts.
+- d1671d5: Reduce compile overhead by avoiding duplicate analysis setup, allocation-free escaping for static templates, and source-text copies in wrapper-managed source maps.
+- 36ec7b5: Reduce serial compile overhead and make static CSS sibling analysis linear in the number of elements.
+- 26d7046: Expose a policy-free Rust toolchain facade with reusable component analysis, normalized facts, and exact bidirectional IDE projection mappings.
+
 ## 0.9.4
 
 ### Patch Changes

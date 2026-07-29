@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use rsvelte_core::CompileOptions;
-use rsvelte_core::svelte_check::diagnostic::Diagnostic;
+use rsvelte_diagnostics::Diagnostic;
 use rsvelte_lint::{LintConfig, lint_source};
 
 /// Config file names, in the order a directory is probed — the same two

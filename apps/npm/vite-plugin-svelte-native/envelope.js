@@ -1,6 +1,6 @@
 // Lazy decoder for the Rust↔JS raw-transfer envelope produced by
 // `binding.compileEnvelope`. The byte format is owned by
-// `src/napi_raw.rs`; keep both ends in sync.
+// `crates/rsvelte_bindings_support/src/napi_raw.rs`; keep both ends in sync.
 //
 // The returned object is shaped like the legacy `compile()` result
 // (`{ js: { code, map }, css: {…}|null, warnings: […], metadata, ast }`)

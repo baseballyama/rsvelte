@@ -71,7 +71,7 @@ struct TestResult {
 
 /// Fixtures whose expected CSS exercises pruning/scoping edge cases rsvelte
 /// doesn't yet match. Mirrors the corresponding entries in
-/// `tests/compatibility_report.rs` so `test_css` stops blocking unrelated work;
+/// the devtools compatibility report so `test_css` stops blocking unrelated work;
 /// remove an entry as soon as the upstream behaviour is matched.
 const CSS_SKIP_NAMES: &[&str] = &[];
 

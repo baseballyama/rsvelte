@@ -1,11 +1,11 @@
 //! The lint diagnostic model and its conversion to the shared
-//! `rsvelte_core::svelte_check` [`Diagnostic`] used by the output writers.
+//! `rsvelte_check` [`Diagnostic`] used by the output writers.
 
 #[cfg(feature = "native")]
 use std::path::Path;
 
 #[cfg(feature = "native")]
-use rsvelte_core::svelte_check::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
+use rsvelte_diagnostics::{Diagnostic, DiagnosticSeverity, Position, Range};
 
 #[cfg(feature = "native")]
 use crate::line_index::LineIndex;
