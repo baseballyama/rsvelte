@@ -46,9 +46,90 @@ const SHIM_SVELTE_JSX_V4: &str = include_str!("shims/svelte-jsx-v4.d.ts");
 /// Filenames the shims are written under inside the cache dir. Names
 /// match upstream so diagnostics / `isSvelteShim`-style checks line up.
 const SHIM_FILES: &[(&str, &str)] = &[
-    ("svelte-shims-v4.d.ts", SHIM_SVELTE_SHIMS_V4),
-    ("svelte-jsx-v4.d.ts", SHIM_SVELTE_JSX_V4),
+    (SHIM_SHIMS_V4_NAME, SHIM_SVELTE_SHIMS_V4),
+    (SHIM_JSX_V4_NAME, SHIM_SVELTE_JSX_V4),
 ];
+
+const SHIM_SHIMS_V4_NAME: &str = "svelte-shims-v4.d.ts";
+const SHIM_JSX_V4_NAME: &str = "svelte-jsx-v4.d.ts";
+
+/// The `svelte` package file that supersedes the vendored JSX shim.
+const SVELTE_HTML_DTS: &str = "svelte-html.d.ts";
+
+/// The ambient `.d.ts` environment handed to the overlay program — the port
+/// of `get_global_types`
+/// (`submodules/language-tools/packages/svelte2tsx/src/helpers/files.ts`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GlobalTypes {
+    /// Vendored shims (basenames from [`SHIM_FILES`]) to materialise into
+    /// the cache dir and list in the overlay tsconfig.
+    shims: Vec<&'static str>,
+    /// The installed `svelte` package's `svelte-html.d.ts`, when present.
+    svelte_html: Option<PathBuf>,
+}
+
+/// The installed `svelte` package, as `getPackageInfo('svelte', …)` in
+/// `language-server/src/importPackage.ts` resolves it.
+struct SveltePackage {
+    dir: PathBuf,
+    major: Option<u32>,
+}
+
+/// Port of `get_global_types`' file selection. Upstream prefers the
+/// project's own `<sveltePath>/svelte-html.d.ts` (Svelte 4+) and then omits
+/// `svelte-jsx-v4.d.ts`, because the vendored shim hand-enumerates
+/// `IntrinsicElements` while `svelte-html.d.ts` extends `SvelteHTMLElements`
+/// from the installed `svelte/elements` — so it tracks the user's Svelte
+/// version instead of freezing at the snapshot date (#1889).
+///
+/// Two upstream branches are deliberately not reproduced: the Svelte 3 shim
+/// pair (`svelte-shims.d.ts` / `svelte-jsx.d.ts`), which rsvelte does not
+/// vendor because it is a Svelte 5 compiler — Svelte 3 falls back to the v4
+/// pair; and `svelte-native-jsx.d.ts`, which only types the
+/// `svelteNative.JSX` namespace rsvelte never emits (the overlay always runs
+/// svelte2tsx with `Svelte2TsxNamespace::Html`), matching upstream
+/// svelte-check's own commented-out entry in `incremental.ts`.
+fn select_global_types(workspace: &Path) -> GlobalTypes {
+    // The resolved path is written into the overlay tsconfig, which lives in
+    // a different directory than the CLI's cwd a relative `--workspace`
+    // resolves against.
+    let root = fs::canonicalize(workspace).unwrap_or_else(|_| workspace.to_path_buf());
+    let svelte_html = resolve_svelte_package(&root).and_then(|pkg| {
+        if pkg.major == Some(3) {
+            return None;
+        }
+        let path = pkg.dir.join(SVELTE_HTML_DTS);
+        path.is_file().then_some(path)
+    });
+    let mut shims = vec![SHIM_SHIMS_V4_NAME];
+    if svelte_html.is_none() {
+        shims.push(SHIM_JSX_V4_NAME);
+    }
+    GlobalTypes { shims, svelte_html }
+}
+
+/// Walk `node_modules` upwards from `from` for the `svelte` package, the
+/// Rust equivalent of `require.resolve('svelte/package.json', { paths })`.
+fn resolve_svelte_package(from: &Path) -> Option<SveltePackage> {
+    let mut cursor = Some(from);
+    while let Some(dir) = cursor {
+        let pkg_dir = dir.join("node_modules").join("svelte");
+        let manifest = pkg_dir.join("package.json");
+        if manifest.is_file() {
+            let major = fs::read_to_string(&manifest)
+                .ok()
+                .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                .and_then(|v| v.get("version")?.as_str().map(str::to_owned))
+                .and_then(|v| v.split('.').next()?.parse().ok());
+            return Some(SveltePackage {
+                dir: pkg_dir,
+                major,
+            });
+        }
+        cursor = dir.parent();
+    }
+    None
+}
 
 /// One emitted `.svelte` → `.tsx` shadow.
 #[derive(Debug, Clone)]
@@ -355,11 +436,19 @@ pub fn materialize_overlay_with(
     }
     let has_augments = write_companion_augmentation(&cache_dir, &augments)?;
 
-    // Materialise the svelte2tsx shims into the cache dir so the overlay
-    // tsconfig can reference them by a stable relative path regardless of
-    // what's installed in the consumer's node_modules.
+    // Materialise the selected svelte2tsx shims into the cache dir so the
+    // overlay tsconfig can reference them by a stable relative path — a
+    // standalone rsvelte install has no `node_modules/svelte2tsx` to read.
+    let global_types = select_global_types(workspace);
     for (name, contents) in SHIM_FILES {
-        fs::write(cache_dir.join(name), contents)?;
+        let path = cache_dir.join(name);
+        if global_types.shims.contains(name) {
+            fs::write(path, contents)?;
+        } else {
+            // A previous run's copy would otherwise linger in the cache dir
+            // and be picked up by an inherited `include` pattern.
+            let _ = fs::remove_file(path);
+        }
     }
 
     // A PLAIN `.ts`/`.js`/`.svelte.ts` source file that imports a `.svelte`
@@ -388,6 +477,7 @@ pub fn materialize_overlay_with(
         incremental,
         has_augments,
         &alias_path_overrides,
+        &global_types,
     );
     fs::write(&overlay_tsconfig, tsconfig_json)?;
 
@@ -854,6 +944,7 @@ fn build_overlay_tsconfig(
     incremental: bool,
     has_companion_augmentation: bool,
     alias_path_overrides: &[(String, PathBuf)],
+    global_types: &GlobalTypes,
 ) -> String {
     let mut obj: BTreeMap<&str, serde_json::Value> = BTreeMap::new();
     if let Some(orig) = original {
@@ -1005,22 +1096,29 @@ fn build_overlay_tsconfig(
         );
     }
 
-    // Reference the svelte2tsx shim `.d.ts` files we materialised into the
-    // cache dir (see `SHIM_FILES`). Without these, tsgo / tsc trips on
-    // every reference to `__sveltets_2_with_any_event` / `svelteHTML` etc
-    // that svelte2tsx emits into the `.tsx` shadow. Equivalent to
-    // `resolveSvelte2tsxShims` in the JS reference, except we embed the
-    // shims rather than resolving them from `node_modules/svelte2tsx`
-    // (which a standalone rsvelte install has no reason to provide).
+    // Reference the ambient `.d.ts` environment `select_global_types` chose
+    // (the port of `get_global_types`): the vendored shims we materialised
+    // into the cache dir, plus the installed svelte's `svelte-html.d.ts`
+    // when it exists. Without these, tsgo / tsc trips on every reference to
+    // `__sveltets_2_with_any_event` / `svelteHTML` etc that svelte2tsx emits
+    // into the `.tsx` shadow. We embed the shims rather than resolving them
+    // from `node_modules/svelte2tsx` (which a standalone rsvelte install has
+    // no reason to provide).
     //
     // We always set `files` so any `.svelte` entries listed in the base
     // tsconfig (TS rejects arbitrary extensions in `files` even with
     // `allowArbitraryExtensions` → TS6054) get overridden out. Non-
     // `.svelte` entries from the user's `files` are forwarded.
-    let mut files_entries: Vec<String> = SHIM_FILES
+    let mut files_entries: Vec<String> = global_types
+        .shims
         .iter()
-        .map(|(name, _)| format!("./{name}"))
+        .map(|name| format!("./{name}"))
         .collect();
+    if let Some(svelte_html) = &global_types.svelte_html {
+        // Absolute: `files` resolves against the overlay dir, and the svelte
+        // package sits outside it.
+        files_entries.push(svelte_html.to_string_lossy().replace('\\', "/"));
+    }
     if has_companion_augmentation {
         files_entries.push(format!("./{COMPANION_AUGMENT_FILE}"));
     }
@@ -3020,6 +3118,31 @@ mod tests {
         let _ = fs::remove_dir_all(&tmp);
     }
 
+    /// `select_global_types` canonicalises its root, so expectations have to
+    /// go through the same normalisation (`/var` -> `/private/var` on macOS).
+    fn expected_svelte_html(root: &Path) -> Option<PathBuf> {
+        Some(
+            fs::canonicalize(root)
+                .unwrap()
+                .join("node_modules/svelte/svelte-html.d.ts"),
+        )
+    }
+
+    /// Lay out `<root>/node_modules/svelte` with the given version, and
+    /// `svelte-html.d.ts` when asked for.
+    fn fake_svelte_package(root: &Path, version: &str, with_svelte_html: bool) {
+        let pkg = root.join("node_modules/svelte");
+        fs::create_dir_all(&pkg).unwrap();
+        fs::write(
+            pkg.join("package.json"),
+            format!("{{ \"name\": \"svelte\", \"version\": \"{version}\" }}"),
+        )
+        .unwrap();
+        if with_svelte_html {
+            fs::write(pkg.join("svelte-html.d.ts"), "declare global {}\n").unwrap();
+        }
+    }
+
     #[test]
     fn relative_tsconfig_path_still_bridges_a_node_modules_sibling_package() {
         // With a relative `--tsconfig`, oxc_resolver's tsconfig discovery
@@ -3271,5 +3394,86 @@ mod tests {
              'svelte:boundary' (onerror/failed/pending), not fall through to \
              the catch-all index signature"
         );
+    }
+
+    #[test]
+    fn global_types_prefer_project_svelte_html_over_the_vendored_jsx_shim() {
+        // #1889: the vendored shim's hand-enumerated `IntrinsicElements`
+        // freezes at its snapshot date, so every tag `svelte/elements` gained
+        // since (`svelte:boundary`, `search`, …) falls through to the
+        // catch-all index signature and its props become bare `any`.
+        let tmp = std::env::temp_dir().join(format!("svc_gt_html_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fake_svelte_package(&tmp, "5.56.8", true);
+
+        let selected = select_global_types(&tmp);
+        assert_eq!(selected.shims, vec![SHIM_SHIMS_V4_NAME]);
+        assert_eq!(selected.svelte_html, expected_svelte_html(&tmp));
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn global_types_fall_back_to_the_vendored_jsx_shim_without_svelte_html() {
+        let tmp = std::env::temp_dir().join(format!("svc_gt_nohtml_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fake_svelte_package(&tmp, "5.56.8", false);
+
+        let selected = select_global_types(&tmp);
+        assert_eq!(
+            selected.shims,
+            vec![SHIM_SHIMS_V4_NAME, SHIM_JSX_V4_NAME],
+            "without a project `svelte-html.d.ts` the vendored JSX shim is the \
+             only source of `svelteHTML.IntrinsicElements`"
+        );
+        assert_eq!(selected.svelte_html, None);
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn global_types_ignore_svelte_html_on_svelte_3() {
+        let tmp = std::env::temp_dir().join(format!("svc_gt_v3_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        // Upstream skips the lookup entirely for Svelte 3, so even a stray
+        // `svelte-html.d.ts` must not displace the JSX shim.
+        fake_svelte_package(&tmp, "3.59.2", true);
+
+        let selected = select_global_types(&tmp);
+        assert_eq!(selected.shims, vec![SHIM_SHIMS_V4_NAME, SHIM_JSX_V4_NAME]);
+        assert_eq!(selected.svelte_html, None);
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn global_types_fall_back_when_svelte_is_not_installed() {
+        let tmp = std::env::temp_dir().join(format!("svc_gt_nosvelte_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+
+        let selected = select_global_types(&tmp.join("src"));
+        assert_eq!(selected.shims, vec![SHIM_SHIMS_V4_NAME, SHIM_JSX_V4_NAME]);
+        assert_eq!(selected.svelte_html, None);
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn global_types_resolve_svelte_from_a_parent_node_modules() {
+        let tmp = std::env::temp_dir().join(format!("svc_gt_hoisted_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fake_svelte_package(&tmp, "5.56.8", true);
+        let nested = tmp.join("packages/app");
+        fs::create_dir_all(&nested).unwrap();
+
+        let selected = select_global_types(&nested);
+        assert_eq!(
+            selected.svelte_html,
+            expected_svelte_html(&tmp),
+            "a hoisted monorepo install must still be found by walking up"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
     }
 }

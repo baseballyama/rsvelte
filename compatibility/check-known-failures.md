@@ -18,36 +18,20 @@ positions back through its own source map and TypeScript wording moves between
 patch releases, so keying on them would make the ratchet churn without telling
 anyone anything. See the header of `check-verify.mjs`.
 
-## Current baseline: 1 entry / 1 surplus diagnostic (all FP, 0 FN)
+## Current baseline: 0 entries / 0 surplus diagnostics — full parity
 
-The gate landed with 16 entries across the #1883–#1889 cluster. `sibling-paths-alias`
-(#1883, fixed by #1884), `external-self-alias` (#1887, fixed by #1893),
-`ts-aliased-import` (#1888, fixed by #1895), `kit-hooks-arrow-ts` (#1886, fixed by
-#1892), `kit-hooks-js` (#1886, fixed by #1892 for the arrow/function-expression
-form and a follow-up JSDoc-anchor fix for the plain `export function` form) and
-`sibling-symlink` (#1900, fixed by #1907) are now all fully green and have been
-pruned. What remains:
+The gate landed with 16 entries across the #1883–#1889 cluster and is now empty:
+`sibling-paths-alias` (#1883, fixed by #1884), `external-self-alias` (#1887, fixed
+by #1893), `ts-aliased-import` (#1888, fixed by #1895), `kit-hooks-arrow-ts`
+(#1886, fixed by #1892), `kit-hooks-js` (#1886, fixed by #1892 for the
+arrow/function-expression form and a follow-up JSDoc-anchor fix for the plain
+`export function` form), `sibling-symlink` (#1900, fixed by #1907) and
+`boundary-elements` (#1889, fixed by #1906) have all been pruned.
 
-| Scenario | Entries | Diagnostics | Issue | Class |
-|---|---|---|---|---|
-| `boundary-elements` | 1 | 1 | #1889 | vendored `svelte-jsx-v4` shim predates `svelte:boundary` |
-
-### `boundary-elements` — #1889
-
-```
-boundary-elements|+ERROR src/Boundary.svelte:9 7006
-```
-
-The overlay unconditionally injects the vendored `svelte-jsx-v4.d.ts`, whose
-hand-enumerated `IntrinsicElements` snapshot predates `svelte:boundary`, so
-`onerror`'s callback parameter falls back to `any`. Official's `get_global_types`
-prefers `<sveltePath>/svelte-html.d.ts` instead — porting that is Layer 3 of
-#1897 and the wholesale fix for this class.
-
-The scenario also exercises `<search>`, the other element `svelte/elements` gained
-after the shim snapshot. It currently agrees on both sides and is therefore not in
-the ratchet — it is here as the drift canary for the next `svelte/elements`
-addition.
+Every scenario now agrees with official `svelte-check` diagnostic-for-diagnostic,
+so this is a **hard gate**: any divergence at all fails CI. The sections below
+document what each scenario is guarding, since a green scenario only earns its
+keep by turning red when the thing it covers regresses.
 
 ## Scenarios with no entries
 
@@ -80,8 +64,17 @@ Green scenarios are load-bearing, not filler — a regression turns them red:
 - **`sibling-symlink`** — both cross-package shapes: `src/barrel.svelte` through
   the package `exports` barrel (#782/#805) and `src/deep.svelte` through a bare
   deep specifier (#1900).
+- **`boundary-elements`** — #1889, fixed by #1906: the overlay follows
+  `get_global_types` and prefers the installed svelte's `svelte-html.d.ts` over
+  the vendored `svelte-jsx-v4.d.ts`, so element and attribute types track
+  `svelte/elements` instead of a frozen snapshot. Both arms
+  (`<svelte:boundary onerror>` and `<search>`) are the standing canary for the
+  next `svelte/elements` addition — a red here means the type environment has
+  drifted away from the user's Svelte version again.
 
 ## Burning an entry down
+
+Kept for the next time the baseline is non-empty (a new scenario lands red, say):
 
 1. Fix the underlying issue.
 2. `pnpm run test:svelte-check` — the run reports how many divergences
