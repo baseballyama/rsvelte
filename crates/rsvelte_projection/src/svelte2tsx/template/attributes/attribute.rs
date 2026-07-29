@@ -5,7 +5,7 @@ use super::svg::is_svg_attribute;
 use crate::ast::template::{AttributeNode, AttributeValue, AttributeValuePart};
 use crate::svelte2tsx::svelte2tsx::slice_src;
 use crate::svelte2tsx::template::ctx::ELEMENT_OPENER_COMMENTS;
-use crate::svelte2tsx::template::segs::{Seg, segs_push_lit, segs_push_src};
+use crate::svelte2tsx::template::segs::{Seg, segs_push_fmt, segs_push_lit, segs_push_src};
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 
 /// Format a regular attribute: `name="value"` → `"name":\`value\`,`
@@ -426,20 +426,20 @@ pub(crate) fn format_attribute_node_segments(
             // --* on components: no-value → ""
             // Others: true
             if is_data_attr {
-                segs_push_lit(
+                segs_push_fmt(
                     &mut out,
-                    &format!(
+                    format_args!(
                         "...__sveltets_2_empty({{{leading_comment}\"{}\":true}}),",
                         name
                     ),
                 );
             } else if is_css_prop {
-                segs_push_lit(
+                segs_push_fmt(
                     &mut out,
-                    &format!("...__sveltets_2_cssProp({{\"{}\":\"\"}}),", name),
+                    format_args!("...__sveltets_2_cssProp({{\"{}\":\"\"}}),", name),
                 );
             } else {
-                segs_push_lit(&mut out, &format!("\"{}\":true,", name));
+                segs_push_fmt(&mut out, format_args!("\"{}\":true,", name));
             }
             Some(out)
         }
@@ -497,15 +497,15 @@ pub(crate) fn format_attribute_node_segments(
                         (s, e)
                     };
                     let mut inner: Vec<Seg> = Vec::new();
-                    segs_push_lit(&mut inner, &format!("\"{}\":", name));
+                    segs_push_fmt(&mut inner, format_args!("\"{}\":", name));
                     segs_push_src(&mut inner, s, e);
                     return Some(wrap_segs(inner));
                 }
             } else if is_shorthand {
-                segs_push_lit(&mut out, &format!("{},", name));
+                segs_push_fmt(&mut out, format_args!("{},", name));
             } else {
                 let mut inner: Vec<Seg> = Vec::new();
-                segs_push_lit(&mut inner, &format!("\"{}\":{}", name, expr_text));
+                segs_push_fmt(&mut inner, format_args!("\"{}\":{}", name, expr_text));
                 return Some(wrap_segs(inner));
             }
             Some(out)
@@ -518,7 +518,7 @@ pub(crate) fn format_attribute_node_segments(
             {
                 let range = get_expression_range(&expr.expression);
                 let mut inner: Vec<Seg> = Vec::new();
-                segs_push_lit(&mut inner, &format!("\"{}\":", name));
+                segs_push_fmt(&mut inner, format_args!("\"{}\":", name));
                 if let Some((s, e)) = range {
                     segs_push_src(&mut inner, s, e);
                 } else {
@@ -543,7 +543,7 @@ pub(crate) fn format_attribute_node_segments(
                 && !text.data.trim().is_empty()
                 && is_js_numeric(&text.data)
             {
-                segs_push_lit(&mut out, &format!("\"{}\":", name));
+                segs_push_fmt(&mut out, format_args!("\"{}\":", name));
                 segs_push_src(&mut out, text.start, text.end);
                 segs_push_lit(&mut out, ",");
                 return Some(out);
@@ -561,7 +561,7 @@ pub(crate) fn format_attribute_node_segments(
             });
             if !has_expr && text_is_empty {
                 let mut inner: Vec<Seg> = Vec::new();
-                segs_push_lit(&mut inner, &format!("\"{}\":\"\"", name));
+                segs_push_fmt(&mut inner, format_args!("\"{}\":\"\"", name));
                 return Some(wrap_segs(inner));
             }
 
@@ -590,7 +590,7 @@ pub(crate) fn format_attribute_node_segments(
                 };
                 let needs_escape = data.contains('\\') || (has_backtick && data.contains('\n'));
                 let mut inner: Vec<Seg> = Vec::new();
-                segs_push_lit(&mut inner, &format!("\"{}\":{}", name, quote));
+                segs_push_fmt(&mut inner, format_args!("\"{}\":{}", name, quote));
                 if needs_escape {
                     let json =
                         serde_json::to_string(data).unwrap_or_else(|_| format!("\"{}\"", data));
@@ -598,14 +598,14 @@ pub(crate) fn format_attribute_node_segments(
                 } else {
                     segs_push_src(&mut inner, text.start, text.end);
                 }
-                segs_push_lit(&mut inner, &quote.to_string());
+                segs_push_fmt(&mut inner, format_args!("{quote}"));
                 return Some(wrap_segs(inner));
             }
 
             // Mixed text + expression sequence → template literal. Each
             // `${EXPR}` slot still preserves the expression chunk.
             let mut inner: Vec<Seg> = Vec::new();
-            segs_push_lit(&mut inner, &format!("\"{}\":`", name));
+            segs_push_fmt(&mut inner, format_args!("\"{}\":`", name));
             for part in parts {
                 match part {
                     AttributeValuePart::Text(text) => {

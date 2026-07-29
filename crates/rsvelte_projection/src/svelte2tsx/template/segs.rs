@@ -20,6 +20,7 @@
 
 use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::slice_src;
+use std::fmt::{self, Write as _};
 
 /// A piece of the structured bake output. `Lit` is generated text; `Src`
 /// names a source byte range that should be kept as-is.
@@ -38,6 +39,18 @@ pub(super) fn segs_push_lit(segs: &mut Vec<Seg>, s: &str) {
         last.push_str(s);
     } else {
         segs.push(Seg::Lit(s.to_string()));
+    }
+}
+
+/// Push formatted literal text without creating a temporary `String`.
+pub(super) fn segs_push_fmt(segs: &mut Vec<Seg>, args: fmt::Arguments<'_>) {
+    if let Some(Seg::Lit(last)) = segs.last_mut() {
+        let _ = last.write_fmt(args);
+    } else {
+        let text = fmt::format(args);
+        if !text.is_empty() {
+            segs.push(Seg::Lit(text));
+        }
     }
 }
 
@@ -193,6 +206,26 @@ pub(super) fn emit_segmented_overwrite(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn formatted_literal_appends_to_existing_segment() {
+        let mut segs = vec![Seg::Lit("prefix".to_string())];
+
+        segs_push_fmt(&mut segs, format_args!(":{}={}", "name", 42));
+
+        assert_eq!(segs.len(), 1);
+        assert!(matches!(&segs[0], Seg::Lit(text) if text == "prefix:name=42"));
+    }
+
+    #[test]
+    fn formatted_literal_creates_segment_after_source() {
+        let mut segs = vec![Seg::Src(2, 4)];
+
+        segs_push_fmt(&mut segs, format_args!("\"{}\":{},", "value", true));
+
+        assert_eq!(segs.len(), 2);
+        assert!(matches!(&segs[1], Seg::Lit(text) if text == "\"value\":true,"));
+    }
 
     #[test]
     fn test_emit_segmented_overwrite_preserves_src_chunk() {

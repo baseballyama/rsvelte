@@ -4,7 +4,7 @@ use std::fmt::Write as _;
 
 use crate::ast::template::{Attribute, BindDirective};
 use crate::svelte2tsx::svelte2tsx::slice_src;
-use crate::svelte2tsx::template::segs::{Seg, segs_push_lit, segs_push_src};
+use crate::svelte2tsx::template::segs::{Seg, segs_push_fmt, segs_push_lit, segs_push_src};
 use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_binding_lhs_text, get_expression_end_stripping_ts,
     get_expression_range, get_expression_text, get_set_binding_ranges,
@@ -13,7 +13,7 @@ use crate::svelte2tsx::template::utils::expr::{
 /// Structured-bake variant of [`format_bind_directive`].
 pub(crate) fn format_bind_directive_segments(bind: &BindDirective, source: &str) -> Vec<Seg> {
     let mut out = Vec::new();
-    segs_push_lit(&mut out, &format!("\"bind:{}\":", bind.name));
+    segs_push_fmt(&mut out, format_args!("\"bind:{}\":", bind.name));
     if let Some(((gs, ge), (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
         // Svelte 5 function binding on an element: `bind:value={getFn, setFn}`
         // → `"bind:value":__sveltets_2_get_set_binding(getFn, setFn),`

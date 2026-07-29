@@ -1,7 +1,7 @@
 //! `on:` directives. Mirrors `htmlxtojsx_v2/nodes/EventHandler.ts`.
 
 use crate::ast::template::{Attribute, OnDirective};
-use crate::svelte2tsx::template::segs::{Seg, segs_push_lit, segs_push_src};
+use crate::svelte2tsx::template::segs::{Seg, segs_push_fmt, segs_push_lit, segs_push_src};
 use std::fmt::Write as _;
 
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
@@ -42,7 +42,7 @@ pub(crate) fn build_on_calls(
 pub(crate) fn format_on_directive_segments(on: &OnDirective, source: &str) -> Vec<Seg> {
     let mut out = Vec::new();
     if let Some(ref expr) = on.expression {
-        segs_push_lit(&mut out, &format!("\"on:{}\":", on.name));
+        segs_push_fmt(&mut out, format_args!("\"on:{}\":", on.name));
         if let Some((s, e)) = get_expression_range(expr) {
             segs_push_src(&mut out, s, e);
         } else {
@@ -51,7 +51,7 @@ pub(crate) fn format_on_directive_segments(on: &OnDirective, source: &str) -> Ve
         segs_push_lit(&mut out, ",");
     } else {
         // Event forwarding has no expression to preserve.
-        segs_push_lit(&mut out, &format!("\"on:{}\":undefined,", on.name));
+        segs_push_fmt(&mut out, format_args!("\"on:{}\":undefined,", on.name));
     }
     out
 }

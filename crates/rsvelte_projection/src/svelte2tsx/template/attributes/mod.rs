@@ -18,7 +18,7 @@ use crate::ast::template::Attribute;
 use crate::svelte2tsx::svelte2tsx::slice_src;
 use crate::svelte2tsx::template::nodes::attach_tag::format_attach_tag_segments;
 use crate::svelte2tsx::template::segs::{
-    Seg, segs_is_empty, segs_push_lit, segs_push_src, segs_to_string,
+    Seg, segs_is_empty, segs_push_fmt, segs_push_lit, segs_push_src, segs_to_string,
 };
 use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_expression_range, get_expression_text,
@@ -243,7 +243,7 @@ pub(super) fn build_attribute_segments(
                 if !in_slot_context {
                     let mut part: Vec<Seg> = Vec::new();
                     if let Some(ref expr) = let_dir.expression {
-                        segs_push_lit(&mut part, &format!("\"let:{}\":", let_dir.name));
+                        segs_push_fmt(&mut part, format_args!("\"let:{}\":", let_dir.name));
                         if let Some((s, e)) = get_expression_range(expr) {
                             segs_push_src(&mut part, s, e);
                         } else {
@@ -251,7 +251,7 @@ pub(super) fn build_attribute_segments(
                         }
                         segs_push_lit(&mut part, ",");
                     } else {
-                        segs_push_lit(&mut part, &format!("\"let:{}\":true,", let_dir.name));
+                        segs_push_fmt(&mut part, format_args!("\"let:{}\":true,", let_dir.name));
                     }
                     push_with_separator(&mut segs, part);
                     any_pushed = true;
@@ -469,7 +469,7 @@ pub(super) fn build_component_props_segments(
                 }
                 // Component-side bind:foo={expr} → foo:expr, (no quotes,
                 // no `bind:` prefix). Mirrors the JS reference.
-                segs_push_lit(&mut inner, &format!("{}:", bind.name));
+                segs_push_fmt(&mut inner, format_args!("{}:", bind.name));
                 if let Some(((gs, ge), (ss, se))) = get_set_binding_ranges(&bind.expression, source)
                 {
                     // Svelte 5 function binding `bind:foo={getFn, setFn}` →
