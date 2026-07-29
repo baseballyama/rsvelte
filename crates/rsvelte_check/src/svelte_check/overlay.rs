@@ -1117,7 +1117,7 @@ fn build_overlay_tsconfig(
     if let Some(svelte_html) = &global_types.svelte_html {
         // Absolute: `files` resolves against the overlay dir, and the svelte
         // package sits outside it.
-        files_entries.push(svelte_html.to_string_lossy().replace('\\', "/"));
+        files_entries.push(tsconfig_absolute_path(svelte_html));
     }
     if has_companion_augmentation {
         files_entries.push(format!("./{COMPANION_AUGMENT_FILE}"));
@@ -2259,6 +2259,24 @@ fn lexical_relative_posix(from_dir: &Path, to_path: &Path) -> String {
     }
 }
 
+/// POSIX-style *absolute* path for a tsconfig entry. Everything else in the
+/// generated tsconfig goes through [`path_relative`], which sidesteps this by
+/// dropping `Component::Prefix` outright; an entry that has to stay absolute
+/// (the installed svelte's `svelte-html.d.ts`) must instead strip Windows'
+/// `\\?\` verbatim prefix, which `fs::canonicalize` adds and tsc/tsgo cannot
+/// resolve once the separators are flipped.
+fn tsconfig_absolute_path(path: &Path) -> String {
+    let slashed = path.to_string_lossy().replace('\\', "/");
+    // `\\?\UNC\server\share\…` denotes `\\server\share\…`.
+    if let Some(rest) = slashed.strip_prefix("//?/UNC/") {
+        return format!("//{rest}");
+    }
+    if let Some(rest) = slashed.strip_prefix("//?/") {
+        return rest.to_owned();
+    }
+    slashed
+}
+
 /// POSIX-style relative path from `from_dir` to `to_path` (so the
 /// generated tsconfig is consumable on every platform).
 fn path_relative(from_dir: &Path, to_path: &Path) -> String {
@@ -3393,6 +3411,31 @@ mod tests {
             "svelte-jsx-v4.d.ts must declare an IntrinsicElements entry for \
              'svelte:boundary' (onerror/failed/pending), not fall through to \
              the catch-all index signature"
+        );
+    }
+
+    #[test]
+    fn tsconfig_absolute_path_strips_the_windows_verbatim_prefix() {
+        // A string-level test so it runs on the CI runners we actually have:
+        // `Path::components` only recognises a Windows prefix on Windows.
+        assert_eq!(
+            tsconfig_absolute_path(Path::new(
+                r"\\?\C:\proj\node_modules\svelte\svelte-html.d.ts"
+            )),
+            "C:/proj/node_modules/svelte/svelte-html.d.ts",
+            "tsc/tsgo cannot resolve the `//?/` form `fs::canonicalize` produces"
+        );
+        assert_eq!(
+            tsconfig_absolute_path(Path::new(r"\\?\UNC\server\share\proj\svelte-html.d.ts")),
+            "//server/share/proj/svelte-html.d.ts"
+        );
+        assert_eq!(
+            tsconfig_absolute_path(Path::new(r"C:\proj\svelte-html.d.ts")),
+            "C:/proj/svelte-html.d.ts"
+        );
+        assert_eq!(
+            tsconfig_absolute_path(Path::new("/proj/node_modules/svelte/svelte-html.d.ts")),
+            "/proj/node_modules/svelte/svelte-html.d.ts"
         );
     }
 
