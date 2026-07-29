@@ -219,6 +219,7 @@ declare namespace svelteHTML {
     // Svelte specific
     'svelte:window': HTMLProps<'svelte:window', HTMLAttributes>;
     'svelte:body': HTMLProps<'svelte:body', HTMLAttributes>;
+    'svelte:boundary': HTMLProps<'svelte:boundary', HTMLAttributes>;
     'svelte:document': HTMLProps<'svelte:document', HTMLAttributes>;
     'svelte:fragment': { slot?: string };
     'svelte:options': { [name: string]: any };
