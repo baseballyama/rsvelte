@@ -16,4 +16,9 @@ returns `MaybePromise<Response>` rather than a literal `Promise<T>`) is
 dropped instead of surfacing as a false positive — matching official
 svelte-check's `isInGeneratedCode` allowlist.
 
+The arrow form's return type is anchored on the `=>` token, matching the
+official implementation's `equalsGreaterThanToken.getStart()` byte-for-byte,
+and a parenthesis-less arrow parameter (`export const handleError = e => ...`)
+gets wrapped in parentheses so the annotation is syntactically valid.
+
 Fixes #1886.
