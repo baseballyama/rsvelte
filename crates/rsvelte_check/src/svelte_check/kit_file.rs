@@ -341,15 +341,15 @@ pub fn build_added_code(
         }
     } else if is_hooks_file(path, &settings.server_hooks_path) {
         for stmt in body {
-            visit_server_hooks_statement(stmt, is_ts, &mut adds);
+            visit_server_hooks_statement(stmt, source, is_ts, &mut adds);
         }
     } else if is_hooks_file(path, &settings.client_hooks_path) {
         for stmt in body {
-            visit_client_hooks_statement(stmt, is_ts, &mut adds);
+            visit_client_hooks_statement(stmt, source, is_ts, &mut adds);
         }
     } else if is_hooks_file(path, &settings.universal_hooks_path) {
         for stmt in body {
-            visit_universal_hooks_statement(stmt, is_ts, &mut adds);
+            visit_universal_hooks_statement(stmt, source, is_ts, &mut adds);
         }
     } else {
         return None;
@@ -359,8 +359,25 @@ pub fn build_added_code(
         return None;
     }
     adds.sort_by_key(|a| a.original_pos);
+    // Every insertion is best-effort scaffolding, not a user-authored
+    // annotation — wrapping it in svelte2tsx's `Ωignore` markers lets
+    // `mapper.rs` drop any diagnostic the injected type itself provokes
+    // (e.g. an async hook's inferred `ReturnType<HandleFetch>` tripping
+    // TS1064, since `HandleFetch`'s `MaybePromise<Response>` return isn't
+    // literally `Promise<T>`). Mirrors the official implementation, which
+    // passes `surroundWithIgnoreComments` as `upsertKitFile`'s `surround`.
+    for add in &mut adds {
+        add.inserted = format!("{IGNORE_START_COMMENT}{}{IGNORE_END_COMMENT}", add.inserted);
+    }
     Some(adds)
 }
+
+/// Marks an `AddedCode` insertion as synthesised/best-effort scaffolding so
+/// `mapper.rs`'s `is_in_generated_code` can drop diagnostics it alone
+/// provokes. Mirrors `mapper.rs`'s identical private consts (kept separate
+/// per this codebase's existing per-module convention for this marker).
+const IGNORE_START_COMMENT: &str = "/*\u{3a9}ignore_start\u{3a9}*/";
+const IGNORE_END_COMMENT: &str = "/*\u{3a9}ignore_end\u{3a9}*/";
 
 /// Splice an `AddedCode` list into the original source.
 pub fn apply_added_code(source: &str, adds: &[AddedCode]) -> String {
@@ -599,9 +616,15 @@ fn visit_param_statement(stmt: &oxc::Statement, is_ts: bool, adds: &mut Vec<Adde
     }
 }
 
-fn visit_server_hooks_statement(stmt: &oxc::Statement, is_ts: bool, adds: &mut Vec<AddedCode>) {
+fn visit_server_hooks_statement(
+    stmt: &oxc::Statement,
+    source: &str,
+    is_ts: bool,
+    adds: &mut Vec<AddedCode>,
+) {
     add_hooks_type(
         stmt,
+        source,
         "handleError",
         "import('@sveltejs/kit').HandleServerError",
         is_ts,
@@ -609,6 +632,7 @@ fn visit_server_hooks_statement(stmt: &oxc::Statement, is_ts: bool, adds: &mut V
     );
     add_hooks_type(
         stmt,
+        source,
         "handle",
         "import('@sveltejs/kit').Handle",
         is_ts,
@@ -616,6 +640,7 @@ fn visit_server_hooks_statement(stmt: &oxc::Statement, is_ts: bool, adds: &mut V
     );
     add_hooks_type(
         stmt,
+        source,
         "handleFetch",
         "import('@sveltejs/kit').HandleFetch",
         is_ts,
@@ -623,9 +648,15 @@ fn visit_server_hooks_statement(stmt: &oxc::Statement, is_ts: bool, adds: &mut V
     );
 }
 
-fn visit_client_hooks_statement(stmt: &oxc::Statement, is_ts: bool, adds: &mut Vec<AddedCode>) {
+fn visit_client_hooks_statement(
+    stmt: &oxc::Statement,
+    source: &str,
+    is_ts: bool,
+    adds: &mut Vec<AddedCode>,
+) {
     add_hooks_type(
         stmt,
+        source,
         "handleError",
         "import('@sveltejs/kit').HandleClientError",
         is_ts,
@@ -633,9 +664,15 @@ fn visit_client_hooks_statement(stmt: &oxc::Statement, is_ts: bool, adds: &mut V
     );
 }
 
-fn visit_universal_hooks_statement(stmt: &oxc::Statement, is_ts: bool, adds: &mut Vec<AddedCode>) {
+fn visit_universal_hooks_statement(
+    stmt: &oxc::Statement,
+    source: &str,
+    is_ts: bool,
+    adds: &mut Vec<AddedCode>,
+) {
     add_hooks_type(
         stmt,
+        source,
         "reroute",
         "import('@sveltejs/kit').Reroute",
         is_ts,
@@ -645,6 +682,7 @@ fn visit_universal_hooks_statement(stmt: &oxc::Statement, is_ts: bool, adds: &mu
 
 fn add_hooks_type(
     stmt: &oxc::Statement,
+    source: &str,
     name: &str,
     ty: &str,
     is_ts: bool,
@@ -653,37 +691,144 @@ fn add_hooks_type(
     let oxc::Statement::ExportNamedDeclaration(ex) = stmt else {
         return;
     };
-    let Some(oxc::Declaration::FunctionDeclaration(f)) = &ex.declaration else {
-        return;
-    };
-    let Some(id) = &f.id else { return };
-    if id.name.as_str() != name {
+    let Some(decl) = &ex.declaration else { return };
+    match decl {
+        oxc::Declaration::FunctionDeclaration(f) => {
+            let Some(id) = &f.id else { return };
+            if id.name.as_str() != name {
+                return;
+            }
+            add_hooks_type_to_function_like(
+                &f.params,
+                f.return_type.is_some(),
+                f.body.as_deref().map(|b| b.span().start),
+                f.span.start,
+                false,
+                ty,
+                is_ts,
+                adds,
+            );
+        }
+        // `export const handleFetch = async ({ request, fetch, event }) => {...}`
+        // (or a plain `function (...) {...}` expression) — same augmentation as
+        // the function-declaration form above, just reached through a
+        // `VariableDeclaration` initializer instead of `f.body`/`f.span`
+        // directly. Mirrors `findExports`' `'function'` variant in the JS
+        // reference, which folds both shapes into one path.
+        oxc::Declaration::VariableDeclaration(var) => {
+            if var.declarations.len() != 1 {
+                return;
+            }
+            let d = &var.declarations[0];
+            let oxc::BindingPattern::BindingIdentifier(id) = &d.id else {
+                return;
+            };
+            if id.name.as_str() != name || d.type_annotation.is_some() {
+                return;
+            }
+            let Some(init) = &d.init else { return };
+            match init {
+                oxc::Expression::ArrowFunctionExpression(af) => {
+                    // Official anchors an arrow's return type on the `=>`
+                    // token (`equalsGreaterThanToken.getStart()`), not on the
+                    // params' end, so mirror that byte-for-byte.
+                    let arrow_pos =
+                        find_arrow_token(source, af.params.span.end, af.body.span.start);
+                    // `x => …` has no parentheses to hang a parameter type off;
+                    // annotating it in place would emit `x: T: R => …`, which
+                    // does not parse. Add the parentheses ourselves.
+                    let parenless =
+                        source.as_bytes().get(af.params.span.start as usize) != Some(&b'(');
+                    add_hooks_type_to_function_like(
+                        &af.params,
+                        af.return_type.is_some(),
+                        arrow_pos,
+                        af.span.start,
+                        parenless,
+                        ty,
+                        is_ts,
+                        adds,
+                    );
+                }
+                oxc::Expression::FunctionExpression(f) => {
+                    add_hooks_type_to_function_like(
+                        &f.params,
+                        f.return_type.is_some(),
+                        f.body.as_deref().map(|b| b.span().start),
+                        f.span.start,
+                        false,
+                        ty,
+                        is_ts,
+                        adds,
+                    );
+                }
+                _ => {}
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Byte offset of an arrow function's `=>` token, searched between the end of
+/// its parameter list and the start of its body. Official anchors the return
+/// type there (`equalsGreaterThanToken.getStart()`).
+fn find_arrow_token(source: &str, from: u32, to: u32) -> Option<u32> {
+    let (from, to) = (from as usize, to as usize);
+    let slice = source.get(from..to.min(source.len()))?;
+    slice.find("=>").map(|i| (from + i) as u32)
+}
+
+/// Shared param/return-type augmentation for a hook's function-like value,
+/// regardless of whether it arrived as a `FunctionDeclaration` or a `const`
+/// initializer (`ArrowFunctionExpression` / `FunctionExpression`).
+#[allow(clippy::too_many_arguments)]
+fn add_hooks_type_to_function_like(
+    params: &oxc::FormalParameters,
+    has_return_type: bool,
+    return_insert_pos: Option<u32>,
+    fn_like_start: u32,
+    needs_parens: bool,
+    ty: &str,
+    is_ts: bool,
+    adds: &mut Vec<AddedCode>,
+) {
+    if params.items.len() != 1 {
         return;
     }
-    if f.params.items.len() != 1 {
-        return;
-    }
-    let param = &f.params.items[0];
+    let param = &params.items[0];
     if is_ts {
         if param.type_annotation.is_none() {
             let pos = param.pattern.span().end;
+            // Insertions anchored at the same offset keep their push order
+            // (`sort_by_key` is stable), so the closing paren has to go after
+            // the annotation it wraps.
+            if needs_parens {
+                adds.push(AddedCode {
+                    original_pos: param.pattern.span().start,
+                    inserted: "(".into(),
+                });
+            }
             adds.push(AddedCode {
                 original_pos: pos,
                 inserted: format!(": Parameters<{ty}>[0]"),
             });
+            if needs_parens {
+                adds.push(AddedCode {
+                    original_pos: pos,
+                    inserted: ")".into(),
+                });
+            }
         }
-        if f.return_type.is_none()
-            && let Some(body) = &f.body
-        {
+        if !has_return_type && let Some(pos) = return_insert_pos {
             adds.push(AddedCode {
-                original_pos: body.span().start,
+                original_pos: pos,
                 inserted: format!(": ReturnType<{ty}> "),
             });
         }
     } else {
         // JS: `/** @type {Handle} */` (or `HandleServerError`, etc.) prepended to fn.
         adds.push(AddedCode {
-            original_pos: f.span.start,
+            original_pos: fn_like_start,
             inserted: format!("/** @type {{{ty}}} */ "),
         });
     }
@@ -755,7 +900,9 @@ mod tests {
         // The augmentation must surface as a boolean annotation; the
         // exact whitespace mirrors `addTypeToVariable` in the JS ref.
         assert!(
-            augmented.contains("ssr : boolean"),
+            augmented.contains(&format!(
+                "ssr{IGNORE_START_COMMENT} : boolean{IGNORE_END_COMMENT}"
+            )),
             "augmented = {augmented:?}"
         );
         // Original prefix preserved — column 13 still lands at `ssr`.
@@ -769,8 +916,76 @@ mod tests {
         let adds = build_added_code(&path, source, &KitFilesSettings::default()).expect("load");
         let augmented = apply_added_code(source, &adds);
         assert!(
-            augmented.contains("satisfies import('./$types.js').LayoutServerLoad"),
+            augmented.contains(&format!(
+                "{IGNORE_START_COMMENT}) satisfies import('./$types.js').LayoutServerLoad{IGNORE_END_COMMENT}"
+            )),
             "got: {augmented}"
+        );
+    }
+
+    #[test]
+    fn hooks_handle_fetch_arrow_const_form_gets_param_and_return_types() {
+        let path = PathBuf::from("src/hooks.server.ts");
+        let source = "export const handleFetch = async ({ request, fetch, event }) => {\n  return fetch(request);\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("arrow-const handleFetch should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "({{ request, fetch, event }}{IGNORE_START_COMMENT}: Parameters<import('@sveltejs/kit').HandleFetch>[0]{IGNORE_END_COMMENT}) {IGNORE_START_COMMENT}: ReturnType<import('@sveltejs/kit').HandleFetch> {IGNORE_END_COMMENT}=>"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn hooks_handle_function_expression_const_form_gets_param_and_return_types() {
+        let path = PathBuf::from("src/hooks.server.ts");
+        let source =
+            "export const handle = function ({ event, resolve }) {\n  return resolve(event);\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("function-expression const handle should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "{IGNORE_START_COMMENT}: Parameters<import('@sveltejs/kit').Handle>[0]{IGNORE_END_COMMENT}"
+            )),
+            "augmented = {augmented:?}"
+        );
+        assert!(
+            augmented.contains(&format!(
+                "{IGNORE_START_COMMENT}: ReturnType<import('@sveltejs/kit').Handle> {IGNORE_END_COMMENT}{{"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn hooks_parenthesis_less_arrow_param_gets_wrapped_in_parentheses() {
+        // `e => …` has nowhere to put a parameter type: annotating in place
+        // would emit `e: T: R => …`, which does not parse, so the whole kit
+        // file's diagnostics would be replaced by syntax noise.
+        let path = PathBuf::from("src/hooks.server.ts");
+        let source = "export const handleError = e => ({ message: 'x' });\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("parenthesis-less arrow handleError should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}({IGNORE_END_COMMENT}e{IGNORE_START_COMMENT}: Parameters<import('@sveltejs/kit').HandleServerError>[0]{IGNORE_END_COMMENT}{IGNORE_START_COMMENT}){IGNORE_END_COMMENT} {IGNORE_START_COMMENT}: ReturnType<import('@sveltejs/kit').HandleServerError> {IGNORE_END_COMMENT}=>"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn hooks_already_typed_arrow_const_is_left_alone() {
+        let path = PathBuf::from("src/hooks.server.ts");
+        let source = "export const handle: import('@sveltejs/kit').Handle = async ({ event, resolve }) => resolve(event);\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default());
+        assert!(
+            adds.is_none_or(|a| a.is_empty()),
+            "an explicitly-typed const hook shouldn't be re-annotated"
         );
     }
 
@@ -790,7 +1005,9 @@ mod tests {
         let augmented = apply_added_code(source, &adds);
         // JS form wraps the initializer with `/** @type {boolean} */ (...)`.
         assert!(
-            augmented.contains("/** @type {boolean} */ ('invalid')"),
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}/** @type {{boolean}} */ ({IGNORE_END_COMMENT}'invalid'{IGNORE_START_COMMENT}){IGNORE_END_COMMENT};"
+            )),
             "augmented = {augmented:?}"
         );
     }
@@ -803,13 +1020,9 @@ mod tests {
             .expect("js load should emit insertions");
         let augmented = apply_added_code(source, &adds);
         assert!(
-            augmented.contains(
-                "/** @satisfies {import('./$types.js').LayoutServerLoad} */ (async ({ url })"
-            ),
-            "augmented = {augmented:?}"
-        );
-        assert!(
-            augmented.contains("({ url }))"),
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}/** @satisfies {{import('./$types.js').LayoutServerLoad}} */ ({IGNORE_END_COMMENT}async ({{ url }}) => ({{ url }}){IGNORE_START_COMMENT}){IGNORE_END_COMMENT};"
+            )),
             "augmented = {augmented:?}"
         );
     }
@@ -822,7 +1035,9 @@ mod tests {
             .expect("js handle should emit insertions");
         let augmented = apply_added_code(source, &adds);
         assert!(
-            augmented.contains("/** @type {import('@sveltejs/kit').Handle} */ function handle"),
+            augmented.contains(&format!(
+                "{IGNORE_START_COMMENT}/** @type {{import('@sveltejs/kit').Handle}} */ {IGNORE_END_COMMENT}function handle"
+            )),
             "augmented = {augmented:?}"
         );
     }
@@ -835,7 +1050,9 @@ mod tests {
             .expect("js params should emit insertions");
         let augmented = apply_added_code(source, &adds);
         assert!(
-            augmented.contains("/** @type {(param: string) => boolean} */ function match"),
+            augmented.contains(&format!(
+                "{IGNORE_START_COMMENT}/** @type {{(param: string) => boolean}} */ {IGNORE_END_COMMENT}function match"
+            )),
             "augmented = {augmented:?}"
         );
     }
@@ -848,9 +1065,9 @@ mod tests {
             .expect("js api should emit insertions");
         let augmented = apply_added_code(source, &adds);
         assert!(
-            augmented.contains(
-                "/** @type {(event: import('./$types.js').RequestEvent) => Response | Promise<Response>} */ function GET"
-            ),
+            augmented.contains(&format!(
+                "{IGNORE_START_COMMENT}/** @type {{(event: import('./$types.js').RequestEvent) => Response | Promise<Response>}} */ {IGNORE_END_COMMENT}function GET"
+            )),
             "augmented = {augmented:?}"
         );
     }

@@ -1,0 +1,8 @@
+{
+	"description": "The same four hooks written as `export const … = (…) => {…}` (TS) — the form SvelteKit’s own docs show. Covers #1886: `add_hooks_type` only matches `Declaration::FunctionDeclaration`, so an arrow-const hook gets no parameter augmentation and every binding element is reported as implicit `any`.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		1886
+	]
+}
