@@ -336,7 +336,7 @@ impl<'a> ScopeBuilder<'a> {
                 each_block_collection_infos,
                 template_scope_map: self.template_scope_map,
                 snippet_scope_indices: self.snippet_scope_indices,
-                conflicts: std::rc::Rc::new(std::cell::RefCell::new(conflicts)),
+                conflicts,
                 bindings_by_name: self.bindings_by_name,
             },
             self.validation_errors,

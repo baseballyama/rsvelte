@@ -76,7 +76,11 @@ pub fn analyze_component(
     // Resolve deferred lazy expressions in template AST
     // If any expression has a parse error, return it immediately
     if let Some(parse_err) =
-        crate::compiler::phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(ast, source)
+        crate::compiler::phases::phase1_parse::resolve_lazy::resolve_lazy_expressions_with_line_offsets(
+            ast,
+            source,
+            &line_offsets,
+        )
     {
         return Err(parse_err.into());
     }
@@ -104,7 +108,26 @@ pub fn analyze_component(
         return Err(parse_err.into());
     }
 
+    analyze_prepared_component(ast, source, options)
+}
+
+/// Analyze an AST whose lazy expressions and deferred scripts are already resolved.
+pub(crate) fn analyze_prepared_component(
+    ast: &mut Root,
+    source: &str,
+    options: &CompileOptions,
+) -> Result<ComponentAnalysis, AnalysisError> {
+    analyze_prepared_component_with_retained(ast, source, options, None)
+}
+
+pub(crate) fn analyze_prepared_component_with_retained(
+    ast: &mut Root,
+    source: &str,
+    options: &CompileOptions,
+    retained_scripts: Option<&crate::ast::oxc_program::RetainedScripts<'_>>,
+) -> Result<ComponentAnalysis, AnalysisError> {
     let mut analysis = ComponentAnalysis::new(source, options);
+    analysis.css.has_css = ast.css.is_some();
 
     // Forward parser-level warnings to the analysis warnings.
     // These include warnings like `element_implicitly_closed` that are
@@ -219,7 +242,7 @@ pub fn analyze_component(
     }
 
     // Extract script content for Phase 3 (avoids re-parsing)
-    analysis.extract_scripts(ast);
+    analysis.extract_scripts(ast, source, retained_scripts);
 
     // Create scopes for the component
     analysis.create_scopes(ast, &ast.arena)?;
@@ -268,9 +291,16 @@ pub fn analyze_component(
         rustc_hash::FxHashSet::default()
     };
 
+    let can_have_features = memchr::memchr(b'$', source.as_bytes()).is_some()
+        || memchr::memmem::find(source.as_bytes(), b"await").is_some();
+
     // Check the template fragment for both await expressions and rune references
     // in a single traversal (previously done as two separate walks).
-    let fragment_results = fragment_check_features(&ast.fragment, &ast.arena, &store_sub_names);
+    let fragment_results = if can_have_features {
+        fragment_check_features(&ast.fragment, &ast.arena, &store_sub_names)
+    } else {
+        FragmentCheckResults::default()
+    };
 
     // Check the instance script for both await expressions and rune references
     // in a single traversal. The store-sub exclusion set applies to scripts
@@ -279,18 +309,21 @@ pub fn analyze_component(
     // `module.scope.references` *before* runes detection reads it
     // (2-analyze/index.js, `module.scope.references.delete(name)`), so a
     // store-subscribed rune name in the script must not flip runes mode on.
-    let (instance_has_await, instance_has_rune_reference) = ast
-        .instance
-        .as_ref()
-        .map(|inst| {
-            let r = expression_check_features(&inst.content, &ast.arena, &store_sub_names);
-            (r.has_await, r.has_rune_reference)
-        })
-        .unwrap_or((false, false));
+    let (instance_has_await, instance_has_rune_reference) = if can_have_features {
+        ast.instance
+            .as_ref()
+            .map(|inst| {
+                let r = expression_check_features(&inst.content, &ast.arena, &store_sub_names);
+                (r.has_await, r.has_rune_reference)
+            })
+            .unwrap_or((false, false))
+    } else {
+        (false, false)
+    };
 
     // Check the module script for rune references (module scripts don't need await check
     // since the original code only checked instance script for await).
-    let module_has_rune_reference = if needs_rune_detection {
+    let module_has_rune_reference = if needs_rune_detection && can_have_features {
         ast.module
             .as_ref()
             .map(|module| {
@@ -351,7 +384,8 @@ pub fn analyze_component(
     // This MUST happen BEFORE the script visitor walk so that is_safe_identifier
     // correctly identifies bindable_prop bindings and sets needs_context = true
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L562-616
-    if !analysis.runes {
+    let has_export = memchr::memmem::find(source.as_bytes(), b"export").is_some();
+    if !analysis.runes && has_export {
         process_legacy_exports(ast, &mut analysis);
     }
 
@@ -397,7 +431,7 @@ pub fn analyze_component(
     // script analysis. Scope data is populated during Phase 1 scope building, so we can
     // do this before analyzing the instance script.
     // Reference: ensure_no_module_import_conflict checks module.scope.get(id.name)?.declaration_kind === 'import'
-    {
+    if ast.module.is_some() {
         let module_decls: rustc_hash::FxHashMap<String, usize> = analysis
             .root
             .scope
@@ -585,7 +619,8 @@ pub fn analyze_component(
     //    This correctly handles shadowing (e.g., `{#each a as { a }}`).
     // 2. The `promote_each_expression_bindings` fallback handles cases where the EachItem
     //    binding name doesn't shadow the collection name.
-    if !analysis.runes {
+    let has_each_block = memchr::memmem::find(source.as_bytes(), b"{#each").is_some();
+    if !analysis.runes && has_each_block {
         promote_each_collection_from_scope_info(&mut analysis);
         promote_each_expression_bindings(&ast.fragment, &mut analysis);
     }
@@ -600,9 +635,20 @@ pub fn analyze_component(
         mark_each_block_group_bindings(&mut ast.fragment, &mut index_counter, &mut analysis);
     }
 
-    // Build sibling relationships for CSS analysis
-    // This must happen after template analysis builds the DOM structure
-    control_flow::build_sibling_relationships(&mut analysis.css.dom_structure, &ast.fragment);
+    if ast
+        .css
+        .as_deref()
+        .is_some_and(control_flow::stylesheet_has_sibling_combinator)
+    {
+        if control_flow::supports_static_sibling_relationships(&ast.fragment) {
+            control_flow::build_static_sibling_relationships(&mut analysis.css.dom_structure);
+        } else {
+            control_flow::build_sibling_relationships(
+                &mut analysis.css.dom_structure,
+                &ast.fragment,
+            );
+        }
+    }
 
     // In runes mode, warn on any nonstate declarations that are:
     // a) reassigned and b) referenced in the template
@@ -812,11 +858,8 @@ pub fn analyze_component(
         // Mirror that so generated template variables (e.g. a `<canvas>` local
         // named `canvas`) avoid colliding with a referenced-but-undeclared global
         // of the same name and get suffixed (`canvas_1`).
-        {
-            let mut conflicts = analysis.root.conflicts.borrow_mut();
-            for name in &global_names {
-                conflicts.insert(name.clone());
-            }
+        for name in &global_names {
+            analysis.root.conflicts.insert(name.clone());
         }
 
         let mut name = analysis.name.clone();

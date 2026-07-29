@@ -20,30 +20,16 @@ use crate::options::FormatOptions;
 /// width) for spots where a break can't survive — block headers and the like.
 /// The result may otherwise be multi-line, with continuation lines at
 /// `oxc_formatter`'s own relative indent (measured from column 0).
-/// Returns `true` if `s` contains the keyword `await` (not as part of a larger
-/// identifier like `awaiting` or `getAwaited`).
-pub(super) fn has_word_await(s: &str) -> bool {
-    let bytes = s.as_bytes();
-    let mut i = 0;
-    while i + 5 <= bytes.len() {
-        if &bytes[i..i + 5] == b"await" {
-            let before_ok = i == 0
-                || !matches!(
-                    bytes[i - 1],
-                    b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_' | b'$'
-                );
-            let after_ok = i + 5 >= bytes.len()
-                || !matches!(
-                    bytes[i + 5],
-                    b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_' | b'$'
-                );
-            if before_ok && after_ok {
-                return true;
-            }
-        }
-        i += 1;
-    }
-    false
+/// Nested awaits do not need the statement wrapper's width compensation.
+pub(super) fn has_leading_await(s: &str) -> bool {
+    let rest = s.trim_start_matches(|c: char| c.is_ascii_whitespace() || c == '(');
+    let Some(rest) = rest.strip_prefix("await") else {
+        return false;
+    };
+    !matches!(
+        rest.as_bytes().first(),
+        Some(b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_' | b'$')
+    )
 }
 
 /// A reserved word or contextual keyword that a bare word matching the
@@ -265,9 +251,9 @@ pub(super) fn format_expr_core(
 
     // The wrapper and source type used to parse the expression snippet vary
     // depending on whether the file is TypeScript and whether the expression
-    // contains `await`:
+    // starts with `await`:
     //
-    // Case A — TypeScript + contains `await`:
+    // Case A — TypeScript + leading `await`:
     //   Use `const _rsvelte_x_ = (expr);` with `SourceType::ts().with_module(true)`.
     //
     //   `with_module(true)` is required so `await` is always a keyword: in
@@ -279,9 +265,8 @@ pub(super) fn format_expr_core(
     //   expression appears as a top-level ExpressionStatement, OXC breaks it
     //   (`(await (await a.nested).one);` → multi-line); as a const initializer
     //   OXC keeps it on one line.  The const wrapper is only used when `await`
-    //   is present to avoid applying the prefix-length compensation below to
-    //   non-await expressions with nested multi-line content (objects, arrays)
-    //   where the extra width would suppress correct inner breaking.
+    //   is the outer expression; applying its width compensation to nested awaits
+    //   would suppress correct inner breaking.
     //
     //   The const-wrapper prefix is exactly 20 characters (`const _rsvelte_x_ = `).
     //   We pass `line_width + 20` to the formatter so OXC's break decision is
@@ -294,11 +279,11 @@ pub(super) fn format_expr_core(
     //   parenthesized expression (`await (x)`, not `await(x)`), so no post-pass
     //   is needed.
     //
-    // Case B — TypeScript, no `await`:
+    // Case B — TypeScript, no leading `await`:
     //   Use `(expr);` with `SourceType::ts().with_module(true)`.
     //   `with_module(true)` ensures consistent TS parsing (e.g., type casts),
-    //   but since there is no `await` the expression statement wrapper doesn't
-    //   cause the multi-line wrapping problem, so no const wrapper is needed.
+    //   Nested awaits remain inside their own expression context, so no const
+    //   wrapper is needed.
     //
     // Case C — JavaScript:
     //   Use `(expr);` with `SourceType::default()` (Unambiguous).
@@ -308,15 +293,15 @@ pub(super) fn format_expr_core(
     // TS_CONST_PREFIX.len() == 20
     const TS_CONST_PREFIX_LEN: u16 = 20;
 
-    let expr_has_await = options.typescript && has_word_await(expr_source);
+    let expr_has_await = options.typescript && has_leading_await(expr_source);
 
     let (wrapped, source_type, use_const_wrapper) = if expr_has_await {
-        // Case A: TS + await — use const wrapper to avoid multi-line breaking
+        // Case A: TS + leading await — use const wrapper to avoid multi-line breaking
         let wrapped = format!("{TS_CONST_PREFIX}({expr_source});");
         let source_type = SourceType::ts().with_module(true);
         (wrapped, source_type, true)
     } else if options.typescript {
-        // Case B: TS, no await — plain paren wrapper, still ESM for consistency
+        // Case B: TS, no leading await — plain paren wrapper, still ESM for consistency
         let wrapped = format!("({expr_source});");
         let source_type = SourceType::ts().with_module(true);
         (wrapped, source_type, false)
@@ -378,6 +363,12 @@ pub(super) fn format_expr_core(
             parser_ret.program.body.first(),
             Some(oxc_ast::ast::Statement::ExpressionStatement(stmt))
                 if expr_has_object_head(&stmt.expression)
+        );
+    let object_type_assertion = !use_const_wrapper
+        && matches!(
+            parser_ret.program.body.first(),
+            Some(oxc_ast::ast::Statement::ExpressionStatement(stmt))
+                if expr_is_object_type_assertion(&stmt.expression)
         );
 
     let mut js = options.js.clone();
@@ -467,9 +458,9 @@ pub(super) fn format_expr_core(
                 inner = stripped;
             }
             format!("({inner})")
-        } else if leading_object_head {
+        } else if leading_object_head || object_type_assertion {
             // Strip the leading `( … )` pair OXC wrapped around the head object,
-            // keeping the postfix (`[key]` / `.foo` / `( … )`) verbatim.
+            // keeping the postfix or type operator verbatim.
             strip_leading_paren_pair(s).unwrap_or_else(|| s.to_string())
         } else {
             strip_outer_parens(s).trim().to_string()
@@ -477,6 +468,16 @@ pub(super) fn format_expr_core(
     };
     EXPR_MEMO.with(|m| m.borrow_mut().insert(key, result.clone()));
     Ok(result)
+}
+
+fn expr_is_object_type_assertion(expr: &oxc_ast::ast::Expression) -> bool {
+    use oxc_ast::ast::Expression as E;
+
+    match expr {
+        E::TSAsExpression(expr) => matches!(expr.expression, E::ObjectExpression(_)),
+        E::TSSatisfiesExpression(expr) => matches!(expr.expression, E::ObjectExpression(_)),
+        _ => false,
+    }
 }
 
 /// AST gate for [`reflow_flat_as_satisfies_unions`]: does the program contain

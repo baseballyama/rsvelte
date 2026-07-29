@@ -37,6 +37,7 @@ git checkout "${TAG}"
 COMMIT_HASH=$(git rev-parse --short HEAD)
 echo "  -> Commit: ${COMMIT_HASH}"
 cd "${ROOT}"
+printf '%s\n' "${VERSION}" > "${ROOT}/crates/rsvelte_core/svelte-version.txt"
 
 # IMPORTANT: compiler/index.js is in .gitignore and NOT tracked by git.
 # Without this step, the old compiled version remains and fixtures will be wrong.

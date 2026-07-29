@@ -47,9 +47,10 @@ function assertWindow(bufLen, off, len, label) {
  * Decode an envelope produced by `compileEnvelope` / `compileModuleEnvelope`.
  *
  * @param {Buffer|Uint8Array} buf
+ * @param {string} [sourceContent]
  * @returns {object} CompileResult-shaped object with lazy fields
  */
-function decodeEnvelope(buf) {
+function decodeEnvelope(buf, sourceContent) {
 	if (!buf || buf.byteLength < HEADER_LEN) {
 		throw new Error(
 			`[rsvelte] envelope too small (${buf ? buf.byteLength : 0} bytes, ` +
@@ -117,11 +118,27 @@ function decodeEnvelope(buf) {
 	// js — eagerly construct the wrapper object, but defer string/JSON
 	// realisation. Vite always touches `js.code`; the map is only
 	// touched when emitting sourcemaps.
-	const js = makeCodeMapObject(buf, slice, jsCodeOff, jsCodeLen, jsMapOff, jsMapLen);
+	const js = makeCodeMapObject(
+		buf,
+		slice,
+		jsCodeOff,
+		jsCodeLen,
+		jsMapOff,
+		jsMapLen,
+		sourceContent,
+	);
 
 	let css = null;
 	if (hasCss) {
-		css = makeCodeMapObject(buf, slice, cssCodeOff, cssCodeLen, cssMapOff, cssMapLen);
+		css = makeCodeMapObject(
+			buf,
+			slice,
+			cssCodeOff,
+			cssCodeLen,
+			cssMapOff,
+			cssMapLen,
+			sourceContent,
+		);
 		css.hasGlobal = (flags & FLAG_CSS_HAS_GLOBAL) !== 0;
 	}
 
@@ -150,7 +167,7 @@ function decodeEnvelope(buf) {
 	return result;
 }
 
-function makeCodeMapObject(buf, slice, codeOff, codeLen, mapOff, mapLen) {
+function makeCodeMapObject(buf, slice, codeOff, codeLen, mapOff, mapLen, sourceContent) {
 	const obj = {};
 	let codeCache = null;
 	// `code` and `map` need setters as well as getters — upstream
@@ -182,7 +199,7 @@ function makeCodeMapObject(buf, slice, codeOff, codeLen, mapOff, mapLen) {
 				// parsed object matches the legacy compile() shape —
 				// callers that just want the raw JSON to write to disk
 				// should prefer `mapBytes` / `mapText` (no JSON.parse).
-				mapCache = JSON.parse(slice(mapOff, mapLen));
+				mapCache = attachSourceContent(JSON.parse(slice(mapOff, mapLen)), sourceContent);
 			}
 			return mapCache;
 		},
@@ -199,6 +216,10 @@ function makeCodeMapObject(buf, slice, codeOff, codeLen, mapOff, mapLen) {
 		configurable: true,
 		get() {
 			if (!hasMap) return null;
+			const raw = slice(mapOff, mapLen);
+			if (hasExternalSourceContent(raw, sourceContent)) {
+				return Buffer.from(materializeMapText(raw, sourceContent));
+			}
 			return buf.subarray
 				? buf.subarray(mapOff, mapOff + mapLen)
 				: new Uint8Array(buf.buffer, buf.byteOffset + mapOff, mapLen);
@@ -212,10 +233,34 @@ function makeCodeMapObject(buf, slice, codeOff, codeLen, mapOff, mapLen) {
 		configurable: true,
 		get() {
 			if (!hasMap) return null;
-			return slice(mapOff, mapLen);
+			return materializeMapText(slice(mapOff, mapLen), sourceContent);
 		},
 	});
 	return obj;
+}
+
+function attachSourceContent(map, sourceContent) {
+	if (
+		sourceContent !== undefined &&
+		Array.isArray(map.sourcesContent) &&
+		map.sourcesContent.length === 1 &&
+		map.sourcesContent[0] === null
+	) {
+		map.sourcesContent[0] = sourceContent;
+	}
+	return map;
+}
+
+function hasExternalSourceContent(mapText, sourceContent) {
+	return sourceContent !== undefined && mapText.includes('"sourcesContent":[null]');
+}
+
+function materializeMapText(mapText, sourceContent) {
+	if (!hasExternalSourceContent(mapText, sourceContent)) return mapText;
+	return mapText.replace(
+		'"sourcesContent":[null]',
+		() => `"sourcesContent":[${JSON.stringify(sourceContent)}]`,
+	);
 }
 
 function decodeWarnings(buf, view, off, regionLen, count, slice) {
@@ -322,9 +367,10 @@ const BATCH_STATUS_ERR = 1;
  * or an `Error` carrying the per-entry failure message.
  *
  * @param {Buffer|Uint8Array} buf
+ * @param {string[]} [sourceContents]
  * @returns {Array<object|Error>}
  */
-function decodeBatch(buf) {
+function decodeBatch(buf, sourceContents) {
 	if (!buf || buf.byteLength < BATCH_HEADER_LEN) {
 		throw new Error(
 			`[rsvelte] batch envelope too small (${buf ? buf.byteLength : 0} bytes, ` +
@@ -376,7 +422,7 @@ function decodeBatch(buf) {
 			? buf.subarray(payloadOff, payloadOff + payloadLen)
 			: new Uint8Array(buf.buffer, buf.byteOffset + payloadOff, payloadLen);
 		if (status === BATCH_STATUS_OK) {
-			out[i] = decodeEnvelope(slice);
+			out[i] = decodeEnvelope(slice, sourceContents?.[i]);
 		} else if (status === BATCH_STATUS_ERR) {
 			const msg = bufferIsNodeBuffer(slice)
 				? slice.toString('utf8')

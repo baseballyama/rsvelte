@@ -368,15 +368,13 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
         // But avoid replacing function calls that already have ()
         let mut new_result = String::with_capacity(result.len() * 2);
         let chars: Vec<char> = result.chars().collect();
+        let mut char_byte_offsets: Vec<usize> = result.char_indices().map(|(i, _)| i).collect();
+        char_byte_offsets.push(result.len());
         let mut i = 0;
 
         while i < chars.len() {
             // Check if we're at the start of the identifier
-            let byte_i = result
-                .char_indices()
-                .nth(i)
-                .map(|(idx, _)| idx)
-                .unwrap_or(i);
+            let byte_i = char_byte_offsets[i];
             let remaining = &result[byte_i..];
             if remaining.starts_with(store_sub) {
                 // Check character before (must be non-identifier char or start of string)

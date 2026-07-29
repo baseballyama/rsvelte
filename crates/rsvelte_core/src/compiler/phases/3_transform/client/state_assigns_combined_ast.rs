@@ -90,7 +90,7 @@ pub fn transform_state_assigns_ast(
         return None;
     }
 
-    ast_rewrite::fixed_point(source, |src| {
+    ast_rewrite::fixed_point_while_deferred(source, |src| {
         single_pass(src, state_vars, raw_state_vars, is_runes, non_proxy_vars)
     })
 }
@@ -101,7 +101,7 @@ fn single_pass(
     raw_state_vars: &[String],
     is_runes: bool,
     non_proxy_vars: &[String],
-) -> Option<String> {
+) -> Option<(String, bool)> {
     ast_rewrite::with_program(
         &STATE_ASSIGNS_ALLOC,
         source,
@@ -127,7 +127,7 @@ fn single_pass(
             };
             collector.visit_program(program);
 
-            ast_rewrite::splice(source, collector.replacements, true)
+            ast_rewrite::splice_with_deferred(source, collector.replacements, true)
         },
     )
 }
@@ -377,6 +377,22 @@ mod tests {
         assert_eq!(
             out,
             "let outer; let inner; $.set(outer, ($.set(inner, 1)));"
+        );
+    }
+
+    #[test]
+    fn deeply_nested_assignments_wrap_inside_out() {
+        let out = transform_state_assigns_ast(
+            "let outer; let middle; let inner; outer = (middle = (inner += 1));",
+            &ssv(&["outer", "middle", "inner"]),
+            &[],
+            false,
+            &[],
+        )
+        .unwrap();
+        assert_eq!(
+            out,
+            "let outer; let middle; let inner; $.set(outer, ($.set(middle, ($.set(inner, $.get(inner) + 1)))));"
         );
     }
 
