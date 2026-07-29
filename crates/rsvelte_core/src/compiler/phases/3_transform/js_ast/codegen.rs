@@ -2692,20 +2692,30 @@ pub fn generate_sourcemap_json(
 }
 
 /// Escape a string for use in JSON.
+///
+/// Every escaped byte is ASCII, and no UTF-8 continuation byte is below 0x80,
+/// so scanning bytewise and copying the runs in between keeps whole-source
+/// `sourcesContent` off the per-character path.
 fn json_escape_str(out: &mut String, s: &str) {
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => {
-                let _ = write!(out, "\\u{:04x}", c as u32);
-            }
-            c => out.push(c),
+    let mut clean_from = 0;
+    for (i, &b) in s.as_bytes().iter().enumerate() {
+        if b >= 0x20 && b != b'"' && b != b'\\' {
+            continue;
         }
+        out.push_str(&s[clean_from..i]);
+        match b {
+            b'"' => out.push_str("\\\""),
+            b'\\' => out.push_str("\\\\"),
+            b'\n' => out.push_str("\\n"),
+            b'\r' => out.push_str("\\r"),
+            b'\t' => out.push_str("\\t"),
+            _ => {
+                let _ = write!(out, "\\u{:04x}", b);
+            }
+        }
+        clean_from = i + 1;
     }
+    out.push_str(&s[clean_from..]);
 }
 
 /// Decoded source map segment: [gen_col, source_index, orig_line, orig_col, name_index?]
