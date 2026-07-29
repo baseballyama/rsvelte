@@ -1,9 +1,9 @@
 //! Hoisting of instance-script `type` / `interface` declarations above
 //! `function $$render()`, plus the dts-mode interface→type rewrite.
 
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 #[cfg(test)]
 use std::cell::Cell;
 
@@ -12,23 +12,23 @@ use super::ExportedNames;
 
 #[cfg(test)]
 thread_local! {
-    static FIXED_POINT_LOOKUPS: Cell<usize> = const { Cell::new(0) };
+    static DEPENDENCY_EDGES: Cell<usize> = const { Cell::new(0) };
 }
 
 #[inline(always)]
-fn record_fixed_point_lookup() {
+fn record_dependency_edge() {
     #[cfg(test)]
-    FIXED_POINT_LOOKUPS.with(|lookups| lookups.set(lookups.get() + 1));
+    DEPENDENCY_EDGES.with(|edges| edges.set(edges.get() + 1));
 }
 
 #[cfg(test)]
-fn reset_fixed_point_lookups() {
-    FIXED_POINT_LOOKUPS.with(|lookups| lookups.set(0));
+fn reset_dependency_edges() {
+    DEPENDENCY_EDGES.with(|edges| edges.set(0));
 }
 
 #[cfg(test)]
-fn fixed_point_lookups() -> usize {
-    FIXED_POINT_LOOKUPS.with(Cell::get)
+fn dependency_edges() -> usize {
+    DEPENDENCY_EDGES.with(Cell::get)
 }
 
 /// One top-level `type X = ...` or `interface X { ... }` from the instance
@@ -61,14 +61,14 @@ pub(super) fn is_special_type_name(name: &str) -> bool {
 /// fixtures the rsvelte port currently cares about.
 pub(super) fn collect_type_body_deps(
     body: &str,
-    candidate_indices: &FxHashMap<&str, usize>,
+    candidate_indices: &FxHashMap<&str, u32>,
     self_name: &str,
     generics: &HashSet<String>,
     instance_value_names: &HashSet<String>,
     instance_import_names: &HashSet<String>,
-) -> (HashSet<String>, HashSet<String>) {
+) -> (HashSet<String>, FxHashSet<u32>) {
     let mut value_deps: HashSet<String> = HashSet::new();
-    let mut type_deps: HashSet<String> = HashSet::new();
+    let mut type_deps: FxHashSet<u32> = FxHashSet::default();
     let bytes = body.as_bytes();
     let len = bytes.len();
     let mut i = 0usize;
@@ -154,8 +154,8 @@ pub(super) fn collect_type_body_deps(
                 value_deps.insert(ident.to_string());
             } else if is_property_key {
                 // skip — property keys aren't dependencies
-            } else if candidate_indices.contains_key(ident) {
-                type_deps.insert(ident.to_string());
+            } else if let Some(&candidate_index) = candidate_indices.get(ident) {
+                type_deps.insert(candidate_index);
             } else if instance_value_names.contains(ident) && !instance_import_names.contains(ident)
             {
                 // Identifier resolves to an instance-script value (a `let`,
@@ -268,6 +268,110 @@ fn is_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 
+fn resolve_candidate_dependencies<'a, I>(
+    type_dependencies: I,
+    blocked: &mut [bool],
+) -> (Vec<bool>, Vec<usize>)
+where
+    I: Clone + ExactSizeIterator<Item = &'a FxHashSet<u32>>,
+{
+    let candidate_count = type_dependencies.len();
+    let mut dependents = vec![Vec::<u32>::new(); candidate_count];
+    for (candidate, dependencies) in type_dependencies.clone().enumerate() {
+        for &dependency in dependencies {
+            record_dependency_edge();
+            dependents[dependency as usize].push(candidate as u32);
+        }
+    }
+
+    let initially_blocked = blocked.to_vec();
+    let mut blocked_pass = vec![u32::MAX; candidate_count];
+    let mut blocked_queue = VecDeque::new();
+    for (candidate, &is_blocked) in initially_blocked.iter().enumerate() {
+        if is_blocked {
+            blocked_pass[candidate] = 0;
+            blocked_queue.push_back(candidate as u32);
+        }
+    }
+    // Initially disallowed names are visible for the entire first upstream scan.
+    for (dependency, &is_blocked) in initially_blocked.iter().enumerate() {
+        if !is_blocked {
+            continue;
+        }
+        for &candidate in &dependents[dependency] {
+            let candidate_index = candidate as usize;
+            if blocked_pass[candidate_index] != 0 {
+                blocked_pass[candidate_index] = 0;
+                blocked_queue.push_front(candidate);
+            }
+        }
+    }
+    while let Some(dependency) = blocked_queue.pop_front() {
+        for &candidate in &dependents[dependency as usize] {
+            let candidate_index = candidate as usize;
+            let weight = u32::from(dependency >= candidate);
+            let candidate_pass = blocked_pass[dependency as usize].saturating_add(weight);
+            if candidate_pass < blocked_pass[candidate_index] {
+                blocked_pass[candidate_index] = candidate_pass;
+                if weight == 0 {
+                    blocked_queue.push_front(candidate);
+                } else {
+                    blocked_queue.push_back(candidate);
+                }
+            }
+        }
+    }
+
+    let mut remaining_dependencies: Vec<u32> = type_dependencies
+        .map(|dependencies| dependencies.len() as u32)
+        .collect();
+    let mut promotion_pass = vec![0u32; candidate_count];
+    let mut ready = VecDeque::new();
+    for candidate in 0..candidate_count {
+        if blocked_pass[candidate] == u32::MAX && remaining_dependencies[candidate] == 0 {
+            ready.push_back(candidate as u32);
+        }
+    }
+
+    let mut hoistable = vec![false; candidate_count];
+    while let Some(dependency) = ready.pop_front() {
+        let dependency_index = dependency as usize;
+        hoistable[dependency_index] = true;
+        for &candidate in &dependents[dependency_index] {
+            let candidate_index = candidate as usize;
+            if blocked_pass[candidate_index] != u32::MAX {
+                continue;
+            }
+            let candidate_pass =
+                promotion_pass[dependency_index] + u32::from(dependency >= candidate);
+            promotion_pass[candidate_index] = promotion_pass[candidate_index].max(candidate_pass);
+            remaining_dependencies[candidate_index] -= 1;
+            if remaining_dependencies[candidate_index] == 0 {
+                ready.push_back(candidate);
+            }
+        }
+    }
+
+    let max_pass = promotion_pass.iter().copied().max().unwrap_or(0) as usize;
+    let mut candidates_by_pass = vec![Vec::new(); max_pass + 1];
+    for candidate in 0..candidate_count {
+        if hoistable[candidate] {
+            candidates_by_pass[promotion_pass[candidate] as usize].push(candidate);
+        }
+    }
+    let hoist_order: Vec<usize> = candidates_by_pass.into_iter().flatten().collect();
+    // Upstream performs one final scan after the last pass that promotes a type.
+    let last_executed_pass = if hoist_order.is_empty() {
+        0
+    } else {
+        max_pass as u32 + 1
+    };
+    for candidate in 0..candidate_count {
+        blocked[candidate] = blocked_pass[candidate] <= last_executed_pass;
+    }
+    (hoistable, hoist_order)
+}
+
 /// Determine which `HoistCandidate`s can be hoisted above `function $$render()`
 /// and record their absolute source ranges (and names) on `exported_names`.
 ///
@@ -293,12 +397,12 @@ pub(super) fn resolve_hoistable_type_decls(
     if candidates.is_empty() {
         return;
     }
-    let mut candidate_indices: FxHashMap<&str, usize> =
+    let mut candidate_indices: FxHashMap<&str, u32> =
         FxHashMap::with_capacity_and_hasher(candidates.len(), Default::default());
     for (index, candidate) in candidates.iter().enumerate() {
         candidate_indices
             .entry(candidate.name.as_str())
-            .or_insert(index);
+            .or_insert(index as u32);
     }
     // Per-candidate: collect generic parameter names (so `interface Props<T>`
     // doesn't see `T` as a dependency).
@@ -342,7 +446,7 @@ pub(super) fn resolve_hoistable_type_decls(
         .collect();
 
     // Pre-compute deps for each candidate.
-    let deps: Vec<(HashSet<String>, HashSet<String>)> = candidates
+    let deps: Vec<(HashSet<String>, FxHashSet<u32>)> = candidates
         .iter()
         .enumerate()
         .map(|(i, c)| {
@@ -431,10 +535,6 @@ pub(super) fn resolve_hoistable_type_decls(
         }
     }
 
-    // Fixed-point: a candidate that depends on a blocked candidate's type is
-    // itself blocked. Promote candidates to hoistable when all type-deps are
-    // hoistable.
-    let mut hoistable = vec![false; candidates.len()];
     // Record the order in which candidates are promoted to hoistable. The JS
     // reference (`HoistableInterfaces.determineHoistableInterfaces`) inserts
     // each interface into a `Map` as soon as all its type dependencies are
@@ -444,36 +544,8 @@ pub(super) fn resolve_hoistable_type_decls(
     // source (e.g. `interface A extends B<A>` followed by `interface B<T> {}`
     // emits `B` first). We mirror that by emitting `hoistable_type_ranges` in
     // promotion order rather than source order.
-    let mut hoist_order: Vec<usize> = Vec::new();
-    let mut progress = true;
-    while progress {
-        progress = false;
-        for i in 0..candidates.len() {
-            if hoistable[i] || blocked[i] {
-                continue;
-            }
-            let (_, type_deps) = &deps[i];
-            let mut can_hoist = true;
-            for dep in type_deps {
-                record_fixed_point_lookup();
-                if let Some(&idx) = candidate_indices.get(dep.as_str()) {
-                    if blocked[idx] {
-                        blocked[i] = true;
-                        can_hoist = false;
-                        break;
-                    }
-                    if !hoistable[idx] {
-                        can_hoist = false;
-                    }
-                }
-            }
-            if can_hoist {
-                hoistable[i] = true;
-                hoist_order.push(i);
-                progress = true;
-            }
-        }
-    }
+    let (hoistable, hoist_order) =
+        resolve_candidate_dependencies(deps.iter().map(|(_, deps)| deps), &mut blocked);
 
     // Gate the entire move on the props interface being hoistable. Mirrors
     // `HoistableInterfaces.moveHoistableInterfaces`, which only moves anything
@@ -486,7 +558,7 @@ pub(super) fn resolve_hoistable_type_decls(
         // `Props`; it's hoistable iff that candidate was promoted.
         candidate_indices
             .get(named)
-            .map(|&idx| hoistable[idx])
+            .map(|&idx| hoistable[idx as usize])
             // A bare `: Props` reference whose `Props` is NOT a local interface
             // (an imported / global type) never sets `props_interface.name` in
             // upstream `analyze$propsRune` (its `interface_map.get(name)` misses),
@@ -521,10 +593,9 @@ pub(super) fn resolve_hoistable_type_decls(
             }
         }
         if ok {
-            for dep in &type_deps {
-                if let Some(&idx) = candidate_indices.get(dep.as_str())
-                    && (blocked[idx] || !hoistable[idx])
-                {
+            for &idx in &type_deps {
+                let idx = idx as usize;
+                if blocked[idx] || !hoistable[idx] {
                     ok = false;
                     break;
                 }
@@ -852,6 +923,120 @@ mod tests {
         (line, column)
     }
 
+    fn old_resolve_candidate_dependencies(
+        dependencies: &[FxHashSet<u32>],
+        mut blocked: Vec<bool>,
+    ) -> (Vec<bool>, Vec<usize>) {
+        let mut hoistable = vec![false; dependencies.len()];
+        let mut hoist_order = Vec::new();
+        let mut progress = true;
+        while progress {
+            progress = false;
+            for candidate in 0..dependencies.len() {
+                if blocked[candidate] || hoistable[candidate] {
+                    continue;
+                }
+                let mut can_hoist = true;
+                for &dependency in &dependencies[candidate] {
+                    let dependency = dependency as usize;
+                    if blocked[dependency] {
+                        blocked[candidate] = true;
+                        can_hoist = false;
+                        break;
+                    }
+                    if !hoistable[dependency] {
+                        can_hoist = false;
+                    }
+                }
+                if can_hoist {
+                    hoistable[candidate] = true;
+                    hoist_order.push(candidate);
+                    progress = true;
+                }
+            }
+        }
+        (blocked, hoist_order)
+    }
+
+    #[test]
+    fn dependency_graph_matches_fixed_point_oracle() {
+        let mut state = 0x9e37_79b9_u32;
+        for candidate_count in 1..=32 {
+            for _ in 0..32 {
+                let mut dependencies = vec![FxHashSet::default(); candidate_count];
+                let mut blocked = vec![false; candidate_count];
+                for candidate in 0..candidate_count {
+                    state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                    blocked[candidate] = state & 31 == 0;
+                    for dependency in 0..candidate_count {
+                        if candidate == dependency {
+                            continue;
+                        }
+                        state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                        if state & 15 == 0 {
+                            dependencies[candidate].insert(dependency as u32);
+                        }
+                    }
+                }
+
+                let expected = old_resolve_candidate_dependencies(&dependencies, blocked.clone());
+                let mut actual_blocked = blocked;
+                let (actual_hoistable, actual_order) =
+                    resolve_candidate_dependencies(dependencies.iter(), &mut actual_blocked);
+                let expected_hoistable: Vec<bool> = (0..candidate_count)
+                    .map(|candidate| expected.1.contains(&candidate))
+                    .collect();
+                assert_eq!(
+                    actual_blocked, expected.0,
+                    "hoistable={actual_hoistable:?} dependencies={dependencies:?}"
+                );
+                assert_eq!(actual_hoistable, expected_hoistable);
+                assert_eq!(actual_order, expected.1);
+            }
+        }
+    }
+
+    #[test]
+    fn dependency_graph_handles_reverse_chain_fanout_cycles_and_order() {
+        let candidate_count = 4096;
+        let mut reverse_chain = vec![FxHashSet::default(); candidate_count];
+        for (candidate, dependencies) in reverse_chain
+            .iter_mut()
+            .enumerate()
+            .take(candidate_count - 1)
+        {
+            dependencies.insert(candidate as u32 + 1);
+        }
+        let mut blocked = vec![false; candidate_count];
+        let (hoistable, order) = resolve_candidate_dependencies(reverse_chain.iter(), &mut blocked);
+        assert!(hoistable.iter().all(|&value| value));
+        assert_eq!(order, (0..candidate_count).rev().collect::<Vec<_>>());
+
+        let mut fanout = vec![FxHashSet::default(); 256];
+        for dependencies in fanout.iter_mut().skip(1) {
+            dependencies.insert(0);
+        }
+        let mut blocked = vec![false; fanout.len()];
+        blocked[0] = true;
+        let (hoistable, order) = resolve_candidate_dependencies(fanout.iter(), &mut blocked);
+        assert!(blocked.iter().all(|&value| value));
+        assert!(hoistable.iter().all(|&value| !value));
+        assert!(order.is_empty());
+
+        let dependencies = [
+            FxHashSet::from_iter([3]),
+            FxHashSet::from_iter([2]),
+            FxHashSet::default(),
+            FxHashSet::default(),
+            FxHashSet::from_iter([5]),
+            FxHashSet::from_iter([4]),
+        ];
+        let mut blocked = vec![false; dependencies.len()];
+        let (hoistable, order) = resolve_candidate_dependencies(dependencies.iter(), &mut blocked);
+        assert_eq!(order, vec![2, 3, 0, 1]);
+        assert_eq!(hoistable, vec![true, true, true, true, false, false]);
+    }
+
     #[test]
     fn is_ts_structural_keyword_matches_keywords_not_type_names() {
         // Declaration / operator / control-flow keywords + primitive type
@@ -892,7 +1077,7 @@ mod tests {
             \u{20}\u{20}content: 'image' | 'initial' | 'count';\n\
             \u{20}\u{20}/** \u{753B}\u{50CF} (content='image' \u{306E}\u{5834}\u{5408}\u{306B}\u{5FC5}\u{9808}) */\n\
             \u{20}\u{20}imageSrc?: string;\n}";
-        let candidates: FxHashMap<&str, usize> = FxHashMap::default();
+        let candidates: FxHashMap<&str, u32> = FxHashMap::default();
         let generics: HashSet<String> = HashSet::new();
         let values: HashSet<String> = HashSet::new();
         let imports: HashSet<String> = HashSet::new();
@@ -1001,7 +1186,7 @@ let { value }: Root = $props();
     }
 
     #[test]
-    fn reverse_chain_uses_one_index_lookup_per_dependency_check() {
+    fn reverse_chain_builds_one_reverse_edge_per_dependency() {
         let source = r#"<script lang="ts">
 type T0 = { value: T1 };
 type T1 = { value: T2 };
@@ -1014,16 +1199,16 @@ type T7 = string;
 let { value }: T0 = $props();
 </script>
 <p>{value}</p>"#;
-        reset_fixed_point_lookups();
+        reset_dependency_edges();
         let output = convert_ts(source);
-        assert_eq!(fixed_point_lookups(), 35);
+        assert_eq!(dependency_edges(), 7);
         assert!(
             output.code.find("type T7").expect("T7") < output.code.find("type T0").expect("T0")
         );
     }
 
     #[test]
-    fn dense_reverse_dag_has_quadratic_lookup_count() {
+    fn dense_reverse_dag_builds_one_reverse_edge_per_dependency() {
         let source = r#"<script lang="ts">
 type T0 = { a: T1; b: T2; c: T3; d: T4; e: T5 };
 type T1 = { b: T2; c: T3; d: T4; e: T5 };
@@ -1034,9 +1219,9 @@ type T5 = string;
 let { a }: T0 = $props();
 </script>
 <p>{a}</p>"#;
-        reset_fixed_point_lookups();
+        reset_dependency_edges();
         let output = convert_ts(source);
-        assert_eq!(fixed_point_lookups(), 70);
+        assert_eq!(dependency_edges(), 15);
         let mut previous = 0;
         for name in ["T5", "T4", "T3", "T2", "T1", "T0"] {
             let position = output
