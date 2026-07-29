@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use oxc_ast::ast as oxc;
 use oxc_span::GetSpan;
+use rustc_hash::FxHashMap;
 
 use super::ast_utils::binding_pattern_simple_name;
 
@@ -106,84 +107,15 @@ impl ComponentEvents {
         inst_range: Option<(u32, u32)>,
         mod_range: Option<(u32, u32)>,
     ) {
-        let decls = self.dispatcher_decls.clone();
-        if decls.is_empty() {
+        if self.dispatcher_decls.is_empty() {
             return;
         }
-        // Every `<dispatcher>("evt", …)` match across the source, as
-        // `(call_idx, dispatcher_index, event_name)`, in ascending position.
-        let mut matches: Vec<(usize, usize, String)> = Vec::new();
-        let bytes = source.as_bytes();
-        let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'$';
-        for (di, (disp, _)) in decls.iter().enumerate() {
-            let dn = disp.as_bytes();
-            let mut from = 0usize;
-            while let Some(rel) = source[from..].find(disp.as_str()) {
-                let idx = from + rel;
-                from = idx + 1;
-                // Word boundary: not part of a longer identifier / member access.
-                if idx > 0 && (is_ident(bytes[idx - 1]) || bytes[idx - 1] == b'.') {
-                    continue;
-                }
-                let mut p = idx + dn.len();
-                if p < bytes.len() && is_ident(bytes[p]) {
-                    continue;
-                }
-                while p < bytes.len() && (bytes[p] == b' ' || bytes[p] == b'\t') {
-                    p += 1;
-                }
-                if p >= bytes.len() || bytes[p] != b'(' {
-                    continue;
-                }
-                p += 1;
-                while p < bytes.len() && bytes[p].is_ascii_whitespace() {
-                    p += 1;
-                }
-                if p >= bytes.len() || (bytes[p] != b'"' && bytes[p] != b'\'' && bytes[p] != b'`') {
-                    continue;
-                }
-                let quote = bytes[p];
-                p += 1;
-                let name_start = p;
-                while p < bytes.len() && bytes[p] != quote {
-                    p += 1;
-                }
-                if p < bytes.len() {
-                    let evt = &source[name_start..p];
-                    // Only simple identifier-ish names (skip interpolated/dynamic).
-                    if !evt.is_empty() {
-                        matches.push((idx, di, evt.to_string()));
-                    }
-                }
-            }
-        }
-        matches.sort_by_key(|m| m.0);
-
-        let in_range = |idx: usize, r: Option<(u32, u32)>| {
-            r.is_some_and(|(a, b)| idx >= a as usize && idx < b as usize)
-        };
-
-        // Partition into template-first / script-after-decl groups, each kept in
-        // source order, then merge with dedup (first occurrence wins).
-        let mut template_events: Vec<String> = Vec::new();
-        let mut script_events: Vec<String> = Vec::new();
-        for (idx, di, evt) in matches {
-            if in_range(idx, mod_range) {
-                continue; // module dispatches are not counted
-            }
-            if in_range(idx, inst_range) {
-                let decl_pos = decls[di].1;
-                if idx as u32 > decl_pos {
-                    script_events.push(evt);
-                }
-            } else {
-                template_events.push(evt);
-            }
-        }
+        let (template_events, script_events) =
+            scan_dispatch_calls(source, &self.dispatcher_decls, inst_range, mod_range);
         for evt in template_events.into_iter().chain(script_events) {
-            if !self.events.contains_key(&evt) {
-                self.dispatched_order.push(evt.clone());
-                self.add(evt, None);
+            if !self.events.contains_key(evt) {
+                self.dispatched_order.push(evt.to_string());
+                self.add(evt.to_string(), None);
             }
         }
     }
@@ -216,6 +148,108 @@ impl ComponentEvents {
         entries.sort_by(|a, b| a.0.cmp(&b.0));
         entries
     }
+}
+
+fn scan_dispatch_calls<'source>(
+    source: &'source str,
+    decls: &[(String, u32)],
+    inst_range: Option<(u32, u32)>,
+    mod_range: Option<(u32, u32)>,
+) -> (Vec<&'source str>, Vec<&'source str>) {
+    scan_dispatch_calls_with_observer(source, decls, inst_range, mod_range, || {})
+}
+
+fn scan_dispatch_calls_with_observer<'source>(
+    source: &'source str,
+    decls: &[(String, u32)],
+    inst_range: Option<(u32, u32)>,
+    mod_range: Option<(u32, u32)>,
+    mut observe_identifier: impl FnMut(),
+) -> (Vec<&'source str>, Vec<&'source str>) {
+    let mut dispatcher_indices: FxHashMap<&str, (usize, usize)> =
+        FxHashMap::with_capacity_and_hasher(decls.len(), Default::default());
+    let mut next_dispatcher = vec![usize::MAX; decls.len()];
+    for (index, (name, _)) in decls.iter().enumerate() {
+        dispatcher_indices
+            .entry(name.as_str())
+            .and_modify(|(_, tail)| {
+                next_dispatcher[*tail] = index;
+                *tail = index;
+            })
+            .or_insert((index, index));
+    }
+
+    let bytes = source.as_bytes();
+    let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'$';
+    let in_range = |idx: usize, range: Option<(u32, u32)>| {
+        range.is_some_and(|(start, end)| idx >= start as usize && idx < end as usize)
+    };
+    let mut template_events = Vec::new();
+    let mut script_events = Vec::new();
+    let mut idx = 0usize;
+
+    while idx < bytes.len() {
+        if !is_ident(bytes[idx]) {
+            idx += 1;
+            continue;
+        }
+
+        let start = idx;
+        idx += 1;
+        while idx < bytes.len() && is_ident(bytes[idx]) {
+            idx += 1;
+        }
+        observe_identifier();
+
+        if start > 0 && bytes[start - 1] == b'.' {
+            continue;
+        }
+        let Some(&(mut dispatcher_index, _)) = dispatcher_indices.get(&source[start..idx]) else {
+            continue;
+        };
+
+        let mut p = idx;
+        while p < bytes.len() && (bytes[p] == b' ' || bytes[p] == b'\t') {
+            p += 1;
+        }
+        if p >= bytes.len() || bytes[p] != b'(' {
+            continue;
+        }
+        p += 1;
+        while p < bytes.len() && bytes[p].is_ascii_whitespace() {
+            p += 1;
+        }
+        if p >= bytes.len() || (bytes[p] != b'"' && bytes[p] != b'\'' && bytes[p] != b'`') {
+            continue;
+        }
+
+        let quote = bytes[p];
+        p += 1;
+        let name_start = p;
+        while p < bytes.len() && bytes[p] != quote {
+            p += 1;
+        }
+        if p >= bytes.len() || p == name_start || in_range(start, mod_range) {
+            continue;
+        }
+        let event = &source[name_start..p];
+
+        loop {
+            if in_range(start, inst_range) {
+                if start as u32 > decls[dispatcher_index].1 {
+                    script_events.push(event);
+                }
+            } else {
+                template_events.push(event);
+            }
+            dispatcher_index = next_dispatcher[dispatcher_index];
+            if dispatcher_index == usize::MAX {
+                break;
+            }
+        }
+    }
+
+    (template_events, script_events)
 }
 
 /// Detect `createEventDispatcher<Type>()` calls and extract the generic type.
@@ -261,7 +295,17 @@ pub(super) fn detect_create_event_dispatcher(
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Write as _;
+
     use super::*;
+
+    fn event_names(events: &ComponentEvents) -> Vec<String> {
+        events
+            .get_event_entries()
+            .into_iter()
+            .map(|(name, _)| name)
+            .collect()
+    }
 
     #[test]
     fn test_component_events_empty() {
@@ -276,5 +320,116 @@ mod tests {
         events.add("click".to_string(), Some("MouseEvent".to_string()));
         assert!(!events.is_empty());
         assert_eq!(events.get_event_names(), vec!["click"]);
+    }
+
+    #[test]
+    fn dispatch_scan_preserves_template_script_and_module_ordering() {
+        let source = concat!(
+            "dispatch('template-before');",
+            "<script context=\"module\">dispatch('module');</script>",
+            "<script>",
+            "dispatch('before-declaration');",
+            "const dispatch = createEventDispatcher();",
+            "dispatch('script-after');",
+            "</script>",
+            "<button onclick={() => dispatch('template-after')}></button>",
+        );
+        let module_start = source.find("dispatch('module')").unwrap() as u32;
+        let module_end = module_start + "dispatch('module')".len() as u32;
+        let instance_start = source.find("dispatch('before-declaration')").unwrap() as u32;
+        let instance_end = source.rfind("</script>").unwrap() as u32;
+        let declaration = source.find("const dispatch").unwrap() as u32;
+        let mut events = ComponentEvents::new();
+        events
+            .dispatcher_decls
+            .push(("dispatch".to_string(), declaration));
+
+        events.collect_dispatched_events(
+            source,
+            Some((instance_start, instance_end)),
+            Some((module_start, module_end)),
+        );
+
+        assert_eq!(
+            event_names(&events),
+            vec!["template-before", "template-after", "script-after"]
+        );
+    }
+
+    #[test]
+    fn dispatch_scan_preserves_textual_boundaries_and_quotes() {
+        let source = concat!(
+            "dispatchLong('long');",
+            "longdispatch('prefix');",
+            "object.dispatch('member');",
+            "object. dispatch('spaced-member');",
+            "dispatch\n('newline-before-paren');",
+            "dispatch(\n'single');",
+            "dispatch(\"double\");",
+            "dispatch(`backtick`);",
+            "\"dispatch('inside-string')\";",
+            "/* dispatch('inside-comment') */",
+        );
+        let mut events = ComponentEvents::new();
+        events.dispatcher_decls.push(("dispatch".to_string(), 0));
+
+        events.collect_dispatched_events(source, None, None);
+
+        assert_eq!(
+            event_names(&events),
+            vec![
+                "spaced-member",
+                "single",
+                "double",
+                "backtick",
+                "inside-string",
+                "inside-comment",
+            ]
+        );
+    }
+
+    #[test]
+    fn dispatch_scan_preserves_duplicate_dispatcher_declaration_gates() {
+        let source = " dispatch('first'); dispatch('second'); dispatch('third');";
+        let second = source.find("dispatch('second')").unwrap() as u32;
+        let third = source.find("dispatch('third')").unwrap() as u32;
+        let decls = vec![
+            ("dispatch".to_string(), second),
+            ("dispatch".to_string(), 0),
+            ("dispatch".to_string(), third),
+        ];
+
+        let (_, script_events) =
+            scan_dispatch_calls(source, &decls, Some((0, source.len() as u32)), None);
+
+        assert_eq!(script_events, vec!["first", "second", "third", "third"]);
+    }
+
+    #[test]
+    fn dispatch_scan_visits_large_source_once_for_1_16_and_128_dispatchers() {
+        let mut source = "noise_token ".repeat(16_384);
+        for index in 0..128 {
+            let _ = write!(source, " dispatch{index}('event{index}');");
+        }
+
+        for dispatcher_count in [1, 16, 128] {
+            let decls: Vec<(String, u32)> = (0..dispatcher_count)
+                .map(|index| (format!("dispatch{index}"), 0))
+                .collect();
+            let mut identifiers_visited = 0;
+            let (template_events, script_events) =
+                scan_dispatch_calls_with_observer(&source, &decls, None, None, || {
+                    identifiers_visited += 1;
+                });
+
+            assert_eq!(template_events.len(), dispatcher_count);
+            assert!(script_events.is_empty());
+            assert_eq!(identifiers_visited, 16_384 + 128 * 2);
+            assert_eq!(template_events[0], "event0");
+            assert_eq!(
+                template_events[dispatcher_count - 1],
+                format!("event{}", dispatcher_count - 1)
+            );
+        }
     }
 }
