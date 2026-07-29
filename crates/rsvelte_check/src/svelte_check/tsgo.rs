@@ -143,17 +143,15 @@ fn resolve_typescript_major(workspace: &Path) -> Option<u32> {
     let mut dir: Option<&Path> = Some(workspace);
     while let Some(d) = dir {
         let pkg_json = d.join("node_modules/typescript/package.json");
-        if let Ok(raw) = std::fs::read_to_string(&pkg_json) {
-            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&raw) {
-                if let Some(major) = parsed
-                    .get("version")
-                    .and_then(|v| v.as_str())
-                    .and_then(|v| v.split('.').next())
-                    .and_then(|m| m.parse::<u32>().ok())
-                {
-                    return Some(major);
-                }
-            }
+        if let Ok(raw) = std::fs::read_to_string(&pkg_json)
+            && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&raw)
+            && let Some(major) = parsed
+                .get("version")
+                .and_then(|v| v.as_str())
+                .and_then(|v| v.split('.').next())
+                .and_then(|m| m.parse::<u32>().ok())
+        {
+            return Some(major);
         }
         dir = d.parent();
     }
@@ -249,10 +247,8 @@ mod tests {
             eprintln!("skip: TSGO_BIN is set in the environment");
             return;
         }
-        let dir = std::env::temp_dir().join(format!(
-            "rsvelte_find_compiler_ts7_{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("rsvelte_find_compiler_ts7_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let bin = dir.join("node_modules/.bin");
         let typescript = dir.join("node_modules/typescript");
