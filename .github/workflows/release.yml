@@ -96,7 +96,7 @@ jobs:
           - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, ext: '', apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
           - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, ext: '.exe' }
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: ${{ matrix.triple == 'linux-x64-gnu' && 60 || 30 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -117,11 +117,21 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
+      - name: Install LLVM profile tools
+        if: matrix.triple == 'linux-x64-gnu'
+        run: rustup component add llvm-tools-preview
+
       - name: Build svelte-check
+        if: matrix.triple != 'linux-x64-gnu'
         shell: bash
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
         run: cargo build --profile dist -p rsvelte_check --bin svelte_check --target ${{ matrix.target }}
+
+      - name: Build svelte-check with PGO
+        if: matrix.triple == 'linux-x64-gnu'
+        shell: bash
+        run: scripts/release/build-svelte-check-pgo.sh
 
       - name: Stage binary
         shell: bash
