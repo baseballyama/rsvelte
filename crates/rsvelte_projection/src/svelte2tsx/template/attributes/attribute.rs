@@ -140,42 +140,46 @@ pub(crate) fn format_attribute_node(
 /// bare number to type-check. List mirrors svelte2tsx's `numberOnlyAttributes`
 /// (`htmlxtojsx_v2/nodes/Attribute.ts`), itself derived from `elements.d.ts`.
 pub(crate) fn is_number_only_attribute(name: &str) -> bool {
-    const NUMBER_ONLY: &[&str] = &[
-        "aria-colcount",
-        "aria-colindex",
-        "aria-colspan",
-        "aria-level",
-        "aria-posinset",
-        "aria-rowcount",
-        "aria-rowindex",
-        "aria-rowspan",
-        "aria-setsize",
-        "aria-valuemax",
-        "aria-valuemin",
-        "aria-valuenow",
-        "results",
-        "span",
-        "marginheight",
-        "marginwidth",
-        "maxlength",
-        "minlength",
-        "currenttime",
-        "defaultplaybackrate",
-        "volume",
-        "high",
-        "low",
-        "optimum",
-        "start",
-        "size",
-        "border",
-        "cols",
-        "rows",
-        "colspan",
-        "rowspan",
-        "tabindex",
-    ];
-    let lower = name.to_ascii_lowercase();
-    NUMBER_ONLY.contains(&lower.as_str())
+    match name.len() {
+        3 => name.eq_ignore_ascii_case("low"),
+        4 => {
+            name.eq_ignore_ascii_case("span")
+                || name.eq_ignore_ascii_case("high")
+                || name.eq_ignore_ascii_case("size")
+                || name.eq_ignore_ascii_case("cols")
+                || name.eq_ignore_ascii_case("rows")
+        }
+        5 => name.eq_ignore_ascii_case("start"),
+        6 => name.eq_ignore_ascii_case("volume") || name.eq_ignore_ascii_case("border"),
+        7 => {
+            name.eq_ignore_ascii_case("results")
+                || name.eq_ignore_ascii_case("optimum")
+                || name.eq_ignore_ascii_case("colspan")
+                || name.eq_ignore_ascii_case("rowspan")
+        }
+        8 => name.eq_ignore_ascii_case("tabindex"),
+        9 => name.eq_ignore_ascii_case("maxlength") || name.eq_ignore_ascii_case("minlength"),
+        10 => name.eq_ignore_ascii_case("aria-level"),
+        11 => name.eq_ignore_ascii_case("marginwidth") || name.eq_ignore_ascii_case("currenttime"),
+        12 => {
+            name.eq_ignore_ascii_case("aria-colspan")
+                || name.eq_ignore_ascii_case("aria-rowspan")
+                || name.eq_ignore_ascii_case("aria-setsize")
+                || name.eq_ignore_ascii_case("marginheight")
+        }
+        13 => {
+            name.eq_ignore_ascii_case("aria-colcount")
+                || name.eq_ignore_ascii_case("aria-colindex")
+                || name.eq_ignore_ascii_case("aria-posinset")
+                || name.eq_ignore_ascii_case("aria-rowcount")
+                || name.eq_ignore_ascii_case("aria-rowindex")
+                || name.eq_ignore_ascii_case("aria-valuemax")
+                || name.eq_ignore_ascii_case("aria-valuemin")
+                || name.eq_ignore_ascii_case("aria-valuenow")
+        }
+        19 => name.eq_ignore_ascii_case("defaultplaybackrate"),
+        _ => false,
+    }
 }
 
 /// Mirror JS `!isNaN(Number(s))` for the number-conversion check: an attribute
@@ -638,10 +642,67 @@ mod tests {
     // Tests for data-* and --* attribute wrapping rules.
     // Mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute` / `addProp`.
 
+    use super::is_number_only_attribute;
     use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
 
     fn compile_template(src: &str) -> String {
         svelte2tsx(src, Svelte2TsxOptions::default()).unwrap().code
+    }
+
+    #[test]
+    fn number_only_lookup_matches_upstream_with_ascii_case_folding() {
+        for name in [
+            "aria-colcount",
+            "aria-colindex",
+            "aria-colspan",
+            "aria-level",
+            "aria-posinset",
+            "aria-rowcount",
+            "aria-rowindex",
+            "aria-rowspan",
+            "aria-setsize",
+            "aria-valuemax",
+            "aria-valuemin",
+            "aria-valuenow",
+            "results",
+            "span",
+            "marginheight",
+            "marginwidth",
+            "maxlength",
+            "minlength",
+            "currenttime",
+            "defaultplaybackrate",
+            "volume",
+            "high",
+            "low",
+            "optimum",
+            "start",
+            "size",
+            "border",
+            "cols",
+            "rows",
+            "colspan",
+            "rowspan",
+            "tabindex",
+        ] {
+            assert!(is_number_only_attribute(name), "{name}");
+            assert!(
+                is_number_only_attribute(&name.to_ascii_uppercase()),
+                "{name}"
+            );
+        }
+
+        for name in [
+            "",
+            "aria-col",
+            "aria-colcount-extra",
+            "max-length",
+            "tabindex ",
+            "role",
+            "spän",
+        ] {
+            assert!(!is_number_only_attribute(name), "{name}");
+        }
     }
 
     #[test]
