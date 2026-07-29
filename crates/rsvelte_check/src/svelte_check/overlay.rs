@@ -295,6 +295,7 @@ pub fn materialize_overlay_with(
                     &emit_dir,
                     resolver,
                     &ext_root_dir_pairs,
+                    None,
                 );
             }
             fs::write(&tsx_path, &tsx_code)?;
@@ -485,6 +486,25 @@ fn symlink_dir(src: &Path, dst: &Path) -> std::io::Result<()> {
 /// its cache mirror, preserving each file's path relative to the package root.
 /// Non-incremental (external packages change rarely and are bounded by the
 /// dependency set).
+/// Nearest `tsconfig.json` / `jsconfig.json` at or above `dir`, not looking
+/// past the directory that owns the package (`package.json`).
+fn find_nearest_tsconfig(dir: &Path) -> Option<PathBuf> {
+    let mut current = Some(dir);
+    while let Some(d) = current {
+        for name in ["tsconfig.json", "jsconfig.json"] {
+            let candidate = d.join(name);
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+        if d.join("package.json").is_file() {
+            return None;
+        }
+        current = d.parent();
+    }
+    None
+}
+
 fn emit_external_shadows(
     pkg: &ExternalPackage,
     workspace: &Path,
@@ -501,6 +521,11 @@ fn emit_external_shadows(
     // degrading the imported type to `any` (and poisoning `ComponentProps<…>`
     // in every consumer). A symlink keeps resolution identical to in-place
     // checking without copying or rewriting specifiers.
+    // Resolve the package's own aliases with its own tsconfig when it ships
+    // one — the caller's resolver was built from the *consumer's* config and
+    // its `paths` describe a different project.
+    let pkg_resolver =
+        find_nearest_tsconfig(&pkg.real_dir).and_then(|c| build_svelte_import_resolver(Some(&c)));
     let real_nm = pkg.real_dir.join("node_modules");
     let mirror_nm = pkg.mirror_dir.join("node_modules");
     if real_nm.is_dir() && !mirror_nm.exists() {
@@ -548,9 +573,16 @@ fn emit_external_shadows(
         // without this, that self-referential import is left unrewritten,
         // falls back to the ambient `*.svelte` wildcard, and poisons any
         // `ComponentProps<typeof Input>` a consumer computes through it (#1887).
-        if let Some(resolver) = resolver {
+        if let Some(resolver) = pkg_resolver.as_ref().or(resolver) {
             tsx_code = rewrite_aliased_svelte_imports(
-                &tsx_code, abs_source, &tsx_path, workspace, emit_dir, resolver, ext_pairs,
+                &tsx_code,
+                abs_source,
+                &tsx_path,
+                workspace,
+                emit_dir,
+                resolver,
+                ext_pairs,
+                Some(&pkg.real_dir),
             );
         }
         fs::write(&tsx_path, &tsx_code)?;
@@ -1571,6 +1603,7 @@ fn rewrite_aliased_svelte_imports(
     emit_dir: &Path,
     resolver: &oxc_resolver::Resolver,
     ext_pairs: &[(PathBuf, PathBuf)],
+    confine_to: Option<&Path>,
 ) -> String {
     let (Some(source_dir), Some(generated_dir)) = (abs_source.parent(), tsx_path.parent()) else {
         return tsx.to_string();
@@ -1582,6 +1615,8 @@ fn rewrite_aliased_svelte_imports(
     let workspace_canon = workspace
         .canonicalize()
         .unwrap_or_else(|_| workspace.to_path_buf());
+    let confine_canon =
+        confine_to.map(|dir| dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf()));
     let ext_pairs_canon: Vec<(PathBuf, &Path)> = ext_pairs
         .iter()
         .map(|(real, mirror)| {
@@ -1608,6 +1643,18 @@ fn rewrite_aliased_svelte_imports(
         let resolved_canon = resolved
             .canonicalize()
             .unwrap_or_else(|_| resolved.to_path_buf());
+        // Rewriting a file inside an external package: the alias was resolved
+        // with a `paths` map that belongs to a different project, so a name
+        // collision (`$lib` means one thing to the consumer and another to the
+        // package — and it is SvelteKit's own convention) would silently
+        // repoint the import at an unrelated component. Only accept a target
+        // inside the package being emitted; anything else keeps the original
+        // specifier and its ambient fallback.
+        if let Some(confine) = &confine_canon
+            && !resolved_canon.starts_with(confine)
+        {
+            return None;
+        }
         let (rel, mirror_dir) = if let Ok(rel) = resolved_canon.strip_prefix(&workspace_canon) {
             (rel, emit_dir)
         } else {
@@ -1791,6 +1838,10 @@ fn path_relative(from_dir: &Path, to_path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The current directory is process-wide while tests run in parallel, so
+    /// every test that has to exercise a CLI-relative path takes this first.
+    static CWD_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
     use std::fs;
     use std::io::Write;
 
@@ -2301,7 +2352,8 @@ mod tests {
         // (`--tsconfig ./tsconfig.json`).
         #[cfg(unix)]
         {
-            let tmp = std::env::temp_dir().join(format!("svc_relcfg_{}", std::process::id()));
+            let tmp =
+                std::env::temp_dir().join(format!("svc_relcfg_nm_sibling_{}", std::process::id()));
             let _ = fs::remove_dir_all(&tmp);
             fs::create_dir_all(tmp.join("pkg-a/src")).unwrap();
             fs::create_dir_all(tmp.join("pkg-a/node_modules")).unwrap();
@@ -2333,6 +2385,7 @@ mod tests {
             .unwrap();
 
             let workspace = tmp.join("pkg-a");
+            let _cwd_guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
             let cwd = std::env::current_dir().unwrap();
             std::env::set_current_dir(&workspace).unwrap();
             let result = {
