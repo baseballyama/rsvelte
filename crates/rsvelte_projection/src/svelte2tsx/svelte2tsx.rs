@@ -295,7 +295,7 @@ pub fn svelte2tsx(
     // Step 5: Initialize tracking structures
     let mut exported_names = ExportedNames::new();
     let mut events = ComponentEvents::new();
-    let mut store_scan = StoreScanContext::new(source);
+    let mut store_scan = StoreScanContext::new(source, ast.module.is_some());
 
     if explicit_runes {
         exported_names.set_uses_runes(true);

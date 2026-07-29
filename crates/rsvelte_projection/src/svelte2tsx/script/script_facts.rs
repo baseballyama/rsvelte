@@ -205,7 +205,7 @@ function outer($outer) {
         assert!(retained.diagnostics().is_empty());
 
         let offset = 41;
-        let mut store_scan = StoreScanContext::new(source);
+        let mut store_scan = StoreScanContext::new(source, false);
         let facts = ScriptFacts::collect(retained.program(), offset, source, true, &mut store_scan);
 
         assert_eq!(

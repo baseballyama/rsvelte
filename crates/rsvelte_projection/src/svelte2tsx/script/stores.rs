@@ -16,17 +16,46 @@ use super::super::magic_string::MagicString;
 /// Reserved names that should not be treated as store references.
 const RESERVED_STORE_NAMES: &[&str] = &["$$props", "$$restProps", "$$slots"];
 
-struct StoreCandidate<'s> {
-    name: &'s str,
-    pos: u32,
-    may_be_self_named_rune: bool,
+struct StoreCandidate {
+    name_start: u32,
+    name_len_and_flags: u32,
+}
+
+impl StoreCandidate {
+    const SELF_NAMED_RUNE_FLAG: u32 = 1;
+
+    fn new(name_start: usize, name_end: usize, may_be_self_named_rune: bool) -> Self {
+        let name_len = u32::try_from(name_end - name_start).expect("store name exceeds u32");
+        let name_len_and_flags = name_len
+            .checked_mul(2)
+            .expect("store name exceeds packed length");
+        Self {
+            name_start: name_start as u32,
+            name_len_and_flags: name_len_and_flags + u32::from(may_be_self_named_rune),
+        }
+    }
+
+    fn name<'s>(&self, source: &'s str) -> &'s str {
+        let start = self.name_start as usize;
+        let end = start + (self.name_len_and_flags >> 1) as usize;
+        &source[start..end]
+    }
+
+    fn pos(&self) -> u32 {
+        self.name_start - 1
+    }
+
+    fn may_be_self_named_rune(&self) -> bool {
+        self.name_len_and_flags & Self::SELF_NAMED_RUNE_FLAG != 0
+    }
 }
 
 pub(crate) struct StoreScanContext<'s> {
     source: &'s str,
+    cache_candidates: bool,
     has_dollar: Option<bool>,
     candidates_scanned: bool,
-    candidates: Vec<StoreCandidate<'s>>,
+    candidates: Vec<StoreCandidate>,
     accessed_stores: HashSet<&'s str>,
     pub(super) dollar_param_shadow: HashMap<String, Vec<(u32, u32)>>,
     pub(super) self_named_rune_calls: Vec<u32>,
@@ -35,9 +64,10 @@ pub(crate) struct StoreScanContext<'s> {
 }
 
 impl<'s> StoreScanContext<'s> {
-    pub(crate) fn new(source: &'s str) -> Self {
+    pub(crate) fn new(source: &'s str, cache_candidates: bool) -> Self {
         Self {
             source,
+            cache_candidates,
             has_dollar: None,
             candidates_scanned: false,
             candidates: Vec::new(),
@@ -102,30 +132,42 @@ impl<'s> StoreScanContext<'s> {
         let has_dollar = self.has_dollar();
         self.candidates_scanned = true;
         if has_dollar {
-            collect_store_candidates(self.source, &mut self.candidates);
+            self.candidates
+                .reserve(memchr::memchr_iter(b'$', self.source.as_bytes()).count());
+            collect_store_candidates(self.source, |candidate| {
+                self.candidates.push(candidate);
+            });
         }
     }
 
     fn resolve_accessed_stores(&mut self) {
-        self.ensure_candidates();
         self.accessed_stores.clear();
-        for candidate in &self.candidates {
-            if candidate.may_be_self_named_rune
-                && self
-                    .self_named_rune_calls
-                    .binary_search(&candidate.pos)
-                    .is_ok()
-            {
-                continue;
+        if self.cache_candidates {
+            self.ensure_candidates();
+            for candidate in &self.candidates {
+                if let Some(name) = resolve_store_candidate(
+                    self.source,
+                    candidate,
+                    &self.dollar_param_shadow,
+                    &self.self_named_rune_calls,
+                ) {
+                    self.accessed_stores.insert(name);
+                }
             }
-            if !is_dollar_binding_shadowed(
-                &self.dollar_param_shadow,
-                candidate.name,
-                candidate.pos as usize,
-            ) {
-                self.accessed_stores.insert(candidate.name);
-            }
+            return;
         }
+        if !self.has_dollar() {
+            return;
+        }
+        let source = self.source;
+        let shadow = &self.dollar_param_shadow;
+        let rune_calls = &self.self_named_rune_calls;
+        let stores = &mut self.accessed_stores;
+        collect_store_candidates(source, |candidate| {
+            if let Some(name) = resolve_store_candidate(source, &candidate, shadow, rune_calls) {
+                stores.insert(name);
+            }
+        });
     }
 
     fn is_accessed(&self, name: &str) -> bool {
@@ -409,11 +451,7 @@ fn collect_loose_dollar_names_from_script(text: &str) -> HashSet<String> {
     names.into_iter().map(str::to_string).collect()
 }
 
-fn collect_store_candidates<'s>(source: &'s str, candidates: &mut Vec<StoreCandidate<'s>>) {
-    if memchr::memchr(b'$', source.as_bytes()).is_none() {
-        return;
-    }
-
+fn collect_store_candidates(source: &str, mut visit: impl FnMut(StoreCandidate)) {
     // Hand-rolled byte-level scan. The previous implementation compiled a
     // regex on every call; using `memchr` to jump between `$` bytes is
     // dramatically faster on the common script-free template (one SIMD
@@ -427,7 +465,6 @@ fn collect_store_candidates<'s>(source: &'s str, candidates: &mut Vec<StoreCandi
     // official `svelte2tsx` only runs the `Stores` walker over the instance
     // script + template, never the module script body. So a `<script module>`
     // that internally reads `$foo` must not make `foo` look like a store.
-    let original_source = source;
     let blanked;
     // Instance-script JS comments must be blanked too: official only collects
     // `$name` store accesses from the parsed instance-script AST + template
@@ -550,14 +587,27 @@ fn collect_store_candidates<'s>(source: &'s str, candidates: &mut Vec<StoreCandi
         // generic-argument commas can't fool a text scan, and — crucially — only
         // the CALL occurrence is skipped: a sibling `$state.snapshot(state)`
         // keeps `state` a store, matching upstream.
-        let base = &original_source[next..end];
-        candidates.push(StoreCandidate {
-            name: base,
-            pos: pos as u32,
-            may_be_self_named_rune: matches!(full, "$state" | "$props" | "$derived"),
-        });
+        visit(StoreCandidate::new(
+            next,
+            end,
+            matches!(full, "$state" | "$props" | "$derived"),
+        ));
         i = end;
     }
+}
+
+fn resolve_store_candidate<'s>(
+    source: &'s str,
+    candidate: &StoreCandidate,
+    shadow: &HashMap<String, Vec<(u32, u32)>>,
+    self_named_rune_calls: &[u32],
+) -> Option<&'s str> {
+    let pos = candidate.pos();
+    if candidate.may_be_self_named_rune() && self_named_rune_calls.binary_search(&pos).is_ok() {
+        return None;
+    }
+    let name = candidate.name(source);
+    (!is_dollar_binding_shadowed(shadow, name, pos as usize)).then_some(name)
 }
 
 /// True when the `$name` token spanning `[pos, end)` is an object-literal
@@ -954,6 +1004,7 @@ mod tests {
 
     #[test]
     fn cached_candidates_match_fresh_resolution_across_script_facts() {
+        assert_eq!(std::mem::size_of::<StoreCandidate>(), 8);
         let source = "<script module>$ignored</script><script>\
             const state=$state(0); function f($local,$shadowed){return $local+$shadowed+$outside}\
             const text='prefix $string'; // $comment\n</script>{$local}{$outside}";
@@ -961,7 +1012,7 @@ mod tests {
         let function_end = source.find("const text").unwrap() as u32;
         let rune_pos = source.find("$state(0)").unwrap() as u32;
 
-        let mut context = StoreScanContext::new(source);
+        let mut context = StoreScanContext::new(source, true);
         for name in ["local", "shadowed"] {
             context
                 .dollar_param_shadow
@@ -980,6 +1031,14 @@ mod tests {
             &["local", "outside", "shadowed", "state", "string"],
         );
         assert_eq!(context.candidates.capacity(), candidate_capacity);
+
+        let mut direct = StoreScanContext::new(source, false);
+        direct.resolve_accessed_stores();
+        assert_names(
+            &direct,
+            &["local", "outside", "shadowed", "state", "string"],
+        );
+        assert!(direct.candidates.is_empty() && !direct.candidates_scanned);
     }
 
     #[test]
@@ -990,7 +1049,7 @@ mod tests {
         let instance_rune = source.find("$props()").unwrap() as u32;
         let function_start = source.find("function f").unwrap() as u32;
         let function_end = source.rfind("</script>").unwrap() as u32;
-        let mut context = StoreScanContext::new(source);
+        let mut context = StoreScanContext::new(source, true);
 
         context.begin_script_facts();
         context.add_self_named_rune_call(module_rune);
@@ -1008,7 +1067,7 @@ mod tests {
         assert_eq!(context.dollar_param_shadow.len(), 1);
 
         let module_only = "<script module>const local=$state(0)</script>{$state}";
-        let mut context = StoreScanContext::new(module_only);
+        let mut context = StoreScanContext::new(module_only, true);
         context.self_named_rune_calls = vec![module_only.find("$state(0)").unwrap() as u32];
         context.resolve_accessed_stores();
         assert_names(&context, &["state"]);
@@ -1017,7 +1076,7 @@ mod tests {
     #[test]
     fn no_dollar_keeps_candidate_scan_lazy() {
         let source = "<script>const value = 1;</script><p>{value}</p>";
-        let mut context = StoreScanContext::new(source);
+        let mut context = StoreScanContext::new(source, false);
         assert_eq!(context.has_dollar, None);
         assert!(!context.has_dollar());
         assert!(!context.candidates_scanned);
