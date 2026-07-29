@@ -31,7 +31,10 @@ pub struct Context {
 impl Context {
     /// A fresh, empty context.
     pub fn new() -> Self {
-        Self::default()
+        Context {
+            commands: crate::pool::take(),
+            ..Self::default()
+        }
     }
 
     /// A fresh child context. Named `child` rather than mirroring esrap's `new`

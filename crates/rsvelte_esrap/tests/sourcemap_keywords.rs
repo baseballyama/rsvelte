@@ -15,7 +15,7 @@ use oxc_allocator::Allocator;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
 
-use rsvelte_esrap::command::Mapping;
+use rsvelte_esrap::Mapping;
 use rsvelte_esrap::{PrintWithMap, print_with_map};
 
 /// Generated `(line0, col0)` of `index` within `code` — a port of the JS test's

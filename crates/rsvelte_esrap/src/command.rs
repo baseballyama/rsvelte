@@ -51,9 +51,13 @@ pub enum Command {
 /// single source, so there is no source index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Mapping {
+    /// 0-based line in the generated output.
     pub gen_line: u32,
+    /// 0-based column in the generated output.
     pub gen_column: u32,
+    /// 0-based line in the original source.
     pub source_line: u32,
+    /// 0-based column in the original source.
     pub source_column: u32,
 }
 

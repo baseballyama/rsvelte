@@ -2359,7 +2359,7 @@ fn transform_client_with_visitors(
 /// [`SourceMapping`] list the downstream VLQ encoder (`encode_vlq_mappings`)
 /// consumes.
 fn esrap_mappings_to_source_mappings(
-    mappings: &[rsvelte_esrap::command::Mapping],
+    mappings: &[rsvelte_esrap::Mapping],
 ) -> Vec<SourceMapping> {
     mappings
         .iter()

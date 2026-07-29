@@ -2495,6 +2495,7 @@ dependencies = [
 name = "rsvelte_esrap"
 version = "0.8.0"
 dependencies = [
+ "compact_str 0.10.0",
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",
