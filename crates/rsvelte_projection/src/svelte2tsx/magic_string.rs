@@ -214,6 +214,7 @@ std::thread_local! {
     static JSON_STRING_INPUT_BYTES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static MAPPINGS_DIRECT_WRITES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static MAPPINGS_ESCAPE_FALLBACKS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static BUNDLE_SOURCE_MAP_CAPACITY_GREW: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 /// Append a string value with JSON escaping.
@@ -277,6 +278,7 @@ const BASE64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrst
 
 const ASCII_HIRES_SEGMENT: &str = ",AAAC";
 const ASCII_HIRES_BLOCK_SEGMENTS: usize = 16;
+const MAX_HIRES_SEGMENT_BYTES: usize = 24;
 const ASCII_HIRES_BLOCK: &str = concat!(
     ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC",
     ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC", ",AAAC",
@@ -321,6 +323,58 @@ fn push_ascii_hires_segments(mappings: &mut String, count: usize) {
         remaining -= ASCII_HIRES_BLOCK_SEGMENTS;
     }
     mappings.push_str(&ASCII_HIRES_BLOCK[..remaining * ASCII_HIRES_SEGMENT.len()]);
+}
+
+#[derive(Default)]
+struct OutputEstimate {
+    mapping_bytes: usize,
+    forward_segments: usize,
+}
+
+impl OutputEstimate {
+    #[inline]
+    fn add_mapping_bytes(&mut self, bytes: usize) {
+        self.mapping_bytes = self.mapping_bytes.saturating_add(bytes);
+    }
+
+    #[inline]
+    fn add_unmapped(&mut self, content: &str) {
+        self.add_mapping_bytes(memchr::memchr_iter(b'\n', content.as_bytes()).count());
+    }
+
+    fn add_chunk_body(&mut self, chunk: &Chunk, body: &str) {
+        if body.is_empty() {
+            return;
+        }
+
+        // Four u32-domain VLQ fields plus a possible comma fit in 24 bytes.
+        self.add_mapping_bytes(MAX_HIRES_SEGMENT_BYTES);
+        if chunk.is_edited() {
+            self.add_unmapped(body);
+            return;
+        }
+
+        if body.is_ascii() {
+            let newlines = memchr::memchr_iter(b'\n', body.as_bytes()).count();
+            let ascii_bytes = body.len() - newlines;
+            self.add_mapping_bytes(
+                ascii_bytes
+                    .saturating_mul(ASCII_HIRES_SEGMENT.len())
+                    .saturating_add(newlines.saturating_mul(1 + MAX_HIRES_SEGMENT_BYTES)),
+            );
+            return;
+        }
+
+        for &byte in body.as_bytes() {
+            if byte == b'\n' {
+                self.add_mapping_bytes(1 + MAX_HIRES_SEGMENT_BYTES);
+            } else if byte.is_ascii() {
+                self.add_mapping_bytes(ASCII_HIRES_SEGMENT.len());
+            } else if byte & 0xc0 != 0x80 {
+                self.add_mapping_bytes(MAX_HIRES_SEGMENT_BYTES);
+            }
+        }
+    }
 }
 
 struct MappingState<'a> {
@@ -966,6 +1020,7 @@ impl MagicString {
             include_content,
         } = options;
         let source = source.unwrap_or_default();
+        let estimate = self.estimate_outputs();
         let code_capacity = self
             .original
             .len()
@@ -976,7 +1031,13 @@ impl MagicString {
             .map_or(0, String::len)
             .saturating_add(source.len())
             .saturating_add(usize::from(include_content).saturating_mul(self.original.len()));
-        let mut source_map = String::with_capacity(96usize.saturating_add(metadata_bytes));
+        let mut source_map = String::with_capacity(
+            96usize
+                .saturating_add(metadata_bytes)
+                .saturating_add(estimate.mapping_bytes),
+        );
+        #[cfg(test)]
+        let initial_source_map_capacity = source_map.capacity();
         push_source_map_json_prefix(
             &mut source_map,
             file.as_deref(),
@@ -985,19 +1046,44 @@ impl MagicString {
         );
 
         let mut code = String::with_capacity(code_capacity);
-        let mut forward_segments = Vec::with_capacity(self.chunks.len());
+        let mut forward_segments = Vec::with_capacity(estimate.forward_segments);
         self.traverse_outputs(
             Some(&mut code),
             Some(&mut source_map),
             Some(&mut forward_segments),
         );
         source_map.push_str("\"}");
+        #[cfg(test)]
+        BUNDLE_SOURCE_MAP_CAPACITY_GREW.with(|grew| {
+            grew.set(source_map.capacity() != initial_source_map_capacity);
+        });
 
         GeneratedBundle {
             code,
             source_map,
             forward_segments,
         }
+    }
+
+    fn estimate_outputs(&self) -> OutputEstimate {
+        let mut estimate = OutputEstimate::default();
+        estimate.add_unmapped(&self.intro);
+
+        let mut cur = Some(self.first_chunk);
+        while let Some(chunk_index) = cur {
+            let chunk = &self.chunks[chunk_index];
+            let body = self.chunk_content(chunk_index);
+            estimate.add_unmapped(&chunk.intro);
+            estimate.add_chunk_body(chunk, body);
+            estimate.add_unmapped(&chunk.outro);
+            if !chunk.is_edited() && chunk.end > chunk.start {
+                estimate.forward_segments = estimate.forward_segments.saturating_add(1);
+            }
+            cur = chunk.next;
+        }
+
+        estimate.add_unmapped(&self.outro);
+        estimate
     }
 
     // -----------------------------------------------------------------
@@ -1114,15 +1200,20 @@ mod tests {
                 include_content: true,
             },
         ];
+        let expected_code = value.to_string();
+        let expected_forward_segments = value.forward_segments();
+        assert_eq!(
+            value.estimate_outputs().forward_segments,
+            expected_forward_segments.len()
+        );
         for options in options {
-            let expected_code = value.to_string();
             let expected_source_map = value.generate_map(options.clone()).to_json();
-            let expected_forward_segments = value.forward_segments();
 
             let actual = value.generate_bundle(options);
             assert_eq!(actual.code, expected_code);
             assert_eq!(actual.source_map, expected_source_map);
             assert_eq!(actual.forward_segments, expected_forward_segments);
+            assert!(!BUNDLE_SOURCE_MAP_CAPACITY_GREW.with(std::cell::Cell::get));
         }
     }
 
@@ -1332,6 +1423,16 @@ mod tests {
             generated.source_map.capacity(),
             source.len()
         );
+        assert!(!BUNDLE_SOURCE_MAP_CAPACITY_GREW.with(std::cell::Cell::get));
+    }
+
+    #[test]
+    fn unedited_heavy_bundle_reserves_the_mapping_once() {
+        let source = "x".repeat(64 * 1024);
+        let generated = MagicString::new(&source).generate_bundle(GenerateMapOptions::default());
+
+        assert!(generated.source_map.len() > source.len() * 5);
+        assert!(!BUNDLE_SOURCE_MAP_CAPACITY_GREW.with(std::cell::Cell::get));
     }
 
     #[test]
