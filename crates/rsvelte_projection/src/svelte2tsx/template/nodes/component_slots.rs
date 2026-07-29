@@ -273,7 +273,7 @@ pub(crate) fn process_component_children_with_slots(
         default_slot_opened = true;
     }
 
-    for (i, node) in comp.fragment.nodes.iter().enumerate() {
+    for node in &comp.fragment.nodes {
         let is_named_slot = match node {
             TemplateNode::RegularElement(el) => {
                 get_slot_attr_value(&el.attributes, source).is_some()
@@ -312,28 +312,6 @@ pub(crate) fn process_component_children_with_slots(
                 _ => {
                     process_node_inplace(node, source, options, str, counter, depth);
                 }
-            }
-
-            // Re-open default slot block after this named slot child if needed
-            if has_lets {
-                // Check if there are more non-named-slot children after this
-                let _has_more_default = comp.fragment.nodes[i + 1..].iter().any(|n| match n {
-                    TemplateNode::RegularElement(el) => {
-                        get_slot_attr_value(&el.attributes, source).is_none()
-                    }
-                    TemplateNode::Component(c) => {
-                        get_slot_attr_value(&c.attributes, source).is_none()
-                    }
-                    TemplateNode::SvelteFragment(el) => {
-                        get_slot_attr_value(&el.attributes, source).is_none()
-                    }
-                    TemplateNode::Text(_) => true,
-                    _ => true,
-                });
-
-                // Don't re-open if there are no more default slot children
-                // Actually, we should re-open for any remaining children
-                // We'll handle this below
             }
         } else {
             // Default slot child - process normally
