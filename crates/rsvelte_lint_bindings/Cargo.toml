@@ -59,7 +59,7 @@ wasm-bindgen = { version = "0.2", optional = true }
 console_error_panic_hook = { version = "0.1", optional = true }
 js-sys = { version = "0.3", optional = true }
 serde_json = { version = "1.0", features = ["preserve_order"], optional = true }
-oxc_allocator = { version = "0.141", optional = true }
+oxc_allocator = { version = "0.142", optional = true }
 
 # napi-only (the `.node` addon). Minimal feature set — only sync string exports.
 napi = { version = "3", default-features = false, features = ["napi9"], optional = true }

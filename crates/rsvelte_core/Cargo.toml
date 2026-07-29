@@ -49,15 +49,15 @@ self_cell = "1.2"
 rustc-hash = "2.0"
 
 # JavaScript parsing and code generation
-oxc_allocator = "0.141"
-oxc_parser = "0.141"
-oxc_ast = { version = "0.141", features = ["serialize"] }
-oxc_span = "0.141"
-oxc_diagnostics = "0.141"
-oxc_codegen = "0.141"
+oxc_allocator = "0.142"
+oxc_parser = "0.142"
+oxc_ast = { version = "0.142", features = ["serialize"] }
+oxc_span = "0.142"
+oxc_diagnostics = "0.142"
+oxc_codegen = "0.142"
 rsvelte_esrap = { version = "=0.8.0", path = "../rsvelte_esrap" }
-oxc_syntax = "0.141"
-oxc_semantic = "0.141"
+oxc_syntax = "0.142"
+oxc_semantic = "0.142"
 
 # Error handling
 thiserror = "2.0"
@@ -89,7 +89,7 @@ string_wizard = "1.0.0"
 getrandom = { version = "0.4", optional = true }
 lazy_static = "1.5.0"
 indexmap = { version = "2.13.0", features = ["serde"] }
-oxc_ast_visit = "0.141"
+oxc_ast_visit = "0.142"
 
 [dev-dependencies]
 # Testing
