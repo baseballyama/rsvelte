@@ -12,11 +12,12 @@
 //!    shared DFS over the template AST that dispatches to [`Rule`] hooks, porting
 //!    the proven `vize_patina` structure. New Svelte-specific rules live here.
 //!
-//! Output reuses `rsvelte_core::svelte_check`'s [`Diagnostic`] + writers so
+//! Output reuses `rsvelte_diagnostics`' [`Diagnostic`] + writers so
 //! `rsvelte lint` and `rsvelte check` speak the same dialect.
 //!
-//! [`Diagnostic`]: rsvelte_core::svelte_check::Diagnostic
+//! [`Diagnostic`]: rsvelte_diagnostics::Diagnostic
 
+pub mod compiler_scope;
 pub mod config;
 pub mod context;
 pub mod diagnostic;
@@ -43,8 +44,7 @@ pub mod visitor;
 #[cfg(feature = "eslint-import")]
 pub mod eslint_import;
 
-// Native-only: these reuse `rsvelte_core::svelte_check` (Diagnostic + writers),
-// which is itself a native-only module.
+// Native-only: these expose filesystem/CLI-oriented diagnostics and runners.
 #[cfg(feature = "native")]
 pub mod output;
 #[cfg(feature = "native")]

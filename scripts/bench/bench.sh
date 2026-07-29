@@ -30,7 +30,7 @@ err() { echo -e "${RED}[bench]${NC} $*" >&2; }
 
 build_release() {
     log "Building release binary..."
-    cargo build --release --bin benchmark_runner 2>&1 | tail -1
+    cargo build --release -p rsvelte_devtools --bin benchmark_runner 2>&1 | tail -1
     ok "Release build complete."
 }
 
@@ -74,8 +74,8 @@ for (const [label, d] of tasks) {
 
 run_criterion() {
     log "Running Criterion benchmarks..."
-    cargo bench --bench compiler 2>&1
-    cargo bench --bench parser 2>&1
+    cargo bench -p rsvelte_devtools --bench compiler 2>&1
+    cargo bench -p rsvelte_devtools --bench parser 2>&1
     cargo bench -p rsvelte_formatter --bench formatter 2>&1
     ok "Criterion benchmarks complete. See target/criterion/ for HTML reports."
 }
@@ -83,7 +83,7 @@ run_criterion() {
 run_profile() {
     local file="${1:-}"
     log "Building profiler..."
-    cargo build --release --bin profiler 2>&1 | tail -1
+    cargo build --release -p rsvelte_devtools --bin profiler 2>&1 | tail -1
 
     if [ -n "$file" ]; then
         log "Profiling: $file"

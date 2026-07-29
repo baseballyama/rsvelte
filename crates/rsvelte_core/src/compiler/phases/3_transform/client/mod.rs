@@ -2298,10 +2298,8 @@ fn transform_client_with_visitors(
                 |converted| {
                     // Keep `;` empty statements: the parsed-`Raw` `;;` are real
                     // EmptyStatement nodes the official compiler output preserves.
-                    let print_opts = rsvelte_esrap::PrintOptions {
-                        keep_empty_statements: true,
-                        ..Default::default()
-                    };
+                    let print_opts =
+                        rsvelte_esrap::PrintOptions::default().with_empty_statements(true);
                     let oxc_prog = &converted.program;
                     match &converted.comment_source {
                         // The program carries comments, so it prints in the
@@ -2362,7 +2360,7 @@ fn transform_client_with_visitors(
 /// [`SourceMapping`] list the downstream VLQ encoder (`encode_vlq_mappings`)
 /// consumes. The outer index is the 0-based generated line.
 fn esrap_mappings_to_source_mappings(
-    mappings: &[Vec<rsvelte_esrap::command::Segment>],
+    mappings: &[Vec<rsvelte_esrap::SourceMapSegment>],
 ) -> Vec<SourceMapping> {
     let mut out = Vec::with_capacity(mappings.iter().map(Vec::len).sum());
     for (gen_line, segs) in mappings.iter().enumerate() {

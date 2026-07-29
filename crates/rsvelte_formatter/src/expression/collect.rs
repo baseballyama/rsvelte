@@ -168,20 +168,13 @@ fn collect_node_edits(
                 // outer parens (`{#if (b)}` → `{#if b}`) and returns the
                 // effective end of the edit (which may be past the AST expression
                 // end when parens were consumed).
-                // `{#if ` = 5 chars, `{:else if ` = 10 chars.
-                let if_prefix_len = if is_first {
+                let prefix_len = if is_first {
                     "{#if ".len()
                 } else {
                     "{:else if ".len()
                 };
-                let effective_end = push_bare_expression(
-                    source,
-                    &current.test,
-                    options,
-                    depth,
-                    if_prefix_len,
-                    edits,
-                )?;
+                let effective_end =
+                    push_bare_expression(source, &current.test, options, depth, prefix_len, edits)?;
                 // Trim trailing whitespace before the header `}` — e.g.
                 // `{#if cond }` → `{#if cond}`.
                 trim_trailing_ws_before_close_brace(source, effective_end, edits);
@@ -215,7 +208,6 @@ fn collect_node_edits(
             if let Some(start) = blk.expression.start() {
                 normalize_leading_ws_before_expr(source, start, edits);
             }
-            // `{#each ` = 7 chars.
             push_bare_expression(
                 source,
                 &blk.expression,
@@ -378,7 +370,6 @@ fn collect_node_edits(
                 if let Some(start) = blk.expression.start() {
                     normalize_leading_ws_before_expr(source, start, edits);
                 }
-                // `{#await ` = 8 chars.
                 let expr_end = push_bare_expression(
                     source,
                     &blk.expression,
@@ -468,7 +459,6 @@ fn collect_node_edits(
             if let Some(start) = blk.expression.start() {
                 normalize_leading_ws_before_expr(source, start, edits);
             }
-            // `{#key ` = 6 chars.
             let effective_end = push_bare_expression(
                 source,
                 &blk.expression,
@@ -488,7 +478,6 @@ fn collect_node_edits(
             normalize_block_opener_ws(source, blk.start, edits);
             if blk.parameters.is_empty() {
                 // No params — just normalize the name (`{#snippet foo()}`).
-                // `{#snippet ` = 10 chars.
                 push_bare_expression(
                     source,
                     &blk.expression,

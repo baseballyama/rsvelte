@@ -212,7 +212,7 @@ log "═════════════════════════
 build_for_target() {
   local triple="$1"   # e.g. "darwin-arm64"
   local target="$2"   # e.g. "aarch64-apple-darwin"
-  local crate_args=("${@:3}")  # remaining args: --bin svelte_check OR --lib -p rsvelte_napi
+  local crate_args=("${@:3}")  # remaining args: -p rsvelte_check --bin svelte_check OR --lib -p rsvelte_napi
 
   case "$target" in
     *-apple-darwin)
@@ -291,7 +291,7 @@ for entry in "${TRIPLES[@]}"; do
     log "  ↻ @rsvelte/svelte-check-$triple already published; skipping svelte_check build"
   else
     step "  svelte_check ($triple)" \
-      build_for_target "$triple" "$target" --bin svelte_check
+      build_for_target "$triple" "$target" -p rsvelte_check --bin svelte_check
     sc_src="$(sc_src_for "$target")"
     sc_dest_name="$(sc_dest_for "$target")"
     sc_dest="$sc_dir/$sc_dest_name"

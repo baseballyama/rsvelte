@@ -2,7 +2,7 @@
 name = "rsvelte_preprocess"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 description = "Native Rust ports of the awesome-svelte preprocessors (switch-case, sass, less, …) as rsvelte PreprocessorGroups"
 license = "MIT"
 publish = false

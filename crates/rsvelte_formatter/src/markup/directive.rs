@@ -138,6 +138,16 @@ pub(super) fn format_expression_at(
     options: &FormatOptions,
     attr_depth: usize,
 ) -> Result<Option<String>, FormatError> {
+    format_expression_at_extra(source, expr, options, attr_depth, 0)
+}
+
+pub(super) fn format_expression_at_extra(
+    source: &str,
+    expr: &Expression,
+    options: &FormatOptions,
+    attr_depth: usize,
+    extra_lead: usize,
+) -> Result<Option<String>, FormatError> {
     let (Some(start), Some(end)) = (expr.start(), expr.end()) else {
         return Ok(None);
     };
@@ -149,6 +159,6 @@ pub(super) fn format_expression_at(
         return Ok(None);
     }
     Ok(Some(format_attribute_value_expression(
-        raw, options, attr_depth, 0,
+        raw, options, attr_depth, extra_lead,
     )?))
 }

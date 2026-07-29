@@ -1,4 +1,4 @@
-use super::format_core::{has_word_await, trivial_expr_verbatim};
+use super::format_core::{has_leading_await, trivial_expr_verbatim};
 use super::text::{
     collapse_block_header_expanded_call, collapse_expanded_arg_form, expand_obj_arg_call,
     outer_parens_match, strip_leading_paren_pair, strip_outer_parens,
@@ -83,25 +83,11 @@ fn trivial_fastpath_rejects_reserved_and_nonverbatim() {
 }
 
 #[test]
-fn has_word_await_detects_standalone() {
-    assert!(has_word_await("await foo"));
-    assert!(has_word_await("x = await bar()"));
-    assert!(has_word_await("(await x)"));
-}
-
-#[test]
-fn has_word_await_rejects_subword() {
-    assert!(!has_word_await("getAwaiter"));
-    assert!(!has_word_await("awaiting"));
-    assert!(!has_word_await("noawait"));
-    assert!(!has_word_await("$await"));
-    assert!(!has_word_await("_await"));
-}
-
-#[test]
-fn has_word_await_empty() {
-    assert!(!has_word_await(""));
-    assert!(!has_word_await("foo bar"));
+fn leading_await_excludes_nested_arrow_body() {
+    assert!(has_leading_await("await (await value).field"));
+    assert!(has_leading_await("((await value).field)"));
+    assert!(!has_leading_await("async () => await value"));
+    assert!(!has_leading_await("awaiting + await value"));
 }
 
 #[test]

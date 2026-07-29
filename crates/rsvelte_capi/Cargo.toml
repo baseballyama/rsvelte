@@ -2,7 +2,7 @@
 name = "rsvelte_capi"
 version = "0.1.1"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 description = "C ABI bindings for the rsvelte Svelte 5 compiler — drive the compiler from C, Go, Python, Ruby, PHP, Zig, Java (JDK 22+ FFM), or any language with a C FFI"
 license = "MIT"
 repository = "https://github.com/baseballyama/rsvelte"
@@ -23,7 +23,7 @@ publish = false
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
-rsvelte_core = { path = "../rsvelte_core", default-features = false, features = ["native"] }
+rsvelte_core = { path = "../rsvelte_core", default-features = false, features = ["parallel"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 
