@@ -181,6 +181,24 @@ pub(crate) fn slot_name_for_type(attributes: &[Attribute]) -> String {
     "default".to_string()
 }
 
+pub(crate) fn dollar_slot_name(attributes: &[Attribute]) -> String {
+    // The legacy declaration uses the last static text part, unlike the slot type key.
+    let mut slot_name = "default".to_string();
+    for attr in attributes {
+        if let Attribute::Attribute(node) = attr
+            && node.name == "name"
+            && let AttributeValue::Sequence(parts) = &node.value
+        {
+            for part in parts {
+                if let AttributeValuePart::Text(text) = part {
+                    slot_name = text.raw.to_string();
+                }
+            }
+        }
+    }
+    slot_name
+}
+
 pub(crate) fn get_slot_name(attributes: &[Attribute], source: &str) -> String {
     for attr in attributes {
         if let Attribute::Attribute(node) = attr

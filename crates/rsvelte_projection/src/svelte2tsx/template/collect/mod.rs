@@ -7,7 +7,7 @@ use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, Fragme
 use pattern::{collect_pattern_bindings, expand_object_shorthands};
 
 use super::attributes::let_::get_let_directives;
-use super::nodes::slot_element::{get_slot_attr_value, slot_name_for_type};
+use super::nodes::slot_element::{dollar_slot_name, get_slot_attr_value, slot_name_for_type};
 use super::utils::expr::get_expression_text;
 use super::{ForwardedEventKind, TemplateInfo};
 
@@ -64,6 +64,10 @@ fn collect_info_from_node(
 ) {
     match node {
         TemplateNode::SlotElement(el) => {
+            if let Some(names) = &mut info.dollar_slot_names {
+                let name = dollar_slot_name(&el.attributes);
+                names.insert(name);
+            }
             // Collect slot name and props. The `slots` *type* key uses
             // `undefined` for a dynamic name (`<slot name="{foo}">`), unlike the
             // `__sveltets_createSlot("{foo}", …)` call which keeps the raw text.

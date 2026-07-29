@@ -16,7 +16,6 @@ use super::nodes::runes_detection::{
     detect_await_in_template, detect_rune_global_in_template, detect_runes_mode,
 };
 use super::nodes::scripts::find_script_close_tag_start;
-use super::nodes::slot::fragment_has_slot_element;
 use super::nodes::snippet_hoisting::hoist_top_level_snippets;
 use super::nodes::svelte_options::emit_svelte_options_element;
 use super::process_instance_script_tag::process_instance_script_tag;
@@ -425,13 +424,6 @@ pub fn svelte2tsx(
     // whose source span covers that range to be automatically truncated.
     let embedded_script_content = remove_orphan_scripts(&ast, source, &mut str);
 
-    // Step 7.5: Slot detection from the AST (NOT a source substring scan — a
-    // naive `source.contains("<slot")` matches `<slot>` inside string literals
-    // such as a custom element's `shadowRoot.innerHTML = '…<slot>…'`, which are
-    // not real template slots). Official emits the `__sveltets_createSlot`
-    // helper / treats the component as slotted only for real `<slot>` elements.
-    let has_slot_elements = fragment_has_slot_element(&ast.fragment);
-
     // Step 7.6: Process <svelte:options> tag as a createElement call
     // The parser stores svelte:options in ast.options (not in fragment.nodes),
     // so we need to handle it separately.
@@ -470,7 +462,8 @@ pub fn svelte2tsx(
         hoist_top_level_snippets(&ast, source, &exported_names, &mut str);
 
     // Step 9.5: Collect slot and event information from the template
-    let template_info = template::collect_template_info(&ast.fragment, source);
+    let template_info = template::collect_template_info(&ast.fragment, source, uses_dollar_slots);
+    let has_slot_elements = !template_info.slots.is_empty();
 
     // Step 10: Wrap in $$render() and add component export
     //
@@ -544,10 +537,10 @@ pub fn svelte2tsx(
 
     // Build $$props/$$restProps/$$slots declaration text for injection into $$render() header
     let dollar_decls = build_dollar_declarations(
-        &ast,
         uses_dollar_props,
         uses_dollar_rest_props,
         uses_dollar_slots,
+        template_info.dollar_slot_names.as_deref(),
     );
 
     // Detect generics attribute from the script tag (available for component export)

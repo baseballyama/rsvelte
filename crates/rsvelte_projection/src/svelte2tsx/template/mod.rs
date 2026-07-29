@@ -16,7 +16,7 @@ mod walk;
 
 use crate::ast::template::Fragment;
 
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 
 use super::magic_string::MagicString;
 use super::svelte2tsx::Svelte2TsxOptions;
@@ -42,6 +42,8 @@ pub struct TemplateInfo {
     /// concats into the existing entry (`unionType`).
     /// e.g., "click" -> "__sveltets_2_mapElementEvent('click')"
     pub element_events: Vec<(String, String, ForwardedEventKind)>,
+    /// Slot names for the legacy `$$slots` declaration, collected only when used.
+    pub dollar_slot_names: Option<Box<IndexSet<String>>>,
 }
 
 /// How a forwarded event (`on:event` with no handler) combines with an existing
@@ -90,8 +92,15 @@ pub fn process_template_inplace(
 /// This is a pre-pass that walks the AST to collect:
 /// - Slot elements with their props (for the return statement `slots: {...}`)
 /// - Forwarded events (for the return statement `events: {...}`)
-pub fn collect_template_info(fragment: &Fragment, source: &str) -> TemplateInfo {
-    let mut info = TemplateInfo::default();
+pub fn collect_template_info(
+    fragment: &Fragment,
+    source: &str,
+    collect_dollar_slot_names: bool,
+) -> TemplateInfo {
+    let mut info = TemplateInfo {
+        dollar_slot_names: collect_dollar_slot_names.then(|| Box::new(IndexSet::new())),
+        ..TemplateInfo::default()
+    };
     // `scope` maps an in-scope template binding name (e.g. an `{#each}` context
     // variable) to the expression that types it at the top level — for an each
     // block, `__sveltets_2_unwrapArr(<collection>)`. Slot props referencing
@@ -107,6 +116,19 @@ pub fn collect_template_info(fragment: &Fragment, source: &str) -> TemplateInfo 
 mod tests {
     use super::*;
     use crate::ast::template::Fragment;
+    use crate::compiler::phases::phase1_parse::{self, ParseOptions};
+
+    fn collect(source: &str, dollar_slots: bool) -> TemplateInfo {
+        let ast = phase1_parse::parse_script_ts(
+            source,
+            ParseOptions {
+                modern: true,
+                ..Default::default()
+            },
+        )
+        .expect("fixture should parse");
+        collect_template_info(&ast.fragment, source, dollar_slots)
+    }
 
     #[test]
     fn test_process_empty_template() {
@@ -115,5 +137,46 @@ mod tests {
         let mut str = MagicString::new("");
         process_template_inplace(&fragment, "", &options, &mut str);
         assert_eq!(str.to_string(), "");
+    }
+
+    #[test]
+    fn slot_summary_ignores_script_and_raw_html_text() {
+        let info = collect(
+            r#"<script>const marker = "<slot>";</script>{@html "<slot>"}<div />"#,
+            true,
+        );
+        assert!(info.slots.is_empty());
+        assert_eq!(info.dollar_slot_names, Some(Box::new(IndexSet::new())));
+    }
+
+    #[test]
+    fn slot_summary_preserves_current_names_order_and_duplicate_replacement() {
+        let source = r#"{#if visible}<slot name="named" first={value} />{/if}
+<div><slot /></div>
+<slot name="named" last={value} />
+<slot name={dynamic} />
+<slot name="pre{dynamic}post" />"#;
+        let info = collect(source, true);
+
+        assert_eq!(
+            info.slots.keys().map(String::as_str).collect::<Vec<_>>(),
+            vec!["named", "default", "undefined"]
+        );
+        let dollar_names = IndexSet::from([
+            "named".to_string(),
+            "default".to_string(),
+            "post".to_string(),
+        ]);
+        assert_eq!(info.dollar_slot_names.as_deref(), Some(&dollar_names));
+        let named = info.slots.get("named").expect("named slot");
+        assert_eq!(named.len(), 1);
+        assert!(named[0].contains("last"));
+    }
+
+    #[test]
+    fn slot_summary_skips_dollar_name_storage_when_unused() {
+        let info = collect("<slot name=\"named\" /><slot />", false);
+        assert_eq!(info.slots.len(), 2);
+        assert!(info.dollar_slot_names.is_none());
     }
 }

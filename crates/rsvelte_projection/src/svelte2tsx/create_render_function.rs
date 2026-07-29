@@ -4,12 +4,14 @@
 
 use std::fmt::Write as _;
 
+use indexmap::IndexSet;
+
 use crate::ast::template::Root;
 
 use super::interfaces::{Svelte2TsxMode, Svelte2TsxOptions};
 use super::magic_string::MagicString;
 use super::nodes::scripts::find_instance_imports;
-use super::nodes::slot::{collect_slot_names_from_ast, escape_js_single_quoted};
+use super::nodes::slot::escape_js_single_quoted;
 use super::script::StoreScanContext;
 use super::svelte2tsx::slice_src;
 
@@ -144,10 +146,10 @@ pub(crate) fn create_render_function(
 /// the `$$render()` header for a component that references those legacy magic
 /// variables.
 pub(crate) fn build_dollar_declarations(
-    ast: &Root,
     uses_dollar_props: bool,
     uses_dollar_rest_props: bool,
     uses_dollar_slots: bool,
+    dollar_slot_names: Option<&IndexSet<String>>,
 ) -> String {
     let mut dollar_decls = String::new();
     if uses_dollar_props {
@@ -157,17 +159,14 @@ pub(crate) fn build_dollar_declarations(
         dollar_decls.push_str(" let $$restProps = __sveltets_2_restPropsType();");
     }
     if uses_dollar_slots {
-        // Collect slot names from the template AST for $$slots declaration
-        let slot_names = collect_slot_names_from_ast(&ast.fragment);
-        let slots_obj: Vec<String> = slot_names
-            .iter()
-            .map(|name| format!("'{}': ''", escape_js_single_quoted(name)))
-            .collect();
-        let _ = write!(
-            dollar_decls,
-            " let $$slots = __sveltets_2_slotsType({{{}}});",
-            slots_obj.join(", ")
-        );
+        dollar_decls.push_str(" let $$slots = __sveltets_2_slotsType({");
+        for (index, name) in dollar_slot_names.into_iter().flatten().enumerate() {
+            if index > 0 {
+                dollar_decls.push_str(", ");
+            }
+            let _ = write!(dollar_decls, "'{}': ''", escape_js_single_quoted(name));
+        }
+        dollar_decls.push_str("});");
     }
     dollar_decls
 }
