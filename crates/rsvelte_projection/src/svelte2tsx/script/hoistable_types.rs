@@ -3,8 +3,33 @@
 
 use std::collections::HashSet;
 
+use rustc_hash::FxHashMap;
+#[cfg(test)]
+use std::cell::Cell;
+
 use super::super::magic_string::MagicString;
 use super::ExportedNames;
+
+#[cfg(test)]
+thread_local! {
+    static FIXED_POINT_LOOKUPS: Cell<usize> = const { Cell::new(0) };
+}
+
+#[inline(always)]
+fn record_fixed_point_lookup() {
+    #[cfg(test)]
+    FIXED_POINT_LOOKUPS.with(|lookups| lookups.set(lookups.get() + 1));
+}
+
+#[cfg(test)]
+fn reset_fixed_point_lookups() {
+    FIXED_POINT_LOOKUPS.with(|lookups| lookups.set(0));
+}
+
+#[cfg(test)]
+fn fixed_point_lookups() -> usize {
+    FIXED_POINT_LOOKUPS.with(Cell::get)
+}
 
 /// One top-level `type X = ...` or `interface X { ... }` from the instance
 /// script that may be hoistable above `function $$render()`.
@@ -36,7 +61,7 @@ pub(super) fn is_special_type_name(name: &str) -> bool {
 /// fixtures the rsvelte port currently cares about.
 pub(super) fn collect_type_body_deps(
     body: &str,
-    candidate_names: &HashSet<String>,
+    candidate_indices: &FxHashMap<&str, usize>,
     self_name: &str,
     generics: &HashSet<String>,
     instance_value_names: &HashSet<String>,
@@ -129,7 +154,7 @@ pub(super) fn collect_type_body_deps(
                 value_deps.insert(ident.to_string());
             } else if is_property_key {
                 // skip — property keys aren't dependencies
-            } else if candidate_names.contains(ident) {
+            } else if candidate_indices.contains_key(ident) {
                 type_deps.insert(ident.to_string());
             } else if instance_value_names.contains(ident) && !instance_import_names.contains(ident)
             {
@@ -268,7 +293,13 @@ pub(super) fn resolve_hoistable_type_decls(
     if candidates.is_empty() {
         return;
     }
-    let candidate_names: HashSet<String> = candidates.iter().map(|c| c.name.clone()).collect();
+    let mut candidate_indices: FxHashMap<&str, usize> =
+        FxHashMap::with_capacity_and_hasher(candidates.len(), Default::default());
+    for (index, candidate) in candidates.iter().enumerate() {
+        candidate_indices
+            .entry(candidate.name.as_str())
+            .or_insert(index);
+    }
     // Per-candidate: collect generic parameter names (so `interface Props<T>`
     // doesn't see `T` as a dependency).
     let generics: Vec<HashSet<String>> = candidates
@@ -302,7 +333,7 @@ pub(super) fn resolve_hoistable_type_decls(
                         g.insert(name.to_string());
                     }
                 }
-                // type_deps are limited to candidate_names by
+                // type_deps are limited to candidate_indices by
                 // `collect_type_body_deps`, so anything else simply doesn't
                 // appear here.
             }
@@ -320,7 +351,7 @@ pub(super) fn resolve_hoistable_type_decls(
             let body = if s < e { &raw_content[s..e] } else { "" };
             collect_type_body_deps(
                 body,
-                &candidate_names,
+                &candidate_indices,
                 &c.name,
                 &generics[i],
                 &exported_names.instance_value_names,
@@ -424,8 +455,8 @@ pub(super) fn resolve_hoistable_type_decls(
             let (_, type_deps) = &deps[i];
             let mut can_hoist = true;
             for dep in type_deps {
-                let dep_idx = candidates.iter().position(|c| &c.name == dep);
-                if let Some(idx) = dep_idx {
+                record_fixed_point_lookup();
+                if let Some(&idx) = candidate_indices.get(dep.as_str()) {
                     if blocked[idx] {
                         blocked[i] = true;
                         can_hoist = false;
@@ -453,10 +484,9 @@ pub(super) fn resolve_hoistable_type_decls(
     let props_interface_hoistable = if let Some(named) = props_named_ref {
         // Bare `: Props` reference. The props interface is the candidate named
         // `Props`; it's hoistable iff that candidate was promoted.
-        candidates
-            .iter()
-            .position(|c| c.name == named)
-            .map(|idx| hoistable[idx])
+        candidate_indices
+            .get(named)
+            .map(|&idx| hoistable[idx])
             // A bare `: Props` reference whose `Props` is NOT a local interface
             // (an imported / global type) never sets `props_interface.name` in
             // upstream `analyze$propsRune` (its `interface_map.get(name)` misses),
@@ -472,7 +502,7 @@ pub(super) fn resolve_hoistable_type_decls(
         // `<script generics=...>` parameter and has no disallowed value deps.
         let (value_deps, type_deps) = collect_type_body_deps(
             inline,
-            &candidate_names,
+            &candidate_indices,
             // No self-name for the synthetic interface.
             "",
             // No own generics on the synthetic props interface.
@@ -492,7 +522,7 @@ pub(super) fn resolve_hoistable_type_decls(
         }
         if ok {
             for dep in &type_deps {
-                if let Some(idx) = candidates.iter().position(|c| &c.name == dep)
+                if let Some(&idx) = candidate_indices.get(dep.as_str())
                     && (blocked[idx] || !hoistable[idx])
                 {
                     ok = false;
@@ -800,7 +830,27 @@ pub(super) fn rewrite_interface_to_type_dts(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
+    use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, Svelte2TsxResult, svelte2tsx};
+
+    fn convert_ts(source: &str) -> Svelte2TsxResult {
+        svelte2tsx(
+            source,
+            Svelte2TsxOptions {
+                filename: "Hoist.svelte".to_string(),
+                is_ts_file: true,
+                ..Default::default()
+            },
+        )
+        .expect("svelte2tsx ok")
+    }
+
+    fn line_column(text: &str, offset: usize) -> (u32, u32) {
+        let prefix = &text[..offset];
+        let line = prefix.bytes().filter(|byte| *byte == b'\n').count() as u32;
+        let line_start = prefix.rfind('\n').map_or(0, |index| index + 1);
+        let column = text[line_start..offset].encode_utf16().count() as u32;
+        (line, column)
+    }
 
     #[test]
     fn is_ts_structural_keyword_matches_keywords_not_type_names() {
@@ -842,7 +892,7 @@ mod tests {
             \u{20}\u{20}content: 'image' | 'initial' | 'count';\n\
             \u{20}\u{20}/** \u{753B}\u{50CF} (content='image' \u{306E}\u{5834}\u{5408}\u{306B}\u{5FC5}\u{9808}) */\n\
             \u{20}\u{20}imageSrc?: string;\n}";
-        let candidates: HashSet<String> = HashSet::new();
+        let candidates: FxHashMap<&str, usize> = FxHashMap::default();
         let generics: HashSet<String> = HashSet::new();
         let values: HashSet<String> = HashSet::new();
         let imports: HashSet<String> = HashSet::new();
@@ -904,5 +954,187 @@ mod tests {
             out.contains("$props<") && out.contains("$$ComponentProps"),
             "call rewritten to reference the alias:\n{out}"
         );
+    }
+
+    #[test]
+    fn reverse_dependency_chain_keeps_promotion_and_source_map_order() {
+        let source = r#"<script lang="ts">
+type Root = { value: Middle };
+type Middle = { value: Leaf };
+type Leaf = string;
+let { value }: Root = $props();
+</script>
+<p>{value}</p>"#;
+        let output = convert_ts(source);
+        let leaf = output.code.find("type Leaf").expect("Leaf");
+        let middle = output.code.find("type Middle").expect("Middle");
+        let root = output.code.find("type Root").expect("Root");
+        let render = output.code.find("function $$render").expect("render");
+        assert!(leaf < middle && middle < root && root < render);
+
+        let map =
+            sourcemap::SourceMap::from_slice(output.map.as_deref().expect("source map").as_bytes())
+                .expect("valid source map");
+        for name in ["Leaf", "Middle", "Root"] {
+            let source_declaration = source.find(&format!("type {name}")).expect("source type");
+            let source_offset = source_declaration + "type ".len();
+            let generated_declaration = output
+                .code
+                .find(&format!("type {name}"))
+                .expect("generated type");
+            let generated_offset = generated_declaration + "type ".len();
+            assert_eq!(
+                output.map_offset_forward(source_offset as u32),
+                Some(generated_offset as u32)
+            );
+            let (generated_line, _) = line_column(&output.code, generated_declaration);
+            let (source_line, _) = line_column(source, source_declaration);
+            assert!(
+                map.tokens().any(|token| {
+                    token.get_dst_line() == generated_line
+                        && token.get_src_line() == source_line
+                        && token.get_src_col() == 0
+                }),
+                "{name} has no source-map segment on its moved output line"
+            );
+        }
+    }
+
+    #[test]
+    fn reverse_chain_uses_one_index_lookup_per_dependency_check() {
+        let source = r#"<script lang="ts">
+type T0 = { value: T1 };
+type T1 = { value: T2 };
+type T2 = { value: T3 };
+type T3 = { value: T4 };
+type T4 = { value: T5 };
+type T5 = { value: T6 };
+type T6 = { value: T7 };
+type T7 = string;
+let { value }: T0 = $props();
+</script>
+<p>{value}</p>"#;
+        reset_fixed_point_lookups();
+        let output = convert_ts(source);
+        assert_eq!(fixed_point_lookups(), 35);
+        assert!(
+            output.code.find("type T7").expect("T7") < output.code.find("type T0").expect("T0")
+        );
+    }
+
+    #[test]
+    fn dense_reverse_dag_has_quadratic_lookup_count() {
+        let source = r#"<script lang="ts">
+type T0 = { a: T1; b: T2; c: T3; d: T4; e: T5 };
+type T1 = { b: T2; c: T3; d: T4; e: T5 };
+type T2 = { c: T3; d: T4; e: T5 };
+type T3 = { d: T4; e: T5 };
+type T4 = { e: T5 };
+type T5 = string;
+let { a }: T0 = $props();
+</script>
+<p>{a}</p>"#;
+        reset_fixed_point_lookups();
+        let output = convert_ts(source);
+        assert_eq!(fixed_point_lookups(), 70);
+        let mut previous = 0;
+        for name in ["T5", "T4", "T3", "T2", "T1", "T0"] {
+            let position = output
+                .code
+                .find(&format!("type {name}"))
+                .expect("hoisted type");
+            assert!(position >= previous);
+            previous = position;
+        }
+    }
+
+    #[test]
+    fn cyclic_types_and_their_props_consumer_stay_in_render() {
+        let source = r#"<script lang="ts">
+type A = B;
+type B = A;
+interface Props { value: A }
+let { value }: Props = $props();
+</script>
+<p>{value}</p>"#;
+        let output = convert_ts(source);
+        let render = output.code.find("function $$render").expect("render");
+        for declaration in ["type A", "type B", "interface Props"] {
+            assert!(
+                output.code.find(declaration).expect("declaration") > render,
+                "{declaration} was unexpectedly hoisted:\n{}",
+                output.code
+            );
+        }
+    }
+
+    #[test]
+    fn module_shadow_blocks_type_and_dependent_props() {
+        let source = r#"<script module lang="ts">
+type Shared = { module: true };
+</script>
+<script lang="ts">
+type Shared = { instance: true };
+interface Props { value: Shared }
+let { value }: Props = $props();
+</script>
+<p>{value}</p>"#;
+        let output = convert_ts(source);
+        let render = output.code.find("function $$render").expect("render");
+        assert!(output.code.rfind("type Shared").expect("instance Shared") > render);
+        assert!(output.code.find("interface Props").expect("Props") > render);
+    }
+
+    #[test]
+    fn component_generic_dependency_blocks_the_whole_hoist() {
+        let source = r#"<script lang="ts" generics="T">
+type Box = { value: T };
+interface Props { box: Box }
+let { box }: Props = $props();
+</script>
+<p>{box.value}</p>"#;
+        let output = convert_ts(source);
+        let render = output
+            .code
+            .find("function $$render<T>")
+            .expect("generic render");
+        assert!(output.code.find("type Box").expect("Box") > render);
+        assert!(output.code.find("interface Props").expect("Props") > render);
+    }
+
+    #[test]
+    fn inline_props_type_uses_indexed_hoistability() {
+        let source = r#"<script lang="ts">
+type Leaf = string;
+type Wrapper = { value: Leaf };
+let { item }: { item: Wrapper } = $props();
+</script>
+<p>{item.value}</p>"#;
+        let output = convert_ts(source);
+        let leaf = output.code.find("type Leaf").expect("Leaf");
+        let wrapper = output.code.find("type Wrapper").expect("Wrapper");
+        let props = output
+            .code
+            .find("type $$ComponentProps")
+            .expect("component props");
+        let render = output.code.find("function $$render").expect("render");
+        assert!(leaf < wrapper && wrapper < props && props < render);
+    }
+
+    #[test]
+    fn dollar_generic_referenced_ranges_keep_candidate_source_order() {
+        let source = r#"<script lang="ts">
+interface First { first: true }
+interface Second { second: true }
+type A = $$Generic<Second>;
+type B = $$Generic<First>;
+export let value: A;
+</script>
+<p>{value}</p>"#;
+        let output = convert_ts(source);
+        let first = output.code.find("interface First").expect("First");
+        let second = output.code.find("interface Second").expect("Second");
+        let render = output.code.find("function $$render").expect("render");
+        assert!(first < second && second < render);
     }
 }

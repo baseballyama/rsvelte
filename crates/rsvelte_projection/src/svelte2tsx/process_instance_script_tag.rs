@@ -328,8 +328,7 @@ pub(crate) fn process_instance_script_tag(
         // BEFORE the interface that depends on it, even when it appears
         // later in source. Sorting by start position would wrongly
         // restore source order.
-        let type_ranges = exported_names.hoistable_type_ranges.clone();
-        for (s, e) in type_ranges {
+        for &(s, e) in &exported_names.hoistable_type_ranges {
             if s < e && (e as usize) <= source.len() {
                 // `prepend_right` / `append_left` add to the moved
                 // chunk itself (intro / outro of the [s..e] chunk),
@@ -356,9 +355,9 @@ pub(crate) fn process_instance_script_tag(
         // `node.getStart()` (no leading trivia) and ends the chunk
         // with `\n` so the following text in `part_b` (`function
         // $$render`) starts on its own line.
-        let mut nodes_to_move = exported_names.dollar_generic_referenced_ranges.clone();
-        nodes_to_move.sort_by_key(|(s, _)| *s);
-        for (s, e) in nodes_to_move {
+        // `hoist_dollar_generic_referenced_types` filters the source-ordered
+        // candidate list, matching upstream `InterfacesAndTypes.all.filter`.
+        for &(s, e) in &exported_names.dollar_generic_referenced_ranges {
             if s < e && (e as usize) <= source.len() {
                 str.prepend_right(s, "\n");
                 str.append_left(e, "\n");
