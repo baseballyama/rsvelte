@@ -1,91 +1,66 @@
 //! Generated variable-name helpers, mirroring `htmlxtojsx_v2/utils/node-utils.ts`
 //! and the `InlineComponent.ts` constructor-name scheme.
 
-/// Sanitize a component name for use in variable names.
-///
-/// Mirrors `sanitizePropName` in `htmlxtojsx_v2/utils/node-utils.ts`:
-/// each character that is NOT `[0-9A-Za-z$_]` is replaced with `_`.
-/// Applied BEFORE reversing, so `Foo.Bar` → `Foo_Bar` → reversed `raB_ooF`.
-pub(crate) fn sanitize_prop_name(name: &str) -> String {
-    name.chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '$' || c == '_' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect()
-}
+use std::fmt::Write as _;
 
-/// Generate a reversed component constructor variable name.
-///
-/// Mirrors upstream `InlineComponent.ts`:
-///   `this._name = '$$_' + Array.from(sanitizePropName(name)).reverse().join('') + depth`
-///   `const constructorName = this._name + 'C'`
-///
-/// The `depth` (ancestor element/component count, NOT including blocks/root)
-/// replaces the old per-name counter so two `<A/>` at the same level both
-/// get index 0 — `$$_A0C` — matching the official tool.
+/// Generate the shared constructor/instance name; constructors append `C`.
 pub(crate) fn reversed_component_name(name: &str, depth: u32) -> String {
-    let sanitized = sanitize_prop_name(name);
-    let reversed: String = sanitized.chars().rev().collect();
-    format!("$$_{}{}C", reversed, depth)
-}
+    #[cfg(test)]
+    COMPONENT_NAME_DERIVATIONS.with(|count| count.set(count.get() + 1));
 
-/// Generate a reversed component instance variable name.
-///
-/// Like `reversed_component_name` but without the trailing `C` suffix.
-pub(crate) fn reversed_component_instance_name(name: &str, depth: u32) -> String {
-    let sanitized = sanitize_prop_name(name);
-    let reversed: String = sanitized.chars().rev().collect();
-    format!("$$_{}{}", reversed, depth)
+    let mut generated = String::with_capacity(name.len() + 13);
+    generated.push_str("$$_");
+    for c in name.chars().rev() {
+        if c.is_ascii_alphanumeric() || c == '$' || c == '_' {
+            generated.push(c);
+        } else {
+            // Upstream sanitizes UTF-16 code units before reversing.
+            generated.push('_');
+            if c.len_utf16() == 2 {
+                generated.push('_');
+            }
+        }
+    }
+    let _ = write!(generated, "{depth}");
+    generated
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
+
+    fn take_derivation_count() -> usize {
+        COMPONENT_NAME_DERIVATIONS.with(|count| count.replace(0))
+    }
 
     #[test]
-    fn test_reversed_component_name() {
-        // Basic cases: depth (not per-name counter) is the suffix.
-        assert_eq!(reversed_component_name("Component", 0), "$$_tnenopmoC0C");
-        // depth=1 → `$$_ooF1C` (same as before, index was already depth in these examples)
-        assert_eq!(reversed_component_name("Foo", 1), "$$_ooF1C");
-        assert_eq!(reversed_component_name("Button", 0), "$$_nottuB0C");
-        // sanitizePropName: '.' is not [0-9A-Za-z$_], replaced with '_' before reversing.
-        // "Foo.Bar" → sanitized "Foo_Bar" → reversed "raB_ooF" → "$$_raB_ooF0C"
-        assert_eq!(reversed_component_name("Foo.Bar", 0), "$$_raB_ooF0C");
-        // Namespaced component: "Namespace:Comp" → "Namespace_Comp" → "pmoC_ecapsemaN" → "$$_pmoC_ecapsemaN0C"
+    fn derives_shared_constructor_and_instance_name() {
+        assert_eq!(reversed_component_name("Component", 0), "$$_tnenopmoC0");
+        assert_eq!(reversed_component_name("Foo.Bar", 1), "$$_raB_ooF1");
         assert_eq!(
-            reversed_component_name("Namespace:Comp", 0),
-            "$$_pmoC_ecapsemaN0C"
+            reversed_component_name("Namespace:Comp", 2),
+            "$$_pmoC_ecapsemaN2"
         );
     }
 
     #[test]
-    fn test_reversed_component_instance_name() {
-        assert_eq!(
-            reversed_component_instance_name("Component", 0),
-            "$$_tnenopmoC0"
-        );
-        assert_eq!(reversed_component_instance_name("Button", 0), "$$_nottuB0");
-        // sanitizePropName applied before reversing for instance names too.
-        assert_eq!(
-            reversed_component_instance_name("Foo.Bar", 0),
-            "$$_raB_ooF0"
-        );
+    fn matches_upstream_utf16_sanitization() {
+        assert_eq!(reversed_component_name("A😀-é.组件$", 42), "$$_$_______A42");
     }
 
     #[test]
-    fn test_sanitize_prop_name() {
-        // Valid chars pass through unchanged.
-        assert_eq!(sanitize_prop_name("Component"), "Component");
-        assert_eq!(sanitize_prop_name("Foo_Bar"), "Foo_Bar");
-        assert_eq!(sanitize_prop_name("$foo"), "$foo");
-        // Invalid chars are replaced with '_'.
-        assert_eq!(sanitize_prop_name("Foo.Bar"), "Foo_Bar");
-        assert_eq!(sanitize_prop_name("svelte:self"), "svelte_self");
-        assert_eq!(sanitize_prop_name("a-b-c"), "a_b_c");
+    fn repeated_components_derive_each_name_once() {
+        let source = "<Repeated />".repeat(512);
+        take_derivation_count();
+        let result = svelte2tsx(&source, Svelte2TsxOptions::default()).unwrap();
+
+        assert_eq!(take_derivation_count(), 512);
+        assert_eq!(result.code.matches("$$_detaepeR0C").count(), 1024);
     }
+}
+
+#[cfg(test)]
+thread_local! {
+    static COMPONENT_NAME_DERIVATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }

@@ -29,9 +29,7 @@ use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_binding_lhs_text, get_expression_end_stripping_ts,
     get_expression_range, get_expression_text, get_set_binding_ranges,
 };
-use crate::svelte2tsx::template::utils::names::{
-    reversed_component_instance_name, reversed_component_name,
-};
+use crate::svelte2tsx::template::utils::names::reversed_component_name;
 use crate::svelte2tsx::template::utils::source::{
     count_tag_to_attr_spaces, find_closing_tag_start, find_opening_tag_end,
 };
@@ -95,7 +93,7 @@ pub(crate) fn handle_component(
     // the official `computeDepth()` in `htmlxtojsx_v2/nodes/InlineComponent.ts`.
     // Two sibling `<A/>` at the same depth both get `$$_A<depth>C`, which is correct —
     // the official tool reuses the same name for components at the same depth.
-    let ctor_var = reversed_component_name(&comp.name, depth);
+    let inst_var = reversed_component_name(&comp.name, depth);
 
     // Find the end of the opening tag
     let opening_tag_end = find_opening_tag_end(source, comp.start, comp.end);
@@ -223,7 +221,6 @@ pub(crate) fn handle_component(
     }
 
     // Build the replacement for the opening tag.
-    let inst_var = reversed_component_instance_name(&comp.name, depth);
     // Component-side `bind:` suffix: type-widener + `$$bindings` marker.
     // Mirrors the JS reference's component branch in
     // `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`:
@@ -295,16 +292,16 @@ pub(crate) fn handle_component(
         };
         (
             format!(
-                " {{ const {} = __sveltets_2_ensureComponent({}); const {} = new {}({{ target: __sveltets_2_any(), props: {{",
-                ctor_var, comp.name, inst_var, ctor_var,
+                " {{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{",
+                inst_var, comp.name, inst_var, inst_var,
             ),
             format!("}}}});{}{}", component_bind_suffix, on_calls),
         )
     } else {
         (
             format!(
-                " {{ const {} = __sveltets_2_ensureComponent({}); new {}({{ target: __sveltets_2_any(), props: {{",
-                ctor_var, comp.name, ctor_var,
+                " {{ const {}C = __sveltets_2_ensureComponent({}); new {}C({{ target: __sveltets_2_any(), props: {{",
+                inst_var, comp.name, inst_var,
             ),
             "}});".to_string(),
         )
@@ -478,9 +475,6 @@ pub(crate) fn handle_svelte_component(
     let saved_outer_slot = counter.slot_inst.take();
 
     let expr_text = get_expression_text(&comp.expression, source);
-    // Use "svelte:component" as the name for variable naming, with ':' replaced by '_'
-    let scomp_name = "svelte:component".replace(':', "_");
-
     let opening_tag_end = find_opening_tag_end(source, comp.start, comp.end);
 
     // Collect on: directives
@@ -522,8 +516,7 @@ pub(crate) fn handle_svelte_component(
         }
     }
 
-    let ctor_var = reversed_component_name(&scomp_name, depth);
-    let inst_var = reversed_component_instance_name(&scomp_name, depth);
+    let inst_var = reversed_component_name("svelte_component", depth);
     // A `bind:` directive on the component needs the instance variable too: it
     // emits a `inst.$$bindings = 'name'` marker (and a type-widener) after the
     // `new` statement, mirroring `handle_component`.
@@ -584,13 +577,13 @@ pub(crate) fn handle_svelte_component(
             String::new()
         };
         format!(
-            " {{ const {} = __sveltets_2_ensureComponent({}); const {} = new {}({{ target: __sveltets_2_any(), props: {{{}}}}});{}{}",
-            ctor_var, expr_text, inst_var, ctor_var, attrs_str, component_bind_suffix, on_calls
+            " {{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{{}}}}});{}{}",
+            inst_var, expr_text, inst_var, inst_var, attrs_str, component_bind_suffix, on_calls
         )
     } else {
         format!(
-            " {{ const {} = __sveltets_2_ensureComponent({}); new {}({{ target: __sveltets_2_any(), props: {{{}}}}});",
-            ctor_var, expr_text, ctor_var, attrs_str
+            " {{ const {}C = __sveltets_2_ensureComponent({}); new {}C({{ target: __sveltets_2_any(), props: {{{}}}}});",
+            inst_var, expr_text, inst_var, attrs_str
         )
     };
 
