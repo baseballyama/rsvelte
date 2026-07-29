@@ -176,6 +176,9 @@ fn blank_instance_script_comments(source: &str, buf: &mut [u8]) {
 /// applying the rune-name filter.
 pub(super) fn collect_loose_dollar_names_from_script(text: &str) -> HashSet<String> {
     let bytes = text.as_bytes();
+    if memchr::memchr(b'$', bytes).is_none() {
+        return HashSet::new();
+    }
     let len = bytes.len();
     let mut names = HashSet::new();
     let mut i = 0usize;
@@ -279,6 +282,10 @@ pub(super) fn collect_store_references_with_shadow(
     shadow: &HashMap<String, Vec<(u32, u32)>>,
     self_named_rune_calls: &HashSet<u32>,
 ) -> HashSet<String> {
+    if memchr::memchr(b'$', source.as_bytes()).is_none() {
+        return HashSet::new();
+    }
+
     // Hand-rolled byte-level scan. The previous implementation compiled a
     // regex on every call; using `memchr` to jump between `$` bytes is
     // dramatically faster on the common script-free template (one SIMD
@@ -561,6 +568,10 @@ pub(super) fn inject_store_subscriptions_with_program(
     shadow: &HashMap<String, Vec<(u32, u32)>>,
     str: &mut MagicString,
 ) {
+    if memchr::memchr(b'$', source.as_bytes()).is_none() {
+        return;
+    }
+
     // Exclude `$name` references that are shadowed by a `$`-prefixed function /
     // arrow parameter binding in the instance script (official `resolveStore`
     // scope-chain check). The shadow map is keyed by source byte ranges.
@@ -777,6 +788,10 @@ pub(super) fn inject_store_subscriptions_vars_only_with_program(
     source: &str,
     str: &mut MagicString,
 ) {
+    if memchr::memchr(b'$', source.as_bytes()).is_none() {
+        return;
+    }
+
     let self_named_rune_calls = collect_self_named_rune_call_positions(program, offset);
     let accessed_stores =
         collect_store_references_with_shadow(source, &HashMap::new(), &self_named_rune_calls);
