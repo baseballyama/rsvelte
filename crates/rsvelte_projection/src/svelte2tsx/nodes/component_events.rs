@@ -38,27 +38,123 @@ impl<'a> ForwardedEventValues<'a> {
 
 type ForwardedEvents<'a> = IndexMap<&'a str, ForwardedEventValues<'a>, FxBuildHasher>;
 
-fn group_forwarded_events_with_observer<'a>(
-    events: &'a [template::ForwardedEvent<'a>],
-    mut observe_lookup: impl FnMut(),
-) -> ForwardedEvents<'a> {
-    let mut grouped: ForwardedEvents<'a> =
-        IndexMap::with_capacity_and_hasher(events.len(), FxBuildHasher);
-    for event in events {
-        observe_lookup();
-        match grouped.entry(event.name) {
-            Entry::Occupied(mut entry) => match event.source {
-                template::ForwardedEventSource::Mapped(_) => {
-                    entry.get_mut().overwrite(event);
+// Eight caps the linear prefix at 36 comparisons while keeping typical event sets map-free.
+const FORWARDED_EVENT_LINEAR_LIMIT: usize = 8;
+
+struct ForwardedEventEntry<'a> {
+    name: &'a str,
+    values: ForwardedEventValues<'a>,
+}
+
+enum GroupedForwardedEvents<'a> {
+    Linear(Vec<ForwardedEventEntry<'a>>),
+    Indexed(ForwardedEvents<'a>),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum GroupingOperation {
+    LinearComparison,
+    IndexedLookup,
+    Promotion,
+}
+
+impl<'a> GroupedForwardedEvents<'a> {
+    fn new(occurrences: usize) -> Self {
+        Self::Linear(Vec::with_capacity(
+            occurrences.min(FORWARDED_EVENT_LINEAR_LIMIT),
+        ))
+    }
+
+    fn insert(
+        &mut self,
+        event: &'a template::ForwardedEvent<'a>,
+        observe: &mut impl FnMut(GroupingOperation),
+    ) {
+        if let Self::Indexed(grouped) = self {
+            observe(GroupingOperation::IndexedLookup);
+            match grouped.entry(event.name) {
+                Entry::Occupied(mut entry) => merge_forwarded_event(entry.get_mut(), event),
+                Entry::Vacant(entry) => {
+                    entry.insert(ForwardedEventValues::new(event));
                 }
-                template::ForwardedEventSource::Component(_) => {
-                    entry.get_mut().append(event);
-                }
-            },
-            Entry::Vacant(entry) => {
-                entry.insert(ForwardedEventValues::new(event));
+            }
+            return;
+        }
+
+        let Self::Linear(grouped) = self else {
+            unreachable!()
+        };
+        for entry in grouped.iter_mut() {
+            observe(GroupingOperation::LinearComparison);
+            if entry.name == event.name {
+                merge_forwarded_event(&mut entry.values, event);
+                return;
             }
         }
+        if grouped.len() < FORWARDED_EVENT_LINEAR_LIMIT {
+            grouped.push(ForwardedEventEntry {
+                name: event.name,
+                values: ForwardedEventValues::new(event),
+            });
+            return;
+        }
+
+        observe(GroupingOperation::Promotion);
+        let mut indexed =
+            IndexMap::with_capacity_and_hasher(FORWARDED_EVENT_LINEAR_LIMIT + 1, FxBuildHasher);
+        for entry in grouped.drain(..) {
+            indexed.insert(entry.name, entry.values);
+        }
+        indexed.insert(event.name, ForwardedEventValues::new(event));
+        *self = Self::Indexed(indexed);
+    }
+}
+
+enum GroupedForwardedEventsIntoIter<'a> {
+    Linear(std::vec::IntoIter<ForwardedEventEntry<'a>>),
+    Indexed(indexmap::map::IntoIter<&'a str, ForwardedEventValues<'a>>),
+}
+
+impl<'a> Iterator for GroupedForwardedEventsIntoIter<'a> {
+    type Item = (&'a str, ForwardedEventValues<'a>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Linear(entries) => entries.next().map(|entry| (entry.name, entry.values)),
+            Self::Indexed(entries) => entries.next(),
+        }
+    }
+}
+
+impl<'a> IntoIterator for GroupedForwardedEvents<'a> {
+    type Item = (&'a str, ForwardedEventValues<'a>);
+    type IntoIter = GroupedForwardedEventsIntoIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Self::Linear(entries) => GroupedForwardedEventsIntoIter::Linear(entries.into_iter()),
+            Self::Indexed(entries) => GroupedForwardedEventsIntoIter::Indexed(entries.into_iter()),
+        }
+    }
+}
+
+fn merge_forwarded_event<'a>(
+    values: &mut ForwardedEventValues<'a>,
+    event: &'a template::ForwardedEvent<'a>,
+) {
+    match event.source {
+        template::ForwardedEventSource::Mapped(_) => values.overwrite(event),
+        template::ForwardedEventSource::Component(_) => values.append(event),
+    }
+}
+
+fn group_forwarded_events_with_observer<'a>(
+    events: &'a [template::ForwardedEvent<'a>],
+    mut observe: impl FnMut(GroupingOperation),
+) -> GroupedForwardedEvents<'a> {
+    let mut grouped = GroupedForwardedEvents::new(events.len());
+    for event in events {
+        grouped.insert(event, &mut observe);
     }
     grouped
 }
@@ -97,14 +193,14 @@ pub(crate) fn build_events_str(
     template_info: &template::TemplateInfo<'_>,
     events: &ComponentEvents,
 ) -> String {
-    build_events_str_with_observer(exported_names, template_info, events, || {}, || {})
+    build_events_str_with_observer(exported_names, template_info, events, |_| {}, || {})
 }
 
 fn build_events_str_with_observer(
     exported_names: &ExportedNames,
     template_info: &template::TemplateInfo<'_>,
     events: &ComponentEvents,
-    mut observe_lookup: impl FnMut(),
+    mut observe_grouping: impl FnMut(GroupingOperation),
     mut observe_materialization: impl FnMut(),
 ) -> String {
     if exported_names.has_events_type {
@@ -131,7 +227,7 @@ fn build_events_str_with_observer(
         // emitted plain; multiple values become `__sveltets_2_unionType(...)`.
         let grouped = group_forwarded_events_with_observer(
             &template_info.element_events,
-            &mut observe_lookup,
+            &mut observe_grouping,
         );
         for (name, values) in grouped {
             if values.is_single() {
@@ -230,6 +326,111 @@ mod tests {
     }
 
     #[test]
+    fn forwarded_event_grouping_promotes_after_linear_limit() {
+        let names: Vec<_> = (0..=FORWARDED_EVENT_LINEAR_LIMIT)
+            .map(|index| format!("event-{index}"))
+            .collect();
+        let events: Vec<_> = names
+            .iter()
+            .map(|name| mapped(name, template::ForwardedEventMapper::Element))
+            .collect();
+
+        let mut linear_comparisons = 0;
+        let mut indexed_lookups = 0;
+        let mut promotions = 0;
+        let linear = group_forwarded_events_with_observer(
+            &events[..FORWARDED_EVENT_LINEAR_LIMIT],
+            |operation| match operation {
+                GroupingOperation::LinearComparison => linear_comparisons += 1,
+                GroupingOperation::IndexedLookup => indexed_lookups += 1,
+                GroupingOperation::Promotion => promotions += 1,
+            },
+        );
+        assert!(matches!(linear, GroupedForwardedEvents::Linear(_)));
+        assert_eq!(
+            linear_comparisons,
+            FORWARDED_EVENT_LINEAR_LIMIT * (FORWARDED_EVENT_LINEAR_LIMIT - 1) / 2
+        );
+        assert_eq!(indexed_lookups, 0);
+        assert_eq!(promotions, 0);
+
+        let mut linear_comparisons = 0;
+        let mut indexed_lookups = 0;
+        let mut promotions = 0;
+        let indexed = group_forwarded_events_with_observer(&events, |operation| match operation {
+            GroupingOperation::LinearComparison => linear_comparisons += 1,
+            GroupingOperation::IndexedLookup => indexed_lookups += 1,
+            GroupingOperation::Promotion => promotions += 1,
+        });
+        assert!(matches!(indexed, GroupedForwardedEvents::Indexed(_)));
+        assert_eq!(
+            linear_comparisons,
+            FORWARDED_EVENT_LINEAR_LIMIT * (FORWARDED_EVENT_LINEAR_LIMIT + 1) / 2
+        );
+        assert_eq!(indexed_lookups, 0);
+        assert_eq!(promotions, 1);
+        assert_eq!(
+            indexed
+                .into_iter()
+                .map(|(name, _)| name)
+                .collect::<Vec<_>>(),
+            names.iter().map(String::as_str).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn promoted_forwarded_events_preserve_overwrite_and_union_semantics() {
+        let names: Vec<_> = (0..=FORWARDED_EVENT_LINEAR_LIMIT)
+            .map(|index| format!("event-{index}"))
+            .collect();
+        let mut forwarded: Vec<_> = names
+            .iter()
+            .map(|name| mapped(name, template::ForwardedEventMapper::Element))
+            .collect();
+        forwarded.extend([
+            component(&names[0], "Before"),
+            mapped(&names[0], template::ForwardedEventMapper::Body),
+            component(&names[0], "After"),
+        ]);
+        let template_info = template::TemplateInfo {
+            element_events: forwarded,
+            ..Default::default()
+        };
+
+        let output = build_events_str(
+            &ExportedNames::default(),
+            &template_info,
+            &ComponentEvents::default(),
+        );
+        assert!(output.starts_with(
+            "{'event-0':__sveltets_2_unionType(__sveltets_2_mapBodyEvent('event-0'), \
+             __sveltets_2_bubbleEventDef(__sveltets_2_instanceOf(After).$$events_def, 'event-0'))"
+        ));
+        assert!(!output.contains("Before"));
+        for index in 0..=FORWARDED_EVENT_LINEAR_LIMIT {
+            assert_eq!(output.matches(&format!("'event-{index}':")).count(), 1);
+        }
+    }
+
+    #[test]
+    fn duplicate_heavy_forwarded_events_do_not_promote() {
+        let events: Vec<_> = (0..256).map(|_| component("event", "Component")).collect();
+        let mut linear_comparisons = 0;
+        let mut indexed_lookups = 0;
+        let mut promotions = 0;
+        let grouped = group_forwarded_events_with_observer(&events, |operation| match operation {
+            GroupingOperation::LinearComparison => linear_comparisons += 1,
+            GroupingOperation::IndexedLookup => indexed_lookups += 1,
+            GroupingOperation::Promotion => promotions += 1,
+        });
+
+        assert!(matches!(grouped, GroupedForwardedEvents::Linear(_)));
+        assert_eq!(linear_comparisons, events.len() - 1);
+        assert_eq!(indexed_lookups, 0);
+        assert_eq!(promotions, 0);
+    }
+
+    #[test]
     fn forwarded_event_descriptor_defers_overwritten_materializations_at_scale() {
         let names: Vec<_> = (0..256).map(|index| format!("event-{index}")).collect();
         let mut forwarded = Vec::with_capacity(1024);
@@ -246,18 +447,29 @@ mod tests {
             element_events: forwarded,
             ..Default::default()
         };
-        let mut lookups = 0;
+        let mut linear_comparisons = 0;
+        let mut indexed_lookups = 0;
+        let mut promotions = 0;
         let mut materializations = 0;
 
         let output = build_events_str_with_observer(
             &ExportedNames::default(),
             &template_info,
             &ComponentEvents::default(),
-            || lookups += 1,
+            |operation| match operation {
+                GroupingOperation::LinearComparison => linear_comparisons += 1,
+                GroupingOperation::IndexedLookup => indexed_lookups += 1,
+                GroupingOperation::Promotion => promotions += 1,
+            },
             || materializations += 1,
         );
 
-        assert_eq!(lookups, 1024);
+        assert_eq!(
+            linear_comparisons,
+            FORWARDED_EVENT_LINEAR_LIMIT * (FORWARDED_EVENT_LINEAR_LIMIT + 1) / 2
+        );
+        assert_eq!(indexed_lookups, 1024 - FORWARDED_EVENT_LINEAR_LIMIT - 1);
+        assert_eq!(promotions, 1);
         assert_eq!(materializations, 512);
         assert_eq!(output.matches("'event-").count(), 768);
         assert_eq!(output.matches(":__sveltets_2_unionType(").count(), 256);
