@@ -1281,16 +1281,24 @@ fn resolve_root_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
     Vec::new()
 }
 
-/// Resolve a tsconfig's `compilerOptions.paths` wildcard entries
-/// (`"$lib/*": ["../lib/*"]`) to `(alias prefix, absolute target dir)` pairs,
-/// following the `extends` chain the same way [`resolve_root_dirs_abs`] does
-/// (nearest config that defines `paths` wins, wholesale — not merged with an
-/// ancestor's). Only the common `"<prefix>/*": ["<target>/*"]` shape is
-/// supported; an exact (non-wildcard) key, or a value not ending in `/*`, is
-/// skipped — there is no file *set* to reverse-map for those.
-fn resolve_paths_alias_prefixes(tsconfig_path: &Path) -> Vec<(String, PathBuf)> {
-    let mut current = Some(tsconfig_path.to_path_buf());
+/// The nearest `compilerOptions.paths` in a tsconfig's `extends` chain, paired
+/// with the directory its targets resolve against: `baseUrl` (itself the
+/// nearest one in the chain, resolved against the config that declared it)
+/// when set, else the directory of the config that declared `paths` —
+/// TypeScript's default since `paths` stopped requiring `baseUrl`. `paths` and
+/// `baseUrl` are each taken wholesale from the nearest config that defines
+/// them, which may not be the same config.
+fn resolve_paths_chain(
+    tsconfig_path: &Path,
+) -> Option<(serde_json::Map<String, serde_json::Value>, PathBuf)> {
+    // A relative path would otherwise compound through every `extends` hop
+    // (`file.parent()` staying relative at each step) into a garbled,
+    // unresolvable target — same class of bug `build_svelte_import_resolver`
+    // guards against for the same reason.
+    let mut current = Some(absolutize(tsconfig_path));
     let mut hops = 0;
+    let mut paths: Option<(serde_json::Map<String, serde_json::Value>, PathBuf)> = None;
+    let mut base_url: Option<PathBuf> = None;
     while let Some(file) = current {
         hops += 1;
         if hops > 32 {
@@ -1303,37 +1311,61 @@ fn resolve_paths_alias_prefixes(tsconfig_path: &Path) -> Vec<(String, PathBuf)> 
         let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stripped) else {
             break;
         };
-        let dir = file.parent().unwrap_or(Path::new("."));
-
-        if let Some(paths) = parsed
-            .get("compilerOptions")
-            .and_then(|c| c.get("paths"))
-            .and_then(|v| v.as_object())
+        let dir = file.parent().unwrap_or(Path::new(".")).to_path_buf();
+        let compiler_opts = parsed.get("compilerOptions");
+        if paths.is_none()
+            && let Some(p) = compiler_opts
+                .and_then(|c| c.get("paths"))
+                .and_then(|v| v.as_object())
         {
-            let mut out = Vec::new();
-            for (key, targets) in paths {
-                let Some(prefix) = key.strip_suffix("/*") else {
-                    continue;
-                };
-                let Some(target) = targets
-                    .as_array()
-                    .and_then(|a| a.first())
-                    .and_then(|v| v.as_str())
-                    .and_then(|s| s.strip_suffix("/*"))
-                else {
-                    continue;
-                };
-                out.push((prefix.to_string(), dir.join(target)));
-            }
-            return out;
+            paths = Some((p.clone(), dir.clone()));
         }
-
+        if base_url.is_none()
+            && let Some(b) = compiler_opts
+                .and_then(|c| c.get("baseUrl"))
+                .and_then(|v| v.as_str())
+        {
+            base_url = Some(dir.join(b));
+        }
+        if paths.is_some() && base_url.is_some() {
+            break;
+        }
         match parsed.get("extends").and_then(|v| v.as_str()) {
-            Some(ext) if ext.starts_with('.') => current = Some(resolve_extends_path(dir, ext)),
+            Some(ext) if ext.starts_with('.') => current = Some(resolve_extends_path(&dir, ext)),
             _ => break,
         }
     }
-    Vec::new()
+    let (paths, paths_dir) = paths?;
+    Some((paths, base_url.unwrap_or(paths_dir)))
+}
+
+/// Resolve a tsconfig's `compilerOptions.paths` wildcard entries
+/// (`"$lib/*": ["../lib/*"]`) to `(alias prefix, absolute target dir)` pairs.
+/// Only the common `"<prefix>/*": ["<target>/*"]` shape is supported; an exact
+/// (non-wildcard) key, or a value not ending in `/*`, is skipped — there is no
+/// file *set* to reverse-map for those. Every target of a multi-target entry is
+/// returned, in declaration order.
+fn resolve_paths_alias_prefixes(tsconfig_path: &Path) -> Vec<(String, PathBuf)> {
+    let Some((paths, base)) = resolve_paths_chain(tsconfig_path) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for (key, targets) in &paths {
+        let Some(prefix) = key.strip_suffix("/*") else {
+            continue;
+        };
+        let Some(targets) = targets.as_array() else {
+            continue;
+        };
+        for target in targets
+            .iter()
+            .filter_map(|v| v.as_str())
+            .filter_map(|s| s.strip_suffix("/*"))
+        {
+            out.push((prefix.to_string(), base.join(target)));
+        }
+    }
+    out
 }
 
 /// For every discovered `.svelte` file (in-workspace or external) that lies
@@ -1371,6 +1403,7 @@ fn compute_alias_path_overrides(
     }
 
     let mut out = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (real_source, tsx_path) in &candidates {
         let real_canon = real_source
             .canonicalize()
@@ -1397,69 +1430,39 @@ fn compute_alias_path_overrides(
         if rel_posix.is_empty() {
             continue;
         }
-        out.push((format!("{prefix}/{rel_posix}"), tsx_path.clone()));
+        // A multi-target alias (`"$lib/*": ["./a/*", "./b/*"]`) can map two
+        // different components onto the same specifier; TypeScript resolves
+        // such a specifier against the first target that exists, so keep the
+        // first match rather than letting discovery order decide.
+        let spec = format!("{prefix}/{rel_posix}");
+        if seen.insert(spec.clone()) {
+            out.push((spec, tsx_path.clone()));
+        }
     }
     out
 }
 
-/// Resolve a tsconfig's effective `compilerOptions.paths` object (absolute
-/// targets), following the `extends` chain the same way
-/// [`resolve_root_dirs_abs`] does (nearest config that defines `paths` wins,
-/// wholesale — not merged with an ancestor's). Every string target is
-/// resolved relative to the directory of the config that defined it, since
-/// the overlay tsconfig that ultimately embeds this lives elsewhere.
+/// Resolve a tsconfig's effective `compilerOptions.paths` object with every
+/// target made absolute, so the overlay tsconfig — which lives in a different
+/// directory than whichever config in the chain defined them — can restate it
+/// verbatim. See [`resolve_paths_chain`] for the `baseUrl`/`extends` rules.
 fn resolve_paths_object_abs(tsconfig_path: &Path) -> serde_json::Map<String, serde_json::Value> {
-    // A relative `tsconfig_path` (`--tsconfig ./tsconfig.json`, the CLI's own
-    // documented usage) would otherwise compound through every `extends` hop
-    // (`file.parent()` staying relative at each step) into a garbled,
-    // unresolvable target like `././.svelte-kit/../src/utils` instead of an
-    // absolute path — same class of bug `build_svelte_import_resolver` already
-    // guards against for the same reason. A real SvelteKit project's
-    // multi-hop `tsconfig.json` → `.svelte-kit/tsconfig.json` chain hits this
-    // on every run; a single-hop config masks it.
-    let tsconfig_path = absolutize(tsconfig_path);
-    let mut current = Some(tsconfig_path);
-    let mut hops = 0;
-    while let Some(file) = current {
-        hops += 1;
-        if hops > 32 {
-            break;
-        }
-        let Ok(raw) = fs::read_to_string(&file) else {
-            break;
+    let Some((paths, base)) = resolve_paths_chain(tsconfig_path) else {
+        return serde_json::Map::new();
+    };
+    let mut out = serde_json::Map::new();
+    for (key, targets) in &paths {
+        let Some(targets) = targets.as_array() else {
+            continue;
         };
-        let stripped = strip_jsonc_comments(&raw);
-        let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stripped) else {
-            break;
-        };
-        let dir = file.parent().unwrap_or(Path::new("."));
-
-        if let Some(paths) = parsed
-            .get("compilerOptions")
-            .and_then(|c| c.get("paths"))
-            .and_then(|v| v.as_object())
-        {
-            let mut out = serde_json::Map::new();
-            for (key, targets) in paths {
-                let Some(targets) = targets.as_array() else {
-                    continue;
-                };
-                let abs_targets: Vec<serde_json::Value> = targets
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| serde_json::Value::String(dir.join(s).display().to_string()))
-                    .collect();
-                out.insert(key.clone(), serde_json::Value::Array(abs_targets));
-            }
-            return out;
-        }
-
-        match parsed.get("extends").and_then(|v| v.as_str()) {
-            Some(ext) if ext.starts_with('.') => current = Some(resolve_extends_path(dir, ext)),
-            _ => break,
-        }
+        let abs_targets: Vec<serde_json::Value> = targets
+            .iter()
+            .filter_map(|v| v.as_str())
+            .map(|t| serde_json::Value::String(base.join(t).display().to_string()))
+            .collect();
+        out.insert(key.clone(), serde_json::Value::Array(abs_targets));
     }
-    serde_json::Map::new()
+    out
 }
 
 /// Sibling companion module (`Foo.svelte.ts` / `Foo.svelte.js`) of a
@@ -1944,6 +1947,10 @@ fn path_relative(from_dir: &Path, to_path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The current directory is process-wide while tests run in parallel, so
+    /// every test that has to exercise a CLI-relative path takes this first.
+    static CWD_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
     use std::fs;
     use std::io::Write;
 
@@ -2496,6 +2503,55 @@ mod tests {
     }
 
     #[test]
+    fn overlay_tsconfig_paths_respect_base_url() {
+        // `paths` targets are resolved against `baseUrl` when one is set (and
+        // `baseUrl` may itself come from further up the `extends` chain). The
+        // overlay tsconfig restates `paths` wholesale — resolving the targets
+        // against the config's own directory instead would break every alias
+        // in such a project, which previously resolved fine by inheritance.
+        let tmp = std::env::temp_dir().join(format!("svc_alias_baseurl_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/lib")).unwrap();
+        fs::write(
+            tmp.join("tsconfig.base.json"),
+            "{\"compilerOptions\":{\"baseUrl\":\"./src\"}}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            "{\"extends\":\"./tsconfig.base.json\",\"compilerOptions\":{\"paths\":{\"@/*\":[\"lib/*\"]}}}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/lib/Button.svelte"),
+            "<script lang=\"ts\">let { n }: { n: number } = $props();</script>\n<button>{n}</button>\n",
+        )
+        .unwrap();
+
+        let files = vec![tmp.join("src/lib/Button.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false).unwrap();
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        let paths = &cfg["compilerOptions"]["paths"];
+
+        let wildcard = paths["@/*"][0].as_str().expect("wildcard alias kept");
+        assert!(
+            Path::new(wildcard).starts_with(tmp.join("src/lib")),
+            "wildcard target must resolve through baseUrl, got: {wildcard}"
+        );
+        let exact = paths["@/Button.svelte"][0]
+            .as_str()
+            .unwrap_or_else(|| panic!("no exact override for @/Button.svelte:\n{paths}"));
+        assert!(
+            exact.ends_with("Button.svelte.tsx"),
+            "override does not point at the shadow: {exact}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
     fn overlay_tsconfig_paths_override_survives_a_relative_multi_hop_extends_chain() {
         // A real SvelteKit project's `tsconfig.json` extends a *generated*
         // `.svelte-kit/tsconfig.json` that actually owns `paths` — a two-hop
@@ -2526,6 +2582,7 @@ mod tests {
         )
         .unwrap();
 
+        let _cwd_guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let cwd = std::env::current_dir().unwrap();
         std::env::set_current_dir(&tmp).unwrap();
         let result = {

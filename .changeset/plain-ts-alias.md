@@ -21,4 +21,9 @@ consulted, regardless of which kind of file does the importing. The original
 `paths` (including unrelated entries) is preserved; only this component's
 own alias gets a more specific override alongside it.
 
+Restating `paths` in the overlay tsconfig follows TypeScript's own resolution
+rules: targets resolve against `baseUrl` when one is set (including one
+inherited through `extends`), else against the directory of the config that
+declared `paths`, and every target of a multi-target entry is kept.
+
 Fixes #1888.
