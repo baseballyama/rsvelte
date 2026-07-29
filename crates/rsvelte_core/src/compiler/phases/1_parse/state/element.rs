@@ -16,6 +16,7 @@ use memchr::memmem;
 use memchr::{memchr, memchr3};
 use smallvec::SmallVec;
 
+use crate::ast::SourceLocation;
 use crate::ast::js::Expression;
 use crate::ast::template::{
     AttributeNode, AttributeValue, AttributeValuePart, Comment, Component, ExpressionTag, Fragment,
@@ -1342,7 +1343,7 @@ impl<'a> Parser<'a> {
             let prefix = &name.as_bytes()[..colon_pos];
             match prefix {
                 b"on" => {
-                    return self.parse_on_directive(start, &name, name_start, name_end);
+                    return self.parse_on_directive(start, &name, name_loc, name_end);
                 }
                 b"bind" => {
                     return self.parse_bind_directive(start, &name, name_start, name_end);
@@ -1404,7 +1405,7 @@ impl<'a> Parser<'a> {
         &mut self,
         start: usize,
         full_name: &str,
-        name_start: usize,
+        name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Extract event name and modifiers from "on:click|preventDefault"
@@ -1418,8 +1419,6 @@ impl<'a> Parser<'a> {
         } else {
             (CompactString::from(after_on), SmallVec::new())
         };
-
-        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         // Parse the value (expression)
         let (expression, end_pos) = if self.eat_optional("=") {
