@@ -6,7 +6,9 @@ use std::borrow::Cow;
 use super::svg::is_svg_attribute;
 use crate::ast::template::{AttributeNode, AttributeValue, AttributeValuePart};
 use crate::svelte2tsx::svelte2tsx::slice_src;
-use crate::svelte2tsx::template::ctx::ELEMENT_OPENER_COMMENTS;
+#[cfg(test)]
+use crate::svelte2tsx::template::ctx::record_element_opener_comment_range_visits;
+use crate::svelte2tsx::template::ctx::with_element_opener_comments;
 use crate::svelte2tsx::template::segs::{Seg, segs_push_fmt, segs_push_lit, segs_push_src};
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 
@@ -244,30 +246,23 @@ pub(crate) fn transform_attribute_case<'a>(
 /// become `[\n]?<comment-source>…\n` (mirrors official getLeadingComment +
 /// getLeadingCommentTransformation). Empty when there are none.
 pub(crate) fn leading_attr_comment_segs(attr_start: u32, source: &str) -> Vec<Seg> {
-    ELEMENT_OPENER_COMMENTS.with(|c| {
-        let comments = c.borrow();
+    with_element_opener_comments(|comments| {
         if comments.is_empty() {
             return Vec::new();
         }
         let mut leading: Vec<(u32, u32)> = Vec::new();
         let mut search_end = attr_start;
-        loop {
-            let cand = comments
-                .iter()
-                .copied()
-                .filter(|&(_, e)| {
-                    e <= search_end
-                        && source
-                            .get(e as usize..search_end as usize)
-                            .is_some_and(|s| s.chars().all(|ch| ch.is_whitespace()))
-                })
-                .max_by_key(|&(_, e)| e);
-            match cand {
-                Some((cs, ce)) => {
-                    leading.push((cs, ce));
-                    search_end = cs;
-                }
-                None => break,
+        for &(comment_start, comment_end) in comments.ending_at_or_before(attr_start).iter().rev() {
+            #[cfg(test)]
+            record_element_opener_comment_range_visits(1);
+            if source
+                .get(comment_end as usize..search_end as usize)
+                .is_some_and(|between| between.chars().all(char::is_whitespace))
+            {
+                leading.push((comment_start, comment_end));
+                search_end = comment_start;
+            } else {
+                break;
             }
         }
         if leading.is_empty() {
@@ -296,26 +291,23 @@ fn trailing_attr_comments(attr_end: u32, source: &str) -> Vec<(u32, u32)> {
         return Vec::new();
     };
     let tag_end = attr_end + rel as u32;
-    ELEMENT_OPENER_COMMENTS.with(|c| {
-        let mut comments: Vec<(u32, u32)> = c.borrow().clone();
-        comments.sort_by_key(|&(s, _)| s);
+    with_element_opener_comments(|comments| {
         let mut trailing: Vec<(u32, u32)> = Vec::new();
         let mut search_start = attr_end;
-        for (cs, ce) in comments {
-            if cs < search_start {
-                continue;
-            }
-            if ce > tag_end {
+        for &(comment_start, comment_end) in comments.starting_at_or_after(attr_end) {
+            #[cfg(test)]
+            record_element_opener_comment_range_visits(1);
+            if comment_end > tag_end {
                 break;
             }
-            if !slice_src(source, search_start as usize, cs as usize)
+            if !slice_src(source, search_start as usize, comment_start as usize)
                 .chars()
                 .all(char::is_whitespace)
             {
                 break;
             }
-            trailing.push((cs, ce));
-            search_start = ce;
+            trailing.push((comment_start, comment_end));
+            search_start = comment_end;
         }
         if trailing.is_empty() {
             return Vec::new();
@@ -653,17 +645,146 @@ pub(crate) fn format_attribute_node_segments(
 
 #[cfg(test)]
 mod tests {
-    // Tests for data-* and --* attribute wrapping rules.
-    // Mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute` / `addProp`.
-
-    use std::borrow::Cow;
-
-    use super::{is_number_only_attribute, transform_attribute_case};
+    use super::*;
     use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
+    use crate::svelte2tsx::template::ctx::{
+        clear_element_opener_comments, element_opener_comment_range_visits,
+        reset_element_opener_comment_range_visits, set_element_opener_comments,
+    };
+    use crate::svelte2tsx::template::segs::segs_to_string;
+    use std::fmt::Write as _;
 
     fn compile_template(src: &str) -> String {
         svelte2tsx(src, Svelte2TsxOptions::default()).unwrap().code
     }
+
+    fn source_range(source: &str, needle: &str) -> (u32, u32) {
+        let start = source.find(needle).unwrap() as u32;
+        (start, start + needle.len() as u32)
+    }
+
+    fn leading_comment_oracle(attr_start: u32, source: &str, ranges: &[(u32, u32)]) -> String {
+        let mut leading = Vec::new();
+        let mut search_end = attr_start;
+        loop {
+            let candidate = ranges
+                .iter()
+                .copied()
+                .filter(|&(_, end)| {
+                    end <= search_end
+                        && source
+                            .get(end as usize..search_end as usize)
+                            .is_some_and(|between| between.chars().all(char::is_whitespace))
+                })
+                .max_by_key(|&(_, end)| end);
+            let Some((start, end)) = candidate else {
+                break;
+            };
+            leading.push((start, end));
+            search_end = start;
+        }
+        leading.reverse();
+
+        let mut out = String::new();
+        for (start, end) in leading {
+            let context = slice_src(source, start.saturating_sub(100) as usize, start as usize);
+            if context.trim_end_matches([' ', '\t']).ends_with('\n') {
+                out.push('\n');
+            }
+            out.push_str(slice_src(source, start as usize, end as usize));
+        }
+        if !out.is_empty() {
+            out.push('\n');
+        }
+        out
+    }
+
+    #[test]
+    fn chained_leading_comments_keep_exact_source_order_and_newlines() {
+        let source = "<div\n/* first */\n// second\nfoo>";
+        let ranges = vec![
+            source_range(source, "// second"),
+            source_range(source, "/* first */"),
+        ];
+        let attr_start = source.find("foo").unwrap() as u32;
+        set_element_opener_comments(ranges);
+
+        let actual = segs_to_string(&leading_attr_comment_segs(attr_start, source), source);
+
+        assert_eq!(actual, "\n/* first */\n// second\n");
+        clear_element_opener_comments();
+    }
+
+    #[test]
+    fn trailing_self_closing_comments_keep_exact_spacing() {
+        let source = "<div foo /* first */\n/* second */ />";
+        let ranges = vec![
+            source_range(source, "/* second */"),
+            source_range(source, "/* first */"),
+        ];
+        let attr_end = source.find("foo").unwrap() as u32 + "foo".len() as u32;
+        set_element_opener_comments(ranges);
+
+        let actual = trailing_attr_comment_text(attr_end, source);
+
+        assert_eq!(actual, " /* first */\n/* second */\n");
+        clear_element_opener_comments();
+    }
+
+    #[test]
+    fn comment_between_attributes_attaches_only_to_the_following_attribute() {
+        let source = "<div first /* between */ second>";
+        let comment = source_range(source, "/* between */");
+        let first_start = source.find("first").unwrap() as u32;
+        let second_start = source.find("second").unwrap() as u32;
+        set_element_opener_comments(vec![comment]);
+
+        let first = segs_to_string(&leading_attr_comment_segs(first_start, source), source);
+        let second = segs_to_string(&leading_attr_comment_segs(second_start, source), source);
+
+        assert_eq!(first, "");
+        assert_eq!(second, "/* between */\n");
+        clear_element_opener_comments();
+    }
+
+    #[test]
+    fn indexed_leading_queries_match_linear_oracle_with_linear_range_visits() {
+        const ATTRIBUTE_COUNT: usize = 1_024;
+        let mut source = String::from("<div");
+        let mut ranges = Vec::with_capacity(ATTRIBUTE_COUNT);
+        let mut attr_starts = Vec::with_capacity(ATTRIBUTE_COUNT);
+        for index in 0..ATTRIBUTE_COUNT {
+            source.push('\n');
+            let comment_start = source.len() as u32;
+            write!(source, "/* c{index} */").unwrap();
+            let comment_end = source.len() as u32;
+            ranges.push((comment_start, comment_end));
+            source.push(' ');
+            attr_starts.push(source.len() as u32);
+            write!(source, "attr{index}").unwrap();
+        }
+        source.push('>');
+
+        ranges.reverse();
+        set_element_opener_comments(ranges.clone());
+        reset_element_opener_comment_range_visits();
+
+        for attr_start in attr_starts {
+            let actual = segs_to_string(&leading_attr_comment_segs(attr_start, &source), &source);
+            let expected = leading_comment_oracle(attr_start, &source, &ranges);
+            assert_eq!(actual, expected);
+        }
+
+        let visits = element_opener_comment_range_visits();
+        assert!(
+            visits <= ATTRIBUTE_COUNT * 2,
+            "binary-bounded queries should inspect only adjacent ranges: {visits} visits"
+        );
+        clear_element_opener_comments();
+    }
+
+    // Tests for data-* and --* attribute wrapping rules.
+    // Mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute` / `addProp`.
 
     #[test]
     fn number_only_lookup_matches_upstream_with_ascii_case_folding() {

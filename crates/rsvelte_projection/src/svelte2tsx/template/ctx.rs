@@ -126,20 +126,95 @@ impl Counter {
     }
 }
 
+#[derive(Default)]
+pub(super) struct ElementOpenerCommentIndex {
+    ranges: Vec<(u32, u32)>,
+}
+
+impl ElementOpenerCommentIndex {
+    fn new(mut ranges: Vec<(u32, u32)>) -> Self {
+        if !ranges.windows(2).all(|pair| pair[0].0 <= pair[1].0) {
+            ranges.sort_unstable_by_key(|&(start, _)| start);
+        }
+        debug_assert!(
+            ranges.windows(2).all(|pair| pair[0].1 <= pair[1].0),
+            "element-opener comment ranges must not overlap"
+        );
+        Self { ranges }
+    }
+
+    pub(super) fn is_empty(&self) -> bool {
+        self.ranges.is_empty()
+    }
+
+    pub(super) fn ending_at_or_before(&self, end: u32) -> &[(u32, u32)] {
+        let bound = self
+            .ranges
+            .partition_point(|&(_, range_end)| range_end <= end);
+        &self.ranges[..bound]
+    }
+
+    pub(super) fn starting_at_or_after(&self, start: u32) -> &[(u32, u32)] {
+        let bound = self
+            .ranges
+            .partition_point(|&(range_start, _)| range_start < start);
+        &self.ranges[bound..]
+    }
+
+    pub(super) fn contained_in(&self, start: u32, end: u32) -> &[(u32, u32)] {
+        let from = self
+            .ranges
+            .partition_point(|&(range_start, _)| range_start < start);
+        let mut to = self
+            .ranges
+            .partition_point(|&(range_start, _)| range_start < end);
+        if to > from && self.ranges[to - 1].1 > end {
+            to -= 1;
+        }
+        &self.ranges[from..to]
+    }
+}
+
 thread_local! {
     /// Source ranges of comments found inside element opening tags (between
     /// attributes), set per-compile so attribute emission can re-attach them as
     /// leading comments. Mirrors official `attr.leadingComments`.
-    pub(super) static ELEMENT_OPENER_COMMENTS: std::cell::RefCell<Vec<(u32, u32)>> =
-        const { std::cell::RefCell::new(Vec::new()) };
+    static ELEMENT_OPENER_COMMENTS: std::cell::RefCell<ElementOpenerCommentIndex> =
+        std::cell::RefCell::new(ElementOpenerCommentIndex::default());
+    #[cfg(test)]
+    static ELEMENT_OPENER_COMMENT_RANGE_VISITS: std::cell::Cell<usize> =
+        const { std::cell::Cell::new(0) };
 }
 
 /// Set the element-opener comment ranges for the current compile (read-only).
 pub(crate) fn set_element_opener_comments(ranges: Vec<(u32, u32)>) {
-    ELEMENT_OPENER_COMMENTS.with(|c| *c.borrow_mut() = ranges);
+    ELEMENT_OPENER_COMMENTS.with(|comments| {
+        *comments.borrow_mut() = ElementOpenerCommentIndex::new(ranges);
+    });
 }
 
 /// Clear the element-opener comment ranges after a compile.
 pub(crate) fn clear_element_opener_comments() {
-    ELEMENT_OPENER_COMMENTS.with(|c| c.borrow_mut().clear());
+    ELEMENT_OPENER_COMMENTS.with(|comments| comments.borrow_mut().ranges.clear());
+}
+
+pub(super) fn with_element_opener_comments<T>(
+    f: impl FnOnce(&ElementOpenerCommentIndex) -> T,
+) -> T {
+    ELEMENT_OPENER_COMMENTS.with(|comments| f(&comments.borrow()))
+}
+
+#[cfg(test)]
+pub(super) fn record_element_opener_comment_range_visits(count: usize) {
+    ELEMENT_OPENER_COMMENT_RANGE_VISITS.with(|visits| visits.set(visits.get() + count));
+}
+
+#[cfg(test)]
+pub(super) fn reset_element_opener_comment_range_visits() {
+    ELEMENT_OPENER_COMMENT_RANGE_VISITS.with(|visits| visits.set(0));
+}
+
+#[cfg(test)]
+pub(super) fn element_opener_comment_range_visits() -> usize {
+    ELEMENT_OPENER_COMMENT_RANGE_VISITS.with(std::cell::Cell::get)
 }
