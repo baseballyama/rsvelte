@@ -269,6 +269,93 @@ pub(crate) fn leading_attr_comment_segs(attr_start: u32, source: &str) -> Vec<Se
     })
 }
 
+/// Source ranges of the comments that sit between `attr_end` and the `>` of the
+/// enclosing opening tag, with only whitespace (and an optional self-closing
+/// `/`) around them. Mirrors official `handleTrailingEndComment`; the caller is
+/// responsible for only asking about the element's *last* attribute.
+fn trailing_attr_comments(attr_end: u32, source: &str) -> Vec<(u32, u32)> {
+    let Some(rel) = source.get(attr_end as usize..).and_then(|s| s.find('>')) else {
+        return Vec::new();
+    };
+    let tag_end = attr_end + rel as u32;
+    ELEMENT_OPENER_COMMENTS.with(|c| {
+        let mut comments: Vec<(u32, u32)> = c.borrow().clone();
+        comments.sort_by_key(|&(s, _)| s);
+        let mut trailing: Vec<(u32, u32)> = Vec::new();
+        let mut search_start = attr_end;
+        for (cs, ce) in comments {
+            if cs < search_start {
+                continue;
+            }
+            if ce > tag_end {
+                break;
+            }
+            if !slice_src(source, search_start as usize, cs as usize)
+                .chars()
+                .all(char::is_whitespace)
+            {
+                break;
+            }
+            trailing.push((cs, ce));
+            search_start = ce;
+        }
+        if trailing.is_empty() {
+            return Vec::new();
+        }
+        // Anything other than whitespace and an optional `/` up to `>` means the
+        // comments are not the last thing in the opener — bail like official.
+        let rest = slice_src(source, search_start as usize, tag_end as usize);
+        if !rest.chars().all(|ch| ch.is_whitespace() || ch == '/') || rest.matches('/').count() > 1
+        {
+            return Vec::new();
+        }
+        trailing
+    })
+}
+
+/// Build the trailing-comment suffix segs for the last attribute of an element
+/// opener: each comment becomes `[\n| ]<comment-source>`, closed by a final
+/// `\n` (mirrors official `getTrailingCommentTransformation`). Empty when there
+/// are none.
+pub(crate) fn trailing_attr_comment_segs(attr_end: u32, source: &str) -> Vec<Seg> {
+    let trailing = trailing_attr_comments(attr_end, source);
+    if trailing.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    for (cs, ce) in &trailing {
+        let region = slice_src(source, cs.saturating_sub(100) as usize, *cs as usize);
+        if region.trim_end_matches([' ', '\t']).ends_with('\n') {
+            segs_push_lit(&mut out, "\n");
+        } else {
+            segs_push_lit(&mut out, " ");
+        }
+        segs_push_src(&mut out, *cs, *ce);
+    }
+    segs_push_lit(&mut out, "\n");
+    out
+}
+
+/// String variant of [`trailing_attr_comment_segs`] for the component props path.
+pub(crate) fn trailing_attr_comment_text(attr_end: u32, source: &str) -> String {
+    let trailing = trailing_attr_comments(attr_end, source);
+    if trailing.is_empty() {
+        return String::new();
+    }
+    let mut out = String::new();
+    for (cs, ce) in &trailing {
+        let region = slice_src(source, cs.saturating_sub(100) as usize, *cs as usize);
+        out.push(if region.trim_end_matches([' ', '\t']).ends_with('\n') {
+            '\n'
+        } else {
+            ' '
+        });
+        out.push_str(slice_src(source, *cs as usize, *ce as usize));
+    }
+    out.push('\n');
+    out
+}
+
 /// Structured-bake variant of [`format_attribute_node`]. Wraps every
 /// expression site in `Seg::Src` so the resulting MagicString chunks
 /// retain per-character source-map fidelity.

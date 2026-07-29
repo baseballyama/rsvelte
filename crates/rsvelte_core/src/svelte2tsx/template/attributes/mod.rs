@@ -26,12 +26,88 @@ use crate::svelte2tsx::template::utils::expr::{
 };
 
 use action::format_use_directive;
-use attribute::{format_attribute_node, format_attribute_node_segments};
+use attribute::{
+    format_attribute_node, format_attribute_node_segments, trailing_attr_comment_segs,
+    trailing_attr_comment_text,
+};
 use binding::{bind_is_filtered_from_props, format_bind_directive_segments};
 use class_style::{format_class_directive, format_style_directive};
 use event_handler::format_on_directive_segments;
 use spread::{format_spread_attribute, format_spread_attribute_segments};
 use transition::format_transition_directive;
+
+/// End offset of an attribute or directive in the element opener.
+fn attribute_end(attr: &Attribute) -> u32 {
+    match attr {
+        Attribute::Attribute(n) => n.end,
+        Attribute::SpreadAttribute(n) => n.end,
+        Attribute::AttachTag(n) => n.end,
+        Attribute::BindDirective(n) => n.end,
+        Attribute::OnDirective(n) => n.end,
+        Attribute::ClassDirective(n) => n.end,
+        Attribute::StyleDirective(n) => n.end,
+        Attribute::TransitionDirective(n) => n.end,
+        Attribute::AnimateDirective(n) => n.end,
+        Attribute::UseDirective(n) => n.end,
+        Attribute::LetDirective(n) => n.end,
+    }
+}
+
+/// The opener's trailing comments, but only for the attribute kinds that emit
+/// into the props object — the directives lowered to statements after the
+/// `createElement(…)` call have no value site to hang them off.
+fn opener_trailing_comment_range(attributes: &[Attribute]) -> Option<u32> {
+    match attributes.last()? {
+        Attribute::ClassDirective(_)
+        | Attribute::StyleDirective(_)
+        | Attribute::TransitionDirective(_)
+        | Attribute::AnimateDirective(_)
+        | Attribute::UseDirective(_) => None,
+        last => Some(attribute_end(last)),
+    }
+}
+
+/// Insert `trailing` just before the emitted part's closing `,` (and inside a
+/// `...__sveltets_2_empty({…})` / `…cssProp({…})` wrapper), mirroring official's
+/// `addAttribute(name, [value, ...trailingComments])` placement.
+fn splice_trailing_segs(segs: &mut Vec<Seg>, trailing: &[Seg]) {
+    if trailing.is_empty() {
+        return;
+    }
+    let Some(Seg::Lit(last)) = segs.last().cloned() else {
+        return;
+    };
+    let suffix_len = if last.ends_with("}),") {
+        3
+    } else if last.ends_with(',') {
+        1
+    } else {
+        return;
+    };
+    let (head, tail) = last.split_at(last.len() - suffix_len);
+    let tail = tail.to_string();
+    segs.pop();
+    if !head.is_empty() {
+        segs.push(Seg::Lit(head.to_string()));
+    }
+    segs.extend(trailing.iter().cloned());
+    segs.push(Seg::Lit(tail));
+}
+
+/// String counterpart of [`splice_trailing_segs`].
+fn splice_trailing_text(part: &mut String, trailing: &str) {
+    if trailing.is_empty() {
+        return;
+    }
+    let suffix_len = if part.ends_with("}),") {
+        3
+    } else if part.ends_with(',') {
+        1
+    } else {
+        return;
+    };
+    part.insert_str(part.len() - suffix_len, trailing);
+}
 
 /// Build the attributes string for TSX output.
 ///
@@ -189,6 +265,11 @@ pub(super) fn build_attribute_segments(
         }
     }
 
+    if any_pushed && let Some(end) = opener_trailing_comment_range(attributes) {
+        let trailing = trailing_attr_comment_segs(end, source);
+        splice_trailing_segs(&mut segs, &trailing);
+    }
+
     if any_pushed && !segs_is_empty(&segs) {
         // Leading single space: `{ "attr":val,}` (not `{"attr":val,}`).
         // Inserted as a fresh first Lit so callers can replace/pad it
@@ -297,6 +378,12 @@ pub(super) fn build_component_props_string(attributes: &[Attribute], source: &st
                 parts.push(format!("[Symbol(\"@attach\")]:{},", expr_text));
             }
         }
+    }
+
+    if let Some(end) = opener_trailing_comment_range(attributes)
+        && let Some(last) = parts.last_mut()
+    {
+        splice_trailing_text(last, &trailing_attr_comment_text(end, source));
     }
 
     let result = parts.join("");
@@ -432,6 +519,11 @@ pub(super) fn build_component_props_segments(
                 extend_segs(&mut inner, part);
             }
         }
+    }
+
+    if let Some(end) = opener_trailing_comment_range(attributes) {
+        let trailing = trailing_attr_comment_segs(end, source);
+        splice_trailing_segs(&mut inner, &trailing);
     }
 
     let let_spaces = " ".repeat(let_count as usize);
