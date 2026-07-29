@@ -1,13 +1,11 @@
-use std::collections::HashMap;
-
 use oxc_ast::ast as oxc;
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 
 use super::ast_utils::collect_binding_names;
+use super::stores::{StoreScanContext, collect_self_named_rune_call_positions};
 
 pub(super) struct ScriptFacts {
-    pub(super) dollar_param_shadow: HashMap<String, Vec<(u32, u32)>>,
     pub(super) type_assertions: Vec<TypeAssertionFacts>,
     pub(super) arrow_generic_commas: Vec<u32>,
     #[cfg(test)]
@@ -15,18 +13,24 @@ pub(super) struct ScriptFacts {
 }
 
 impl ScriptFacts {
-    pub(super) fn collect(
+    pub(super) fn collect<'s>(
         program: &oxc::Program,
         offset: u32,
         raw_content: &str,
         collect_dollar_param_shadow: bool,
+        store_scan: &mut StoreScanContext<'s>,
     ) -> Self {
+        store_scan.begin_script_facts();
+        let collect_store_facts = store_scan.has_dollar();
+        if collect_store_facts {
+            collect_self_named_rune_call_positions(store_scan, program, offset);
+        }
         let mut collector = ScriptFactsCollector {
             offset,
             raw_content,
-            collect_dollar_param_shadow,
+            collect_dollar_param_shadow: collect_store_facts && collect_dollar_param_shadow,
+            store_scan,
             facts: Self {
-                dollar_param_shadow: HashMap::new(),
                 type_assertions: Vec::new(),
                 arrow_generic_commas: Vec::new(),
                 #[cfg(test)]
@@ -34,6 +38,7 @@ impl ScriptFacts {
             },
         };
         collector.visit_program(program);
+        collector.store_scan.finish_script_facts();
         collector.facts
     }
 }
@@ -54,14 +59,15 @@ pub(super) struct VisitorDispatches {
     pub(super) type_assertions: usize,
 }
 
-struct ScriptFactsCollector<'s> {
+struct ScriptFactsCollector<'r, 'c, 's> {
     offset: u32,
-    raw_content: &'s str,
+    raw_content: &'r str,
     collect_dollar_param_shadow: bool,
+    store_scan: &'c mut StoreScanContext<'s>,
     facts: ScriptFacts,
 }
 
-impl ScriptFactsCollector<'_> {
+impl ScriptFactsCollector<'_, '_, '_> {
     fn add_params(&mut self, params: &oxc::FormalParameters, span: oxc_span::Span) {
         if !self.collect_dollar_param_shadow {
             return;
@@ -71,13 +77,7 @@ impl ScriptFactsCollector<'_> {
             let mut names = Vec::new();
             collect_binding_names(&item.pattern, &mut names);
             for name in names {
-                if let Some(base) = name.strip_prefix('$') {
-                    self.facts
-                        .dollar_param_shadow
-                        .entry(base.to_string())
-                        .or_default()
-                        .push(src_span);
-                }
+                self.store_scan.add_dollar_param_shadow(&name, src_span);
             }
         }
     }
@@ -106,7 +106,7 @@ impl ScriptFactsCollector<'_> {
     }
 }
 
-impl<'a> Visit<'a> for ScriptFactsCollector<'_> {
+impl<'a> Visit<'a> for ScriptFactsCollector<'_, '_, '_> {
     fn visit_function(&mut self, it: &oxc::Function<'a>, flags: oxc_syntax::scope::ScopeFlags) {
         #[cfg(test)]
         {
@@ -205,7 +205,8 @@ function outer($outer) {
         assert!(retained.diagnostics().is_empty());
 
         let offset = 41;
-        let facts = ScriptFacts::collect(retained.program(), offset, source, true);
+        let mut store_scan = StoreScanContext::new(source);
+        let facts = ScriptFacts::collect(retained.program(), offset, source, true, &mut store_scan);
 
         assert_eq!(
             facts.visitor_dispatches,
@@ -224,18 +225,18 @@ function outer($outer) {
         let nested_start = source.find("function nested").unwrap() as u32 + offset;
         let arrow_start = source.find("<T>").unwrap() as u32 + offset;
         assert_eq!(
-            facts.dollar_param_shadow["outer"],
+            store_scan.dollar_param_shadow["outer"],
             vec![(outer_start, source.len() as u32 + offset)]
         );
         assert_eq!(
-            facts.dollar_param_shadow["arrow"],
+            store_scan.dollar_param_shadow["arrow"],
             vec![(
                 arrow_start,
                 source.find(";\n        return inner").unwrap() as u32 + offset
             )]
         );
         assert_eq!(
-            facts.dollar_param_shadow["nested"],
+            store_scan.dollar_param_shadow["nested"],
             vec![(
                 nested_start,
                 source.find("; });").unwrap() as u32 + 3 + offset

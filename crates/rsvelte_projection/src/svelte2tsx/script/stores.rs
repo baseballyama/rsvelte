@@ -16,6 +16,139 @@ use super::super::magic_string::MagicString;
 /// Reserved names that should not be treated as store references.
 const RESERVED_STORE_NAMES: &[&str] = &["$$props", "$$restProps", "$$slots"];
 
+struct StoreCandidate<'s> {
+    name: &'s str,
+    pos: u32,
+    may_be_self_named_rune: bool,
+}
+
+pub(crate) struct StoreScanContext<'s> {
+    source: &'s str,
+    has_dollar: Option<bool>,
+    candidates_scanned: bool,
+    candidates: Vec<StoreCandidate<'s>>,
+    accessed_stores: HashSet<&'s str>,
+    pub(super) dollar_param_shadow: HashMap<String, Vec<(u32, u32)>>,
+    pub(super) self_named_rune_calls: Vec<u32>,
+    import_store_names: Vec<&'s str>,
+    seen_import_store_names: HashSet<&'s str>,
+}
+
+impl<'s> StoreScanContext<'s> {
+    pub(crate) fn new(source: &'s str) -> Self {
+        Self {
+            source,
+            has_dollar: None,
+            candidates_scanned: false,
+            candidates: Vec::new(),
+            accessed_stores: HashSet::new(),
+            dollar_param_shadow: HashMap::new(),
+            self_named_rune_calls: Vec::new(),
+            import_store_names: Vec::new(),
+            seen_import_store_names: HashSet::new(),
+        }
+    }
+
+    pub(super) fn begin_script_facts(&mut self) {
+        self.dollar_param_shadow.clear();
+        self.self_named_rune_calls.clear();
+    }
+
+    pub(super) fn has_dollar(&mut self) -> bool {
+        if let Some(has_dollar) = self.has_dollar {
+            return has_dollar;
+        }
+        let has_dollar = memchr::memchr(b'$', self.source.as_bytes()).is_some();
+        self.has_dollar = Some(has_dollar);
+        has_dollar
+    }
+
+    pub(super) fn add_dollar_param_shadow(&mut self, name: &str, span: (u32, u32)) {
+        if let Some(base) = name.strip_prefix('$') {
+            self.dollar_param_shadow
+                .entry(base.to_string())
+                .or_default()
+                .push(span);
+        }
+    }
+
+    pub(super) fn add_self_named_rune_call(&mut self, pos: u32) {
+        self.self_named_rune_calls.push(pos);
+    }
+
+    pub(super) fn finish_script_facts(&mut self) {
+        self.self_named_rune_calls.sort_unstable();
+        self.self_named_rune_calls.dedup();
+    }
+
+    pub(super) fn collect_loose_dollar_names(
+        &mut self,
+        start: usize,
+        end: usize,
+        output: &mut HashSet<String>,
+    ) {
+        self.accessed_stores.clear();
+        let Some(text) = self.source.get(start..end) else {
+            return;
+        };
+        collect_loose_dollar_names_into(text, &mut self.accessed_stores);
+        output.extend(self.accessed_stores.iter().map(|name| (*name).to_string()));
+    }
+
+    fn ensure_candidates(&mut self) {
+        if self.candidates_scanned {
+            return;
+        }
+        let has_dollar = self.has_dollar();
+        self.candidates_scanned = true;
+        if has_dollar {
+            collect_store_candidates(self.source, &mut self.candidates);
+        }
+    }
+
+    fn resolve_accessed_stores(&mut self) {
+        self.ensure_candidates();
+        self.accessed_stores.clear();
+        for candidate in &self.candidates {
+            if candidate.may_be_self_named_rune
+                && self
+                    .self_named_rune_calls
+                    .binary_search(&candidate.pos)
+                    .is_ok()
+            {
+                continue;
+            }
+            if !is_dollar_binding_shadowed(
+                &self.dollar_param_shadow,
+                candidate.name,
+                candidate.pos as usize,
+            ) {
+                self.accessed_stores.insert(candidate.name);
+            }
+        }
+    }
+
+    fn is_accessed(&self, name: &str) -> bool {
+        self.accessed_stores.contains(name)
+    }
+
+    fn begin_import_collection(&mut self) {
+        self.import_store_names.clear();
+        self.seen_import_store_names.clear();
+    }
+
+    fn push_import_if_accessed(&mut self, name: &str) {
+        if let Some(&source_name) = self.accessed_stores.get(name) {
+            self.import_store_names.push(source_name);
+        }
+    }
+
+    fn dedup_imports_preserving_order(&mut self) {
+        let seen = &mut self.seen_import_store_names;
+        self.import_store_names.retain(|name| seen.insert(*name));
+    }
+}
+
 /// True when the source has a `<script context="module">` / `<script module>` tag.
 fn has_module_script(source: &str) -> bool {
     find_module_script_span(source).is_some()
@@ -174,13 +307,12 @@ fn blank_instance_script_comments(source: &str, buf: &mut [u8]) {
 /// name `X` for every `$X` token found, skipping only `$$`-prefixed forms and
 /// obvious non-identifiers (comments, strings, member accesses, etc.) but NOT
 /// applying the rune-name filter.
-pub(super) fn collect_loose_dollar_names_from_script(text: &str) -> HashSet<String> {
+fn collect_loose_dollar_names_into<'s>(text: &'s str, names: &mut HashSet<&'s str>) {
     let bytes = text.as_bytes();
     if memchr::memchr(b'$', bytes).is_none() {
-        return HashSet::new();
+        return;
     }
     let len = bytes.len();
-    let mut names = HashSet::new();
     let mut i = 0usize;
 
     // Simple comment/string skipper — matches the level of care in
@@ -265,25 +397,21 @@ pub(super) fn collect_loose_dollar_names_from_script(text: &str) -> HashSet<Stri
         }
 
         let base = &text[next..end];
-        names.insert(base.to_string());
+        names.insert(base);
         i = end;
     }
-    names
 }
 
-pub(super) fn collect_store_references(source: &str) -> HashSet<String> {
-    // No parsed program here (import-only module path): there are no self-named
-    // rune-call callees to exclude, so an empty position set is exact.
-    collect_store_references_with_shadow(source, &HashMap::new(), &HashSet::new())
+#[cfg(test)]
+fn collect_loose_dollar_names_from_script(text: &str) -> HashSet<String> {
+    let mut names = HashSet::new();
+    collect_loose_dollar_names_into(text, &mut names);
+    names.into_iter().map(str::to_string).collect()
 }
 
-pub(super) fn collect_store_references_with_shadow(
-    source: &str,
-    shadow: &HashMap<String, Vec<(u32, u32)>>,
-    self_named_rune_calls: &HashSet<u32>,
-) -> HashSet<String> {
+fn collect_store_candidates<'s>(source: &'s str, candidates: &mut Vec<StoreCandidate<'s>>) {
     if memchr::memchr(b'$', source.as_bytes()).is_none() {
-        return HashSet::new();
+        return;
     }
 
     // Hand-rolled byte-level scan. The previous implementation compiled a
@@ -299,6 +427,7 @@ pub(super) fn collect_store_references_with_shadow(
     // official `svelte2tsx` only runs the `Stores` walker over the instance
     // script + template, never the module script body. So a `<script module>`
     // that internally reads `$foo` must not make `foo` look like a store.
+    let original_source = source;
     let blanked;
     // Instance-script JS comments must be blanked too: official only collects
     // `$name` store accesses from the parsed instance-script AST + template
@@ -306,7 +435,7 @@ pub(super) fn collect_store_references_with_shadow(
     // comment (e.g. a JSDoc `[`$on`](…$on)` link) is never a store reference.
     let needs_blank =
         source.contains("<!--") || has_module_script(source) || instance_script_has_comment(source);
-    let source: &str = if needs_blank {
+    let scan_source: &str = if needs_blank {
         let mut buf = source.as_bytes().to_vec();
         let mut j = 0usize;
         while let Some(rel) = source[j..].find("<!--") {
@@ -329,8 +458,7 @@ pub(super) fn collect_store_references_with_shadow(
     } else {
         source
     };
-    let mut stores = HashSet::new();
-    let bytes = source.as_bytes();
+    let bytes = scan_source.as_bytes();
     let len = bytes.len();
     let mut i = 0usize;
     while let Some(off) = memchr::memchr(b'$', &bytes[i..]) {
@@ -374,7 +502,7 @@ pub(super) fn collect_store_references_with_shadow(
                 while k > 0 && bytes[k - 1].is_ascii_lowercase() {
                     k -= 1;
                 }
-                let kw = &source[k..kw_end];
+                let kw = &scan_source[k..kw_end];
                 let boundary_ok =
                     k == 0 || matches!(bytes[k - 1], b' ' | b'\t' | b'\n' | b'\r' | b'<');
                 if boundary_ok && matches!(kw, "use" | "transition" | "in" | "out" | "animate") {
@@ -396,7 +524,7 @@ pub(super) fn collect_store_references_with_shadow(
                 break;
             }
         }
-        let full = &source[pos..end];
+        let full = &scan_source[pos..end];
         // Object-literal property KEY (`{ $name: value }` / after a `,`): the
         // `$name` is a property name, not a store reference. Official walks the
         // parsed AST and skips `Property.key` identifiers, so e.g. a row object
@@ -422,24 +550,14 @@ pub(super) fn collect_store_references_with_shadow(
         // generic-argument commas can't fool a text scan, and — crucially — only
         // the CALL occurrence is skipped: a sibling `$state.snapshot(state)`
         // keeps `state` a store, matching upstream.
-        if matches!(full, "$state" | "$props" | "$derived")
-            && self_named_rune_calls.contains(&(pos as u32))
-        {
-            i = end;
-            continue;
-        }
-        let base = &source[next..end];
-        // A `$name` whose `$`-prefixed binding (a function/arrow parameter)
-        // lexically encloses this position is a LOCAL binding reference, not a
-        // store auto-subscription. Mirrors official `resolveStore`, which walks
-        // the scope chain and skips a `$name` reference declared in any
-        // enclosing `scope.declared` set.
-        if !is_dollar_binding_shadowed(shadow, base, pos) {
-            stores.insert(base.to_string());
-        }
+        let base = &original_source[next..end];
+        candidates.push(StoreCandidate {
+            name: base,
+            pos: pos as u32,
+            may_be_self_named_rune: matches!(full, "$state" | "$props" | "$derived"),
+        });
         i = end;
     }
-    stores
 }
 
 /// True when the `$name` token spanning `[pos, end)` is an object-literal
@@ -517,10 +635,10 @@ pub(super) fn create_store_declarations(store_names: &[&str]) -> String {
 /// `let state = $state([])` next to `$state.snapshot(state)` still auto-
 /// subscribes exactly as upstream does.
 pub(super) fn collect_self_named_rune_call_positions(
+    context: &mut StoreScanContext<'_>,
     program: &oxc::Program,
     offset: u32,
-) -> HashSet<u32> {
-    let mut positions = HashSet::new();
+) {
     let mut visit_var_decl = |var_decl: &oxc::VariableDeclaration| {
         for declarator in var_decl.declarations.iter() {
             let Some(init) = declarator.init.as_ref() else {
@@ -529,7 +647,7 @@ pub(super) fn collect_self_named_rune_call_positions(
             if let Some(call) = excluded_rune_init(init, &declarator.id)
                 && let oxc::Expression::Identifier(callee) = &call.callee
             {
-                positions.insert(callee.span.start + offset);
+                context.add_self_named_rune_call(callee.span.start + offset);
             }
         }
     };
@@ -544,7 +662,6 @@ pub(super) fn collect_self_named_rune_call_positions(
             _ => {}
         }
     }
-    positions
 }
 
 /// Inject store subscription declarations into the script.
@@ -564,25 +681,19 @@ pub(super) fn inject_store_subscriptions_with_program(
     program: &oxc::Program,
     module_program: Option<&oxc::Program>,
     offset: u32,
-    source: &str,
-    shadow: &HashMap<String, Vec<(u32, u32)>>,
+    context: &mut StoreScanContext<'_>,
     str: &mut MagicString,
 ) {
-    if memchr::memchr(b'$', source.as_bytes()).is_none() {
+    if !context.has_dollar() {
         return;
     }
 
-    // Exclude `$name` references that are shadowed by a `$`-prefixed function /
-    // arrow parameter binding in the instance script (official `resolveStore`
-    // scope-chain check). The shadow map is keyed by source byte ranges.
-    let self_named_rune_calls = collect_self_named_rune_call_positions(program, offset);
-    let accessed_stores =
-        collect_store_references_with_shadow(source, shadow, &self_named_rune_calls);
-    if accessed_stores.is_empty() {
+    context.resolve_accessed_stores();
+    if context.accessed_stores.is_empty() {
         return;
     }
 
-    let mut import_store_names: Vec<String> = Vec::new();
+    context.begin_import_collection();
 
     for stmt in program.body.iter() {
         match stmt {
@@ -598,7 +709,7 @@ pub(super) fn inject_store_subscriptions_with_program(
                     let names = extract_all_names_from_binding_pattern(&declarator.id);
                     let matching: Vec<String> = names
                         .into_iter()
-                        .filter(|name| accessed_stores.contains(name))
+                        .filter(|name| context.is_accessed(name))
                         .collect();
 
                     if !matching.is_empty() {
@@ -610,7 +721,7 @@ pub(super) fn inject_store_subscriptions_with_program(
             }
 
             oxc::Statement::ImportDeclaration(import) => {
-                collect_import_store_names(import, &accessed_stores, &mut import_store_names);
+                collect_import_store_names(import, context);
             }
 
             oxc::Statement::ExportNamedDeclaration(export) => {
@@ -628,7 +739,7 @@ pub(super) fn inject_store_subscriptions_with_program(
                         let names = extract_all_names_from_binding_pattern(&declarator.id);
                         let matching: Vec<String> = names
                             .into_iter()
-                            .filter(|name| accessed_stores.contains(name))
+                            .filter(|name| context.is_accessed(name))
                             .collect();
 
                         if !matching.is_empty() {
@@ -645,7 +756,7 @@ pub(super) fn inject_store_subscriptions_with_program(
                 let names = extract_names_from_labeled_body(&labeled.body);
                 let matching: Vec<String> = names
                     .into_iter()
-                    .filter(|n| accessed_stores.contains(n))
+                    .filter(|name| context.is_accessed(name))
                     .collect();
 
                 if !matching.is_empty() {
@@ -660,19 +771,15 @@ pub(super) fn inject_store_subscriptions_with_program(
         }
     }
 
-    collect_module_script_import_stores(module_program, &accessed_stores, &mut import_store_names);
+    collect_module_script_import_stores(module_program, context);
 
     // Official `attachStoreValueDeclarationOfImportsToRenderFn` iterates
     // `importStatements` in IMPORT-DECLARATION order (not first-`$store`-use
     // order), which is exactly the collection order here (instance imports in
     // program order, then module imports). Just dedup preserving that order.
-    {
-        let mut seen = std::collections::HashSet::new();
-        import_store_names.retain(|n| seen.insert(n.clone()));
-    }
-    if !import_store_names.is_empty() {
-        let name_refs: Vec<&str> = import_store_names.iter().map(|s| s.as_str()).collect();
-        let store_decls = create_store_declarations(&name_refs);
+    context.dedup_imports_preserving_order();
+    if !context.import_store_names.is_empty() {
+        let store_decls = create_store_declarations(&context.import_store_names);
         str.append_right(offset, &store_decls);
     }
 }
@@ -681,11 +788,7 @@ pub(super) fn inject_store_subscriptions_with_program(
 ///
 /// In Svelte 5 mode, `derived` imported from `svelte/store` is excluded because
 /// it's a known rune function, not a store.
-fn collect_import_store_names(
-    import: &oxc::ImportDeclaration,
-    accessed_stores: &HashSet<String>,
-    import_store_names: &mut Vec<String>,
-) {
+fn collect_import_store_names(import: &oxc::ImportDeclaration, context: &mut StoreScanContext<'_>) {
     // Skip type-only imports
     if import.import_kind.is_type() {
         return;
@@ -698,10 +801,10 @@ fn collect_import_store_names(
         for spec in specifiers.iter() {
             let (local_name, is_derived_import) = match spec {
                 oxc::ImportDeclarationSpecifier::ImportDefaultSpecifier(s) => {
-                    (s.local.name.to_string(), false)
+                    (s.local.name.as_str(), false)
                 }
                 oxc::ImportDeclarationSpecifier::ImportNamespaceSpecifier(s) => {
-                    (s.local.name.to_string(), false)
+                    (s.local.name.as_str(), false)
                 }
                 oxc::ImportDeclarationSpecifier::ImportSpecifier(s) => {
                     // Skip type-only import specifiers
@@ -709,7 +812,7 @@ fn collect_import_store_names(
                         continue;
                     }
                     let is_derived = is_svelte_store_import && s.local.name == "derived";
-                    (s.local.name.to_string(), is_derived)
+                    (s.local.name.as_str(), is_derived)
                 }
             };
 
@@ -720,9 +823,7 @@ fn collect_import_store_names(
                 continue;
             }
 
-            if accessed_stores.contains(&local_name) {
-                import_store_names.push(local_name);
-            }
+            context.push_import_if_accessed(local_name);
         }
     }
 }
@@ -733,8 +834,7 @@ fn collect_import_store_names(
 /// imports at the $$render function body start.
 fn collect_module_script_import_stores(
     program: Option<&oxc::Program>,
-    accessed_stores: &HashSet<String>,
-    import_store_names: &mut Vec<String>,
+    context: &mut StoreScanContext<'_>,
 ) {
     let program = match program {
         Some(program) => program,
@@ -742,7 +842,7 @@ fn collect_module_script_import_stores(
     };
     for stmt in program.body.iter() {
         if let oxc::Statement::ImportDeclaration(import) = stmt {
-            collect_import_store_names(import, accessed_stores, import_store_names);
+            collect_import_store_names(import, context);
         }
     }
 }
@@ -753,27 +853,26 @@ fn collect_module_script_import_stores(
 /// module-script import names that are used as stores (`$name`) in the source
 /// and returns the store subscription declarations string to inject at the
 /// start of the $$render async wrapper.
-pub fn collect_module_import_store_declarations(
-    source: &str,
+pub(crate) fn collect_module_import_store_declarations(
+    context: &mut StoreScanContext<'_>,
     module_program: Option<&oxc::Program>,
 ) -> String {
-    let accessed_stores = collect_store_references(source);
-    if accessed_stores.is_empty() {
+    context.resolve_accessed_stores();
+    if context.accessed_stores.is_empty() {
         return String::new();
     }
 
-    let mut import_store_names: Vec<String> = Vec::new();
-    collect_module_script_import_stores(module_program, &accessed_stores, &mut import_store_names);
+    context.begin_import_collection();
+    collect_module_script_import_stores(module_program, context);
 
-    import_store_names.sort();
-    import_store_names.dedup();
+    context.import_store_names.sort_unstable();
+    context.import_store_names.dedup();
 
-    if import_store_names.is_empty() {
+    if context.import_store_names.is_empty() {
         return String::new();
     }
 
-    let name_refs: Vec<&str> = import_store_names.iter().map(|s| s.as_str()).collect();
-    create_store_declarations(&name_refs)
+    create_store_declarations(&context.import_store_names)
 }
 
 /// Inject store subscription declarations for variable declarations only.
@@ -785,17 +884,15 @@ pub fn collect_module_import_store_declarations(
 pub(super) fn inject_store_subscriptions_vars_only_with_program(
     program: &oxc::Program,
     offset: u32,
-    source: &str,
+    context: &mut StoreScanContext<'_>,
     str: &mut MagicString,
 ) {
-    if memchr::memchr(b'$', source.as_bytes()).is_none() {
+    if !context.has_dollar() {
         return;
     }
 
-    let self_named_rune_calls = collect_self_named_rune_call_positions(program, offset);
-    let accessed_stores =
-        collect_store_references_with_shadow(source, &HashMap::new(), &self_named_rune_calls);
-    if accessed_stores.is_empty() {
+    context.resolve_accessed_stores();
+    if context.accessed_stores.is_empty() {
         return;
     }
 
@@ -812,7 +909,7 @@ pub(super) fn inject_store_subscriptions_vars_only_with_program(
                 let names = extract_all_names_from_binding_pattern(&declarator.id);
                 let matching: Vec<String> = names
                     .into_iter()
-                    .filter(|name| accessed_stores.contains(name))
+                    .filter(|name| context.is_accessed(name))
                     .collect();
 
                 if !matching.is_empty() {
@@ -829,6 +926,10 @@ pub(super) fn inject_store_subscriptions_vars_only_with_program(
 mod tests {
     use super::super::test_support::run_svelte2tsx;
     use super::*;
+
+    fn assert_names(context: &StoreScanContext<'_>, expected: &[&str]) {
+        assert_eq!(context.accessed_stores, expected.iter().copied().collect());
+    }
 
     #[test]
     fn collect_loose_dollar_names_strips_dollar_skips_comments_strings_members() {
@@ -849,6 +950,77 @@ mod tests {
         assert!(!got.contains("stringy"), "string literal skipped: {got:?}");
         assert!(!got.contains("member"), "member access skipped: {got:?}");
         assert!(!got.contains("props"), "$$-prefixed skipped: {got:?}");
+    }
+
+    #[test]
+    fn cached_candidates_match_fresh_resolution_across_script_facts() {
+        let source = "<script module>$ignored</script><script>\
+            const state=$state(0); function f($local,$shadowed){return $local+$shadowed+$outside}\
+            const text='prefix $string'; // $comment\n</script>{$local}{$outside}";
+        let function_start = source.find("function f").unwrap() as u32;
+        let function_end = source.find("const text").unwrap() as u32;
+        let rune_pos = source.find("$state(0)").unwrap() as u32;
+
+        let mut context = StoreScanContext::new(source);
+        for name in ["local", "shadowed"] {
+            context
+                .dollar_param_shadow
+                .insert(name.to_string(), vec![(function_start, function_end)]);
+        }
+        context.self_named_rune_calls = vec![rune_pos];
+        context.resolve_accessed_stores();
+        assert_names(&context, &["local", "outside", "string"]);
+
+        let candidate_capacity = context.candidates.capacity();
+        context.dollar_param_shadow.clear();
+        context.self_named_rune_calls.clear();
+        context.resolve_accessed_stores();
+        assert_names(
+            &context,
+            &["local", "outside", "shadowed", "state", "string"],
+        );
+        assert_eq!(context.candidates.capacity(), candidate_capacity);
+    }
+
+    #[test]
+    fn script_fact_resets_do_not_leak_between_module_and_instance() {
+        let source = "<script module>let state=$state(0)</script>\
+            <script>let props=$props();function f($local){return $local}</script>{$visible}";
+        let module_rune = source.find("$state(0)").unwrap() as u32;
+        let instance_rune = source.find("$props()").unwrap() as u32;
+        let function_start = source.find("function f").unwrap() as u32;
+        let function_end = source.rfind("</script>").unwrap() as u32;
+        let mut context = StoreScanContext::new(source);
+
+        context.begin_script_facts();
+        context.add_self_named_rune_call(module_rune);
+        context.finish_script_facts();
+        context.resolve_accessed_stores();
+        assert_names(&context, &["local", "props", "visible"]);
+
+        context.begin_script_facts();
+        context.add_self_named_rune_call(instance_rune);
+        context.add_dollar_param_shadow("$local", (function_start, function_end));
+        context.finish_script_facts();
+        context.resolve_accessed_stores();
+        assert_names(&context, &["visible"]);
+        assert!(!context.self_named_rune_calls.contains(&module_rune));
+        assert_eq!(context.dollar_param_shadow.len(), 1);
+
+        let module_only = "<script module>const local=$state(0)</script>{$state}";
+        let mut context = StoreScanContext::new(module_only);
+        context.self_named_rune_calls = vec![module_only.find("$state(0)").unwrap() as u32];
+        context.resolve_accessed_stores();
+        assert_names(&context, &["state"]);
+    }
+
+    #[test]
+    fn no_dollar_keeps_candidate_scan_lazy() {
+        let source = "<script>const value = 1;</script><p>{value}</p>";
+        let mut context = StoreScanContext::new(source);
+        assert_eq!(context.has_dollar, None);
+        assert!(!context.has_dollar());
+        assert!(!context.candidates_scanned);
     }
 
     #[test]
@@ -969,5 +1141,40 @@ mod tests {
             result.code.contains(store2_block),
             "store2 should have separate ignore block"
         );
+    }
+
+    #[test]
+    fn store_scan_context_preserves_instance_then_module_import_order_at_scale() {
+        let imports = |prefix| {
+            (0..64)
+                .map(|index| format!("{prefix}{index}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        let module_imports = imports("moduleStore");
+        let instance_imports = imports("instanceStore");
+        let uses = (0..64)
+            .map(|index| format!("{{$instanceStore{index}}}{{$moduleStore{index}}}"))
+            .collect::<String>();
+        let source = format!(
+            "<script module>import {{ {module_imports} }} from './module'</script>\
+             <script>import {{ {instance_imports} }} from './instance'</script>{uses}"
+        );
+        let result = run_svelte2tsx(&source);
+
+        let mut previous = 0;
+        for prefix in ["instanceStore", "moduleStore"] {
+            for index in 0..64 {
+                let declaration = format!("__sveltets_2_store_get({prefix}{index})");
+                assert_eq!(
+                    result.code.matches(&declaration).count(),
+                    1,
+                    "{declaration} must be emitted exactly once"
+                );
+                let position = result.code.find(&declaration).unwrap();
+                assert!(position >= previous, "import declaration order changed");
+                previous = position;
+            }
+        }
     }
 }

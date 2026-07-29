@@ -10,6 +10,7 @@ use super::interfaces::{Svelte2TsxMode, Svelte2TsxOptions};
 use super::magic_string::MagicString;
 use super::nodes::scripts::find_instance_imports;
 use super::nodes::slot::{collect_slot_names_from_ast, escape_js_single_quoted};
+use super::script::StoreScanContext;
 use super::svelte2tsx::slice_src;
 
 /// Prepend the reference-types header and open the `$$render()` wrapper.
@@ -23,6 +24,7 @@ pub(crate) fn create_render_function(
     ast: &Root,
     module_program: Option<&oxc_ast::ast::Program>,
     source: &str,
+    store_scan: &mut StoreScanContext<'_>,
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     dollar_decls: &str,
@@ -73,7 +75,7 @@ pub(crate) fn create_render_function(
         // For module-script-only components, inject store subscriptions for
         // module-level imports at the start of the $$render async wrapper.
         let store_decls =
-            super::script::collect_module_import_store_declarations(source, module_program);
+            super::script::collect_module_import_store_declarations(store_scan, module_program);
         // Suppress the `__sveltets_createSlot` binding in dts mode; matches
         // `createRenderFunction.ts`'s `slots.size > 0 && mode !== 'dts'` gate.
         let slot_decl_mod = if has_slot_elements && !is_dts_mode {

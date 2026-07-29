@@ -20,7 +20,7 @@ use super::nodes::slot::fragment_has_slot_element;
 use super::nodes::snippet_hoisting::hoist_top_level_snippets;
 use super::nodes::svelte_options::emit_svelte_options_element;
 use super::process_instance_script_tag::process_instance_script_tag;
-use super::script::{ComponentEvents, ExportedNames};
+use super::script::{ComponentEvents, ExportedNames, StoreScanContext};
 use super::template;
 use super::utils::htmlxparser::{blank_style_content, blank_style_tags, remove_orphan_scripts};
 use super::validation::{validate_debug_tag_arguments, validate_meta_element_placement};
@@ -295,6 +295,7 @@ pub fn svelte2tsx(
     // Step 5: Initialize tracking structures
     let mut exported_names = ExportedNames::new();
     let mut events = ComponentEvents::new();
+    let mut store_scan = StoreScanContext::new(source);
 
     if explicit_runes {
         exported_names.set_uses_runes(true);
@@ -302,7 +303,13 @@ pub fn svelte2tsx(
 
     // Step 6: Process module script (<script context="module">)
     if let (Some(module), Some(parsed)) = (&ast.module, &parsed_scripts.module) {
-        super::script::process_module_script(module, parsed, source, &mut str, &mut exported_names);
+        super::script::process_module_script(
+            module,
+            parsed,
+            &mut store_scan,
+            &mut str,
+            &mut exported_names,
+        );
     }
 
     // Step 7: Process instance script (<script>)
@@ -338,6 +345,7 @@ pub fn svelte2tsx(
                 .as_ref()
                 .map(|script| script.program()),
             source,
+            &mut store_scan,
             &mut str,
             &mut exported_names,
             &mut events,
@@ -602,6 +610,7 @@ pub fn svelte2tsx(
             .as_ref()
             .map(|script| script.program()),
         source,
+        &mut store_scan,
         &options,
         &mut str,
         &dollar_decls,
