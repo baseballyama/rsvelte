@@ -63,20 +63,16 @@ pub(crate) fn find_instance_imports(
         return Vec::new();
     }
 
-    // Comment spans (start, end) discovered by the parser, sorted by end. Used
-    // to compute each import's leading-comment region the way TS
+    // Parser comments are source-ordered. Keep a monotonic cursor over them to
+    // compute each import's leading-comment region the way TS
     // `getLeadingCommentRanges(node.getFullText())` does — including a TRAILING
     // line comment on the PREVIOUS statement's line (it is leading trivia of the
     // following import and moves up with it). The parser already tokenised
     // strings/regex correctly, so `// …` inside a string is never misread.
-    let comment_spans: Vec<(u32, u32)> = program
-        .comments
-        .iter()
-        .map(|c| (c.span.start, c.span.end))
-        .collect();
-
     let mut imports = Vec::new();
     let bytes = raw_content.as_bytes();
+    let comments = &program.comments;
+    let mut comment_cursor = 0;
     for stmt in program.body.iter() {
         if let oxc::Statement::ImportDeclaration(import) = stmt {
             // All import declarations (including side-effect imports like `import ''`)
@@ -84,39 +80,51 @@ pub(crate) fn find_instance_imports(
             // valid `import` statements with a source clause.
             let start = import.span.start;
             let end = import.span.end;
+            while comment_cursor < comments.len() && comments[comment_cursor].span.end <= start {
+                comment_cursor += 1;
+            }
 
             // Walk backwards over leading trivia, pulling in every comment whose
             // end is reachable from the current start via whitespace only, and
             // stopping at the first non-comment code (the previous token). This
             // mirrors `getLeadingCommentRanges` and pulls a trailing line comment
             // (`import …; // TODO`) into the FOLLOWING import's leading region.
-            let new_start = scan_back_leading_comments(bytes, start as usize, &comment_spans);
+            let new_start =
+                scan_back_leading_comments(bytes, start as usize, comments, comment_cursor);
 
             imports.push((new_start, start, end));
         }
     }
-    imports.sort_by_key(|&(s, _, _)| s);
     imports
 }
 
 /// Walk backwards from `pos` over leading trivia (whitespace + comments),
-/// returning the start of the earliest comment reachable via whitespace-only
-/// gaps. Stops at the first non-comment code. `comment_spans` are parser-
-/// discovered `(start, end)` pairs (so strings/regex never produce false `//`).
-fn scan_back_leading_comments(bytes: &[u8], pos: usize, comment_spans: &[(u32, u32)]) -> u32 {
+/// returning the start of the earliest reachable parser-discovered comment.
+fn scan_back_leading_comments(
+    bytes: &[u8],
+    pos: usize,
+    comments: &[oxc_ast::ast::Comment],
+    comment_cursor: usize,
+) -> u32 {
     let mut cstart = pos as u32;
+    let mut comment_index = comment_cursor;
     loop {
         // Skip whitespace backward.
         let mut p = cstart as usize;
         while p > 0 && matches!(bytes[p - 1], b' ' | b'\t' | b'\n' | b'\r') {
             p -= 1;
         }
-        // A comment ending exactly at `p` is leading trivia of this import.
-        if let Some(&(cs, _)) = comment_spans.iter().find(|&&(_, ce)| ce as usize == p) {
+
+        while comment_index > 0 && comments[comment_index - 1].span.end as usize > p {
+            comment_index -= 1;
+        }
+        if comment_index > 0 && comments[comment_index - 1].span.end as usize == p {
+            let cs = comments[comment_index - 1].span.start;
             if cs >= cstart {
                 break;
             }
             cstart = cs;
+            comment_index -= 1;
         } else {
             break;
         }
@@ -283,5 +291,73 @@ pub(crate) fn expr_contains_await_deep(expr: &oxc_ast::ast::Expression) -> bool 
 
         // Everything else (literals, identifiers, `this`, …) cannot contain await.
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use oxc_ast::ast::Comment;
+    use oxc_span::Span;
+    use std::fmt::Write as _;
+
+    fn comment(source: &str, text: &str) -> Comment {
+        let start = source.find(text).unwrap() as u32;
+        Comment {
+            span: Span::new(start, start + text.len() as u32),
+            ..Comment::default()
+        }
+    }
+
+    #[test]
+    fn comment_cursor_keeps_contiguous_leading_trivia() {
+        let source = "const value = 1; // trailing\n/* block */\nimport value from './value';";
+        let comments = [
+            comment(source, "// trailing"),
+            comment(source, "/* block */"),
+        ];
+        let import_start = source.find("import value").unwrap();
+
+        assert_eq!(
+            scan_back_leading_comments(source.as_bytes(), import_start, &comments, comments.len()),
+            comments[0].span.start
+        );
+    }
+
+    #[test]
+    fn comment_cursor_scales_across_ordered_imports() {
+        const IMPORTS: usize = 1_024;
+        let mut source = String::with_capacity(IMPORTS * 40);
+        let mut comments = Vec::with_capacity(IMPORTS);
+        let mut import_starts = Vec::with_capacity(IMPORTS);
+        for index in 0..IMPORTS {
+            let comment_start = source.len() as u32;
+            write!(source, "// import {index}").unwrap();
+            comments.push(Comment {
+                span: Span::new(comment_start, source.len() as u32),
+                ..Comment::default()
+            });
+            source.push('\n');
+            import_starts.push(source.len());
+            writeln!(source, "import v{index} from './m';").unwrap();
+        }
+
+        let mut comment_cursor = 0;
+        for (index, &import_start) in import_starts.iter().enumerate() {
+            while comment_cursor < comments.len()
+                && comments[comment_cursor].span.end <= import_start as u32
+            {
+                comment_cursor += 1;
+            }
+            assert_eq!(
+                scan_back_leading_comments(
+                    source.as_bytes(),
+                    import_start,
+                    &comments,
+                    comment_cursor,
+                ),
+                comments[index].span.start
+            );
+        }
     }
 }
