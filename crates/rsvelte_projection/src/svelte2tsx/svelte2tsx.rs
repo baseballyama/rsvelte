@@ -641,10 +641,14 @@ pub fn svelte2tsx(
     let (code, source_map, forward_map) =
         if let Some(ref rewrite_opts) = options.rewrite_external_imports {
             let rewrite = rewrite_external_specifiers_in_text(&code, rewrite_opts);
-            let remapped_source_map = remap_source_map(&source_map, &code, &rewrite.edits)
-                .map_err(Svelte2TsxError::Other)?;
-            let remapped_forward_map = remap_forward_segments(forward_map, &rewrite.edits);
-            (rewrite.code, remapped_source_map, remapped_forward_map)
+            if let Some(rewritten_code) = rewrite.replacement {
+                let remapped_source_map = remap_source_map(&source_map, &code, &rewrite.edits)
+                    .map_err(Svelte2TsxError::Other)?;
+                let remapped_forward_map = remap_forward_segments(forward_map, &rewrite.edits);
+                (rewritten_code, remapped_source_map, remapped_forward_map)
+            } else {
+                (code, source_map, forward_map)
+            }
         } else {
             (code, source_map, forward_map)
         };

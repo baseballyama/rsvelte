@@ -14,7 +14,7 @@ pub(crate) struct TextEdit {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TextRewrite {
-    pub(crate) code: String,
+    pub(crate) replacement: Option<String>,
     pub(crate) edits: Vec<TextEdit>,
 }
 
@@ -118,36 +118,36 @@ fn is_ident_byte_local(b: u8) -> bool {
 }
 
 /// String-level version of `rewrite_external_imports` — same scanner, but
-/// returns a freshly-rewritten `String` instead of mutating a MagicString.
-/// Used for the synthesised `import_text` chunk that is generated from the
-/// original source (not from the MagicString) and therefore needs its own
-/// pass so the hoisted imports also pick up the rewrite.
+/// returns replacement text only when at least one specifier changes.
 pub(crate) fn rewrite_external_specifiers_in_text(
     text: &str,
     opts: &RewriteExternalImportsOptions,
 ) -> TextRewrite {
     let bytes = text.as_bytes();
     let len = bytes.len();
-    let mut out = String::with_capacity(text.len());
+    let mut replacement: Option<String> = None;
     let mut edits = Vec::new();
     let mut copied = 0usize;
     let mut i = 0;
 
-    let mut try_rewrite_specifier =
-        |spec_start: usize, spec_end: usize, out: &mut String, copied: &mut usize| {
-            let spec = &text[spec_start..spec_end];
-            if let Some(rewrite) = compute_rewrite(spec, opts) {
-                out.push_str(&text[*copied..spec_start]);
-                out.push_str(&rewrite);
-                edits.push(TextEdit {
-                    start: spec_start as u32,
-                    end: spec_end as u32,
-                    replacement_len: rewrite.len() as u32,
-                    replacement_utf16_len: rewrite.encode_utf16().count() as u32,
-                });
-                *copied = spec_end;
-            }
-        };
+    let mut try_rewrite_specifier = |spec_start: usize,
+                                     spec_end: usize,
+                                     replacement: &mut Option<String>,
+                                     copied: &mut usize| {
+        let spec = &text[spec_start..spec_end];
+        if let Some(rewrite) = compute_rewrite(spec, opts) {
+            let out = replacement.get_or_insert_with(|| String::with_capacity(text.len()));
+            out.push_str(&text[*copied..spec_start]);
+            out.push_str(&rewrite);
+            edits.push(TextEdit {
+                start: spec_start as u32,
+                end: spec_end as u32,
+                replacement_len: rewrite.len() as u32,
+                replacement_utf16_len: rewrite.encode_utf16().count() as u32,
+            });
+            *copied = spec_end;
+        }
+    };
 
     while i < len {
         let b = bytes[i];
@@ -187,7 +187,7 @@ pub(crate) fn rewrite_external_specifiers_in_text(
                     while spec_end < len && bytes[spec_end] != q {
                         spec_end += 1;
                     }
-                    try_rewrite_specifier(spec_start, spec_end, &mut out, &mut copied);
+                    try_rewrite_specifier(spec_start, spec_end, &mut replacement, &mut copied);
                     i = spec_end + 1;
                     continue;
                 }
@@ -213,7 +213,7 @@ pub(crate) fn rewrite_external_specifiers_in_text(
                         while spec_end < len && bytes[spec_end] != q {
                             spec_end += 1;
                         }
-                        try_rewrite_specifier(spec_start, spec_end, &mut out, &mut copied);
+                        try_rewrite_specifier(spec_start, spec_end, &mut replacement, &mut copied);
                         i = spec_end + 1;
                         continue;
                     }
@@ -223,8 +223,56 @@ pub(crate) fn rewrite_external_specifiers_in_text(
 
         i += 1;
     }
-    if copied < text.len() {
+    if let Some(out) = &mut replacement {
         out.push_str(&text[copied..]);
     }
-    TextRewrite { code: out, edits }
+    TextRewrite { replacement, edits }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rewrite_options() -> RewriteExternalImportsOptions {
+        RewriteExternalImportsOptions {
+            source_path: "/workspace/src/App.svelte".to_string(),
+            generated_path: "/workspace/.generated/nested/App.svelte.tsx".to_string(),
+            workspace_path: "/workspace".to_string(),
+        }
+    }
+
+    #[test]
+    fn no_op_reuses_the_callers_large_buffer() {
+        let mut text = "const untouched = 1;\n".repeat(65_536);
+        text.push_str("import local from './local.js';\nconst lazy = import('../shared.js');\n");
+        let original_ptr = text.as_ptr();
+        let original_capacity = text.capacity();
+        let rewrite = rewrite_external_specifiers_in_text(&text, &rewrite_options());
+
+        assert!(rewrite.replacement.is_none());
+        assert!(rewrite.edits.is_empty());
+        let output = rewrite.replacement.unwrap_or(text);
+        assert_eq!(output.as_ptr(), original_ptr);
+        assert_eq!(output.capacity(), original_capacity);
+    }
+
+    #[test]
+    fn creates_replacement_and_utf16_aware_edits_when_needed() {
+        let text = "const emoji = '😀';\nimport value from \"../../outside/😀.js?raw#asset\";\n";
+        let original = "../../outside/😀.js?raw#asset";
+        let rewritten = "../../../outside/😀.js?raw#asset";
+        let rewrite = rewrite_external_specifiers_in_text(text, &rewrite_options());
+        let expected = text.replacen(original, rewritten, 1);
+
+        assert_eq!(rewrite.replacement.as_deref(), Some(expected.as_str()));
+        assert_eq!(
+            rewrite.edits,
+            vec![TextEdit {
+                start: text.find(original).unwrap() as u32,
+                end: (text.find(original).unwrap() + original.len()) as u32,
+                replacement_len: rewritten.len() as u32,
+                replacement_utf16_len: rewritten.encode_utf16().count() as u32,
+            }]
+        );
+    }
 }
