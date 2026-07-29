@@ -122,11 +122,10 @@ impl ComponentEvents {
 
     /// Get event entries for the return statement, in official insertion order.
     /// Returns (name, value) pairs like ("hi", "__sveltets_2_customEvent").
-    pub fn get_event_entries(&self) -> Vec<(String, String)> {
+    pub fn get_event_entries(&self) -> impl ExactSizeIterator<Item = (&str, &'static str)> {
         self.dispatched_order
             .iter()
-            .map(|name| (name.clone(), "__sveltets_2_customEvent".to_string()))
-            .collect()
+            .map(|name| (name.as_str(), "__sveltets_2_customEvent"))
     }
 
     /// Entries for the public `events.getAll()` API surface: `(name, type)`
@@ -299,12 +298,8 @@ mod tests {
 
     use super::*;
 
-    fn event_names(events: &ComponentEvents) -> Vec<String> {
-        events
-            .get_event_entries()
-            .into_iter()
-            .map(|(name, _)| name)
-            .collect()
+    fn event_names(events: &ComponentEvents) -> Vec<&str> {
+        events.get_event_entries().map(|(name, _)| name).collect()
     }
 
     #[test]
