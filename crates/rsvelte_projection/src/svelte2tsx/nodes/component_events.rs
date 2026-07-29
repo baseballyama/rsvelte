@@ -10,24 +10,24 @@ use super::super::script::{ComponentEvents, ExportedNames};
 use super::super::template;
 
 struct ForwardedEventValues<'a> {
-    first: &'a str,
-    rest: Vec<&'a str>,
+    first: &'a template::ForwardedEvent<'a>,
+    rest: Vec<&'a template::ForwardedEvent<'a>>,
 }
 
 impl<'a> ForwardedEventValues<'a> {
-    fn new(value: &'a str) -> Self {
+    fn new(value: &'a template::ForwardedEvent<'a>) -> Self {
         Self {
             first: value,
             rest: Vec::new(),
         }
     }
 
-    fn overwrite(&mut self, value: &'a str) {
+    fn overwrite(&mut self, value: &'a template::ForwardedEvent<'a>) {
         self.first = value;
         self.rest.clear();
     }
 
-    fn append(&mut self, value: &'a str) {
+    fn append(&mut self, value: &'a template::ForwardedEvent<'a>) {
         self.rest.push(value);
     }
 
@@ -38,43 +38,74 @@ impl<'a> ForwardedEventValues<'a> {
 
 type ForwardedEvents<'a> = IndexMap<&'a str, ForwardedEventValues<'a>, FxBuildHasher>;
 
-fn group_forwarded_events(
-    events: &[(String, String, template::ForwardedEventKind)],
-) -> ForwardedEvents<'_> {
-    group_forwarded_events_with_observer(events, || {})
-}
-
 fn group_forwarded_events_with_observer<'a>(
-    events: &'a [(String, String, template::ForwardedEventKind)],
+    events: &'a [template::ForwardedEvent<'a>],
     mut observe_lookup: impl FnMut(),
 ) -> ForwardedEvents<'a> {
     let mut grouped: ForwardedEvents<'a> =
         IndexMap::with_capacity_and_hasher(events.len(), FxBuildHasher);
-    for (name, value, kind) in events {
+    for event in events {
         observe_lookup();
-        match grouped.entry(name.as_str()) {
-            Entry::Occupied(mut entry) => match kind {
-                template::ForwardedEventKind::Element => {
-                    entry.get_mut().overwrite(value);
+        match grouped.entry(event.name) {
+            Entry::Occupied(mut entry) => match event.source {
+                template::ForwardedEventSource::Mapped(_) => {
+                    entry.get_mut().overwrite(event);
                 }
-                template::ForwardedEventKind::Component => {
-                    entry.get_mut().append(value);
+                template::ForwardedEventSource::Component(_) => {
+                    entry.get_mut().append(event);
                 }
             },
             Entry::Vacant(entry) => {
-                entry.insert(ForwardedEventValues::new(value));
+                entry.insert(ForwardedEventValues::new(event));
             }
         }
     }
     grouped
 }
 
+fn write_forwarded_event_value(
+    output: &mut String,
+    event: &template::ForwardedEvent<'_>,
+    observe_materialization: &mut impl FnMut(),
+) {
+    observe_materialization();
+    match event.source {
+        template::ForwardedEventSource::Mapped(mapper) => {
+            let mapper = match mapper {
+                template::ForwardedEventMapper::Element => "mapElementEvent",
+                template::ForwardedEventMapper::Body => "mapBodyEvent",
+                template::ForwardedEventMapper::Window => "mapWindowEvent",
+            };
+            write!(output, "__sveltets_2_{mapper}('{}')", event.name)
+                .expect("writing to a String cannot fail");
+        }
+        template::ForwardedEventSource::Component(component) => {
+            write!(
+                output,
+                "__sveltets_2_bubbleEventDef(__sveltets_2_instanceOf({component}).$$events_def, '{}')",
+                event.name
+            )
+            .expect("writing to a String cannot fail");
+        }
+    }
+}
+
 /// Build the `events` object literal for the component export from template info
 /// and component events.
 pub(crate) fn build_events_str(
     exported_names: &ExportedNames,
-    template_info: &template::TemplateInfo,
+    template_info: &template::TemplateInfo<'_>,
     events: &ComponentEvents,
+) -> String {
+    build_events_str_with_observer(exported_names, template_info, events, || {}, || {})
+}
+
+fn build_events_str_with_observer(
+    exported_names: &ExportedNames,
+    template_info: &template::TemplateInfo<'_>,
+    events: &ComponentEvents,
+    mut observe_lookup: impl FnMut(),
+    mut observe_materialization: impl FnMut(),
 ) -> String {
     if exported_names.has_events_type {
         "{} as unknown as $$Events".to_string()
@@ -98,14 +129,21 @@ pub(crate) fn build_events_str(
         //     forwarding component instance contributes a `unionType` member).
         // Key insertion order (first occurrence) is preserved. A single value is
         // emitted plain; multiple values become `__sveltets_2_unionType(...)`.
-        let grouped = group_forwarded_events(&template_info.element_events);
+        let grouped = group_forwarded_events_with_observer(
+            &template_info.element_events,
+            &mut observe_lookup,
+        );
         for (name, values) in grouped {
             if values.is_single() {
-                event_parts.push(format!("'{name}':{}", values.first));
+                let mut part = format!("'{name}':");
+                write_forwarded_event_value(&mut part, values.first, &mut observe_materialization);
+                event_parts.push(part);
             } else {
-                let mut part = format!("'{name}':__sveltets_2_unionType({}", values.first);
+                let mut part = format!("'{name}':__sveltets_2_unionType(");
+                write_forwarded_event_value(&mut part, values.first, &mut observe_materialization);
                 for value in values.rest {
-                    write!(part, ", {value}").expect("writing to a String cannot fail");
+                    part.push_str(", ");
+                    write_forwarded_event_value(&mut part, value, &mut observe_materialization);
                 }
                 part.push(')');
                 event_parts.push(part);
@@ -127,43 +165,29 @@ pub(crate) fn build_events_str(
 mod tests {
     use super::*;
 
-    fn forwarded(
-        name: &str,
-        value: &str,
-        kind: template::ForwardedEventKind,
-    ) -> (String, String, template::ForwardedEventKind) {
-        (name.to_string(), value.to_string(), kind)
+    fn mapped(name: &str, mapper: template::ForwardedEventMapper) -> template::ForwardedEvent<'_> {
+        template::ForwardedEvent {
+            name,
+            source: template::ForwardedEventSource::Mapped(mapper),
+        }
+    }
+
+    fn component<'a>(name: &'a str, target: &'a str) -> template::ForwardedEvent<'a> {
+        template::ForwardedEvent {
+            name,
+            source: template::ForwardedEventSource::Component(target),
+        }
     }
 
     #[test]
     fn forwarded_events_preserve_first_key_order_through_overwrite() {
         let template_info = template::TemplateInfo {
             element_events: vec![
-                forwarded(
-                    "alpha",
-                    "alpha-component-first",
-                    template::ForwardedEventKind::Component,
-                ),
-                forwarded(
-                    "beta",
-                    "beta-element-first",
-                    template::ForwardedEventKind::Element,
-                ),
-                forwarded(
-                    "gamma",
-                    "gamma-component-first",
-                    template::ForwardedEventKind::Component,
-                ),
-                forwarded(
-                    "alpha",
-                    "alpha-element-overwrite",
-                    template::ForwardedEventKind::Element,
-                ),
-                forwarded(
-                    "beta",
-                    "beta-element-overwrite",
-                    template::ForwardedEventKind::Element,
-                ),
+                component("alpha", "AlphaFirst"),
+                mapped("beta", template::ForwardedEventMapper::Window),
+                component("gamma", "Gamma"),
+                mapped("alpha", template::ForwardedEventMapper::Body),
+                mapped("beta", template::ForwardedEventMapper::Element),
             ],
             ..Default::default()
         };
@@ -174,8 +198,10 @@ mod tests {
                 &template_info,
                 &ComponentEvents::default()
             ),
-            "{'alpha':alpha-element-overwrite, 'beta':beta-element-overwrite, \
-             'gamma':gamma-component-first}"
+            "{'alpha':__sveltets_2_mapBodyEvent('alpha'), \
+             'beta':__sveltets_2_mapElementEvent('beta'), \
+             'gamma':__sveltets_2_bubbleEventDef(__sveltets_2_instanceOf(Gamma).$$events_def, \
+             'gamma')}"
         );
     }
 
@@ -183,26 +209,10 @@ mod tests {
     fn forwarded_component_unions_retain_encounter_order_after_overwrite() {
         let template_info = template::TemplateInfo {
             element_events: vec![
-                forwarded(
-                    "alpha",
-                    "alpha-component-before-overwrite",
-                    template::ForwardedEventKind::Component,
-                ),
-                forwarded(
-                    "alpha",
-                    "alpha-element-overwrite",
-                    template::ForwardedEventKind::Element,
-                ),
-                forwarded(
-                    "alpha",
-                    "alpha-component-second",
-                    template::ForwardedEventKind::Component,
-                ),
-                forwarded(
-                    "alpha",
-                    "alpha-component-third",
-                    template::ForwardedEventKind::Component,
-                ),
+                component("alpha", "Before"),
+                mapped("alpha", template::ForwardedEventMapper::Element),
+                component("alpha", "Second"),
+                component("alpha", "Third"),
             ],
             ..Default::default()
         };
@@ -213,63 +223,43 @@ mod tests {
                 &template_info,
                 &ComponentEvents::default()
             ),
-            "{'alpha':__sveltets_2_unionType(alpha-element-overwrite, \
-             alpha-component-second, alpha-component-third)}"
+            "{'alpha':__sveltets_2_unionType(__sveltets_2_mapElementEvent('alpha'), \
+             __sveltets_2_bubbleEventDef(__sveltets_2_instanceOf(Second).$$events_def, 'alpha'), \
+             __sveltets_2_bubbleEventDef(__sveltets_2_instanceOf(Third).$$events_def, 'alpha'))}"
         );
     }
 
     #[test]
-    fn forwarded_event_grouping_uses_one_lookup_per_unique_or_repeated_event() {
-        for event_count in [32, 256, 1024] {
-            let unique: Vec<_> = (0..event_count)
-                .map(|index| {
-                    forwarded(
-                        &format!("event-{index}"),
-                        &format!("value-{index}"),
-                        template::ForwardedEventKind::Element,
-                    )
-                })
-                .collect();
-            let mut unique_lookups = 0;
-            let unique_grouped =
-                group_forwarded_events_with_observer(&unique, || unique_lookups += 1);
-
-            assert_eq!(unique_lookups, event_count);
-            assert_eq!(unique_grouped.len(), event_count);
-            for index in 0..event_count {
-                let (name, values) = unique_grouped.get_index(index).unwrap();
-                assert_eq!(*name, format!("event-{index}"));
-                assert_eq!(values.first, format!("value-{index}"));
-                assert!(values.rest.is_empty());
-            }
-
-            let unique_name_count = event_count / 4;
-            let mut repeated = Vec::with_capacity(event_count);
-            for occurrence in 0..4 {
-                for index in 0..unique_name_count {
-                    repeated.push(forwarded(
-                        &format!("event-{index}"),
-                        &format!("value-{occurrence}-{index}"),
-                        if occurrence == 2 {
-                            template::ForwardedEventKind::Element
-                        } else {
-                            template::ForwardedEventKind::Component
-                        },
-                    ));
-                }
-            }
-            let mut repeated_lookups = 0;
-            let repeated_grouped =
-                group_forwarded_events_with_observer(&repeated, || repeated_lookups += 1);
-
-            assert_eq!(repeated_lookups, event_count);
-            assert_eq!(repeated_grouped.len(), unique_name_count);
-            for index in 0..unique_name_count {
-                let (name, values) = repeated_grouped.get_index(index).unwrap();
-                assert_eq!(*name, format!("event-{index}"));
-                assert_eq!(values.first, format!("value-2-{index}"));
-                assert_eq!(values.rest, [format!("value-3-{index}")]);
+    fn forwarded_event_descriptor_defers_overwritten_materializations_at_scale() {
+        let names: Vec<_> = (0..256).map(|index| format!("event-{index}")).collect();
+        let mut forwarded = Vec::with_capacity(1024);
+        for occurrence in 0..4 {
+            for name in &names {
+                forwarded.push(if occurrence == 2 {
+                    mapped(name, template::ForwardedEventMapper::Element)
+                } else {
+                    component(name, "Component")
+                });
             }
         }
+        let template_info = template::TemplateInfo {
+            element_events: forwarded,
+            ..Default::default()
+        };
+        let mut lookups = 0;
+        let mut materializations = 0;
+
+        let output = build_events_str_with_observer(
+            &ExportedNames::default(),
+            &template_info,
+            &ComponentEvents::default(),
+            || lookups += 1,
+            || materializations += 1,
+        );
+
+        assert_eq!(lookups, 1024);
+        assert_eq!(materializations, 512);
+        assert_eq!(output.matches("'event-").count(), 768);
+        assert_eq!(output.matches(":__sveltets_2_unionType(").count(), 256);
     }
 }

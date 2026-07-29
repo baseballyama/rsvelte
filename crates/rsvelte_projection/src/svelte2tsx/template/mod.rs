@@ -32,23 +32,22 @@ use walk::process_fragment_inplace;
 
 /// Information collected during template processing.
 #[derive(Debug, Default)]
-pub struct TemplateInfo {
+pub struct TemplateInfo<'a> {
     /// Slots used in the component: slot_name -> list of prop strings.
     /// e.g., "default" -> ["a:b", "c:d"]
     pub slots: IndexMap<String, Vec<String>>,
     /// Events forwarded from elements / components (on:event without handler),
-    /// in template-walk order. Each entry carries the kind so the assembly can
+    /// in template-walk order. Each entry carries its source so the assembly can
     /// mirror the official `EventHandler` bubbled-events `Map` semantics: an
     /// `Element` forward does a plain `set` (overwrite), a `Component` forward
     /// concats into the existing entry (`unionType`).
-    /// e.g., "click" -> "__sveltets_2_mapElementEvent('click')"
-    pub element_events: Vec<(String, String, ForwardedEventKind)>,
+    pub element_events: Vec<ForwardedEvent<'a>>,
     /// Slot names for the legacy `$$slots` declaration, collected only when used.
     pub dollar_slot_names: Option<Box<IndexSet<String>>>,
     pub uses_runes: bool,
 }
 
-impl TemplateInfo {
+impl TemplateInfo<'_> {
     fn empty(collect_dollar_slot_names: bool) -> Self {
         Self {
             dollar_slot_names: collect_dollar_slot_names.then(|| Box::new(IndexSet::new())),
@@ -57,17 +56,23 @@ impl TemplateInfo {
     }
 }
 
-/// How a forwarded event (`on:event` with no handler) combines with an existing
-/// entry for the same event name, mirroring the official
-/// `event-handler.ts` `EventHandler` map.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ForwardedEventKind {
-    /// Element / `svelte:window` / `svelte:body` / `svelte:element` etc. —
-    /// official `bubbledEvents.set(name, expr)` (plain overwrite).
+pub struct ForwardedEvent<'a> {
+    pub name: &'a str,
+    pub source: ForwardedEventSource<'a>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForwardedEventSource<'a> {
+    Mapped(ForwardedEventMapper),
+    Component(&'a str),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForwardedEventMapper {
     Element,
-    /// Component / `svelte:component` — official `handleEventHandlerBubble`
-    /// concats into the existing entry.
-    Component,
+    Body,
+    Window,
 }
 
 // =============================================================================
@@ -103,14 +108,14 @@ pub fn process_template_inplace(
 /// This is a pre-pass that walks the AST to collect:
 /// - Slot elements with their props (for the return statement `slots: {...}`)
 /// - Forwarded events (for the return statement `events: {...}`)
-pub fn collect_template_info(
-    ast: &Root,
-    source: &str,
+pub fn collect_template_info<'a>(
+    ast: &'a Root<'_>,
+    source: &'a str,
     collect_dollar_slot_names: bool,
     check_await: bool,
     check_rune_global: bool,
     instance_value_names: &std::collections::HashSet<String>,
-) -> TemplateInfo {
+) -> TemplateInfo<'a> {
     let mut info = TemplateInfo::empty(collect_dollar_slot_names);
     let mut detector =
         TemplateRunesDetector::new(check_await, check_rune_global, instance_value_names);
@@ -134,15 +139,15 @@ pub fn collect_template_info(
     info
 }
 
-pub fn collect_template_info_if_needed(
-    ast: &Root,
-    source: &str,
+pub fn collect_template_info_if_needed<'a>(
+    ast: &'a Root<'_>,
+    source: &'a str,
     collect_dollar_slot_names: bool,
     may_need_template_info: bool,
     check_await: bool,
     check_rune_global: bool,
     instance_value_names: &std::collections::HashSet<String>,
-) -> TemplateInfo {
+) -> TemplateInfo<'a> {
     if may_need_template_info || check_await || check_rune_global {
         collect_template_info(
             ast,
@@ -164,7 +169,11 @@ mod tests {
     use crate::compiler::phases::phase1_parse::{self, ParseOptions};
     use crate::svelte2tsx::utils::source_features::scan_source_features;
 
-    fn collect(source: &str, dollar_slots: bool) -> TemplateInfo {
+    fn with_collected_info(
+        source: &str,
+        dollar_slots: bool,
+        inspect: impl FnOnce(&TemplateInfo<'_>),
+    ) {
         let ast = phase1_parse::parse_script_ts(
             source,
             ParseOptions {
@@ -174,21 +183,23 @@ mod tests {
         )
         .expect("fixture should parse");
         let features = scan_source_features(source);
-        collect_template_info(
+        let info = collect_template_info(
             &ast,
             source,
             dollar_slots,
             features.has_await_word,
             features.may_have_template_rune_global,
             &std::collections::HashSet::new(),
-        )
+        );
+        inspect(&info);
     }
 
-    fn collect_if_needed(
+    fn with_collected_info_if_needed(
         source: &str,
         dollar_slots: bool,
         may_need_template_info: bool,
-    ) -> TemplateInfo {
+        inspect: impl FnOnce(&TemplateInfo<'_>),
+    ) {
         let ast = phase1_parse::parse_script_ts(
             source,
             ParseOptions {
@@ -198,7 +209,7 @@ mod tests {
         )
         .expect("fixture should parse");
         let features = scan_source_features(source);
-        collect_template_info_if_needed(
+        let info = collect_template_info_if_needed(
             &ast,
             source,
             dollar_slots,
@@ -206,7 +217,8 @@ mod tests {
             features.has_await_word,
             features.may_have_template_rune_global,
             &std::collections::HashSet::new(),
-        )
+        );
+        inspect(&info);
     }
 
     fn assert_info_eq(actual: &TemplateInfo, expected: &TemplateInfo) {
@@ -227,12 +239,14 @@ mod tests {
 
     #[test]
     fn slot_summary_ignores_script_and_raw_html_text() {
-        let info = collect(
+        with_collected_info(
             r#"<script>const marker = "<slot>";</script>{@html "<slot>"}<div />"#,
             true,
+            |info| {
+                assert!(info.slots.is_empty());
+                assert_eq!(info.dollar_slot_names, Some(Box::new(IndexSet::new())));
+            },
         );
-        assert!(info.slots.is_empty());
-        assert_eq!(info.dollar_slot_names, Some(Box::new(IndexSet::new())));
     }
 
     #[test]
@@ -242,28 +256,29 @@ mod tests {
 <slot name="named" last={value} />
 <slot name={dynamic} />
 <slot name="pre{dynamic}post" />"#;
-        let info = collect(source, true);
-
-        assert_eq!(
-            info.slots.keys().map(String::as_str).collect::<Vec<_>>(),
-            vec!["named", "default", "undefined"]
-        );
-        let dollar_names = IndexSet::from([
-            "named".to_string(),
-            "default".to_string(),
-            "post".to_string(),
-        ]);
-        assert_eq!(info.dollar_slot_names.as_deref(), Some(&dollar_names));
-        let named = info.slots.get("named").expect("named slot");
-        assert_eq!(named.len(), 1);
-        assert!(named[0].contains("last"));
+        with_collected_info(source, true, |info| {
+            assert_eq!(
+                info.slots.keys().map(String::as_str).collect::<Vec<_>>(),
+                vec!["named", "default", "undefined"]
+            );
+            let dollar_names = IndexSet::from([
+                "named".to_string(),
+                "default".to_string(),
+                "post".to_string(),
+            ]);
+            assert_eq!(info.dollar_slot_names.as_deref(), Some(&dollar_names));
+            let named = info.slots.get("named").expect("named slot");
+            assert_eq!(named.len(), 1);
+            assert!(named[0].contains("last"));
+        });
     }
 
     #[test]
     fn slot_summary_skips_dollar_name_storage_when_unused() {
-        let info = collect("<slot name=\"named\" /><slot />", false);
-        assert_eq!(info.slots.len(), 2);
-        assert!(info.dollar_slot_names.is_none());
+        with_collected_info("<slot name=\"named\" /><slot />", false, |info| {
+            assert_eq!(info.slots.len(), 2);
+            assert!(info.dollar_slot_names.is_none());
+        });
     }
 
     #[test]
@@ -275,9 +290,11 @@ mod tests {
                 true,
             ),
         ] {
-            let gated = collect_if_needed(source, dollar_slots, false);
-            let collected = collect(source, dollar_slots);
-            assert_info_eq(&gated, &collected);
+            with_collected_info_if_needed(source, dollar_slots, false, |gated| {
+                with_collected_info(source, dollar_slots, |collected| {
+                    assert_info_eq(gated, collected);
+                });
+            });
         }
     }
 
@@ -289,9 +306,11 @@ mod tests {
             "<!-- <slot on:click> --><div />",
             r#"<div title="<slot" data-event="on:" />"#,
         ] {
-            let gated = collect_if_needed(source, true, true);
-            let collected = collect(source, true);
-            assert_info_eq(&gated, &collected);
+            with_collected_info_if_needed(source, true, true, |gated| {
+                with_collected_info(source, true, |collected| {
+                    assert_info_eq(gated, collected);
+                });
+            });
         }
     }
 
@@ -309,9 +328,11 @@ mod tests {
             {/if}
             <Component on:change />"#,
         ] {
-            let gated = collect_if_needed(source, true, true);
-            let collected = collect(source, true);
-            assert_info_eq(&gated, &collected);
+            with_collected_info_if_needed(source, true, true, |gated| {
+                with_collected_info(source, true, |collected| {
+                    assert_info_eq(gated, collected);
+                });
+            });
         }
     }
 }

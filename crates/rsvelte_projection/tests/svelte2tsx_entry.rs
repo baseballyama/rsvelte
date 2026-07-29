@@ -120,6 +120,19 @@ fn test_svelte2tsx_component() {
 }
 
 #[test]
+fn test_svelte2tsx_mixed_forwarded_event_sources() {
+    let source =
+        "<div on:mix></div><Inner on:mix/><svelte:window on:resize/><svelte:body on:focus/>";
+    let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
+    assert!(result.code.contains(
+        "events: {'mix':__sveltets_2_unionType(__sveltets_2_mapElementEvent('mix'), \
+         __sveltets_2_bubbleEventDef(__sveltets_2_instanceOf(Inner).$$events_def, 'mix')), \
+         'resize':__sveltets_2_mapWindowEvent('resize'), \
+         'focus':__sveltets_2_mapBodyEvent('focus')}"
+    ));
+}
+
+#[test]
 fn test_svelte2tsx_v5_export() {
     let source = "<h1>hello</h1>";
     let options = Svelte2TsxOptions {

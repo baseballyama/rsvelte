@@ -21,7 +21,7 @@ pub(crate) struct ComponentExportParams<'a> {
     pub source: &'a str,
     pub options: &'a Svelte2TsxOptions,
     pub component_name: &'a str,
-    pub template_info: &'a template::TemplateInfo,
+    pub template_info: &'a template::TemplateInfo<'a>,
     pub exported_names: &'a ExportedNames,
     pub events: &'a mut ComponentEvents,
     pub generics_attribute: Option<&'a str>,

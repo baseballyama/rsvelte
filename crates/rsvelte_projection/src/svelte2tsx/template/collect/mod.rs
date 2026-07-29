@@ -9,14 +9,14 @@ use pattern::{collect_pattern_bindings, expand_object_shorthands};
 use super::attributes::let_::iter_let_directives;
 use super::nodes::slot_element::{dollar_slot_name, get_slot_attr_value, slot_name_for_type};
 use super::utils::expr::get_expression_text;
-use super::{ForwardedEventKind, TemplateInfo};
+use super::{ForwardedEvent, ForwardedEventMapper, ForwardedEventSource, TemplateInfo};
 use crate::ast::arena::ParseArena;
 use crate::svelte2tsx::nodes::runes_detection::TemplateRunesDetector;
 
-pub(super) fn collect_info_from_fragment(
-    fragment: &Fragment,
-    source: &str,
-    info: &mut TemplateInfo,
+pub(super) fn collect_info_from_fragment<'a>(
+    fragment: &'a Fragment<'_>,
+    source: &'a str,
+    info: &mut TemplateInfo<'a>,
     scope: &mut Vec<(String, String)>,
     enclosing: Option<&str>,
     detector: &mut TemplateRunesDetector,
@@ -30,12 +30,12 @@ pub(super) fn collect_info_from_fragment(
 /// Collect forwarded-event + slot-let info for a special element, using
 /// `event_mapper` (`mapWindowEvent` / `mapBodyEvent` / `mapElementEvent`) for
 /// its handler-less `on:` directives.
-fn collect_special_element_info(
-    el: &crate::ast::template::SvelteElement,
-    event_mapper: &str,
+fn collect_special_element_info<'a>(
+    el: &'a crate::ast::template::SvelteElement<'_>,
+    event_mapper: ForwardedEventMapper,
     collect_events: bool,
-    source: &str,
-    info: &mut TemplateInfo,
+    source: &'a str,
+    info: &mut TemplateInfo<'a>,
     scope: &mut Vec<(String, String)>,
     enclosing: Option<&str>,
     detector: &mut TemplateRunesDetector,
@@ -46,10 +46,10 @@ fn collect_special_element_info(
             if let Attribute::OnDirective(on) = attr
                 && on.expression.is_none()
             {
-                let event_name = on.name.to_string();
-                let event_value = format!("__sveltets_2_{}('{}')", event_mapper, event_name);
-                info.element_events
-                    .push((event_name, event_value, ForwardedEventKind::Element));
+                info.element_events.push(ForwardedEvent {
+                    name: on.name.as_str(),
+                    source: ForwardedEventSource::Mapped(event_mapper),
+                });
             }
         }
     }
@@ -69,10 +69,10 @@ fn collect_special_element_info(
 
 /// `enclosing` is the name of the nearest ancestor component, used to build
 /// `let:`-forwarding slot reflections (`__sveltets_2_instanceOf(<Comp>).$$slot_def[…]`).
-fn collect_info_from_node(
-    node: &TemplateNode,
-    source: &str,
-    info: &mut TemplateInfo,
+fn collect_info_from_node<'a>(
+    node: &'a TemplateNode<'_>,
+    source: &'a str,
+    info: &mut TemplateInfo<'a>,
     scope: &mut Vec<(String, String)>,
     enclosing: Option<&str>,
     detector: &mut TemplateRunesDetector,
@@ -112,15 +112,12 @@ fn collect_info_from_node(
                     && on.expression.is_none()
                 {
                     // Event forwarding: on:click (no handler)
-                    let event_name = on.name.to_string();
-                    let event_value = format!("__sveltets_2_mapElementEvent('{}')", event_name);
                     // Element forward → official `bubbledEvents.set` (plain
                     // overwrite); the assembly reduction collapses duplicates.
-                    info.element_events.push((
-                        event_name,
-                        event_value,
-                        ForwardedEventKind::Element,
-                    ));
+                    info.element_events.push(ForwardedEvent {
+                        name: on.name.as_str(),
+                        source: ForwardedEventSource::Mapped(ForwardedEventMapper::Element),
+                    });
                 }
             }
             collect_info_from_fragment(
@@ -139,7 +136,7 @@ fn collect_info_from_node(
         TemplateNode::SvelteWindow(el) => {
             collect_special_element_info(
                 el,
-                "mapWindowEvent",
+                ForwardedEventMapper::Window,
                 true,
                 source,
                 info,
@@ -152,7 +149,7 @@ fn collect_info_from_node(
         TemplateNode::SvelteBody(el) => {
             collect_special_element_info(
                 el,
-                "mapBodyEvent",
+                ForwardedEventMapper::Body,
                 true,
                 source,
                 info,
@@ -169,7 +166,7 @@ fn collect_info_from_node(
         | TemplateNode::SvelteOptions(el) => {
             collect_special_element_info(
                 el,
-                "mapElementEvent",
+                ForwardedEventMapper::Element,
                 true,
                 source,
                 info,
@@ -196,7 +193,7 @@ fn collect_info_from_node(
             );
             collect_special_element_info(
                 el,
-                "mapElementEvent",
+                ForwardedEventMapper::Element,
                 false,
                 source,
                 info,
@@ -217,19 +214,13 @@ fn collect_info_from_node(
                 if let Attribute::OnDirective(on) = attr
                     && on.expression.is_none()
                 {
-                    let event_name = on.name.to_string();
-                    let event_value = format!(
-                        "__sveltets_2_bubbleEventDef(__sveltets_2_instanceOf({}).$$events_def, '{}')",
-                        comp.name, event_name
-                    );
                     // Component forward → official `handleEventHandlerBubble`
                     // concats into the existing entry (`unionType` of each
                     // forwarding instance).
-                    info.element_events.push((
-                        event_name,
-                        event_value,
-                        ForwardedEventKind::Component,
-                    ));
+                    info.element_events.push(ForwardedEvent {
+                        name: on.name.as_str(),
+                        source: ForwardedEventSource::Component(comp.name.as_str()),
+                    });
                 }
             }
             // Collect every slot-consumer `let:` binding for this component into
@@ -270,16 +261,10 @@ fn collect_info_from_node(
                 if let Attribute::OnDirective(on) = attr
                     && on.expression.is_none()
                 {
-                    let event_name = on.name.to_string();
-                    let event_value = format!(
-                        "__sveltets_2_bubbleEventDef(__sveltets_2_instanceOf({}).$$events_def, '{}')",
-                        this_expr, event_name
-                    );
-                    info.element_events.push((
-                        event_name,
-                        event_value,
-                        ForwardedEventKind::Component,
-                    ));
+                    info.element_events.push(ForwardedEvent {
+                        name: on.name.as_str(),
+                        source: ForwardedEventSource::Component(this_expr),
+                    });
                 }
             }
             // `<svelte:component this={X}>` is an InlineComponent: collect its
@@ -436,13 +421,10 @@ fn collect_info_from_node(
                 if let Attribute::OnDirective(on) = attr
                     && on.expression.is_none()
                 {
-                    let event_name = on.name.to_string();
-                    let event_value = format!("__sveltets_2_mapElementEvent('{}')", event_name);
-                    info.element_events.push((
-                        event_name,
-                        event_value,
-                        ForwardedEventKind::Element,
-                    ));
+                    info.element_events.push(ForwardedEvent {
+                        name: on.name.as_str(),
+                        source: ForwardedEventSource::Mapped(ForwardedEventMapper::Element),
+                    });
                 }
             }
             collect_info_from_fragment(
