@@ -634,26 +634,23 @@ impl ExportedNames {
         }
     }
 
-    pub fn create_optional_props_array(&self, is_ts: bool) -> Vec<String> {
-        if self.is_runes_mode() {
-            return Vec::new();
-        }
-        // For TS files, the `as {...}` type assertion on props handles optionality,
-        // so __sveltets_2_partial is not needed
-        if is_ts {
-            return Vec::new();
-        }
-        self.insertion_order
-            .iter()
-            .filter_map(|en| {
-                let info = self.names.get(en)?;
-                if info.has_default || !info.is_let {
-                    Some(format!("'{}'", en))
-                } else {
-                    None
+    pub fn write_optional_props(&self, output: &mut String) -> bool {
+        let mut wrote_prop = false;
+        for en in &self.insertion_order {
+            let Some(info) = self.names.get(en) else {
+                continue;
+            };
+            if info.has_default || !info.is_let {
+                if wrote_prop {
+                    output.push(',');
                 }
-            })
-            .collect()
+                output.push('\'');
+                output.push_str(en);
+                output.push('\'');
+                wrote_prop = true;
+            }
+        }
+        wrote_prop
     }
     fn ordered(&self) -> impl Iterator<Item = (&str, &ExportedNameInfo)> {
         self.insertion_order
