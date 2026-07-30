@@ -3,6 +3,8 @@
 //! the parser never CSS-parses it, and recovering `<script>` tags the HTML
 //! parser swallowed.
 
+use std::borrow::Cow;
+
 use crate::ast::template::Root;
 
 use super::super::magic_string::MagicString;
@@ -45,8 +47,8 @@ fn find_ci(haystack: &[u8], from: usize, needle: &[u8]) -> Option<usize> {
 /// carriage returns preserved) so the parser never CSS-parses it. Works at the
 /// BYTE level so the result is exactly the same length as `source` — every AST
 /// offset still indexes the original source. Case-insensitive on the tag name.
-pub(crate) fn blank_style_content(source: &str) -> String {
-    let mut bytes = source.as_bytes().to_vec();
+pub(crate) fn blank_style_content(source: &str) -> Cow<'_, str> {
+    let mut blanked = None;
     let sb = source.as_bytes();
     let mut search = 0usize;
     while let Some(tag_start) = find_ci(sb, search, b"<style") {
@@ -71,14 +73,22 @@ pub(crate) fn blank_style_content(source: &str) -> String {
         let Some(content_end) = find_ci(sb, content_start, b"</style") else {
             break;
         };
-        for b in &mut bytes[content_start..content_end] {
-            if *b != b'\n' && *b != b'\r' {
-                *b = b' ';
+        if sb[content_start..content_end]
+            .iter()
+            .any(|byte| !matches!(byte, b'\n' | b'\r'))
+        {
+            let bytes = blanked.get_or_insert_with(|| sb.to_vec());
+            for b in &mut bytes[content_start..content_end] {
+                if *b != b'\n' && *b != b'\r' {
+                    *b = b' ';
+                }
             }
         }
         search = content_end;
     }
-    String::from_utf8(bytes).unwrap_or_else(|_| source.to_string())
+    blanked.map_or(Cow::Borrowed(source), |bytes| {
+        Cow::Owned(String::from_utf8(bytes).expect("blanking style content preserves UTF-8"))
+    })
 }
 
 /// Remove embedded `<script>` tags that are NOT the top-level instance / module
@@ -556,6 +566,25 @@ mod tests {
                 .collect::<Vec<_>>()
         );
         assert!(!blanked.contains("color"));
+    }
+
+    #[test]
+    fn style_blanking_borrows_unchanged_sources() {
+        for source in [
+            "",
+            "<main>Hello</main>",
+            "<styled>content</styled>",
+            "<style />",
+            "<style>unterminated",
+            "<style></style>",
+            "<style>\r\n</style>",
+        ] {
+            assert!(matches!(blank_style_content(source), Cow::Borrowed(_)));
+        }
+        assert!(matches!(
+            blank_style_content("<style>content</style>"),
+            Cow::Owned(_)
+        ));
     }
 
     #[test]
