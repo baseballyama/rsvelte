@@ -224,7 +224,7 @@ async function main() {
 				await formatBatch(batch.slice(middle), true);
 			}
 
-			await pool(chunks(ids, ORACLE_BATCH_SIZE), formatBatch);
+			await pool(chunks(ids, ORACLE_BATCH_SIZE), (batch) => formatBatch(batch));
 			const stdinFallbacks = includedSet.filter((id) =>
 				fs.readFileSync(path.join(SOURCES, id), 'utf8').includes('/** ('),
 			);
