@@ -1320,6 +1320,23 @@ mod tests {
     }
 
     #[test]
+    fn js_params_match_function_expression_form_uses_jsdoc_signature() {
+        // Review follow-up on #1918/#1940: the arrow-const test above doesn't exercise
+        // the `oxc::Expression::FunctionExpression` arm at all — cover it directly.
+        let path = PathBuf::from("src/params/slug.js");
+        let source = "export const match = function (param) {\n  return param.length > 0;\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("js function-expression match should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}/** @type {{(param: string) => boolean}} */ {IGNORE_END_COMMENT}function (param)"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
     fn js_api_get_uses_jsdoc_signature() {
         let path = PathBuf::from("src/routes/api/+server.js");
         let source = "export function GET(event) { return new Response('ok'); }\n";
@@ -1369,6 +1386,41 @@ mod tests {
     }
 
     #[test]
+    fn js_api_get_function_expression_form_uses_jsdoc_signature() {
+        // Review follow-up on #1918/#1940: covers the `oxc::Expression::FunctionExpression`
+        // arm added to `visit_route_statement`'s `VariableDeclaration` match, which the
+        // arrow-const test above never reaches.
+        let path = PathBuf::from("src/routes/(marketing)/auth/callback/+server.js");
+        let source =
+            "export const GET = async function ({ url }) {\n  return new Response(url);\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("js function-expression GET should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}/** @type {{(event: import('./$types.js').RequestEvent) => Promise<Response>}} */ {IGNORE_END_COMMENT}async function ({{ url }})"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn api_get_function_expression_ts_form_gets_param_and_return_types() {
+        let path = PathBuf::from("src/routes/api/+server.ts");
+        let source =
+            "export const GET = async function ({ url }) {\n  return new Response(url);\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("ts function-expression GET should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "({{ url }}{IGNORE_START_COMMENT}: import('./$types.js').RequestEvent{IGNORE_END_COMMENT}) {IGNORE_START_COMMENT}: Promise<Response> {IGNORE_END_COMMENT}{{"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
     fn js_route_load_function_uses_jsdoc_param() {
         let path = PathBuf::from("src/routes/+page.js");
         let source = "export function load(event) { return event; }\n";
@@ -1408,6 +1460,22 @@ mod tests {
         assert!(
             augmented.contains(&format!(
                 "= {IGNORE_START_COMMENT}/** @type {{import('./$types.js').EntryGenerator}} */ {IGNORE_END_COMMENT}() =>"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_route_entries_function_expression_form_uses_jsdoc_type() {
+        // Review follow-up on #1918/#1940: covers the `entries` `FunctionExpression` arm.
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "export const entries = function () {\n  return [];\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("js function-expression entries should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}/** @type {{import('./$types.js').EntryGenerator}} */ {IGNORE_END_COMMENT}function ()"
             )),
             "augmented = {augmented:?}"
         );
