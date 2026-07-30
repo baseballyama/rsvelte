@@ -1038,10 +1038,10 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         if !prop.computed
             && let PropertyKey::StaticIdentifier(id) = &prop.key
         {
-            return format!("'{}'", escape_js_string(&id.name));
+            return format!("'{}'", escape_js_string(id.name.as_str()));
         }
         match &prop.key {
-            PropertyKey::StringLiteral(s) => format!("'{}'", escape_js_string(&s.value)),
+            PropertyKey::StringLiteral(s) => format!("'{}'", escape_js_string(s.value.as_str())),
             // `String(<number>)` drops the fractional part of an integer.
             PropertyKey::NumericLiteral(n) => {
                 let value = if n.value.fract() == 0.0 && n.value.abs() < i64::MAX as f64 {
