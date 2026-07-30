@@ -28,7 +28,7 @@ use crate::svelte2tsx::template::utils::expr::{
 
 use action::format_use_directive;
 use attribute::{
-    format_attribute_node, format_attribute_node_segments, trailing_attr_comment_segs,
+    append_attribute_node_segments, format_attribute_node, trailing_attr_comment_segs,
     trailing_attr_comment_text,
 };
 use binding::{bind_is_filtered_from_props, format_bind_directive_segments};
@@ -157,7 +157,7 @@ pub(super) fn build_attribute_segments(
     in_slot_context: bool,
     opener_content_start: Option<u32>,
 ) -> Vec<Seg> {
-    let mut segs: Vec<Seg> = Vec::new();
+    let mut segs: Vec<Seg> = Vec::with_capacity(attributes.len().saturating_mul(2));
     let mut any_pushed = false;
     // Position immediately after the previous attribute (or after the tag name
     // for the first attribute). Used to recover a comment that precedes a
@@ -193,12 +193,10 @@ pub(super) fn build_attribute_segments(
                     }
                     _ => "",
                 };
-                if let Some(part) = format_attribute_node_segments(
-                    node, source, comments, true, parent_tag, leading,
-                ) {
-                    push_with_separator(&mut segs, part);
-                    any_pushed = true;
-                }
+                append_attribute_node_segments(
+                    &mut segs, node, source, comments, true, parent_tag, leading,
+                );
+                any_pushed = true;
                 prev_end = Some(node.end);
             }
             Attribute::SpreadAttribute(spread) => {
@@ -430,7 +428,7 @@ pub(super) fn build_component_props_segments(
     comments: &ElementOpenerCommentIndex,
     drop_slot: bool,
 ) -> Vec<Seg> {
-    let mut inner: Vec<Seg> = Vec::new();
+    let mut inner: Vec<Seg> = Vec::with_capacity(attributes.len().saturating_mul(2));
     let mut has_on_directives = false;
     let mut let_count = 0u32;
 
@@ -454,13 +452,9 @@ pub(super) fn build_component_props_segments(
                     continue;
                 }
                 // is_element=false: --* attrs get __sveltets_2_cssProp wrapping
-                // inside format_attribute_node_segments (mirrors Attribute.ts).
+                // inside append_attribute_node_segments (mirrors Attribute.ts).
                 // Components preserve attribute-name case, so the tag is unused.
-                if let Some(part) =
-                    format_attribute_node_segments(node, source, comments, false, "", "")
-                {
-                    extend_segs(&mut inner, part);
-                }
+                append_attribute_node_segments(&mut inner, node, source, comments, false, "", "");
             }
             Attribute::SpreadAttribute(spread) => {
                 if let Some(part) = format_spread_attribute_segments(spread, source) {

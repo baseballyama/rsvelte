@@ -377,6 +377,47 @@ pub(crate) fn trailing_attr_comment_text(
     out
 }
 
+#[inline]
+fn append_segments(dst: &mut Vec<Seg>, src: Vec<Seg>) {
+    for seg in src {
+        match seg {
+            Seg::Lit(text) => {
+                if let Some(Seg::Lit(last)) = dst.last_mut() {
+                    last.push_str(&text);
+                } else if !text.is_empty() {
+                    dst.push(Seg::Lit(text));
+                }
+            }
+            Seg::Src(start, end) => segs_push_src(dst, start, end),
+        }
+    }
+}
+
+#[inline]
+fn append_wrapped_attribute(
+    out: &mut Vec<Seg>,
+    leading: Vec<Seg>,
+    is_data_attr: bool,
+    is_css_prop: bool,
+    append_inner: impl FnOnce(&mut Vec<Seg>),
+) {
+    if is_data_attr {
+        segs_push_lit(out, "...__sveltets_2_empty({");
+    } else if is_css_prop {
+        segs_push_lit(out, "...__sveltets_2_cssProp({");
+    }
+    append_segments(out, leading);
+    append_inner(out);
+    segs_push_lit(
+        out,
+        if is_data_attr || is_css_prop {
+            "}),"
+        } else {
+            ","
+        },
+    );
+}
+
 /// Structured-bake variant of [`format_attribute_node`]. Wraps every
 /// expression site in `Seg::Src` so the resulting MagicString chunks
 /// retain per-character source-map fidelity.
@@ -386,14 +427,15 @@ pub(crate) fn trailing_attr_comment_text(
 /// - `!is_element` && `--*` → `__sveltets_2_cssProp({…})`
 ///
 /// (Mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute`.)
-pub(crate) fn format_attribute_node_segments(
+pub(crate) fn append_attribute_node_segments(
+    out: &mut Vec<Seg>,
     node: &AttributeNode,
     source: &str,
     comments: &ElementOpenerCommentIndex,
     is_element: bool,
     tag: &str,
     leading_comment: &str,
-) -> Option<Vec<Seg>> {
+) {
     let leading = leading_attr_comment_segs(node.start, source, comments);
     let is_data_attr =
         is_element && node.name.starts_with("data-") && !node.name.starts_with("data-sveltekit-");
@@ -402,37 +444,6 @@ pub(crate) fn format_attribute_node_segments(
     // (`defaultValue` → `defaultvalue`); component/slot names are preserved.
     let name_owned = transform_attribute_case(&node.name, tag, is_element);
     let name = name_owned.as_ref();
-
-    // Helper: prepend/append the wrapper literals around a segment list that
-    // already represents the `"name":value` content (no trailing comma).
-    // Returns the final list with the trailing comma appended.
-    // Leading comments go INSIDE the data-*/css-prop wrapper (right after `{`),
-    // or directly before the `name:value` for a plain attribute — mirroring
-    // official `getLeadingCommentTransformation` placement on the attribute.
-    let wrap_segs = |mut inner: Vec<Seg>| -> Vec<Seg> {
-        if is_data_attr {
-            let mut out = Vec::with_capacity(inner.len() + leading.len() + 2);
-            segs_push_lit(&mut out, "...__sveltets_2_empty({");
-            out.extend(leading.iter().cloned());
-            out.append(&mut inner);
-            segs_push_lit(&mut out, "}),");
-            out
-        } else if is_css_prop {
-            let mut out = Vec::with_capacity(inner.len() + leading.len() + 2);
-            segs_push_lit(&mut out, "...__sveltets_2_cssProp({");
-            out.extend(leading.iter().cloned());
-            out.append(&mut inner);
-            segs_push_lit(&mut out, "}),");
-            out
-        } else {
-            let mut out = leading.clone();
-            out.append(&mut inner);
-            segs_push_lit(&mut out, ",");
-            out
-        }
-    };
-
-    let mut out: Vec<Seg> = leading.clone();
 
     match &node.value {
         AttributeValue::True(_) => {
@@ -443,9 +454,10 @@ pub(crate) fn format_attribute_node_segments(
             //   value-less attribute, which a boolean attribute is not).
             // --* on components: no-value → ""
             // Others: true
+            append_segments(out, leading);
             if is_data_attr {
                 segs_push_fmt(
-                    &mut out,
+                    out,
                     format_args!(
                         "...__sveltets_2_empty({{{leading_comment}\"{}\":true}}),",
                         name
@@ -453,13 +465,12 @@ pub(crate) fn format_attribute_node_segments(
                 );
             } else if is_css_prop {
                 segs_push_fmt(
-                    &mut out,
+                    out,
                     format_args!("...__sveltets_2_cssProp({{\"{}\":\"\"}}),", name),
                 );
             } else {
-                segs_push_fmt(&mut out, format_args!("\"{}\":true,", name));
+                segs_push_fmt(out, format_args!("\"{}\":true,", name));
             }
-            Some(out)
         }
         AttributeValue::Expression(expr) => {
             let expr_range = get_expression_range(&expr.expression);
@@ -472,8 +483,9 @@ pub(crate) fn format_attribute_node_segments(
             // Shorthand identifiers can't start with `data-` or `--` — no wrap.
             if let Some((s, e)) = expr_range {
                 if is_shorthand {
-                    segs_push_src(&mut out, s, e);
-                    segs_push_lit(&mut out, ",");
+                    append_segments(out, leading);
+                    segs_push_src(out, s, e);
+                    segs_push_lit(out, ",");
                 } else {
                     // Preserve a trailing TS postfix the parser narrowed out of
                     // the expression span (`attr={false as true}` → keep
@@ -514,19 +526,19 @@ pub(crate) fn format_attribute_node_segments(
                     } else {
                         (s, e)
                     };
-                    let mut inner: Vec<Seg> = Vec::new();
-                    segs_push_fmt(&mut inner, format_args!("\"{}\":", name));
-                    segs_push_src(&mut inner, s, e);
-                    return Some(wrap_segs(inner));
+                    append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
+                        segs_push_fmt(out, format_args!("\"{}\":", name));
+                        segs_push_src(out, s, e);
+                    });
                 }
             } else if is_shorthand {
-                segs_push_fmt(&mut out, format_args!("{},", name));
+                append_segments(out, leading);
+                segs_push_fmt(out, format_args!("{},", name));
             } else {
-                let mut inner: Vec<Seg> = Vec::new();
-                segs_push_fmt(&mut inner, format_args!("\"{}\":{}", name, expr_text));
-                return Some(wrap_segs(inner));
+                append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
+                    segs_push_fmt(out, format_args!("\"{}\":{}", name, expr_text))
+                });
             }
-            Some(out)
         }
         AttributeValue::Sequence(parts) => {
             // Single-expression sequence stays as a bare expression — same
@@ -535,14 +547,15 @@ pub(crate) fn format_attribute_node_segments(
                 && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
             {
                 let range = get_expression_range(&expr.expression);
-                let mut inner: Vec<Seg> = Vec::new();
-                segs_push_fmt(&mut inner, format_args!("\"{}\":", name));
-                if let Some((s, e)) = range {
-                    segs_push_src(&mut inner, s, e);
-                } else {
-                    segs_push_lit(&mut inner, get_expression_text(&expr.expression, source));
-                }
-                return Some(wrap_segs(inner));
+                append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
+                    segs_push_fmt(out, format_args!("\"{}\":", name));
+                    if let Some((s, e)) = range {
+                        segs_push_src(out, s, e);
+                    } else {
+                        segs_push_lit(out, get_expression_text(&expr.expression, source));
+                    }
+                });
+                return;
             }
 
             // Numeric DOM attribute written as a string literal (`tabindex="-1"`,
@@ -561,10 +574,11 @@ pub(crate) fn format_attribute_node_segments(
                 && !text.data.trim().is_empty()
                 && is_js_numeric(&text.data)
             {
-                segs_push_fmt(&mut out, format_args!("\"{}\":", name));
-                segs_push_src(&mut out, text.start, text.end);
-                segs_push_lit(&mut out, ",");
-                return Some(out);
+                append_segments(out, leading);
+                segs_push_fmt(out, format_args!("\"{}\":", name));
+                segs_push_src(out, text.start, text.end);
+                segs_push_lit(out, ",");
+                return;
             }
 
             // Pure-static empty value (`class=""`, `href=""`): official emits
@@ -578,9 +592,10 @@ pub(crate) fn format_attribute_node_segments(
                 AttributeValuePart::ExpressionTag(_) => false,
             });
             if !has_expr && text_is_empty {
-                let mut inner: Vec<Seg> = Vec::new();
-                segs_push_fmt(&mut inner, format_args!("\"{}\":\"\"", name));
-                return Some(wrap_segs(inner));
+                append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
+                    segs_push_fmt(out, format_args!("\"{}\":\"\"", name))
+                });
+                return;
             }
 
             // Single static Text value: mirror official Attribute.ts. The quote
@@ -607,50 +622,48 @@ pub(crate) fn format_attribute_node_segments(
                     }
                 };
                 let needs_escape = data.contains('\\') || (has_backtick && data.contains('\n'));
-                let mut inner: Vec<Seg> = Vec::new();
-                segs_push_fmt(&mut inner, format_args!("\"{}\":{}", name, quote));
-                if needs_escape {
-                    let json =
-                        serde_json::to_string(data).unwrap_or_else(|_| format!("\"{}\"", data));
-                    segs_push_lit(&mut inner, &json[1..json.len() - 1]);
-                } else {
-                    segs_push_src(&mut inner, text.start, text.end);
-                }
-                segs_push_fmt(&mut inner, format_args!("{quote}"));
-                return Some(wrap_segs(inner));
+                append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
+                    segs_push_fmt(out, format_args!("\"{}\":{}", name, quote));
+                    if needs_escape {
+                        let json =
+                            serde_json::to_string(data).unwrap_or_else(|_| format!("\"{}\"", data));
+                        segs_push_lit(out, &json[1..json.len() - 1]);
+                    } else {
+                        segs_push_src(out, text.start, text.end);
+                    }
+                    segs_push_fmt(out, format_args!("{quote}"));
+                });
+                return;
             }
 
             // Mixed text + expression sequence → template literal. Each
             // `${EXPR}` slot still preserves the expression chunk.
-            let mut inner: Vec<Seg> = Vec::new();
-            segs_push_fmt(&mut inner, format_args!("\"{}\":`", name));
-            for part in parts {
-                match part {
-                    AttributeValuePart::Text(text) => {
-                        // Official slices the raw source verbatim into the
-                        // template literal (Attribute.ts), so a backslash stays
-                        // single (`back\slash`); only the template-literal
-                        // delimiters (`` ` `` / `${`) need escaping.
-                        let escaped = text.raw.replace('`', "\\`").replace("${", "\\${");
-                        segs_push_lit(&mut inner, &escaped);
-                    }
-                    AttributeValuePart::ExpressionTag(expr) => {
-                        let range = get_expression_range(&expr.expression);
-                        segs_push_lit(&mut inner, "${");
-                        if let Some((s, e)) = range {
-                            segs_push_src(&mut inner, s, e);
-                        } else {
-                            segs_push_lit(
-                                &mut inner,
-                                get_expression_text(&expr.expression, source),
-                            );
+            append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
+                segs_push_fmt(out, format_args!("\"{}\":`", name));
+                for part in parts {
+                    match part {
+                        AttributeValuePart::Text(text) => {
+                            // Official slices the raw source verbatim into the
+                            // template literal (Attribute.ts), so a backslash stays
+                            // single (`back\slash`); only the template-literal
+                            // delimiters (`` ` `` / `${`) need escaping.
+                            let escaped = text.raw.replace('`', "\\`").replace("${", "\\${");
+                            segs_push_lit(out, &escaped);
                         }
-                        segs_push_lit(&mut inner, "}");
+                        AttributeValuePart::ExpressionTag(expr) => {
+                            let range = get_expression_range(&expr.expression);
+                            segs_push_lit(out, "${");
+                            if let Some((s, e)) = range {
+                                segs_push_src(out, s, e);
+                            } else {
+                                segs_push_lit(out, get_expression_text(&expr.expression, source));
+                            }
+                            segs_push_lit(out, "}");
+                        }
                     }
                 }
-            }
-            segs_push_lit(&mut inner, "`");
-            Some(wrap_segs(inner))
+                segs_push_lit(out, "`");
+            });
         }
     }
 }
@@ -956,6 +969,23 @@ mod tests {
         assert!(
             out.contains("\"class\":`foo`"),
             "class attr should be plain prop, got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn dense_attribute_sink_preserves_order_and_wrappers() {
+        let src = "<script>let value = 1;</script>\
+                   <div disabled title=\"plain\" count={value} \
+                   mixed=\"pre {value} post\" data-id=\"7\" {value}></div>";
+        let out = compile_template(src);
+
+        assert!(
+            out.contains(
+                "{ \"disabled\":true,\"title\":`plain`,\"count\":value,\
+                 \"mixed\":`pre ${value} post`,\
+                 ...__sveltets_2_empty({\"data-id\":`7`}),value,}"
+            ),
+            "dense attribute lowering changed:\n{out}"
         );
     }
 }
