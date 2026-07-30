@@ -467,7 +467,7 @@ pub fn svelte2tsx(
     let parse_options = ParseOptions {
         modern: true,
         loose: false,
-        skip_expression_loc: false,
+        skip_expression_loc: true,
         defer_script_parse: true,
         force_typescript: false,
         lenient_script: false,
