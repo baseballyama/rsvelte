@@ -1,6 +1,10 @@
 //! Destructuring assignment transformations and IIFE generation.
 
 use super::SCRIPT_ARRAY_COUNTER;
+use oxc_allocator::Allocator;
+use oxc_ast::ast::{Expression, Statement};
+use oxc_parser::{ParseOptions, Parser};
+use oxc_span::SourceType;
 
 pub(super) fn unthunk_string(expr: &str) -> String {
     let trimmed = expr.trim();
@@ -1121,46 +1125,61 @@ pub(super) fn skip_expression(bytes: &[u8], start: usize) -> usize {
 
 /// Check if a string expression is a "simple" expression that doesn't need thunk wrapping.
 ///
-/// Simple expressions: identifiers, literals (numbers, strings, booleans),
-/// arrow functions, function expressions. Does NOT include call expressions,
-/// member expressions, etc.
+/// The string is re-parsed so the answer comes from the expression's real shape —
+/// a purely textual test cannot tell `q ? 1 : 2` (simple) from `q ? a.b : c` (not).
 pub(super) fn string_is_simple_expression(s: &str) -> bool {
     let trimmed = s.trim();
     if trimmed.is_empty() {
         return false;
     }
 
-    // Identifiers: purely alphanumeric + _ + $
-    if trimmed
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
-    {
-        return true;
+    let allocator = Allocator::default();
+    // Parenthesised so a leading `{` parses as an object literal, not a block.
+    let wrapped = format!("({})", trimmed);
+    let ret = Parser::new(
+        &allocator,
+        &wrapped,
+        SourceType::mjs().with_typescript(true),
+    )
+    .with_options(ParseOptions {
+        preserve_parens: false,
+        ..ParseOptions::default()
+    })
+    .parse();
+    if !ret.diagnostics.is_empty() || ret.program.body.len() != 1 {
+        return false;
     }
-
-    // Numeric literals
-    if trimmed.parse::<f64>().is_ok() {
-        return true;
+    match ret.program.body.first() {
+        Some(Statement::ExpressionStatement(stmt)) => expression_is_simple(&stmt.expression),
+        _ => false,
     }
+}
 
-    // String literals
-    if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
-        || (trimmed.starts_with('"') && trimmed.ends_with('"'))
-    {
-        return true;
+/// Faithful port of the official compiler's `is_simple_expression()` from `utils/ast.js`.
+fn expression_is_simple(expr: &Expression<'_>) -> bool {
+    match expr {
+        Expression::BooleanLiteral(_)
+        | Expression::NullLiteral(_)
+        | Expression::NumericLiteral(_)
+        | Expression::BigIntLiteral(_)
+        | Expression::RegExpLiteral(_)
+        | Expression::StringLiteral(_)
+        | Expression::Identifier(_)
+        | Expression::ArrowFunctionExpression(_)
+        | Expression::FunctionExpression(_) => true,
+        Expression::ConditionalExpression(e) => {
+            expression_is_simple(&e.test)
+                && expression_is_simple(&e.consequent)
+                && expression_is_simple(&e.alternate)
+        }
+        Expression::BinaryExpression(e) => {
+            expression_is_simple(&e.left) && expression_is_simple(&e.right)
+        }
+        Expression::LogicalExpression(e) => {
+            expression_is_simple(&e.left) && expression_is_simple(&e.right)
+        }
+        _ => false,
     }
-
-    // Boolean/null literals
-    if trimmed == "true" || trimmed == "false" || trimmed == "null" || trimmed == "undefined" {
-        return true;
-    }
-
-    // Arrow functions and function expressions
-    if trimmed.starts_with("() =>") || trimmed.starts_with("function") {
-        return true;
-    }
-
-    false
 }
 
 /// Build a `$.fallback(expression, default)` string, applying async thunk wrapping

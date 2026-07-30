@@ -970,6 +970,10 @@ pub(super) fn process_nested_pattern_elements(
                     declarations,
                     _array_counter,
                 )?;
+            } else if let Some(eq_pos) = find_default_equals(element) {
+                let name = element[..eq_pos].trim();
+                let fallback = build_fallback_string(&element_access, element[eq_pos + 1..].trim());
+                declarations.push(format!("{} = $.derived(() => {})", name, fallback));
             } else {
                 declarations.push(format!("{} = $.derived(() => {})", element, element_access));
             }
@@ -988,8 +992,10 @@ pub(super) fn process_nested_pattern_elements(
                 }
                 let key = if let Some(colon_pos) = find_derived_property_colon(prop) {
                     prop[..colon_pos].trim()
+                } else if let Some(eq_pos) = find_default_equals(prop) {
+                    prop[..eq_pos].trim()
                 } else {
-                    prop.trim()
+                    prop
                 };
                 if key.starts_with('[') {
                     None
@@ -1044,6 +1050,11 @@ pub(super) fn process_nested_pattern_elements(
                         ));
                     }
                 }
+            } else if let Some(eq_pos) = find_default_equals(prop) {
+                let name = prop[..eq_pos].trim();
+                let member_access = format!("{}.{}", base_expr, name);
+                let fallback = build_fallback_string(&member_access, prop[eq_pos + 1..].trim());
+                declarations.push(format!("{} = $.derived(() => {})", name, fallback));
             } else {
                 declarations.push(format!(
                     "{} = $.derived(() => {}.{})",
@@ -1169,6 +1180,10 @@ pub(super) fn process_derived_array_pattern(
                 declarations,
                 &mut nested_counter,
             )?;
+        } else if let Some(eq_pos) = find_default_equals(element) {
+            let name = element[..eq_pos].trim();
+            let fallback = build_fallback_string(&element_access, element[eq_pos + 1..].trim());
+            declarations.push(format!("{} = $.derived(() => {})", name, fallback));
         } else {
             declarations.push(format!("{} = $.derived(() => {})", element, element_access));
         }
@@ -1231,40 +1246,61 @@ pub(super) fn split_derived_array_elements(inner: &str) -> Vec<String> {
 }
 
 pub(super) fn find_derived_property_colon(prop: &str) -> Option<usize> {
-    let mut depth = 0;
-    for (i, c) in prop.char_indices() {
-        match c {
-            '{' | '[' | '(' => depth += 1,
-            '}' | ']' | ')' => depth -= 1,
-            ':' if depth == 0 => return Some(i),
-            _ => {}
-        }
-    }
-    None
+    scan_property_separators(prop).0
 }
 
 /// Find the position of `=` in a shorthand destructuring property with a default value.
 /// e.g., `animated = false` → Some(9), `animated` → None
 /// Respects nesting so `data = { x: 1 }` finds the top-level `=`.
 pub(super) fn find_default_equals(prop: &str) -> Option<usize> {
-    let mut depth = 0;
+    scan_property_separators(prop).1
+}
+
+/// Byte offsets of a destructuring property's key separator `:` and default-value
+/// `=`, skipping nested patterns, string/template literals and comments.
+///
+/// A property is always `key: value = default`, so the key separator can only
+/// precede the default `=` — scanning the whole property would otherwise mistake a
+/// `:` from the default (a ternary, a string literal) for the key separator.
+fn scan_property_separators(prop: &str) -> (Option<usize>, Option<usize>) {
     let bytes = prop.as_bytes();
+    let mut depth = 0i32;
+    let mut colon = None;
     let mut i = 0;
     while i < bytes.len() {
         match bytes[i] {
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i += 2;
+                while i < bytes.len() && !(bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/')) {
+                    i += 1;
+                }
+                i += 1;
+            }
+            quote @ (b'\'' | b'"' | b'`') => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != quote {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+            }
             b'{' | b'[' | b'(' => depth += 1,
             b'}' | b']' | b')' => depth -= 1,
+            b':' if depth == 0 && colon.is_none() => colon = Some(i),
             b'=' if depth == 0 => {
-                // Make sure it's not `==` or `=>`
-                if i + 1 < bytes.len() && (bytes[i + 1] == b'=' || bytes[i + 1] == b'>') {
-                    i += 2;
-                    continue;
+                let prev = if i > 0 { bytes[i - 1] } else { 0 };
+                let is_operator = matches!(bytes.get(i + 1), Some(b'=' | b'>'))
+                    || matches!(prev, b'!' | b'<' | b'>' | b'=');
+                if !is_operator {
+                    return (colon, Some(i));
                 }
-                return Some(i);
             }
             _ => {}
         }
         i += 1;
     }
-    None
+    (colon, None)
 }
