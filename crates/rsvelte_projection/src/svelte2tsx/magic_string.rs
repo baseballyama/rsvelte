@@ -145,8 +145,14 @@ enum ChunkStarts {
 }
 
 enum ChunkStartLookup {
-    Boundary { left: Option<usize>, right: usize },
-    Inside(usize),
+    Boundary {
+        left: Option<usize>,
+        right: usize,
+    },
+    Inside {
+        chunk: usize,
+        dense_insert_slot: Option<usize>,
+    },
     Missing,
 }
 
@@ -171,6 +177,24 @@ impl ChunkStarts {
     fn find(&self, position: u32) -> ChunkStartLookup {
         match self {
             Self::Dense(entries) => {
+                let last_slot = entries.len() - 1;
+                let last = entries[last_slot];
+                if position >= last.position {
+                    return if position == last.position {
+                        ChunkStartLookup::Boundary {
+                            left: last_slot
+                                .checked_sub(1)
+                                .map(|previous| entries[previous].chunk as usize),
+                            right: last.chunk as usize,
+                        }
+                    } else {
+                        ChunkStartLookup::Inside {
+                            chunk: last.chunk as usize,
+                            dense_insert_slot: Some(entries.len()),
+                        }
+                    };
+                }
+
                 match entries.binary_search_by_key(&position, |entry| entry.position) {
                     Ok(slot) => ChunkStartLookup::Boundary {
                         left: slot
@@ -179,7 +203,10 @@ impl ChunkStarts {
                         right: entries[slot].chunk as usize,
                     },
                     Err(0) => ChunkStartLookup::Missing,
-                    Err(slot) => ChunkStartLookup::Inside(entries[slot - 1].chunk as usize),
+                    Err(slot) => ChunkStartLookup::Inside {
+                        chunk: entries[slot - 1].chunk as usize,
+                        dense_insert_slot: Some(slot),
+                    },
                 }
             }
             Self::Tree(entries) => {
@@ -191,23 +218,36 @@ impl ChunkStarts {
                             right: chunk as usize,
                         }
                     }
-                    Some((_, &chunk)) => ChunkStartLookup::Inside(chunk as usize),
+                    Some((_, &chunk)) => ChunkStartLookup::Inside {
+                        chunk: chunk as usize,
+                        dense_insert_slot: None,
+                    },
                     None => ChunkStartLookup::Missing,
                 }
             }
         }
     }
 
-    fn insert(&mut self, position: u32, chunk: u32) {
+    fn insert(&mut self, position: u32, chunk: u32, dense_insert_slot: Option<usize>) {
         match self {
             Self::Tree(entries) => {
                 entries.insert(position, chunk);
             }
             Self::Dense(entries) if entries.len() < DENSE_CHUNK_START_LIMIT => {
-                let slot = entries
-                    .binary_search_by_key(&position, |entry| entry.position)
-                    .expect_err("chunk start already indexed");
-                entries.insert(slot, ChunkStart { position, chunk });
+                let slot = dense_insert_slot.expect("dense chunk start insertion needs a slot");
+                debug_assert!(
+                    slot == 0 || entries[slot - 1].position < position,
+                    "chunk start already indexed"
+                );
+                debug_assert!(
+                    slot == entries.len() || position < entries[slot].position,
+                    "chunk start already indexed"
+                );
+                if slot == entries.len() {
+                    entries.push(ChunkStart { position, chunk });
+                } else {
+                    entries.insert(slot, ChunkStart { position, chunk });
+                }
             }
             Self::Dense(entries) => {
                 let mut tree = std::collections::BTreeMap::new();
@@ -762,14 +802,17 @@ impl<'source> MagicString<'source> {
             return ChunkBoundary::default();
         }
 
-        let cur = match self.by_start.find(index) {
+        let (cur, dense_insert_slot) = match self.by_start.find(index) {
             ChunkStartLookup::Boundary { left, right } => {
                 return ChunkBoundary {
                     left,
                     right: Some(right),
                 };
             }
-            ChunkStartLookup::Inside(chunk) => chunk,
+            ChunkStartLookup::Inside {
+                chunk,
+                dense_insert_slot,
+            } => (chunk, dense_insert_slot),
             ChunkStartLookup::Missing => {
                 #[cfg(debug_assertions)]
                 eprintln!(
@@ -819,7 +862,7 @@ impl<'source> MagicString<'source> {
         }
 
         let new_idx_u32 = u32::try_from(new_idx).expect("MagicString chunk index exceeds u32");
-        self.by_start.insert(index, new_idx_u32);
+        self.by_start.insert(index, new_idx_u32, dense_insert_slot);
 
         ChunkBoundary {
             left: Some(cur),
