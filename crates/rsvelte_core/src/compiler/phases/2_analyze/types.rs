@@ -714,7 +714,13 @@ fn strip_typescript_from_program_impl(
             // An inline TS type annotation starts with `:` (optionally preceded by
             // whitespace already emitted). If the removed chunk starts with `:`, it
             // is a type annotation — skip comment re-emission for it entirely.
-            let is_inline_type_annotation = removed.trim_start().starts_with(':');
+            // A definite-assignment `!` is spliced together with the annotation
+            // that follows it, so look past it before testing for the sigil.
+            let is_inline_type_annotation = removed
+                .trim_start()
+                .trim_start_matches('!')
+                .trim_start()
+                .starts_with(':');
             if !is_inline_type_annotation
                 && removed.contains('\n')
                 && (removed.contains("/*") || removed.contains("//"))
@@ -1007,6 +1013,9 @@ fn collect_ts_removals_from_class(
                     continue;
                 }
                 if let Some(ref type_ann) = prop.type_annotation {
+                    if prop.definite {
+                        collect_definite_marker_removal(type_ann.span.start, source, removals);
+                    }
                     removals.push((type_ann.span.start, type_ann.span.end));
                 }
                 if let Some(ref accessibility) = prop.accessibility {
@@ -1465,13 +1474,7 @@ fn collect_ts_removals_from_statement(
                 return;
             }
             for decl in &var_decl.declarations {
-                if let Some(ref type_ann) = decl.type_annotation {
-                    removals.push((type_ann.span.start, type_ann.span.end));
-                }
-                collect_ts_removals_from_binding_pattern(&decl.id, source, removals);
-                if let Some(ref init) = decl.init {
-                    collect_ts_removals_from_expression(init, source, removals);
-                }
+                collect_ts_removals_from_declarator(decl, source, removals);
             }
         }
         Statement::ReturnStatement(ret) => {
@@ -1496,13 +1499,7 @@ fn collect_ts_removals_from_statement(
                 && let ForStatementInit::VariableDeclaration(vd) = init
             {
                 for decl in &vd.declarations {
-                    if let Some(ref type_ann) = decl.type_annotation {
-                        removals.push((type_ann.span.start, type_ann.span.end));
-                    }
-                    collect_ts_removals_from_binding_pattern(&decl.id, source, removals);
-                    if let Some(ref i) = decl.init {
-                        collect_ts_removals_from_expression(i, source, removals);
-                    }
+                    collect_ts_removals_from_declarator(decl, source, removals);
                 }
             }
             if let Some(ref test) = for_stmt.test {
@@ -1524,13 +1521,7 @@ fn collect_ts_removals_from_statement(
         Statement::ForOfStatement(for_of) => {
             if let ForStatementLeft::VariableDeclaration(vd) = &for_of.left {
                 for decl in &vd.declarations {
-                    if let Some(ref type_ann) = decl.type_annotation {
-                        removals.push((type_ann.span.start, type_ann.span.end));
-                    }
-                    collect_ts_removals_from_binding_pattern(&decl.id, source, removals);
-                    if let Some(ref init) = decl.init {
-                        collect_ts_removals_from_expression(init, source, removals);
-                    }
+                    collect_ts_removals_from_declarator(decl, source, removals);
                 }
             }
             collect_ts_removals_from_expression(&for_of.right, source, removals);
@@ -1539,13 +1530,7 @@ fn collect_ts_removals_from_statement(
         Statement::ForInStatement(for_in) => {
             if let ForStatementLeft::VariableDeclaration(vd) = &for_in.left {
                 for decl in &vd.declarations {
-                    if let Some(ref type_ann) = decl.type_annotation {
-                        removals.push((type_ann.span.start, type_ann.span.end));
-                    }
-                    collect_ts_removals_from_binding_pattern(&decl.id, source, removals);
-                    if let Some(ref init) = decl.init {
-                        collect_ts_removals_from_expression(init, source, removals);
-                    }
+                    collect_ts_removals_from_declarator(decl, source, removals);
                 }
             }
             collect_ts_removals_from_expression(&for_in.right, source, removals);
@@ -1710,15 +1695,7 @@ fn collect_ts_removals_from_statement(
                                 removals.push((export_decl.span.start, export_decl.span.end));
                             } else {
                                 for decl in &var_decl.declarations {
-                                    if let Some(ref type_ann) = decl.type_annotation {
-                                        removals.push((type_ann.span.start, type_ann.span.end));
-                                    }
-                                    collect_ts_removals_from_binding_pattern(
-                                        &decl.id, source, removals,
-                                    );
-                                    if let Some(ref init) = decl.init {
-                                        collect_ts_removals_from_expression(init, source, removals);
-                                    }
+                                    collect_ts_removals_from_declarator(decl, source, removals);
                                 }
                             }
                         }
@@ -1794,6 +1771,51 @@ fn collect_ts_removals_from_statement(
             removals.push((decl.span.start, decl.span.end));
         }
         _ => {}
+    }
+}
+
+/// Extend a type-annotation removal backwards over a definite-assignment `!`
+/// (`let x!: T`, `class A { x!: T }`). The official compiler deletes the
+/// `definite` flag from the AST, so the marker must not survive into the JS.
+///
+/// `type_ann_start` is the start of the annotation removal, so the pushed range
+/// is contiguous with it and merges into a single splice.
+fn collect_definite_marker_removal(
+    type_ann_start: u32,
+    source: &str,
+    removals: &mut Vec<(u32, u32)>,
+) {
+    let bytes = source.as_bytes();
+    let mut bang = type_ann_start as usize;
+    while bang > 0 && bytes[bang - 1].is_ascii_whitespace() {
+        bang -= 1;
+    }
+    if bang == 0 || bytes[bang - 1] != b'!' {
+        return;
+    }
+    let mut start = bang - 1;
+    while start > 0 && bytes[start - 1].is_ascii_whitespace() {
+        start -= 1;
+    }
+    removals.push((start as u32, type_ann_start));
+}
+
+/// Collect TS removals from a single variable declarator: the type annotation,
+/// the definite-assignment `!`, then the pattern and the initializer.
+fn collect_ts_removals_from_declarator(
+    decl: &oxc_ast::ast::VariableDeclarator,
+    source: &str,
+    removals: &mut Vec<(u32, u32)>,
+) {
+    if let Some(ref type_ann) = decl.type_annotation {
+        if decl.definite {
+            collect_definite_marker_removal(type_ann.span.start, source, removals);
+        }
+        removals.push((type_ann.span.start, type_ann.span.end));
+    }
+    collect_ts_removals_from_binding_pattern(&decl.id, source, removals);
+    if let Some(ref init) = decl.init {
+        collect_ts_removals_from_expression(init, source, removals);
     }
 }
 
@@ -2936,6 +2958,26 @@ let {
                     "Unexpected content between `}}` and `= $props()`: {l:?}\nFull output: {stripped:?}"
                 );
             }
+        }
+    }
+
+    /// A definite-assignment assertion must strip to exactly what the same
+    /// declaration without the `!` strips to — leaving it behind emits
+    /// invalid JS (`let element!;`).
+    #[test]
+    fn definite_assignment_assertion_is_stripped() {
+        for (ts, expected) in [
+            ("let element!: HTMLDivElement;\n", "let element;\n"),
+            ("let element !: HTMLDivElement;\n", "let element;\n"),
+            ("let a!: number, b = 2;\n", "let a, b = 2;\n"),
+            (
+                "for (const x of []) {\n\tlet a!: number;\n}\n",
+                "for (const x of []) {\n\tlet a;\n}\n",
+            ),
+            ("export let a!: number;\n", "export let a;\n"),
+            ("class Foo {\n\tx!: string;\n}\n", "class Foo {\n\tx;\n}\n"),
+        ] {
+            assert_eq!(strip_typescript(ts), expected, "input: {ts:?}");
         }
     }
 }
