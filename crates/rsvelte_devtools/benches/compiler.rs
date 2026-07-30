@@ -31,7 +31,7 @@
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use std::fmt::Write as _;
 use std::hint::black_box;
 
@@ -39,6 +39,7 @@ use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse};
 use rsvelte_core::compiler::phases::phase2_analyze::analyze_component;
 use rsvelte_core::compiler::phases::phase3_transform::transform_component;
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
+use rsvelte_projection::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
 
 #[path = "common/corpus.rs"]
 mod corpus;
@@ -395,6 +396,42 @@ fn bench_compile_both(c: &mut Criterion) {
     group.finish();
 }
 
+/// Full Svelte-to-TypeScript projection used by language tooling.
+fn bench_svelte2tsx(c: &mut Criterion) {
+    let files = corpus::load();
+    let mut group = c.benchmark_group("svelte2tsx");
+
+    for sample in &files {
+        let options = Svelte2TsxOptions {
+            filename: format!("{}.svelte", sample.id),
+            is_ts_file: sample.source.contains("lang=\"ts\"")
+                || sample.source.contains("lang='ts'"),
+            ..Default::default()
+        };
+
+        assert!(
+            svelte2tsx(&sample.source, options.clone()).is_ok(),
+            "bench corpus sample `{}` failed to project",
+            sample.id
+        );
+
+        group.throughput(Throughput::Bytes(sample.bytes()));
+        group.bench_with_input(
+            BenchmarkId::new("project", &sample.id),
+            &sample.source,
+            |b, source| {
+                b.iter_batched(
+                    || options.clone(),
+                    |options| svelte2tsx(black_box(source), black_box(options)),
+                    BatchSize::SmallInput,
+                );
+            },
+        );
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_phase1_parse,
@@ -403,5 +440,6 @@ criterion_group!(
     bench_phase3_transform_server,
     bench_full_compile,
     bench_compile_both,
+    bench_svelte2tsx,
 );
 criterion_main!(benches);
