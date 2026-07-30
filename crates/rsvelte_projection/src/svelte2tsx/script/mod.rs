@@ -38,7 +38,7 @@ pub use exported_names::{ExportedNameInfo, ExportedNames};
 pub(super) use stores::{StoreScanContext, collect_module_import_store_declarations};
 
 use ast_utils::{
-    binding_pattern_simple_name, collect_top_level_declared_names, declarator_has_boolean_init,
+    binding_pattern_simple_name, collect_top_level_declarations, declarator_has_boolean_init,
     extract_all_names_from_binding_pattern,
 };
 use component_events::detect_create_event_dispatcher;
@@ -125,8 +125,10 @@ pub fn process_instance_script(
         // disambiguation (`$state` rune vs `$`-prefixed store of a declared
         // `state`) sees the complete scope — incl. a name declared by the very
         // statement whose initializer we're checking. See
-        // collect_top_level_declared_names.
-        let declared_names: HashSet<String> = collect_top_level_declared_names(&program.body);
+        // collect_top_level_declarations.
+        let top_level = collect_top_level_declarations(&program.body);
+        let declared_names = top_level.names;
+        let collect_possible_exports = top_level.has_local_export_specifiers;
         // Top-level `type` / `interface` declarations that may be hoistable
         // out of `function $$render()`. Resolved (with `instance_value_names`
         // and `module_*_names`) into `hoistable_type_ranges` after Pass 1.
@@ -162,6 +164,9 @@ pub fn process_instance_script(
                         ) {
                             props_rune_infos.push(info);
                         }
+                        if !collect_possible_exports {
+                            continue;
+                        }
                         if let oxc::BindingPattern::BindingIdentifier(id) = &declarator.id {
                             let name = id.name.to_string();
                             let ta_text = declarator.type_annotation.as_ref().and_then(|ta| {
@@ -175,7 +180,7 @@ pub fn process_instance_script(
                                 }
                             });
                             possible_exports.insert(
-                                name.to_owned(),
+                                name,
                                 PossibleExport {
                                     is_let,
                                     has_init: declarator.init.is_some(),
@@ -275,6 +280,9 @@ pub fn process_instance_script(
                             oxc::Declaration::VariableDeclaration(var_decl) => {
                                 // Only `let` is a reactive prop; `var`/`const` are
                                 // exports (mirror official isLet === NodeFlags.Let).
+                                if !collect_possible_exports {
+                                    continue;
+                                }
                                 let is_let =
                                     matches!(var_decl.kind, oxc::VariableDeclarationKind::Let);
                                 for declarator in var_decl.declarations.iter() {

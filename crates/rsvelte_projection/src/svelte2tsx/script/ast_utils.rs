@@ -154,16 +154,13 @@ pub(super) fn module_export_name_to_string(name: &oxc::ModuleExportName) -> Stri
     }
 }
 
-/// Pre-pass: collect EVERY top-level declared binding name in the instance
-/// script before rune detection runs. Official `svelte2tsx` resolves a
-/// `$name` reference as a store auto-subscription (NOT the `$state`/`$derived`/
-/// `$effect` rune) whenever `name` is a declared binding, using the COMPLETE
-/// top-level scope. So `let state = $state(0)` must see its own `state` as
-/// declared (→ legacy), while `let x = $state(0)` stays runes. Without this
-/// pre-pass `declared_names` was still empty when a declarator's own
-/// initializer was checked, over-detecting runes. Mirrors upstream
-/// `ImplicitStoreValues` / `checkGlobalsForRunes`.
-pub(super) fn collect_top_level_declared_names(body: &[oxc::Statement]) -> HashSet<String> {
+pub(super) struct TopLevelDeclarations {
+    pub names: HashSet<String>,
+    pub has_local_export_specifiers: bool,
+}
+
+/// Collect the complete rune-detection scope and whether export metadata is observable.
+pub(super) fn collect_top_level_declarations(body: &[oxc::Statement]) -> TopLevelDeclarations {
     fn add_binding(pattern: &oxc::BindingPattern, names: &mut HashSet<String>) {
         if let oxc::BindingPattern::BindingIdentifier(id) = pattern {
             names.insert(id.name.to_string());
@@ -198,6 +195,7 @@ pub(super) fn collect_top_level_declared_names(body: &[oxc::Statement]) -> HashS
     }
 
     let mut names = HashSet::new();
+    let mut has_local_export_specifiers = false;
     for stmt in body {
         match stmt {
             oxc::Statement::VariableDeclaration(vd) => add_var(vd, &mut names),
@@ -238,6 +236,7 @@ pub(super) fn collect_top_level_declared_names(body: &[oxc::Statement]) -> HashS
                 }
             }
             oxc::Statement::ExportNamedDeclaration(ex) => {
+                has_local_export_specifiers |= ex.source.is_none() && !ex.specifiers.is_empty();
                 if let Some(decl) = &ex.declaration {
                     add_declaration(decl, &mut names);
                 }
@@ -245,7 +244,10 @@ pub(super) fn collect_top_level_declared_names(body: &[oxc::Statement]) -> HashS
             _ => {}
         }
     }
-    names
+    TopLevelDeclarations {
+        names,
+        has_local_export_specifiers,
+    }
 }
 
 /// Extract all identifier names from a binding pattern (for destructuring support).
@@ -367,7 +369,7 @@ mod tests {
     use oxc_parser::Parser;
     use oxc_span::SourceType;
 
-    use super::{binding_pattern_simple_name, oxc};
+    use super::{binding_pattern_simple_name, collect_top_level_declarations, oxc};
 
     #[test]
     fn simple_binding_name_borrows_the_ast_identifier() {
@@ -387,5 +389,24 @@ mod tests {
             name.as_ptr(),
             identifier.name.as_str().as_ptr()
         ));
+    }
+
+    #[test]
+    fn top_level_declarations_distinguish_local_export_specifiers() {
+        for (source, expected) in [
+            ("let value = 1; export { value };", true),
+            ("let value = 1; export { value as renamed };", true),
+            ("export { value } from './module.js';", false),
+            ("export let value = 1;", false),
+        ] {
+            let allocator = Allocator::default();
+            let parsed = Parser::new(&allocator, source, SourceType::mjs()).parse();
+
+            assert_eq!(
+                collect_top_level_declarations(&parsed.program.body).has_local_export_specifiers,
+                expected,
+                "{source}"
+            );
+        }
     }
 }
