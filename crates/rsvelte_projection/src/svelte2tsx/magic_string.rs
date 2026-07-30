@@ -7,7 +7,7 @@
 
 use std::fmt;
 use std::fmt::Write as _;
-use std::num::NonZeroU32;
+use std::num::{NonZeroU16, NonZeroU32};
 
 // ---------------------------------------------------------------------------
 // Chunk
@@ -133,7 +133,7 @@ impl Chunk {
 #[derive(Debug, Clone, Copy)]
 struct ChunkStart {
     position: u32,
-    chunk: u32,
+    chunk: ChunkId,
 }
 
 // This caps reverse-order dense insertion at 256 KiB of total entry movement.
@@ -141,26 +141,43 @@ const DENSE_CHUNK_START_LIMIT: usize = 256;
 
 enum ChunkStarts {
     Dense(Vec<ChunkStart>),
-    Tree(std::collections::BTreeMap<u32, u32>),
+    Tree(std::collections::BTreeMap<u32, ChunkId>),
 }
 
 enum ChunkStartLookup {
     Boundary {
-        left: Option<usize>,
-        right: usize,
+        left: Option<ChunkId>,
+        right: ChunkId,
+        dense_right_slot: Option<DenseSlot>,
     },
     Inside {
-        chunk: usize,
-        dense_insert_slot: Option<usize>,
+        chunk: ChunkId,
+        dense_insert_slot: Option<DenseSlot>,
     },
     Missing,
+}
+
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+struct DenseSlot(NonZeroU16);
+
+impl DenseSlot {
+    fn from_index(index: usize) -> Self {
+        let one_based = u16::try_from(index + 1).expect("dense chunk slot exceeds u16");
+        Self(NonZeroU16::new(one_based).expect("dense chunk slot is one-based"))
+    }
+
+    #[inline]
+    fn index(self) -> usize {
+        (self.0.get() - 1) as usize
+    }
 }
 
 impl ChunkStarts {
     fn new() -> Self {
         Self::Dense(vec![ChunkStart {
             position: 0,
-            chunk: 0,
+            chunk: ChunkId::from_index(0),
         }])
     }
 
@@ -169,8 +186,8 @@ impl ChunkStarts {
             Self::Dense(entries) => entries
                 .binary_search_by_key(&position, |entry| entry.position)
                 .ok()
-                .map(|slot| entries[slot].chunk as usize),
-            Self::Tree(entries) => entries.get(&position).map(|&chunk| chunk as usize),
+                .map(|slot| entries[slot].chunk.index()),
+            Self::Tree(entries) => entries.get(&position).map(|&chunk| chunk.index()),
         }
     }
 
@@ -184,28 +201,28 @@ impl ChunkStarts {
                         ChunkStartLookup::Boundary {
                             left: last_slot
                                 .checked_sub(1)
-                                .map(|previous| entries[previous].chunk as usize),
-                            right: last.chunk as usize,
+                                .map(|previous| entries[previous].chunk),
+                            right: last.chunk,
+                            dense_right_slot: Some(DenseSlot::from_index(last_slot)),
                         }
                     } else {
                         ChunkStartLookup::Inside {
-                            chunk: last.chunk as usize,
-                            dense_insert_slot: Some(entries.len()),
+                            chunk: last.chunk,
+                            dense_insert_slot: Some(DenseSlot::from_index(entries.len())),
                         }
                     };
                 }
 
                 match entries.binary_search_by_key(&position, |entry| entry.position) {
                     Ok(slot) => ChunkStartLookup::Boundary {
-                        left: slot
-                            .checked_sub(1)
-                            .map(|previous| entries[previous].chunk as usize),
-                        right: entries[slot].chunk as usize,
+                        left: slot.checked_sub(1).map(|previous| entries[previous].chunk),
+                        right: entries[slot].chunk,
+                        dense_right_slot: Some(DenseSlot::from_index(slot)),
                     },
                     Err(0) => ChunkStartLookup::Missing,
                     Err(slot) => ChunkStartLookup::Inside {
-                        chunk: entries[slot - 1].chunk as usize,
-                        dense_insert_slot: Some(slot),
+                        chunk: entries[slot - 1].chunk,
+                        dense_insert_slot: Some(DenseSlot::from_index(slot)),
                     },
                 }
             }
@@ -214,12 +231,13 @@ impl ChunkStarts {
                 match starts.next_back() {
                     Some((&entry_position, &chunk)) if entry_position == position => {
                         ChunkStartLookup::Boundary {
-                            left: starts.next_back().map(|(_, &chunk)| chunk as usize),
-                            right: chunk as usize,
+                            left: starts.next_back().map(|(_, &chunk)| chunk),
+                            right: chunk,
+                            dense_right_slot: None,
                         }
                     }
                     Some((_, &chunk)) => ChunkStartLookup::Inside {
-                        chunk: chunk as usize,
+                        chunk,
                         dense_insert_slot: None,
                     },
                     None => ChunkStartLookup::Missing,
@@ -228,13 +246,15 @@ impl ChunkStarts {
         }
     }
 
-    fn insert(&mut self, position: u32, chunk: u32, dense_insert_slot: Option<usize>) {
+    fn insert(&mut self, position: u32, chunk: ChunkId, dense_insert_slot: Option<DenseSlot>) {
         match self {
             Self::Tree(entries) => {
                 entries.insert(position, chunk);
             }
             Self::Dense(entries) if entries.len() < DENSE_CHUNK_START_LIMIT => {
-                let slot = dense_insert_slot.expect("dense chunk start insertion needs a slot");
+                let slot = dense_insert_slot
+                    .expect("dense chunk start insertion needs a slot")
+                    .index();
                 debug_assert!(
                     slot == 0 || entries[slot - 1].position < position,
                     "chunk start already indexed"
@@ -742,12 +762,26 @@ pub struct MagicString<'source> {
 
 #[derive(Clone, Copy, Default)]
 struct ChunkBoundary {
-    left: Option<usize>,
-    right: Option<usize>,
+    left: Option<ChunkId>,
+    right: Option<ChunkId>,
+    dense_right_slot: Option<DenseSlot>,
+}
+
+impl ChunkBoundary {
+    #[inline]
+    fn left_index(self) -> Option<usize> {
+        self.left.map(ChunkId::index)
+    }
+
+    #[inline]
+    fn right_index(self) -> Option<usize> {
+        self.right.map(ChunkId::index)
+    }
 }
 
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::<MagicString<'_>>() == 128);
+const _: () = assert!(std::mem::size_of::<ChunkBoundary>() == 12);
 
 impl<'source> MagicString<'source> {
     // -----------------------------------------------------------------
@@ -811,16 +845,21 @@ impl<'source> MagicString<'source> {
         }
 
         let (cur, dense_insert_slot) = match self.by_start.find(index) {
-            ChunkStartLookup::Boundary { left, right } => {
+            ChunkStartLookup::Boundary {
+                left,
+                right,
+                dense_right_slot,
+            } => {
                 return ChunkBoundary {
                     left,
                     right: Some(right),
+                    dense_right_slot,
                 };
             }
             ChunkStartLookup::Inside {
                 chunk,
                 dense_insert_slot,
-            } => (chunk, dense_insert_slot),
+            } => (chunk.index(), dense_insert_slot),
             ChunkStartLookup::Missing => {
                 #[cfg(debug_assertions)]
                 eprintln!(
@@ -835,8 +874,9 @@ impl<'source> MagicString<'source> {
         // The source-end boundary has no chunk on its right.
         if index as usize == self.original.len() {
             return ChunkBoundary {
-                left: Some(cur),
+                left: Some(ChunkId::from_index(cur)),
                 right: None,
+                dense_right_slot: None,
             };
         }
 
@@ -852,7 +892,17 @@ impl<'source> MagicString<'source> {
             }
         }
 
-        // `cur` is the chunk that contains `index` strictly inside it.
+        self.split_known_chunk(cur, index, dense_insert_slot)
+    }
+
+    fn split_known_chunk(
+        &mut self,
+        cur: usize,
+        index: u32,
+        dense_insert_slot: Option<DenseSlot>,
+    ) -> ChunkBoundary {
+        debug_assert!(index > self.chunks[cur].start && index < self.chunks[cur].end);
+
         let old_next = self.chunks[cur].next_index();
         let mut new_chunk = self.chunks[cur].split(index);
 
@@ -869,12 +919,12 @@ impl<'source> MagicString<'source> {
             self.last_chunk = new_id;
         }
 
-        let new_idx_u32 = u32::try_from(new_idx).expect("MagicString chunk index exceeds u32");
-        self.by_start.insert(index, new_idx_u32, dense_insert_slot);
+        self.by_start.insert(index, new_id, dense_insert_slot);
 
         ChunkBoundary {
-            left: Some(cur),
-            right: Some(new_idx),
+            left: Some(ChunkId::from_index(cur)),
+            right: Some(new_id),
+            dense_right_slot: dense_insert_slot,
         }
     }
 
@@ -908,9 +958,21 @@ impl<'source> MagicString<'source> {
 
         // Ensure chunk boundaries at start and end.
         let start_boundary = self.split_at(start);
-        self.split_at(end);
-
-        let first = start_boundary.right.expect("overwrite: no chunk at start");
+        let first = start_boundary
+            .right_index()
+            .expect("overwrite: no chunk at start");
+        match end.cmp(&self.chunks[first].end) {
+            std::cmp::Ordering::Less => {
+                let dense_insert_slot = start_boundary
+                    .dense_right_slot
+                    .map(|right_slot| DenseSlot::from_index(right_slot.index() + 1));
+                self.split_known_chunk(first, end, dense_insert_slot);
+            }
+            std::cmp::Ordering::Equal => {}
+            std::cmp::Ordering::Greater => {
+                self.split_at(end);
+            }
+        }
 
         // Set the content of the first chunk and blank out subsequent ones.
         self.chunks[first].content = Some(content.to_string());
@@ -975,7 +1037,7 @@ impl<'source> MagicString<'source> {
 
         // Walk by original position (see comment in `overwrite`) so chunks
         // relocated via `move_range` aren't incorrectly cleared.
-        let mut current = start_boundary.right;
+        let mut current = start_boundary.right_index();
         while let Some(ci) = current {
             self.chunks[ci].content = Some(String::new());
             self.chunks[ci].intro.clear();
@@ -1029,7 +1091,7 @@ impl<'source> MagicString<'source> {
 
         let chunk_idx = self
             .split_at(index)
-            .left
+            .left_index()
             .expect("append_left: no chunk ending at index");
         self.chunks[chunk_idx].outro.push_str(content);
         self
@@ -1050,7 +1112,7 @@ impl<'source> MagicString<'source> {
 
         let chunk_idx = self
             .split_at(index)
-            .left
+            .left_index()
             .expect("append_left_fmt: no chunk ending at index");
         self.chunks[chunk_idx]
             .outro
@@ -1078,7 +1140,7 @@ impl<'source> MagicString<'source> {
 
         let chunk_idx = self
             .split_at(index)
-            .right
+            .right_index()
             .expect("prepend_right: no chunk at index");
         self.chunks[chunk_idx].intro.insert_str(0, content);
         self
@@ -1100,7 +1162,7 @@ impl<'source> MagicString<'source> {
 
         let chunk_idx = self
             .split_at(index)
-            .left
+            .left_index()
             .expect("prepend_left: no chunk ending at index");
         self.chunks[chunk_idx].outro.insert_str(0, content);
         self
@@ -1121,7 +1183,7 @@ impl<'source> MagicString<'source> {
 
         let chunk_idx = self
             .split_at(index)
-            .right
+            .right_index()
             .expect("append_right: no chunk at index");
         self.chunks[chunk_idx].intro.push_str(content);
         self
@@ -1139,8 +1201,12 @@ impl<'source> MagicString<'source> {
         let end_boundary = self.split_at(end);
         let target_boundary = self.split_at(index);
 
-        let first_in_range = start_boundary.right.expect("move_range: no chunk at start");
-        let last_in_range = end_boundary.left.expect("move_range: no chunk at end");
+        let first_in_range = start_boundary
+            .right_index()
+            .expect("move_range: no chunk at start");
+        let last_in_range = end_boundary
+            .left_index()
+            .expect("move_range: no chunk at end");
 
         let before_range = self.chunks[first_in_range].previous_index();
         let after_range = self.chunks[last_in_range].next_index();
@@ -1176,7 +1242,7 @@ impl<'source> MagicString<'source> {
         } else {
             // Insert before the chunk that starts at `index`.
             let target = target_boundary
-                .right
+                .right_index()
                 .expect("move_range: no chunk at target index");
             let before_target = self.chunks[target].previous_index();
             self.link(before_target, Some(first_in_range));
@@ -1895,7 +1961,7 @@ mod tests {
         assert!(
             entries
                 .iter()
-                .all(|entry| s.chunks[entry.chunk as usize].start == entry.position)
+                .all(|entry| s.chunks[entry.chunk.index()].start == entry.position)
         );
 
         s.append_right(DENSE_CHUNK_START_LIMIT as u32, "_");
@@ -1946,7 +2012,7 @@ mod tests {
         assert!(
             entries
                 .iter()
-                .all(|(&position, &chunk)| s.chunks[chunk as usize].start == position)
+                .all(|(&position, &chunk)| s.chunks[chunk.index()].start == position)
         );
         let output = s.to_string();
         assert_eq!(output.len(), CHUNK_COUNT * 2 - 1);
