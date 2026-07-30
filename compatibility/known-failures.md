@@ -12,47 +12,10 @@ The ratchet (`corpus-compat.yml`) fails only on an `(id, target)` pair not in th
 baseline — the lists may only shrink, never grow. Each accepted entry must be
 justified in this file.
 
-## Client (`known-failures.client.json`, 5 entries)
+## Client (`known-failures.client.json`, 0 entries)
 
-All five are the seed set from enrolling `submodules/skeleton` in the corpus
-(#1924, ~700 new sources). Each was reduced to a standalone minimal repro (not
-inferred from the corpus diff) and grouped below; none is a regression of
-previously-passing code.
-
-### C1 — object-pattern property split on a ternary default (1) (#1973)
-
-`skeleton/packages/skeleton-svelte/src/components/portal/anatomy/root.svelte`.
-A destructured `$derived()` whose pattern carries a `ConditionalExpression`
-default — `const { a, b = q ? 1 : 2 } = $derived(props)` — is lowered by
-splitting the pattern property on its first `:`, so the ternary's alternate
-becomes the declaration id and rsvelte emits **syntactically invalid JS**
-(`2 = $.derived(() => $$props.b = q ? 1)`; upstream emits
-`b = $.derived(() => $.fallback($$props.b, () => q ? 1 : 2, true))`). Invalid
-output is also why the entry's diff shows quote-style noise: oxfmt cannot parse
-the file, so normalization leaves both sides unformatted. Fix belongs in
-rsvelte's destructured-`$derived` fallback lowering (nesting-aware property
-split + the lazy `$.fallback(…, true)` form).
-
-### C2 — `{@render}` argument memo ignores legacy mode (3) (#1974)
-
-`skeleton/playgrounds/skeleton-svelte/src/routes/components/tree-view/+page.svelte`
-and the two `sites/skeleton.dev/.../tree-view/svelte/{default,multiple-selection}.svelte`
-examples. In a **non-runes** component, a `{@render snippet(x, [...a, i])}`
-argument memo must be `$.derived_safe_equal` (upstream `RenderTag.js`:
-`memoizer.deriveds(context.state.analysis.runes)`); rsvelte's
-`3_transform/client/visitors/render_tag.rs` hardcodes `$.derived`. Repro: a
-component using `export let` (legacy) plus a self-recursive snippet whose
-argument is an array literal. Fix belongs in rsvelte — thread
-`analysis.runes` into that call site.
-
-### C3 — whitespace run collapsed around removed comments when nested (1) (#1975)
-
-`skeleton/sites/plus.skeleton.dev/src/routes/(app)/+page.svelte`. Two adjacent
-HTML comments between element siblings leave **two** spaces in the official
-template (`</header>  <button`) but one in rsvelte's. It only reproduces when
-the comments' parent is itself nested (an `outer > div > header … comments …
-button` shape); the same markup as the fragment's root element matches. Fix
-belongs in rsvelte's template whitespace handling for comment-only runs.
+No accepted client-side divergences remain. The five skeleton seeds from #1924
+are gone: #1973 (fixed by #1996), #1974 (fixed by #1988), #1975 (fixed by #1993).
 
 ## Server (`known-failures.server.json`, 0 entries)
 

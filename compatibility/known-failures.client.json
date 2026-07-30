@@ -1,7 +1,1 @@
-[
-	"skeleton/packages/skeleton-svelte/src/components/portal/anatomy/root.svelte",
-	"skeleton/playgrounds/skeleton-svelte/src/routes/components/tree-view/+page.svelte",
-	"skeleton/sites/plus.skeleton.dev/src/routes/(app)/+page.svelte",
-	"skeleton/sites/skeleton.dev/src/components/examples/framework-components/tree-view/svelte/default.svelte",
-	"skeleton/sites/skeleton.dev/src/components/examples/framework-components/tree-view/svelte/multiple-selection.svelte"
-]
+[]
