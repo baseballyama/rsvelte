@@ -1,5 +1,34 @@
 # @rsvelte/svelte-check
 
+## 0.5.5
+
+### Patch Changes
+
+- 6ea4b7e: Reduce svelte2tsx source scanning by collecting validation markers in the
+  existing source-feature pass.
+- 66ac8b6: Reduce svelte2tsx output allocation by reserving the exact generated
+  MagicString bundle code size.
+- 5f4f61c: Reduce svelte2tsx source-map overhead by scanning unmapped UTF-8 content once
+  while updating generated UTF-16 columns.
+- 59f0ad7: Reduce svelte2tsx MagicString growth by lazily reserving storage for the first
+  set of source splits.
+- bd1c724: Reduce svelte2tsx instance-script work by collecting import ranges during the
+  existing top-level statement traversal.
+- 09e2658: Reduce svelte2tsx transformation overhead by reusing MagicString overwrite
+  boundary lookup results.
+- e7cba19: Reduce svelte2tsx store scanning by reusing parsed script body ranges.
+- b9d5ef4: Reduce svelte2tsx opening-tag scans by starting after the final parsed
+  attribute.
+- 76bd9f4: Reduce svelte2tsx parse time and memory by skipping discarded template
+  comment AST conversion when comments are not requested.
+- 4445c51: Reduce svelte2tsx parse time and memory by skipping unused expression
+  location objects.
+- 4dae1ba: Reduce svelte2tsx source-map work by specializing bundle generation for its
+  pre-reserved mapping capacity.
+- 2729edc: Reduce svelte2tsx formatting overhead for common Svelte 5 component exports.
+- e2692ed: Reduce svelte2tsx transformation overhead by streaming the component return
+  object into its output buffer.
+
 ## 0.5.4
 
 ### Patch Changes

@@ -1,5 +1,43 @@
 # @rsvelte/compiler
 
+## 0.9.8
+
+### Patch Changes
+
+- 6ea4b7e: Reduce svelte2tsx source scanning by collecting validation markers in the
+  existing source-feature pass.
+- 66ac8b6: Reduce svelte2tsx output allocation by reserving the exact generated
+  MagicString bundle code size.
+- 5293c32: Fix whitespace collapsing around removed HTML comments inside nested static elements so the client template matches the official compiler
+- abcd1de: Strip TypeScript definite-assignment assertions (`let x!: T`, `class A { x!: T }`) so they no longer emit invalid JavaScript
+- 8a25666: Fix invalid client output for destructured `$derived` properties whose default value contains a colon (ternary, string literal)
+- a53706f: Fix eight client-codegen divergences in destructuring: computed and quoted keys in a destructured `$derived` or `$state(...)` now use bracket notation and are subtracted from the rest's `$.exclude_from_object`; the `$.exclude_from_object` key list is now the decoded key value, single-quoted and escaped, instead of the source text pasted verbatim between double quotes; default values in a destructured `$state(...)` are no longer dropped; a `...rest` in a destructured `$state(...)` now emits `$.exclude_from_object` instead of reading a property named after itself; an array-destructured `$derived(props)` passes the `$props()` binding to `$.to_array` instead of `$$props`; `$.to_array` no longer receives a length when the array pattern has a rest element; and a comma inside a default value no longer splits the property
+- 55ad083: Emit dev-mode `$$ownership_validator.binding()` calls inside the `$.component` callback for dynamic components, so bindings on member-expression components no longer throw a `ReferenceError`
+- f84860e: Emit `$.derived_safe_equal` for memoized `{@render}` arguments in legacy (non-runes) mode.
+- ed39ec4: Fix `{#snippet}` hoisting analysis: stop hoisting a snippet that closes over component scope through an `{@attach}` tag, a `use:`/`transition:`/`animate:` directive, or a `class:`/`style:` shorthand, and start hoisting one whose only references are its own `{let}`/`{const}` declarations
+- c32f8f8: fix: keep whitespace between children of an SVG `<text>` element, at any depth
+- ac8140e: Strip the TypeScript optional marker (`x?: T`, `m?(): void`) and the `override` modifier from class members, which previously leaked into the generated JS and made it unparseable
+- 5f4f61c: Reduce svelte2tsx source-map overhead by scanning unmapped UTF-8 content once
+  while updating generated UTF-16 columns.
+- 59f0ad7: Reduce svelte2tsx MagicString growth by lazily reserving storage for the first
+  set of source splits.
+- bd1c724: Reduce svelte2tsx instance-script work by collecting import ranges during the
+  existing top-level statement traversal.
+- 09e2658: Reduce svelte2tsx transformation overhead by reusing MagicString overwrite
+  boundary lookup results.
+- e7cba19: Reduce svelte2tsx store scanning by reusing parsed script body ranges.
+- b9d5ef4: Reduce svelte2tsx opening-tag scans by starting after the final parsed
+  attribute.
+- 76bd9f4: Reduce svelte2tsx parse time and memory by skipping discarded template
+  comment AST conversion when comments are not requested.
+- 4445c51: Reduce svelte2tsx parse time and memory by skipping unused expression
+  location objects.
+- 4dae1ba: Reduce svelte2tsx source-map work by specializing bundle generation for its
+  pre-reserved mapping capacity.
+- 2729edc: Reduce svelte2tsx formatting overhead for common Svelte 5 component exports.
+- e2692ed: Reduce svelte2tsx transformation overhead by streaming the component return
+  object into its output buffer.
+
 ## 0.9.7
 
 ### Patch Changes
