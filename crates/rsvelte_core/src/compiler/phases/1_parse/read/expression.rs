@@ -1874,6 +1874,10 @@ fn parse_expression_with_typescript<'a>(
                     );
                 }
 
+                if !crate::ast::arena::comment_capture_active() {
+                    return Some(expr);
+                }
+
                 // Collect leading comments (before the expression)
                 let leading_comments: Vec<Value> = result
                     .program
