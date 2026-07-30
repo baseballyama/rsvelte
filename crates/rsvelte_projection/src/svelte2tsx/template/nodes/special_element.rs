@@ -45,7 +45,8 @@ pub(crate) fn handle_svelte_special_element(
         return;
     }
 
-    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+    let opening_tag_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
     let mut attrs_str = build_attributes_string(
         &el.attributes,
         source,

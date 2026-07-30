@@ -412,7 +412,8 @@ pub(crate) fn handle_named_slot_element(
     // Build attributes string excluding `slot` and `let:` directives
     let attrs_str = build_named_slot_element_attrs(&el.attributes, source);
 
-    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+    let opening_tag_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
 
     // class:/style: directives lower to statements after createElement
     // (`class:bar` → ` bar;`), same as a regular element. The `let:` binding
@@ -483,7 +484,8 @@ pub(crate) fn handle_named_slot_svelte_fragment(
         let_destructure, inst_var, slot_name
     );
 
-    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+    let opening_tag_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
     let closing_tag_start = find_closing_tag_start(source, el.end);
     let has_closing_tag = closing_tag_start < el.end;
 

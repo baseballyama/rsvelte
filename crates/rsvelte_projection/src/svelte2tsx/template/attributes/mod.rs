@@ -38,7 +38,7 @@ use spread::{format_spread_attribute, format_spread_attribute_segments};
 use transition::format_transition_directive;
 
 /// End offset of an attribute or directive in the element opener.
-fn attribute_end(attr: &Attribute) -> u32 {
+pub(super) fn attribute_end(attr: &Attribute) -> u32 {
     match attr {
         Attribute::Attribute(n) => n.end,
         Attribute::SpreadAttribute(n) => n.end,

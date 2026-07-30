@@ -73,7 +73,8 @@ pub(crate) fn handle_svelte_dynamic_element(
     } else {
         raw_tag_text.to_string()
     };
-    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+    let opening_tag_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
     // In a named-slot context the `slot` attribute is consumed by the wrapper
     // block, so build the attributes without it.
     let attrs_str = if named_slot.is_some() {

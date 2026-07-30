@@ -94,7 +94,8 @@ pub(crate) fn handle_regular_element(
     }
 
     // Find the end of the opening tag (after the `>`)
-    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+    let opening_tag_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
 
     // Build attribute segments. Source-bearing expressions become
     // `Seg::Src` so the resulting overwrite leaves them as unedited
@@ -293,7 +294,8 @@ pub(crate) fn handle_title_element(
         return;
     }
 
-    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+    let opening_tag_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
     let attrs_str = build_attributes_string(
         &el.attributes,
         source,

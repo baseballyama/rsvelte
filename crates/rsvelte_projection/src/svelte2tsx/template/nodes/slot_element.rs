@@ -49,7 +49,8 @@ pub(crate) fn handle_slot_element(
         str.prepend_left(el.start, &block_open);
     }
 
-    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+    let opening_tag_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
 
     // Extract the slot name from attributes (default: "default")
     let slot_name = get_slot_name(&el.attributes, source);

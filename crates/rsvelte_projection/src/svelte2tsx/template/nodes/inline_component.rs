@@ -96,7 +96,13 @@ pub(crate) fn handle_component(
     let inst_var = reversed_component_name(&comp.name, depth);
 
     // Find the end of the opening tag
-    let opening_tag_end = find_opening_tag_end(source, comp.start, comp.end);
+    let opening_tag_end = find_opening_tag_end(
+        source,
+        comp.start,
+        comp.end,
+        comp.name.as_str(),
+        &comp.attributes,
+    );
 
     // Collect on: directives and let: directives
     let on_directives = get_on_directives(&comp.attributes);
@@ -484,7 +490,13 @@ pub(crate) fn handle_svelte_component(
     let saved_outer_slot = counter.slot_inst.take();
 
     let expr_text = get_expression_text(&comp.expression, source);
-    let opening_tag_end = find_opening_tag_end(source, comp.start, comp.end);
+    let opening_tag_end = find_opening_tag_end(
+        source,
+        comp.start,
+        comp.end,
+        comp.name.as_str(),
+        &comp.attributes,
+    );
 
     // Collect on: directives
     let on_directives = get_on_directives(&comp.attributes);
@@ -646,7 +658,8 @@ pub(crate) fn handle_svelte_self(
         return;
     }
 
-    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+    let opening_tag_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
     let closing_tag_start = find_closing_tag_start(source, el.end);
     let has_closing_tag = closing_tag_start < el.end;
 
