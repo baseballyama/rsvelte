@@ -12,7 +12,7 @@ Layer 1 (`compatibility/check-known-failures.md`) is at full parity on committed
 mini-projects. Layer 2 exists because every one of #1883–#1889 was found by
 pointing the checker at somebody's actual repository, and none of them by a
 fixture: a synthetic project only contains the shapes its author already thought
-of. The clusters below are what one afternoon of real trees produced.
+of. One afternoon of real trees produced four clusters, all four now fixed.
 
 Entry format: `<project>/<unit>|<+|-><SEVERITY> <relpath>:<line> <code>[ xN]`.
 `+` = rsvelte-only (a **false positive** — official reports nothing).
@@ -29,53 +29,32 @@ message text are not part of the key — see the header of `check-verify.mjs`.
 | `skeleton/playground` | `playgrounds/skeleton-svelte` of [skeletonlabs/skeleton](https://github.com/skeletonlabs/skeleton) — a SvelteKit app inside a pnpm workspace | Cross-package resolution: imports two **sibling workspace packages** whose `exports` point at the sibling's `src/index.ts`, so sibling `.svelte`/`.ts` sources really enter the program |
 | `skeleton/library` | `packages/skeleton-svelte` of the same monorepo — 300+ components | The library the playground resolves into: `.ts` barrels re-exporting types out of `<script module>`, `.svelte.ts` rune modules, `$props.id()` |
 
-## Current baseline: 373 entries / 373 surplus diagnostics
+## Current baseline: 0 entries / 0 surplus diagnostics — full parity
 
-All remaining clusters are **rsvelte-only false positives**; there are no false
-negatives. Nothing here is a wontfix — each cluster is a live bug filed with a
-reproduction (E1 + E3 → #1916), and the ratchet shrinks as they land.
-Cluster E2 (`$props` treated as a store subscription, 30 entries, `TS2448`,
-#1917) is **fixed** and pruned. Cluster E4 (`+server.js` arrow-const route
-handlers, 1 entry ×2, `TS7031`, #1918) is also **fixed** and pruned:
-`kit_file.rs`'s route-handler matcher now accepts `ArrowFunctionExpression` /
-`FunctionExpression` alongside `FunctionDeclaration`, mirroring official
-svelte2tsx's `sveltekit.ts`.
+The gate landed with 404 entries across four clusters and is now empty. Every
+unit agrees with official `svelte-check` diagnostic-for-diagnostic, so this is a
+**hard gate**: any divergence at all fails CI. What each cluster was, and what
+fixed it:
 
-### Cluster E1 — ambient `*.svelte` shadows real resolution for named imports (372 entries, `TS2614`, #1916)
+- **E1** (372 entries, `TS2614`) and its downstream **E3** (1 entry, `TS7006`) —
+  fixed by #1916. Relative `.svelte`-suffixed specifiers fell through to the
+  ambient `declare module "*.svelte"` wildcard because ESM-mode module resolution
+  (`moduleResolution: nodenext` in a `"type": "module"` package, which is what
+  `skeleton/library` uses) adds no implicit extension: the sole candidate
+  TypeScript probes for `./x.svelte` is `./x.d.svelte.ts`, so neither the
+  `.svelte.tsx` shadow nor a real `x.svelte.ts` rune module was ever reached. The
+  overlay now emits that `.d.svelte.ts` bridge for both. Layer 1's
+  `ts-relative-import-{nodenext,bundler}` fixtures guard it.
+- **E2** (30 entries, `TS2448`) — fixed by #1917. `svelte2tsx` emitted a store
+  auto-subscription for `$props` in a component that also declares a local
+  `props`, putting the use before the binding.
+- **E4** (1 entry ×2, `TS7031`) — fixed by #1918. `kit_file.rs`'s route-handler
+  matcher now accepts `ArrowFunctionExpression` / `FunctionExpression` alongside
+  `FunctionDeclaration`, mirroring official svelte2tsx's `sveltekit.ts`.
 
-`skeleton/library`, every entry `Module '"*.svelte"' has no exported member 'X'`.
-The overlay's vendored shim declares `declare module "*.svelte"`, and any
-specifier ending in `.svelte` that TypeScript cannot resolve on disk falls back
-to it. A **default** import then merely degrades to `any` (silent), but a
-**named** import errors. Two shapes hit it:
-
-- a plain `.ts` barrel re-exporting a component's `<script module>` type —
-  `export type { TooltipArrowProps } from './anatomy/arrow.svelte';`. The `.ts`
-  file is passed into the program verbatim from its real location, so its
-  relative specifier points at the real `.svelte` file, not at the generated
-  `.svelte-check/svelte/**.svelte.tsx` shadow;
-- a `.svelte.ts` **rune module** imported with the `.ts` stripped —
-  `import { useAccordion } from '../modules/provider.svelte';` resolving to
-  `modules/provider.svelte.ts`. The specifier ends in `.svelte`, so the wildcard
-  claims it before the real file is found.
-
-Official `svelte-check` never hits either: it drives a TypeScript
-LanguageService with its own `resolveModuleNames` host that maps `.svelte`
-imports onto the in-memory `.tsx` documents, whereas rsvelte-check type-checks an
-on-disk overlay with a stock compiler and must repoint the specifiers itself.
-`rewrite_aliased_svelte_imports` (`crates/rsvelte_check/src/svelte_check/overlay.rs`)
-already does exactly that for **aliased** specifiers (#1888, fixed by #1895) but
-returns early for anything starting with `.`, and it never runs over real
-`.ts`/`.js` sources at all.
-
-### Cluster E3 — snippet parameter implicit `any` (1 entry, `TS7006`, #1916)
-
-`skeleton/library`, `test/components/toast.svelte:8`, `Parameter 'toast'
-implicitly has an 'any' type` for `{#snippet children(toast)}`. The snippet
-parameter's type comes from the component's `children: Snippet<[ReturnType<typeof
-useToast>]>` prop, and `useToast` is imported from a `.svelte.ts` rune module —
-i.e. exactly the import cluster E1 breaks. Kept as a separate entry because it is
-a different code and file, but it is expected to disappear with E1.
+The units stay in CI: an empty ratchet is what makes the gate load-bearing, since
+a regression in any of these paths now turns it red instead of merely growing a
+baseline.
 
 ## Findings that are deliberately NOT in this ratchet
 
