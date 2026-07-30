@@ -19,9 +19,10 @@
  * with oxfmt is covered separately, and keeping styles in-process avoids a
  * subprocess per component.
  *
- * The oracle depends only on (svelte sha, svelte.dev sha, oxfmt version, config
- * hash); it is cached and skipped on re-runs unless those change or `--force` is
- * passed. Only the `actual` tree is rebuilt every burn-down iteration (after a
+ * The oracle depends only on (svelte sha, svelte.dev sha, pattern-corpus tree
+ * hash, oxfmt version, config hash); it is cached and skipped on re-runs unless
+ * those change or `--force` is passed. Only the `actual` tree is rebuilt every
+ * burn-down iteration (after a
  * formatter change). Restrict the (slower) `actual` rebuild to a subset with
  * `--only <file>` (newline-separated ids; e.g. the current known-failures) for
  * tight iteration.
@@ -79,6 +80,24 @@ function gitSha(dir) {
 			resolve(err ? null : stdout.trim()),
 		);
 	});
+}
+
+// The in-repo `pattern` source has no gitlink to key the oracle cache on, so
+// hash its contents instead — otherwise a new pattern file reuses a cached
+// oracle that never saw it and is silently dropped from the comparison.
+function treeHash(dir) {
+	if (!fs.existsSync(dir)) return 'absent';
+	const files = [];
+	(function walk(d) {
+		for (const entry of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+			const full = path.join(d, entry.name);
+			if (entry.isDirectory()) walk(full);
+			else files.push(full);
+		}
+	})(dir);
+	const hash = createHash('sha256');
+	for (const file of files) hash.update(path.relative(dir, file)).update(fs.readFileSync(file));
+	return hash.digest('hex').slice(0, 16);
 }
 
 function exec(bin, argv, stdin, options = {}) {
@@ -156,8 +175,9 @@ async function main() {
 	const configHash = createHash('sha256').update(configSrc).digest('hex').slice(0, 16);
 	const svelteSha = await gitSha(path.join(ROOT, 'submodules/svelte'));
 	const svelteDevSha = await gitSha(path.join(ROOT, 'submodules/svelte.dev'));
+	const patternHash = treeHash(path.join(CORPUS, 'pattern-corpus'));
 
-	const wantMeta = { svelteSha, svelteDevSha, oxfmtVersion, configHash };
+	const wantMeta = { svelteSha, svelteDevSha, patternHash, oxfmtVersion, configHash };
 	const haveMeta = fs.existsSync(META_PATH)
 		? JSON.parse(fs.readFileSync(META_PATH, 'utf8'))
 		: null;
@@ -165,6 +185,7 @@ async function main() {
 		haveMeta &&
 		haveMeta.svelteSha === svelteSha &&
 		haveMeta.svelteDevSha === svelteDevSha &&
+		haveMeta.patternHash === patternHash &&
 		haveMeta.oxfmtVersion === oxfmtVersion &&
 		haveMeta.configHash === configHash &&
 		fs.existsSync(ORACLE);
