@@ -68,6 +68,11 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
     // duplicate `$0` when a render tag has both an awaited arg and a call arg —
     // the `let $0` would shadow the async callback param `$0` (H-099).
     let mut placeholder_index: usize = 0;
+    let derived_fn = if context.state.analysis.runes {
+        "$.derived"
+    } else {
+        "$.derived_safe_equal"
+    };
     let args: Vec<JsExpr> = raw_args
         .iter()
         .enumerate()
@@ -121,7 +126,7 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
                         &id_name,
                         Some(b::call(
                             &context.arena,
-                            b::member_path(&context.arena, "$.derived"),
+                            b::member_path(&context.arena, derived_fn),
                             vec![b::thunk(&context.arena, built)],
                         )),
                     ));
