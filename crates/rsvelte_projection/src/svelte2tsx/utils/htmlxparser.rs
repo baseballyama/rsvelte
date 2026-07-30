@@ -26,6 +26,15 @@ fn find_ci(haystack: &[u8], from: usize, needle: &[u8]) -> Option<usize> {
 
     let first_lower = needle[0].to_ascii_lowercase();
     let first_upper = needle[0].to_ascii_uppercase();
+    if needle.len() == 1 {
+        let offset = if first_lower == first_upper {
+            memchr::memchr(first_lower, &haystack[from..])
+        } else {
+            memchr::memchr2(first_lower, first_upper, &haystack[from..])
+        }?;
+        return Some(from + offset);
+    }
+
     let mut search = from;
     while search <= last_start {
         let candidates = &haystack[search..=last_start];
@@ -34,11 +43,12 @@ fn find_ci(haystack: &[u8], from: usize, needle: &[u8]) -> Option<usize> {
         } else {
             memchr::memchr2(first_lower, first_upper, candidates)
         }?;
-        let candidate = search + offset;
-        if haystack[candidate..candidate + needle.len()].eq_ignore_ascii_case(needle) {
-            return Some(candidate);
+        let candidate_start = search + offset;
+        let candidate = &haystack[candidate_start..candidate_start + needle.len()];
+        if candidate == needle || candidate.eq_ignore_ascii_case(needle) {
+            return Some(candidate_start);
         }
-        search = candidate + 1;
+        search += offset + 1;
     }
     None
 }
