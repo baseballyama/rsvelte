@@ -57,7 +57,7 @@ omits the length entirely for a pattern ending in a `RestElement`, so the
 iterable is truncated (`b === []` instead of the remaining items) and SSR
 disagrees with CSR — a hydration-mismatch source.
 
-## Client dev (`known-failures.client-dev.json`, 0 entries)
+## Client dev (`known-failures.client-dev.json`, 4563 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -66,7 +66,64 @@ divergence is invisible to the two `dev: false` targets — #1981
 (`<X.Y bind:…>`) was live in 524 corpus files and undetected for exactly that
 reason. CSS is compared for this target too.
 
-No accepted dev-mode divergences remain.
+This baseline is the **enrolment seed**: it is what the corpus measured the
+first time it ever compiled with `dev: true`, not a set of regressions. Apart
+from the four `pattern/` entries that are also listed under C1 / S1–S3 above,
+every entry diverges *only* on `client-dev`. The CSS comparison is already clean
+— 0 css-mismatches, so the dev empty-rule branch of the CSS transform matches
+upstream exactly.
+
+The checked-in pattern corpus (#2019) contributed 11 of these entries. All 11
+land in clusters that the real-world sources had already established, so the
+matrices confirmed the clusters rather than adding root causes.
+
+The entries are not independent bugs. Most are dev-only instrumentation helpers
+that rsvelte's client codegen does not emit **at all** — each such cluster is a
+single unported feature, and porting it drops the whole cluster at once. Counts
+are entry counts attributed by the first differing line, so they are a lower
+bound: an entry that diverges for two reasons is counted under whichever
+surfaces first.
+
+| Cluster | Entries | Missing dev instrumentation | Upstream emitter (`phases/3-transform/client/`) | Issue |
+|---|---|---|---|---|
+| CD1 | 1186 | `$.add_locations(...)` template location metadata + the `Comp[$.FILENAME]` it references | `transform-template/index.js` | #2020 |
+| CD2 | 628 | `$.tag()` / `$.tag_proxy()` labelling of reactive sources | `visitors/VariableDeclaration.js`, `visitors/ConstTag.js` | #2021 |
+| CD3 | 583 | `$.check_target(new.target)` instantiation guard | `transform-client.js` | #2022 |
+| CD4 | 582 | `...$.legacy_api()` spread on legacy-mode components | `transform-client.js` | #2023 |
+| CD5 | 532 | the dev-only third argument (component name) of `$.rest_props($$props, excludes, "Name")` | `transform-client.js`, `visitors/VariableDeclaration.js` | #2024 |
+| CD6 | 327 | `$.strict_equals` / `$.equals` instrumented comparisons | `visitors/BinaryExpression.js` | #2025 |
+| CD7 | 241 | `$.track_reactivity_loss(...)` around awaited expressions | `visitors/AwaitExpression.js`, `visitors/ForOfStatement.js` | #2026 |
+| CD8 | 90 | `$.create_ownership_validator` + `$$ownership_validator.mutation(...)` | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
+| CD9 | 71 | `$.log_if_contains_state(...)` wrapping of `console.*` calls | `visitors/CallExpression.js` | #2028 |
+| CD10 | 45 | the `$.apply(fn, this, $$args, Comp, [line, col])` event-handler wrapper | `visitors/shared/events.js` | #2029 |
+| CD11 | 8 | **bug** — emitted `$.add_locations` position tuples are off by 1–2 columns | `transform-template/index.js` | #2030 |
+| CD12 | 6 | `$.add_svelte_meta(...)` missing (1) or carrying a `1, 0` placeholder position (5, all `<svelte:self>`) | `visitors/RenderTag.js`, `visitors/shared/component.js` | #2039 |
+| CD13 | 3 | **bug** — `$inspect(...)` is left untransformed instead of becoming `$.inspect(...)` | `visitors/CallExpression.js` | #2040 |
+
+Three of these are correctness bugs rather than unported features, so they are
+tracked apart: CD11 and CD12 emit the right call with the wrong source position,
+and **CD13 emits code that does not run** — `$inspect` is not a runtime binding,
+so a dev build of any component using it throws `ReferenceError`. CD13 is the
+highest-severity entry in this table despite being the smallest. CD11 only
+becomes observable once CD1 lands.
+
+The remaining 261 entries not in the table above are residue of the same root causes
+rather than separate ones, so they are expected to clear with their parents.
+Two things spread them out. The statement reshaping CD6/CD7/CD9 perform
+(`const x = (await …)()`, multi-line `console.*`) relocates the divergence
+within the file; and the `expected`/`actual` pair recorded per failure comes
+from `firstDiffLine`, which is computed on the **byte** diff, while the pass/fail
+verdict comes from `astEquivalent`. A reported first differing line can
+therefore be a comment or JSDoc line — position noise `astEquivalent` itself
+absorbs — while the divergence that actually failed the entry sits further down.
+Read the reported line as a locator, not as the root cause. (This is not the
+oxfmt-unparsable fallback: the enrolment run formatted cleanly, 0 parse
+diagnostics on both trees.)
+
+**#1981 is confirmed absent.** The enrolment run contains zero
+`$$ownership_validator.binding(` divergences, so the #1989 fix holds across the
+whole corpus. CD8 is a *different* ownership gap (mutation tracking, not
+bindings) that only this lane could surface.
 
 ## Hard-cluster warnings for future work
 
