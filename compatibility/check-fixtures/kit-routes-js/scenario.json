@@ -1,8 +1,9 @@
 {
-	"description": "The route-level JSDoc/JS augmentation paths in `kit_file.rs` that share `add_hooks_type`'s anchor bug: `+page.js`'s `load`/`entries`, `+server.js`'s `GET`, and `params/slug.js`'s `match`, all written as plain `export function` under `checkJs`. Regression guard for the same export-statement anchoring fix that closed out #1886 for `kit-hooks-js`.",
+	"description": "The route-level JSDoc/JS augmentation paths in `kit_file.rs` that share `add_hooks_type`'s anchor bug: `+page.js`'s `load`/`entries`, `+server.js`'s `GET`, and `params/slug.js`'s `match`, all written as plain `export function` under `checkJs`. Regression guard for the same export-statement anchoring fix that closed out #1886 for `kit-hooks-js`. Also covers the arrow-const/function-expression arms (`+server.js`'s `POST`, `src/params/slug-arrow.js`'s `match`, `blog/+page.js`'s `load`/`entries`) that #1918 found narrowed to `FunctionDeclaration` only, the same #1886 shape recurring in the route arm.",
 	"workspace": ".",
 	"tsconfig": "tsconfig.json",
 	"issues": [
-		1886
+		1886,
+		1918
 	]
 }

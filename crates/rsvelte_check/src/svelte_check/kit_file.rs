@@ -333,11 +333,11 @@ pub fn build_added_code(
             if is_server { "Server" } else { "" }
         );
         for stmt in body {
-            visit_route_statement(stmt, &load_type, basename, is_ts, &mut adds);
+            visit_route_statement(stmt, source, &load_type, basename, is_ts, &mut adds);
         }
     } else if is_params_file(path, &settings.params_path) {
         for stmt in body {
-            visit_param_statement(stmt, is_ts, &mut adds);
+            visit_param_statement(stmt, source, is_ts, &mut adds);
         }
     } else if is_hooks_file(path, &settings.server_hooks_path) {
         for stmt in body {
@@ -400,6 +400,7 @@ pub fn apply_added_code(source: &str, adds: &[AddedCode]) -> String {
 
 fn visit_route_statement(
     stmt: &oxc::Statement,
+    source: &str,
     load_type: &str,
     basename: &str,
     is_ts: bool,
@@ -466,6 +467,79 @@ fn visit_route_statement(
                             add_jsdoc_var_satisfies(init, "import('./$types.js').Actions", adds);
                         }
                     }
+                    "entries" => {
+                        if basename.starts_with("+layout") {
+                            continue;
+                        }
+                        let Some(init) = &d.init else { continue };
+                        match init {
+                            oxc::Expression::ArrowFunctionExpression(af) => {
+                                let arrow_pos = find_arrow_token(
+                                    source,
+                                    af.params.span.end,
+                                    af.body.span.start,
+                                );
+                                add_entries_type_to_function_like(
+                                    &af.params,
+                                    af.return_type.is_some(),
+                                    arrow_pos,
+                                    af.span.start,
+                                    is_ts,
+                                    adds,
+                                );
+                            }
+                            oxc::Expression::FunctionExpression(f) => {
+                                add_entries_type_to_function_like(
+                                    &f.params,
+                                    f.return_type.is_some(),
+                                    f.body.as_deref().map(|b| b.span().start),
+                                    f.span.start,
+                                    is_ts,
+                                    adds,
+                                );
+                            }
+                            _ => {}
+                        }
+                    }
+                    "GET" | "PUT" | "POST" | "PATCH" | "DELETE" | "OPTIONS" | "HEAD"
+                    | "fallback" => {
+                        let Some(init) = &d.init else { continue };
+                        match init {
+                            oxc::Expression::ArrowFunctionExpression(af) => {
+                                let arrow_pos = find_arrow_token(
+                                    source,
+                                    af.params.span.end,
+                                    af.body.span.start,
+                                );
+                                let parenless =
+                                    source.as_bytes().get(af.params.span.start as usize)
+                                        != Some(&b'(');
+                                add_api_method_types_to_function_like(
+                                    &af.params,
+                                    af.return_type.is_some(),
+                                    arrow_pos,
+                                    af.span.start,
+                                    parenless,
+                                    af.r#async,
+                                    is_ts,
+                                    adds,
+                                );
+                            }
+                            oxc::Expression::FunctionExpression(f) => {
+                                add_api_method_types_to_function_like(
+                                    &f.params,
+                                    f.return_type.is_some(),
+                                    f.body.as_deref().map(|b| b.span().start),
+                                    f.span.start,
+                                    false,
+                                    f.r#async,
+                                    is_ts,
+                                    adds,
+                                );
+                            }
+                            _ => {}
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -505,29 +579,29 @@ fn visit_route_statement(
                     }
                 }
                 "entries" => {
-                    if basename.starts_with("+layout") || f.return_type.is_some() {
+                    if basename.starts_with("+layout") {
                         return;
                     }
-                    if !f.params.items.is_empty() {
-                        return;
-                    }
-                    let Some(body) = &f.body else { return };
-                    if is_ts {
-                        let pos = body.span().start;
-                        adds.push(AddedCode {
-                            original_pos: pos,
-                            inserted: ": ReturnType<import('./$types.js').EntryGenerator> ".into(),
-                        });
-                    } else {
-                        // Same export-statement anchoring as the `load` branch above.
-                        adds.push(AddedCode {
-                            original_pos: ex.span.start,
-                            inserted: "/** @type {import('./$types.js').EntryGenerator} */ ".into(),
-                        });
-                    }
+                    add_entries_type_to_function_like(
+                        &f.params,
+                        f.return_type.is_some(),
+                        f.body.as_deref().map(|b| b.span().start),
+                        ex.span.start,
+                        is_ts,
+                        adds,
+                    );
                 }
                 "GET" | "PUT" | "POST" | "PATCH" | "DELETE" | "OPTIONS" | "HEAD" | "fallback" => {
-                    add_api_method_types(f, ex.span.start, is_ts, adds);
+                    add_api_method_types_to_function_like(
+                        &f.params,
+                        f.return_type.is_some(),
+                        f.body.as_deref().map(|b| b.span().start),
+                        ex.span.start,
+                        false,
+                        f.r#async,
+                        is_ts,
+                        adds,
+                    );
                 }
                 _ => {}
             }
@@ -536,47 +610,69 @@ fn visit_route_statement(
     }
 }
 
-fn add_api_method_types(
-    f: &oxc::Function,
-    export_start: u32,
+/// Shared param/return-type augmentation for an API route handler
+/// (`GET`/`PUT`/…/`fallback`), regardless of whether it arrived as a
+/// `FunctionDeclaration` or a `const` initializer (`ArrowFunctionExpression` /
+/// `FunctionExpression`). Mirrors `insertApiMethod`'s call into `addTypeToFunction`
+/// in the JS reference, which folds both shapes into one path via `findExports`.
+#[allow(clippy::too_many_arguments)]
+fn add_api_method_types_to_function_like(
+    params: &oxc::FormalParameters,
+    has_return_type: bool,
+    return_insert_pos: Option<u32>,
+    fn_like_start: u32,
+    needs_parens: bool,
+    is_async: bool,
     is_ts: bool,
     adds: &mut Vec<AddedCode>,
 ) {
-    if f.params.items.len() != 1 {
+    if params.items.len() != 1 {
         return;
     }
-    let param = &f.params.items[0];
+    let param = &params.items[0];
     if is_ts {
         if param.type_annotation.is_none() {
             let pos = param.pattern.span().end;
+            if needs_parens {
+                adds.push(AddedCode {
+                    original_pos: param.pattern.span().start,
+                    inserted: "(".into(),
+                });
+            }
             adds.push(AddedCode {
                 original_pos: pos,
                 inserted: ": import('./$types.js').RequestEvent".into(),
             });
+            if needs_parens {
+                adds.push(AddedCode {
+                    original_pos: pos,
+                    inserted: ")".into(),
+                });
+            }
         }
-        if f.return_type.is_none()
-            && let Some(body) = &f.body
-        {
-            let ret_ty = if f.r#async {
+        if !has_return_type && let Some(pos) = return_insert_pos {
+            let ret_ty = if is_async {
                 "Promise<Response>"
             } else {
                 "Response | Promise<Response>"
             };
             adds.push(AddedCode {
-                original_pos: body.span().start,
+                original_pos: pos,
                 inserted: format!(": {ret_ty} "),
             });
         }
     } else {
         // JS: `/** @type {(event: RequestEvent) => Response | Promise<Response>} */`,
-        // anchored on the exported statement (see the `load` branch above for why).
-        let ret_ty = if f.r#async {
+        // anchored on the function-like value itself: the exported statement for a
+        // `FunctionDeclaration` (see the `load` branch above for why), or the
+        // initializer for a `const` arrow/function-expression form.
+        let ret_ty = if is_async {
             "Promise<Response>"
         } else {
             "Response | Promise<Response>"
         };
         adds.push(AddedCode {
-            original_pos: export_start,
+            original_pos: fn_like_start,
             inserted: format!(
                 "/** @type {{(event: import('./$types.js').RequestEvent) => {ret_ty}}} */ "
             ),
@@ -584,39 +680,159 @@ fn add_api_method_types(
     }
 }
 
-fn visit_param_statement(stmt: &oxc::Statement, is_ts: bool, adds: &mut Vec<AddedCode>) {
+/// Shared augmentation for a route's `entries` export, regardless of whether it
+/// arrived as a `FunctionDeclaration` or a `const` initializer. Mirrors the
+/// `entries` block in `upsertKitRouteFile` in the JS reference.
+fn add_entries_type_to_function_like(
+    params: &oxc::FormalParameters,
+    has_return_type: bool,
+    return_insert_pos: Option<u32>,
+    fn_like_start: u32,
+    is_ts: bool,
+    adds: &mut Vec<AddedCode>,
+) {
+    if !params.items.is_empty() {
+        return;
+    }
+    if is_ts {
+        if !has_return_type && let Some(pos) = return_insert_pos {
+            adds.push(AddedCode {
+                original_pos: pos,
+                inserted: ": ReturnType<import('./$types.js').EntryGenerator> ".into(),
+            });
+        }
+    } else {
+        // Same anchoring rule as `add_api_method_types_to_function_like`'s JS branch.
+        adds.push(AddedCode {
+            original_pos: fn_like_start,
+            inserted: "/** @type {import('./$types.js').EntryGenerator} */ ".into(),
+        });
+    }
+}
+
+fn visit_param_statement(
+    stmt: &oxc::Statement,
+    source: &str,
+    is_ts: bool,
+    adds: &mut Vec<AddedCode>,
+) {
     let oxc::Statement::ExportNamedDeclaration(ex) = stmt else {
         return;
     };
-    let Some(oxc::Declaration::FunctionDeclaration(f)) = &ex.declaration else {
-        return;
-    };
-    let Some(id) = &f.id else { return };
-    if id.name.as_str() != "match" {
+    let Some(decl) = &ex.declaration else { return };
+    match decl {
+        oxc::Declaration::FunctionDeclaration(f) => {
+            let Some(id) = &f.id else { return };
+            if id.name.as_str() != "match" {
+                return;
+            }
+            add_match_type_to_function_like(
+                &f.params,
+                f.return_type.is_some(),
+                f.body.as_deref().map(|b| b.span().start),
+                ex.span.start,
+                false,
+                is_ts,
+                adds,
+            );
+        }
+        // `export const match = (param) => {...}` (or an arrow/function-expression form) —
+        // same augmentation as the function-declaration form above. Mirrors `findExports`'
+        // `'function'` variant in the JS reference folding both shapes into one path.
+        oxc::Declaration::VariableDeclaration(var) => {
+            if var.declarations.len() != 1 {
+                return;
+            }
+            let d = &var.declarations[0];
+            let oxc::BindingPattern::BindingIdentifier(id) = &d.id else {
+                return;
+            };
+            if id.name.as_str() != "match" || d.type_annotation.is_some() {
+                return;
+            }
+            let Some(init) = &d.init else { return };
+            match init {
+                oxc::Expression::ArrowFunctionExpression(af) => {
+                    let arrow_pos =
+                        find_arrow_token(source, af.params.span.end, af.body.span.start);
+                    let parenless =
+                        source.as_bytes().get(af.params.span.start as usize) != Some(&b'(');
+                    add_match_type_to_function_like(
+                        &af.params,
+                        af.return_type.is_some(),
+                        arrow_pos,
+                        af.span.start,
+                        parenless,
+                        is_ts,
+                        adds,
+                    );
+                }
+                oxc::Expression::FunctionExpression(f) => {
+                    add_match_type_to_function_like(
+                        &f.params,
+                        f.return_type.is_some(),
+                        f.body.as_deref().map(|b| b.span().start),
+                        f.span.start,
+                        false,
+                        is_ts,
+                        adds,
+                    );
+                }
+                _ => {}
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Shared param/return-type augmentation for a params-matcher's `match` export,
+/// regardless of whether it arrived as a `FunctionDeclaration` or a `const`
+/// initializer. Mirrors `addTypeToFunction('match', 'string', 'boolean')` in the
+/// JS reference.
+fn add_match_type_to_function_like(
+    params: &oxc::FormalParameters,
+    has_return_type: bool,
+    return_insert_pos: Option<u32>,
+    fn_like_start: u32,
+    needs_parens: bool,
+    is_ts: bool,
+    adds: &mut Vec<AddedCode>,
+) {
+    if params.items.len() != 1 {
         return;
     }
-    if f.params.items.len() != 1 || f.return_type.is_some() {
-        return;
-    }
-    let param = &f.params.items[0];
+    let param = &params.items[0];
     if is_ts {
         if param.type_annotation.is_none() {
             let pos = param.pattern.span().end;
+            if needs_parens {
+                adds.push(AddedCode {
+                    original_pos: param.pattern.span().start,
+                    inserted: "(".into(),
+                });
+            }
             adds.push(AddedCode {
                 original_pos: pos,
                 inserted: ": string".into(),
             });
+            if needs_parens {
+                adds.push(AddedCode {
+                    original_pos: pos,
+                    inserted: ")".into(),
+                });
+            }
         }
-        let Some(body) = &f.body else { return };
-        adds.push(AddedCode {
-            original_pos: body.span().start,
-            inserted: ": boolean ".into(),
-        });
+        if !has_return_type && let Some(pos) = return_insert_pos {
+            adds.push(AddedCode {
+                original_pos: pos,
+                inserted: ": boolean ".into(),
+            });
+        }
     } else {
-        // JS: `/** @type {(param: string) => boolean} */`, anchored on the exported
-        // statement (see `add_hooks_type`'s `FunctionDeclaration` arm for why).
+        // JS: `/** @type {(param: string) => boolean} */`, anchored on the function-like
+        // value itself (see `add_api_method_types_to_function_like`'s JS branch for why).
         adds.push(AddedCode {
-            original_pos: ex.span.start,
+            original_pos: fn_like_start,
             inserted: "/** @type {(param: string) => boolean} */ ".into(),
         });
     }
@@ -1089,6 +1305,21 @@ mod tests {
     }
 
     #[test]
+    fn js_params_match_arrow_const_form_uses_jsdoc_signature() {
+        let path = PathBuf::from("src/params/slug.js");
+        let source = "export const match = (param) => param.length > 0;\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("js arrow-const match should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}/** @type {{(param: string) => boolean}} */ {IGNORE_END_COMMENT}(param)"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
     fn js_api_get_uses_jsdoc_signature() {
         let path = PathBuf::from("src/routes/api/+server.js");
         let source = "export function GET(event) { return new Response('ok'); }\n";
@@ -1098,6 +1329,40 @@ mod tests {
         assert!(
             augmented.contains(&format!(
                 "{IGNORE_START_COMMENT}/** @type {{(event: import('./$types.js').RequestEvent) => Response | Promise<Response>}} */ {IGNORE_END_COMMENT}export function GET"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_api_get_arrow_const_form_uses_jsdoc_signature() {
+        // #1918: the exact cmsaasstarter shape from the Layer-2 e2e ratchet —
+        // `export const GET = async ({ url, locals: { supabase } }) => {...}` — must get
+        // the same JSDoc annotation as the `FunctionDeclaration` form above, or every
+        // destructured binding element reports TS7031.
+        let path = PathBuf::from("src/routes/(marketing)/auth/callback/+server.js");
+        let source = "export const GET = async ({ url, locals: { supabase } }) => {\n  return new Response('ok');\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("js arrow-const GET should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}/** @type {{(event: import('./$types.js').RequestEvent) => Promise<Response>}} */ {IGNORE_END_COMMENT}async ({{ url, locals: {{ supabase }} }})"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn api_get_arrow_const_ts_form_gets_param_and_return_types() {
+        let path = PathBuf::from("src/routes/api/+server.ts");
+        let source = "export const GET = async ({ url }) => {\n  return new Response(url);\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("ts arrow-const GET should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "({{ url }}{IGNORE_START_COMMENT}: import('./$types.js').RequestEvent{IGNORE_END_COMMENT}) {IGNORE_START_COMMENT}: Promise<Response> {IGNORE_END_COMMENT}=>"
             )),
             "augmented = {augmented:?}"
         );
@@ -1128,6 +1393,21 @@ mod tests {
         assert!(
             augmented.contains(&format!(
                 "{IGNORE_START_COMMENT}/** @type {{import('./$types.js').EntryGenerator}} */ {IGNORE_END_COMMENT}export function entries"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_route_entries_arrow_const_form_uses_jsdoc_type() {
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "export const entries = () => [];\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("js arrow-const entries should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}/** @type {{import('./$types.js').EntryGenerator}} */ {IGNORE_END_COMMENT}() =>"
             )),
             "augmented = {augmented:?}"
         );

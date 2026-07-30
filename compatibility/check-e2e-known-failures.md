@@ -29,13 +29,17 @@ message text are not part of the key — see the header of `check-verify.mjs`.
 | `skeleton/playground` | `playgrounds/skeleton-svelte` of [skeletonlabs/skeleton](https://github.com/skeletonlabs/skeleton) — a SvelteKit app inside a pnpm workspace | Cross-package resolution: imports two **sibling workspace packages** whose `exports` point at the sibling's `src/index.ts`, so sibling `.svelte`/`.ts` sources really enter the program |
 | `skeleton/library` | `packages/skeleton-svelte` of the same monorepo — 300+ components | The library the playground resolves into: `.ts` barrels re-exporting types out of `<script module>`, `.svelte.ts` rune modules, `$props.id()` |
 
-## Current baseline: 374 entries / 375 surplus diagnostics
+## Current baseline: 373 entries / 373 surplus diagnostics
 
 All remaining clusters are **rsvelte-only false positives**; there are no false
 negatives. Nothing here is a wontfix — each cluster is a live bug filed with a
-reproduction (E1 + E3 → #1916, E4 → #1918), and the ratchet shrinks as they land.
+reproduction (E1 + E3 → #1916), and the ratchet shrinks as they land.
 Cluster E2 (`$props` treated as a store subscription, 30 entries, `TS2448`,
-#1917) is **fixed** and pruned.
+#1917) is **fixed** and pruned. Cluster E4 (`+server.js` arrow-const route
+handlers, 1 entry ×2, `TS7031`, #1918) is also **fixed** and pruned:
+`kit_file.rs`'s route-handler matcher now accepts `ArrowFunctionExpression` /
+`FunctionExpression` alongside `FunctionDeclaration`, mirroring official
+svelte2tsx's `sveltekit.ts`.
 
 ### Cluster E1 — ambient `*.svelte` shadows real resolution for named imports (372 entries, `TS2614`, #1916)
 
@@ -72,24 +76,6 @@ parameter's type comes from the component's `children: Snippet<[ReturnType<typeo
 useToast>]>` prop, and `useToast` is imported from a `.svelte.ts` rune module —
 i.e. exactly the import cluster E1 breaks. Kept as a separate entry because it is
 a different code and file, but it is expected to disappear with E1.
-
-### Cluster E4 — `+server.js` handlers in arrow-const form are not augmented (1 entry ×2, `TS7031`, #1918)
-
-`cmsaasstarter/app`, `src/routes/(marketing)/auth/callback/+server.js:5`,
-`Binding element 'url' / 'supabase' implicitly has an 'any' type` for
-
-```js
-export const GET = async ({ url, locals: { supabase } }) => { … };
-```
-
-SvelteKit route files get a generated `@type {import('./$types').RequestHandler}`
-annotation so the destructured event is typed. `kit_file.rs` matches only the
-`FunctionDeclaration` form for route handlers — the same narrowing that #1886
-reported for hooks and #1892 fixed *for hooks only*. Layer 1's `kit-routes-js`
-fixture uses `export function GET(event)`, so it is green and the arrow-const
-form is untested. This is the epic's porting rule ("each ported `match` narrower
-than upstream's needs a fixture proving the narrowing is intentional") failing in
-a second place.
 
 ## Findings that are deliberately NOT in this ratchet
 

@@ -1,5 +1,4 @@
 [
-	"cmsaasstarter/app|+ERROR src/routes/(marketing)/auth/callback/+server.js:5 7031 x2",
 	"skeleton/library|+ERROR src/components/accordion/anatomy/root-context.svelte:2 2614",
 	"skeleton/library|+ERROR src/components/accordion/anatomy/root-provider.svelte:4 2614",
 	"skeleton/library|+ERROR src/components/accordion/anatomy/root.svelte:9 2614",
