@@ -949,8 +949,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
     /// Walk an ObjectPattern and append `name = $.state(...)` declarations
     /// for each property. Returns false if any property is unsupported
-    /// (computed key, nested pattern beyond simple identifier targets,
-    /// etc.) so the caller can bail back to the text path.
+    /// (nested pattern beyond simple identifier targets, etc.) so the caller
+    /// can bail back to the text path.
     fn collect_state_object_pattern(
         &mut self,
         obj: &ObjectPattern<'_>,
@@ -977,15 +977,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             };
             let var_name = var_ident.name.as_str();
 
-            // Resolve the source-side key text.
-            let key_text = match &prop.key {
-                PropertyKey::StaticIdentifier(id) => id.name.as_str().to_string(),
-                PropertyKey::StringLiteral(s) => s.value.as_str().to_string(),
-                _ => return false,
-            };
-
             let is_skip = self.is_state_destructure_skip(var_name);
-            let member_access = format!("{}.{}", tmp_name, key_text);
+            let member_access = self.state_key_access(tmp_name, prop);
             let access = self.apply_pattern_default(member_access, default_span);
             let value_expr = wrap_state_value(&access, is_raw, is_skip);
             let value_expr = self.maybe_tag_declarator(var_name, value_expr);
@@ -1011,6 +1004,25 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             declarations.push(format!("{} = {}", var_name, value_expr));
         }
         true
+    }
+
+    /// Member access for a destructured `$state` property key, mirroring
+    /// upstream's
+    /// `b.member(expression, prop.key, prop.computed || prop.key.type !== 'Identifier')`.
+    /// The key's source text is reused verbatim so a literal keeps its original
+    /// quoting, as upstream's printer does.
+    fn state_key_access(&self, tmp_name: &str, prop: &BindingProperty<'_>) -> String {
+        if !prop.computed
+            && let PropertyKey::StaticIdentifier(id) = &prop.key
+        {
+            return format!("{}.{}", tmp_name, id.name);
+        }
+        let span = prop.key.span();
+        format!(
+            "{}[{}]",
+            tmp_name,
+            self.source[span.start as usize..span.end as usize].trim()
+        )
     }
 
     /// Wrap a destructured access in `$.fallback(...)` when the pattern element
