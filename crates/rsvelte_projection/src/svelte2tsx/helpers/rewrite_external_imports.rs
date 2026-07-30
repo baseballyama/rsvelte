@@ -67,7 +67,12 @@ impl<'a> PreparedRewritePaths<'a> {
         for component in generated_dir.split('/') {
             let start = offset;
             let end = start + component.len();
-            if !component.is_empty() {
+            // A `.` segment must not count as a directory level for the
+            // common-prefix walk in `write_relative_target` — e.g. a
+            // relative `.` workspace joined onto a file path via
+            // `PathBuf::join` (which does not normalise) leaves one here,
+            // and counting it inflates the `..` count by one (#1919).
+            if !component.is_empty() && component != "." {
                 generated_components.push(ComponentRange { start, end });
             }
             offset = end + 1;
@@ -374,13 +379,15 @@ mod tests {
     }
 
     fn relative_posix_oracle(from: &str, to: &str) -> String {
+        // Mirrors `PreparedRewritePaths::new`'s `generated_components` filter
+        // (#1919): a `.` segment isn't a directory level.
         let from_parts: Vec<&str> = from
             .split('/')
-            .filter(|component| !component.is_empty())
+            .filter(|component| !component.is_empty() && *component != ".")
             .collect();
         let to_parts: Vec<&str> = to
             .split('/')
-            .filter(|component| !component.is_empty())
+            .filter(|component| !component.is_empty() && *component != ".")
             .collect();
         let common = from_parts
             .iter()

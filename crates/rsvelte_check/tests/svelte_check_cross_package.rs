@@ -277,6 +277,76 @@ fn bare_deep_specifier_is_rewritten_under_a_relative_workspace() {
     );
 }
 
+/// #1919: `--workspace .` (the documented relative CLI form) compounded two
+/// bugs in the `RewriteExternalImportsOptions` external-import pass —
+/// `is_within_dir`'s containment check never recognised a workspace-internal
+/// target because `workspace_path` itself was never absolutized, and
+/// (independently) `relative_posix` counted a stray leading `.` path segment
+/// (introduced by joining the relative `.` workspace with `PathBuf::join`,
+/// which does not normalise) as a directory level. Together they turned an
+/// import that resolves *inside* the workspace into a spuriously rewritten
+/// specifier carrying one extra `../`, which `tsgo` then reports as TS2307.
+/// An absolute `--workspace` never hit either bug, so the fix is verified by
+/// asserting relative and absolute workspaces emit byte-identical shadows.
+#[test]
+fn relative_workspace_leaves_a_within_workspace_import_unrewritten() {
+    fn write_fixture(root: &Path) {
+        fs::create_dir_all(root.join("src/a/b")).unwrap();
+        fs::write(
+            root.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "moduleResolution": "bundler" }, "include": ["src/**/*"] }"#,
+        )
+        .unwrap();
+        fs::write(root.join("src/util.ts"), "export const value = 1;\n").unwrap();
+        fs::write(
+            root.join("src/a/b/Deep.svelte"),
+            "<script lang=\"ts\">import { value } from '../../util';</script>\n<div>{value}</div>\n",
+        )
+        .unwrap();
+    }
+
+    // Relative workspace (`--workspace .`) — the buggy path.
+    let root = target_dir("_xpkg1919");
+    write_fixture(&root);
+
+    let _cwd_guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let cwd = std::env::current_dir().unwrap();
+    std::env::set_current_dir(&root).unwrap();
+    let result = run(&RunOptions {
+        workspace: PathBuf::from("."),
+        emit_overlay: true,
+        tsconfig: Some(PathBuf::from("./tsconfig.json")),
+        ..RunOptions::default()
+    });
+    std::env::set_current_dir(&cwd).unwrap();
+
+    result.overlay.expect("overlay should be materialised");
+    // `emit_dir` is relative to the (now restored) CWD, so re-anchor on `root`.
+    let deep_tsx_relative =
+        fs::read_to_string(root.join(".svelte-check/svelte/src/a/b/Deep.svelte.tsx")).unwrap();
+    assert!(
+        deep_tsx_relative.contains("'../../util'"),
+        "an import resolving inside the workspace must be left unrewritten under a relative `--workspace .`:\n{deep_tsx_relative}"
+    );
+
+    // Absolute workspace — never hit either bug; used as the parity oracle.
+    let root_abs = target_dir("_xpkg1919_abs");
+    write_fixture(&root_abs);
+    let result_abs = run(&RunOptions {
+        workspace: root_abs.clone(),
+        emit_overlay: true,
+        tsconfig: Some(root_abs.join("tsconfig.json")),
+        ..RunOptions::default()
+    });
+    result_abs.overlay.expect("overlay should be materialised");
+    let deep_tsx_abs =
+        fs::read_to_string(root_abs.join(".svelte-check/svelte/src/a/b/Deep.svelte.tsx")).unwrap();
+    assert!(
+        deep_tsx_abs.contains("'../../util'"),
+        "sanity: absolute workspace must also leave the within-workspace import unrewritten:\n{deep_tsx_abs}"
+    );
+}
+
 #[test]
 fn no_external_packages_leaves_overlay_unchanged() {
     // Guard: a plain single-package workspace (no node_modules sibling links)
