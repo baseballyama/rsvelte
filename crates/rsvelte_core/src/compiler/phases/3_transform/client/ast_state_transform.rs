@@ -33,6 +33,7 @@ use super::rune_transforms::{process_derived_destructuring_pattern, wrap_state_v
 use super::{DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER, VAR_STATE_VARS};
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::types::ScriptProjection;
+use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
 thread_local! {
     static AST_TRANSFORM_ALLOCATOR: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -992,7 +993,12 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             };
             let var_name = var_ident.name.as_str();
             let is_skip = self.is_state_destructure_skip(var_name);
-            let access = format!("{}.{}", tmp_name, var_name);
+            let keys: Vec<String> = obj
+                .properties
+                .iter()
+                .map(|prop| self.state_exclude_key_literal(prop))
+                .collect();
+            let access = format!("$.exclude_from_object({}, [{}])", tmp_name, keys.join(", "));
             let value_expr = if is_raw {
                 access
             } else if is_skip {
@@ -1023,6 +1029,36 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             tmp_name,
             self.source[span.start as usize..span.end as usize].trim()
         )
+    }
+
+    /// The `$.exclude_from_object(tmp, [...])` entry for a non-rest property key.
+    /// Upstream turns identifier and `Literal` keys into string literals and every
+    /// other computed key into `String(<expr>)`, so the rest subtracts it at runtime.
+    fn state_exclude_key_literal(&self, prop: &BindingProperty<'_>) -> String {
+        if !prop.computed
+            && let PropertyKey::StaticIdentifier(id) = &prop.key
+        {
+            return format!("'{}'", escape_js_string(&id.name));
+        }
+        match &prop.key {
+            PropertyKey::StringLiteral(s) => format!("'{}'", escape_js_string(&s.value)),
+            // `String(<number>)` drops the fractional part of an integer.
+            PropertyKey::NumericLiteral(n) => {
+                let value = if n.value.fract() == 0.0 && n.value.abs() < i64::MAX as f64 {
+                    (n.value as i64).to_string()
+                } else {
+                    n.value.to_string()
+                };
+                format!("'{}'", value)
+            }
+            key => {
+                let span = key.span();
+                format!(
+                    "String({})",
+                    self.source[span.start as usize..span.end as usize].trim()
+                )
+            }
+        }
     }
 
     /// Wrap a destructured access in `$.fallback(...)` when the pattern element
