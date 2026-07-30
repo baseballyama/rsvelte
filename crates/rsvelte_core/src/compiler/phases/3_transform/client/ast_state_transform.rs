@@ -16,12 +16,13 @@ use oxc_ast_visit::walk;
 use oxc_parser::Parser;
 use oxc_span::GetSpan;
 use oxc_span::SourceType;
+use oxc_span::Span;
 use oxc_syntax::operator::{AssignmentOperator, BinaryOperator, UpdateOperator};
 use oxc_syntax::scope::ScopeFlags;
 use oxc_syntax::scope::ScopeId;
 use rustc_hash::FxHashSet;
 
-use super::destructure_transforms::unthunk_string;
+use super::destructure_transforms::{build_fallback_string, unthunk_string};
 use super::expression_utils::{
     contains_direct_await_in_expression, extract_enclosing_function_name, extract_trace_call_label,
     find_trace_source_location, strip_top_level_await_from_expr,
@@ -966,12 +967,10 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 BindingPattern::AssignmentPattern(_) => &prop.value,
                 _ => return false,
             };
-            // Drop AssignmentPattern wrapper — the text path ignores the
-            // default value, only using the left-hand identifier.
-            let var_ident = match value_pattern {
-                BindingPattern::BindingIdentifier(id) => id,
+            let (var_ident, default_span) = match value_pattern {
+                BindingPattern::BindingIdentifier(id) => (id, None),
                 BindingPattern::AssignmentPattern(assign) => match &assign.left {
-                    BindingPattern::BindingIdentifier(id) => id,
+                    BindingPattern::BindingIdentifier(id) => (id, Some(assign.right.span())),
                     _ => return false,
                 },
                 _ => return false,
@@ -987,7 +986,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
             let is_skip = self.is_state_destructure_skip(var_name);
             let member_access = format!("{}.{}", tmp_name, key_text);
-            let value_expr = wrap_state_value(&member_access, is_raw, is_skip);
+            let access = self.apply_pattern_default(member_access, default_span);
+            let value_expr = wrap_state_value(&access, is_raw, is_skip);
             let value_expr = self.maybe_tag_declarator(var_name, value_expr);
             declarations.push(format!("{} = {}", var_name, value_expr));
         }
@@ -1011,6 +1011,19 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             declarations.push(format!("{} = {}", var_name, value_expr));
         }
         true
+    }
+
+    /// Wrap a destructured access in `$.fallback(...)` when the pattern element
+    /// carried a default, mirroring upstream's `AssignmentPattern` →
+    /// `build_fallback` step in `extract_paths`.
+    fn apply_pattern_default(&self, access: String, default_span: Option<Span>) -> String {
+        match default_span {
+            Some(span) => build_fallback_string(
+                &access,
+                self.source[span.start as usize..span.end as usize].trim(),
+            ),
+            None => access,
+        }
     }
 
     /// Walk an ArrayPattern and append the `$$array = $.derived(() => $.to_array(...))`
@@ -1048,10 +1061,10 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
         for (index, elem_opt) in arr.elements.iter().enumerate() {
             let Some(elem) = elem_opt else { continue };
-            let var_ident = match elem {
-                BindingPattern::BindingIdentifier(id) => id,
+            let (var_ident, default_span) = match elem {
+                BindingPattern::BindingIdentifier(id) => (id, None),
                 BindingPattern::AssignmentPattern(assign) => match &assign.left {
-                    BindingPattern::BindingIdentifier(id) => id,
+                    BindingPattern::BindingIdentifier(id) => (id, Some(assign.right.span())),
                     _ => return false,
                 },
                 _ => return false,
@@ -1059,6 +1072,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             let var_name = var_ident.name.as_str();
             let is_skip = self.is_state_destructure_skip(var_name);
             let element_access = format!("$.get({})[{}]", array_var, index);
+            let element_access = self.apply_pattern_default(element_access, default_span);
             let value_expr = wrap_state_value(&element_access, is_raw, is_skip);
             let value_expr = self.maybe_tag_declarator(var_name, value_expr);
             declarations.push(format!("{} = {}", var_name, value_expr));
