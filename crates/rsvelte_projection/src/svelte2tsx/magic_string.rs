@@ -504,6 +504,8 @@ const ASCII_HIRES_BLOCK: &str = concat!(
 std::thread_local! {
     static VLQ_ENCODE_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static ASCII_HIRES_RESERVE_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static ORIGINAL_LOCATION_CURSOR_HITS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static ORIGINAL_LOCATION_SEARCHES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 #[inline]
@@ -605,10 +607,18 @@ impl OutputEstimate {
 struct MappingState<'a, const CAPACITY_GUARANTEED: bool> {
     mappings: &'a mut String,
     original_line_starts: Vec<usize>,
+    original_location_cursor: Option<OriginalLocationCursor>,
     generated_column: i64,
     original_line: i64,
     original_column: i64,
     first_segment_on_line: bool,
+}
+
+#[derive(Clone, Copy)]
+struct OriginalLocationCursor {
+    offset: u32,
+    line: u32,
+    column: u32,
 }
 
 impl<'a, const CAPACITY_GUARANTEED: bool> MappingState<'a, CAPACITY_GUARANTEED> {
@@ -616,6 +626,7 @@ impl<'a, const CAPACITY_GUARANTEED: bool> MappingState<'a, CAPACITY_GUARANTEED> 
         Self {
             mappings,
             original_line_starts: line_starts(original),
+            original_location_cursor: None,
             generated_column: 0,
             original_line: 0,
             original_column: 0,
@@ -626,17 +637,31 @@ impl<'a, const CAPACITY_GUARANTEED: bool> MappingState<'a, CAPACITY_GUARANTEED> 
     #[inline]
     fn original_location(&self, original: &str, offset: u32) -> (i64, i64) {
         let offset = offset as usize;
+        // Moved chunks may go backwards, so only reuse a same-line forward coordinate.
+        if let Some(cursor) = self.original_location_cursor
+            && offset >= cursor.offset as usize
+            && offset
+                < self
+                    .original_line_starts
+                    .get(cursor.line as usize + 1)
+                    .copied()
+                    .unwrap_or(usize::MAX)
+        {
+            #[cfg(test)]
+            ORIGINAL_LOCATION_CURSOR_HITS.with(|hits| hits.set(hits.get() + 1));
+            let column =
+                cursor.column as usize + utf16_len(&original[cursor.offset as usize..offset]);
+            return (cursor.line as i64, column as i64);
+        }
+
+        #[cfg(test)]
+        ORIGINAL_LOCATION_SEARCHES.with(|searches| searches.set(searches.get() + 1));
         let line = match self.original_line_starts.binary_search(&offset) {
             Ok(index) => index,
             Err(index) => index - 1,
         };
         let line_start = self.original_line_starts[line];
-        let column_source = &original[line_start..offset];
-        let column = if column_source.is_ascii() {
-            column_source.len()
-        } else {
-            column_source.chars().map(char::len_utf16).sum::<usize>()
-        };
+        let column = utf16_len(&original[line_start..offset]);
         (line as i64, column as i64)
     }
 
@@ -752,6 +777,12 @@ impl<'a, const CAPACITY_GUARANTEED: bool> MappingState<'a, CAPACITY_GUARANTEED> 
                 byte_index += ch.len_utf8();
             }
         }
+
+        self.original_location_cursor = Some(OriginalLocationCursor {
+            offset: chunk.end,
+            line: current_source_line as u32,
+            column: current_source_column as u32,
+        });
     }
 }
 
@@ -1484,6 +1515,15 @@ fn line_starts(s: &str) -> Vec<usize> {
     let mut starts = vec![0usize];
     starts.extend(memchr::memchr_iter(b'\n', s.as_bytes()).map(|index| index + 1));
     starts
+}
+
+#[inline]
+fn utf16_len(s: &str) -> usize {
+    if s.is_ascii() {
+        s.len()
+    } else {
+        s.chars().map(char::len_utf16).sum()
+    }
 }
 
 fn checked_source_len(len: usize) -> u32 {
@@ -2511,6 +2551,33 @@ mod tests {
             "AACG,AAAC,AAAC,AAAC,AADN,AAAC,AAAC,AAAC,AAAA,AAAC,AAAC,AAAC;\
              AACN,AAAC,AAAC,AAAA"
         );
+    }
+
+    #[test]
+    fn original_location_cursor_survives_edited_chunks() {
+        let mut s = MagicString::new("abcdef");
+        s.overwrite(1, 2, "X");
+        s.overwrite(2, 3, "Y");
+        ORIGINAL_LOCATION_CURSOR_HITS.with(|hits| hits.set(0));
+        ORIGINAL_LOCATION_SEARCHES.with(|searches| searches.set(0));
+
+        s.generate_mappings();
+
+        assert_eq!(ORIGINAL_LOCATION_CURSOR_HITS.with(std::cell::Cell::get), 3);
+        assert_eq!(ORIGINAL_LOCATION_SEARCHES.with(std::cell::Cell::get), 1);
+    }
+
+    #[test]
+    fn moved_chunks_fall_back_to_original_location_search() {
+        let mut s = MagicString::new("ab\ncd");
+        s.move_range(3, 5, 0);
+        ORIGINAL_LOCATION_CURSOR_HITS.with(|hits| hits.set(0));
+        ORIGINAL_LOCATION_SEARCHES.with(|searches| searches.set(0));
+
+        s.generate_mappings();
+
+        assert_eq!(ORIGINAL_LOCATION_CURSOR_HITS.with(std::cell::Cell::get), 0);
+        assert_eq!(ORIGINAL_LOCATION_SEARCHES.with(std::cell::Cell::get), 2);
     }
 
     #[test]
