@@ -19,7 +19,7 @@ All five are the seed set from enrolling `submodules/skeleton` in the corpus
 inferred from the corpus diff) and grouped below; none is a regression of
 previously-passing code.
 
-### C1 — object-pattern property split on a ternary default (1)
+### C1 — object-pattern property split on a ternary default (1) (#1973)
 
 `skeleton/packages/skeleton-svelte/src/components/portal/anatomy/root.svelte`.
 A destructured `$derived()` whose pattern carries a `ConditionalExpression`
@@ -33,7 +33,7 @@ the file, so normalization leaves both sides unformatted. Fix belongs in
 rsvelte's destructured-`$derived` fallback lowering (nesting-aware property
 split + the lazy `$.fallback(…, true)` form).
 
-### C2 — `{@render}` argument memo ignores legacy mode (3)
+### C2 — `{@render}` argument memo ignores legacy mode (3) (#1974)
 
 `skeleton/playgrounds/skeleton-svelte/src/routes/components/tree-view/+page.svelte`
 and the two `sites/skeleton.dev/.../tree-view/svelte/{default,multiple-selection}.svelte`
@@ -45,7 +45,7 @@ component using `export let` (legacy) plus a self-recursive snippet whose
 argument is an array literal. Fix belongs in rsvelte — thread
 `analysis.runes` into that call site.
 
-### C3 — whitespace run collapsed around removed comments when nested (1)
+### C3 — whitespace run collapsed around removed comments when nested (1) (#1975)
 
 `skeleton/sites/plus.skeleton.dev/src/routes/(app)/+page.svelte`. Two adjacent
 HTML comments between element siblings leave **two** spaces in the official

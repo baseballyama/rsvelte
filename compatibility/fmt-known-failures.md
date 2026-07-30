@@ -227,7 +227,7 @@ a root fix would need oxfmt's standalone path to preserve multi-line
 function-value interiors verbatim (high blast radius upstream). This is the
 one entry in the baseline that is pure CSS formatting, not HTML/JS layout.
 
-## Cluster 9 — overflowing block-header expression: oracle breaks then re-joins (9)
+## Cluster 9 — overflowing block-header expression: oracle breaks then re-joins (9) (#1976)
 
 New with the skeleton enrolment (#1924) and the single largest cluster in the
 baseline. When a block header's expression does not fit the print width, the
@@ -248,7 +248,7 @@ duplicated across skeleton's date-picker examples and playground page. Fix
 belongs in rsvelte — reproduce the oracle's break-then-flatten layout for
 block-header expressions (rather than only ever printing them flat).
 
-## Cluster 10 — `prettier-ignore` subtree only partially preserved (2)
+## Cluster 10 — `prettier-ignore` subtree only partially preserved (2) (#1977)
 
 Also new with #1924. A `<!-- prettier-ignore -->` comment must leave the whole
 next node's source verbatim. rsvelte-fmt preserves the ignored element's own
