@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_check"
-version = "0.5.3"
+version = "0.5.4"
 edition = "2024"
 rust-version = "1.95"
 description = "Native svelte-check-compatible CLI built on rsvelte"

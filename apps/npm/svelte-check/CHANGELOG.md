@@ -1,5 +1,96 @@
 # @rsvelte/svelte-check
 
+## 0.5.4
+
+### Patch Changes
+
+- fbd0d37: Fix a **relative** `.svelte`-suffixed import never resolving under ESM-mode
+  module resolution. With `moduleResolution: node16`/`nodenext` inside a
+  `"type": "module"` package — the configuration every published Svelte component
+  library uses — TypeScript performs no implicit extension substitution, so the
+  only candidate it probes for `./x.svelte` is `./x.d.svelte.ts`. Neither the
+  overlay's `.svelte.tsx` shadow nor a real `x.svelte.ts` rune module was ever
+  reached, the specifier fell through to the ambient `declare module '*.svelte'`
+  wildcard, and every _named_ import errored with
+  `Module '"*.svelte"' has no exported member 'X'` (a default import silently
+  degraded to `any`). Both shapes were affected: a plain `.ts` barrel
+  re-exporting a component's `<script module>` type
+  (`export type { ArrowProps } from './anatomy/arrow.svelte'`) and a `.svelte.ts`
+  rune module imported with the extension stripped
+  (`import { useProvider } from './modules/provider.svelte'`).
+
+  The overlay now emits the `.d.svelte.ts` file TypeScript actually looks for
+  next to every component shadow, and — for a `.svelte.ts` / `.svelte.js` rune
+  module with no sibling component — a bridge re-exporting the real module.
+  Resolution no longer depends on the specifier's shape (relative, `paths`-aliased
+  or bare) nor on whether the importing file is a `.svelte` shadow we can rewrite
+  or a plain `.ts` source we cannot, matching how official `svelte-check` forces
+  the pre-ESM algorithm for `.svelte` specifiers in its own `resolveModuleNames`
+  hook.
+
+  Fixes #1916.
+
+- f148cdf: svelte2tsx: stop emitting a store auto-subscription for `$props.id()` when the
+  component also declares a binding named `props` from `$props()`.
+
+  `const props: Props = $props()` next to `const id = $props.id()` made the
+  text-level `$name` scan see a `$props` token beside a declared `props`, so it
+  injected `;let $props = __sveltets_2_store_get(props);` right after the
+  declaration — after the `$props()` call that opens the same line, which
+  TypeScript then reports as `TS2448: Block-scoped variable '$props' used before
+its declaration`.
+
+  Upstream's `processInstanceScriptContent` tags each `$props.id()` occurrence
+  `isPropsId` and drops all of them once it has seen a `props` binding
+  initialized by literally `$props()`; that pair of conditions is now mirrored, so
+  `$props.id` without a call, `$props.id(arg)`, a non-rune `let props = {}`, and
+  `$state.snapshot(state)` all keep upstream's behaviour. Fixes upstream's own
+  `props-variable-and-$props.id{,-destructured,-spread}.v5` samples and removes 30
+  false-positive `TS2448` diagnostics from the svelte-check e2e parity corpus.
+
+  Fixes #1917.
+
+- e23a4a4: Fix `--workspace .` (a relative workspace path — the documented CLI form) emitting one extra `../` in rewritten escaping relative imports, producing false-positive `TS2307` diagnostics.
+
+  Two compounding bugs in the `svelte2tsx` external-import rewrite pass: `relative_posix` filtered empty path segments but not `.`, so a leading `./` (introduced when a relative `.` workspace path is joined onto a file path) was counted as one directory level — one `../` too many in any specifier that did get rewritten. Separately, a relative workspace made `is_within_dir`'s containment check fail to recognize workspace-internal targets, so the rewrite fired at all for imports that resolve inside the workspace and need no rewrite.
+
+  `relative_posix` now skips `.` segments. `rewrite_external_imports.rs` otherwise keeps its existing "inputs are absolute" contract — the actual fix is `svelte-check`'s `runner::run` absolutizing `RunOptions::workspace` once at its entry point (the same class of fix as #1900's `oxc_resolver` absolutization), so every downstream path (walked files, the overlay's `.tsx` shadows, the `workspace_path` handed to svelte2tsx) is consistently absolute regardless of how `--workspace` was spelled on the command line.
+
+- b379d80: Fix a false `implicit any` (TS7031/TS7006) on SvelteKit route files whose
+  handlers are written as `const` arrow functions or function expressions
+  instead of `export function` declarations — e.g. `+server.js`'s
+  `export const GET = async ({ url, locals }) => {...}`. `kit_file.rs`'s
+  route-handler matcher (`add_api_method_types`) matched only
+  `FunctionDeclaration`, the same #1886 narrowing recurring in the route arm
+  after #1892 fixed it for hooks only. Audited the rest of the route-file
+  augmentation for the same gap: `entries` had no `const`-form handling at
+  all (now fixed alongside `GET`/`PUT`/`POST`/`PATCH`/`DELETE`/`OPTIONS`/
+  `HEAD`/`fallback`), and `params/*.js`'s `match` had the identical
+  `FunctionDeclaration`-only narrowing (also fixed). `load`'s `const` form
+  was already covered by the existing `satisfies` wrapper.
+
+  Extended the `kit-routes-js` fixture with arrow-const arms for `GET`,
+  `match`, and `entries` to guard against regressions of this narrowing.
+
+- 6d7be78: Make `--tsgo` mean "type-check with the TypeScript 7 native compiler", matching
+  official svelte-check's flag of the same name (sveltejs/language-tools#3073).
+  TypeScript 7 is looked up as `@typescript/native` — the npm alias it is
+  installed under when a TypeScript 6 `typescript` has to stay alongside it — and
+  then as the legacy `@typescript/native-preview`, accepting only major 7 or
+  newer. Resolution goes through the package directory rather than
+  `node_modules/.bin`, because an aliased TypeScript 7 declares the same `tsc` bin
+  name as the real `typescript` and whichever install wins that shim is an
+  install-order coin flip.
+
+  Without the flag, the workspace's own `tsc` is used whatever its major version
+  is, exactly as before. Passing `--tsgo` with no TypeScript 7 installed is now an
+  error rather than a silent downgrade to a different compiler; the message tells
+  you how to install it:
+
+  ```sh
+  npm install --save-dev typescript@~6 @typescript/native@npm:typescript@7
+  ```
+
 ## 0.5.3
 
 ### Patch Changes

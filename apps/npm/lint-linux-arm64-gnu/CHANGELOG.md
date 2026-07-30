@@ -1,5 +1,7 @@
 # @rsvelte/lint-linux-arm64-gnu
 
+## 0.9.7
+
 ## 0.9.6
 
 ## 0.9.5

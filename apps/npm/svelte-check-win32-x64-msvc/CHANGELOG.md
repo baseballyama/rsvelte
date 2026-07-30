@@ -1,5 +1,7 @@
 # @rsvelte/svelte-check-win32-x64-msvc
 
+## 0.5.4
+
 ## 0.5.3
 
 ## 0.5.2
