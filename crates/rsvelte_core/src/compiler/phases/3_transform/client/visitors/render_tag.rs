@@ -113,7 +113,8 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
                     ),
                 )
             } else {
-                // If the argument expression has a call, we need to memoize it with $.derived()
+                // If the argument expression has a call, memoize it with
+                // $.derived (runes) / $.derived_safe_equal (legacy)
                 let has_call_from_expr = render_tag_has_call(arg);
                 if template_metadata.has_call() || has_call_from_expr {
                     // Draw from the same `$N` counter as async placeholders so a
