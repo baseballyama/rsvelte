@@ -1,0 +1,19 @@
+{
+	"compilerOptions": {
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"target": "es2022",
+		"lib": [
+			"es2022",
+			"dom"
+		],
+		"strict": true,
+		"skipLibCheck": true,
+		"noEmit": true,
+		"isolatedModules": true,
+		"verbatimModuleSyntax": true
+	},
+	"include": [
+		"src"
+	]
+}

@@ -70,6 +70,16 @@ Green scenarios are load-bearing, not filler — a regression turns them red:
 - **`sibling-paths-alias`**, **`external-self-alias`**, **`ts-aliased-import`** —
   fixed by #1884/#1893/#1895 respectively; kept as regression guards for their
   alias-rewrite paths.
+- **`ts-relative-import-nodenext`**, **`ts-relative-import-bundler`** — #1916, the
+  *relative* counterpart of `ts-aliased-import`: one source tree checked under
+  both module-resolution modes. The `nodenext` arm is the failing axis (ESM-mode
+  resolution adds no implicit extension, so `./x.svelte` only ever probes
+  `./x.d.svelte.ts` and everything else fell through to the ambient `*.svelte`
+  wildcard); the `bundler` arm guards the precedence shift the fix introduces,
+  since the emitted `.d.svelte.ts` bridge is now probed *before* the
+  `.svelte.tsx` shadow and has to carry the same types. Both arms cover a
+  component, a generic component and two `.svelte.ts` rune modules (one with a
+  default export), imported from a plain `.ts` barrel and from a `.svelte` file.
 - **`kit-hooks-fn-ts`**, **`kit-hooks-arrow-ts`**, **`kit-hooks-satisfies-ts`**,
   **`kit-hooks-js`** — one matrix covering every `handle`/`handleError`/
   `handleFetch`/`reroute` declaration shape:
