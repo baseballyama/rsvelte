@@ -264,10 +264,10 @@ The oracle emits the `<a …>` line untouched; rsvelte-fmt splits the open tag a
 dangles `</a\n>`. Both entries
 (`skeleton/sites/themes.skeleton.dev/.../Controls/ControlsSpacing.svelte` and
 `.../Preview/Preview.svelte`) are this one shape, reproduced standalone in 6
-lines. Only these two of the 308 corpus files containing `prettier-ignore` fail,
-so the ignore range itself is honoured — what leaks is the nested-element
-re-print inside it. Fix belongs in rsvelte — make the ignore range verbatim for
-the entire subtree.
+lines. Only these two of the 12 parity-set components containing
+`prettier-ignore` fail, so the ignore range itself is honoured — what leaks is
+the nested-element re-print inside it. Fix belongs in rsvelte — make the ignore
+range verbatim for the entire subtree.
 
 ## Resolved
 
