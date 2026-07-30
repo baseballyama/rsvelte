@@ -937,6 +937,9 @@ pub(super) fn process_derived_object_pattern(
 /// Collect ONLY $$array helper declarations from nested patterns.
 /// This is used in the first pass to ensure $$array declarations come before
 /// the variable declarations that depend on them.
+///
+/// Only ever reached below the top level, so `base_expr` is already a resolved
+/// member/element access and the `member_base` distinction does not apply.
 pub(super) fn collect_array_helpers_only(
     pattern: &str,
     base_expr: &str,
@@ -1190,12 +1193,11 @@ pub(super) fn get_current_array_var_for_base(_base_expr: &str) -> String {
 
 pub(super) fn process_derived_array_pattern(
     inner: &str,
-    // Array destructuring never emits `$.exclude_from_object` (the rest is a
-    // `$.get($$array).slice(i)`), so only `member_base` — the value being
-    // `$.to_array`-ed / indexed — is used; `base_expr` is kept for signature
-    // symmetry with `process_derived_object_pattern`.
-    _base_expr: &str,
-    member_base: &str,
+    // An array pattern consumes the *value*, not a named member of it, so
+    // `$.to_array` takes `base_expr`; `member_base` (upstream's rest-prop member
+    // rewrite target) never applies here.
+    base_expr: &str,
+    _member_base: &str,
     declarations: &mut Vec<String>,
     _array_counter: &mut usize,
 ) -> Option<()> {
@@ -1218,7 +1220,7 @@ pub(super) fn process_derived_array_pattern(
 
     declarations.push(format!(
         "{} = $.derived(() => $.to_array({}, {}))",
-        array_var, member_base, element_count
+        array_var, base_expr, element_count
     ));
     for (index, element) in elements.iter().enumerate() {
         let element = element.trim();
