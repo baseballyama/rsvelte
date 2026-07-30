@@ -12,22 +12,6 @@ permissions:
   pull-requests: write
   id-token: write
 
-concurrency:
-  group: release-${{ github.ref }}
-  # Only the "Version Packages" merge (the publish run) cancels older queued
-  # runs. This kills any in-flight regular-commit run that is about to
-  # re-open the version PR on stale state (the race that produced #554).
-  # Regular pushes keep cancel-in-progress: false so they never abort an
-  # in-flight publish — npm publish is per-package, so a mid-flight cancel
-  # can leave us with versions bumped in package.json but never published
-  # to the registry.
-  # The expression is quoted so the literal colon in the predicate
-  # string ('chore(release): version packages') doesn't confuse the
-  # YAML parser. GitHub Actions still evaluates `${{ }}` inside the
-  # string and `cancel-in-progress` accepts the resulting `'true'` /
-  # `'false'` literal.
-  cancel-in-progress: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
-
 jobs:
   # Fast path: open / refresh the "Version Packages" PR. The version cycle
   # never stages binaries (changeset version only bumps package.json/CHANGELOG
@@ -43,6 +27,9 @@ jobs:
     if: "${{ !startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    concurrency:
+      group: release-version-pr-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -50,13 +37,9 @@ jobs:
           # which packages need releasing.
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: ./.github/actions/setup-node-pnpm
         with:
-          node-version: '24'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+          cache: 'true'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -74,6 +57,19 @@ jobs:
           title: 'chore(release): version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  close-version-cycle:
+    name: Close version cycle
+    if: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    # A publish commit must supersede an in-flight updater before it can reopen
+    # the version PR from stale state.
+    concurrency:
+      group: release-version-pr-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - run: echo "Version PR merged; publishing the approved release set."
 
   # Per-platform svelte-check binary builds. Each job uploads its rsvelte
   # `svelte-check` artifact; the `release` job below downloads them all and
@@ -100,16 +96,17 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
       - name: Install cross-compile linker
         if: matrix.apt
         run: |
           sudo apt-get update
           sudo apt-get install -y ${{ matrix.apt }}
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry + target
@@ -172,16 +169,17 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
       - name: Install cross-compile linker
         if: matrix.apt
         run: |
           sudo apt-get update
           sudo apt-get install -y ${{ matrix.apt }}
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry + target
@@ -235,16 +233,17 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
       - name: Install cross-compile linker
         if: matrix.apt
         run: |
           sudo apt-get update
           sudo apt-get install -y ${{ matrix.apt }}
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry + target
@@ -298,16 +297,17 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
       - name: Install cross-compile linker
         if: matrix.apt
         run: |
           sudo apt-get update
           sudo apt-get install -y ${{ matrix.apt }}
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry + target
@@ -363,8 +363,12 @@ jobs:
     # changesets consumed. This is the only path that needs staged binaries.
     if: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
     runs-on: ubuntu-latest
-    needs: [build-svelte-check, build-vps-native, build-rsvelte-fmt, build-rsvelte-lint]
+    needs: [close-version-cycle, build-svelte-check, build-vps-native, build-rsvelte-fmt, build-rsvelte-lint]
     timeout-minutes: 30
+    # Publishing is non-atomic across packages and must never be interrupted.
+    concurrency:
+      group: release-publish-${{ github.ref }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -372,21 +376,18 @@ jobs:
           # which packages need releasing.
           fetch-depth: 0
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
           targets: wasm32-unknown-unknown
+          wasm-pack: 'true'
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           key: wasm32-unknown-unknown
-
-      - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@0d096b08b4e5a7de8c28de67e11e945404e9eefa # v0.4.0
-        with:
-          version: 'v0.15.0'
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

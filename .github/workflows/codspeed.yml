@@ -39,10 +39,7 @@ jobs:
         with:
           submodules: false
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
-        with:
-          toolchain: 1.97.1
+      - uses: ./.github/actions/setup-rust
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
@@ -51,6 +48,7 @@ jobs:
           # Save the warm `target/` even when a later step fails so a single
           # flake doesn't force a cold rebuild on every subsequent run.
           cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install cargo-codspeed
         # cargo-codspeed isn't carried by taiki-e/install-action, so build it

@@ -9,21 +9,15 @@
  *   compatibility/fmt/oracle/<id>   oxfmt with `svelte: true` (prettier-plugin-svelte
  *                                   for the Svelte structure + oxc for embedded JS/CSS)
  *   compatibility/fmt/actual/<id>   rsvelte-fmt (rsvelte_formatter for the structure,
- *                                   oxfmt for embedded <style>) — the exact same layering,
- *                                   so a diff isolates rsvelte's Svelte-structure formatting.
+ *                                   oxc for embedded JS/CSS)
  *
  * Both pipelines format embedded JS/CSS with the same oxc engine, so any
  * surviving byte difference is a real Svelte-structure divergence. The
  * comparison + ratchet lives in fmt-verify.mjs.
  *
- * The `actual` pass runs rsvelte-fmt with `--no-native-css`: rsvelte-fmt now
- * formats embedded <style> in-process via `oxc_formatter_css` by default, but
- * that Rust crate is pinned to an oxc git rev that need not byte-match the npm
- * `oxfmt` the oracle uses (e.g. long CSS-value wrapping differs). Forcing the
- * oxfmt-subprocess path keeps *both* sides on the identical oxfmt binary, so the
- * corpus stays a pure Svelte-structure diff (its stated purpose) rather than a
- * CSS-engine-version diff. Native-CSS parity is covered by the formatter/CLI
- * unit tests instead.
+ * The actual tree is formatted in one directory invocation. Native CSS parity
+ * with oxfmt is covered separately, and keeping styles in-process avoids a
+ * subprocess per component.
  *
  * The oracle depends only on (svelte sha, svelte.dev sha, oxfmt version, config
  * hash); it is cached and skipped on re-runs unless those change or `--force` is
@@ -42,7 +36,7 @@
  * Env:
  *   OXFMT_BIN          oxfmt launcher (default: node_modules/.bin/oxfmt)
  *   RSVELTE_FMT_BIN    rsvelte-fmt binary (default: target/release/rsvelte-fmt)
- *   FMT_CORPUS_JOBS    parallel workers (default: cpus-2, clamped 2..8)
+ *   FMT_CORPUS_JOBS    parallel oracle workers (default: cpus-2, clamped 2..8)
  */
 
 import fs from 'node:fs';
@@ -72,6 +66,7 @@ const ONLY_ORACLE = args.includes('--oracle');
 const ONLY_ACTUAL = args.includes('--actual');
 const ONLY_FILE = args.includes('--only') ? args[args.indexOf('--only') + 1] : undefined;
 const JOBS = Math.max(2, Math.min(8, Number(process.env.FMT_CORPUS_JOBS) || os.cpus().length - 2));
+const ORACLE_BATCH_SIZE = 256;
 
 function fail(msg) {
 	console.error(`[fmt] ${msg}`);
@@ -86,9 +81,9 @@ function gitSha(dir) {
 	});
 }
 
-function exec(bin, argv, stdin) {
+function exec(bin, argv, stdin, options = {}) {
 	return new Promise((resolve) => {
-		const child = execFile(bin, argv, { maxBuffer: 64 * 1024 * 1024 }, (err, stdout, stderr) => {
+		const child = execFile(bin, argv, { maxBuffer: 64 * 1024 * 1024, ...options }, (err, stdout, stderr) => {
 			if (err && err.code === 'ENOENT') resolve({ ok: false, enoent: true, err: err.message });
 			else if (err) resolve({ ok: false, out: stdout, err: (stderr || err.message || '').trim() });
 			else resolve({ ok: true, out: stdout, stderr: (stderr || '').trim() });
@@ -121,16 +116,31 @@ function oneLine(s) {
 	return (s || '').replace(/\s+/g, ' ').trim().slice(0, 200);
 }
 
-function writeTree(dir, id, content) {
-	const dest = path.join(dir, id);
+function copyTreeFile(from, to, id) {
+	const dest = path.join(to, id);
 	fs.mkdirSync(path.dirname(dest), { recursive: true });
-	fs.writeFileSync(dest, content);
+	fs.copyFileSync(path.join(from, id), dest);
 }
 
-/** The .svelte basename oxfmt/rsvelte-fmt see as the stdin filename. */
 function stdinName(id) {
 	const base = path.basename(id);
 	return base.endsWith('.svelte') ? base : 'input.svelte';
+}
+
+function chunks(items, size) {
+	const result = [];
+	for (let i = 0; i < items.length; i += size) result.push(items.slice(i, i + size));
+	return result;
+}
+
+function rejectedIds(diagnostic, stage, batch) {
+	const batchSet = new Set(batch);
+	const ids = new Set();
+	for (const match of diagnostic.matchAll(/\[([^\]\r\n]+)\]/g)) {
+		const id = path.relative(stage, match[1]);
+		if (batchSet.has(id)) ids.add(id);
+	}
+	return ids;
 }
 
 async function main() {
@@ -170,25 +180,60 @@ async function main() {
 		fs.rmSync(ORACLE, { recursive: true, force: true });
 		const includedSet = [];
 		const skipList = [];
-		await pool(components, async ({ id }) => {
-			const source = fs.readFileSync(path.join(SOURCES, id), 'utf8');
-			const res = await exec(OXFMT_BIN, ['-c', OXFMT_CONFIG, '--stdin-filepath', stdinName(id)], source);
-			if (res.enoent) fail(`oxfmt not found at ${OXFMT_BIN}`);
-			if (!res.ok) {
-				skipList.push({ id, reason: oneLine(res.err) || 'oxfmt rejected' });
-				return;
+		const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'oxfmt-corpus-'));
+		try {
+			const ids = components.map(({ id }) => id);
+			for (const id of ids) copyTreeFile(SOURCES, stage, id);
+
+			// Most files are valid, so format them in large batches. oxfmt reports
+			// rejected paths; bisect only when a diagnostic lacks path metadata.
+			async function formatBatch(batch) {
+				const paths = batch.map((id) => path.join(stage, id));
+				const res = await exec(OXFMT_BIN, ['-c', OXFMT_CONFIG, ...paths]);
+				if (res.enoent) fail(`oxfmt not found at ${OXFMT_BIN}`);
+				const error = !res.ok || /error/i.test(res.stderr);
+				if (!error) {
+					includedSet.push(...batch);
+					return;
+				}
+				const diagnostic = res.err || res.stderr || '';
+				const rejected = rejectedIds(diagnostic, stage, batch);
+				if (rejected.size) {
+					for (const id of rejected) {
+						skipList.push({
+							id,
+							reason: oneLine(diagnostic).replaceAll(`${stage}${path.sep}`, ''),
+						});
+					}
+					const remaining = batch.filter((id) => !rejected.has(id));
+					if (remaining.length) await formatBatch(remaining);
+					return;
+				}
+				if (batch.length === 1) {
+					const reason = oneLine(diagnostic) || 'oxfmt rejected';
+					skipList.push({ id: batch[0], reason });
+					return;
+				}
+				const middle = Math.ceil(batch.length / 2);
+				await formatBatch(batch.slice(0, middle));
+				await formatBatch(batch.slice(middle));
 			}
-			// oxfmt leaves an unparseable embedded <script>/<style> verbatim and
-			// logs the error to stderr while exiting 0. Such a block is not valid,
-			// formattable Svelte — exclude it rather than treat the unformatted
-			// output as a parity target (mirrors generate-fmt-corpus.mjs).
-			if (/error/i.test(res.stderr)) {
-				skipList.push({ id, reason: `oxfmt stderr: ${oneLine(res.stderr)}` });
-				return;
-			}
-			writeTree(ORACLE, id, res.out);
-			includedSet.push(id);
-		});
+
+			await pool(chunks(ids, ORACLE_BATCH_SIZE), formatBatch);
+			const stdinFallbacks = includedSet.filter((id) =>
+				fs.readFileSync(path.join(SOURCES, id), 'utf8').includes('/** ('),
+			);
+			await pool(stdinFallbacks, async (id) => {
+				// oxfmt attaches this parser-directed comment differently for
+				// file arguments; preserve the established stdin oracle.
+				const source = fs.readFileSync(path.join(SOURCES, id), 'utf8');
+				const res = await exec(OXFMT_BIN, ['-c', OXFMT_CONFIG, '--stdin-filepath', stdinName(id)], source);
+				if (res.ok) fs.writeFileSync(path.join(stage, id), res.out);
+			});
+			for (const id of includedSet) copyTreeFile(stage, ORACLE, id);
+		} finally {
+			fs.rmSync(stage, { recursive: true, force: true });
+		}
 		included = includedSet.sort();
 		skips = skipList.sort((a, b) => a.id.localeCompare(b.id));
 		fs.mkdirSync(FMT, { recursive: true });
@@ -215,41 +260,39 @@ async function main() {
 			console.log(`[fmt] actual: --only ${path.relative(ROOT, ONLY_FILE)} → ${targets.length} of ${included.length}`);
 		} else {
 			fs.rmSync(ACTUAL, { recursive: true, force: true });
-			console.log(`[fmt] actual: rsvelte-fmt over ${targets.length} components | ${JOBS} jobs`);
+			console.log(`[fmt] actual: rsvelte-fmt over ${targets.length} components`);
 		}
-		const errors = [];
-		await pool(targets, async (id) => {
-			const source = fs.readFileSync(path.join(SOURCES, id), 'utf8');
-			const res = await exec(
-				RSVELTE_FMT_BIN,
-				// `--no-native-css`: format embedded <style> via the oxfmt subprocess
-				// (same binary as the oracle), not the pinned-rev native CSS engine —
-				// see the header comment.
-				[
-					'--stdin',
-					'--stdin-filepath',
-					stdinName(id),
-					'-c',
-					OXFMT_CONFIG,
-					'--oxfmt-bin',
-					OXFMT_BIN,
-					'--no-native-css',
-				],
-				source,
-			);
-			if (res.enoent) fail(`rsvelte-fmt not found at ${RSVELTE_FMT_BIN}`);
-			if (!res.ok) {
-				// A formatter error (parse failure / panic) is a real divergence:
-				// write the raw source so fmt-verify records a mismatch, and note it.
-				errors.push({ id, reason: oneLine(res.err) });
-				writeTree(ACTUAL, id, source);
-				return;
+		if (targets.length) {
+			// Stage outside the repository because compatibility/fmt is gitignored,
+			// and rsvelte-fmt intentionally honors gitignore during directory walks.
+			const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-fmt-corpus-'));
+			try {
+				for (const id of targets) copyTreeFile(SOURCES, stage, id);
+				const res = await exec(
+					RSVELTE_FMT_BIN,
+					// One directory invocation keeps markup, scripts, and styles in
+					// process instead of starting rsvelte-fmt and oxfmt per file.
+					['.', '-c', OXFMT_CONFIG, '--oxfmt-bin', OXFMT_BIN],
+					undefined,
+					{ cwd: stage },
+				);
+				if (res.enoent) fail(`rsvelte-fmt not found at ${RSVELTE_FMT_BIN}`);
+				if (!res.ok) {
+					// Per-file formatter errors leave those staged sources unchanged,
+					// so copying the tree still records them as parity mismatches.
+					console.log(`[fmt] actual: rsvelte-fmt reported errors (recorded as mismatches):`);
+					const diagnostics = (res.err || '')
+						.split('\n')
+						.filter((line) => line.startsWith('rsvelte-fmt: ') && !line.includes(' formatted '));
+					for (const line of diagnostics.slice(0, 10)) {
+						console.log(`  ${oneLine(line.replaceAll(`${stage}${path.sep}`, ''))}`);
+					}
+					if (!diagnostics.length) console.log(`  ${oneLine(res.err) || 'unknown formatter error'}`);
+				}
+				for (const id of targets) copyTreeFile(stage, ACTUAL, id);
+			} finally {
+				fs.rmSync(stage, { recursive: true, force: true });
 			}
-			writeTree(ACTUAL, id, res.out);
-		});
-		if (errors.length) {
-			console.log(`[fmt] actual: ${errors.length} rsvelte-fmt errors (recorded as mismatches):`);
-			for (const e of errors.slice(0, 10)) console.log(`  - ${e.id}: ${e.reason}`);
 		}
 	}
 }

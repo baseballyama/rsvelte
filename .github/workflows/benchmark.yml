@@ -19,6 +19,9 @@ on:
     types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
@@ -51,10 +54,7 @@ jobs:
         with:
           submodules: false
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
-        with:
-          toolchain: 1.97.1
+      - uses: ./.github/actions/setup-rust
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
@@ -65,6 +65,7 @@ jobs:
           # forever. Saving on failure preserves the compiled `target/` even
           # if a later step fails.
           cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run criterion
         # ONE `cargo bench` invocation that compiles *and* measures.

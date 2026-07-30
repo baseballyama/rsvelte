@@ -1,0 +1,46 @@
+name: Setup Rust
+description: Install the pinned Rust toolchain and optional CI tooling
+
+inputs:
+  toolchain:
+    description: Rust toolchain version
+    default: '1.97.1'
+  components:
+    description: Comma-separated rustup components
+    default: ''
+  targets:
+    description: Comma-separated rustup targets
+    default: ''
+  mold:
+    description: Install mold as the default linker
+    default: 'false'
+  nextest:
+    description: Install cargo-nextest
+    default: 'false'
+  wasm-pack:
+    description: Install wasm-pack
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      with:
+        toolchain: ${{ inputs.toolchain }}
+        components: ${{ inputs.components }}
+        targets: ${{ inputs.targets }}
+
+    - name: Setup mold linker
+      if: inputs.mold == 'true'
+      uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+
+    - name: Install cargo-nextest
+      if: inputs.nextest == 'true'
+      uses: taiki-e/install-action@nextest
+
+    - name: Install wasm-pack
+      if: inputs.wasm-pack == 'true'
+      uses: jetli/wasm-pack-action@0d096b08b4e5a7de8c28de67e11e945404e9eefa # v0.4.0
+      with:
+        version: 'v0.15.0'
