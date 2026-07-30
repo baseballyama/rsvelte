@@ -69,19 +69,19 @@ baseline.
   in-workspace targets, so the rewrite fires where it should not. Layer 2 runs
   both checkers exactly the way the projects' own `check` scripts do — from the
   package directory, `--tsconfig ./tsconfig.json`, no `--workspace` — so this does
-  not appear here. Tracked as #1919.
+  not appear here. Fixed by #1938 (`--workspace` is now absolutized at
+  `runner::run`'s entry point, and `relative_posix` skips `.` segments).
 
 ## Enrolling skeleton in the compile corpus
 
-`submodules/skeleton` is intentionally **not** in
-`scripts/compat-corpus/corpus-sources.json` yet: adding a source repository
-requires re-baselining the compiler, svelte2tsx, fmt and lint ratchets in the
-same change, which is a separate piece of work from this gate. Cluster E2 showed
-why it is worth doing: it was a `.tsx`-text divergence, so the svelte2tsx track
-would have caught it natively (upstream's own `props-variable-and-$props.id*`
-samples did, once that fixture ratchet existed).
+`submodules/skeleton` is now also a compile-corpus source
+(`scripts/compat-corpus/corpus-sources.json`, #1924), so its ~700 `.svelte` /
+`.svelte.(js|ts)` files feed the compiler, svelte2tsx, fmt and lint ratchets too.
+Cluster E2 showed why it was worth doing: it was a `.tsx`-text divergence, so the
+svelte2tsx track would have caught it natively (upstream's own
+`props-variable-and-$props.id*` samples did, once that fixture ratchet existed).
 
-The submodule is also **not** in `auto-update-submodules.yml`. This ratchet keys
+The submodule is still **not** in `auto-update-submodules.yml`. This ratchet keys
 on line numbers in skeleton's sources, so an automatic weekly bump would turn CI
 red with pure churn; the pin moves only with a deliberate re-baseline.
 
