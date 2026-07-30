@@ -50,6 +50,7 @@ await build({
   entryPoints: [
     join(root, "src", "diagnostics.ts"),
     join(root, "src", "format.ts"),
+    join(root, "src", "lintConfig.ts"),
   ],
   outdir: join(distDir, "lib"),
   outExtension: { ".js": ".mjs" },

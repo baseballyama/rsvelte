@@ -18,7 +18,8 @@ toolchain.
 - **Diagnostics** — push diagnostics from the bundled
   [`rsvelte_lint`](https://github.com/baseballyama/rsvelte/tree/main/crates/rsvelte_lint)
   engine (compiled to wasm, vendored in the package — no extra install). Runs on
-  open, on change (300 ms debounced), and on save.
+  open, on change (300 ms debounced), and on save. The rule set comes from the
+  project's own [`rsvelte-lint.json`](#lint-configuration).
 
 That's the full v1 surface — hover, completion, go-to-definition, rename,
 find-references, and TypeScript diagnostics are **not** implemented. Those
@@ -36,6 +37,38 @@ The server reads these from the client's `rsvelte.*` configuration:
 | `rsvelte.format.enable` | `true` | Enable formatting via `rsvelte-fmt`. |
 | `rsvelte.lint.enable` | `true` | Enable linting via the bundled engine. |
 | `rsvelte.rsvelteFmtPath` | `""` | Explicit path to a `rsvelte-fmt` binary (overrides resolution). |
+
+## Lint configuration
+
+Severities and rule options come from a `rsvelte-lint.json` (or
+`.rsvelte-lintrc.json`), discovered by walking up from the document's directory
+— the same file, in the same order, that the
+[`rsvelte-lint`](https://www.npmjs.com/package/@rsvelte/lint) CLI resolves, so
+the editor reports what CI does. With no config file, every rule runs at its
+default severity (the `recommended` preset); to start from nothing and opt in,
+use `"extends": ["none"]`:
+
+```json
+{
+  "extends": ["recommended"],
+  "rules": {
+    "svelte/no-at-html-tags": "error",
+    "svelte/no-unused-class-name": "off",
+    "svelte/button-has-type": ["warn", { "submit": true, "reset": false }]
+  }
+}
+```
+
+See the
+[CLI's configuration reference](https://www.npmjs.com/package/@rsvelte/lint#configuration)
+for the full shape. An ESLint config is deliberately **not** read: importing it
+is opt-in on the CLI (`--config-from-eslint`), and a server that read it on its
+own would report a different rule set than the same project's CI. A config that
+can't be read or parsed is reported to the client's log and the recommended
+preset is used, so a typo never leaves the editor without diagnostics.
+
+Resolved configs are cached for the life of the server; they are dropped when a
+config file is saved through the client, and on `workspace/didChangeConfiguration`.
 
 ## Usage
 

@@ -1,7 +1,7 @@
 //! Engine-only JSON diagnostic API, shared by every out-of-process binding.
 //!
 //! Both the wasm export and the NAPI export (in `rsvelte_lint_bindings`) are
-//! thin wrappers over the two functions here, so a native (`.node`) and a wasm
+//! thin wrappers over the functions here, so a native (`.node`) and a wasm
 //! consumer see **byte-identical JSON**. This path is `svelte_check`-free:
 //! it runs the native rule engine ([`run_native_rules`]
 //! and [`run_script_rules`](crate::engine::run_script_rules)) plus the
@@ -56,7 +56,24 @@ fn compile_error_code(e: &CompileError) -> String {
 /// `[{ "severity", "line", "column", "endLine", "endColumn", "code", "message" }]`.
 /// Lines are 1-indexed, columns 0-indexed (UTF-16), matching `rsvelte check`.
 pub fn lint(source: &str, filename: &str) -> String {
-    let config = LintConfig::recommended();
+    lint_with(source, filename, &LintConfig::recommended())
+}
+
+/// [`lint`] under the caller's own config document — the text of a
+/// `rsvelte-lint.json`, which a host without filesystem access (the wasm build)
+/// cannot discover for itself. An empty document selects the recommended
+/// preset; an invalid one falls back to it, since a config error must not leave
+/// the caller without diagnostics.
+pub fn lint_with_config(source: &str, filename: &str, config_json: &str) -> String {
+    let config = if config_json.trim().is_empty() {
+        LintConfig::recommended()
+    } else {
+        LintConfig::from_json_str(config_json).unwrap_or_else(|_| LintConfig::recommended())
+    };
+    lint_with(source, filename, &config)
+}
+
+fn lint_with(source: &str, filename: &str, config: &LintConfig) -> String {
     let line_index = LineIndex::new(source);
     let suppressions = Suppressions::collect(source);
     let mut entries: Vec<Entry> = Vec::new();
@@ -111,9 +128,9 @@ pub fn lint(source: &str, filename: &str) -> String {
 
     // 2. Native rules (template walk) + script-AST rules. No filesystem here, so
     // no path is threaded (any filesystem-aware rule no-ops).
-    let native = run_native_rules(source, filename, &config, None)
+    let native = run_native_rules(source, filename, config, None)
         .into_iter()
-        .chain(crate::engine::run_script_rules(source, filename, &config));
+        .chain(crate::engine::run_script_rules(source, filename, config));
     for d in native {
         let (l, c) = line_index.position(d.start);
         if suppressions.is_suppressed(&d.rule, l) {
@@ -217,4 +234,57 @@ pub fn lint_rules() -> String {
     }
 
     serde_json::to_string(&arr).unwrap_or_else(|_| "[]".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SOURCE: &str = "<div>{@html x}</div>";
+
+    fn codes(json: &str) -> Vec<String> {
+        serde_json::from_str::<Vec<serde_json::Value>>(json)
+            .unwrap()
+            .into_iter()
+            .map(|e| e["code"].as_str().unwrap().to_string())
+            .collect()
+    }
+
+    #[test]
+    fn an_empty_config_matches_the_recommended_preset() {
+        assert_eq!(
+            lint_with_config(SOURCE, "App.svelte", ""),
+            lint(SOURCE, "App.svelte")
+        );
+    }
+
+    #[test]
+    fn a_config_turns_a_rule_off() {
+        assert!(
+            codes(&lint(SOURCE, "App.svelte"))
+                .iter()
+                .any(|c| c == "svelte/no-at-html-tags")
+        );
+
+        let json = lint_with_config(
+            SOURCE,
+            "App.svelte",
+            r#"{ "rules": { "svelte/no-at-html-tags": "off" } }"#,
+        );
+        assert!(!codes(&json).iter().any(|c| c == "svelte/no-at-html-tags"));
+    }
+
+    #[test]
+    fn extends_none_silences_every_rule() {
+        let json = lint_with_config(SOURCE, "App.svelte", r#"{ "extends": ["none"] }"#);
+        assert_eq!(codes(&json), Vec::<String>::new());
+    }
+
+    #[test]
+    fn an_invalid_config_falls_back_to_the_recommended_preset() {
+        assert_eq!(
+            lint_with_config(SOURCE, "App.svelte", "{ not json"),
+            lint(SOURCE, "App.svelte")
+        );
+    }
 }
