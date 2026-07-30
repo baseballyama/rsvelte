@@ -45,8 +45,6 @@ pub(crate) fn find_instance_imports(
     source: &str,
     program: &oxc_ast::ast::Program,
 ) -> Vec<(u32, u32, u32)> {
-    use oxc_ast::ast as oxc;
-
     let content_start = script.content_offset as usize;
     let script_source = slice_src(source, script.start as usize, script.end as usize);
     let close_tag_offset = script_source
@@ -63,39 +61,64 @@ pub(crate) fn find_instance_imports(
         return Vec::new();
     }
 
+    let mut collector = InstanceImportCollector::new(raw_content, &program.comments);
+    for stmt in program.body.iter() {
+        collector.push_statement(stmt);
+    }
+    collector.finish()
+}
+
+pub(crate) struct InstanceImportCollector<'a> {
+    bytes: &'a [u8],
+    comments: &'a [oxc_ast::ast::Comment],
+    comment_cursor: usize,
+    imports: Vec<(u32, u32, u32)>,
+}
+
+impl<'a> InstanceImportCollector<'a> {
+    pub(crate) fn new(content: &'a str, comments: &'a [oxc_ast::ast::Comment]) -> Self {
+        Self {
+            bytes: content.as_bytes(),
+            comments,
+            comment_cursor: 0,
+            imports: Vec::new(),
+        }
+    }
+
     // Parser comments are source-ordered. Keep a monotonic cursor over them to
     // compute each import's leading-comment region the way TS
     // `getLeadingCommentRanges(node.getFullText())` does — including a TRAILING
     // line comment on the PREVIOUS statement's line (it is leading trivia of the
     // following import and moves up with it). The parser already tokenised
     // strings/regex correctly, so `// …` inside a string is never misread.
-    let mut imports = Vec::new();
-    let bytes = raw_content.as_bytes();
-    let comments = &program.comments;
-    let mut comment_cursor = 0;
-    for stmt in program.body.iter() {
-        if let oxc::Statement::ImportDeclaration(import) = stmt {
-            // All import declarations (including side-effect imports like `import ''`)
-            // should be lifted. The parser only creates ImportDeclaration nodes for
-            // valid `import` statements with a source clause.
-            let start = import.span.start;
-            let end = import.span.end;
-            while comment_cursor < comments.len() && comments[comment_cursor].span.end <= start {
-                comment_cursor += 1;
-            }
-
-            // Walk backwards over leading trivia, pulling in every comment whose
-            // end is reachable from the current start via whitespace only, and
-            // stopping at the first non-comment code (the previous token). This
-            // mirrors `getLeadingCommentRanges` and pulls a trailing line comment
-            // (`import …; // TODO`) into the FOLLOWING import's leading region.
-            let new_start =
-                scan_back_leading_comments(bytes, start as usize, comments, comment_cursor);
-
-            imports.push((new_start, start, end));
+    pub(crate) fn push_statement(&mut self, stmt: &oxc_ast::ast::Statement) {
+        if let oxc_ast::ast::Statement::ImportDeclaration(import) = stmt {
+            self.push_import(import);
         }
     }
-    imports
+
+    pub(crate) fn push_import(&mut self, import: &oxc_ast::ast::ImportDeclaration) {
+        let start = import.span.start;
+        let end = import.span.end;
+        while self.comment_cursor < self.comments.len()
+            && self.comments[self.comment_cursor].span.end <= start
+        {
+            self.comment_cursor += 1;
+        }
+
+        let new_start = scan_back_leading_comments(
+            self.bytes,
+            start as usize,
+            self.comments,
+            self.comment_cursor,
+        );
+
+        self.imports.push((new_start, start, end));
+    }
+
+    pub(crate) fn finish(self) -> Vec<(u32, u32, u32)> {
+        self.imports
+    }
 }
 
 /// Walk backwards from `pos` over leading trivia (whitespace + comments),

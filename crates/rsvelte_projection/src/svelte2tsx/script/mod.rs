@@ -29,7 +29,9 @@ use oxc_span::GetSpan;
 use crate::ast::template::Script;
 
 use super::magic_string::MagicString;
+use super::nodes::scripts::InstanceImportCollector;
 use super::svelte2tsx::slice_src;
+use super::utils::lexical::contains_word;
 
 pub use component_events::ComponentEvents;
 pub use exported_names::{ExportedNameInfo, ExportedNames};
@@ -109,10 +111,13 @@ pub fn process_instance_script(
     emit_jsdoc: bool,
     is_dts_mode: bool,
     script_generic_names: &HashSet<String>,
-) {
+) -> Vec<(u32, u32, u32)> {
     let offset = script.content_offset;
+    let mut instance_imports = Vec::new();
     with_parsed_script(parsed, |program, raw_content| {
         let script_facts = ScriptFacts::collect(program, offset, raw_content, true, store_scan);
+        let mut import_collector = contains_word(raw_content.as_bytes(), b"import")
+            .then(|| InstanceImportCollector::new(raw_content, &program.comments));
 
         // Pass 1: collect top-level declared names and possible exports
         let mut possible_exports: HashMap<String, PossibleExport> = HashMap::new();
@@ -209,6 +214,9 @@ pub fn process_instance_script(
                     }
                 }
                 oxc::Statement::ImportDeclaration(import) => {
+                    if let Some(collector) = &mut import_collector {
+                        collector.push_import(import);
+                    }
                     if let Some(ref specifiers) = import.specifiers {
                         for spec in specifiers.iter() {
                             let name = match spec {
@@ -700,7 +708,12 @@ pub fn process_instance_script(
         // anywhere in the instance script — TSX cannot parse the `<X>e` form.
         // Mirrors official `handleTypeAssertion`, applied during the same walk.
         rewrite_type_assertions(&script_facts.type_assertions, str);
+
+        if let Some(collector) = import_collector {
+            instance_imports = collector.finish();
+        }
     });
+    instance_imports
 }
 /// Process a module script block (`<script context="module">`).
 ///

@@ -542,8 +542,9 @@ pub fn svelte2tsx(
                 .collect::<std::collections::HashSet<String>>()
         })
         .unwrap_or_default();
+    let mut instance_imports = Vec::new();
     if let (Some(instance), Some(parsed)) = (&ast.instance, &parsed_scripts.instance) {
-        super::script::process_instance_script(
+        instance_imports = super::script::process_instance_script(
             instance,
             parsed,
             parsed_scripts
@@ -759,6 +760,7 @@ pub fn svelte2tsx(
             has_module_script,
             has_slot_elements,
             &hoistable_snippet_ranges,
+            &instance_imports,
         );
     }
 

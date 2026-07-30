@@ -10,9 +10,7 @@ use super::nodes::generics::{
     extract_generics_from_script_tag, split_generic_param_names, type_text_references_any,
     type_text_typeof_references_local_value,
 };
-use super::nodes::scripts::{
-    detect_top_level_await, find_instance_imports, find_script_close_tag_start,
-};
+use super::nodes::scripts::{detect_top_level_await, find_script_close_tag_start};
 use super::script::ExportedNames;
 use super::svelte2tsx::slice_src;
 
@@ -38,6 +36,7 @@ pub(crate) fn process_instance_script_tag(
     has_module_script: bool,
     has_slot_elements: bool,
     hoistable_snippet_ranges: &[(u32, u32)],
+    imports: &[(u32, u32, u32)],
 ) -> bool {
     let instance = ast.instance.as_ref().unwrap();
     let script_start = instance.start;
@@ -122,15 +121,12 @@ pub(crate) fn process_instance_script_tag(
             .unwrap_or_default()
     };
 
-    // Find import declarations in the instance script content
-    let imports = find_instance_imports(instance, source, instance_program);
-
     let has_imports = !imports.is_empty();
     // Lift imports above $$render(): each import is collected individually
     // (without leading whitespace) and inserted into the <script> tag
     // replacement, with the original positions blanked out.
     let import_text = if has_imports {
-        collect_lifted_imports(&imports, source, content_start, str)
+        collect_lifted_imports(imports, source, content_start, str)
     } else {
         String::new()
     };
