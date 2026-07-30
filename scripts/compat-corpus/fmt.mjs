@@ -187,7 +187,12 @@ async function main() {
 
 			// Most files are valid, so format them in large batches. oxfmt reports
 			// rejected paths; bisect only when a diagnostic lacks path metadata.
-			async function formatBatch(batch) {
+			async function formatBatch(batch, retry = false) {
+				// oxfmt formats in place and is not idempotent for every input (prose
+				// fill can move on a second pass), so a retried file must start from
+				// its pristine source — otherwise its oracle silently depends on
+				// which batch it landed in.
+				if (retry) for (const id of batch) copyTreeFile(SOURCES, stage, id);
 				const paths = batch.map((id) => path.join(stage, id));
 				const res = await exec(OXFMT_BIN, ['-c', OXFMT_CONFIG, ...paths]);
 				if (res.enoent) fail(`oxfmt not found at ${OXFMT_BIN}`);
@@ -206,7 +211,7 @@ async function main() {
 						});
 					}
 					const remaining = batch.filter((id) => !rejected.has(id));
-					if (remaining.length) await formatBatch(remaining);
+					if (remaining.length) await formatBatch(remaining, true);
 					return;
 				}
 				if (batch.length === 1) {
@@ -215,11 +220,11 @@ async function main() {
 					return;
 				}
 				const middle = Math.ceil(batch.length / 2);
-				await formatBatch(batch.slice(0, middle));
-				await formatBatch(batch.slice(middle));
+				await formatBatch(batch.slice(0, middle), true);
+				await formatBatch(batch.slice(middle), true);
 			}
 
-			await pool(chunks(ids, ORACLE_BATCH_SIZE), formatBatch);
+			await pool(chunks(ids, ORACLE_BATCH_SIZE), (batch) => formatBatch(batch));
 			const stdinFallbacks = includedSet.filter((id) =>
 				fs.readFileSync(path.join(SOURCES, id), 'utf8').includes('/** ('),
 			);

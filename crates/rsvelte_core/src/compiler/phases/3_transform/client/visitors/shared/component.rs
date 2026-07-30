@@ -438,8 +438,8 @@ pub fn build_component(
     // If component is dynamic, wrap the call in $.component()
     // This wrapping happens BEFORE the CSS props check, matching the official behavior
     if is_component_dynamic {
-        statements.extend(binding_initializers.clone());
-
+        // The validator references the intermediate binding, which only exists inside
+        // the `$.component` callback.
         if !custom_css_props.is_empty() {
             // Handle custom CSS properties with wrapper element for dynamic component
             let is_svg = context.state.metadata.namespace == "svg";
@@ -485,6 +485,9 @@ pub fn build_component(
                 context,
             );
 
+            let mut callback_body = binding_initializers.clone();
+            callback_body.push(b::stmt(arena, inner_call));
+
             let dynamic_call = b::call(
                 arena,
                 b::member_path(arena, "$.component"),
@@ -496,7 +499,7 @@ pub fn build_component(
                     ),
                     b::arrow_block(
                         vec![b::id_pattern("$$anchor"), b::id_pattern(&intermediate_name)],
-                        vec![b::stmt(arena, inner_call)],
+                        callback_body,
                     ),
                 ],
             );
@@ -526,6 +529,9 @@ pub fn build_component(
                 context,
             );
 
+            let mut callback_body = binding_initializers.clone();
+            callback_body.push(b::stmt(arena, inner_call));
+
             let dynamic_call = b::call(
                 arena,
                 b::member_path(arena, "$.component"),
@@ -537,7 +543,7 @@ pub fn build_component(
                     ),
                     b::arrow_block(
                         vec![b::id_pattern("$$anchor"), b::id_pattern(&intermediate_name)],
-                        vec![b::stmt(arena, inner_call)],
+                        callback_body,
                     ),
                 ],
             );

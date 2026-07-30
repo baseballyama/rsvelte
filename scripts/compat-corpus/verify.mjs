@@ -13,8 +13,8 @@
  *
  * Writes compatibility/report.json.
  *
- * Ratchet baselines (checked in), one per target so CSR and SSR are tracked
- * independently:
+ * Ratchet baselines (checked in), one per target (see targets.mjs) so CSR and
+ * SSR are tracked independently:
  *   - compatibility/known-failures.client.json  (CSR / client target)
  *   - compatibility/known-failures.server.json  (SSR / server target)
  * Each lists the entry ids whose output diverges for that target. Verification
@@ -22,10 +22,14 @@
  * regression) — known failures are tolerated and burned down over time (see
  * compatibility/known-failures.md for the root-cause writeup of each entry).
  * When previously-known failures now pass, a reminder to shrink the relevant
- * baseline is printed (use --update-baseline to rewrite both files from
- * current results).
+ * baseline is printed (use --update-baseline to rewrite the files from current
+ * results; `--update-baseline <target>` rewrites only that target's file).
  *
- * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline] [--strict]
+ * --from-report <path> skips normalization/comparison entirely and derives the
+ * baselines from an existing report.json (e.g. downloaded from a CI run), so a
+ * new target's baseline can be bootstrapped without a local full run.
+ *
+ * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline [<target>]] [--from-report <path>] [--strict]
  */
 
 import fs from 'node:fs';
@@ -33,6 +37,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { flattenTemplateHoles, stripBlankLines, astEquivalent, readIf, firstDiffLine } from './normalize.mjs';
+import { TARGETS, TARGET_KEYS } from './targets.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -45,15 +50,65 @@ const NO_FMT = args.includes('--no-fmt');
 const MAX_PRINT = Number(args[args.indexOf('--max-print') + 1] || 20);
 const UPDATE_BASELINE = args.includes('--update-baseline');
 const STRICT = args.includes('--strict'); // ignore the baseline: any failure fails
+
+// `--update-baseline <target>` limits the rewrite to one target; bare
+// `--update-baseline` rewrites every target's baseline (the historical
+// behaviour).
+const UPDATE_SCOPE = (() => {
+	const next = args[args.indexOf('--update-baseline') + 1];
+	if (!UPDATE_BASELINE || !next || next.startsWith('--')) return null;
+	if (!TARGET_KEYS.includes(next)) {
+		console.error(`[verify] unknown --update-baseline target "${next}" (known: ${TARGET_KEYS.join(', ')})`);
+		process.exit(2);
+	}
+	return next;
+})();
+
+const FROM_REPORT = (() => {
+	const i = args.indexOf('--from-report');
+	return i !== -1 && args[i + 1] ? path.resolve(process.cwd(), args[i + 1]) : null;
+})();
+
 // --baseline-client <path> / --baseline-server <path> select alternate ratchet
-// files (defaults: known-failures.{client,server}.json). The corpus is a single
-// unified set, so these are rarely needed — kept for ad-hoc scoped runs.
-function baselineArg(flag, fallback) {
-	const i = args.indexOf(flag);
-	return path.resolve(CORPUS, i !== -1 ? args[i + 1] : fallback);
+// files (defaults come from targets.mjs). The corpus is a single unified set,
+// so these are rarely needed — kept for ad-hoc scoped runs.
+function baselinePath(target) {
+	const i = args.indexOf(`--baseline-${target.key}`);
+	return path.resolve(CORPUS, i !== -1 ? args[i + 1] : target.baseline);
 }
-const BASELINE_CLIENT = baselineArg('--baseline-client', 'known-failures.client.json');
-const BASELINE_SERVER = baselineArg('--baseline-server', 'known-failures.server.json');
+
+// Partition failures by target so every target ratchets independently. Every
+// failure detail carries a target (css mismatches are client-only), so an entry
+// that diverges on two targets lands in both sets.
+function partitionFailures(failures) {
+	const byTarget = new Map(TARGET_KEYS.map((key) => [key, new Set()]));
+	for (const f of failures) {
+		for (const d of f.details) {
+			const set = byTarget.get(d.target);
+			if (set) set.add(f.id);
+			else console.warn(`[verify] ignoring failure detail for unknown target "${d.target}" (${f.id})`);
+		}
+	}
+	return byTarget;
+}
+
+function writeBaselines(byTarget) {
+	console.log();
+	for (const target of TARGETS) {
+		if (UPDATE_SCOPE && target.key !== UPDATE_SCOPE) continue;
+		const ids = byTarget.get(target.key);
+		const p = baselinePath(target);
+		fs.writeFileSync(p, JSON.stringify([...ids].sort(), null, '\t') + '\n');
+		console.log(`[verify] baseline updated: ${ids.size} known failures -> ${path.relative(ROOT, p)}`);
+	}
+}
+
+if (FROM_REPORT) {
+	const report = JSON.parse(fs.readFileSync(FROM_REPORT, 'utf8'));
+	console.log(`[verify] deriving baselines from ${path.relative(ROOT, FROM_REPORT)} (${report.failures.length} failures)`);
+	writeBaselines(partitionFailures(report.failures));
+	process.exit(0);
+}
 
 // ---- oxfmt normalization ---------------------------------------------------
 
@@ -114,7 +169,8 @@ for (const { id } of manifest) {
 	let verdict = 'match';
 	const details = [];
 
-	for (const target of ['client', 'server']) {
+	for (const targetDef of TARGETS) {
+		const target = targetDef.key;
 		const e = expErr[target];
 		const a = actErr[target];
 		if (e && a) {
@@ -149,9 +205,9 @@ for (const { id } of manifest) {
 			verdict = 'js-mismatch';
 			details.push({ target, kind: 'js', ...firstDiffLine(expJs, actJs) });
 		}
-		if (target === 'client') {
-			const expCss = readIf(path.join(expDir, 'client.css'));
-			const actCss = readIf(path.join(actDir, 'client.css'));
+		if (targetDef.css) {
+			const expCss = readIf(path.join(expDir, `${target}.css`));
+			const actCss = readIf(path.join(actDir, `${target}.css`));
 			if ((expCss ?? '') !== (actCss ?? '')) {
 				if (verdict === 'match') verdict = 'css-mismatch';
 				details.push({ target, kind: 'css', ...firstDiffLine(expCss ?? '', actCss ?? '') });
@@ -177,47 +233,36 @@ console.log('\n[verify] results:');
 for (const [k, v] of Object.entries(counts)) console.log(`  ${k.padEnd(16)} ${v}`);
 console.log(`  report: ${path.relative(ROOT, path.join(CORPUS, 'report.json'))}`);
 
-// Partition failures by target so CSR (client) and SSR (server) ratchet
-// independently. Every failure detail carries a target (css mismatches are
-// client-only), so an entry that diverges on both targets lands in both sets.
 const failById = new Map(failures.map((f) => [f.id, f]));
-const clientFails = new Set();
-const serverFails = new Set();
-for (const f of failures) {
-	for (const d of f.details) {
-		if (d.target === 'client') clientFails.add(f.id);
-		else if (d.target === 'server') serverFails.add(f.id);
-	}
-}
+const failsByTarget = partitionFailures(failures);
 
 if (UPDATE_BASELINE) {
-	const writeBaseline = (p, ids) => {
-		fs.writeFileSync(p, JSON.stringify([...ids].sort(), null, '\t') + '\n');
-		console.log(`[verify] baseline updated: ${ids.size} known failures -> ${path.relative(ROOT, p)}`);
-	};
-	console.log();
-	writeBaseline(BASELINE_CLIENT, clientFails);
-	writeBaseline(BASELINE_SERVER, serverFails);
+	writeBaselines(failsByTarget);
 	process.exit(0);
 }
 
 const loadBaseline = (p) =>
 	new Set(!STRICT && fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : []);
-const clientBaseline = loadBaseline(BASELINE_CLIENT);
-const serverBaseline = loadBaseline(BASELINE_SERVER);
+const baselines = new Map(TARGETS.map((t) => [t.key, loadBaseline(baselinePath(t))]));
 
 // A regression is a (id, target) pair failing while absent from that target's
 // baseline.
 const regressions = [];
-for (const id of clientFails) if (!clientBaseline.has(id)) regressions.push({ id, target: 'client' });
-for (const id of serverFails) if (!serverBaseline.has(id)) regressions.push({ id, target: 'server' });
+for (const key of TARGET_KEYS) {
+	for (const id of failsByTarget.get(key)) {
+		if (!baselines.get(key).has(id)) regressions.push({ id, target: key });
+	}
+}
 
-const fixedClient = [...clientBaseline].filter((id) => !clientFails.has(id));
-const fixedServer = [...serverBaseline].filter((id) => !serverFails.has(id));
-const fixedKnown = fixedClient.length + fixedServer.length;
+const fixedByTarget = TARGET_KEYS.map((key) => [
+	key,
+	[...baselines.get(key)].filter((id) => !failsByTarget.get(key).has(id)),
+]);
+const fixedKnown = fixedByTarget.reduce((n, [, ids]) => n + ids.length, 0);
 
 if (fixedKnown) {
-	console.log(`\n[verify] 🎉 ${fixedKnown} known failures now PASS (client ${fixedClient.length}, server ${fixedServer.length}) — shrink the baselines:`);
+	const breakdown = fixedByTarget.map(([key, ids]) => `${key} ${ids.length}`).join(', ');
+	console.log(`\n[verify] 🎉 ${fixedKnown} known failures now PASS (${breakdown}) — shrink the baselines:`);
 	console.log('  node scripts/compat-corpus/verify.mjs --no-fmt --update-baseline');
 }
 
@@ -236,7 +281,8 @@ if (regressions.length) {
 }
 
 if (failures.length) {
-	console.log(`\n[verify] ✅ no regressions (client ${clientFails.size}, server ${serverFails.size} known failures remain — see compatibility/known-failures.md)`);
+	const breakdown = TARGET_KEYS.map((key) => `${key} ${failsByTarget.get(key).size}`).join(', ');
+	console.log(`\n[verify] ✅ no regressions (${breakdown} known failures remain — see compatibility/known-failures.md)`);
 } else {
 	console.log('\n[verify] ✅ all corpus outputs identical after normalization');
 }
