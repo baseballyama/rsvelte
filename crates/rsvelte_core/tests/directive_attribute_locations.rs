@@ -95,7 +95,11 @@ fn directive_locations_cover_the_full_unicode_attribute_names() {
 
 #[test]
 fn missing_directive_names_remain_errors() {
-    for source in ["<div use:></div>", "<div transition:|global></div>"] {
+    for source in [
+        "<div use:></div>",
+        "<div transition:|global></div>",
+        "<div\n  use:\n></div>",
+    ] {
         let error = parse(source, &Allocator::default(), ParseOptions::default())
             .expect_err("missing directive name must fail");
 
@@ -107,4 +111,88 @@ fn missing_directive_names_remain_errors() {
             "unexpected error for {source:?}: {error:?}"
         );
     }
+}
+
+#[test]
+fn multiline_attribute_comments_keep_exact_locations() {
+    let source = "<div /* α\nβ */ on:click></div>";
+    let root = parse(source, &Allocator::default(), ParseOptions::default()).expect("parse");
+
+    assert_eq!(root.comments.len(), 1);
+    let comment = &root.comments[0];
+    assert_eq!(comment.value, " α\nβ ");
+    assert_eq!(
+        (
+            comment.loc.start.line,
+            comment.loc.start.column,
+            comment.loc.start.character,
+        ),
+        (1, 5, 5)
+    );
+    assert_eq!(
+        (
+            comment.loc.end.line,
+            comment.loc.end.column,
+            comment.loc.end.character,
+        ),
+        (2, 5, 16)
+    );
+
+    let TemplateNode::RegularElement(element) = &root.fragment.nodes[0] else {
+        panic!("expected regular element");
+    };
+    let Attribute::OnDirective(on) = &element.attributes[0] else {
+        panic!("expected on directive");
+    };
+    let name_loc = on.name_loc.as_ref().expect("name location");
+    assert_eq!(
+        (
+            name_loc.start.line,
+            name_loc.start.column,
+            name_loc.start.character,
+        ),
+        (2, 6, 17)
+    );
+    assert_eq!(
+        (
+            name_loc.end.line,
+            name_loc.end.column,
+            name_loc.end.character,
+        ),
+        (2, 14, 25)
+    );
+}
+
+#[test]
+fn loose_unterminated_multiline_comments_keep_eof_location() {
+    let source = "<div /* α\n未終了";
+    let root = parse(
+        source,
+        &Allocator::default(),
+        ParseOptions {
+            loose: true,
+            ..ParseOptions::default()
+        },
+    )
+    .expect("loose parse");
+
+    assert_eq!(root.comments.len(), 1);
+    let comment = &root.comments[0];
+    assert_eq!(comment.value, " α\n未終了");
+    assert_eq!(
+        (
+            comment.loc.start.line,
+            comment.loc.start.column,
+            comment.loc.start.character,
+        ),
+        (1, 5, 5)
+    );
+    assert_eq!(
+        (
+            comment.loc.end.line,
+            comment.loc.end.column,
+            comment.loc.end.character,
+        ),
+        (2, 9, source.len() as u32)
+    );
 }

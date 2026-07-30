@@ -446,10 +446,17 @@ impl<'a> Parser<'a> {
             .saturating_sub(1);
         let start_line_start = self.line_offsets.get(start_line).copied().unwrap_or(0);
 
-        let end_line = self
+        let end_line = if self
             .line_offsets
-            .partition_point(|&offset| offset <= end)
-            .saturating_sub(1);
+            .get(start_line + 1)
+            .is_none_or(|&offset| end < offset)
+        {
+            start_line
+        } else {
+            self.line_offsets
+                .partition_point(|&offset| offset <= end)
+                .saturating_sub(1)
+        };
         let end_line_start = self.line_offsets.get(end_line).copied().unwrap_or(0);
 
         SourceLocation {
