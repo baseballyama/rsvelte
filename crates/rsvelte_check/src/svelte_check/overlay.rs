@@ -1185,46 +1185,80 @@ fn read_tsconfig_specs(tsconfig_path: &Path, cache_dir: &Path) -> InheritedSpecs
     }
 }
 
-/// Walk the `extends` chain from `tsconfig_path` and return the
-/// `(specs, base_dir)` for the nearest config that defines `key`
-/// (`include` / `exclude` / `files`). Mirrors TypeScript: a config that
-/// sets the key shadows its parent's value wholesale; a config that
-/// omits it inherits from the config it extends. `base_dir` is the
-/// directory of the *defining* config so its relative specs rebase
-/// correctly. Only relative-path `extends` are followed (see
-/// [`resolve_root_dirs_abs`] for the rationale).
-fn resolve_config_specs(tsconfig_path: &Path, key: &str) -> Option<(Vec<String>, PathBuf)> {
-    let mut current = Some(tsconfig_path.to_path_buf());
-    // Guard against pathological `extends` cycles.
-    let mut hops = 0;
-    while let Some(file) = current {
-        hops += 1;
-        if hops > 32 {
+/// How many configs an `extends` graph may contribute before the walk gives
+/// up, so a cycle or a pathological diamond cannot spin forever.
+const MAX_EXTENDS_CONFIGS: usize = 32;
+
+/// A tsconfig's `extends` graph, flattened into TypeScript's precedence order:
+/// the config itself first, then its parents from the **last** `extends` entry
+/// to the first, each parent immediately followed by its own chain. Every
+/// entry is `(dir of the config, parsed config)`, so a caller can resolve a
+/// value's relative paths against the config that declared it.
+///
+/// Callers take the first entry that defines the key they want, which keeps the
+/// nearest-definition-wins rule TypeScript applies to `include` / `exclude` /
+/// `files` / `paths` / `rootDirs` (a child's value replaces the parent's
+/// wholesale) and gives the array form (TS 5.0+) its documented semantics of
+/// later entries winning.
+///
+/// Only relative-path `extends` targets are followed; a bare package name ends
+/// that branch (see [`resolve_root_dirs_abs`] for the rationale). Paths are
+/// absolutised up front so a relative `--tsconfig` argument cannot compound
+/// through the hops into an unresolvable target.
+fn extends_chain(tsconfig_path: &Path) -> Vec<(PathBuf, serde_json::Value)> {
+    let mut out = Vec::new();
+    let mut pending = vec![absolutize(tsconfig_path)];
+    while let Some(file) = pending.pop() {
+        if out.len() >= MAX_EXTENDS_CONFIGS {
             break;
         }
         let Ok(raw) = fs::read_to_string(&file) else {
-            break;
+            continue;
         };
         let stripped = strip_jsonc_comments(&raw);
         let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stripped) else {
-            break;
+            continue;
         };
         let dir = file.parent().unwrap_or(Path::new(".")).to_path_buf();
 
-        if let Some(arr) = parsed.get(key).and_then(|v| v.as_array()) {
-            let specs = arr
+        // Queued in declaration order, popped from the back: the last entry —
+        // the one TypeScript gives precedence — is visited first, and its own
+        // parents before the entries to its left.
+        let parents: Vec<PathBuf> = match parsed.get("extends") {
+            Some(serde_json::Value::String(ext)) => vec![ext.clone()],
+            Some(serde_json::Value::Array(exts)) => exts
                 .iter()
-                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                .collect();
-            return Some((specs, dir));
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect(),
+            _ => Vec::new(),
         }
+        .iter()
+        .filter(|ext| ext.starts_with('.'))
+        .map(|ext| resolve_extends_path(&dir, ext))
+        .collect();
+        pending.extend(parents);
 
-        match parsed.get("extends").and_then(|v| v.as_str()) {
-            Some(ext) if ext.starts_with('.') => current = Some(resolve_extends_path(&dir, ext)),
-            _ => break,
-        }
+        out.push((dir, parsed));
     }
-    None
+    out
+}
+
+/// The `(specs, base_dir)` of the nearest config in `tsconfig_path`'s
+/// [`extends_chain`] that defines `key` (`include` / `exclude` / `files`).
+/// `base_dir` is the directory of the *defining* config so its relative specs
+/// rebase correctly.
+fn resolve_config_specs(tsconfig_path: &Path, key: &str) -> Option<(Vec<String>, PathBuf)> {
+    extends_chain(tsconfig_path)
+        .into_iter()
+        .find_map(|(dir, parsed)| {
+            let specs = parsed
+                .get(key)?
+                .as_array()?
+                .iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect();
+            Some((specs, dir))
+        })
 }
 
 /// Resolve a relative `extends` target (`"./.svelte-kit/tsconfig.json"`,
@@ -1424,54 +1458,31 @@ fn strip_jsonc_comments(src: &str) -> String {
     String::from_utf8(out).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
 }
 
-/// Resolve a tsconfig's effective `rootDirs` to absolute paths, following
-/// the `extends` chain. Returns the entries from the nearest config that
-/// defines `rootDirs` (a child `compilerOptions.rootDirs` replaces the
-/// parent's wholesale, mirroring TypeScript), each resolved relative to
-/// the directory of the file that defined it. Empty when no config in the
-/// chain sets `rootDirs`.
+/// Resolve a tsconfig's effective `rootDirs` to absolute paths. Returns the
+/// entries from the nearest config in the [`extends_chain`] that defines
+/// `rootDirs` (a child `compilerOptions.rootDirs` replaces the parent's
+/// wholesale, mirroring TypeScript), each resolved relative to the directory of
+/// the file that defined it. Empty when no config in the chain sets `rootDirs`.
 ///
 /// Only relative-path `extends` are followed (the common case, incl.
 /// SvelteKit's `./.svelte-kit/tsconfig.json`); a bare package-name
-/// `extends` stops the walk — we'd need full node resolution to chase it,
+/// `extends` ends that branch — we'd need full node resolution to chase it,
 /// and the caller falls back to a sensible default.
 fn resolve_root_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
-    let mut current = Some(tsconfig_path.to_path_buf());
-    // Guard against pathological `extends` cycles.
-    let mut hops = 0;
-    while let Some(file) = current {
-        hops += 1;
-        if hops > 32 {
-            break;
-        }
-        let Ok(raw) = fs::read_to_string(&file) else {
-            break;
-        };
-        let stripped = strip_jsonc_comments(&raw);
-        let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stripped) else {
-            break;
-        };
-        let dir = file.parent().unwrap_or(Path::new("."));
-
-        if let Some(arr) = parsed
-            .get("compilerOptions")
-            .and_then(|c| c.get("rootDirs"))
-            .and_then(|v| v.as_array())
-        {
-            return arr
+    extends_chain(tsconfig_path)
+        .into_iter()
+        .find_map(|(dir, parsed)| {
+            let dirs = parsed
+                .get("compilerOptions")?
+                .get("rootDirs")?
+                .as_array()?
                 .iter()
                 .filter_map(|v| v.as_str())
                 .map(|s| dir.join(s))
                 .collect();
-        }
-
-        // Not defined here — follow a relative `extends`.
-        match parsed.get("extends").and_then(|v| v.as_str()) {
-            Some(ext) if ext.starts_with('.') => current = Some(resolve_extends_path(dir, ext)),
-            _ => break,
-        }
-    }
-    Vec::new()
+            Some(dirs)
+        })
+        .unwrap_or_default()
 }
 
 /// Whether a tsconfig `target` is ES2015+; `None` for an unrecognized string — a year-numbered target is parsed generically so newer TS releases need no change here.
@@ -1483,38 +1494,19 @@ fn is_es2015_or_newer(target: &str) -> Option<bool> {
     })
 }
 
-/// Nearest-definition-wins `compilerOptions.target`, found by following the `extends` chain the same way [`resolve_root_dirs_abs`] does.
+/// Nearest-definition-wins `compilerOptions.target`, read off the [`extends_chain`].
 fn resolve_effective_target(tsconfig_path: Option<&Path>) -> Option<String> {
-    let mut current = tsconfig_path.map(Path::to_path_buf);
-    let mut hops = 0;
-    while let Some(file) = current {
-        hops += 1;
-        if hops > 32 {
-            break;
-        }
-        let Ok(raw) = fs::read_to_string(&file) else {
-            break;
-        };
-        let stripped = strip_jsonc_comments(&raw);
-        let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stripped) else {
-            break;
-        };
-        let dir = file.parent().unwrap_or(Path::new("."));
-
-        if let Some(target) = parsed
-            .get("compilerOptions")
-            .and_then(|c| c.get("target"))
-            .and_then(|v| v.as_str())
-        {
-            return Some(target.to_string());
-        }
-
-        match parsed.get("extends").and_then(|v| v.as_str()) {
-            Some(ext) if ext.starts_with('.') => current = Some(resolve_extends_path(dir, ext)),
-            _ => break,
-        }
-    }
-    None
+    extends_chain(tsconfig_path?)
+        .into_iter()
+        .find_map(|(_, parsed)| {
+            Some(
+                parsed
+                    .get("compilerOptions")?
+                    .get("target")?
+                    .as_str()?
+                    .to_string(),
+            )
+        })
 }
 
 /// The `target` the overlay tsconfig should force, or `None` to leave the inherited value alone (already ES2015+, so the `extends` chain provides it).
@@ -1539,51 +1531,15 @@ fn resolve_forced_target(original: Option<&Path>) -> Option<&'static str> {
 fn resolve_paths_chain(
     tsconfig_path: &Path,
 ) -> Option<(serde_json::Map<String, serde_json::Value>, PathBuf)> {
-    // A relative path would otherwise compound through every `extends` hop
-    // (`file.parent()` staying relative at each step) into a garbled,
-    // unresolvable target — same class of bug `build_svelte_import_resolver`
-    // guards against for the same reason.
-    let mut current = Some(absolutize(tsconfig_path));
-    let mut hops = 0;
-    let mut paths: Option<(serde_json::Map<String, serde_json::Value>, PathBuf)> = None;
-    let mut base_url: Option<PathBuf> = None;
-    while let Some(file) = current {
-        hops += 1;
-        if hops > 32 {
-            break;
-        }
-        let Ok(raw) = fs::read_to_string(&file) else {
-            break;
-        };
-        let stripped = strip_jsonc_comments(&raw);
-        let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stripped) else {
-            break;
-        };
-        let dir = file.parent().unwrap_or(Path::new(".")).to_path_buf();
-        let compiler_opts = parsed.get("compilerOptions");
-        if paths.is_none()
-            && let Some(p) = compiler_opts
-                .and_then(|c| c.get("paths"))
-                .and_then(|v| v.as_object())
-        {
-            paths = Some((p.clone(), dir.clone()));
-        }
-        if base_url.is_none()
-            && let Some(b) = compiler_opts
-                .and_then(|c| c.get("baseUrl"))
-                .and_then(|v| v.as_str())
-        {
-            base_url = Some(dir.join(b));
-        }
-        if paths.is_some() && base_url.is_some() {
-            break;
-        }
-        match parsed.get("extends").and_then(|v| v.as_str()) {
-            Some(ext) if ext.starts_with('.') => current = Some(resolve_extends_path(&dir, ext)),
-            _ => break,
-        }
-    }
-    let (paths, paths_dir) = paths?;
+    let chain = extends_chain(tsconfig_path);
+    let (paths, paths_dir) = chain.iter().find_map(|(dir, parsed)| {
+        let p = parsed.get("compilerOptions")?.get("paths")?.as_object()?;
+        Some((p.clone(), dir.clone()))
+    })?;
+    let base_url = chain.iter().find_map(|(dir, parsed)| {
+        let b = parsed.get("compilerOptions")?.get("baseUrl")?.as_str()?;
+        Some(dir.join(b))
+    });
     Some((paths, base_url.unwrap_or(paths_dir)))
 }
 
@@ -3052,6 +3008,151 @@ mod tests {
         assert!(
             !include.iter().any(|i| i.contains("../../../")),
             "glob rebase produced a mangled path: {include:?}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn overlay_forwards_project_specs_through_an_array_extends() {
+        // The array form is the only way to combine a shared base config with a
+        // *generated* one that can't be edited by hand (`.svelte-kit/tsconfig.json`,
+        // `.wxt/tsconfig.json`), so a reader that only understands the string form
+        // drops the generated `include`/`paths` and every ambient module they pull
+        // in ($env/dynamic/public, ./$types) is reported missing.
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_arr_ext_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/lib")).unwrap();
+        fs::create_dir_all(tmp.join(".svelte-kit")).unwrap();
+        fs::write(
+            tmp.join("tsconfig.base.json"),
+            r#"{
+                "compilerOptions": {
+                    "target": "ES2022",
+                    "paths": { "$base/*": ["./base/*"] }
+                }
+            }"#,
+        )
+        .unwrap();
+        fs::write(
+            tmp.join(".svelte-kit/tsconfig.json"),
+            r#"{
+                "compilerOptions": {
+                    "rootDirs": ["..", "./types"],
+                    "paths": { "$lib/*": ["../src/lib/*"] }
+                },
+                "include": ["../src/**/*.ts", "../src/**/*.svelte", "./ambient.d.ts"]
+            }"#,
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r#"{ "extends": ["./tsconfig.base.json", "./.svelte-kit/tsconfig.json"] }"#,
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/lib/Button.svelte"),
+            "<script lang=\"ts\">let { n }: { n: number } = $props();</script>\n<button>{n}</button>\n",
+        )
+        .unwrap();
+
+        let files = vec![tmp.join("src/lib/Button.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+
+        let include: Vec<String> = cfg["include"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
+        assert!(
+            include.iter().any(|i| i == "../src/**/*.ts"),
+            "include from an array-`extends` parent not forwarded: {include:?}"
+        );
+        assert!(
+            include.iter().any(|i| i == "../.svelte-kit/ambient.d.ts"),
+            "exact ambient include not forwarded: {include:?}"
+        );
+
+        // The last array entry wins, as TypeScript documents: `$lib/*` from the
+        // generated config, not `$base/*` from the base it is listed after.
+        let paths = &cfg["compilerOptions"]["paths"];
+        assert!(
+            paths["$lib/*"].is_array(),
+            "later array-`extends` entry's paths must win:\n{paths}"
+        );
+        assert!(
+            paths["$base/*"].is_null(),
+            "earlier entry's paths must not leak in wholesale:\n{paths}"
+        );
+        assert!(
+            paths["$lib/Button.svelte"][0].as_str().is_some(),
+            "aliased .svelte shadow override missing:\n{paths}"
+        );
+
+        // rootDirs likewise comes from the generated config …
+        let root_dirs: Vec<String> = cfg["compilerOptions"]["rootDirs"]
+            .as_array()
+            .expect("rootDirs forwarded")
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
+        assert!(
+            root_dirs.iter().any(|d| d.ends_with(".svelte-kit/types")),
+            "rootDirs from an array-`extends` parent not forwarded: {root_dirs:?}"
+        );
+        // … while the *earlier* entry is still reachable for anything the later
+        // one leaves undefined: its ES2022 target is ES2015+, so nothing is forced.
+        assert!(
+            cfg["compilerOptions"]["target"].is_null(),
+            "target from the first array entry not seen, so it was force-set: {}",
+            cfg["compilerOptions"]["target"]
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn extends_chain_visits_array_entries_last_to_first_depth_first() {
+        let tmp = std::env::temp_dir().join(format!("svc_ext_chain_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+        fs::write(tmp.join("grandparent.json"), "{}").unwrap();
+        fs::write(tmp.join("a.json"), r#"{ "extends": "./grandparent.json" }"#).unwrap();
+        fs::write(tmp.join("b.json"), "{}").unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r#"{ "extends": ["./a.json", "./b.json", "pkg/tsconfig"] }"#,
+        )
+        .unwrap();
+
+        let visited: Vec<String> = extends_chain(&tmp.join("tsconfig.json"))
+            .into_iter()
+            .map(|(dir, _)| dir.to_string_lossy().into_owned())
+            .collect();
+        // Every entry resolves to the same dir here, so assert on the count:
+        // self + b + a + a's parent, with the bare package name skipped.
+        assert_eq!(
+            visited.len(),
+            4,
+            "expected self + 2 array entries + 1 grandparent, got {visited:?}"
+        );
+
+        // Order is observable through a key only the deepest config defines.
+        fs::write(
+            tmp.join("grandparent.json"),
+            r#"{ "include": ["./from-grandparent/**/*"] }"#,
+        )
+        .unwrap();
+        fs::write(tmp.join("b.json"), r#"{ "include": ["./from-b/**/*"] }"#).unwrap();
+        let (specs, _) = resolve_config_specs(&tmp.join("tsconfig.json"), "include").unwrap();
+        assert_eq!(
+            specs,
+            vec!["./from-b/**/*".to_string()],
+            "the last array entry must be searched before the first"
         );
 
         let _ = fs::remove_dir_all(&tmp);
