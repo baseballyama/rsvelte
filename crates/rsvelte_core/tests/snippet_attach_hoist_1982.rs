@@ -97,6 +97,29 @@ fn class_directive_shorthand_referencing_component_scope_blocks_hoist() {
 }
 
 #[test]
+fn declaration_tag_declared_name_still_hoists() {
+    // `{let x = 1}` declares a binding inside the snippet, so the later `{x}` is a
+    // local reference — upstream skips it via
+    // `binding.scope.function_depth >= scope.function_depth`.
+    let src = r#"<script>
+	let count = $state(0);
+</script>
+
+{#snippet warning()}
+	{let x = 1}
+	<li>{x}</li>
+{/snippet}
+
+<p>{count}</p>
+{@render warning()}"#;
+    let out = compile_js(src);
+    assert!(
+        !snippet_is_inside_component(&out),
+        "snippet referencing only its own {{let}} declaration should hoist, got:\n{out}"
+    );
+}
+
+#[test]
 fn attach_referencing_module_scope_still_hoists() {
     // The fix must not defeat the hoisting optimisation: an attachment that only
     // touches imports has nothing to close over.
