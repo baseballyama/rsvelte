@@ -193,44 +193,54 @@ impl<'s> StoreScanContext<'s> {
     }
 }
 
-/// True when the source has a `<script context="module">` / `<script module>` tag.
-fn has_module_script(source: &str) -> bool {
-    find_module_script_span(source).is_some()
+#[derive(Default)]
+struct ScriptSpans {
+    module: Option<(usize, usize)>,
+    instance: Option<(usize, usize)>,
 }
 
-/// Locate the module `<script>` tag, returning `(body_start, body_end)` — the
-/// byte range of its inner content (between `>` and `</script>`).
-fn find_module_script_span(source: &str) -> Option<(usize, usize)> {
+/// Locate the first module and instance script bodies in one source scan.
+fn find_script_spans(source: &str) -> ScriptSpans {
     let bytes = source.as_bytes();
+    let mut spans = ScriptSpans::default();
     let mut search = 0usize;
-    while let Some(rel) = source[search..].find("<script") {
+    while spans.module.is_none() || spans.instance.is_none() {
+        let Some(rel) = source[search..].find("<script") else {
+            break;
+        };
         let tag_start = search + rel;
-        // Find the end of the opening tag `>`.
-        let gt = tag_start + source[tag_start..].find('>')?;
+        let Some(gt_offset) = source[tag_start..].find('>') else {
+            break;
+        };
+        let gt = tag_start + gt_offset;
         let open_tag = &source[tag_start..gt];
-        // `module` either as a bare attribute or `context="module"` / `context='module'`.
         let is_module = open_tag.contains("context=\"module\"")
             || open_tag.contains("context='module'")
             || open_tag
                 .split(|c: char| c.is_ascii_whitespace() || c == '>' || c == '=')
                 .any(|tok| tok == "module");
-        if is_module && !open_tag.starts_with("<scripts") {
+        if !open_tag.starts_with("<scripts") {
             let body_start = gt + 1;
             let body_end = source[body_start..]
                 .find("</script")
                 .map(|e| body_start + e)
                 .unwrap_or(bytes.len());
-            return Some((body_start, body_end));
+            let span = (body_start, body_end);
+            if is_module {
+                spans.module.get_or_insert(span);
+            } else {
+                spans.instance.get_or_insert(span);
+            }
         }
         search = gt + 1;
     }
-    None
+    spans
 }
 
 /// Blank the inner content of the module `<script>` so a byte-level store scan
 /// never sees module-internal `$name` references.
-fn blank_module_script_body(source: &str, buf: &mut [u8]) {
-    if let Some((start, end)) = find_module_script_span(source) {
+fn blank_module_script_body(span: Option<(usize, usize)>, buf: &mut [u8]) {
+    if let Some((start, end)) = span {
         for b in &mut buf[start..end] {
             if *b != b'\n' && *b != b'\r' {
                 *b = b' ';
@@ -239,40 +249,10 @@ fn blank_module_script_body(source: &str, buf: &mut [u8]) {
     }
 }
 
-/// Locate the instance `<script>` tag (the one WITHOUT `module` /
-/// `context="module"`), returning `(body_start, body_end)`.
-fn find_instance_script_span(source: &str) -> Option<(usize, usize)> {
-    let bytes = source.as_bytes();
-    let mut search = 0usize;
-    while let Some(rel) = source[search..].find("<script") {
-        let tag_start = search + rel;
-        let gt = tag_start + source[tag_start..].find('>')?;
-        let open_tag = &source[tag_start..gt];
-        let is_module = open_tag.contains("context=\"module\"")
-            || open_tag.contains("context='module'")
-            || open_tag
-                .split(|c: char| c.is_ascii_whitespace() || c == '>' || c == '=')
-                .any(|tok| tok == "module");
-        if !is_module && !open_tag.starts_with("<scripts") {
-            let body_start = gt + 1;
-            let body_end = source[body_start..]
-                .find("</script")
-                .map(|e| body_start + e)
-                .unwrap_or(bytes.len());
-            return Some((body_start, body_end));
-        }
-        search = gt + 1;
-    }
-    None
-}
-
 /// Cheap pre-check: does the instance script body contain a `//` or `/*`
 /// comment-opener? (Gates the buffer copy in `collect_store_references`.)
-fn instance_script_has_comment(source: &str) -> bool {
-    if !source.contains("<script") {
-        return false;
-    }
-    match find_instance_script_span(source) {
+fn instance_script_has_comment(source: &str, span: Option<(usize, usize)>) -> bool {
+    match span {
         Some((start, end)) => {
             let body = &source[start..end];
             body.contains("//") || body.contains("/*")
@@ -286,8 +266,8 @@ fn instance_script_has_comment(source: &str) -> bool {
 /// in a comment. String literals are skipped (not blanked) so a `//` inside a
 /// string is not mistaken for a comment. Mirrors the level of care in
 /// `collect_loose_dollar_names_from_script`.
-fn blank_instance_script_comments(source: &str, buf: &mut [u8]) {
-    let (start, end) = match find_instance_script_span(source) {
+fn blank_instance_script_comments(source: &str, span: Option<(usize, usize)>, buf: &mut [u8]) {
+    let (start, end) = match span {
         Some(s) => s,
         None => return,
     };
@@ -472,8 +452,10 @@ fn collect_store_candidates(source: &str, mut visit: impl FnMut(StoreCandidate))
     // `$name` store accesses from the parsed instance-script AST + template
     // expression values, so a `$name` that appears only inside a `//` / `/* */`
     // comment (e.g. a JSDoc `[`$on`](…$on)` link) is never a store reference.
-    let needs_blank =
-        source.contains("<!--") || has_module_script(source) || instance_script_has_comment(source);
+    let script_spans = find_script_spans(source);
+    let needs_blank = source.contains("<!--")
+        || script_spans.module.is_some()
+        || instance_script_has_comment(source, script_spans.instance);
     let scan_source: &str = if needs_blank {
         let mut buf = source.as_bytes().to_vec();
         let mut j = 0usize;
@@ -490,8 +472,8 @@ fn collect_store_candidates(source: &str, mut visit: impl FnMut(StoreCandidate))
             }
             j = end;
         }
-        blank_module_script_body(source, &mut buf);
-        blank_instance_script_comments(source, &mut buf);
+        blank_module_script_body(script_spans.module, &mut buf);
+        blank_instance_script_comments(source, script_spans.instance, &mut buf);
         blanked = String::from_utf8(buf).unwrap_or_else(|_| source.to_string());
         &blanked
     } else {
@@ -1113,6 +1095,31 @@ mod tests {
         assert_eq!(context.has_dollar, None);
         assert!(!context.has_dollar());
         assert!(!context.candidates_scanned);
+    }
+
+    #[test]
+    fn script_span_scan_reuses_module_and_instance_ranges() {
+        let source = "lead<scripts>$fake</scripts>\
+            <script context='module'>\n$module\n</script>\
+            <script>\n// $comment\n$instance\n</script>";
+        let spans = find_script_spans(source);
+        let module_tag = source.find("<script context='module'>").unwrap();
+        let module_body = module_tag + source[module_tag..].find('>').unwrap() + 1;
+        let module_end = module_body + source[module_body..].find("</script").unwrap();
+        assert_eq!(spans.module, Some((module_body, module_end)));
+        let instance_tag = source.rfind("<script>").unwrap();
+        let instance_body = instance_tag + "<script>".len();
+        let instance_end = instance_body + source[instance_body..].find("</script").unwrap();
+        assert_eq!(spans.instance, Some((instance_body, instance_end)));
+        assert!(instance_script_has_comment(source, spans.instance));
+
+        let mut blanked = source.as_bytes().to_vec();
+        blank_module_script_body(spans.module, &mut blanked);
+        blank_instance_script_comments(source, spans.instance, &mut blanked);
+        let blanked = String::from_utf8(blanked).unwrap();
+        assert!(!blanked.contains("$module"));
+        assert!(!blanked.contains("$comment"));
+        assert!(blanked.contains("$instance"));
     }
 
     #[test]
