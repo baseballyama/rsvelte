@@ -52,6 +52,7 @@ impl StoreCandidate {
 
 pub(crate) struct StoreScanContext<'s> {
     source: &'s str,
+    script_spans: ScriptSpans,
     cache_candidates: bool,
     has_dollar: Option<bool>,
     candidates_scanned: bool,
@@ -64,9 +65,15 @@ pub(crate) struct StoreScanContext<'s> {
 }
 
 impl<'s> StoreScanContext<'s> {
-    pub(crate) fn new(source: &'s str, cache_candidates: bool) -> Self {
+    pub(crate) fn new(
+        source: &'s str,
+        cache_candidates: bool,
+        module_span: Option<(usize, usize)>,
+        instance_span: Option<(usize, usize)>,
+    ) -> Self {
         Self {
             source,
+            script_spans: ScriptSpans::new(module_span, instance_span),
             cache_candidates,
             has_dollar: None,
             candidates_scanned: false,
@@ -136,7 +143,7 @@ impl<'s> StoreScanContext<'s> {
         if has_dollar {
             self.candidates
                 .reserve(memchr::memchr_iter(b'$', self.source.as_bytes()).count());
-            collect_store_candidates(self.source, |candidate| {
+            collect_store_candidates(self.source, self.script_spans, |candidate| {
                 self.candidates.push(candidate);
             });
         }
@@ -165,7 +172,7 @@ impl<'s> StoreScanContext<'s> {
         let shadow = &self.dollar_param_shadow;
         let rune_calls = &self.self_named_rune_calls;
         let stores = &mut self.accessed_stores;
-        collect_store_candidates(source, |candidate| {
+        collect_store_candidates(source, self.script_spans, |candidate| {
             if let Some(name) = resolve_store_candidate(source, &candidate, shadow, rune_calls) {
                 stores.insert(name);
             }
@@ -193,18 +200,55 @@ impl<'s> StoreScanContext<'s> {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Copy)]
 struct ScriptSpans {
-    module: Option<(usize, usize)>,
-    instance: Option<(usize, usize)>,
+    module: u64,
+    instance: u64,
+}
+
+impl ScriptSpans {
+    const NONE: u64 = u64::MAX;
+
+    fn new(module: Option<(usize, usize)>, instance: Option<(usize, usize)>) -> Self {
+        Self {
+            module: Self::pack(module),
+            instance: Self::pack(instance),
+        }
+    }
+
+    fn pack(span: Option<(usize, usize)>) -> u64 {
+        span.map_or(Self::NONE, |(start, end)| {
+            debug_assert!(u32::try_from(start).is_ok() && u32::try_from(end).is_ok());
+            ((start as u64) << 32) | end as u64
+        })
+    }
+
+    fn unpack(span: u64) -> Option<(usize, usize)> {
+        (span != Self::NONE).then_some(((span >> 32) as usize, span as u32 as usize))
+    }
+
+    fn module(self) -> Option<(usize, usize)> {
+        Self::unpack(self.module)
+    }
+
+    fn instance(self) -> Option<(usize, usize)> {
+        Self::unpack(self.instance)
+    }
+}
+
+impl Default for ScriptSpans {
+    fn default() -> Self {
+        Self::new(None, None)
+    }
 }
 
 /// Locate the first module and instance script bodies in one source scan.
+#[cfg(test)]
 fn find_script_spans(source: &str) -> ScriptSpans {
     let bytes = source.as_bytes();
     let mut spans = ScriptSpans::default();
     let mut search = 0usize;
-    while spans.module.is_none() || spans.instance.is_none() {
+    while spans.module().is_none() || spans.instance().is_none() {
         let Some(rel) = source[search..].find("<script") else {
             break;
         };
@@ -227,9 +271,13 @@ fn find_script_spans(source: &str) -> ScriptSpans {
                 .unwrap_or(bytes.len());
             let span = (body_start, body_end);
             if is_module {
-                spans.module.get_or_insert(span);
+                if spans.module().is_none() {
+                    spans.module = ScriptSpans::pack(Some(span));
+                }
             } else {
-                spans.instance.get_or_insert(span);
+                if spans.instance().is_none() {
+                    spans.instance = ScriptSpans::pack(Some(span));
+                }
             }
         }
         search = gt + 1;
@@ -433,7 +481,11 @@ fn collect_loose_dollar_names_from_script(text: &str) -> HashSet<String> {
     names.into_iter().map(str::to_string).collect()
 }
 
-fn collect_store_candidates(source: &str, mut visit: impl FnMut(StoreCandidate)) {
+fn collect_store_candidates(
+    source: &str,
+    script_spans: ScriptSpans,
+    mut visit: impl FnMut(StoreCandidate),
+) {
     // Hand-rolled byte-level scan. The previous implementation compiled a
     // regex on every call; using `memchr` to jump between `$` bytes is
     // dramatically faster on the common script-free template (one SIMD
@@ -452,10 +504,9 @@ fn collect_store_candidates(source: &str, mut visit: impl FnMut(StoreCandidate))
     // `$name` store accesses from the parsed instance-script AST + template
     // expression values, so a `$name` that appears only inside a `//` / `/* */`
     // comment (e.g. a JSDoc `[`$on`](…$on)` link) is never a store reference.
-    let script_spans = find_script_spans(source);
     let needs_blank = source.contains("<!--")
-        || script_spans.module.is_some()
-        || instance_script_has_comment(source, script_spans.instance);
+        || script_spans.module().is_some()
+        || instance_script_has_comment(source, script_spans.instance());
     let scan_source: &str = if needs_blank {
         let mut buf = source.as_bytes().to_vec();
         let mut j = 0usize;
@@ -472,8 +523,8 @@ fn collect_store_candidates(source: &str, mut visit: impl FnMut(StoreCandidate))
             }
             j = end;
         }
-        blank_module_script_body(script_spans.module, &mut buf);
-        blank_instance_script_comments(source, script_spans.instance, &mut buf);
+        blank_module_script_body(script_spans.module(), &mut buf);
+        blank_instance_script_comments(source, script_spans.instance(), &mut buf);
         blanked = String::from_utf8(buf).unwrap_or_else(|_| source.to_string());
         &blanked
     } else {
@@ -992,6 +1043,11 @@ mod tests {
     use super::super::test_support::run_svelte2tsx;
     use super::*;
 
+    fn scan_context(source: &str, cache_candidates: bool) -> StoreScanContext<'_> {
+        let spans = find_script_spans(source);
+        StoreScanContext::new(source, cache_candidates, spans.module(), spans.instance())
+    }
+
     fn assert_names(context: &StoreScanContext<'_>, expected: &[&str]) {
         assert_eq!(context.accessed_stores, expected.iter().copied().collect());
     }
@@ -1027,7 +1083,7 @@ mod tests {
         let function_end = source.find("const text").unwrap() as u32;
         let rune_pos = source.find("$state(0)").unwrap() as u32;
 
-        let mut context = StoreScanContext::new(source, true);
+        let mut context = scan_context(source, true);
         for name in ["local", "shadowed"] {
             context
                 .dollar_param_shadow
@@ -1047,7 +1103,7 @@ mod tests {
         );
         assert_eq!(context.candidates.capacity(), candidate_capacity);
 
-        let mut direct = StoreScanContext::new(source, false);
+        let mut direct = scan_context(source, false);
         direct.resolve_accessed_stores();
         assert_names(
             &direct,
@@ -1064,7 +1120,7 @@ mod tests {
         let instance_rune = source.find("$props()").unwrap() as u32;
         let function_start = source.find("function f").unwrap() as u32;
         let function_end = source.rfind("</script>").unwrap() as u32;
-        let mut context = StoreScanContext::new(source, true);
+        let mut context = scan_context(source, true);
 
         context.begin_script_facts();
         context.add_self_named_rune_call(module_rune);
@@ -1082,7 +1138,7 @@ mod tests {
         assert_eq!(context.dollar_param_shadow.len(), 1);
 
         let module_only = "<script module>const local=$state(0)</script>{$state}";
-        let mut context = StoreScanContext::new(module_only, true);
+        let mut context = scan_context(module_only, true);
         context.self_named_rune_calls = vec![module_only.find("$state(0)").unwrap() as u32];
         context.resolve_accessed_stores();
         assert_names(&context, &["state"]);
@@ -1091,7 +1147,7 @@ mod tests {
     #[test]
     fn no_dollar_keeps_candidate_scan_lazy() {
         let source = "<script>const value = 1;</script><p>{value}</p>";
-        let mut context = StoreScanContext::new(source, false);
+        let mut context = scan_context(source, false);
         assert_eq!(context.has_dollar, None);
         assert!(!context.has_dollar());
         assert!(!context.candidates_scanned);
@@ -1099,6 +1155,7 @@ mod tests {
 
     #[test]
     fn script_span_scan_reuses_module_and_instance_ranges() {
+        assert_eq!(std::mem::size_of::<ScriptSpans>(), 16);
         let source = "lead<scripts>$fake</scripts>\
             <script context='module'>\n$module\n</script>\
             <script>\n// $comment\n$instance\n</script>";
@@ -1106,16 +1163,16 @@ mod tests {
         let module_tag = source.find("<script context='module'>").unwrap();
         let module_body = module_tag + source[module_tag..].find('>').unwrap() + 1;
         let module_end = module_body + source[module_body..].find("</script").unwrap();
-        assert_eq!(spans.module, Some((module_body, module_end)));
+        assert_eq!(spans.module(), Some((module_body, module_end)));
         let instance_tag = source.rfind("<script>").unwrap();
         let instance_body = instance_tag + "<script>".len();
         let instance_end = instance_body + source[instance_body..].find("</script").unwrap();
-        assert_eq!(spans.instance, Some((instance_body, instance_end)));
-        assert!(instance_script_has_comment(source, spans.instance));
+        assert_eq!(spans.instance(), Some((instance_body, instance_end)));
+        assert!(instance_script_has_comment(source, spans.instance()));
 
         let mut blanked = source.as_bytes().to_vec();
-        blank_module_script_body(spans.module, &mut blanked);
-        blank_instance_script_comments(source, spans.instance, &mut blanked);
+        blank_module_script_body(spans.module(), &mut blanked);
+        blank_instance_script_comments(source, spans.instance(), &mut blanked);
         let blanked = String::from_utf8(blanked).unwrap();
         assert!(!blanked.contains("$module"));
         assert!(!blanked.contains("$comment"));
