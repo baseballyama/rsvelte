@@ -9,7 +9,8 @@
 //!   `.svelte-kit/` when the workspace looks like a SvelteKit project.
 //! - `.svelte` → `<cacheDir>/svelte/<rel>.svelte.tsx` plus a
 //!   sibling `<rel>.svelte.d.ts` re-exporting the `.tsx`'s default and
-//!   named exports (so import-by-name still resolves).
+//!   named exports (so import-by-name still resolves), and a
+//!   `<rel>.d.svelte.ts` twin of it (see `write_esm_bridge`).
 //! - The emitted overlay tsconfig EXTENDS the original tsconfig.json
 //!   instead of duplicating compiler options.
 
@@ -286,7 +287,9 @@ pub fn materialize_overlay_with(
             svelte_resolver.as_ref(),
             &ext_root_dir_pairs,
         )?;
+        emit_svelte_module_bridges(&pkg.real_dir, &pkg.mirror_dir)?;
     }
+    emit_svelte_module_bridges(workspace, &emit_dir)?;
 
     let mut entries = Vec::with_capacity(files.len());
     let mut augments: Vec<CompanionAugment> = Vec::new();
@@ -383,15 +386,7 @@ pub fn materialize_overlay_with(
 
             // `<name>.svelte.d.ts` re-exports default + named so module
             // resolution by `import Foo from './Foo.svelte'` still works.
-            let import_basename = tsx_path
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or("missing.tsx");
-            let dts_content = format!(
-                "export {{ default }} from \"./{0}\";\nexport * from \"./{0}\";\n",
-                import_basename
-            );
-            fs::write(&dts_path, dts_content)?;
+            fs::write(&dts_path, shadow_reexport(&tsx_path))?;
             // Persist the source map so the next incremental run can
             // recover it without re-running svelte2tsx.
             if let Some(map) = &result.map {
@@ -416,6 +411,10 @@ pub fn materialize_overlay_with(
 
             result.map
         };
+
+        // Written on every run, cache hit included: a `.svelte-check` dir left
+        // by a build without bridges would otherwise never gain them.
+        write_esm_bridge(&tsx_path, &shadow_reexport(&tsx_path))?;
 
         // A duplicated input would emit the same `declare module` block twice.
         if let Some(companion) = find_companion_module(abs_source)
@@ -713,15 +712,9 @@ fn emit_external_shadows(
             );
         }
         fs::write(&tsx_path, &tsx_code)?;
-        let import_basename = tsx_path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("missing.tsx");
-        let dts_content = format!(
-            "export {{ default }} from \"./{0}\";\nexport * from \"./{0}\";\n",
-            import_basename
-        );
-        fs::write(&dts_path, dts_content)?;
+        let dts_content = shadow_reexport(&tsx_path);
+        fs::write(&dts_path, &dts_content)?;
+        write_esm_bridge(&tsx_path, &dts_content)?;
     }
     Ok(())
 }
@@ -1756,6 +1749,107 @@ fn resolve_paths_object_abs(tsconfig_path: &Path) -> serde_json::Map<String, ser
         out.insert(key.clone(), serde_json::Value::Array(abs_targets));
     }
     out
+}
+
+/// A re-export of one component shadow's default + named exports, shared by the
+/// `.svelte.d.ts` twin and the `.d.svelte.ts` bridge that sit next to it.
+fn shadow_reexport(tsx_path: &Path) -> String {
+    let basename = tsx_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("missing.tsx");
+    format!("export {{ default }} from \"./{basename}\";\nexport * from \"./{basename}\";\n")
+}
+
+/// `<dir>/<base>.svelte.<ext>` → `<dir>/<base>.d.svelte.ts`.
+pub(super) fn esm_bridge_path(path: &Path) -> Option<PathBuf> {
+    let name = path.file_name()?.to_str()?;
+    let base = name.split_once(".svelte.")?.0;
+    Some(path.with_file_name(format!("{base}.d.svelte.ts")))
+}
+
+/// Write the `.d.svelte.ts` twin of a `.svelte`-suffixed overlay file.
+///
+/// Under ESM-mode resolution (`moduleResolution: node16`/`nodenext` inside a
+/// `"type": "module"` package) TypeScript performs NO implicit extension
+/// substitution, so the single candidate it probes for `./Foo.svelte` is
+/// `./Foo.d.svelte.ts` (the `allowArbitraryExtensions` form) — never the
+/// `.svelte.tsx` shadow, and never a real `Foo.svelte.ts`. The specifier then
+/// falls through to the ambient `declare module "*.svelte"` and every *named*
+/// import errors with `TS2614` (#1916). Official svelte-check instead forces the
+/// pre-ESM algorithm for `.svelte` specifiers inside its own
+/// `resolveModuleNames` hook (`module-loader.ts`); a stock compiler driven over
+/// an on-disk overlay has to supply the file it actually looks for. Emitting it
+/// unconditionally keeps resolution identical in both modes and independent of
+/// whether the importer is a `.svelte` shadow or a plain `.ts` file we cannot
+/// rewrite.
+fn write_esm_bridge(path: &Path, content: &str) -> io::Result<()> {
+    let Some(bridge) = esm_bridge_path(path) else {
+        return Ok(());
+    };
+    fs::write(bridge, content)
+}
+
+/// Emit the [`write_esm_bridge`] twins for `<base>.svelte.ts` /
+/// `<base>.svelte.js` rune modules under `root`, into `mirror_dir`'s matching
+/// subtree so the overlay's `rootDirs` pair bridges them.
+///
+/// A module with a sibling `<base>.svelte` component is skipped: the component's
+/// own bridge already claims the specifier, and its shadow re-exports the
+/// companion's names (see [`companion_reexport_specifier`]).
+fn emit_svelte_module_bridges(root: &Path, mirror_dir: &Path) -> Result<(), OverlayError> {
+    let mut modules = super::walker::find_svelte_suffixed_modules(root, &[]);
+    // `x.svelte.ts` and `x.svelte.js` share one bridge path; TypeScript probes
+    // `.ts` first, so let it win.
+    modules.sort_by_key(|p| {
+        let is_js = p.extension().and_then(|e| e.to_str()) == Some("js");
+        (is_js, p.clone())
+    });
+    let mut written: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
+    for module in &modules {
+        if module.with_extension("").is_file() {
+            continue;
+        }
+        let rel = safe_relative(module, root);
+        let Some(bridge) = esm_bridge_path(&mirror_dir.join(&rel)) else {
+            continue;
+        };
+        if !written.insert(bridge.clone()) {
+            continue;
+        }
+        let Some(bridge_dir) = bridge.parent() else {
+            continue;
+        };
+        fs::create_dir_all(bridge_dir)?;
+        let mut spec = lexical_relative_posix(&absolutize(bridge_dir), &absolutize(module));
+        // A `.js` specifier is the one form TypeScript substitutes for the real
+        // `.ts` in every resolution mode, so it needs neither an implicit
+        // extension nor `allowImportingTsExtensions`.
+        if let Some(stripped) = spec.strip_suffix(".ts") {
+            spec = format!("{stripped}.js");
+        }
+        if !spec.starts_with('.') {
+            spec = format!("./{spec}");
+        }
+        let mut content = format!("export * from \"{spec}\";\n");
+        // `export *` never forwards a default.
+        if module_has_default(module) {
+            let _ = writeln!(content, "export {{ default }} from \"{spec}\";");
+        }
+        fs::write(&bridge, content)?;
+    }
+    Ok(())
+}
+
+fn module_has_default(path: &Path) -> bool {
+    let source_type = if path.extension().and_then(|e| e.to_str()) == Some("ts") {
+        SourceType::ts()
+    } else {
+        SourceType::default()
+    };
+    fs::read_to_string(path)
+        .map(|src| module_exports(&src, source_type).has_default)
+        .unwrap_or(false)
 }
 
 /// Sibling companion module (`Foo.svelte.ts` / `Foo.svelte.js`) of a
@@ -2933,6 +3027,97 @@ mod tests {
             out.contains("\"$lib/A.svelte is not a specifier\""),
             "{out}"
         );
+    }
+
+    #[test]
+    fn esm_bridge_path_replaces_the_svelte_suffix() {
+        let bridge = |p: &str| {
+            esm_bridge_path(Path::new(p))
+                .map(|b| b.to_string_lossy().replace('\\', "/"))
+                .unwrap_or_default()
+        };
+        assert_eq!(bridge("/w/src/Foo.svelte.tsx"), "/w/src/Foo.d.svelte.ts");
+        assert_eq!(bridge("/w/src/store.svelte.ts"), "/w/src/store.d.svelte.ts");
+        assert_eq!(bridge("/w/src/store.svelte.js"), "/w/src/store.d.svelte.ts");
+        // Nothing to bridge for a file whose name has no `.svelte.` segment.
+        assert_eq!(esm_bridge_path(Path::new("/w/src/plain.ts")), None);
+    }
+
+    /// Regression test for #1916: ESM-mode module resolution probes only
+    /// `./Foo.d.svelte.ts` for `./Foo.svelte`, so the overlay has to emit it.
+    #[test]
+    fn overlay_emits_an_esm_bridge_per_component_shadow() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_bridge_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        let svelte_path = tmp.join("src/Foo.svelte");
+        fs::File::create(&svelte_path)
+            .unwrap()
+            .write_all(b"<div>hi</div>")
+            .unwrap();
+
+        let layout = materialize_overlay(&tmp, &[svelte_path], None).unwrap();
+        let bridge = layout.emit_dir.join("src/Foo.d.svelte.ts");
+        let content = fs::read_to_string(&bridge).unwrap_or_default();
+        assert_eq!(
+            content,
+            fs::read_to_string(&layout.entries[0].dts_path).unwrap(),
+            "the bridge forwards exactly what the `.svelte.d.ts` twin does"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// Second half of #1916: a `.svelte.ts` rune module with no sibling
+    /// component is reached through the same `./x.svelte` specifier shape, and
+    /// only `export *` forwards its names — a default needs its own clause.
+    #[test]
+    fn overlay_bridges_svelte_suffixed_rune_modules() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_rune_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/modules")).unwrap();
+        fs::File::create(tmp.join("src/modules/provider.svelte.ts"))
+            .unwrap()
+            .write_all(b"export function useProvider() {}\n")
+            .unwrap();
+        fs::File::create(tmp.join("src/modules/theme.svelte.ts"))
+            .unwrap()
+            .write_all(b"export const tokens = [];\nexport default {};\n")
+            .unwrap();
+        // A companion of a real component is covered by that component's own
+        // shadow, so it must not get a competing bridge of its own.
+        fs::File::create(tmp.join("src/modules/Pair.svelte"))
+            .unwrap()
+            .write_all(b"<div></div>")
+            .unwrap();
+        fs::File::create(tmp.join("src/modules/Pair.svelte.ts"))
+            .unwrap()
+            .write_all(b"export const pair = 1;\n")
+            .unwrap();
+
+        let layout =
+            materialize_overlay(&tmp, &[tmp.join("src/modules/Pair.svelte")], None).unwrap();
+        let read = |name: &str| fs::read_to_string(layout.emit_dir.join("src/modules").join(name));
+
+        let provider = read("provider.d.svelte.ts").unwrap();
+        assert!(
+            provider.contains("export * from \"../../../../src/modules/provider.svelte.js\";"),
+            "{provider}"
+        );
+        assert!(
+            !provider.contains("default"),
+            "no default to forward: {provider}"
+        );
+        let theme = read("theme.d.svelte.ts").unwrap();
+        assert!(
+            theme.contains("export { default } from \"../../../../src/modules/theme.svelte.js\";"),
+            "{theme}"
+        );
+        // Pair's bridge is the component's, pointing at the shadow.
+        let pair = read("Pair.d.svelte.ts").unwrap();
+        assert!(pair.contains("./Pair.svelte.tsx"), "{pair}");
+
+        let _ = fs::remove_dir_all(&tmp);
     }
 
     #[test]

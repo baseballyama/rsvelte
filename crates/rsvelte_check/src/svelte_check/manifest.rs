@@ -174,8 +174,8 @@ pub fn save(manifest_path: &Path, manifest: &Manifest, workspace: &Path) -> std:
 }
 
 /// Drop manifest entries whose source `.svelte` no longer appears in
-/// `current_sources`, and unlink the now-orphaned `.tsx` / `.d.ts`
-/// shadows so the cache directory doesn't grow without bound.
+/// `current_sources`, and unlink the now-orphaned `.tsx` / `.d.ts` /
+/// `.d.svelte.ts` shadows so the cache directory doesn't grow without bound.
 pub fn prune_deleted(manifest: &mut Manifest, current_sources: &[PathBuf]) {
     let live: std::collections::HashSet<&Path> =
         current_sources.iter().map(|p| p.as_path()).collect();
@@ -189,6 +189,9 @@ pub fn prune_deleted(manifest: &mut Manifest, current_sources: &[PathBuf]) {
         if let Some(entry) = manifest.entries.remove(&key) {
             let _ = fs::remove_file(&entry.out_path);
             let _ = fs::remove_file(&entry.dts_path);
+            if let Some(bridge) = super::overlay::esm_bridge_path(&entry.out_path) {
+                let _ = fs::remove_file(bridge);
+            }
         }
     }
 }
@@ -523,8 +526,10 @@ mod tests {
         fs::write(&alive, "ok").unwrap();
         let dead_out = tmp.join(".svelte-check/svelte/Dead.svelte.tsx");
         let dead_dts = tmp.join(".svelte-check/svelte/Dead.svelte.d.ts");
+        let dead_bridge = tmp.join(".svelte-check/svelte/Dead.d.svelte.ts");
         fs::write(&dead_out, "tsx").unwrap();
         fs::write(&dead_dts, "dts").unwrap();
+        fs::write(&dead_bridge, "bridge").unwrap();
 
         let mut manifest = Manifest::empty();
         let alive_entry = ManifestEntry {
@@ -547,6 +552,10 @@ mod tests {
         assert!(!manifest.entries.contains_key(&tmp.join("Dead.svelte")));
         assert!(!dead_out.exists(), "orphan .tsx should have been unlinked");
         assert!(!dead_dts.exists(), "orphan .d.ts should have been unlinked");
+        assert!(
+            !dead_bridge.exists(),
+            "orphan .d.svelte.ts bridge should have been unlinked"
+        );
     }
 
     #[test]
