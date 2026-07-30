@@ -369,10 +369,10 @@ pub(crate) fn process_instance_script_tag(
         }
         str.overwrite(sp, content_start, &part_b);
     } else if script_start < content_start {
-        str.overwrite(
+        str.overwrite_fmt(
             script_start,
             content_start,
-            &format!("{}{}", part_a, part_b),
+            format_args!("{}{}", part_a, part_b),
         );
     }
 
@@ -382,17 +382,22 @@ pub(crate) fn process_instance_script_tag(
             exported_names.props_type_text.as_ref(),
         )
     {
-        let snippet = if force_inside_render {
-            format!(";type $$ComponentProps =  {};", type_text)
+        if force_inside_render {
+            str.append_left_fmt(
+                let_pos,
+                format_args!(";type $$ComponentProps =  {};", type_text),
+            );
         } else {
             // type_already_inserted (auto-generated SvelteKit / fallback type).
             // JS reference wraps in surroundWithIgnoreComments.
-            format!(
-                "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
-                type_text
-            )
-        };
-        str.append_left(let_pos, &snippet);
+            str.append_left_fmt(
+                let_pos,
+                format_args!(
+                    "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
+                    type_text
+                ),
+            );
+        }
     }
 
     // Overwrite `</script>` with slot declaration + `async () => {`.
@@ -409,14 +414,13 @@ pub(crate) fn process_instance_script_tag(
             } else {
                 ""
             };
-            let slot_decl = format!(
-                "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot{}();/*\u{03A9}ignore_end\u{03A9}*/;",
-                slot_generic
-            );
-            str.overwrite(
+            str.overwrite_fmt(
                 content_end,
                 script_end,
-                &format!("{}\nasync () => {{", slot_decl),
+                format_args!(
+                    "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot{}();/*\u{03A9}ignore_end\u{03A9}*/;\nasync () => {{",
+                    slot_generic
+                ),
             );
         } else {
             str.overwrite(content_end, script_end, ";\nasync () => {");

@@ -228,31 +228,31 @@ pub(super) fn handle_export_named_decl(
                                 && !use_jsdoc
                             {
                                 // Combined: type annotation + widener, one block.
-                                str.append_left(
+                                str.append_left_fmt(
                                     id_end,
-                                    &format!(
+                                    format_args!(
                                         "/*\u{03A9}ignore_start\u{03A9}*/: {kit}; {name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/"
                                     ),
                                 );
                             } else {
                                 if do_widen {
-                                    str.append_left(
+                                    str.append_left_fmt(
                                         widen_pos,
-                                        &format!(
+                                        format_args!(
                                             "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/"
                                         ),
                                     );
                                 }
                                 if let Some(kit) = kit_type {
                                     if use_jsdoc {
-                                        str.append_left(
+                                        str.append_left_fmt(
                                             id_start,
-                                            &format!("/** @type {{{}}} */ ", kit),
+                                            format_args!("/** @type {{{}}} */ ", kit),
                                         );
                                     } else {
-                                        str.append_left(
+                                        str.append_left_fmt(
                                             id_end,
-                                            &format!(
+                                            format_args!(
                                                 "/*\u{03A9}ignore_start\u{03A9}*/: {}/*\u{03A9}ignore_end\u{03A9}*/",
                                                 kit
                                             ),

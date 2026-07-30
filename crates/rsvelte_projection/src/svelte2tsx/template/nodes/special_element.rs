@@ -224,9 +224,13 @@ pub(crate) fn handle_svelte_special_element(
         let extra_close = if directive_prefix.is_empty() { "" } else { "}" };
         let closing_tag_start = find_closing_tag_start(source, el.end);
         if closing_tag_start < el.end {
-            str.overwrite(closing_tag_start, el.end, &format!(" }}{}", extra_close));
+            str.overwrite_fmt(
+                closing_tag_start,
+                el.end,
+                format_args!(" }}{}", extra_close),
+            );
         } else {
-            str.append_left(el.end, &format!("}}{}", extra_close));
+            str.append_left_fmt(el.end, format_args!("}}{}", extra_close));
         }
     }
 }

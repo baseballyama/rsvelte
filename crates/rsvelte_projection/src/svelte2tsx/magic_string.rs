@@ -879,6 +879,23 @@ impl<'source> MagicString<'source> {
         self
     }
 
+    pub fn overwrite_fmt(&mut self, start: u32, end: u32, args: fmt::Arguments<'_>) -> &mut Self {
+        if start >= end {
+            return self;
+        }
+        self.overwrite(start, end, "");
+        let chunk_idx = self
+            .chunk_starting_at(start)
+            .expect("overwrite_fmt: no chunk at start");
+        self.chunks[chunk_idx]
+            .content
+            .as_mut()
+            .expect("overwrite_fmt: chunk was not edited")
+            .write_fmt(args)
+            .expect("writing to String cannot fail");
+        self
+    }
+
     /// Remove the content in `[start, end)`.
     pub fn remove(&mut self, start: u32, end: u32) -> &mut Self {
         assert!(start < end, "remove: start must be < end");
@@ -951,6 +968,30 @@ impl<'source> MagicString<'source> {
             .left
             .expect("append_left: no chunk ending at index");
         self.chunks[chunk_idx].outro.push_str(content);
+        self
+    }
+
+    pub fn append_left_fmt(&mut self, index: u32, args: fmt::Arguments<'_>) -> &mut Self {
+        assert!(
+            (index as usize) <= self.original.len(),
+            "append_left_fmt: index out of range"
+        );
+
+        if index == 0 {
+            self.intro
+                .write_fmt(args)
+                .expect("writing to String cannot fail");
+            return self;
+        }
+
+        let chunk_idx = self
+            .split_at(index)
+            .left
+            .expect("append_left_fmt: no chunk ending at index");
+        self.chunks[chunk_idx]
+            .outro
+            .write_fmt(args)
+            .expect("writing to String cannot fail");
         self
     }
 
@@ -1452,6 +1493,13 @@ mod tests {
     }
 
     #[test]
+    fn test_overwrite_fmt() {
+        let mut s = MagicString::new("hello world");
+        s.overwrite_fmt(0, 5, format_args!("{} {}", "good", "day"));
+        assert_eq!(s.to_string(), "good day world");
+    }
+
+    #[test]
     fn test_overwrite_middle() {
         let mut s = MagicString::new("hello world");
         s.overwrite(6, 11, "earth");
@@ -1518,6 +1566,13 @@ mod tests {
         let mut s = MagicString::new("hello world");
         s.append_left(5, " cruel");
         assert_eq!(s.to_string(), "hello cruel world");
+    }
+
+    #[test]
+    fn test_append_left_fmt() {
+        let mut s = MagicString::new("hello world");
+        s.append_left_fmt(5, format_args!(" {} {}", "wide", 2));
+        assert_eq!(s.to_string(), "hello wide 2 world");
     }
 
     #[test]

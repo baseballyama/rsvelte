@@ -55,7 +55,7 @@ pub(crate) fn handle_key_block(
             str.append_left(expr_end, "; {");
         }
     } else {
-        str.overwrite(block.start, content_start, &format!("{expr_text}; {{"));
+        str.overwrite_fmt(block.start, content_start, format_args!("{expr_text}; {{"));
     }
 
     // Process children

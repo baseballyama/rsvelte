@@ -451,10 +451,14 @@ pub(crate) fn handle_component(
             // the component-name reference + the named-slot-block close after.
             str.overwrite(closing_tag_start, comp.end, " }");
         } else {
-            str.overwrite(closing_tag_start, comp.end, &format!(" {}}}", comp.name));
+            str.overwrite_fmt(
+                closing_tag_start,
+                comp.end,
+                format_args!(" {}}}", comp.name),
+            );
         }
     } else if needs_inline_block {
-        str.append_left(comp.end, &format!("{}{}}}", inline_block, comp.name));
+        str.append_left_fmt(comp.end, format_args!("{}{}}}", inline_block, comp.name));
     } else {
         str.append_left(comp.end, "}");
     }

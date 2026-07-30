@@ -109,12 +109,14 @@ pub(crate) fn handle_await_block(
                         (false, true) => "await (",
                     },
                 );
-                let suffix = if !value_text.is_empty() {
-                    format!(");{{ const {} = $$_value; ", value_text)
+                if !value_text.is_empty() {
+                    str.append_left_fmt(
+                        expr_end,
+                        format_args!(");{{ const {} = $$_value; ", value_text),
+                    );
                 } else {
-                    ");".to_string()
-                };
-                str.append_left(expr_end, &suffix);
+                    str.append_left(expr_end, ");");
+                }
                 if prev_end < then_start {
                     str.overwrite(prev_end, then_start, "");
                 }
@@ -127,19 +129,19 @@ pub(crate) fn handle_await_block(
                 // `try { ` wrapper when a catch/error is present (see above).
                 let try_prefix = if has_catch { "try { " } else { "" };
                 if !value_text.is_empty() {
-                    str.overwrite(
+                    str.overwrite_fmt(
                         prev_end,
                         then_start,
-                        &format!(
+                        format_args!(
                             "{}const $$_value = await ({});{{ const {} = $$_value; ",
                             try_prefix, expr_text, value_text
                         ),
                     );
                 } else {
-                    str.overwrite(
+                    str.overwrite_fmt(
                         prev_end,
                         then_start,
-                        &format!("{}const $$_value = await ({});{{ ", try_prefix, expr_text),
+                        format_args!("{}const $$_value = await ({});{{ ", try_prefix, expr_text),
                     );
                 }
             }
@@ -164,19 +166,19 @@ pub(crate) fn handle_await_block(
                 // `{:then value}` binding opened one), then open the catch.
                 let close_before_catch = if value_text.is_empty() { "}" } else { "}}" };
                 if !error_text.is_empty() {
-                    str.overwrite(
+                    str.overwrite_fmt(
                         then_end,
                         catch_start,
-                        &format!(
+                        format_args!(
                             "{} catch($$_e) {{ const {} = __sveltets_2_any();",
                             close_before_catch, error_text
                         ),
                     );
                 } else {
-                    str.overwrite(
+                    str.overwrite_fmt(
                         then_end,
                         catch_start,
-                        &format!("{} catch($$_e) {{ ", close_before_catch),
+                        format_args!("{} catch($$_e) {{ ", close_before_catch),
                     );
                 }
 
@@ -253,7 +255,11 @@ pub(crate) fn handle_await_block(
                     str.overwrite(catch_end, block.end, "}}");
                 }
             } else if pending_end < block.end {
-                str.overwrite(pending_end, block.end, &format!("await ({});}}", expr_text));
+                str.overwrite_fmt(
+                    pending_end,
+                    block.end,
+                    format_args!("await ({});}}", expr_text),
+                );
             }
         }
     } else if has_then {
@@ -315,10 +321,10 @@ pub(crate) fn handle_await_block(
                 str.append_left(expr_end, &header_suffix);
             }
         } else {
-            str.overwrite(
+            str.overwrite_fmt(
                 block.start,
                 then_start,
-                &format!("{}{}{}", header_prefix, expr_text, header_suffix),
+                format_args!("{}{}{}", header_prefix, expr_text, header_suffix),
             );
         }
 
@@ -340,10 +346,10 @@ pub(crate) fn handle_await_block(
             };
 
             if !error_text.is_empty() {
-                str.overwrite(
+                str.overwrite_fmt(
                     then_end,
                     catch_start,
-                    &format!(
+                    format_args!(
                         "{}}} catch($$_e) {{ const {} = __sveltets_2_any();",
                         value_close, error_text
                     ),
@@ -351,10 +357,10 @@ pub(crate) fn handle_await_block(
             } else {
                 // Close the value block (only when there's a `{:then value}`
                 // binding) + `try`, then open the catch. Always emit `($$_e)`.
-                str.overwrite(
+                str.overwrite_fmt(
                     then_end,
                     catch_start,
-                    &format!("{}}} catch($$_e) {{ ", value_close),
+                    format_args!("{}}} catch($$_e) {{ ", value_close),
                 );
             }
 
@@ -376,11 +382,10 @@ pub(crate) fn handle_await_block(
             // empty-then-body case (then_end == block.end: the overwrite from
             // expr_end to block.end already consumed that region, so we must
             // append rather than overwrite a zero-length range).
-            let close = format!("{}}}", value_close);
             if then_end < block.end {
-                str.overwrite(then_end, block.end, &close);
+                str.overwrite_fmt(then_end, block.end, format_args!("{}}}", value_close));
             } else {
-                str.append_left(block.end, &close);
+                str.append_left_fmt(block.end, format_args!("{}}}", value_close));
             }
         }
     } else if has_catch {
@@ -411,19 +416,19 @@ pub(crate) fn handle_await_block(
                 str.append_left(expr_end, &header_suffix);
             }
         } else if !error_text.is_empty() {
-            str.overwrite(
+            str.overwrite_fmt(
                 block.start,
                 catch_start,
-                &format!(
+                format_args!(
                     "   {{ try {{ await ({});}} catch($$_e) {{ const {} = __sveltets_2_any();",
                     expr_text, error_text
                 ),
             );
         } else {
-            str.overwrite(
+            str.overwrite_fmt(
                 block.start,
                 catch_start,
-                &format!("   {{ try {{ await ({});}} catch($$_e) {{ ", expr_text),
+                format_args!("   {{ try {{ await ({});}} catch($$_e) {{ ", expr_text),
             );
         }
 
@@ -451,10 +456,10 @@ pub(crate) fn handle_await_block(
                 str.append_left(expr_end, ");}");
             }
         } else {
-            str.overwrite(
+            str.overwrite_fmt(
                 block.start,
                 block.end,
-                &format!("{{ await ({});}}", expr_text),
+                format_args!("{{ await ({});}}", expr_text),
             );
         }
     }
