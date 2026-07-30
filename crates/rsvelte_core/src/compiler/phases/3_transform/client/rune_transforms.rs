@@ -934,6 +934,20 @@ pub(super) fn process_derived_object_pattern(
     Some(())
 }
 
+/// The `$.to_array(...)` call for an array pattern. Upstream passes a length only
+/// when the pattern has no rest element — with one the iterable must be drained
+/// completely, and a fixed length would truncate it.
+fn to_array_call(base_expr: &str, elements: &[String]) -> String {
+    let has_rest = elements
+        .last()
+        .is_some_and(|element| element.trim().starts_with("..."));
+    if has_rest {
+        format!("$.to_array({})", base_expr)
+    } else {
+        format!("$.to_array({}, {})", base_expr, elements.len())
+    }
+}
+
 /// Collect ONLY $$array helper declarations from nested patterns.
 /// This is used in the first pass to ensure $$array declarations come before
 /// the variable declarations that depend on them.
@@ -949,7 +963,6 @@ pub(super) fn collect_array_helpers_only(
     if pattern.starts_with('[') && pattern.ends_with(']') {
         let inner = &pattern[1..pattern.len() - 1];
         let elements = split_derived_array_elements(inner);
-        let element_count = elements.len();
 
         // Generate the $$array helper
         let global_counter = SCRIPT_ARRAY_COUNTER.with(|c| {
@@ -965,8 +978,9 @@ pub(super) fn collect_array_helpers_only(
         };
 
         declarations.push(format!(
-            "{} = $.derived(() => $.to_array({}, {}))",
-            array_var, base_expr, element_count
+            "{} = $.derived(() => {})",
+            array_var,
+            to_array_call(base_expr, &elements)
         ));
 
         // Recursively collect array helpers from nested patterns
@@ -1202,7 +1216,6 @@ pub(super) fn process_derived_array_pattern(
     _array_counter: &mut usize,
 ) -> Option<()> {
     let elements = split_derived_array_elements(inner);
-    let element_count = elements.len();
 
     // Use the global counter to generate a unique $$array variable name
     // This ensures unique names across multiple $derived destructuring patterns
@@ -1219,8 +1232,9 @@ pub(super) fn process_derived_array_pattern(
     };
 
     declarations.push(format!(
-        "{} = $.derived(() => $.to_array({}, {}))",
-        array_var, base_expr, element_count
+        "{} = $.derived(() => {})",
+        array_var,
+        to_array_call(base_expr, &elements)
     ));
     for (index, element) in elements.iter().enumerate() {
         let element = element.trim();
