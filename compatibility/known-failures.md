@@ -13,9 +13,9 @@ baseline — the lists may only shrink, never grow. Each accepted entry must be
 justified in this file.
 
 The five skeleton seeds from #1924 are gone (#2017): #1973 (fixed by #1996),
-#1974 (fixed by #1988), #1975 (fixed by #1993). Every remaining entry was found
-by the checked-in pattern corpus (#2019) — the first three divergences it
-surfaced.
+#1974 (fixed by #1988), #1975 (fixed by #1993). Of the three divergences the
+checked-in pattern corpus (#2019) surfaced, the two SSR destructuring ones
+(#2033, #2034) are gone too (fixed by #2036); the remaining entry is #2031.
 
 ## Client (`known-failures.client.json`, 1 entry)
 
@@ -32,7 +32,7 @@ the snippet binding living in a *block* fragment, most likely in the
 non-hoisted-snippet path added by #1990. Fix belongs in rsvelte's `{@render}`
 visitor (resolve block-local snippet bindings statically, as upstream does).
 
-## Server (`known-failures.server.json`, 3 entries)
+## Server (`known-failures.server.json`, 1 entry)
 
 ### S1 — block-local snippet rendered through the dynamic path (1) (#2031)
 
@@ -40,22 +40,10 @@ visitor (resolve block-local snippet bindings statically, as upstream does).
 of C1 above: rsvelte pushes the dynamic form's extra `<!---->` where upstream
 emits the `{#if}` alternate directly. Same fix.
 
-### S2 — computed / quoted key dropped in a destructured `$derived` (1) (#2033)
-
-`pattern/issues/2001-derived-computed-key.svelte`. #2001 was fixed for the
-client path only (#2010); the SSR path emits `c = $.derived(() => obj)` where
-upstream emits `obj[k]` — the key access is dropped, so `c` is silently the
-whole base object. The client target of the same file passes, so the fix is to
-mirror `rune_transforms::derived_prop_access`'s key quoting into the server
-transform.
-
-### S3 — `$.to_array` arity with a rest element (1) (#2034)
-
-`pattern/issues/2014-derived-array-rest-arity.svelte`. Same shape: #2014 was
-fixed for the client only. SSR still emits `$.to_array(obj, 1)` where upstream
-omits the length entirely for a pattern ending in a `RestElement`, so the
-iterable is truncated (`b === []` instead of the remaining items) and SSR
-disagrees with CSR — a hydration-mismatch source.
+The two SSR destructuring seeds this corpus also surfaced — #2033 (computed /
+quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
+with a rest element) — were resolved by #2036, which mirrored #2010's client
+destructuring fixes onto the server target.
 
 ## Hard-cluster warnings for future work
 
