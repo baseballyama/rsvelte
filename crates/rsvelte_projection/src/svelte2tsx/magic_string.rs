@@ -635,23 +635,24 @@ impl<'a> MappingState<'a> {
             return;
         }
 
-        if content.is_ascii() {
-            let mut line_start = 0;
-            for newline in memchr::memchr_iter(b'\n', content.as_bytes()) {
-                self.generated_column += (newline - line_start) as i64;
-                self.advance_line();
-                line_start = newline + 1;
+        let mut generated_column = self.generated_column;
+        let mut starts_line = false;
+        // Valid UTF-8 contributes one unit per leading byte and one extra for astral leads.
+        for &byte in content.as_bytes() {
+            match byte {
+                b'\n' => {
+                    self.mappings.push(';');
+                    generated_column = 0;
+                    starts_line = true;
+                }
+                0x00..=0x7f | 0xc0..=0xef => generated_column += 1,
+                0xf0..=0xff => generated_column += 2,
+                _ => {}
             }
-            self.generated_column += (content.len() - line_start) as i64;
-            return;
         }
-
-        for ch in content.chars() {
-            if ch == '\n' {
-                self.advance_line();
-            } else {
-                self.generated_column += ch.len_utf16() as i64;
-            }
+        self.generated_column = generated_column;
+        if starts_line {
+            self.first_segment_on_line = true;
         }
     }
 
