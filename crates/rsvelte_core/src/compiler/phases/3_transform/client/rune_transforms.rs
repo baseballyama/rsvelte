@@ -1257,58 +1257,49 @@ pub(super) fn process_derived_array_pattern(
     Some(())
 }
 
-pub(super) fn split_derived_object_properties(inner: &str) -> Vec<String> {
-    let mut properties = Vec::new();
-    let mut current = String::new();
-    let mut depth = 0;
-    for c in inner.chars() {
-        match c {
-            '{' | '[' | '(' => {
-                depth += 1;
-                current.push(c);
-            }
-            '}' | ']' | ')' => {
-                depth -= 1;
-                current.push(c);
-            }
-            ',' if depth == 0 => {
-                if !current.trim().is_empty() {
-                    properties.push(current.trim().to_string());
-                }
-                current = String::new();
-            }
-            _ => current.push(c),
+/// Split a destructuring pattern body on its top-level `,` separators, skipping
+/// nested patterns, string/template literals and comments — a comma inside a
+/// default value (`b = 'x,y'`) is not a separator.
+fn split_top_level_commas(inner: &str) -> Vec<&str> {
+    let bytes = inner.as_bytes();
+    let mut segments = Vec::new();
+    let mut depth = 0i32;
+    let mut start = 0usize;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if let Some(end) = skip_literal_or_comment(bytes, i) {
+            i = end + 1;
+            continue;
         }
+        match bytes[i] {
+            b'{' | b'[' | b'(' => depth += 1,
+            b'}' | b']' | b')' => depth -= 1,
+            b',' if depth == 0 => {
+                segments.push(&inner[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
     }
-    if !current.trim().is_empty() {
-        properties.push(current.trim().to_string());
-    }
-    properties
+    segments.push(&inner[start..]);
+    segments
+}
+
+pub(super) fn split_derived_object_properties(inner: &str) -> Vec<String> {
+    split_top_level_commas(inner)
+        .into_iter()
+        .map(str::trim)
+        .filter(|segment| !segment.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 pub(super) fn split_derived_array_elements(inner: &str) -> Vec<String> {
-    let mut elements = Vec::new();
-    let mut current = String::new();
-    let mut depth = 0;
-    for c in inner.chars() {
-        match c {
-            '{' | '[' | '(' => {
-                depth += 1;
-                current.push(c);
-            }
-            '}' | ']' | ')' => {
-                depth -= 1;
-                current.push(c);
-            }
-            ',' if depth == 0 => {
-                elements.push(current.clone());
-                current = String::new();
-            }
-            _ => current.push(c),
-        }
-    }
-    elements.push(current);
-    elements
+    split_top_level_commas(inner)
+        .into_iter()
+        .map(str::to_string)
+        .collect()
 }
 
 pub(super) fn find_derived_property_colon(prop: &str) -> Option<usize> {
@@ -1334,25 +1325,11 @@ fn scan_property_separators(prop: &str) -> (Option<usize>, Option<usize>) {
     let mut colon = None;
     let mut i = 0;
     while i < bytes.len() {
+        if let Some(end) = skip_literal_or_comment(bytes, i) {
+            i = end + 1;
+            continue;
+        }
         match bytes[i] {
-            b'/' if bytes.get(i + 1) == Some(&b'/') => {
-                while i < bytes.len() && bytes[i] != b'\n' {
-                    i += 1;
-                }
-            }
-            b'/' if bytes.get(i + 1) == Some(&b'*') => {
-                i += 2;
-                while i < bytes.len() && !(bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/')) {
-                    i += 1;
-                }
-                i += 1;
-            }
-            quote @ (b'\'' | b'"' | b'`') => {
-                i += 1;
-                while i < bytes.len() && bytes[i] != quote {
-                    i += if bytes[i] == b'\\' { 2 } else { 1 };
-                }
-            }
             b'{' | b'[' | b'(' => depth += 1,
             b'}' | b']' | b')' => depth -= 1,
             b':' if depth == 0 && colon.is_none() => colon = Some(i),
@@ -1369,4 +1346,33 @@ fn scan_property_separators(prop: &str) -> (Option<usize>, Option<usize>) {
         i += 1;
     }
     (colon, None)
+}
+
+/// Index of the last byte of the comment or string/template literal starting at
+/// `i`, or `None` when `i` does not start one. Callers resume at `end + 1`.
+fn skip_literal_or_comment(bytes: &[u8], i: usize) -> Option<usize> {
+    match bytes[i] {
+        b'/' if bytes.get(i + 1) == Some(&b'/') => {
+            let mut j = i;
+            while j < bytes.len() && bytes[j] != b'\n' {
+                j += 1;
+            }
+            Some(j)
+        }
+        b'/' if bytes.get(i + 1) == Some(&b'*') => {
+            let mut j = i + 2;
+            while j < bytes.len() && !(bytes[j] == b'*' && bytes.get(j + 1) == Some(&b'/')) {
+                j += 1;
+            }
+            Some(j + 1)
+        }
+        quote @ (b'\'' | b'"' | b'`') => {
+            let mut j = i + 1;
+            while j < bytes.len() && bytes[j] != quote {
+                j += if bytes[j] == b'\\' { 2 } else { 1 };
+            }
+            Some(j)
+        }
+        _ => None,
+    }
 }
