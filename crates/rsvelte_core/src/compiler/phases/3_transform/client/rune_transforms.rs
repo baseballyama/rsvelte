@@ -2,12 +2,13 @@
 
 use memchr::memmem;
 
-use super::destructure_transforms::build_fallback_string;
+use super::destructure_transforms::{build_fallback_string, literal_key_value};
 use super::{
     ARRAY_LOOKUP_COUNTER, SCRIPT_ARRAY_COUNTER, find_matching_paren,
     is_function_parameter_in_statement,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
 /// Transform runes for client-side usage with skip and state variable handling.
 pub(super) fn transform_client_runes_with_skip_and_state(
@@ -797,20 +798,30 @@ pub(super) fn derived_prop_access(base_expr: &str, member_base: &str, key: &str)
 /// The `$.exclude_from_object(base, [...])` entry for a non-rest property key.
 /// Upstream turns identifier and `Literal` keys into string literals and every
 /// other computed key into `String(<expr>)`, so the rest subtracts it at runtime.
+///
+/// Unlike the member access, the key list is *not* source-verbatim: upstream
+/// builds it with `b.literal(...)`, a fresh node with no `raw`, so the printer
+/// always emits the decoded value single-quoted.
 pub(super) fn exclude_key_literal(key: &str) -> String {
     if let Some(expr) = computed_key_expr(key) {
-        if is_string_literal_key(expr) {
-            expr.to_string()
-        } else if is_numeric_literal_key(expr) {
-            format!("\"{}\"", expr)
-        } else {
-            format!("String({})", expr)
-        }
-    } else if is_string_literal_key(key) {
-        key.to_string()
-    } else {
-        format!("\"{}\"", key)
+        return match literal_key_value(expr) {
+            Some(value) => quote_exclude_key(&value),
+            None => format!("String({})", expr),
+        };
     }
+    // A non-computed key is either a literal or an identifier, whose name is
+    // already its own value — only a literal needs the re-parse.
+    if !is_string_literal_key(key) && !is_numeric_literal_key(key) {
+        return quote_exclude_key(key);
+    }
+    match literal_key_value(key) {
+        Some(value) => quote_exclude_key(&value),
+        None => quote_exclude_key(key),
+    }
+}
+
+fn quote_exclude_key(value: &str) -> String {
+    format!("'{}'", escape_js_string(value))
 }
 
 pub(super) fn process_derived_object_pattern(
@@ -841,8 +852,10 @@ pub(super) fn process_derived_object_pattern(
     }
 
     // Collect all non-rest property keys for $.exclude_from_object
+    let has_rest = properties.iter().any(|prop| prop.trim().starts_with("..."));
     let excluded_keys: Vec<String> = properties
         .iter()
+        .filter(|_| has_rest)
         .filter_map(|prop| {
             let prop = prop.trim();
             if prop.is_empty() || prop.starts_with("...") {
@@ -1068,8 +1081,10 @@ pub(super) fn process_nested_pattern_elements(
         let properties = split_derived_object_properties(inner);
 
         // Collect all non-rest property keys for $.exclude_from_object
+        let has_rest = properties.iter().any(|prop| prop.trim().starts_with("..."));
         let excluded_keys: Vec<String> = properties
             .iter()
+            .filter(|_| has_rest)
             .filter_map(|prop| {
                 let prop = prop.trim();
                 if prop.is_empty() || prop.starts_with("...") {

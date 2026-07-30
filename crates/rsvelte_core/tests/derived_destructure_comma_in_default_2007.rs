@@ -84,7 +84,7 @@ fn comma_inside_a_string_default_does_not_leak_into_the_rest() {
 <p>{a}{b}{r}</p>"#,
     );
     assert!(
-        out.contains(r#"$.exclude_from_object(props, ["a", "b"])"#),
+        out.contains(r#"$.exclude_from_object(props, ['a', 'b'])"#),
         "expected exactly the two real keys in the exclusion list. Got:\n{out}"
     );
 }

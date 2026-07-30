@@ -22,7 +22,7 @@ use oxc_syntax::scope::ScopeFlags;
 use oxc_syntax::scope::ScopeId;
 use rustc_hash::FxHashSet;
 
-use super::destructure_transforms::{build_fallback_string, unthunk_string};
+use super::destructure_transforms::{build_fallback_string, js_number_to_string, unthunk_string};
 use super::expression_utils::{
     contains_direct_await_in_expression, extract_enclosing_function_name, extract_trace_call_label,
     find_trace_source_location, strip_top_level_await_from_expr,
@@ -1042,15 +1042,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         }
         match &prop.key {
             PropertyKey::StringLiteral(s) => format!("'{}'", escape_js_string(s.value.as_str())),
-            // `String(<number>)` drops the fractional part of an integer.
-            PropertyKey::NumericLiteral(n) => {
-                let value = if n.value.fract() == 0.0 && n.value.abs() < i64::MAX as f64 {
-                    (n.value as i64).to_string()
-                } else {
-                    n.value.to_string()
-                };
-                format!("'{}'", value)
-            }
+            PropertyKey::NumericLiteral(n) => format!("'{}'", js_number_to_string(n.value)),
             key => {
                 let span = key.span();
                 format!(

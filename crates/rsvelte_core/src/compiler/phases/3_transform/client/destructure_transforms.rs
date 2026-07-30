@@ -1155,6 +1155,44 @@ pub(super) fn string_is_simple_expression(s: &str) -> bool {
     }
 }
 
+/// The *value* of a literal destructuring key's source text, or `None` when the
+/// text is not a literal. Upstream rebuilds `$.exclude_from_object` keys with
+/// `b.literal(...)`, which carries no `raw`, so the printed key is the decoded
+/// value — `"aAb"` becomes `'aAb'`. Re-parsing with oxc is the only way to
+/// resolve escape sequences exactly.
+pub(super) fn literal_key_value(source: &str) -> Option<String> {
+    let allocator = Allocator::default();
+    let wrapped = format!("({})", source.trim());
+    let ret = Parser::new(&allocator, &wrapped, SourceType::mjs())
+        .with_options(ParseOptions {
+            preserve_parens: false,
+            ..ParseOptions::default()
+        })
+        .parse();
+    if !ret.diagnostics.is_empty() || ret.program.body.len() != 1 {
+        return None;
+    }
+    let Some(Statement::ExpressionStatement(stmt)) = ret.program.body.first() else {
+        return None;
+    };
+    match &stmt.expression {
+        Expression::StringLiteral(lit) => Some(lit.value.to_string()),
+        Expression::NumericLiteral(lit) => Some(js_number_to_string(lit.value)),
+        Expression::BooleanLiteral(lit) => Some(lit.value.to_string()),
+        Expression::NullLiteral(_) => Some("null".to_string()),
+        _ => None,
+    }
+}
+
+/// `String(<number>)` drops the fractional part of an integer.
+pub(super) fn js_number_to_string(value: f64) -> String {
+    if value.fract() == 0.0 && value.abs() < i64::MAX as f64 {
+        (value as i64).to_string()
+    } else {
+        value.to_string()
+    }
+}
+
 /// Faithful port of the official compiler's `is_simple_expression()` from `utils/ast.js`.
 fn expression_is_simple(expr: &Expression<'_>) -> bool {
     match expr {

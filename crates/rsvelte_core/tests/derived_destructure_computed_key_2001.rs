@@ -54,7 +54,7 @@ fn computed_key_is_excluded_from_rest_at_runtime() {
     // Upstream pushes `String(<key expr>)` for a computed key so the rest
     // subtracts it at runtime.
     assert!(
-        out.contains(r#"$.exclude_from_object(obj, ["a", String(k)])"#),
+        out.contains(r#"$.exclude_from_object(obj, ['a', String(k)])"#),
         "expected the computed key in the exclusion list. Got:\n{out}"
     );
 }
@@ -98,7 +98,7 @@ fn quoted_key_uses_bracket_notation() {
     );
     // A `Literal` key stays a plain string in the exclusion list — no `String(...)`.
     assert!(
-        out.contains(r#"$.exclude_from_object(obj, ["a", 'weird-name'])"#),
+        out.contains(r#"$.exclude_from_object(obj, ['a', 'weird-name'])"#),
         "expected the literal key in the exclusion list. Got:\n{out}"
     );
 }
@@ -117,7 +117,7 @@ fn numeric_key_uses_bracket_notation() {
         "expected `obj[0]`, not `obj.0`. Got:\n{out}"
     );
     assert!(
-        out.contains(r#"$.exclude_from_object(obj, ["a", "0"])"#),
+        out.contains(r#"$.exclude_from_object(obj, ['a', '0'])"#),
         "expected the numeric key stringified in the exclusion list. Got:\n{out}"
     );
 }
