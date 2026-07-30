@@ -1,1 +1,5 @@
-[]
+[
+	"pattern/issues/2001-derived-computed-key.svelte",
+	"pattern/issues/2014-derived-array-rest-arity.svelte",
+	"pattern/matrix/snippet-hoist/attach-component-scope-in-if.svelte"
+]
