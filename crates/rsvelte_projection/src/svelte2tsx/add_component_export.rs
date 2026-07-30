@@ -77,7 +77,9 @@ pub(crate) fn add_component_export(
         options.is_ts_file,
     );
     let bindings_str = exported_names.create_bindings_str(is_svelte5);
-    let safe_name = format!("{}__SvelteComponent_", component_name);
+    let mut safe_name = String::with_capacity(component_name.len() + "__SvelteComponent_".len());
+    safe_name.push_str(component_name);
+    safe_name.push_str("__SvelteComponent_");
 
     // Extract @component documentation from HTML comments
     let component_doc = extract_component_documentation(&ast.fragment);
@@ -237,21 +239,21 @@ pub(crate) fn add_component_export(
                         closing.push_str(doc);
                         closing.push('\n');
                     }
-                    let _ = writeln!(
-                        closing,
-                        "export const {} = __sveltets_2_fn_component({});",
-                        safe_name, render_call
+                    closing.push_str("export const ");
+                    closing.push_str(&safe_name);
+                    closing.push_str(" = __sveltets_2_fn_component(");
+                    closing.push_str(render_call);
+                    closing.push_str(");\n");
+                    closing.push_str(
+                        "/*\u{03A9}ignore_start\u{03A9}*//** @typedef {ReturnType<typeof ",
                     );
-                    let _ = writeln!(
-                        closing,
-                        "/*\u{03A9}ignore_start\u{03A9}*//** @typedef {{ReturnType<typeof {}>}} {} */",
-                        safe_name, safe_name
-                    );
-                    let _ = write!(
-                        closing,
-                        "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
-                        safe_name
-                    );
+                    closing.push_str(&safe_name);
+                    closing.push_str(">} ");
+                    closing.push_str(&safe_name);
+                    closing.push_str(" */\n");
+                    closing.push_str("/*\u{03A9}ignore_end\u{03A9}*/export default ");
+                    closing.push_str(&safe_name);
+                    closing.push(';');
                 } else if has_generics {
                     // Runes + generics: `__sveltets_2_fn_component($$render())`
                     // discards `T` ($$render is called without `<T>` and the
@@ -307,21 +309,19 @@ pub(crate) fn add_component_export(
                         closing.push_str(doc);
                         closing.push('\n');
                     }
-                    let _ = writeln!(
-                        closing,
-                        "const {} = __sveltets_2_fn_component({});",
-                        safe_name, render_call
-                    );
-                    let _ = writeln!(
-                        closing,
-                        "/*\u{03A9}ignore_start\u{03A9}*/type {} = ReturnType<typeof {}>;",
-                        safe_name, safe_name
-                    );
-                    let _ = write!(
-                        closing,
-                        "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
-                        safe_name
-                    );
+                    closing.push_str("const ");
+                    closing.push_str(&safe_name);
+                    closing.push_str(" = __sveltets_2_fn_component(");
+                    closing.push_str(render_call);
+                    closing.push_str(");\n");
+                    closing.push_str("/*\u{03A9}ignore_start\u{03A9}*/type ");
+                    closing.push_str(&safe_name);
+                    closing.push_str(" = ReturnType<typeof ");
+                    closing.push_str(&safe_name);
+                    closing.push_str(">;\n");
+                    closing.push_str("/*\u{03A9}ignore_end\u{03A9}*/export default ");
+                    closing.push_str(&safe_name);
+                    closing.push(';');
                 }
             } else if has_generics {
                 // Generics component export: __sveltets_Render + $$IsomorphicComponent
@@ -470,7 +470,11 @@ pub(crate) fn add_component_export(
                     closing.push_str(doc);
                     closing.push('\n');
                 }
-                let _ = write!(closing, "const {} = {}(", safe_name, component_fn);
+                closing.push_str("const ");
+                closing.push_str(&safe_name);
+                closing.push_str(" = ");
+                closing.push_str(component_fn);
+                closing.push('(');
                 write_prop_def(
                     &mut closing,
                     exported_names,
@@ -479,16 +483,14 @@ pub(crate) fn add_component_export(
                     render_call,
                 );
                 closing.push_str(");\n");
-                let _ = writeln!(
-                    closing,
-                    "/*\u{03A9}ignore_start\u{03A9}*/type {} = InstanceType<typeof {}>;",
-                    safe_name, safe_name
-                );
-                let _ = write!(
-                    closing,
-                    "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
-                    safe_name
-                );
+                closing.push_str("/*\u{03A9}ignore_start\u{03A9}*/type ");
+                closing.push_str(&safe_name);
+                closing.push_str(" = InstanceType<typeof ");
+                closing.push_str(&safe_name);
+                closing.push_str(">;\n");
+                closing.push_str("/*\u{03A9}ignore_end\u{03A9}*/export default ");
+                closing.push_str(&safe_name);
+                closing.push(';');
             }
         }
     }
