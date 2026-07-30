@@ -49,10 +49,14 @@ in [`compatibility/`](../../compatibility/).
 | [beyonk-adventures/svelte-toggle](https://github.com/beyonk-adventures/svelte-toggle) | `submodules/svelte-toggle` | Toggle (awesome-svelte) |
 | [vatro/svelthree](https://github.com/vatro/svelthree) | `submodules/svelthree` | Three.js components (awesome-svelte) |
 | [CriticalMoments/CMSaasStarter](https://github.com/CriticalMoments/CMSaasStarter) | `submodules/cmsaasstarter` | SvelteKit SaaS starter (awesome-svelte) |
+| [skeletonlabs/skeleton](https://github.com/skeletonlabs/skeleton) | `submodules/skeleton` | UI library + docs/playground monorepo (also the svelte-check e2e gate) |
 
 Every source is **pinned by its submodule gitlink** and bumped by
 `auto-update-submodules.yml` (weekly PR per submodule; svelte itself goes through
-`auto-update-svelte.yml`). For the real-world projects only their **shipped**
+`auto-update-svelte.yml`). `skeleton` is the one exception: it also feeds the
+line-number-keyed svelte-check e2e ratchet, so it is deliberately excluded from
+the weekly bump (see `compatibility/check-e2e-known-failures.md`). For the
+real-world projects only their **shipped**
 `.svelte` / `.svelte.(js|ts)` files are collected — their markdown docs are
 skipped (they carry non-Svelte doc tooling and truncated pseudo-code the official
 compiler itself rejects, which is noise, not a compatibility gap). Each source is
@@ -276,6 +280,7 @@ the compile corpus pins:
 | [themesberg/flowbite-svelte](https://github.com/themesberg/flowbite-svelte) | `submodules/flowbite-svelte` gitlink | real-world |
 | [melt-ui/melt-ui](https://github.com/melt-ui/melt-ui) | `submodules/melt-ui` gitlink | real-world |
 | [huntabyte/shadcn-svelte](https://github.com/huntabyte/shadcn-svelte) | `submodules/shadcn-svelte` gitlink | real-world |
+| [skeletonlabs/skeleton](https://github.com/skeletonlabs/skeleton) | `submodules/skeleton` gitlink | real-world |
 
 The two eslint repos' rule/parser fixtures, docs snippets and demo components
 exercise exactly the surface the linter must match; the real-world libraries add
@@ -290,7 +295,7 @@ engines, diffed.)
 ### How it works
 
 ```bash
-pnpm run lint-corpus:sync             # init the eslint + real-world (bits-ui/flowbite/melt/shadcn) submodules
+pnpm run lint-corpus:sync             # init the eslint + real-world (bits-ui/flowbite/melt/shadcn/skeleton) submodules
 pnpm run lint-corpus:oracle-install   # install the pinned real eslint-plugin-svelte (oracle)
 cargo build --profile dist-lint --bin rsvelte-lint   # `panic = "unwind"` → per-file panic isolation holds
 pnpm run lint-corpus:collect          # gather .svelte sources -> compatibility/lint-sources/

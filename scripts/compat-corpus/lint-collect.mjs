@@ -44,7 +44,8 @@ const REPOS = [
 	{ name: 'bits-ui', dir: 'submodules/bits-ui', markdown: false },
 	{ name: 'flowbite-svelte', dir: 'submodules/flowbite-svelte', markdown: false },
 	{ name: 'melt-ui', dir: 'submodules/melt-ui', markdown: false },
-	{ name: 'shadcn-svelte', dir: 'submodules/shadcn-svelte', markdown: false }
+	{ name: 'shadcn-svelte', dir: 'submodules/shadcn-svelte', markdown: false },
+	{ name: 'skeleton', dir: 'submodules/skeleton', markdown: false }
 ];
 
 /** Recursively list files, skipping junk dirs. */
